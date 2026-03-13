@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM procedure WHERE procedure_date LIKE ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "888ac8e208b5ba2f4a11cba52efe48ca6a69ef231380266257ed2c8e73f5c2a0"
+}

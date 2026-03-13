@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,\n                   hp.procedure_date, hp.procedure_amount, hp.payment_method, hp.confirmed_payment_date, hp.actual_payment_amount, hp.payment_status, hp.is_deleted\n            FROM procedure hp\n            JOIN patient p ON hp.patient_id = p.id\n            WHERE p.ssn = $1\n              AND hp.procedure_date >= $2\n              AND hp.procedure_date <= $3\n              AND hp.is_deleted = 0\n              AND p.is_deleted = 0\n            ORDER BY hp.procedure_date ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "patient_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "fund_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "procedure_type_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "procedure_date",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "procedure_amount",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "payment_method",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "confirmed_payment_date",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "actual_payment_amount",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "payment_status",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_deleted",
+        "ordinal": 10,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "62f518a0b9742f2f3cbaf8ab993e7bb11fd8f5bc182f39b801ab04f6a4f4d4ec"
+}

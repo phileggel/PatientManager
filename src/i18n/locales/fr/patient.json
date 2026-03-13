@@ -1,0 +1,52 @@
+{
+  "page": {
+    "title": "Patients",
+    "searchPlaceholder": "Rechercher un patient...",
+    "addDescription": "Ajouter un nouveau patient."
+  },
+  "form": {
+    "name": "Nom du patient",
+    "namePlaceholder": "Entrez le nom du patient",
+    "ssn": "Numéro INS",
+    "ssnPlaceholder": "Entrez le numéro INS (optionnel)",
+    "fundPatientName": "Nom patient caisse",
+    "fundPatientNamePlaceholder": "Entrez le nom patient caisse (optionnel)",
+    "nameRequired": "Le nom du patient est obligatoire"
+  },
+  "list": {
+    "name": "Nom",
+    "ssn": "INS",
+    "latestFund": "Dernière caisse",
+    "latestDate": "Dernière date",
+    "loading": "Chargement des patients...",
+    "noData": "Aucun patient trouvé."
+  },
+  "action": {
+    "add": "Ajouter un patient",
+    "adding": "Ajout en cours...",
+    "update": "Mettre à jour",
+    "updating": "Mise à jour...",
+    "editTitle": "Modifier le patient",
+    "addSuccess": "Patient \"{{name}}\" ajouté avec succès",
+    "addError": "Échec de l'ajout du patient : {{error}}",
+    "updateSuccess": "Patient \"{{name}}\" mis à jour avec succès",
+    "updateError": "Échec de la mise à jour du patient : {{error}}",
+    "editAriaLabel": "Modifier le patient {{name}}",
+    "deleteAriaLabel": "Supprimer le patient {{name}}",
+    "delete": {
+      "title": "Supprimer un patient",
+      "message": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
+      "confirm": "Supprimer",
+      "success": "Patient \"{{name}}\" supprimé avec succès",
+      "error": "Échec de la suppression du patient : {{error}}",
+      "failedFallback": "Échec de la suppression du patient"
+    }
+  },
+  "modal": {
+    "latestProcedure": "Dernière procédure",
+    "procedureType": "Type d'acte",
+    "fund": "Caisse",
+    "date": "Date",
+    "amount": "Montant"
+  }
+}

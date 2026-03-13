@@ -1,0 +1,213 @@
+{
+  "statement": {
+    "title": "Rapprochement Bancaire",
+    "matchResults": {
+      "matched": "Lignes rapprochées",
+      "unmatched": "À valider",
+      "columns": {
+        "line": "Ligne du relevé",
+        "group": "Groupe à rapprocher (± {{days}} jours)",
+        "status": "Statut"
+      },
+      "select": {
+        "placeholder": "-- Aucun groupe sélectionné --"
+      },
+      "option": {
+        "exactAmount": " (Montant exact)",
+        "alreadyUsed": " [Déjà utilisé]"
+      },
+      "search": {
+        "active": "Recherche étendue active (Toutes caisses)",
+        "expand": "Pas la bonne caisse ? Chercher partout"
+      },
+      "match": {
+        "confirmed": "Rapprochement validé avec le groupe du {{date}}"
+      },
+      "candidates": {
+        "found": "{{count}} candidat(s) trouvé(s) à ± {{days}} jours.",
+        "foundAllFunds": "{{count}} candidat(s) trouvé(s) sur toutes les caisses à ± {{days}} jours.",
+        "none": "Aucun groupe non réglé trouvé à ± {{days}} jours."
+      }
+    },
+    "description": "Téléchargez un relevé bancaire PDF pour rapprocher les virements reçus avec les groupes de paiement en attente.",
+    "selectButton": "Sélectionner un relevé bancaire",
+    "acceptedFormats": "Formats acceptés : PDF",
+    "modal": {
+      "loading": "Analyse du relevé bancaire...",
+      "matching": "Rapprochement en cours...",
+      "closeAria": "Fermer",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "validate": "Valider le rapprochement",
+      "creating": "Création...",
+      "noCredit": "Aucune ligne de crédit n'a pu être associée à un organisme.",
+      "noIban": "Aucun IBAN trouvé dans le relevé bancaire.",
+      "noTransfer": "Aucun virement n'a été sélectionné.",
+      "noAccount": {
+        "title": "Compte bancaire non trouvé",
+        "description": "L'IBAN {{iban}} ne correspond à aucun compte bancaire enregistré.",
+        "hint": "Créez d'abord un compte bancaire avec cet IBAN dans la section \"Comptes Bancaires\"."
+      },
+      "done": "{{count}} virement(s) créé(s) avec succès",
+      "doneDescription": "Les virements ont été enregistrés et les groupes de paiement sont maintenant rapprochés.",
+      "error": "Erreur"
+    }
+  },
+  "labelMapping": {
+    "title": "Labels non reconnus",
+    "description": "Les labels suivants apparaissent sur le relevé bancaire mais ne sont pas encore associés à un organisme. Veuillez sélectionner l'organisme correspondant ou \"REJETÉ\" si la ligne ne correspond pas à un virement d'un organisme.",
+    "suggestion": "Suggestion : {{name}}",
+    "selectPlaceholder": "-- Sélectionner --",
+    "rejected": "REJETÉ (Pas un organisme)",
+    "fundsGroup": "Organismes",
+    "fundAriaLabel": "Organisme pour {{label}}",
+    "confirm": "Confirmer les associations",
+    "saving": "Enregistrement..."
+  },
+  "transfer": {
+    "date": "Date du virement *",
+    "amount": "Montant *",
+    "type": "Type *",
+    "selectType": "Sélectionner un type",
+    "typeFund": "Caisse",
+    "typeCheck": "Chèque",
+    "typeCreditCard": "Carte de crédit",
+    "selectedFund": "Caisse : {{name}}",
+    "noFund": "Aucune caisse sélectionnée",
+    "changeFund": "Modifier la caisse",
+    "selectFund": "Sélectionner la caisse",
+    "selectedPatient": "Patient : {{name}}",
+    "noPatient": "Aucun patient sélectionné",
+    "changePatient": "Modifier le patient",
+    "selectPatient": "Sélectionner le patient",
+    "bankAccount": "Compte bancaire *",
+    "selectBankAccount": "Sélectionner un compte bancaire",
+    "createButton": "Créer le virement",
+    "creating": "Création...",
+    "manager": {
+      "title": "Virements Bancaires",
+      "searchPlaceholder": "Rechercher un virement...",
+      "panelTitle": "Créer un virement",
+      "panelDescription": "Ajouter un nouveau virement bancaire.",
+      "delete": {
+        "title": "Supprimer le virement bancaire ?",
+        "message": "Êtes-vous sûr de vouloir supprimer ce virement bancaire ? Cette action est irréversible.",
+        "confirm": "Supprimer",
+        "cancel": "Annuler"
+      },
+      "success": {
+        "deleted": "Virement bancaire supprimé avec succès"
+      },
+      "error": {
+        "delete": "Échec de la suppression du virement bancaire"
+      }
+    },
+    "list": {
+      "loading": "Chargement...",
+      "empty": "Aucun virement bancaire. Créez-en un via le formulaire.",
+      "columns": {
+        "date": "Date",
+        "amount": "Montant",
+        "type": "Type",
+        "bankAccount": "Compte bancaire",
+        "source": "Source"
+      }
+    },
+    "edit": {
+      "title": "Modifier le virement bancaire",
+      "update": "Mettre à jour",
+      "sourceHint": "Format : fund_xxxxx pour les caisses ou patient_xxx pour les patients",
+      "success": "Virement bancaire mis à jour avec succès",
+      "error": "Échec de la mise à jour du virement bancaire",
+      "errorUnknown": "Une erreur inattendue s'est produite",
+      "errorInvalidAccount": "Le compte bancaire sélectionné est invalide",
+      "errorInvalidForm": "Veuillez remplir tous les champs avec des valeurs valides"
+    },
+    "add": {
+      "success": "Virement bancaire créé avec succès !",
+      "error": "Erreur : {{error}}",
+      "errorUnknown": "Une erreur inattendue s'est produite"
+    },
+    "validate": {
+      "dateRequired": "La date du virement est obligatoire",
+      "amountRequired": "Le montant est obligatoire",
+      "amountPositive": "Le montant doit être supérieur à 0",
+      "bankAccountRequired": "Le compte bancaire est obligatoire",
+      "sourceRequired": "La source est obligatoire (sélectionnez une caisse ou un patient)"
+    },
+    "selectFundModal": {
+      "title": "Sélectionner une caisse",
+      "searchPlaceholder": "Rechercher par nom ou identifiant...",
+      "empty": "Aucune caisse disponible",
+      "noMatch": "Aucune caisse correspondante",
+      "columns": {
+        "name": "Nom",
+        "identifier": "Identifiant"
+      }
+    },
+    "selectPatientModal": {
+      "title": "Sélectionner un patient",
+      "searchPlaceholder": "Rechercher par nom ou INS...",
+      "empty": "Aucun patient disponible",
+      "noMatch": "Aucun patient correspondant",
+      "na": "N/A",
+      "columns": {
+        "name": "Nom",
+        "ssn": "INS",
+        "latestDate": "Dernière date"
+      }
+    }
+  },
+  "account": {
+    "manager": {
+      "title": "Comptes Bancaires",
+      "searchPlaceholder": "Rechercher un compte bancaire...",
+      "panelTitle": "Ajouter un compte bancaire",
+      "panelDescription": "Ajouter un nouveau compte bancaire."
+    },
+    "list": {
+      "columns": {
+        "name": "Nom",
+        "iban": "IBAN",
+        "id": "ID"
+      },
+      "loading": "Chargement des comptes bancaires...",
+      "empty": "Aucun compte bancaire trouvé.",
+      "delete": {
+        "title": "Supprimer le compte bancaire",
+        "message": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
+        "confirm": "Supprimer"
+      },
+      "success": {
+        "deleted": "Compte \"{{name}}\" supprimé avec succès"
+      },
+      "error": {
+        "delete": "Échec de la suppression du compte : {{error}}"
+      }
+    },
+    "add": {
+      "nameRequired": "Le nom du compte bancaire est obligatoire",
+      "success": "Compte bancaire créé avec succès",
+      "error": "Échec de la création du compte bancaire",
+      "errorUnknown": "Erreur inattendue lors de la création du compte bancaire"
+    },
+    "edit": {
+      "title": "Modifier le compte bancaire",
+      "nameRequired": "Le nom du compte bancaire est obligatoire",
+      "cancel": "Annuler",
+      "update": "Mettre à jour",
+      "updating": "Mise à jour...",
+      "success": "Compte bancaire \"{{name}}\" mis à jour avec succès",
+      "error": "Échec de la mise à jour du compte bancaire : {{error}}",
+      "errorUnknown": "Une erreur inattendue s'est produite. Veuillez réessayer."
+    },
+    "form": {
+      "name": "Nom du compte",
+      "namePlaceholder": "ex. : Compte principal",
+      "iban": "IBAN",
+      "ibanPlaceholder": "ex. : FR76 0000 0000 0000 0000 0000 000"
+    },
+    "createButton": "Créer un compte bancaire",
+    "creating": "Création..."
+  }
+}

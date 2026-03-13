@@ -1,0 +1,131 @@
+{
+  "form": {
+    "patient": "Patient",
+    "fund": "Fund",
+    "procedureType": "Procedure Type",
+    "procedureDate": "Procedure Date",
+    "amount": "Amount",
+    "paymentMethod": "Payment Method",
+    "paymentDate": "Payment Date",
+    "noSelection": "—",
+    "selectPatient": "Enter patient name",
+    "selectFund": "Enter fund identifier or name",
+    "selectProcedureType": "Enter procedure type name",
+    "selectPaymentMethod": "Select payment method",
+    "payment": {
+      "none": "—",
+      "cash": "Cash",
+      "check": "Check",
+      "card": "Card",
+      "transfer": "Transfer"
+    },
+    "cardTitle": "Add Procedure"
+  },
+  "action": {
+    "add": "Add Procedure",
+    "adding": "Adding...",
+    "update": "Update",
+    "updating": "Updating...",
+    "editTitle": "Edit procedure",
+    "deleteTitle": "Delete procedure",
+    "delete": {
+      "confirm": "Are you sure you want to delete this procedure?",
+      "success": "Procedure deleted successfully!"
+    }
+  },
+  "table": {
+    "patient": "Patient",
+    "ssn": "SSN",
+    "fundCode": "Fund Code",
+    "fundName": "Fund Name",
+    "procedureType": "Procedure",
+    "date": "DATE",
+    "amount": "Amount",
+    "paymentMethod": "Payment Method",
+    "confirmedDate": "Confirmed Date",
+    "status": "Status"
+  },
+  "status": {
+    "none": "—",
+    "created": "Created",
+    "reconciliated": "Reconciled",
+    "payed": "Paid"
+  },
+  "filter": {
+    "placeholder": "Filter by patient..."
+  },
+  "period": {
+    "month": "Month:",
+    "year": "Year:"
+  },
+  "summary": {
+    "patientsTooltip": "Number of patients in this period",
+    "proceduresTooltip": "Number of procedures in this period",
+    "effectue": "Done",
+    "effectueTooltip": "Total amount done",
+    "recu": "Received",
+    "recuTooltip": "Total amount received",
+    "enAttente": "Pending",
+    "enAttenteTooltip": "Total amount pending"
+  },
+  "state": {
+    "loading": "Loading procedures...",
+    "added": "Procedure added successfully!",
+    "updated": "Procedure updated successfully!",
+    "deleted": "Procedure deleted successfully!"
+  },
+  "error": {
+    "loading": "Error loading data",
+    "requiredField": "Required field",
+    "requiredFields": "Please fill in all required fields."
+  },
+  "modal": {
+    "title": "Update Procedure",
+    "closeAriaLabel": "Close",
+    "selectPatient": "Select a patient",
+    "selectProcedureType": "Select a procedure type",
+    "systemInfo": "System Information",
+    "procedureId": "Procedure ID",
+    "patientInfo": "Patient Information",
+    "ssn": "SSN",
+    "fundName": "Fund Name",
+    "paymentInfo": "Payment Information",
+    "status": "Status",
+    "paidAmount": "Paid Amount",
+    "awaitedAmount": "Awaited Amount",
+    "updateError": "Error: {{error}}",
+    "updateUnknown": "An unexpected error occurred"
+  },
+  "createPatient": {
+    "title": "Create New Patient",
+    "nameLabel": "Patient Name",
+    "namePlaceholder": "Enter patient name",
+    "nameRequired": "Patient name is required",
+    "ssnLabel": "SSN (Optional)",
+    "ssnPlaceholder": "Enter SSN (optional)",
+    "submit": "Create Patient"
+  },
+  "createFund": {
+    "title": "Create New Fund",
+    "identifierLabel": "Fund Identifier",
+    "identifierPlaceholder": "Enter fund identifier (e.g., FUND001)",
+    "identifierRequired": "Fund identifier is required",
+    "nameLabel": "Fund Name",
+    "namePlaceholder": "Enter fund name",
+    "nameRequired": "Fund name is required",
+    "submit": "Create Fund"
+  },
+  "createProcedureType": {
+    "title": "Create New Procedure Type",
+    "nameLabel": "Procedure Type Name",
+    "namePlaceholder": "Enter procedure type name",
+    "nameRequired": "Procedure type name is required",
+    "amountLabel": "Default Amount",
+    "amountPlaceholder": "Enter default amount",
+    "amountRequired": "Default amount is required",
+    "amountInvalid": "Default amount must be a valid positive number",
+    "categoryLabel": "Category (Optional)",
+    "categoryPlaceholder": "Enter category (optional)",
+    "submit": "Create Procedure Type"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "loading": "Chargement du tableau de bord...",
+  "error": "Erreur",
+  "loadFailed": "Impossible de charger les données du tableau de bord",
+  "year": "Année :",
+  "title": "Tableau de Bord",
+  "payments": "Paiements {{year}}",
+  "procedures": "Actes {{year}}",
+  "table": {
+    "month": "Mois",
+    "patients": "Nb Patients",
+    "procedures": "Nb Prestations",
+    "total": "Total"
+  },
+  "uncategorized": "Non catégorisé",
+  "welcome": {
+    "title": "Bienvenue",
+    "description": "Le tableau de bord s'affichera ici une fois que vous aurez créé :",
+    "patients": "Des patients",
+    "funds": "Des caisses",
+    "procedureTypes": "Des types de procédures",
+    "procedures": "Des actes de soin",
+    "hint": "Utilisez le menu de navigation pour commencer à saisir des données."
+  }
+}

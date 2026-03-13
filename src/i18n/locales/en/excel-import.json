@@ -1,0 +1,128 @@
+{
+  "step1": {
+    "title": "Step 1: Select File"
+  },
+  "dropzone": {
+    "ariaLabel": "File drop zone",
+    "text": "Drag and drop your Excel file here",
+    "or": "or",
+    "select": "Select File",
+    "processing": "Processing...",
+    "formats": "Supported formats: .xlsx, .xls, .csv",
+    "maxSize": "Maximum file size: 10 MB"
+  },
+  "validation": {
+    "patients": "Patients",
+    "funds": "Healthcare Funds",
+    "procedures": "Procedures",
+    "summaryTitle": "{{type}} Validation Summary",
+    "valid": "Valid",
+    "existing": "Already Exist",
+    "invalid": "Invalid",
+    "percentOfTotal": "{{percent}}% of total",
+    "willProcess": "{{count}} will be processed.",
+    "alreadyInDb": "{{count}} already in database.",
+    "hasErrors_one": "{{count}} entry has errors.",
+    "hasErrors_other": "{{count}} entries have errors."
+  },
+  "createTypeModal": {
+    "title": "Create New Procedure Type",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g., Consultation",
+    "amountLabel": "Default Amount (€)",
+    "nameRequired": "Please enter a procedure type name",
+    "cancel": "Cancel",
+    "create": "Create",
+    "creating": "Creating...",
+    "error": "Failed to create procedure type"
+  },
+  "mapping": {
+    "modalTitle": "Map Procedure Types",
+    "infoTitle": "Map Procedure Amounts to Types",
+    "infoDescription": "For each procedure amount, select the appropriate procedure type or create a new one. Amounts are pre-filled with a default type—please review and change the mapping if needed.",
+    "amount": "Amount",
+    "procedureType": "Procedure Type",
+    "importedFromExcel": "Imported from Excel",
+    "createNew": "+ Create new type...",
+    "continue": "Continue",
+    "processing": "Processing..."
+  },
+  "progress": {
+    "upload": "Upload",
+    "parsing": "Parse",
+    "monthSelection": "Select months",
+    "patients": "Process Patients",
+    "funds": "Process Funds",
+    "mapping": "Map Types",
+    "importing": "Importing",
+    "procedures": "Process Procedures",
+    "complete": "Complete",
+    "stepCompleted": "Step completed"
+  },
+  "monthSelection": {
+    "title": "Select months to import",
+    "description": "Choose which months to import. Existing procedures for selected months will be deleted and replaced. Months with reconciliated procedures cannot be re-imported.",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "monthsSelected": "months selected",
+    "continue": "Continue"
+  },
+  "result": {
+    "title": "Import completed successfully!",
+    "patientsProcessed": "Patients processed",
+    "fundsProcessed": "Funds processed",
+    "proceduresCreated": "Procedures created",
+    "blockedMonthsTitle": "Months not imported (reconciliated procedures)",
+    "importAnother": "Import another file",
+    "viewReport": "View parsing report"
+  },
+  "status": {
+    "validating": "Validating {{type}}...",
+    "creating": "Creating {{count}} {{type}}...",
+    "parsing": "Parsing Excel file...",
+    "retry": "Retry Import",
+    "importFailed": "Import failed"
+  },
+  "error": {
+    "noValidProcedures": "No valid procedures found after mapping. Please ensure procedure types are mapped.",
+    "noValidPatients": "No valid or existing patients found to import",
+    "noValidFunds": "No valid or existing funds found to import",
+    "noValidProceduresImport": "No valid procedures found to import",
+    "failedParseExcel": "Failed to parse Excel file",
+    "failedValidatePatients": "Failed to validate patients",
+    "failedCreatePatients": "Failed to create patients",
+    "failedValidateFunds": "Failed to validate funds",
+    "failedCreateFunds": "Failed to create funds",
+    "failedValidateProcedures": "Failed to validate procedures",
+    "failedCreateProcedures": "Failed to create procedures",
+    "missingWorkflowState": "Missing workflow state"
+  },
+  "parsingReport": {
+    "title": "Parsing Report",
+    "summary": "Summary",
+    "skippedRows": "Skipped rows:",
+    "missingSheets": "Missing sheets:",
+    "missingSheetsTitle": "Missing Month Sheets",
+    "missingSheetsDesc_one": "The following {{count}} month sheet was not found:",
+    "missingSheetsDesc_other": "The following {{count}} month sheets were not found:",
+    "skippedRowsTitle": "Skipped Rows ({{count}})",
+    "colRow": "Row",
+    "colReason": "Reason",
+    "noIssues": "No parsing issues detected",
+    "close": "Close",
+    "months": {
+      "Jan": "January",
+      "Fév": "February",
+      "Mars": "March",
+      "Avr": "April",
+      "Mai": "May",
+      "Juin": "June",
+      "Juil": "July",
+      "Août": "August",
+      "Sep": "September",
+      "Oct": "October",
+      "Nov": "November",
+      "Déc": "December"
+    }
+  }
+}

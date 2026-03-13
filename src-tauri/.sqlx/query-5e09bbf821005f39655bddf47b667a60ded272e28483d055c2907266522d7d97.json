@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE fund_payment_group SET is_deleted = 1 WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "5e09bbf821005f39655bddf47b667a60ded272e28483d055c2907266522d7d97"
+}

@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT id, bank_account_id, bank_label, fund_id\n            FROM bank_fund_label_mapping\n            WHERE bank_account_id = $1 AND is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "bank_account_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "bank_label",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "fund_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "cb0a905d16eee07c999ea6ed4a1937ca123f8624b860513d27e1aa9ac3eb5157"
+}

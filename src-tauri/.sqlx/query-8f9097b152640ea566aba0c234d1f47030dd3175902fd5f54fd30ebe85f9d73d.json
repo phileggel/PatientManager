@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT id, fund_id, payment_date, total_amount\n            FROM fund_payment_group\n            WHERE id = $1 AND is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "fund_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "payment_date",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "total_amount",
+        "ordinal": 3,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8f9097b152640ea566aba0c234d1f47030dd3175902fd5f54fd30ebe85f9d73d"
+}

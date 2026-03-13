@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted\n            FROM procedure\n            WHERE is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "patient_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "fund_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "procedure_type_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "procedure_date",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "procedure_amount",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "payment_method",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "confirmed_payment_date",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "actual_payment_amount",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "payment_status",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_deleted",
+        "ordinal": 10,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "292ed6382b374d649575713c76a8e061407cb901747ff648d77ba19f19de70e0"
+}

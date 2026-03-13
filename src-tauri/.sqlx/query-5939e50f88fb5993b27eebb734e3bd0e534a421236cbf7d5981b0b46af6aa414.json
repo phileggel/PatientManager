@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted\n            FROM patient\n            WHERE is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_anonymous",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "ssn",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "latest_procedure_type",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "latest_fund",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "latest_date",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "latest_procedure_amount",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_deleted",
+        "ordinal": 8,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "5939e50f88fb5993b27eebb734e3bd0e534a421236cbf7d5981b0b46af6aa414"
+}

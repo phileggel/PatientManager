@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT COUNT(*) FROM procedure\n            WHERE procedure_date LIKE ?\n              AND payment_status IN ('RECONCILIATED', 'FUND_PAYED')\n              AND is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "COUNT(*)",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "293b364a41d5c27d5bca9518fd2f2e721494bb95ac7b45817bc18259d0bf3911"
+}

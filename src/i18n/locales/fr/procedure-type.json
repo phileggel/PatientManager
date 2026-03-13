@@ -1,0 +1,45 @@
+{
+  "page": {
+    "title": "Types d'actes",
+    "searchPlaceholder": "Rechercher un type d'acte...",
+    "addDescription": "Ajouter un nouveau type d'acte."
+  },
+  "form": {
+    "name": "Nom du type d'acte",
+    "namePlaceholder": "ex. : Consultation",
+    "amount": "Montant par défaut (€)",
+    "category": "Catégorie",
+    "categoryPlaceholder": "ex. : Médical",
+    "nameRequired": "Le nom est obligatoire",
+    "amountRequired": "Le montant par défaut est obligatoire",
+    "amountInvalid": "Le montant par défaut doit être un nombre valide"
+  },
+  "list": {
+    "name": "Nom",
+    "amount": "Montant par défaut",
+    "category": "Catégorie",
+    "loading": "Chargement des types d'actes...",
+    "noData": "Aucun type d'acte trouvé."
+  },
+  "action": {
+    "add": "Ajouter un type d'acte",
+    "adding": "Ajout en cours...",
+    "update": "Mettre à jour",
+    "updating": "Mise à jour...",
+    "editTitle": "Modifier le type d'acte",
+    "addSuccess": "Type d'acte ajouté avec succès",
+    "addError": "Échec de l'ajout du type d'acte : {{error}}",
+    "updateSuccess": "Type d'acte \"{{name}}\" mis à jour avec succès",
+    "updateError": "Échec de la mise à jour du type d'acte : {{error}}",
+    "editAriaLabel": "Modifier le type d'acte {{name}}",
+    "deleteAriaLabel": "Supprimer le type d'acte {{name}}",
+    "delete": {
+      "title": "Supprimer un type d'acte",
+      "message": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
+      "confirm": "Supprimer",
+      "success": "Type d'acte \"{{name}}\" supprimé avec succès",
+      "error": "Échec de la suppression du type d'acte : {{error}}",
+      "failedFallback": "Échec de la suppression du type d'acte"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id, is_deleted)\n                VALUES ($1, $2, $3, $4, 0)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "b7ac031efcde4abe4b80d1722cb5d9496830d7f342d7627db994617fdcf55e73"
+}

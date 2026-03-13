@@ -1,0 +1,76 @@
+{
+  "add": {
+    "cardTitle": "Add Payment Group",
+    "fund": "Fund *",
+    "paymentDate": "Payment Date *",
+    "modifySelection": "Modify selection",
+    "selectProcedures": "Select procedures",
+    "procedures": "Procedures:",
+    "createButton": "Create Payment",
+    "creating": "Creating...",
+    "success": "Payment group created successfully!"
+  },
+  "action": {
+    "editAriaLabel": "Edit payment for {{name}}",
+    "deleteAriaLabel": "Delete payment for {{name}}"
+  },
+  "form": {
+    "selectFund": "Select a fund",
+    "fundRequired": "Fund is required",
+    "paymentDateRequired": "Payment date is required",
+    "proceduresRequired": "Please select at least one procedure"
+  },
+  "list": {
+    "title": "Payment Groups ({{count}})",
+    "searchPlaceholder": "Search groups...",
+    "loading": "Loading payments...",
+    "empty": "No payment groups found.",
+    "rowEditHint": "Double-click to edit",
+    "columns": {
+      "fund": "Fund",
+      "date": "Date",
+      "amount": "Amount",
+      "procedures": "Procedures",
+      "actions": "Actions"
+    },
+    "delete": {
+      "title": "Delete Payment Group?",
+      "message": "Are you sure you want to delete the payment group for \"{{fundName}}\"? This action cannot be undone.",
+      "confirm": "Delete",
+      "success": "Payment group for \"{{fundName}}\" deleted successfully",
+      "error": "Failed to delete payment group: {{error}}",
+      "failedFallback": "Failed to delete payment group"
+    }
+  },
+  "edit": {
+    "title": "Edit Payment Group",
+    "fundLabel": "Fund",
+    "paymentDateLabel": "Payment Date",
+    "proceduresSelected_one": "{{count}} procedure selected",
+    "proceduresSelected_other": "{{count}} procedures selected",
+    "noProcedures": "No procedures available",
+    "cancel": "Cancel",
+    "update": "Update",
+    "success": "Payment group updated successfully",
+    "errorLoadProcedures": "Failed to load procedures: {{error}}",
+    "errorLoadDetails": "Failed to load procedure details",
+    "errorDateRequired": "Please enter a payment date",
+    "errorProcedureRequired": "Please select at least one procedure",
+    "errorUpdate": "Error: {{error}}",
+    "errorUnknown": "An unexpected error occurred"
+  },
+  "select": {
+    "title": "Select Procedures",
+    "filterLabel": "Filter by Month",
+    "allMonths": "All months",
+    "procedureCount_one": "{{count}} procedure",
+    "procedureCount_other": "{{count}} procedures",
+    "empty": "No procedures available",
+    "linesSelected_one": "{{count}} line selected",
+    "linesSelected_other": "{{count}} lines selected",
+    "reset": "Reset",
+    "cancel": "Cancel",
+    "creating": "Creating...",
+    "addProcedures": "Add Procedures ({{count}})"
+  }
+}

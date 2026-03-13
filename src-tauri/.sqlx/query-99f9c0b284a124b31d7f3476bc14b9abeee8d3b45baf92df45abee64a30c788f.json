@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE fund_payment_group\n            SET payment_date = $1, total_amount = $2\n            WHERE id = $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "99f9c0b284a124b31d7f3476bc14b9abeee8d3b45baf92df45abee64a30c788f"
+}

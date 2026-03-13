@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE procedure_type\n            SET name = $1, default_amount = $2, category = $3\n            WHERE id = $4\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "63e2e9f25ea2151db77e855115d472b6bdeb705cd91874a8d55d04eb20d31d92"
+}

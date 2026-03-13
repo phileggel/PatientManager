@@ -1,0 +1,1 @@
+export { BankStatementPage } from "./BankStatementPage";

@@ -1,0 +1,130 @@
+{
+  "page": {
+    "title": "Rapprochement de relevés de paiement",
+    "subtitle": "Téléchargez un fichier PDF de relevé de paiement pour le rapprocher avec les actes enregistrés dans la base de données.",
+    "selectButton": "Sélectionner un fichier PDF",
+    "formats": "Formats acceptés : PDF",
+    "maxSize": "Taille maximale : 10 Mo",
+    "uploadAriaLabel": "Télécharger un fichier PDF"
+  },
+  "modal": {
+    "title": "Rapprochement PDF",
+    "subtitle": "Fichier : {{name}}",
+    "notAvailable": "Non disponible",
+    "loading": {
+      "content": "Analyse du PDF en cours..."
+    },
+    "error": {
+      "unknown": "Erreur inconnue"
+    },
+    "footer": {
+      "cancel": "Annuler",
+      "autoCorrect": "Corriger automatiquement",
+      "validate": "Valider",
+      "validateSuccess": "Rapprochement validé avec succès"
+    },
+    "blocking": {
+      "banner": "{{count}} anomalie(s) bloquante(s) — la validation est impossible tant qu'elles ne sont pas résolues manuellement."
+    }
+  },
+  "table": {
+    "empty": "Aucune donnée structurée trouvée dans le PDF.",
+    "summary": {
+      "groups_one": "{{count}} groupe",
+      "groups_other": "{{count}} groupes",
+      "lines_one": "{{count}} ligne",
+      "lines_other": "{{count}} lignes",
+      "totalAmount": "Montant total",
+      "pdfStated": "PDF indique :"
+    },
+    "unparsed": {
+      "warning_one": "{{count}} ligne n'a pas pu être analysée.",
+      "warning_other": "{{count}} lignes n'ont pas pu être analysées.",
+      "examples": "Exemples de lignes non reconnues :"
+    },
+    "group": {
+      "payment": "Paiement :",
+      "invalidTotal": "Total invalide"
+    },
+    "columns": {
+      "patient": "Patient",
+      "ssn": "INS",
+      "nature": "Nature",
+      "date": "Date acte",
+      "amount": "Montant"
+    }
+  },
+  "report": {
+    "tab": "Rapport",
+    "title": "Actes non rapprochés",
+    "period": "Période : du {{start}} au {{end}}",
+    "empty": "Tous les actes de la période ont été rapprochés.",
+    "count_one": "{{count}} acte non rapproché sur la période.",
+    "count_other": "{{count}} actes non rapprochés sur la période.",
+    "close": "Fermer",
+    "columns": {
+      "date": "Date acte",
+      "patient": "Patient",
+      "ssn": "INS",
+      "amount": "Montant"
+    }
+  },
+  "results": {
+    "ssn": "INS",
+    "allCorrect": "Tout est correct — aucune anomalie détectée.",
+    "progress": "{{resolved}} / {{total}} résolues",
+    "stepNav": "Anomalie {{current}} sur {{total}}",
+    "issueType": {
+      "notFound": "Acte manquant",
+      "singleMatch": "Anomalie de correspondance",
+      "groupMatch": "Distribution à confirmer",
+      "tooMany": "Intervention manuelle requise"
+    },
+    "badge": {
+      "amountMismatch": "Montant différent",
+      "fundMismatch": "Caisse différente",
+      "dateMismatch": "Date différente"
+    },
+    "pdf": {
+      "label": "Relevé PDF",
+      "patient": "Patient",
+      "ssn": "INS",
+      "date": "Date",
+      "amount": "Montant",
+      "fund": "Caisse"
+    },
+    "db": {
+      "label": "Acte enregistré",
+      "date": "Date",
+      "amount": "Montant",
+      "fund": "Caisse"
+    },
+    "action": {
+      "create": "Créer un nouvel acte",
+      "willCreate": "Sera créé",
+      "link": "Lier cet acte",
+      "linked": "Sera lié",
+      "correctAmount": "Appliquer le montant PDF : {{amount}} €",
+      "correctFund": "Appliquer la caisse du PDF",
+      "correctDate": "Appliquer la date du PDF",
+      "accepted": "Accepté",
+      "validateDistribution": "Valider cette distribution",
+      "contestAmount": "Contester (montant réel : {{amount}} €)"
+    },
+    "nearby": {
+      "title": "Actes proches (INS différent)"
+    },
+    "distribution": {
+      "total": "Total saisi",
+      "expected": "Attendu",
+      "remaining": "Reste : {{diff}} €"
+    },
+    "tooMany": {
+      "description": "{{count}} actes correspondent — rapprochement automatique impossible.",
+      "hint": "Résolvez cette situation manuellement dans la saisie des actes avant de relancer le rapprochement."
+    },
+    "resolved": {
+      "label": "Résolu"
+    }
+  }
+}

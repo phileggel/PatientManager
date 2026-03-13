@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE patient SET is_deleted = 1 WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "03e07d5704c5426644ed9aa11a0a05bab742d93691e07ef62159302bdd8af8d8"
+}

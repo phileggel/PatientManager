@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+# Pre-commit hook
+# Runs quality checks (FAST MODE: lint/format only)
+# Blocks commit on failure
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+echo -e "${YELLOW}🔍 Pre-commit checks running (Fast Mode)...${NC}"
+
+if [ ! -f "$PROJECT_ROOT/scripts/check.sh" ]; then
+  echo -e "${YELLOW}⚠ check.sh not found. Skipping pre-commit checks.${NC}"
+else
+  # English comment: We now use the --fast flag to skip heavy tests and builds
+  if "$PROJECT_ROOT/scripts/check.sh" --fast; then
+    echo -e "${GREEN}✨ Fast checks passed. Commit allowed.${NC}"
+  else
+    echo -e "${RED}❌ Quality checks failed. Commit blocked.${NC}"
+    exit 1
+  fi
+fi
+
+exit 0

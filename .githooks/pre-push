@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# Pre-push hook
+# Runs the FULL quality suite (tests + build + lint)
+# This ensures no broken code is pushed to production
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo -e "${BLUE}🚀 Preparing to push... Running full quality check (Portfolio Manager)${NC}"
+
+if [ ! -f "$PROJECT_ROOT/scripts/check.sh" ]; then
+    echo -e "${YELLOW}⚠ scripts/check.sh not found. Skipping full validation.${NC}"
+    exit 0
+fi
+
+# English: Execute the full check.sh without the --fast flag.
+# This will run Vitest, Cargo tests, and the final production build.
+if "$PROJECT_ROOT/scripts/check.sh"; then
+    echo -e "${GREEN}✅ Full suite passed. Pushing code to remote...${NC}"
+    exit 0
+else
+    echo -e "${RED}❌ Push blocked! One or more checks failed.${NC}"
+    echo -e "${YELLOW}💡 Run './scripts/check.sh --verbose' to debug before trying to push again.${NC}"
+    exit 1
+fi

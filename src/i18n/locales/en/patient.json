@@ -1,0 +1,52 @@
+{
+  "page": {
+    "title": "Patients",
+    "searchPlaceholder": "Search patients...",
+    "addDescription": "Add a new patient."
+  },
+  "form": {
+    "name": "Patient Name",
+    "namePlaceholder": "Enter patient name",
+    "ssn": "Social Security Number",
+    "ssnPlaceholder": "Enter SSN (optional)",
+    "fundPatientName": "Fund Patient Name",
+    "fundPatientNamePlaceholder": "Enter fund patient name (optional)",
+    "nameRequired": "Patient name is required"
+  },
+  "list": {
+    "name": "Name",
+    "ssn": "SSN",
+    "latestFund": "Latest Fund",
+    "latestDate": "Latest Date",
+    "loading": "Loading patients...",
+    "noData": "No patients found."
+  },
+  "action": {
+    "add": "Add Patient",
+    "adding": "Adding...",
+    "update": "Update",
+    "updating": "Updating...",
+    "editTitle": "Update Patient",
+    "addSuccess": "Patient \"{{name}}\" added successfully",
+    "addError": "Failed to add patient: {{error}}",
+    "updateSuccess": "Patient \"{{name}}\" updated successfully",
+    "updateError": "Failed to update patient: {{error}}",
+    "editAriaLabel": "Edit patient {{name}}",
+    "deleteAriaLabel": "Delete patient {{name}}",
+    "delete": {
+      "title": "Delete Patient",
+      "message": "Are you sure you want to delete {{name}}?",
+      "confirm": "Delete",
+      "success": "Patient \"{{name}}\" deleted successfully",
+      "error": "Failed to delete patient: {{error}}",
+      "failedFallback": "Failed to delete patient"
+    }
+  },
+  "modal": {
+    "latestProcedure": "Latest Procedure Information",
+    "procedureType": "Procedure Type",
+    "fund": "Fund",
+    "date": "Date",
+    "amount": "Amount"
+  }
+}

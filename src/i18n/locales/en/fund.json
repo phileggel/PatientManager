@@ -1,0 +1,42 @@
+{
+  "page": {
+    "title": "Funds",
+    "searchPlaceholder": "Search funds...",
+    "addDescription": "Add a new fund."
+  },
+  "form": {
+    "identifier": "Fund Identifier",
+    "identifierPlaceholder": "e.g., FUND-001",
+    "name": "Fund Name",
+    "namePlaceholder": "e.g., Healthcare Fund",
+    "identifierRequired": "Fund identifier is required",
+    "nameRequired": "Fund name is required"
+  },
+  "list": {
+    "identifier": "Identifier",
+    "name": "Name",
+    "loading": "Loading funds...",
+    "noData": "No funds found."
+  },
+  "action": {
+    "add": "Add Fund",
+    "adding": "Adding...",
+    "update": "Update",
+    "updating": "Updating...",
+    "editTitle": "Update Fund",
+    "addSuccess": "Fund \"{{name}}\" added successfully",
+    "addError": "Failed to add fund: {{error}}",
+    "updateSuccess": "Fund \"{{name}}\" updated successfully",
+    "updateError": "Failed to update fund: {{error}}",
+    "editAriaLabel": "Edit fund {{name}}",
+    "deleteAriaLabel": "Delete fund {{name}}",
+    "delete": {
+      "title": "Delete Fund",
+      "message": "Are you sure you want to delete {{name}}?",
+      "confirm": "Delete",
+      "success": "Fund \"{{name}}\" deleted successfully",
+      "error": "Failed to delete fund: {{error}}",
+      "failedFallback": "Failed to delete fund"
+    }
+  }
+}
