@@ -4,6 +4,19 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. v0.9.0)"
+        required: true
+      platform:
+        description: "Platform to build"
+        required: true
+        type: choice
+        options:
+          - macos-x86
+          - macos-arm
+          - linux
 
 jobs:
   build:
@@ -13,14 +26,24 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            auto: true
           - os: macos-latest
             target: x86_64-apple-darwin
+            platform_id: macos-x86
+            auto: false
           - os: macos-latest
             target: aarch64-apple-darwin
+            platform_id: macos-arm
+            auto: false
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+            platform_id: linux
+            auto: false
 
     runs-on: ${{ matrix.os }}
+    if: |
+      matrix.auto == true ||
+      (github.event_name == 'workflow_dispatch' && matrix.platform_id == inputs.platform)
 
     steps:
       - uses: actions/checkout@v4
@@ -61,8 +84,8 @@ jobs:
         with:
           tauriScript: npm run tauri
           args: --target ${{ matrix.target }}
-          tagName: ${{ github.ref_name }}
-          releaseName: "PatientManager ${{ github.ref_name }}"
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          releaseName: "PatientManager ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
           releaseBody: "See the release assets to download and install this version."
           releaseDraft: true
           prerelease: false
