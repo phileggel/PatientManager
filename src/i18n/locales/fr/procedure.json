@@ -1,0 +1,131 @@
+{
+  "form": {
+    "patient": "Patient",
+    "fund": "Caisse",
+    "procedureType": "Type d'acte",
+    "procedureDate": "Date de l'acte",
+    "amount": "Montant",
+    "paymentMethod": "Méthode de paiement",
+    "paymentDate": "Date de paiement",
+    "noSelection": "—",
+    "selectPatient": "Entrez le nom du patient",
+    "selectFund": "Entrez l'identifiant ou le nom de la caisse",
+    "selectProcedureType": "Entrez le type d'acte",
+    "selectPaymentMethod": "Sélectionner une méthode de paiement",
+    "payment": {
+      "none": "—",
+      "cash": "Espèce",
+      "check": "Chèque",
+      "card": "Carte",
+      "transfer": "Virement"
+    },
+    "cardTitle": "Ajouter un acte"
+  },
+  "action": {
+    "add": "Ajouter un acte",
+    "adding": "Ajout en cours...",
+    "update": "Mettre à jour",
+    "updating": "Mise à jour...",
+    "editTitle": "Modifier l'acte",
+    "deleteTitle": "Supprimer l'acte",
+    "delete": {
+      "confirm": "Êtes-vous sûr de vouloir supprimer cet acte ?",
+      "success": "Acte supprimé avec succès !"
+    }
+  },
+  "table": {
+    "patient": "Patient",
+    "ssn": "INS",
+    "fundCode": "Code Mut.",
+    "fundName": "Nom Caisse",
+    "procedureType": "Acte",
+    "date": "DATE ACTE",
+    "amount": "Montant",
+    "paymentMethod": "Méthode Paiement",
+    "confirmedDate": "Date Confirmée",
+    "status": "Statut"
+  },
+  "status": {
+    "none": "—",
+    "created": "Créé",
+    "reconciliated": "Rapproché",
+    "payed": "Réglé"
+  },
+  "filter": {
+    "placeholder": "Filtrer par patient..."
+  },
+  "period": {
+    "month": "Mois :",
+    "year": "Année :"
+  },
+  "summary": {
+    "patientsTooltip": "Nombre de patients dans cette période",
+    "proceduresTooltip": "Nombre d'actes (prestations) dans cette période",
+    "effectue": "Effectué",
+    "effectueTooltip": "Montant total effectué",
+    "recu": "Reçu",
+    "recuTooltip": "Montant total reçu",
+    "enAttente": "En attente",
+    "enAttenteTooltip": "Montant total en attente"
+  },
+  "state": {
+    "loading": "Chargement des actes...",
+    "added": "Acte ajouté avec succès !",
+    "updated": "Acte mis à jour avec succès !",
+    "deleted": "Acte supprimé avec succès !"
+  },
+  "error": {
+    "loading": "Erreur de chargement des données",
+    "requiredField": "Champ obligatoire",
+    "requiredFields": "Veuillez remplir tous les champs obligatoires."
+  },
+  "modal": {
+    "title": "Modifier l'acte",
+    "closeAriaLabel": "Fermer",
+    "selectPatient": "Sélectionner un patient",
+    "selectProcedureType": "Sélectionner un type d'acte",
+    "systemInfo": "Informations système",
+    "procedureId": "ID de l'acte",
+    "patientInfo": "Informations patient",
+    "ssn": "INS",
+    "fundName": "Nom de la caisse",
+    "paymentInfo": "Informations de paiement",
+    "status": "Statut",
+    "paidAmount": "Montant payé",
+    "awaitedAmount": "Montant en attente",
+    "updateError": "Erreur : {{error}}",
+    "updateUnknown": "Une erreur inattendue s'est produite"
+  },
+  "createPatient": {
+    "title": "Créer un nouveau patient",
+    "nameLabel": "Nom du patient",
+    "namePlaceholder": "Entrez le nom du patient",
+    "nameRequired": "Le nom du patient est obligatoire",
+    "ssnLabel": "INS (Optionnel)",
+    "ssnPlaceholder": "Entrez le numéro INS (optionnel)",
+    "submit": "Créer le patient"
+  },
+  "createFund": {
+    "title": "Créer une nouvelle caisse",
+    "identifierLabel": "Identifiant caisse",
+    "identifierPlaceholder": "Entrez l'identifiant (ex. : CPAM75)",
+    "identifierRequired": "L'identifiant caisse est obligatoire",
+    "nameLabel": "Nom de la caisse",
+    "namePlaceholder": "Entrez le nom de la caisse",
+    "nameRequired": "Le nom de la caisse est obligatoire",
+    "submit": "Créer la caisse"
+  },
+  "createProcedureType": {
+    "title": "Créer un nouveau type d'acte",
+    "nameLabel": "Nom du type d'acte",
+    "namePlaceholder": "Entrez le nom du type d'acte",
+    "nameRequired": "Le nom du type d'acte est obligatoire",
+    "amountLabel": "Montant par défaut",
+    "amountPlaceholder": "Entrez le montant par défaut",
+    "amountRequired": "Le montant par défaut est obligatoire",
+    "amountInvalid": "Le montant par défaut doit être un nombre positif valide",
+    "categoryLabel": "Catégorie (Optionnel)",
+    "categoryPlaceholder": "Entrez une catégorie (optionnel)",
+    "submit": "Créer le type d'acte"
+  }
+}

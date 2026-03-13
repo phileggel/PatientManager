@@ -1,0 +1,128 @@
+{
+  "step1": {
+    "title": "Étape 1 : Sélectionner un fichier"
+  },
+  "dropzone": {
+    "ariaLabel": "Zone de dépôt de fichier",
+    "text": "Glissez-déposez votre fichier Excel ici",
+    "or": "ou",
+    "select": "Sélectionner un fichier",
+    "processing": "Traitement...",
+    "formats": "Formats supportés : .xlsx, .xls, .csv",
+    "maxSize": "Taille maximale : 10 Mo"
+  },
+  "validation": {
+    "patients": "Patients",
+    "funds": "Caisses",
+    "procedures": "Actes",
+    "summaryTitle": "Résumé de validation {{type}}",
+    "valid": "Valide",
+    "existing": "Déjà existant",
+    "invalid": "Invalide",
+    "percentOfTotal": "{{percent}}% du total",
+    "willProcess": "{{count}} seront traités.",
+    "alreadyInDb": "{{count}} déjà dans la base de données.",
+    "hasErrors_one": "{{count}} entrée contient des erreurs.",
+    "hasErrors_other": "{{count}} entrées contiennent des erreurs."
+  },
+  "createTypeModal": {
+    "title": "Créer un nouveau type d'acte",
+    "nameLabel": "Nom",
+    "namePlaceholder": "ex : Consultation",
+    "amountLabel": "Montant par défaut (€)",
+    "nameRequired": "Veuillez saisir un nom pour le type d'acte",
+    "cancel": "Annuler",
+    "create": "Créer",
+    "creating": "Création...",
+    "error": "Échec de la création du type d'acte"
+  },
+  "mapping": {
+    "modalTitle": "Associer les types d'actes",
+    "infoTitle": "Associer les montants aux types d'actes",
+    "infoDescription": "Pour chaque montant, sélectionnez le type d'acte correspondant ou créez-en un nouveau. Les montants sont pré-remplis avec un type par défaut — veuillez vérifier et modifier l'association si nécessaire.",
+    "amount": "Montant",
+    "procedureType": "Type d'acte",
+    "importedFromExcel": "Importé depuis Excel",
+    "createNew": "+ Créer un nouveau type...",
+    "continue": "Continuer",
+    "processing": "Traitement..."
+  },
+  "progress": {
+    "upload": "Chargement",
+    "parsing": "Analyse",
+    "monthSelection": "Sélection mois",
+    "patients": "Traitement patients",
+    "funds": "Traitement caisses",
+    "mapping": "Association types",
+    "importing": "Import en cours",
+    "procedures": "Traitement actes",
+    "complete": "Terminé",
+    "stepCompleted": "Étape terminée"
+  },
+  "monthSelection": {
+    "title": "Sélectionner les mois à importer",
+    "description": "Choisissez les mois à importer. Les actes existants pour les mois sélectionnés seront supprimés et remplacés. Les mois contenant des actes rapprochés ne peuvent pas être réimportés.",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner",
+    "monthsSelected": "mois sélectionnés",
+    "continue": "Continuer"
+  },
+  "result": {
+    "title": "Import réussi !",
+    "patientsProcessed": "Patients traités",
+    "fundsProcessed": "Caisses traitées",
+    "proceduresCreated": "Actes créés",
+    "blockedMonthsTitle": "Mois non importés (actes rapprochés)",
+    "importAnother": "Importer un autre fichier",
+    "viewReport": "Voir le rapport d'analyse"
+  },
+  "status": {
+    "validating": "Validation de {{type}}...",
+    "creating": "Création de {{count}} {{type}}...",
+    "parsing": "Analyse du fichier Excel...",
+    "retry": "Réessayer l'import",
+    "importFailed": "L'import a échoué"
+  },
+  "error": {
+    "noValidProcedures": "Aucun acte valide trouvé après association. Veuillez vous assurer que les types d'actes sont bien associés.",
+    "noValidPatients": "Aucun patient valide ou existant trouvé à importer",
+    "noValidFunds": "Aucune caisse valide ou existante trouvée à importer",
+    "noValidProceduresImport": "Aucun acte valide trouvé à importer",
+    "failedParseExcel": "Échec de l'analyse du fichier Excel",
+    "failedValidatePatients": "Échec de la validation des patients",
+    "failedCreatePatients": "Échec de la création des patients",
+    "failedValidateFunds": "Échec de la validation des caisses",
+    "failedCreateFunds": "Échec de la création des caisses",
+    "failedValidateProcedures": "Échec de la validation des actes",
+    "failedCreateProcedures": "Échec de la création des actes",
+    "missingWorkflowState": "État du workflow manquant"
+  },
+  "parsingReport": {
+    "title": "Rapport d'analyse",
+    "summary": "Résumé",
+    "skippedRows": "Lignes ignorées :",
+    "missingSheets": "Feuilles manquantes :",
+    "missingSheetsTitle": "Feuilles de mois manquantes",
+    "missingSheetsDesc_one": "La feuille de mois suivante est introuvable :",
+    "missingSheetsDesc_other": "Les {{count}} feuilles de mois suivantes sont introuvables :",
+    "skippedRowsTitle": "Lignes ignorées ({{count}})",
+    "colRow": "Ligne",
+    "colReason": "Raison",
+    "noIssues": "Aucun problème d'analyse détecté",
+    "close": "Fermer",
+    "months": {
+      "Jan": "Janvier",
+      "Fév": "Février",
+      "Mars": "Mars",
+      "Avr": "Avril",
+      "Mai": "Mai",
+      "Juin": "Juin",
+      "Juil": "Juillet",
+      "Août": "Août",
+      "Sep": "Septembre",
+      "Oct": "Octobre",
+      "Nov": "Novembre",
+      "Déc": "Décembre"
+    }
+  }
+}

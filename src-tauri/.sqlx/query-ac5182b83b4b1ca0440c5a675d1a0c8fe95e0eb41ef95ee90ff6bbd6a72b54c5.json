@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE procedure SET is_deleted = 1 WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "ac5182b83b4b1ca0440c5a675d1a0c8fe95e0eb41ef95ee90ff6bbd6a72b54c5"
+}

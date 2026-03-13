@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE bank_account\n            SET name = $1, iban = $2\n            WHERE id = $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "5f240df5f80bf4742e8e8162bff9a870ded8dac2a6750389118c2f0256f0a099"
+}

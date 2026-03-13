@@ -1,0 +1,61 @@
+[package]
+name = "patient_manager_app"
+version = "0.8.0"
+description = "PatientManager - Patient and service management system"
+authors = ["you"]
+edition = "2021"
+rust-version = "1.90"
+default-run = "patient_manager_app"
+
+[lib]
+name = "patient_manager_app"
+path = "src/lib.rs"
+
+[[bin]]
+name = "patient_manager_app"
+path = "src/main.rs"
+
+[[bin]]
+name = "generate_bindings"
+path = "src/bin/generate_bindings.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+tauri-specta = { version = "2.0.0-rc.21", features = ["javascript", "typescript", "derive"] }
+specta = { version = "2.0.0-rc.22", features = ["derive"] }
+specta-typescript = "0.0.9"
+tokio = { version = "1", features = ["full"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+anyhow = "1"
+pdf-extract = "0.10"
+regex = "1"
+csv = "1"
+calamine = "0.33"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-updater = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+# by default Tauri runs in strict mode where all net requests are blocked
+# this flag allows you to build the project without this whitelist for debugging purposes
+# DO NOT use this flag in production
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true

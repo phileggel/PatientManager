@@ -1,0 +1,45 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "PatientManager",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "productName": "PatientManager",
+  "version": "0.8.0",
+  "identifier": "com.projectsf.patient-manager",
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc3NTIzNEMzOEM1OERDQzQKUldURTNGaU13elJTZDk0OVZLa25Pdy9VZ0xOc3U0YkQ4RTYxb0t1djRuRGViTElNYzlyUG05eHQK",
+      "endpoints": [
+        "https://github.com/phileggel/PatientManager/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "page": {
+    "title": "Payment Statement Reconciliation",
+    "subtitle": "Upload a PDF payment statement to reconcile with procedures in the database.",
+    "selectButton": "Select PDF file",
+    "formats": "Accepted formats: PDF",
+    "maxSize": "Maximum size: 10 MB",
+    "uploadAriaLabel": "Upload PDF file"
+  },
+  "modal": {
+    "title": "PDF Reconciliation",
+    "subtitle": "File: {{name}}",
+    "notAvailable": "Not available",
+    "loading": {
+      "content": "Analysing PDF..."
+    },
+    "error": {
+      "unknown": "Unknown error"
+    },
+    "footer": {
+      "cancel": "Cancel",
+      "autoCorrect": "Auto-correct all",
+      "validate": "Validate",
+      "validateSuccess": "Reconciliation validated successfully"
+    },
+    "blocking": {
+      "banner": "{{count}} blocking issue(s) — validation is impossible until they are resolved manually."
+    }
+  },
+  "table": {
+    "empty": "No structured data found in the PDF.",
+    "summary": {
+      "groups_one": "{{count}} group",
+      "groups_other": "{{count}} groups",
+      "lines_one": "{{count}} line",
+      "lines_other": "{{count}} lines",
+      "totalAmount": "Total amount",
+      "pdfStated": "PDF states:"
+    },
+    "unparsed": {
+      "warning_one": "{{count}} line could not be parsed.",
+      "warning_other": "{{count}} lines could not be parsed.",
+      "examples": "Examples of unrecognized lines:"
+    },
+    "group": {
+      "payment": "Payment:",
+      "invalidTotal": "Invalid total"
+    },
+    "columns": {
+      "patient": "Patient",
+      "ssn": "SSN",
+      "nature": "Nature",
+      "date": "Procedure date",
+      "amount": "Amount"
+    }
+  },
+  "report": {
+    "tab": "Report",
+    "title": "Unreconciled procedures",
+    "period": "Period: from {{start}} to {{end}}",
+    "empty": "All procedures in the period have been reconciled.",
+    "count_one": "{{count}} unreconciled procedure in the period.",
+    "count_other": "{{count}} unreconciled procedures in the period.",
+    "close": "Close",
+    "columns": {
+      "date": "Procedure date",
+      "patient": "Patient",
+      "ssn": "SSN",
+      "amount": "Amount"
+    }
+  },
+  "results": {
+    "ssn": "SSN",
+    "allCorrect": "All correct — no anomalies detected.",
+    "progress": "{{resolved}} / {{total}} resolved",
+    "stepNav": "Anomaly {{current}} of {{total}}",
+    "issueType": {
+      "notFound": "Missing procedure",
+      "singleMatch": "Match anomaly",
+      "groupMatch": "Distribution to confirm",
+      "tooMany": "Manual intervention required"
+    },
+    "badge": {
+      "amountMismatch": "Amount mismatch",
+      "fundMismatch": "Fund mismatch",
+      "dateMismatch": "Date mismatch"
+    },
+    "pdf": {
+      "label": "PDF Statement",
+      "patient": "Patient",
+      "ssn": "SSN",
+      "date": "Date",
+      "amount": "Amount",
+      "fund": "Fund"
+    },
+    "db": {
+      "label": "Recorded procedure",
+      "date": "Date",
+      "amount": "Amount",
+      "fund": "Fund"
+    },
+    "action": {
+      "create": "Create new procedure",
+      "willCreate": "Will be created",
+      "link": "Link this procedure",
+      "linked": "Will be linked",
+      "correctAmount": "Apply PDF amount: {{amount}} €",
+      "correctFund": "Apply PDF fund",
+      "correctDate": "Apply PDF date",
+      "accepted": "Accepted",
+      "validateDistribution": "Validate this distribution",
+      "contestAmount": "Contest (actual amount: {{amount}} €)"
+    },
+    "nearby": {
+      "title": "Nearby procedures (different SSN)"
+    },
+    "distribution": {
+      "total": "Current total",
+      "expected": "Expected",
+      "remaining": "Remaining: {{diff}} €"
+    },
+    "tooMany": {
+      "description": "{{count}} procedures match — automatic reconciliation impossible.",
+      "hint": "Resolve this manually in the procedure list before re-running reconciliation."
+    },
+    "resolved": {
+      "label": "Resolved"
+    }
+  }
+}

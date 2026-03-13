@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT id FROM bank_fund_label_mapping\n            WHERE bank_account_id = $1 AND bank_label = $2 AND is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "82942242278a46134a28b1c54c8a6bf2e019093a2ce45ee78c1712a33a844d2b"
+}

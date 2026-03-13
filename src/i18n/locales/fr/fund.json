@@ -1,0 +1,42 @@
+{
+  "page": {
+    "title": "Caisses",
+    "searchPlaceholder": "Rechercher une caisse...",
+    "addDescription": "Ajouter une nouvelle caisse."
+  },
+  "form": {
+    "identifier": "Identifiant caisse",
+    "identifierPlaceholder": "ex. : CPAM75",
+    "name": "Nom de la caisse",
+    "namePlaceholder": "ex. : Caisse Primaire",
+    "identifierRequired": "L'identifiant de la caisse est obligatoire",
+    "nameRequired": "Le nom de la caisse est obligatoire"
+  },
+  "list": {
+    "identifier": "Identifiant",
+    "name": "Nom",
+    "loading": "Chargement des caisses...",
+    "noData": "Aucune caisse trouvée."
+  },
+  "action": {
+    "add": "Ajouter une caisse",
+    "adding": "Ajout en cours...",
+    "update": "Mettre à jour",
+    "updating": "Mise à jour...",
+    "editTitle": "Modifier la caisse",
+    "addSuccess": "Caisse \"{{name}}\" ajoutée avec succès",
+    "addError": "Échec de l'ajout de la caisse : {{error}}",
+    "updateSuccess": "Caisse \"{{name}}\" mise à jour avec succès",
+    "updateError": "Échec de la mise à jour de la caisse : {{error}}",
+    "editAriaLabel": "Modifier la caisse {{name}}",
+    "deleteAriaLabel": "Supprimer la caisse {{name}}",
+    "delete": {
+      "title": "Supprimer une caisse",
+      "message": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
+      "confirm": "Supprimer",
+      "success": "Caisse \"{{name}}\" supprimée avec succès",
+      "error": "Échec de la suppression de la caisse : {{error}}",
+      "failedFallback": "Échec de la suppression de la caisse"
+    }
+  }
+}

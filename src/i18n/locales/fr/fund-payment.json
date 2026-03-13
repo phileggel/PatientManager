@@ -1,0 +1,76 @@
+{
+  "add": {
+    "cardTitle": "Ajouter un groupe de paiement",
+    "fund": "Caisse *",
+    "paymentDate": "Date de paiement *",
+    "modifySelection": "Modifier la sélection",
+    "selectProcedures": "Sélectionner les actes",
+    "procedures": "Actes :",
+    "createButton": "Créer le paiement",
+    "creating": "Création...",
+    "success": "Groupe de paiement créé avec succès !"
+  },
+  "action": {
+    "editAriaLabel": "Modifier le paiement pour {{name}}",
+    "deleteAriaLabel": "Supprimer le paiement pour {{name}}"
+  },
+  "form": {
+    "selectFund": "Sélectionner une caisse",
+    "fundRequired": "La caisse est obligatoire",
+    "paymentDateRequired": "La date de paiement est obligatoire",
+    "proceduresRequired": "Veuillez sélectionner au moins un acte"
+  },
+  "list": {
+    "title": "Groupes de paiement ({{count}})",
+    "searchPlaceholder": "Rechercher des groupes...",
+    "loading": "Chargement des paiements...",
+    "empty": "Aucun groupe de paiement trouvé.",
+    "rowEditHint": "Double-cliquer pour modifier",
+    "columns": {
+      "fund": "Caisse",
+      "date": "Date",
+      "amount": "Montant",
+      "procedures": "Actes",
+      "actions": "Actions"
+    },
+    "delete": {
+      "title": "Supprimer le groupe de paiement ?",
+      "message": "Êtes-vous sûr de vouloir supprimer le groupe de paiement pour « {{fundName}} » ? Cette action est irréversible.",
+      "confirm": "Supprimer",
+      "success": "Groupe de paiement pour « {{fundName}} » supprimé avec succès",
+      "error": "Échec de la suppression du groupe de paiement : {{error}}",
+      "failedFallback": "Échec de la suppression du groupe de paiement"
+    }
+  },
+  "edit": {
+    "title": "Modifier le groupe de paiement",
+    "fundLabel": "Caisse",
+    "paymentDateLabel": "Date de paiement",
+    "proceduresSelected_one": "{{count}} acte sélectionné",
+    "proceduresSelected_other": "{{count}} actes sélectionnés",
+    "noProcedures": "Aucun acte disponible",
+    "cancel": "Annuler",
+    "update": "Mettre à jour",
+    "success": "Groupe de paiement mis à jour avec succès",
+    "errorLoadProcedures": "Échec du chargement des actes : {{error}}",
+    "errorLoadDetails": "Échec du chargement des détails des actes",
+    "errorDateRequired": "Veuillez saisir une date de paiement",
+    "errorProcedureRequired": "Veuillez sélectionner au moins un acte",
+    "errorUpdate": "Erreur : {{error}}",
+    "errorUnknown": "Une erreur inattendue s'est produite"
+  },
+  "select": {
+    "title": "Sélectionner les actes",
+    "filterLabel": "Filtrer par mois",
+    "allMonths": "Tous les mois",
+    "procedureCount_one": "{{count}} acte",
+    "procedureCount_other": "{{count}} actes",
+    "empty": "Aucun acte disponible",
+    "linesSelected_one": "{{count}} ligne sélectionnée",
+    "linesSelected_other": "{{count}} lignes sélectionnées",
+    "reset": "Réinitialiser",
+    "cancel": "Annuler",
+    "creating": "Création...",
+    "addProcedures": "Ajouter les actes ({{count}})"
+  }
+}

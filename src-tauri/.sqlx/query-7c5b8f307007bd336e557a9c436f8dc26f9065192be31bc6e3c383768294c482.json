@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO bank_transfer (\n                id, transfer_date, amount, transfer_type, bank_account_id, source, is_deleted\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, 0)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "7c5b8f307007bd336e557a9c436f8dc26f9065192be31bc6e3c383768294c482"
+}

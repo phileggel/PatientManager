@@ -1,0 +1,45 @@
+{
+  "page": {
+    "title": "Procedure Types",
+    "searchPlaceholder": "Search procedure types...",
+    "addDescription": "Add a new procedure type."
+  },
+  "form": {
+    "name": "Procedure Type Name",
+    "namePlaceholder": "e.g., Consultation",
+    "amount": "Default Amount (€)",
+    "category": "Category",
+    "categoryPlaceholder": "e.g., Medical",
+    "nameRequired": "Name is required",
+    "amountRequired": "Default amount is required",
+    "amountInvalid": "Default amount must be a valid number"
+  },
+  "list": {
+    "name": "Name",
+    "amount": "Default Amount",
+    "category": "Category",
+    "loading": "Loading procedure types...",
+    "noData": "No procedure types found."
+  },
+  "action": {
+    "add": "Add Procedure Type",
+    "adding": "Adding...",
+    "update": "Update",
+    "updating": "Updating...",
+    "editTitle": "Update Procedure Type",
+    "addSuccess": "Procedure type added successfully",
+    "addError": "Failed to add procedure type: {{error}}",
+    "updateSuccess": "Procedure type \"{{name}}\" updated successfully",
+    "updateError": "Failed to update procedure type: {{error}}",
+    "editAriaLabel": "Edit procedure type {{name}}",
+    "deleteAriaLabel": "Delete procedure type {{name}}",
+    "delete": {
+      "title": "Delete Procedure Type",
+      "message": "Are you sure you want to delete {{name}}?",
+      "confirm": "Delete",
+      "success": "Procedure type \"{{name}}\" deleted successfully",
+      "error": "Failed to delete procedure type: {{error}}",
+      "failedFallback": "Failed to delete procedure type"
+    }
+  }
+}

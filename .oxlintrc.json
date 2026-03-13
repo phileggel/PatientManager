@@ -1,0 +1,12 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "extends": ["oxc/recommended"],
+  "rules": {
+    "no-console": "warn",
+    "no-unused-vars": "warn"
+  }
+}

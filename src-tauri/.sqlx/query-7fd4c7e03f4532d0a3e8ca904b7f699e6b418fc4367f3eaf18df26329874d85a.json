@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT COUNT(*) as \"count: i32\"\n            FROM fund_payment_group\n            WHERE fund_id = $1 AND payment_date = $2 AND total_amount = $3 AND is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "count: i32",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7fd4c7e03f4532d0a3e8ca904b7f699e6b418fc4367f3eaf18df26329874d85a"
+}

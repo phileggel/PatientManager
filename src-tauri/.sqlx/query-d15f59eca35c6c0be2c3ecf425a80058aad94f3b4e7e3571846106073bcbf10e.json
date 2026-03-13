@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT id, fund_payment_group_id, procedure_id\n            FROM fund_payment_line\n            WHERE fund_payment_group_id = $1 AND is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "fund_payment_group_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "procedure_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d15f59eca35c6c0be2c3ecf425a80058aad94f3b4e7e3571846106073bcbf10e"
+}

@@ -1,0 +1,213 @@
+{
+  "statement": {
+    "title": "Bank Reconciliation",
+    "matchResults": {
+      "matched": "Matched lines",
+      "unmatched": "To validate",
+      "columns": {
+        "line": "Statement line",
+        "group": "Group to reconcile (± {{days}} days)",
+        "status": "Status"
+      },
+      "select": {
+        "placeholder": "-- No group selected --"
+      },
+      "option": {
+        "exactAmount": " (Exact amount)",
+        "alreadyUsed": " [Already used]"
+      },
+      "search": {
+        "active": "Expanded search active (All funds)",
+        "expand": "Wrong fund? Search everywhere"
+      },
+      "match": {
+        "confirmed": "Reconciliation confirmed with group from {{date}}"
+      },
+      "candidates": {
+        "found": "{{count}} candidate(s) found within ± {{days}} days.",
+        "foundAllFunds": "{{count}} candidate(s) found across all funds within ± {{days}} days.",
+        "none": "No unsettled group found within ± {{days}} days."
+      }
+    },
+    "description": "Upload a bank statement PDF to reconcile received transfers with pending payment groups.",
+    "selectButton": "Select bank statement",
+    "acceptedFormats": "Accepted formats: PDF",
+    "modal": {
+      "loading": "Analysing bank statement...",
+      "matching": "Reconciling...",
+      "closeAria": "Close",
+      "cancel": "Cancel",
+      "close": "Close",
+      "validate": "Confirm reconciliation",
+      "creating": "Creating...",
+      "noCredit": "No credit lines could be matched to a fund.",
+      "noIban": "No IBAN found in the bank statement.",
+      "noTransfer": "No transfer has been selected.",
+      "noAccount": {
+        "title": "Bank account not found",
+        "description": "The IBAN {{iban}} does not match any registered bank account.",
+        "hint": "First create a bank account with this IBAN in the \"Bank Accounts\" section."
+      },
+      "done": "{{count}} transfer(s) created successfully",
+      "doneDescription": "Transfers have been recorded and payment groups are now reconciled.",
+      "error": "Error"
+    }
+  },
+  "labelMapping": {
+    "title": "Unrecognised labels",
+    "description": "The following labels appear on the bank statement but are not yet associated with a fund. Please select the corresponding fund or \"REJECTED\" if the line does not correspond to a fund transfer.",
+    "suggestion": "Suggestion: {{name}}",
+    "selectPlaceholder": "-- Select --",
+    "rejected": "REJECTED (Not a fund)",
+    "fundsGroup": "Funds",
+    "fundAriaLabel": "Fund for {{label}}",
+    "confirm": "Confirm associations",
+    "saving": "Saving..."
+  },
+  "transfer": {
+    "date": "Transfer Date *",
+    "amount": "Amount *",
+    "type": "Type *",
+    "selectType": "Select type",
+    "typeFund": "Fund",
+    "typeCheck": "Check",
+    "typeCreditCard": "Credit Card",
+    "selectedFund": "Fund: {{name}}",
+    "noFund": "No fund selected",
+    "changeFund": "Change Fund",
+    "selectFund": "Select Fund",
+    "selectedPatient": "Patient: {{name}}",
+    "noPatient": "No patient selected",
+    "changePatient": "Change Patient",
+    "selectPatient": "Select Patient",
+    "bankAccount": "Bank Account *",
+    "selectBankAccount": "Select bank account",
+    "createButton": "Create Transfer",
+    "creating": "Creating...",
+    "manager": {
+      "title": "Bank Transfers",
+      "searchPlaceholder": "Search transfers...",
+      "panelTitle": "Create Transfer",
+      "panelDescription": "Add a new bank transfer.",
+      "delete": {
+        "title": "Delete Bank Transfer?",
+        "message": "Are you sure you want to delete this bank transfer? This action cannot be undone.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      },
+      "success": {
+        "deleted": "Bank transfer deleted successfully"
+      },
+      "error": {
+        "delete": "Failed to delete bank transfer"
+      }
+    },
+    "list": {
+      "loading": "Loading...",
+      "empty": "No bank transfers yet. Create one using the form.",
+      "columns": {
+        "date": "Date",
+        "amount": "Amount",
+        "type": "Type",
+        "bankAccount": "Bank Account",
+        "source": "Source"
+      }
+    },
+    "edit": {
+      "title": "Edit Bank Transfer",
+      "update": "Update",
+      "sourceHint": "Use format: fund_xxxxx for funds or patient_xxx for patients",
+      "success": "Bank transfer updated successfully",
+      "error": "Failed to update bank transfer",
+      "errorUnknown": "An unexpected error occurred",
+      "errorInvalidAccount": "Selected bank account is invalid",
+      "errorInvalidForm": "Please fill in all fields with valid values"
+    },
+    "add": {
+      "success": "Bank transfer created successfully!",
+      "error": "Error: {{error}}",
+      "errorUnknown": "An unexpected error occurred"
+    },
+    "validate": {
+      "dateRequired": "Transfer date is required",
+      "amountRequired": "Amount is required",
+      "amountPositive": "Amount must be greater than 0",
+      "bankAccountRequired": "Bank account is required",
+      "sourceRequired": "Source is required (select a fund or patient)"
+    },
+    "selectFundModal": {
+      "title": "Select Fund",
+      "searchPlaceholder": "Search by name or identifier...",
+      "empty": "No funds available",
+      "noMatch": "No matching funds",
+      "columns": {
+        "name": "Name",
+        "identifier": "Identifier"
+      }
+    },
+    "selectPatientModal": {
+      "title": "Select Patient",
+      "searchPlaceholder": "Search by name or SSN...",
+      "empty": "No patients available",
+      "noMatch": "No matching patients",
+      "na": "N/A",
+      "columns": {
+        "name": "Name",
+        "ssn": "SSN",
+        "latestDate": "Latest Date"
+      }
+    }
+  },
+  "account": {
+    "manager": {
+      "title": "Bank Accounts",
+      "searchPlaceholder": "Search bank accounts...",
+      "panelTitle": "Add Bank Account",
+      "panelDescription": "Add a new bank account."
+    },
+    "list": {
+      "columns": {
+        "name": "Name",
+        "iban": "IBAN",
+        "id": "ID"
+      },
+      "loading": "Loading bank accounts...",
+      "empty": "No bank accounts found.",
+      "delete": {
+        "title": "Delete Bank Account",
+        "message": "Are you sure you want to delete {{name}}?",
+        "confirm": "Delete"
+      },
+      "success": {
+        "deleted": "Account \"{{name}}\" deleted successfully"
+      },
+      "error": {
+        "delete": "Failed to delete account: {{error}}"
+      }
+    },
+    "add": {
+      "nameRequired": "Bank account name is required",
+      "success": "Bank account created successfully",
+      "error": "Failed to create bank account",
+      "errorUnknown": "Unexpected error creating bank account"
+    },
+    "edit": {
+      "title": "Update Bank Account",
+      "nameRequired": "Bank account name is required",
+      "cancel": "Cancel",
+      "update": "Update",
+      "updating": "Updating...",
+      "success": "Bank account \"{{name}}\" updated successfully",
+      "error": "Failed to update bank account: {{error}}",
+      "errorUnknown": "An unexpected error occurred. Please try again."
+    },
+    "form": {
+      "name": "Account Name",
+      "namePlaceholder": "e.g., Main Bank Account",
+      "iban": "IBAN",
+      "ibanPlaceholder": "e.g., FR76 0000 0000 0000 0000 0000 000"
+    },
+    "createButton": "Create Bank Account",
+    "creating": "Creating..."
+  }
+}

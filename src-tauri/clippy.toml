@@ -1,0 +1,8 @@
+# Clippy configuration for Midwife Management System
+
+# Allow longer lines in some cases (increased from default 80 to 100)
+too-many-arguments-threshold = 7
+
+# Pedantic lints can catch more issues, but may have false positives
+# Comment out if too noisy
+# too-many-lines-threshold = 500

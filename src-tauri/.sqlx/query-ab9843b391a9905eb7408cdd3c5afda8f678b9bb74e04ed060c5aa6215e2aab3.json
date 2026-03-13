@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE patient\n            SET\n                is_anonymous = $2,\n                name = $3,\n                ssn = $4,\n                latest_procedure_type = $5,\n                latest_fund = $6,\n                latest_date = $7,\n                latest_procedure_amount = $8\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "ab9843b391a9905eb7408cdd3c5afda8f678b9bb74e04ed060c5aa6215e2aab3"
+}

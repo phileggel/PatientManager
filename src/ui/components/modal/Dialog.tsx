@@ -1,0 +1,123 @@
+import { X } from "lucide-react";
+import type React from "react";
+import { useEffect } from "react";
+import { Button } from "../button";
+
+interface DialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: React.ReactNode;
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+  maxWidth?: string;
+}
+
+export function Dialog({
+  isOpen,
+  onClose,
+  title,
+  children,
+  actions,
+  maxWidth = "max-w-md",
+}: DialogProps) {
+  // Prevent scrolling when dialog is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <button
+        type="button"
+        aria-hidden="true"
+        tabIndex={-1}
+        className="absolute inset-0 w-full h-full bg-m3-on-surface/40 backdrop-blur-[2px] transition-opacity cursor-default border-none outline-none"
+        onClick={onClose}
+      />
+
+      {/* Dialog Surface */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        className={`relative w-full ${maxWidth} bg-m3-surface-container rounded-[28px] shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200`}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4">
+          <h3 className="text-xl font-medium text-m3-on-surface">{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-m3-on-surface/5 rounded-full text-m3-on-surface-variant transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-2 overflow-y-auto text-m3-on-surface-variant">{children}</div>
+
+        {/* Footer Actions */}
+        {actions && (
+          <div className="flex items-center justify-end gap-2 px-6 py-4 mt-2">{actions}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface ConfirmationDialogProps {
+  isOpen: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: "default" | "danger";
+}
+
+export function ConfirmationDialog({
+  isOpen,
+  onCancel,
+  onConfirm,
+  title,
+  message,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  variant = "default",
+}: ConfirmationDialogProps) {
+  const actions = (
+    <div className="flex items-center justify-end gap-3">
+      <Button variant="ghost" onClick={onCancel}>
+        {cancelLabel}
+      </Button>
+      <Button
+        variant={variant === "danger" ? "danger" : "primary"}
+        onClick={() => {
+          onConfirm();
+          onCancel();
+        }}
+      >
+        {confirmLabel}
+      </Button>
+    </div>
+  );
+
+  return (
+    <Dialog isOpen={isOpen} onClose={onCancel} title={title} actions={actions}>
+      <p className="text-m3-on-surface-variant leading-relaxed">{message}</p>
+    </Dialog>
+  );
+}

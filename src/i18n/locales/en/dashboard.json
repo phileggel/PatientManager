@@ -1,0 +1,25 @@
+{
+  "loading": "Loading dashboard...",
+  "error": "Error",
+  "loadFailed": "Failed to load dashboard data",
+  "year": "Year:",
+  "title": "Dashboard",
+  "payments": "Payments {{year}}",
+  "procedures": "Procedures {{year}}",
+  "table": {
+    "month": "Month",
+    "patients": "Patients",
+    "procedures": "Procedures",
+    "total": "Total"
+  },
+  "uncategorized": "Uncategorized",
+  "welcome": {
+    "title": "Welcome",
+    "description": "The dashboard will appear here once you have created:",
+    "patients": "Patients",
+    "funds": "Funds",
+    "procedureTypes": "Procedure types",
+    "procedures": "Procedures",
+    "hint": "Use the navigation menu to start entering data."
+  }
+}

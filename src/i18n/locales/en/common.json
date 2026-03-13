@@ -1,0 +1,78 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "procedures": "Procedures",
+    "patient": "Patients",
+    "funds": "Funds",
+    "procedureTypes": "Procedure Types",
+    "excelImport": "Excel Import",
+    "fundPayment": "Fund Payment",
+    "reconciliation": "Fund Reconciliation",
+    "bankTransfer": "Bank Transfer",
+    "bankAccount": "Bank Accounts",
+    "bankStatement": "Bank Reconciliation",
+    "requiresBankAccount": "(requires bank account)",
+    "requiresBankAccountInfo": "Create a bank account first to access this feature.",
+    "requiresFundInfo": "Create a fund first to access reconciliation.",
+    "requiresFundPaymentInfo": "Create a fund first to access fund payments.",
+    "bankStatementTooltip": "Create a bank account first to enable bank statement reconciliation",
+    "bankTransferTooltip": "Create a bank account first to enable bank transfers",
+    "lists": "Lists",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "subtitle": {
+      "excelImport": "Upload an Excel file to import patients, funds, and procedures into the database.",
+      "reconciliation": "Upload a PDF payment statement to reconcile with procedures in the database.",
+      "bankStatement": "Upload a bank statement PDF to reconcile transfers with fund payment groups."
+    }
+  },
+  "action": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "confirm": "Confirm",
+    "close": "Close",
+    "continue": "Continue",
+    "retry": "Retry",
+    "search": "Search",
+    "clearSearch": "Clear search",
+    "dismiss": "Dismiss"
+  },
+  "field": {
+    "datePlaceholder": "MM/DD/YYYY",
+    "clearAriaLabel": "Clear",
+    "amountAriaLabel": "Amount"
+  },
+  "state": {
+    "loading": "Loading...",
+    "processing": "Processing...",
+    "creating": "Creating...",
+    "adding": "Adding...",
+    "saving": "Saving..."
+  },
+  "table": {
+    "actions": "Actions",
+    "noData": "No results found.",
+    "loading": "Loading...",
+    "doubleClickToEdit": "Double-click to edit",
+    "total": "Total"
+  },
+  "validation": {
+    "valid": "Valid",
+    "invalid": "Invalid",
+    "existing": "Already exists"
+  },
+  "error": {
+    "requiredFields": "Please fill in all required fields.",
+    "unknown": "An unexpected error occurred.",
+    "loading": "Error loading data"
+  },
+  "status": {
+    "none": "—",
+    "created": "Created",
+    "reconciliated": "Reconciliated",
+    "payed": "Paid"
+  }
+}

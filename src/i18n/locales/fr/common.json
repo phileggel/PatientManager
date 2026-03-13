@@ -1,0 +1,78 @@
+{
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "procedures": "Saisie des Actes",
+    "patient": "Patients",
+    "funds": "Caisses",
+    "procedureTypes": "Types d'actes",
+    "excelImport": "Import Excel",
+    "fundPayment": "Paiement Caisse",
+    "reconciliation": "Rapprochement Caisse",
+    "bankTransfer": "Virement Bancaire",
+    "bankAccount": "Comptes Bancaires",
+    "bankStatement": "Rapprochement Bancaire",
+    "requiresBankAccount": "(nécessite un compte bancaire)",
+    "requiresBankAccountInfo": "Créez d'abord un compte bancaire pour accéder à cette fonctionnalité.",
+    "requiresFundInfo": "Créez d'abord une caisse pour accéder au rapprochement.",
+    "requiresFundPaymentInfo": "Créez d'abord une caisse pour accéder aux paiements caisses.",
+    "bankStatementTooltip": "Créez d'abord un compte bancaire pour activer le rapprochement bancaire",
+    "bankTransferTooltip": "Créez d'abord un compte bancaire pour activer les virements bancaires",
+    "lists": "Listes",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "subtitle": {
+      "excelImport": "Importez un fichier Excel pour créer des patients, caisses et actes en base de données.",
+      "reconciliation": "Téléchargez un relevé PDF de paiement pour rapprocher avec les actes en base de données.",
+      "bankStatement": "Téléchargez un relevé bancaire PDF pour rapprocher les virements avec les groupes de paiement."
+    }
+  },
+  "action": {
+    "add": "Ajouter",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "continue": "Continuer",
+    "retry": "Réessayer",
+    "search": "Rechercher",
+    "clearSearch": "Effacer la recherche",
+    "dismiss": "Fermer"
+  },
+  "field": {
+    "datePlaceholder": "JJ/MM/AAAA",
+    "clearAriaLabel": "Effacer",
+    "amountAriaLabel": "Montant"
+  },
+  "state": {
+    "loading": "Chargement...",
+    "processing": "Traitement...",
+    "creating": "Création...",
+    "adding": "Ajout en cours...",
+    "saving": "Enregistrement..."
+  },
+  "table": {
+    "actions": "Actions",
+    "noData": "Aucun résultat.",
+    "loading": "Chargement...",
+    "doubleClickToEdit": "Double-clic pour modifier",
+    "total": "Total"
+  },
+  "validation": {
+    "valid": "Valide",
+    "invalid": "Invalide",
+    "existing": "Déjà existant"
+  },
+  "error": {
+    "requiredFields": "Veuillez remplir tous les champs obligatoires.",
+    "unknown": "Une erreur inattendue s'est produite.",
+    "loading": "Erreur de chargement des données"
+  },
+  "status": {
+    "none": "—",
+    "created": "Créé",
+    "reconciliated": "Rapproché",
+    "payed": "Payé"
+  }
+}
