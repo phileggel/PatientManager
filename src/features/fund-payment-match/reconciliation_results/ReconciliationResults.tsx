@@ -172,7 +172,7 @@ export function ReconciliationResultsView({
 
       {/* Current issue card */}
       {currentIssue && (
-        <div className="animate-[fadeIn_150ms_ease-out]">
+        <div className="animate-fadeIn">
           {currentIssue.type === "NotFoundIssue" && (
             <NotFoundCard
               line={currentIssue.data.pdf_line}

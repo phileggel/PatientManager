@@ -69,6 +69,11 @@
     "unknown": "Une erreur inattendue s'est produite.",
     "loading": "Erreur de chargement des données"
   },
+  "updater": {
+    "available": "Mise à jour v{{version}} disponible —",
+    "install": "Installer et redémarrer",
+    "downloading": "Téléchargement en cours..."
+  },
   "status": {
     "none": "—",
     "created": "Créé",
