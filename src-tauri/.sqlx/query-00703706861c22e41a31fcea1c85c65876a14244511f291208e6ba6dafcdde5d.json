@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT p.id AS procedure_id, p.patient_id,\n                   pat.name AS patient_name, pat.ssn AS patient_ssn,\n                   p.procedure_date, p.procedure_amount AS amount\n            FROM \"procedure\" p\n            JOIN patient pat ON p.patient_id = pat.id\n            WHERE p.procedure_date BETWEEN $1 AND $2\n              AND p.is_deleted = 0\n              AND p.payment_status = 'CREATED'\n              AND p.id NOT IN (\n                  SELECT procedure_id FROM fund_payment_line WHERE is_deleted = 0\n              )\n            ORDER BY p.procedure_date\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "procedure_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "patient_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "patient_name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "patient_ssn",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "procedure_date",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "amount",
+        "ordinal": 5,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "00703706861c22e41a31fcea1c85c65876a14244511f291208e6ba6dafcdde5d"
+}
