@@ -19,6 +19,8 @@ on:
 jobs:
   build:
     runs-on: ${{ inputs.platform == 'windows' && 'windows-latest' || inputs.platform == 'linux' && 'ubuntu-22.04' || 'macos-latest' }}
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
