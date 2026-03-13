@@ -376,10 +376,34 @@ class ReleaseManager:
             print(f'\n{GREEN}✨ Dry-run completed! Release would be v{self.new_version}{NC}')
             print(f'Run without {YELLOW}--dry-run{NC} to apply changes\n')
         else:
-            print(f'\n{GREEN}✨ Release v{self.new_version} completed!{NC}')
-            print(f'Push the tag with: {YELLOW}git push origin v{self.new_version}{NC}\n')
+            if not self.push_release():
+                return False
+            print(f'\n{GREEN}✨ Release v{self.new_version} published!{NC}\n')
 
         return True
+
+    def push_release(self) -> bool:
+        """Push commit and tag to origin (skipping pre-push hooks)."""
+        print(f'{BLUE}Pushing to origin...{NC}')
+        try:
+            subprocess.run(
+                ['git', 'push', 'origin', 'main', '--no-verify'],
+                cwd=self.repo_root,
+                check=True
+            )
+            print('  ✓ main pushed')
+
+            subprocess.run(
+                ['git', 'push', 'origin', f'v{self.new_version}', '--no-verify'],
+                cwd=self.repo_root,
+                check=True
+            )
+            print(f'  ✓ tag v{self.new_version} pushed → GitHub Action triggered')
+
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f'{RED}Error: {e}{NC}')
+            return False
 
 
 if __name__ == '__main__':
