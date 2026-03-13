@@ -13,6 +13,8 @@ import { PatientsManager } from "@/features/patient";
 import ProcedurePage from "@/features/procedure/ui/ProcedurePage";
 import { ProcedureTypeManager } from "@/features/procedure-type";
 import { Drawer, Header, useDrawerController } from "@/features/shell";
+import { UpdateBanner } from "@/features/updater/UpdateBanner";
+import { useUpdater } from "@/features/updater/useUpdater";
 import { logger } from "@/lib/logger";
 import { useAppInit } from "@/lib/useAppInit";
 
@@ -39,6 +41,7 @@ function AppContent() {
 
   // Initialize app data and event listeners
   useAppInit();
+  const updater = useUpdater();
 
   useEffect(() => {
     logger.info(TAG, "component mounted");
@@ -134,8 +137,8 @@ function AppContent() {
         </div>
       </main>
 
-      <div className="shrink-0 h-8 bg-m3-primary">
-        {/* Footer reserved for permanent info (version, last sync, etc.) - to be implemented */}
+      <div className="shrink-0 h-8 bg-m3-primary flex items-center justify-center">
+        <UpdateBanner updater={updater} />
       </div>
     </div>
   );

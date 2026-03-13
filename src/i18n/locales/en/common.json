@@ -69,6 +69,11 @@
     "unknown": "An unexpected error occurred.",
     "loading": "Error loading data"
   },
+  "updater": {
+    "available": "Update v{{version}} available —",
+    "install": "Install and restart",
+    "downloading": "Downloading..."
+  },
   "status": {
     "none": "—",
     "created": "Created",
