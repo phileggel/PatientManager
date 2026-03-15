@@ -31,10 +31,18 @@ export function CreateProcedureTypeModal({
   const { t } = useTranslation("excel-import");
   const [newTypeName, setNewTypeName] = useState("");
 
+  const [newTypeDefaultAmount, setNewTypeDefaultAmount] = useState(defaultAmount);
+
   useEffect(() => {
     logger.info("[CreateProcedureTypeModal] Component mounted");
   }, []);
-  const [newTypeDefaultAmount, setNewTypeDefaultAmount] = useState(defaultAmount);
+
+  // Sync amount field when the modal opens for a different row
+  useEffect(() => {
+    if (isOpen) {
+      setNewTypeDefaultAmount(defaultAmount);
+    }
+  }, [isOpen, defaultAmount]);
   const [isCreatingType, setIsCreatingType] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
