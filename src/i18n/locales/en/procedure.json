@@ -30,7 +30,9 @@
     "deleteTitle": "Delete procedure",
     "delete": {
       "confirm": "Are you sure you want to delete this procedure?",
-      "success": "Procedure deleted successfully!"
+      "success": "Procedure deleted successfully!",
+      "confirmLabel": "Delete",
+      "cancelLabel": "Cancel"
     }
   },
   "table": {
