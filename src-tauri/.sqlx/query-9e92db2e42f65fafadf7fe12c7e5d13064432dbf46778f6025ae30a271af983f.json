@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE excel_amount_type_mapping SET procedure_type_id = $1 WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "9e92db2e42f65fafadf7fe12c7e5d13064432dbf46778f6025ae30a271af983f"
+}

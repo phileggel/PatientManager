@@ -99,6 +99,8 @@ Toutes les lignes ignorées sont collectées dans un rapport de parsing (`parsin
 
 Ce rapport est informatif et non bloquant.
 
+**R22 — Mémorisation du mapping montant → type d'acte (backend + frontend)** : Les choix de mapping effectués par l'utilisateur (montant → type d'acte) sont persistés en base à la confirmation de l'étape de mapping. Lors d'un import ultérieur, le composant de mapping charge ces préférences depuis le backend et les utilise comme valeurs par défaut. L'utilisateur conserve la possibilité de modifier n'importe quelle valeur — il n'y a pas d'auto-validation. Le filtrage des types supprimés est effectué **côté backend** : `get_excel_amount_mappings` ne retourne que les mappings dont le `procedure_type_id` existe encore en base (`is_deleted = 0`), ou dont la valeur est `imported-from-excel`. Si un type a été supprimé depuis le dernier import, son mapping est automatiquement exclu — le frontend revient alors au type par défaut (cf. R12) sans logique de validation supplémentaire.
+
 ---
 
 ## Workflow
@@ -120,9 +122,11 @@ Ce rapport est informatif et non bloquant.
           │
           ▼
 [Mapping des types d'actes] (frontend)
-  → Table : montant → type d'acte
+  → Chargement des préférences sauvegardées (backend filtre les types supprimés)
+  → Table : montant → type d'acte (pré-rempli avec préférences ou premier type disponible)
   → Options : type existant / créer nouveau / type générique
   → Création inline possible via modale
+  → Sauvegarde des choix à la confirmation (fire-and-forget)
           │
           ▼
 [Exécution de l'import] (backend)

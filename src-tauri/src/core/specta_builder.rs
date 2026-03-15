@@ -36,6 +36,8 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<use_cases_procedure::CreateBatchProceduresResponse>()
         .typ::<excel_import::ParseExcelResponse>()
         .typ::<excel_import::ImportExecutionResult>()
+        .typ::<excel_import::ExcelAmountMapping>()
+        .typ::<excel_import::SaveExcelAmountMappingRequest>()
         .typ::<fund_payment_reconciliation::PdfParseResult>()
         .typ::<fund_payment_reconciliation::ReconciliationResult>()
         .typ::<fund_payment_reconciliation::AnomalyType>()
@@ -85,6 +87,8 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             procedure::delete_procedure_type,
             excel_import::parse_excel_file,
             excel_import::execute_excel_import,
+            excel_import::get_excel_amount_mappings,
+            excel_import::save_excel_amount_mappings,
             fund_payment_reconciliation::extract_pdf_text,
             fund_payment_reconciliation::extract_pdf_text_from_bytes,
             fund_payment_reconciliation::parse_pdf_text,

@@ -13,7 +13,12 @@
  * All functions wrap Tauri commands and convert errors to ServiceResult.
  */
 
-import type { ImportExecutionResult, ParseExcelResponse } from "@/bindings";
+import type {
+  ExcelAmountMapping,
+  ImportExecutionResult,
+  ParseExcelResponse,
+  SaveExcelAmountMappingRequest,
+} from "@/bindings";
 import { commands } from "@/bindings";
 import { logger } from "@/lib/logger";
 
@@ -72,6 +77,40 @@ export async function parseExcelFile(filePath: string): Promise<ServiceResult<Pa
  * @param typeMapping - Maps procedure_type_tmp_id → procedure_type_id (from user mapping step)
  * @returns Service result with ImportExecutionResult
  */
+/**
+ * Fetch all saved Excel amount → procedure type mappings.
+ * Used to pre-fill defaults in the mapping step.
+ */
+export async function getExcelAmountMappings(): Promise<ServiceResult<ExcelAmountMapping[]>> {
+  try {
+    const result = await commands.getExcelAmountMappings();
+    if (result.status === "ok") {
+      return { success: true, data: result.data };
+    }
+    return { success: false, error: result.error };
+  } catch (error) {
+    logger.error("Exception fetching excel amount mappings", { error });
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Persist the user's amount → procedure type mapping choices for future imports.
+ * Fire-and-forget: failures are logged but do not block the import flow.
+ */
+export async function saveExcelAmountMappings(
+  mappings: SaveExcelAmountMappingRequest[],
+): Promise<void> {
+  try {
+    const result = await commands.saveExcelAmountMappings(mappings);
+    if (result.status !== "ok") {
+      logger.error("Failed to save excel amount mappings", { error: result.error });
+    }
+  } catch (error) {
+    logger.error("Exception saving excel amount mappings", { error });
+  }
+}
+
 export async function executeExcelImport(
   parsedData: ParseExcelResponse,
   typeMapping: Record<string, string>,

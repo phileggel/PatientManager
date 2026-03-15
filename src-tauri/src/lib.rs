@@ -38,7 +38,7 @@ use crate::core::logger::*;
 use crate::use_cases::bank_statement_reconciliation::{
     BankStatementOrchestrator, SqliteBankFundLabelMappingRepository,
 };
-use crate::use_cases::excel_import::ExcelImportOrchestrator;
+use crate::use_cases::excel_import::{ExcelImportOrchestrator, SqliteExcelAmountMappingRepository};
 use crate::use_cases::fund_payment_reconciliation::{
     FundPaymentReconciliationOrchestrator, ReconciliationService,
 };
@@ -210,6 +210,12 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     ));
     tracing::info!(target: BACKEND, "Excel import orchestrator created");
 
+    // Create Excel amount mapping repository
+    let excel_amount_mapping_repo = Arc::new(SqliteExcelAmountMappingRepository::new(
+        db.get_pool().clone(),
+    ));
+    tracing::info!(target: BACKEND, "Excel amount mapping repository created");
+
     // Register services with Tauri state management
     app.manage(patient_service);
     app.manage(fund_service);
@@ -223,6 +229,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     app.manage(bank_statement_orchestrator);
     app.manage(fund_payment_reconciliation_orchestrator);
     app.manage(excel_import_orchestrator);
+    app.manage(excel_amount_mapping_repo);
     tracing::info!(target: BACKEND, "Application backend initialized successfully");
     Ok(())
 }
