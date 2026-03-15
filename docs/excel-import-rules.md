@@ -23,7 +23,7 @@ Un praticien dispose d'un fichier Excel historique contenant ses patients, ses c
 - Fonds référencé mais introuvable dans la liste des fonds parsés
 - Nombre de colonnes insuffisant
 
-Toutes les lignes ignorées sont collectées dans un rapport de parsing (`parsing_issues`) affiché à l'utilisateur en fin d'import.
+Toutes les lignes ignorées sont collectées dans un rapport de parsing affiché à l'utilisateur en fin d'import.
 
 ### Validation des données
 
@@ -46,42 +46,44 @@ Toutes les lignes ignorées sont collectées dans un rapport de parsing (`parsin
 
 **R8 — Déduplication des patients (backend)** : Pendant le parsing, les patients sont dédupliqués en mémoire par SSN (si valide) ou par nom en minuscule. Lors de l'exécution de l'import, la recherche en base se fait **uniquement par SSN** :
 - Si le SSN est présent et qu'un patient avec ce SSN existe en base → réutilisation (aucune création).
-- Si le SSN est présent mais introuvable en base → création via `patient_service.create_batch()`.
+- Si le SSN est présent mais introuvable en base → création.
 - Si le SSN est absent → aucune recherche en base, le patient est toujours créé (la déduplication par nom ne s'applique qu'en mémoire pendant le parsing).
 
 **R9 — Déduplication des fonds (backend)** : Pendant le parsing, les fonds sont dédupliqués par identifiant exact. Lors de l'exécution, chaque fonds est recherché en base par identifiant :
 - Si un fonds avec le même identifiant existe → réutilisation (aucune création).
-- Sinon → création via `fund_service.create_batch()`.
+- Sinon → création.
 
 **R10 — Déduplication des actes par mois (backend)** : Les actes ne sont pas dédupliquées individuellement. La gestion des doublons se fait au niveau du mois entier (cf. R16 et R17).
 
 ### Sélection des mois
 
-**R11 — Sélection des mois à importer (frontend)** : Après le parsing, l'utilisateur choisit quels mois importer via une liste de cases à cocher. Tous les mois détectés dans les actes parsées sont proposés. Par défaut, tous sont sélectionnés. Seuls les mois sélectionnés sont transmis à la commande d'exécution. Le bouton « Continuer » est désactivé si aucun mois n'est sélectionné. **Cas particulier** : si aucune acte n'a été parsée (fichier sans feuilles mensuelles ou toutes lignes ignorées), les étapes de sélection des mois et de mapping des types sont ignorées — l'import s'exécute immédiatement avec un mapping vide.
+**R11 — Sélection des mois à importer (frontend)** : Après le parsing, l'utilisateur choisit quels mois importer via une liste de cases à cocher. Tous les mois détectés dans les actes parsées sont proposés. Par défaut, tous sont sélectionnés. Seuls les mois sélectionnés sont transmis à la commande d'exécution. Le bouton « Continuer » est désactivé si aucun mois n'est sélectionné. **Cas particulier** : si aucune acte n'a été parsée (fichier sans feuilles mensuelles ou toutes lignes ignorées), les étapes de sélection des mois et de mapping des types sont ignorées — l'import s'exécute sans étapes supplémentaires.
 
 ### Mapping des types d'actes
 
-**R12 — Mapping obligatoire des types d'actes (frontend + backend)** : Pour chaque montant unique détecté dans les actes parsées, l'utilisateur associe un type d'acte. Le frontend pré-remplit automatiquement chaque montant avec le premier type disponible (ou `imported-from-excel` si aucun type n'existe). Tous les `procedure_type_tmp_id` ont donc toujours une valeur dans le mapping envoyé. Côté backend : si un `procedure_type_tmp_id` est absent du mapping reçu, toutes les actes correspondant à ce montant sont ignorées (`procedures_skipped`).
+**R12 — Pré-remplissage du mapping (frontend)** : Pour chaque montant unique détecté dans les actes parsées, l'utilisateur associe un type d'acte. Le frontend pré-remplit automatiquement chaque montant avec le premier type disponible (ou `imported-from-excel` si aucun type n'existe). Tous les montants ont donc toujours une valeur dans le mapping envoyé.
 
-**R13 — Type par défaut (frontend)** : L'utilisateur peut choisir le type spécial `"imported-from-excel"` pour un montant. Les actes correspondantes sont créées mais associées à ce type générique sans dénomination précise.
+**R13 — Type par défaut (frontend)** : L'utilisateur peut choisir le type spécial `imported-from-excel` pour un montant. Les actes correspondantes sont créées mais associées à ce type générique sans dénomination précise.
 
 **R14 — Création inline de type d'acte (frontend)** : L'utilisateur peut créer un nouveau type d'acte directement depuis l'écran de mapping, via une modale. Le montant par défaut est pré-rempli avec la valeur correspondante. Le type créé est immédiatement disponible dans la liste de mapping.
 
+**R25 — Actes ignorées si montant absent du mapping (backend)** : Si un montant est absent du mapping reçu lors de l'exécution, toutes les actes correspondant à ce montant sont ignorées.
+
 ### Protection des données rapprochées
 
-**R15 — Mois bloqué (backend)** : Avant d'importer un mois sélectionné, le système vérifie s'il existe des actes avec un statut de rapprochement avancé (`RECONCILIATED` ou `FUND_PAYED`) pour ce mois. Si c'est le cas, le mois entier est **bloqué** : aucune acte de ce mois n'est supprimée ni recréée. Le mois bloqué est signalé dans le résultat (`blocked_months`).
+**R15 — Mois bloqué (backend)** : Avant d'importer un mois sélectionné, le système vérifie s'il existe des actes avec un statut de rapprochement avancé (`RECONCILIATED` ou `FUND_PAYED`) pour ce mois. Si c'est le cas, le mois entier est **bloqué** : aucune acte de ce mois n'est supprimée ni recréée. Les mois bloqués sont signalés dans le résultat.
 
-**R16 — Suppression avant ré-import (backend)** : Si un mois n'est pas bloqué (cf. R15), **toutes** les actes existantes de ce mois sont supprimées définitivement (`hard-delete`, y compris les actes marquées comme supprimées en base) avant l'import des nouvelles données. Ce mécanisme permet de ré-importer un mois corrigé sans accumulation de doublons.
+**R16 — Suppression avant ré-import (backend)** : Si un mois n'est pas bloqué (cf. R15), **toutes** les actes existantes de ce mois sont supprimées définitivement avant l'import des nouvelles données. Ce mécanisme permet de ré-importer un mois corrigé sans accumulation de doublons.
 
 ### Orchestration de l'import
 
 **R17 — Ordre d'exécution (backend)** : L'exécution de l'import suit un ordre strict :
-1. Résolution et création des patients (patients existants réutilisés, nouveaux créés en batch)
-2. Résolution et création des fonds (fonds existants réutilisés, nouveaux créés en batch)
+1. Résolution et création des patients (patients existants réutilisés, nouveaux créés)
+2. Résolution et création des fonds (fonds existants réutilisés, nouveaux créés)
 3. Validation des mois : identification des mois bloqués et suppression des actes des mois autorisés
-4. Création des actes : pour chaque acte dont le mois est autorisé, le patient résolu et le type mappé, une acte est créée via `ProcedureOrchestrationService::create_batch()`
+4. Création des actes : pour chaque acte dont le mois est autorisé, le patient résolu et le type mappé
 
-**R18 — Mise à jour des champs de suivi patient (backend)** : Après la création en batch des actes, `ProcedureOrchestrationService::create_batch()` met à jour les champs de suivi du patient (`latest_month`, `latest_fund`, `latest_procedure_date`) pour refléter l'acte la plus récente importée.
+**R18 — Mise à jour des champs de suivi patient (backend)** : Après la création des actes, les champs de suivi du patient (dernier mois, dernier fonds, dernière date d'acte) sont mis à jour pour refléter l'acte la plus récente importée.
 
 **R19 — Statut initial des actes importées (backend)** : Toutes les actes créées par l'import reçoivent le statut `NONE` (non rapprochée). Elles sont ensuite éligibles au rapprochement caisse (cf. R1 du document fund-payment-match-rules.md).
 
@@ -94,12 +96,18 @@ Toutes les lignes ignorées sont collectées dans un rapport de parsing (`parsin
 - Liste des mois bloqués (si applicable)
 
 **R21 — Rapport de parsing (backend + frontend)** : À l'issue du parsing, un rapport détaillé est accessible depuis l'écran de résultat. Il contient deux sections :
-- **Feuilles absentes** (`missing_sheets`) : liste des feuilles mensuelles attendues mais introuvables dans le fichier Excel.
-- **Lignes ignorées** (`skipped_rows`) : lignes rejetées (cf. R2), organisées par feuille mensuelle sous forme d'onglets. Les lignes ignorées pour cause de nom `#N/A` ou ligne vide sont masquées dans l'affichage (trop nombreuses et peu informatives).
+- **Feuilles absentes** : liste des feuilles mensuelles attendues mais introuvables dans le fichier Excel.
+- **Lignes ignorées** : lignes rejetées (cf. R2), organisées par feuille mensuelle sous forme d'onglets. Les lignes ignorées pour cause de nom `#N/A` ou ligne vide sont masquées dans l'affichage (trop nombreuses et peu informatives).
 
 Ce rapport est informatif et non bloquant.
 
-**R22 — Mémorisation du mapping montant → type d'acte (backend + frontend)** : Les choix de mapping effectués par l'utilisateur (montant → type d'acte) sont persistés en base à la confirmation de l'étape de mapping. Lors d'un import ultérieur, le composant de mapping charge ces préférences depuis le backend et les utilise comme valeurs par défaut. L'utilisateur conserve la possibilité de modifier n'importe quelle valeur — il n'y a pas d'auto-validation. Le filtrage des types supprimés est effectué **côté backend** : `get_excel_amount_mappings` ne retourne que les mappings dont le `procedure_type_id` existe encore en base (`is_deleted = 0`), ou dont la valeur est `imported-from-excel`. Si un type a été supprimé depuis le dernier import, son mapping est automatiquement exclu — le frontend revient alors au type par défaut (cf. R12) sans logique de validation supplémentaire.
+### Mémorisation du mapping
+
+**R22 — Persistance du mapping (frontend)** : À la confirmation de l'étape de mapping, les choix de l'utilisateur (montant → type d'acte) sont persistés en base.
+
+**R23 — Rechargement comme valeurs par défaut (frontend)** : Lors d'un import ultérieur, les préférences sauvegardées sont proposées comme valeurs par défaut dans l'écran de mapping. L'utilisateur peut modifier n'importe quelle valeur — il n'y a pas d'auto-validation.
+
+**R24 — Filtrage des types supprimés (backend)** : Les préférences de mapping sont filtrées avant d'être transmises au frontend : seuls les mappings dont le type d'acte existe encore (non supprimé) ou dont la valeur est `imported-from-excel` sont retournés. Si un type a été supprimé depuis le dernier import, son mapping est exclu — l'interface revient alors au type par défaut (cf. R12).
 
 ---
 
@@ -113,7 +121,7 @@ Ce rapport est informatif et non bloquant.
   → Lecture feuille Patiente / Secu / feuilles mensuelles
   → Assignation des temp_id (patients, fonds, actes)
   → Groupement par montant → procedure_type_tmp_id
-  → Collecte des lignes ignorées (parsing_issues)
+  → Collecte des lignes ignorées
           │
           ▼
 [Sélection des mois] (frontend)
@@ -126,14 +134,14 @@ Ce rapport est informatif et non bloquant.
   → Table : montant → type d'acte (pré-rempli avec préférences ou premier type disponible)
   → Options : type existant / créer nouveau / type générique
   → Création inline possible via modale
-  → Sauvegarde des choix à la confirmation (fire-and-forget)
+  → Sauvegarde des choix à la confirmation
           │
           ▼
 [Exécution de l'import] (backend)
-  → Résolution patients (réutilisation ou création batch)
-  → Résolution fonds (réutilisation ou création batch)
+  → Résolution patients (réutilisation ou création)
+  → Résolution fonds (réutilisation ou création)
   → Validation mois : bloqués (RECONCILIATED/FUND_PAYED) vs autorisés
-  → Suppression hard-delete des actes des mois autorisés
+  → Suppression définitive des actes des mois autorisés
   → Création des actes avec statut NONE
   → Mise à jour des champs de suivi patient
           │
