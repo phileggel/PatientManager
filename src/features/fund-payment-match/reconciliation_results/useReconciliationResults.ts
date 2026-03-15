@@ -4,7 +4,7 @@
  * Reports resolved count upward via onReportResolvedCount.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AutoCorrection, ReconciliationMatch, ReconciliationResult } from "@/bindings";
 import {
   buildContestKey,
@@ -133,13 +133,28 @@ export function useReconciliationResults(
 
   const currentIssue = sortedIssues[currentIndex] ?? null;
 
-  // Auto-advance to next unresolved issue when current becomes resolved
+  // Tracks the last observed { index, resolved } pair to detect when a card BECOMES resolved
+  // vs when the user navigates to a card that was already resolved.
+  const lastSeenRef = useRef<{ index: number; resolved: boolean } | null>(null);
+
+  // Auto-advance to next unresolved issue only when the current card BECOMES resolved.
+  // Navigation to an already-resolved card (goPrev / goTo) does not trigger auto-advance
+  // because the index changes between the two renders, breaking the "same card" condition.
   useEffect(() => {
-    if (!currentIssue || !isResolved(currentIssue)) return;
+    const isCurrentResolved = !!(currentIssue && isResolved(currentIssue));
+    const becameResolved =
+      isCurrentResolved &&
+      lastSeenRef.current !== null &&
+      lastSeenRef.current.index === currentIndex &&
+      !lastSeenRef.current.resolved;
+
+    lastSeenRef.current = { index: currentIndex, resolved: isCurrentResolved };
+
+    if (!becameResolved) return;
     const nextUnresolved = sortedIssues.findIndex(
       (issue, i) => i > currentIndex && !isResolved(issue),
     );
-    if (nextUnresolved === -1) return; // all resolved, stay
+    if (nextUnresolved === -1) return;
     const timer = setTimeout(() => setCurrentIndex(nextUnresolved), 500);
     return () => clearTimeout(timer);
   }, [currentIssue, currentIndex, isResolved, sortedIssues]);
