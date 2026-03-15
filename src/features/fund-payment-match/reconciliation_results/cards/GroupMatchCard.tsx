@@ -74,27 +74,40 @@ export function GroupMatchCard({
         {dbMatches.map((m) => (
           <div
             key={m.procedure_id}
-            className="flex items-center gap-3 bg-m3-surface-container-low rounded-lg px-3 py-2.5"
+            className="bg-m3-surface-container-low rounded-lg px-3 py-2.5 space-y-1.5"
           >
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-m3-on-surface truncate">{m.procedure_date}</p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-m3-on-surface truncate">
+                  {m.procedure_date}
+                </p>
+              </div>
+              <div className="w-36 shrink-0">
+                <AmountField
+                  id={`amount-${m.procedure_id}`}
+                  label=""
+                  value={getAmount(m) / 1000}
+                  onChange={(val) => {
+                    if (val !== null) {
+                      onAcceptCorrection(
+                        buildCorrectionKey("AmountMismatch", m.procedure_id),
+                        buildAutoCorrection("AmountMismatch", pdfLine, m, Math.round(val * 1000)),
+                      );
+                    }
+                  }}
+                />
+              </div>
+              <span className="text-sm text-m3-on-surface-variant shrink-0">€</span>
             </div>
-            <div className="w-36 shrink-0">
-              <AmountField
-                id={`amount-${m.procedure_id}`}
-                label=""
-                value={getAmount(m) / 1000}
-                onChange={(val) => {
-                  if (val !== null) {
-                    onAcceptCorrection(
-                      buildCorrectionKey("AmountMismatch", m.procedure_id),
-                      buildAutoCorrection("AmountMismatch", pdfLine, m, Math.round(val * 1000)),
-                    );
-                  }
-                }}
-              />
-            </div>
-            <span className="text-sm text-m3-on-surface-variant shrink-0">€</span>
+            {m.anomalies
+              .filter((a) => a !== "AmountMismatch")
+              .map((a) => (
+                <div key={a} className="flex items-center gap-1.5">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-m3-warning-container text-m3-on-warning-container">
+                    {t(`results.badge.${a === "DateMismatch" ? "dateMismatch" : "fundMismatch"}`)}
+                  </span>
+                </div>
+              ))}
           </div>
         ))}
       </div>
@@ -123,12 +136,14 @@ export function GroupMatchCard({
           fullWidth
           onClick={() => {
             for (const m of dbMatches) {
-              const key = buildCorrectionKey("AmountMismatch", m.procedure_id);
-              if (!acceptedKeys.has(key)) {
-                onAcceptCorrection(
-                  key,
-                  buildAutoCorrection("AmountMismatch", pdfLine, m, getAmount(m)),
-                );
+              for (const anomaly of [
+                "AmountMismatch",
+                ...m.anomalies.filter((a) => a !== "AmountMismatch"),
+              ]) {
+                const key = buildCorrectionKey(anomaly, m.procedure_id);
+                if (!acceptedKeys.has(key)) {
+                  onAcceptCorrection(key, buildAutoCorrection(anomaly, pdfLine, m, getAmount(m)));
+                }
               }
             }
           }}
