@@ -15,7 +15,7 @@ fn parse_french_date(s: &str) -> Option<NaiveDate> {
 }
 
 /// Data line regex pattern (SSN as anchor)
-const DATA_LINE_PATTERN: &str = r"^\s*(\d{2}/\d{2}/\d{4})\s+(\d+)\s+(.+)\s+(\d{13})\s+([A-Z]{1,4})\s+(\d{2}/\d{2}/\d{4}(?:\s+au\s+\d{2}/\d{2}/\d{4})?)\s+([\d\s]+,\d{2})\s*€?\s*$";
+const DATA_LINE_PATTERN: &str = r"^\s*(\d{2}/\d{2}/\d{4})\s+(\d+)\s+(.+)\s+(\d{13})\s+([A-Z]{1,4})\s+(\d{2}/\d{2}/\d{4}(?:\s+au\s+\d{2}/\d{2}/\d{4})?)\s+(-?[\d\s]+,\d{2})\s*€?\s*$";
 
 /// Parse a French-formatted amount string into i64 millièmes
 fn parse_amount(raw: &str) -> Option<i64> {

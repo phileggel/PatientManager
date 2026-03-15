@@ -17,6 +17,8 @@ Ces relevés listent les actes remboursés. Cette feature permet de rapprocher c
 
 **R28 — Lignes non parsées (backend + frontend)** : Certaines lignes du PDF peuvent ne pas être reconnues par le parser (format inattendu, lignes de commentaire, etc.). Elles sont silencieusement exclues du rapprochement. Le nombre de lignes non parsées et les 5 premières en exemple sont affichés en avertissement à l'utilisateur.
 
+**R29 — Remboursements à montant négatif (backend)** : La caisse peut émettre des lignes à montant négatif (ex. `-76,80 €`) pour signaler un remboursement. Ces lignes sont parsées normalement et traitées comme des `NotFoundIssue` (aucune acte en base ne peut correspondre à un montant négatif). L'utilisateur crée l'acte via l'action habituelle (`CreateProcedure`) ou via l'auto-correction globale. L'acte créée reçoit le montant négatif et le statut `Reconciliated`.
+
 **R3 — Détection de doublon PDF (backend)** : Au moment de la création des groupes de paiement fond, le système vérifie si un groupe avec le même (fonds, date, montant total) existe déjà. Si tous les candidats sont des doublons, le traitement est rejeté entièrement — le PDF a vraisemblablement déjà été importé.
 
 ### Algorithme de matching
