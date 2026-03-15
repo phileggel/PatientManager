@@ -6,6 +6,7 @@ import type { Procedure } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 import { PageContent } from "@/features/shell";
 import { logger } from "@/lib/logger";
+import { ConfirmationDialog } from "@/ui/components";
 import * as gateway from "../api/gateway";
 import { useProcedureData } from "../hooks/useProcedureData";
 import { useProcedurePeriod } from "../hooks/useProcedurePeriod";
@@ -46,6 +47,7 @@ export default function ProcedurePage() {
   const [rows, setRows] = useState<ProcedureRow[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProcedure, setEditingProcedure] = useState<ProcedureRow | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Persist selected month/year to session storage
   useEffect(() => {
@@ -102,27 +104,30 @@ export default function ProcedurePage() {
     setEditingProcedure(null);
   }, []);
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      try {
-        await handlers.deleteRow(id);
-        toastService.show("success", t("state.deleted"));
-        // Reload procedures after deletion
-        const updated = await gateway.readAllProcedures();
-        const mappedRows = updated.map((proc) =>
-          toProcedureRow(proc, {
-            patients,
-            funds,
-            procedureTypes,
-          }),
-        );
-        setRows(mappedRows);
-      } catch (error) {
-        toastService.show("error", error instanceof Error ? error.message : String(error));
-      }
-    },
-    [handlers, patients, funds, procedureTypes, t],
-  );
+  const handleDelete = useCallback((id: string) => {
+    setPendingDeleteId(id);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDeleteId) return;
+    try {
+      await handlers.deleteRow(pendingDeleteId);
+      toastService.show("success", t("state.deleted"));
+      const updated = await gateway.readAllProcedures();
+      const mappedRows = updated.map((proc) =>
+        toProcedureRow(proc, { patients, funds, procedureTypes }),
+      );
+      setRows(mappedRows);
+    } catch (error) {
+      toastService.show("error", error instanceof Error ? error.message : String(error));
+    } finally {
+      setPendingDeleteId(null);
+    }
+  }, [pendingDeleteId, handlers, patients, funds, procedureTypes, t]);
+
+  const handleCancelDelete = useCallback(() => {
+    setPendingDeleteId(null);
+  }, []);
 
   // Listen for backend procedure updates (only register once, use ref for latest values)
   const handleProcedureUpdate = useCallback(async () => {
@@ -280,6 +285,18 @@ export default function ProcedurePage() {
           </div>
         </div>
       </PageContent>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmationDialog
+        isOpen={pendingDeleteId !== null}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title={t("action.deleteTitle")}
+        message={t("action.delete.confirm")}
+        confirmLabel={t("action.delete.confirmLabel")}
+        cancelLabel={t("action.delete.cancelLabel")}
+        variant="danger"
+      />
 
       {/* Modal */}
       {procedureForModal && (

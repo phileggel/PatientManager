@@ -108,7 +108,7 @@ interface WorkflowTableProps {
 
   // Modal editing
   onEdit?: (row: ProcedureRow) => void;
-  onDelete?: (id: string) => Promise<void>;
+  onDelete?: (id: string) => void;
   editingRowId?: string | null;
 }
 

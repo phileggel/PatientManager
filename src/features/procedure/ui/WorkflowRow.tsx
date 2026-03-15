@@ -34,7 +34,7 @@ interface WorkflowRowProps {
   allProcedureTypes: ProcedureType[];
   tableContext: { maxDays: number; isoPrefix: string };
   onEdit?: (row: ProcedureRow) => void;
-  onDelete?: (id: string) => Promise<void>;
+  onDelete?: (id: string) => void;
   editingRowId?: string | null;
 }
 
@@ -56,12 +56,8 @@ export const WorkflowRow = React.memo(
       bundle.state.currentStep === "SAVING" && bundle.state.focusedRowId === row.rowId;
     const isBeingEditedInModal = editingRowId === row.id;
 
-    const handleDelete = async () => {
-      if (!row.id) return;
-      const confirmed = window.confirm(t("action.delete.confirm"));
-      if (confirmed && onDelete) {
-        await onDelete(row.id);
-      }
+    const handleDelete = () => {
+      if (row.id) onDelete?.(row.id);
     };
 
     // Wrap the actions to prevent inline editing when modal is open

@@ -30,7 +30,9 @@
     "deleteTitle": "Supprimer l'acte",
     "delete": {
       "confirm": "Êtes-vous sûr de vouloir supprimer cet acte ?",
-      "success": "Acte supprimé avec succès !"
+      "success": "Acte supprimé avec succès !",
+      "confirmLabel": "Supprimer",
+      "cancelLabel": "Annuler"
     }
   },
   "table": {
