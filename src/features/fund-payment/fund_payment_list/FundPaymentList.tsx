@@ -7,11 +7,11 @@
  * - Edit: double-click or Edit button opens EditFundPaymentModal
  */
 
-import { ArrowDown, ArrowUp, Edit, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Edit, Lock, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup } from "@/bindings";
-import { useSnackbar } from "@/core/snackbar";
+import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { ConfirmationDialog } from "@/ui/components";
 import { EditFundPaymentModal } from "../edit_fund_payment_modal/EditFundPaymentModal";
@@ -32,7 +32,6 @@ function SortIcon({ sortConfig, column }: { sortConfig: SortConfig; column: Sort
 
 export default function FundPaymentList() {
   const { t } = useTranslation("fund-payment");
-  const { showSnackbar } = useSnackbar();
   const { fundPaymentRows, groups, loading, deleteGroup } = useFundPaymentList();
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -50,14 +49,14 @@ export default function FundPaymentList() {
   const [editingPayment, setEditingPayment] = useState<FundPaymentGroup | null>(null);
   const [deleteData, setDeleteData] = useState<{ id: string; fundName: string } | null>(null);
 
-  const handleRowClick = (groupId: string) => {
+  const handleRowClick = (groupId: string, isLocked: boolean) => {
     const now = Date.now();
     const isDoubleClick = lastClickedId === groupId && now - lastClickTime < 300;
 
     setLastClickedId(groupId);
     setLastClickTime(now);
 
-    if (isDoubleClick) {
+    if (isDoubleClick && !isLocked) {
       const groupObject = groups.find((g) => g.id === groupId);
       if (groupObject) {
         setEditingPayment(groupObject);
@@ -133,11 +132,18 @@ export default function FundPaymentList() {
                 return (
                   <tr
                     key={group.rowId}
-                    onClick={() => handleRowClick(group.id)}
-                    className="m3-tr cursor-pointer select-none"
-                    title={t("list.rowEditHint")}
+                    onClick={() => handleRowClick(group.id, group.isLocked)}
+                    className={`m3-tr select-none ${group.isLocked ? "cursor-default opacity-70" : "cursor-pointer"}`}
+                    title={group.isLocked ? t("list.lockedHint") : t("list.rowEditHint")}
                   >
-                    <td className="m3-td font-medium text-m3-on-surface">{group.fundName}</td>
+                    <td className="m3-td font-medium text-m3-on-surface">
+                      <div className="flex items-center gap-2">
+                        {group.isLocked && (
+                          <Lock size={14} className="text-m3-on-surface-variant shrink-0" />
+                        )}
+                        {group.fundName}
+                      </div>
+                    </td>
                     <td className="m3-td text-m3-on-surface-variant font-mono text-sm">
                       {group.paymentDate}
                     </td>
@@ -151,9 +157,10 @@ export default function FundPaymentList() {
                           type="button"
                           className="m3-icon-button-primary"
                           aria-label={t("action.editAriaLabel", { name: group.fundName })}
+                          disabled={group.isLocked}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (groupObject) {
+                            if (groupObject && !group.isLocked) {
                               setEditingPayment(groupObject);
                             }
                           }}
@@ -164,9 +171,12 @@ export default function FundPaymentList() {
                           type="button"
                           className="m3-icon-button-error"
                           aria-label={t("action.deleteAriaLabel", { name: group.fundName })}
+                          disabled={group.isLocked}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDeleteData({ id: group.id, fundName: group.fundName });
+                            if (!group.isLocked) {
+                              setDeleteData({ id: group.id, fundName: group.fundName });
+                            }
                           }}
                         >
                           <Trash2 size={16} />
@@ -193,11 +203,14 @@ export default function FundPaymentList() {
           if (deleteData) {
             try {
               await deleteGroup(deleteData.id);
-              showSnackbar("success", t("list.delete.success", { fundName: deleteData.fundName }));
+              toastService.show(
+                "success",
+                t("list.delete.success", { fundName: deleteData.fundName }),
+              );
               setDeleteData(null);
             } catch (error) {
               logger.error("Delete fund payment group failed", { error, groupId: deleteData.id });
-              showSnackbar("error", t("list.delete.error", { error: String(error) }));
+              toastService.show("error", t("list.delete.error", { error: String(error) }));
             }
           }
         }}

@@ -21,4 +21,5 @@ export interface FundPaymentRow {
   paymentDate: string;
   totalAmount: number;
   procedureCount: number;
+  isLocked: boolean;
 }

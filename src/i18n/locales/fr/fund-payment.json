@@ -26,6 +26,7 @@
     "loading": "Chargement des paiements...",
     "empty": "Aucun groupe de paiement trouvé.",
     "rowEditHint": "Double-cliquer pour modifier",
+    "lockedHint": "Groupe verrouillé — rapprochement bancaire effectué",
     "columns": {
       "fund": "Caisse",
       "date": "Date",
@@ -52,6 +53,8 @@
     "cancel": "Annuler",
     "update": "Mettre à jour",
     "success": "Groupe de paiement mis à jour avec succès",
+    "sectionCurrent": "Actes en cours",
+    "sectionAvailable": "Actes disponibles",
     "errorLoadProcedures": "Échec du chargement des actes : {{error}}",
     "errorLoadDetails": "Échec du chargement des détails des actes",
     "errorDateRequired": "Veuillez saisir une date de paiement",

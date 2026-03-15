@@ -425,6 +425,9 @@ async getUnreconciledProceduresInRange(startDate: string, endDate: string) : Pro
 },
 /**
  * Tauri command: Read all fund payment groups
+ * 
+ * Computes is_locked for each group by checking if any associated procedure
+ * is in a bank-reconciled status (FundPayed or PartiallyFundPayed).
  */
 async readAllFundPaymentGroups() : Promise<Result<FundPaymentGroup[], string>> {
     try {
@@ -449,11 +452,45 @@ async deleteFundPaymentGroup(groupId: string) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Tauri command: Create a fund payment group from manual UI selection
+ * 
+ * Calculates total_amount from procedure amounts and sets procedures to Reconciliated.
+ */
+async createFundPaymentGroup(fundId: string, paymentDate: string, procedureIds: string[]) : Promise<Result<FundPaymentGroup, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_fund_payment_group", { fundId, paymentDate, procedureIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Tauri command: Update a fund payment group with new procedures
+ * 
+ * Handles add/remove procedure logic via orchestrator:
+ * - Removed procedures → reset to Created
+ * - Added procedures → set to Reconciliated
+ * - Recalculates total_amount
+ * - Rejects if any procedure is bank-reconciled (FundPayed/PartiallyFundPayed)
  */
 async updateFundPaymentGroupWithProcedures(groupId: string, paymentDate: string, procedureIds: string[]) : Promise<Result<FundPaymentGroup, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_fund_payment_group_with_procedures", { groupId, paymentDate, procedureIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Tauri command: Get edit data for a fund payment group
+ * 
+ * Returns two classified lists server-side so the frontend only handles display:
+ * - `current_procedures`: in the group (Reconciliated / PartiallyReconciled)
+ * - `available_procedures`: Created procedures for the same fund, not in the group
+ */
+async getFundPaymentGroupEditData(groupId: string, fundId: string) : Promise<Result<FundPaymentGroupEditData, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_fund_payment_group_edit_data", { groupId, fundId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -896,7 +933,12 @@ export type FundPaymentCandidateValidation = { candidate: FundPaymentGroupCandid
  * FundPaymentGroup aggregate root
  * Represents a batch of payments from a single fund (e.g., CPAM payment run)
  */
-export type FundPaymentGroup = { id: string; fund_id: string; payment_date: string; total_amount: number; lines: FundPaymentLine[] }
+export type FundPaymentGroup = { id: string; fund_id: string; payment_date: string; total_amount: number; lines: FundPaymentLine[]; 
+/**
+ * Computed at read time: true if any procedure in this group is bank-reconciled
+ * (FundPayed or PartiallyFundPayed). Group cannot be edited or deleted when locked.
+ */
+is_locked?: boolean }
 /**
  * Fund payment group candidate created from PDF reconciliation data
  * Groups matched procedures by (fund_id + payment_date)
@@ -926,6 +968,18 @@ matched_amount: number;
  * Coverage status: is matched_amount == total_amount?
  */
 is_fully_covered: boolean }
+/**
+ * Response for the edit modal: procedures in the group + procedures available to add
+ */
+export type FundPaymentGroupEditData = { 
+/**
+ * Procedures currently in the group (Reconciliated / PartiallyReconciled)
+ */
+current_procedures: Procedure[]; 
+/**
+ * Created procedures for the same fund not yet in the group
+ */
+available_procedures: Procedure[] }
 /**
  * FundPaymentLine aggregate
  * Links a fund payment group to a specific procedure

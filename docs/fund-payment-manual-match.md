@@ -1,12 +1,23 @@
-# Règles Métier — Groupes de Paiement Fond (fund-payment)
+# Règles Métier — Rapprochement Manuel (fund-payment)
 
 ## Contexte
 
-Un praticien reçoit des virements de caisses d'assurance maladie (CPAM, etc.) en paiement des actes remboursés. Cette feature permet de regrouper manuellement des actes dans un groupe de paiement fond, afin de tracer le lien entre les actes réalisés et les paiements reçus de la caisse.
+Un praticien reçoit des virements de caisses d'assurance maladie (CPAM, etc.) en paiement des actes remboursés. Cette feature permet de **regrouper manuellement** des actes dans un groupe de paiement fond, afin de tracer le lien entre les actes réalisés et les paiements reçus de la caisse.
+
+Ce document couvre exclusivement le **flux manuel** : création, modification et suppression de groupes depuis l'interface utilisateur.
 
 ---
 
 ## Règles métier
+
+### Cycle de statut des actes
+
+**R0 — Cycle de statut (backend)** : Le statut d'une acte évolue en deux étapes issues de deux features distinctes :
+
+- **Étape 1 — Rapprochement fond** (manuel ou automatique) : l'acte passe de `Created` à `Reconciliated` (paiement intégral accepté) ou `PartiallyReconciled` (montant contesté). Dans les deux cas, `confirmed_payment_date` et `actual_payment_amount` sont renseignés.
+- **Étape 2 — Rapprochement bancaire** (feature `bank-statement-match`) : lorsque le virement est détecté sur le relevé bancaire, l'acte passe en statut final : `Reconciliated` → `FundPayed`, `PartiallyReconciled` → `PartiallyFundPayed`.
+
+Un groupe devient verrouillé dès qu'une de ses actes atteint l'Étape 2 (cf. R9).
 
 ### Éligibilité des actes
 
@@ -18,7 +29,7 @@ Un praticien reçoit des virements de caisses d'assurance maladie (CPAM, etc.) e
 
 **R3 — Champs obligatoires (frontend + backend)** : La création d'un groupe nécessite : une caisse, une date de paiement valide, et au moins une acte sélectionnée. Ces trois conditions sont vérifiées avant soumission.
 
-**R4 — Montant total calculé (backend)** : Le montant total du groupe est toujours égal à la somme des montants des actes associées. Il n'est pas saisi manuellement et est recalculé à chaque modification de la liste des actes.
+**R4 — Montant total calculé (backend)** : Le montant total du groupe est toujours égal à la somme des `procedure_amount` des actes associées. Il n'est pas saisi manuellement et est recalculé à chaque modification de la liste des actes. Dans le flux manuel, `actual_payment_amount` étant renseigné avec `procedure_amount` à l'ajout (cf. R8), l'invariant `total_amount = Σ actual_payment_amount` est également garanti.
 
 **R5 — Unicité par groupe (backend)** : Un groupe de paiement fond regroupe une ou plusieurs actes d'une même caisse, payées à une même date. Il n'y a pas de contrainte d'unicité stricte au niveau de la date et de la caisse — plusieurs groupes peuvent coexister pour la même combinaison (ex. deux virements reçus le même jour de la même CPAM).
 
@@ -30,7 +41,7 @@ Un praticien reçoit des virements de caisses d'assurance maladie (CPAM, etc.) e
 
 **R8 — Ajout d'une acte (backend)** : Lorsqu'une acte `Created` est ajoutée au groupe à la validation, son statut passe à `Reconciliated` (par défaut), sa date de paiement confirmée est renseignée avec la date de paiement du groupe, son `actual_payment_amount` est renseigné avec son montant d'acte, et le montant total du groupe est recalculé en conséquence. ⚠️ Le choix du statut cible (`Reconciliated` ou `PartiallyReconciled`) par l'utilisateur est une amélioration future non implémentée.
 
-**R9 — Verrouillage après rapprochement bancaire (frontend + backend)** : Un groupe ne peut pas être modifié ni supprimé si l'une de ses actes a été rapprochée au niveau bancaire (statut `FundPayed` ou `PartiallyFundPayed`). Dans ce cas, le formulaire de modification et le bouton de suppression sont inaccessibles. Le groupe n'ayant pas de statut propre, ce verrouillage est actuellement déduit des statuts des actes qu'il contient (cf. R10).
+**R9 — Verrouillage après rapprochement bancaire (frontend + backend)** : Un groupe ne peut pas être modifié ni supprimé si l'une de ses actes a été rapprochée au niveau bancaire (statut `FundPayed` ou `PartiallyFundPayed`). Ces statuts sont posés par la feature `bank-statement-match` (Étape 2 du cycle, cf. R0). Dans ce cas, le formulaire de modification et le bouton de suppression sont inaccessibles. Le groupe n'ayant pas de statut propre, ce verrouillage est actuellement déduit des statuts des actes qu'il contient (cf. R10).
 
 **R10 — Statut du groupe ⚠️ non implémenté (backend)** : Le groupe devrait porter un statut propre (`Active`, `BankPayed`) pour simplifier le verrouillage et les requêtes. La feature `bank-statement-match` est responsable de passer le groupe en `BankPayed` lorsqu'elle réconcilie les actes au niveau bancaire. La migration des groupes existants peut être déduite des statuts de leurs actes : si au moins une acte est en `FundPayed` ou `PartiallyFundPayed`, le groupe est `BankPayed` ; sinon il est `Active`.
 

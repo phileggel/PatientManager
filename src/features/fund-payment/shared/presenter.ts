@@ -27,6 +27,7 @@ export const FundPaymentPresenter = {
       // Convert from thousandths (i64) to euros for display
       totalAmount: group.total_amount / 1000,
       procedureCount: group.lines.length,
+      isLocked: group.is_locked ?? false,
     };
   },
   /**

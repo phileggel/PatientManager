@@ -26,6 +26,7 @@
     "loading": "Loading payments...",
     "empty": "No payment groups found.",
     "rowEditHint": "Double-click to edit",
+    "lockedHint": "Locked group — bank reconciliation completed",
     "columns": {
       "fund": "Fund",
       "date": "Date",
@@ -52,6 +53,8 @@
     "cancel": "Cancel",
     "update": "Update",
     "success": "Payment group updated successfully",
+    "sectionCurrent": "Current procedures",
+    "sectionAvailable": "Available procedures",
     "errorLoadProcedures": "Failed to load procedures: {{error}}",
     "errorLoadDetails": "Failed to load procedure details",
     "errorDateRequired": "Please enter a payment date",

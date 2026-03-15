@@ -85,7 +85,7 @@ Toutes les lignes ignorées sont collectées dans un rapport de parsing affiché
 
 **R18 — Mise à jour des champs de suivi patient (backend)** : Après la création des actes, les champs de suivi du patient (dernier mois, dernier fonds, dernière date d'acte) sont mis à jour pour refléter l'acte la plus récente importée.
 
-**R19 — Statut initial des actes importées (backend)** : Toutes les actes créées par l'import reçoivent le statut `NONE` (non rapprochée). Elles sont ensuite éligibles au rapprochement caisse (cf. R1 du document fund-payment-match-rules.md).
+**R19 — Statut initial des actes importées (backend)** : Toutes les actes créées par l'import reçoivent le statut `NONE` (non rapprochée). Elles sont ensuite éligibles au rapprochement caisse (cf. R1 du document fund-payment-auto-match.md).
 
 ### Résultat et rapport
 

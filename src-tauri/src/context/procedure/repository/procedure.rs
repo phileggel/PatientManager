@@ -680,7 +680,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             FROM procedure hp
             WHERE hp.fund_id = $1
               AND hp.is_deleted = 0
-              AND (hp.confirmed_payment_date IS NULL OR hp.confirmed_payment_date = '')
+              AND hp.payment_status = 'CREATED'
             ORDER BY hp.procedure_date DESC
             "#,
             fund_id

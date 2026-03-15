@@ -487,3 +487,61 @@ pub async fn get_unreconciled_procedures_in_range(
         .await
         .map_err(|e| format!("{:#}", e))
 }
+
+/// Response for the edit modal: procedures in the group + procedures available to add
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FundPaymentGroupEditData {
+    /// Procedures currently in the group (Reconciliated / PartiallyReconciled)
+    pub current_procedures: Vec<crate::context::procedure::Procedure>,
+    /// Created procedures for the same fund not yet in the group
+    pub available_procedures: Vec<crate::context::procedure::Procedure>,
+}
+
+/// Tauri command: Get edit data for a fund payment group
+///
+/// Returns two classified lists server-side so the frontend only handles display:
+/// - `current_procedures`: in the group (Reconciliated / PartiallyReconciled)
+/// - `available_procedures`: Created procedures for the same fund, not in the group
+#[tauri::command]
+#[specta::specta]
+pub async fn get_fund_payment_group_edit_data(
+    group_id: String,
+    fund_id: String,
+    fund_service: State<'_, Arc<crate::context::fund::FundService>>,
+    fund_payment_service: State<'_, Arc<crate::context::fund::FundPaymentService>>,
+    procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>,
+    event_bus: State<'_, Arc<crate::core::event_bus::EventBus>>,
+) -> Result<FundPaymentGroupEditData, String> {
+    tracing::info!(
+        group_id = %group_id,
+        fund_id = %fund_id,
+        "Processing get fund payment group edit data request"
+    );
+
+    let orchestrator = super::FundPaymentReconciliationOrchestrator::new(
+        fund_service.inner().clone(),
+        procedure_service.inner().clone(),
+        fund_payment_service.inner().clone(),
+        event_bus.inner().clone(),
+    );
+
+    let (current_procedures, available_procedures) = orchestrator
+        .get_group_edit_data(&group_id, &fund_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to get fund payment group edit data");
+            format!("{:#}", e)
+        })?;
+
+    tracing::info!(
+        group_id = %group_id,
+        current_count = current_procedures.len(),
+        available_count = available_procedures.len(),
+        "Fund payment group edit data retrieved successfully"
+    );
+
+    Ok(FundPaymentGroupEditData {
+        current_procedures,
+        available_procedures,
+    })
+}

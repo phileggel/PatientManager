@@ -96,6 +96,10 @@ pub struct FundPaymentGroup {
     pub payment_date: NaiveDate,
     pub total_amount: i64,
     pub lines: Vec<FundPaymentLine>,
+    /// Computed at read time: true if any procedure in this group is bank-reconciled
+    /// (FundPayed or PartiallyFundPayed). Group cannot be edited or deleted when locked.
+    #[serde(default)]
+    pub is_locked: bool,
 }
 
 /// Serialize NaiveDate as ISO format string for serde
@@ -129,6 +133,7 @@ impl FundPaymentGroup {
             payment_date: parsed_date,
             total_amount,
             lines,
+            is_locked: false,
         })
     }
 
@@ -155,6 +160,7 @@ impl FundPaymentGroup {
             payment_date: parsed_date,
             total_amount,
             lines,
+            is_locked: false,
         })
     }
 
@@ -176,6 +182,7 @@ impl FundPaymentGroup {
             payment_date: parsed_date,
             total_amount,
             lines,
+            is_locked: false,
         }
     }
 
