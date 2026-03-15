@@ -37,7 +37,7 @@
   "identifier": "com.projectsf.patient-manager",
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc3NTIzNEMzOEM1OERDQzQKUldURTNGaU13elJTZDk0OVZLa25Pdy9VZ0xOc3U0YkQ4RTYxb0t1djRuRGViTElNYzlyUG05eHQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdBQTM1RkU4MDUwQTA5QTIKUldTaUNRb0Y2RitqZWc1TXJwWkwyQUp3MDIwRXJ5blpHUmdoNnI3dkRaZ01ieTJTU0craUNSZVoK",
       "endpoints": [
         "https://github.com/phileggel/PatientManager/releases/latest/download/latest.json"
       ]
