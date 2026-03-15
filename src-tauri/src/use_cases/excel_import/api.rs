@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::State;
 
+use crate::use_cases::excel_import::amount_mapping_repo::{
+    ExcelAmountMapping, ExcelAmountMappingRepository, SaveExcelAmountMappingRequest,
+    SqliteExcelAmountMappingRepository,
+};
 use crate::use_cases::excel_import::domain::{
     ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues,
 };
@@ -117,4 +121,34 @@ pub async fn execute_excel_import(
             tracing::error!(error = %e, "Failed to execute Excel import");
             format!("{:#}", e)
         })
+}
+
+/// Tauri command: Return all saved Excel amount → procedure type mappings
+#[tauri::command]
+#[specta::specta]
+pub async fn get_excel_amount_mappings(
+    repo: State<'_, Arc<SqliteExcelAmountMappingRepository>>,
+) -> Result<Vec<ExcelAmountMapping>, String> {
+    tracing::debug!("Processing get_excel_amount_mappings request");
+    repo.find_all().await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to get excel amount mappings");
+        format!("{:#}", e)
+    })
+}
+
+/// Tauri command: Save (upsert) Excel amount → procedure type mappings
+#[tauri::command]
+#[specta::specta]
+pub async fn save_excel_amount_mappings(
+    mappings: Vec<SaveExcelAmountMappingRequest>,
+    repo: State<'_, Arc<SqliteExcelAmountMappingRepository>>,
+) -> Result<(), String> {
+    tracing::info!(
+        count = mappings.len(),
+        "Processing save_excel_amount_mappings request"
+    );
+    repo.save_mappings(mappings).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to save excel amount mappings");
+        format!("{:#}", e)
+    })
 }

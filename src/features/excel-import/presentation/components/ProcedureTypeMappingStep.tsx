@@ -1,8 +1,16 @@
+/**
+ * ProcedureTypeMappingStep - Maps each unique amount from the parsed Excel to a procedure type.
+ *
+ * Sources: procedureMappings + procedureTypes (props), saved amount mappings (gateway).
+ * Saves the user's choices to the gateway on confirm (fire-and-forget) before calling onMappingComplete.
+ */
+
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
 import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
+import { getExcelAmountMappings, saveExcelAmountMappings } from "../../api/gateway";
 import { CreateProcedureTypeModal } from "./CreateProcedureTypeModal";
 
 interface ProcedureMapping {
@@ -31,33 +39,53 @@ export function ProcedureTypeMappingStep({
 }: ProcedureTypeMappingStepProps) {
   const { t } = useTranslation("excel-import");
   const [mapping, setMapping] = useState<MappingState>({});
-
-  useEffect(() => {
-    logger.info("[ProcedureTypeMappingStep] Component mounted");
-  }, []);
   const [showNewTypeModal, setShowNewTypeModal] = useState<{
     tmpId: string;
     amount: number;
   } | null>(null);
   const [availableTypes, setAvailableTypes] = useState<ProcedureType[]>(procedureTypes);
 
-  // Initialize mapping with first procedure type as default for unmapped entries only.
-  // Uses functional update to preserve existing mappings (e.g. newly created types).
+  // null = still loading, {} = loaded (empty or populated)
+  const [savedAmountMappings, setSavedAmountMappings] = useState<Record<number, string> | null>(
+    null,
+  );
+
   useEffect(() => {
-    const defaultTypeId =
+    logger.info("[ProcedureTypeMappingStep] Component mounted");
+    // Backend returns only valid mappings (deleted types are already filtered out)
+    getExcelAmountMappings().then((result) => {
+      const byAmount: Record<number, string> = {};
+      if (result.success && result.data) {
+        for (const m of result.data) {
+          byAmount[m.amount] = m.procedure_type_id;
+        }
+      }
+      setSavedAmountMappings(byAmount);
+    });
+  }, []);
+
+  // Initialize defaults once saved mappings are loaded.
+  // Saved mapping takes priority; falls back to first available type or imported-from-excel.
+  // Uses functional update to preserve mappings set by the user (e.g. newly created types).
+  useEffect(() => {
+    if (savedAmountMappings === null) return; // wait for gateway response
+
+    const fallbackTypeId =
       availableTypes.length > 0
-        ? availableTypes[0]?.id || IMPORTED_FROM_EXCEL_ID
+        ? (availableTypes[0]?.id ?? IMPORTED_FROM_EXCEL_ID)
         : IMPORTED_FROM_EXCEL_ID;
+
     setMapping((prev) => {
       const updated = { ...prev };
       for (const procMapping of procedureMappings) {
         if (!updated[procMapping.tmp_id]) {
-          updated[procMapping.tmp_id] = defaultTypeId;
+          const saved = savedAmountMappings[procMapping.amount];
+          updated[procMapping.tmp_id] = saved ?? fallbackTypeId;
         }
       }
       return updated;
     });
-  }, [procedureMappings, availableTypes]);
+  }, [procedureMappings, availableTypes, savedAmountMappings]);
 
   // Update available types when procedureTypes change
   useEffect(() => {
@@ -76,10 +104,8 @@ export function ProcedureTypeMappingStep({
   };
 
   const handleTypeCreated = (newType: ProcedureType) => {
-    // Add to available types
     setAvailableTypes((prev) => [...prev, newType]);
 
-    // Auto-map the tmp_id to this new type
     if (showNewTypeModal !== null) {
       setMapping((prev) => ({
         ...prev,
@@ -87,11 +113,17 @@ export function ProcedureTypeMappingStep({
       }));
     }
 
-    // Close modal
     setShowNewTypeModal(null);
   };
 
   const handleConfirm = () => {
+    // Persist choices for future imports (fire-and-forget)
+    const toSave = procedureMappings.map((pm) => ({
+      amount: pm.amount,
+      procedure_type_id: mapping[pm.tmp_id] ?? IMPORTED_FROM_EXCEL_ID,
+    }));
+    saveExcelAmountMappings(toSave);
+
     onMappingComplete(mapping);
   };
 

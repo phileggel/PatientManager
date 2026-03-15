@@ -301,6 +301,28 @@ async executeExcelImport(parsedData: ParseExcelResponse, procedureTypeMapping: P
 }
 },
 /**
+ * Tauri command: Return all saved Excel amount → procedure type mappings
+ */
+async getExcelAmountMappings() : Promise<Result<ExcelAmountMapping[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_excel_amount_mappings") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Tauri command: Save (upsert) Excel amount → procedure type mappings
+ */
+async saveExcelAmountMappings(mappings: SaveExcelAmountMappingRequest[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_excel_amount_mappings", { mappings }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Handler for PDF text extraction from file path
  */
 async extractPdfText(filePath: string) : Promise<Result<string, string>> {
@@ -823,6 +845,10 @@ auto_corrections: AutoCorrection[] }
  */
 export type DbMatch = { procedure_id: string; procedure_date: string; fund_id: string | null; amount: number | null; anomalies: AnomalyType[] }
 /**
+ * A saved mapping between a procedure amount (millièmes d'euro) and a procedure type id
+ */
+export type ExcelAmountMapping = { amount: number; procedure_type_id: string }
+/**
  * Parsed fund data from Excel Secu sheet
  */
 export type ExcelFund = { temp_id: string; fund_identifier: string; fund_name: string; fund_address: string | null }
@@ -1248,6 +1274,10 @@ matches: ReconciliationMatch[] }
  * A credit line that has been resolved with a fund ID
  */
 export type ResolvedCreditLine = { date: string; label: string; amount: number; fund_id: string }
+/**
+ * Request to save or update a single amount → procedure type mapping
+ */
+export type SaveExcelAmountMappingRequest = { amount: number; procedure_type_id: string }
 /**
  * Request to save label mappings
  */

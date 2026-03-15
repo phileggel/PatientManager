@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    INSERT INTO excel_amount_type_mapping (id, amount, procedure_type_id)\n                    VALUES ($1, $2, $3)\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "ef229c9965ff956c9aeee75395a6918d878ee36421d63f7cbdf3d1dec980b49c"
+}
