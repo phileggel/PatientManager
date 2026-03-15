@@ -3,7 +3,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup, Procedure } from "@/bindings";
 
-import { useSnackbar } from "@/core/snackbar";
+import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import { Button, Dialog } from "@/ui/components";
@@ -22,7 +22,7 @@ export interface EditFundPaymentModalProps {
 
 export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalProps) {
   const { t } = useTranslation("fund-payment");
-  const { showSnackbar } = useSnackbar();
+
   const funds = useAppStore((state) => state.funds);
   const patients = useAppStore((state) => state.patients);
 
@@ -48,16 +48,16 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
           setCurrentProcedures(result.data);
           setSelectedProcedures(result.data);
         } else {
-          showSnackbar("error", t("edit.errorLoadProcedures", { error: result.error }));
+          toastService.show("error", t("edit.errorLoadProcedures", { error: result.error }));
         }
       } catch (error) {
         logger.error("Failed to fetch current procedures", { error });
-        showSnackbar("error", t("edit.errorLoadDetails"));
+        toastService.show("error", t("edit.errorLoadDetails"));
       }
     };
 
     loadCurrentProcedures();
-  }, [payment, showSnackbar, t]);
+  }, [payment, t]);
 
   const selectedFund = useMemo(() => {
     const fund = funds.find((f) => f.id === payment.fund_id);
@@ -102,18 +102,18 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
         if (result.success && result.data) {
           setUnpaidProcedures(result.data);
         } else {
-          showSnackbar("error", t("edit.errorLoadProcedures", { error: result.error }));
+          toastService.show("error", t("edit.errorLoadProcedures", { error: result.error }));
         }
       } catch (err) {
         logger.error("Error loading procedures", { error: err });
-        showSnackbar("error", t("edit.errorLoadDetails"));
+        toastService.show("error", t("edit.errorLoadDetails"));
       } finally {
         setLoading(false);
       }
     };
 
     loadProcedures();
-  }, [payment.fund_id, showSnackbar, t]);
+  }, [payment.fund_id, t]);
 
   const handleProcedureToggle = (procedure: Procedure) => {
     setSelectedProcedures((prev) => {
@@ -131,13 +131,13 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
 
     if (!paymentDate.trim()) {
       logger.warn("Update form submitted with empty payment date");
-      showSnackbar("error", t("edit.errorDateRequired"));
+      toastService.show("error", t("edit.errorDateRequired"));
       return;
     }
 
     if (selectedProcedures.length === 0) {
       logger.warn("Update form submitted with no procedures");
-      showSnackbar("error", t("edit.errorProcedureRequired"));
+      toastService.show("error", t("edit.errorProcedureRequired"));
       return;
     }
 
@@ -152,14 +152,14 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
       );
 
       if (result.success) {
-        showSnackbar("success", t("edit.success"));
+        toastService.show("success", t("edit.success"));
         onClose();
       } else {
-        showSnackbar("error", t("edit.errorUpdate", { error: result.error }));
+        toastService.show("error", t("edit.errorUpdate", { error: result.error }));
       }
     } catch (error) {
       logger.error("Error updating payment group", { error });
-      showSnackbar("error", t("edit.errorUnknown"));
+      toastService.show("error", t("edit.errorUnknown"));
     } finally {
       setLoading(false);
     }
