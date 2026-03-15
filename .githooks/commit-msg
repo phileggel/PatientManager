@@ -20,9 +20,9 @@ ERRORS=0
 
 # --- TITLE RULES ---
 
-# RULE 1 & 2: Format and type (Conventional Commits)
-if ! echo "$TITLE" | grep -E "^(feat|fix|docs|test|chore|refactor|ci): .+" > /dev/null; then
-  echo -e "${RED}❌ Invalid commit format (expected: type: description)${NC}"
+# RULE 1 & 2: Format and type (Conventional Commits, optional scope)
+if ! echo "$TITLE" | grep -E "^(feat|fix|docs|test|chore|refactor|ci)(\([^)]+\))?: .+" > /dev/null; then
+  echo -e "${RED}❌ Invalid commit format (expected: type: description or type(scope): description)${NC}"
   ERRORS=$((ERRORS + 1))
 fi
 
