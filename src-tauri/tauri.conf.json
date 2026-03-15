@@ -23,6 +23,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -32,11 +33,11 @@
     ]
   },
   "productName": "PatientManager",
-  "version": "0.9.2",
+  "version": "0.10.0",
   "identifier": "com.projectsf.patient-manager",
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc3NTIzNEMzOEM1OERDQzQKUldURTNGaU13elJTZDk0OVZLa25Pdy9VZ0xOc3U0YkQ4RTYxb0t1djRuRGViTElNYzlyUG05eHQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUyMkVFMTI3RjNCMkQ1QTYKUldTbTFiTHpKK0V1NGxuVWJldUtHNXh2SDc2UGFYdDRWYmEyOVpLNzVySjB2YjF0RkorM1ZpdHIK",
       "endpoints": [
         "https://github.com/phileggel/PatientManager/releases/latest/download/latest.json"
       ]
