@@ -10,6 +10,7 @@
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, DbMatch, NormalizedPdfLine } from "@/bindings";
+import { useAppStore } from "@/lib/appStore";
 import { Button } from "@/ui/components/button";
 import {
   buildAutoCorrection,
@@ -43,6 +44,13 @@ export function SingleMatchCard({
   onAcceptCorrection,
 }: SingleMatchCardProps) {
   const { t } = useTranslation("fund-payment-match");
+  const funds = useAppStore((s) => s.funds);
+
+  const formatFundLabel = (fundId: string | null): string => {
+    if (!fundId) return "—";
+    const fund = funds.find((f) => f.id === fundId);
+    return fund ? `${fund.fund_identifier} (${fund.name})` : fundId;
+  };
 
   const contestKey = buildContestKey(dbMatch.procedure_id);
   const contested = acceptedKeys.has(contestKey);
@@ -100,7 +108,7 @@ export function SingleMatchCard({
             anomaly === "AmountMismatch"
               ? `${formatAmount(dbMatch.amount || 0)} €`
               : anomaly === "FundMismatch"
-                ? (dbMatch.fund_id ?? "—")
+                ? formatFundLabel(dbMatch.fund_id)
                 : dbMatch.procedure_date;
 
           return (
