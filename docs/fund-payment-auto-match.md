@@ -1,9 +1,10 @@
-# Règles Métier — Rapprochement Fond/Paiement (fund-payment-match)
+# Règles Métier — Rapprochement Automatique via Import PDF (fund-payment-auto-match)
 
 ## Contexte
 
-Un praticien reçoit des relevés de paiement (PDF) de caisses d'assurance maladie (CPAM, etc.).
-Ces relevés listent les actes remboursés. Cette feature permet de rapprocher ces lignes PDF avec les actes enregistrées en base.
+Un praticien reçoit des relevés de paiement (PDF) de caisses d'assurance maladie (CPAM, etc.). Ces relevés listent les actes remboursés. Cette feature permet de **rapprocher automatiquement** ces lignes PDF avec les actes enregistrées en base, puis de créer les groupes de paiement fond correspondants.
+
+Ce document couvre exclusivement le **flux automatique** : parsing PDF, algorithme de matching, corrections et création des groupes.
 
 ---
 
@@ -72,12 +73,16 @@ Un acte sans aucune de ces anomalies est considérée comme parfaitement corresp
 
 **R18 — Cycle de statut (backend)** : Le statut final d'un acte s'obtient en deux étapes issues de deux features distinctes :
 
-- **Étape 1 — Rapprochement PDF** (cette feature) : la acte passe en statut intermédiaire `Reconciliated`, sauf si le montant a été contesté → `PartiallyReconciled`. Dans les deux cas, `actual_payment_amount` est renseigné.
-- **Étape 2 — Rapprochement bancaire** (feature séparée) : quand le virement du fond est détecté sur le relevé bancaire, la acte passe en statut final :
+- **Étape 1 — Rapprochement fond** (manuel ou automatique) : l'acte passe de `Created` à `Reconciliated` (paiement intégral accepté) ou `PartiallyReconciled` (montant contesté, cf. R12). Dans les deux cas, `confirmed_payment_date` est renseignée avec la date de paiement du groupe et `actual_payment_amount` est renseigné.
+- **Étape 2 — Rapprochement bancaire** (feature `bank-statement-match`) : quand le virement du fond est détecté sur le relevé bancaire, l'acte passe en statut final :
   - `Reconciliated` → `FundPayed`
   - `PartiallyReconciled` → `PartiallyFundPayed` (l'`actual_payment_amount` issu de la contestation est conservé)
 
-**R19 — Vérification de cohérence post-persistance (backend)** : Après création du groupe de paiement fond, la somme des `actual_payment_amount` de toutes les actes du groupe doit être strictement égale au `total_amount` du groupe. Cette vérification est non-bloquante (avertissement en log uniquement).
+⚠️ Dès qu'une acte du groupe atteint l'Étape 2, le groupe devient verrouillé : il ne peut plus être modifié ni supprimé.
+
+**R19 — Vérification de cohérence post-persistance (backend)** : Après création du groupe de paiement fond, la somme des `actual_payment_amount` de toutes les actes du groupe doit être strictement égale au `total_amount` du groupe. Dans le flux import, `total_amount` est issu du PDF et non calculé depuis les `procedure_amount`. Cette vérification est non-bloquante (avertissement en log uniquement).
+
+**R30 — Statut du groupe ⚠️ non implémenté (backend)** : Cette feature est responsable de passer le groupe en statut `BankPayed` lorsqu'elle réconcilie les actes au niveau bancaire (Étape 2 du cycle, cf. R18). Ce statut propre au groupe n'est pas encore implémenté. La migration des groupes existants peut être déduite des statuts de leurs actes : si au moins une acte est en `FundPayed` ou `PartiallyFundPayed`, le groupe est `BankPayed` ; sinon il est `Active`.
 
 ### Navigation et UX
 

@@ -507,6 +507,245 @@ impl FundPaymentReconciliationOrchestrator {
         );
     }
 
+    /// Create a fund payment group from a manual UI selection (R4, R8)
+    ///
+    /// Steps:
+    /// 1. Load procedures to calculate total_amount (R4)
+    /// 2. Create the fund payment group
+    /// 3. Set each procedure to Reconciliated + confirmed_payment_date + actual_payment_amount (R8)
+    /// 4. Publish events
+    pub async fn create_manual_fund_payment_group(
+        &self,
+        fund_id: String,
+        payment_date: String,
+        procedure_ids: Vec<String>,
+    ) -> anyhow::Result<FundPaymentGroup> {
+        tracing::info!(
+            fund_id = %fund_id,
+            payment_date = %payment_date,
+            procedure_count = procedure_ids.len(),
+            "Creating manual fund payment group"
+        );
+
+        // Step 1: Load procedures and calculate total_amount (R4)
+        let procedures = self
+            .procedure_service
+            .read_procedures_by_ids(procedure_ids.clone())
+            .await?;
+
+        let total_amount: i64 = procedures
+            .iter()
+            .map(|p| p.procedure_amount.unwrap_or(0))
+            .sum();
+
+        let parsed_payment_date =
+            NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").map_err(|_| {
+                anyhow::anyhow!(
+                    "Invalid payment date format: {} (expected YYYY-MM-DD)",
+                    payment_date
+                )
+            })?;
+
+        // Step 2: Create the group (silent — we publish at the end)
+        let group = self
+            .fund_payment_service
+            .create_group(
+                fund_id,
+                payment_date.clone(),
+                total_amount,
+                procedure_ids,
+                true,
+            )
+            .await?;
+
+        tracing::info!(group_id = %group.id, total_amount, "Manual fund payment group created");
+
+        // Step 3: Update procedures — Reconciliated + confirmed_payment_date + actual_payment_amount (R8)
+        let updated_procedures: Vec<_> = procedures
+            .into_iter()
+            .map(|mut p| {
+                p.payment_status = ProcedureStatus::Reconciliated;
+                p.confirmed_payment_date = Some(parsed_payment_date);
+                p.actual_payment_amount = p.procedure_amount;
+                p
+            })
+            .collect();
+
+        self.procedure_service
+            .update_procedures_batch(updated_procedures, true)
+            .await?;
+
+        // Step 4: Publish events
+        let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
+        let _ = self
+            .event_bus
+            .publish::<FundPaymentGroupUpdated>(FundPaymentGroupUpdated);
+
+        Ok(group)
+    }
+
+    /// Update a fund payment group from a manual UI edit (R4, R7, R8, R9)
+    ///
+    /// Steps:
+    /// 1. Load existing group and check for bank-reconciled lock (R9)
+    /// 2. Detect removed and added procedures
+    /// 3. Reset removed procedures to Created (R7)
+    /// 4. Set added procedures to Reconciliated (R8)
+    /// 5. Recalculate total_amount from final procedure list (R4)
+    /// 6. Update the group
+    /// 7. Publish events
+    pub async fn update_manual_fund_payment_group(
+        &self,
+        group_id: String,
+        payment_date: String,
+        new_procedure_ids: Vec<String>,
+    ) -> anyhow::Result<FundPaymentGroup> {
+        tracing::info!(
+            group_id = %group_id,
+            payment_date = %payment_date,
+            procedure_count = new_procedure_ids.len(),
+            "Updating manual fund payment group"
+        );
+
+        // Step 1: Load existing group
+        let group = self
+            .fund_payment_service
+            .read_group(&group_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Fund payment group not found: {}", group_id))?;
+
+        let old_procedure_ids: Vec<String> =
+            group.lines.iter().map(|l| l.procedure_id.clone()).collect();
+
+        // Step 1b: R9 — reject if any procedure is bank-reconciled
+        let existing_procedures = self
+            .procedure_service
+            .read_procedures_by_ids(old_procedure_ids.clone())
+            .await?;
+
+        let is_locked = existing_procedures.iter().any(|p| {
+            matches!(
+                p.payment_status,
+                ProcedureStatus::FundPayed | ProcedureStatus::PartiallyFundPayed
+            )
+        });
+
+        if is_locked {
+            anyhow::bail!(
+                "Cannot modify fund payment group {}: it contains bank-reconciled procedures",
+                group_id
+            );
+        }
+
+        // Step 2: Detect removed and added procedure IDs
+        let old_set: std::collections::HashSet<String> = old_procedure_ids.into_iter().collect();
+        let new_set: std::collections::HashSet<String> =
+            new_procedure_ids.iter().cloned().collect();
+
+        let removed_ids: Vec<String> = old_set.difference(&new_set).cloned().collect();
+        let added_ids: Vec<String> = new_set.difference(&old_set).cloned().collect();
+
+        // Step 3: Reset removed procedures → Created (R7)
+        if !removed_ids.is_empty() {
+            let removed_procedures = self
+                .procedure_service
+                .read_procedures_by_ids(removed_ids.clone())
+                .await?;
+
+            let reset: Vec<_> = removed_procedures
+                .into_iter()
+                .map(|mut p| {
+                    p.payment_status = ProcedureStatus::Created;
+                    p.confirmed_payment_date = None;
+                    p.actual_payment_amount = None;
+                    p
+                })
+                .collect();
+
+            self.procedure_service
+                .update_procedures_batch(reset, true)
+                .await?;
+
+            tracing::debug!(
+                count = removed_ids.len(),
+                "Reset removed procedures to Created"
+            );
+        }
+
+        // Step 4: Set added procedures → Reconciliated (R8)
+        if !added_ids.is_empty() {
+            let parsed_payment_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "Invalid payment date format: {} (expected YYYY-MM-DD)",
+                        payment_date
+                    )
+                })?;
+
+            let added_procedures = self
+                .procedure_service
+                .read_procedures_by_ids(added_ids.clone())
+                .await?;
+
+            let reconciled: Vec<_> = added_procedures
+                .into_iter()
+                .map(|mut p| {
+                    p.payment_status = ProcedureStatus::Reconciliated;
+                    p.confirmed_payment_date = Some(parsed_payment_date);
+                    p.actual_payment_amount = p.procedure_amount;
+                    p
+                })
+                .collect();
+
+            self.procedure_service
+                .update_procedures_batch(reconciled, true)
+                .await?;
+
+            tracing::debug!(
+                count = added_ids.len(),
+                "Set added procedures to Reconciliated"
+            );
+        }
+
+        // Step 5: Recalculate total_amount from final procedure list (R4)
+        let final_procedures = self
+            .procedure_service
+            .read_procedures_by_ids(new_procedure_ids.clone())
+            .await?;
+
+        let total_amount: i64 = final_procedures
+            .iter()
+            .map(|p| p.procedure_amount.unwrap_or(0))
+            .sum();
+
+        // Step 6: Update the group
+        let updated_group = self
+            .fund_payment_service
+            .update_group(
+                group_id.clone(),
+                payment_date,
+                new_procedure_ids,
+                total_amount,
+            )
+            .await?;
+
+        tracing::info!(
+            group_id = %group_id,
+            total_amount,
+            removed = removed_ids.len(),
+            added = added_ids.len(),
+            "Manual fund payment group updated"
+        );
+
+        // Step 7: Publish events
+        let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
+        let _ = self
+            .event_bus
+            .publish::<FundPaymentGroupUpdated>(FundPaymentGroupUpdated);
+
+        Ok(updated_group)
+    }
+
     /// Delete a fund payment group and clean up associated procedures
     ///
     /// Steps:
@@ -529,6 +768,28 @@ impl FundPaymentReconciliationOrchestrator {
 
         let procedure_ids: Vec<String> =
             group.lines.iter().map(|l| l.procedure_id.clone()).collect();
+
+        // R9: Reject deletion if any procedure is bank-reconciled
+        if !procedure_ids.is_empty() {
+            let procedures = self
+                .procedure_service
+                .read_procedures_by_ids(procedure_ids.clone())
+                .await?;
+
+            let is_locked = procedures.iter().any(|p| {
+                matches!(
+                    p.payment_status,
+                    ProcedureStatus::FundPayed | ProcedureStatus::PartiallyFundPayed
+                )
+            });
+
+            if is_locked {
+                anyhow::bail!(
+                    "Cannot delete fund payment group {}: it contains bank-reconciled procedures",
+                    group_id
+                );
+            }
+        }
 
         // Step 2: Reset each procedure's reconciliation data
         for procedure_id in &procedure_ids {
@@ -943,5 +1204,57 @@ impl FundPaymentReconciliationOrchestrator {
         }
 
         Ok(result)
+    }
+
+    /// Returns the data needed to edit a fund payment group:
+    /// - `current_procedures`: procedures currently in the group (Reconciliated/PartiallyReconciled)
+    /// - `available_procedures`: Created procedures for the same fund, not already in the group
+    ///
+    /// This centralises the classification logic server-side so the frontend only handles display.
+    pub async fn get_group_edit_data(
+        &self,
+        group_id: &str,
+        fund_id: &str,
+    ) -> anyhow::Result<(Vec<Procedure>, Vec<Procedure>)> {
+        tracing::debug!(
+            group_id = %group_id,
+            fund_id = %fund_id,
+            "Fetching fund payment group edit data"
+        );
+
+        // Step 1: Fetch current procedures in the group
+        let group = self
+            .fund_payment_service
+            .read_group(group_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Fund payment group not found: {}", group_id))?;
+
+        let procedure_ids: Vec<String> =
+            group.lines.iter().map(|l| l.procedure_id.clone()).collect();
+
+        let current_procedures = self
+            .procedure_service
+            .read_procedures_by_ids(procedure_ids.clone())
+            .await?;
+
+        // Step 2: Fetch available (Created) procedures for this fund, excluding those in the group
+        let current_ids: std::collections::HashSet<String> = procedure_ids.into_iter().collect();
+
+        let available_procedures: Vec<Procedure> = self
+            .procedure_service
+            .find_unpaid_by_fund(fund_id)
+            .await?
+            .into_iter()
+            .filter(|p| !current_ids.contains(&p.id))
+            .collect();
+
+        tracing::info!(
+            group_id = %group_id,
+            current_count = current_procedures.len(),
+            available_count = available_procedures.len() as usize,
+            "Fund payment group edit data fetched"
+        );
+
+        Ok((current_procedures, available_procedures))
     }
 }

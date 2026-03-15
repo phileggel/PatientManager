@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id, hp.procedure_date,\n                   hp.procedure_amount, hp.payment_method, hp.confirmed_payment_date,\n                   hp.actual_payment_amount, hp.payment_status, hp.is_deleted\n            FROM procedure hp\n            WHERE hp.fund_id = $1\n              AND hp.is_deleted = 0\n              AND (hp.confirmed_payment_date IS NULL OR hp.confirmed_payment_date = '')\n            ORDER BY hp.procedure_date DESC\n            ",
+  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id, hp.procedure_date,\n                   hp.procedure_amount, hp.payment_method, hp.confirmed_payment_date,\n                   hp.actual_payment_amount, hp.payment_status, hp.is_deleted\n            FROM procedure hp\n            WHERE hp.fund_id = $1\n              AND hp.is_deleted = 0\n              AND hp.payment_status = 'CREATED'\n            ORDER BY hp.procedure_date DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -76,5 +76,5 @@
       false
     ]
   },
-  "hash": "cf6f3e16a553a66dc8771dc323a3a8094ea6034daba69fd2b9cf17469c7a729e"
+  "hash": "28c1a379031cdf79256e0117e04ab3c06d483f48966e3fa0d07b8791736b2d43"
 }

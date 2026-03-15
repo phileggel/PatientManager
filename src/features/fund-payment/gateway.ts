@@ -1,4 +1,9 @@
-import { commands, type FundPaymentGroup, type Procedure } from "@/bindings";
+import {
+  commands,
+  type FundPaymentGroup,
+  type FundPaymentGroupEditData,
+  type Procedure,
+} from "@/bindings";
 import { logger } from "@/lib/logger";
 import type { ServiceResult } from "@/types";
 
@@ -34,17 +39,14 @@ export async function createFundPayment(
   });
 
   try {
-    // Frontend just sends simple parameters (IDs)
-    // Orchestrator in backend handles data enrichment
-    // Use updateFundPaymentGroupWithProcedures with empty groupId for creation
-    const result = await commands.updateFundPaymentGroupWithProcedures(
-      "",
+    const result = await commands.createFundPaymentGroup(
+      fundId,
       paymentDate,
       selectedProcedures.map((p) => p.id),
     );
 
     if (result.status === "ok") {
-      logger.info("Payment group created via orchestrator", {
+      logger.info("Payment group created", {
         id: result.data.id,
         count: selectedProcedures.length,
       });
@@ -113,22 +115,27 @@ export async function updatePaymentGroupWithProcedures(
   }
 }
 
-export async function getProceduresByIds(
-  procedureIds: string[],
-): Promise<ServiceResult<Procedure[]>> {
-  logger.debug("Fetching procedures by IDs", { count: procedureIds.length });
+export async function getFundPaymentGroupEditData(
+  groupId: string,
+  fundId: string,
+): Promise<ServiceResult<FundPaymentGroupEditData>> {
+  logger.debug("Fetching fund payment group edit data", { groupId, fundId });
   try {
-    const result = await commands.readProceduresByIds(procedureIds);
+    const result = await commands.getFundPaymentGroupEditData(groupId, fundId);
 
     if (result.status === "ok") {
-      logger.info("Procedures fetched by IDs", { count: result.data.length });
+      logger.info("Fund payment group edit data fetched", {
+        groupId,
+        currentCount: result.data.current_procedures.length,
+        availableCount: result.data.available_procedures.length,
+      });
       return { success: true, data: result.data };
     } else {
-      logger.error("Failed to fetch procedures by IDs", { error: result.error });
+      logger.error("Failed to fetch fund payment group edit data", { error: result.error });
       return { success: false, error: result.error };
     }
   } catch (error) {
-    logger.error("Exception fetching procedures by IDs", { error });
+    logger.error("Exception fetching fund payment group edit data", { error });
     return { success: false, error: String(error) };
   }
 }
