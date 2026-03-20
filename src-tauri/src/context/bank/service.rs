@@ -34,7 +34,6 @@ impl BankTransferService {
         amount: i64,
         transfer_type: BankTransferType,
         bank_account_id: String,
-        source: String,
         is_silent: bool,
     ) -> anyhow::Result<BankTransfer> {
         // Fetch and validate bank account exists
@@ -46,7 +45,7 @@ impl BankTransferService {
 
         let transfer = self
             .repository
-            .create_transfer(transfer_date, amount, transfer_type, bank_account, source)
+            .create_transfer(transfer_date, amount, transfer_type, bank_account)
             .await?;
 
         // Publish event
@@ -210,13 +209,11 @@ mod tests {
             amount: i64,
             transfer_type: BankTransferType,
             bank_account: BankAccount,
-            source: String,
         ) -> anyhow::Result<BankTransfer> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
-            // Use domain factory method to ensure validation
-            BankTransfer::new(transfer_date, amount, transfer_type, bank_account, source)
+            BankTransfer::new(transfer_date, amount, transfer_type, bank_account)
         }
 
         async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankTransfer>> {
@@ -231,7 +228,6 @@ mod tests {
                 1000000,
                 BankTransferType::Fund,
                 account,
-                "fund_123".to_string(),
             )?;
             Ok(Some(transfer))
         }
@@ -270,7 +266,6 @@ mod tests {
                 1500000,
                 BankTransferType::Fund,
                 "acc-123".to_string(),
-                "fund_12345".to_string(),
                 false,
             )
             .await;
@@ -292,7 +287,6 @@ mod tests {
                 -100000,
                 BankTransferType::Fund,
                 "acc-123".to_string(),
-                "fund_123".to_string(),
                 false,
             )
             .await;

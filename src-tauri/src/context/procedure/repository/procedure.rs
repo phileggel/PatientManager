@@ -167,6 +167,15 @@ pub trait ProcedureRepository: Send + Sync {
     /// Hard-deletes all procedures (including soft-deleted) for the given month (YYYY-MM).
     /// Returns the number of deleted rows.
     async fn delete_procedures_by_month(&self, month: &str) -> anyhow::Result<u64>;
+
+    /// Find procedures eligible for a direct bank payment (CHECK/CREDIT_CARD/CASH).
+    /// Returns procedures with status CREATED and procedure_date in [date_min, date_max].
+    /// Used for the 7-day window selection (R14) and expanded search (R20).
+    async fn find_created_in_date_range(
+        &self,
+        date_min: &str,
+        date_max: &str,
+    ) -> anyhow::Result<Vec<Procedure>>;
 }
 
 pub struct SqliteProcedureRepository {
@@ -754,5 +763,38 @@ impl ProcedureRepository for SqliteProcedureRepository {
         .context("Failed to delete procedures by month")?;
 
         Ok(result.rows_affected())
+    }
+
+    async fn find_created_in_date_range(
+        &self,
+        date_min: &str,
+        date_max: &str,
+    ) -> anyhow::Result<Vec<Procedure>> {
+        tracing::debug!(
+            date_min = %date_min,
+            date_max = %date_max,
+            "Finding Created procedures in date range for direct payment"
+        );
+
+        let rows = sqlx::query_as!(
+            ProcedureRow,
+            r#"
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date,
+                   procedure_amount, payment_method, confirmed_payment_date,
+                   actual_payment_amount, payment_status, is_deleted
+            FROM "procedure"
+            WHERE is_deleted = 0
+              AND payment_status = 'CREATED'
+              AND procedure_date BETWEEN $1 AND $2
+            ORDER BY procedure_date DESC
+            "#,
+            date_min,
+            date_max,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to find Created procedures in date range")?;
+
+        Ok(rows.into_iter().map(Procedure::from).collect())
     }
 }

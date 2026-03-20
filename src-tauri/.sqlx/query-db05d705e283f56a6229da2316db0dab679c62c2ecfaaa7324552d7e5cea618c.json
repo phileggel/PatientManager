@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT fund_payment_group_id\n            FROM bank_transfer_fund_group_link\n            WHERE bank_transfer_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "fund_payment_group_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "db05d705e283f56a6229da2316db0dab679c62c2ecfaaa7324552d7e5cea618c"
+}

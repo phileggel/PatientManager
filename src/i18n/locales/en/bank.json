@@ -82,8 +82,25 @@
     "selectPatient": "Select Patient",
     "bankAccount": "Bank Account *",
     "selectBankAccount": "Select bank account",
+    "computedAmount": "Total amount:",
     "createButton": "Create Transfer",
     "creating": "Creating...",
+    "selectGroups": {
+      "label": "Fund payment groups to reconcile",
+      "loading": "Loading groups...",
+      "empty": "No groups available within 7 days. Click \"Expand\" to see all groups.",
+      "emptyAll": "No unreconciled groups found.",
+      "expand": "Expand search",
+      "selected": "{{count}} group(s) selected"
+    },
+    "selectProcedures": {
+      "label": "Procedures to reconcile",
+      "loading": "Loading procedures...",
+      "empty": "No procedures available within 7 days. Click \"Expand\" to see all procedures.",
+      "emptyAll": "No procedures with status Created found.",
+      "expand": "Expand search",
+      "selected": "{{count}} procedure(s) selected"
+    },
     "manager": {
       "title": "Bank Transfers",
       "searchPlaceholder": "Search transfers...",
@@ -130,10 +147,8 @@
     },
     "validate": {
       "dateRequired": "Transfer date is required",
-      "amountRequired": "Amount is required",
-      "amountPositive": "Amount must be greater than 0",
       "bankAccountRequired": "Bank account is required",
-      "sourceRequired": "Source is required (select a fund or patient)"
+      "noItemsSelected": "Please select at least one group or procedure"
     },
     "selectFundModal": {
       "title": "Select Fund",

@@ -13,7 +13,6 @@ export async function createBankTransfer(
   amount: number,
   transferType: BankTransferType,
   bankAccount: string,
-  source: string,
 ): Promise<ServiceResult<BankTransfer>> {
   logger.info("Creating bank transfer", { transferDate, amount, transferType });
 
@@ -23,7 +22,6 @@ export async function createBankTransfer(
       amount,
       transferType,
       bankAccount,
-      source,
     );
 
     if (result.status === "ok") {

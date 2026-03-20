@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO bank_transfer_procedure_link (id, bank_transfer_id, procedure_id)\n                VALUES ($1, $2, $3)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "0cc8328dd51360c24c36daf95d37cf5b99de68c42c0acdabc9b7cc7d3583b07f"
+}

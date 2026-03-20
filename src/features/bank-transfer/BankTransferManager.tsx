@@ -8,7 +8,7 @@ import { ConfirmationDialog, ManagerLayout } from "@/ui/components";
 import { AddBankTransferForm } from "./add_bank_transfer_form/AddBankTransferForm";
 import { BankTransferList } from "./bank_transfer_list/BankTransferList";
 import { EditBankTransferModal } from "./edit_bank_transfer_modal/EditBankTransferModal";
-import { deleteBankTransfer } from "./gateway";
+import { deleteDirectTransfer, deleteFundTransfer } from "./manual_match/gateway";
 import { useBankTransferManager } from "./useBankTransferManager";
 import { useBankTransferOperations } from "./useBankTransferOperations";
 
@@ -27,14 +27,15 @@ export default function BankTransferManager() {
 
   // Delete confirmation state
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [transferToDelete, setTransferToDelete] = useState<string | null>(null);
+  const [transferToDelete, setTransferToDelete] = useState<BankTransfer | null>(null);
 
   const handleEdit = (transfer: BankTransfer) => {
     setEditingTransfer(transfer);
   };
 
   const handleDelete = (id: string) => {
-    setTransferToDelete(id);
+    const transfer = transfers.find((t) => t.id === id) ?? null;
+    setTransferToDelete(transfer);
     setDeleteConfirmationOpen(true);
   };
 
@@ -42,11 +43,15 @@ export default function BankTransferManager() {
     if (!transferToDelete) return;
 
     setDeleteConfirmationOpen(false);
-    const id = transferToDelete;
+    const transfer = transferToDelete;
     setTransferToDelete(null);
 
     try {
-      const result = await deleteBankTransfer(id);
+      const result =
+        transfer.transfer_type === "FUND"
+          ? await deleteFundTransfer(transfer.id)
+          : await deleteDirectTransfer(transfer.id);
+
       if (result.success) {
         toastService.show("success", t("transfer.manager.success.deleted"));
       } else {

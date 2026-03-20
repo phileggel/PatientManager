@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, fund_id, payment_date, total_amount\n            FROM fund_payment_group\n            WHERE id = $1 AND is_deleted = 0\n            ",
+  "query": "\n            SELECT id, fund_id, payment_date, total_amount, status\n            FROM fund_payment_group\n            WHERE id = $1 AND is_deleted = 0\n            ",
   "describe": {
     "columns": [
       {
@@ -22,6 +22,11 @@
         "name": "total_amount",
         "ordinal": 3,
         "type_info": "Integer"
+      },
+      {
+        "name": "status",
+        "ordinal": 4,
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -31,8 +36,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "8f9097b152640ea566aba0c234d1f47030dd3175902fd5f54fd30ebe85f9d73d"
+  "hash": "20bf150186beb2bb48cbf03beebc68b10a9b757fb65a00d12d4d1aa23ab0f8f0"
 }

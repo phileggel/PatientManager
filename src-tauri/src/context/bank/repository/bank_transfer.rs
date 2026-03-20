@@ -6,26 +6,25 @@ use crate::context::bank::domain::{BankAccount, BankTransfer, BankTransferType};
 /// BankTransferRepository trait defines the contract for bank transfer data access
 #[async_trait::async_trait]
 pub trait BankTransferRepository: Send + Sync {
-    /// Create a new bank transfer (repository generates ID and timestamp)
+    /// Create a new bank transfer
     async fn create_transfer(
         &self,
         transfer_date: String,
         amount: i64,
         transfer_type: BankTransferType,
         bank_account: BankAccount,
-        source: String,
     ) -> anyhow::Result<BankTransfer>;
 
     /// Read a single transfer by ID with bank account info
     async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankTransfer>>;
 
-    /// Read all non-deleted transfers with bank account info
+    /// Read all transfers with bank account info
     async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankTransfer>>;
 
     /// Update an existing transfer
     async fn update_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer>;
 
-    /// Soft-delete a transfer
+    /// Hard-delete a transfer (permanent)
     async fn delete_transfer(&self, id: &str) -> anyhow::Result<()>;
 }
 
@@ -47,22 +46,10 @@ impl BankTransferRepository for SqliteBankTransferRepository {
         amount: i64,
         transfer_type: BankTransferType,
         bank_account: BankAccount,
-        source: String,
     ) -> anyhow::Result<BankTransfer> {
-        // Domain layer creates and validates the transfer
-        let transfer = BankTransfer::new(
-            transfer_date,
-            amount,
-            transfer_type,
-            bank_account.clone(),
-            source,
-        )?;
+        let transfer = BankTransfer::new(transfer_date, amount, transfer_type, bank_account)?;
 
-        let type_str = match transfer.transfer_type {
-            BankTransferType::Fund => "FUND",
-            BankTransferType::Check => "CHECK",
-            BankTransferType::CreditCard => "CREDIT_CARD",
-        };
+        let type_str = transfer_type_to_str(transfer.transfer_type);
 
         tracing::info!(
             id = %transfer.id,
@@ -77,17 +64,14 @@ impl BankTransferRepository for SqliteBankTransferRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO bank_transfer (
-                id, transfer_date, amount, transfer_type, bank_account_id, source, is_deleted
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, 0)
+            INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id)
+            VALUES ($1, $2, $3, $4, $5)
             "#,
             transfer.id,
             transfer_date_str,
             transfer.amount,
             type_str,
             transfer.bank_account.id,
-            transfer.source,
         )
         .execute(&self.pool)
         .await
@@ -107,13 +91,12 @@ impl BankTransferRepository for SqliteBankTransferRepository {
                 bt.amount,
                 bt.transfer_type,
                 bt.bank_account_id,
-                bt.source,
                 ba.id as account_id,
                 ba.name as account_name,
                 ba.iban as account_iban
             FROM bank_transfer bt
             JOIN bank_account ba ON bt.bank_account_id = ba.id
-            WHERE bt.id = $1 AND bt.is_deleted = 0 AND ba.is_deleted = 0
+            WHERE bt.id = $1 AND ba.is_deleted = 0
             "#,
             id,
         )
@@ -129,7 +112,6 @@ impl BankTransferRepository for SqliteBankTransferRepository {
                 r.amount,
                 parse_transfer_type(&r.transfer_type),
                 account,
-                r.source,
             )
         }))
     }
@@ -145,13 +127,12 @@ impl BankTransferRepository for SqliteBankTransferRepository {
                 bt.amount,
                 bt.transfer_type,
                 bt.bank_account_id,
-                bt.source,
                 ba.id as account_id,
                 ba.name as account_name,
                 ba.iban as account_iban
             FROM bank_transfer bt
             JOIN bank_account ba ON bt.bank_account_id = ba.id
-            WHERE bt.is_deleted = 0 AND ba.is_deleted = 0
+            WHERE ba.is_deleted = 0
             ORDER BY bt.transfer_date DESC
             "#,
         )
@@ -169,18 +150,13 @@ impl BankTransferRepository for SqliteBankTransferRepository {
                     r.amount,
                     parse_transfer_type(&r.transfer_type),
                     account,
-                    r.source,
                 )
             })
             .collect())
     }
 
     async fn update_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer> {
-        let type_str = match transfer.transfer_type {
-            BankTransferType::Fund => "FUND",
-            BankTransferType::Check => "CHECK",
-            BankTransferType::CreditCard => "CREDIT_CARD",
-        };
+        let type_str = transfer_type_to_str(transfer.transfer_type);
 
         tracing::info!(
             transfer_id = %transfer.id,
@@ -195,14 +171,13 @@ impl BankTransferRepository for SqliteBankTransferRepository {
         sqlx::query!(
             r#"
             UPDATE bank_transfer
-            SET transfer_date = ?, amount = ?, transfer_type = ?, bank_account_id = ?, source = ?
+            SET transfer_date = ?, amount = ?, transfer_type = ?, bank_account_id = ?
             WHERE id = ?
             "#,
             transfer_date_str,
             transfer.amount,
             type_str,
             transfer.bank_account.id,
-            transfer.source,
             transfer.id,
         )
         .execute(&self.pool)
@@ -213,31 +188,33 @@ impl BankTransferRepository for SqliteBankTransferRepository {
     }
 
     async fn delete_transfer(&self, id: &str) -> anyhow::Result<()> {
-        tracing::info!(transfer_id = %id, "Soft-deleting bank transfer");
+        tracing::info!(transfer_id = %id, "Hard-deleting bank transfer");
 
-        sqlx::query!(
-            r#"
-            UPDATE bank_transfer
-            SET is_deleted = 1
-            WHERE id = ?
-            "#,
-            id,
-        )
-        .execute(&self.pool)
-        .await
-        .context("Failed to delete bank transfer")?;
+        sqlx::query!(r#"DELETE FROM bank_transfer WHERE id = ?"#, id,)
+            .execute(&self.pool)
+            .await
+            .context("Failed to delete bank transfer")?;
 
         Ok(())
     }
 }
 
-/// Parse transfer type string from database to enum
+fn transfer_type_to_str(t: BankTransferType) -> &'static str {
+    match t {
+        BankTransferType::Fund => "FUND",
+        BankTransferType::Check => "CHECK",
+        BankTransferType::CreditCard => "CREDIT_CARD",
+        BankTransferType::Cash => "CASH",
+    }
+}
+
 fn parse_transfer_type(type_str: &str) -> BankTransferType {
     match type_str {
         "FUND" => BankTransferType::Fund,
         "CHECK" => BankTransferType::Check,
         "CREDIT_CARD" => BankTransferType::CreditCard,
-        _ => BankTransferType::Fund, // Default fallback
+        "CASH" => BankTransferType::Cash,
+        other => unreachable!("Unknown transfer_type in database: {}", other),
     }
 }
 
@@ -246,13 +223,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_transfer_type() {
-        assert_eq!(parse_transfer_type("FUND"), BankTransferType::Fund);
-        assert_eq!(parse_transfer_type("CHECK"), BankTransferType::Check);
-        assert_eq!(
-            parse_transfer_type("CREDIT_CARD"),
-            BankTransferType::CreditCard
-        );
-        assert_eq!(parse_transfer_type("INVALID"), BankTransferType::Fund);
+    fn test_parse_transfer_type_roundtrip() {
+        for t in [
+            BankTransferType::Fund,
+            BankTransferType::Check,
+            BankTransferType::CreditCard,
+            BankTransferType::Cash,
+        ] {
+            assert_eq!(parse_transfer_type(transfer_type_to_str(t)), t);
+        }
     }
 }

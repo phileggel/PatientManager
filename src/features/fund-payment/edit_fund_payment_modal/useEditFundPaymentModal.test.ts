@@ -17,6 +17,7 @@ const makePayment = (overrides?: Partial<FundPaymentGroup>): FundPaymentGroup =>
   payment_date: "2025-03-01",
   total_amount: 150000,
   lines: [{ id: "line-1", fund_payment_group_id: "group-1", procedure_id: "proc-1" }],
+  status: "ACTIVE",
   is_locked: false,
   ...overrides,
 });

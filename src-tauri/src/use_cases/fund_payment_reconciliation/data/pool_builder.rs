@@ -220,6 +220,13 @@ mod tests {
         ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
             unimplemented!()
         }
+        async fn find_created_in_date_range(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
     }
 
     fn create_pdf_line(ssn: &str) -> NormalizedPdfLine {

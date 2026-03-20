@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE fund_payment_group SET status = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "86d7e852f6375ed2b8afa886e89bdd74db0f28d99694b3347c26a4ac75a0fa4a"
+}
