@@ -10,7 +10,7 @@ You are a spec compliance auditor for this Tauri 2 / React 19 / Rust project.
 
 Given a feature spec document (e.g. `docs/bank-statement-manual-match.md`), verify that every business rule is implemented and tested.
 
-If no document is specified, run `git diff --name-only HEAD` and infer the relevant spec from the modified files.
+The user normally passes the spec path explicitly. If no document is specified, run `git diff --name-only HEAD` and `git diff --name-only --cached`, then infer the relevant spec from modified files by matching domain names to files in `docs/`.
 
 ---
 
