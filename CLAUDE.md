@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> Full architecture reference: [ARCHITECTURE.md](ARCHITECTURE.md)
+
 ## ⚠️ Workflow & Planning
 **IMPORTANT**: Claude Code will NOT commit, create branches, or create PRs. The user handles all git operations.
 
@@ -19,15 +21,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. CRITICAL: ask user to validate
 5. Implementation
 6. Test & Lint `./scripts/check.sh`
-7. Review the code using the `reviewer` subagent. Go again to Implementation step if needed.
-8. Update documentation.
-9. CRITICAL: ask user if commit is needed and follow his instructions
+7. Run the `reviewer` subagent → fix any critical issues → repeat until clean
+8. If frontend text was added/changed → run `i18n-checker` subagent
+9. If tests are missing → run `test-writer` subagent
+10. Update documentation:
+    - Update `ARCHITECTURE.md` if new files, modules, or features were added/removed
+    - Update the relevant spec in `docs/` if new business rules were added
+    - If a spec doc exists → run `spec-checker` subagent to confirm all rules are covered
+11. CRITICAL: ask user if commit is needed and follow his instructions
 
 ### Available Subagents (`.claude/agents/`)
-- `reviewer` — DDD + backend/frontend rules compliance check (used at step 7)
-- `test-writer` — generates missing backend (Rust) and frontend (TS) tests
-- `i18n-checker` — finds hardcoded strings, missing/dead translation keys (fr + en)
-- `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested
+- `reviewer` — DDD + backend/frontend rules compliance check (step 7)
+- `i18n-checker` — finds hardcoded strings, missing/dead translation keys fr + en (step 8)
+- `test-writer` — generates missing backend (Rust) and frontend (TS) tests (step 9)
+- `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested (step 10)
 
 ## 🛠 Commands
 - Dev: `./scripts/start-app.sh` (Unix) | `scripts\start-app.bat` (Win)
@@ -38,13 +45,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🏗 Architecture Summary
 Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
-- **Backend (`src-tauri/src/`)**: 
-  - `commands.rs`: Centralized Tauri commands.
-  - `{domain}/`: Feature modules (domain, service, repository, api).
-- **Frontend (`src/`)**: 
-  - `bindings.ts`: Auto-generated (DO NOT EDIT).
-  - `features/{domain}/`: API (Tauri calls) and Presentation (UI).
-- **Data Flow**: Component -> Service Layer -> Tauri Command -> Rust Service -> Repo.
+
+**Backend (`src-tauri/src/`)**:
+- `core/specta_builder.rs` — Tauri command registry (DO NOT add commands elsewhere)
+- `context/{domain}/` — Bounded contexts (self-contained, no cross-context imports):
+  - `bank/`, `fund/`, `patient/`, `procedure/`
+  - Each has: `domain.rs`, `service.rs`, `repository.rs`, `api.rs`, `mod.rs`
+- `use_cases/{name}/` — Cross-context orchestrators:
+  - `bank_manual_match/`, `bank_statement_reconciliation/`, `excel_import/`, `fund_payment_reconciliation/`, `procedure_orchestration/`
+
+**Frontend (`src/`)**:
+- `bindings.ts` — Auto-generated from Rust via Specta (DO NOT EDIT)
+- `features/{domain}/` — Feature modules:
+  - `api/gateway.ts` — Only file allowed to call `commands.*`
+  - `presentation/` — React components + colocated hooks
+
+**Data Flow**: Component → Hook → Gateway → Tauri Command → Rust Service → Repository
 
 ## 📏 Standards
 - **Commits**: Conventional commits (`feat:`, `fix:`, etc.).
@@ -69,9 +85,10 @@ All domain objects use factory methods (NEVER direct struct literals):
 
 ---
 
-**Guidelines:**
+## 📋 Plan Format Guidelines
+When proposing a TODO plan, Claude Code MUST:
 - List exact file paths, not abstract locations
-- Name the specific functions/methods/components
-- Separate clearly by architectural layers
-- Include all validation/testing steps
-- Wait for user validation before implementing
+- Name the specific functions/methods/components to create or modify
+- Separate clearly by architectural layer (backend / frontend)
+- Include validation and testing steps
+- Wait for explicit user approval before implementing

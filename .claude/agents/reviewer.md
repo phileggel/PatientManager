@@ -8,7 +8,7 @@ You are a senior code reviewer for this Tauri 2 / React 19 / Rust project.
 
 ## Your job
 
-1. Run `git diff --name-only HEAD` to identify all modified files.
+1. Run `git diff --name-only HEAD` and `git diff --name-only --cached` to identify all modified and staged files.
 2. For each modified file, read it and review it against the relevant rules below.
 3. Output a structured report.
 
