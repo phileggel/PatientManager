@@ -2,8 +2,8 @@ use crate::{
     context::{bank, fund, patient, procedure},
     core::{health, logger},
     use_cases::{
-        bank_statement_reconciliation, excel_import, fund_payment_reconciliation,
-        procedure_orchestration as use_cases_procedure,
+        bank_manual_match, bank_statement_reconciliation, excel_import,
+        fund_payment_reconciliation, procedure_orchestration as use_cases_procedure,
     },
 };
 
@@ -61,6 +61,9 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<bank_statement_reconciliation::SaveLabelMappingRequest>()
         .typ::<bank_statement_reconciliation::BankFundLabelMapping>()
         .typ::<bank_statement_reconciliation::BankStatementReconciliationConfig>()
+        .typ::<bank_manual_match::FundGroupCandidate>()
+        .typ::<bank_manual_match::DirectPaymentProcedureCandidate>()
+        .typ::<bank_manual_match::BankManualMatchResult>()
         .commands(tauri_specta::collect_commands![
             patient::add_patient,
             patient::read_all_patients,
@@ -121,6 +124,18 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             bank_statement_reconciliation::match_bank_statement_lines,
             bank_statement_reconciliation::create_bank_transfers_from_statement,
             bank_statement_reconciliation::get_bank_statement_reconciliation_config,
+            bank_manual_match::get_unsettled_fund_groups,
+            bank_manual_match::get_all_unsettled_fund_groups,
+            bank_manual_match::create_fund_transfer,
+            bank_manual_match::update_fund_transfer,
+            bank_manual_match::delete_fund_transfer,
+            bank_manual_match::get_eligible_procedures_for_direct_payment,
+            bank_manual_match::get_all_eligible_procedures_for_direct_payment,
+            bank_manual_match::create_direct_transfer,
+            bank_manual_match::update_direct_transfer,
+            bank_manual_match::delete_direct_transfer,
+            bank_manual_match::get_transfer_fund_group_ids,
+            bank_manual_match::get_transfer_procedure_ids,
             health::check_health,
             logger::log_frontend,
         ])

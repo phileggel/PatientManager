@@ -6,18 +6,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **IMPORTANT**: Claude Code will NOT commit, create branches, or create PRs. The user handles all git operations.
 
 ### CRITICAL: Implementation task
-- Any code file is considered as implemtantion task
+- Any code file is considered as implementation task
 - ONLY exception is doc files
 - Every task should follow *Plan Before Implementation*
 
-### ⚠️ CRITICAL: Plan Before Implementation
-BEFORE starting any implementation task, Claude MUST:
-1. **Analyze** the request and current codebase.
-2. for backend **follow** `/docs/development/backend-rules.md`
-3. for frontend **follow** `/docs/development/frontend-rules.md`
-4. **Propose a TODO plan**.
-5. **Wait for user validation** before modifying any files.
-6. **Implementation** only starts after explicit user approval.
+### Workflow
+1. Read relevant documentation
+   - for backend **follow** `/docs/backend-rules.md`
+   - for frontend **follow** `/docs/frontend-rules.md`
+2. **Analyze** the request and current codebase.
+3. **Propose a TODO plan**
+4. CRITICAL: ask user to validate
+5. Implementation
+6. Test & Lint `./scripts/check.sh`
+7. Review the code using the `reviewer` subagent. Go again to Implementation step if needed.
+8. Update documentation.
+9. CRITICAL: ask user if commit is needed and follow his instructions
+
+### Available Subagents (`.claude/agents/`)
+- `reviewer` — DDD + backend/frontend rules compliance check (used at step 7)
+- `test-writer` — generates missing backend (Rust) and frontend (TS) tests
+- `i18n-checker` — finds hardcoded strings, missing/dead translation keys (fr + en)
+- `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested
 
 ## 🛠 Commands
 - Dev: `./scripts/start-app.sh` (Unix) | `scripts\start-app.bat` (Win)

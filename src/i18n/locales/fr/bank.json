@@ -82,8 +82,25 @@
     "selectPatient": "Sélectionner le patient",
     "bankAccount": "Compte bancaire *",
     "selectBankAccount": "Sélectionner un compte bancaire",
+    "computedAmount": "Montant total :",
     "createButton": "Créer le virement",
     "creating": "Création...",
+    "selectGroups": {
+      "label": "Groupes de paiement fond à rapprocher",
+      "loading": "Chargement des groupes...",
+      "empty": "Aucun groupe disponible dans les 7 jours. Cliquez sur « Élargir » pour voir tous les groupes.",
+      "emptyAll": "Aucun groupe non rapproché trouvé.",
+      "expand": "Élargir la recherche",
+      "selected": "{{count}} groupe(s) sélectionné(s)"
+    },
+    "selectProcedures": {
+      "label": "Actes à rapprocher",
+      "loading": "Chargement des actes...",
+      "empty": "Aucun acte disponible dans les 7 jours. Cliquez sur « Élargir » pour voir tous les actes.",
+      "emptyAll": "Aucun acte en statut Créé trouvé.",
+      "expand": "Élargir la recherche",
+      "selected": "{{count}} acte(s) sélectionné(s)"
+    },
     "manager": {
       "title": "Virements Bancaires",
       "searchPlaceholder": "Rechercher un virement...",
@@ -130,10 +147,8 @@
     },
     "validate": {
       "dateRequired": "La date du virement est obligatoire",
-      "amountRequired": "Le montant est obligatoire",
-      "amountPositive": "Le montant doit être supérieur à 0",
       "bankAccountRequired": "Le compte bancaire est obligatoire",
-      "sourceRequired": "La source est obligatoire (sélectionnez une caisse ou un patient)"
+      "noItemsSelected": "Veuillez sélectionner au moins un groupe ou un acte"
     },
     "selectFundModal": {
       "title": "Sélectionner une caisse",

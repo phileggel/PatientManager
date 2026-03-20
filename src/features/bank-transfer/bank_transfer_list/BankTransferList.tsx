@@ -45,7 +45,6 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
         <div>{t("transfer.list.columns.amount")}</div>
         <div>{t("transfer.list.columns.type")}</div>
         <div>{t("transfer.list.columns.bankAccount")}</div>
-        <div>{t("transfer.list.columns.source")}</div>
         <div>{tCommon("table.actions")}</div>
       </div>
 
@@ -68,7 +67,6 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
             <div className="truncate text-neutral-70" title={transfer.bank_account.name}>
               {transfer.bank_account.name}
             </div>
-            <div className="text-neutral-70">{transfer.source}</div>
             <div className="flex gap-2">
               <button
                 type="button"

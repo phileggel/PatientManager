@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT procedure_id\n            FROM bank_transfer_procedure_link\n            WHERE bank_transfer_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "procedure_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "be75c5b6f92653ab2ec17194831ec36c510bb7c3451e878a411f9e73211a5ba9"
+}

@@ -635,6 +635,13 @@ mod tests {
         ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
             unimplemented!()
         }
+        async fn find_created_in_date_range(
+            &self,
+            _date_min: &str,
+            _date_max: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
     }
 
     struct MockPatientRepository {

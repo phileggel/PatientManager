@@ -269,6 +269,16 @@ impl Procedure {
         self
     }
 
+    /// Reverts fund payment info when a FUND bank transfer is deleted (R8).
+    ///
+    /// Clears payment_method and restores confirmed_payment_date to the group's payment date.
+    /// actual_payment_amount is preserved (per R8 spec: "conservé").
+    pub fn revert_fund_payment(mut self, group_payment_date: NaiveDate) -> Self {
+        self.payment_method = PaymentMethod::None;
+        self.confirmed_payment_date = Some(group_payment_date);
+        self
+    }
+
     /// Updates only the confirmed payment date
     ///
     /// Used when updating an existing payment date without changing payment method or amount.

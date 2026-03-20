@@ -215,7 +215,8 @@ mod tests {
         db.create_account(account2.clone()).await.unwrap();
 
         let accounts = db.read_all_accounts().await.unwrap();
-        assert_eq!(accounts.len(), 2);
+        // Migration seeds a default cash account, so 2 created + 1 seeded = 3
+        assert_eq!(accounts.len(), 3);
     }
 
     #[tokio::test]

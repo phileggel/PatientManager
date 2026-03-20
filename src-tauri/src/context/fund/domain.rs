@@ -85,6 +85,17 @@ impl AffiliatedFund {
     }
 }
 
+/// Status of a fund payment group in the bank reconciliation lifecycle
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FundPaymentGroupStatus {
+    /// Group is active — not yet bank-reconciled, can be edited or deleted
+    #[default]
+    Active,
+    /// Group has been bank-reconciled — locked, cannot be edited or deleted
+    BankPayed,
+}
+
 /// FundPaymentGroup aggregate root
 /// Represents a batch of payments from a single fund (e.g., CPAM payment run)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -96,9 +107,8 @@ pub struct FundPaymentGroup {
     pub payment_date: NaiveDate,
     pub total_amount: i64,
     pub lines: Vec<FundPaymentLine>,
-    /// Computed at read time: true if any procedure in this group is bank-reconciled
-    /// (FundPayed or PartiallyFundPayed). Group cannot be edited or deleted when locked.
-    #[serde(default)]
+    pub status: FundPaymentGroupStatus,
+    /// Derived from status: true when BankPayed. Group cannot be edited or deleted when locked.
     pub is_locked: bool,
 }
 
@@ -112,6 +122,7 @@ where
 
 impl FundPaymentGroup {
     /// Creates a new FundPaymentGroup with validation and generates ID.
+    /// New groups start as Active (not yet bank-reconciled).
     pub fn new(
         fund_id: String,
         payment_date: String,
@@ -133,6 +144,7 @@ impl FundPaymentGroup {
             payment_date: parsed_date,
             total_amount,
             lines,
+            status: FundPaymentGroupStatus::Active,
             is_locked: false,
         })
     }
@@ -160,21 +172,24 @@ impl FundPaymentGroup {
             payment_date: parsed_date,
             total_amount,
             lines,
+            status: FundPaymentGroupStatus::Active,
             is_locked: false,
         })
     }
 
     /// Restores a FundPaymentGroup from database storage (no validation).
-    /// Data from storage is already validated.
+    /// Data from storage is already validated. is_locked is derived from status.
     pub fn restore(
         id: String,
         fund_id: String,
         payment_date: String,
         total_amount: i64,
         lines: Vec<FundPaymentLine>,
+        status: FundPaymentGroupStatus,
     ) -> Self {
         let parsed_date =
             NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").unwrap_or(NaiveDate::MIN);
+        let is_locked = status == FundPaymentGroupStatus::BankPayed;
 
         Self {
             id,
@@ -182,7 +197,8 @@ impl FundPaymentGroup {
             payment_date: parsed_date,
             total_amount,
             lines,
-            is_locked: false,
+            status,
+            is_locked,
         }
     }
 
@@ -286,6 +302,11 @@ pub trait FundPaymentRepository: Send + Sync {
     async fn read_lines_by_group(&self, group_id: &str) -> anyhow::Result<Vec<FundPaymentLine>>;
     async fn read_all_groups(&self) -> anyhow::Result<Vec<FundPaymentGroup>>;
     async fn update_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup>;
+    async fn update_group_status(
+        &self,
+        group_id: &str,
+        status: FundPaymentGroupStatus,
+    ) -> anyhow::Result<()>;
     async fn delete_lines_by_group(&self, group_id: &str) -> anyhow::Result<()>;
     async fn delete_group(&self, group_id: &str) -> anyhow::Result<()>;
     /// Check if a group with matching (fund_id, payment_date, total_amount) already exists

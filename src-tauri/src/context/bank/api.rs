@@ -6,7 +6,7 @@ use super::{BankAccount, BankAccountService, BankTransfer, BankTransferService, 
 
 // ============ BankTransfer Tauri Commands ============
 
-/// Tauri command: Create a new bank transfer
+/// Tauri command: Create a new bank transfer (bare — links managed by bank_manual_match use_case)
 #[tauri::command]
 #[specta::specta]
 pub async fn create_bank_transfer(
@@ -14,18 +14,10 @@ pub async fn create_bank_transfer(
     amount: i64,
     transfer_type: BankTransferType,
     bank_account_id: String,
-    source: String,
     service: State<'_, Arc<BankTransferService>>,
 ) -> Result<BankTransfer, String> {
     service
-        .create_transfer(
-            transfer_date,
-            amount,
-            transfer_type,
-            bank_account_id,
-            source,
-            false,
-        )
+        .create_transfer(transfer_date, amount, transfer_type, bank_account_id, false)
         .await
         .map_err(|e| format!("{:#}", e))
 }

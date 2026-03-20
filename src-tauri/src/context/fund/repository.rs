@@ -1,7 +1,10 @@
 use anyhow::{anyhow, Context};
 use sqlx::SqlitePool;
 
-use super::{AffiliatedFund, FundPaymentGroup, FundPaymentLine, FundPaymentRepository};
+use super::{
+    AffiliatedFund, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine,
+    FundPaymentRepository,
+};
 
 /// Internal row type for affiliated fund database mapping
 #[derive(sqlx::FromRow)]
@@ -236,17 +239,33 @@ pub struct FundPaymentGroupRow {
     pub fund_id: String,
     pub payment_date: String,
     pub total_amount: i64,
+    pub status: String,
+}
+
+fn parse_group_status(s: &str) -> FundPaymentGroupStatus {
+    match s {
+        "BANK_PAYED" => FundPaymentGroupStatus::BankPayed,
+        _ => FundPaymentGroupStatus::Active,
+    }
+}
+
+fn group_status_to_str(s: FundPaymentGroupStatus) -> &'static str {
+    match s {
+        FundPaymentGroupStatus::Active => "ACTIVE",
+        FundPaymentGroupStatus::BankPayed => "BANK_PAYED",
+    }
 }
 
 impl From<FundPaymentGroupRow> for FundPaymentGroup {
     fn from(row: FundPaymentGroupRow) -> Self {
-        // Use restore (no validation, direct from database, lines populated separately)
+        let status = parse_group_status(&row.status);
         FundPaymentGroup::restore(
             row.id,
             row.fund_id,
             row.payment_date,
             row.total_amount,
             Vec::new(), // Lines are fetched separately in repository
+            status,
         )
     }
 }
@@ -323,9 +342,9 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         sqlx::query!(
             r#"
             INSERT INTO fund_payment_group (
-                id, fund_id, payment_date, total_amount, is_deleted
+                id, fund_id, payment_date, total_amount, status, is_deleted
             )
-            VALUES ($1, $2, $3, $4, 0)
+            VALUES ($1, $2, $3, $4, 'ACTIVE', 0)
             "#,
             group.id,
             group.fund_id,
@@ -425,9 +444,9 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             sqlx::query!(
                 r#"
                 INSERT INTO fund_payment_group (
-                    id, fund_id, payment_date, total_amount, is_deleted
+                    id, fund_id, payment_date, total_amount, status, is_deleted
                 )
-                VALUES ($1, $2, $3, $4, 0)
+                VALUES ($1, $2, $3, $4, 'ACTIVE', 0)
                 "#,
                 group.id,
                 group.fund_id,
@@ -475,7 +494,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         let group_row = sqlx::query_as!(
             FundPaymentGroupRow,
             r#"
-            SELECT id, fund_id, payment_date, total_amount
+            SELECT id, fund_id, payment_date, total_amount, status
             FROM fund_payment_group
             WHERE id = $1 AND is_deleted = 0
             "#,
@@ -530,7 +549,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         let group_rows = sqlx::query_as!(
             FundPaymentGroupRow,
             r#"
-            SELECT id, fund_id, payment_date, total_amount
+            SELECT id, fund_id, payment_date, total_amount, status
             FROM fund_payment_group
             WHERE is_deleted = 0
             "#,
@@ -583,6 +602,31 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
 
         tracing::trace!(group_id = %group.id, "Fund payment group updated successfully");
         Ok(group)
+    }
+
+    async fn update_group_status(
+        &self,
+        group_id: &str,
+        status: FundPaymentGroupStatus,
+    ) -> anyhow::Result<()> {
+        let status_str = group_status_to_str(status);
+        tracing::info!(group_id = %group_id, status = %status_str, "Updating fund payment group status");
+
+        sqlx::query!(
+            r#"UPDATE fund_payment_group SET status = ? WHERE id = ?"#,
+            status_str,
+            group_id,
+        )
+        .execute(&self.pool)
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to update status for fund payment group {}",
+                group_id
+            )
+        })?;
+
+        Ok(())
     }
 
     async fn delete_lines_by_group(&self, group_id: &str) -> anyhow::Result<()> {

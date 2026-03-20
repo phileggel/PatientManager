@@ -1,27 +1,28 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BankAccount, BankTransfer, BankTransferType } from "@/bindings";
+import type { BankAccount, BankTransfer } from "@/bindings";
 import { useSnackbar } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
+import { Button, DatePickerLegacy, SelectField } from "@/ui/components";
 import {
-  Button,
-  DatePickerLegacy,
-  SelectField,
-  SelectFieldLegacy,
-  TextField,
-} from "@/ui/components";
-import { updateBankTransfer } from "../gateway";
+  getTransferFundGroupIds,
+  getTransferProcedureIds,
+  updateDirectTransfer,
+  updateFundTransfer,
+} from "../manual_match/gateway";
+import { SelectFundGroupsPanel } from "../manual_match/SelectFundGroupsPanel";
+import { SelectProceduresPanel } from "../manual_match/SelectProceduresPanel";
 
 /**
- * EditBankTransferModal - Smart Component
+ * EditBankTransferModal — Smart Component
  *
- * Self-contained with lifecycle callback:
- * - Gets bank accounts from global store
- * - Manages modal open/close state internally
- * - Shows snackbar feedback directly
- * - Backend events via useAppInit handle data refresh automatically
+ * Self-contained modal for editing a bank transfer:
+ * - FUND type: lets user change date and fund group selection (R9)
+ * - Direct type: lets user change date and procedure selection (R17)
+ * - Amount is computed from selection (R3)
+ * - Transfer type is immutable (R4)
  */
 interface EditBankTransferModalProps {
   transfer: BankTransfer | null;
@@ -32,38 +33,49 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
   const { t } = useTranslation("bank");
   const { t: tCommon } = useTranslation("common");
   const { showSnackbar } = useSnackbar();
-  // Get bank accounts from store
+
   const bankAccounts = useAppStore((state) => state.bankAccounts);
   const bankAccountOptions = bankAccounts.map((acc: BankAccount) => ({
     value: acc.id,
     label: acc.name,
   }));
 
-  // Modal state
   const [isOpen, setIsOpen] = useState(false);
+  const [transferDate, setTransferDate] = useState<string>("");
+  const [bankAccount, setBankAccount] = useState<string>("");
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
+  const [totalAmountMillis, setTotalAmountMillis] = useState<number>(0);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     logger.info("[EditBankTransferModal] Component mounted");
   }, []);
 
-  // Form state
-  const [transferDate, setTransferDate] = useState<string>("");
-  const [amount, setAmount] = useState<string>("");
-  const [transferType, setTransferType] = useState<BankTransferType>("FUND");
-  const [bankAccount, setBankAccount] = useState<string>("");
-  const [source, setSource] = useState<string>("");
-  const [submitting, setSubmitting] = useState(false);
-
-  // Show/hide modal when transfer changes
+  // Open modal and load initial linked ids
   useEffect(() => {
-    if (transfer) {
-      setIsOpen(true);
-      setTransferDate(transfer.transfer_date);
-      setAmount((transfer.amount / 1000).toString());
-      setTransferType(transfer.transfer_type);
-      setBankAccount(transfer.bank_account.id); // Store only the ID string
-      setSource(transfer.source);
-    }
+    if (!transfer) return;
+
+    setIsOpen(true);
+    setTransferDate(transfer.transfer_date);
+    setBankAccount(transfer.bank_account.id);
+    setSelectedGroupIds([]);
+    setSelectedProcedureIds([]);
+    setTotalAmountMillis(transfer.amount);
+
+    const loadLinks = async () => {
+      if (transfer.transfer_type === "FUND") {
+        const result = await getTransferFundGroupIds(transfer.id);
+        if (result.success && result.data) setSelectedGroupIds(result.data);
+        else logger.error("[EditBankTransferModal] Failed to load fund group ids", result.error);
+      } else {
+        const result = await getTransferProcedureIds(transfer.id);
+        if (result.success && result.data) setSelectedProcedureIds(result.data);
+        else logger.error("[EditBankTransferModal] Failed to load procedure ids", result.error);
+      }
+    };
+
+    loadLinks();
   }, [transfer]);
 
   const handleClose = () => {
@@ -71,13 +83,22 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
     onClose();
   };
 
+  const isFund = transfer?.transfer_type === "FUND";
+
+  const handleFundGroupSelectionChange = (groupIds: string[], totalMillis: number) => {
+    setSelectedGroupIds(groupIds);
+    setTotalAmountMillis(totalMillis);
+  };
+
+  const handleProcedureSelectionChange = (procedureIds: string[], totalMillis: number) => {
+    setSelectedProcedureIds(procedureIds);
+    setTotalAmountMillis(totalMillis);
+  };
+
   const isValid =
-    transferDate &&
-    amount &&
-    parseFloat(amount) > 0 &&
-    typeof bankAccount === "string" &&
+    transferDate.trim() !== "" &&
     bankAccount.trim() !== "" &&
-    source.trim() !== "";
+    (isFund ? selectedGroupIds.length > 0 : selectedProcedureIds.length > 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,39 +108,37 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
       return;
     }
 
-    const selectedAccount = bankAccounts.find((acc) => acc.id === bankAccount);
-    if (!selectedAccount) {
-      showSnackbar("error", t("transfer.edit.errorInvalidAccount"));
-      return;
-    }
-
     setSubmitting(true);
     try {
-      const result = await updateBankTransfer({
-        ...transfer,
-        transfer_date: transferDate,
-        amount: Math.round(parseFloat(amount) * 1000),
-        transfer_type: transferType,
-        bank_account: selectedAccount, // Send the full object as required by bindings
-        source,
-      });
+      let result: { success: boolean; error?: string };
+
+      if (isFund) {
+        result = await updateFundTransfer(transfer.id, transferDate, selectedGroupIds);
+      } else {
+        result = await updateDirectTransfer(transfer.id, transferDate, selectedProcedureIds);
+      }
 
       if (result.success) {
         showSnackbar("success", t("transfer.edit.success"));
         handleClose();
-        // Backend event will trigger useAppInit to refresh data
       } else {
-        showSnackbar("error", result.error || t("transfer.edit.error"));
+        showSnackbar("error", result.error ?? t("transfer.edit.error"));
       }
     } catch (error) {
-      logger.error("Exception updating transfer", { error });
+      logger.error("[EditBankTransferModal] Exception", { error });
       showSnackbar("error", t("transfer.edit.errorUnknown"));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !transfer) return null;
+
+  const typeLabel = isFund
+    ? t("transfer.typeFund")
+    : transfer.transfer_type === "CHECK"
+      ? t("transfer.typeCheck")
+      : t("transfer.typeCreditCard");
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -141,60 +160,54 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
           {/* Transfer Date */}
           <DatePickerLegacy
             id="editTransferDate"
-            label="Transfer Date *"
+            label={t("transfer.date")}
             value={transferDate}
             onChange={(e) => setTransferDate(e.target.value)}
             required
           />
 
-          {/* Amount */}
-          <TextField
-            id="editAmount"
-            label="Amount *"
-            type="number"
-            step="0.01"
-            min="0"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
-
-          {/* Type */}
-          <SelectFieldLegacy
-            id="editType"
-            label={t("transfer.type")}
-            value={transferType}
-            onChange={(e) => setTransferType(e.target.value as BankTransferType)}
-            required
-          >
-            <option value="">{t("transfer.selectType")}</option>
-            <option value="FUND">{t("transfer.typeFund")}</option>
-            <option value="CHECK">{t("transfer.typeCheck")}</option>
-            <option value="CREDIT_CARD">{t("transfer.typeCreditCard")}</option>
-          </SelectFieldLegacy>
+          {/* Type — display only (R4: immutable) */}
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-neutral-90">{t("transfer.type")}</span>
+            <span className="px-3 py-2 border border-neutral-20 rounded-md bg-neutral-10 text-sm text-neutral-70">
+              {typeLabel}
+            </span>
+          </div>
 
           {/* Bank Account */}
           <SelectField
             id="editBankAccount"
-            label="Bank Account *"
+            label={t("transfer.bankAccount")}
             value={bankAccount}
             onChange={(e) => setBankAccount(e.target.value)}
             options={[{ value: "", label: t("transfer.selectBankAccount") }, ...bankAccountOptions]}
             required
           />
 
-          {/* Source */}
-          <div className="flex flex-col gap-2">
-            <TextField
-              id="editSource"
-              label="Source *"
-              type="text"
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-              required
+          {/* Selection panel — conditional on type */}
+          {isFund ? (
+            <SelectFundGroupsPanel
+              transferDate={transferDate}
+              selectedGroupIds={selectedGroupIds}
+              onSelectionChange={handleFundGroupSelectionChange}
             />
-            <p className="text-xs text-m3-on-surface-variant">{t("transfer.edit.sourceHint")}</p>
-          </div>
+          ) : (
+            <SelectProceduresPanel
+              transferDate={transferDate}
+              selectedProcedureIds={selectedProcedureIds}
+              onSelectionChange={handleProcedureSelectionChange}
+            />
+          )}
+
+          {/* Computed amount display */}
+          {totalAmountMillis > 0 && (
+            <div className="rounded-md bg-neutral-10 border border-neutral-20 px-4 py-3 text-sm">
+              <span className="text-neutral-60">{t("transfer.computedAmount")}</span>{" "}
+              <span className="font-semibold text-neutral-90">
+                €{(totalAmountMillis / 1000).toFixed(2)}
+              </span>
+            </div>
+          )}
         </form>
 
         {/* Footer */}

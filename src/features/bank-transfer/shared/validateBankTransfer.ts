@@ -1,23 +1,19 @@
 export interface BankTransferFormErrors {
   transferDate?: string;
-  amount?: string;
   bankAccount?: string;
-  source?: string;
+  noItemsSelected?: string;
 }
 
 export interface BankTransferFormMessages {
   dateRequired: string;
-  amountRequired: string;
-  amountPositive: string;
   bankAccountRequired: string;
-  sourceRequired: string;
+  noItemsSelected: string;
 }
 
 interface BankTransferFormData {
   transferDate: string;
-  amount: string;
   bankAccount: string;
-  source: string;
+  hasItems: boolean;
 }
 
 /**
@@ -34,18 +30,12 @@ export function validateBankTransfer(
     errors.transferDate = messages.dateRequired;
   }
 
-  if (!formData.amount?.trim()) {
-    errors.amount = messages.amountRequired;
-  } else if (parseFloat(formData.amount) <= 0) {
-    errors.amount = messages.amountPositive;
-  }
-
   if (!formData.bankAccount?.trim()) {
     errors.bankAccount = messages.bankAccountRequired;
   }
 
-  if (!formData.source?.trim()) {
-    errors.source = messages.sourceRequired;
+  if (!formData.hasItems) {
+    errors.noItemsSelected = messages.noItemsSelected;
   }
 
   return errors;

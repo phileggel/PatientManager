@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE bank_transfer\n            SET transfer_date = ?, amount = ?, transfer_type = ?, bank_account_id = ?\n            WHERE id = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "0e44aa6453fd8e84023743d75b4d689ffcbb28e6a0ddbefbd663d5817f6c31ae"
+}

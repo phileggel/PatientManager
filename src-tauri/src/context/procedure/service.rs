@@ -230,6 +230,18 @@ impl ProcedureService {
         self.repository.find_unpaid_by_fund(fund_id).await
     }
 
+    /// Find procedures eligible for direct payment (status CREATED, date in window).
+    /// Used by bank_manual_match use_case for R14 (7-day window) and R20 (expanded search).
+    pub async fn find_created_in_date_range(
+        &self,
+        date_min: &str,
+        date_max: &str,
+    ) -> anyhow::Result<Vec<Procedure>> {
+        self.repository
+            .find_created_in_date_range(date_min, date_max)
+            .await
+    }
+
     /// Check if a month (YYYY-MM) has any procedures with a blocking status
     /// (RECONCILIATED or FUND_PAYED) that prevent re-import.
     pub async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool> {

@@ -497,11 +497,11 @@ async getFundPaymentGroupEditData(groupId: string, fundId: string) : Promise<Res
 }
 },
 /**
- * Tauri command: Create a new bank transfer
+ * Tauri command: Create a new bank transfer (bare — links managed by bank_manual_match use_case)
  */
-async createBankTransfer(transferDate: string, amount: number, transferType: BankTransferType, bankAccountId: string, source: string) : Promise<Result<BankTransfer, string>> {
+async createBankTransfer(transferDate: string, amount: number, transferType: BankTransferType, bankAccountId: string) : Promise<Result<BankTransfer, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("create_bank_transfer", { transferDate, amount, transferType, bankAccountId, source }) };
+    return { status: "ok", data: await TAURI_INVOKE("create_bank_transfer", { transferDate, amount, transferType, bankAccountId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -679,6 +679,138 @@ async getBankStatementReconciliationConfig() : Promise<BankStatementReconciliati
     return await TAURI_INVOKE("get_bank_statement_reconciliation_config");
 },
 /**
+ * R6 — Return Active fund payment groups within the 7-day window of transfer_date.
+ */
+async getUnsettledFundGroups(transferDate: string) : Promise<Result<FundGroupCandidate[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_unsettled_fund_groups", { transferDate }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R12 — Return all Active fund payment groups (no date constraint).
+ */
+async getAllUnsettledFundGroups() : Promise<Result<FundGroupCandidate[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_all_unsettled_fund_groups") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R7 — Create a FUND bank transfer linked to the given group IDs.
+ */
+async createFundTransfer(bankAccountId: string, transferDate: string, groupIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_fund_transfer", { bankAccountId, transferDate, groupIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R9 — Update a FUND transfer: change date and/or linked groups.
+ */
+async updateFundTransfer(transferId: string, newTransferDate: string, newGroupIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_fund_transfer", { transferId, newTransferDate, newGroupIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R8 — Delete a FUND transfer: revert linked groups to Active, hard-delete transfer.
+ */
+async deleteFundTransfer(transferId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_fund_transfer", { transferId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R14 — Return CREATED procedures within the 7-day window of payment_date.
+ */
+async getEligibleProceduresForDirectPayment(paymentDate: string) : Promise<Result<DirectPaymentProcedureCandidate[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_eligible_procedures_for_direct_payment", { paymentDate }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R20 — Return all CREATED procedures (no date constraint).
+ */
+async getAllEligibleProceduresForDirectPayment() : Promise<Result<DirectPaymentProcedureCandidate[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_all_eligible_procedures_for_direct_payment") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R15 — Create a direct payment transfer linked to the given procedure IDs.
+ */
+async createDirectTransfer(bankAccountId: string, transferDate: string, transferType: BankTransferType, procedureIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_direct_transfer", { bankAccountId, transferDate, transferType, procedureIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R17 — Update a direct transfer: change date and/or linked procedures.
+ */
+async updateDirectTransfer(transferId: string, newTransferDate: string, newProcedureIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_direct_transfer", { transferId, newTransferDate, newProcedureIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R16 — Delete a direct transfer: revert procedures to Created, hard-delete transfer.
+ */
+async deleteDirectTransfer(transferId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_direct_transfer", { transferId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Return the fund group IDs linked to a FUND transfer.
+ */
+async getTransferFundGroupIds(transferId: string) : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_transfer_fund_group_ids", { transferId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Return the procedure IDs linked to a direct payment transfer.
+ */
+async getTransferProcedureIds(transferId: string) : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_transfer_procedure_ids", { transferId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Tauri command: Health check
  */
 async checkHealth() : Promise<HealthResponse> {
@@ -777,6 +909,10 @@ id: string }
  */
 export type BankFundLabelMapping = { id: string; bank_account_id: string; bank_label: string; fund_id: string | null }
 /**
+ * Result of creating a bank transfer with links
+ */
+export type BankManualMatchResult = { transfer_id: string; linked_count: number }
+/**
  * A single credit line from a bank statement (VIR SEPA only)
  */
 export type BankStatementCreditLine = { 
@@ -834,13 +970,14 @@ export type BankStatementReconciliationConfig = {
 max_date_offset_days: number }
 /**
  * BankTransfer aggregate root
- * Represents a payment transaction that will later be reconciled with procedures/funds
+ * Represents a bank transfer (FUND) or direct payment (CHECK/CREDIT_CARD/CASH).
+ * Links to fund payment groups or procedures are stored in junction tables.
  */
-export type BankTransfer = { id: string; transfer_date: string; amount: number; transfer_type: BankTransferType; bank_account: BankAccount; source: string }
+export type BankTransfer = { id: string; transfer_date: string; amount: number; transfer_type: BankTransferType; bank_account: BankAccount }
 /**
  * Payment type for bank transfers
  */
-export type BankTransferType = "FUND" | "CHECK" | "CREDIT_CARD"
+export type BankTransferType = "FUND" | "CHECK" | "CREDIT_CARD" | "CASH"
 /**
  * A confirmed match ready for bank transfer creation
  */
@@ -882,6 +1019,10 @@ auto_corrections: AutoCorrection[] }
  */
 export type DbMatch = { procedure_id: string; procedure_date: string; fund_id: string | null; amount: number | null; anomalies: AnomalyType[] }
 /**
+ * A procedure candidate for a direct payment (R14)
+ */
+export type DirectPaymentProcedureCandidate = { procedure_id: string; patient_id: string; procedure_date: string; procedure_amount: number | null }
+/**
  * A saved mapping between a procedure amount (millièmes d'euro) and a procedure type id
  */
 export type ExcelAmountMapping = { amount: number; procedure_type_id: string }
@@ -901,6 +1042,10 @@ export type ExcelProcedure = { patient_temp_id: string; fund_temp_id: string | n
  * Fund candidate for batch import - semantically different from AffiliatedFund (lacks ID, created_at)
  */
 export type FundCandidate = { temp_id: string; fund_identifier: string; fund_name: string }
+/**
+ * A fund payment group candidate for a FUND transfer (R6)
+ */
+export type FundGroupCandidate = { group_id: string; fund_id: string; payment_date: string; total_amount: number }
 /**
  * Resolution status for a bank statement fund label
  */
@@ -933,12 +1078,11 @@ export type FundPaymentCandidateValidation = { candidate: FundPaymentGroupCandid
  * FundPaymentGroup aggregate root
  * Represents a batch of payments from a single fund (e.g., CPAM payment run)
  */
-export type FundPaymentGroup = { id: string; fund_id: string; payment_date: string; total_amount: number; lines: FundPaymentLine[]; 
+export type FundPaymentGroup = { id: string; fund_id: string; payment_date: string; total_amount: number; lines: FundPaymentLine[]; status: FundPaymentGroupStatus; 
 /**
- * Computed at read time: true if any procedure in this group is bank-reconciled
- * (FundPayed or PartiallyFundPayed). Group cannot be edited or deleted when locked.
+ * Derived from status: true when BankPayed. Group cannot be edited or deleted when locked.
  */
-is_locked?: boolean }
+is_locked: boolean }
 /**
  * Fund payment group candidate created from PDF reconciliation data
  * Groups matched procedures by (fund_id + payment_date)
@@ -980,6 +1124,18 @@ current_procedures: Procedure[];
  * Created procedures for the same fund not yet in the group
  */
 available_procedures: Procedure[] }
+/**
+ * Status of a fund payment group in the bank reconciliation lifecycle
+ */
+export type FundPaymentGroupStatus = 
+/**
+ * Group is active — not yet bank-reconciled, can be edited or deleted
+ */
+"ACTIVE" | 
+/**
+ * Group has been bank-reconciled — locked, cannot be edited or deleted
+ */
+"BANK_PAYED"
 /**
  * FundPaymentLine aggregate
  * Links a fund payment group to a specific procedure

@@ -4,16 +4,20 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::context::bank::{BankAccountService, BankTransferService, BankTransferType};
-use crate::context::fund::{AffiliatedFund, FundPaymentService, FundService};
+use crate::context::bank::{
+    BankAccountService, BankTransferLinkRepository, BankTransferService, BankTransferType,
+};
+use crate::context::fund::{
+    AffiliatedFund, FundPaymentGroupStatus, FundPaymentService, FundService,
+};
 use crate::context::procedure::{ProcedureService, ProcedureStatus};
 use crate::core::event_bus::{BankTransferUpdated, EventBus, ProcedureUpdated};
 
 use super::label_mapping_repo::BankFundLabelMappingRepository;
 
-/// Maximum number of days to look back when matching bank lines to payment groups
-/// Can be adjusted in the future based on business rules
-pub const MAX_DATE_OFFSET_DAYS: i64 = 6;
+/// Maximum number of days between a fund payment group date and the bank statement credit line date.
+/// A group dated on D may appear on the bank statement up to D+7 (R11).
+pub const MAX_DATE_OFFSET_DAYS: i64 = 7;
 
 /// Bank statement reconciliation configuration exported to frontend
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -87,17 +91,20 @@ pub struct BankStatementOrchestrator {
     fund_service: Arc<FundService>,
     fund_payment_service: Arc<FundPaymentService>,
     bank_transfer_service: Arc<BankTransferService>,
+    transfer_link_repo: Arc<dyn BankTransferLinkRepository>,
     procedure_service: Arc<ProcedureService>,
     label_mapping_repo: Arc<dyn BankFundLabelMappingRepository>,
     event_bus: Arc<EventBus>,
 }
 
 impl BankStatementOrchestrator {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         bank_account_service: Arc<BankAccountService>,
         fund_service: Arc<FundService>,
         fund_payment_service: Arc<FundPaymentService>,
         bank_transfer_service: Arc<BankTransferService>,
+        transfer_link_repo: Arc<dyn BankTransferLinkRepository>,
         procedure_service: Arc<ProcedureService>,
         label_mapping_repo: Arc<dyn BankFundLabelMappingRepository>,
         event_bus: Arc<EventBus>,
@@ -107,6 +114,7 @@ impl BankStatementOrchestrator {
             fund_service,
             fund_payment_service,
             bank_transfer_service,
+            transfer_link_repo,
             procedure_service,
             label_mapping_repo,
             event_bus,
@@ -207,21 +215,13 @@ impl BankStatementOrchestrator {
         // Sort by date: oldest first
         active_lines.sort_by(|a, b| a.date.cmp(&b.date));
 
-        // Get all fund payment groups
-        let all_groups = self.fund_payment_service.read_all_groups().await?;
-
-        // Get all bank transfers to find which groups are settled
-        let all_transfers = self.bank_transfer_service.read_all_transfers().await?;
-        let settled_group_ids: std::collections::HashSet<String> = all_transfers
-            .iter()
-            .filter_map(|t| t.source.strip_prefix("fund_payment_group_"))
-            .map(|id| id.to_string())
-            .collect();
-
-        // Filter to unsettled groups
-        let unsettled_groups: Vec<_> = all_groups
+        // Filter to unsettled (Active) groups only — locked groups are already bank-reconciled
+        let unsettled_groups: Vec<_> = self
+            .fund_payment_service
+            .read_all_groups()
+            .await?
             .into_iter()
-            .filter(|g| !settled_group_ids.contains(&g.id))
+            .filter(|g| !g.is_locked)
             .collect();
 
         let mut matched = Vec::new();
@@ -320,8 +320,6 @@ impl BankStatementOrchestrator {
         let mut created_count = 0u32;
 
         for m in confirmed_matches {
-            let source = format!("fund_payment_group_{}", m.group_id);
-
             // Parse date once for this match
             let confirmed_date =
                 chrono::NaiveDate::parse_from_str(&m.date, "%Y-%m-%d").map_err(|_| {
@@ -329,15 +327,20 @@ impl BankStatementOrchestrator {
                 })?;
 
             // Step 1: Create bank transfer (silent - orchestrator will publish once)
-            self.bank_transfer_service
+            let transfer = self
+                .bank_transfer_service
                 .create_transfer(
                     m.date.clone(),
                     m.amount,
                     BankTransferType::Fund,
                     bank_account_id.to_string(),
-                    source,
                     true,
                 )
+                .await?;
+
+            // Step 2: Link transfer to fund payment group
+            self.transfer_link_repo
+                .link_fund_groups(&transfer.id, std::slice::from_ref(&m.group_id))
                 .await?;
 
             tracing::info!(
@@ -347,7 +350,20 @@ impl BankStatementOrchestrator {
                 "Bank transfer created"
             );
 
-            // Step 2: Update associated procedures to Payed status (silent - orchestrator will publish once)
+            // Step 3: Update group status to BankPayed
+            if let Err(e) = self
+                .fund_payment_service
+                .update_group_status(&m.group_id, FundPaymentGroupStatus::BankPayed)
+                .await
+            {
+                tracing::warn!(
+                    group_id = %m.group_id,
+                    error = %e,
+                    "Failed to update group status to BankPayed"
+                );
+            }
+
+            // Step 4: Update associated procedures to Payed status (silent - orchestrator will publish once)
             if let Ok(Some(group)) = self.fund_payment_service.read_group(&m.group_id).await {
                 let procedure_ids: Vec<String> =
                     group.lines.iter().map(|l| l.procedure_id.clone()).collect();

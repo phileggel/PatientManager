@@ -25,7 +25,7 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use crate::context::bank::{
     BankAccountService, BankTransferService, SqliteBankAccountRepository,
-    SqliteBankTransferRepository,
+    SqliteBankTransferLinkRepository, SqliteBankTransferRepository,
 };
 use crate::context::fund::FundService;
 use crate::context::procedure::{
@@ -35,6 +35,7 @@ use crate::context::procedure::{
 use crate::context::fund::{FundPaymentService, SqliteFundPaymentRepository};
 use crate::core::event_bus::*;
 use crate::core::logger::*;
+use crate::use_cases::bank_manual_match::BankManualMatchOrchestrator;
 use crate::use_cases::bank_statement_reconciliation::{
     BankStatementOrchestrator, SqliteBankFundLabelMappingRepository,
 };
@@ -176,6 +177,9 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     ));
     tracing::info!(target: BACKEND, "Bank transfer service created");
 
+    // Create bank transfer link repository (junction tables)
+    let transfer_link_repo = Arc::new(SqliteBankTransferLinkRepository::new(db.get_pool().clone()));
+
     // Create bank statement reconciliation orchestrator
     let label_mapping_repo = Arc::new(SqliteBankFundLabelMappingRepository::new(
         db.get_pool().clone(),
@@ -185,6 +189,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         fund_service.clone(),
         fund_payment_service.clone(),
         bank_transfer_service.clone(),
+        transfer_link_repo.clone(),
         context_procedure_service.clone(),
         label_mapping_repo,
         event_bus.clone(),
@@ -216,6 +221,15 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     ));
     tracing::info!(target: BACKEND, "Excel amount mapping repository created");
 
+    // Create bank manual match orchestrator
+    let bank_manual_match_orchestrator = Arc::new(BankManualMatchOrchestrator::new(
+        bank_transfer_service.clone(),
+        transfer_link_repo.clone(),
+        fund_payment_service.clone(),
+        context_procedure_service.clone(),
+    ));
+    tracing::info!(target: BACKEND, "Bank manual match orchestrator created");
+
     // Register services with Tauri state management
     app.manage(patient_service);
     app.manage(fund_service);
@@ -230,6 +244,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     app.manage(fund_payment_reconciliation_orchestrator);
     app.manage(excel_import_orchestrator);
     app.manage(excel_amount_mapping_repo);
+    app.manage(bank_manual_match_orchestrator);
     tracing::info!(target: BACKEND, "Application backend initialized successfully");
     Ok(())
 }

@@ -14,10 +14,12 @@ pub enum BankTransferType {
     Fund,
     Check,
     CreditCard,
+    Cash,
 }
 
 /// BankTransfer aggregate root
-/// Represents a payment transaction that will later be reconciled with procedures/funds
+/// Represents a bank transfer (FUND) or direct payment (CHECK/CREDIT_CARD/CASH).
+/// Links to fund payment groups or procedures are stored in junction tables.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct BankTransfer {
     pub id: String,
@@ -26,8 +28,7 @@ pub struct BankTransfer {
     pub transfer_date: NaiveDate,
     pub amount: i64,
     pub transfer_type: BankTransferType,
-    pub bank_account: BankAccount, // Complete bank account information
-    pub source: String,            // String with prefix like "fund_12345" or "patient_67890"
+    pub bank_account: BankAccount,
 }
 
 /// Serialize NaiveDate as ISO format string for serde
@@ -45,9 +46,8 @@ impl BankTransfer {
         amount: i64,
         transfer_type: BankTransferType,
         bank_account: BankAccount,
-        source: String,
     ) -> Result<Self> {
-        Self::validate(&transfer_date, amount, &source)?;
+        Self::validate(amount)?;
 
         let parsed_date = NaiveDate::parse_from_str(&transfer_date, "%Y-%m-%d").map_err(|_| {
             anyhow::anyhow!(
@@ -62,7 +62,6 @@ impl BankTransfer {
             amount,
             transfer_type,
             bank_account,
-            source,
         })
     }
 
@@ -74,9 +73,8 @@ impl BankTransfer {
         amount: i64,
         transfer_type: BankTransferType,
         bank_account: BankAccount,
-        source: String,
     ) -> Result<Self> {
-        Self::validate(&transfer_date, amount, &source)?;
+        Self::validate(amount)?;
 
         let parsed_date = NaiveDate::parse_from_str(&transfer_date, "%Y-%m-%d").map_err(|_| {
             anyhow::anyhow!(
@@ -91,7 +89,6 @@ impl BankTransfer {
             amount,
             transfer_type,
             bank_account,
-            source,
         })
     }
 
@@ -103,7 +100,6 @@ impl BankTransfer {
         amount: i64,
         transfer_type: BankTransferType,
         bank_account: BankAccount,
-        source: String,
     ) -> Self {
         let parsed_date =
             NaiveDate::parse_from_str(&transfer_date, "%Y-%m-%d").unwrap_or(NaiveDate::MIN);
@@ -114,17 +110,13 @@ impl BankTransfer {
             amount,
             transfer_type,
             bank_account,
-            source,
         }
     }
 
     /// Validates bank transfer fields.
-    fn validate(_transfer_date: &str, amount: i64, source: &str) -> Result<()> {
+    fn validate(amount: i64) -> Result<()> {
         if amount <= 0 {
             anyhow::bail!("Amount must be greater than 0 (received: {})", amount);
-        }
-        if source.trim().is_empty() {
-            anyhow::bail!("Source cannot be empty");
         }
         Ok(())
     }
@@ -134,30 +126,94 @@ impl BankTransfer {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_bank_transfer_creation() {
-        let account = BankAccount::restore(
+    fn make_account() -> BankAccount {
+        BankAccount::restore(
             "account-id-123".to_string(),
             "Main Account".to_string(),
             None,
-        );
+        )
+    }
+
+    #[test]
+    fn test_bank_transfer_creation() {
         let transfer = BankTransfer::new(
             "2026-02-15".to_string(),
             1500500,
             BankTransferType::Fund,
-            account,
-            "fund_12345".to_string(),
+            make_account(),
         )
         .expect("BankTransfer creation failed");
 
         assert_eq!(transfer.amount, 1500500);
         assert_eq!(transfer.transfer_type, BankTransferType::Fund);
+        assert!(!transfer.id.is_empty());
+    }
+
+    #[test]
+    fn test_bank_transfer_zero_amount_rejected() {
+        let result = BankTransfer::new(
+            "2026-02-15".to_string(),
+            0,
+            BankTransferType::Fund,
+            make_account(),
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("greater than 0"));
+    }
+
+    #[test]
+    fn test_bank_transfer_negative_amount_rejected() {
+        let result = BankTransfer::new(
+            "2026-02-15".to_string(),
+            -100,
+            BankTransferType::Check,
+            make_account(),
+        );
+        assert!(result.is_err());
     }
 
     #[test]
     fn test_bank_transfer_type_serialization() {
-        let transfer_type = BankTransferType::Check;
-        let json = serde_json::to_string(&transfer_type).expect("should serialize");
-        assert_eq!(json, r#""CHECK""#);
+        assert_eq!(
+            serde_json::to_string(&BankTransferType::Check).unwrap(),
+            r#""CHECK""#
+        );
+        assert_eq!(
+            serde_json::to_string(&BankTransferType::CreditCard).unwrap(),
+            r#""CREDIT_CARD""#
+        );
+        assert_eq!(
+            serde_json::to_string(&BankTransferType::Cash).unwrap(),
+            r#""CASH""#
+        );
+        assert_eq!(
+            serde_json::to_string(&BankTransferType::Fund).unwrap(),
+            r#""FUND""#
+        );
+    }
+
+    #[test]
+    fn test_with_id_preserves_id() {
+        let transfer = BankTransfer::with_id(
+            "fixed-id".to_string(),
+            "2026-03-01".to_string(),
+            500,
+            BankTransferType::Cash,
+            make_account(),
+        )
+        .unwrap();
+        assert_eq!(transfer.id, "fixed-id");
+    }
+
+    #[test]
+    fn test_restore_uses_min_date_on_invalid() {
+        let transfer = BankTransfer::restore(
+            "id".to_string(),
+            "not-a-date".to_string(),
+            1000,
+            BankTransferType::Fund,
+            make_account(),
+        );
+        assert_eq!(transfer.transfer_date, NaiveDate::MIN);
     }
 }

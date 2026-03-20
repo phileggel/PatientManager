@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                bt.id,\n                bt.transfer_date,\n                bt.amount,\n                bt.transfer_type,\n                bt.bank_account_id,\n                bt.source,\n                ba.id as account_id,\n                ba.name as account_name,\n                ba.iban as account_iban\n            FROM bank_transfer bt\n            JOIN bank_account ba ON bt.bank_account_id = ba.id\n            WHERE bt.is_deleted = 0 AND ba.is_deleted = 0\n            ORDER BY bt.transfer_date DESC\n            ",
+  "query": "\n            SELECT\n                bt.id,\n                bt.transfer_date,\n                bt.amount,\n                bt.transfer_type,\n                bt.bank_account_id,\n                ba.id as account_id,\n                ba.name as account_name,\n                ba.iban as account_iban\n            FROM bank_transfer bt\n            JOIN bank_account ba ON bt.bank_account_id = ba.id\n            WHERE bt.id = $1 AND ba.is_deleted = 0\n            ",
   "describe": {
     "columns": [
       {
@@ -29,31 +29,25 @@
         "type_info": "Text"
       },
       {
-        "name": "source",
+        "name": "account_id",
         "ordinal": 5,
         "type_info": "Text"
       },
       {
-        "name": "account_id",
+        "name": "account_name",
         "ordinal": 6,
         "type_info": "Text"
       },
       {
-        "name": "account_name",
-        "ordinal": 7,
-        "type_info": "Text"
-      },
-      {
         "name": "account_iban",
-        "ordinal": 8,
+        "ordinal": 7,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
-      false,
       false,
       false,
       false,
@@ -64,5 +58,5 @@
       true
     ]
   },
-  "hash": "52c4c7ac12429f2dc9b80cba9896c01764e2b94271d26f6077c80d0ddd2fb71d"
+  "hash": "018c5e8dd6caf4ae9edd30faa763df5841c01a3bb1f878e8d35d90db564d2db8"
 }
