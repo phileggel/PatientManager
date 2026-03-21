@@ -162,6 +162,21 @@ npm test && cd src-tauri && cargo test
 - Test loading/error/success states
 - Use `screen` queries, not `container`
 
+### renderHook — Stable References Required
+
+When testing hooks with `renderHook`, **never create objects or functions inside the render callback**. The callback runs on every render, so inline factories produce a new reference each time. If that value is a `useEffect` dependency, it triggers the effect on every render → infinite loop → OOM crash.
+
+```ts
+// BAD — makeFundTransfer() called on every render, new reference each time
+const { result } = renderHook(() => useMyHook(makeTransfer(), vi.fn()));
+
+// GOOD — stable reference, effect only fires once
+const transfer = makeTransfer();
+const { result } = renderHook(() => useMyHook(transfer, vi.fn()));
+```
+
+This applies to any value used as a `useEffect` dependency inside the hook being tested.
+
 ### Rust Commands
 - Test return values
 - Verify serialization to JSON

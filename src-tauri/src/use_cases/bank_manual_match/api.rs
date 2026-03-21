@@ -183,3 +183,29 @@ pub async fn get_transfer_procedure_ids(
         .await
         .map_err(|e| format!("{:#}", e))
 }
+
+/// R21 — Return fund group candidates by IDs for the edit modal (groups are BankPayed).
+#[tauri::command]
+#[specta::specta]
+pub async fn get_fund_groups_by_ids(
+    group_ids: Vec<String>,
+    orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
+) -> Result<Vec<FundGroupCandidate>, String> {
+    orchestrator
+        .get_fund_groups_by_ids(group_ids)
+        .await
+        .map_err(|e| format!("{:#}", e))
+}
+
+/// R21 — Return procedure candidates by IDs for the edit modal (procedures are DirectlyPayed).
+#[tauri::command]
+#[specta::specta]
+pub async fn get_procedures_by_ids(
+    procedure_ids: Vec<String>,
+    orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
+) -> Result<Vec<DirectPaymentProcedureCandidate>, String> {
+    orchestrator
+        .get_procedures_by_ids(procedure_ids)
+        .await
+        .map_err(|e| format!("{:#}", e))
+}

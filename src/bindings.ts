@@ -811,6 +811,28 @@ async getTransferProcedureIds(transferId: string) : Promise<Result<string[], str
 }
 },
 /**
+ * R21 — Return fund group candidates by IDs for the edit modal (groups are BankPayed).
+ */
+async getFundGroupsByIds(groupIds: string[]) : Promise<Result<FundGroupCandidate[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_fund_groups_by_ids", { groupIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * R21 — Return procedure candidates by IDs for the edit modal (procedures are DirectlyPayed).
+ */
+async getProceduresByIds(procedureIds: string[]) : Promise<Result<DirectPaymentProcedureCandidate[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_procedures_by_ids", { procedureIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Tauri command: Health check
  */
 async checkHealth() : Promise<HealthResponse> {

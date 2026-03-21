@@ -85,6 +85,8 @@ Un groupe de paiement fond devient verrouillé dès qu'une de ses actes atteint 
 
 **R20 — Recherche élargie (frontend)** : Lorsque l'acte recherchée n'apparaît pas dans la sélection initiale (hors fenêtre de 7 jours), un bouton "Élargir la recherche" ouvre un modal affichant toutes les actes en statut `Created`, sans contrainte de date. Recherche par nom de patient, SSN ou date de réalisation. Classées par `procedure_date` décroissante. Disponible à la création et à la modification.
 
+**R21 — Pré-remplissage du formulaire de modification (frontend)** : À l'ouverture du formulaire de modification, la date est pré-remplie avec la date du virement existant. Pour les virements `FUND`, les groupes actuellement liés (statut `BankPayed`) sont affichés pré-sélectionnés dans une section dédiée, afin que l'utilisateur puisse les retirer si souhaité. Pour les paiements directs, les actes actuellement liées (statut `DirectlyPayed`) sont affichées pré-sélectionnées de la même façon.
+
 **Champs impactés — à la création du paiement**
 
 | Entité | Champ | Valeur |

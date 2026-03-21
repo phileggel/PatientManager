@@ -136,6 +136,8 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             bank_manual_match::delete_direct_transfer,
             bank_manual_match::get_transfer_fund_group_ids,
             bank_manual_match::get_transfer_procedure_ids,
+            bank_manual_match::get_fund_groups_by_ids,
+            bank_manual_match::get_procedures_by_ids,
             health::check_health,
             logger::log_frontend,
         ])

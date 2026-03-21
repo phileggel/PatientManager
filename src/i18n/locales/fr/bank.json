@@ -91,7 +91,8 @@
       "empty": "Aucun groupe disponible dans les 7 jours. Cliquez sur « Élargir » pour voir tous les groupes.",
       "emptyAll": "Aucun groupe non rapproché trouvé.",
       "expand": "Élargir la recherche",
-      "selected": "{{count}} groupe(s) sélectionné(s)"
+      "selected": "{{count}} groupe(s) sélectionné(s)",
+      "current": "Groupes actuellement liés"
     },
     "selectProcedures": {
       "label": "Actes à rapprocher",
@@ -99,6 +100,7 @@
       "empty": "Aucun acte disponible dans les 7 jours. Cliquez sur « Élargir » pour voir tous les actes.",
       "emptyAll": "Aucun acte en statut Créé trouvé.",
       "expand": "Élargir la recherche",
+      "current": "Actes actuellement liées",
       "selected": "{{count}} acte(s) sélectionné(s)"
     },
     "manager": {

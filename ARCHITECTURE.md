@@ -351,7 +351,12 @@ Actions: `setPatients`, `addPatients`, `setFunds`, `addFunds`, `setProcedureType
 Flat layout. Gateway: `create_bank_account`, `read_all_bank_accounts`, `update_bank_account`, `delete_bank_account`. Single component: `BankAccountManager`.
 
 #### Bank Transfer + Manual Match (`features/bank-transfer/`)
-Flat layout with `store.ts` (feature-scoped transfer list). Multiple hooks: `useBankTransferManager`, `useBankTransferController`, `useBankTransferOperations`. Gateway covers both `context/bank/` (CRUD) and `use_cases/bank_manual_match/` (fund transfer + direct transfer flows).
+Flat layout with `store.ts` (feature-scoped transfer list). Multiple hooks: `useBankTransferManager`, `useBankTransferController`, `useBankTransferOperations`. Gateway covers `context/bank/` (CRUD).
+- `add_bank_transfer_form/` — creation form with fund/patient selection modals
+- `bank_transfer_list/` — transfer list display
+- `edit_bank_transfer_modal/` — edit modal + `useEditBankTransferModal` hook (loads linked groups/procedures, handles update submit)
+- `manual_match/` — `SelectFundGroupsPanel`, `SelectProceduresPanel`, `gateway.ts` wrapping `use_cases/bank_manual_match/` commands
+- `shared/` — `validateBankTransfer.ts`
 
 #### Bank Statement Auto-Match (`features/bank-statement-match/`)
 Flat layout. `BankStatementPage` + gateway wrapping all `use_cases/bank_statement_reconciliation/` commands.

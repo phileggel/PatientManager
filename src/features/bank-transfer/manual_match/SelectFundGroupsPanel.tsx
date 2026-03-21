@@ -11,12 +11,15 @@ interface SelectFundGroupsPanelProps {
   transferDate: string;
   selectedGroupIds: string[];
   onSelectionChange: (groupIds: string[], totalAmountMillis: number) => void;
+  /** Currently linked groups (BankPayed) shown pre-selected in edit mode. */
+  currentGroups?: FundGroupCandidate[];
 }
 
 export function SelectFundGroupsPanel({
   transferDate,
   selectedGroupIds,
   onSelectionChange,
+  currentGroups,
 }: SelectFundGroupsPanelProps) {
   const { t } = useTranslation("bank");
   const funds = useAppStore((state) => state.funds);
@@ -36,6 +39,12 @@ export function SelectFundGroupsPanel({
 
   const getFundName = (fundId: string): string =>
     funds.find((f) => f.id === fundId)?.name ?? fundId;
+
+  // Merge current groups into the map so their totals are available for selection computation
+  useEffect(() => {
+    if (!currentGroups) return;
+    for (const g of currentGroups) candidateMapRef.current.set(g.group_id, g);
+  }, [currentGroups]);
 
   useEffect(() => {
     if (!transferDate) {
@@ -85,19 +94,58 @@ export function SelectFundGroupsPanel({
 
   const isExpanded = expandedDate === transferDate;
 
+  // Exclude current groups from candidates to avoid duplicate rows
+  const currentGroupIds = new Set(currentGroups?.map((g) => g.group_id) ?? []);
+  const filteredCandidates = candidates.filter((c) => !currentGroupIds.has(c.group_id));
+
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium text-neutral-90">{t("transfer.selectGroups.label")}</p>
 
+      {/* Current groups section — shown in edit mode */}
+      {currentGroups && currentGroups.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-medium text-neutral-60 uppercase tracking-wide">
+            {t("transfer.selectGroups.current")}
+          </p>
+          <div className="border border-neutral-30 rounded-lg divide-y divide-neutral-20">
+            {currentGroups.map((group) => (
+              <label
+                key={group.group_id}
+                className="flex items-center gap-3 px-3 py-3 hover:bg-neutral-10 cursor-pointer transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedGroupIds.includes(group.group_id)}
+                  onChange={() => toggleGroup(group)}
+                  className="w-4 h-4 shrink-0"
+                />
+                <div className="flex flex-1 items-center justify-between gap-2 text-sm min-w-0">
+                  <span className="font-medium text-neutral-90 truncate">
+                    {getFundName(group.fund_id)}
+                  </span>
+                  <span className="text-neutral-60 text-xs whitespace-nowrap">
+                    {group.payment_date}
+                  </span>
+                  <span className="font-semibold whitespace-nowrap">
+                    €{(group.total_amount / 1000).toFixed(2)}
+                  </span>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p className="text-sm text-neutral-60 py-2">{t("transfer.selectGroups.loading")}</p>
-      ) : candidates.length === 0 ? (
+      ) : filteredCandidates.length === 0 ? (
         <p className="text-sm text-neutral-60 py-2">
           {isExpanded ? t("transfer.selectGroups.emptyAll") : t("transfer.selectGroups.empty")}
         </p>
       ) : (
         <div className="border border-neutral-30 rounded-lg divide-y divide-neutral-20 max-h-48 overflow-y-auto">
-          {candidates.map((group) => (
+          {filteredCandidates.map((group) => (
             <label
               key={group.group_id}
               className="flex items-center gap-3 px-3 py-3 hover:bg-neutral-10 cursor-pointer transition-colors"

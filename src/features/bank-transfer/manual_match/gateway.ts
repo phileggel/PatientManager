@@ -173,6 +173,34 @@ export async function deleteDirectTransfer(transferId: string): Promise<ServiceR
   }
 }
 
+export async function getFundGroupsByIds(
+  groupIds: string[],
+): Promise<ServiceResult<FundGroupCandidate[]>> {
+  logger.debug("[manual_match] getFundGroupsByIds", { count: groupIds.length });
+  try {
+    const result = await commands.getFundGroupsByIds(groupIds);
+    if (result.status === "ok") return { success: true, data: result.data };
+    logger.error("[manual_match] getFundGroupsByIds failed", { error: result.error });
+    return { success: false, error: result.error };
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
+}
+
+export async function getProceduresByIds(
+  procedureIds: string[],
+): Promise<ServiceResult<DirectPaymentProcedureCandidate[]>> {
+  logger.debug("[manual_match] getProceduresByIds", { count: procedureIds.length });
+  try {
+    const result = await commands.getProceduresByIds(procedureIds);
+    if (result.status === "ok") return { success: true, data: result.data };
+    logger.error("[manual_match] getProceduresByIds failed", { error: result.error });
+    return { success: false, error: result.error };
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
+}
+
 export async function getTransferFundGroupIds(
   transferId: string,
 ): Promise<ServiceResult<string[]>> {
