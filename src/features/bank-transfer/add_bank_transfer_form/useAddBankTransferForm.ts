@@ -4,8 +4,7 @@ import type { BankAccount, BankTransferType } from "@/bindings";
 import { useSnackbar } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
-import { getCashBankAccountId } from "../gateway";
-import { createDirectTransfer, createFundTransfer } from "../manual_match/gateway";
+import { createDirectTransfer, createFundTransfer, getCashBankAccountId } from "../gateway";
 import { type BankTransferFormErrors, validateBankTransfer } from "../shared/validateBankTransfer";
 
 export function useAddBankTransferForm() {

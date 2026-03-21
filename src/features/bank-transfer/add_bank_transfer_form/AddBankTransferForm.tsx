@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import type { BankTransferType } from "@/bindings";
 import { logger } from "@/lib/logger";
 import { Button, DateField, SelectField } from "@/ui/components";
-import { SelectFundGroupsPanel } from "../manual_match/SelectFundGroupsPanel";
-import { SelectProceduresPanel } from "../manual_match/SelectProceduresPanel";
+import { SelectFundGroupsPanel } from "../select_items_panel/SelectFundGroupsPanel";
+import { SelectProceduresPanel } from "../select_items_panel/SelectProceduresPanel";
 import { useAddBankTransferForm } from "./useAddBankTransferForm";
 
 /**
