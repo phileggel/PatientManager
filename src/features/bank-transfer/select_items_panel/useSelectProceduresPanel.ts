@@ -105,19 +105,21 @@ export function useSelectProceduresPanel({
   // Exclude current procedures from candidates to avoid duplicate rows
   const currentProcedureIds = new Set(currentProcedures?.map((p) => p.procedure_id) ?? []);
 
-  // R20 — when expanded: filter by patient name, SSN, or procedure date
+  // R20 — when expanded: filter by patient name, SSN, or procedure date; sort by procedure_date DESC
   const withoutCurrent = candidates.filter((c) => !currentProcedureIds.has(c.procedure_id));
   const filteredCandidates = isExpanded
-    ? withoutCurrent.filter((c) => {
-        if (!searchQuery.trim()) return true;
-        const query = searchQuery.trim().toLowerCase();
-        const patient = patients.find((p) => p.id === c.patient_id);
-        return (
-          patient?.name?.toLowerCase().includes(query) ||
-          patient?.ssn?.toLowerCase().includes(query) ||
-          c.procedure_date.includes(query)
-        );
-      })
+    ? withoutCurrent
+        .filter((c) => {
+          if (!searchQuery.trim()) return true;
+          const query = searchQuery.trim().toLowerCase();
+          const patient = patients.find((p) => p.id === c.patient_id);
+          return (
+            patient?.name?.toLowerCase().includes(query) ||
+            patient?.ssn?.toLowerCase().includes(query) ||
+            c.procedure_date.includes(query)
+          );
+        })
+        .sort((a, b) => b.procedure_date.localeCompare(a.procedure_date))
     : withoutCurrent;
 
   return {
