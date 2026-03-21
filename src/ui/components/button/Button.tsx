@@ -28,7 +28,7 @@ export function Button({
 }: ButtonProps) {
   const baseClasses = `
     inline-flex items-center justify-center gap-2
-    border rounded
+    border rounded-xl
     font-medium tracking-wide
     cursor-pointer
     transition-all duration-150 ease-out
@@ -46,7 +46,7 @@ export function Button({
 
   const variantClasses = {
     primary:
-      "bg-m3-primary text-m3-on-primary border-m3-primary hover:enabled:bg-m3-primary/90 active:enabled:bg-m3-primary",
+      "bg-gradient-to-br from-m3-primary to-m3-primary-container text-m3-on-primary border-transparent hover:enabled:opacity-90 active:enabled:opacity-100",
     secondary:
       "bg-m3-secondary-container text-m3-on-secondary-container border-m3-secondary-container hover:enabled:bg-m3-secondary-container/90",
     outline:

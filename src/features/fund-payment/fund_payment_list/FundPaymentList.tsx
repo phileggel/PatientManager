@@ -32,6 +32,7 @@ function SortIcon({ sortConfig, column }: { sortConfig: SortConfig; column: Sort
 
 export default function FundPaymentList() {
   const { t } = useTranslation("fund-payment");
+  const { t: tc } = useTranslation("common");
   const { fundPaymentRows, groups, loading, deleteGroup } = useFundPaymentList();
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -217,6 +218,7 @@ export default function FundPaymentList() {
         title={t("list.delete.title")}
         message={t("list.delete.message", { fundName: deleteData?.fundName })}
         confirmLabel={t("list.delete.confirm")}
+        cancelLabel={tc("action.cancel")}
         variant="danger"
       />
     </div>

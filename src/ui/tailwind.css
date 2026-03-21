@@ -1,42 +1,48 @@
 /* Import Tailwind CSS v4 base, components, and utilities */
 @import "tailwindcss";
 
+/* Locally bundled fonts (Tauri — no CDN) */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/manrope";
+
 @theme {
   /* ============================================
      MATERIAL DESIGN 3 - SEMANTIC COLORS
      ============================================ */
 
-  /* Primary: Le bleu principal (boutons, actions) */
-  --color-m3-primary: #0061a4;
+  /* Primary: Indigo profond (Clinical Atelier) */
+  --color-m3-primary: #4f378a;
   --color-m3-on-primary: #ffffff;
-  --color-m3-primary-container: #d1e4ff;
-  --color-m3-on-primary-container: #001d36;
+  --color-m3-primary-container: #6750a4;
+  --color-m3-on-primary-container: #e0d2ff;
 
-  /* Secondary: Un bleu plus sourd/gris pour les éléments moins importants */
-  --color-m3-secondary: #535f70;
+  /* Secondary: Violet sourd pour les éléments secondaires */
+  --color-m3-secondary: #63597c;
   --color-m3-on-secondary: #ffffff;
-  --color-m3-secondary-container: #cedbef;
-  --color-m3-on-secondary-container: #101c2b;
+  --color-m3-secondary-container: #e1d4fd;
+  --color-m3-on-secondary-container: #645a7d;
 
-  /* Tertiary: Un bleu-vert pour les accents (chips, badges) */
-  --color-m3-tertiary: #6b5778;
+  /* Tertiary: Ambre/or pour les métriques clés */
+  --color-m3-tertiary: #765b00;
   --color-m3-on-tertiary: #ffffff;
-  --color-m3-tertiary-container: #f2daff;
-  --color-m3-on-tertiary-container: #251431;
+  --color-m3-tertiary-container: #c9a74d;
+  --color-m3-on-tertiary-container: #251a00;
 
-  /* Neutral/Surfaces: Gris teintés de bleu (Blue-Grey) */
-  --color-m3-surface: #f8f9ff;
-  --color-m3-on-surface: #191c20;
-  --color-m3-surface-variant: #dfe3eb;
-  --color-m3-on-surface-variant: #43474e;
-  --color-m3-outline: #73777f;
+  /* Neutral/Surfaces: Teintés mauve (Clinical Atelier) */
+  --color-m3-surface: #fef7ff;
+  --color-m3-on-surface: #1d1b20;
+  --color-m3-surface-variant: #e7e0e8;
+  --color-m3-on-surface-variant: #494551;
+  --color-m3-outline: #7a7582;
+  --color-m3-outline-variant: #cbc4d2;
+  --color-m3-surface-dim: #ded8e0;
 
-  /* Niveaux de conteneurs (basés sur le bleu neutre) */
+  /* Niveaux de conteneurs (teintés mauve) */
   --color-m3-surface-container-lowest: #ffffff;
-  --color-m3-surface-container-low: #f1f4f9;
-  --color-m3-surface-container: #ebf0f7;
-  --color-m3-surface-container-high: #e5eaf1;
-  --color-m3-surface-container-highest: #dfe4ea;
+  --color-m3-surface-container-low: #f8f1f9;
+  --color-m3-surface-container: #f2ecf4;
+  --color-m3-surface-container-high: #ede6ee;
+  --color-m3-surface-container-highest: #e7e0e8;
 
   /* Error: Rouge (alertes/erreurs) */
   --color-m3-error: #ba1a1a;
@@ -205,10 +211,8 @@
      TYPOGRAPHY - Font Families
      ============================================ */
 
-  --font-family-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans",
-    "Droid Sans", "Helvetica Neue", sans-serif;
-
+  --font-family-sans: "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-family-headline: "Manrope Variable", "Manrope", sans-serif;
   --font-family-mono: "Courier New", Monaco, Menlo, monospace;
 
   /* ============================================
@@ -230,11 +234,11 @@
      SHADOWS - Elevation System
      ============================================ */
 
-  --shadow-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow-elevation-2: 0 3px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-elevation-3: 0 4px 12px rgba(0, 0, 0, 0.15);
-  --shadow-elevation-4: 0 8px 24px rgba(0, 0, 0, 0.15);
-  --shadow-elevation-5: 0 12px 32px rgba(0, 0, 0, 0.2);
+  --shadow-elevation-1: 0px 2px 8px rgba(79, 55, 138, 0.06);
+  --shadow-elevation-2: 0px 4px 16px rgba(79, 55, 138, 0.08);
+  --shadow-elevation-3: 0px 8px 24px rgba(79, 55, 138, 0.1);
+  --shadow-elevation-4: 0px 12px 32px rgba(79, 55, 138, 0.12);
+  --shadow-elevation-5: 0px 16px 40px rgba(79, 55, 138, 0.15);
 
   /* ============================================
      ANIMATIONS - Motion Tokens
@@ -304,7 +308,7 @@
 @layer base {
   body {
     @apply bg-m3-surface text-m3-on-surface antialiased;
-    font-family: "Roboto", system-ui, sans-serif;
+    font-family: var(--font-family-sans);
   }
 }
 

@@ -198,6 +198,8 @@
         "message": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
         "confirm": "Supprimer"
       },
+      "editAriaLabel": "Modifier le compte {{name}}",
+      "deleteAriaLabel": "Supprimer le compte {{name}}",
       "success": {
         "deleted": "Compte \"{{name}}\" supprimé avec succès"
       },

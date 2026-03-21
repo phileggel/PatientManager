@@ -24,8 +24,16 @@ This project uses M3 tokens via Tailwind. Enforce these rules:
 - Backgrounds: `bg-m3-surface`, `bg-m3-surface-variant`, `bg-m3-primary`, `bg-m3-secondary-container`, etc.
 - Borders: `border-m3-outline`, `border-m3-outline-variant`
 - Error: `text-m3-error`, `bg-m3-error`, `text-m3-on-error`
-- ❌ Forbidden: `text-gray-*`, `text-slate-*`, `bg-gray-*`, `border-gray-*`, `text-red-*`, `text-green-*`, etc.
+- ❌ Forbidden: `text-gray-*`, `text-slate-*`, `bg-gray-*`, `border-gray-*`, `text-red-*`, `text-green-*`, `bg-white`, `bg-black`, etc.
 - ⚠️ Exception: `text-neutral-*` and `bg-neutral-*` are project-specific tokens — allowed.
+- ✅ New tokens available: `bg-m3-outline-variant`, `bg-m3-surface-dim` — use these instead of custom colors.
+
+### Clinical Atelier Design System — enforced rules
+- **Primary buttons**: MUST use `bg-gradient-to-br from-m3-primary to-m3-primary-container`. ❌ Flag `bg-m3-primary` (flat) on primary buttons.
+- **Modals / Dialogs**: MUST use `bg-m3-surface-container-lowest/85 backdrop-blur-[12px]` (glassmorphism). ❌ Flag `bg-white`, `bg-m3-surface-container` (opaque) on modal surfaces.
+- **Borders**: No structural 1px solid borders for containment/sectioning. Use tonal surface shifts (different `surface-container-*` levels) or negative space instead. ❌ Flag `border border-m3-outline` used as a section divider (ok for form inputs).
+- **Button corners**: MUST be `rounded-xl` (12px). ❌ Flag `rounded` or `rounded-lg` on buttons.
+- **Shadows**: MUST use `shadow-elevation-*` tokens. ❌ Flag raw `shadow-*` Tailwind utilities or inline box-shadow with neutral `rgba(0,0,0)`.
 
 ### Components — MUST use `ui/components` when available
 Available generic components (import from `@/ui/components`):
