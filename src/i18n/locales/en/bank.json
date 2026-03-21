@@ -94,7 +94,8 @@
       "emptyAll": "No unreconciled groups found.",
       "expand": "Expand search",
       "selected": "{{count}} group(s) selected",
-      "current": "Currently linked groups"
+      "current": "Currently linked groups",
+      "filterPlaceholder": "Filter by fund (name or identifier)…"
     },
     "selectProcedures": {
       "label": "Procedures to reconcile",
