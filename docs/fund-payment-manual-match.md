@@ -57,13 +57,15 @@ Un groupe devient verrouillé dès qu'une de ses actes atteint l'Étape 2 (cf. R
 
 **R13 — Filtrage mensuel (frontend)** : Dans le sélecteur de procédures, les actes sont filtrables par mois et par année pour faciliter la sélection dans de longues listes.
 
-**R14 — Présentation du sélecteur de procédures (frontend)** : À la création, les actes sélectionnées sont affichées en tête de liste. En modification, le sélecteur présente deux sections distinctes : les actes en cours (déjà dans le groupe, `Reconciliated` ou `PartiallyReconciled`, retirables, présélectionnées) et les actes disponibles (`Created`, ajoutables).
+**R14 — Présentation du sélecteur de procédures (frontend)** : À la création, les actes sélectionnées sont affichées en tête de liste. En modification, la modal affiche uniquement les actes déjà dans le groupe (retirables via décocher). Un bouton "Ajouter des actes" ouvre un sélecteur dédié (cf. R19) pour ajouter de nouvelles actes.
 
 **R15 — Récapitulatif de sélection (frontend)** : Lors de la sélection des actes, un récapitulatif affiche en temps réel le nombre d'actes sélectionnées et le montant total correspondant.
 
 **R16 — Double-clic pour modifier (frontend)** : Un double-clic sur une ligne de la liste des groupes ouvre le formulaire de modification du groupe correspondant.
 
 **R17 — Recherche dans la liste (frontend)** : La liste des groupes de paiement est filtrable par nom de caisse ou par date de paiement.
+
+**R19 — Ajout d'actes en modification (frontend + backend)** : Dans la modal d'édition, un bouton "Ajouter des actes" ouvre un sélecteur modal affichant toutes les actes en statut `Created` de la même caisse dont la `procedure_date` est inférieure ou égale à la date de paiement du groupe. Les actes déjà dans le groupe sont exclues. La sélection suit les mêmes effets qu'à la création (cf. R8) : statut `Reconciliated`, `confirmed_payment_date` et `actual_payment_amount` renseignés, montant total recalculé.
 
 ---
 
