@@ -356,7 +356,7 @@ Mixed layout: root-level `gateway.ts`, `store.ts` (feature-scoped transfer list)
 - `add_bank_transfer_form/` — creation form with fund/patient selection modals
 - `bank_transfer_list/` — transfer list display
 - `edit_bank_transfer_modal/` — edit modal + `useEditBankTransferModal` hook (loads linked groups/procedures, handles update submit)
-- `manual_match/` — `SelectFundGroupsPanel`, `SelectProceduresPanel`, `gateway.ts` wrapping `use_cases/bank_manual_match/` commands
+- `select_items_panel/` — `SelectFundGroupsPanel` + `useSelectFundGroupsPanel`, `SelectProceduresPanel` + `useSelectProceduresPanel`; both panels call `use_cases/bank_manual_match/` commands through the root `gateway.ts`
 - `shared/` — `validateBankTransfer.ts`
 
 #### Bank Statement Auto-Match (`features/bank-statement-match/`)
@@ -449,6 +449,6 @@ features/{domain}/
 - `gateway.ts` at the feature root — no `api/` wrapper folder
 - Sub-features are directories grouped by **feature concern**, not by layer (no `components/`, `hooks/` folders)
 - Hooks are colocated next to their component inside the sub-feature folder
-- If a sub-feature wraps a distinct use case with many commands, it gets its own `gateway.ts` (e.g. `manual_match/gateway.ts`)
+- One `gateway.ts` per feature at the root — sub-features import from it, never create their own
 - `shared/presenter.ts` — pure object with static-style methods (`toRow`, `toFormData`) that transform domain types into UI shapes; keeps components free of mapping logic
 - `shared/` for any logic used across multiple sub-features

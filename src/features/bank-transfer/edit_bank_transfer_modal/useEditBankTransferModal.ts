@@ -10,7 +10,7 @@ import {
   getTransferProcedureIds,
   updateDirectTransfer,
   updateFundTransfer,
-} from "../manual_match/gateway";
+} from "../gateway";
 
 /**
  * useEditBankTransferModal — Logic for the EditBankTransferModal component.
@@ -61,10 +61,9 @@ export function useEditBankTransferModal(transfer: BankTransfer | null, onClose:
           if (groupsResult.success && groupsResult.data) {
             setCurrentGroups(groupsResult.data);
           } else {
-            logger.error(
-              "[useEditBankTransferModal] Failed to load current groups",
-              groupsResult.error,
-            );
+            logger.error("[useEditBankTransferModal] Failed to load current groups", {
+              error: groupsResult.error,
+            });
           }
         }
       } else {
@@ -83,10 +82,9 @@ export function useEditBankTransferModal(transfer: BankTransfer | null, onClose:
           if (procsResult.success && procsResult.data) {
             setCurrentProcedures(procsResult.data);
           } else {
-            logger.error(
-              "[useEditBankTransferModal] Failed to load current procedures",
-              procsResult.error,
-            );
+            logger.error("[useEditBankTransferModal] Failed to load current procedures", {
+              error: procsResult.error,
+            });
           }
         }
       }

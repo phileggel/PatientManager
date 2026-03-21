@@ -104,7 +104,8 @@
       "emptyAll": "Aucun acte en statut Créé trouvé.",
       "expand": "Élargir la recherche",
       "current": "Actes actuellement liés",
-      "selected": "{{count}} acte(s) sélectionné(s)"
+      "selected": "{{count}} acte(s) sélectionné(s)",
+      "filterPlaceholder": "Rechercher par patient, NIR ou date…"
     },
     "manager": {
       "title": "Virements Bancaires",

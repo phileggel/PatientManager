@@ -104,7 +104,8 @@
       "emptyAll": "No procedures with status Created found.",
       "expand": "Expand search",
       "current": "Currently linked procedures",
-      "selected": "{{count}} procedure(s) selected"
+      "selected": "{{count}} procedure(s) selected",
+      "filterPlaceholder": "Search by patient, SSN or date…"
     },
     "manager": {
       "title": "Bank Transfers",

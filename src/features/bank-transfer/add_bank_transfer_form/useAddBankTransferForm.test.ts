@@ -4,9 +4,6 @@ import { useAppStore } from "@/lib/appStore";
 
 vi.mock("../gateway", () => ({
   getCashBankAccountId: vi.fn(),
-}));
-
-vi.mock("../manual_match/gateway", () => ({
   createFundTransfer: vi.fn(),
   createDirectTransfer: vi.fn(),
 }));

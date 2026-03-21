@@ -8,7 +8,7 @@ import { ConfirmationDialog, ManagerLayout } from "@/ui/components";
 import { AddBankTransferForm } from "./add_bank_transfer_form/AddBankTransferForm";
 import { BankTransferList } from "./bank_transfer_list/BankTransferList";
 import { EditBankTransferModal } from "./edit_bank_transfer_modal/EditBankTransferModal";
-import { deleteDirectTransfer, deleteFundTransfer } from "./manual_match/gateway";
+import { deleteDirectTransfer, deleteFundTransfer } from "./gateway";
 import { useBankTransferManager } from "./useBankTransferManager";
 import { useBankTransferOperations } from "./useBankTransferOperations";
 

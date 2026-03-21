@@ -8,7 +8,7 @@ vi.mock("@/core/snackbar", () => ({
   toastService: { show: mockToastShow, subscribe: vi.fn(() => vi.fn()) },
 }));
 
-vi.mock("../manual_match/gateway", () => ({
+vi.mock("../gateway", () => ({
   getTransferFundGroupIds: vi.fn(),
   getTransferProcedureIds: vi.fn(),
   getFundGroupsByIds: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock("../manual_match/gateway", () => ({
   updateDirectTransfer: vi.fn(),
 }));
 
-import * as gateway from "../manual_match/gateway";
+import * as gateway from "../gateway";
 import { useEditBankTransferModal } from "./useEditBankTransferModal";
 
 const makeBankAccount = () => ({ id: "account-1", name: "Compte principal", iban: null });
