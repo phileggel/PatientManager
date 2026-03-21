@@ -24,6 +24,7 @@ export function useEditBankTransferModal(transfer: BankTransfer | null, onClose:
   const { t } = useTranslation("bank");
 
   const [transferDate, setTransferDate] = useState<string>("");
+  const [bankAccount, setBankAccount] = useState<string>("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [totalAmountMillis, setTotalAmountMillis] = useState<number>(0);
@@ -32,12 +33,16 @@ export function useEditBankTransferModal(transfer: BankTransfer | null, onClose:
   const [submitting, setSubmitting] = useState(false);
 
   const isFund = transfer?.transfer_type === "FUND";
+  const isCash = transfer?.transfer_type === "CASH";
 
-  // Load linked IDs and current candidates when transfer changes
+  // Load linked IDs and current candidates when transfer changes.
+  // bankAccount is synced here (not in a separate effect) to avoid stale state
+  // between renders when switching between transfers.
   useEffect(() => {
     if (!transfer) return;
 
     setTransferDate(transfer.transfer_date);
+    setBankAccount(transfer.bank_account.id);
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);
     setCurrentGroups([]);
@@ -105,6 +110,7 @@ export function useEditBankTransferModal(transfer: BankTransfer | null, onClose:
 
   const isValid =
     transferDate.trim() !== "" &&
+    (isCash || bankAccount !== "") &&
     (isFund ? selectedGroupIds.length > 0 : selectedProcedureIds.length > 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,6 +144,8 @@ export function useEditBankTransferModal(transfer: BankTransfer | null, onClose:
   return {
     transferDate,
     setTransferDate,
+    bankAccount,
+    setBankAccount,
     selectedGroupIds,
     selectedProcedureIds,
     totalAmountMillis,
@@ -146,6 +154,7 @@ export function useEditBankTransferModal(transfer: BankTransfer | null, onClose:
     submitting,
     isValid,
     isFund,
+    isCash,
     handleFundGroupSelectionChange,
     handleProcedureSelectionChange,
     handleSubmit,

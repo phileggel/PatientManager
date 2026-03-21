@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankTransfer } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
@@ -40,6 +40,8 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
   const {
     transferDate,
     setTransferDate,
+    bankAccount,
+    setBankAccount,
     selectedGroupIds,
     selectedProcedureIds,
     totalAmountMillis,
@@ -48,16 +50,11 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
     submitting,
     isValid,
     isFund,
+    isCash,
     handleFundGroupSelectionChange,
     handleProcedureSelectionChange,
     handleSubmit,
   } = useEditBankTransferModal(transfer, onClose);
-
-  const [bankAccount, setBankAccount] = useState<string>("");
-
-  useEffect(() => {
-    if (transfer) setBankAccount(transfer.bank_account.id);
-  }, [transfer]);
 
   if (!transfer) return null;
 
@@ -65,7 +62,9 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
     ? t("transfer.typeFund")
     : transfer.transfer_type === "CHECK"
       ? t("transfer.typeCheck")
-      : t("transfer.typeCreditCard");
+      : transfer.transfer_type === "CASH"
+        ? t("transfer.typeCash")
+        : t("transfer.typeCreditCard");
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -100,15 +99,27 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
             </span>
           </div>
 
-          {/* Bank Account */}
-          <SelectField
-            id="editBankAccount"
-            label={t("transfer.bankAccount")}
-            value={bankAccount}
-            onChange={(e) => setBankAccount(e.target.value)}
-            options={[{ value: "", label: t("transfer.selectBankAccount") }, ...bankAccountOptions]}
-            required
-          />
+          {/* Bank Account — read-only label for CASH (R13: auto-assigned, immutable) */}
+          {isCash ? (
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-neutral-90">
+                {t("transfer.bankAccount")}
+              </span>
+              <span className="text-sm text-neutral-60">{t("transfer.cashAccount")}</span>
+            </div>
+          ) : (
+            <SelectField
+              id="editBankAccount"
+              label={t("transfer.bankAccount")}
+              value={bankAccount}
+              onChange={(e) => setBankAccount(e.target.value)}
+              options={[
+                { value: "", label: t("transfer.selectBankAccount") },
+                ...bankAccountOptions,
+              ]}
+              required
+            />
+          )}
 
           {/* Selection panel — conditional on type */}
           {isFund ? (

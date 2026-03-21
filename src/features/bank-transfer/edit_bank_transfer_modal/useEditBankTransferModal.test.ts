@@ -92,6 +92,35 @@ describe("useEditBankTransferModal", () => {
     expect(gateway.getTransferFundGroupIds).not.toHaveBeenCalled();
   });
 
+  it("R13 — syncs bankAccount from transfer on open", async () => {
+    const transfer = makeFundTransfer();
+    const { result } = renderHook(() => useEditBankTransferModal(transfer, vi.fn()));
+
+    await waitFor(() => expect(gateway.getTransferFundGroupIds).toHaveBeenCalled());
+
+    expect(result.current.bankAccount).toBe("account-1");
+  });
+
+  it("R13 — isCash is true for CASH transfer and false for CHECK", async () => {
+    // CASH falls into the direct-payment branch → calls getTransferProcedureIds
+    const cashTransfer = makeFundTransfer({ transfer_type: "CASH" });
+    const { result: cashResult } = renderHook(() =>
+      useEditBankTransferModal(cashTransfer, vi.fn()),
+    );
+    await waitFor(() => expect(gateway.getTransferProcedureIds).toHaveBeenCalled());
+    expect(cashResult.current.isCash).toBe(true);
+
+    vi.clearAllMocks();
+    vi.mocked(gateway.getTransferProcedureIds).mockResolvedValue({ success: true, data: [] });
+
+    const checkTransfer = makeDirectTransfer();
+    const { result: checkResult } = renderHook(() =>
+      useEditBankTransferModal(checkTransfer, vi.fn()),
+    );
+    await waitFor(() => expect(gateway.getTransferProcedureIds).toHaveBeenCalled());
+    expect(checkResult.current.isCash).toBe(false);
+  });
+
   // ===== FUND type loading =====
 
   it("R21 — loads selectedGroupIds and currentGroups for FUND transfer", async () => {
