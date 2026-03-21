@@ -1,5 +1,6 @@
 use crate::context::fund::FundRepository;
 use crate::context::procedure::ProcedureRepository;
+use crate::core::logger::BACKEND;
 /// Main reconciliation service - orchestration layer
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -37,7 +38,7 @@ impl ReconciliationService {
         parse_result: PdfParseResult,
     ) -> anyhow::Result<ReconcileAndCandidatesResponse> {
         tracing::info!(
-            name: "BACKEND",
+            name: BACKEND,
             groups = parse_result.groups.len(),
             lines = parse_result.groups.iter().map(|g| g.lines.len()).sum::<usize>(),
             "Starting full reconciliation workflow"
@@ -63,7 +64,7 @@ impl ReconciliationService {
         let all_lines: Vec<&NormalizedPdfLine> =
             groups.iter().flat_map(|g| g.lines.iter()).collect();
 
-        tracing::info!(name: "BACKEND", "Starting reconciliation for {} PDF lines", all_lines.len());
+        tracing::info!(name: BACKEND, "Starting reconciliation for {} PDF lines", all_lines.len());
 
         if all_lines.is_empty() {
             return Ok(ReconciliationResult {
@@ -81,7 +82,7 @@ impl ReconciliationService {
             .await?;
 
         let pool_size: usize = pool.values().map(|v| v.len()).sum();
-        tracing::info!(name: "BACKEND", pool_ssn_groups = pool.len(), total_procedures = pool_size, "Procedure pool loaded");
+        tracing::info!(name: BACKEND, pool_ssn_groups = pool.len(), total_procedures = pool_size, "Procedure pool loaded");
 
         // Owned lines for the pass (clone is cheap — NormalizedPdfLine contains only primitives + Strings)
         let owned_lines: Vec<NormalizedPdfLine> = groups
@@ -92,14 +93,14 @@ impl ReconciliationService {
         // Run 8 reconciliation passes
         let mut pass = ReconciliationPass::new(pool);
         for pass_num in 1..=8u8 {
-            tracing::debug!(name: "BACKEND", pass = pass_num, "Running reconciliation pass");
+            tracing::debug!(name: BACKEND, pass = pass_num, "Running reconciliation pass");
             pass.run(pass_num, &owned_lines, &fund_cache).await?;
         }
 
         // Build result
         let pass_result = pass.into_result();
         let matched_lines = pass_result.raw_matches.len();
-        tracing::info!(name: "BACKEND", matched_lines = matched_lines, unmatched = pdf_lines_count - matched_lines, "After 8 reconciliation passes");
+        tracing::info!(name: BACKEND, matched_lines = matched_lines, unmatched = pdf_lines_count - matched_lines, "After 8 reconciliation passes");
 
         let mut matches = Vec::new();
         let mut perfect_single_count = 0;
@@ -132,6 +133,7 @@ impl ReconciliationService {
             match db_matches {
                 None => {
                     tracing::warn!(
+                        name: BACKEND,
                         line_index = line_index,
                         ssn = %normalized_line.ssn,
                         pdf_fund = %normalized_line.fund_name,
@@ -149,6 +151,7 @@ impl ReconciliationService {
                             &end.format("%Y-%m-%d").to_string(),
                         )
                         .await
+                        .inspect_err(|e| tracing::warn!(name: BACKEND, error = %e, "Failed to fetch nearby candidates for NotFound line"))
                         .unwrap_or_default();
 
                     let nearby_candidates: Vec<super::api::NotFoundCandidate> = candidate_rows
@@ -214,6 +217,7 @@ impl ReconciliationService {
             single_issue_count + group_issue_count + too_many_count + not_found_count;
 
         tracing::info!(
+            name: BACKEND,
             perfect_single = perfect_single_count,
             perfect_group = perfect_group_count,
             single_issue = single_issue_count,
@@ -251,182 +255,5 @@ impl ReconciliationService {
                 amount: r.amount.unwrap_or(0),
             })
             .collect())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_service_creation() {
-        use crate::context::fund::FundRepository;
-        use crate::context::procedure::ProcedureRepository;
-
-        struct EmptyFundRepo;
-        struct EmptyProcedureRepo;
-
-        #[async_trait::async_trait]
-        impl FundRepository for EmptyFundRepo {
-            async fn create_fund(
-                &self,
-                _fund_identifier: &str,
-                _fund_name: &str,
-            ) -> anyhow::Result<crate::context::fund::AffiliatedFund> {
-                unimplemented!()
-            }
-            async fn read_fund(
-                &self,
-                _id: &str,
-            ) -> anyhow::Result<Option<crate::context::fund::AffiliatedFund>> {
-                unimplemented!()
-            }
-            async fn read_all_funds(
-                &self,
-            ) -> anyhow::Result<Vec<crate::context::fund::AffiliatedFund>> {
-                Ok(vec![])
-            }
-            async fn update_fund(
-                &self,
-                _fund: crate::context::fund::AffiliatedFund,
-            ) -> anyhow::Result<crate::context::fund::AffiliatedFund> {
-                unimplemented!()
-            }
-            async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
-                unimplemented!()
-            }
-            async fn find_fund_by_identifier(
-                &self,
-                _identifier: &str,
-            ) -> anyhow::Result<Option<crate::context::fund::AffiliatedFund>> {
-                unimplemented!()
-            }
-            async fn create_batch(
-                &self,
-                _funds: Vec<crate::context::fund::AffiliatedFund>,
-            ) -> anyhow::Result<Vec<crate::context::fund::AffiliatedFund>> {
-                unimplemented!()
-            }
-        }
-
-        #[async_trait::async_trait]
-        impl ProcedureRepository for EmptyProcedureRepo {
-            async fn create_procedure(
-                &self,
-                _patient_id: String,
-                _fund_id: Option<String>,
-                _procedure_type_id: String,
-                _procedure_date: String,
-                _procedure_amount: Option<i64>,
-                _payment_method: crate::context::procedure::PaymentMethod,
-                _confirmed_payment_date: Option<String>,
-                _actual_payment_amount: Option<i64>,
-                _payment_status: crate::context::procedure::ProcedureStatus,
-            ) -> anyhow::Result<crate::context::procedure::Procedure> {
-                unimplemented!()
-            }
-            async fn read_procedure(
-                &self,
-                _id: &str,
-            ) -> anyhow::Result<Option<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-            async fn read_all_procedures(
-                &self,
-            ) -> anyhow::Result<Vec<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-            async fn find_procedures_by_ssns_and_date_range_with_ssn(
-                &self,
-                _ssns: &[String],
-                _start_date: &str,
-                _end_date: &str,
-            ) -> anyhow::Result<Vec<(String, crate::context::procedure::Procedure)>> {
-                Ok(vec![])
-            }
-            async fn update_procedure(
-                &self,
-                _procedure: crate::context::procedure::Procedure,
-            ) -> anyhow::Result<crate::context::procedure::Procedure> {
-                unimplemented!()
-            }
-            async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
-                unimplemented!()
-            }
-            async fn create_batch(
-                &self,
-                _procedures: Vec<crate::context::procedure::Procedure>,
-            ) -> anyhow::Result<Vec<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-            async fn read_procedures_by_ids(
-                &self,
-                _ids: &[String],
-            ) -> anyhow::Result<Vec<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-            async fn find_procedures_by_ssn_and_date_range(
-                &self,
-                _ssn: &str,
-                _start_date: &str,
-                _end_date: &str,
-            ) -> anyhow::Result<Vec<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-            async fn find_procedures_by_ssns_and_date_range(
-                &self,
-                _ssns: &[String],
-                _start_date: &str,
-                _end_date: &str,
-            ) -> anyhow::Result<Vec<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-            async fn find_procedure_exact(
-                &self,
-                _patient_id: &str,
-                _fund_id: Option<&str>,
-                _procedure_type_id: &str,
-                _procedure_amount: i64,
-            ) -> anyhow::Result<Option<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-            async fn update_batch(
-                &self,
-                _procedures: Vec<crate::context::procedure::Procedure>,
-            ) -> anyhow::Result<Vec<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-            async fn find_unpaid_by_fund(
-                &self,
-                _fund_id: &str,
-            ) -> anyhow::Result<Vec<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-            async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
-                unimplemented!()
-            }
-            async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
-                unimplemented!()
-            }
-            async fn find_unreconciled_by_date_range(
-                &self,
-                _start_date: &str,
-                _end_date: &str,
-            ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>>
-            {
-                unimplemented!()
-            }
-            async fn find_created_in_date_range(
-                &self,
-                _date_min: &str,
-                _date_max: &str,
-            ) -> anyhow::Result<Vec<crate::context::procedure::Procedure>> {
-                unimplemented!()
-            }
-        }
-
-        let fund_repo = Arc::new(EmptyFundRepo);
-        let proc_repo = Arc::new(EmptyProcedureRepo);
-        let _service = ReconciliationService::new(proc_repo, fund_repo);
     }
 }

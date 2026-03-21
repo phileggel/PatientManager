@@ -176,6 +176,14 @@ pub trait ProcedureRepository: Send + Sync {
         date_min: &str,
         date_max: &str,
     ) -> anyhow::Result<Vec<Procedure>>;
+
+    /// Find Created procedures for a given fund with procedure_date <= date (R19).
+    /// Used by the edit modal to populate the "add procedures" selector.
+    async fn find_created_by_fund_before_date(
+        &self,
+        fund_id: &str,
+        date: &str,
+    ) -> anyhow::Result<Vec<Procedure>>;
 }
 
 pub struct SqliteProcedureRepository {
@@ -318,28 +326,23 @@ impl ProcedureRepository for SqliteProcedureRepository {
             return Ok(Vec::new());
         }
 
-        let placeholders = (1..=ids.len())
-            .map(|i| format!("${}", i))
-            .collect::<Vec<_>>()
-            .join(",");
-
-        let query = format!(
-            r#"
-            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount,
-                   payment_method, confirmed_payment_date, actual_payment_amount,
-                   payment_status, is_deleted
-            FROM procedure
-            WHERE id IN ({}) AND is_deleted = 0
-            "#,
-            placeholders
+        // sqlx::query_as! macros require static SQL; dynamic IN clauses with variable-length
+        // lists cannot be expressed as compile-time macros. QueryBuilder with push_bind is the
+        // recommended sqlx approach for this pattern.
+        let mut builder = sqlx::QueryBuilder::new(
+            "SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount,
+                    payment_method, confirmed_payment_date, actual_payment_amount,
+                    payment_status, is_deleted
+             FROM procedure WHERE id IN (",
         );
-
-        let mut query_builder = sqlx::query_as::<_, ProcedureRow>(&query);
+        let mut separated = builder.separated(", ");
         for id in ids {
-            query_builder = query_builder.bind(id);
+            separated.push_bind(id);
         }
+        separated.push_unseparated(") AND is_deleted = 0");
 
-        let rows = query_builder
+        let rows = builder
+            .build_query_as::<ProcedureRow>()
             .fetch_all(&self.pool)
             .await
             .context("Failed to fetch procedures by IDs")?;
@@ -442,24 +445,34 @@ impl ProcedureRepository for SqliteProcedureRepository {
             "Querying procedures by multiple SSNs and date range (batch)"
         );
 
-        let ssn_list = ssns.join("','");
-        let query_str = format!(
-            r#"
-            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,
-                   hp.procedure_date, hp.procedure_amount, hp.payment_method, hp.confirmed_payment_date, hp.actual_payment_amount, hp.payment_status, hp.is_deleted
-            FROM procedure hp
-            JOIN patient p ON hp.patient_id = p.id
-            WHERE p.ssn IN ('{}')
-              AND hp.procedure_date >= '{}'
-              AND hp.procedure_date <= '{}'
-              AND hp.is_deleted = 0
-              AND p.is_deleted = 0
-            ORDER BY hp.procedure_date ASC
-            "#,
-            ssn_list, start_date, end_date
+        // sqlx::query_as! macros require static SQL; dynamic IN clauses with variable-length
+        // lists cannot be expressed as compile-time macros. QueryBuilder with push_bind is the
+        // recommended sqlx approach for this pattern.
+        let mut builder = sqlx::QueryBuilder::new(
+            "SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,
+                    hp.procedure_date, hp.procedure_amount, hp.payment_method,
+                    hp.confirmed_payment_date, hp.actual_payment_amount,
+                    hp.payment_status, hp.is_deleted
+             FROM procedure hp
+             JOIN patient p ON hp.patient_id = p.id
+             WHERE p.ssn IN (",
         );
+        let mut separated = builder.separated(", ");
+        for ssn in ssns {
+            separated.push_bind(ssn);
+        }
+        separated
+            .push_unseparated(")")
+            .push_unseparated(" AND hp.procedure_date >= ")
+            .push_bind_unseparated(start_date)
+            .push_unseparated(" AND hp.procedure_date <= ")
+            .push_bind_unseparated(end_date)
+            .push_unseparated(
+                " AND hp.is_deleted = 0 AND p.is_deleted = 0 ORDER BY hp.procedure_date ASC",
+            );
 
-        let rows = sqlx::query_as::<_, ProcedureRow>(&query_str)
+        let rows = builder
+            .build_query_as::<ProcedureRow>()
             .fetch_all(&self.pool)
             .await?;
 
@@ -489,34 +502,41 @@ impl ProcedureRepository for SqliteProcedureRepository {
             "Batch querying procedures by multiple SSNs (with SSN return for grouping)"
         );
 
-        let ssn_list = ssns.join("','");
-        let query_str = format!(
-            r#"
-            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,
-                   hp.procedure_date, hp.procedure_amount, hp.payment_method, hp.confirmed_payment_date,
-                   hp.actual_payment_amount, hp.payment_status, hp.is_deleted,
-                   p.ssn
-            FROM procedure hp
-            JOIN patient p ON hp.patient_id = p.id
-            WHERE p.ssn IN ('{}')
-              AND hp.procedure_date >= '{}'
-              AND hp.procedure_date <= '{}'
-              AND hp.is_deleted = 0
-              AND p.is_deleted = 0
-            ORDER BY p.ssn, hp.procedure_date ASC
-            "#,
-            ssn_list, start_date, end_date
+        // sqlx::query_as! macros require static SQL; dynamic IN clauses with variable-length
+        // lists cannot be expressed as compile-time macros. QueryBuilder with push_bind is the
+        // recommended sqlx approach for this pattern.
+        let mut builder = sqlx::QueryBuilder::new(
+            "SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,
+                    hp.procedure_date, hp.procedure_amount, hp.payment_method,
+                    hp.confirmed_payment_date, hp.actual_payment_amount,
+                    hp.payment_status, hp.is_deleted, p.ssn
+             FROM procedure hp
+             JOIN patient p ON hp.patient_id = p.id
+             WHERE p.ssn IN (",
         );
+        let mut separated = builder.separated(", ");
+        for ssn in ssns {
+            separated.push_bind(ssn);
+        }
+        separated
+            .push_unseparated(")")
+            .push_unseparated(" AND hp.procedure_date >= ")
+            .push_bind_unseparated(start_date)
+            .push_unseparated(" AND hp.procedure_date <= ")
+            .push_bind_unseparated(end_date)
+            .push_unseparated(
+                " AND hp.is_deleted = 0 AND p.is_deleted = 0 ORDER BY p.ssn, hp.procedure_date ASC",
+            );
 
-        let rows = sqlx::query_as::<_, ProcedureWithSSNRow>(&query_str)
+        let rows = builder
+            .build_query_as::<ProcedureWithSSNRow>()
             .fetch_all(&self.pool)
             .await?;
 
         tracing::info!(
             ssn_count = ssns.len(),
             procedure_count = rows.len(),
-            "Batch procedure query with SSN completed (1 query instead of {} queries)",
-            ssns.len()
+            "Batch procedure query with SSN completed"
         );
 
         Ok(rows
@@ -794,6 +814,40 @@ impl ProcedureRepository for SqliteProcedureRepository {
         .fetch_all(&self.pool)
         .await
         .context("Failed to find Created procedures in date range")?;
+
+        Ok(rows.into_iter().map(Procedure::from).collect())
+    }
+
+    async fn find_created_by_fund_before_date(
+        &self,
+        fund_id: &str,
+        date: &str,
+    ) -> anyhow::Result<Vec<Procedure>> {
+        tracing::debug!(
+            fund_id = %fund_id,
+            date = %date,
+            "Finding Created procedures by fund before date (R19)"
+        );
+
+        let rows = sqlx::query_as!(
+            ProcedureRow,
+            r#"
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date,
+                   procedure_amount, payment_method, confirmed_payment_date,
+                   actual_payment_amount, payment_status, is_deleted
+            FROM "procedure"
+            WHERE fund_id = $1
+              AND payment_status = 'CREATED'
+              AND procedure_date <= $2
+              AND is_deleted = 0
+            ORDER BY procedure_date DESC
+            "#,
+            fund_id,
+            date,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to find Created procedures by fund before date")?;
 
         Ok(rows.into_iter().map(Procedure::from).collect())
     }

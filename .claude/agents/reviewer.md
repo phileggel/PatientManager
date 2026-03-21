@@ -78,6 +78,19 @@ You are a senior code reviewer for this Tauri 2 / React 19 / Rust project.
 
 ---
 
+## Dead Code Rule (applies to all files)
+
+Dead code MUST be removed — flag as 🟡 Warning:
+- Unused imports (`use`, `import`)
+- Unused variables, functions, types, or constants
+- Commented-out code blocks left in the file
+- Unreachable branches or conditions
+- Exported symbols that are never imported anywhere in the codebase
+
+Exception: items explicitly annotated `#[allow(dead_code)]` with a justification comment, or items that are part of a public library API.
+
+---
+
 ## Language Rule (applies to all files)
 
 All code MUST be written in English:

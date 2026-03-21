@@ -1237,12 +1237,13 @@ impl FundPaymentReconciliationOrchestrator {
             .read_procedures_by_ids(procedure_ids.clone())
             .await?;
 
-        // Step 2: Fetch available (Created) procedures for this fund, excluding those in the group
+        // Step 2: Fetch Created procedures for this fund with date <= group payment_date (R19)
         let current_ids: std::collections::HashSet<String> = procedure_ids.into_iter().collect();
+        let payment_date_str = group.payment_date.format("%Y-%m-%d").to_string();
 
         let available_procedures: Vec<Procedure> = self
             .procedure_service
-            .find_unpaid_by_fund(fund_id)
+            .find_created_by_fund_before_date(fund_id, &payment_date_str)
             .await?
             .into_iter()
             .filter(|p| !current_ids.contains(&p.id))
@@ -1251,7 +1252,7 @@ impl FundPaymentReconciliationOrchestrator {
         tracing::info!(
             group_id = %group_id,
             current_count = current_procedures.len(),
-            available_count = available_procedures.len() as usize,
+            available_count = available_procedures.len(),
             "Fund payment group edit data fetched"
         );
 

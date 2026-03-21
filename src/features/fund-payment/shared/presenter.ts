@@ -11,6 +11,22 @@ import type { FundDisplayData, FundPaymentRow } from "./types";
  * This centralizes field extraction logic and makes transformations reusable
  * across different parts of the application.
  */
+/**
+ * Format an ISO date string (YYYY-MM-DD) as a French locale date string (fr-FR).
+ * Forces UTC midnight to avoid timezone-related day shift.
+ */
+/**
+ * Format an amount stored in thousandths (i64) as a Euro string (e.g. "€12.50").
+ */
+export function formatAmountEUR(thousandths: number): string {
+  return `€${((thousandths || 0) / 1000).toFixed(2)}`;
+}
+
+export function formatDateFR(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  return new Intl.DateTimeFormat("fr-FR").format(date);
+}
+
 export const FundPaymentPresenter = {
   /**
    * Transform domain FundPaymentGroup to UI row data for table display
@@ -19,7 +35,7 @@ export const FundPaymentPresenter = {
   toRow(group: FundPaymentGroup, funds: AffiliatedFund[]): FundPaymentRow {
     const fund = funds.find((f) => f.id === group.fund_id);
     return {
-      rowId: crypto.randomUUID(),
+      rowId: group.id,
       id: group.id,
       fundId: group.fund_id,
       fundName: fund ? `${fund.fund_identifier} - ${fund.name}` : group.fund_id,

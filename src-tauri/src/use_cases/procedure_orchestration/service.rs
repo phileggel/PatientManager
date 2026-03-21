@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
+use crate::context::fund::FundRepository;
+use crate::context::patient::PatientRepository;
 use crate::context::procedure::{
     PaymentMethod, Procedure, ProcedureCandidate, ProcedureService as ContextProcedureService,
     ProcedureStatus, ProcedureTypeRepository,
 };
-use crate::FundRepository;
-use crate::PatientRepository;
 
 /// Orchestration service for healthcare procedures
 ///
@@ -639,6 +639,13 @@ mod tests {
             &self,
             _date_min: &str,
             _date_max: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_created_by_fund_before_date(
+            &self,
+            _fund_id: &str,
+            _date: &str,
         ) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }

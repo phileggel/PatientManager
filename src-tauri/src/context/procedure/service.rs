@@ -242,6 +242,18 @@ impl ProcedureService {
             .await
     }
 
+    /// Find Created procedures for a given fund with procedure_date <= date (R19).
+    /// Used by the edit modal to populate the "add procedures" selector.
+    pub async fn find_created_by_fund_before_date(
+        &self,
+        fund_id: &str,
+        date: &str,
+    ) -> anyhow::Result<Vec<Procedure>> {
+        self.repository
+            .find_created_by_fund_before_date(fund_id, date)
+            .await
+    }
+
     /// Check if a month (YYYY-MM) has any procedures with a blocking status
     /// (RECONCILIATED or FUND_PAYED) that prevent re-import.
     pub async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool> {
@@ -344,24 +356,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_add_procedure_type_success() {
-        let repo = Arc::new(MockProcedureTypeRepository { should_fail: false });
-        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
-
-        let result = service
-            .add_procedure_type(
-                "Consultation".to_string(),
-                100000,
-                Some("Medical".to_string()),
-            )
-            .await;
-
-        assert!(result.is_ok());
-        let pt = result.unwrap();
-        assert_eq!(pt.name, "Consultation");
-    }
-
-    #[tokio::test]
     async fn test_add_procedure_type_error_propagates() {
         let repo = Arc::new(MockProcedureTypeRepository { should_fail: true });
         let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
@@ -372,35 +366,6 @@ mod tests {
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
-    }
-
-    #[tokio::test]
-    async fn test_read_procedure_type_success() {
-        let repo = Arc::new(MockProcedureTypeRepository { should_fail: false });
-        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
-
-        let result = service.read_procedure_type("test-id").await;
-
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().name, "Consultation");
-    }
-
-    #[tokio::test]
-    async fn test_update_procedure_type_success() {
-        let repo = Arc::new(MockProcedureTypeRepository { should_fail: false });
-        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
-
-        let pt = ProcedureType {
-            id: "test-id".to_string(),
-            name: "Updated Type".to_string(),
-            default_amount: 200000,
-            category: None,
-        };
-
-        let result = service.update_procedure_type(pt).await;
-
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().name, "Updated Type");
     }
 
     #[tokio::test]

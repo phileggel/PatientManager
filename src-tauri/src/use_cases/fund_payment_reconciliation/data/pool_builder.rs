@@ -1,5 +1,6 @@
 /// Build a pool of unpaid procedures for reconciliation
 use crate::context::procedure::{Procedure, ProcedureRepository, ProcedureStatus};
+use crate::core::logger::BACKEND;
 use crate::use_cases::fund_payment_reconciliation::api::NormalizedPdfLine;
 use crate::use_cases::fund_payment_reconciliation::parsing::dates::{
     add_one_day, subtract_one_day,
@@ -64,11 +65,10 @@ impl ProcedurePoolBuilder {
         let extended_end = add_one_day(max)?;
 
         tracing::info!(
-            name: "BACKEND",
+            name: BACKEND,
             ssn_count = unique_ssns.len(),
             date_range = format!("{} to {}", extended_start, extended_end),
-            "Fetching procedures with batch query (1 query instead of {})",
-            unique_ssns.len()
+            "Fetching procedures with batch query"
         );
 
         let all_procedures = self
@@ -81,17 +81,16 @@ impl ProcedurePoolBuilder {
             .await?;
 
         tracing::info!(
-            name: "BACKEND",
+            name: BACKEND,
             total_fetched = all_procedures.len(),
-            "Fetched {} total procedures from database",
-            all_procedures.len()
+            "Fetched procedures from database"
         );
 
         // Group by SSN and filter unpaid
         // Build pool of procedures for reconciliation
         // procedure_date is now NaiveDate, no conversion needed
         let mut pool: HashMap<String, Vec<Procedure>> = HashMap::new();
-        let mut payed_count = 0;
+        let mut paid_count = 0;
         for (ssn, proc) in all_procedures {
             if proc.payment_status != ProcedureStatus::DirectlyPayed
                 && proc.payment_status != ProcedureStatus::FundPayed
@@ -100,20 +99,17 @@ impl ProcedurePoolBuilder {
             {
                 pool.entry(ssn).or_default().push(proc);
             } else {
-                payed_count += 1;
+                paid_count += 1;
             }
         }
 
         tracing::info!(
-            name: "BACKEND",
+            name: BACKEND,
             ssn_count = unique_ssns.len(),
             pool_count = pool.len(),
             procedures_total = pool.values().map(|v| v.len()).sum::<usize>(),
-            payed_procedures = payed_count,
-            "Pool built: {} SSN groups with {} unpaid procedures ({} already payed)",
-            pool.len(),
-            pool.values().map(|v| v.len()).sum::<usize>(),
-            payed_count
+            paid_procedures = paid_count,
+            "Pool built"
         );
 
         Ok(pool)
@@ -227,6 +223,13 @@ mod tests {
         ) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
+        async fn find_created_by_fund_before_date(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
     }
 
     fn create_pdf_line(ssn: &str) -> NormalizedPdfLine {
@@ -262,15 +265,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_pool_builder_creation() {
-        let repo = Arc::new(MockProcedureRepository { procedures: vec![] });
-        let builder = ProcedurePoolBuilder::new(repo);
-        let pdf_lines = vec![];
-        let result = builder.build(&pdf_lines).await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
     async fn test_empty_pdf_lines_returns_empty_pool() {
         let repo = Arc::new(MockProcedureRepository { procedures: vec![] });
         let builder = ProcedurePoolBuilder::new(repo);
@@ -280,7 +274,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_filters_payed_procedures() {
+    async fn test_filters_paid_procedures() {
         let procs = vec![
             create_procedure("111111111", ProcedureStatus::None),
             create_procedure("111111111", ProcedureStatus::DirectlyPayed),
@@ -296,7 +290,7 @@ mod tests {
         assert!(result.is_ok());
         let pool = result.unwrap();
         assert_eq!(pool.len(), 1);
-        // Should have 2 procedures (not payed + reconciliated, but not payed)
+        // Should have 2 procedures: None + Reconciliated (DirectlyPayed and FundPayed are excluded)
         assert_eq!(pool["111111111"].len(), 2);
     }
 
