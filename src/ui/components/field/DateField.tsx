@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { InputHTMLAttributes } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import { useDateField } from "./useDateField";
@@ -77,7 +78,7 @@ export function DateField({
             e.preventDefault();
             handleDateSelect(date);
           }}
-          className={`h-9 rounded text-xs font-medium transition-colors cursor-pointer ${
+          className={`h-9 rounded-full text-xs font-medium transition-colors cursor-pointer ${
             isToday
               ? "bg-m3-primary text-m3-on-primary"
               : "hover:bg-m3-surface-container text-m3-on-surface"
@@ -113,6 +114,7 @@ export function DateField({
         {displayValue && !disabled && (
           <button
             type="button"
+            aria-label={t("field.clearAriaLabel")}
             onMouseDown={(e) => {
               e.preventDefault();
               clearDate();
@@ -122,52 +124,65 @@ export function DateField({
             <X size={14} />
           </button>
         )}
-        {showCalendar && !disabled && (
-          <div
-            ref={calendarRef}
-            onMouseDown={(e) => e.preventDefault()}
-            role="dialog"
-            style={{ top: calendarPos.top, left: calendarPos.left }}
-            className="fixed bg-m3-surface border border-m3-outline rounded-lg shadow-lg p-3 z-50 w-64"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))
-                }
-                className="p-1.5 hover:bg-m3-surface-variant rounded-lg transition-colors"
-              >
-                <ChevronLeft size={18} className="text-m3-on-surface" />
-              </button>
-              <span className="text-xs font-medium text-m3-on-surface flex-1 text-center">
-                {monthYear}
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))
-                }
-                className="p-1.5 hover:bg-m3-surface-variant rounded-lg transition-colors"
-              >
-                <ChevronRight size={18} className="text-m3-on-surface" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 gap-0.5 mb-2">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div
-                  key={day}
-                  className="h-9 flex items-center justify-center text-xs font-medium text-m3-on-surface-variant"
+        {showCalendar &&
+          !disabled &&
+          createPortal(
+            <div
+              ref={calendarRef}
+              onMouseDown={(e) => e.preventDefault()}
+              role="dialog"
+              style={{ top: calendarPos.top, left: calendarPos.left }}
+              className="fixed bg-m3-surface-container-lowest rounded-2xl shadow-elevation-3 p-3 z-200 w-64"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  type="button"
+                  aria-label={t("field.previousMonth")}
+                  onClick={() =>
+                    setCurrentMonth(
+                      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1),
+                    )
+                  }
+                  className="p-1.5 hover:bg-m3-surface-variant rounded-xl transition-colors"
                 >
-                  {day.substring(0, 2).toUpperCase()}
-                </div>
-              ))}
-            </div>
+                  <ChevronLeft size={18} className="text-m3-on-surface" />
+                </button>
+                <span className="text-xs font-medium text-m3-on-surface flex-1 text-center">
+                  {monthYear}
+                </span>
+                <button
+                  type="button"
+                  aria-label={t("field.nextMonth")}
+                  onClick={() =>
+                    setCurrentMonth(
+                      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1),
+                    )
+                  }
+                  className="p-1.5 hover:bg-m3-surface-variant rounded-xl transition-colors"
+                >
+                  <ChevronRight size={18} className="text-m3-on-surface" />
+                </button>
+              </div>
 
-            <div className="grid grid-cols-7 gap-0.5">{renderCalendar()}</div>
-          </div>
-        )}
+              <div className="grid grid-cols-7 gap-0.5 mb-2">
+                {Array.from({ length: 7 }, (_, i) => {
+                  const date = new Date(1970, 0, 4 + i);
+                  const label = new Intl.DateTimeFormat(locale, { weekday: "narrow" }).format(date);
+                  return (
+                    <div
+                      key={date.toISOString()}
+                      className="h-9 flex items-center justify-center text-xs font-medium text-m3-on-surface-variant"
+                    >
+                      {label.toUpperCase()}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-7 gap-0.5">{renderCalendar()}</div>
+            </div>,
+            document.body,
+          )}
       </div>
       {error && <p className="text-xs text-m3-error mt-1 ml-1">{error}</p>}
     </div>
