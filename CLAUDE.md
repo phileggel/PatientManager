@@ -18,12 +18,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - for frontend **follow** `/docs/frontend-rules.md`
 2. **Analyze** the request and current codebase.
 3. **Propose a TODO plan**
-4. CRITICAL: ask user to validate
+4. CRITICAL: ask user to validate. If changes, go back to step 3 with the adapted plan.
 5. Implementation
 6. Test & Lint `./scripts/check.sh`
 7. Run the `reviewer` subagent → fix any critical issues → repeat until clean
 8. If frontend text was added/changed → run `i18n-checker` subagent
-9. If tests are missing → write them directly (backend: Rust `#[cfg(test)]` inline, frontend: `.test.ts` colocated) — follow `/docs/testing.md`
+9.  If tests are missing → write them directly (backend: Rust `#[cfg(test)]` inline, frontend: `.test.ts` colocated) — follow `/docs/testing.md`
 10. Update documentation:
     - Update `ARCHITECTURE.md` if new files, modules, or features were added/removed
     - Update the relevant spec in `docs/` if new business rules were added

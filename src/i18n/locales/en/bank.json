@@ -72,6 +72,8 @@
     "typeFund": "Fund",
     "typeCheck": "Check",
     "typeCreditCard": "Credit Card",
+    "typeCash": "Cash",
+    "cashAccount": "Cash account (automatic)",
     "selectedFund": "Fund: {{name}}",
     "noFund": "No fund selected",
     "changeFund": "Change Fund",

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount, BankTransferType } from "@/bindings";
 import { useSnackbar } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
+import { getCashBankAccountId } from "../gateway";
 import { createDirectTransfer, createFundTransfer } from "../manual_match/gateway";
 import { type BankTransferFormErrors, validateBankTransfer } from "../shared/validateBankTransfer";
 
@@ -16,19 +17,45 @@ export function useAddBankTransferForm() {
   const [transferDate, setTransferDateState] = useState<string>("");
   const [transferType, setTransferType] = useState<BankTransferType>("FUND");
   const [bankAccount, setBankAccountState] = useState<string>("");
+  const [cashAccountId, setCashAccountId] = useState<string>("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [totalAmountMillis, setTotalAmountMillis] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<BankTransferFormErrors>({});
 
-  const bankAccountOptions = bankAccounts.map((acc: BankAccount) => ({
-    value: acc.id,
-    label: acc.name,
-  }));
+  // Fetch the cash account ID once on mount (R13)
+  useEffect(() => {
+    getCashBankAccountId().then((result) => {
+      if (result.success && result.data) {
+        setCashAccountId(result.data);
+      } else {
+        logger.error("[useAddBankTransferForm] Failed to fetch cash account id", {
+          error: result.error,
+        });
+      }
+    });
+  }, []);
+
+  // Reactively sync bank account when CASH is selected and cashAccountId is available (R13)
+  // Handles the case where cashAccountId loads after the user already selected CASH
+  useEffect(() => {
+    if (transferType === "CASH" && cashAccountId) {
+      setBankAccountState(cashAccountId);
+    }
+  }, [transferType, cashAccountId]);
 
   const isFund = transferType === "FUND";
+  const isCash = transferType === "CASH";
   const hasItems = isFund ? selectedGroupIds.length > 0 : selectedProcedureIds.length > 0;
+
+  // Exclude the cash account from the regular dropdown once its id is known (R13)
+  const bankAccountOptions = bankAccounts
+    .filter((acc: BankAccount) => !cashAccountId || acc.id !== cashAccountId)
+    .map((acc: BankAccount) => ({
+      value: acc.id,
+      label: acc.name,
+    }));
 
   const setTransferDate = (value: string) => {
     setTransferDateState(value);
@@ -50,6 +77,12 @@ export function useAddBankTransferForm() {
     setSelectedProcedureIds([]);
     setTotalAmountMillis(0);
     setErrors({});
+    // Auto-assign cash account for CASH type, clear for others (R13)
+    if (newType === "CASH") {
+      setBankAccountState(cashAccountId);
+    } else {
+      setBankAccountState("");
+    }
   };
 
   const handleFundGroupSelectionChange = (groupIds: string[], totalMillis: number) => {
@@ -70,12 +103,13 @@ export function useAddBankTransferForm() {
 
   const resetForm = () => {
     setTransferDateState("");
-    setTransferType("FUND");
+    setTransferType("FUND"); // Resetting to FUND prevents the CASH reactive effect from firing
     setBankAccountState("");
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);
     setTotalAmountMillis(0);
     setErrors({});
+    // cashAccountId intentionally preserved — already loaded, no need to refetch
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -141,6 +175,7 @@ export function useAddBankTransferForm() {
     errors,
     bankAccountOptions,
     isFund,
+    isCash,
     handleSubmit,
   };
 }

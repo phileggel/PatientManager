@@ -129,6 +129,17 @@ pub async fn update_bank_account(
         .map_err(|e| format!("{:#}", e))
 }
 
+/// The fixed ID of the default cash account (seeded by migration).
+pub const CASH_ACCOUNT_ID: &str = "cash-account-default";
+
+/// Tauri command: Returns the ID of the default cash account.
+/// Used by the frontend to auto-assign the account for CASH transfers (R13).
+#[tauri::command]
+#[specta::specta]
+pub fn get_cash_bank_account_id() -> &'static str {
+    CASH_ACCOUNT_ID
+}
+
 /// Tauri command: Delete a bank account
 #[tauri::command]
 #[specta::specta]

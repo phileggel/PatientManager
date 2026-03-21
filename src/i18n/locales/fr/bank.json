@@ -72,6 +72,8 @@
     "typeFund": "Caisse",
     "typeCheck": "Chèque",
     "typeCreditCard": "Carte de crédit",
+    "typeCash": "Espèces",
+    "cashAccount": "Caisse (automatique)",
     "selectedFund": "Caisse : {{name}}",
     "noFund": "Aucune caisse sélectionnée",
     "changeFund": "Modifier la caisse",

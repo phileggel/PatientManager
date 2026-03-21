@@ -173,6 +173,7 @@ BankTransferLinkRepository: junction table management (transfer ↔ fund groups 
 - `read_bank_account(id) -> Option<BankAccount>`
 - `update_bank_account(id, name, iban?) -> BankAccount`
 - `delete_bank_account(id)`
+- `get_cash_bank_account_id() -> &str` — returns the fixed id of the default cash account (R13)
 - `create_bank_transfer(transferDate, amount, transferType, bankAccountId) -> BankTransfer`
 - `read_all_bank_transfers() -> Vec<BankTransfer>`
 - `read_bank_transfer(id) -> Option<BankTransfer>`

@@ -77,6 +77,19 @@ export async function updateBankTransfer(
   }
 }
 
+export async function getCashBankAccountId(): Promise<ServiceResult<string>> {
+  logger.debug("Fetching cash bank account id");
+  try {
+    const id = await commands.getCashBankAccountId();
+    if (!id) return { success: false, error: "Cash account id is empty" };
+    logger.debug("Cash account id fetched", { id });
+    return { success: true, data: id };
+  } catch (error) {
+    logger.error("Exception fetching cash account id", { error });
+    return { success: false, error: String(error) };
+  }
+}
+
 export async function deleteBankTransfer(id: string): Promise<ServiceResult<void>> {
   logger.info("Deleting bank transfer", { id });
 

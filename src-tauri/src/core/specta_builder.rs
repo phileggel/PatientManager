@@ -117,6 +117,7 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             bank::read_bank_account,
             bank::update_bank_account,
             bank::delete_bank_account,
+            bank::get_cash_bank_account_id,
             bank_statement_reconciliation::parse_bank_statement,
             bank_statement_reconciliation::resolve_bank_account_from_iban,
             bank_statement_reconciliation::resolve_bank_fund_labels,
