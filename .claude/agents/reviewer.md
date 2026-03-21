@@ -37,6 +37,9 @@ You are a senior code reviewer for this Tauri 2 / React 19 / Rust project.
 ### Repositories
 - MUST use sqlx macros for queries
 
+### Logging
+- MUST use `tracing::{info, debug, warn, error}` with structured fields — never `println!`
+
 ### General
 - MUST use `anyhow::Result<T>` for errors (except Tauri command responses which use `Result<T, String>`)
 - No trivial tests (tests that only verify a constructor doesn't panic, or a getter returns what was passed in)
@@ -45,9 +48,12 @@ You are a senior code reviewer for this Tauri 2 / React 19 / Rust project.
 
 ## Frontend Rules (apply to `.ts` / `.tsx` files)
 
-### Feature structure
-- SHOULD follow: `feature/component_name/ComponentName.tsx` + `useComponentName.ts` + `ComponentName.test.tsx`
-- `gateway.ts` is the ONLY file that calls `commands.*` (Tauri)
+### Feature structure (gold layout — bank-transfer)
+- Sub-features MUST live in their own subfolder: `{sub_feature}/ComponentName.tsx` + `useComponentName.ts` + `useComponentName.test.ts`
+- `gateway.ts` at the feature root is the ONLY file that calls `commands.*` (Tauri)
+- Sub-features with a dedicated use case MAY have their own `gateway.ts` (e.g. `manual_match/gateway.ts`)
+- `shared/presenter.ts` for domain → UI transformations (`toRow`, `toFormData`); MUST be pure functions
+- `shared/` for any logic used across multiple sub-features
 - `index.ts` for public re-exports
 
 ### Components
@@ -68,6 +74,7 @@ You are a senior code reviewer for this Tauri 2 / React 19 / Rust project.
 ### Tests
 - MUST cover non-trivial logic: state transitions, API call arguments, success/error handling
 - MUST NOT test rendering or DOM structure only
+- renderHook: NEVER create objects or functions inside the render callback (causes infinite loop → OOM)
 
 ---
 

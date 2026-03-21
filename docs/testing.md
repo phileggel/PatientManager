@@ -2,218 +2,252 @@
 
 ## Overview
 
-All code changes should include tests. Use unit tests for logic, integration tests for Tauri commands, and E2E tests for critical flows.
+Tests live **colocated** with the code they test:
+- Frontend: `use{Feature}.test.ts` or `{Feature}.test.tsx` next to the file under test
+- Backend: `#[cfg(test)] mod tests { ... }` inline at the bottom of the `.rs` file
 
-## Frontend Testing (React + Vite)
-
-**Test runner**: Vitest (configured with Vite)
-
+Run checks before committing:
 ```bash
-npm test              # Run tests
-npm test -- --ui     # UI mode with browser interface
-npm run coverage      # Coverage report
+npm run test          # Frontend (Vitest)
+cd src-tauri && cargo test  # Backend (Rust)
+./scripts/check.sh    # Full check: lint + type-check + tests
 ```
 
-**Best Practices**:
-- Test behavior, not implementation
-- Use React Testing Library for component tests
-- Keep tests close to how users interact with components
-- Mock Tauri `invoke` calls using `vi.mock()`
-- Aim for 80%+ coverage on critical components
+---
 
-**Example**:
-```javascript
-import { render, screen } from '@testing-library/react';
-import { vi } from 'vitest';
-import App from './App';
+## Frontend Testing (Vitest + React Testing Library)
 
-// Mock Tauri API
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(() => Promise.resolve({
-    message: 'Hello',
-    status: 'success',
-    timestamp: '123456'
-  }))
+### What to test
+
+Test **behavior**, not implementation:
+- State transitions triggered by user actions (auto-fill, reset after submit, type switching)
+- Gateway call arguments — correct command, correct params, correct order
+- Success and error handling — snackbar shown, form reset, modal closed
+- Async flows — loading, race conditions, late-resolving promises
+
+Do **not** write tests for:
+- Rendering / DOM structure only
+- Trivial getters or constructors
+
+### Mocking gateway modules
+
+Always mock at the **module level** with `vi.mock`, before importing the hook under test. Use `vi.hoisted` for mocks that need to be referenced in setup callbacks.
+
+```ts
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// 1. Mock gateway modules before importing the hook
+vi.mock("../gateway", () => ({
+  getCashBankAccountId: vi.fn(),
 }));
 
-test('displays backend response', async () => {
-  render(<App />);
+vi.mock("../manual_match/gateway", () => ({
+  createFundTransfer: vi.fn(),
+  createDirectTransfer: vi.fn(),
+}));
 
-  // Wait for the component to fetch and display
-  const message = await screen.findByText(/Hello/);
-  expect(message).toBeInTheDocument();
+vi.mock("@/core/snackbar", () => ({
+  useSnackbar: () => ({ showSnackbar: vi.fn() }),
+}));
+
+// 2. Import mocked modules for typed access
+import * as gateway from "../gateway";
+import { useMyHook } from "./useMyHook";
+```
+
+For mocks that are referenced inside `beforeEach` or test bodies, use `vi.hoisted`:
+
+```ts
+const mockToastShow = vi.hoisted(() => vi.fn());
+
+vi.mock("@/core/snackbar", () => ({
+  toastService: { show: mockToastShow, subscribe: vi.fn(() => vi.fn()) },
+}));
+```
+
+### Seeding Zustand store
+
+Inject store state directly in `beforeEach`:
+
+```ts
+import { useAppStore } from "@/lib/appStore";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  useAppStore.setState({
+    bankAccounts: [
+      { id: "acc-1", name: "Compte principal", iban: null },
+    ],
+  });
 });
 ```
 
-## Backend Testing (Rust + Tauri)
+### Testing hooks with renderHook
 
-**Test framework**: Rust's built-in `#[test]` or testing libraries like `#[cfg(test)]`
+**CRITICAL — Stable references required.**
 
-```bash
-cd src-tauri
-cargo test                    # Run all tests
-cargo test say_hello          # Run specific test
-cargo test -- --nocapture    # Show println! output
+Never create objects or functions inside the `renderHook` callback. The callback runs on every render; inline factories produce a new reference each time. If that value is a `useEffect` dependency, the effect fires on every render → infinite loop → OOM crash.
+
+```ts
+// ❌ BAD — new object reference on every render → infinite loop
+const { result } = renderHook(() => useMyHook(makeTransfer(), vi.fn()));
+
+// ✅ GOOD — stable reference, effect fires once
+const transfer = makeTransfer();
+const onClose = vi.fn();
+const { result } = renderHook(() => useMyHook(transfer, onClose));
 ```
 
-**Best Practices**:
-- Unit test command logic
-- Test return types and serialization
-- Mock any external dependencies
-- Keep tests isolated and deterministic
-- Aim for 80%+ coverage on critical commands
+### Async patterns
 
-**Example**:
+Use `waitFor` to wait for async state to settle, `act` to trigger synchronous actions:
+
+```ts
+it("loads linked groups on mount", async () => {
+  vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({
+    success: true,
+    data: ["group-1"],
+  });
+
+  const transfer = makeFundTransfer();
+  const { result } = renderHook(() => useEditBankTransferModal(transfer, vi.fn()));
+
+  // Wait for async effect to complete
+  await waitFor(() => expect(result.current.selectedGroupIds).toEqual(["group-1"]));
+});
+
+it("clears selection when type changes", async () => {
+  const { result } = renderHook(() => useAddBankTransferForm());
+
+  await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalled());
+
+  // Trigger synchronous action
+  act(() => result.current.handleTypeChange("CHECK"));
+
+  expect(result.current.bankAccount).toBe("");
+});
+```
+
+For testing race conditions (value resolves after a user action):
+
+```ts
+it("assigns value reactively when fetch resolves late", async () => {
+  let resolve!: (v: { success: true; data: string }) => void;
+  vi.mocked(gateway.getCashBankAccountId).mockReturnValue(
+    new Promise((r) => { resolve = r; }),
+  );
+
+  const { result } = renderHook(() => useAddBankTransferForm());
+
+  act(() => result.current.handleTypeChange("CASH"));
+  expect(result.current.bankAccount).toBe(""); // not yet resolved
+
+  await act(async () => resolve({ success: true, data: "cash-account-default" }));
+
+  expect(result.current.bankAccount).toBe("cash-account-default");
+});
+```
+
+### Verifying gateway calls
+
+Check that the correct command is called with the correct arguments:
+
+```ts
+expect(gateway.updateFundTransfer).toHaveBeenCalledWith(
+  "transfer-fund-1",
+  "2026-03-10",
+  ["group-1"],
+);
+expect(gateway.updateDirectTransfer).not.toHaveBeenCalled();
+```
+
+---
+
+## Backend Testing (Rust)
+
+### Structure
+
+Tests live inline at the bottom of the file under test, inside `#[cfg(test)] mod tests`:
+
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::anyhow;
 
-    #[test]
-    fn test_say_hello_returns_success() {
-        let result = say_hello();
-
-        assert_eq!(result.status, "success");
-        assert!(result.message.contains("Hello"));
-        assert!(!result.timestamp.is_empty());
+    // Mock the repository trait
+    struct MockBankTransferRepository {
+        should_fail: bool,
     }
 
-    #[test]
-    fn test_check_health_returns_ok() {
-        let result = check_health();
+    #[async_trait::async_trait]
+    impl BankTransferRepository for MockBankTransferRepository {
+        async fn create_transfer(
+            &self,
+            transfer_date: String,
+            amount: i64,
+            transfer_type: BankTransferType,
+            bank_account: BankAccount,
+        ) -> anyhow::Result<BankTransfer> {
+            if self.should_fail {
+                return Err(anyhow!("Mock repository error"));
+            }
+            BankTransfer::new(transfer_date, amount, transfer_type, bank_account)
+        }
+        // ... other trait methods
+    }
 
-        assert_eq!(result.status, "OK");
+    #[tokio::test]
+    async fn test_create_transfer_success() {
+        let repo = Arc::new(MockBankTransferRepository { should_fail: false });
+        let service = BankTransferService::new(repo);
+
+        let account = BankAccount::new("Main account".to_string(), None).unwrap();
+        let result = service
+            .create_transfer("2026-03-10".to_string(), 150000, BankTransferType::Fund, account)
+            .await;
+
+        assert!(result.is_ok());
+        let transfer = result.unwrap();
+        assert_eq!(transfer.amount, 150000);
+    }
+
+    #[tokio::test]
+    async fn test_create_transfer_repository_failure() {
+        let repo = Arc::new(MockBankTransferRepository { should_fail: true });
+        let service = BankTransferService::new(repo);
+
+        let account = BankAccount::new("Main account".to_string(), None).unwrap();
+        let result = service
+            .create_transfer("2026-03-10".to_string(), 150000, BankTransferType::Fund, account)
+            .await;
+
+        assert!(result.is_err());
     }
 }
 ```
 
-## Integration Testing (Tauri Commands)
+### What to test
 
-Test that Rust commands are properly registered and callable:
+- Service logic: correct values returned, correct state transitions
+- Error propagation: repository failures bubble up correctly
+- Domain factory methods: validation rules enforced (`new()`, `with_id()`)
+- Orchestrator flows: correct sequence of service calls, correct field values set
 
-```bash
-# Run Tauri in test mode
-npm run tauri:dev
+### What not to test (trivial tests)
 
-# In another terminal, test the commands
-curl -X POST http://localhost:8080/invoke \
-  -H "Content-Type: application/json" \
-  -d '{"cmd":"say_hello"}'
-```
+- A constructor doesn't panic
+- An empty input returns empty output (no logic traversed)
+- A getter returns what was just passed in
+- A test helper disguised as a test
 
-Or use JavaScript to test:
-
-```javascript
-import { invoke } from '@tauri-apps/api/core'
-
-test('say_hello command works', async () => {
-  const response = await invoke('say_hello');
-
-  expect(response.status).toBe('success');
-  expect(response.message).toContain('Tauri');
-  expect(response.timestamp).toBeTruthy();
-});
-```
-
-## Running Tests Locally
+### Running backend tests
 
 ```bash
-# React/JavaScript tests
-npm test
-
-# Rust tests
 cd src-tauri
-cargo test
-
-# All tests
-npm test && cd src-tauri && cargo test
+cargo test                     # All tests
+cargo test bank_transfer        # Filter by name
+cargo test -- --nocapture      # Show println! output
+RUST_BACKTRACE=1 cargo test    # With backtraces
 ```
-
-## Coverage Expectations
-
-- **Critical business logic**: 90%+
-- **Core features**: 80%+
-- **UI components**: 70%+
-- **Utilities**: 100%
-
-## Before Committing
-
-1. All React tests pass: `npm test`
-2. All Rust tests pass: `cd src-tauri && cargo test`
-3. No console errors or warnings
-4. Coverage maintained or improved
-5. Code follows project conventions in `VERSIONING.md`
-
-## Development Workflow
-
-1. Start development server: `npm run tauri:dev`
-2. Make changes to React components or Rust commands
-3. Automatic reload will trigger tests
-4. Fix any failing tests
-5. Verify with manual testing in the app
-6. Commit with conventional commits
-
-## Testing Best Practices
-
-### React Components
-- Test user interactions (clicks, inputs)
-- Don't test implementation details
-- Mock Tauri API calls
-- Test loading/error/success states
-- Use `screen` queries, not `container`
-
-### renderHook — Stable References Required
-
-When testing hooks with `renderHook`, **never create objects or functions inside the render callback**. The callback runs on every render, so inline factories produce a new reference each time. If that value is a `useEffect` dependency, it triggers the effect on every render → infinite loop → OOM crash.
-
-```ts
-// BAD — makeFundTransfer() called on every render, new reference each time
-const { result } = renderHook(() => useMyHook(makeTransfer(), vi.fn()));
-
-// GOOD — stable reference, effect only fires once
-const transfer = makeTransfer();
-const { result } = renderHook(() => useMyHook(transfer, vi.fn()));
-```
-
-This applies to any value used as a `useEffect` dependency inside the hook being tested.
-
-### Rust Commands
-- Test return values
-- Verify serialization to JSON
-- Test error cases
-- Keep tests pure (no side effects)
-- Use assertions for clarity
-
-## Debugging Tests
-
-### React Tests
-```bash
-# Run tests in UI mode
-npm test -- --ui
-
-# Run single test file
-npm test App.test.jsx
-
-# Watch mode
-npm test -- --watch
-```
-
-### Rust Tests
-```bash
-# Show test output
-cargo test -- --nocapture
-
-# Run single test
-cargo test test_say_hello
-
-# Show backtraces
-RUST_BACKTRACE=1 cargo test
-```
-
-## References
-
-- [Versioning & Commit Strategy](VERSIONING.md)
-- [Agent Operating Rules](../AGENTS.md)
-- [Tauri Testing Documentation](https://tauri.app/en/guides/testing/)
-- [Vitest Documentation](https://vitest.dev/)
-- [Rust Testing Guide](https://doc.rust-lang.org/book/ch11-00-testing.html)

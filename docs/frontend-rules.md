@@ -2,73 +2,83 @@
 
 ⚠️ **AI AGENT MUST NEVER UPDATE THIS DOCUMENT**
 
-## Feature
+## Feature Structure
 
-- SHOULD follow this folder convention
+**F1** — SHOULD follow the gold layout (bank-transfer):
 ```
 feature/
-  component_one/      <== ComponentOne.tsx + useComponentOne.ts + ComponentOne.test.tsx
-  component_two/      <== (same pattern)
-  shared/             <== shared utilities, types, presenter, sub-components used by multiple components
-  gateway.ts          <== access to backend
-  index.ts            <== public re-exports
-  FeaturePage.tsx     <== feature component entry (no logic, render only)
-  useFeaturePage.ts   <== FeaturePage logic if needed (multiple hooks allowed per component)
+  {sub_feature}/        <== SubFeature.tsx + useSubFeature.ts + useSubFeature.test.ts
+  shared/               <== shared utilities, types, presenter, validation
+  gateway.ts            <== ONLY file that calls commands.* (Tauri)
+  store.ts              <== feature-scoped Zustand store (if needed)
+  index.ts              <== public re-exports
 ```
+
+**F2** — Each sub-feature MUST live in its own subfolder named in snake_case.
+- Component file, its hook, and its tests are colocated in that folder.
+- Example: `add_fund_panel/AddFundPanel.tsx` + `useAddFundPanel.ts` + `useAddFundPanel.test.ts`
+
+**F3** — `gateway.ts` is the ONLY file allowed to call `commands.*`. Sub-features with a dedicated use case may have their own `gateway.ts` (e.g. `manual_match/gateway.ts`).
+
+**F4** — Shared utilities, types, and sub-components used by multiple sub-features MUST live in `shared/`.
+
+**F5** — SHOULD use a presenter (`shared/presenter.ts`) to transform domain data into view models.
+- Maps raw backend types to display-ready structures (labels, formatted amounts, etc.)
+- Keeps hooks and components free of formatting/transformation logic
+- MUST be pure functions — easy to unit test independently
 
 ## Component
 
-- SHOULD be as smart as possible 
-  - get state from store if available
-  - get values directly from gateway otherwise and listen to backend events if update needed
+**F6** — SHOULD be as smart as possible:
+- Get state from store if available
+- Get values directly from gateway otherwise and listen to backend events if updates are needed
 
-- DON'T emit events (those are emitted by the backend)
+**F7** — MUST NOT emit window events (those are emitted by the backend).
 
-- SHOULD have minimal props
-  - Smart components: only callbacks (onSelect, onCancel) + open/close state
-  - Dumb components: props needed to render/behave
+**F8** — SHOULD have minimal props:
+- Smart components: only callbacks (`onSelect`, `onCancel`) + open/close state
+- Dumb components: props needed to render/behave
 
-- MUST cleanup event listeners and subscriptions
-  - Remove listeners in useEffect cleanup function
-  - Prevent memory leaks when component unmounts
-  - Example: window.removeEventListener in return () => { ... }
+**F9** — MUST cleanup event listeners and subscriptions:
+- Remove listeners in the `useEffect` cleanup function
+- Prevents memory leaks when component unmounts
 
-- its logic MUST be in a dedicated hook colocalized with it
-  - state
-  - useMemo
-  - callback
+**F10** — Logic MUST be in a dedicated hook colocated with the component:
+- state, useMemo, callbacks
 
-- MUST live in its own subfolder named after it (snake_case)
-  - Component file, its hook, and its tests are colocalized in that folder
-  - Example: `add_fund_panel/AddFundPanel.tsx` + `useAddFundPanel.ts` + `AddFundPanel.test.tsx`
+**F11** — MUST respect M3 design and use generic `ui/components` when possible.
 
-- Shared utilities, types, and sub-components used by multiple components
-  MUST live in a shared/ subfolder
+**F12** — MUST NOT update a generic component for its own usage. Create a specific component if generic components are not appropriate.
 
-- SHOULD use a presenter (shared/presenter.ts) to transform domain data into view models
-  - Maps raw backend types to display-ready structures (labels, formatted amounts, etc.)
-  - Keeps hooks and components free of formatting/transformation logic
-  - SHOULD be pure functions — easy to unit test independently
+## Logging
 
-- MUST respect M3 design and use generics ui/components when possible.
-  
-- MUST NOT update a generic component for its own usage. Create a specific component if generic components are not appropriate.
+**F13** — MUST log `info` when mounted.
 
-- MUST have tests for non-trivial logic worth protecting:
-  - state transitions triggered by user actions (auto-fill, reset after submit, etc.)
-  - API call arguments and success/error handling
-  - Do NOT write tests that only verify rendering or DOM structure
+**F14** — MUST log `error` when a critical error happens (not a validation — a real, specific frontend error).
 
-- SHOULD handle errors appropriately
-  - Log critical errors with context (component, action, data)
-  - Show user-friendly feedback (snackbar)
-  - Display inline validation errors in forms
-  - Distinguish between user errors (validation) and system errors
+**F15** — MUST NOT use `console.log`. Always use `logger` from `@/lib/logger`.
 
-- MUST log
-  - info when mounted
-  - log an error when a critical error happens (not a validation, a real specific frontend error)
+## i18n
 
-- SHOULD have concise english comments explaining its usage and the sources it listen to
+**F16** — MUST use i18n translation (`useTranslation`) for all user-visible text. No hardcoded strings.
 
-- MUST use i18n translation for all text
+## Error Handling
+
+**F17** — SHOULD handle errors appropriately:
+- Log critical errors with context (component, action, data)
+- Show user-friendly feedback (snackbar)
+- Display inline validation errors in forms
+- Distinguish between user errors (validation) and system errors
+
+## Tests
+
+**F18** — MUST have tests for non-trivial logic worth protecting:
+- State transitions triggered by user actions (auto-fill, reset after submit, etc.)
+- API call arguments and success/error handling
+- Do NOT write tests that only verify rendering or DOM structure
+
+**F19** — When using `renderHook`, NEVER create objects or functions inside the render callback. The callback runs on every render; inline factories produce new references each render. If used as a `useEffect` dependency, this causes an infinite loop → OOM crash. Always extract stable references before calling `renderHook`.
+
+## Comments
+
+**F20** — SHOULD have concise English comments explaining usage and the sources a component listens to.
