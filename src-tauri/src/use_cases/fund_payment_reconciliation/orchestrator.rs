@@ -1258,3 +1258,197 @@ impl FundPaymentReconciliationOrchestrator {
         Ok((current_procedures, available_procedures))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    use sqlx::sqlite::SqlitePoolOptions;
+    use sqlx::SqlitePool;
+    use uuid::Uuid;
+
+    use crate::context::fund::{FundPaymentService, SqliteFundPaymentRepository};
+    use crate::context::procedure::{ProcedureService, SqliteProcedureRepository};
+    use crate::core::event_bus::EventBus;
+
+    async fn setup_db() -> SqlitePool {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("Failed to connect");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("Migrations failed");
+        pool
+    }
+
+    fn make_orchestrator(pool: &SqlitePool) -> FundPaymentReconciliationOrchestrator {
+        let event_bus = Arc::new(EventBus::new());
+        let fund_svc = Arc::new(FundPaymentService::new(
+            Arc::new(SqliteFundPaymentRepository::new(pool.clone())),
+            event_bus.clone(),
+        ));
+        let proc_svc = Arc::new(ProcedureService::new(
+            Arc::new(SqliteProcedureRepository::new(pool.clone())),
+            event_bus.clone(),
+        ));
+        FundPaymentReconciliationOrchestrator::new(
+            Arc::new(crate::context::fund::FundService::new(
+                Arc::new(crate::context::fund::SqliteFundRepository::new(
+                    pool.clone(),
+                )),
+                event_bus.clone(),
+            )),
+            proc_svc,
+            fund_svc,
+            event_bus,
+        )
+    }
+
+    async fn seed_base(pool: &SqlitePool) -> (String, String, String) {
+        let patient_id = Uuid::new_v4().to_string();
+        let fund_id = Uuid::new_v4().to_string();
+        let proc_type_id = Uuid::new_v4().to_string();
+
+        sqlx::query("INSERT INTO patient (id, is_anonymous, is_deleted) VALUES (?, 0, 0)")
+            .bind(&patient_id)
+            .execute(pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES (?, 'CPAM93', 'CPAM 93', 0)",
+        )
+        .bind(&fund_id)
+        .execute(pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES (?, 'Consultation', 100000, 0)",
+        )
+        .bind(&proc_type_id)
+        .execute(pool)
+        .await
+        .unwrap();
+
+        (patient_id, fund_id, proc_type_id)
+    }
+
+    async fn seed_procedure(
+        pool: &SqlitePool,
+        patient_id: &str,
+        proc_type_id: &str,
+        status: &str,
+        amount: i64,
+    ) -> String {
+        let proc_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
+               procedure_amount, payment_status, is_deleted) VALUES (?, ?, ?, '2026-01-15', ?, ?, 0)"#,
+        )
+        .bind(&proc_id)
+        .bind(patient_id)
+        .bind(proc_type_id)
+        .bind(amount)
+        .bind(status)
+        .execute(pool)
+        .await
+        .unwrap();
+        proc_id
+    }
+
+    async fn seed_fund_group(
+        pool: &SqlitePool,
+        fund_id: &str,
+        proc_ids: &[String],
+        status: &str,
+    ) -> String {
+        let group_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted)
+             VALUES (?, ?, '2026-01-15', 100000, ?, 0)",
+        )
+        .bind(&group_id)
+        .bind(fund_id)
+        .bind(status)
+        .execute(pool)
+        .await
+        .unwrap();
+
+        for proc_id in proc_ids {
+            let line_id = Uuid::new_v4().to_string();
+            sqlx::query(
+                "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id, is_deleted)
+                 VALUES (?, ?, ?, 0)",
+            )
+            .bind(&line_id)
+            .bind(&group_id)
+            .bind(proc_id)
+            .execute(pool)
+            .await
+            .unwrap();
+        }
+
+        group_id
+    }
+
+    /// R9 — update is rejected when a procedure is bank-reconciled (FundPayed)
+    #[tokio::test]
+    async fn test_update_locked_group_is_rejected() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_id =
+            seed_procedure(&pool, &patient_id, &proc_type_id, "FUND_PAYED", 100_000).await;
+        let group_id = seed_fund_group(
+            &pool,
+            &fund_id,
+            std::slice::from_ref(&proc_id),
+            "BANK_PAYED",
+        )
+        .await;
+
+        let orchestrator = make_orchestrator(&pool);
+        let result = orchestrator
+            .update_manual_fund_payment_group(group_id, "2026-01-15".to_string(), vec![proc_id])
+            .await;
+
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("bank-reconciled"),
+            "Expected 'bank-reconciled' in error, got: {msg}"
+        );
+        Ok(())
+    }
+
+    /// R9 — delete is rejected when a procedure is bank-reconciled (PartiallyFundPayed)
+    #[tokio::test]
+    async fn test_delete_locked_group_is_rejected() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_id = seed_procedure(
+            &pool,
+            &patient_id,
+            &proc_type_id,
+            "PARTIALLY_FUND_PAYED",
+            100_000,
+        )
+        .await;
+        let group_id = seed_fund_group(&pool, &fund_id, &[proc_id], "BANK_PAYED").await;
+
+        let orchestrator = make_orchestrator(&pool);
+        let result = orchestrator
+            .delete_fund_payment_group_with_cleanup(&group_id)
+            .await;
+
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("bank-reconciled"),
+            "Expected 'bank-reconciled' in error, got: {msg}"
+        );
+        Ok(())
+    }
+}

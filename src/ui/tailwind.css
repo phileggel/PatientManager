@@ -478,11 +478,11 @@
   }
 
   .m3-icon-button-error {
-    @apply p-2 text-m3-on-surface-variant hover:text-m3-error hover:bg-m3-error/10 rounded-full transition-colors;
+    @apply p-2 text-m3-on-surface-variant hover:text-m3-error hover:bg-m3-error/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .m3-icon-button-primary {
-    @apply p-2 text-m3-on-surface-variant hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-colors;
+    @apply p-2 text-m3-on-surface-variant hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .m3-chip {
