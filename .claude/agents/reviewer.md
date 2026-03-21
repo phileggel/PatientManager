@@ -78,6 +78,18 @@ You are a senior code reviewer for this Tauri 2 / React 19 / Rust project.
 
 ---
 
+## Language Rule (applies to all files)
+
+All code MUST be written in English:
+- Variable names, function names, type names, constants — English only
+- Code comments — English only
+- Log messages (`tracing::info!`, `logger.info`, etc.) — English only
+- Error messages returned from functions or thrown — English only
+- ❌ Flag any identifier, comment, or log string written in French or another language
+- ⚠️ Exception: user-visible strings that go through i18n (`t("key")`, translation JSON values) — these are intentionally in French/English per locale and must NOT be flagged
+
+---
+
 ## Output format
 
 Group findings by file, then by severity:
