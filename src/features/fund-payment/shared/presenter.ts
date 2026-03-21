@@ -19,7 +19,9 @@ import type { FundDisplayData, FundPaymentRow } from "./types";
  * Format an amount stored in thousandths (i64) as a Euro string (e.g. "€12.50").
  */
 export function formatAmountEUR(thousandths: number): string {
-  return `€${((thousandths || 0) / 1000).toFixed(2)}`;
+  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+    (thousandths ?? 0) / 1000,
+  );
 }
 
 export function formatDateFR(isoDate: string): string {

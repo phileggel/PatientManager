@@ -14,7 +14,7 @@
  * Logic delegated to useEditFundPaymentModal.
  */
 
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Check, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup, Procedure } from "@/bindings";
@@ -62,24 +62,17 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
     return (
       <label
         key={proc.id}
-        className="flex items-center justify-between p-5 hover:bg-m3-surface-container-high transition-colors cursor-pointer focus-within:ring-2 focus-within:ring-m3-primary/50"
+        className="flex items-center justify-between py-3 px-4 hover:bg-m3-surface-container-high transition-colors cursor-pointer focus-within:ring-2 focus-within:ring-m3-primary/50"
       >
-        <div className="flex items-center gap-4">
-          {/* Clinical Atelier checkbox: filled primary square when checked */}
+        <div className="flex items-center gap-3">
+          {/* Clinical Atelier checkbox: filled primary circle when checked */}
           <span
             aria-hidden="true"
-            className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+            className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
               checked ? "bg-m3-primary shadow-elevation-1" : "bg-m3-surface-container-high"
             }`}
           >
-            {checked && (
-              <span
-                className="material-symbols-outlined text-m3-on-primary text-[16px]"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                check
-              </span>
-            )}
+            {checked && <Check size={12} strokeWidth={3} className="text-m3-on-primary" />}
           </span>
           <input
             type="checkbox"
@@ -89,17 +82,17 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
             className="sr-only"
           />
           <div className="flex flex-col justify-center">
-            <div className="text-[15px] font-bold text-m3-on-surface leading-tight">
+            <div className="text-[13px] font-semibold text-m3-on-surface leading-tight">
               {getPatientName(proc.patient_id)}
             </div>
-            <div className="flex items-center gap-1 text-[13px] text-m3-on-surface-variant/70 font-medium">
-              <Calendar size={12} />
+            <div className="flex items-center gap-1 text-[11px] text-m3-on-surface-variant/70 font-medium">
+              <Calendar size={11} />
               {formatDateFR(proc.procedure_date)}
             </div>
           </div>
         </div>
-        <span className="text-[15px] font-bold text-m3-on-surface tabular-nums whitespace-nowrap">
-          {formatAmountEUR(proc.procedure_amount || 0)}
+        <span className="text-[13px] font-semibold text-m3-on-surface tabular-nums whitespace-nowrap">
+          {formatAmountEUR(proc.procedure_amount ?? 0)}
         </span>
       </label>
     );
@@ -161,33 +154,48 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
           </section>
 
           {/* Summary bar (R20) */}
-          <div className="py-4 px-5 bg-m3-secondary-container/40 rounded-xl flex justify-between items-center">
-            <span className="text-[14px] font-semibold text-m3-primary">
+          <div className="py-3 px-4 bg-m3-secondary-container/40 rounded-xl flex justify-between items-center">
+            <span className="text-[13px] font-semibold text-m3-primary">
               {t("edit.proceduresSelected", { count: selectedIds.size })}
             </span>
-            <span className="text-[18px] font-bold text-m3-primary tracking-tight">
+            <span className="text-[14px] font-bold text-m3-primary tracking-tight">
               {t("edit.total")} : {formatAmountEUR(totalAmount)}
             </span>
           </div>
 
           {/* Footer */}
           <div className="flex items-center gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onClose}
+              disabled={loading}
+            >
               {t("edit.cancel")}
             </Button>
             <div className="flex-1" />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={openSelectModal}
-              disabled={loading || proceduresForModal.length === 0}
-              icon={<Plus size={16} />}
+            <div
+              className="inline-flex"
+              title={
+                proceduresForModal.length === 0 ? t("edit.addProceduresDisabledHint") : undefined
+              }
             >
-              {t("edit.addProcedures")}
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={openSelectModal}
+                disabled={loading || proceduresForModal.length === 0}
+                icon={<Plus size={13} />}
+              >
+                {t("edit.addProcedures")}
+              </Button>
+            </div>
             <Button
               type="submit"
               variant="primary"
+              size="sm"
               loading={loading}
               disabled={loading || !paymentDate.trim() || selectedIds.size === 0}
             >

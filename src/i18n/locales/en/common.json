@@ -43,7 +43,9 @@
   "field": {
     "datePlaceholder": "MM/DD/YYYY",
     "clearAriaLabel": "Clear",
-    "amountAriaLabel": "Amount"
+    "amountAriaLabel": "Amount",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month"
   },
   "state": {
     "loading": "Loading...",

@@ -1,4 +1,4 @@
-import { Calendar, ChevronDown, Plus, RotateCcw, X } from "lucide-react";
+import { Calendar, Check, ChevronDown, Plus, RotateCcw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
 import { Button } from "@/ui/components";
@@ -86,7 +86,7 @@ export function ProcedureSelectionModal({
                   id="monthFilter"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="w-full px-3 py-2 border border-m3-outline rounded-xl appearance-none bg-m3-surface-container cursor-pointer text-m3-on-surface"
+                  className="w-full px-3 py-2 border border-m3-outline rounded-xl appearance-none bg-m3-surface-container-lowest/70 cursor-pointer text-m3-on-surface"
                 >
                   <option value="">{t("select.allMonths")}</option>
                   {monthYearOptions.map((month) => {
@@ -131,19 +131,14 @@ export function ProcedureSelectionModal({
                   >
                     <span
                       aria-hidden="true"
-                      className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                      className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                         isSelected(proc.id)
                           ? "bg-m3-primary shadow-elevation-1"
                           : "bg-m3-surface-container-highest"
                       }`}
                     >
                       {isSelected(proc.id) && (
-                        <span
-                          className="material-symbols-outlined text-m3-on-primary text-[13px]"
-                          style={{ fontVariationSettings: "'FILL' 1" }}
-                        >
-                          check
-                        </span>
+                        <Check size={12} strokeWidth={3} className="text-m3-on-primary" />
                       )}
                     </span>
                     <input
@@ -163,7 +158,7 @@ export function ProcedureSelectionModal({
                           {getPatientName(proc.patient_id)}
                         </p>
                         <span className="font-semibold text-m3-on-surface whitespace-nowrap">
-                          {formatAmountEUR(proc.procedure_amount || 0)}
+                          {formatAmountEUR(proc.procedure_amount ?? 0)}
                         </span>
                       </div>
                     </div>
@@ -175,7 +170,7 @@ export function ProcedureSelectionModal({
         </div>
 
         {/* Stats Footer */}
-        <div className="bg-m3-surface-container-low/60 p-4">
+        <div className="bg-m3-surface-container-low p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="space-y-1">
               <p className="text-sm text-m3-on-surface-variant">

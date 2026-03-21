@@ -43,7 +43,9 @@
   "field": {
     "datePlaceholder": "JJ/MM/AAAA",
     "clearAriaLabel": "Effacer",
-    "amountAriaLabel": "Montant"
+    "amountAriaLabel": "Montant",
+    "previousMonth": "Mois précédent",
+    "nextMonth": "Mois suivant"
   },
   "state": {
     "loading": "Chargement...",
