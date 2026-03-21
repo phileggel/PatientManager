@@ -57,7 +57,7 @@ export function ModalContainer({
       <div
         role="dialog"
         aria-modal="true"
-        className={`bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 w-full ${maxWidth} ${maxHeight} overflow-hidden flex flex-col`}
+        className={`bg-m3-surface-container-lowest/85 backdrop-blur-md rounded-[28px] shadow-elevation-4 w-full ${maxWidth} ${maxHeight} overflow-hidden flex flex-col`}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >

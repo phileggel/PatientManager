@@ -52,7 +52,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
-        className={`relative w-full ${maxWidth} bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200`}
+        className={`relative w-full ${maxWidth} bg-m3-surface-container-lowest/85 backdrop-blur-md rounded-[28px] shadow-elevation-4 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200`}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
