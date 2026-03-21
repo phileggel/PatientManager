@@ -1159,6 +1159,81 @@ mod tests {
         Ok(())
     }
 
+    /// R18/R19 — Updating a direct transfer reverts old procedures (R19) and applies new ones (R18).
+    #[tokio::test]
+    async fn test_update_direct_transfer_swaps_procedures() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, _, proc_type_id) = seed_base(&pool).await;
+        let (orchestrator, _, proc_svc) = make_components(&pool);
+
+        // Procedure A — initially linked to the transfer
+        let proc_a = seed_procedure(
+            &pool,
+            &patient_id,
+            &proc_type_id,
+            "2026-03-10",
+            "CREATED",
+            100_000,
+        )
+        .await;
+
+        // Procedure B — will replace A after the update
+        let proc_b = seed_procedure(
+            &pool,
+            &patient_id,
+            &proc_type_id,
+            "2026-03-12",
+            "CREATED",
+            200_000,
+        )
+        .await;
+
+        let create_result = orchestrator
+            .create_direct_transfer(
+                "cash-account-default".to_string(),
+                "2026-03-15".to_string(),
+                BankTransferType::Check,
+                vec![proc_a.clone()],
+            )
+            .await?;
+
+        // Update: swap proc_a → proc_b, change date
+        orchestrator
+            .update_direct_transfer(
+                create_result.transfer_id,
+                "2026-03-16".to_string(),
+                vec![proc_b.clone()],
+            )
+            .await?;
+
+        // R19 — old procedure reverts to Created
+        let pa = proc_svc.read_procedure(&proc_a).await?.unwrap();
+        assert_eq!(
+            pa.payment_status,
+            ProcedureStatus::Created,
+            "Old procedure should revert to Created"
+        );
+        assert!(
+            pa.confirmed_payment_date.is_none(),
+            "Old procedure payment date should be cleared"
+        );
+
+        // R18 — new procedure is DirectlyPayed with new date
+        let pb = proc_svc.read_procedure(&proc_b).await?.unwrap();
+        assert_eq!(
+            pb.payment_status,
+            ProcedureStatus::DirectlyPayed,
+            "New procedure should be DirectlyPayed"
+        );
+        assert_eq!(
+            pb.confirmed_payment_date,
+            NaiveDate::from_ymd_opt(2026, 3, 16),
+            "New procedure date should match new transfer date"
+        );
+
+        Ok(())
+    }
+
     /// R21 — get_fund_groups_by_ids returns FundGroupCandidate for BankPayed groups.
     #[tokio::test]
     async fn test_get_fund_groups_by_ids_returns_candidate_for_bank_payed_group(
