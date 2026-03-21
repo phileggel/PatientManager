@@ -22,6 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 5. Implementation
 6. Test & Lint `./scripts/check.sh`
 7. Run the `reviewer` subagent → fix any critical, ask for warning issues → **re-run until 0 critical**
+7b. If any `.tsx` file was modified → run `ux-reviewer` subagent → fix any critical, ask for warning issues → **re-run until 0 critical**
 8. If frontend text was added/changed → run `i18n-checker` subagent
 9. If tests are missing → write them directly (backend: Rust `#[cfg(test)]` inline, frontend: `.test.ts` colocated) — follow `/docs/testing.md`
 10. Update documentation:
@@ -31,6 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 11. **Self-check** — before asking to commit, explicitly verify each step:
     - [ ] Docs read (step 1)
     - [ ] Reviewer run and clean (step 7)
+    - [ ] UX reviewer run and clean if .tsx modified (step 7b)
     - [ ] i18n-checker run if text changed (step 8)
     - [ ] Tests written (step 9)
     - [ ] ARCHITECTURE.md updated if needed (step 10)
@@ -45,6 +47,7 @@ Use `TaskCreate` / `TaskUpdate` to track workflow steps for non-trivial tasks:
 
 ### Available Subagents (`.claude/agents/`)
 - `reviewer` — DDD + backend/frontend rules compliance check (step 7)
+- `ux-reviewer` — M3 compliance, empty/loading/error states, form UX, accessibility, consistency (step 7b, frontend only)
 - `i18n-checker` — finds hardcoded strings, missing/dead translation keys fr + en (step 8)
 - `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested (step 10)
 
