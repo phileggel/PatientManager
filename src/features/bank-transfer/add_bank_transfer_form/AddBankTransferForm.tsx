@@ -41,6 +41,7 @@ export function AddBankTransferForm() {
     errors,
     bankAccountOptions,
     isFund,
+    isCash,
     handleSubmit,
   } = useAddBankTransferForm();
 
@@ -65,18 +66,26 @@ export function AddBankTransferForm() {
           { value: "FUND", label: t("transfer.typeFund") },
           { value: "CHECK", label: t("transfer.typeCheck") },
           { value: "CREDIT_CARD", label: t("transfer.typeCreditCard") },
+          { value: "CASH", label: t("transfer.typeCash") },
         ]}
       />
 
-      {/* Bank Account */}
-      <SelectField
-        id="bankAccount"
-        label={t("transfer.bankAccount")}
-        value={bankAccount}
-        onChange={(e) => setBankAccount(e.target.value)}
-        options={[{ value: "", label: t("transfer.selectBankAccount") }, ...bankAccountOptions]}
-        error={errors.bankAccount}
-      />
+      {/* Bank Account — hidden for CASH (auto-assigned, R13) */}
+      {isCash ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-neutral-90">{t("transfer.bankAccount")}</span>
+          <span className="text-sm text-neutral-60">{t("transfer.cashAccount")}</span>
+        </div>
+      ) : (
+        <SelectField
+          id="bankAccount"
+          label={t("transfer.bankAccount")}
+          value={bankAccount}
+          onChange={(e) => setBankAccount(e.target.value)}
+          options={[{ value: "", label: t("transfer.selectBankAccount") }, ...bankAccountOptions]}
+          error={errors.bankAccount}
+        />
+      )}
 
       {/* Selection panel — conditional on type */}
       {isFund ? (

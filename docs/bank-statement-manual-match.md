@@ -69,7 +69,7 @@ Un groupe de paiement fond devient verrouillé dès qu'une de ses actes atteint 
 
 ### Paiements directs (CHECK / CREDIT_CARD / CASH)
 
-**R13 — Compte automatique pour le type CASH (frontend + backend)** : Pour une transaction de type `CASH`, le compte est automatiquement celui du compte caisse par défaut — aucune sélection de compte n'est proposée à l'utilisateur.
+**R13 — Compte automatique pour le type CASH (frontend + backend)** : Pour une transaction de type `CASH`, le compte est automatiquement celui du compte caisse par défaut — aucune sélection de compte n'est proposée à l'utilisateur. Le compte caisse est identifié par l'id fixe `cash-account-default` (précréé par migration). Son nom affiché provient de l'i18n, pas de la base de données.
 
 **R14 — Création : sélection des actes (frontend + backend)** : L'utilisateur sélectionne une ou plusieurs actes en statut `Created` dont la date de réalisation (`procedure_date`) est dans les 7 jours précédant la date du paiement. L'interface de sélection est similaire à celle de la gestion des actes dans les groupes de paiement fond. Le montant du paiement est la somme des montants des actes sélectionnées.
 

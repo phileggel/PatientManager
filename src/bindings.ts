@@ -607,6 +607,13 @@ async deleteBankAccount(id: string) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Tauri command: Returns the ID of the default cash account.
+ * Used by the frontend to auto-assign the account for CASH transfers (R13).
+ */
+async getCashBankAccountId() : Promise<string> {
+    return await TAURI_INVOKE("get_cash_bank_account_id");
+},
+/**
  * Parse a bank statement PDF and return structured data
  */
 async parseBankStatement(bytes: number[]) : Promise<Result<BankStatementParseResult, string>> {
