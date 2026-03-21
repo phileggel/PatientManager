@@ -41,9 +41,11 @@ Un groupe devient verrouillé dès qu'une de ses actes atteint l'Étape 2 (cf. R
 
 **R8 — Ajout d'une acte (backend)** : Lorsqu'une acte `Created` est ajoutée au groupe à la validation, son statut passe à `Reconciliated` (par défaut), sa date de paiement confirmée est renseignée avec la date de paiement du groupe, son `actual_payment_amount` est renseigné avec son montant d'acte, et le montant total du groupe est recalculé en conséquence. ⚠️ Le choix du statut cible (`Reconciliated` ou `PartiallyReconciled`) par l'utilisateur est une amélioration future non implémentée.
 
-**R9 — Verrouillage après rapprochement bancaire (frontend + backend)** : Un groupe ne peut pas être modifié ni supprimé si l'une de ses actes a été rapprochée au niveau bancaire (statut `FundPayed` ou `PartiallyFundPayed`). Ces statuts sont posés par la feature `bank-statement-match` (Étape 2 du cycle, cf. R0). Dans ce cas, le formulaire de modification et le bouton de suppression sont inaccessibles. Le groupe n'ayant pas de statut propre, ce verrouillage est actuellement déduit des statuts des actes qu'il contient (cf. R10).
+**R9 — Verrouillage après rapprochement bancaire (backend)** : Un groupe ne peut pas être modifié ni supprimé si l'une de ses actes a été rapprochée au niveau bancaire (statut `FundPayed` ou `PartiallyFundPayed`). Ces statuts sont posés par la feature `bank-statement-match` (Étape 2 du cycle, cf. R0). Le verrouillage est déduit du statut `BankPayed` du groupe (cf. R10).
 
-**R10 — Statut du groupe ⚠️ non implémenté (backend)** : Le groupe devrait porter un statut propre (`Active`, `BankPayed`) pour simplifier le verrouillage et les requêtes. La feature `bank-statement-match` est responsable de passer le groupe en `BankPayed` lorsqu'elle réconcilie les actes au niveau bancaire. La migration des groupes existants peut être déduite des statuts de leurs actes : si au moins une acte est en `FundPayed` ou `PartiallyFundPayed`, le groupe est `BankPayed` ; sinon il est `Active`.
+**R10 — Statut du groupe (backend)** : Le groupe porte un statut propre : `Active` (modifiable) ou `BankPayed` (verrouillé). La feature `bank-statement-match` passe le groupe en `BankPayed` lors du rapprochement bancaire, et le repasse en `Active` en cas d'annulation. La lecture des groupes (`read_all_fund_payment_groups`) recalcule également `is_locked` à partir des statuts des actes pour garantir la cohérence.
+
+**R18 — Retour visuel sur le verrouillage (frontend)** : Un groupe verrouillé est signalé dans la liste par une icône 🔒 à côté du nom de la caisse et une opacité réduite sur la ligne. Les boutons d'édition et de suppression sont désactivés visuellement (opacité réduite, curseur interdit).
 
 ### Suppression d'un groupe
 
