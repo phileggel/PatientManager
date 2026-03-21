@@ -352,7 +352,7 @@ Actions: `setPatients`, `addPatients`, `setFunds`, `addFunds`, `setProcedureType
 Flat layout. Gateway: `create_bank_account`, `read_all_bank_accounts`, `update_bank_account`, `delete_bank_account`. Single component: `BankAccountManager`.
 
 #### Bank Transfer + Manual Match (`features/bank-transfer/`)
-Flat layout with `store.ts` (feature-scoped transfer list). Multiple hooks: `useBankTransferManager`, `useBankTransferController`, `useBankTransferOperations`. Gateway covers `context/bank/` (CRUD).
+Mixed layout: root-level `gateway.ts`, `store.ts` (feature-scoped transfer list), and top-level hooks (`useBankTransferManager`, `useBankTransferController`, `useBankTransferOperations`), with subdirectories for each sub-feature. Gateway covers `context/bank/` (CRUD).
 - `add_bank_transfer_form/` — creation form with fund/patient selection modals
 - `bank_transfer_list/` — transfer list display
 - `edit_bank_transfer_modal/` — edit modal + `useEditBankTransferModal` hook (loads linked groups/procedures, handles update submit)
@@ -421,18 +421,34 @@ Backend publishes {Domain}Updated event
 
 ### Feature Layout Convention
 
-Older features (bank-transfer, fund, patient, fund-payment) use a flat layout. **New features** must use the `api/` + `presentation/` split demonstrated by `procedure/` and `excel-import/`:
+**Layout generations (oldest → newest):**
+
+| Generation | Features | Pattern |
+|---|---|---|
+| Flat (old) | fund, patient, bank-account, fund-payment, bank-statement-match, fund-payment-match, procedure-type | Everything at root — `gateway.ts`, component, hook, `shared/` |
+| Layer-first (middle) | excel-import, procedure | `api/` + `presentation/` split — do not replicate |
+| **Feature-first (gold)** | **bank-transfer** | `gateway.ts` at root + subdirectories by sub-feature, hooks colocated |
+
+**New features must follow the bank-transfer (gold) layout:**
 
 ```
 features/{domain}/
-├── api/
-│   └── gateway.ts          # ONLY file that calls commands.*
-├── presentation/
-│   ├── {Feature}Page.tsx   # Entry point (thin, no logic)
-│   ├── use{Feature}Page.ts # Page-level hook
-│   ├── components/         # Subcomponents + colocated hooks
-│   └── index.ts
-├── model/                  # Pure domain/business logic (optional)
-├── store.ts                # Feature-scoped Zustand store (if needed)
-└── index.ts                # Public re-exports
+├── gateway.ts                     # ONLY file that calls commands.* for this domain
+├── store.ts                       # Feature-scoped Zustand store (if needed)
+├── {sub_feature}/
+│   ├── {SubFeature}.tsx           # Component
+│   ├── use{SubFeature}.ts         # Colocated hook
+│   └── use{SubFeature}.test.ts    # Colocated test
+├── shared/
+│   ├── presenter.ts               # Domain → UI transformations (toRow, toFormData…)
+│   └── validate{Domain}.ts        # Pure validation logic
+└── index.ts                       # Public re-exports
 ```
+
+**Key rules:**
+- `gateway.ts` at the feature root — no `api/` wrapper folder
+- Sub-features are directories grouped by **feature concern**, not by layer (no `components/`, `hooks/` folders)
+- Hooks are colocated next to their component inside the sub-feature folder
+- If a sub-feature wraps a distinct use case with many commands, it gets its own `gateway.ts` (e.g. `manual_match/gateway.ts`)
+- `shared/presenter.ts` — pure object with static-style methods (`toRow`, `toFormData`) that transform domain types into UI shapes; keeps components free of mapping logic
+- `shared/` for any logic used across multiple sub-features
