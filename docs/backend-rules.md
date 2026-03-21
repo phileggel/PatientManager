@@ -2,55 +2,55 @@
 
 **AI AGENT SHOULD NEVER UPDATE THIS DOCUMENT**
 
-## Domain object
+## Domain Object
 
-- MUST be created with a factory method 
-  - new() => will validate fields and generate id (use in service)
-  - with_id() => will validate fields (use in api/service)
-  - restore() => direct restore from database, no validation (use in repository)
+**B1** — MUST be created with a factory method:
+- `new()` — validates fields and generates id (use in service)
+- `with_id()` — validates fields, uses provided id (use in api/service)
+- `restore()` — direct restore from database, no validation (use in repository only)
 
-## Bounded Context (/context)
+## Bounded Context (`/context`)
 
-- MUST never import from another context
+**B2** — MUST never import from another context.
 
-- MUST share its external api directly through its main mod.rs.
-  - outside of the context never import crate::context::patient::domain::Patient, always crate::context::patient::Patient
-  
-- SHOULD always publish a {Domain}Updated event when its state change ( create, update, delete, etc.).
+**B3** — MUST share its external API directly through its main `mod.rs`.
+- Outside the context, never import `crate::context::patient::domain::Patient` — always import `crate::context::patient::Patient`.
 
-- MUST its tauri::command in the api.rs file
+**B4** — SHOULD always publish a `{Domain}Updated` event when its state changes (create, update, delete, etc.).
 
-## UseCases (/use_cases)
+**B5** — MUST declare its Tauri commands in the `api.rs` file.
 
-- MAY import from another context
+## Use Cases (`/use_cases`)
 
-- SHOULD NEVER import from another use_case
+**B6** — MAY import from contexts, MUST NOT import from another use case.
 
-- MUST share its external api directly through its main mod.rs.
+**B7** — MUST share its external API directly through its main `mod.rs`.
 
-- DONT publish a {Domain}Updated event (orchestrator that don't own its state.)
+**B8** — MUST NOT publish a `{Domain}Updated` event (orchestrators do not own state).
 
-- MUST declare its tauri::command in the api.rs file
+**B9** — MUST declare its Tauri commands in the `api.rs` file.
 
-- SHOULD have an orchestrator as its main entry point (after api) that handle the global logic.
+**B10** — SHOULD have an orchestrator as its main entry point (after api) that handles the global logic.
 
 ## Repository
 
-- MUST use sqlx macro in the repository. Use `just clean-db` to reset the database if needed.
+**B11** — MUST use sqlx macros for queries. Use `just clean-db` to reset the database if needed.
 
-## General rules
+## Logging
 
-- MUST use anyhow::Result<T> for error handling
-  - exception: tauri command response
+**B12** — MUST use `tracing::{info, debug, warn, error}` with structured fields. Never use `println!`.
 
-- MAY use #[allow(clippy::too_many_arguments)] on domain factory method*
-  
-## Test
-Définition d'un test trivial (backend)
+## General
 
-  Un test trivial est un test qui vérifie :
-  - qu'un constructeur ne panique pas
-  - qu'une entrée vide donne une sortie vide (aucune logique traversée)
-  - qu'un getter retourne ce qu'on vient de passer
-  - une fixture de test (helper déguisé en test)
+**B13** — MUST use `anyhow::Result<T>` for error handling.
+- Exception: Tauri command responses use `Result<T, String>`.
 
+**B14** — MAY use `#[allow(clippy::too_many_arguments)]` on domain factory methods.
+
+## Tests
+
+**B15** — Tests MUST NOT be trivial. A trivial test is one that verifies:
+- A constructor does not panic
+- An empty input returns empty output (no logic traversed)
+- A getter returns what was just passed in
+- A test helper disguised as a test
