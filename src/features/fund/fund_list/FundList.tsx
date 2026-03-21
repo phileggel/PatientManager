@@ -173,6 +173,7 @@ export function FundList({ searchTerm }: FundListProps) {
         title={t("action.delete.title")}
         message={t("action.delete.message", { name: deleteData?.name })}
         confirmLabel={t("action.delete.confirm")}
+        cancelLabel={tc("action.cancel")}
         variant="danger"
       />
     </div>

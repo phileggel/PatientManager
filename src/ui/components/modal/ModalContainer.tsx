@@ -47,12 +47,22 @@ export function ModalContainer({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <button
+      type="button"
+      aria-hidden="true"
+      tabIndex={-1}
+      className="fixed inset-0 z-50 w-full h-full bg-m3-on-surface/40 backdrop-blur-[2px] flex items-center justify-center border-none outline-none cursor-default"
+      onClick={onClose}
+    >
       <div
-        className={`bg-white rounded-lg shadow-lg w-full ${maxWidth} ${maxHeight} overflow-hidden flex flex-col`}
+        role="dialog"
+        aria-modal="true"
+        className={`bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 w-full ${maxWidth} ${maxHeight} overflow-hidden flex flex-col`}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {children}
       </div>
-    </div>
+    </button>
   );
 }

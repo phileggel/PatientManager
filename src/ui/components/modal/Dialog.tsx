@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import type React from "react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "../button";
 
 interface DialogProps {
@@ -20,6 +21,7 @@ export function Dialog({
   actions,
   maxWidth = "max-w-md",
 }: DialogProps) {
+  const { t } = useTranslation("common");
   // Prevent scrolling when dialog is open
   useEffect(() => {
     if (isOpen) {
@@ -49,16 +51,20 @@ export function Dialog({
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative w-full ${maxWidth} bg-m3-surface-container rounded-[28px] shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200`}
+        aria-labelledby="dialog-title"
+        className={`relative w-full ${maxWidth} bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200`}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4">
-          <h3 className="text-xl font-medium text-m3-on-surface">{title}</h3>
+          <h3 id="dialog-title" className="text-xl font-medium text-m3-on-surface">
+            {title}
+          </h3>
           <button
             type="button"
             onClick={onClose}
+            aria-label={t("action.close")}
             className="p-2 hover:bg-m3-on-surface/5 rounded-full text-m3-on-surface-variant transition-colors"
           >
             <X size={20} />
@@ -83,8 +89,8 @@ interface ConfirmationDialogProps {
   onConfirm: () => void;
   title: string;
   message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
+  confirmLabel: string;
+  cancelLabel: string;
   variant?: "default" | "danger";
 }
 
@@ -94,8 +100,8 @@ export function ConfirmationDialog({
   onConfirm,
   title,
   message,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   variant = "default",
 }: ConfirmationDialogProps) {
   const actions = (

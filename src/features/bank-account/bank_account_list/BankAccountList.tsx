@@ -124,7 +124,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                       <button
                         type="button"
                         className="m3-icon-button-primary"
-                        aria-label={`Edit account ${account.name}`}
+                        aria-label={t("account.list.editAriaLabel", { name: account.name })}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (accountObject) {
@@ -137,7 +137,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                       <button
                         type="button"
                         className="m3-icon-button-error"
-                        aria-label={`Delete account ${account.name}`}
+                        aria-label={t("account.list.deleteAriaLabel", { name: account.name })}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (account.id && account.name) {
@@ -178,6 +178,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
         title={t("account.list.delete.title")}
         message={t("account.list.delete.message", { name: deleteData?.name })}
         confirmLabel={t("account.list.delete.confirm")}
+        cancelLabel={tCommon("action.cancel")}
         variant="danger"
       />
     </div>
