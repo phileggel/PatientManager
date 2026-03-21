@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 6. Test & Lint `./scripts/check.sh`
 7. Run the `reviewer` subagent → fix any critical issues → repeat until clean
 8. If frontend text was added/changed → run `i18n-checker` subagent
-9. If tests are missing → run `test-writer` subagent
+9. If tests are missing → write them directly (backend: Rust `#[cfg(test)]` inline, frontend: `.test.ts` colocated) — follow `/docs/testing.md`
 10. Update documentation:
     - Update `ARCHITECTURE.md` if new files, modules, or features were added/removed
     - Update the relevant spec in `docs/` if new business rules were added
@@ -33,7 +33,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Available Subagents (`.claude/agents/`)
 - `reviewer` — DDD + backend/frontend rules compliance check (step 7)
 - `i18n-checker` — finds hardcoded strings, missing/dead translation keys fr + en (step 8)
-- `test-writer` — generates missing backend (Rust) and frontend (TS) tests (step 9)
 - `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested (step 10)
 
 ## 🛠 Commands

@@ -91,7 +91,8 @@
       "empty": "No groups available within 7 days. Click \"Expand\" to see all groups.",
       "emptyAll": "No unreconciled groups found.",
       "expand": "Expand search",
-      "selected": "{{count}} group(s) selected"
+      "selected": "{{count}} group(s) selected",
+      "current": "Currently linked groups"
     },
     "selectProcedures": {
       "label": "Procedures to reconcile",
@@ -99,6 +100,7 @@
       "empty": "No procedures available within 7 days. Click \"Expand\" to see all procedures.",
       "emptyAll": "No procedures with status Created found.",
       "expand": "Expand search",
+      "current": "Currently linked procedures",
       "selected": "{{count}} procedure(s) selected"
     },
     "manager": {

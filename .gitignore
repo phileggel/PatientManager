@@ -61,3 +61,6 @@ htmlcov/
 .pytest_cache/
 .screenshots/
 .local/
+
+# Local doc
+docs/todo.md

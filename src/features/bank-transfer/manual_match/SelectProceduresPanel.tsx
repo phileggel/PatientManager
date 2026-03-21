@@ -14,12 +14,15 @@ interface SelectProceduresPanelProps {
   transferDate: string;
   selectedProcedureIds: string[];
   onSelectionChange: (procedureIds: string[], totalAmountMillis: number) => void;
+  /** Currently linked procedures (DirectlyPayed) shown pre-selected in edit mode. */
+  currentProcedures?: DirectPaymentProcedureCandidate[];
 }
 
 export function SelectProceduresPanel({
   transferDate,
   selectedProcedureIds,
   onSelectionChange,
+  currentProcedures,
 }: SelectProceduresPanelProps) {
   const { t } = useTranslation("bank");
   const patients = useAppStore((state) => state.patients);
@@ -38,6 +41,12 @@ export function SelectProceduresPanel({
 
   const getPatientName = (patientId: string): string =>
     patients.find((p) => p.id === patientId)?.name ?? patientId;
+
+  // Merge current procedures into the map so their amounts are available for selection computation
+  useEffect(() => {
+    if (!currentProcedures) return;
+    for (const p of currentProcedures) candidateMapRef.current.set(p.procedure_id, p);
+  }, [currentProcedures]);
 
   useEffect(() => {
     if (!transferDate) {
@@ -89,13 +98,52 @@ export function SelectProceduresPanel({
 
   const isExpanded = expandedDate === transferDate;
 
+  // Exclude current procedures from candidates to avoid duplicate rows
+  const currentProcedureIds = new Set(currentProcedures?.map((p) => p.procedure_id) ?? []);
+  const filteredCandidates = candidates.filter((c) => !currentProcedureIds.has(c.procedure_id));
+
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium text-neutral-90">{t("transfer.selectProcedures.label")}</p>
 
+      {/* Current procedures section — shown in edit mode */}
+      {currentProcedures && currentProcedures.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-medium text-neutral-60 uppercase tracking-wide">
+            {t("transfer.selectProcedures.current")}
+          </p>
+          <div className="border border-neutral-30 rounded-lg divide-y divide-neutral-20">
+            {currentProcedures.map((proc) => (
+              <label
+                key={proc.procedure_id}
+                className="flex items-center gap-3 px-3 py-3 hover:bg-neutral-10 cursor-pointer transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedProcedureIds.includes(proc.procedure_id)}
+                  onChange={() => toggleProcedure(proc)}
+                  className="w-4 h-4 shrink-0"
+                />
+                <div className="flex flex-1 items-center justify-between gap-2 text-sm min-w-0">
+                  <span className="font-medium text-neutral-90 truncate">
+                    {getPatientName(proc.patient_id)}
+                  </span>
+                  <span className="text-neutral-60 text-xs whitespace-nowrap">
+                    {proc.procedure_date}
+                  </span>
+                  <span className="font-semibold whitespace-nowrap">
+                    €{((proc.procedure_amount ?? 0) / 1000).toFixed(2)}
+                  </span>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p className="text-sm text-neutral-60 py-2">{t("transfer.selectProcedures.loading")}</p>
-      ) : candidates.length === 0 ? (
+      ) : filteredCandidates.length === 0 ? (
         <p className="text-sm text-neutral-60 py-2">
           {isExpanded
             ? t("transfer.selectProcedures.emptyAll")
@@ -103,7 +151,7 @@ export function SelectProceduresPanel({
         </p>
       ) : (
         <div className="border border-neutral-30 rounded-lg divide-y divide-neutral-20 max-h-48 overflow-y-auto">
-          {candidates.map((proc) => (
+          {filteredCandidates.map((proc) => (
             <label
               key={proc.procedure_id}
               className="flex items-center gap-3 px-3 py-3 hover:bg-neutral-10 cursor-pointer transition-colors"

@@ -383,6 +383,35 @@ impl BankManualMatchOrchestrator {
         self.transfer_link_repo.get_procedure_ids(transfer_id).await
     }
 
+    /// R21 — Fetch fund group candidates by IDs for the edit modal.
+    /// Groups are BankPayed at this point and won't appear in get_unsettled_fund_groups.
+    pub async fn get_fund_groups_by_ids(
+        &self,
+        group_ids: Vec<String>,
+    ) -> anyhow::Result<Vec<FundGroupCandidate>> {
+        let mut candidates = Vec::new();
+        for group_id in &group_ids {
+            match self.fund_payment_service.read_group(group_id).await? {
+                Some(group) => candidates.push(group_to_candidate(group)),
+                None => tracing::warn!("Fund group not found for edit pre-fill: {}", group_id),
+            }
+        }
+        Ok(candidates)
+    }
+
+    /// R21 — Fetch procedure candidates by IDs for the edit modal.
+    /// Procedures are DirectlyPayed at this point and won't appear in get_eligible_procedures_for_direct_payment.
+    pub async fn get_procedures_by_ids(
+        &self,
+        procedure_ids: Vec<String>,
+    ) -> anyhow::Result<Vec<DirectPaymentProcedureCandidate>> {
+        let procedures = self
+            .procedure_service
+            .read_procedures_by_ids(procedure_ids)
+            .await?;
+        Ok(procedures.into_iter().map(procedure_to_candidate).collect())
+    }
+
     // ======================================================================
     // Private helpers
     // ======================================================================
@@ -1086,6 +1115,140 @@ mod tests {
 
         let procedure = proc_svc.read_procedure(&proc_id).await?.unwrap();
         assert_eq!(procedure.payment_status, ProcedureStatus::Created);
+
+        Ok(())
+    }
+
+    /// R21 — get_fund_groups_by_ids returns FundGroupCandidate for BankPayed groups.
+    #[tokio::test]
+    async fn test_get_fund_groups_by_ids_returns_candidate_for_bank_payed_group(
+    ) -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let (orchestrator, _, _) = make_components(&pool);
+
+        let proc_id = seed_procedure(
+            &pool,
+            &patient_id,
+            &proc_type_id,
+            "2026-03-10",
+            "FUND_PAYED",
+            150_000,
+        )
+        .await;
+
+        // Seed the group already in BankPayed state (as it would be after a FUND transfer).
+        let group_id: String = seed_fund_group(
+            &pool,
+            &fund_id,
+            "2026-03-10",
+            150_000,
+            std::slice::from_ref(&proc_id),
+            "BANK_PAYED",
+        )
+        .await;
+
+        let candidates = orchestrator
+            .get_fund_groups_by_ids(vec![group_id.clone()])
+            .await?;
+
+        assert_eq!(
+            candidates.len(),
+            1,
+            "Exactly one candidate should be returned"
+        );
+
+        let candidate = &candidates[0];
+        assert_eq!(candidate.group_id, group_id);
+        assert_eq!(candidate.fund_id, fund_id);
+        assert_eq!(candidate.payment_date, "2026-03-10");
+        assert_eq!(candidate.total_amount, 150_000);
+
+        Ok(())
+    }
+
+    /// R21 — get_fund_groups_by_ids silently skips unknown group IDs.
+    #[tokio::test]
+    async fn test_get_fund_groups_by_ids_skips_unknown_ids() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (orchestrator, _, _) = make_components(&pool);
+
+        let candidates = orchestrator
+            .get_fund_groups_by_ids(vec!["non-existent-id".to_string()])
+            .await?;
+
+        assert!(
+            candidates.is_empty(),
+            "Unknown group IDs should be silently skipped"
+        );
+
+        Ok(())
+    }
+
+    /// R21 — get_procedures_by_ids returns DirectPaymentProcedureCandidate for DirectlyPayed procedures.
+    #[tokio::test]
+    async fn test_get_procedures_by_ids_returns_candidate_for_directly_payed_procedure(
+    ) -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, _, proc_type_id) = seed_base(&pool).await;
+        let (orchestrator, _, proc_svc) = make_components(&pool);
+
+        // Seed a procedure then create a direct transfer to put it into DirectlyPayed state.
+        let proc_id: String = seed_procedure(
+            &pool,
+            &patient_id,
+            &proc_type_id,
+            "2026-03-10",
+            "CREATED",
+            120_000,
+        )
+        .await;
+
+        orchestrator
+            .create_direct_transfer(
+                "cash-account-default".to_string(),
+                "2026-03-12".to_string(),
+                BankTransferType::Check,
+                vec![proc_id.clone()],
+            )
+            .await?;
+
+        let procedure = proc_svc.read_procedure(&proc_id).await?.unwrap();
+        assert_eq!(procedure.payment_status, ProcedureStatus::DirectlyPayed);
+
+        let candidates = orchestrator
+            .get_procedures_by_ids(vec![proc_id.clone()])
+            .await?;
+
+        assert_eq!(
+            candidates.len(),
+            1,
+            "Exactly one candidate should be returned"
+        );
+
+        let candidate = &candidates[0];
+        assert_eq!(candidate.procedure_id, proc_id);
+        assert_eq!(candidate.patient_id, patient_id);
+        assert_eq!(candidate.procedure_date, "2026-03-10");
+        assert_eq!(candidate.procedure_amount, Some(120_000));
+
+        Ok(())
+    }
+
+    /// R21 — get_procedures_by_ids returns an empty list for unknown IDs.
+    #[tokio::test]
+    async fn test_get_procedures_by_ids_returns_empty_for_unknown_ids() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (orchestrator, _, _) = make_components(&pool);
+
+        let candidates = orchestrator
+            .get_procedures_by_ids(vec!["non-existent-proc-id".to_string()])
+            .await?;
+
+        assert!(
+            candidates.is_empty(),
+            "Unknown procedure IDs should return empty list"
+        );
 
         Ok(())
     }
