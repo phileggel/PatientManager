@@ -1,21 +1,31 @@
 /**
  * EditFundPaymentModal - Modal for editing a fund payment group
  *
- * Displays two sections:
- * - "Actes en cours": procedures currently in the group (removable)
- * - "Actes disponibles": Created procedures for the same fund (addable)
+ * Design reference: docs/stitch/update-fund-payment-modal.stitch (Clinical Atelier)
  *
+ * Layout:
+ * - Read-only fund info grid (fund name + fund identifier)
+ * - Payment date field
+ * - "Current procedures" list (removable via uncheck, Clinical Atelier row style)
+ * - Summary bar: count + running total (R20)
+ * - Footer: Cancel | Add procedures button | Update button
+ *
+ * Sources: getFundPaymentGroupEditData (mount), updatePaymentGroupWithProcedures (submit)
  * Logic delegated to useEditFundPaymentModal.
  */
 
-import { Calendar } from "lucide-react";
+import { Calendar, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup, Procedure } from "@/bindings";
 import { logger } from "@/lib/logger";
 import { Button, Dialog } from "@/ui/components";
 import { DateField } from "@/ui/components/field/DateField";
+import { ProcedureSelectionModal } from "../select_procedure_modal/SelectProcedureModal";
+import { formatAmountEUR, formatDateFR } from "../shared/presenter";
 import { useEditFundPaymentModal } from "./useEditFundPaymentModal";
+
+const EMPTY_IDS: string[] = [];
 
 export interface EditFundPaymentModalProps {
   payment: FundPaymentGroup;
@@ -29,11 +39,16 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
     paymentDate,
     setPaymentDate,
     currentProcedures,
-    availableProcedures,
+    proceduresForModal,
     selectedIds,
     loading,
     selectedFund,
+    totalAmount,
+    isSelectModalOpen,
     toggleId,
+    openSelectModal,
+    closeSelectModal,
+    handleProceduresAdded,
     getPatientName,
     handleSubmit,
   } = useEditFundPaymentModal(payment, onClose);
@@ -42,52 +57,79 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
     logger.info("[EditFundPaymentModal] Component mounted");
   }, []);
 
-  const formatDateFrench = (isoDate: string): string => {
-    const date = new Date(`${isoDate}T00:00:00Z`);
-    return new Intl.DateTimeFormat("fr-FR").format(date);
-  };
-
-  const renderProcedure = (proc: Procedure) => (
-    <label
-      key={proc.id}
-      className="flex items-center gap-3 px-3 py-4 pr-6 hover:bg-neutral-10 cursor-pointer transition-colors"
-    >
-      <input
-        type="checkbox"
-        checked={selectedIds.has(proc.id)}
-        onChange={() => toggleId(proc.id)}
-        disabled={loading}
-        className="w-4 h-4"
-      />
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center gap-4">
-          <span className="flex items-center gap-1 text-xs text-neutral-70 whitespace-nowrap">
-            <Calendar size={12} />
-            {formatDateFrench(proc.procedure_date)}
+  const renderProcedureRow = (proc: Procedure) => {
+    const checked = selectedIds.has(proc.id);
+    return (
+      <label
+        key={proc.id}
+        className="flex items-center justify-between p-5 hover:bg-m3-surface-container-high transition-colors cursor-pointer focus-within:ring-2 focus-within:ring-m3-primary/50"
+      >
+        <div className="flex items-center gap-4">
+          {/* Clinical Atelier checkbox: filled primary square when checked */}
+          <span
+            aria-hidden="true"
+            className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+              checked ? "bg-m3-primary shadow-elevation-1" : "bg-m3-surface-container-high"
+            }`}
+          >
+            {checked && (
+              <span
+                className="material-symbols-outlined text-m3-on-primary text-[16px]"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                check
+              </span>
+            )}
           </span>
-          <p className="text-sm font-medium text-neutral-90">{getPatientName(proc.patient_id)}</p>
-          <span className="font-semibold text-neutral-90 whitespace-nowrap">
-            €{((proc.procedure_amount || 0) / 1000).toFixed(2)}
-          </span>
-        </div>
-      </div>
-    </label>
-  );
-
-  return (
-    <Dialog isOpen={true} onClose={onClose} title={t("edit.title")}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {/* Fund Info (Read-only) */}
-        <div>
-          <div className="text-sm font-medium text-neutral-70 mb-1">{t("edit.fundLabel")}</div>
-          <div className="p-3 bg-neutral-10 rounded border border-neutral-20">
-            <p className="text-sm text-neutral-90 font-medium">{selectedFund?.fundName}</p>
-            <p className="text-xs text-neutral-60">{selectedFund?.fundIdentifier}</p>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={() => toggleId(proc.id)}
+            disabled={loading}
+            className="sr-only"
+          />
+          <div className="flex flex-col justify-center">
+            <div className="text-[15px] font-bold text-m3-on-surface leading-tight">
+              {getPatientName(proc.patient_id)}
+            </div>
+            <div className="flex items-center gap-1 text-[13px] text-m3-on-surface-variant/70 font-medium">
+              <Calendar size={12} />
+              {formatDateFR(proc.procedure_date)}
+            </div>
           </div>
         </div>
+        <span className="text-[15px] font-bold text-m3-on-surface tabular-nums whitespace-nowrap">
+          {formatAmountEUR(proc.procedure_amount || 0)}
+        </span>
+      </label>
+    );
+  };
 
-        {/* Payment Date */}
-        <div>
+  return (
+    <>
+      <Dialog isOpen={true} onClose={onClose} title={t("edit.title")}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          {/* Fund Info (Read-only) — two-column grid, tonal surface */}
+          <div className="grid grid-cols-2 gap-6 bg-m3-surface-container-low p-5 rounded-xl">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-m3-on-surface-variant/70">
+                {t("edit.fundLabel")}
+              </span>
+              <div className="text-m3-on-surface font-semibold text-base">
+                {selectedFund?.fundName}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-m3-on-surface-variant/70">
+                {t("edit.fundIdentifier")}
+              </span>
+              <div className="text-m3-on-surface font-semibold text-base">
+                {selectedFund?.fundIdentifier}
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Date */}
           <DateField
             id="paymentDate"
             label={`${t("edit.paymentDateLabel")} *`}
@@ -95,53 +137,75 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
             onChange={(e) => setPaymentDate(e.target.value)}
             disabled={loading}
           />
-        </div>
 
-        {/* Procedure Sections */}
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-neutral-90">
-            {t("edit.proceduresSelected", { count: selectedIds.size })}
-          </p>
-
-          {/* Section: Actes en cours */}
-          {currentProcedures.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-neutral-60 uppercase tracking-wide mb-1">
-                {t("edit.sectionCurrent")}
-              </p>
-              <div className="border border-neutral-30 rounded-lg divide-y max-h-48 overflow-y-auto">
-                {currentProcedures.map(renderProcedure)}
+          {/* Section: Current procedures */}
+          <section className="space-y-3" aria-busy={loading}>
+            <h3 className="text-lg font-bold text-m3-on-surface tracking-tight">
+              {t("edit.sectionCurrent")}
+            </h3>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="w-6 h-6 rounded-full border-2 border-m3-primary/30 border-t-m3-primary animate-spin" />
               </div>
-            </div>
-          )}
-
-          {/* Section: Actes disponibles */}
-          {availableProcedures.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-neutral-60 uppercase tracking-wide mb-1">
-                {t("edit.sectionAvailable")}
+            ) : currentProcedures.length === 0 ? (
+              <p className="text-center py-8 text-m3-on-surface-variant">
+                {t("edit.noProcedures")}
               </p>
-              <div className="border border-neutral-30 rounded-lg divide-y max-h-48 overflow-y-auto">
-                {availableProcedures.map(renderProcedure)}
+            ) : (
+              <div className="bg-m3-surface-container rounded-xl overflow-hidden">
+                <div className="max-h-64 overflow-y-auto">
+                  {currentProcedures.map(renderProcedureRow)}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </section>
 
-          {currentProcedures.length === 0 && availableProcedures.length === 0 && !loading && (
-            <p className="text-center py-8 text-neutral-60">{t("edit.noProcedures")}</p>
-          )}
-        </div>
+          {/* Summary bar (R20) */}
+          <div className="py-4 px-5 bg-m3-secondary-container/40 rounded-xl flex justify-between items-center">
+            <span className="text-[14px] font-semibold text-m3-primary">
+              {t("edit.proceduresSelected", { count: selectedIds.size })}
+            </span>
+            <span className="text-[18px] font-bold text-m3-primary tracking-tight">
+              {t("edit.total")} : {formatAmountEUR(totalAmount)}
+            </span>
+          </div>
 
-        {/* Buttons */}
-        <div className="flex gap-2 justify-end pt-4 border-t border-neutral-20">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
-            {t("edit.cancel")}
-          </Button>
-          <Button type="submit" variant="primary" loading={loading}>
-            {t("edit.update")}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
+          {/* Footer */}
+          <div className="flex items-center gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+              {t("edit.cancel")}
+            </Button>
+            <div className="flex-1" />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={openSelectModal}
+              disabled={loading || proceduresForModal.length === 0}
+              icon={<Plus size={16} />}
+            >
+              {t("edit.addProcedures")}
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={loading}
+              disabled={loading || !paymentDate.trim() || selectedIds.size === 0}
+            >
+              {t("edit.update")}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Add procedures sub-modal (R19) */}
+      <ProcedureSelectionModal
+        isOpen={isSelectModalOpen}
+        fundId={payment.fund_id}
+        initialSelectionIds={EMPTY_IDS}
+        preloadedProcedures={proceduresForModal}
+        onConfirm={handleProceduresAdded}
+        onCancel={closeSelectModal}
+      />
+    </>
   );
 }

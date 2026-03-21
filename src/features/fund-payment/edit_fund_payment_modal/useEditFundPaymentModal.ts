@@ -24,20 +24,31 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () =
 
   const [paymentDate, setPaymentDate] = useState(payment.payment_date);
   const [currentProcedures, setCurrentProcedures] = useState<Procedure[]>([]);
+  // Available procedures for the add-modal (R19): Created, same fund, date <= payment_date
   const [availableProcedures, setAvailableProcedures] = useState<Procedure[]>([]);
+  // Procedures added via SelectProcedureModal during this edit session
+  const [addedProcedures, setAddedProcedures] = useState<Procedure[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [isSelectModalOpen, setIsSelectModalOpen] = useState(false);
 
   const selectedFund = useMemo(() => {
     const fund = funds.find((f) => f.id === payment.fund_id);
     return FundPaymentPresenter.toDisplayData(fund);
   }, [funds, payment.fund_id]);
 
-  // All procedures (current + available) — used to resolve selected procedures on submit
+  // All procedures eligible for submit = current + newly added
   const allProcedures = useMemo(
-    () => [...currentProcedures, ...availableProcedures],
-    [currentProcedures, availableProcedures],
+    () => [...currentProcedures, ...addedProcedures],
+    [currentProcedures, addedProcedures],
   );
+
+  // Running total of selected procedures (R20)
+  const totalAmount = useMemo(() => {
+    return allProcedures
+      .filter((p) => selectedIds.has(p.id))
+      .reduce((sum, p) => sum + (p.procedure_amount || 0), 0);
+  }, [allProcedures, selectedIds]);
 
   // Load edit data (classified server-side) on mount
   useEffect(() => {
@@ -74,6 +85,29 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () =
       return next;
     });
   }, []);
+
+  const openSelectModal = useCallback(() => setIsSelectModalOpen(true), []);
+  const closeSelectModal = useCallback(() => setIsSelectModalOpen(false), []);
+
+  // Called when user confirms selection in SelectProcedureModal
+  const handleProceduresAdded = useCallback(
+    (procedures: Procedure[]) => {
+      // Deduplicate against both already-added and current procedures
+      const existingIds = new Set([
+        ...addedProcedures.map((p) => p.id),
+        ...currentProcedures.map((p) => p.id),
+      ]);
+      const newOnes = procedures.filter((p) => !existingIds.has(p.id));
+      setAddedProcedures((prev) => [...prev, ...newOnes]);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const p of newOnes) next.add(p.id);
+        return next;
+      });
+      setIsSelectModalOpen(false);
+    },
+    [currentProcedures, addedProcedures],
+  );
 
   const getPatientName = useCallback(
     (patientId: string): string => {
@@ -129,15 +163,26 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () =
     [paymentDate, selectedIds, allProcedures, payment.id, onClose, t],
   );
 
+  // Procedures available to add = loaded pool minus already selected
+  const proceduresForModal = useMemo(
+    () => availableProcedures.filter((p) => !selectedIds.has(p.id)),
+    [availableProcedures, selectedIds],
+  );
+
   return {
     paymentDate,
     setPaymentDate,
     currentProcedures,
-    availableProcedures,
+    proceduresForModal,
     selectedIds,
     loading,
     selectedFund,
+    totalAmount,
+    isSelectModalOpen,
     toggleId,
+    openSelectModal,
+    closeSelectModal,
+    handleProceduresAdded,
     getPatientName,
     handleSubmit,
   };

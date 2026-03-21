@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FundPaymentGroup, Patient } from "@/bindings";
+import type { FundPaymentGroup, Patient, Procedure } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
 import * as gateway from "../gateway";
 
@@ -36,7 +36,7 @@ const mockPatients: Patient[] = [
   },
 ];
 
-const mockCurrentProcedure = {
+const mockCurrentProcedure: Procedure = {
   id: "proc-1",
   patient_id: "pat-1",
   fund_id: "fund-1",
@@ -49,7 +49,7 @@ const mockCurrentProcedure = {
   payment_status: "RECONCILIATED" as const,
 };
 
-const mockAvailableProcedure = {
+const mockAvailableProcedure: Procedure = {
   id: "proc-2",
   patient_id: "pat-1",
   fund_id: "fund-1",
@@ -94,7 +94,7 @@ describe("useEditFundPaymentModal", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.currentProcedures).toHaveLength(1);
-    expect(result.current.availableProcedures).toHaveLength(1);
+    expect(result.current.proceduresForModal).toHaveLength(1);
     expect(gateway.getFundPaymentGroupEditData).toHaveBeenCalledWith("group-1", "fund-1");
   });
 
@@ -115,25 +115,7 @@ describe("useEditFundPaymentModal", () => {
     expect(result.current.selectedIds.has("proc-2")).toBe(false);
   });
 
-  it("toggleId adds an unselected procedure", async () => {
-    vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
-      success: true,
-      data: {
-        current_procedures: [mockCurrentProcedure],
-        available_procedures: [mockAvailableProcedure],
-      },
-    });
-
-    const { result } = renderHook(() => useEditFundPaymentModal(makePayment(), vi.fn()));
-
-    await waitFor(() => expect(result.current.loading).toBe(false));
-
-    act(() => result.current.toggleId("proc-2"));
-
-    expect(result.current.selectedIds.has("proc-2")).toBe(true);
-  });
-
-  it("toggleId removes a selected procedure", async () => {
+  it("toggleId removes a selected current procedure", async () => {
     vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
       success: true,
       data: {
@@ -150,6 +132,64 @@ describe("useEditFundPaymentModal", () => {
     act(() => result.current.toggleId("proc-1"));
 
     expect(result.current.selectedIds.has("proc-1")).toBe(false);
+  });
+
+  it("handleProceduresAdded adds procedures to selectedIds", async () => {
+    vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
+      success: true,
+      data: {
+        current_procedures: [mockCurrentProcedure],
+        available_procedures: [mockAvailableProcedure],
+      },
+    });
+
+    const { result } = renderHook(() => useEditFundPaymentModal(makePayment(), vi.fn()));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.selectedIds.has("proc-2")).toBe(false);
+
+    act(() => result.current.handleProceduresAdded([mockAvailableProcedure]));
+
+    expect(result.current.selectedIds.has("proc-2")).toBe(true);
+  });
+
+  it("handleProceduresAdded closes the select modal", async () => {
+    vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
+      success: true,
+      data: { current_procedures: [], available_procedures: [] },
+    });
+
+    const { result } = renderHook(() => useEditFundPaymentModal(makePayment(), vi.fn()));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.openSelectModal());
+    expect(result.current.isSelectModalOpen).toBe(true);
+
+    act(() => result.current.handleProceduresAdded([]));
+    expect(result.current.isSelectModalOpen).toBe(false);
+  });
+
+  it("totalAmount reflects selected procedures", async () => {
+    vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
+      success: true,
+      data: {
+        current_procedures: [mockCurrentProcedure],
+        available_procedures: [mockAvailableProcedure],
+      },
+    });
+
+    const { result } = renderHook(() => useEditFundPaymentModal(makePayment(), vi.fn()));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Only proc-1 (75000) is selected
+    expect(result.current.totalAmount).toBe(75000);
+
+    // Add proc-2 (50000)
+    act(() => result.current.handleProceduresAdded([mockAvailableProcedure]));
+    expect(result.current.totalAmount).toBe(125000);
   });
 
   it("getPatientName resolves patient name from store", async () => {
@@ -194,6 +234,39 @@ describe("useEditFundPaymentModal", () => {
       mockCurrentProcedure,
     ]);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("handleSubmit includes added procedures on submit", async () => {
+    vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
+      success: true,
+      data: {
+        current_procedures: [mockCurrentProcedure],
+        available_procedures: [mockAvailableProcedure],
+      },
+    });
+    vi.mocked(gateway.updatePaymentGroupWithProcedures).mockResolvedValue({
+      success: true,
+      data: makePayment(),
+    });
+
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useEditFundPaymentModal(makePayment(), onClose));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.handleProceduresAdded([mockAvailableProcedure]));
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as React.FormEvent);
+    });
+
+    expect(gateway.updatePaymentGroupWithProcedures).toHaveBeenCalledWith(
+      "group-1",
+      "2025-03-01",
+      expect.arrayContaining([mockCurrentProcedure, mockAvailableProcedure]),
+    );
   });
 
   it("handleSubmit shows error toast and does not call onClose on API failure", async () => {

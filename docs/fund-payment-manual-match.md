@@ -67,6 +67,8 @@ Un groupe devient verrouillé dès qu'une de ses actes atteint l'Étape 2 (cf. R
 
 **R19 — Ajout d'actes en modification (frontend + backend)** : Dans la modal d'édition, un bouton "Ajouter des actes" ouvre un sélecteur modal affichant toutes les actes en statut `Created` de la même caisse dont la `procedure_date` est inférieure ou égale à la date de paiement du groupe. Les actes déjà dans le groupe sont exclues. La sélection suit les mêmes effets qu'à la création (cf. R8) : statut `Reconciliated`, `confirmed_payment_date` et `actual_payment_amount` renseignés, montant total recalculé.
 
+**R20 — Récapitulatif permanent dans la modal d'édition (frontend)** : La modal d'édition affiche en permanence une barre de récapitulatif indiquant le nombre d'actes sélectionnées et le montant total correspondant (somme des `procedure_amount` des actes sélectionnées). Ce récapitulatif est mis à jour en temps réel à chaque ajout ou retrait d'acte.
+
 ---
 
 ## Workflow

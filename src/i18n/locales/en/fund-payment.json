@@ -46,15 +46,17 @@
   "edit": {
     "title": "Edit Payment Group",
     "fundLabel": "Fund",
+    "fundIdentifier": "Identifier",
     "paymentDateLabel": "Payment Date",
     "proceduresSelected_one": "{{count}} procedure selected",
     "proceduresSelected_other": "{{count}} procedures selected",
-    "noProcedures": "No procedures available",
+    "total": "Total",
+    "noProcedures": "No procedures in this group",
+    "addProcedures": "Add procedures",
     "cancel": "Cancel",
     "update": "Update",
     "success": "Payment group updated successfully",
     "sectionCurrent": "Current procedures",
-    "sectionAvailable": "Available procedures",
     "errorLoadProcedures": "Failed to load procedures: {{error}}",
     "errorLoadDetails": "Failed to load procedure details",
     "errorDateRequired": "Please enter a payment date",
@@ -74,6 +76,7 @@
     "reset": "Reset",
     "cancel": "Cancel",
     "creating": "Creating...",
-    "addProcedures": "Add Procedures ({{count}})"
+    "addProcedures": "Add Procedures ({{count}})",
+    "errorLoad": "Failed to load available procedures"
   }
 }

@@ -46,15 +46,17 @@
   "edit": {
     "title": "Modifier le groupe de paiement",
     "fundLabel": "Caisse",
+    "fundIdentifier": "Identifiant",
     "paymentDateLabel": "Date de paiement",
     "proceduresSelected_one": "{{count}} acte sélectionné",
     "proceduresSelected_other": "{{count}} actes sélectionnés",
-    "noProcedures": "Aucun acte disponible",
+    "total": "Total",
+    "noProcedures": "Aucun acte dans ce groupe",
+    "addProcedures": "Ajouter des actes",
     "cancel": "Annuler",
     "update": "Mettre à jour",
     "success": "Groupe de paiement mis à jour avec succès",
     "sectionCurrent": "Actes en cours",
-    "sectionAvailable": "Actes disponibles",
     "errorLoadProcedures": "Échec du chargement des actes : {{error}}",
     "errorLoadDetails": "Échec du chargement des détails des actes",
     "errorDateRequired": "Veuillez saisir une date de paiement",
@@ -74,6 +76,7 @@
     "reset": "Réinitialiser",
     "cancel": "Annuler",
     "creating": "Création...",
-    "addProcedures": "Ajouter les actes ({{count}})"
+    "addProcedures": "Ajouter les actes ({{count}})",
+    "errorLoad": "Échec du chargement des actes disponibles"
   }
 }
