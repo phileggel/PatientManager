@@ -143,6 +143,19 @@ impl BankManualMatchOrchestrator {
         new_transfer_date: String,
         new_group_ids: Vec<String>,
     ) -> anyhow::Result<BankManualMatchResult> {
+        // R4 — Immutable type guard: must be a FUND transfer (checked before any mutation).
+        let transfer = self
+            .bank_transfer_service
+            .read_transfer(&transfer_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?;
+        anyhow::ensure!(
+            transfer.transfer_type == BankTransferType::Fund,
+            "R4: transfer {} has type {:?}, not FUND — use update_direct_transfer instead",
+            transfer_id,
+            transfer.transfer_type
+        );
+
         // Revert old groups
         let old_group_ids = self
             .transfer_link_repo
@@ -154,12 +167,6 @@ impl BankManualMatchOrchestrator {
 
         // Update transfer date and amount
         let total_amount = self.compute_fund_groups_amount(&new_group_ids).await?;
-        let transfer = self
-            .bank_transfer_service
-            .read_transfer(&transfer_id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?;
-
         let confirmed_date = parse_date(&new_transfer_date)?;
 
         let updated = crate::context::bank::BankTransfer::with_id(
@@ -193,6 +200,20 @@ impl BankManualMatchOrchestrator {
 
     /// R8 — Delete a FUND transfer: hard-delete transfer, revert all linked groups (Active).
     pub async fn delete_fund_transfer(&self, transfer_id: String) -> anyhow::Result<()> {
+        // R4 — Immutable type guard (guard only — transfer not reused after this check).
+        let transfer_type = self
+            .bank_transfer_service
+            .read_transfer(&transfer_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?
+            .transfer_type;
+        anyhow::ensure!(
+            transfer_type == BankTransferType::Fund,
+            "R4: transfer {} has type {:?}, not FUND — use delete_direct_transfer instead",
+            transfer_id,
+            transfer_type
+        );
+
         let group_ids = self
             .transfer_link_repo
             .get_fund_group_ids(&transfer_id)
@@ -296,6 +317,18 @@ impl BankManualMatchOrchestrator {
         new_transfer_date: String,
         new_procedure_ids: Vec<String>,
     ) -> anyhow::Result<BankManualMatchResult> {
+        // R4 — Immutable type guard: must not be a FUND transfer (checked before any mutation).
+        let transfer = self
+            .bank_transfer_service
+            .read_transfer(&transfer_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?;
+        anyhow::ensure!(
+            transfer.transfer_type != BankTransferType::Fund,
+            "R4: transfer {} is a FUND transfer — use update_fund_transfer instead",
+            transfer_id
+        );
+
         // Revert old procedures
         let old_procedure_ids = self
             .transfer_link_repo
@@ -306,12 +339,6 @@ impl BankManualMatchOrchestrator {
 
         // Update transfer amount and date
         let total_amount = self.compute_procedures_amount(&new_procedure_ids).await?;
-        let transfer = self
-            .bank_transfer_service
-            .read_transfer(&transfer_id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?;
-
         let transfer_type = transfer.transfer_type;
         let confirmed_date = parse_date(&new_transfer_date)?;
         let payment_method = transfer_type_to_payment_method(transfer_type);
@@ -345,6 +372,19 @@ impl BankManualMatchOrchestrator {
 
     /// R16 — Delete a direct transfer: hard-delete, revert all linked procedures to Created.
     pub async fn delete_direct_transfer(&self, transfer_id: String) -> anyhow::Result<()> {
+        // R4 — Immutable type guard (guard only — transfer not reused after this check).
+        let transfer_type = self
+            .bank_transfer_service
+            .read_transfer(&transfer_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?
+            .transfer_type;
+        anyhow::ensure!(
+            transfer_type != BankTransferType::Fund,
+            "R4: transfer {} is a FUND transfer — use delete_fund_transfer instead",
+            transfer_id
+        );
+
         let procedure_ids = self
             .transfer_link_repo
             .get_procedure_ids(&transfer_id)
@@ -1248,6 +1288,196 @@ mod tests {
         assert!(
             candidates.is_empty(),
             "Unknown procedure IDs should return empty list"
+        );
+
+        Ok(())
+    }
+
+    // ======================================================================
+    // R4 — Immutable transfer type guards
+    // ======================================================================
+
+    /// R4 — update_fund_transfer rejects a direct (CHECK) transfer ID.
+    #[tokio::test]
+    async fn test_r4_update_fund_transfer_rejects_direct_transfer() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, _, proc_type_id) = seed_base(&pool).await;
+        let (orchestrator, _, _) = make_components(&pool);
+
+        // Create a CHECK transfer via direct path
+        let proc_id = seed_procedure(
+            &pool,
+            &patient_id,
+            &proc_type_id,
+            "2026-03-10",
+            "CREATED",
+            120_000,
+        )
+        .await;
+        let result = orchestrator
+            .create_direct_transfer(
+                "cash-account-default".to_string(),
+                "2026-03-10".to_string(),
+                BankTransferType::Check,
+                vec![proc_id],
+            )
+            .await?;
+
+        // Attempt to update it as a FUND transfer — must fail
+        let err = orchestrator
+            .update_fund_transfer(result.transfer_id, "2026-03-11".to_string(), vec![])
+            .await;
+
+        assert!(
+            err.is_err(),
+            "Expected error when calling update_fund_transfer on a CHECK transfer"
+        );
+        let msg = err.unwrap_err().to_string();
+        assert!(
+            msg.contains("R4"),
+            "Error message should reference R4: {msg}"
+        );
+
+        Ok(())
+    }
+
+    /// R4 — update_direct_transfer rejects a FUND transfer ID.
+    #[tokio::test]
+    async fn test_r4_update_direct_transfer_rejects_fund_transfer() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let (orchestrator, _, _) = make_components(&pool);
+
+        // Create a FUND transfer
+        let proc_id = seed_procedure(
+            &pool,
+            &patient_id,
+            &proc_type_id,
+            "2026-03-10",
+            "RECONCILIATED",
+            150_000,
+        )
+        .await;
+        let group_id = seed_fund_group(
+            &pool,
+            &fund_id,
+            "2026-03-10",
+            150_000,
+            std::slice::from_ref(&proc_id),
+            "ACTIVE",
+        )
+        .await;
+        let result = orchestrator
+            .create_fund_transfer(
+                "cash-account-default".to_string(),
+                "2026-03-10".to_string(),
+                vec![group_id],
+            )
+            .await?;
+
+        // Attempt to update it as a direct transfer — must fail
+        let err = orchestrator
+            .update_direct_transfer(result.transfer_id, "2026-03-11".to_string(), vec![])
+            .await;
+
+        assert!(
+            err.is_err(),
+            "Expected error when calling update_direct_transfer on a FUND transfer"
+        );
+        let msg = err.unwrap_err().to_string();
+        assert!(
+            msg.contains("R4"),
+            "Error message should reference R4: {msg}"
+        );
+
+        Ok(())
+    }
+
+    /// R4 — delete_fund_transfer rejects a direct (CHECK) transfer ID.
+    #[tokio::test]
+    async fn test_r4_delete_fund_transfer_rejects_direct_transfer() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, _, proc_type_id) = seed_base(&pool).await;
+        let (orchestrator, _, _) = make_components(&pool);
+
+        let proc_id = seed_procedure(
+            &pool,
+            &patient_id,
+            &proc_type_id,
+            "2026-03-10",
+            "CREATED",
+            120_000,
+        )
+        .await;
+        let result = orchestrator
+            .create_direct_transfer(
+                "cash-account-default".to_string(),
+                "2026-03-10".to_string(),
+                BankTransferType::Check,
+                vec![proc_id],
+            )
+            .await?;
+
+        let err = orchestrator.delete_fund_transfer(result.transfer_id).await;
+
+        assert!(
+            err.is_err(),
+            "Expected error when calling delete_fund_transfer on a CHECK transfer"
+        );
+        let msg = err.unwrap_err().to_string();
+        assert!(
+            msg.contains("R4"),
+            "Error message should reference R4: {msg}"
+        );
+
+        Ok(())
+    }
+
+    /// R4 — delete_direct_transfer rejects a FUND transfer ID.
+    #[tokio::test]
+    async fn test_r4_delete_direct_transfer_rejects_fund_transfer() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let (orchestrator, _, _) = make_components(&pool);
+
+        let proc_id = seed_procedure(
+            &pool,
+            &patient_id,
+            &proc_type_id,
+            "2026-03-10",
+            "RECONCILIATED",
+            150_000,
+        )
+        .await;
+        let group_id = seed_fund_group(
+            &pool,
+            &fund_id,
+            "2026-03-10",
+            150_000,
+            std::slice::from_ref(&proc_id),
+            "ACTIVE",
+        )
+        .await;
+        let result = orchestrator
+            .create_fund_transfer(
+                "cash-account-default".to_string(),
+                "2026-03-10".to_string(),
+                vec![group_id],
+            )
+            .await?;
+
+        let err = orchestrator
+            .delete_direct_transfer(result.transfer_id)
+            .await;
+
+        assert!(
+            err.is_err(),
+            "Expected error when calling delete_direct_transfer on a FUND transfer"
+        );
+        let msg = err.unwrap_err().to_string();
+        assert!(
+            msg.contains("R4"),
+            "Error message should reference R4: {msg}"
         );
 
         Ok(())
