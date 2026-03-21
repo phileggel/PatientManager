@@ -139,7 +139,6 @@
     "edit": {
       "title": "Edit Bank Transfer",
       "update": "Update",
-      "sourceHint": "Use format: fund_xxxxx for funds or patient_xxx for patients",
       "success": "Bank transfer updated successfully",
       "error": "Failed to update bank transfer",
       "errorUnknown": "An unexpected error occurred",
