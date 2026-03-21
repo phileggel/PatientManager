@@ -30,6 +30,8 @@ export function SelectFundGroupsPanel({
   const [loading, setLoading] = useState(false);
   // Track which date has been "expanded" — resets automatically when transferDate changes
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  // R12 — fund filter input, only active in expanded mode
+  const [fundFilter, setFundFilter] = useState("");
 
   // Refs to avoid stale closures in the fetch effect
   const selectedGroupIdsRef = useRef(selectedGroupIds);
@@ -39,6 +41,10 @@ export function SelectFundGroupsPanel({
 
   const getFundName = (fundId: string): string =>
     funds.find((f) => f.id === fundId)?.name ?? fundId;
+
+  useEffect(() => {
+    logger.info("[SelectFundGroupsPanel] mounted");
+  }, []);
 
   // Merge current groups into the map so their totals are available for selection computation
   useEffect(() => {
@@ -96,7 +102,22 @@ export function SelectFundGroupsPanel({
 
   // Exclude current groups from candidates to avoid duplicate rows
   const currentGroupIds = new Set(currentGroups?.map((g) => g.group_id) ?? []);
-  const filteredCandidates = candidates.filter((c) => !currentGroupIds.has(c.group_id));
+
+  // R12 — when expanded: filter by fund name/identifier and sort by payment_date DESC
+  const withoutCurrent = candidates.filter((c) => !currentGroupIds.has(c.group_id));
+  const filteredCandidates = isExpanded
+    ? withoutCurrent
+        .filter((c) => {
+          if (!fundFilter.trim()) return true;
+          const query = fundFilter.trim().toLowerCase();
+          const fund = funds.find((f) => f.id === c.fund_id);
+          return (
+            fund?.name.toLowerCase().includes(query) ||
+            fund?.fund_identifier.toLowerCase().includes(query)
+          );
+        })
+        .sort((a, b) => b.payment_date.localeCompare(a.payment_date))
+    : withoutCurrent;
 
   return (
     <div className="flex flex-col gap-2">
@@ -135,6 +156,17 @@ export function SelectFundGroupsPanel({
             ))}
           </div>
         </div>
+      )}
+
+      {/* R12 — fund filter input, shown only in expanded mode */}
+      {isExpanded && (
+        <input
+          type="text"
+          value={fundFilter}
+          onChange={(e) => setFundFilter(e.target.value)}
+          placeholder={t("transfer.selectGroups.filterPlaceholder")}
+          className="w-full px-3 py-2 text-sm border border-neutral-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-50"
+        />
       )}
 
       {loading ? (
@@ -177,7 +209,10 @@ export function SelectFundGroupsPanel({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => setExpandedDate(transferDate)}
+          onClick={() => {
+            setFundFilter("");
+            setExpandedDate(transferDate);
+          }}
           icon={<Search size={14} />}
         >
           {t("transfer.selectGroups.expand")}
