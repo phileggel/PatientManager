@@ -47,7 +47,7 @@ export function ValidationSummaryCard({
 
   return (
     <section
-      className="rounded border border-neutral-20 bg-neutral-5 p-4"
+      className="rounded-xl bg-neutral-5 p-4"
       aria-label={t("validation.summaryTitle", { type: displayName })}
     >
       <h3 className="mb-4 font-medium text-neutral-90">
@@ -57,9 +57,9 @@ export function ValidationSummaryCard({
       <div className="grid grid-cols-3 gap-3">
         {/* Valid - Success color */}
         {validCount > 0 && (
-          <div className="rounded bg-success-10 p-3">
+          <div className="rounded-xl bg-m3-tertiary-container/30 p-3">
             <p className="text-sm text-neutral-70">{t("validation.valid")}</p>
-            <p className="mt-1 text-2xl font-bold text-success-70">{validCount}</p>
+            <p className="mt-1 text-2xl font-bold text-m3-on-tertiary-container">{validCount}</p>
             {total > 0 && (
               <p className="mt-1 text-xs text-neutral-60">
                 {t("validation.percentOfTotal", { percent: percentValid })}
@@ -70,9 +70,11 @@ export function ValidationSummaryCard({
 
         {/* Existing - Warning color */}
         {existingCount > 0 && (
-          <div className="rounded bg-warning-20 p-3">
+          <div className="rounded-xl bg-m3-secondary-container/30 p-3">
             <p className="text-sm text-neutral-70">{t("validation.existing")}</p>
-            <p className="mt-1 text-2xl font-bold text-warning-90">{existingCount}</p>
+            <p className="mt-1 text-2xl font-bold text-m3-on-secondary-container">
+              {existingCount}
+            </p>
             {total > 0 && (
               <p className="mt-1 text-xs text-neutral-60">
                 {t("validation.percentOfTotal", { percent: percentExisting })}
@@ -83,9 +85,9 @@ export function ValidationSummaryCard({
 
         {/* Invalid - Error color */}
         {invalidCount > 0 && (
-          <div className="rounded bg-error-20 p-3">
+          <div className="rounded-xl bg-m3-error-container/30 p-3">
             <p className="text-sm text-neutral-70">{t("validation.invalid")}</p>
-            <p className="mt-1 text-2xl font-bold text-error-70">{invalidCount}</p>
+            <p className="mt-1 text-2xl font-bold text-m3-on-error-container">{invalidCount}</p>
             {total > 0 && (
               <p className="mt-1 text-xs text-neutral-60">
                 {t("validation.percentOfTotal", { percent: percentInvalid })}
@@ -96,12 +98,12 @@ export function ValidationSummaryCard({
       </div>
 
       {/* Summary text */}
-      <div className="mt-4 border-t border-neutral-20 pt-3 text-sm text-neutral-70">
+      <div className="mt-4 pt-3 text-sm text-neutral-70">
         <p>
           {validCount > 0 && `${t("validation.willProcess", { count: validCount })} `}
           {existingCount > 0 && `${t("validation.alreadyInDb", { count: existingCount })} `}
           {invalidCount > 0 && (
-            <span className="text-error-70">
+            <span className="text-m3-error">
               {t("validation.hasErrors", { count: invalidCount })}
             </span>
           )}

@@ -65,13 +65,32 @@
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "monthsSelected": "months selected",
-    "continue": "Continue"
+    "continue": "Continue",
+    "months": {
+      "01": "January",
+      "02": "February",
+      "03": "March",
+      "04": "April",
+      "05": "May",
+      "06": "June",
+      "07": "July",
+      "08": "August",
+      "09": "September",
+      "10": "October",
+      "11": "November",
+      "12": "December"
+    }
   },
   "result": {
     "title": "Import completed successfully!",
     "patientsProcessed": "Patients processed",
     "fundsProcessed": "Funds processed",
     "proceduresCreated": "Procedures created",
+    "createdReused": "{{created}} created · {{reused}} reused",
+    "deletedBeforeReimport_one": "{{count}} deleted before reimport",
+    "deletedBeforeReimport_other": "{{count}} deleted before reimport",
+    "skipped_one": "{{count}} skipped",
+    "skipped_other": "{{count}} skipped",
     "blockedMonthsTitle": "Months not imported (reconciliated procedures)",
     "importAnother": "Import another file",
     "viewReport": "View parsing report"

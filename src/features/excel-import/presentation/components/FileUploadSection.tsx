@@ -77,18 +77,18 @@ export function FileUploadSection({ onFileSelect, isLoading }: FileUploadSection
   };
 
   return (
-    <div className="mb-8 p-6 bg-neutral-5 rounded-lg border border-neutral-20">
-      <h2 className="text-xl font-semibold text-neutral-80 mb-4">{t("step1.title")}</h2>
+    <div className="mb-8 p-6 bg-m3-surface-container-low rounded-xl">
+      <h2 className="text-xl font-semibold text-m3-on-surface mb-4">{t("step1.title")}</h2>
 
       <section
         aria-label={t("dropzone.ariaLabel")}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+        className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
           isDragActive
-            ? "border-primary-60 bg-primary-10"
-            : "border-neutral-30 bg-white hover:border-primary-60 hover:bg-primary-5"
+            ? "border-m3-primary bg-m3-primary-container/20"
+            : "border-m3-outline-variant bg-m3-surface hover:border-m3-primary/50 hover:bg-m3-surface-variant/20"
         }`}
       >
         <div className="mb-4">

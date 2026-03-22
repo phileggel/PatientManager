@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
 import * as procedureTypeGateway from "@/features/procedure-type/gateway";
 import { logger } from "@/lib/logger";
-import { Button, FormModal } from "@/ui/components";
+import { AmountField, Button, FormModal, TextField } from "@/ui/components";
 
 interface CreateProcedureTypeModalProps {
   isOpen: boolean;
@@ -107,40 +107,28 @@ export function CreateProcedureTypeModal({
       }
     >
       {error && (
-        <div className="p-3 bg-error-20 border border-error-30 rounded text-error-70 text-sm">
+        <div className="p-3 bg-m3-error-container rounded-xl text-m3-on-error-container text-sm">
           {error}
         </div>
       )}
 
-      <div>
-        <label htmlFor="type-name" className="block text-sm font-medium text-neutral-90 mb-2">
-          {t("createTypeModal.nameLabel")}
-        </label>
-        <input
-          id="type-name"
-          type="text"
-          value={newTypeName}
-          onChange={(e) => setNewTypeName(e.target.value)}
-          placeholder={t("createTypeModal.namePlaceholder")}
-          className="w-full px-3 py-2 border border-neutral-30 rounded text-neutral-90 text-sm focus:outline-none focus:ring-2 focus:ring-primary-60"
-          disabled={isCreatingType}
-        />
-      </div>
+      <TextField
+        id="type-name"
+        label={t("createTypeModal.nameLabel")}
+        type="text"
+        value={newTypeName}
+        onChange={(e) => setNewTypeName(e.target.value)}
+        placeholder={t("createTypeModal.namePlaceholder")}
+        disabled={isCreatingType}
+      />
 
-      <div>
-        <label htmlFor="type-amount" className="block text-sm font-medium text-neutral-90 mb-2">
-          {t("createTypeModal.amountLabel")}
-        </label>
-        <input
-          id="type-amount"
-          type="number"
-          step="0.01"
-          value={newTypeDefaultAmount}
-          onChange={(e) => setNewTypeDefaultAmount(parseFloat(e.target.value) || 0)}
-          className="w-full px-3 py-2 border border-neutral-30 rounded text-neutral-90 text-sm focus:outline-none focus:ring-2 focus:ring-primary-60"
-          disabled={isCreatingType}
-        />
-      </div>
+      <AmountField
+        id="type-amount"
+        label={t("createTypeModal.amountLabel")}
+        value={newTypeDefaultAmount}
+        onChange={(v) => setNewTypeDefaultAmount(v ?? 0)}
+        disabled={isCreatingType}
+      />
     </FormModal>
   );
 }
