@@ -11,6 +11,7 @@ import { X } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { PaymentMethod, Procedure } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import {
   AmountField,
@@ -43,6 +44,7 @@ export function ProcedureFormModal({
 }: ProcedureFormModalProps) {
   const { t } = useTranslation("procedure");
   const { t: tc } = useTranslation("common");
+  const { formatCurrency } = useFormatters();
 
   useEffect(() => {
     logger.info("[ProcedureFormModal] Mounted");
@@ -306,7 +308,7 @@ export function ProcedureFormModal({
                   <TextField
                     id="readonlyActualAmount"
                     label={t("modal.paidAmount")}
-                    value={`€${((procedure.actual_payment_amount ?? 0) / 1000).toFixed(2)}`}
+                    value={formatCurrency(procedure.actual_payment_amount ?? 0)}
                     readOnly
                   />
                 </div>
@@ -316,7 +318,7 @@ export function ProcedureFormModal({
         </form>
 
         {/* Footer */}
-        <div className="flex gap-3 p-5">
+        <div className="flex gap-3 p-5 bg-m3-surface-container-low">
           <Button
             type="button"
             onClick={onClose}

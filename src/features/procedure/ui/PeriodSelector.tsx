@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { CompactSelectField, IconButton } from "@/ui/components";
 import { getMonthName } from "../model/date.logic";
 
 interface PeriodSelectorProps {
@@ -45,58 +46,64 @@ export function PeriodSelector({
   return (
     <div className="flex items-center gap-4">
       <div className="flex items-center gap-2">
-        <label htmlFor="month-selector" className="text-sm font-medium text-m3-primary">
+        <label
+          htmlFor="month-selector"
+          className="text-sm font-medium text-m3-primary whitespace-nowrap"
+        >
           {t("period.month")}
         </label>
-        <select
+        <CompactSelectField
           id="month-selector"
           value={selectedMonth}
           onChange={(e) => onMonthChange(Number(e.target.value))}
-          className="rounded-xl border border-m3-outline bg-m3-surface px-3 py-2 text-sm text-m3-on-surface focus:border-m3-primary focus:outline-none focus:ring-1 focus:ring-m3-primary"
         >
           {months.map((month) => (
-            <option key={month} value={month}>
+            <option key={month} value={month} className="bg-m3-surface text-m3-on-surface">
               {getMonthName(month)}
             </option>
           ))}
-        </select>
+        </CompactSelectField>
       </div>
+
       <div className="flex items-center gap-2">
-        <label htmlFor="year-selector" className="text-sm font-medium text-m3-primary">
+        <label
+          htmlFor="year-selector"
+          className="text-sm font-medium text-m3-primary whitespace-nowrap"
+        >
           {t("period.year")}
         </label>
-        <select
+        <CompactSelectField
           id="year-selector"
           value={selectedYear}
           onChange={(e) => onYearChange(Number(e.target.value))}
-          className="rounded-xl border border-m3-outline bg-m3-surface px-3 py-2 text-sm text-m3-on-surface focus:border-m3-primary focus:outline-none focus:ring-1 focus:ring-m3-primary"
         >
           {years.map((year) => (
-            <option key={year} value={year}>
+            <option key={year} value={year} className="bg-m3-surface text-m3-on-surface">
               {year}
             </option>
           ))}
-        </select>
+        </CompactSelectField>
       </div>
+
       <div className="flex items-center gap-1">
-        <button
-          type="button"
+        <IconButton
+          variant="ghost"
+          shape="round"
+          size="sm"
+          aria-label={t("period.prevMonth")}
+          icon={<ChevronLeft size={18} />}
           onClick={() => navigateMonth(-1)}
           disabled={!canGoPrev}
-          className="p-1.5 rounded-xl text-m3-on-surface-variant hover:bg-m3-surface-container hover:text-m3-on-surface disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          aria-label={t("period.prevMonth")}
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <button
-          type="button"
+        />
+        <IconButton
+          variant="ghost"
+          shape="round"
+          size="sm"
+          aria-label={t("period.nextMonth")}
+          icon={<ChevronRight size={18} />}
           onClick={() => navigateMonth(1)}
           disabled={!canGoNext}
-          className="p-1.5 rounded-xl text-m3-on-surface-variant hover:bg-m3-surface-container hover:text-m3-on-surface disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          aria-label={t("period.nextMonth")}
-        >
-          <ChevronRight size={18} />
-        </button>
+        />
       </div>
     </div>
   );

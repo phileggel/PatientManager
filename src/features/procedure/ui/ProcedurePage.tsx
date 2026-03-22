@@ -124,7 +124,8 @@ export default function ProcedurePage() {
       toastService.show("success", t("state.deleted"));
       await reloadRows();
     } catch (err) {
-      toastService.show("error", err instanceof Error ? err.message : String(err));
+      logger.error(TAG, "Error deleting procedure", { error: err });
+      toastService.show("error", t("error.deleteFailed"));
     } finally {
       setPendingDeleteId(null);
     }
@@ -167,7 +168,10 @@ export default function ProcedurePage() {
   if (isLoading) {
     return (
       <div className="flex flex-1 min-h-0 items-center justify-center bg-m3-surface">
-        <div className="text-m3-on-surface-variant animate-pulse">{t("state.loading")}</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-m3-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-m3-on-surface-variant">{t("state.loading")}</p>
+        </div>
       </div>
     );
   }
@@ -211,7 +215,12 @@ export default function ProcedurePage() {
 
       {/* Full-width procedure list (R12) */}
       <PageContent>
-        <ProcedureList rows={filteredRows} onEdit={handleEdit} onDelete={handleDelete} />
+        <ProcedureList
+          rows={filteredRows}
+          isFiltered={searchTerm.trim().length > 0}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
       </PageContent>
 
       {/* FAB — open create modal (R12) */}
