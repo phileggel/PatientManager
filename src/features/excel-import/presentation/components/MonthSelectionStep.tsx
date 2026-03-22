@@ -3,24 +3,9 @@ import { useTranslation } from "react-i18next";
 import type { ParseExcelResponse } from "@/bindings";
 import { Button } from "@/ui/components/button";
 
-const FRENCH_MONTHS: Record<string, string> = {
-  "01": "Janvier",
-  "02": "Février",
-  "03": "Mars",
-  "04": "Avril",
-  "05": "Mai",
-  "06": "Juin",
-  "07": "Juillet",
-  "08": "Août",
-  "09": "Septembre",
-  "10": "Octobre",
-  "11": "Novembre",
-  "12": "Décembre",
-};
-
-function formatMonth(yearMonth: string): string {
+function formatMonth(yearMonth: string, t: (key: string) => string): string {
   const [year, month] = yearMonth.split("-");
-  const monthLabel = FRENCH_MONTHS[month ?? ""] ?? month;
+  const monthLabel = month ? t(`monthSelection.months.${month}`) : month;
   return `${monthLabel} ${year}`;
 }
 
@@ -73,9 +58,9 @@ export function MonthSelectionStep({ parsedData, onConfirm, isLoading }: MonthSe
         <p className="text-sm text-neutral-60 mt-1">{t("monthSelection.description")}</p>
       </div>
 
-      <div className="border border-neutral-20 rounded-lg overflow-hidden">
+      <div className="rounded-xl overflow-hidden bg-m3-surface-container-low">
         {/* Select all header */}
-        <div className="flex items-center gap-3 px-4 py-3 bg-neutral-5 border-b border-neutral-20">
+        <div className="flex items-center gap-3 px-4 py-3 bg-m3-surface-container">
           <input
             id="select-all"
             type="checkbox"
@@ -95,7 +80,7 @@ export function MonthSelectionStep({ parsedData, onConfirm, isLoading }: MonthSe
         </div>
 
         {/* Month list */}
-        <ul className="divide-y divide-neutral-10">
+        <ul className="flex flex-col">
           {availableMonths.map((month) => (
             <li key={month} className="flex items-center gap-3 px-4 py-3 hover:bg-neutral-5">
               <input
@@ -109,7 +94,7 @@ export function MonthSelectionStep({ parsedData, onConfirm, isLoading }: MonthSe
                 htmlFor={`month-${month}`}
                 className="text-sm text-neutral-80 cursor-pointer flex-1"
               >
-                {formatMonth(month)}
+                {formatMonth(month, t)}
               </label>
             </li>
           ))}

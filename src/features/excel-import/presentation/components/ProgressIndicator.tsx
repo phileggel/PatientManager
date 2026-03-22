@@ -46,14 +46,16 @@ export function ProgressIndicator({ currentStep, steps: customSteps }: ProgressI
   const currentIndex = getCurrentStepIndex();
 
   return (
-    <div className="mb-8 p-6 bg-neutral-5 rounded-lg border border-neutral-20">
+    <div className="mb-8 p-6 bg-m3-surface-container-low rounded-xl">
       <div className="flex items-center justify-between">
         {steps.map((step, index) => (
           <div key={step.key} className="flex items-center flex-1">
             {/* Step Circle */}
             <div
               className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm ${
-                index <= currentIndex ? "bg-primary-60 text-white" : "bg-neutral-20 text-neutral-60"
+                index <= currentIndex
+                  ? "bg-m3-primary text-m3-on-primary"
+                  : "bg-m3-surface-container-high text-m3-on-surface-variant"
               }`}
             >
               {index < currentIndex ? (
@@ -74,7 +76,7 @@ export function ProgressIndicator({ currentStep, steps: customSteps }: ProgressI
             <div className="ml-3 flex-1">
               <p
                 className={`text-sm font-semibold ${
-                  index <= currentIndex ? "text-primary-60" : "text-neutral-60"
+                  index <= currentIndex ? "text-m3-primary" : "text-m3-on-surface-variant"
                 }`}
               >
                 {step.label}
@@ -85,7 +87,7 @@ export function ProgressIndicator({ currentStep, steps: customSteps }: ProgressI
             {index < steps.length - 1 && (
               <div
                 className={`flex-1 h-1 mx-4 ${
-                  index < currentIndex ? "bg-primary-60" : "bg-neutral-20"
+                  index < currentIndex ? "bg-m3-primary" : "bg-m3-outline-variant"
                 }`}
               />
             )}

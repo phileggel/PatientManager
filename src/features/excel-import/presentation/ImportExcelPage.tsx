@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ImportExecutionResult, ParseExcelResponse } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
-import { ErrorAlertLegacy, FormModal } from "@/ui/components";
+import { FormModal } from "@/ui/components";
 import { Button } from "@/ui/components/button";
 import { executeExcelImport, parseExcelFile } from "../api/gateway";
 import { FileUploadSection } from "./components/FileUploadSection";
@@ -160,7 +160,7 @@ export function ImportExcelPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Fixed Progress Indicator */}
-      <div className="sticky top-0 z-10 bg-white">
+      <div className="sticky top-0 z-10 bg-m3-surface">
         <ProgressIndicator
           currentStep={currentStep}
           steps={[
@@ -177,18 +177,26 @@ export function ImportExcelPage() {
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-6 gap-6 flex flex-col">
         {error && (
-          <ErrorAlertLegacy
-            variant="error"
-            message={t("status.importFailed")}
-            description={error}
-            onRetry={currentFileData ? handleRetry : undefined}
-            retryLabel={t("status.retry")}
-            onDismiss={() => {
-              setError(null);
-              setCurrentStep("upload");
-            }}
-            dismissible
-          />
+          <div
+            className="p-4 bg-m3-error-container rounded-xl text-m3-on-error-container"
+            role="alert"
+            aria-live="polite"
+          >
+            <p className="font-medium">{t("status.importFailed")}</p>
+            <p className="text-sm mt-1 opacity-90">{error}</p>
+            <div className="flex gap-2 mt-3">
+              {currentFileData && <Button onClick={handleRetry}>{t("status.retry")}</Button>}
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setError(null);
+                  setCurrentStep("upload");
+                }}
+              >
+                {t("action.dismiss", { ns: "common" })}
+              </Button>
+            </div>
+          </div>
         )}
 
         {currentStep === "upload" && (
@@ -241,41 +249,48 @@ export function ImportExcelPage() {
 
         {currentStep === "complete" && importResult && (
           <div className="space-y-4">
-            <div className="p-4 bg-success-10 border border-success-30 rounded">
-              <p className="font-medium text-success-70">{t("result.title")}</p>
+            <div className="p-4 bg-m3-tertiary-container/20 rounded-xl">
+              <p className="font-medium text-m3-on-tertiary-container">{t("result.title")}</p>
               <div className="mt-4 grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-sm text-neutral-70">{t("result.patientsProcessed")}</p>
-                  <p className="text-2xl font-bold text-primary-60">
+                  <p className="text-2xl font-bold text-m3-primary">
                     {importResult.patients_created + importResult.patients_reused}
                   </p>
                   <p className="text-xs text-neutral-50">
-                    {importResult.patients_created} créés · {importResult.patients_reused}{" "}
-                    réutilisés
+                    {t("result.createdReused", {
+                      created: importResult.patients_created,
+                      reused: importResult.patients_reused,
+                    })}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-neutral-70">{t("result.fundsProcessed")}</p>
-                  <p className="text-2xl font-bold text-primary-60">
+                  <p className="text-2xl font-bold text-m3-primary">
                     {importResult.funds_created + importResult.funds_reused}
                   </p>
                   <p className="text-xs text-neutral-50">
-                    {importResult.funds_created} créés · {importResult.funds_reused} réutilisés
+                    {t("result.createdReused", {
+                      created: importResult.funds_created,
+                      reused: importResult.funds_reused,
+                    })}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-neutral-70">{t("result.proceduresCreated")}</p>
-                  <p className="text-2xl font-bold text-primary-60">
+                  <p className="text-2xl font-bold text-m3-primary">
                     {importResult.procedures_created}
                   </p>
                   {importResult.procedures_deleted > 0 && (
                     <p className="text-xs text-neutral-50">
-                      {importResult.procedures_deleted} supprimés avant réimport
+                      {t("result.deletedBeforeReimport", {
+                        count: importResult.procedures_deleted,
+                      })}
                     </p>
                   )}
                   {importResult.procedures_skipped > 0 && (
                     <p className="text-xs text-neutral-50">
-                      {importResult.procedures_skipped} ignorés
+                      {t("result.skipped", { count: importResult.procedures_skipped })}
                     </p>
                   )}
                 </div>
@@ -283,9 +298,11 @@ export function ImportExcelPage() {
             </div>
 
             {importResult.blocked_months.length > 0 && (
-              <div className="p-4 bg-warning-10 border border-warning-30 rounded">
-                <p className="font-medium text-warning-70">{t("result.blockedMonthsTitle")}</p>
-                <p className="text-sm text-warning-60 mt-1">
+              <div className="p-4 bg-m3-secondary-container/20 rounded-xl">
+                <p className="font-medium text-m3-on-secondary-container">
+                  {t("result.blockedMonthsTitle")}
+                </p>
+                <p className="text-sm text-m3-on-secondary-container/80 mt-1">
                   {importResult.blocked_months.join(", ")}
                 </p>
               </div>
@@ -307,8 +324,8 @@ export function ImportExcelPage() {
           currentStep !== "month_selection" &&
           currentStep !== "mapping_procedure_types" &&
           isLoading && (
-            <div className="rounded bg-primary-10 p-4 text-center">
-              <p className="text-primary-60">{loadingStatus || t("status.parsing")}</p>
+            <div className="rounded-xl bg-m3-primary/10 p-4 text-center">
+              <p className="text-m3-primary">{loadingStatus || t("status.parsing")}</p>
             </div>
           )}
       </div>

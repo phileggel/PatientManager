@@ -65,13 +65,32 @@
     "selectAll": "Tout sélectionner",
     "deselectAll": "Tout désélectionner",
     "monthsSelected": "mois sélectionnés",
-    "continue": "Continuer"
+    "continue": "Continuer",
+    "months": {
+      "01": "Janvier",
+      "02": "Février",
+      "03": "Mars",
+      "04": "Avril",
+      "05": "Mai",
+      "06": "Juin",
+      "07": "Juillet",
+      "08": "Août",
+      "09": "Septembre",
+      "10": "Octobre",
+      "11": "Novembre",
+      "12": "Décembre"
+    }
   },
   "result": {
     "title": "Import réussi !",
     "patientsProcessed": "Patients traités",
     "fundsProcessed": "Caisses traitées",
     "proceduresCreated": "Actes créés",
+    "createdReused": "{{created}} créés · {{reused}} réutilisés",
+    "deletedBeforeReimport_one": "{{count}} supprimé avant réimport",
+    "deletedBeforeReimport_other": "{{count}} supprimés avant réimport",
+    "skipped_one": "{{count}} ignoré",
+    "skipped_other": "{{count}} ignorés",
     "blockedMonthsTitle": "Mois non importés (actes rapprochés)",
     "importAnother": "Importer un autre fichier",
     "viewReport": "Voir le rapport d'analyse"

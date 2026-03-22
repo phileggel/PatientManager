@@ -129,16 +129,16 @@ export function ProcedureTypeMappingStep({
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-primary-10 border border-primary-20 rounded">
-        <h3 className="font-semibold text-primary-70">{t("mapping.infoTitle")}</h3>
-        <p className="text-sm text-primary-60 mt-2">{t("mapping.infoDescription")}</p>
+      <div className="p-4 bg-m3-primary/10 rounded-xl">
+        <h3 className="font-semibold text-m3-primary">{t("mapping.infoTitle")}</h3>
+        <p className="text-sm text-m3-on-surface-variant mt-2">{t("mapping.infoDescription")}</p>
       </div>
 
       {/* Mapping table */}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-neutral-20 border-b border-neutral-30">
+            <tr className="bg-m3-surface-container-high">
               <th className="px-4 py-3 text-left font-semibold text-neutral-90">
                 {t("mapping.amount")}
               </th>
@@ -152,10 +152,7 @@ export function ProcedureTypeMappingStep({
               const mappedTypeId = mapping[procMapping.tmp_id] || IMPORTED_FROM_EXCEL_ID;
 
               return (
-                <tr
-                  key={procMapping.tmp_id}
-                  className="border-b border-neutral-20 hover:bg-neutral-5"
-                >
+                <tr key={procMapping.tmp_id} className="hover:bg-m3-surface-variant/20">
                   <td className="px-4 py-3 font-mono text-neutral-90">
                     {(procMapping.amount / 1000).toFixed(2)} €
                   </td>
@@ -170,7 +167,7 @@ export function ProcedureTypeMappingStep({
                             e.target.value,
                           )
                         }
-                        className="flex-1 px-3 py-2 border border-neutral-30 rounded bg-white text-neutral-90 text-sm focus:outline-none focus:ring-2 focus:ring-primary-60"
+                        className="flex-1 px-3 py-2 border border-m3-outline-variant rounded-xl bg-m3-surface text-m3-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-m3-primary/30"
                         disabled={isLoading || showNewTypeModal !== null}
                       >
                         <option value={IMPORTED_FROM_EXCEL_ID}>
