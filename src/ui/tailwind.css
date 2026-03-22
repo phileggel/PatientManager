@@ -416,7 +416,7 @@
   .btn {
     @apply inline-flex items-center justify-center gap-2;
     @apply px-6 py-2 h-10;
-    @apply border-none rounded;
+    @apply border-none rounded-xl;
     @apply text-sm font-medium tracking-wide;
     @apply cursor-pointer;
     @apply transition-all duration-150 ease-out;
@@ -436,11 +436,11 @@
   }
 
   .btn-primary {
-    @apply bg-primary-60 text-white;
+    @apply bg-linear-to-br from-m3-primary to-m3-primary-container text-m3-on-primary;
   }
 
   .btn-primary:hover:not(:disabled) {
-    @apply bg-primary-80;
+    @apply from-m3-primary/90 to-m3-primary-container/90;
   }
 
   .btn-secondary {
@@ -507,13 +507,8 @@
   }
 
   .m3-button-filled {
-    background-color: var(--color-m3-primary);
-    color: var(--color-m3-on-primary);
-    padding: 0.625rem 1.5rem;
-    border-radius: 9999px;
-    font-weight: 500;
-    font-size: 0.875rem;
-    transition: all 0.2s;
+    @apply bg-linear-to-br from-m3-primary to-m3-primary-container text-m3-on-primary;
+    @apply rounded-xl px-6 py-2.5 font-medium text-sm transition-all duration-200;
   }
 
   .m3-button-filled:hover {
@@ -652,6 +647,25 @@
 
   .h-titlebar {
     height: var(--titlebar-height);
+  }
+
+  /* Thin M3-tinted scrollbar */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-m3-outline-variant) transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-m3-outline-variant);
+    border-radius: 3px;
   }
 }
 

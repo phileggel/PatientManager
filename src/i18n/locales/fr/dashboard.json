@@ -4,6 +4,7 @@
   "noDataYear": "Pas de données pour {{year}}",
   "error": "Erreur",
   "loadFailed": "Impossible de charger les données du tableau de bord",
+  "reloadFailed": "Impossible de rafraîchir les données du tableau de bord",
   "year": "Année :",
   "title": "Tableau de Bord",
   "payments": "Paiements {{year}}",

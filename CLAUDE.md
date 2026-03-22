@@ -21,8 +21,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. CRITICAL: ask user to validate. If changes, go back to step 3 with the adapted plan.
 5. Implementation
 6. Test & Lint `./scripts/check.sh`
-7. Run the `reviewer` subagent → fix any critical, ask for warning issues → **re-run until 0 critical**
-7b. If any `.tsx` file was modified → run `ux-reviewer` subagent → fix any critical, ask for warning issues → **re-run until 0 critical**
+7. Run the `reviewer` subagent → **show the full report to the user** → ask which issues to tackle → fix selected issues → re-run until 0 critical
+7b. If any `.tsx` file was modified → run `ux-reviewer` subagent → **show the full report to the user** → ask which issues to tackle → fix selected issues → re-run until 0 critical
 8. If frontend text was added/changed → run `i18n-checker` subagent
 9. If tests are missing → write them directly (backend: Rust `#[cfg(test)]` inline, frontend: `.test.ts` colocated) — follow `/docs/testing.md`
 10. Update documentation:

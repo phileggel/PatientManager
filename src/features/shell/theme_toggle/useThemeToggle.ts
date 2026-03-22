@@ -53,7 +53,7 @@ export function useThemeToggle() {
   const cycle = useCallback(() => {
     setMode((prev) => {
       const idx = CYCLE.indexOf(prev);
-      const next = CYCLE[(idx + 1) % CYCLE.length]!;
+      const next = CYCLE[(idx + 1) % CYCLE.length] ?? "day";
       localStorage.setItem(STORAGE_KEY, next);
       logger.info(TAG, "theme mode changed", { mode: next });
       return next;
