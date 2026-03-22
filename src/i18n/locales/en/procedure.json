@@ -51,11 +51,18 @@
     "none": "—",
     "created": "Created",
     "reconciliated": "Reconciled",
+    "partially_reconciled": "Partially Reconciled",
+    "directly_payed": "Directly Paid",
+    "fund_payed": "Fund Paid",
+    "partially_fund_payed": "Partially Fund Paid",
+    "import_directly_payed": "Imported (Direct)",
+    "import_fund_payed": "Imported (Fund)",
     "payed": "Paid"
   },
   "filter": {
     "placeholder": "Filter by patient...",
-    "emptySearch": "No results matching your search"
+    "emptySearch": "No results matching your search",
+    "allStatuses": "All statuses"
   },
   "period": {
     "month": "Month:",

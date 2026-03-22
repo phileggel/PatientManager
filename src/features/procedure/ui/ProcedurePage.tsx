@@ -5,7 +5,7 @@ import type { Procedure, ProcedureStatus } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 import { PageContent } from "@/features/shell";
 import { logger } from "@/lib/logger";
-import { ConfirmationDialog, FAB, SearchField } from "@/ui/components";
+import { CompactSelectField, ConfirmationDialog, FAB, SearchField } from "@/ui/components";
 import * as gateway from "../api/gateway";
 import { useProcedureData } from "../hooks/useProcedureData";
 import { useProcedurePeriod } from "../hooks/useProcedurePeriod";
@@ -39,6 +39,7 @@ export default function ProcedurePage() {
   });
   const [rows, setRows] = useState<ProcedureRow[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
 
   // Modal state
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
@@ -67,16 +68,27 @@ export default function ProcedurePage() {
     selectedYear,
   );
 
-  // Apply search filter on top of period filter (R11)
+  // Apply search + status filters on top of period filter (R11)
   const filteredRows = useMemo(() => {
+    let result = periodFilteredRows;
+
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return periodFilteredRows;
-    return periodFilteredRows.filter(
-      (row) =>
-        (row.patientName?.toLowerCase().includes(term) ?? false) ||
-        (row.status?.toLowerCase().includes(term) ?? false),
-    );
-  }, [periodFilteredRows, searchTerm]);
+    if (term) {
+      result = result.filter(
+        (row) =>
+          (row.patientName?.toLowerCase().includes(term) ?? false) ||
+          (row.procedureName?.toLowerCase().includes(term) ?? false) ||
+          (row.fundName?.toLowerCase().includes(term) ?? false) ||
+          (row.ssn?.toLowerCase().includes(term) ?? false),
+      );
+    }
+
+    if (selectedStatus) {
+      result = result.filter((row) => (row.status?.toUpperCase() ?? "NONE") === selectedStatus);
+    }
+
+    return result;
+  }, [periodFilteredRows, searchTerm, selectedStatus]);
 
   const openCreateModal = useCallback(() => {
     setModalMode("create");
@@ -200,13 +212,34 @@ export default function ProcedurePage() {
               onMonthChange={setSelectedMonth}
               onYearChange={setSelectedYear}
             />
-            <div className="w-64">
-              <SearchField
-                id="procedure-search"
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder={t("filter.placeholder")}
-              />
+            <CompactSelectField
+              id="status-filter"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+            >
+              <option value="">{t("filter.allStatuses")}</option>
+              <option value="NONE">{t("status.none")}</option>
+              <option value="CREATED">{t("status.created")}</option>
+              <option value="RECONCILIATED">{t("status.reconciliated")}</option>
+              <option value="PARTIALLY_RECONCILED">{t("status.partially_reconciled")}</option>
+              <option value="DIRECTLY_PAYED">{t("status.directly_payed")}</option>
+              <option value="FUND_PAYED">{t("status.fund_payed")}</option>
+              <option value="PARTIALLY_FUND_PAYED">{t("status.partially_fund_payed")}</option>
+              <option value="IMPORT_DIRECTLY_PAYED">{t("status.import_directly_payed")}</option>
+              <option value="IMPORT_FUND_PAYED">{t("status.import_fund_payed")}</option>
+            </CompactSelectField>
+            <div className="flex items-center gap-3">
+              <label htmlFor="procedure-search" className="sr-only">
+                {t("filter.placeholder")}
+              </label>
+              <div className="w-56">
+                <SearchField
+                  id="procedure-search"
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder={t("filter.placeholder")}
+                />
+              </div>
             </div>
           </div>
           <SummaryStats rows={filteredRows} />
@@ -217,7 +250,7 @@ export default function ProcedurePage() {
       <PageContent>
         <ProcedureList
           rows={filteredRows}
-          isFiltered={searchTerm.trim().length > 0}
+          isFiltered={searchTerm.trim().length > 0 || selectedStatus !== ""}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
