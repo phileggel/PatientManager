@@ -6,24 +6,12 @@ import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
 import { DrawerToggle } from "./DrawerToggle";
+import type { Page } from "./types";
 
 interface DrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigate?: (
-    page:
-      | "dashboard"
-      | "patient"
-      | "funds"
-      | "procedures"
-      | "procedure-types"
-      | "excel-import"
-      | "fund-payment"
-      | "fund-payment-match"
-      | "bank-transfer"
-      | "bank-account"
-      | "bank-statement-match",
-  ) => void;
+  onNavigate?: (page: Page) => void;
   onShowInfo?: (message: string) => void;
 }
 
@@ -37,14 +25,13 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
     logger.info("[Drawer] Component mounted");
   }, []);
 
-  const close = onClose;
   const drawerRef = useRef<HTMLDivElement>(null);
   const firstFocusableRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
-        close();
+        onClose();
       }
     };
 
@@ -56,38 +43,38 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, close]);
+  }, [isOpen, onClose]);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      close();
+      onClose();
     }
   };
 
   const navigate = (page: Parameters<NonNullable<DrawerProps["onNavigate"]>>[0]) => {
     onNavigate?.(page);
-    close();
+    onClose();
   };
 
   const menuItemClasses = `
     w-full py-3 px-5 text-left
     border-none bg-transparent cursor-pointer
-    text-base font-normal text-neutral-90
+    text-base font-normal text-m3-on-surface
     transition-colors duration-150
-    hover:bg-neutral-20 hover:text-primary-60
-    focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-60 focus-visible:-outline-offset-2 focus-visible:bg-neutral-20
-    active:bg-neutral-30
+    hover:bg-m3-surface-container hover:text-m3-primary
+    focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary focus-visible:-outline-offset-2 focus-visible:bg-m3-surface-container
+    active:bg-m3-surface-container-high
     sm:py-3.5 sm:px-4
   `;
 
   const subMenuItemClasses = `
     w-full py-2.5 pl-9 pr-5 text-left
     border-none bg-transparent cursor-pointer
-    text-sm font-normal text-neutral-70
+    text-sm font-normal text-m3-on-surface-variant
     transition-colors duration-150
-    hover:bg-neutral-20 hover:text-primary-60
-    focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-60 focus-visible:-outline-offset-2 focus-visible:bg-neutral-20
-    active:bg-neutral-30
+    hover:bg-m3-surface-container hover:text-m3-primary
+    focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary focus-visible:-outline-offset-2 focus-visible:bg-m3-surface-container
+    active:bg-m3-surface-container-high
     sm:py-3 sm:pl-9
   `;
 
@@ -121,7 +108,7 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-1000 animate-[fadeIn_200ms_ease-out]"
+          className="fixed inset-0 bg-m3-scrim/50 z-1000 animate-[fadeIn_200ms_ease-out]"
           onClick={handleOverlayClick}
           aria-hidden="true"
         />
@@ -133,20 +120,21 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
         ref={drawerRef}
         className={`
           fixed left-0 top-0 h-screen w-70
-          bg-surface z-1001
+          bg-m3-surface z-1001
           flex flex-col shadow-elevation-4
           transition-transform duration-200 ease-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
         `}
         role="dialog"
         aria-modal="true"
-        aria-label={t("nav.dashboard")}
+        aria-label={t("nav.openMenu")}
       >
-        {/* Branding Section */}
+        {/* Branding Section — uses fixed brand indigo gradient (header-from/to tokens,
+            not overridden in dark mode). text-white is always accessible on rich indigo. */}
         <div
           className="
-            bg-linear-to-br from-primary-60 to-primary-80
-            text-white px-8 border-b border-white/10
+            bg-linear-to-br from-header-from to-header-to
+            text-white px-8
             md:px-4
             relative
             flex items-center gap-4
@@ -154,10 +142,10 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
             h-app-bar
           "
         >
-          <DrawerToggle isOpen={isOpen} onToggle={close} />
+          <DrawerToggle isOpen={isOpen} onToggle={onClose} />
           <div className="flex-1">
-            <h2 className="mb-2 text-xl font-medium leading-tight tracking-wide">{APP_NAME}</h2>
-            <p className="text-xs font-normal opacity-90">v{APP_VERSION}</p>
+            <h2 className="text-base font-medium leading-tight tracking-wide">{APP_NAME}</h2>
+            <p className="text-xs font-normal opacity-90 mt-0.5">v{APP_VERSION}</p>
           </div>
         </div>
 
@@ -208,10 +196,8 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
               </button>
             </li>
 
-            {/* Separator */}
-            <li aria-hidden="true">
-              <div className="my-2 mx-5 border-t border-neutral-20" />
-            </li>
+            {/* Vertical spacing between main entries and Lists accordion */}
+            <li aria-hidden="true" className="my-1" />
 
             {/* Lists accordion */}
             <li>
@@ -228,7 +214,7 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
               </button>
 
               {isListsOpen && (
-                <ul className="list-none m-0 p-0 border-l-2 border-neutral-20 ml-5">
+                <ul className="list-none m-0 p-0 ml-5">
                   <li>
                     <button
                       type="button"

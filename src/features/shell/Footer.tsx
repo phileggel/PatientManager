@@ -1,21 +1,14 @@
-import { useEffect } from "react";
-import { logger } from "@/lib/logger";
-
 interface FooterProps {
-  text: string;
+  appName: string;
   version?: string;
 }
 
-export function Footer({ text, version }: FooterProps) {
-  useEffect(() => {
-    logger.info("[Footer] Component mounted");
-  }, []);
-
+export function Footer({ appName, version }: FooterProps) {
   return (
-    <footer className="bg-neutral-90 text-white text-center py-5 mt-auto">
-      <p className="m-0 text-sm">
-        {text}
-        {version && <span className="opacity-80"> v{version}</span>}
+    <footer className="shrink-0 py-1 px-4 flex justify-end">
+      <p className="m-0 text-xs italic text-m3-on-surface-variant">
+        {appName}
+        {version && <span> v{version}</span>}
       </p>
     </footer>
   );

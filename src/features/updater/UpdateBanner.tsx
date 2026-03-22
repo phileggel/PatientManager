@@ -13,7 +13,7 @@ export function UpdateBanner({ updater }: UpdateBannerProps) {
   const isDownloading = updater.state === "downloading";
 
   return (
-    <div className="flex items-center justify-center gap-3 px-4 text-white text-xs">
+    <div className="flex items-center justify-center gap-3 px-4 text-m3-on-primary-container text-xs">
       <span>
         {isDownloading
           ? t("updater.downloading")

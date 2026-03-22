@@ -1,7 +1,7 @@
 import { ManagerHeader } from "./ManagerHeader";
 
 interface ManagerLayoutProps {
-  // Partie Gauche (Liste)
+  // Left panel (list)
   searchId: string;
   title: string;
   count: number;
@@ -10,7 +10,7 @@ interface ManagerLayoutProps {
   searchPlaceholder?: string;
   table: React.ReactNode;
 
-  // Partie Droite (Panneau d'action)
+  // Right panel (action form)
   sidePanelTitle: string;
   sidePanelIcon: React.ReactNode;
   sidePanelContent: React.ReactNode;
@@ -33,7 +33,7 @@ export function ManagerLayout({
   return (
     <div className="flex h-full gap-4 overflow-hidden py-2 px-2">
       {/* Left List */}
-      <div className="flex-1 flex flex-col min-w-0 bg-m3-surface-container rounded-[28px] border border-m3-outline/10 shadow-sm overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 bg-m3-surface-container rounded-[28px] shadow-elevation-1 overflow-hidden">
         <ManagerHeader
           searchId={searchId}
           title={title}
@@ -46,8 +46,8 @@ export function ManagerLayout({
       </div>
 
       {/* Right add form */}
-      <div className="w-96 flex flex-col bg-m3-surface-container-high rounded-4xl border border-m3-outline/10 shadow-sm shrink-0 overflow-hidden">
-        <div className="p-4 border-b border-m3-outline/5 bg-m3-surface-container-high/50">
+      <div className="w-96 flex flex-col bg-m3-surface-container-high rounded-4xl shadow-elevation-1 shrink-0 overflow-hidden">
+        <div className="p-4 bg-m3-surface-container-highest">
           <div className="flex items-center gap-4 mb-1">
             <div className="p-2 bg-m3-primary-container text-m3-on-primary-container rounded-xl">
               {sidePanelIcon}

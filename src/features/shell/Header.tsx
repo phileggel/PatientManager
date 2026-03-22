@@ -15,6 +15,9 @@ export function Header({ title, subtitle, isDrawerOpen = false, onDrawerToggle }
     logger.info("[Header] Component mounted");
   }, []);
 
+  // text-white is intentional: lives exclusively on the fixed-brand indigo gradient
+  // (--color-header-from/to), which adapts to a darker indigo in dark mode.
+  // White is always accessible on rich indigo (WCAG AA).
   return (
     <header
       className="
@@ -31,10 +34,8 @@ export function Header({ title, subtitle, isDrawerOpen = false, onDrawerToggle }
         {onDrawerToggle && <DrawerToggle isOpen={isDrawerOpen} onToggle={onDrawerToggle} />}
       </div>
       <div className="text-center">
-        <h1 className="text-3xl font-semibold leading-tight mb-2 md:text-2xl">{title}</h1>
-        {subtitle && (
-          <p className="text-lg font-normal leading-6 text-white/95 md:text-sm">{subtitle}</p>
-        )}
+        <h1 className="text-lg font-semibold leading-tight md:text-base">{title}</h1>
+        {subtitle && <p className="text-xs font-normal text-white/90 mt-0.5">{subtitle}</p>}
       </div>
       <div className="flex justify-end">
         <ThemeToggle />

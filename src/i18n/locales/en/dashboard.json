@@ -1,5 +1,7 @@
 {
   "loading": "Loading dashboard...",
+  "computing": "Computing...",
+  "noDataYear": "No data for {{year}}",
   "error": "Error",
   "loadFailed": "Failed to load dashboard data",
   "year": "Year:",

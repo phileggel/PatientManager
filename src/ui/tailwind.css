@@ -10,25 +10,25 @@
      MATERIAL DESIGN 3 - SEMANTIC COLORS
      ============================================ */
 
-  /* Primary: Indigo profond (Clinical Atelier) */
+  /* Primary: Deep indigo (Clinical Atelier) */
   --color-m3-primary: #4f378a;
   --color-m3-on-primary: #ffffff;
   --color-m3-primary-container: #6750a4;
   --color-m3-on-primary-container: #e0d2ff;
 
-  /* Secondary: Violet sourd pour les éléments secondaires */
+  /* Secondary: Muted violet for secondary elements */
   --color-m3-secondary: #63597c;
   --color-m3-on-secondary: #ffffff;
   --color-m3-secondary-container: #e1d4fd;
   --color-m3-on-secondary-container: #645a7d;
 
-  /* Tertiary: Ambre/or pour les métriques clés */
+  /* Tertiary: Amber/gold for key metrics */
   --color-m3-tertiary: #765b00;
   --color-m3-on-tertiary: #ffffff;
   --color-m3-tertiary-container: #c9a74d;
   --color-m3-on-tertiary-container: #251a00;
 
-  /* Neutral/Surfaces: Teintés mauve (Clinical Atelier) */
+  /* Neutral/Surfaces: Mauve-tinted (Clinical Atelier) */
   --color-m3-surface: #fef7ff;
   --color-m3-on-surface: #1d1b20;
   --color-m3-surface-variant: #e7e0e8;
@@ -36,33 +36,34 @@
   --color-m3-outline: #7a7582;
   --color-m3-outline-variant: #cbc4d2;
   --color-m3-surface-dim: #ded8e0;
+  --color-m3-scrim: #000000;
 
-  /* Niveaux de conteneurs (teintés mauve) */
+  /* Container levels (mauve-tinted) */
   --color-m3-surface-container-lowest: #ffffff;
   --color-m3-surface-container-low: #f8f1f9;
   --color-m3-surface-container: #f2ecf4;
   --color-m3-surface-container-high: #ede6ee;
   --color-m3-surface-container-highest: #e7e0e8;
 
-  /* Error: Rouge (alertes/erreurs) */
+  /* Error: Red (alerts/errors) */
   --color-m3-error: #ba1a1a;
   --color-m3-on-error: #ffffff;
   --color-m3-error-container: #ffdad6;
   --color-m3-on-error-container: #410e0b;
 
-  /* Success: Utilise Tertiary pour cohérence visuelle */
+  /* Success: Uses Tertiary for visual consistency */
   --color-m3-success: var(--color-m3-tertiary);
   --color-m3-on-success: var(--color-m3-on-tertiary);
   --color-m3-success-container: var(--color-m3-tertiary-container);
   --color-m3-on-success-container: var(--color-m3-on-tertiary-container);
 
-  /* Warning: Orange pour les avertissements */
+  /* Warning: Orange for caution states */
   --color-m3-warning: #f57c00;
   --color-m3-on-warning: #ffffff;
   --color-m3-warning-container: #ffe0b2;
   --color-m3-on-warning-container: #331a00;
 
-  /* Info: Utilise Primary pour cohérence */
+  /* Info: Uses Primary for consistency */
   --color-m3-info: var(--color-m3-primary);
   --color-m3-on-info: var(--color-m3-on-primary);
   --color-m3-info-container: var(--color-m3-primary-container);
@@ -233,7 +234,7 @@
      ============================================ */
 
   /* App bar height (header and drawer branding) */
-  --height-app-bar: 5.5rem; /* 88px - ensures consistent height */
+  --height-app-bar: 4rem; /* 64px - ensures consistent height */
 
   /* ============================================
      SHADOWS - Elevation System
@@ -373,6 +374,11 @@
   --color-border-default: var(--color-m3-outline);
   --color-border-light: var(--color-m3-outline-variant);
 
+  /* Header gradient — darker indigo in dark mode (brand identity preserved,
+     white text remains accessible at >7:1 WCAG AA on both stops). */
+  --color-header-from: #21005d;
+  --color-header-to: #381e72;
+
   /* Snackbar colors (dark variants) */
   --color-snackbar-success-bg: #1b3a1c;
   --color-snackbar-success-text: #a5d6a7;
@@ -386,6 +392,12 @@
 
 /* Base body styles */
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
+  }
   body {
     @apply bg-m3-surface text-m3-on-surface antialiased;
     font-family: var(--font-family-sans);

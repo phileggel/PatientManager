@@ -23,7 +23,7 @@ export const DrawerToggle = ({ isOpen, onToggle }: DrawerToggleProps) => {
         flex items-center justify-center
         w-12 h-12 p-0 m-0
         bg-transparent border-none cursor-pointer
-        text-white rounded
+        text-white rounded-xl
         transition-colors duration-150
         hover:bg-white/10
         focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2
