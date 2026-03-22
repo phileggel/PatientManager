@@ -6,6 +6,7 @@
     "modifySelection": "Modifier la sélection",
     "selectProcedures": "Sélectionner les actes",
     "procedures": "Actes :",
+    "noProceduresSelected": "Aucun acte sélectionné.",
     "createButton": "Créer le paiement",
     "creating": "Création...",
     "success": "Groupe de paiement créé avec succès !"
