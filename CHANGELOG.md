@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-03-22
+
+### Added
+- add design system page and button components
+- add dark mode with theme toggle and M3 token migration
+- add day/night/auto theme toggle with Clinical Atelier dark palette
+- T17/T18/T19 — Edit fund payment modal with add procedures flow
+- T20 — Clinical Atelier design system alignment
+- enforce R4 transfer type immutability in backend orchestrator
+- implement R12 fund filter and sort in expanded search
+- implement CASH transfer type with auto cash account (R13)
+- implement manual bank transfer
+- improve manual match
+- handle negative procedure
+
+### Fixed
+- dark mode compliance for bank-transfer feature
+- dark mode compliance for fund-payment add panel
+- dark mode compliance for excel-import feature
+- quick wins from reviewer pass
+- fix dark mode criticals and extract dashboard hook
+- T17/T18/T19 — UI polish for edit fund payment modal
+- minor lint fixes
+- sort expanded procedures by procedure_date DESC (R20)
+- enforce R13 CASH read-only label in edit transfer modal
+- display current fund-transfer
+- fix disabled button state and locking rules
+- correct infinite loop on edit modal
+- display fund identifier
+- handle delete confirmation
+
 ## [0.10.0] - 2026-03-15
 
 ### Added
