@@ -1,30 +1,15 @@
 /// <reference types="vitest/globals" />
 
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import * as useProcedureDataModule from "../hooks/useProcedureData";
 import ProcedurePage from "./ProcedurePage";
 
 vi.mock("../hooks/useProcedureData");
-vi.mock("./WorkflowTable", () => ({
-  WorkflowTable: ({
-    onAddNewRow,
-    initialRows,
-  }: {
-    onAddNewRow: () => void;
-    initialRows: Array<{ rowId: string; draftPeriod: string | null }>;
-  }) => (
-    <div>
-      <button type="button" onClick={onAddNewRow}>
-        Add Row
-      </button>
-      <div data-testid="row-count">{initialRows.length}</div>
-      {initialRows.map((row) => (
-        <div key={row.rowId} data-testid={`draft-period-${row.rowId}`}>
-          {row.draftPeriod}
-        </div>
-      ))}
+vi.mock("./procedure_list/ProcedureList", () => ({
+  ProcedureList: ({ rows }: { rows: Array<{ rowId: string }> }) => (
+    <div data-testid="procedure-list">
+      <div data-testid="row-count">{rows.length}</div>
     </div>
   ),
 }));
@@ -33,48 +18,73 @@ vi.mock("./PeriodSelector", () => ({
 }));
 
 describe("ProcedurePage", () => {
-  test("creates draft with correct draftPeriod when adding new row", async () => {
-    const mockHandlers = {
-      saveRow: vi.fn(),
-      updateRow: vi.fn(),
-      savePatient: vi.fn(),
-      saveFund: vi.fn(),
-      saveProcedureType: vi.fn(),
+  test("renders procedure list with rows from useProcedureData", async () => {
+    vi.mocked(useProcedureDataModule.useProcedureData).mockReturnValue({
+      initialRows: [
+        {
+          rowId: "r1",
+          isDraft: false,
+          draftPeriod: null,
+          id: "proc1",
+          patientId: "p1",
+          patientName: "Alice",
+          ssn: null,
+          fundId: null,
+          fundIdentifier: null,
+          fundName: null,
+          procedureTypeId: "t1",
+          procedureName: "Consultation",
+          procedureDate: new Date().toISOString().slice(0, 10),
+          procedureAmount: 50,
+          paymentMethod: "NONE",
+          confirmedPaymentDate: null,
+          actualPaymentAmount: null,
+          awaitedAmount: null,
+          status: "CREATED",
+        },
+      ],
+      patients: [],
+      funds: [],
+      procedureTypes: [],
+      isLoading: false,
+      error: null,
       deleteRow: vi.fn(),
-    };
+    });
 
+    render(<ProcedurePage />);
+
+    await waitFor(() => expect(screen.getByTestId("procedure-list")).toBeInTheDocument());
+    expect(screen.getByTestId("row-count").textContent).not.toBe("0");
+  });
+
+  test("shows loading state while data is being fetched", () => {
+    vi.mocked(useProcedureDataModule.useProcedureData).mockReturnValue({
+      initialRows: [],
+      patients: [],
+      funds: [],
+      procedureTypes: [],
+      isLoading: true,
+      error: null,
+      deleteRow: vi.fn(),
+    });
+
+    render(<ProcedurePage />);
+    expect(screen.getByText("Loading procedures...")).toBeInTheDocument();
+  });
+
+  test("shows error state when data loading fails", () => {
     vi.mocked(useProcedureDataModule.useProcedureData).mockReturnValue({
       initialRows: [],
       patients: [],
       funds: [],
       procedureTypes: [],
       isLoading: false,
-      error: null,
-      handlers: mockHandlers,
+      error: "Network error",
+      deleteRow: vi.fn(),
     });
 
-    const user = userEvent.setup();
     render(<ProcedurePage />);
-
-    await waitFor(
-      () => expect(screen.queryByText("Loading procedures...")).not.toBeInTheDocument(),
-      { timeout: 1000 },
-    );
-
-    const addButton = screen.getByText("Add Row");
-    await user.click(addButton);
-
-    // Draft should be created with current period (February 2026 based on mock date)
-    const currentDate = new Date();
-    const expectedPeriod = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, "0")}`;
-
-    await waitFor(
-      () => {
-        const draftPeriodElements = screen.queryAllByTestId(/^draft-period-/);
-        expect(draftPeriodElements.length).toBeGreaterThan(0);
-        expect(draftPeriodElements[0]?.textContent).toBe(expectedPeriod);
-      },
-      { timeout: 1000 },
-    );
+    expect(screen.getByText("Error loading data")).toBeInTheDocument();
+    expect(screen.getByText("Network error")).toBeInTheDocument();
   });
 });

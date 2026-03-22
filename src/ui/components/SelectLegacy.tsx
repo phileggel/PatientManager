@@ -7,7 +7,7 @@ import type { SelectHTMLAttributes } from "react";
  *
  * TODO: Refactor consumers to use SelectField with options prop and remove this component.
  * Consumers:
- * - src/features/procedure/ui/ProcedureUpdateModal.tsx
+ * - (none — ProcedureUpdateModal replaced by ProcedureFormModal)
  *
  * This component uses outdated styling (border + rounded) instead of M3 design tokens.
  * This component accepts children as <option> elements instead of an options prop.

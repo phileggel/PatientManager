@@ -1,4 +1,3 @@
-import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure, ProcedureStatus } from "@/bindings";
@@ -6,25 +5,19 @@ import type { Procedure, ProcedureStatus } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 import { PageContent } from "@/features/shell";
 import { logger } from "@/lib/logger";
-import { ConfirmationDialog, SearchField } from "@/ui/components";
+import { ConfirmationDialog, FAB, SearchField } from "@/ui/components";
 import * as gateway from "../api/gateway";
 import { useProcedureData } from "../hooks/useProcedureData";
 import { useProcedurePeriod } from "../hooks/useProcedurePeriod";
 import { toProcedureRow } from "../model/procedure-row.mapper";
 import type { ProcedureRow } from "../model/procedure-row.types";
-import { AddProcedurePanel } from "./add_procedure_panel/AddProcedurePanel";
 import { PeriodSelector } from "./PeriodSelector";
-import { ProcedureUpdateModal } from "./ProcedureUpdateModal";
+import { ProcedureFormModal } from "./procedure_form_modal/ProcedureFormModal";
+import { ProcedureList } from "./procedure_list/ProcedureList";
 import { SummaryStats } from "./SummaryStats";
-import { WorkflowTable } from "./WorkflowTable";
 
 const TAG = "[ProcedurePage]";
 
-/**
- * Production Procedure Page with backend integration
- *
- * Connects WorkflowTable to real Tauri backend via gateway.ts
- */
 export default function ProcedurePage() {
   const { t } = useTranslation("procedure");
 
@@ -32,7 +25,7 @@ export default function ProcedurePage() {
     logger.info(`${TAG} Component mounted`);
   }, []);
 
-  const { initialRows, patients, funds, procedureTypes, isLoading, error, handlers } =
+  const { patients, funds, procedureTypes, initialRows, isLoading, error, deleteRow } =
     useProcedureData();
 
   const currentDate = new Date();
@@ -46,10 +39,15 @@ export default function ProcedurePage() {
   });
   const [rows, setRows] = useState<ProcedureRow[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Modal state
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProcedure, setEditingProcedure] = useState<ProcedureRow | null>(null);
+
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  // Persist selected month/year to session storage
+  // Persist selected month/year to session storage (R1)
   useEffect(() => {
     sessionStorage.setItem("procedureSelectedMonth", selectedMonth.toString());
     sessionStorage.setItem("procedureSelectedYear", selectedYear.toString());
@@ -62,45 +60,38 @@ export default function ProcedurePage() {
     }
   }, [isLoading, initialRows]);
 
-  // Filter local rows (includes unsaved drafts) by selected period
+  // Filter rows by selected period
   const { yearRange, filteredRows: periodFilteredRows } = useProcedurePeriod(
     rows,
     selectedMonth,
     selectedYear,
   );
 
-  // Apply search filter on top of period filter
+  // Apply search filter on top of period filter (R11)
   const filteredRows = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return periodFilteredRows;
-
     return periodFilteredRows.filter(
       (row) =>
-        row.isDraft ||
         (row.patientName?.toLowerCase().includes(term) ?? false) ||
         (row.status?.toLowerCase().includes(term) ?? false),
     );
   }, [periodFilteredRows, searchTerm]);
 
-  const handleRowUiSync = useCallback((rowId: string, updateFields: Partial<ProcedureRow>) => {
-    setRows((prevRows) =>
-      prevRows.map((row) => (row.rowId === rowId ? { ...row, ...updateFields } : row)),
-    );
+  const openCreateModal = useCallback(() => {
+    setModalMode("create");
+    setEditingProcedure(null);
+    setIsModalOpen(true);
   }, []);
 
-  const handleAddNewRow = useCallback(() => {
-    const draft = buildNewDraftRow();
-    // Associate draft with current period for filtering (separate from actual procedureDate)
-    const monthStr = selectedMonth.toString().padStart(2, "0");
-    draft.draftPeriod = `${selectedYear}-${monthStr}`;
-    setRows((prev) => [...prev, draft]);
-  }, [selectedMonth, selectedYear]);
-
   const handleEdit = useCallback((row: ProcedureRow) => {
+    setModalMode("edit");
     setEditingProcedure(row);
+    setIsModalOpen(true);
   }, []);
 
   const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
     setEditingProcedure(null);
   }, []);
 
@@ -112,7 +103,7 @@ export default function ProcedurePage() {
     setPendingDeleteId(null);
   }, []);
 
-  // Shared reload helper — used after add, update, delete, and backend events
+  // Reload all rows from backend — used after add, update, delete and backend events (R8)
   const reloadRows = useCallback(async () => {
     try {
       const updated = await gateway.readAllProcedures();
@@ -120,8 +111,8 @@ export default function ProcedurePage() {
         toProcedureRow(proc, { patients, funds, procedureTypes }),
       );
       setRows(mappedRows);
-    } catch (error) {
-      logger.error(TAG, "Error refreshing procedures", { error });
+    } catch (err) {
+      logger.error(TAG, "Error refreshing procedures", { error: err });
       toastService.show("error", t("state.reloadFailed"));
     }
   }, [patients, funds, procedureTypes, t]);
@@ -129,16 +120,17 @@ export default function ProcedurePage() {
   const handleConfirmDelete = useCallback(async () => {
     if (!pendingDeleteId) return;
     try {
-      await handlers.deleteRow(pendingDeleteId);
+      await deleteRow(pendingDeleteId);
       toastService.show("success", t("state.deleted"));
       await reloadRows();
-    } catch (error) {
-      toastService.show("error", error instanceof Error ? error.message : String(error));
+    } catch (err) {
+      toastService.show("error", err instanceof Error ? err.message : String(err));
     } finally {
       setPendingDeleteId(null);
     }
-  }, [pendingDeleteId, handlers, reloadRows, t]);
+  }, [pendingDeleteId, deleteRow, reloadRows, t]);
 
+  // Backend event: procedure updated externally (R8)
   const handleProcedureUpdate = useCallback(async () => {
     logger.info(TAG, "Procedure update event received, refreshing list");
     await reloadRows();
@@ -149,7 +141,7 @@ export default function ProcedurePage() {
     return () => window.removeEventListener("procedure_updated", handleProcedureUpdate);
   }, [handleProcedureUpdate]);
 
-  // Convert ProcedureRow to Procedure for modal (only real Procedure fields)
+  // Convert ProcedureRow to Procedure for the edit modal
   const procedureForModal = useMemo<Procedure | null>(() => {
     if (!editingProcedure?.id) return null;
     return {
@@ -193,7 +185,7 @@ export default function ProcedurePage() {
 
   return (
     <>
-      {/* Header with controls and stats */}
+      {/* Header with period selector, search and stats (R1, R7, R11) */}
       <div className="bg-m3-surface-container-low p-4 shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
@@ -217,47 +209,24 @@ export default function ProcedurePage() {
         </div>
       </div>
 
-      {/* Content area with table and form */}
-      <PageContent layout="row">
-        {/* Left: Workflow Table */}
-        <div className="flex-1 min-w-0 overflow-auto">
-          <WorkflowTable
-            month={selectedMonth}
-            year={selectedYear}
-            initialRows={filteredRows}
-            allPatients={patients}
-            allFunds={funds}
-            allProcedureTypes={procedureTypes}
-            onAddNewRow={handleAddNewRow}
-            onRowUiSync={handleRowUiSync}
-            persistNewRow={handlers.saveRow}
-            persistUpdateRow={handlers.updateRow}
-            persistNewPatient={handlers.savePatient}
-            persistNewFund={handlers.saveFund}
-            persistNewProcedureType={handlers.saveProcedureType}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            editingRowId={editingProcedure?.id}
-          />
-        </div>
-
-        {/* Right: Add Procedure Form */}
-        <div className="w-96 flex-shrink-0 flex flex-col bg-m3-surface-container-high rounded-4xl shadow-elevation-1 overflow-hidden">
-          <div className="p-4 bg-m3-surface-container-highest">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-m3-primary-container text-m3-on-primary-container rounded-xl">
-                <Plus size={24} strokeWidth={2.5} />
-              </div>
-              <h2 className="text-xl font-bold text-m3-on-surface">{t("action.add")}</h2>
-            </div>
-          </div>
-          <div className="p-4 overflow-y-auto flex-1">
-            <AddProcedurePanel onSuccess={reloadRows} />
-          </div>
-        </div>
+      {/* Full-width procedure list (R12) */}
+      <PageContent>
+        <ProcedureList rows={filteredRows} onEdit={handleEdit} onDelete={handleDelete} />
       </PageContent>
 
-      {/* Delete confirmation dialog */}
+      {/* FAB — open create modal (R12) */}
+      <FAB onClick={openCreateModal} label={t("action.fabAriaLabel")} />
+
+      {/* Unified create/edit modal (R6, R12) */}
+      <ProcedureFormModal
+        mode={modalMode}
+        procedure={modalMode === "edit" ? procedureForModal : null}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSuccess={reloadRows}
+      />
+
+      {/* Delete confirmation (R5) */}
       <ConfirmationDialog
         isOpen={pendingDeleteId !== null}
         onCancel={handleCancelDelete}
@@ -268,42 +237,6 @@ export default function ProcedurePage() {
         cancelLabel={t("action.delete.cancelLabel")}
         variant="danger"
       />
-
-      {/* Modal */}
-      {procedureForModal && (
-        <ProcedureUpdateModal
-          procedure={procedureForModal}
-          patients={patients}
-          funds={funds}
-          procedureTypes={procedureTypes}
-          isOpen={editingProcedure !== null}
-          onClose={handleCloseModal}
-          onSuccess={reloadRows}
-        />
-      )}
     </>
   );
-}
-
-function buildNewDraftRow(): ProcedureRow {
-  return {
-    rowId: crypto.randomUUID(),
-    isDraft: true,
-    draftPeriod: null, // Set by handleAddNewRow
-    patientId: null,
-    patientName: null,
-    ssn: null,
-    fundId: null,
-    fundIdentifier: null,
-    fundName: null,
-    procedureTypeId: null,
-    procedureName: null,
-    procedureDate: null, // Set by auto-focus to latestDate
-    procedureAmount: 0,
-    paymentMethod: null,
-    confirmedPaymentDate: null,
-    actualPaymentAmount: null,
-    status: "NONE",
-    awaitedAmount: null,
-  };
 }
