@@ -16,13 +16,18 @@ import { logger } from "@/lib/logger";
 import { getFundPaymentGroupEditData, updatePaymentGroupWithProcedures } from "../gateway";
 import { FundPaymentPresenter } from "../shared/presenter";
 
-export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () => void) {
+export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClose: () => void) {
   const { t } = useTranslation("fund-payment");
 
   const funds = useAppStore((state) => state.funds);
   const patients = useAppStore((state) => state.patients);
 
-  const [paymentDate, setPaymentDate] = useState(payment.payment_date);
+  // Extract primitives to use as stable deps (avoids infinite loops with object identity)
+  const paymentId = payment?.id ?? null;
+  const paymentFundId = payment?.fund_id ?? null;
+  const paymentInitialDate = payment?.payment_date ?? "";
+
+  const [paymentDate, setPaymentDate] = useState(paymentInitialDate);
   const [currentProcedures, setCurrentProcedures] = useState<Procedure[]>([]);
   // Available procedures for the add-modal (R19): Created, same fund, date <= payment_date
   const [availableProcedures, setAvailableProcedures] = useState<Procedure[]>([]);
@@ -33,9 +38,9 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () =
   const [isSelectModalOpen, setIsSelectModalOpen] = useState(false);
 
   const selectedFund = useMemo(() => {
-    const fund = funds.find((f) => f.id === payment.fund_id);
+    const fund = funds.find((f) => f.id === paymentFundId);
     return FundPaymentPresenter.toDisplayData(fund);
-  }, [funds, payment.fund_id]);
+  }, [funds, paymentFundId]);
 
   // All procedures eligible for submit = current + newly added
   const allProcedures = useMemo(
@@ -50,13 +55,15 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () =
       .reduce((sum, p) => sum + (p.procedure_amount || 0), 0);
   }, [allProcedures, selectedIds]);
 
-  // Load edit data (classified server-side) on mount
+  // Load edit data (classified server-side) when payment changes
   useEffect(() => {
+    if (!paymentId || !paymentFundId) return;
     const load = async () => {
       setLoading(true);
       try {
-        const result = await getFundPaymentGroupEditData(payment.id, payment.fund_id);
+        const result = await getFundPaymentGroupEditData(paymentId, paymentFundId);
         if (result.success && result.data) {
+          setPaymentDate(paymentInitialDate);
           setCurrentProcedures(result.data.current_procedures);
           setAvailableProcedures(result.data.available_procedures);
           setSelectedIds(new Set(result.data.current_procedures.map((p) => p.id)));
@@ -72,7 +79,7 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () =
     };
 
     load();
-  }, [payment.id, payment.fund_id, t]);
+  }, [paymentId, paymentFundId, paymentInitialDate, t]);
 
   const toggleId = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -131,10 +138,12 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () =
         return;
       }
 
+      if (!paymentId) return;
+
       const selectedProcedures = allProcedures.filter((p) => selectedIds.has(p.id));
 
       logger.debug("[useEditFundPaymentModal] Submitting update", {
-        paymentId: payment.id,
+        paymentId,
         paymentDate,
         selectedCount: selectedProcedures.length,
       });
@@ -142,7 +151,7 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () =
       setLoading(true);
       try {
         const result = await updatePaymentGroupWithProcedures(
-          payment.id,
+          paymentId,
           paymentDate,
           selectedProcedures,
         );
@@ -160,7 +169,7 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup, onClose: () =
         setLoading(false);
       }
     },
-    [paymentDate, selectedIds, allProcedures, payment.id, onClose, t],
+    [paymentDate, selectedIds, allProcedures, paymentId, onClose, t],
   );
 
   // Procedures available to add = loaded pool minus already selected

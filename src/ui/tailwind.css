@@ -543,7 +543,7 @@
   }
 
   .m3-table-container {
-    @apply flex-1 overflow-auto bg-m3-surface-container-low rounded-[28px] border border-m3-outline/10 shadow-sm;
+    @apply flex-1 overflow-auto bg-m3-surface-container-low;
   }
 
   .m3-th {

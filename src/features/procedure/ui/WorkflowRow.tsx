@@ -2,6 +2,7 @@ import { Edit, Trash2 } from "lucide-react";
 import React, { type Dispatch } from "react";
 import { useTranslation } from "react-i18next";
 import type { AffiliatedFund, Patient, ProcedureType } from "@/bindings";
+import { IconButton } from "@/ui/components";
 import type { ProcedureFormModals } from "../hooks/useProcedureFormModals";
 import type { ProcedureRow, WorkflowAction, WorkflowState } from "../model";
 import { formatDateDisplay } from "../model";
@@ -112,27 +113,25 @@ export const WorkflowRow = React.memo(
         {/* Action buttons */}
         <td className="px-2 py-2 text-right w-24">
           {row.id && (
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
+            <div className="flex gap-1 justify-end">
+              <IconButton
+                variant="ghost"
+                size="sm"
+                shape="round"
+                aria-label={t("action.editTitle")}
+                icon={<Edit size={16} />}
                 onClick={() => onEdit?.(row)}
                 disabled={isSavingThisRow || isBeingEditedInModal}
-                className="p-1 text-m3-on-surface-variant hover:text-m3-on-surface disabled:text-m3-on-surface/40 disabled:cursor-not-allowed transition-colors"
-                title={t("action.editTitle")}
-                aria-label={t("action.editTitle")}
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
+              />
+              <IconButton
+                variant="danger"
+                size="sm"
+                shape="round"
+                aria-label={t("action.deleteTitle")}
+                icon={<Trash2 size={16} />}
                 onClick={handleDelete}
                 disabled={isSavingThisRow || isBeingEditedInModal}
-                className="p-1 text-m3-error hover:text-m3-error/80 disabled:text-m3-on-surface/40 disabled:cursor-not-allowed transition-colors"
-                title={t("action.deleteTitle")}
-                aria-label={t("action.deleteTitle")}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              />
             </div>
           )}
         </td>

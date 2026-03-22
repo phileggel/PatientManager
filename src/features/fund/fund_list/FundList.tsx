@@ -8,29 +8,18 @@
  * - Updates: event-driven from useAppInit
  */
 
-import { ArrowDown, ArrowUp, Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AffiliatedFund } from "@/bindings";
 
 import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
-import { ConfirmationDialog } from "@/ui/components";
+import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
 import { EditFundModal } from "../edit_fund_modal/EditFundModal";
 import type { FundRow } from "../shared/types";
 import { useFundList } from "./useFundList";
-import type { SortConfig } from "./useSortFundList";
 import { useSortFundList } from "./useSortFundList";
-
-// Moved outside component to avoid recreation on every render
-function SortIcon({ sortConfig, column }: { sortConfig: SortConfig; column: SortConfig["key"] }) {
-  if (sortConfig.key !== column) return null;
-  return sortConfig.direction === "asc" ? (
-    <ArrowUp size={14} className="ml-1 text-m3-primary" />
-  ) : (
-    <ArrowDown size={14} className="ml-1 text-m3-primary" />
-  );
-}
 
 interface FundListProps {
   searchTerm: string;
@@ -76,12 +65,17 @@ export function FundList({ searchTerm }: FundListProps) {
           <tr>
             <th className="m3-th" onClick={() => handleSort("fundIdentifier")}>
               <div className="flex items-center">
-                {t("list.identifier")} <SortIcon sortConfig={sortConfig} column="fundIdentifier" />
+                {t("list.identifier")}{" "}
+                <SortIcon
+                  active={sortConfig.key === "fundIdentifier"}
+                  direction={sortConfig.direction}
+                />
               </div>
             </th>
             <th className="m3-th text-right" onClick={() => handleSort("fundName")}>
-              <div className="flex items-center">
-                {t("list.name")} <SortIcon sortConfig={sortConfig} column="fundName" />
+              <div className="flex items-center justify-end">
+                {t("list.name")}{" "}
+                <SortIcon active={sortConfig.key === "fundName"} direction={sortConfig.direction} />
               </div>
             </th>
             <th className="m3-th text-right">{tc("table.actions")}</th>
@@ -116,32 +110,29 @@ export function FundList({ searchTerm }: FundListProps) {
                   <td className="m3-td text-m3-on-surface">{fund.fundName}</td>
                   <td className="m3-td text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        className="m3-icon-button-primary"
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        shape="round"
                         aria-label={t("action.editAriaLabel", { name: fund.fundName || "" })}
+                        icon={<Edit2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (fundObject) {
-                            setEditData(fundObject);
-                          }
+                          if (fundObject) setEditData(fundObject);
                         }}
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="m3-icon-button-error"
+                      />
+                      <IconButton
+                        variant="danger"
+                        size="sm"
+                        shape="round"
                         aria-label={t("action.deleteAriaLabel", { name: fund.fundName || "" })}
+                        icon={<Trash2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (fund.id && fund.fundName) {
+                          if (fund.id && fund.fundName)
                             setDeleteData({ id: fund.id, name: fund.fundName });
-                          }
                         }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      />
                     </div>
                   </td>
                 </tr>

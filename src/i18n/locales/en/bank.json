@@ -128,6 +128,8 @@
     "list": {
       "loading": "Loading...",
       "empty": "No bank transfers yet. Create one using the form.",
+      "editAriaLabel": "Edit transfer {{date}} {{amount}}",
+      "deleteAriaLabel": "Delete transfer {{date}} {{amount}}",
       "columns": {
         "date": "Date",
         "amount": "Amount",

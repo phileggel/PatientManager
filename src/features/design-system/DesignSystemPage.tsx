@@ -227,6 +227,29 @@ export function DesignSystemPage() {
               aria-label="Favourite"
             />
           </Group>
+          <Group label="Danger — destructive actions">
+            <IconButton
+              variant="danger"
+              shape="round"
+              size="lg"
+              icon={<Trash2 size={20} />}
+              aria-label="Delete"
+            />
+            <IconButton
+              variant="danger"
+              shape="round"
+              size="md"
+              icon={<Trash2 size={18} />}
+              aria-label="Delete"
+            />
+            <IconButton
+              variant="danger"
+              shape="round"
+              size="sm"
+              icon={<Trash2 size={14} />}
+              aria-label="Delete"
+            />
+          </Group>
         </Section>
 
         {/* States */}

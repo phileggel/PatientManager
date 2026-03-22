@@ -8,28 +8,17 @@
  * - Updates: event-driven from useAppInit
  */
 
-import { ArrowDown, ArrowUp, Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount } from "@/bindings";
-import { useSnackbar } from "@/core/snackbar";
+import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
-import { ConfirmationDialog } from "@/ui/components";
+import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
 import { EditBankAccountModal } from "../edit_bank_account_modal/EditBankAccountModal";
 import type { BankAccountRow } from "../shared/types";
 import { useBankAccountList } from "./useBankAccountList";
-import type { SortConfig } from "./useSortBankAccountList";
 import { useSortBankAccountList } from "./useSortBankAccountList";
-
-// Moved outside component to avoid recreation on every render
-function SortIcon({ sortConfig, column }: { sortConfig: SortConfig; column: SortConfig["key"] }) {
-  if (sortConfig.key !== column) return null;
-  return sortConfig.direction === "asc" ? (
-    <ArrowUp size={14} className="ml-1 text-m3-primary" />
-  ) : (
-    <ArrowDown size={14} className="ml-1 text-m3-primary" />
-  );
-}
 
 interface BankAccountListProps {
   searchTerm: string;
@@ -38,7 +27,6 @@ interface BankAccountListProps {
 export function BankAccountList({ searchTerm }: BankAccountListProps) {
   const { t } = useTranslation("bank");
   const { t: tCommon } = useTranslation("common");
-  const { showSnackbar } = useSnackbar();
   const { bankAccountRows, accounts, loading, deleteBankAccount } = useBankAccountList();
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [lastClickTime, setLastClickTime] = useState<number>(0);
@@ -75,22 +63,23 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
           <tr>
             <th className="m3-th" onClick={() => handleSort("name")}>
               <div className="flex items-center">
-                {t("account.list.columns.name")} <SortIcon sortConfig={sortConfig} column="name" />
+                {t("account.list.columns.name")}{" "}
+                <SortIcon active={sortConfig.key === "name"} direction={sortConfig.direction} />
               </div>
             </th>
             <th className="m3-th" onClick={() => handleSort("iban")}>
               <div className="flex items-center">
-                {t("account.list.columns.iban")} <SortIcon sortConfig={sortConfig} column="iban" />
+                {t("account.list.columns.iban")}{" "}
+                <SortIcon active={sortConfig.key === "iban"} direction={sortConfig.direction} />
               </div>
             </th>
-            <th className="m3-th text-right">{t("account.list.columns.id")}</th>
             <th className="m3-th text-right">{tCommon("table.actions")}</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={4} className="m3-td text-center py-12">
+              <td colSpan={3} className="m3-td text-center py-12">
                 <span className="text-m3-on-surface-variant animate-pulse">
                   {t("account.list.loading")}
                 </span>
@@ -98,7 +87,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
             </tr>
           ) : sortedAndFilteredAccounts.length === 0 ? (
             <tr>
-              <td colSpan={4} className="m3-td text-center py-12 text-m3-on-surface-variant">
+              <td colSpan={3} className="m3-td text-center py-12 text-m3-on-surface-variant">
                 {t("account.list.empty")}
               </td>
             </tr>
@@ -116,37 +105,31 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                   <td className="m3-td text-m3-on-surface-variant font-mono text-sm">
                     {account.iban || "-"}
                   </td>
-                  <td className="m3-td text-m3-on-surface font-mono text-right">
-                    {account.id?.slice(0, 8)}
-                  </td>
                   <td className="m3-td text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        className="m3-icon-button-primary"
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        shape="round"
                         aria-label={t("account.list.editAriaLabel", { name: account.name })}
+                        icon={<Edit2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (accountObject) {
-                            setEditData(accountObject);
-                          }
+                          if (accountObject) setEditData(accountObject);
                         }}
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="m3-icon-button-error"
+                      />
+                      <IconButton
+                        variant="danger"
+                        size="sm"
+                        shape="round"
                         aria-label={t("account.list.deleteAriaLabel", { name: account.name })}
+                        icon={<Trash2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (account.id && account.name) {
+                          if (account.id && account.name)
                             setDeleteData({ id: account.id, name: account.name });
-                          }
                         }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      />
                     </div>
                   </td>
                 </tr>
@@ -168,10 +151,13 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
             try {
               await deleteBankAccount(deleteData.id);
               setDeleteData(null);
-              showSnackbar("success", t("account.list.success.deleted", { name: deleteData.name }));
+              toastService.show(
+                "success",
+                t("account.list.success.deleted", { name: deleteData.name }),
+              );
             } catch (error) {
               logger.error("Delete bank account failed", { error, accountId: deleteData.id });
-              showSnackbar("error", t("account.list.error.delete", { error: String(error) }));
+              toastService.show("error", t("account.list.error.delete", { error: String(error) }));
             }
           }
         }}

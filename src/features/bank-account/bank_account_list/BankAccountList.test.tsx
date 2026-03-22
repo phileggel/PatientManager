@@ -167,8 +167,7 @@ describe("BankAccountList", () => {
 
     render(<BankAccountList searchTerm="" />);
 
-    const buttons = screen.getAllByRole("button");
-    const deleteButton = buttons.find((btn) => btn.className?.includes("m3-icon-button-error"));
+    const deleteButton = screen.getAllByRole("button", { name: /delete account/i })[0];
     if (deleteButton) {
       await user.click(deleteButton);
     }
