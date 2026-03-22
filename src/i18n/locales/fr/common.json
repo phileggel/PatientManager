@@ -18,6 +18,7 @@
     "bankStatementTooltip": "Créez d'abord un compte bancaire pour activer le rapprochement bancaire",
     "bankTransferTooltip": "Créez d'abord un compte bancaire pour activer les virements bancaires",
     "lists": "Listes",
+    "designSystem": "Design System",
     "openMenu": "Ouvrir le menu",
     "closeMenu": "Fermer le menu",
     "theme": {

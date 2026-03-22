@@ -134,7 +134,7 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
         <div
           className="
             bg-linear-to-br from-header-from to-header-to
-            text-white px-8
+            text-m3-on-primary px-8
             md:px-4
             relative
             flex items-center gap-4
@@ -274,6 +274,19 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
             </li>
           </ul>
         </nav>
+
+        {/* Dev-only: Design System */}
+        {import.meta.env.DEV && (
+          <div className="bg-m3-surface-container px-4 py-3">
+            <button
+              type="button"
+              className={subMenuItemClasses}
+              onClick={() => navigate("design-system")}
+            >
+              {t("nav.designSystem")}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

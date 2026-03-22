@@ -1,7 +1,7 @@
 // Modal components
 
 // Button components
-export { Button } from "./button";
+export { Button, IconButton } from "./button";
 // Legacy components (kept for backwards compatibility)
 export { CardLegacy } from "./CardLegacy";
 export { DatePickerLegacy } from "./DatePickerLegacy";

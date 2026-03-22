@@ -5,6 +5,7 @@ import { BankAccountManager } from "@/features/bank-account";
 import { BankStatementPage } from "@/features/bank-statement-match";
 import { BankTransferManager } from "@/features/bank-transfer";
 import DashboardPage from "@/features/dashboard/presentation/DashboardPage";
+import { DesignSystemPage } from "@/features/design-system/DesignSystemPage";
 import { ImportExcelPage } from "@/features/excel-import/presentation";
 import { FundsManager } from "@/features/fund";
 import { FundPaymentManager } from "@/features/fund-payment";
@@ -65,6 +66,8 @@ function AppContent() {
         return t("nav.bankStatement");
       case "dashboard":
         return t("nav.dashboard");
+      case "design-system":
+        return t("nav.designSystem");
       default:
         return t("nav.dashboard");
     }
@@ -111,6 +114,7 @@ function AppContent() {
         {currentPage === "bank-transfer" && <BankTransferManager />}
         {currentPage === "bank-account" && <BankAccountManager />}
         {currentPage === "bank-statement-match" && <BankStatementPage />}
+        {import.meta.env.DEV && currentPage === "design-system" && <DesignSystemPage />}
 
         {/* Snackbars - display in center-bottom with slide-up animation */}
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex flex-col gap-3 z-50 max-w-sm pointer-events-none">
