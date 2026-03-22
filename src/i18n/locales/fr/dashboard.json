@@ -1,5 +1,7 @@
 {
   "loading": "Chargement du tableau de bord...",
+  "computing": "Calcul en cours...",
+  "noDataYear": "Pas de données pour {{year}}",
   "error": "Erreur",
   "loadFailed": "Impossible de charger les données du tableau de bord",
   "year": "Année :",

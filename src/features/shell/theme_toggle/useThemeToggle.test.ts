@@ -1,6 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import tailwindCss from "../../../ui/tailwind.css?raw";
 import { useThemeToggle } from "./useThemeToggle";
 
 // Stable mock factory to avoid infinite loops (F19)
@@ -118,23 +117,5 @@ describe("useThemeToggle", () => {
     localStorage.setItem("theme-mode", "night");
     renderHook(() => useThemeToggle());
     expect(mockMq.addEventListener).not.toHaveBeenCalled();
-  });
-});
-
-// R6 — Header gradient tokens must never be overridden inside the .dark block.
-// If --color-header-from or --color-header-to appear in .dark, the header loses
-// its fixed brand indigo identity in dark mode.
-describe("tailwind.css — R6 header gradient dark-mode invariant", () => {
-  const darkBlock = tailwindCss.slice(
-    tailwindCss.indexOf(".dark {"),
-    tailwindCss.indexOf("/* Base body styles */"),
-  );
-
-  it("does not override --color-header-from inside .dark", () => {
-    expect(darkBlock).not.toContain("--color-header-from");
-  });
-
-  it("does not override --color-header-to inside .dark", () => {
-    expect(darkBlock).not.toContain("--color-header-to");
   });
 });

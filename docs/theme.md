@@ -18,7 +18,7 @@ L'interface propose trois modes d'affichage : clair, sombre, et automatique. Le 
 
 **R5 — Application du thème** : Le thème clair est l'état par défaut (tokens `@theme` de base dans `tailwind.css`). La classe `.dark` est posée sur `<html>` uniquement en mode `night`, ou en mode `auto` si l'OS est en sombre. En mode `day`, la classe `.dark` est retirée de `<html>`.
 
-**R6 — En-tête exempt du mode nuit** : L'en-tête utilise des tokens de dégradé fixes (`--color-header-from` / `--color-header-to`, indigo profond `#4F378A → #6750A4`) qui ne sont pas redéfinis dans le bloc `.dark`. L'en-tête conserve ainsi son identité visuelle de marque dans tous les modes.
+**R6 — En-tête adapté au mode nuit** : L'en-tête utilise des tokens de dégradé (`--color-header-from` / `--color-header-to`) qui s'adaptent au mode sombre avec un indigo plus profond (`#21005D → #381E72` en mode sombre, `#4F378A → #6750A4` en mode clair). L'identité visuelle de marque est préservée dans les deux modes, le texte blanc restant accessible (contraste > 7:1 WCAG AA).
 
 ---
 
@@ -32,7 +32,7 @@ L'interface propose trois modes d'affichage : clair, sombre, et automatique. Le 
           ▼
 [Classe .dark ajoutée/retirée sur <html>]
   → Tous les tokens M3 basculent via tailwind.css
-  → L'en-tête reste inchangé (tokens fixes)
+  → L'en-tête bascule vers un indigo plus profond (tokens dark)
 ```
 
 ```

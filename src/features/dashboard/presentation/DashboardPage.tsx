@@ -95,16 +95,16 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-12 flex items-center justify-center">
-        <div className="text-slate-600">{t("loading")}</div>
+      <div className="h-full bg-m3-surface p-12 flex items-center justify-center">
+        <div className="text-m3-on-surface-variant animate-pulse">{t("loading")}</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 p-12 flex items-center justify-center">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-900">
+      <div className="h-full bg-m3-surface p-12 flex items-center justify-center">
+        <div className="rounded-xl bg-m3-error-container p-6 text-m3-on-error-container">
           <h2 className="text-lg font-semibold mb-2">{t("error")}</h2>
           <p className="text-sm">{error}</p>
         </div>
@@ -115,51 +115,51 @@ export default function DashboardPage() {
   // Show info message when there's no data
   if (allProcedures.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50 p-12 flex items-start justify-center pt-56">
-        <div className="max-w-md rounded-xl border border-blue-200 bg-blue-50 p-8">
-          <h2 className="text-sm font-semibold text-blue-900 mb-3">{t("welcome.title")}</h2>
-          <p className="text-sm text-blue-800 mb-4">{t("welcome.description")}</p>
-          <ul className="text-sm text-blue-800 space-y-2 ml-5">
+      <div className="h-full bg-m3-surface p-12 flex items-start justify-center pt-56">
+        <div className="max-w-md rounded-xl bg-m3-primary-container/20 p-8">
+          <h2 className="text-sm font-semibold text-m3-primary mb-3">{t("welcome.title")}</h2>
+          <p className="text-sm text-m3-on-surface-variant mb-4">{t("welcome.description")}</p>
+          <ul className="text-sm text-m3-on-surface-variant space-y-2 ml-5">
             <li>✓ {t("welcome.patients")}</li>
             <li>✓ {t("welcome.funds")}</li>
             <li>✓ {t("welcome.procedureTypes")}</li>
             <li>✓ {t("welcome.procedures")}</li>
           </ul>
-          <p className="text-sm text-blue-800 mt-4">{t("welcome.hint")}</p>
+          <p className="text-sm text-m3-on-surface-variant mt-4">{t("welcome.hint")}</p>
         </div>
       </div>
     );
   }
 
   if (!metrics || !selectedYear) {
-    return null;
+    return (
+      <div className="h-full bg-m3-surface p-12 flex items-center justify-center">
+        <div className="text-m3-on-surface-variant animate-pulse">{t("computing")}</div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
+    <div className="flex flex-col h-full bg-m3-surface">
       {/* Fixed Header */}
-      <div className="flex-shrink-0 bg-slate-50 border-b border-slate-200 px-6 py-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-slate-900">{t("title")}</h1>
-
-          {/* Year Selector */}
-          <div className="flex items-center gap-2">
-            <label htmlFor="year-selector" className="text-xs font-medium text-blue-700">
-              {t("year")}
-            </label>
-            <select
-              id="year-selector"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="rounded-md border border-slate-300 px-2 py-1 text-xs focus:border-primary-60 focus:outline-none focus:ring-1 focus:ring-primary-60"
-            >
-              {metrics.availableYears.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="shrink-0 bg-m3-surface-container-low px-6 py-2 flex items-center justify-end">
+        {/* Year Selector */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="year-selector" className="text-xs font-medium text-m3-primary">
+            {t("year")}
+          </label>
+          <select
+            id="year-selector"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="rounded-xl bg-m3-surface-container px-2 py-1 text-xs text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary"
+          >
+            {metrics.availableYears.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                 annualDistinctPatients={metrics.annualDistinctPatientsPayments}
                 annualProcedureCount={metrics.annualProcedureCount}
               />
-              {previousYearMetrics && (
+              {previousYearMetrics ? (
                 <MonthCategoryTable
                   title={t("payments", { year: selectedYear - 1 })}
                   data={previousYearMetrics.payments}
@@ -184,6 +184,12 @@ export default function DashboardPage() {
                   annualDistinctPatients={previousYearMetrics.annualDistinctPatientsPayments}
                   annualProcedureCount={previousYearMetrics.annualProcedureCount}
                 />
+              ) : (
+                <div className="rounded-xl bg-m3-surface-container-lowest shadow-elevation-1 flex items-center justify-center">
+                  <p className="text-xs text-m3-on-surface-variant">
+                    {t("noDataYear", { year: selectedYear - 1 })}
+                  </p>
+                </div>
               )}
             </div>
 
@@ -196,7 +202,7 @@ export default function DashboardPage() {
                 annualDistinctPatients={metrics.annualDistinctPatientsProcedures}
                 annualProcedureCount={metrics.annualProcedureCount}
               />
-              {previousYearMetrics && (
+              {previousYearMetrics ? (
                 <MonthCategoryTable
                   title={t("procedures", { year: selectedYear - 1 })}
                   data={previousYearMetrics.procedures}
@@ -204,6 +210,12 @@ export default function DashboardPage() {
                   annualDistinctPatients={previousYearMetrics.annualDistinctPatientsProcedures}
                   annualProcedureCount={previousYearMetrics.annualProcedureCount}
                 />
+              ) : (
+                <div className="rounded-xl bg-m3-surface-container-lowest shadow-elevation-1 flex items-center justify-center">
+                  <p className="text-xs text-m3-on-surface-variant">
+                    {t("noDataYear", { year: selectedYear - 1 })}
+                  </p>
+                </div>
               )}
             </div>
           </div>

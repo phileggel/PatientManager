@@ -12,26 +12,15 @@ import { ReconciliationPage } from "@/features/fund-payment-match";
 import { PatientsManager } from "@/features/patient";
 import ProcedurePage from "@/features/procedure/ui/ProcedurePage";
 import { ProcedureTypeManager } from "@/features/procedure-type";
-import { Drawer, Header, useDrawerController } from "@/features/shell";
+import type { Page } from "@/features/shell";
+import { Drawer, Footer, Header, useDrawerController } from "@/features/shell";
 import { UpdateBanner } from "@/features/updater/UpdateBanner";
 import { useUpdater } from "@/features/updater/useUpdater";
 import { logger } from "@/lib/logger";
 import { useAppInit } from "@/lib/useAppInit";
+import { APP_NAME, APP_VERSION } from "@/lib/version";
 
 const TAG = "[App]";
-
-type Page =
-  | "dashboard"
-  | "patient"
-  | "funds"
-  | "procedures"
-  | "procedure-types"
-  | "excel-import"
-  | "fund-payment"
-  | "fund-payment-match"
-  | "bank-transfer"
-  | "bank-account"
-  | "bank-statement-match";
 
 function AppContent() {
   const { t } = useTranslation("common");
@@ -95,7 +84,7 @@ function AppContent() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-neutral-10">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-m3-surface">
       <Drawer
         isOpen={isDrawerOpen}
         onClose={closeDrawer}
@@ -124,7 +113,7 @@ function AppContent() {
         {currentPage === "bank-statement-match" && <BankStatementPage />}
 
         {/* Snackbars - display in center-bottom with slide-up animation */}
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 flex flex-col gap-3 z-50 max-w-sm pointer-events-none">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex flex-col gap-3 z-50 max-w-sm pointer-events-none">
           {snackbars.map((snackbar) => (
             <div key={snackbar.id} className="pointer-events-auto">
               <Snackbar
@@ -137,9 +126,13 @@ function AppContent() {
         </div>
       </main>
 
-      <div className="shrink-0 h-8 bg-m3-primary flex items-center justify-center">
-        <UpdateBanner updater={updater} />
-      </div>
+      <Footer appName={APP_NAME} version={APP_VERSION} />
+
+      {updater.state !== "idle" && updater.state !== "done" && (
+        <div className="shrink-0 min-h-8 bg-m3-primary-container flex items-center justify-center">
+          <UpdateBanner updater={updater} />
+        </div>
+      )}
     </div>
   );
 }
