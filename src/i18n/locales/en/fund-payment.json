@@ -6,6 +6,7 @@
     "modifySelection": "Modify selection",
     "selectProcedures": "Select procedures",
     "procedures": "Procedures:",
+    "noProceduresSelected": "No procedures selected yet.",
     "createButton": "Create Payment",
     "creating": "Creating...",
     "success": "Payment group created successfully!"
