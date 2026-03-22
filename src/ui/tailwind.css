@@ -519,6 +519,12 @@
     transform: scale(0.95);
   }
 
+  /* Force native select dropdown to render in dark mode when dark theme is active.
+     color-scheme on the select element itself controls the native popup colors. */
+  .dark select {
+    color-scheme: dark;
+  }
+
   .m3-input {
     background-color: var(--color-m3-surface-variant);
     border-bottom: 1px solid var(--color-m3-on-surface-variant);

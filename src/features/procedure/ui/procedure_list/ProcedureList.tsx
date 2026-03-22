@@ -1,10 +1,11 @@
 import { Edit, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@/lib/formatters";
-import { IconButton } from "@/ui/components";
+import { IconButton, SortIcon } from "@/ui/components";
 import { formatDateDisplay, type ProcedureRow } from "../../model";
-import { COL_WIDTHS, TABLE_STYLES } from "../ui.styles";
+import { COL_WIDTHS } from "../ui.styles";
 import { StatusBadge } from "./StatusBadge";
+import { useSortProcedureList } from "./useSortProcedureList";
 
 interface ProcedureListProps {
   rows: ProcedureRow[];
@@ -15,101 +16,122 @@ interface ProcedureListProps {
 
 export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureListProps) {
   const { t } = useTranslation("procedure");
+  const { t: tc } = useTranslation("common");
   const { formatCurrency } = useFormatters();
+  const { sortedRows, sortConfig, handleSort } = useSortProcedureList(rows);
 
   return (
-    <div className={TABLE_STYLES.container}>
-      <div className={TABLE_STYLES.tableWrapper}>
-        <table className={TABLE_STYLES.table}>
-          <thead className={TABLE_STYLES.thead}>
-            <tr>
-              <th className={`${TABLE_STYLES.th} ${COL_WIDTHS.patientName}`}>
+    <div className="m3-table-container">
+      <table className="w-full border-collapse min-w-[1100px]">
+        <thead>
+          <tr>
+            <th
+              className={`m3-th ${COL_WIDTHS.patientName}`}
+              onClick={() => handleSort("patientName")}
+            >
+              <div className="flex items-center gap-1">
                 {t("table.patient")}
-              </th>
-              <th className={`${TABLE_STYLES.th} ${COL_WIDTHS.ssn}`}>{t("table.ssn")}</th>
-              <th className={`${TABLE_STYLES.th} ${COL_WIDTHS.fundId}`}>{t("table.fundCode")}</th>
-              <th className={`${TABLE_STYLES.th} ${COL_WIDTHS.fundName}`}>{t("table.fundName")}</th>
-              <th className={`${TABLE_STYLES.th} ${COL_WIDTHS.procedureType}`}>
-                {t("table.procedureType")}
-              </th>
-              <th className={`${TABLE_STYLES.th} ${COL_WIDTHS.date}`}>{t("table.date")}</th>
-              <th className={`${TABLE_STYLES.th} ${COL_WIDTHS.amount}`}>{t("table.amount")}</th>
-              <th className={`${TABLE_STYLES.th} w-24`}>{t("table.paymentMethod")}</th>
-              <th className={`${TABLE_STYLES.th} w-28`}>{t("table.confirmedDate")}</th>
-              <th className={`${TABLE_STYLES.th} w-28`}>{t("table.status")}</th>
-              <th className={TABLE_STYLES.th} />
-            </tr>
-          </thead>
+                <SortIcon
+                  active={sortConfig.key === "patientName"}
+                  direction={sortConfig.direction}
+                />
+              </div>
+            </th>
+            <th className={`m3-th ${COL_WIDTHS.ssn}`}>{t("table.ssn")}</th>
+            <th className={`m3-th ${COL_WIDTHS.fundId}`}>{t("table.fundCode")}</th>
+            <th className={`m3-th ${COL_WIDTHS.fundName}`}>{t("table.fundName")}</th>
+            <th className={`m3-th ${COL_WIDTHS.procedureType}`}>{t("table.procedureType")}</th>
+            <th className={`m3-th ${COL_WIDTHS.date}`} onClick={() => handleSort("procedureDate")}>
+              <div className="flex items-center gap-1">
+                {t("table.date")}
+                <SortIcon
+                  active={sortConfig.key === "procedureDate"}
+                  direction={sortConfig.direction}
+                />
+              </div>
+            </th>
+            <th
+              className={`m3-th ${COL_WIDTHS.amount}`}
+              onClick={() => handleSort("procedureAmount")}
+            >
+              <div className="flex items-center gap-1">
+                {t("table.amount")}
+                <SortIcon
+                  active={sortConfig.key === "procedureAmount"}
+                  direction={sortConfig.direction}
+                />
+              </div>
+            </th>
+            <th className="m3-th w-24">{t("table.paymentMethod")}</th>
+            <th className="m3-th w-28">{t("table.confirmedDate")}</th>
+            <th className="m3-th w-28" onClick={() => handleSort("status")}>
+              <div className="flex items-center gap-1">
+                {t("table.status")}
+                <SortIcon active={sortConfig.key === "status"} direction={sortConfig.direction} />
+              </div>
+            </th>
+            <th className="m3-th">{tc("table.actions")}</th>
+          </tr>
+        </thead>
 
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={11}
-                  className="px-4 py-8 text-center text-sm text-m3-on-surface-variant"
-                >
-                  {isFiltered ? t("filter.emptySearch") : t("table.empty")}
+        <tbody>
+          {sortedRows.length === 0 ? (
+            <tr>
+              <td colSpan={11} className="m3-td text-center py-8">
+                {isFiltered ? t("filter.emptySearch") : t("table.empty")}
+              </td>
+            </tr>
+          ) : (
+            sortedRows.map((row) => (
+              <tr key={row.rowId} className="m3-tr">
+                <td className={`m3-td ${COL_WIDTHS.patientName}`}>{row.patientName ?? "—"}</td>
+                <td className={`m3-td ${COL_WIDTHS.ssn}`}>{row.ssn ?? "—"}</td>
+                <td className={`m3-td ${COL_WIDTHS.fundId}`}>{row.fundIdentifier ?? "—"}</td>
+                <td className={`m3-td ${COL_WIDTHS.fundName}`}>{row.fundName ?? "—"}</td>
+                <td className={`m3-td ${COL_WIDTHS.procedureType}`}>{row.procedureName ?? "—"}</td>
+                <td className={`m3-td ${COL_WIDTHS.date}`}>
+                  {row.procedureDate ? formatDateDisplay(row.procedureDate) : "—"}
+                </td>
+                <td className={`m3-td ${COL_WIDTHS.amount}`}>
+                  {row.procedureAmount != null
+                    ? formatCurrency(Math.round(row.procedureAmount * 1000))
+                    : "—"}
+                </td>
+                <td className="m3-td w-24">
+                  {row.paymentMethod ? formatPaymentMethod(row.paymentMethod, t) : "—"}
+                </td>
+                <td className="m3-td w-28">
+                  {row.confirmedPaymentDate ? formatDateDisplay(row.confirmedPaymentDate) : "—"}
+                </td>
+                <td className="m3-td w-28">
+                  <StatusBadge status={row.status} />
+                </td>
+                <td className="m3-td text-right">
+                  <div className="flex gap-1 justify-end">
+                    <IconButton
+                      variant="ghost"
+                      size="sm"
+                      shape="round"
+                      aria-label={t("action.editTitle")}
+                      icon={<Edit size={16} />}
+                      onClick={() => onEdit(row)}
+                    />
+                    <IconButton
+                      variant="danger"
+                      size="sm"
+                      shape="round"
+                      aria-label={t("action.deleteTitle")}
+                      icon={<Trash2 size={16} />}
+                      disabled={!row.id}
+                      onClick={() => row.id && onDelete(row.id)}
+                    />
+                  </div>
                 </td>
               </tr>
-            ) : (
-              rows.map((row) => (
-                <tr key={row.rowId} className={`${TABLE_STYLES.row} ${TABLE_STYLES.rowHover}`}>
-                  <td className={`${TABLE_STYLES.cellBase} ${COL_WIDTHS.patientName}`}>
-                    {row.patientName ?? "—"}
-                  </td>
-                  <td className={`${TABLE_STYLES.cellBase} ${COL_WIDTHS.ssn}`}>{row.ssn ?? "—"}</td>
-                  <td className={`${TABLE_STYLES.cellBase} ${COL_WIDTHS.fundId}`}>
-                    {row.fundIdentifier ?? "—"}
-                  </td>
-                  <td className={`${TABLE_STYLES.cellBase} ${COL_WIDTHS.fundName}`}>
-                    {row.fundName ?? "—"}
-                  </td>
-                  <td className={`${TABLE_STYLES.cellBase} ${COL_WIDTHS.procedureType}`}>
-                    {row.procedureName ?? "—"}
-                  </td>
-                  <td className={`${TABLE_STYLES.cellBase} ${COL_WIDTHS.date}`}>
-                    {row.procedureDate ? formatDateDisplay(row.procedureDate) : "—"}
-                  </td>
-                  <td className={`${TABLE_STYLES.cellBase} ${COL_WIDTHS.amount}`}>
-                    {row.procedureAmount != null
-                      ? formatCurrency(Math.round(row.procedureAmount * 1000))
-                      : "—"}
-                  </td>
-                  <td className={`${TABLE_STYLES.cellBase} w-24`}>
-                    {row.paymentMethod ? formatPaymentMethod(row.paymentMethod, t) : "—"}
-                  </td>
-                  <td className={`${TABLE_STYLES.cellBase} w-28`}>
-                    {row.confirmedPaymentDate ? formatDateDisplay(row.confirmedPaymentDate) : "—"}
-                  </td>
-                  <td className={`${TABLE_STYLES.cellBase} w-28`}>
-                    <StatusBadge status={row.status} />
-                  </td>
-                  <td className="px-2 py-2 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <IconButton
-                        variant="ghost"
-                        size="sm"
-                        shape="round"
-                        aria-label={t("action.editTitle")}
-                        icon={<Edit size={16} />}
-                        onClick={() => onEdit(row)}
-                      />
-                      <IconButton
-                        variant="danger"
-                        size="sm"
-                        shape="round"
-                        aria-label={t("action.deleteTitle")}
-                        icon={<Trash2 size={16} />}
-                        onClick={() => row.id && onDelete(row.id)}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }

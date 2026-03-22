@@ -51,11 +51,18 @@
     "none": "—",
     "created": "Créé",
     "reconciliated": "Rapproché",
+    "partially_reconciled": "Partiellement rapproché",
+    "directly_payed": "Réglé directement",
+    "fund_payed": "Réglé par caisse",
+    "partially_fund_payed": "Partiellement réglé",
+    "import_directly_payed": "Importé (direct)",
+    "import_fund_payed": "Importé (caisse)",
     "payed": "Réglé"
   },
   "filter": {
     "placeholder": "Filtrer par patient...",
-    "emptySearch": "Aucun résultat pour cette recherche"
+    "emptySearch": "Aucun résultat pour cette recherche",
+    "allStatuses": "Tous les statuts"
   },
   "period": {
     "month": "Mois :",

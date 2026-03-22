@@ -340,7 +340,7 @@ Actions: `setPatients`, `addPatients`, `setFunds`, `addFunds`, `setProcedureType
 | `bindings.ts` | Auto-generated Tauri bindings — **DO NOT EDIT** |
 | `lib/logger.ts` | Structured logging — always use instead of `console.log` |
 | `i18n/locales/fr/` + `en/` | Translation files — all visible text must go through `t(...)` |
-| `ui/components/` | Shared generic UI (Button, DateField, SelectField, FAB…) — never modify for a specific use case |
+| `ui/components/` | Shared generic UI (Button, DateField, SelectField, CompactSelectField, FAB…) — never modify for a specific use case |
 | `core/snackbar/` | Toast notifications |
 | `core/events/` | Window event bus |
 
@@ -375,12 +375,12 @@ Flat layout. `ReconciliationPage` + `useReconciliationPage`. Gateway wraps all `
 Flat layout. Gateway: `add_patient`, `read_all_patients`, `update_patient`, `delete_patient`. Component: `PatientsManager`.
 
 #### Procedure (`features/procedure/`)
-**`api/` + `presentation/` split** (reference layout for new features).
-- `api/gateway.ts` — wraps all procedure commands + inline entity creation (patient, fund, procedure type)
+**`api/` + `presentation/` split** (layer-first generation — see layout table below).
+- `api/gateway.ts` — wraps all procedure commands + inline entity creation (patient, fund)
 - `api/procedureService.ts` — higher-level service combining multiple gateway calls
-- `model/` — domain logic: `workflow.reducer.ts`, `workflow.logic.ts`, `date.logic.ts`, `procedure-row.mapper.ts`, `workflow.types.ts`
-- `hooks/` — `useProcedureData`, `useProcedurePeriod`, `useProcedureFormModals`, `useCreateEntityForm`
-- `ui/` — `ProcedurePage` (full-width table + FAB), `WorkflowTable`, `WorkflowRow`, `procedure_form_modal/ProcedureFormModal` (unified create/edit, replaces the former sidebar panel + `ProcedureUpdateModal`), cells (`AmountCell`, `StatusCell`, `FundCell`…), editors (`AmountEditor`, `AutocompleteEditor`…), forms (`CreatePatientForm`, `CreateFundForm`, `CreateProcedureTypeForm`)
+- `model/` — `procedure-row.types.ts`, `procedure-row.mapper.ts` (milliemes → euros), `date.logic.ts`
+- `hooks/` — `useProcedureData` (loads reference data, exposes `deleteRow`), `useProcedurePeriod` (period filter + yearRange), `useCreateEntityForm` (shared create-entity form logic)
+- `ui/` — `ProcedurePage` (period selector, search, stats, read-only list, FAB), `PeriodSelector` (month/year `CompactSelectField` + nav arrows), `SummaryStats` (billed / received / awaited from `actualPaymentAmount`), `procedure_list/ProcedureList` + `StatusBadge`, `procedure_form_modal/ProcedureFormModal` (unified create/edit modal), `form/CreatePatientForm` + `CreateFundForm` (nested entity creation modals)
 
 #### Procedure Type (`features/procedure-type/`)
 Flat layout. Gateway: `add_procedure_type`, `read_all_procedure_types`, `update_procedure_type`, `delete_procedure_type`.

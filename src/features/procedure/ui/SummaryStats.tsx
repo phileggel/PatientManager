@@ -26,17 +26,16 @@ export function SummaryStats({ rows }: SummaryStatsProps) {
 
   // Sum actual payment amounts (amounts received)
   const totalReceived = rows
-    .filter((r) => !r.isDraft && r.awaitedAmount !== null)
-    .reduce((sum, r) => {
-      const procedureAmount = r.procedureAmount || 0;
-      const awaited = r.awaitedAmount || 0;
-      return sum + (procedureAmount - awaited);
-    }, 0);
+    .filter((r) => !r.isDraft && r.actualPaymentAmount != null)
+    .reduce((sum, r) => sum + (r.actualPaymentAmount || 0), 0);
 
-  // Sum awaited amounts (outstanding balance)
+  // Sum awaited amounts (outstanding balance = billed − received)
   const totalAwaited = rows
-    .filter((r) => !r.isDraft && r.awaitedAmount !== null && r.awaitedAmount > 0)
-    .reduce((sum, r) => sum + (r.awaitedAmount || 0), 0);
+    .filter((r) => !r.isDraft)
+    .reduce((sum, r) => {
+      const diff = (r.procedureAmount || 0) - (r.actualPaymentAmount || 0);
+      return sum + (diff > 0 ? diff : 0);
+    }, 0);
 
   return (
     <div className="flex items-center gap-6 text-sm font-medium text-m3-on-surface">
@@ -54,23 +53,23 @@ export function SummaryStats({ rows }: SummaryStatsProps) {
 
       <div className="w-px h-6 bg-m3-outline-variant" />
 
-      <div title={t("summary.effectueTooltip")} className="cursor-help">
-        <span className="text-m3-primary">{t("summary.effectue")} </span>
+      <div title={t("summary.effectueTooltip")} className="cursor-help flex items-center gap-2">
+        <span className="text-m3-primary">{t("summary.effectue")}</span>
         {/* Amounts are in euros in ProcedureRow; formatCurrency expects thousandths */}
         <span>{formatCurrency(Math.round(totalAmount * 1000))}</span>
       </div>
 
       <div className="w-px h-6 bg-m3-outline-variant" />
 
-      <div title={t("summary.recuTooltip")} className="cursor-help">
-        <span className="text-m3-primary">{t("summary.recu")} </span>
+      <div title={t("summary.recuTooltip")} className="cursor-help flex items-center gap-2">
+        <span className="text-m3-primary">{t("summary.recu")}</span>
         <span>{formatCurrency(Math.round(totalReceived * 1000))}</span>
       </div>
 
       <div className="w-px h-6 bg-m3-outline-variant" />
 
-      <div title={t("summary.enAttenteTooltip")} className="cursor-help">
-        <span className="text-m3-primary">{t("summary.enAttente")} </span>
+      <div title={t("summary.enAttenteTooltip")} className="cursor-help flex items-center gap-2">
+        <span className="text-m3-primary">{t("summary.enAttente")}</span>
         <span>{formatCurrency(Math.round(totalAwaited * 1000))}</span>
       </div>
     </div>

@@ -15,7 +15,7 @@ export function CompactSelectField({
     <div className="relative group">
       <select
         id={id}
-        className={`appearance-none cursor-pointer bg-m3-surface-container text-m3-on-surface text-sm px-3 py-1.5 pr-7 rounded-lg border border-m3-outline-variant focus:outline-none focus:border-m3-primary transition-colors ${className}`}
+        className={`appearance-none cursor-pointer bg-m3-surface-container text-m3-on-surface text-sm px-3 py-1.5 pr-7 rounded-lg border border-m3-outline-variant focus:outline-none focus:border-m3-primary focus:ring-2 focus:ring-m3-primary focus:ring-offset-1 transition-colors ${className}`}
         {...props}
       >
         {children}

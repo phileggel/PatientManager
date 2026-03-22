@@ -20,7 +20,7 @@ export function FAB({ onClick, label, icon }: FABProps) {
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="fixed bottom-12 right-12 w-14 h-14 rounded-full bg-m3-primary text-m3-on-primary hover:bg-m3-primary-container hover:text-m3-on-primary-container shadow-elevation-3 hover:shadow-elevation-4 active:shadow-elevation-1 transition-all duration-200 flex items-center justify-center z-40"
+      className="fixed bottom-12 right-12 w-14 h-14 rounded-full bg-m3-primary text-m3-on-primary hover:bg-m3-primary/90 shadow-elevation-3 hover:shadow-elevation-4 active:shadow-elevation-3 transition-all duration-200 flex items-center justify-center z-40"
     >
       {icon ?? <Plus size={24} strokeWidth={2.5} />}
     </button>

@@ -308,7 +308,11 @@ export function ProcedureFormModal({
                   <TextField
                     id="readonlyActualAmount"
                     label={t("modal.paidAmount")}
-                    value={formatCurrency(procedure.actual_payment_amount ?? 0)}
+                    value={
+                      procedure.actual_payment_amount != null
+                        ? formatCurrency(procedure.actual_payment_amount)
+                        : "—"
+                    }
                     readOnly
                   />
                 </div>
@@ -318,7 +322,7 @@ export function ProcedureFormModal({
         </form>
 
         {/* Footer */}
-        <div className="flex gap-3 p-5 bg-m3-surface-container-low">
+        <div className="flex gap-3 p-5 border-t border-m3-outline-variant">
           <Button
             type="button"
             onClick={onClose}
