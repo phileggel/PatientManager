@@ -38,9 +38,9 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
   }
 
   return (
-    <div className="flex flex-col h-full border-r border-neutral-20">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="grid grid-cols-6 gap-4 p-4 bg-neutral-10 border-b border-neutral-20 font-semibold text-sm sticky top-0">
+      <div className="grid grid-cols-6 gap-4 p-4 bg-m3-surface-container-low font-semibold text-sm sticky top-0">
         <div>{t("transfer.list.columns.date")}</div>
         <div>{t("transfer.list.columns.amount")}</div>
         <div>{t("transfer.list.columns.type")}</div>
@@ -74,7 +74,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                 className="p-1 hover:bg-neutral-20 rounded transition-colors"
                 title={tCommon("action.edit")}
               >
-                <Edit2 className="size-4 text-primary-60" />
+                <Edit2 className="size-4 text-m3-primary" />
               </button>
               <button
                 type="button"
@@ -82,7 +82,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                 className="p-1 hover:bg-neutral-20 rounded transition-colors"
                 title={tCommon("action.delete")}
               >
-                <Trash2 className="size-4 text-error-70" />
+                <Trash2 className="size-4 text-m3-error" />
               </button>
             </div>
           </div>
