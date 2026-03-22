@@ -29,7 +29,7 @@ and amount are pre-filled from the patient's latest recorded procedure (`latest_
 **R5 — Delete confirmation** : Deleting a procedure always requires a `ConfirmationDialog`.
 No row may be deleted without explicit user confirmation.
 
-**R6 — Edit via modal** : Saved (non-draft) procedures can be edited in `ProcedureUpdateModal`.
+**R6 — Edit via modal** : Saved (non-draft) procedures can be edited in `ProcedureFormModal` (mode="edit").
 While the modal is open for a row, inline editing of that row is disabled.
 
 **R7 — Summary stats** : The header bar shows aggregated stats for the currently filtered rows
@@ -57,22 +57,30 @@ Draft rows always pass the filter (they are always shown).
 
 ---
 
+**R12 — FAB to create** : A Floating Action Button (FAB, bottom-right, 56×56 px) opens
+`ProcedureFormModal` in create mode. The right sidebar panel (`AddProcedurePanel`) no longer
+exists; the table takes the full content width.
+
+---
+
 ## Component Structure
 
 ```
 procedure/
   ui/
-    ProcedurePage.tsx           — main page (period selector, search, stats, table, modal)
-    PeriodSelector.tsx          — month/year dropdowns + navigation arrows
-    SummaryStats.tsx            — aggregated stats bar
-    WorkflowTable.tsx           — stateful table with inline editing lifecycle
-    WorkflowRow.tsx             — single row rendering (memo)
-    ProcedureUpdateModal.tsx    — edit modal for saved procedures
-    cell/                       — read-only and editing cell components
-    editor/                     — inline field editors (autocomplete, amount, day)
-    form/                       — inline entity creation forms (patient, fund)
-    ui.styles.ts                — shared TABLE_STYLES / COL_WIDTHS constants
-  hooks/                        — useProcedureData, useProcedurePeriod, …
-  model/                        — domain types, workflow state machine, mapper
-  api/                          — gateway.ts (Tauri calls)
+    ProcedurePage.tsx               — main page (period selector, search, stats, table, FAB, modal)
+    PeriodSelector.tsx              — month/year dropdowns + navigation arrows
+    SummaryStats.tsx                — aggregated stats bar
+    WorkflowTable.tsx               — stateful table with inline editing lifecycle
+    WorkflowRow.tsx                 — single row rendering (memo)
+    procedure_form_modal/
+      ProcedureFormModal.tsx        — unified create/edit modal (mode prop)
+      useProcedureFormModal.ts      — form state, validation, auto-fill, gateway calls
+    cell/                           — read-only and editing cell components
+    editor/                         — inline field editors (autocomplete, amount, day)
+    form/                           — inline entity creation forms (patient, fund)
+    ui.styles.ts                    — shared TABLE_STYLES / COL_WIDTHS constants
+  hooks/                            — useProcedureData, useProcedurePeriod, …
+  model/                            — domain types, workflow state machine, mapper
+  api/                              — gateway.ts (Tauri calls)
 ```

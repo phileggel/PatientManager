@@ -23,6 +23,7 @@
   },
   "action": {
     "add": "Ajouter un acte",
+    "fabAriaLabel": "Ajouter un acte",
     "adding": "Ajout en cours...",
     "update": "Mettre à jour",
     "updating": "Mise à jour...",
@@ -30,7 +31,6 @@
     "deleteTitle": "Supprimer l'acte",
     "delete": {
       "confirm": "Êtes-vous sûr de vouloir supprimer cet acte ?",
-      "success": "Acte supprimé avec succès !",
       "confirmLabel": "Supprimer",
       "cancelLabel": "Annuler"
     }
@@ -93,7 +93,6 @@
     "title": "Modifier l'acte",
     "closeAriaLabel": "Fermer",
     "selectPatient": "Sélectionner un patient",
-    "selectProcedureType": "Sélectionner un type d'acte",
     "systemInfo": "Informations système",
     "procedureId": "ID de l'acte",
     "patientInfo": "Informations patient",
@@ -101,10 +100,7 @@
     "fundName": "Nom de la caisse",
     "paymentInfo": "Informations de paiement",
     "status": "Statut",
-    "paidAmount": "Montant payé",
-    "awaitedAmount": "Montant en attente",
-    "updateError": "Erreur : {{error}}",
-    "updateUnknown": "Une erreur inattendue s'est produite"
+    "paidAmount": "Montant payé"
   },
   "createPatient": {
     "title": "Créer un nouveau patient",

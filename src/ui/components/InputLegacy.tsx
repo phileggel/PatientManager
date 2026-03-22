@@ -10,7 +10,7 @@ import type { InputHTMLAttributes } from "react";
  * - src/features/shared/ui/ProcedureTypeForm.tsx
  * - src/features/procedure/ui/form/CreateFundForm.tsx
  * - src/features/procedure/ui/form/CreatePatientForm.tsx
- * - src/features/procedure/ui/ProcedureUpdateModal.tsx
+ * - (ProcedureUpdateModal replaced by ProcedureFormModal)
  *
  * This component uses outdated styling (border + rounded) instead of M3 design tokens.
  * This component exists only for backward compatibility during refactoring.

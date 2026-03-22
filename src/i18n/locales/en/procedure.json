@@ -23,6 +23,7 @@
   },
   "action": {
     "add": "Add Procedure",
+    "fabAriaLabel": "Add procedure",
     "adding": "Adding...",
     "update": "Update",
     "updating": "Updating...",
@@ -30,7 +31,6 @@
     "deleteTitle": "Delete procedure",
     "delete": {
       "confirm": "Are you sure you want to delete this procedure?",
-      "success": "Procedure deleted successfully!",
       "confirmLabel": "Delete",
       "cancelLabel": "Cancel"
     }
@@ -93,7 +93,6 @@
     "title": "Update Procedure",
     "closeAriaLabel": "Close",
     "selectPatient": "Select a patient",
-    "selectProcedureType": "Select a procedure type",
     "systemInfo": "System Information",
     "procedureId": "Procedure ID",
     "patientInfo": "Patient Information",
@@ -101,10 +100,7 @@
     "fundName": "Fund Name",
     "paymentInfo": "Payment Information",
     "status": "Status",
-    "paidAmount": "Paid Amount",
-    "awaitedAmount": "Awaited Amount",
-    "updateError": "Error: {{error}}",
-    "updateUnknown": "An unexpected error occurred"
+    "paidAmount": "Paid Amount"
   },
   "createPatient": {
     "title": "Create New Patient",

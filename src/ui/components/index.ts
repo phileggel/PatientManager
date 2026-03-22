@@ -1,11 +1,10 @@
-// Modal components
-
 // Button components
 export { Button, IconButton } from "./button";
 // Legacy components (kept for backwards compatibility)
 export { CardLegacy } from "./CardLegacy";
 export { DatePickerLegacy } from "./DatePickerLegacy";
 export { ErrorAlertLegacy } from "./ErrorAlertLegacy";
+export { FAB } from "./fab/FAB";
 // Field components
 export {
   AmountField,

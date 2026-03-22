@@ -340,7 +340,7 @@ Actions: `setPatients`, `addPatients`, `setFunds`, `addFunds`, `setProcedureType
 | `bindings.ts` | Auto-generated Tauri bindings — **DO NOT EDIT** |
 | `lib/logger.ts` | Structured logging — always use instead of `console.log` |
 | `i18n/locales/fr/` + `en/` | Translation files — all visible text must go through `t(...)` |
-| `ui/components/` | Shared generic UI (Button, DateField, SelectField…) — never modify for a specific use case |
+| `ui/components/` | Shared generic UI (Button, DateField, SelectField, FAB…) — never modify for a specific use case |
 | `core/snackbar/` | Toast notifications |
 | `core/events/` | Window event bus |
 
@@ -380,7 +380,7 @@ Flat layout. Gateway: `add_patient`, `read_all_patients`, `update_patient`, `del
 - `api/procedureService.ts` — higher-level service combining multiple gateway calls
 - `model/` — domain logic: `workflow.reducer.ts`, `workflow.logic.ts`, `date.logic.ts`, `procedure-row.mapper.ts`, `workflow.types.ts`
 - `hooks/` — `useProcedureData`, `useProcedurePeriod`, `useProcedureFormModals`, `useCreateEntityForm`
-- `ui/` — `ProcedurePage`, `WorkflowTable`, `WorkflowRow`, cells (`AmountCell`, `StatusCell`, `FundCell`…), editors (`AmountEditor`, `AutocompleteEditor`…), forms (`CreatePatientForm`, `CreateFundForm`, `CreateProcedureTypeForm`)
+- `ui/` — `ProcedurePage` (full-width table + FAB), `WorkflowTable`, `WorkflowRow`, `procedure_form_modal/ProcedureFormModal` (unified create/edit, replaces the former sidebar panel + `ProcedureUpdateModal`), cells (`AmountCell`, `StatusCell`, `FundCell`…), editors (`AmountEditor`, `AutocompleteEditor`…), forms (`CreatePatientForm`, `CreateFundForm`, `CreateProcedureTypeForm`)
 
 #### Procedure Type (`features/procedure-type/`)
 Flat layout. Gateway: `add_procedure_type`, `read_all_procedure_types`, `update_procedure_type`, `delete_procedure_type`.
