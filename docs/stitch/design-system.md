@@ -130,4 +130,42 @@ Traditional structural lines create mental friction. We achieve depth through th
 | Label font | Inter |
 | Corner radius | 8px (ROUND_EIGHT) |
 | Spacing scale | 2 |
-| Color mode | Light |
+| Color mode | Light + Dark |
+
+## 9. Dark Mode — Clinical Atelier Dark Palette
+
+Applied via `.dark` class on `<html>`. Controlled by the theme toggle (day/night/auto). Source: Stitch screen "Modifier le groupe de paiement (Dark Mode)".
+
+| Token | Dark Value |
+|---|---|
+| `primary` | #D0BCFF |
+| `on_primary` | #381E72 |
+| `primary_container` | #4F378B |
+| `on_primary_container` | #EADDFF |
+| `secondary` | #CCC2DC |
+| `on_secondary` | #332D41 |
+| `secondary_container` | #4A4458 |
+| `on_secondary_container` | #E8DEF8 |
+| `tertiary` | #EFB8C8 |
+| `on_tertiary` | #492532 |
+| `tertiary_container` | #633B48 |
+| `on_tertiary_container` | #FFD8E4 |
+| `surface` | #141218 |
+| `on_surface` | #E6E1E5 |
+| `surface_dim` | #1D1B20 |
+| `surface_container_lowest` | #0F0D13 |
+| `surface_container_low` | #1D1B20 |
+| `surface_container` | #211F26 |
+| `surface_container_high` | #2B2930 |
+| `surface_container_highest` | #36343B |
+| `surface_variant` | #49454F |
+| `on_surface_variant` | #CAC4D0 |
+| `outline` | #938F99 |
+| `outline_variant` | #49454F |
+| `error` | #F2B8B5 |
+| `on_error` | #601410 |
+| `error_container` | #8C1D18 |
+| `on_error_container` | #F9DEDC |
+
+### Header gradient rule
+The header uses dedicated `--color-header-from` / `--color-header-to` tokens (fixed brand indigo `#4F378A` → `#6750A4`) that are **not overridden in dark mode**. The header is a structural branding element that maintains the rich indigo gradient in all themes. Text on the header always uses `text-white` (always accessible on rich indigo).

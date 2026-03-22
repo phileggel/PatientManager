@@ -396,6 +396,7 @@ Flat layout. Gateway: `add_procedure_type`, `read_all_procedure_types`, `update_
 
 #### Shell (`features/shell/`)
 Layout: `Drawer`, `Header`, `Footer`, `PageContent`, `DrawerToggle`, `useDrawerController`.
+Theme: `theme_toggle/ThemeToggle` + `theme_toggle/useThemeToggle` — cycles day/night/auto, persists to `localStorage`, applies `.dark` class on `<html>`, listens to OS `prefers-color-scheme` in auto mode.
 
 #### Updater (`features/updater/`)
 `UpdateBanner` + `useUpdater`. Tauri auto-updater integration.
