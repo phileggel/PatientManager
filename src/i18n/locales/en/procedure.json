@@ -10,7 +10,6 @@
     "noSelection": "—",
     "selectPatient": "Enter patient name",
     "selectFund": "Enter fund identifier or name",
-    "selectProcedureType": "Enter procedure type name",
     "selectPaymentMethod": "Select payment method",
     "payment": {
       "none": "—",
@@ -46,7 +45,6 @@
     "paymentMethod": "Payment Method",
     "confirmedDate": "Confirmed Date",
     "status": "Status",
-    "actions": "Actions",
     "empty": "No procedures for this period"
   },
   "status": {
@@ -56,10 +54,8 @@
     "payed": "Paid"
   },
   "filter": {
-    "placeholder": "Filter by patient..."
-  },
-  "editor": {
-    "createOption": "+ Create \"{{query}}\""
+    "placeholder": "Filter by patient...",
+    "emptySearch": "No results matching your search"
   },
   "period": {
     "month": "Month:",
@@ -87,12 +83,12 @@
   "error": {
     "loading": "Error loading data",
     "requiredField": "Required field",
-    "requiredFields": "Please fill in all required fields."
+    "requiredFields": "Please fill in all required fields.",
+    "deleteFailed": "Failed to delete procedure"
   },
   "modal": {
     "title": "Update Procedure",
     "closeAriaLabel": "Close",
-    "selectPatient": "Select a patient",
     "systemInfo": "System Information",
     "procedureId": "Procedure ID",
     "patientInfo": "Patient Information",

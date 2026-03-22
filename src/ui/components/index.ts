@@ -9,6 +9,7 @@ export { FAB } from "./fab/FAB";
 export {
   AmountField,
   ComboboxField,
+  CompactSelectField,
   DateField,
   SearchField,
   SelectField,

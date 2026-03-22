@@ -10,7 +10,6 @@
     "noSelection": "—",
     "selectPatient": "Entrez le nom du patient",
     "selectFund": "Entrez l'identifiant ou le nom de la caisse",
-    "selectProcedureType": "Entrez le type d'acte",
     "selectPaymentMethod": "Sélectionner une méthode de paiement",
     "payment": {
       "none": "—",
@@ -46,7 +45,6 @@
     "paymentMethod": "Méthode Paiement",
     "confirmedDate": "Date Confirmée",
     "status": "Statut",
-    "actions": "Actions",
     "empty": "Aucun acte pour cette période"
   },
   "status": {
@@ -56,10 +54,8 @@
     "payed": "Réglé"
   },
   "filter": {
-    "placeholder": "Filtrer par patient..."
-  },
-  "editor": {
-    "createOption": "+ Créer \"{{query}}\""
+    "placeholder": "Filtrer par patient...",
+    "emptySearch": "Aucun résultat pour cette recherche"
   },
   "period": {
     "month": "Mois :",
@@ -87,12 +83,12 @@
   "error": {
     "loading": "Erreur de chargement des données",
     "requiredField": "Champ obligatoire",
-    "requiredFields": "Veuillez remplir tous les champs obligatoires."
+    "requiredFields": "Veuillez remplir tous les champs obligatoires.",
+    "deleteFailed": "Échec de la suppression de l'acte"
   },
   "modal": {
     "title": "Modifier l'acte",
     "closeAriaLabel": "Fermer",
-    "selectPatient": "Sélectionner un patient",
     "systemInfo": "Informations système",
     "procedureId": "ID de l'acte",
     "patientInfo": "Informations patient",

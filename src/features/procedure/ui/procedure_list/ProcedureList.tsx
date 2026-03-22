@@ -1,5 +1,6 @@
 import { Edit, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useFormatters } from "@/lib/formatters";
 import { IconButton } from "@/ui/components";
 import { formatDateDisplay, type ProcedureRow } from "../../model";
 import { COL_WIDTHS, TABLE_STYLES } from "../ui.styles";
@@ -7,12 +8,14 @@ import { StatusBadge } from "./StatusBadge";
 
 interface ProcedureListProps {
   rows: ProcedureRow[];
+  isFiltered?: boolean;
   onEdit: (row: ProcedureRow) => void;
   onDelete: (id: string) => void;
 }
 
-export function ProcedureList({ rows, onEdit, onDelete }: ProcedureListProps) {
+export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureListProps) {
   const { t } = useTranslation("procedure");
+  const { formatCurrency } = useFormatters();
 
   return (
     <div className={TABLE_STYLES.container}>
@@ -45,7 +48,7 @@ export function ProcedureList({ rows, onEdit, onDelete }: ProcedureListProps) {
                   colSpan={11}
                   className="px-4 py-8 text-center text-sm text-m3-on-surface-variant"
                 >
-                  {t("table.empty")}
+                  {isFiltered ? t("filter.emptySearch") : t("table.empty")}
                 </td>
               </tr>
             ) : (
@@ -68,7 +71,9 @@ export function ProcedureList({ rows, onEdit, onDelete }: ProcedureListProps) {
                     {row.procedureDate ? formatDateDisplay(row.procedureDate) : "—"}
                   </td>
                   <td className={`${TABLE_STYLES.cellBase} ${COL_WIDTHS.amount}`}>
-                    {row.procedureAmount != null ? `€${row.procedureAmount.toFixed(2)}` : "—"}
+                    {row.procedureAmount != null
+                      ? formatCurrency(Math.round(row.procedureAmount * 1000))
+                      : "—"}
                   </td>
                   <td className={`${TABLE_STYLES.cellBase} w-24`}>
                     {row.paymentMethod ? formatPaymentMethod(row.paymentMethod, t) : "—"}
@@ -80,26 +85,24 @@ export function ProcedureList({ rows, onEdit, onDelete }: ProcedureListProps) {
                     <StatusBadge status={row.status} />
                   </td>
                   <td className="px-2 py-2 text-right">
-                    {row.id && (
-                      <div className="flex gap-1 justify-end">
-                        <IconButton
-                          variant="ghost"
-                          size="sm"
-                          shape="round"
-                          aria-label={t("action.editTitle")}
-                          icon={<Edit size={16} />}
-                          onClick={() => onEdit(row)}
-                        />
-                        <IconButton
-                          variant="danger"
-                          size="sm"
-                          shape="round"
-                          aria-label={t("action.deleteTitle")}
-                          icon={<Trash2 size={16} />}
-                          onClick={() => onDelete(row.id as string)}
-                        />
-                      </div>
-                    )}
+                    <div className="flex gap-1 justify-end">
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        shape="round"
+                        aria-label={t("action.editTitle")}
+                        icon={<Edit size={16} />}
+                        onClick={() => onEdit(row)}
+                      />
+                      <IconButton
+                        variant="danger"
+                        size="sm"
+                        shape="round"
+                        aria-label={t("action.deleteTitle")}
+                        icon={<Trash2 size={16} />}
+                        onClick={() => row.id && onDelete(row.id)}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))
