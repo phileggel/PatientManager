@@ -38,7 +38,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
           <p className="text-xs font-medium text-neutral-60 uppercase tracking-wide">
             {t("transfer.selectProcedures.current")}
           </p>
-          <div className="border border-neutral-30 rounded-lg divide-y divide-neutral-20">
+          <div className="bg-m3-surface-container-low rounded-xl flex flex-col">
             {currentProcedures.map((proc) => (
               <label
                 key={proc.procedure_id}
@@ -55,7 +55,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
                     {getPatientName(proc.patient_id)}
                   </span>
                   <span className="text-neutral-60 text-xs whitespace-nowrap">
-                    {proc.procedure_date}
+                    {new Date(proc.procedure_date).toLocaleDateString("fr-FR")}
                   </span>
                   <span className="font-semibold whitespace-nowrap">
                     €{((proc.procedure_amount ?? 0) / 1000).toFixed(2)}
@@ -74,7 +74,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t("transfer.selectProcedures.filterPlaceholder")}
-          className="w-full px-3 py-2 text-sm border border-neutral-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-50"
+          className="w-full px-3 py-2 text-sm border border-neutral-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-m3-primary"
         />
       )}
 
@@ -87,7 +87,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
             : t("transfer.selectProcedures.empty")}
         </p>
       ) : (
-        <div className="border border-neutral-30 rounded-lg divide-y divide-neutral-20 max-h-48 overflow-y-auto">
+        <div className="bg-m3-surface-container-low rounded-xl flex flex-col max-h-48 overflow-y-auto">
           {filteredCandidates.map((proc) => (
             <label
               key={proc.procedure_id}
@@ -104,7 +104,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
                   {getPatientName(proc.patient_id)}
                 </span>
                 <span className="text-neutral-60 text-xs whitespace-nowrap">
-                  {proc.procedure_date}
+                  {new Date(proc.procedure_date).toLocaleDateString("fr-FR")}
                 </span>
                 <span className="font-semibold whitespace-nowrap">
                   €{((proc.procedure_amount ?? 0) / 1000).toFixed(2)}

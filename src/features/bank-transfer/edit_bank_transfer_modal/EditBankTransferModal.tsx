@@ -1,10 +1,10 @@
-import { X } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankTransfer } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import { Button, DateField, SelectField } from "@/ui/components";
+import { FormModal } from "@/ui/components/modal/FormModal";
 import { SelectFundGroupsPanel } from "../select_items_panel/SelectFundGroupsPanel";
 import { SelectProceduresPanel } from "../select_items_panel/SelectProceduresPanel";
 import { useEditBankTransferModal } from "./useEditBankTransferModal";
@@ -56,101 +56,21 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
     handleSubmit,
   } = useEditBankTransferModal(transfer, onClose);
 
-  if (!transfer) return null;
-
   const typeLabel = isFund
     ? t("transfer.typeFund")
-    : transfer.transfer_type === "CHECK"
+    : transfer?.transfer_type === "CHECK"
       ? t("transfer.typeCheck")
-      : transfer.transfer_type === "CASH"
+      : transfer?.transfer_type === "CASH"
         ? t("transfer.typeCash")
         : t("transfer.typeCreditCard");
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-20">
-          <h2 className="text-lg font-semibold">{t("transfer.edit.title")}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 hover:bg-neutral-10 rounded transition-colors"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1 p-6 overflow-y-auto">
-          {/* Transfer Date */}
-          <DateField
-            id="editTransferDate"
-            label={t("transfer.date")}
-            value={transferDate}
-            onChange={(e) => setTransferDate(e.target.value)}
-          />
-
-          {/* Type — display only (R4: immutable) */}
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-neutral-90">{t("transfer.type")}</span>
-            <span className="px-3 py-2 border border-neutral-20 rounded-md bg-neutral-10 text-sm text-neutral-70">
-              {typeLabel}
-            </span>
-          </div>
-
-          {/* Bank Account — read-only label for CASH (R13: auto-assigned, immutable) */}
-          {isCash ? (
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-neutral-90">
-                {t("transfer.bankAccount")}
-              </span>
-              <span className="text-sm text-neutral-60">{t("transfer.cashAccount")}</span>
-            </div>
-          ) : (
-            <SelectField
-              id="editBankAccount"
-              label={t("transfer.bankAccount")}
-              value={bankAccount}
-              onChange={(e) => setBankAccount(e.target.value)}
-              options={[
-                { value: "", label: t("transfer.selectBankAccount") },
-                ...bankAccountOptions,
-              ]}
-              required
-            />
-          )}
-
-          {/* Selection panel — conditional on type */}
-          {isFund ? (
-            <SelectFundGroupsPanel
-              transferDate={transferDate}
-              selectedGroupIds={selectedGroupIds}
-              onSelectionChange={handleFundGroupSelectionChange}
-              currentGroups={currentGroups}
-            />
-          ) : (
-            <SelectProceduresPanel
-              transferDate={transferDate}
-              selectedProcedureIds={selectedProcedureIds}
-              onSelectionChange={handleProcedureSelectionChange}
-              currentProcedures={currentProcedures}
-            />
-          )}
-
-          {/* Computed amount display */}
-          {totalAmountMillis > 0 && (
-            <div className="rounded-md bg-neutral-10 border border-neutral-20 px-4 py-3 text-sm">
-              <span className="text-neutral-60">{t("transfer.computedAmount")}</span>{" "}
-              <span className="font-semibold text-neutral-90">
-                €{(totalAmountMillis / 1000).toFixed(2)}
-              </span>
-            </div>
-          )}
-        </form>
-
-        {/* Footer */}
-        <div className="flex gap-3 p-6 border-t border-neutral-20">
+    <FormModal
+      isOpen={!!transfer}
+      onClose={onClose}
+      title={t("transfer.edit.title")}
+      footer={
+        <div className="flex gap-3">
           <Button variant="secondary" onClick={onClose} className="flex-1">
             {tCommon("action.cancel")}
           </Button>
@@ -158,12 +78,73 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
             onClick={handleSubmit}
             disabled={!isValid || submitting}
             loading={submitting}
+            variant="primary"
             className="flex-1"
           >
             {t("transfer.edit.update")}
           </Button>
         </div>
+      }
+    >
+      {/* Transfer Date */}
+      <DateField
+        id="editTransferDate"
+        label={t("transfer.date")}
+        value={transferDate}
+        onChange={(e) => setTransferDate(e.target.value)}
+      />
+
+      {/* Type — display only (R4: immutable) */}
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-medium text-neutral-90">{t("transfer.type")}</span>
+        <span className="px-3 py-2 bg-m3-surface-container rounded-xl text-sm text-neutral-70">
+          {typeLabel}
+        </span>
       </div>
-    </div>
+
+      {/* Bank Account — read-only label for CASH (R13: auto-assigned, immutable) */}
+      {isCash ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-neutral-90">{t("transfer.bankAccount")}</span>
+          <span className="text-sm text-neutral-60">{t("transfer.cashAccount")}</span>
+        </div>
+      ) : (
+        <SelectField
+          id="editBankAccount"
+          label={t("transfer.bankAccount")}
+          value={bankAccount}
+          onChange={(e) => setBankAccount(e.target.value)}
+          options={[{ value: "", label: t("transfer.selectBankAccount") }, ...bankAccountOptions]}
+          required
+        />
+      )}
+
+      {/* Selection panel — conditional on type */}
+      {isFund ? (
+        <SelectFundGroupsPanel
+          transferDate={transferDate}
+          selectedGroupIds={selectedGroupIds}
+          onSelectionChange={handleFundGroupSelectionChange}
+          currentGroups={currentGroups}
+        />
+      ) : (
+        <SelectProceduresPanel
+          transferDate={transferDate}
+          selectedProcedureIds={selectedProcedureIds}
+          onSelectionChange={handleProcedureSelectionChange}
+          currentProcedures={currentProcedures}
+        />
+      )}
+
+      {/* Computed amount display */}
+      {totalAmountMillis > 0 && (
+        <div className="rounded-xl bg-m3-surface-container px-4 py-3 text-sm">
+          <span className="text-neutral-60">{t("transfer.computedAmount")}</span>{" "}
+          <span className="font-semibold text-neutral-90">
+            €{(totalAmountMillis / 1000).toFixed(2)}
+          </span>
+        </div>
+      )}
+    </FormModal>
   );
 }

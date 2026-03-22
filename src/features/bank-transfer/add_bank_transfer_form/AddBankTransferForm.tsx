@@ -42,6 +42,7 @@ export function AddBankTransferForm() {
     bankAccountOptions,
     isFund,
     isCash,
+    isValid,
     handleSubmit,
   } = useAddBankTransferForm();
 
@@ -103,7 +104,7 @@ export function AddBankTransferForm() {
       )}
 
       {/* Items validation error */}
-      {errors.noItemsSelected && <p className="text-sm text-error-70">{errors.noItemsSelected}</p>}
+      {errors.noItemsSelected && <p className="text-sm text-m3-error">{errors.noItemsSelected}</p>}
 
       {/* Computed amount display */}
       {totalAmountMillis > 0 && (
@@ -115,7 +116,12 @@ export function AddBankTransferForm() {
         </div>
       )}
 
-      <Button type="submit" variant="primary" loading={submitting} disabled={submitting}>
+      <Button
+        type="submit"
+        variant="primary"
+        loading={submitting}
+        disabled={!isValid || submitting}
+      >
         {submitting ? t("transfer.creating") : t("transfer.createButton")}
       </Button>
     </form>

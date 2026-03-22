@@ -158,6 +158,8 @@ export function useAddBankTransferForm() {
     }
   };
 
+  const isValid = !!transferDate && (isCash || !!bankAccount) && hasItems;
+
   return {
     transferDate,
     setTransferDate,
@@ -175,6 +177,7 @@ export function useAddBankTransferForm() {
     bankAccountOptions,
     isFund,
     isCash,
+    isValid,
     handleSubmit,
   };
 }

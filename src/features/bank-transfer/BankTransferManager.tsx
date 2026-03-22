@@ -86,7 +86,7 @@ export default function BankTransferManager() {
               onDelete={handleDelete}
             />
             {error && (
-              <div className="p-4 mt-4 bg-error-20 border border-error-30 rounded text-error-70 text-sm">
+              <div className="p-4 mt-4 bg-m3-error-container rounded-xl text-m3-on-error-container text-sm">
                 {error}
               </div>
             )}

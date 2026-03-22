@@ -38,7 +38,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
           <p className="text-xs font-medium text-neutral-60 uppercase tracking-wide">
             {t("transfer.selectGroups.current")}
           </p>
-          <div className="border border-neutral-30 rounded-lg divide-y divide-neutral-20">
+          <div className="bg-m3-surface-container-low rounded-xl flex flex-col">
             {currentGroups.map((group) => (
               <label
                 key={group.group_id}
@@ -55,7 +55,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
                     {getFundName(group.fund_id)}
                   </span>
                   <span className="text-neutral-60 text-xs whitespace-nowrap">
-                    {group.payment_date}
+                    {new Date(group.payment_date).toLocaleDateString("fr-FR")}
                   </span>
                   <span className="font-semibold whitespace-nowrap">
                     €{(group.total_amount / 1000).toFixed(2)}
@@ -74,7 +74,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
           value={fundFilter}
           onChange={(e) => setFundFilter(e.target.value)}
           placeholder={t("transfer.selectGroups.filterPlaceholder")}
-          className="w-full px-3 py-2 text-sm border border-neutral-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-50"
+          className="w-full px-3 py-2 text-sm border border-neutral-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-m3-primary"
         />
       )}
 
@@ -85,7 +85,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
           {isExpanded ? t("transfer.selectGroups.emptyAll") : t("transfer.selectGroups.empty")}
         </p>
       ) : (
-        <div className="border border-neutral-30 rounded-lg divide-y divide-neutral-20 max-h-48 overflow-y-auto">
+        <div className="bg-m3-surface-container-low rounded-xl flex flex-col max-h-48 overflow-y-auto">
           {filteredCandidates.map((group) => (
             <label
               key={group.group_id}
@@ -102,7 +102,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
                   {getFundName(group.fund_id)}
                 </span>
                 <span className="text-neutral-60 text-xs whitespace-nowrap">
-                  {group.payment_date}
+                  {new Date(group.payment_date).toLocaleDateString("fr-FR")}
                 </span>
                 <span className="font-semibold whitespace-nowrap">
                   €{(group.total_amount / 1000).toFixed(2)}
