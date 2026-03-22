@@ -45,7 +45,9 @@
     "amount": "Amount",
     "paymentMethod": "Payment Method",
     "confirmedDate": "Confirmed Date",
-    "status": "Status"
+    "status": "Status",
+    "actions": "Actions",
+    "empty": "No procedures for this period"
   },
   "status": {
     "none": "—",
@@ -56,9 +58,14 @@
   "filter": {
     "placeholder": "Filter by patient..."
   },
+  "editor": {
+    "createOption": "+ Create \"{{query}}\""
+  },
   "period": {
     "month": "Month:",
-    "year": "Year:"
+    "year": "Year:",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month"
   },
   "summary": {
     "patientsTooltip": "Number of patients in this period",
@@ -74,7 +81,8 @@
     "loading": "Loading procedures...",
     "added": "Procedure added successfully!",
     "updated": "Procedure updated successfully!",
-    "deleted": "Procedure deleted successfully!"
+    "deleted": "Procedure deleted successfully!",
+    "reloadFailed": "Failed to reload procedures"
   },
   "error": {
     "loading": "Error loading data",

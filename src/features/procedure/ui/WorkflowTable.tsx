@@ -1,6 +1,7 @@
-import { type Dispatch, useEffect, useMemo, useReducer } from "react";
+import { type Dispatch, useEffect, useMemo, useReducer, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { AffiliatedFund, Patient, ProcedureType } from "@/bindings";
+import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { useProcedureFormModals } from "../hooks/useProcedureFormModals";
 import {
@@ -20,9 +21,9 @@ import { CreateFormHub } from "./form/CreationHub";
 import { COL_WIDTHS, TABLE_STYLES } from "./ui.styles";
 import { type WorkflowBundle, WorkflowRow } from "./WorkflowRow";
 
-const TAG = "[WorkFlowTable]";
+const TAG = "[WorkflowTable]";
 
-// --- HOOK 1 : Gère la vie de la table (Ligne vide, Focus auto) ---
+// --- HOOK 1: Manages table lifecycle (blank row, auto-focus) ---
 function useTableLifeCycle(
   state: WorkflowState,
   dispatch: Dispatch<WorkflowEvent>,
@@ -30,22 +31,25 @@ function useTableLifeCycle(
   onAddBlankRow: () => void,
   latestDate: string,
 ) {
+  const isAddingRow = useRef(false);
+
   useEffect(() => {
-    // add a blank row if initial table is empty
-    if (rows.length === 0) {
+    const needsBlankRow =
+      rows.length === 0 || (rows[rows.length - 1] !== undefined && !rows[rows.length - 1]?.isDraft);
+
+    if (needsBlankRow) {
+      if (isAddingRow.current) return;
+      isAddingRow.current = true;
       onAddBlankRow();
       return;
     }
 
-    // add a blank row if the last row has already been registered
+    // Reset guard once a draft row is present
+    isAddingRow.current = false;
+
+    // Handle focus on a blank row
     const lastRow = rows[rows.length - 1];
-    if (!lastRow?.isDraft) {
-      onAddBlankRow();
-      return;
-    }
-
-    // handle focus on a blank row
-    if (state.currentStep === "IDLE" && !state.focusedRowId && lastRow.isDraft) {
+    if (state.currentStep === "IDLE" && !state.focusedRowId && lastRow?.isDraft) {
       dispatch({
         type: "EVENT_FOCUS_CELL",
         rowId: lastRow.rowId,
@@ -57,8 +61,8 @@ function useTableLifeCycle(
   }, [rows, onAddBlankRow, state.currentStep, state.focusedRowId, latestDate, dispatch]);
 }
 
-// --- HOOK 2 : Gère la persistance (API) ---
-function useTablePersistance(
+// --- HOOK 2: Manages persistence (API) ---
+function useTablePersistence(
   state: WorkflowState,
   dispatch: Dispatch<WorkflowEvent>,
   {
@@ -80,6 +84,7 @@ function useTablePersistance(
         dispatch({ type: "EVENT_COMMIT_SUCCESS" });
       } catch (err) {
         logger.error(TAG, err);
+        toastService.show("error", err instanceof Error ? err.message : String(err));
         dispatch({ type: "EVENT_CANCEL" });
       }
     };
@@ -228,7 +233,7 @@ export function WorkflowTable({
   const { t } = useTranslation("procedure");
 
   useTableLifeCycle(state, dispatch, initialRows, onAddNewRow, latestDate ?? "");
-  useTablePersistance(state, dispatch, { persistNewRow, persistUpdateRow, onRowUiSync });
+  useTablePersistence(state, dispatch, { persistNewRow, persistUpdateRow, onRowUiSync });
 
   // Sync draft changes back to parent state so they persist across period switches
   useEffect(() => {
@@ -271,22 +276,33 @@ export function WorkflowTable({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-200">
-            {displayRows.map((row) => (
-              <WorkflowRow
-                key={row.rowId}
-                row={row}
-                isFocused={state.focusedRowId === row.rowId}
-                bundle={bundle}
-                allPatients={allPatients}
-                allFunds={allFunds}
-                allProcedureTypes={allProcedureTypes}
-                tableContext={tableContext}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                editingRowId={editingRowId}
-              />
-            ))}
+          <tbody>
+            {displayRows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={11}
+                  className="px-4 py-8 text-center text-sm text-m3-on-surface-variant"
+                >
+                  {t("table.empty")}
+                </td>
+              </tr>
+            ) : (
+              displayRows.map((row) => (
+                <WorkflowRow
+                  key={row.rowId}
+                  row={row}
+                  isFocused={state.focusedRowId === row.rowId}
+                  bundle={bundle}
+                  allPatients={allPatients}
+                  allFunds={allFunds}
+                  allProcedureTypes={allProcedureTypes}
+                  tableContext={tableContext}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  editingRowId={editingRowId}
+                />
+              ))
+            )}
           </tbody>
         </table>
       </div>

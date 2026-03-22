@@ -8,18 +8,18 @@ interface StatusCellProps {
 function getStatusBadgeColor(status: string | null | undefined): string {
   switch (status?.toUpperCase()) {
     case "NONE":
-      return "bg-slate-200 text-slate-700";
+      return "bg-m3-surface-container-high text-m3-on-surface-variant";
     case "CREATED":
-      return "bg-blue-200 text-blue-700";
+      return "bg-m3-secondary-container text-m3-on-secondary-container";
     case "RECONCILIATED":
-      return "bg-yellow-200 text-yellow-700";
+      return "bg-m3-tertiary-container text-m3-on-tertiary-container";
     case "DIRECTLY_PAYED":
     case "FUND_PAYED":
     case "IMPORT_DIRECTLY_PAYED":
     case "IMPORT_FUND_PAYED":
-      return "bg-green-200 text-green-700";
+      return "bg-m3-primary-container text-m3-on-primary-container";
     default:
-      return "bg-slate-200 text-slate-700";
+      return "bg-m3-surface-container-high text-m3-on-surface-variant";
   }
 }
 

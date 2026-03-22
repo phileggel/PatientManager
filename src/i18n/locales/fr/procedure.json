@@ -45,7 +45,9 @@
     "amount": "Montant",
     "paymentMethod": "Méthode Paiement",
     "confirmedDate": "Date Confirmée",
-    "status": "Statut"
+    "status": "Statut",
+    "actions": "Actions",
+    "empty": "Aucun acte pour cette période"
   },
   "status": {
     "none": "—",
@@ -56,9 +58,14 @@
   "filter": {
     "placeholder": "Filtrer par patient..."
   },
+  "editor": {
+    "createOption": "+ Créer \"{{query}}\""
+  },
   "period": {
     "month": "Mois :",
-    "year": "Année :"
+    "year": "Année :",
+    "prevMonth": "Mois précédent",
+    "nextMonth": "Mois suivant"
   },
   "summary": {
     "patientsTooltip": "Nombre de patients dans cette période",
@@ -74,7 +81,8 @@
     "loading": "Chargement des actes...",
     "added": "Acte ajouté avec succès !",
     "updated": "Acte mis à jour avec succès !",
-    "deleted": "Acte supprimé avec succès !"
+    "deleted": "Acte supprimé avec succès !",
+    "reloadFailed": "Échec du rechargement des actes"
   },
   "error": {
     "loading": "Erreur de chargement des données",

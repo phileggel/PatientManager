@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { useCreateEntityForm } from "@/features/procedure/hooks/useCreateEntityForm";
 import { logger } from "@/lib/logger";
-import { Button, InputLegacy } from "@/ui/components";
+import { Button, TextField } from "@/ui/components";
 
 export interface CreateFundFormData {
   fundIdentifier: string;
@@ -73,20 +73,20 @@ export function CreateFundForm({ isOpen, onClose, onSubmit, initialQuery }: Crea
       className="fixed inset-0 z-1000 flex items-center justify-center"
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 animate-fadeIn" />
+      <div className="absolute inset-0 bg-m3-scrim/50 animate-fadeIn" />
 
       {/* Dialog Panel */}
       <div className="relative z-1001 w-[90%] max-w-150">
-        <Dialog.Panel className="bg-surface rounded-xl shadow-elevation-4 overflow-hidden animate-slideUp">
-          <div className="p-6 border-b border-neutral-30 bg-neutral-10">
-            <Dialog.Title className="m-0 text-xl font-medium leading-7 text-neutral-90">
+        <Dialog.Panel className="bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 overflow-hidden animate-slideUp">
+          <div className="px-6 pt-6 pb-4">
+            <Dialog.Title className="m-0 text-xl font-semibold leading-7 text-m3-on-surface">
               {t("createFund.title")}
             </Dialog.Title>
           </div>
 
           <form onSubmit={form.handleSubmit} className="flex flex-col h-full">
             <div className="p-6 flex flex-col gap-4 max-h-100 overflow-y-auto">
-              <InputLegacy
+              <TextField
                 id="fund-identifier"
                 label={t("createFund.identifierLabel")}
                 type="text"
@@ -99,7 +99,7 @@ export function CreateFundForm({ isOpen, onClose, onSubmit, initialQuery }: Crea
                 autoFocus
               />
 
-              <InputLegacy
+              <TextField
                 id="fund-name"
                 label={t("createFund.nameLabel")}
                 type="text"
@@ -112,13 +112,13 @@ export function CreateFundForm({ isOpen, onClose, onSubmit, initialQuery }: Crea
               />
 
               {form.errors.submit && (
-                <div className="p-3 bg-error-20 border border-error-60 rounded text-error-90 text-xs font-medium">
+                <div className="p-3 bg-m3-error-container rounded-xl text-m3-on-error-container text-xs font-medium">
                   {form.errors.submit}
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-neutral-30 flex justify-end gap-3 bg-neutral-0">
+            <div className="px-6 py-4 flex justify-end gap-3 bg-m3-surface-container-low">
               <Button
                 type="button"
                 variant="secondary"
