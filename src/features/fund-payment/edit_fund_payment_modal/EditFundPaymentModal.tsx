@@ -14,7 +14,7 @@
  * Logic delegated to useEditFundPaymentModal.
  */
 
-import { Calendar, Check, Plus } from "lucide-react";
+import { Calendar, Check, Lock, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup, Procedure } from "@/bindings";
@@ -30,10 +30,16 @@ const EMPTY_IDS: string[] = [];
 export interface EditFundPaymentModalProps {
   isOpen: boolean;
   payment: FundPaymentGroup | null;
+  isReadOnly?: boolean;
   onClose: () => void;
 }
 
-export function EditFundPaymentModal({ isOpen, payment, onClose }: EditFundPaymentModalProps) {
+export function EditFundPaymentModal({
+  isOpen,
+  payment,
+  isReadOnly = false,
+  onClose,
+}: EditFundPaymentModalProps) {
   const { t } = useTranslation("fund-payment");
 
   const {
@@ -63,7 +69,9 @@ export function EditFundPaymentModal({ isOpen, payment, onClose }: EditFundPayme
     return (
       <label
         key={proc.id}
-        className="flex items-center justify-between py-3 px-4 hover:bg-m3-surface-container-high transition-colors cursor-pointer focus-within:ring-2 focus-within:ring-m3-primary/50"
+        className={`flex items-center justify-between py-3 px-4 transition-colors focus-within:ring-2 focus-within:ring-m3-primary/50 ${
+          isReadOnly ? "cursor-default" : "hover:bg-m3-surface-container-high cursor-pointer"
+        }`}
       >
         <div className="flex items-center gap-3">
           {/* Clinical Atelier checkbox: filled primary circle when checked */}
@@ -79,7 +87,7 @@ export function EditFundPaymentModal({ isOpen, payment, onClose }: EditFundPayme
             type="checkbox"
             checked={checked}
             onChange={() => toggleId(proc.id)}
-            disabled={loading}
+            disabled={loading || isReadOnly}
             className="sr-only"
           />
           <div className="flex flex-col justify-center">
@@ -103,6 +111,14 @@ export function EditFundPaymentModal({ isOpen, payment, onClose }: EditFundPayme
     <>
       <Dialog isOpen={isOpen} onClose={onClose} title={t("edit.title")}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          {/* Locked badge */}
+          {isReadOnly && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-m3-surface-container rounded-xl text-m3-on-surface-variant text-sm font-medium">
+              <Lock size={14} className="shrink-0 text-m3-on-surface-variant" />
+              {t("edit.lockedBadge")}
+            </div>
+          )}
+
           {/* Fund Info (Read-only) — two-column grid, tonal surface */}
           <div className="grid grid-cols-2 gap-6 bg-m3-surface-container-low p-5 rounded-xl">
             <div className="flex flex-col gap-1">
@@ -129,7 +145,7 @@ export function EditFundPaymentModal({ isOpen, payment, onClose }: EditFundPayme
             label={`${t("edit.paymentDateLabel")} *`}
             value={paymentDate}
             onChange={(e) => setPaymentDate(e.target.value)}
-            disabled={loading}
+            disabled={loading || isReadOnly}
           />
 
           {/* Section: Current procedures */}
@@ -165,44 +181,52 @@ export function EditFundPaymentModal({ isOpen, payment, onClose }: EditFundPayme
           </div>
 
           {/* Footer */}
-          <div className="flex items-center gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={onClose}
-              disabled={loading}
-            >
-              {t("edit.cancel")}
-            </Button>
-            <div className="flex-1" />
-            <div
-              className="inline-flex"
-              title={
-                proceduresForModal.length === 0 ? t("edit.addProceduresDisabledHint") : undefined
-              }
-            >
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={openSelectModal}
-                disabled={loading || proceduresForModal.length === 0}
-                icon={<Plus size={13} />}
-              >
-                {t("edit.addProcedures")}
+          {isReadOnly ? (
+            <div className="flex justify-end pt-2">
+              <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+                {t("edit.close")}
               </Button>
             </div>
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              loading={loading}
-              disabled={loading || !paymentDate.trim() || selectedIds.size === 0}
-            >
-              {t("edit.update")}
-            </Button>
-          </div>
+          ) : (
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={onClose}
+                disabled={loading}
+              >
+                {t("edit.cancel")}
+              </Button>
+              <div className="flex-1" />
+              <div
+                className="inline-flex"
+                title={
+                  proceduresForModal.length === 0 ? t("edit.addProceduresDisabledHint") : undefined
+                }
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={openSelectModal}
+                  disabled={loading || proceduresForModal.length === 0}
+                  icon={<Plus size={13} />}
+                >
+                  {t("edit.addProcedures")}
+                </Button>
+              </div>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                loading={loading}
+                disabled={loading || !paymentDate.trim() || selectedIds.size === 0}
+              >
+                {t("edit.update")}
+              </Button>
+            </div>
+          )}
         </form>
       </Dialog>
 

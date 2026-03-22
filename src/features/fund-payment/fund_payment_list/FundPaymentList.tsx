@@ -7,7 +7,7 @@
  * - Edit: double-click or Edit button opens EditFundPaymentModal
  */
 
-import { Edit, Lock, Search, Trash2 } from "lucide-react";
+import { Edit, Eye, Lock, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup } from "@/bindings";
@@ -37,7 +37,18 @@ export function FundPaymentList() {
   );
 
   const [editingPayment, setEditingPayment] = useState<FundPaymentGroup | null>(null);
+  const [isEditingReadOnly, setIsEditingReadOnly] = useState(false);
   const [deleteData, setDeleteData] = useState<{ id: string; fundName: string } | null>(null);
+
+  const openModal = (group: FundPaymentGroup, readOnly: boolean) => {
+    setEditingPayment(group);
+    setIsEditingReadOnly(readOnly);
+  };
+
+  const closeModal = () => {
+    setEditingPayment(null);
+    setIsEditingReadOnly(false);
+  };
 
   const handleRowClick = (groupId: string, isLocked: boolean) => {
     const now = Date.now();
@@ -46,11 +57,9 @@ export function FundPaymentList() {
     setLastClickedId(groupId);
     setLastClickTime(now);
 
-    if (isDoubleClick && !isLocked) {
+    if (isDoubleClick) {
       const groupObject = groups.find((g) => g.id === groupId);
-      if (groupObject) {
-        setEditingPayment(groupObject);
-      }
+      if (groupObject) openModal(groupObject, isLocked);
     }
   };
 
@@ -138,7 +147,7 @@ export function FundPaymentList() {
                   <tr
                     key={group.rowId}
                     onClick={() => handleRowClick(group.id, group.isLocked)}
-                    className={`m3-tr select-none ${group.isLocked ? "cursor-default opacity-70" : "cursor-pointer"}`}
+                    className="m3-tr select-none cursor-pointer"
                     title={group.isLocked ? t("list.lockedHint") : t("list.rowEditHint")}
                   >
                     <td className="m3-td font-medium text-m3-on-surface">
@@ -162,12 +171,15 @@ export function FundPaymentList() {
                           variant="ghost"
                           size="sm"
                           shape="round"
-                          aria-label={t("action.editAriaLabel", { name: group.fundName })}
-                          disabled={group.isLocked}
-                          icon={<Edit size={16} />}
+                          aria-label={
+                            group.isLocked
+                              ? t("action.viewAriaLabel", { name: group.fundName })
+                              : t("action.editAriaLabel", { name: group.fundName })
+                          }
+                          icon={group.isLocked ? <Eye size={16} /> : <Edit size={16} />}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (groupObject && !group.isLocked) setEditingPayment(groupObject);
+                            if (groupObject) openModal(groupObject, group.isLocked);
                           }}
                         />
                         <IconButton
@@ -196,7 +208,8 @@ export function FundPaymentList() {
       <EditFundPaymentModal
         isOpen={!!editingPayment}
         payment={editingPayment}
-        onClose={() => setEditingPayment(null)}
+        isReadOnly={isEditingReadOnly}
+        onClose={closeModal}
       />
 
       {/* Delete Confirmation Dialog */}
