@@ -318,23 +318,23 @@
    header gradient stays rich indigo in both modes.
    ============================================ */
 .dark {
-  /* Primary */
-  --color-m3-primary: #d0bcff;
-  --color-m3-on-primary: #381e72;
-  --color-m3-primary-container: #4f378b;
+  /* Primary — brand purple, kept consistent with light mode (Stitch convention) */
+  --color-m3-primary: #8069bf;
+  --color-m3-on-primary: #ffffff;
+  --color-m3-primary-container: #6750a4;
   --color-m3-on-primary-container: #eaddff;
 
-  /* Secondary */
-  --color-m3-secondary: #ccc2dc;
-  --color-m3-on-secondary: #332d41;
+  /* Secondary — grayish-purple, consistent with light mode */
+  --color-m3-secondary: #9d93b6;
+  --color-m3-on-secondary: #ffffff;
   --color-m3-secondary-container: #4a4458;
   --color-m3-on-secondary-container: #e8def8;
 
-  /* Tertiary */
-  --color-m3-tertiary: #efb8c8;
-  --color-m3-on-tertiary: #492532;
-  --color-m3-tertiary-container: #633b48;
-  --color-m3-on-tertiary-container: #ffd8e4;
+  /* Tertiary — amber/gold, consistent with light mode (not inverted to pink) */
+  --color-m3-tertiary: #c9a74d;
+  --color-m3-on-tertiary: #251a00;
+  --color-m3-tertiary-container: #7a5c10;
+  --color-m3-on-tertiary-container: #ffeec7;
 
   /* Surfaces */
   --color-m3-surface: #141218;
@@ -352,11 +352,11 @@
   --color-m3-outline: #938f99;
   --color-m3-outline-variant: #49454f;
 
-  /* Error */
-  --color-m3-error: #f2b8b5;
-  --color-m3-on-error: #601410;
+  /* Error — brighter red for dark surfaces (WCAG AA on dark bg + still clearly red) */
+  --color-m3-error: #e53935;
+  --color-m3-on-error: #ffffff;
   --color-m3-error-container: #8c1d18;
-  --color-m3-on-error-container: #f9dedc;
+  --color-m3-on-error-container: #ffdad6;
 
   /* Semantic surface aliases — CSS-only, consumed via var(), not Tailwind utilities.
      Reference the M3 tokens above to avoid drift. */
@@ -436,11 +436,11 @@
   }
 
   .btn-primary {
-    @apply bg-linear-to-br from-m3-primary to-m3-primary-container text-m3-on-primary;
+    @apply bg-m3-primary text-m3-on-primary;
   }
 
   .btn-primary:hover:not(:disabled) {
-    @apply from-m3-primary/90 to-m3-primary-container/90;
+    @apply bg-m3-primary-container;
   }
 
   .btn-secondary {
@@ -507,7 +507,7 @@
   }
 
   .m3-button-filled {
-    @apply bg-linear-to-br from-m3-primary to-m3-primary-container text-m3-on-primary;
+    @apply bg-m3-primary text-m3-on-primary;
     @apply rounded-xl px-6 py-2.5 font-medium text-sm transition-all duration-200;
   }
 

@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "tonal";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -46,15 +46,17 @@ export function Button({
 
   const variantClasses = {
     primary:
-      "bg-gradient-to-br from-m3-primary to-m3-primary-container text-m3-on-primary border-transparent hover:enabled:opacity-90 active:enabled:opacity-100",
+      "bg-m3-primary text-m3-on-primary border-transparent hover:enabled:bg-m3-primary-container active:enabled:bg-m3-primary-container",
     secondary:
       "bg-m3-secondary-container text-m3-on-secondary-container border-m3-secondary-container hover:enabled:bg-m3-secondary-container/90",
     outline:
-      "bg-transparent text-m3-on-surface border border-m3-outline hover:enabled:bg-m3-surface-variant/30",
+      "bg-transparent text-m3-on-surface border-m3-outline hover:enabled:bg-m3-surface-variant/30",
     ghost:
       "bg-transparent text-m3-on-surface-variant border-transparent hover:enabled:bg-m3-surface-variant/40",
     danger:
       "bg-m3-error text-m3-on-error border-m3-error hover:enabled:bg-m3-error/90 active:enabled:bg-m3-error",
+    tonal:
+      "bg-m3-tertiary-container text-m3-on-tertiary-container border-transparent hover:enabled:brightness-110",
   };
 
   return (

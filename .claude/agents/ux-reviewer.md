@@ -29,15 +29,20 @@ This project uses M3 tokens via Tailwind. Enforce these rules:
 - ✅ New tokens available: `bg-m3-outline-variant`, `bg-m3-surface-dim` — use these instead of custom colors.
 
 ### Clinical Atelier Design System — enforced rules
-- **Primary buttons**: MUST use `bg-gradient-to-br from-m3-primary to-m3-primary-container`. ❌ Flag `bg-m3-primary` (flat) on primary buttons.
+- **Primary buttons**: MUST use flat `bg-m3-primary text-m3-on-primary` with `hover:enabled:bg-m3-primary-container`. ✅ Flat fill is correct and intentional (Stitch alignment). ❌ Do NOT flag flat primary buttons. ❌ Do NOT suggest adding a gradient to primary buttons — gradient has been permanently removed from the design system.
+  > **OVERRIDE**: If you are about to write "bg-gradient-to-br from-m3-primary" as a fix for primary buttons — STOP. That is wrong. Flat `bg-m3-primary` IS the correct style. Never suggest the gradient pattern for primary buttons.
+- **Tonal buttons**: MUST use `bg-m3-tertiary-container text-m3-on-tertiary-container`. Used for accent/hero actions (amber/gold in both light and dark mode).
+- **Icon buttons**: Use `IconButton` from `@/ui/components` (variants: `filled`, `outlined`, `tonal`, `ghost`; shapes: `round`, `square`).
 - **Modals / Dialogs**: MUST use `bg-m3-surface-container-lowest/85 backdrop-blur-[12px]` (glassmorphism). ❌ Flag `bg-white`, `bg-m3-surface-container` (opaque) on modal surfaces.
 - **Borders**: No structural 1px solid borders for containment/sectioning. Use tonal surface shifts (different `surface-container-*` levels) or negative space instead. ❌ Flag `border border-m3-outline` used as a section divider (ok for form inputs).
 - **Button corners**: MUST be `rounded-xl` (12px). ❌ Flag `rounded` or `rounded-lg` on buttons.
 - **Shadows**: MUST use `shadow-elevation-*` tokens. ❌ Flag raw `shadow-*` Tailwind utilities or inline box-shadow with neutral `rgba(0,0,0)`.
+- **Dark mode colors**: Brand/semantic colors (primary, tertiary, error) stay consistent across light/dark — only surface tokens invert. Do NOT flag `bg-m3-primary` on dark mode as wrong.
 
 ### Components — MUST use `ui/components` when available
 Available generic components (import from `@/ui/components`):
-- `Button` — variants: `primary`, `secondary`, `outline`, `ghost`, `danger`; supports `loading`, `disabled`, `icon`
+- `Button` — variants: `primary`, `secondary`, `outline`, `ghost`, `danger`, `tonal`; supports `loading`, `disabled`, `icon`
+- `IconButton` — variants: `filled`, `outlined`, `tonal`, `ghost`; shapes: `round`, `square`; sizes: `sm`, `md`, `lg`; requires `aria-label`
 - `Dialog` — standard modal wrapper
 - `FormModal` — modal with form layout
 - `ListModal` — modal with list layout
