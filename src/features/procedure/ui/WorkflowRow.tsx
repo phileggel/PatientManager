@@ -24,7 +24,7 @@ export interface WorkflowBundle {
   modals: ProcedureFormModals;
 }
 
-// On définit les props nécessaires pour une ligne
+// Props for a single workflow row
 interface WorkflowRowProps {
   row: ProcedureRow;
   isFocused: boolean;
@@ -77,8 +77,10 @@ export const WorkflowRow = React.memo(
         className={`${TABLE_STYLES.row} ${
           isFocused ? TABLE_STYLES.rowActive : TABLE_STYLES.rowHover
         } ${
-          // Feedback visuel : translucide + curseur d'attente + clic interdit
-          isSavingThisRow ? "opacity-50 pointer-events-none cursor-wait bg-slate-50" : ""
+          // Visual feedback: translucent + wait cursor + click blocked
+          isSavingThisRow
+            ? "opacity-50 pointer-events-none cursor-wait bg-m3-surface-container"
+            : ""
         }`}
       >
         <PatientCell {...wrappedBundle} row={row} allPatients={allPatients} />
@@ -115,8 +117,9 @@ export const WorkflowRow = React.memo(
                 type="button"
                 onClick={() => onEdit?.(row)}
                 disabled={isSavingThisRow || isBeingEditedInModal}
-                className="p-1 text-slate-600 hover:text-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed"
+                className="p-1 text-m3-on-surface-variant hover:text-m3-on-surface disabled:text-m3-on-surface/40 disabled:cursor-not-allowed transition-colors"
                 title={t("action.editTitle")}
+                aria-label={t("action.editTitle")}
               >
                 <Edit className="w-4 h-4" />
               </button>
@@ -124,8 +127,9 @@ export const WorkflowRow = React.memo(
                 type="button"
                 onClick={handleDelete}
                 disabled={isSavingThisRow || isBeingEditedInModal}
-                className="p-1 text-red-600 hover:text-red-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                className="p-1 text-m3-error hover:text-m3-error/80 disabled:text-m3-on-surface/40 disabled:cursor-not-allowed transition-colors"
                 title={t("action.deleteTitle")}
+                aria-label={t("action.deleteTitle")}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -136,15 +140,14 @@ export const WorkflowRow = React.memo(
     );
   },
   (prev, next) => {
-    // Re-render seulement lors des transitions vers/depuis SAVING (pour le feedback visuel)
+    // Re-render only on SAVING transitions (for visual feedback)
     const prevIsSaving = prev.bundle.state.currentStep === "SAVING";
     const nextIsSaving = next.bundle.state.currentStep === "SAVING";
     if (prevIsSaving !== nextIsSaving) {
       return false;
     }
 
-    // Si la ligne n'est pas focus et qu'elle ne l'était pas avant,
-    // on ne la re-render pas (sauf si la donnée brute de la ligne a changé)
+    // Skip re-render for unfocused rows unless the raw row data changed
     if (!prev.isFocused && !next.isFocused) {
       return prev.row === next.row;
     }
@@ -152,7 +155,7 @@ export const WorkflowRow = React.memo(
   },
 );
 
-// Optionnel : donner un nom pour le debug React DevTools
+// Name for React DevTools
 WorkflowRow.displayName = "WorkflowRow";
 
 function formatPaymentMethod(method: string, t: (key: string) => string): string {

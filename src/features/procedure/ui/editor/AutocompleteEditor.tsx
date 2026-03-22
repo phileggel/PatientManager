@@ -1,6 +1,7 @@
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/react";
 
 import { type KeyboardEvent, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { logger } from "@/lib/logger";
 import { KEYS } from "@/types/keyboard";
 
@@ -10,11 +11,12 @@ const STYLES = {
   container: "w-full h-full flex items-center relative",
   input: "w-full h-full bg-transparent outline-none px-2",
   inputError:
-    "bg-red-50 text-red-900 placeholder-red-300 ring-1 ring-inset ring-red-300 focus:ring-red-500",
-  options: "z-[9999] bg-white border border-gray-200 shadow-xl rounded-md py-1",
-  option: "px-4 py-2 cursor-pointer text-sm data-[focus]:bg-blue-600 data-[focus]:text-white",
+    "bg-m3-error-container text-m3-on-error-container placeholder-m3-on-error-container/50 ring-1 ring-inset ring-m3-error focus:ring-m3-error",
+  options: "z-[9999] bg-m3-surface shadow-elevation-3 rounded-xl py-1",
+  option:
+    "px-4 py-2 cursor-pointer text-sm text-m3-on-surface data-[focus]:bg-m3-primary data-[focus]:text-m3-on-primary",
   createOption:
-    "px-4 py-2 cursor-pointer border-t border-gray-100 text-blue-600 data-[focus]:bg-blue-50 text-sm font-medium",
+    "px-4 py-2 cursor-pointer text-m3-primary data-[focus]:bg-m3-primary/10 text-sm font-medium",
 };
 
 const CREATE_NEW_MARKER = "@@app/CREATE_NEW_ITEM";
@@ -48,6 +50,7 @@ export function AutocompleteEditor<T extends object>({
   idKey = "id" as keyof T,
   isInvalid = false,
 }: AutocompleteEditorProps<T>) {
+  const { t } = useTranslation("procedure");
   const inputRef = useRef<HTMLInputElement>(null);
   const isSelecting = useRef(false);
 
@@ -154,7 +157,7 @@ export function AutocompleteEditor<T extends object>({
               value={CREATE_NEW_MARKER}
               className={STYLES.createOption}
             >
-              + Create "{query}"
+              {t("editor.createOption", { query })}
             </ComboboxOption>
           )}
         </ComboboxOptions>

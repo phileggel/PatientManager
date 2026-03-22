@@ -62,7 +62,7 @@ export const DayEditor = ({
       ref={inputRef}
       type="number"
       className={`w-full h-full bg-transparent outline-none px-2 text-center font-mono ${
-        isInvalid ? "text-red-500 font-bold" : ""
+        isInvalid ? "text-m3-error font-bold" : ""
       }`}
       min={1}
       max={maxDays}

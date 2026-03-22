@@ -39,38 +39,38 @@ export function SummaryStats({ rows }: SummaryStatsProps) {
     .reduce((sum, r) => sum + (r.awaitedAmount || 0), 0);
 
   return (
-    <div className="flex items-center gap-6 text-sm font-medium text-slate-700">
+    <div className="flex items-center gap-6 text-sm font-medium text-m3-on-surface">
       <div title={t("summary.patientsTooltip")} className="flex items-center gap-2 cursor-help">
-        <Users className="w-4 h-4 text-blue-700" />
+        <Users className="w-4 h-4 text-m3-primary" />
         {uniquePatients}
       </div>
 
-      <div className="w-px h-6 bg-slate-300" />
+      <div className="w-px h-6 bg-m3-outline-variant" />
 
       <div title={t("summary.proceduresTooltip")} className="flex items-center gap-2 cursor-help">
-        <ClipboardList className="w-4 h-4 text-blue-700" />
+        <ClipboardList className="w-4 h-4 text-m3-primary" />
         {procedureCount}
       </div>
 
-      <div className="w-px h-6 bg-slate-300" />
+      <div className="w-px h-6 bg-m3-outline-variant" />
 
       <div title={t("summary.effectueTooltip")} className="cursor-help">
-        <span className="text-blue-700">{t("summary.effectue")} </span>
+        <span className="text-m3-primary">{t("summary.effectue")} </span>
         {/* Amounts are in euros in ProcedureRow; formatCurrency expects thousandths */}
         <span>{formatCurrency(Math.round(totalAmount * 1000))}</span>
       </div>
 
-      <div className="w-px h-6 bg-slate-300" />
+      <div className="w-px h-6 bg-m3-outline-variant" />
 
       <div title={t("summary.recuTooltip")} className="cursor-help">
-        <span className="text-blue-700">{t("summary.recu")} </span>
+        <span className="text-m3-primary">{t("summary.recu")} </span>
         <span>{formatCurrency(Math.round(totalReceived * 1000))}</span>
       </div>
 
-      <div className="w-px h-6 bg-slate-300" />
+      <div className="w-px h-6 bg-m3-outline-variant" />
 
       <div title={t("summary.enAttenteTooltip")} className="cursor-help">
-        <span className="text-blue-700">{t("summary.enAttente")} </span>
+        <span className="text-m3-primary">{t("summary.enAttente")} </span>
         <span>{formatCurrency(Math.round(totalAwaited * 1000))}</span>
       </div>
     </div>

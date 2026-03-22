@@ -1,11 +1,12 @@
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 
 interface ModalContainerProps {
   isOpen: boolean;
   onClose: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
   maxWidth?: "max-w-md" | "max-w-2xl" | "max-w-3xl" | "max-w-4xl";
   maxHeight?: "max-h-[80vh]" | "max-h-[90vh]";
+  titleId?: string;
 }
 
 /**
@@ -25,6 +26,7 @@ export function ModalContainer({
   children,
   maxWidth = "max-w-md",
   maxHeight = "max-h-[90vh]",
+  titleId,
 }: ModalContainerProps) {
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -39,7 +41,9 @@ export function ModalContainer({
     }
 
     return () => {
-      document.body.style.overflow = "unset";
+      if (isOpen) {
+        document.body.style.overflow = "auto";
+      }
       document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [isOpen, onClose]);
@@ -47,22 +51,23 @@ export function ModalContainer({
   if (!isOpen) return null;
 
   return (
-    <button
-      type="button"
-      aria-hidden="true"
-      tabIndex={-1}
-      className="fixed inset-0 z-50 w-full h-full bg-m3-on-surface/40 backdrop-blur-[2px] flex items-center justify-center border-none outline-none cursor-default"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop — interactive button so screen readers can dismiss */}
+      <button
+        type="button"
+        aria-label="Close modal"
+        className="absolute inset-0 bg-m3-scrim/50 backdrop-blur-[2px] cursor-default"
+        onClick={onClose}
+      />
+      {/* Dialog panel — sibling, renders above backdrop via DOM order */}
       <div
         role="dialog"
         aria-modal="true"
-        className={`bg-m3-surface-container-lowest/85 backdrop-blur-md rounded-[28px] shadow-elevation-4 w-full ${maxWidth} ${maxHeight} overflow-hidden flex flex-col`}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        aria-labelledby={titleId}
+        className={`relative bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 w-full ${maxWidth} ${maxHeight} overflow-hidden flex flex-col`}
       >
         {children}
       </div>
-    </button>
+    </div>
   );
 }

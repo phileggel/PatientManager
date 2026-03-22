@@ -1,12 +1,12 @@
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Procedure } from "@/bindings";
+import type { Procedure, ProcedureStatus } from "@/bindings";
 
 import { toastService } from "@/core/snackbar";
 import { PageContent } from "@/features/shell";
 import { logger } from "@/lib/logger";
-import { ConfirmationDialog } from "@/ui/components";
+import { ConfirmationDialog, SearchField } from "@/ui/components";
 import * as gateway from "../api/gateway";
 import { useProcedureData } from "../hooks/useProcedureData";
 import { useProcedurePeriod } from "../hooks/useProcedurePeriod";
@@ -108,62 +108,82 @@ export default function ProcedurePage() {
     setPendingDeleteId(id);
   }, []);
 
-  const handleConfirmDelete = useCallback(async () => {
-    if (!pendingDeleteId) return;
+  const handleCancelDelete = useCallback(() => {
+    setPendingDeleteId(null);
+  }, []);
+
+  // Shared reload helper — used after add, update, delete, and backend events
+  const reloadRows = useCallback(async () => {
     try {
-      await handlers.deleteRow(pendingDeleteId);
-      toastService.show("success", t("state.deleted"));
       const updated = await gateway.readAllProcedures();
       const mappedRows = updated.map((proc) =>
         toProcedureRow(proc, { patients, funds, procedureTypes }),
       );
       setRows(mappedRows);
     } catch (error) {
+      logger.error(TAG, "Error refreshing procedures", { error });
+      toastService.show("error", t("state.reloadFailed"));
+    }
+  }, [patients, funds, procedureTypes, t]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDeleteId) return;
+    try {
+      await handlers.deleteRow(pendingDeleteId);
+      toastService.show("success", t("state.deleted"));
+      await reloadRows();
+    } catch (error) {
       toastService.show("error", error instanceof Error ? error.message : String(error));
     } finally {
       setPendingDeleteId(null);
     }
-  }, [pendingDeleteId, handlers, patients, funds, procedureTypes, t]);
+  }, [pendingDeleteId, handlers, reloadRows, t]);
 
-  const handleCancelDelete = useCallback(() => {
-    setPendingDeleteId(null);
-  }, []);
-
-  // Listen for backend procedure updates (only register once, use ref for latest values)
   const handleProcedureUpdate = useCallback(async () => {
     logger.info(TAG, "Procedure update event received, refreshing list");
-    try {
-      const updated = await gateway.readAllProcedures();
-      const mappedRows = updated.map((proc) =>
-        toProcedureRow(proc, {
-          patients,
-          funds,
-          procedureTypes,
-        }),
-      );
-      setRows(mappedRows);
-    } catch (error) {
-      logger.error(TAG, "Error refreshing procedures after update", { error });
-    }
-  }, [patients, funds, procedureTypes]);
+    await reloadRows();
+  }, [reloadRows]);
 
   useEffect(() => {
     window.addEventListener("procedure_updated", handleProcedureUpdate);
     return () => window.removeEventListener("procedure_updated", handleProcedureUpdate);
   }, [handleProcedureUpdate]);
 
+  // Convert ProcedureRow to Procedure for modal (only real Procedure fields)
+  const procedureForModal = useMemo<Procedure | null>(() => {
+    if (!editingProcedure?.id) return null;
+    return {
+      id: editingProcedure.id,
+      patient_id: editingProcedure.patientId || "",
+      fund_id: editingProcedure.fundId || null,
+      procedure_type_id: editingProcedure.procedureTypeId || "",
+      procedure_date: editingProcedure.procedureDate || "",
+      procedure_amount:
+        editingProcedure.procedureAmount != null
+          ? Math.round(editingProcedure.procedureAmount * 1000)
+          : null,
+      payment_method: (editingProcedure.paymentMethod ?? "NONE") as Procedure["payment_method"],
+      confirmed_payment_date: editingProcedure.confirmedPaymentDate ?? "",
+      payment_status: (editingProcedure.status || "NONE") as ProcedureStatus,
+      actual_payment_amount:
+        editingProcedure.actualPaymentAmount != null
+          ? Math.round(editingProcedure.actualPaymentAmount * 1000)
+          : null,
+    };
+  }, [editingProcedure]);
+
   if (isLoading) {
     return (
-      <div className="flex flex-1 min-h-0 items-center justify-center bg-slate-50">
-        <div className="text-slate-600">{t("state.loading")}</div>
+      <div className="flex flex-1 min-h-0 items-center justify-center bg-m3-surface">
+        <div className="text-m3-on-surface-variant animate-pulse">{t("state.loading")}</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-1 min-h-0 items-center justify-center bg-slate-50">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-900">
+      <div className="flex flex-1 min-h-0 items-center justify-center bg-m3-surface">
+        <div className="rounded-xl bg-m3-error-container p-6 text-m3-on-error-container">
           <h2 className="text-lg font-semibold mb-2">{t("error.loading")}</h2>
           <p className="text-sm">{error}</p>
         </div>
@@ -171,39 +191,10 @@ export default function ProcedurePage() {
     );
   }
 
-  // Convert ProcedureRow to Procedure for modal
-  const procedureForModal = editingProcedure
-    ? ({
-        id: editingProcedure.id || "",
-        patient_id: editingProcedure.patientId || "",
-        fund_id: editingProcedure.fundId || null,
-        procedure_type_id: editingProcedure.procedureTypeId || "",
-        procedure_date: editingProcedure.procedureDate || "",
-        // Convert euros back to thousandths for domain/modal compatibility
-        procedure_amount:
-          editingProcedure.procedureAmount != null
-            ? Math.round(editingProcedure.procedureAmount * 1000)
-            : 0,
-        payment_method: editingProcedure.paymentMethod,
-        confirmed_payment_date: editingProcedure.confirmedPaymentDate,
-        payment_status: editingProcedure.status || "NONE",
-        actual_payment_amount:
-          editingProcedure.actualPaymentAmount != null
-            ? Math.round(editingProcedure.actualPaymentAmount * 1000)
-            : null,
-        awaited_amount:
-          editingProcedure.awaitedAmount != null
-            ? Math.round(editingProcedure.awaitedAmount * 1000)
-            : null,
-        created_at: "",
-        is_deleted: false,
-      } as Procedure)
-    : null;
-
   return (
     <>
       {/* Header with controls and stats */}
-      <div className="border-b bg-white p-4 shrink-0">
+      <div className="bg-m3-surface-container-low p-4 shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <PeriodSelector
@@ -213,17 +204,12 @@ export default function ProcedurePage() {
               onMonthChange={setSelectedMonth}
               onYearChange={setSelectedYear}
             />
-            <div className="relative w-64">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder={t("filter.placeholder")}
+            <div className="w-64">
+              <SearchField
+                id="procedure-search"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="m3-input pl-10 w-full"
+                onChange={setSearchTerm}
+                placeholder={t("filter.placeholder")}
               />
             </div>
           </div>
@@ -256,8 +242,8 @@ export default function ProcedurePage() {
         </div>
 
         {/* Right: Add Procedure Form */}
-        <div className="w-96 flex-shrink-0 flex flex-col bg-m3-surface-container-high rounded-4xl border border-m3-outline/10 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-m3-outline/5 bg-m3-surface-container-high/50">
+        <div className="w-96 flex-shrink-0 flex flex-col bg-m3-surface-container-high rounded-4xl shadow-elevation-1 overflow-hidden">
+          <div className="p-4 bg-m3-surface-container-highest">
             <div className="flex items-center gap-4">
               <div className="p-2 bg-m3-primary-container text-m3-on-primary-container rounded-xl">
                 <Plus size={24} strokeWidth={2.5} />
@@ -266,22 +252,7 @@ export default function ProcedurePage() {
             </div>
           </div>
           <div className="p-4 overflow-y-auto flex-1">
-            <AddProcedurePanel
-              onSuccess={() => {
-                // Reload procedures after adding
-                (async () => {
-                  const updated = await gateway.readAllProcedures();
-                  const mappedRows = updated.map((proc) =>
-                    toProcedureRow(proc, {
-                      patients,
-                      funds,
-                      procedureTypes,
-                    }),
-                  );
-                  setRows(mappedRows);
-                })();
-              }}
-            />
+            <AddProcedurePanel onSuccess={reloadRows} />
           </div>
         </div>
       </PageContent>
@@ -307,20 +278,7 @@ export default function ProcedurePage() {
           procedureTypes={procedureTypes}
           isOpen={editingProcedure !== null}
           onClose={handleCloseModal}
-          onSuccess={() => {
-            // Reload procedures after update
-            (async () => {
-              const updated = await gateway.readAllProcedures();
-              const mappedRows = updated.map((proc) =>
-                toProcedureRow(proc, {
-                  patients,
-                  funds,
-                  procedureTypes,
-                }),
-              );
-              setRows(mappedRows);
-            })();
-          }}
+          onSuccess={reloadRows}
         />
       )}
     </>
@@ -345,7 +303,7 @@ function buildNewDraftRow(): ProcedureRow {
     paymentMethod: null,
     confirmedPaymentDate: null,
     actualPaymentAmount: null,
-    status: "CREATED",
+    status: "NONE",
     awaitedAmount: null,
   };
 }

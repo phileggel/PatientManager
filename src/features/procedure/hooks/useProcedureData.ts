@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import * as gateway from "../api/gateway";
-import * as procedureService from "../api/procedureService";
 import type { ProcedureRow } from "../model";
 import { toProcedureRow } from "../model/procedure-row.mapper";
 import type * as form from "../ui/form";
@@ -20,7 +19,7 @@ export function useProcedureData() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Chargement Initial ---
+  // --- Initial Load ---
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -37,8 +36,8 @@ export function useProcedureData() {
 
         setInitialRows(mappedRows);
       } catch (err) {
-        logger.error(TAG, "Failed to load data", err);
-        setError(err instanceof Error ? err.message : "Erreur de chargement");
+        logger.error(TAG, "Failed to load data", { error: err });
+        setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
         setIsLoading(false);
       }
@@ -48,7 +47,7 @@ export function useProcedureData() {
   }, []);
 
   const handleSaveNewPatient = useCallback(async (data: form.CreatePatientFormData) => {
-    logger.debug(TAG, data);
+    logger.debug(TAG, "Creating patient", { name: data.name });
     // Store updated by backend Tauri event via useAppInit
     return await gateway.createNewPatient(data.name, data.ssn || null);
   }, []);
@@ -74,7 +73,7 @@ export function useProcedureData() {
       logger.debug(TAG, newRow.rowId);
 
       if (!newRow.patientId || !newRow.procedureTypeId || !newRow.procedureDate) {
-        throw new Error("Données manquantes : création refusée.");
+        throw new Error("Missing required fields: creation refused.");
       }
 
       const savedProcedure = await gateway.addProcedure(
@@ -95,7 +94,7 @@ export function useProcedureData() {
       logger.debug(TAG, row.rowId);
 
       if (!row.id || !row.patientId || !row.procedureTypeId || !row.procedureDate) {
-        throw new Error("Données manquantes. Update refusé.");
+        throw new Error("Missing required fields: update refused.");
       }
 
       const procedure = {
@@ -106,7 +105,7 @@ export function useProcedureData() {
         procedure_date: row.procedureDate,
         procedure_amount:
           row.procedureAmount != null ? Math.round(row.procedureAmount * 1000) : null,
-        payment_method: row.paymentMethod || "None",
+        payment_method: row.paymentMethod || "NONE",
         confirmed_payment_date: row.confirmedPaymentDate || null,
         actual_payment_amount:
           row.actualPaymentAmount != null ? Math.round(row.actualPaymentAmount * 1000) : null,
@@ -122,11 +121,7 @@ export function useProcedureData() {
 
   const handleDeleteRow = useCallback(async (id: string): Promise<void> => {
     logger.debug(TAG, `deleting row ${id}`);
-
-    const result = await procedureService.deleteProcedure(id);
-    if (!result.success) {
-      throw new Error(result.error || "Failed to delete procedure");
-    }
+    await gateway.deleteProcedure(id);
   }, []);
 
   return {

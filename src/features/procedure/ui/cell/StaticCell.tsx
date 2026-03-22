@@ -3,7 +3,7 @@ import { TABLE_STYLES } from "../ui.styles";
 
 interface StaticCellProps {
   value: string | number | null | undefined;
-  widthClass: string; // Pour passer COL_WIDTHS.ssn par exemple
+  widthClass: string; // e.g. COL_WIDTHS.ssn
 }
 
 export function StaticCell({ value, widthClass }: StaticCellProps) {
