@@ -20,6 +20,8 @@ L'interface propose trois modes d'affichage : clair, sombre, et automatique. Le 
 
 **R6 — En-tête adapté au mode nuit** : L'en-tête utilise des tokens de dégradé (`--color-header-from` / `--color-header-to`) qui s'adaptent au mode sombre avec un indigo plus profond (`#21005D → #381E72` en mode sombre, `#4F378A → #6750A4` en mode clair). L'identité visuelle de marque est préservée dans les deux modes, le texte blanc restant accessible (contraste > 7:1 WCAG AA).
 
+> **Waiver — pas de test automatisé pour R6** : Vérifier des valeurs hex CSS statiques dans un test automatisé serait trivial et fragile (dépendance au tooling de build). R6 est vérifiable visuellement en mode clair/sombre. Aucun test n'est requis pour cette règle.
+
 ---
 
 ## Workflow

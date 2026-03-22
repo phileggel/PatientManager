@@ -214,7 +214,7 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
               </button>
 
               {isListsOpen && (
-                <ul className="list-none m-0 p-0 ml-5">
+                <ul className="list-none m-0 p-0 ml-5 animate-[fadeIn_150ms_ease-out]">
                   <li>
                     <button
                       type="button"

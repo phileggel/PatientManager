@@ -4,6 +4,7 @@
   "noDataYear": "No data for {{year}}",
   "error": "Error",
   "loadFailed": "Failed to load dashboard data",
+  "reloadFailed": "Failed to refresh dashboard data",
   "year": "Year:",
   "title": "Dashboard",
   "payments": "Payments {{year}}",
