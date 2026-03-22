@@ -20,6 +20,11 @@
     "lists": "Listes",
     "openMenu": "Ouvrir le menu",
     "closeMenu": "Fermer le menu",
+    "theme": {
+      "day": "Passer en mode nuit",
+      "night": "Passer en mode automatique",
+      "auto": "Passer en mode jour"
+    },
     "subtitle": {
       "excelImport": "Importez un fichier Excel pour créer des patients, caisses et actes en base de données.",
       "reconciliation": "Téléchargez un relevé PDF de paiement pour rapprocher avec les actes en base de données.",

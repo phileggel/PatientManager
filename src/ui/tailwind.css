@@ -85,6 +85,11 @@
      (will be removed progressively)
      ============================================ */
 
+  /* Header gradient — fixed brand indigo, NOT overridden in dark mode.
+     The header is a structural branding element that stays rich indigo in all themes. */
+  --color-header-from: #4f378a;
+  --color-header-to: #6750a4;
+
   /* Primary scale (legacy) */
   --color-primary-0: #ffffff;
   --color-primary-10: #f3f4ff;
@@ -186,7 +191,7 @@
 
   /* Semantic Color Tokens (M3 style) */
   --color-surface: var(--color-m3-surface);
-  --color-surface-dim: var(--color-m3-surface-container-low);
+  --color-surface-dim: var(--color-m3-surface-dim);
   --color-surface-container: var(--color-m3-surface-container);
   --color-surface-container-high: var(--color-m3-surface-container-high);
   --color-background: var(--color-m3-surface);
@@ -304,6 +309,81 @@
    BASE STYLES
    ============================================ */
 
+/* ============================================
+   DARK MODE - Clinical Atelier dark palette
+   Extracted from Stitch project dark screen.
+   Applied via .dark class on <html> element.
+   Primary-60/70/80 kept unchanged so the
+   header gradient stays rich indigo in both modes.
+   ============================================ */
+.dark {
+  /* Primary */
+  --color-m3-primary: #d0bcff;
+  --color-m3-on-primary: #381e72;
+  --color-m3-primary-container: #4f378b;
+  --color-m3-on-primary-container: #eaddff;
+
+  /* Secondary */
+  --color-m3-secondary: #ccc2dc;
+  --color-m3-on-secondary: #332d41;
+  --color-m3-secondary-container: #4a4458;
+  --color-m3-on-secondary-container: #e8def8;
+
+  /* Tertiary */
+  --color-m3-tertiary: #efb8c8;
+  --color-m3-on-tertiary: #492532;
+  --color-m3-tertiary-container: #633b48;
+  --color-m3-on-tertiary-container: #ffd8e4;
+
+  /* Surfaces */
+  --color-m3-surface: #141218;
+  --color-m3-on-surface: #e6e1e5;
+  --color-m3-surface-variant: #49454f;
+  --color-m3-on-surface-variant: #cac4d0;
+  --color-m3-surface-dim: #1d1b20;
+  --color-m3-surface-container-lowest: #0f0d13;
+  --color-m3-surface-container-low: #1d1b20;
+  --color-m3-surface-container: #211f26;
+  --color-m3-surface-container-high: #2b2930;
+  --color-m3-surface-container-highest: #36343b;
+
+  /* Outline */
+  --color-m3-outline: #938f99;
+  --color-m3-outline-variant: #49454f;
+
+  /* Error */
+  --color-m3-error: #f2b8b5;
+  --color-m3-on-error: #601410;
+  --color-m3-error-container: #8c1d18;
+  --color-m3-on-error-container: #f9dedc;
+
+  /* Semantic surface aliases — CSS-only, consumed via var(), not Tailwind utilities.
+     Reference the M3 tokens above to avoid drift. */
+  --color-surface: var(--color-m3-surface);
+  --color-surface-dim: var(--color-m3-surface-dim);
+  --color-surface-container: var(--color-m3-surface-container);
+  --color-surface-container-high: var(--color-m3-surface-container-high);
+  --color-background: var(--color-m3-surface);
+  --color-on-surface: var(--color-m3-on-surface);
+  --color-on-background: var(--color-m3-on-surface);
+
+  /* Text / border */
+  --color-text-primary: var(--color-m3-on-surface);
+  --color-text-secondary: var(--color-m3-on-surface-variant);
+  --color-border-default: var(--color-m3-outline);
+  --color-border-light: var(--color-m3-outline-variant);
+
+  /* Snackbar colors (dark variants) */
+  --color-snackbar-success-bg: #1b3a1c;
+  --color-snackbar-success-text: #a5d6a7;
+  --color-snackbar-info-bg: #0d2744;
+  --color-snackbar-info-text: #90caf9;
+  --color-snackbar-error-bg: #3b0a0a;
+  --color-snackbar-error-text: #ef9a9a;
+  --color-snackbar-warning-bg: #3e2800;
+  --color-snackbar-warning-text: #ffcc80;
+}
+
 /* Base body styles */
 @layer base {
   body {
@@ -378,15 +458,11 @@
     border-radius: 12px;
     padding: 1rem;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow:
-      0px 1px 3px 1px rgba(0, 0, 0, 0.15),
-      0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-elevation-2);
   }
 
   .m3-card-elevated:hover {
-    box-shadow:
-      0px 2px 6px 2px rgba(0, 0, 0, 0.15),
-      0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-elevation-3);
   }
 
   .m3-navigation-item {
@@ -415,7 +491,7 @@
     position: sticky;
     top: 0;
     z-index: 40;
-    box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-elevation-1);
   }
 
   .m3-button-filled {
@@ -429,7 +505,7 @@
   }
 
   .m3-button-filled:hover {
-    box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-elevation-2);
   }
 
   .m3-button-filled:active {

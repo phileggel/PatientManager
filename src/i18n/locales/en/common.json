@@ -20,6 +20,11 @@
     "lists": "Lists",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
+    "theme": {
+      "day": "Switch to night mode",
+      "night": "Switch to auto mode",
+      "auto": "Switch to day mode"
+    },
     "subtitle": {
       "excelImport": "Upload an Excel file to import patients, funds, and procedures into the database.",
       "reconciliation": "Upload a PDF payment statement to reconcile with procedures in the database.",
