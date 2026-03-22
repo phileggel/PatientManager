@@ -18,6 +18,7 @@ path = "src/main.rs"
 [[bin]]
 name = "generate_bindings"
 path = "src/bin/generate_bindings.rs"
+required-features = ["generate-bindings"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -55,6 +56,8 @@ tempfile = "3"
 # this flag allows you to build the project without this whitelist for debugging purposes
 # DO NOT use this flag in production
 custom-protocol = ["tauri/custom-protocol"]
+# Enable only when regenerating TypeScript bindings (excluded from release builds)
+generate-bindings = []
 
 [profile.release]
 strip = true
