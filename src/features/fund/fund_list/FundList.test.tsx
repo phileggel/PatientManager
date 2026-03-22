@@ -136,10 +136,7 @@ describe("FundList", () => {
 
     render(<FundList searchTerm="" />);
 
-    const editButtons = screen
-      .getAllByRole("button")
-      .filter((btn) => btn.className.includes("m3-icon-button-primary"));
-    const firstEditButton = editButtons[0];
+    const firstEditButton = screen.getAllByRole("button", { name: /edit fund/i })[0];
     if (!firstEditButton) throw new Error("Edit button not found");
     await user.click(firstEditButton);
 
@@ -151,10 +148,7 @@ describe("FundList", () => {
 
     render(<FundList searchTerm="" />);
 
-    const deleteButtons = screen
-      .getAllByRole("button")
-      .filter((btn) => btn.className.includes("m3-icon-button-error"));
-    const firstDeleteButton = deleteButtons[0];
+    const firstDeleteButton = screen.getAllByRole("button", { name: /delete fund/i })[0];
     if (!firstDeleteButton) throw new Error("Delete button not found");
     await user.click(firstDeleteButton);
 

@@ -155,10 +155,7 @@ describe("PatientList", () => {
 
     render(<PatientList searchTerm="" />);
 
-    const deleteButtons = screen
-      .getAllByRole("button")
-      .filter((btn) => btn.className.includes("m3-icon-button-error"));
-    const firstDeleteButton = deleteButtons[0];
+    const firstDeleteButton = screen.getAllByRole("button", { name: /delete patient/i })[0];
     if (!firstDeleteButton) throw new Error("Delete button not found");
     await user.click(firstDeleteButton);
 

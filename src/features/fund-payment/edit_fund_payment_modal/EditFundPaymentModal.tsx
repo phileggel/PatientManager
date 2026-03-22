@@ -28,11 +28,12 @@ import { useEditFundPaymentModal } from "./useEditFundPaymentModal";
 const EMPTY_IDS: string[] = [];
 
 export interface EditFundPaymentModalProps {
-  payment: FundPaymentGroup;
+  isOpen: boolean;
+  payment: FundPaymentGroup | null;
   onClose: () => void;
 }
 
-export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalProps) {
+export function EditFundPaymentModal({ isOpen, payment, onClose }: EditFundPaymentModalProps) {
   const { t } = useTranslation("fund-payment");
 
   const {
@@ -100,7 +101,7 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
 
   return (
     <>
-      <Dialog isOpen={true} onClose={onClose} title={t("edit.title")}>
+      <Dialog isOpen={isOpen} onClose={onClose} title={t("edit.title")}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* Fund Info (Read-only) — two-column grid, tonal surface */}
           <div className="grid grid-cols-2 gap-6 bg-m3-surface-container-low p-5 rounded-xl">
@@ -208,7 +209,7 @@ export function EditFundPaymentModal({ payment, onClose }: EditFundPaymentModalP
       {/* Add procedures sub-modal (R19) */}
       <ProcedureSelectionModal
         isOpen={isSelectModalOpen}
-        fundId={payment.fund_id}
+        fundId={payment?.fund_id ?? ""}
         initialSelectionIds={EMPTY_IDS}
         preloadedProcedures={proceduresForModal}
         onConfirm={handleProceduresAdded}

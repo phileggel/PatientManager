@@ -8,29 +8,18 @@
  * - Updates: event-driven from useAppInit
  */
 
-import { ArrowDown, ArrowUp, Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Patient } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 
 import { logger } from "@/lib/logger";
-import { ConfirmationDialog } from "@/ui/components";
+import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
 import { EditPatientModal } from "../edit_patient_modal/EditPatientModal";
 import type { PatientRow } from "../shared/types";
 import { usePatientList } from "./usePatientList";
-import type { SortConfig } from "./useSortPatientList";
 import { useSortPatientList } from "./useSortPatientList";
-
-// Moved outside component to avoid recreation on every render
-function SortIcon({ sortConfig, column }: { sortConfig: SortConfig; column: SortConfig["key"] }) {
-  if (sortConfig.key !== column) return null;
-  return sortConfig.direction === "asc" ? (
-    <ArrowUp size={14} className="ml-1 text-m3-primary" />
-  ) : (
-    <ArrowDown size={14} className="ml-1 text-m3-primary" />
-  );
-}
 
 interface PatientListProps {
   searchTerm: string;
@@ -80,22 +69,32 @@ export function PatientList({ searchTerm }: PatientListProps) {
           <tr>
             <th className="m3-th" onClick={() => handleSort("name")}>
               <div className="flex items-center">
-                {t("list.name")} <SortIcon sortConfig={sortConfig} column="name" />
+                {t("list.name")}{" "}
+                <SortIcon active={sortConfig.key === "name"} direction={sortConfig.direction} />
               </div>
             </th>
             <th className="m3-th text-right" onClick={() => handleSort("ssn")}>
-              <div className="flex items-center">
-                {t("list.ssn")} <SortIcon sortConfig={sortConfig} column="ssn" />
+              <div className="flex items-center justify-end">
+                {t("list.ssn")}{" "}
+                <SortIcon active={sortConfig.key === "ssn"} direction={sortConfig.direction} />
               </div>
             </th>
             <th className="m3-th text-right" onClick={() => handleSort("latestFund")}>
-              <div className="flex items-center">
-                {t("list.latestFund")} <SortIcon sortConfig={sortConfig} column="latestFund" />
+              <div className="flex items-center justify-end">
+                {t("list.latestFund")}{" "}
+                <SortIcon
+                  active={sortConfig.key === "latestFund"}
+                  direction={sortConfig.direction}
+                />
               </div>
             </th>
             <th className="m3-th text-right" onClick={() => handleSort("latestDate")}>
-              <div className="flex items-center">
-                {t("list.latestDate")} <SortIcon sortConfig={sortConfig} column="latestDate" />
+              <div className="flex items-center justify-end">
+                {t("list.latestDate")}{" "}
+                <SortIcon
+                  active={sortConfig.key === "latestDate"}
+                  direction={sortConfig.direction}
+                />
               </div>
             </th>
             <th className="m3-th text-right">{tc("table.actions")}</th>
@@ -132,32 +131,29 @@ export function PatientList({ searchTerm }: PatientListProps) {
                   <td className="m3-td text-m3-on-surface">{patient.latestDate || "-"}</td>
                   <td className="m3-td text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        className="m3-icon-button-primary"
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        shape="round"
                         aria-label={t("action.editAriaLabel", { name: patient.name || "" })}
+                        icon={<Edit2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (patientObject) {
-                            setEditData(patientObject);
-                          }
+                          if (patientObject) setEditData(patientObject);
                         }}
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="m3-icon-button-error"
+                      />
+                      <IconButton
+                        variant="danger"
+                        size="sm"
+                        shape="round"
                         aria-label={t("action.deleteAriaLabel", { name: patient.name || "" })}
+                        icon={<Trash2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (patient.id && patient.name) {
+                          if (patient.id && patient.name)
                             setDeleteData({ id: patient.id, name: patient.name });
-                          }
                         }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      />
                     </div>
                   </td>
                 </tr>

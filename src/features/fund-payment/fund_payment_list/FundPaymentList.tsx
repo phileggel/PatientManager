@@ -7,30 +7,19 @@
  * - Edit: double-click or Edit button opens EditFundPaymentModal
  */
 
-import { ArrowDown, ArrowUp, Edit, Lock, Search, Trash2 } from "lucide-react";
+import { Edit, Lock, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
-import { ConfirmationDialog } from "@/ui/components";
+import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
 import { EditFundPaymentModal } from "../edit_fund_payment_modal/EditFundPaymentModal";
 import type { FundPaymentRow } from "../shared/types";
 import { useFundPaymentList } from "./useFundPaymentList";
-import type { SortConfig } from "./useSortFundPaymentList";
 import { useSortFundPaymentList } from "./useSortFundPaymentList";
 
-// Moved outside component to avoid recreation on every render
-function SortIcon({ sortConfig, column }: { sortConfig: SortConfig; column: SortConfig["key"] }) {
-  if (sortConfig.key !== column) return null;
-  return sortConfig.direction === "asc" ? (
-    <ArrowUp size={14} className="ml-1 text-m3-primary" />
-  ) : (
-    <ArrowDown size={14} className="ml-1 text-m3-primary" />
-  );
-}
-
-export default function FundPaymentList() {
+export function FundPaymentList() {
   const { t } = useTranslation("fund-payment");
   const { t: tc } = useTranslation("common");
   const { fundPaymentRows, groups, loading, deleteGroup } = useFundPaymentList();
@@ -67,14 +56,15 @@ export default function FundPaymentList() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="flex items-center justify-between p-6 border-b border-neutral-30">
-        <h2 className="text-xl font-semibold text-neutral-90">
+      <div className="flex items-center justify-between p-6">
+        <h2 className="text-xl font-semibold text-m3-on-surface">
           {t("list.title", { count: groups.length })}
         </h2>
         <div className="relative w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-60" size={18} />
           <input
             type="text"
+            aria-label={t("list.searchPlaceholder")}
             placeholder={t("list.searchPlaceholder")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -89,24 +79,38 @@ export default function FundPaymentList() {
             <tr>
               <th className="m3-th" onClick={() => handleSort("fundName")}>
                 <div className="flex items-center">
-                  {t("list.columns.fund")} <SortIcon sortConfig={sortConfig} column="fundName" />
+                  {t("list.columns.fund")}{" "}
+                  <SortIcon
+                    active={sortConfig.key === "fundName"}
+                    direction={sortConfig.direction}
+                  />
                 </div>
               </th>
               <th className="m3-th" onClick={() => handleSort("paymentDate")}>
                 <div className="flex items-center">
-                  {t("list.columns.date")} <SortIcon sortConfig={sortConfig} column="paymentDate" />
+                  {t("list.columns.date")}{" "}
+                  <SortIcon
+                    active={sortConfig.key === "paymentDate"}
+                    direction={sortConfig.direction}
+                  />
                 </div>
               </th>
               <th className="m3-th text-right" onClick={() => handleSort("totalAmount")}>
                 <div className="flex items-center justify-end">
                   {t("list.columns.amount")}{" "}
-                  <SortIcon sortConfig={sortConfig} column="totalAmount" />
+                  <SortIcon
+                    active={sortConfig.key === "totalAmount"}
+                    direction={sortConfig.direction}
+                  />
                 </div>
               </th>
               <th className="m3-th text-right" onClick={() => handleSort("procedureCount")}>
                 <div className="flex items-center justify-end">
                   {t("list.columns.procedures")}{" "}
-                  <SortIcon sortConfig={sortConfig} column="procedureCount" />
+                  <SortIcon
+                    active={sortConfig.key === "procedureCount"}
+                    direction={sortConfig.direction}
+                  />
                 </div>
               </th>
               <th className="m3-th text-right">{t("list.columns.actions")}</th>
@@ -154,34 +158,31 @@ export default function FundPaymentList() {
                     <td className="m3-td text-m3-on-surface text-right">{group.procedureCount}</td>
                     <td className="m3-td text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          className="m3-icon-button-primary"
+                        <IconButton
+                          variant="ghost"
+                          size="sm"
+                          shape="round"
                           aria-label={t("action.editAriaLabel", { name: group.fundName })}
                           disabled={group.isLocked}
+                          icon={<Edit size={16} />}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (groupObject && !group.isLocked) {
-                              setEditingPayment(groupObject);
-                            }
+                            if (groupObject && !group.isLocked) setEditingPayment(groupObject);
                           }}
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          className="m3-icon-button-error"
+                        />
+                        <IconButton
+                          variant="danger"
+                          size="sm"
+                          shape="round"
                           aria-label={t("action.deleteAriaLabel", { name: group.fundName })}
                           disabled={group.isLocked}
+                          icon={<Trash2 size={16} />}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (!group.isLocked) {
+                            if (!group.isLocked)
                               setDeleteData({ id: group.id, fundName: group.fundName });
-                            }
                           }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        />
                       </div>
                     </td>
                   </tr>
@@ -192,9 +193,11 @@ export default function FundPaymentList() {
         </table>
       </div>
 
-      {editingPayment && (
-        <EditFundPaymentModal payment={editingPayment} onClose={() => setEditingPayment(null)} />
-      )}
+      <EditFundPaymentModal
+        isOpen={!!editingPayment}
+        payment={editingPayment}
+        onClose={() => setEditingPayment(null)}
+      />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog

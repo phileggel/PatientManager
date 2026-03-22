@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import FundPaymentList from "./FundPaymentList";
+import { FundPaymentList } from "./FundPaymentList";
 
 vi.mock("./useFundPaymentList", () => ({
   useFundPaymentList: vi.fn(),

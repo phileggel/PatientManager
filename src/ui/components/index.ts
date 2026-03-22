@@ -29,3 +29,4 @@ export {
 } from "./modal";
 export { SelectFieldLegacy } from "./SelectFieldLegacy";
 export { SelectLegacy } from "./SelectLegacy";
+export { SortIcon } from "./SortIcon";

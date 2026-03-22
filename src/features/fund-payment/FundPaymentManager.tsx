@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { logger } from "@/lib/logger";
 import { AddFundPaymentPanel } from "./add_fund_payment_panel/AddFundPaymentPanel";
-import FundPaymentList from "./fund_payment_list/FundPaymentList";
+import { FundPaymentList } from "./fund_payment_list/FundPaymentList";
 
 /**
  * FundPaymentManager - Page Container

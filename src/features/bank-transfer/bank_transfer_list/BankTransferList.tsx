@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankTransfer } from "@/bindings";
 import { logger } from "@/lib/logger";
+import { IconButton } from "@/ui/components";
 
 const TAG = "[BankTransferList]";
 
@@ -21,73 +22,88 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
     logger.info(TAG, "Component mounted");
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-neutral-60">{t("transfer.list.loading")}</p>
-      </div>
-    );
-  }
-
-  if (transfers.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-neutral-60">{t("transfer.list.empty")}</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="grid grid-cols-6 gap-4 p-4 bg-m3-surface-container-low font-semibold text-sm sticky top-0">
-        <div>{t("transfer.list.columns.date")}</div>
-        <div>{t("transfer.list.columns.amount")}</div>
-        <div>{t("transfer.list.columns.type")}</div>
-        <div>{t("transfer.list.columns.bankAccount")}</div>
-        <div>{tCommon("table.actions")}</div>
-      </div>
-
-      {/* Rows */}
-      <div className="flex-1 overflow-y-auto">
-        {transfers.map((transfer) => (
-          <div
-            key={transfer.id}
-            className="grid grid-cols-6 gap-4 p-4 border-b border-neutral-10 hover:bg-neutral-5 items-center text-sm"
-          >
-            <div>{new Date(transfer.transfer_date).toLocaleDateString("fr-FR")}</div>
-            <div>{(transfer.amount / 1000).toFixed(2)}€</div>
-            <div className="capitalize">
-              {transfer.transfer_type === "FUND"
-                ? t("transfer.typeFund")
-                : transfer.transfer_type === "CHECK"
-                  ? t("transfer.typeCheck")
-                  : t("transfer.typeCreditCard")}
-            </div>
-            <div className="truncate text-neutral-70" title={transfer.bank_account.name}>
-              {transfer.bank_account.name}
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => onEdit(transfer)}
-                className="p-1 hover:bg-neutral-20 rounded transition-colors"
-                title={tCommon("action.edit")}
-              >
-                <Edit2 className="size-4 text-m3-primary" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(transfer.id)}
-                className="p-1 hover:bg-neutral-20 rounded transition-colors"
-                title={tCommon("action.delete")}
-              >
-                <Trash2 className="size-4 text-m3-error" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="m3-table-container flex-1">
+      <table className="w-full border-collapse">
+        <thead className="sticky top-0 bg-m3-surface-container z-10">
+          <tr>
+            <th className="m3-th">{t("transfer.list.columns.date")}</th>
+            <th className="m3-th text-right">{t("transfer.list.columns.amount")}</th>
+            <th className="m3-th">{t("transfer.list.columns.type")}</th>
+            <th className="m3-th">{t("transfer.list.columns.bankAccount")}</th>
+            <th className="m3-th text-right">{tCommon("table.actions")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={5} className="m3-td text-center py-12">
+                <span className="text-m3-on-surface-variant animate-pulse">
+                  {t("transfer.list.loading")}
+                </span>
+              </td>
+            </tr>
+          ) : transfers.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="m3-td text-center py-12 text-m3-on-surface-variant">
+                {t("transfer.list.empty")}
+              </td>
+            </tr>
+          ) : (
+            transfers.map((transfer) => (
+              <tr key={transfer.id} className="m3-tr">
+                <td className="m3-td text-m3-on-surface">
+                  {new Date(transfer.transfer_date).toLocaleDateString("fr-FR")}
+                </td>
+                <td className="m3-td text-m3-on-surface font-semibold text-right">
+                  €{(transfer.amount / 1000).toFixed(2)}
+                </td>
+                <td className="m3-td text-m3-on-surface capitalize">
+                  {transfer.transfer_type === "FUND"
+                    ? t("transfer.typeFund")
+                    : transfer.transfer_type === "CHECK"
+                      ? t("transfer.typeCheck")
+                      : transfer.transfer_type === "CASH"
+                        ? t("transfer.typeCash")
+                        : t("transfer.typeCreditCard")}
+                </td>
+                <td
+                  className="m3-td text-m3-on-surface-variant truncate max-w-[160px]"
+                  title={transfer.bank_account.name}
+                >
+                  {transfer.bank_account.name}
+                </td>
+                <td className="m3-td text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <IconButton
+                      variant="ghost"
+                      size="sm"
+                      shape="round"
+                      aria-label={t("transfer.list.editAriaLabel", {
+                        date: new Date(transfer.transfer_date).toLocaleDateString("fr-FR"),
+                        amount: `€${(transfer.amount / 1000).toFixed(2)}`,
+                      })}
+                      icon={<Edit2 size={16} />}
+                      onClick={() => onEdit(transfer)}
+                    />
+                    <IconButton
+                      variant="danger"
+                      size="sm"
+                      shape="round"
+                      aria-label={t("transfer.list.deleteAriaLabel", {
+                        date: new Date(transfer.transfer_date).toLocaleDateString("fr-FR"),
+                        amount: `€${(transfer.amount / 1000).toFixed(2)}`,
+                      })}
+                      icon={<Trash2 size={16} />}
+                      onClick={() => onDelete(transfer.id)}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
