@@ -98,10 +98,10 @@ describe("FundPaymentList", () => {
       expect(fundNameCell?.querySelector("svg")).toBeInTheDocument();
     });
 
-    it("disables the edit button for a locked group", () => {
+    it("shows an enabled view button for a locked group", () => {
       render(<FundPaymentList />);
-      const editButton = screen.getByRole("button", { name: /edit payment for CPAM - Test/i });
-      expect(editButton).toBeDisabled();
+      const viewButton = screen.getByRole("button", { name: /view payment for CPAM - Test/i });
+      expect(viewButton).not.toBeDisabled();
     });
 
     it("disables the delete button for a locked group", () => {

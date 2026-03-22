@@ -13,6 +13,7 @@
   },
   "action": {
     "editAriaLabel": "Edit payment for {{name}}",
+    "viewAriaLabel": "View payment for {{name}}",
     "deleteAriaLabel": "Delete payment for {{name}}"
   },
   "form": {
@@ -64,7 +65,9 @@
     "errorDateRequired": "Please enter a payment date",
     "errorProcedureRequired": "Please select at least one procedure",
     "errorUpdate": "Error: {{error}}",
-    "errorUnknown": "An unexpected error occurred"
+    "errorUnknown": "An unexpected error occurred",
+    "lockedBadge": "Locked — read only",
+    "close": "Close"
   },
   "select": {
     "title": "Select Procedures",

@@ -13,6 +13,7 @@
   },
   "action": {
     "editAriaLabel": "Modifier le paiement pour {{name}}",
+    "viewAriaLabel": "Consulter le paiement pour {{name}}",
     "deleteAriaLabel": "Supprimer le paiement pour {{name}}"
   },
   "form": {
@@ -64,7 +65,9 @@
     "errorDateRequired": "Veuillez saisir une date de paiement",
     "errorProcedureRequired": "Veuillez sélectionner au moins un acte",
     "errorUpdate": "Erreur : {{error}}",
-    "errorUnknown": "Une erreur inattendue s'est produite"
+    "errorUnknown": "Une erreur inattendue s'est produite",
+    "lockedBadge": "Verrouillé — lecture seule",
+    "close": "Fermer"
   },
   "select": {
     "title": "Sélectionner les actes",
