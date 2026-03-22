@@ -19,7 +19,7 @@ check-verbose:
 
 # Generate TypeScript bindings from Rust
 generate-types:
-    cd src-tauri && cargo run --bin generate_bindings
+    cd src-tauri && cargo run --features generate-bindings --bin generate_bindings
 
 # Release new version (interactive)
 release *ARGS:
