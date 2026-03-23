@@ -2,7 +2,7 @@ import { Edit, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@/lib/formatters";
 import { IconButton, SortIcon } from "@/ui/components";
-import { formatDateDisplay, type ProcedureRow } from "../../model";
+import { formatDateDisplay, isBlockingStatus, type ProcedureRow } from "../../model";
 import { COL_WIDTHS } from "../ui.styles";
 import { StatusBadge } from "./StatusBadge";
 import { useSortProcedureList } from "./useSortProcedureList";
@@ -122,7 +122,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                       shape="round"
                       aria-label={t("action.deleteTitle")}
                       icon={<Trash2 size={16} />}
-                      disabled={!row.id}
+                      disabled={!row.id || isBlockingStatus(row.status)}
                       onClick={() => row.id && onDelete(row.id)}
                     />
                   </div>

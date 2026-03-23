@@ -33,6 +33,22 @@ export interface ProcedureRow {
   id?: string;
 }
 
+const BLOCKING_STATUSES = new Set([
+  "RECONCILIATED",
+  "PARTIALLY_RECONCILED",
+  "FUND_PAYED",
+  "PARTIALLY_FUND_PAYED",
+  "DIRECTLY_PAYED",
+]);
+
+/**
+ * Returns true if the procedure status prevents deletion and editing.
+ * These procedures are linked to a payment group or bank transaction.
+ */
+export function isBlockingStatus(status: string | null): boolean {
+  return status != null && BLOCKING_STATUSES.has(status);
+}
+
 /**
  * Reference data for populating ProcedureRow
  */

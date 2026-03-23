@@ -1,8 +1,9 @@
 /**
- * useProcedureFormModal — unified hook for create and edit procedure modal.
+ * useProcedureFormModal — unified hook for create, edit and view procedure modal.
  *
  * Create mode: auto-fill from patient, entity creation modals, calls addProcedure.
  * Edit mode:   initialises from existing Procedure, calls updateProcedure.
+ * View mode:   initialises from existing Procedure, handleSubmit returns early (no gateway call).
  */
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
@@ -22,7 +23,7 @@ interface FieldErrors {
 }
 
 interface UseProcedureFormModalOptions {
-  mode: "create" | "edit";
+  mode: "create" | "edit" | "view";
   procedure?: Procedure | null;
   onSuccess?: () => void;
   onClose: () => void;
@@ -126,6 +127,8 @@ export function useProcedureFormModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (mode === "view") return;
+
     const errors = validate();
     if (Object.keys(errors).length > 0) {
       logger.warn(`${TAG} Submit with missing required fields`);
@@ -213,7 +216,6 @@ export function useProcedureFormModal({
   return {
     // Reference data
     patients,
-    funds,
     sortedFunds,
     procedureTypes,
     // Derived

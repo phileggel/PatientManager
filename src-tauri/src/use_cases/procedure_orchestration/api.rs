@@ -37,8 +37,10 @@ impl RawProcedure {
         let payment_status = match self.payment_status.as_str() {
             "CREATED" => ProcedureStatus::Created,
             "RECONCILIATED" => ProcedureStatus::Reconciliated,
+            "PARTIALLY_RECONCILED" => ProcedureStatus::PartiallyReconciled,
             "DIRECTLY_PAYED" => ProcedureStatus::DirectlyPayed,
             "FUND_PAYED" => ProcedureStatus::FundPayed,
+            "PARTIALLY_FUND_PAYED" => ProcedureStatus::PartiallyFundPayed,
             "IMPORT_DIRECTLY_PAYED" => ProcedureStatus::ImportDirectlyPayed,
             "IMPORT_FUND_PAYED" => ProcedureStatus::ImportFundPayed,
             _ => ProcedureStatus::None,

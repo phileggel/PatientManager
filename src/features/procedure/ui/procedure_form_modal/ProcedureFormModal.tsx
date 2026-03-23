@@ -1,10 +1,12 @@
 /**
- * ProcedureFormModal — Unified modal for creating and editing a procedure.
+ * ProcedureFormModal — Unified modal for creating, editing and viewing a procedure.
  *
  * mode="create": ComboboxField for Patient/Fund (with inline entity creation),
  *                payment fields editable, calls addProcedure on submit.
  * mode="edit":   SelectField for Patient/Fund, read-only sections for system
  *                info, patient info and payment status, calls updateProcedure.
+ * mode="view":   All fields disabled, submit button hidden. Used for blocked-status
+ *                procedures (R26) — linked to a payment group or bank transaction.
  */
 
 import { X } from "lucide-react";
@@ -28,7 +30,7 @@ import { CreatePatientForm } from "../form/CreatePatientForm";
 import { useProcedureFormModal } from "./useProcedureFormModal";
 
 interface ProcedureFormModalProps {
-  mode: "create" | "edit";
+  mode: "create" | "edit" | "view";
   procedure?: Procedure | null;
   isOpen: boolean;
   onClose: () => void;
@@ -81,7 +83,9 @@ export function ProcedureFormModal({
     handleFundCreated,
   } = useProcedureFormModal({ mode, procedure, onSuccess, onClose });
 
-  const title = mode === "create" ? t("form.cardTitle") : t("modal.title");
+  const isViewMode = mode === "view";
+  const title =
+    mode === "create" ? t("form.cardTitle") : isViewMode ? t("modal.viewTitle") : t("modal.title");
   const submitLabel =
     mode === "create"
       ? loading
@@ -154,7 +158,7 @@ export function ProcedureFormModal({
               label={t("form.patient")}
               value={patientId}
               onChange={(e) => handlePatientChange(e.target.value)}
-              disabled={loading}
+              disabled={loading || isViewMode}
               error={fieldErrors.patientId}
               options={patients.map((p) => ({ label: p.name ?? "—", value: p.id }))}
             />
@@ -181,7 +185,7 @@ export function ProcedureFormModal({
               label={t("form.fund")}
               value={fundId}
               onChange={(e) => setFundId(e.target.value)}
-              disabled={loading}
+              disabled={loading || isViewMode}
               options={[
                 { label: t("form.selectFund"), value: "" },
                 ...sortedFunds.map((f) => ({
@@ -199,7 +203,7 @@ export function ProcedureFormModal({
             options={procedureTypeOptions}
             value={procedureTypeId}
             onChange={(e) => setProcedureTypeId(e.target.value)}
-            disabled={loading}
+            disabled={loading || isViewMode}
             error={fieldErrors.procedureTypeId}
           />
 
@@ -209,7 +213,7 @@ export function ProcedureFormModal({
             label={t("form.procedureDate")}
             value={procedureDate}
             onChange={(e) => setProcedureDate(e.target.value)}
-            disabled={loading}
+            disabled={loading || isViewMode}
             error={fieldErrors.procedureDate}
           />
 
@@ -219,11 +223,11 @@ export function ProcedureFormModal({
             label={t("form.amount")}
             value={procedureAmount}
             onChange={setProcedureAmount}
-            disabled={loading}
+            disabled={loading || isViewMode}
           />
 
-          {/* System Info — edit only */}
-          {mode === "edit" && procedure && (
+          {/* System Info — edit/view only */}
+          {mode !== "create" && procedure && (
             <div className="bg-m3-surface-container-low rounded-xl p-4">
               <h3 className="text-sm font-semibold text-m3-on-surface-variant mb-3">
                 {t("modal.systemInfo")}
@@ -237,8 +241,8 @@ export function ProcedureFormModal({
             </div>
           )}
 
-          {/* Patient Info — edit only */}
-          {mode === "edit" && (
+          {/* Patient Info — edit/view only */}
+          {mode !== "create" && (
             <div className="bg-m3-surface-container-low rounded-xl p-4">
               <h3 className="text-sm font-semibold text-m3-on-surface-variant mb-3">
                 {t("modal.patientInfo")}
@@ -272,7 +276,7 @@ export function ProcedureFormModal({
                   label={t("form.paymentMethod")}
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod | "")}
-                  disabled={loading}
+                  disabled={loading || isViewMode}
                   options={[{ label: t("form.selectPaymentMethod"), value: "" }, ...paymentOptions]}
                 />
                 <DateField
@@ -280,12 +284,12 @@ export function ProcedureFormModal({
                   label={t("form.paymentDate")}
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
-                  disabled={loading}
+                  disabled={loading || isViewMode}
                 />
               </div>
 
-              {/* Read-only payment status — edit only */}
-              {mode === "edit" && procedure && (
+              {/* Read-only payment status — edit/view only */}
+              {mode !== "create" && procedure && (
                 <div className="grid grid-cols-2 gap-4">
                   <TextField
                     id="readonlyStatus"
@@ -330,18 +334,20 @@ export function ProcedureFormModal({
             disabled={loading}
             className="flex-1"
           >
-            {tc("action.cancel")}
+            {isViewMode ? tc("action.close") : tc("action.cancel")}
           </Button>
-          <Button
-            type="submit"
-            form="procedure-form"
-            variant="primary"
-            loading={loading}
-            disabled={!patientId || !procedureTypeId || !procedureDate || loading}
-            className="flex-1"
-          >
-            {submitLabel}
-          </Button>
+          {!isViewMode && (
+            <Button
+              type="submit"
+              form="procedure-form"
+              variant="primary"
+              loading={loading}
+              disabled={!patientId || !procedureTypeId || !procedureDate || loading}
+              className="flex-1"
+            >
+              {submitLabel}
+            </Button>
+          )}
         </div>
       </ModalContainer>
 

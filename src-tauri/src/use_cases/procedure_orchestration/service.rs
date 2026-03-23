@@ -6,6 +6,7 @@ use crate::context::procedure::{
     PaymentMethod, Procedure, ProcedureCandidate, ProcedureService as ContextProcedureService,
     ProcedureStatus, ProcedureTypeRepository,
 };
+use crate::core::logger::BACKEND;
 
 /// Orchestration service for healthcare procedures
 ///
@@ -180,9 +181,31 @@ impl ProcedureOrchestrationService {
 
     /// Delete a healthcare procedure with patient tracking cleanup
     ///
-    /// Orchestration responsibility: Clears patient tracking fields if this was the "latest" procedure
+    /// Orchestration responsibilities:
+    /// 1. Rejects deletion for procedures linked to a payment group or bank transaction (R5)
+    /// 2. Clears patient tracking fields if the patient has no remaining procedures (R20)
     pub async fn delete_procedure(&self, id: &str) -> anyhow::Result<()> {
         tracing::debug!(procedure_id = %id, "Deleting healthcare procedure");
+
+        // Guard: reject deletion for procedures linked to a payment (R5)
+        let procedure = self
+            .context_procedure_service
+            .read_procedure(id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Procedure {} not found", id))?;
+
+        if Self::is_blocking_status(&procedure.payment_status) {
+            tracing::warn!(
+                name = BACKEND,
+                procedure_id = %id,
+                status = ?procedure.payment_status,
+                "Delete blocked: procedure is linked to a payment"
+            );
+            anyhow::bail!(
+                "Cannot delete procedure with status {:?}: linked to a payment group or bank transaction",
+                procedure.payment_status
+            );
+        }
 
         // Delegate to context service for state change (which publishes event)
         self.context_procedure_service.delete_procedure(id).await?;
@@ -464,12 +487,27 @@ impl ProcedureOrchestrationService {
             .await
     }
 
+    /// Returns true if the procedure status prevents deletion and direct editing (R5, R6).
+    ///
+    /// Blocking statuses are those linked to a fund payment group or bank transaction.
+    /// Import statuses (ImportDirectlyPayed, ImportFundPayed) are intentionally excluded:
+    /// they represent non-blocking re-importable data and allow deletion with confirmation.
+    fn is_blocking_status(status: &ProcedureStatus) -> bool {
+        matches!(
+            status,
+            ProcedureStatus::Reconciliated
+                | ProcedureStatus::PartiallyReconciled
+                | ProcedureStatus::FundPayed
+                | ProcedureStatus::PartiallyFundPayed
+                | ProcedureStatus::DirectlyPayed
+        )
+    }
+
     /// Determine procedure status based on payment completeness and metadata.
     ///
     /// Import-specific statuses (non-blocking re-import):
-    /// - ImportDirectlyPayed: payment confirmed (date + amount) AND method is ES or CH
+    /// - ImportDirectlyPayed: payment confirmed (date + amount) AND (method is ES/CH OR no fund)
     /// - ImportFundPayed: payment confirmed AND method is not ES/CH AND fund is present
-    /// - ImportDirectlyPayed: payment confirmed AND method is not ES/CH AND no fund
     fn determine_procedure_status(
         procedure_amount: Option<i64>,
         actual_payment_amount: Option<i64>,
@@ -498,7 +536,7 @@ impl ProcedureOrchestrationService {
     /// Check if a procedure is fully paid (amount >= required)
     fn is_fully_paid(required: Option<i64>, paid: Option<i64>) -> bool {
         match (required, paid) {
-            (Some(req), Some(p)) => p >= req, // Removed req > 0.0 check
+            (Some(req), Some(p)) => p >= req,
             _ => false,
         }
     }
@@ -662,7 +700,13 @@ mod tests {
             unimplemented!()
         }
         async fn read_all_patients(&self) -> anyhow::Result<Vec<Patient>> {
-            unimplemented!()
+            Ok(self
+                .patient
+                .lock()
+                .unwrap()
+                .clone()
+                .map(|p| vec![p])
+                .unwrap_or_default())
         }
         async fn read_patient(&self, _id: &str) -> anyhow::Result<Option<Patient>> {
             Ok(self.patient.lock().unwrap().clone())
@@ -868,5 +912,216 @@ mod tests {
             updated.is_none(),
             "Patient should NOT be updated when batch procedure is older"
         );
+    }
+
+    fn make_procedure_with_status(status: ProcedureStatus) -> Procedure {
+        Procedure::with_id(
+            "proc-id-1".to_string(),
+            "patient-id-1".to_string(),
+            None,
+            "type-id-1".to_string(),
+            "2024-06-15".to_string(),
+            Some(100000),
+            PaymentMethod::None,
+            None,
+            None,
+            status,
+        )
+        .expect("valid procedure")
+    }
+
+    struct MockProcedureRepositoryWithProcedure {
+        procedure: Procedure,
+    }
+
+    #[async_trait::async_trait]
+    impl ProcedureRepository for MockProcedureRepositoryWithProcedure {
+        #[allow(clippy::too_many_arguments)]
+        async fn create_procedure(
+            &self,
+            _patient_id: String,
+            _fund_id: Option<String>,
+            _procedure_type_id: String,
+            _procedure_date: String,
+            _procedure_amount: Option<i64>,
+            _payment_method: PaymentMethod,
+            _confirmed_payment_date: Option<String>,
+            _actual_payment_amount: Option<i64>,
+            _payment_status: ProcedureStatus,
+        ) -> anyhow::Result<Procedure> {
+            unimplemented!()
+        }
+        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![self.procedure.clone()])
+        }
+        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
+            Ok(Some(self.procedure.clone()))
+        }
+        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
+            Ok(p)
+        }
+        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn find_procedures_by_ssn_and_date_range(
+            &self,
+            _ssn: &str,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_procedures_by_ssns_and_date_range(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_procedures_by_ssns_and_date_range_with_ssn(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<(String, Procedure)>> {
+            unimplemented!()
+        }
+        async fn find_procedure_exact(
+            &self,
+            _patient_id: &str,
+            _fund_id: Option<&str>,
+            _procedure_date: &str,
+            _procedure_amount: i64,
+        ) -> anyhow::Result<Option<Procedure>> {
+            unimplemented!()
+        }
+        async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
+            Ok(procedures)
+        }
+        async fn update_batch(
+            &self,
+            _procedures: Vec<Procedure>,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
+            unimplemented!()
+        }
+        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
+            unimplemented!()
+        }
+        async fn find_unreconciled_by_date_range(
+            &self,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
+            unimplemented!()
+        }
+        async fn find_created_in_date_range(
+            &self,
+            _date_min: &str,
+            _date_max: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_created_by_fund_before_date(
+            &self,
+            _fund_id: &str,
+            _date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+    }
+
+    fn make_orchestrator_with_procedure(procedure: Procedure) -> ProcedureOrchestrationService {
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(MockProcedureRepositoryWithProcedure { procedure }),
+            event_bus,
+        ));
+        let patient_repo = Arc::new(MockPatientRepository {
+            patient: Mutex::new(None),
+            updated_patient: Mutex::new(None),
+        });
+        ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo,
+            Arc::new(MockProcedureTypeRepository),
+            Arc::new(MockFundRepository),
+        )
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_blocked_for_reconciliated() {
+        let proc = make_procedure_with_status(ProcedureStatus::Reconciliated);
+        let orchestrator = make_orchestrator_with_procedure(proc);
+        let result = orchestrator.delete_procedure("proc-id-1").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_blocked_for_partially_reconciliated() {
+        let proc = make_procedure_with_status(ProcedureStatus::PartiallyReconciled);
+        let orchestrator = make_orchestrator_with_procedure(proc);
+        let result = orchestrator.delete_procedure("proc-id-1").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_blocked_for_fund_payed() {
+        let proc = make_procedure_with_status(ProcedureStatus::FundPayed);
+        let orchestrator = make_orchestrator_with_procedure(proc);
+        let result = orchestrator.delete_procedure("proc-id-1").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_blocked_for_partially_fund_payed() {
+        let proc = make_procedure_with_status(ProcedureStatus::PartiallyFundPayed);
+        let orchestrator = make_orchestrator_with_procedure(proc);
+        let result = orchestrator.delete_procedure("proc-id-1").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_blocked_for_directly_payed() {
+        let proc = make_procedure_with_status(ProcedureStatus::DirectlyPayed);
+        let orchestrator = make_orchestrator_with_procedure(proc);
+        let result = orchestrator.delete_procedure("proc-id-1").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_allowed_for_created() {
+        let proc = make_procedure_with_status(ProcedureStatus::Created);
+        let orchestrator = make_orchestrator_with_procedure(proc);
+        let result = orchestrator.delete_procedure("proc-id-1").await;
+        assert!(result.is_ok(), "Created procedure should be deletable");
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_allowed_for_import_statuses() {
+        for status in [
+            ProcedureStatus::ImportDirectlyPayed,
+            ProcedureStatus::ImportFundPayed,
+            ProcedureStatus::None,
+        ] {
+            let proc = make_procedure_with_status(status);
+            let orchestrator = make_orchestrator_with_procedure(proc);
+            let result = orchestrator.delete_procedure("proc-id-1").await;
+            assert!(result.is_ok(), "Status {:?} should be deletable", status);
+        }
     }
 }

@@ -25,9 +25,9 @@ depuis le dernier acte enregistré du patient (`latest_fund`, `latest_procedure_
 `latest_procedure_amount`). La date du jour est également pré-remplie si aucune date n'a
 encore été saisie.
 
-**R5 — Confirmation avant suppression** : La suppression d'un acte requiert toujours une `ConfirmationDialog`. Aucune ligne ne peut être supprimée sans confirmation explicite. La suppression est bloquée (frontend + backend) pour les actes en statut `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed` ou `DirectlyPayed` — ces actes sont rattachées à un groupe de paiement fond ou à une transaction bancaire directe ; les supprimer rendrait ces enregistrements incohérents. Pour les supprimer, il faut d'abord supprimer le virement, le groupe de paiement fond ou le paiement direct associé.
+**R5 — Confirmation avant suppression** : La suppression d'un acte requiert toujours une `ConfirmationDialog`. Aucune ligne ne peut être supprimée sans confirmation explicite. La suppression est bloquée (frontend + backend) pour les actes en statut `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed` ou `DirectlyPayed` — ces actes sont rattachées à un groupe de paiement fond ou à une transaction bancaire directe ; les supprimer rendrait ces enregistrements incohérents. Pour les supprimer, il faut d'abord supprimer le virement, le groupe de paiement fond ou le paiement direct associé. Côté frontend, le bouton de suppression est `disabled` (`isBlockingStatus`) pour ces statuts. Côté backend, `delete_procedure` vérifie le statut avant suppression et retourne une erreur explicite.
 
-**R6 — Édition via modal** : Les actes enregistrés peuvent être édités dans `ProcedureFormModal` (mode="edit"), sauf pour les actes dont la suppression est bloquée (statuts `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`) qui s'ouvrent en mode lecture seule (cf. R26). Pour les actes éditables, le modal pré-remplit tous les champs depuis l'acte existante. Champs éditables : `patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `confirmed_payment_date`. Champs en lecture seule : `payment_status` et `actual_payment_amount` (affichés à titre informatif, transmis tels quels lors de la mise à jour).
+**R6 — Édition via modal** : Les actes enregistrés peuvent être édités dans `ProcedureFormModal` (mode="edit"), sauf pour les actes dont la suppression est bloquée (statuts `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`) qui s'ouvrent en mode lecture seule (cf. R26). Pour les actes éditables, le modal pré-remplit tous les champs depuis l'acte existante. Champs éditables : `patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `confirmed_payment_date`. Champs en lecture seule : `payment_status` et `actual_payment_amount` (affichés à titre informatif, transmis tels quels lors de la mise à jour). Note : `payment_method` et `confirmed_payment_date` ne sont disponibles qu'en mode édition — la commande `add_procedure` ne les expose pas (cf. R15).
 
 **R7 — Statistiques agrégées** : La barre d'en-tête affiche des statistiques agrégées pour les lignes filtrées (période + recherche) : nombre de patients uniques, nombre d'actes, total facturé (`procedureAmount`), total perçu (`actualPaymentAmount`), et total attendu (`max(0, procedureAmount − actualPaymentAmount)` par ligne). Les lignes brouillon (actes dont le champ `isDraft` est vrai, correspondant aux actes en cours de saisie pour la période active) sont exclues de toutes les statistiques.
 
@@ -71,7 +71,7 @@ vérifie que `patient_id` et `procedure_type_id` référencent des entités exis
 `fund_id` est fourni, le fonds doit également exister. Toute référence manquante interrompt
 la création avec une erreur.
 
-**R15 — Inférence du mode de paiement à la création** : À la création ou à l'import uniquement, `payment_method` est inféré depuis les données brutes. En création via le formulaire frontend, l'acte n'ayant pas de date de paiement confirmée, la méthode est toujours `None`. À l'import Excel, les codes de la colonne `T` sont traduits : code `"ES"` → `Cash` ; code `"CH"` → `Check` ; date présente + tout autre code ou absent → `BankTransfer`. Après création, `payment_method` est modifiable librement via le frontend (R18) ou atomiquement par les use cases de réconciliation (cf. specs dédiées).
+**R15 — Inférence du mode de paiement à la création** : À la création ou à l'import uniquement, `payment_method` est déterminé depuis les données brutes. En création via le formulaire frontend, la commande `add_procedure` n'expose pas les paramètres `payment_method` ni `confirmed_payment_date` — la méthode est donc toujours `None` et le statut initial est toujours `Created` (cf. R16). À l'import Excel, les codes de la colonne `T` sont traduits : code `"ES"` → `Cash` ; code `"CH"` → `Check` ; date présente + tout autre code ou absent → `BankTransfer`. Après création, `payment_method` est modifiable librement via le formulaire d'édition (R6, R18) ou atomiquement par les use cases de réconciliation (cf. specs dédiées).
 
 **R16 — Détermination du statut initial** : Le statut est calculé par l'orchestration,
 jamais accepté tel quel depuis l'appelant. Un acte est « payé » si (`confirmed_payment_date`
@@ -90,7 +90,13 @@ toujours ignorée et jamais persistée.
 `procedure_date > patient.latest_date` (ou `latest_date` est null), l'orchestration met à
 jour les champs de suivi du patient : `latest_date`, `latest_procedure_type`, `latest_fund`,
 `latest_procedure_amount`. En mode batch, la procédure la plus récente du lot est identifiée
-par patient et une seule mise à jour est appliquée par patient.
+par patient et une seule mise à jour est appliquée par patient. Si la nouvelle acte n'a pas
+de fonds (`fund_id` absent — acte à paiement direct), `latest_fund` doit être effacé pour
+refléter que le dernier acte connu n'est plus rattaché à un fonds.
+
+> **Limitation connue** : l'implémentation actuelle ne met à jour `latest_fund` que si
+> `fund_id` est présent — elle ne l'efface pas lorsque l'acte la plus récente n'a pas de
+> fonds. Ce comportement est à corriger.
 
 **R20 — Suivi patient à la suppression** : Après la suppression d'un acte, si le patient n'a plus aucune procédure et que `latest_date` est renseigné, les quatre champs de suivi sont effacés. Limitation connue : si l'acte supprimée était la plus récente mais que le patient a d'autres actes, les champs de suivi ne sont pas recalculés — ils conservent leurs anciennes valeurs jusqu'à la création d'un acte plus récent.
 

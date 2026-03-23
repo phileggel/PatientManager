@@ -199,6 +199,7 @@ Key behaviors:
 - Patient tracking: updates `latest_*` fields if new procedure date > current latest
 - Payment inference: sets `payment_method = BankTransfer` if `confirmed_payment_date` is present
 - Status determination: derives initial `ProcedureStatus` from payment info
+- Deletion guard (R5): rejects deletion for procedures with blocking statuses (`Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`) — linked to a payment group or bank transaction
 
 **Tauri commands (`api.rs`)**
 - `add_procedure(patientId, fundId?, procedureTypeId, procedureDate, procedureAmount?) -> Procedure`
