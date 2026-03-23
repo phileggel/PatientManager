@@ -29,6 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 9. If tests are missing → write them directly (backend: Rust `#[cfg(test)]` inline, frontend: `.test.ts` colocated) — follow `/docs/testing.md`
 10. Update documentation:
     - Update `ARCHITECTURE.md` if new files, modules, or features were added/removed
+    - Update `docs/todo.md` to remove resolved items or add newly discovered ones
     - Update the relevant spec in `docs/` if new business rules were added
     - If a spec doc exists → run `spec-checker` subagent to confirm all rules are covered
 11. **Self-check** — before asking to commit, explicitly verify each step:
@@ -39,6 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - [ ] i18n-checker run if text changed (step 8)
     - [ ] Tests written (step 9)
     - [ ] ARCHITECTURE.md updated if needed (step 10)
+    - [ ] docs/todo.md updated if needed (step 10)
     - [ ] Spec updated + spec-checker run if spec exists (step 10)
 12. CRITICAL: ask user if commit is needed and follow his instructions
 

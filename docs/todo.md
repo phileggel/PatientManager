@@ -16,17 +16,9 @@ normalement la date de confirmation de paiement ne devrait pas etre mise à jour
 
 ## (backend/fund) — Tech debt purpose of FundPaymentLine as domain object
 
-## (frontend) — Toutes les pages
-
-- alignment des "actions" avec les autres pages (consistances des icones)
-
-## (frontend) — BottomBar
-
-- ajouter la version en bas a droite (patient manager v0.7)
-
 ## (frontend/procedure) — Page procédure
 
-- fix: recu/en attente toujours egal a 0 (??)
+- fix: recu/en attente toujours egal a 0 (??) → à vérifier en prod : `actualPaymentAmount` est calculé dans SummaryStats, `awaitedAmount` calculé côté frontend (procedureAmount - actualPaymentAmount)
 
 ## (frontend/fund-payment-match) — Page Rapprochement Caisse
 
@@ -45,15 +37,6 @@ From the previous multi-session work (noted in memory):
 - Step 3: Batch patient/fund creation during reconciliation (instead of N individual creations)
 - Step 4: Batch group creation events
 
-## (backend) — champs date non validé?
-
-- bank_transfer
-  `fn validate(_transfer_date: &str, amount: i64, source: &str) -> Result<()>`
-- fund_payment_group
-  fn validate(fund_id: &str, \_payment_date: &str, total_amount: i64) -> Result<()>
-- procedure
-  gestion des dates?
-
 ## (backend) — Sauvegarde + historisation des bases de données
 
 fonction de sauvegarde + gestion historisation des bases de données pour pouvoir revenir en arrière si besoin.
@@ -68,7 +51,6 @@ retour sur le précédant, on réavance direct sur le suivant (rapprochement cai
 
 In the list, replace "date" with start date (oldest procedure) and end date (latest procedure)
 
-## (frontend) - add day/night mode with a toggle.
 
 ## (backend/fund-payment-reconciliation) — Perf: halve DB calls in duplicate candidate check
 
@@ -91,35 +73,8 @@ Highest priority (behavioral regressions possible):
 - R11 — No integration test for post-delete procedure state reset
 - R10 — No test for is_locked recomputation in read_all_fund_payment_groups
 
-## saisie des actes: champs reçu et en attente ne sont jamais mis à jour
-
-## saisie des actes: le montant, la caisse, la date d'un acte reconcilié ou réglé ne doit pas etre modifiable.
+## saisie des actes: champs reçu et en attente ne sont jamais mis à jour → doublon avec todo ci-dessus, à vérifier en prod
 
 ## F10 — Extract logic to dedicated hooks (procedure feature)
 
 The reviewer flagged multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. These are deferred because they are large architectural refactors with no functional impact.
-
-### Files to refactor
-
-- **`ProcedurePage.tsx`** → extract to `useProcedurePage.ts`
-  - All `useState` (selectedMonth, selectedYear, rows, searchTerm, editingProcedure, pendingDeleteId)
-  - `reloadRows`, `handleRowUiSync`, `handleAddNewRow`, `handleEdit`, `handleCloseModal`, `handleDelete`, `handleCancelDelete`, `handleConfirmDelete`, `handleProcedureUpdate`
-  - `filteredRows` useMemo + `procedure_updated` event listener useEffect
-
-- **`ProcedureUpdateModal.tsx`** → extract to `useProcedureUpdateModal.ts`
-  - All `useState` (patientId, fundId, procedureTypeId, procedureDate, procedureAmount, paymentMethod, paymentDate, loading, submitted)
-  - `sortedFunds` (useMemo), `selectedPatient`, `selectedFund`, `handleSubmit`
-
-- **`WorkflowTable.tsx`** → extract to `useWorkflowTable.ts`
-  - `useReducer` + all `useMemo` (tableContext, latestDate, actions, bundle)
-  - `useTableLifeCycle` and `useTablePersistance` (move from module-level functions to the hook file)
-  - Sync draft `useEffect`
-
-- **`PeriodSelector.tsx`** → extract to `usePeriodSelector.ts`
-  - `navigateMonth`, `canGoPrev`, `canGoNext`, months/years array computation
-
-- **`SummaryStats.tsx`** → extract to `useSummaryStats.ts`
-  - `uniquePatients`, `procedureCount`, `totalAmount`, `totalReceived`, `totalAwaited` (all with useMemo)
-
-- **`CreatePatientForm.tsx`** / **`CreateFundForm.tsx`** (minor)
-  - Move `validator` and `toFormData` inline literals to module-level constants to stabilize references passed to `useCreateEntityForm`
