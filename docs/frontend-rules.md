@@ -5,6 +5,7 @@
 ## Feature Structure
 
 **F1** — SHOULD follow the gold layout (bank-transfer):
+
 ```
 feature/
   {sub_feature}/        <== SubFeature.tsx + useSubFeature.ts + useSubFeature.test.ts
@@ -15,6 +16,7 @@ feature/
 ```
 
 **F2** — Each sub-feature MUST live in its own subfolder named in snake_case.
+
 - Component file, its hook, and its tests are colocated in that folder.
 - Example: `add_fund_panel/AddFundPanel.tsx` + `useAddFundPanel.ts` + `useAddFundPanel.test.ts`
 
@@ -23,6 +25,7 @@ feature/
 **F4** — Shared utilities, types, and sub-components used by multiple sub-features MUST live in `shared/`.
 
 **F5** — SHOULD use a presenter (`shared/presenter.ts`) to transform domain data into view models.
+
 - Maps raw backend types to display-ready structures (labels, formatted amounts, etc.)
 - Keeps hooks and components free of formatting/transformation logic
 - MUST be pure functions — easy to unit test independently
@@ -30,20 +33,24 @@ feature/
 ## Component
 
 **F6** — SHOULD be as smart as possible:
+
 - Get state from store if available
 - Get values directly from gateway otherwise and listen to backend events if updates are needed
 
 **F7** — MUST NOT emit window events (those are emitted by the backend).
 
 **F8** — SHOULD have minimal props:
+
 - Smart components: only callbacks (`onSelect`, `onCancel`) + open/close state
 - Dumb components: props needed to render/behave
 
 **F9** — MUST cleanup event listeners and subscriptions:
+
 - Remove listeners in the `useEffect` cleanup function
 - Prevents memory leaks when component unmounts
 
 **F10** — Logic MUST be in a dedicated hook colocated with the component:
+
 - state, useMemo, callbacks
 
 **F11** — MUST respect M3 design and use generic `ui/components` when possible.
@@ -65,6 +72,7 @@ feature/
 ## Error Handling
 
 **F17** — SHOULD handle errors appropriately:
+
 - Log critical errors with context (component, action, data)
 - Show user-friendly feedback (snackbar)
 - Display inline validation errors in forms
@@ -73,6 +81,7 @@ feature/
 ## Tests
 
 **F18** — MUST have tests for non-trivial logic worth protecting:
+
 - State transitions triggered by user actions (auto-fill, reset after submit, etc.)
 - API call arguments and success/error handling
 - Do NOT write tests that only verify rendering or DOM structure

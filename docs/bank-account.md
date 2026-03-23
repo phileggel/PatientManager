@@ -12,9 +12,9 @@ Les comptes bancaires représentent les comptes du praticien depuis lesquels les
 
 **R2 — Modification (frontend + backend)** : Le nom et l'IBAN peuvent être modifiés à tout moment.
 
-**R3 — Suppression (frontend + backend)** : La suppression est réversible.
+**R3 — Suppression (frontend + backend)** : La suppression est un soft-delete — le compte est marqué supprimé mais reste en base. Il n'y a pas de contrainte bloquante si le compte est lié à des virements existants.
 
-**R4 — Compte caisse par défaut ⚠️ non implémenté (backend)** : Un compte caisse est précréé par défaut dans le système. Il n'a pas d'IBAN, ne peut pas être modifié ni supprimé. Il sert exclusivement à enregistrer les paiements reçus en espèces.
+**R4 — Compte caisse par défaut (backend)** : Un compte caisse est précréé par migration avec l'id fixe `cash-account-default`. Il n'a pas d'IBAN, ne peut pas être modifié ni supprimé. Il sert exclusivement à enregistrer les paiements reçus en espèces. Son nom affiché provient de l'i18n, pas de la base de données.
 
 ---
 

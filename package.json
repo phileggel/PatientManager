@@ -16,6 +16,7 @@
     "format": "biome check ./src",
     "format:fix": "biome check --write ./src",
     "format:unsafe": "biome check --write --unsafe ./src",
+    "format:docs": "prettier --write \"docs/**/*.md\"",
     "stats": "cloc . --vcs=git --exclude-dir=node_modules,target --exclude-ext=json,lock,yaml"
   },
   "dependencies": {
@@ -48,6 +49,7 @@
     "@vitejs/plugin-react": "^5.1.2",
     "happy-dom": "^20.3.9",
     "oxlint": "^1.42.0",
+    "prettier": "^3.8.1",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",

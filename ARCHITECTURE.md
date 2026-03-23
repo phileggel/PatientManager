@@ -188,6 +188,8 @@ May import from contexts. Never from another use case. No domain events.
 
 ### Procedure Orchestration (`use_cases/procedure_orchestration/`)
 
+Spec: [docs/procedure_orchestration.md](docs/procedure_orchestration.md)
+
 **Entry point: `ProcedureOrchestrationService`**
 
 Cross-context coordinator for procedure CRUD. Validates FK references, infers payment status, and updates patient tracking fields after every create/update.

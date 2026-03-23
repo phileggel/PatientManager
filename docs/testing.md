@@ -3,10 +3,12 @@
 ## Overview
 
 Tests live **colocated** with the code they test:
+
 - Frontend: `use{Feature}.test.ts` or `{Feature}.test.tsx` next to the file under test
 - Backend: `#[cfg(test)] mod tests { ... }` inline at the bottom of the `.rs` file
 
 Run checks before committing:
+
 ```bash
 npm run test          # Frontend (Vitest)
 cd src-tauri && cargo test  # Backend (Rust)
@@ -20,12 +22,14 @@ cd src-tauri && cargo test  # Backend (Rust)
 ### What to test
 
 Test **behavior**, not implementation:
+
 - State transitions triggered by user actions (auto-fill, reset after submit, type switching)
 - Gateway call arguments — correct command, correct params, correct order
 - Success and error handling — snackbar shown, form reset, modal closed
 - Async flows — loading, race conditions, late-resolving promises
 
 Do **not** write tests for:
+
 - Rendering / DOM structure only
 - Trivial getters or constructors
 
@@ -76,9 +80,7 @@ import { useAppStore } from "@/lib/appStore";
 beforeEach(() => {
   vi.clearAllMocks();
   useAppStore.setState({
-    bankAccounts: [
-      { id: "acc-1", name: "Compte principal", iban: null },
-    ],
+    bankAccounts: [{ id: "acc-1", name: "Compte principal", iban: null }],
   });
 });
 ```
@@ -111,10 +113,14 @@ it("loads linked groups on mount", async () => {
   });
 
   const transfer = makeFundTransfer();
-  const { result } = renderHook(() => useEditBankTransferModal(transfer, vi.fn()));
+  const { result } = renderHook(() =>
+    useEditBankTransferModal(transfer, vi.fn()),
+  );
 
   // Wait for async effect to complete
-  await waitFor(() => expect(result.current.selectedGroupIds).toEqual(["group-1"]));
+  await waitFor(() =>
+    expect(result.current.selectedGroupIds).toEqual(["group-1"]),
+  );
 });
 
 it("clears selection when type changes", async () => {
@@ -135,7 +141,9 @@ For testing race conditions (value resolves after a user action):
 it("assigns value reactively when fetch resolves late", async () => {
   let resolve!: (v: { success: true; data: string }) => void;
   vi.mocked(gateway.getCashBankAccountId).mockReturnValue(
-    new Promise((r) => { resolve = r; }),
+    new Promise((r) => {
+      resolve = r;
+    }),
   );
 
   const { result } = renderHook(() => useAddBankTransferForm());
@@ -143,7 +151,9 @@ it("assigns value reactively when fetch resolves late", async () => {
   act(() => result.current.handleTypeChange("CASH"));
   expect(result.current.bankAccount).toBe(""); // not yet resolved
 
-  await act(async () => resolve({ success: true, data: "cash-account-default" }));
+  await act(async () =>
+    resolve({ success: true, data: "cash-account-default" }),
+  );
 
   expect(result.current.bankAccount).toBe("cash-account-default");
 });

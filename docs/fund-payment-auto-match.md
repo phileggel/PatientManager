@@ -12,7 +12,7 @@ Ce document couvre exclusivement le **flux automatique** : parsing PDF, algorith
 
 ### Éligibilité des actes au rapprochement
 
-**R1 — actes éligibles (backend)** : Seules les actes dans un statut non finalisé sont candidates au rapprochement (`None`, `Created`, `PartiallyReconciled`, `Reconciliated`). Les actes déjà payées (`DirectlyPayed`, `FundPayed`, `ImportDirectlyPayed`, `ImportFundPayed`) sont exclues du pool de matching.
+**R1 — actes éligibles (backend)** : Seules les actes dans un statut non finalisé sont candidates au rapprochement (`None`, `Created`, `PartiallyReconciled`, `Reconciliated`). Les actes déjà payées (`DirectlyPayed`, `FundPayed`, `PartiallyFundPayed`, `ImportDirectlyPayed`, `ImportFundPayed`) sont exclues du pool de matching.
 
 **R2 — Validation du total PDF (backend + frontend)** : Lors du parsing, la somme des montants de toutes les lignes d'un groupe PDF est comparée au montant total déclaré par la caisse. Si les deux ne correspondent pas, un avertissement visuel est affiché (`is_total_valid = false`). Cette validation est informative — elle n'empêche pas la poursuite du rapprochement.
 
@@ -26,11 +26,11 @@ Ce document couvre exclusivement le **flux automatique** : parsing PDF, algorith
 
 **R4 — Algorithme en 8 passes (backend)** : Le rapprochement s'effectue en 8 passes séquentielles, chacune avec des critères différents. Une ligne PDF non résolue à la passe N est retentée à la passe N+1 :
 
-| Passes | Type de ligne | Montant | Tolérance de date |
-|--------|--------------|---------|-------------------|
-| 1–2    | Acte simple / Période | Exact | Exacte |
-| 3–4    | Acte simple / Période | Le plus proche | Exacte |
-| 5–6    | Acte simple / Période | Exact | -1 jour sur la date de début |
+| Passes | Type de ligne         | Montant        | Tolérance de date            |
+| ------ | --------------------- | -------------- | ---------------------------- |
+| 1–2    | Acte simple / Période | Exact          | Exacte                       |
+| 3–4    | Acte simple / Période | Le plus proche | Exacte                       |
+| 5–6    | Acte simple / Période | Exact          | -1 jour sur la date de début |
 | 7–8    | Acte simple / Période | Le plus proche | -1 jour sur la date de début |
 
 Les passes impaires traitent les actes à date unique, les passes paires traitent les périodes (date début ≠ date fin).
@@ -82,7 +82,7 @@ Un acte sans aucune de ces anomalies est considérée comme parfaitement corresp
 
 **R19 — Vérification de cohérence post-persistance (backend)** : Après création du groupe de paiement fond, la somme des `actual_payment_amount` de toutes les actes du groupe doit être strictement égale au `total_amount` du groupe. Dans le flux import, `total_amount` est issu du PDF et non calculé depuis les `procedure_amount`. Cette vérification est non-bloquante (avertissement en log uniquement).
 
-**R30 — Statut du groupe ⚠️ non implémenté (backend)** : Cette feature est responsable de passer le groupe en statut `BankPayed` lorsqu'elle réconcilie les actes au niveau bancaire (Étape 2 du cycle, cf. R18). Ce statut propre au groupe n'est pas encore implémenté. La migration des groupes existants peut être déduite des statuts de leurs actes : si au moins une acte est en `FundPayed` ou `PartiallyFundPayed`, le groupe est `BankPayed` ; sinon il est `Active`.
+**R30 — Statut du groupe lors du rapprochement bancaire (backend)** : Lors de la réconciliation au niveau bancaire (Étape 2 du cycle, cf. R18), le groupe passe en statut `BankPayed`. Ce changement est effectué par la feature `bank-statement-auto-match` ou `bank-statement-manual-match` selon le flux utilisé.
 
 ### Navigation et UX
 
@@ -100,14 +100,14 @@ Un acte sans aucune de ces anomalies est considérée comme parfaitement corresp
 
 Action appliquée par type d'anomalie :
 
-| Type | Action auto-correction |
-|------|------------------------|
-| `NotFoundIssue` | Déclenche une `CreateProcedure` — sauf si la ligne est déjà acceptée ou si un candidat proche a déjà été lié manuellement |
-| `SingleMatchIssue` — `AmountMismatch` | Applique `AutoCorrection::AmountMismatch` avec le montant PDF |
-| `SingleMatchIssue` — `FundMismatch` | Applique `AutoCorrection::FundMismatch` avec le libellé de fonds PDF |
-| `SingleMatchIssue` — `DateMismatch` | Applique `AutoCorrection::DateMismatch` avec la date PDF |
-| `GroupMatchIssue` | Non traité — bouton masqué tant que des groupes sont non résolus |
-| `TooManyMatchIssue` | Non traité — bouton masqué |
+| Type                                  | Action auto-correction                                                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `NotFoundIssue`                       | Déclenche une `CreateProcedure` — sauf si la ligne est déjà acceptée ou si un candidat proche a déjà été lié manuellement |
+| `SingleMatchIssue` — `AmountMismatch` | Applique `AutoCorrection::AmountMismatch` avec le montant PDF                                                             |
+| `SingleMatchIssue` — `FundMismatch`   | Applique `AutoCorrection::FundMismatch` avec le libellé de fonds PDF                                                      |
+| `SingleMatchIssue` — `DateMismatch`   | Applique `AutoCorrection::DateMismatch` avec la date PDF                                                                  |
+| `GroupMatchIssue`                     | Non traité — bouton masqué tant que des groupes sont non résolus                                                          |
+| `TooManyMatchIssue`                   | Non traité — bouton masqué                                                                                                |
 
 **R26 — Auto-validation (frontend)** : Dès que toutes les anomalies sont résolues, la validation est déclenchée automatiquement sans action utilisateur. En cas d'échec, le cycle ne se relance pas.
 

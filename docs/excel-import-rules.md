@@ -17,6 +17,7 @@ Un praticien dispose d'un fichier Excel historique contenant ses patients, ses c
 - **Feuilles mensuelles** (optionnelles) : nommées `Jan`, `Fév`, `Mars`, `Avr`, `Mai`, `Juin`, `Juil`, `Août`, `Sep`, `Oct`, `Nov`, `Déc` (ou noms complets). Chaque feuille représente un mois. Les colonnes sont détectées dynamiquement à partir d'une ligne d'en-tête (ligne 2) : `CAISSE`, `TARIF`, `DATE` sont obligatoires ; `T` (mode de paiement), `REMBSE` (date de paiement confirmée), `Versé` (montant réel payé) et `En attente` sont optionnels.
 
 **R2 — Lignes ignorées au parsing (backend)** : Une ligne d'une feuille mensuelle est ignorée (sans erreur bloquante) dans les cas suivants :
+
 - Nom du patient vide, `#N/A` ou introuvable dans la liste des patients parsés
 - Montant absent, non numérique ou ≤ 0
 - Date absente ou dans un format non reconnu (`DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, ou numéro de série Excel)
@@ -28,6 +29,7 @@ Toutes les lignes ignorées sont collectées dans un rapport de parsing affiché
 ### Validation des données
 
 **R3 — Validation du SSN patient (backend)** : Le SSN est optionnel. S'il est fourni, il doit contenir exactement 13 chiffres ASCII. Trois cas :
+
 - SSN valide (13 chiffres) : clé de déduplication principale.
 - SSN absent ou vide : déduplication par nom en minuscule.
 - SSN fourni mais invalide : stocké dans le nom sous la forme `"{nom} (code: {ssn})"` pour traçabilité, et la déduplication se fait par nom.
@@ -45,11 +47,13 @@ Toutes les lignes ignorées sont collectées dans un rapport de parsing affiché
 ### Déduplication
 
 **R8 — Déduplication des patients (backend)** : Pendant le parsing, les patients sont dédupliqués en mémoire par SSN (si valide) ou par nom en minuscule. Lors de l'exécution de l'import, la recherche en base se fait **uniquement par SSN** :
+
 - Si le SSN est présent et qu'un patient avec ce SSN existe en base → réutilisation (aucune création).
 - Si le SSN est présent mais introuvable en base → création.
 - Si le SSN est absent → aucune recherche en base, le patient est toujours créé (la déduplication par nom ne s'applique qu'en mémoire pendant le parsing).
 
 **R9 — Déduplication des fonds (backend)** : Pendant le parsing, les fonds sont dédupliqués par identifiant exact. Lors de l'exécution, chaque fonds est recherché en base par identifiant :
+
 - Si un fonds avec le même identifiant existe → réutilisation (aucune création).
 - Sinon → création.
 
@@ -78,24 +82,33 @@ Toutes les lignes ignorées sont collectées dans un rapport de parsing affiché
 ### Orchestration de l'import
 
 **R17 — Ordre d'exécution (backend)** : L'exécution de l'import suit un ordre strict :
+
 1. Résolution et création des patients (patients existants réutilisés, nouveaux créés)
 2. Résolution et création des fonds (fonds existants réutilisés, nouveaux créés)
 3. Validation des mois : identification des mois bloqués et suppression des actes des mois autorisés
 4. Création des actes : pour chaque acte dont le mois est autorisé, le patient résolu et le type mappé
 
-**R18 — Mise à jour des champs de suivi patient (backend)** : Après la création des actes, les champs de suivi du patient (dernier mois, dernier fonds, dernière date d'acte) sont mis à jour pour refléter l'acte la plus récente importée.
+**R18 — Mise à jour des champs de suivi patient (backend)** : Après la création des actes, les champs de suivi du patient (`latest_date`, `latest_procedure_type`, `latest_fund`, `latest_procedure_amount`) sont mis à jour pour refléter l'acte la plus récente importée (cf. R19 de procedure_orchestration.md).
 
-**R19 — Statut initial des actes importées (backend)** : Toutes les actes créées par l'import reçoivent le statut `NONE` (non rapprochée). Elles sont ensuite éligibles au rapprochement caisse (cf. R1 du document fund-payment-auto-match.md).
+**R19 — Statut initial des actes importées (backend)** : Le statut initial est calculé par l'orchestration selon les données de paiement présentes dans l'Excel (cf. R15 et R16 de procedure_orchestration.md) :
+
+- Acte sans paiement confirmé → `Created`
+- Acte avec paiement confirmé, méthode ES/CH ou sans fonds → `ImportDirectlyPayed`
+- Acte avec paiement confirmé, méthode autre, avec fonds → `ImportFundPayed`
+
+Les actes en `Created` sont ensuite éligibles au rapprochement caisse (cf. R1 du document fund-payment-auto-match.md).
 
 ### Résultat et rapport
 
 **R20 — Rapport de résultat (backend + frontend)** : À l'issue de l'import, un résumé est affiché contenant :
+
 - Patients créés / réutilisés
 - Fonds créés / réutilisés
 - Actes créées / ignorées / supprimées
 - Liste des mois bloqués (si applicable)
 
 **R21 — Rapport de parsing (backend + frontend)** : À l'issue du parsing, un rapport détaillé est accessible depuis l'écran de résultat. Il contient deux sections :
+
 - **Feuilles absentes** : liste des feuilles mensuelles attendues mais introuvables dans le fichier Excel.
 - **Lignes ignorées** : lignes rejetées (cf. R2), organisées par feuille mensuelle sous forme d'onglets. Les lignes ignorées pour cause de nom `#N/A` ou ligne vide sont masquées dans l'affichage (trop nombreuses et peu informatives).
 
@@ -142,7 +155,7 @@ Ce rapport est informatif et non bloquant.
   → Résolution fonds (réutilisation ou création)
   → Validation mois : bloqués (RECONCILIATED/FUND_PAYED) vs autorisés
   → Suppression définitive des actes des mois autorisés
-  → Création des actes avec statut NONE
+  → Création des actes (statut Created / ImportDirectlyPayed / ImportFundPayed selon les données de paiement)
   → Mise à jour des champs de suivi patient
           │
           ▼
