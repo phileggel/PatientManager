@@ -95,6 +95,7 @@
   },
   "modal": {
     "title": "Modifier l'acte",
+    "viewTitle": "Consulter l'acte",
     "closeAriaLabel": "Fermer",
     "systemInfo": "Informations système",
     "procedureId": "ID de l'acte",

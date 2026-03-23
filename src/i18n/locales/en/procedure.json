@@ -95,6 +95,7 @@
   },
   "modal": {
     "title": "Update Procedure",
+    "viewTitle": "View Procedure",
     "closeAriaLabel": "Close",
     "systemInfo": "System Information",
     "procedureId": "Procedure ID",

@@ -9,6 +9,7 @@ import { CompactSelectField, ConfirmationDialog, FAB, SearchField } from "@/ui/c
 import * as gateway from "../api/gateway";
 import { useProcedureData } from "../hooks/useProcedureData";
 import { useProcedurePeriod } from "../hooks/useProcedurePeriod";
+import { isBlockingStatus } from "../model";
 import { toProcedureRow } from "../model/procedure-row.mapper";
 import type { ProcedureRow } from "../model/procedure-row.types";
 import { PeriodSelector } from "./PeriodSelector";
@@ -42,7 +43,7 @@ export default function ProcedurePage() {
   const [selectedStatus, setSelectedStatus] = useState("");
 
   // Modal state
-  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const [modalMode, setModalMode] = useState<"create" | "edit" | "view">("create");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProcedure, setEditingProcedure] = useState<ProcedureRow | null>(null);
 
@@ -97,7 +98,7 @@ export default function ProcedurePage() {
   }, []);
 
   const handleEdit = useCallback((row: ProcedureRow) => {
-    setModalMode("edit");
+    setModalMode(isBlockingStatus(row.status) ? "view" : "edit");
     setEditingProcedure(row);
     setIsModalOpen(true);
   }, []);
@@ -262,7 +263,7 @@ export default function ProcedurePage() {
       {/* Unified create/edit modal (R6, R12) */}
       <ProcedureFormModal
         mode={modalMode}
-        procedure={modalMode === "edit" ? procedureForModal : null}
+        procedure={modalMode !== "create" ? procedureForModal : null}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={reloadRows}
