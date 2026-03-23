@@ -10,7 +10,7 @@ Translation files are in `src/i18n/locales/fr/` and `src/i18n/locales/en/`.
 
 ## Your job
 
-1. Run `git diff --name-only HEAD` to identify modified `.tsx` / `.ts` files.
+1. Run `git diff --name-only HEAD` and `git diff --name-only --cached` to identify modified `.tsx` / `.ts` files (both unstaged and staged changes).
 2. For each modified file, scan for i18n issues (see below).
 3. Also check the corresponding translation JSON files if they were modified.
 

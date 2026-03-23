@@ -5,11 +5,17 @@ on:
     tags:
       - "v*.*.*"
 
+concurrency:
+  group: release-windows-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 60
     permissions:
       contents: write
+      actions: write
 
     steps:
       - uses: actions/checkout@v4
@@ -28,8 +34,14 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          prefix-key: ${{ github.ref_name }}
+
+      - name: Clear stale WiX artifacts
+        shell: powershell
+        run: Remove-Item -Recurse -Force "src-tauri\target\x86_64-pc-windows-msvc\release\wix" -ErrorAction SilentlyContinue
 
       - name: Install frontend dependencies
+        shell: bash
         run: npm install
 
       - name: Build and release
@@ -50,3 +62,25 @@ jobs:
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
+
+      - name: Verify updater manifest published
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Waiting for release assets to be available..."
+          sleep 10
+          STATUS=$(gh release view ${{ github.ref_name }} --repo ${{ github.repository }} --json assets --jq '[.assets[].name] | map(select(test("latest\\.json"))) | length')
+          if [ "$STATUS" -eq 0 ]; then
+            echo "::warning::latest.json was not found in release assets — updater endpoint may be broken"
+          else
+            echo "✓ latest.json found in release assets"
+          fi
+
+      - name: Clear Rust cache on failure
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh cache delete --all --repo ${{ github.repository }} || true
