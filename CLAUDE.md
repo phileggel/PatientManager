@@ -19,10 +19,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. **Analyze** the request and current codebase.
 3. **Propose a TODO plan**
 4. CRITICAL: ask user to validate. If changes, go back to step 3 with the adapted plan.
+4b. (Optional) For significant new/redesigned UI → run **Stitch workflow** (see 🎨 Stitch Workflow section)
 5. Implementation
 6. Test & Lint `./scripts/check.sh`
 7. Run the `reviewer` subagent → **show the full report to the user** → ask which issues to tackle → fix selected issues → re-run until 0 critical
 7b. If any `.tsx` file was modified → run `ux-reviewer` subagent → **show the full report to the user** → ask which issues to tackle → fix selected issues → re-run until 0 critical
+7c. If any `.sh`, `.py`, or `.githooks` file was modified → run `script-reviewer` subagent
 8. If frontend text was added/changed → run `i18n-checker` subagent
 9. If tests are missing → write them directly (backend: Rust `#[cfg(test)]` inline, frontend: `.test.ts` colocated) — follow `/docs/testing.md`
 10. Update documentation:
@@ -33,6 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - [ ] Docs read (step 1)
     - [ ] Reviewer run and clean (step 7)
     - [ ] UX reviewer run and clean if .tsx modified (step 7b)
+    - [ ] script-reviewer run if .sh/.py/.githooks modified (step 7c)
     - [ ] i18n-checker run if text changed (step 8)
     - [ ] Tests written (step 9)
     - [ ] ARCHITECTURE.md updated if needed (step 10)
@@ -50,6 +53,9 @@ Use `TaskCreate` / `TaskUpdate` to track workflow steps for non-trivial tasks:
 - `ux-reviewer` — M3 + Clinical Atelier compliance, empty/loading/error states, form UX, accessibility, consistency (step 7b, frontend only)
 - `i18n-checker` — finds hardcoded strings, missing/dead translation keys fr + en (step 8)
 - `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested (step 10)
+- `maintainer` — reviews `.github/workflows/`, `tauri.conf.json`, `Cargo.toml`, `package.json`, `scripts/`, `.githooks/`, and `justfile` for CI correctness, security, reliability, and cross-file consistency; also suggests CI improvements (performance, cost, observability, DX) when run as a standalone audit
+- `script-reviewer` — Bash and Python expert reviewer for `scripts/` and `.githooks/` files; checks safety (`set -euo pipefail`, quoting, injection), robustness, portability, and consistency with CI
+- `ia-reviewer` — meta-reviewer for AI configuration: audits all agent definitions, skills, and CLAUDE.md for correctness, clarity, completeness, and internal consistency
 
 ---
 
@@ -100,11 +106,12 @@ When Stitch introduces new design patterns (new tokens, shadows, component style
 - Target alignment: indigo/purple M3 palette, Manrope (headlines) + Inter (body), primary-tinted ambient shadows, no structural borders (tonal surfaces instead), gradient primary CTAs, glassmorphism modals
 
 ## 🛠 Commands
-- Dev: `./scripts/start-app.sh` (Unix) | `scripts\start-app.bat` (Win)
+- Dev: `./scripts/start-app.sh`
 - Quality: `./scripts/check.sh` (Full check)
 - Tests: `npm run test` (Frontend) | `cd src-tauri && cargo test` (Backend)
 - Types: `just generate-types` (Sync Rust to TS via Specta)
 - Database schema update: `just clean-db`
+- Release: `python3 scripts/release.py [--dry-run] [--version X.Y.Z]`
 
 ## 🏗 Architecture Summary
 Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
@@ -119,7 +126,7 @@ Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
 
 **Frontend (`src/`)**:
 - `bindings.ts` — Auto-generated from Rust via Specta (DO NOT EDIT)
-- `features/{domain}/` — Feature modules (gold layout: `bank-transfer`):
+- `features/{domain}/` — Feature modules (gold layout: `bank-account`):
   - `gateway.ts` at root — only file allowed to call `commands.*`
   - Sub-feature subdirectories with colocated component + hook + test
   - `shared/presenter.ts` — domain → UI transformations; `shared/validate*.ts` — validation

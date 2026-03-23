@@ -5,20 +5,23 @@ Release script for PatientManager.
 Automates version bumping, changelog generation, and git tagging.
 
 Process:
-  1. Run all tests (React + Rust) - stops if tests fail
-  2. Analyze git history since last tag
-  3. Determine version bump using semver
-  4. Update version in package.json, Cargo.toml, and tauri.conf.json
-  5. Create/update CHANGELOG.md
-  6. Create commit and git tag
+  1. Verify src-tauri/.sqlx/ offline files are committed and up to date
+  2. Run all tests (React + Rust) - stops if tests fail
+  3. Analyze git history since last tag
+  4. Determine version bump using semver
+  5. Update version in package.json, Cargo.toml, and tauri.conf.json
+  6. Create/update CHANGELOG.md
+  7. Create commit and git tag
 
 Usage:
-  python3 release.py [--dry-run]
+  python3 release.py [--dry-run] [--version X.Y.Z]
 
 Options:
-  --dry-run   Preview release without making changes
+  --dry-run           Preview release without making changes
+  --version X.Y.Z     Force a specific version instead of auto-calculating from commits
 """
 
+import argparse
 import subprocess
 import json
 import re
@@ -43,7 +46,7 @@ CHANGELOG_INTRO = (
 
 
 class ReleaseManager:
-    def __init__(self, dry_run: bool = False):
+    def __init__(self, dry_run: bool = False, forced_version: Optional[str] = None):
         self.repo_root = Path(__file__).parent.parent
         self.current_version = self.get_current_version()
         self.commits: List[dict] = []
@@ -52,11 +55,12 @@ class ReleaseManager:
         self.fixes = 0
         self.new_version: Optional[str] = None
         self.dry_run = dry_run
+        self.forced_version = forced_version
 
     def get_current_version(self) -> str:
         """Get current version from package.json."""
         package_json = self.repo_root / 'package.json'
-        with open(package_json) as f:
+        with open(package_json, encoding='utf-8') as f:
             data = json.load(f)
         return data['version']
 
@@ -181,10 +185,10 @@ class ReleaseManager:
 
     def _update_json_file(self, file_path: Path, key: str) -> None:
         """Update version key in JSON file."""
-        with open(file_path) as f:
+        with open(file_path, encoding='utf-8') as f:
             data = json.load(f)
         data[key] = self.new_version
-        with open(file_path, 'w') as f:
+        with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
             f.write('\n')
 
@@ -203,14 +207,16 @@ class ReleaseManager:
         print('  ✓ package.json')
 
         cargo_toml = self.repo_root / 'src-tauri' / 'Cargo.toml'
-        content = cargo_toml.read_text()
+        content = cargo_toml.read_text(encoding='utf-8')
+        # Anchor replacement to the [package] section to avoid patching dependency versions
         content = re.sub(
-            r'version = "[^"]+"',
-            f'version = "{self.new_version}"',
+            r'(\[package\].*?version\s*=\s*")[^"]+(")',
+            rf'\g<1>{self.new_version}\2',
             content,
-            count=1
+            count=1,
+            flags=re.DOTALL
         )
-        cargo_toml.write_text(content)
+        cargo_toml.write_text(content, encoding='utf-8')
         print('  ✓ src-tauri/Cargo.toml')
 
         self._update_json_file(self.repo_root / 'src-tauri' / 'tauri.conf.json', 'version')
@@ -252,7 +258,7 @@ class ReleaseManager:
         new_entry = self._build_changelog_entry()
 
         if changelog.exists():
-            existing = changelog.read_text()
+            existing = changelog.read_text(encoding='utf-8')
             if existing.startswith('# Changelog'):
                 lines = existing.split('\n')
                 header_end = next(
@@ -271,7 +277,7 @@ class ReleaseManager:
         else:
             content = f'# Changelog\n\n{CHANGELOG_INTRO}\n\n{new_entry}'
 
-        changelog.write_text(content)
+        changelog.write_text(content, encoding='utf-8')
         print('  ✓ CHANGELOG.md')
 
     def commit_and_tag(self) -> bool:
@@ -342,10 +348,69 @@ class ReleaseManager:
 
         return True
 
+    def check_sqlx_files(self) -> bool:
+        """Verify .sqlx offline query files are committed and up to date."""
+        print(f'{BLUE}Checking SQLx offline files...{NC}')
+
+        sqlx_dir = self.repo_root / 'src-tauri' / '.sqlx'
+        if not sqlx_dir.exists() or not any(sqlx_dir.iterdir()):
+            print(f'{RED}❌ src-tauri/.sqlx/ is missing or empty.{NC}')
+            print(f'   Run: cd src-tauri && cargo sqlx prepare')
+            return False
+
+        # Check for uncommitted .sqlx changes
+        result = subprocess.run(
+            ['git', 'status', '--porcelain', 'src-tauri/.sqlx/'],
+            cwd=self.repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        if result.stdout.strip():
+            print(f'{RED}❌ Uncommitted .sqlx file changes detected:{NC}')
+            print(result.stdout)
+            print(f'   Run: cd src-tauri && cargo sqlx prepare')
+            print(f'   Then commit the updated .sqlx/ files before releasing.')
+            return False
+
+        # Run cargo sqlx prepare --check if sqlx CLI is available
+        sqlx_available = subprocess.run(
+            ['cargo', 'sqlx', '--version'],
+            cwd=self.repo_root / 'src-tauri',
+            capture_output=True
+        ).returncode == 0
+
+        if sqlx_available:
+            if self.dry_run:
+                print(f'  → cargo sqlx prepare --check (skipped in dry-run)')
+            else:
+                result = subprocess.run(
+                    ['cargo', 'sqlx', 'prepare', '--check'],
+                    cwd=self.repo_root / 'src-tauri',
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode != 0:
+                    print(f'{RED}❌ SQLx offline files are stale (queries changed but .sqlx/ not regenerated):{NC}')
+                    print(result.stderr or result.stdout)
+                    print(f'   Run: cd src-tauri && cargo sqlx prepare')
+                    print(f'   Then commit the updated .sqlx/ files before releasing.')
+                    return False
+        else:
+            print(f'{YELLOW}⚠ cargo-sqlx not installed — skipping prepare --check (only uncommitted changes checked).{NC}')
+            print(f'  Install with: cargo install sqlx-cli --no-default-features --features sqlite')
+
+        print(f'{GREEN}✓ SQLx offline files OK{NC}')
+        return True
+
     def run(self) -> bool:
         """Execute the release workflow."""
         dry_run_banner = f' {YELLOW}[DRY-RUN MODE]{NC}' if self.dry_run else ''
         print(f'\n{BLUE}🚀 Release Manager{dry_run_banner}{NC}\n')
+
+        if not self.check_sqlx_files():
+            print(f'\n{RED}❌ SQLx check failed. Release cancelled.{NC}\n')
+            return False
 
         if not self.run_tests():
             print(f'\n{RED}❌ Tests failed. Release EVENT_CANCELled.{NC}\n')
@@ -359,7 +424,16 @@ class ReleaseManager:
             return False
 
         self.analyze_commits(commits)
-        self.new_version = self.calculate_new_version(self.current_version)
+
+        if self.forced_version:
+            self.new_version = self.forced_version
+            print(f'{YELLOW}⚠ Version forced to {self.new_version} via --version flag.{NC}')
+        else:
+            self.new_version = self.calculate_new_version(self.current_version)
+            if self.new_version == self.current_version:
+                print(f'{YELLOW}⚠ No releasable commits found (no feat/fix/breaking change since last tag).{NC}')
+                print(f'{YELLOW}  Use "v" at the confirmation prompt to override the version manually, or cancel.{NC}')
+
         self.show_analysis()
 
         if not self.ask_confirmation():
@@ -407,7 +481,15 @@ class ReleaseManager:
 
 
 if __name__ == '__main__':
-    dry_run = '--dry-run' in sys.argv
-    manager = ReleaseManager(dry_run=dry_run)
+    parser = argparse.ArgumentParser(description='Release manager for PatientManager.')
+    parser.add_argument('--dry-run', action='store_true', help='Preview release without making changes')
+    parser.add_argument('--version', metavar='X.Y.Z', help='Force a specific version (e.g. 0.12.1)')
+    args = parser.parse_args()
+
+    if args.version and not re.match(r'^\d+\.\d+\.\d+$', args.version):
+        print(f'{RED}❌ Invalid version format: {args.version}. Expected X.Y.Z{NC}')
+        sys.exit(1)
+
+    manager = ReleaseManager(dry_run=args.dry_run, forced_version=args.version)
     success = manager.run()
     sys.exit(0 if success else 1)

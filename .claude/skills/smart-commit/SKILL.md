@@ -47,6 +47,7 @@ Based on changed files, recommend:
 - test — tests only
 - chore — tooling/config/deps
 - refactor — restructuring
+- ci — CI/CD and workflow changes
 
 **Provide a short, clear rationale**, no verbose explanation.
 
@@ -55,8 +56,9 @@ Based on changed files, recommend:
 Use **AskUserQuestion** to get:
 
 1. Commit type (mandatory, default to suggested)
-2. Commit message (imperative, ≤72 characters)
-3. Commit body (optional, max 5 lines; include context, references to tasks)
+2. Optional scope (e.g. `patient`, `bank`, `ci`) — leave blank for no scope
+3. Commit message (imperative, ≤72 characters)
+4. Commit body (optional, max 5 lines; include context, references to tasks)
 
 ### 6. Validate message format
 
@@ -65,9 +67,14 @@ Use **AskUserQuestion** to get:
 
 ### 7. Create commit
 
-git add -A && git commit -m "<type>: <message>"
+Stage only the relevant files identified in step 1 (never use `git add -A` — it can accidentally include sensitive or unintended files):
 
-Note: Ensure the format is strictly "<type>: <message>" without parentheses or scopes.
+```bash
+git add <file1> <file2> ...
+git commit -m "<type>[(scope)]: <message>"
+```
+
+Format: `type: message` (no scope) or `type(scope): message` (with optional scope).
 
 ### 8. Show result
 
@@ -80,8 +87,8 @@ git log -1 --oneline
 1. Never commit sensitive files
 2. All tests must pass (`./scripts/check.sh`) before committing
 3. All linters must pass
-4. Commit message must follow conventional format
-5. No scopes allowed: use only `type: message`, never `type(scope): message`
+4. Commit message must follow conventional format: `type: message` or `type(scope): message`
+5. Never use `git add -A` — stage files explicitly by name
 6. User confirmation required before commit
 7. No bypassing rules in production
 
