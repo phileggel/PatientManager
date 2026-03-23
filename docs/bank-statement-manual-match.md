@@ -21,13 +21,13 @@ Un groupe de paiement fond devient verrouillé dès qu'une de ses actes atteint 
 
 ### Règles communes aux transactions
 
-**R2 — Types de transaction (backend)** : Quatre types sont supportés : `FUND` (virement caisse), `CHECK` (chèque), `CREDIT_CARD` (carte bancaire), `CASH` (espèces —).
+**R2 — Types de transaction (backend)** : Quatre types sont supportés : `FUND` (virement caisse), `CHECK` (chèque), `CREDIT_CARD` (carte bancaire), `CASH` (espèces).
 
-**R3 — Champs d'une transaction (frontend + backend)** : Une transaction est définie par un compte bancaire, une date et un type. Le montant est calculé dynamiquement à partir des éléments sélectionnés (groupes ou actes) et ne peut pas être saisi manuellement.Ce calcul dynamique n'est pas encore implémenté. Exception pour le type `CASH` : cf. R13.
+**R3 — Champs d'une transaction (frontend + backend)** : Une transaction est définie par un compte bancaire, une date et un type. Le montant est calculé dynamiquement en temps réel à partir des éléments sélectionnés (groupes ou actes) et ne peut pas être saisi manuellement. Exception pour le type `CASH` : cf. R13.
 
 **R4 — Type immuable (frontend + backend)** : Le type d'une transaction ne peut pas être modifié une fois défini. Il est impossible de passer de `FUND` à un type direct (ou inversement), ni de changer de type au sein des types directs (`CHECK`, `CREDIT_CARD`, `CASH`).
 
-**R5 — Suppression d'une transaction (frontend + backend)** : La suppression nécessite une confirmation explicite. Elle est irréversible — la transaction est définitivement effacée ainsi que ses liens avec les groupes de paiement fond ou les actes associées.La suppression définitive (hard delete) n'est pas encore implémentée — la suppression est actuellement réversible.
+**R5 — Suppression d'une transaction (frontend + backend)** : La suppression nécessite une confirmation explicite. Elle est irréversible — la transaction est définitivement effacée (hard delete) ainsi que ses liens avec les groupes de paiement fond ou les actes associées.
 
 ### Virements de type FUND
 
@@ -47,25 +47,25 @@ Un groupe de paiement fond devient verrouillé dès qu'une de ses actes atteint 
 
 **Champs impactés — à la création du virement**
 
-| Entité | Champ | Valeur |
-|---|---|---|
-| Acte | `payment_status` | `Reconciliated` → `FundPayed` / `PartiallyReconciled` → `PartiallyFundPayed` |
-| Acte | `payment_method` | `BankTransfer` |
-| Acte | `confirmed_payment_date` | = date du virement |
-| Acte | `actual_payment_amount` | conservé |
-| Groupe | `status` | `Active` → `BankPayed` |
-| Groupe | `is_locked` | → true |
+| Entité | Champ                    | Valeur                                                                       |
+| ------ | ------------------------ | ---------------------------------------------------------------------------- |
+| Acte   | `payment_status`         | `Reconciliated` → `FundPayed` / `PartiallyReconciled` → `PartiallyFundPayed` |
+| Acte   | `payment_method`         | `BankTransfer`                                                               |
+| Acte   | `confirmed_payment_date` | = date du virement                                                           |
+| Acte   | `actual_payment_amount`  | conservé                                                                     |
+| Groupe | `status`                 | `Active` → `BankPayed`                                                       |
+| Groupe | `is_locked`              | → true                                                                       |
 
 **Champs impactés — à la suppression du virement**
 
-| Entité | Champ | Valeur |
-|---|---|---|
-| Acte | `payment_status` | `FundPayed` → `Reconciliated` / `PartiallyFundPayed` → `PartiallyReconciled` |
-| Acte | `payment_method` | effacé |
-| Acte | `confirmed_payment_date` | = date du groupe |
-| Acte | `actual_payment_amount` | conservé |
-| Groupe | `status` | `BankPayed` → `Active` |
-| Groupe | `is_locked` | → false |
+| Entité | Champ                    | Valeur                                                                       |
+| ------ | ------------------------ | ---------------------------------------------------------------------------- |
+| Acte   | `payment_status`         | `FundPayed` → `Reconciliated` / `PartiallyFundPayed` → `PartiallyReconciled` |
+| Acte   | `payment_method`         | effacé                                                                       |
+| Acte   | `confirmed_payment_date` | = date du groupe                                                             |
+| Acte   | `actual_payment_amount`  | conservé                                                                     |
+| Groupe | `status`                 | `BankPayed` → `Active`                                                       |
+| Groupe | `is_locked`              | → false                                                                      |
 
 ### Paiements directs (CHECK / CREDIT_CARD / CASH)
 
@@ -89,21 +89,21 @@ Un groupe de paiement fond devient verrouillé dès qu'une de ses actes atteint 
 
 **Champs impactés — à la création du paiement**
 
-| Entité | Champ | Valeur |
-|---|---|---|
-| Acte | `payment_status` | `Created` → `DirectlyPayed` |
-| Acte | `payment_method` | `Check` / `BankCard` / `Cash` (selon le type `CHECK` / `CREDIT_CARD` / `CASH`) |
-| Acte | `confirmed_payment_date` | = date du paiement |
-| Acte | `actual_payment_amount` | = montant de l'acte |
+| Entité | Champ                    | Valeur                                                                         |
+| ------ | ------------------------ | ------------------------------------------------------------------------------ |
+| Acte   | `payment_status`         | `Created` → `DirectlyPayed`                                                    |
+| Acte   | `payment_method`         | `Check` / `BankCard` / `Cash` (selon le type `CHECK` / `CREDIT_CARD` / `CASH`) |
+| Acte   | `confirmed_payment_date` | = date du paiement                                                             |
+| Acte   | `actual_payment_amount`  | = montant de l'acte                                                            |
 
 **Champs impactés — à la suppression du paiement**
 
-| Entité | Champ | Valeur |
-|---|---|---|
-| Acte | `payment_status` | `DirectlyPayed` → `Created` |
-| Acte | `payment_method` | effacé |
-| Acte | `confirmed_payment_date` | effacé |
-| Acte | `actual_payment_amount` | effacé |
+| Entité | Champ                    | Valeur                      |
+| ------ | ------------------------ | --------------------------- |
+| Acte   | `payment_status`         | `DirectlyPayed` → `Created` |
+| Acte   | `payment_method`         | effacé                      |
+| Acte   | `confirmed_payment_date` | effacé                      |
+| Acte   | `actual_payment_amount`  | effacé                      |
 
 ---
 

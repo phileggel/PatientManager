@@ -17,44 +17,55 @@ normalement la date de confirmation de paiement ne devrait pas etre mise à jour
 ## (backend/fund) — Tech debt purpose of FundPaymentLine as domain object
 
 ## (frontend) — Toutes les pages
+
 - alignment des "actions" avec les autres pages (consistances des icones)
 
 ## (frontend) — BottomBar
+
 - ajouter la version en bas a droite (patient manager v0.7)
 
 ## (frontend/procedure) — Page procédure
+
 - fix: recu/en attente toujours egal a 0 (??)
 
 ## (frontend/fund-payment-match) — Page Rapprochement Caisse
+
 - supprimer le texte en dessous du titre (doublon)
 - vérifier la limite indiquée (10MO, pourquoi?)
 
 ## (frontend) — Tech debt — showSnackbar deprecated
+
 8 components still use the backward-compat showSnackbar shim instead of toastService.show()
 directly. Should be migrated at some point.
 
 ## (backend) — Tech debt - Event emission reduction — Steps 3 & 4
+
 From the previous multi-session work (noted in memory):
+
 - Step 3: Batch patient/fund creation during reconciliation (instead of N individual creations)
 - Step 4: Batch group creation events
 
 ## (backend) — champs date non validé?
+
 - bank_transfer
-`fn validate(_transfer_date: &str, amount: i64, source: &str) -> Result<()>`
+  `fn validate(_transfer_date: &str, amount: i64, source: &str) -> Result<()>`
 - fund_payment_group
-  fn validate(fund_id: &str, _payment_date: &str, total_amount: i64) -> Result<()>
+  fn validate(fund_id: &str, \_payment_date: &str, total_amount: i64) -> Result<()>
 - procedure
   gestion des dates?
 
 ## (backend) — Sauvegarde + historisation des bases de données
+
 fonction de sauvegarde + gestion historisation des bases de données pour pouvoir revenir en arrière si besoin.
 
 ## (frontend/fund-payment-match) — retour sur le précédant
+
 retour sur le précédant, on réavance direct sur le suivant (rapprochement caisse)
 
 ## (backend/excel-import) — Reduce import excel logs
 
 ## (frontend/fund-payment) — Date range in list
+
 In the list, replace "date" with start date (oldest procedure) and end date (latest procedure)
 
 ## (frontend) - add day/night mode with a toggle.
@@ -72,11 +83,13 @@ In `delete_fund_payment_group_with_cleanup`, procedures are reset one by one (`r
 Fix: use `read_procedures_by_ids` → mutate in-memory → `update_procedures_batch`. Requires verifying `ProcedureService` exposes a batch update at the service layer.
 
 ## fix spec missing tests:
-  Highest priority (behavioral regressions possible):
-  - R7 — No test for procedure reset to Created when removed from a group
-  - R8 — No test for procedure set to Reconciliated + date + amount when added
-  - R11 — No integration test for post-delete procedure state reset
-  - R10 — No test for is_locked recomputation in read_all_fund_payment_groups
+
+Highest priority (behavioral regressions possible):
+
+- R7 — No test for procedure reset to Created when removed from a group
+- R8 — No test for procedure set to Reconciliated + date + amount when added
+- R11 — No integration test for post-delete procedure state reset
+- R10 — No test for is_locked recomputation in read_all_fund_payment_groups
 
 ## saisie des actes: champs reçu et en attente ne sont jamais mis à jour
 

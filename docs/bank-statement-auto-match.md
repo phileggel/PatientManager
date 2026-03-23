@@ -37,6 +37,7 @@ Ce document couvre exclusivement le **flux automatique** : parsing PDF, résolut
 ### Algorithme de matching
 
 **R10 — Critères de correspondance (backend)** : Un groupe de paiement fond est candidat pour une ligne de crédit si les trois conditions suivantes sont réunies :
+
 1. Le fonds du groupe correspond au fonds résolu de la ligne
 2. Le montant total du groupe est strictement égal au montant de la ligne
 3. La date bancaire est dans la tolérance de date (cf. R11)
@@ -64,23 +65,24 @@ Ce document couvre exclusivement le **flux automatique** : parsing PDF, résolut
 **R19 — Création du virement bancaire (backend)** : Pour chaque match validé, un virement bancaire est créé et lié au groupe de paiement fond correspondant.
 
 **R20 — Mise à jour des statuts des actes (backend)** : Toutes les actes du groupe passent en statut final :
+
 - `Reconciliated` → `FundPayed` (`actual_payment_amount` = montant de l'acte)
 - `PartiallyReconciled` → `PartiallyFundPayed` (`actual_payment_amount` conservé)
 
 **R21 — Verrouillage du groupe (backend)** : Dès qu'un groupe est rapproché au niveau bancaire, il devient verrouillé — il ne peut plus être modifié ni supprimé depuis le flux de rapprochement fond.
 
-**R22 — Statut du groupe ⚠️ non implémenté (backend)** : Cette feature est responsable de passer le groupe en statut `BankPayed` lorsqu'elle crée le virement bancaire associé. Ce statut propre au groupe n'est pas encore implémenté — le verrouillage est actuellement déduit des statuts des actes qu'il contient. La migration des groupes existants peut être déduite : si au moins une acte est en `FundPayed` ou `PartiallyFundPayed`, le groupe est `BankPayed` ; sinon il est `Active`.
+**R22 — Mise à jour du statut du groupe (backend)** : Lors de la création du virement bancaire, le groupe de paiement fond associé passe en statut `BankPayed`.
 
 **Champs impactés — à la création des virements**
 
-| Entité | Champ | Valeur |
-|---|---|---|
-| Acte | `payment_status` | `Reconciliated` → `FundPayed` / `PartiallyReconciled` → `PartiallyFundPayed` |
-| Acte | `payment_method` | `BankTransfer` |
-| Acte | `confirmed_payment_date` | = date du virement bancaire |
-| Acte | `actual_payment_amount` | = montant de l'acte (`Reconciliated`) / conservé (`PartiallyReconciled`) |
-| Groupe | `status` | `Active` → `BankPayed` ⚠️ non implémenté |
-| Groupe | `is_locked` | → true |
+| Entité | Champ                    | Valeur                                                                       |
+| ------ | ------------------------ | ---------------------------------------------------------------------------- |
+| Acte   | `payment_status`         | `Reconciliated` → `FundPayed` / `PartiallyReconciled` → `PartiallyFundPayed` |
+| Acte   | `payment_method`         | `BankTransfer`                                                               |
+| Acte   | `confirmed_payment_date` | = date du virement bancaire                                                  |
+| Acte   | `actual_payment_amount`  | = montant de l'acte (`Reconciliated`) / conservé (`PartiallyReconciled`)     |
+| Groupe | `status`                 | `Active` → `BankPayed`                                                       |
+| Groupe | `is_locked`              | → true                                                                       |
 
 ---
 

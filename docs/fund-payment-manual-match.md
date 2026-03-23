@@ -43,7 +43,7 @@ Un groupe devient verrouillé dès qu'une de ses actes atteint l'Étape 2 (cf. R
 
 **R9 — Verrouillage après rapprochement bancaire (backend)** : Un groupe ne peut pas être modifié ni supprimé si l'une de ses actes a été rapprochée au niveau bancaire (statut `FundPayed` ou `PartiallyFundPayed`). Ces statuts sont posés par la feature `bank-statement-match` (Étape 2 du cycle, cf. R0). Le verrouillage est déduit du statut `BankPayed` du groupe (cf. R10).
 
-**R10 — Statut du groupe (backend)** : Le groupe porte un statut propre : `Active` (modifiable) ou `BankPayed` (verrouillé). La feature `bank-statement-match` passe le groupe en `BankPayed` lors du rapprochement bancaire, et le repasse en `Active` en cas d'annulation. La lecture des groupes (`read_all_fund_payment_groups`) recalcule également `is_locked` à partir des statuts des actes pour garantir la cohérence.
+**R10 — Statut du groupe (backend)** : Le groupe porte un statut propre : `Active` (modifiable) ou `BankPayed` (verrouillé). Les deux features de rapprochement bancaire (`bank-statement-auto-match` et `bank-statement-manual-match`) passent le groupe en `BankPayed` lors de la création d'un virement, et le repassent en `Active` en cas de suppression. La lecture des groupes (`read_all_fund_payment_groups`) recalcule également `is_locked` à partir des statuts des actes pour garantir la cohérence.
 
 **R18 — Retour visuel sur le verrouillage (frontend)** : Un groupe verrouillé est signalé dans la liste par une icône 🔒 à côté du nom de la caisse et une opacité réduite sur la ligne. Les boutons d'édition et de suppression sont désactivés visuellement (opacité réduite, curseur interdit).
 
