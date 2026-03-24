@@ -37,10 +37,6 @@ From the previous multi-session work (noted in memory):
 - Step 3: Batch patient/fund creation during reconciliation (instead of N individual creations)
 - Step 4: Batch group creation events
 
-## (backend) — Sauvegarde + historisation des bases de données
-
-fonction de sauvegarde + gestion historisation des bases de données pour pouvoir revenir en arrière si besoin.
-
 ## (frontend/fund-payment-match) — retour sur le précédant
 
 retour sur le précédant, on réavance direct sur le suivant (rapprochement caisse)

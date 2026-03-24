@@ -39,6 +39,7 @@ use crate::use_cases::bank_manual_match::BankManualMatchOrchestrator;
 use crate::use_cases::bank_statement_reconciliation::{
     BankStatementOrchestrator, SqliteBankFundLabelMappingRepository,
 };
+use crate::use_cases::db_backup::DbBackupOrchestrator;
 use crate::use_cases::excel_import::{ExcelImportOrchestrator, SqliteExcelAmountMappingRepository};
 use crate::use_cases::fund_payment_reconciliation::{
     FundPaymentReconciliationOrchestrator, ReconciliationService,
@@ -72,6 +73,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
             .with_context(|| "Failed to initialize database")?,
     );
     tracing::info!(target: BACKEND, "Database initialized successfully");
+    app.manage(db.clone());
 
     // Initialize event bus with broadcast channels for each event type
     let event_bus = Arc::new(EventBus::new());
@@ -230,6 +232,10 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     ));
     tracing::info!(target: BACKEND, "Bank manual match orchestrator created");
 
+    // Create database backup orchestrator
+    let db_backup_orchestrator = Arc::new(DbBackupOrchestrator::new(db.clone()));
+    tracing::info!(target: BACKEND, "Database backup orchestrator created");
+
     // Register services with Tauri state management
     app.manage(patient_service);
     app.manage(fund_service);
@@ -245,6 +251,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     app.manage(excel_import_orchestrator);
     app.manage(excel_amount_mapping_repo);
     app.manage(bank_manual_match_orchestrator);
+    app.manage(db_backup_orchestrator);
     tracing::info!(target: BACKEND, "Application backend initialized successfully");
     Ok(())
 }

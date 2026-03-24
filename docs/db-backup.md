@@ -14,14 +14,18 @@ compression utilise le format gzip (`.db.gz`).
 
 ## Règles frontend
 
-**R1 — Page dédiée** : La feature est accessible depuis une entrée « Maintenance » dans le
-tiroir de navigation, séparée du reste de la navigation par un diviseur.
+**R1 — Modal dédié** : La feature est accessible depuis une entrée « Maintenance » dans le
+tiroir de navigation, séparée visuellement du reste de la navigation. Un clic sur cette entrée
+ouvre un modal contenant les deux actions (export et import).
 
 **R2 — Export : sélection du fichier de destination** : L'utilisateur déclenche l'export via
 un bouton dédié. Un dialog natif de sélection de fichier s'ouvre (type `save`), pré-filtré
 sur les fichiers `.db.gz`, avec un nom par défaut au format `backup_YYYYMMDD_HHMMSS.db.gz`
 (ex. `backup_20260323_143022.db.gz`). Ce nom est modifiable par l'utilisateur avant
 confirmation. L'export ne démarre qu'après confirmation de la destination.
+> Test coverage : la vérification du format exact du nom par défaut est intentionnellement
+> omise (comportement trivial de formatage de date — la logique est directement lisible dans
+> le code).
 
 **R3 — Export : feedback utilisateur** : Pendant l'export, le bouton est en état de
 chargement. En cas de succès, un toast de succès est affiché. En cas d'erreur, un toast

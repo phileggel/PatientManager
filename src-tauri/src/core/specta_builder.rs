@@ -2,7 +2,7 @@ use crate::{
     context::{bank, fund, patient, procedure},
     core::{health, logger},
     use_cases::{
-        bank_manual_match, bank_statement_reconciliation, excel_import,
+        bank_manual_match, bank_statement_reconciliation, db_backup, excel_import,
         fund_payment_reconciliation, procedure_orchestration as use_cases_procedure,
     },
 };
@@ -139,6 +139,8 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             bank_manual_match::get_transfer_procedure_ids,
             bank_manual_match::get_fund_groups_by_ids,
             bank_manual_match::get_procedures_by_ids,
+            db_backup::export_database,
+            db_backup::import_database,
             health::check_health,
             logger::log_frontend,
         ])

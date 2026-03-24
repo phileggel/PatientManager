@@ -840,6 +840,32 @@ async getProceduresByIds(procedureIds: string[]) : Promise<Result<DirectPaymentP
 }
 },
 /**
+ * Exports the active database to the given destination path as a gzip-compressed
+ * SQLite file (R7, R8). The path is obtained from a native save-file dialog on
+ * the frontend.
+ */
+async exportDatabase(destPath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_database", { destPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Decompresses, validates, and stages a backup file as a pending import (R9, R10).
+ * The replacement takes effect on the next application startup.
+ * The frontend is responsible for relaunching the app after this command succeeds (R6).
+ */
+async importDatabase(sourcePath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("import_database", { sourcePath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Tauri command: Health check
  */
 async checkHealth() : Promise<HealthResponse> {

@@ -1,0 +1,26 @@
+{
+  "modalTitle": "Sauvegarde de la base de données",
+  "export": {
+    "title": "Exporter la base de données",
+    "description": "Crée une copie compressée de la base de données dans un fichier `.db.gz`. Ce fichier peut être utilisé pour restaurer vos données ultérieurement.",
+    "button": "Exporter",
+    "progress": "Export en cours…",
+    "success": "Base de données exportée avec succès",
+    "dialogTitle": "Choisir l'emplacement de la sauvegarde"
+  },
+  "import": {
+    "title": "Restaurer une sauvegarde",
+    "description": "Remplace la base de données actuelle par le contenu d'un fichier de sauvegarde `.db.gz`. L'application redémarrera automatiquement.",
+    "button": "Restaurer",
+    "progress": "Restauration en cours…",
+    "relaunching": "Redémarrage en cours…",
+    "success": "Sauvegarde importée — redémarrage en cours…",
+    "dialogTitle": "Sélectionner un fichier de sauvegarde",
+    "confirm": {
+      "title": "Confirmer la restauration",
+      "message": "Cette opération remplacera définitivement toutes les données actuelles par celles du fichier sélectionné. L'application redémarrera automatiquement.\n\nCette action est irréversible. Continuer ?",
+      "confirm": "Oui, restaurer",
+      "cancel": "Annuler"
+    }
+  }
+}
