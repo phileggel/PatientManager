@@ -13,9 +13,16 @@ interface DrawerProps {
   onClose: () => void;
   onNavigate?: (page: Page) => void;
   onShowInfo?: (message: string) => void;
+  onOpenDbBackup?: () => void;
 }
 
-export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps) => {
+export const Drawer = ({
+  isOpen,
+  onClose,
+  onNavigate,
+  onShowInfo,
+  onOpenDbBackup,
+}: DrawerProps) => {
   const { t } = useTranslation("common");
   const bankAccountCount = useAppStore((state) => state.bankAccounts.length);
   const fundCount = useAppStore((state) => state.funds.length);
@@ -271,6 +278,21 @@ export const Drawer = ({ isOpen, onClose, onNavigate, onShowInfo }: DrawerProps)
                   </li>
                 </ul>
               )}
+            </li>
+
+            {/* Maintenance section */}
+            <li aria-hidden="true" className="my-3" />
+            <li>
+              <button
+                type="button"
+                className={menuItemClasses}
+                onClick={() => {
+                  onOpenDbBackup?.();
+                  onClose();
+                }}
+              >
+                {t("nav.dbBackup")}
+              </button>
             </li>
           </ul>
         </nav>

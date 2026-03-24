@@ -18,6 +18,7 @@
     "bankStatementTooltip": "Create a bank account first to enable bank statement reconciliation",
     "bankTransferTooltip": "Create a bank account first to enable bank transfers",
     "lists": "Lists",
+    "dbBackup": "Backup",
     "designSystem": "Design System",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",

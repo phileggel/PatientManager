@@ -24,7 +24,7 @@
 1. `Arc<Database>`, `Arc<EventBus>`
 2. Bounded context services: `PatientService`, `FundService`, `ProcedureTypeService`, `ProcedureService`, `BankAccountService`, `BankTransferService`, `FundPaymentService`
 3. Shared repositories: `SqliteExcelAmountMappingRepository`, `SqliteBankTransferLinkRepository`
-4. Use case orchestrators: `ProcedureOrchestrationService`, `ReconciliationService`, `BankStatementOrchestrator`, `FundPaymentReconciliationOrchestrator`, `ExcelImportOrchestrator`, `BankManualMatchOrchestrator`
+4. Use case orchestrators: `ProcedureOrchestrationService`, `ReconciliationService`, `BankStatementOrchestrator`, `FundPaymentReconciliationOrchestrator`, `ExcelImportOrchestrator`, `BankManualMatchOrchestrator`, `DbBackupOrchestrator`
 
 ### Command Registry (`core/specta_builder.rs`)
 
@@ -278,6 +278,25 @@ Key domain types:
 
 ---
 
+### Database Backup (`use_cases/db_backup/`)
+
+Spec: [docs/db-backup.md](docs/db-backup.md)
+
+**Entry point: `DbBackupOrchestrator`**
+
+Export/import of the SQLite database with gzip compression. Uses a pending-import mechanism to avoid Windows file-locking issues on import.
+
+Key behaviors:
+- Export (R8): `VACUUM INTO` a temp file → gzip → write to user-chosen destination; temp file always cleaned up
+- Import (R10/R11): gunzip → `PRAGMA integrity_check` validation → rename to `{database}.pending`; applied at next startup by `core/db.rs` before the pool opens
+- SQL injection guard on temp path before `VACUUM INTO`
+
+**Tauri commands (`api.rs`)**
+- `export_database(destPath)`
+- `import_database(sourcePath)`
+
+---
+
 ### Bank Manual Match (`use_cases/bank_manual_match/`)
 
 **Entry point: `BankManualMatchOrchestrator`**
@@ -393,6 +412,15 @@ Flat layout. Gateway: `add_procedure_type`, `read_all_procedure_types`, `update_
 - `api/gateway.ts` — `parse_excel_file`, `execute_excel_import`, `get_excel_amount_mappings`, `save_excel_amount_mappings`
 - `presentation/ImportExcelPage.tsx` — 5-step wizard: upload → parsing → mapping → importing → complete
 - Components: `FileUploadSection`, `ProcedureTypeMappingStep`, `MonthSelectionStep`, `ValidationSummaryCard`, `ParsingReportModal`, `CreateProcedureTypeModal`
+
+#### Database Backup (`features/db-backup/`)
+
+Gold layout (feature-first). Spec: [docs/db-backup.md](docs/db-backup.md)
+
+- `gateway.ts` — `exportDatabase(destPath)`, `importDatabase(sourcePath)`
+- `db_backup_panel/DbBackupPanel.tsx` — export card + import card + confirmation dialog
+- `db_backup_panel/useDbBackupPanel.ts` — manages export flow (R2/R3) and import flow (R4/R5/R6): file dialogs, loading states, toast notifications, relaunch after import
+- i18n namespaces: `en/db-backup.json`, `fr/db-backup.json`
 
 #### Notification (`features/notification/`)
 `BottomBar` + `useNotification`. Displays backend-emitted notifications.

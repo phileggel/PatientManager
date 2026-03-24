@@ -18,6 +18,18 @@ impl Database {
     pub async fn new(app_data_dir: PathBuf, is_db_reset: bool) -> Result<Self> {
         let db_path = app_data_dir.join(DATABASE_FILENAME);
 
+        // Apply pending import if one was staged by import_database (R10/R11)
+        let pending_path = app_data_dir.join(format!("{DATABASE_FILENAME}.pending"));
+        if pending_path.exists() {
+            tracing::info!(
+                name: BACKEND,
+                "Pending database import found — replacing active database before opening"
+            );
+            fs::rename(&pending_path, &db_path)
+                .with_context(|| "Failed to apply pending database import")?;
+            tracing::info!(name: BACKEND, "Pending database import applied successfully");
+        }
+
         if is_db_reset {
             tracing::warn!("RESET_DATABASE is set - deleting existing database");
             if db_path.exists() {

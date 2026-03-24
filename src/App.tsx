@@ -5,6 +5,7 @@ import { BankAccountManager } from "@/features/bank-account";
 import { BankStatementPage } from "@/features/bank-statement-match";
 import { BankTransferManager } from "@/features/bank-transfer";
 import DashboardPage from "@/features/dashboard/presentation/DashboardPage";
+import { DbBackupModal } from "@/features/db-backup";
 import { DesignSystemPage } from "@/features/design-system/DesignSystemPage";
 import { ImportExcelPage } from "@/features/excel-import/presentation";
 import { FundsManager } from "@/features/fund";
@@ -28,6 +29,7 @@ function AppContent() {
   const { snackbars, dismissSnackbar } = useSnackbar();
   const { isOpen: isDrawerOpen, toggle: toggleDrawer, close: closeDrawer } = useDrawerController();
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
+  const [isDbBackupOpen, setIsDbBackupOpen] = useState(false);
 
   // Initialize app data and event listeners
   useAppInit();
@@ -93,6 +95,7 @@ function AppContent() {
         onClose={closeDrawer}
         onNavigate={handleNavigate}
         onShowInfo={(msg) => toastService.show("info", msg)}
+        onOpenDbBackup={() => setIsDbBackupOpen(true)}
       />
 
       <Header
@@ -131,6 +134,8 @@ function AppContent() {
       </main>
 
       <Footer appName={APP_NAME} version={APP_VERSION} />
+
+      <DbBackupModal isOpen={isDbBackupOpen} onClose={() => setIsDbBackupOpen(false)} />
 
       {updater.state !== "idle" && updater.state !== "done" && (
         <div className="shrink-0 min-h-8 bg-m3-primary-container flex items-center justify-center">

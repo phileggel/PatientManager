@@ -3,6 +3,7 @@ import { initReactI18next } from "react-i18next";
 import bankEn from "./locales/en/bank.json";
 import commonEn from "./locales/en/common.json";
 import dashboardEn from "./locales/en/dashboard.json";
+import dbBackupEn from "./locales/en/db-backup.json";
 import excelImportEn from "./locales/en/excel-import.json";
 import fundEn from "./locales/en/fund.json";
 import fundPaymentEn from "./locales/en/fund-payment.json";
@@ -13,6 +14,7 @@ import procedureTypeEn from "./locales/en/procedure-type.json";
 import bankFr from "./locales/fr/bank.json";
 import commonFr from "./locales/fr/common.json";
 import dashboardFr from "./locales/fr/dashboard.json";
+import dbBackupFr from "./locales/fr/db-backup.json";
 import excelImportFr from "./locales/fr/excel-import.json";
 import fundFr from "./locales/fr/fund.json";
 import fundPaymentFr from "./locales/fr/fund-payment.json";
@@ -36,6 +38,7 @@ i18n.use(initReactI18next).init({
     "fund-payment-match",
     "dashboard",
     "excel-import",
+    "db-backup",
   ],
   resources: {
     fr: {
@@ -49,6 +52,7 @@ i18n.use(initReactI18next).init({
       "fund-payment-match": fundPaymentMatchFr,
       dashboard: dashboardFr,
       "excel-import": excelImportFr,
+      "db-backup": dbBackupFr,
     },
     en: {
       common: commonEn,
@@ -61,6 +65,7 @@ i18n.use(initReactI18next).init({
       "fund-payment-match": fundPaymentMatchEn,
       dashboard: dashboardEn,
       "excel-import": excelImportEn,
+      "db-backup": dbBackupEn,
     },
   },
   interpolation: {
