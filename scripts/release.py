@@ -14,11 +14,12 @@ Process:
   7. Create commit and git tag
 
 Usage:
-  python3 release.py [--dry-run] [--version X.Y.Z]
+  python3 release.py [--dry-run] [--version X.Y.Z] [-y]
 
 Options:
   --dry-run           Preview release without making changes
   --version X.Y.Z     Force a specific version instead of auto-calculating from commits
+  -y, --yes           Skip confirmation prompt (auto-confirm suggested version)
 """
 
 import argparse
@@ -46,7 +47,7 @@ CHANGELOG_INTRO = (
 
 
 class ReleaseManager:
-    def __init__(self, dry_run: bool = False, forced_version: Optional[str] = None):
+    def __init__(self, dry_run: bool = False, forced_version: Optional[str] = None, yes: bool = False):
         self.repo_root = Path(__file__).parent.parent
         self.current_version = self.get_current_version()
         self.commits: List[dict] = []
@@ -56,6 +57,7 @@ class ReleaseManager:
         self.new_version: Optional[str] = None
         self.dry_run = dry_run
         self.forced_version = forced_version
+        self.yes = yes
 
     def get_current_version(self) -> str:
         """Get current version from package.json."""
@@ -431,13 +433,22 @@ class ReleaseManager:
         else:
             self.new_version = self.calculate_new_version(self.current_version)
             if self.new_version == self.current_version:
+                if self.yes:
+                    print(f'{RED}❌ No releasable commits (no feat/fix/breaking change since last tag).{NC}')
+                    print(f'{YELLOW}   Use --version X.Y.Z to force a version, or remove --yes to confirm interactively.{NC}')
+                    return False
                 print(f'{YELLOW}⚠ No releasable commits found (no feat/fix/breaking change since last tag).{NC}')
-                print(f'{YELLOW}  Use "v" at the confirmation prompt to override the version manually, or cancel.{NC}')
+                print(f'{YELLOW}  Use "v" at the confirmation prompt or --version X.Y.Z to override, or cancel.{NC}')
 
         self.show_analysis()
 
-        if not self.ask_confirmation():
-            print(f'{YELLOW}Release EVENT_CANCELled.{NC}')
+        if self.dry_run and self.yes:
+            print(f'{YELLOW}Note: --yes is redundant with --dry-run (no changes are made regardless).{NC}')
+
+        if self.yes:
+            print(f'{YELLOW}--yes flag set: auto-confirming v{self.new_version}{NC}')
+        elif not self.ask_confirmation():
+            print(f'{YELLOW}Release cancelled.{NC}')
             return False
 
         self.update_version_files()
@@ -484,12 +495,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Release manager for PatientManager.')
     parser.add_argument('--dry-run', action='store_true', help='Preview release without making changes')
     parser.add_argument('--version', metavar='X.Y.Z', help='Force a specific version (e.g. 0.12.1)')
+    parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompt (auto-confirm suggested version)')
     args = parser.parse_args()
 
     if args.version and not re.match(r'^\d+\.\d+\.\d+$', args.version):
         print(f'{RED}❌ Invalid version format: {args.version}. Expected X.Y.Z{NC}')
         sys.exit(1)
 
-    manager = ReleaseManager(dry_run=args.dry_run, forced_version=args.version)
+    manager = ReleaseManager(dry_run=args.dry_run, forced_version=args.version, yes=args.yes)
     success = manager.run()
     sys.exit(0 if success else 1)

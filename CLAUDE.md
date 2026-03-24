@@ -113,7 +113,7 @@ When Stitch introduces new design patterns (new tokens, shadows, component style
 - Tests: `npm run test` (Frontend) | `cd src-tauri && cargo test` (Backend)
 - Types: `just generate-types` (Sync Rust to TS via Specta)
 - Database schema update: `just clean-db`
-- Release: `python3 scripts/release.py [--dry-run] [--version X.Y.Z]`
+- Release: `python3 scripts/release.py [--dry-run] [--version X.Y.Z] [-y]`
 
 ## 🏗 Architecture Summary
 Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
