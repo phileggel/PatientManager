@@ -1,14 +1,24 @@
-import { useEffect, useRef } from "react";
+import {
+  ClipboardList,
+  HardDrive,
+  LayoutDashboard,
+  Palette,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings2,
+  Upload,
+} from "lucide-react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { logger } from "@/lib/logger";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
-import { DrawerToggle } from "./DrawerToggle";
 import type { Page } from "./types";
 
 interface DrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+  currentPage?: Page;
   onNavigate?: (page: Page) => void;
   onOpenDbBackup?: () => void;
   onOpenImport?: () => void;
@@ -16,8 +26,9 @@ interface DrawerProps {
 }
 
 export const Drawer = ({
-  isOpen,
-  onClose,
+  isExpanded,
+  onToggle,
+  currentPage,
   onNavigate,
   onOpenDbBackup,
   onOpenImport,
@@ -29,187 +40,152 @@ export const Drawer = ({
     logger.info("[Drawer] Component mounted");
   }, []);
 
-  const drawerRef = useRef<HTMLDivElement>(null);
-  const firstFocusableRef = useRef<HTMLButtonElement>(null);
+  const navItemBase = [
+    "w-full border-none bg-transparent cursor-pointer",
+    "text-m3-on-surface transition-colors duration-150",
+    "hover:bg-m3-surface-container hover:text-m3-primary",
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary",
+    "focus-visible:-outline-offset-2 focus-visible:bg-m3-surface-container",
+    "active:bg-m3-surface-container-high",
+  ].join(" ");
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-      firstFocusableRef.current?.focus();
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, onClose]);
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  const navigate = (page: Parameters<NonNullable<DrawerProps["onNavigate"]>>[0]) => {
-    onNavigate?.(page);
-    onClose();
-  };
-
-  const menuItemClasses = `
-    w-full py-3 px-5 text-left
-    border-none bg-transparent cursor-pointer
-    text-base font-normal text-m3-on-surface
-    transition-colors duration-150
-    hover:bg-m3-surface-container hover:text-m3-primary
-    focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary focus-visible:-outline-offset-2 focus-visible:bg-m3-surface-container
-    active:bg-m3-surface-container-high
-    sm:py-3.5 sm:px-4
-  `;
-
-  const subMenuItemClasses = `
-    w-full py-2.5 pl-9 pr-5 text-left
-    border-none bg-transparent cursor-pointer
-    text-sm font-normal text-m3-on-surface-variant
-    transition-colors duration-150
-    hover:bg-m3-surface-container hover:text-m3-primary
-    focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary focus-visible:-outline-offset-2 focus-visible:bg-m3-surface-container
-    active:bg-m3-surface-container-high
-    sm:py-3 sm:pl-9
-  `;
+  const navItemClasses = isExpanded
+    ? `${navItemBase} py-3 px-5 flex items-center gap-3 text-left text-base font-normal sm:py-3.5 sm:px-4`
+    : `${navItemBase} py-4 flex items-center justify-center`;
 
   return (
-    <>
-      {/* Overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-m3-scrim/50 z-1000 animate-[fadeIn_200ms_ease-out]"
-          onClick={handleOverlayClick}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Drawer Panel */}
+    <div
+      className={`
+        flex flex-col
+        bg-m3-surface shadow-elevation-4
+        transition-all duration-200 ease-out
+        ${isExpanded ? "w-70" : "w-16"}
+      `}
+    >
+      {/* Branding Section — uses fixed brand indigo gradient (header-from/to tokens,
+          not overridden in dark mode). text-white is always accessible on rich indigo. */}
       <div
-        id="drawer"
-        ref={drawerRef}
         className={`
-          fixed left-0 top-0 h-screen w-70
-          bg-m3-surface z-1001
-          flex flex-col shadow-elevation-4
-          transition-transform duration-200 ease-out
-          ${isOpen ? "translate-x-0" : "-translate-x-full"}
+          bg-linear-to-br from-header-from to-header-to
+          text-m3-on-primary
+          flex items-center gap-3
+          shadow-elevation-1
+          h-app-bar shrink-0
+          ${isExpanded ? "px-3" : "justify-center px-0"}
         `}
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("nav.openMenu")}
       >
-        {/* Branding Section — uses fixed brand indigo gradient (header-from/to tokens,
-            not overridden in dark mode). text-white is always accessible on rich indigo. */}
-        <div
-          className="
-            bg-linear-to-br from-header-from to-header-to
-            text-m3-on-primary px-8
-            md:px-4
-            relative
-            flex items-center gap-4
-            shadow-elevation-1
-            h-app-bar
-          "
+        <button
+          type="button"
+          onClick={onToggle}
+          className="shrink-0 p-2 rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+          aria-label={isExpanded ? t("nav.collapseDrawer") : t("nav.expandDrawer")}
+          title={isExpanded ? t("nav.collapseDrawer") : t("nav.expandDrawer")}
         >
-          <DrawerToggle isOpen={isOpen} onToggle={onClose} />
-          <div className="flex-1">
-            <h2 className="text-base font-medium leading-tight tracking-wide">{APP_NAME}</h2>
+          {isExpanded ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+        </button>
+        {isExpanded && (
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-medium leading-tight tracking-wide truncate">
+              {APP_NAME}
+            </h2>
             <p className="text-xs font-normal opacity-90 mt-0.5">v{APP_VERSION}</p>
-          </div>
-        </div>
-
-        {/* Navigation Section */}
-        <nav className="flex-1 py-3 overflow-y-auto">
-          <ul className="list-none m-0 p-0">
-            {/* Main entries */}
-            <li>
-              <button
-                type="button"
-                ref={firstFocusableRef}
-                className={menuItemClasses}
-                onClick={() => navigate("dashboard")}
-              >
-                {t("nav.dashboard")}
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className={menuItemClasses}
-                onClick={() => navigate("procedures")}
-              >
-                {t("nav.procedures")}
-              </button>
-            </li>
-            {onOpenImport && (
-              <li>
-                <button
-                  type="button"
-                  className={menuItemClasses}
-                  onClick={() => {
-                    onOpenImport();
-                    onClose();
-                  }}
-                >
-                  {t("nav.import")}
-                </button>
-              </li>
-            )}
-            {onOpenManagement && (
-              <li>
-                <button
-                  type="button"
-                  className={menuItemClasses}
-                  onClick={() => {
-                    onOpenManagement();
-                    onClose();
-                  }}
-                >
-                  {t("nav.management")}
-                </button>
-              </li>
-            )}
-
-            {/* Maintenance section */}
-            <li aria-hidden="true" className="my-3" />
-            <li>
-              <button
-                type="button"
-                className={menuItemClasses}
-                onClick={() => {
-                  onOpenDbBackup?.();
-                  onClose();
-                }}
-              >
-                {t("nav.dbBackup")}
-              </button>
-            </li>
-          </ul>
-        </nav>
-
-        {/* Dev-only: Design System */}
-        {import.meta.env.DEV && (
-          <div className="bg-m3-surface-container px-4 py-3">
-            <button
-              type="button"
-              className={subMenuItemClasses}
-              onClick={() => navigate("design-system")}
-            >
-              {t("nav.designSystem")}
-            </button>
           </div>
         )}
       </div>
-    </>
+
+      {/* Navigation Section */}
+      <nav className="flex-1 py-3 overflow-y-auto" aria-label={t("nav.mainNavigation")}>
+        <ul className="list-none m-0 p-0">
+          <li>
+            <button
+              type="button"
+              className={navItemClasses}
+              onClick={() => onNavigate?.("dashboard")}
+              title={!isExpanded ? t("nav.dashboard") : undefined}
+              aria-label={!isExpanded ? t("nav.dashboard") : undefined}
+              aria-current={currentPage === "dashboard" ? "page" : undefined}
+            >
+              <LayoutDashboard size={20} className="shrink-0" />
+              {isExpanded && <span>{t("nav.dashboard")}</span>}
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={navItemClasses}
+              onClick={() => onNavigate?.("procedures")}
+              title={!isExpanded ? t("nav.procedures") : undefined}
+              aria-label={!isExpanded ? t("nav.procedures") : undefined}
+              aria-current={currentPage === "procedures" ? "page" : undefined}
+            >
+              <ClipboardList size={20} className="shrink-0" />
+              {isExpanded && <span>{t("nav.procedures")}</span>}
+            </button>
+          </li>
+          {onOpenImport && (
+            <li>
+              <button
+                type="button"
+                className={navItemClasses}
+                onClick={onOpenImport}
+                title={!isExpanded ? t("nav.import") : undefined}
+                aria-label={!isExpanded ? t("nav.import") : undefined}
+              >
+                <Upload size={20} className="shrink-0" />
+                {isExpanded && <span>{t("nav.import")}</span>}
+              </button>
+            </li>
+          )}
+          {onOpenManagement && (
+            <li>
+              <button
+                type="button"
+                className={navItemClasses}
+                onClick={onOpenManagement}
+                title={!isExpanded ? t("nav.management") : undefined}
+                aria-label={!isExpanded ? t("nav.management") : undefined}
+              >
+                <Settings2 size={20} className="shrink-0" />
+                {isExpanded && <span>{t("nav.management")}</span>}
+              </button>
+            </li>
+          )}
+
+          {/* Maintenance section separator */}
+          <li aria-hidden="true">
+            <hr className="my-3 mx-4 border-m3-outline-variant/30" />
+          </li>
+          <li>
+            <button
+              type="button"
+              className={navItemClasses}
+              onClick={() => onOpenDbBackup?.()}
+              title={!isExpanded ? t("nav.dbBackup") : undefined}
+              aria-label={!isExpanded ? t("nav.dbBackup") : undefined}
+            >
+              <HardDrive size={20} className="shrink-0" />
+              {isExpanded && <span>{t("nav.dbBackup")}</span>}
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      {/* Dev-only: Design System */}
+      {import.meta.env.DEV && (
+        <div className="bg-m3-surface-container py-3">
+          <button
+            type="button"
+            className={navItemClasses}
+            onClick={() => onNavigate?.("design-system")}
+            title={!isExpanded ? t("nav.designSystem") : undefined}
+            aria-label={!isExpanded ? t("nav.designSystem") : undefined}
+            aria-current={currentPage === "design-system" ? "page" : undefined}
+          >
+            <Palette size={20} className="shrink-0" />
+            {isExpanded && <span>{t("nav.designSystem")}</span>}
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
