@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Snackbar, toastService, useSnackbar } from "@/core/snackbar";
+import { Snackbar, useSnackbar } from "@/core/snackbar";
 import { BankAccountManager } from "@/features/bank-account";
 import { BankStatementPage } from "@/features/bank-statement-match";
 import { BankTransferManager } from "@/features/bank-transfer";
@@ -15,7 +15,14 @@ import { PatientsManager } from "@/features/patient";
 import ProcedurePage from "@/features/procedure/ui/ProcedurePage";
 import { ProcedureTypeManager } from "@/features/procedure-type";
 import type { Page } from "@/features/shell";
-import { Drawer, Footer, Header, ImportModal, useDrawerController } from "@/features/shell";
+import {
+  Drawer,
+  Footer,
+  Header,
+  ImportModal,
+  ManagementModal,
+  useDrawerController,
+} from "@/features/shell";
 import { UpdateBanner } from "@/features/updater/UpdateBanner";
 import { useUpdater } from "@/features/updater/useUpdater";
 import { logger } from "@/lib/logger";
@@ -31,6 +38,7 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
   const [isDbBackupOpen, setIsDbBackupOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isManagementOpen, setIsManagementOpen] = useState(false);
 
   // Initialize app data and event listeners
   useAppInit();
@@ -95,9 +103,9 @@ function AppContent() {
         isOpen={isDrawerOpen}
         onClose={closeDrawer}
         onNavigate={handleNavigate}
-        onShowInfo={(msg) => toastService.show("info", msg)}
         onOpenDbBackup={() => setIsDbBackupOpen(true)}
         onOpenImport={() => setIsImportOpen(true)}
+        onOpenManagement={() => setIsManagementOpen(true)}
       />
 
       <Header
@@ -141,6 +149,11 @@ function AppContent() {
       <ImportModal
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
+        onNavigate={handleNavigate}
+      />
+      <ManagementModal
+        isOpen={isManagementOpen}
+        onClose={() => setIsManagementOpen(false)}
         onNavigate={handleNavigate}
       />
 

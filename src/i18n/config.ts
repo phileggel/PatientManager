@@ -9,6 +9,7 @@ import fundEn from "./locales/en/fund.json";
 import fundPaymentEn from "./locales/en/fund-payment.json";
 import fundPaymentMatchEn from "./locales/en/fund-payment-match.json";
 import importModalEn from "./locales/en/import-modal.json";
+import managementModalEn from "./locales/en/management-modal.json";
 import patientEn from "./locales/en/patient.json";
 import procedureEn from "./locales/en/procedure.json";
 import procedureTypeEn from "./locales/en/procedure-type.json";
@@ -21,6 +22,7 @@ import fundFr from "./locales/fr/fund.json";
 import fundPaymentFr from "./locales/fr/fund-payment.json";
 import fundPaymentMatchFr from "./locales/fr/fund-payment-match.json";
 import importModalFr from "./locales/fr/import-modal.json";
+import managementModalFr from "./locales/fr/management-modal.json";
 import patientFr from "./locales/fr/patient.json";
 import procedureFr from "./locales/fr/procedure.json";
 import procedureTypeFr from "./locales/fr/procedure-type.json";
@@ -42,6 +44,7 @@ i18n.use(initReactI18next).init({
     "excel-import",
     "db-backup",
     "import-modal",
+    "management-modal",
   ],
   resources: {
     fr: {
@@ -57,6 +60,7 @@ i18n.use(initReactI18next).init({
       "excel-import": excelImportFr,
       "db-backup": dbBackupFr,
       "import-modal": importModalFr,
+      "management-modal": managementModalFr,
     },
     en: {
       common: commonEn,
@@ -71,6 +75,7 @@ i18n.use(initReactI18next).init({
       "excel-import": excelImportEn,
       "db-backup": dbBackupEn,
       "import-modal": importModalEn,
+      "management-modal": managementModalEn,
     },
   },
   interpolation: {

@@ -429,6 +429,7 @@ Gold layout (feature-first). Spec: [docs/db-backup.md](docs/db-backup.md)
 Layout: `Drawer`, `Header`, `Footer`, `PageContent`, `DrawerToggle`, `useDrawerController`.
 Theme: `theme_toggle/ThemeToggle` + `theme_toggle/useThemeToggle` — cycles day/night/auto, persists to `localStorage`, applies `.dark` class on `<html>`, listens to OS `prefers-color-scheme` in auto mode.
 Import modal: `import_modal/ImportModal` + `import_modal/useImportModal` — unified entry point for the three import flows (Excel, Fund reconciliation, Bank reconciliation). Opened from the single "Importer" drawer entry; checks prerequisites (funds, bank accounts) before navigating. i18n namespace: `import-modal`.
+Management modal: `management_modal/ManagementModal` + `management_modal/useManagementModal` — unified entry point for the six list management pages (Patients, Funds, Procedure Types, Fund Payment, Bank Transfer, Bank Accounts). Opened from the single "Gestion" drawer entry; checks prerequisites (funds, bank accounts) before navigating to fund-payment and bank-transfer. i18n namespace: `management-modal`.
 
 #### Updater (`features/updater/`)
 `UpdateBanner` + `useUpdater`. Tauri auto-updater integration.
