@@ -1,49 +1,27 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 interface DrawerControllerState {
-  isOpen: boolean;
-  open: () => void;
-  close: () => void;
+  isExpanded: boolean;
   toggle: () => void;
 }
 
 /**
- * Custom hook to manage drawer state and behavior
+ * Custom hook to manage the persistent navigation sidebar state.
  *
- * Handles:
- * - Drawer open/close state
- * - Body scroll locking when drawer is open
+ * Controls the expanded/collapsed (rail) state of the drawer sidebar.
  *
- * @returns {DrawerControllerState} Object with drawer state and control functions
+ * @returns {DrawerControllerState} Object with expanded state and toggle function
  *
  * @example
- * const { isOpen, toggle, close } = useDrawerController();
+ * const { isExpanded, toggle } = useDrawerController();
  * return (
- *   <>
- *     <DrawerToggle onClick={toggle} isOpen={isOpen} />
- *     <Drawer isOpen={isOpen} onClose={close} />
- *   </>
+ *   <Drawer isExpanded={isExpanded} onToggle={toggle} />
  * );
  */
 export function useDrawerController(): DrawerControllerState {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
-  const open = () => setIsOpen(true);
-  const close = () => setIsOpen(false);
-  const toggle = () => setIsOpen((prev) => !prev);
+  const toggle = useCallback(() => setIsExpanded((prev) => !prev), []);
 
-  // Lock body scroll when drawer is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
-
-  return { isOpen, open, close, toggle };
+  return { isExpanded, toggle };
 }

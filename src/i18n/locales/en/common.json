@@ -15,8 +15,9 @@
     "management": "Management",
     "dbBackup": "Backup",
     "designSystem": "Design System",
-    "openMenu": "Open menu",
-    "closeMenu": "Close menu",
+    "mainNavigation": "Main navigation",
+    "expandDrawer": "Expand menu",
+    "collapseDrawer": "Collapse menu",
     "theme": {
       "day": "Switch to night mode",
       "night": "Switch to auto mode",

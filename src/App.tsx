@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Snackbar, useSnackbar } from "@/core/snackbar";
 import { BankAccountManager } from "@/features/bank-account";
@@ -34,7 +34,7 @@ const TAG = "[App]";
 function AppContent() {
   const { t } = useTranslation("common");
   const { snackbars, dismissSnackbar } = useSnackbar();
-  const { isOpen: isDrawerOpen, toggle: toggleDrawer, close: closeDrawer } = useDrawerController();
+  const { isExpanded, toggle: toggleDrawer } = useDrawerController();
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
   const [isDbBackupOpen, setIsDbBackupOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -53,7 +53,7 @@ function AppContent() {
   };
 
   // Page-specific titles and subtitles
-  const getPageTitle = () => {
+  const pageTitle = useMemo(() => {
     switch (currentPage) {
       case "procedures":
         return t("nav.procedures");
@@ -82,9 +82,9 @@ function AppContent() {
       default:
         return t("nav.dashboard");
     }
-  };
+  }, [currentPage, t]);
 
-  const getPageSubtitle = () => {
+  const pageSubtitle = useMemo(() => {
     switch (currentPage) {
       case "excel-import":
         return t("nav.subtitle.excelImport");
@@ -95,55 +95,62 @@ function AppContent() {
       default:
         return undefined;
     }
-  };
+  }, [currentPage, t]);
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-m3-surface">
+    <div className="flex flex-row h-screen w-screen overflow-hidden bg-m3-surface">
       <Drawer
-        isOpen={isDrawerOpen}
-        onClose={closeDrawer}
+        isExpanded={isExpanded}
+        onToggle={toggleDrawer}
+        currentPage={currentPage}
         onNavigate={handleNavigate}
         onOpenDbBackup={() => setIsDbBackupOpen(true)}
         onOpenImport={() => setIsImportOpen(true)}
         onOpenManagement={() => setIsManagementOpen(true)}
       />
 
-      <Header
-        title={getPageTitle()}
-        subtitle={getPageSubtitle()}
-        isDrawerOpen={isDrawerOpen}
-        onDrawerToggle={toggleDrawer}
-      />
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        <Header title={pageTitle} subtitle={pageSubtitle} />
 
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-        {currentPage === "dashboard" && <DashboardPage />}
-        {currentPage === "patient" && <PatientsManager />}
-        {currentPage === "funds" && <FundsManager />}
-        {currentPage === "procedures" && <ProcedurePage />}
-        {currentPage === "procedure-types" && <ProcedureTypeManager />}
-        {currentPage === "excel-import" && <ImportExcelPage />}
-        {currentPage === "fund-payment" && <FundPaymentManager />}
-        {currentPage === "fund-payment-match" && <ReconciliationPage />}
-        {currentPage === "bank-transfer" && <BankTransferManager />}
-        {currentPage === "bank-account" && <BankAccountManager />}
-        {currentPage === "bank-statement-match" && <BankStatementPage />}
-        {import.meta.env.DEV && currentPage === "design-system" && <DesignSystemPage />}
+        <main
+          className="flex-1 flex flex-col min-h-0 overflow-hidden relative"
+          aria-labelledby="app-page-title"
+        >
+          {currentPage === "dashboard" && <DashboardPage />}
+          {currentPage === "patient" && <PatientsManager />}
+          {currentPage === "funds" && <FundsManager />}
+          {currentPage === "procedures" && <ProcedurePage />}
+          {currentPage === "procedure-types" && <ProcedureTypeManager />}
+          {currentPage === "excel-import" && <ImportExcelPage />}
+          {currentPage === "fund-payment" && <FundPaymentManager />}
+          {currentPage === "fund-payment-match" && <ReconciliationPage />}
+          {currentPage === "bank-transfer" && <BankTransferManager />}
+          {currentPage === "bank-account" && <BankAccountManager />}
+          {currentPage === "bank-statement-match" && <BankStatementPage />}
+          {import.meta.env.DEV && currentPage === "design-system" && <DesignSystemPage />}
 
-        {/* Snackbars - display in center-bottom with slide-up animation */}
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex flex-col gap-3 z-50 max-w-sm pointer-events-none">
-          {snackbars.map((snackbar) => (
-            <div key={snackbar.id} className="pointer-events-auto">
-              <Snackbar
-                type={snackbar.type}
-                message={snackbar.message}
-                onDismiss={() => dismissSnackbar(snackbar.id)}
-              />
-            </div>
-          ))}
-        </div>
-      </main>
+          {/* Snackbars - display in center-bottom with slide-up animation */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col gap-3 z-50 max-w-sm pointer-events-none">
+            {snackbars.map((snackbar) => (
+              <div key={snackbar.id} className="pointer-events-auto">
+                <Snackbar
+                  type={snackbar.type}
+                  message={snackbar.message}
+                  onDismiss={() => dismissSnackbar(snackbar.id)}
+                />
+              </div>
+            ))}
+          </div>
+        </main>
 
-      <Footer appName={APP_NAME} version={APP_VERSION} />
+        <Footer appName={APP_NAME} version={APP_VERSION} />
+
+        {updater.state !== "idle" && updater.state !== "done" && (
+          <div className="shrink-0 min-h-8 bg-m3-primary-container flex items-center justify-center">
+            <UpdateBanner updater={updater} />
+          </div>
+        )}
+      </div>
 
       <DbBackupModal isOpen={isDbBackupOpen} onClose={() => setIsDbBackupOpen(false)} />
       <ImportModal
@@ -156,12 +163,6 @@ function AppContent() {
         onClose={() => setIsManagementOpen(false)}
         onNavigate={handleNavigate}
       />
-
-      {updater.state !== "idle" && updater.state !== "done" && (
-        <div className="shrink-0 min-h-8 bg-m3-primary-container flex items-center justify-center">
-          <UpdateBanner updater={updater} />
-        </div>
-      )}
     </div>
   );
 }
