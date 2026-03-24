@@ -1,0 +1,19 @@
+{
+  "modalTitle": "Importer",
+  "prerequisites": {
+    "noFund": "Créez d'abord une caisse pour accéder au rapprochement.",
+    "noBankAccount": "Créez d'abord un compte bancaire pour accéder à cette fonctionnalité."
+  },
+  "excel": {
+    "title": "Comptabilité depuis un fichier Excel",
+    "description": "Importez un fichier Excel pour créer des patients, caisses et actes en base de données."
+  },
+  "fundReconciliation": {
+    "title": "Rapprochement Caisse depuis un PDF",
+    "description": "Téléchargez un relevé PDF de paiement pour rapprocher avec les actes en base de données."
+  },
+  "bankReconciliation": {
+    "title": "Rapprochement Bancaire depuis un relevé PDF",
+    "description": "Téléchargez un relevé bancaire PDF pour rapprocher les virements avec les groupes de paiement."
+  }
+}

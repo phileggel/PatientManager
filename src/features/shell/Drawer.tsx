@@ -14,6 +14,7 @@ interface DrawerProps {
   onNavigate?: (page: Page) => void;
   onShowInfo?: (message: string) => void;
   onOpenDbBackup?: () => void;
+  onOpenImport?: () => void;
 }
 
 export const Drawer = ({
@@ -22,6 +23,7 @@ export const Drawer = ({
   onNavigate,
   onShowInfo,
   onOpenDbBackup,
+  onOpenImport,
 }: DrawerProps) => {
   const { t } = useTranslation("common");
   const bankAccountCount = useAppStore((state) => state.bankAccounts.length);
@@ -85,20 +87,13 @@ export const Drawer = ({
     sm:py-3 sm:pl-9
   `;
 
-  const navigateFundMatch = () => {
-    if (fundCount === 0) {
-      onShowInfo?.(t("nav.requiresFundInfo"));
-      navigate("funds");
-    } else {
-      navigate("fund-payment-match");
-    }
-  };
-
   const navigateFundPayment = () => {
     if (fundCount === 0) {
       onShowInfo?.(t("nav.requiresFundPaymentInfo"));
+      navigate("funds");
+    } else {
+      navigate("fund-payment");
     }
-    navigate("fund-payment");
   };
 
   const navigateBankFeature = (page: "bank-statement-match" | "bank-transfer") => {
@@ -180,26 +175,17 @@ export const Drawer = ({
               </button>
             </li>
             <li>
-              <button type="button" className={menuItemClasses} onClick={() => navigateFundMatch()}>
-                {t("nav.reconciliation")}
-              </button>
-            </li>
-            <li>
               <button
                 type="button"
                 className={menuItemClasses}
-                onClick={() => navigateBankFeature("bank-statement-match")}
+                onClick={() => {
+                  if (onOpenImport) {
+                    onOpenImport();
+                    onClose();
+                  }
+                }}
               >
-                {t("nav.bankStatement")}
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className={menuItemClasses}
-                onClick={() => navigate("excel-import")}
-              >
-                {t("nav.excelImport")}
+                {t("nav.import")}
               </button>
             </li>
 
