@@ -1,0 +1,31 @@
+{
+  "modalTitle": "Gestion",
+  "prerequisites": {
+    "noFund": "Créez d'abord une caisse pour accéder aux paiements caisses.",
+    "noBankAccount": "Créez d'abord un compte bancaire pour accéder à cette fonctionnalité."
+  },
+  "patient": {
+    "title": "Patients",
+    "description": "Gérez la liste des patients enregistrés dans l'application."
+  },
+  "funds": {
+    "title": "Caisses",
+    "description": "Gérez les caisses d'affiliation associées aux patients et aux actes."
+  },
+  "procedureTypes": {
+    "title": "Types d'actes",
+    "description": "Gérez les types d'actes médicaux utilisés lors de la saisie."
+  },
+  "fundPayment": {
+    "title": "Paiement Caisse",
+    "description": "Consultez et gérez les groupes de paiement par caisse."
+  },
+  "bankTransfer": {
+    "title": "Virement Bancaire",
+    "description": "Consultez et gérez les virements bancaires associés aux groupes de paiement."
+  },
+  "bankAccount": {
+    "title": "Comptes Bancaires",
+    "description": "Gérez les comptes bancaires utilisés pour les rapprochements."
+  }
+}

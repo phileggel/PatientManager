@@ -1,8 +1,6 @@
-import { ChevronDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
 import { DrawerToggle } from "./DrawerToggle";
@@ -12,23 +10,20 @@ interface DrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate?: (page: Page) => void;
-  onShowInfo?: (message: string) => void;
   onOpenDbBackup?: () => void;
   onOpenImport?: () => void;
+  onOpenManagement?: () => void;
 }
 
 export const Drawer = ({
   isOpen,
   onClose,
   onNavigate,
-  onShowInfo,
   onOpenDbBackup,
   onOpenImport,
+  onOpenManagement,
 }: DrawerProps) => {
   const { t } = useTranslation("common");
-  const bankAccountCount = useAppStore((state) => state.bankAccounts.length);
-  const fundCount = useAppStore((state) => state.funds.length);
-  const [isListsOpen, setIsListsOpen] = useState(false);
 
   useEffect(() => {
     logger.info("[Drawer] Component mounted");
@@ -86,24 +81,6 @@ export const Drawer = ({
     active:bg-m3-surface-container-high
     sm:py-3 sm:pl-9
   `;
-
-  const navigateFundPayment = () => {
-    if (fundCount === 0) {
-      onShowInfo?.(t("nav.requiresFundPaymentInfo"));
-      navigate("funds");
-    } else {
-      navigate("fund-payment");
-    }
-  };
-
-  const navigateBankFeature = (page: "bank-statement-match" | "bank-transfer") => {
-    if (bankAccountCount === 0) {
-      onShowInfo?.(t("nav.requiresBankAccountInfo"));
-      navigate("bank-account");
-    } else {
-      navigate(page);
-    }
-  };
 
   return (
     <>
@@ -174,97 +151,34 @@ export const Drawer = ({
                 {t("nav.procedures")}
               </button>
             </li>
-            <li>
-              <button
-                type="button"
-                className={menuItemClasses}
-                onClick={() => {
-                  if (onOpenImport) {
+            {onOpenImport && (
+              <li>
+                <button
+                  type="button"
+                  className={menuItemClasses}
+                  onClick={() => {
                     onOpenImport();
                     onClose();
-                  }
-                }}
-              >
-                {t("nav.import")}
-              </button>
-            </li>
-
-            {/* Vertical spacing between main entries and Lists accordion */}
-            <li aria-hidden="true" className="my-1" />
-
-            {/* Lists accordion */}
-            <li>
-              <button
-                type="button"
-                className={`${menuItemClasses} flex items-center justify-between`}
-                onClick={() => setIsListsOpen((prev) => !prev)}
-                aria-expanded={isListsOpen}
-              >
-                <span>{t("nav.lists")}</span>
-                <ChevronDown
-                  className={`w-4 h-4 mr-1 transition-transform duration-200 ${isListsOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {isListsOpen && (
-                <ul className="list-none m-0 p-0 ml-5 animate-[fadeIn_150ms_ease-out]">
-                  <li>
-                    <button
-                      type="button"
-                      className={subMenuItemClasses}
-                      onClick={() => navigate("patient")}
-                    >
-                      {t("nav.patient")}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      className={subMenuItemClasses}
-                      onClick={() => navigate("funds")}
-                    >
-                      {t("nav.funds")}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      className={subMenuItemClasses}
-                      onClick={() => navigate("procedure-types")}
-                    >
-                      {t("nav.procedureTypes")}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      className={subMenuItemClasses}
-                      onClick={navigateFundPayment}
-                    >
-                      {t("nav.fundPayment")}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      className={subMenuItemClasses}
-                      onClick={() => navigateBankFeature("bank-transfer")}
-                    >
-                      {t("nav.bankTransfer")}
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      className={subMenuItemClasses}
-                      onClick={() => navigate("bank-account")}
-                    >
-                      {t("nav.bankAccount")}
-                    </button>
-                  </li>
-                </ul>
-              )}
-            </li>
+                  }}
+                >
+                  {t("nav.import")}
+                </button>
+              </li>
+            )}
+            {onOpenManagement && (
+              <li>
+                <button
+                  type="button"
+                  className={menuItemClasses}
+                  onClick={() => {
+                    onOpenManagement();
+                    onClose();
+                  }}
+                >
+                  {t("nav.management")}
+                </button>
+              </li>
+            )}
 
             {/* Maintenance section */}
             <li aria-hidden="true" className="my-3" />
