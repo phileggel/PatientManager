@@ -13,11 +13,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Every task should follow *Plan Before Implementation*
 
 ### Workflow
+0. (Optional) For new features with unclear requirements → run **`/spec-writer`** skill to produce `docs/{feature}.md` with Rn rules + UX draft before starting the implementation workflow.
 1. Read relevant documentation
    - for backend **follow** `/docs/backend-rules.md`
    - for frontend **follow** `/docs/frontend-rules.md`
 2. **Analyze** the request and current codebase.
-3. **Propose a TODO plan**
+3. **Propose a TODO plan** — or run `feature-planner` agent for complex features (reads spec + architecture, produces exact file paths and tasks by layer)
 4. CRITICAL: ask user to validate. If changes, go back to step 3 with the adapted plan.
 4b. (Optional) For significant new/redesigned UI → run **Stitch workflow** (see 🎨 Stitch Workflow section)
 5. Implementation
@@ -51,13 +52,24 @@ Use `TaskCreate` / `TaskUpdate` to track workflow steps for non-trivial tasks:
 - This prevents skipping steps and gives the user visibility
 
 ### Available Subagents (`.claude/agents/`)
+
+**Pre-implementation (spec & planning)**
+- `feature-planner` — reads a validated spec doc + architecture, produces an exact TODO plan (file paths, function names, layers); use at step 3 for complex features
+
+**Post-implementation (review & quality)**
 - `reviewer` — DDD + backend/frontend rules compliance check (step 7)
 - `ux-reviewer` — M3 + Clinical Atelier compliance, empty/loading/error states, form UX, accessibility, consistency (step 7b, frontend only)
 - `i18n-checker` — finds hardcoded strings, missing/dead translation keys fr + en (step 8)
 - `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested (step 10)
 - `maintainer` — reviews `.github/workflows/`, `tauri.conf.json`, `Cargo.toml`, `package.json`, `scripts/`, `.githooks/`, and `justfile` for CI correctness, security, reliability, and cross-file consistency; also suggests CI improvements (performance, cost, observability, DX) when run as a standalone audit
 - `script-reviewer` — Bash and Python expert reviewer for `scripts/` and `.githooks/` files; checks safety (`set -euo pipefail`, quoting, injection), robustness, portability, and consistency with CI
+
+**Meta**
 - `ia-reviewer` — meta-reviewer for AI configuration: audits all agent definitions, skills, and CLAUDE.md for correctness, clarity, completeness, and internal consistency
+
+### Available Skills (`.claude/skills/`)
+- `/spec-writer` — interactive spec writer: interviews the user, reads the domain, produces `docs/{feature}.md` with Rn rules + UX draft; optional Stitch mockup generation (step 0)
+- `/commit` — smart-commit: conventional commit avec validation tests + linters + confirmation (step 12)
 
 ---
 
