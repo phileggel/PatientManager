@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Every task should follow *Plan Before Implementation*
 
 ### Workflow
-0. (Optional) For new features with unclear requirements → run **`/spec-writer`** skill to produce `docs/{feature}.md` with Rn rules + UX draft before starting the implementation workflow.
+0. (Optional) For new features with unclear requirements → run **`/spec-writer`** skill to produce `docs/{feature}.md`, then **`spec-reviewer`** agent to validate the spec quality, then **`feature-planner`** agent to generate the implementation plan.
 1. Read relevant documentation
    - for backend **follow** `/docs/backend-rules.md`
    - for frontend **follow** `/docs/frontend-rules.md`
@@ -34,6 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - Update the relevant spec in `docs/` if new business rules were added
     - If a spec doc exists → run `spec-checker` subagent to confirm all rules are covered
 11. **Self-check** — before asking to commit, explicitly verify each step:
+    - [ ] (Si step 0 utilisé) spec-reviewer + feature-planner run avant implémentation (step 0)
     - [ ] Docs read (step 1)
     - [ ] Reviewer run and clean (step 7)
     - [ ] UX reviewer run and clean if .tsx modified (step 7b)
@@ -41,7 +42,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - [ ] i18n-checker run if text changed (step 8)
     - [ ] Tests written (step 9)
     - [ ] ARCHITECTURE.md updated if needed (step 10)
-    - [ ] docs/todo.md updated if needed (step 10)
+    - [ ] docs/todo.md updated if needed (step 10) — manual edit ou `todo-manager` agent
     - [ ] Spec updated + spec-checker run if spec exists (step 10)
 12. CRITICAL: ask user if commit is needed and follow his instructions
 
@@ -54,6 +55,7 @@ Use `TaskCreate` / `TaskUpdate` to track workflow steps for non-trivial tasks:
 ### Available Subagents (`.claude/agents/`)
 
 **Pre-implementation (spec & planning)**
+- `spec-reviewer` — reviews a draft spec doc for quality before implementation: rule atomicity, scope coverage, DDD alignment, UX completeness, conflicts; use between spec-writer and feature-planner
 - `feature-planner` — reads a validated spec doc + architecture, produces an exact TODO plan (file paths, function names, layers); use at step 3 for complex features
 
 **Post-implementation (review & quality)**
@@ -63,6 +65,9 @@ Use `TaskCreate` / `TaskUpdate` to track workflow steps for non-trivial tasks:
 - `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested (step 10)
 - `maintainer` — reviews `.github/workflows/`, `tauri.conf.json`, `Cargo.toml`, `package.json`, `scripts/`, `.githooks/`, and `justfile` for CI correctness, security, reliability, and cross-file consistency; also suggests CI improvements (performance, cost, observability, DX) when run as a standalone audit
 - `script-reviewer` — Bash and Python expert reviewer for `scripts/` and `.githooks/` files; checks safety (`set -euo pipefail`, quoting, injection), robustness, portability, and consistency with CI
+
+**Project management**
+- `todo-manager` — cross-references docs/todo.md with git history and codebase; removes resolved items, translates English items to French, adds newly discovered tech debt; use at the start of a work session
 
 **Meta**
 - `ia-reviewer` — meta-reviewer for AI configuration: audits all agent definitions, skills, and CLAUDE.md for correctness, clarity, completeness, and internal consistency
