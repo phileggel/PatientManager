@@ -15,7 +15,7 @@ import { PatientsManager } from "@/features/patient";
 import ProcedurePage from "@/features/procedure/ui/ProcedurePage";
 import { ProcedureTypeManager } from "@/features/procedure-type";
 import type { Page } from "@/features/shell";
-import { Drawer, Footer, Header, useDrawerController } from "@/features/shell";
+import { Drawer, Footer, Header, ImportModal, useDrawerController } from "@/features/shell";
 import { UpdateBanner } from "@/features/updater/UpdateBanner";
 import { useUpdater } from "@/features/updater/useUpdater";
 import { logger } from "@/lib/logger";
@@ -30,6 +30,7 @@ function AppContent() {
   const { isOpen: isDrawerOpen, toggle: toggleDrawer, close: closeDrawer } = useDrawerController();
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
   const [isDbBackupOpen, setIsDbBackupOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   // Initialize app data and event listeners
   useAppInit();
@@ -96,6 +97,7 @@ function AppContent() {
         onNavigate={handleNavigate}
         onShowInfo={(msg) => toastService.show("info", msg)}
         onOpenDbBackup={() => setIsDbBackupOpen(true)}
+        onOpenImport={() => setIsImportOpen(true)}
       />
 
       <Header
@@ -136,6 +138,11 @@ function AppContent() {
       <Footer appName={APP_NAME} version={APP_VERSION} />
 
       <DbBackupModal isOpen={isDbBackupOpen} onClose={() => setIsDbBackupOpen(false)} />
+      <ImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onNavigate={handleNavigate}
+      />
 
       {updater.state !== "idle" && updater.state !== "done" && (
         <div className="shrink-0 min-h-8 bg-m3-primary-container flex items-center justify-center">
