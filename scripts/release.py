@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Release script for PatientManager.
+Release script for YourProject.
 
 Automates version bumping, changelog generation, and git tagging.
 
@@ -476,7 +476,7 @@ class ReleaseManager:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Release manager for PatientManager.')
+    parser = argparse.ArgumentParser(description='Release manager for YourProject.')
     parser.add_argument('--dry-run', action='store_true', help='Preview release without making changes')
     parser.add_argument('--version', metavar='X.Y.Z', help='Force a specific version (e.g. 0.12.1)')
     parser.add_argument('-y', '--yes', action='store_true', help='Skip confirmation prompt (auto-confirm suggested version)')

@@ -1,6 +1,6 @@
 ---
 name: feature-planner
-description: Translates a validated spec doc into a detailed TODO implementation plan with exact file paths, function names, and steps organized by architectural layer.
+description: Translates a validated spec doc into a detailed TODO implementation plan with exact file paths, function names, and steps organized by architectural layer. Integrates ADR constraints.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -24,7 +24,7 @@ If no relevant spec is found by this heuristic, ask the user to provide the spec
 
 ## Process
 
-### Step 1 — Read the spec
+### Step 1 — Read the spec & ADRs
 
 Read the spec doc. Extract:
 
@@ -32,6 +32,7 @@ Read the spec doc. Extract:
 - Entities to create or modify
 - UI components to create or modify
 - Cross-context dependencies
+- **CRITICAL**: Read `docs/adr/` to identify technical constraints (e.g., ADR-001 for amount types, ADR-002 for soft-delete) that MUST dictate the implementation details.
 
 If the spec has no Rn rules (incomplete spec), report this and ask the user to complete the spec (via `/spec-writer`) before generating a plan.
 
@@ -65,13 +66,14 @@ For each domain mentioned in the spec, verify what already exists:
 
 Use Glob/Grep to verify paths exist before referencing them in the plan.
 
-### Step 4 — Map rules to tasks
+### Step 4 — Map rules & ADRs to tasks
 
 For each Rn rule, identify the concrete tasks needed:
 
 - What to create vs modify
 - Which layer(s) are affected
-- Dependencies between tasks (e.g. backend must precede `just generate-types` which precedes frontend gateway)
+- **ADR Application**: Explicitly mention ADR constraints in the tasks (e.g., "Use i64 as per ADR-001").
+- Dependencies between tasks (e.g. backend -> `just generate-types` -> frontend).
 
 ### Step 5 — Produce the plan
 
@@ -84,13 +86,14 @@ Output the following markdown TODO plan to the user:
 
 > Spec : `docs/{feature-name}.md`
 > Règles couvertes : R1 … Rn
+> ADRs appliqués : {ex: ADR-001, ADR-002}
 
 ---
 
 ### Backend
 
 - [ ] `src-tauri/src/context/{domain}/domain.rs`
-      → ajouter `{Entity}` avec factory methods `new()`, `update_from()`, `from_storage()`
+      → ajouter `{Entity}` avec factory methods `new()`, `update_from()`, `from_storage()` (Respecter ADR-XXX pour les types)
 - [ ] `src-tauri/src/context/{domain}/repository.rs`
       → ajouter trait `{Entity}Repository` + impl SQLite
 - [ ] `src-tauri/src/context/{domain}/service.rs`
@@ -122,38 +125,9 @@ Output the following markdown TODO plan to the user:
 - [ ] Frontend : `src/features/{domain}/{feature}/{Feature}.test.ts`
       → cas : happy path, prérequis manquants, erreur backend
 
-### Documentation
+### Documentation & Audit
 
-- [ ] `ARCHITECTURE.md` — mettre à jour si nouveau module ou nouvelle feature ajoutée
-- [ ] `docs/todo.md` — retirer l'item si cette feature y figurait
-
----
-
-### Couverture des règles
-
-| Règle | Tâche(s) associée(s)   |
-| ----- | ---------------------- |
-| R1    | domain.rs + service.rs |
-| R2    | api.rs + gateway.ts    |
-| ...   | ...                    |
+- [ ] `ARCHITECTURE.md` — mettre à jour si nécessaire
+- [ ] `docs/todo.md` — retirer l'item si présent
+- [ ] **Audit final** : Lancer `spec-checker` pour valider l'implémentation
 ```
-
----
-
-End your output with:
-
-```
-Plan prêt. À valider avec l'utilisateur avant de passer à l'implémentation.
-```
-
----
-
-## Critical Rules
-
-1. Every file path must be verified with Glob before being included — never invent paths
-2. Function and method names must follow project conventions: Rust `snake_case`, TypeScript `camelCase`
-3. `just generate-types` must always appear as a separate step between backend and frontend tasks
-4. Every Rn rule must map to at least one task in the plan — no rule left uncovered
-5. Never include implementation code — the plan describes _what_, not _how_
-6. Do not write the plan to a file — output it as text for user review
-7. If a use case spans multiple bounded contexts, use `src-tauri/src/use_cases/` — never cross-import between `context/` modules directly

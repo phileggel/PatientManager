@@ -21,6 +21,9 @@ Before asking anything, read:
   - If `ARCHITECTURE.md` does not exist, note it in the Open Questions section and proceed
 - List all files in `docs/` with Glob to understand what already exists
 - Read the most recently modified spec in `docs/` (excluding `todo.md`, `stitch/`, `*-rules.md`) to internalize the exact format and writing style
+- Read docs/adr/ (if exists) to identify historical architectural decisions
+  (e.g., amount storage format, soft-delete strategy, state management)
+  that MUST be respected in the new Rn rules.
 
 This avoids asking the user what the codebase already answers.
 
@@ -153,6 +156,21 @@ et les entités principales impliquées.}
 
 ---
 
+### 4.1 Architecture Decision (ADR) Detection
+
+While drafting the Rn rules, if the feature requires a choice that:
+
+- Differs from existing patterns in the codebase
+- Impacts multiple contexts (e.g., a new complex UseCase)
+- Requires a trade-off between two technical solutions
+- Supersedes a previous ADR found in Step 1
+
+**Action**: Add a mandatory item in `## Questions ouvertes` :
+
+- [ ] `ADR-REQUIRED`: {Briefly describe the architectural decision to be recorded}.
+
+---
+
 ### 5. Resolve open questions (loop)
 
 After writing the spec, check the `## Questions ouvertes` section for unchecked items (`[ ]`).
@@ -233,9 +251,11 @@ Use **AskUserQuestion**:
 Show the user:
 
 - Path of the spec: `docs/{feature-name}.md`
-- List of Rn rules extracted (one line each)
+- List of Rn rules extracted
+- **Architectural Alert**: If an `ADR-REQUIRED` was flagged in Open Questions, explicitly tell the user:
+  > "Une décision d'architecture a été identifiée. Il est recommandé de lancer le skill `adr-manager` pour documenter ce point avant de passer au `feature-planner`."
 
-Then ask: **"Valider, affiner une section, ou lancer le plan d'implémentation ?"**
+Then ask: **"Valider, affiner, passer à la rédaction de l'ADR, ou lancer le plan d'implémentation ?"**
 
 - **Valider** → spec ready, done
 - **Affiner** → iterate on the specified section, rewrite, re-present
@@ -259,6 +279,7 @@ Then ask: **"Valider, affiner une section, ou lancer le plan d'implémentation ?
 12. **Moindre friction** — ne pose pas de question sur ce que les patterns existants du projet tranchent déjà (navigation, feedback de succès, gestion d'erreur réseau) ; génère directement une règle alignée sur ces patterns. Les questions sont réservées aux décisions métier genuinement nouvelles.
 13. **No implicit behaviour** — every observable behaviour must be covered by an explicit Rn rule. If a behaviour is described in the workflow or UX section but has no corresponding rule, add the rule. Common implicit gaps: default values in forms, sort toggle behaviour, modal-stays-open-on-error, empty-state vs no-search-results distinction.
 14. **Rn numbers are permanent** — once a rule number is assigned it never changes for the lifetime of the project. Tests reference rules by number (`// R1 — ...`). If a rule is removed, leave the number vacant. New rules always get the next available number. Never renumber existing rules.
+15. **ADR Consistency** — If a choice is already documented in `docs/adr/` (e.g., storing amounts in i64), you MUST apply it in the Rn rules without asking the user. You only ask if the new feature explicitly requires breaking a past ADR.
 
 ---
 
