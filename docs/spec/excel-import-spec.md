@@ -88,15 +88,15 @@ Toutes les lignes ignorées sont collectées dans un rapport de parsing affiché
 3. Validation des mois : identification des mois bloqués et suppression des actes des mois autorisés
 4. Création des actes : pour chaque acte dont le mois est autorisé, le patient résolu et le type mappé
 
-**R18 — Mise à jour des champs de suivi patient (backend)** : Après la création des actes, les champs de suivi du patient (`latest_date`, `latest_procedure_type`, `latest_fund`, `latest_procedure_amount`) sont mis à jour pour refléter l'acte la plus récente importée (cf. R19 de procedure_orchestration.md).
+**R18 — Mise à jour des champs de suivi patient (backend)** : Après la création des actes, les champs de suivi du patient (`latest_date`, `latest_procedure_type`, `latest_fund`, `latest_procedure_amount`) sont mis à jour pour refléter l'acte la plus récente importée (cf. R19 de procedure-orchestration-spec.md).
 
-**R19 — Statut initial des actes importées (backend)** : Le statut initial est calculé par l'orchestration selon les données de paiement présentes dans l'Excel (cf. R15 et R16 de procedure_orchestration.md) :
+**R19 — Statut initial des actes importées (backend)** : Le statut initial est calculé par l'orchestration selon les données de paiement présentes dans l'Excel (cf. R15 et R16 de procedure-orchestration-spec.md) :
 
 - Acte sans paiement confirmé → `Created`
 - Acte avec paiement confirmé, méthode ES/CH ou sans fonds → `ImportDirectlyPayed`
 - Acte avec paiement confirmé, méthode autre, avec fonds → `ImportFundPayed`
 
-Les actes en `Created` sont ensuite éligibles au rapprochement caisse (cf. R1 du document fund-payment-auto-match.md).
+Les actes en `Created` sont ensuite éligibles au rapprochement caisse (cf. R1 du document fund-payment-auto-match-spec.md).
 
 ### Résultat et rapport
 

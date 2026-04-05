@@ -71,6 +71,10 @@ Highest priority (behavioral regressions possible):
 
 ## saisie des actes: champs reçu et en attente ne sont jamais mis à jour → doublon avec todo ci-dessus, à vérifier en prod
 
+## (frontend/procedure) — Infos patient par défaut si type d'acte supprimé
+
+Lors de l'affichage des informations par défaut d'un patient (latest_procedure_type), le type d'acte référencé peut avoir été supprimé. La spec `procedure-type-spec.md` ne couvre pas ce cas : à documenter dans la spec d'ajout d'acte et à gérer côté frontend (affichage dégradé ou fallback).
+
 ## F10 — Extract logic to dedicated hooks (procedure feature)
 
 The reviewer flagged multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. These are deferred because they are large architectural refactors with no functional impact.
