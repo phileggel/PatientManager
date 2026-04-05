@@ -19,26 +19,34 @@ Translation files are in `src/i18n/locales/fr/` and `src/i18n/locales/en/`.
 ## Checks to perform
 
 ### 1. Hardcoded strings in components
+
 Scan `.tsx` files for user-visible text NOT going through `t(...)`:
+
 - Button labels, placeholder text, error messages, column headers, titles
 - Ignore: variable names, comments, `logger.*` calls, `className` strings, `id` attributes, date formats
 
 Flag any hardcoded string as **Critical**.
 
 ### 2. Missing keys in translation files
+
 For every `t("some.key")` call found in modified files:
+
 - Check that `some.key` exists in the corresponding `fr/*.json` AND `en/*.json`
 - If missing in one language → **Critical**
 - If missing in both → **Critical**
 
 ### 3. Dead keys in translation files
+
 If a translation JSON was modified (keys added):
+
 - Check whether each new key is actually referenced by `t("...")` somewhere in `src/`
 - Use: `grep -r "\"new.key\"" src/` to verify
 - Unused new keys → **Warning**
 
 ### 4. Key/value mismatches between fr and en
+
 For every key in `fr/*.json`, verify the same key exists in the matching `en/*.json` (and vice versa).
+
 - Missing in one language → **Warning**
 
 ---
