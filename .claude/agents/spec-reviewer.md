@@ -33,9 +33,10 @@ Read the full spec. Extract:
 
 Read for comparison:
 
-- `ARCHITECTURE.md` — bounded contexts, existing entities, data flow
-- All other specs in `docs/` (Glob `docs/*.md`, exclude `todo.md`, `*-rules.md`, `testing.md`, `theme.md`, `stitch/*.md`) to detect conflicts
-- Grep for existing domain entities and services in `src-tauri/src/context/{domain}/` relevant to this spec
+- `ARCHITECTURE.md` — **CRITICAL**: Verify that the feature belongs to the right bounded context and that entity relationships follow the defined data flow.
+- `docs/adr/` — Read all ADRs to ensure the spec doesn't violate a past technical decision (e.g., storage formats, deletion strategies).
+- `docs/*.md` (excluding rules/todo) — to detect functional conflicts between features.
+- `src-tauri/src/context/` — to check the current domain implementation.
 
 ### Step 3 — Apply review checks
 
@@ -45,6 +46,7 @@ Read for comparison:
 - 🔴 No Rn rules found
 - 🟡 Rules not using the `**Rn — Titre (scope)**` format
 - 🟡 Missing `## Maquette UX` or UX section when frontend rules are present
+- 🟡 Prose is not in French (prose must be French, identifiers must be English)
 
 #### B — Rule quality
 
@@ -63,12 +65,14 @@ Read for comparison:
 - 🟡 Prerequisite checks (e.g. "requires a fund to exist") not captured as a rule
 - 🔵 No workflow diagram for a multi-step user action
 
-#### D — DDD alignment
+#### D — DDD & Architecture alignment
 
-- 🔴 New entity described in the spec conflicts with an existing entity in the same bounded context
-- 🔴 Spec requires reading data from another bounded context without going through a use case (cross-context import)
-- 🟡 New entity could be a value object rather than an aggregate (has no lifecycle of its own)
-- 🟡 Spec describes behavior that already exists in another context — possible duplication
+- 🔴 **Context Violation**: Feature or entity described in the spec conflicts with its context defined in `ARCHITECTURE.md`.
+- 🔴 Spec requires reading data from another bounded context without going through a use case (cross-context leak).
+- 🔴 **ADR Violation**: A rule contradicts an active ADR (e.g., spec uses f64 for price but ADR-001 mandates i64).
+- 🔴 **Missing ADR Flag**: The spec introduces a major new pattern or a trade-off but no `ADR-REQUIRED` item is present in Open Questions.
+- 🟡 New entity could be a value object rather than an aggregate (has no lifecycle of its own).
+- 🟡 Spec describes behavior that already exists in another context — possible duplication.
 
 #### E — Conflicts with existing specs
 

@@ -5,6 +5,7 @@ This directory contains git hooks that enforce code quality standards.
 ## Available Hooks
 
 ### commit-msg
+
 - **Purpose:** Validate commit message format and policy compliance
 - **Validates:**
   - Conventional commit format (`type: description`)
@@ -16,6 +17,7 @@ This directory contains git hooks that enforce code quality standards.
 - **Action:** Rejects commit if message violates COMMIT_POLICY.md
 
 ### pre-commit
+
 - **Purpose:** Prevent commits that fail quality checks
 - **Runs:** `python3 ./scripts/check.py --fast` (lint/format only)
 - **Action:** Rejects commit if any linting or formatting checks fail
