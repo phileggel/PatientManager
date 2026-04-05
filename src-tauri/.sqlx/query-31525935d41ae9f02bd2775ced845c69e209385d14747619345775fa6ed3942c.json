@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ($1, '93', 'CPAM 93', 0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "31525935d41ae9f02bd2775ced845c69e209385d14747619345775fa6ed3942c"
+}
