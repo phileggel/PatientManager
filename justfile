@@ -9,13 +9,13 @@ default:
 dev *ARGS:
     ./scripts/start-app.sh {{ARGS}}
 
-# Run full quality check (tests + linters)
+# Run fast quality check (lint/format only, no tests)
 check:
-    ./scripts/check.sh --fast
+    python3 scripts/check.py --fast
 
-# Run quality check with verbose output
-check-verbose:
-    ./scripts/check.sh --verbose
+# Run full quality check (tests + build + lint)
+check-full:
+    python3 scripts/check.py
 
 # Generate TypeScript bindings from Rust
 generate-types:
@@ -52,3 +52,4 @@ format:
     cd src-tauri && cargo fmt
     cd src-tauri && cargo clippy --fix --allow-dirty
     npm run format:fix
+    npm run format:docs

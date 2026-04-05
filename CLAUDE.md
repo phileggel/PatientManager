@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. CRITICAL: ask user to validate. If changes, go back to step 3 with the adapted plan.
 4b. (Optional) For significant new/redesigned UI → run **Stitch workflow** (see 🎨 Stitch Workflow section)
 5. Implementation
-6. Test & Lint `./scripts/check.sh`
+6. Test & Lint `python3 scripts/check.py`
 7. Run the `reviewer` subagent → **show the full report to the user** → ask which issues to tackle → fix selected issues → re-run until 0 critical
 7b. If any `.tsx` file was modified → run `ux-reviewer` subagent → **show the full report to the user** → ask which issues to tackle → fix selected issues → re-run until 0 critical
 7c. If any `.sh`, `.py`, or `.githooks` file was modified → run `script-reviewer` subagent
@@ -126,7 +126,7 @@ When Stitch introduces new design patterns (new tokens, shadows, component style
 
 ## 🛠 Commands
 - Dev: `./scripts/start-app.sh`
-- Quality: `./scripts/check.sh` (Full check)
+- Quality: `python3 scripts/check.py` (Full check) | `python3 scripts/check.py --fast` (Lint only)
 - Tests: `npm run test` (Frontend) | `cd src-tauri && cargo test` (Backend)
 - Types: `just generate-types` (Sync Rust to TS via Specta)
 - Database schema update: `just clean-db`

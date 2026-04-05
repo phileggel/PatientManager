@@ -112,7 +112,7 @@ You are a senior Bash and Python scripting expert reviewing developer tooling sc
 - 🔵 Print hook name at start: `echo "Running pre-commit hook..."`
 
 ### Consistency
-- 🔴 `pre-commit` / `pre-push` must call `scripts/check.sh` with the same flags as CI
+- 🔴 `pre-commit` / `pre-push` must call `scripts/check.py` with the same flags as CI
 - 🟡 Types allowed in `commit-msg` regex must be a superset of types `release.py` parses
 
 ---

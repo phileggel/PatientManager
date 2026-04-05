@@ -12,7 +12,7 @@ Run checks before committing:
 ```bash
 npm run test          # Frontend (Vitest)
 cd src-tauri && cargo test  # Backend (Rust)
-./scripts/check.sh    # Full check: lint + type-check + tests
+python3 scripts/check.py    # Full check: lint + type-check + tests
 ```
 
 ---

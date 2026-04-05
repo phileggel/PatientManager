@@ -19,7 +19,14 @@ export default defineConfig({
   },
   server: {
     watch: {
-      ignored: ["**/src-tauri/target/**"],
+      ignored: [
+        "**/src-tauri/**",
+        "**/docs/**",
+        "**/.claude/**",
+        "**/.githooks/**",
+        "**/.github/**",
+        "**/scripts/**",
+      ],
     },
   },
 });

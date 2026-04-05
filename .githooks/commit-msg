@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Commit message validation hook
 COMMIT_MSG_FILE="$1"
@@ -43,7 +44,7 @@ fi
 # --- BODY RULES ---
 
 # Count body lines (ignore title, comments, and empty lines)
-BODY_LINES=$(sed '1d' "$COMMIT_MSG_FILE" | grep -v '^#' | grep -v '^$' | wc -l)
+BODY_LINES=$(sed '1d' "$COMMIT_MSG_FILE" | { grep -v '^#' || true; } | { grep -v '^$' || true; } | wc -l)
 
 # RULE 5: Body length limit
 if [ "$BODY_LINES" -gt 5 ]; then
