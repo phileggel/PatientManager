@@ -43,11 +43,11 @@ See `justfile` or run `just --list` for all available commands.
 Run all tests and linters before pushing:
 
 ```bash
-just check              # Full quality check
-just check-verbose      # Detailed output
+just check              # Fast quality check (lint only)
+just check-full         # Full quality check (tests + build + lint)
 
 # Or run the script directly:
-./scripts/check.sh
+python3 scripts/check.py
 ```
 
 Output example:

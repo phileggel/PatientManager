@@ -17,8 +17,8 @@ This directory contains git hooks that enforce code quality standards.
 
 ### pre-commit
 - **Purpose:** Prevent commits that fail quality checks
-- **Runs:** `./scripts/check.sh`
-- **Action:** Rejects commit if any tests or linting fail
+- **Runs:** `python3 ./scripts/check.py --fast` (lint/format only)
+- **Action:** Rejects commit if any linting or formatting checks fail
 
 ## Setup Instructions
 
@@ -64,7 +64,7 @@ When you run `git commit`:
    - Message invalid? → Commit rejected ❌
    - Message valid? → Continue to next hook
 
-2. **pre-commit hook runs** → `./scripts/check.sh` (tests, linting, formatting)
+2. **pre-commit hook runs** → `python3 ./scripts/check.py --fast` (lint, format)
    - Any checks fail? → Commit rejected ❌
    - All checks pass? → Commit succeeds ✅
 
@@ -76,14 +76,14 @@ When you run `git commit`:
 ### If Rejected by pre-commit
 
 - Fix the issues (see error output)
-- Run `./scripts/check.sh --verbose` for details
+- Run `python3 scripts/check.py` for the full check with details
 - Re-run `git commit`
 
 ## Disabling Hooks Temporarily
 
 ```bash
 # Run check script manually first
-./scripts/check.sh
+python3 scripts/check.py
 
 # Then commit
 git commit --no-verify

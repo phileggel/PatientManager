@@ -145,8 +145,8 @@ Always perform these checks across files together:
 
 ### Consistency with CI
 - 🔴 If a script is referenced in a workflow step (`run: ./scripts/foo.sh`), it must exist and be executable — flag any broken references
-- 🟡 Scripts referenced in `package.json` scripts (e.g. `"check": "./scripts/check.sh"`) must be consistent with what the CI workflow actually runs
-- 🟡 `check.sh` (or equivalent quality script) must cover the same checks as the CI workflow — if CI runs `cargo clippy` but `check.sh` doesn't, local and CI parity is broken
+- 🟡 Scripts referenced in `package.json` scripts (e.g. `"check": "./scripts/check.py"`) must be consistent with what the CI workflow actually runs
+- 🟡 `check.py` (or equivalent quality script) must cover the same checks as the CI workflow — if CI runs `cargo clippy` but `check.py` doesn't, local and CI parity is broken
 - 🔵 Scripts used both locally and in CI should support a `--ci` flag or `CI=true` env var to adjust output format (e.g. no interactive prompts, machine-readable output)
 
 ### Security
@@ -159,14 +159,14 @@ Always perform these checks across files together:
 ## justfile Rules
 
 ### Correctness
-- 🔴 Every recipe that delegates to a script (e.g. `./scripts/check.sh`) must reference a script that actually exists — flag broken references
+- 🔴 Every recipe that delegates to a script (e.g. `./scripts/check.py`) must reference a script that actually exists — flag broken references
 - 🔴 Recipes using `cd src-tauri && <command>` must not assume the working directory carries over to the next line — `just` runs each line in a new shell; use `&&` chaining or a shebang recipe if multi-line state is needed
 - 🟡 Recipes that wrap `scripts/` should pass through arguments with `*ARGS` / `{{ARGS}}` when the underlying script supports them — hardcoded flags without passthrough limit flexibility
 - 🟡 A `default` recipe listing all commands (`@just --list`) should be present so developers can discover available commands
 - 🔵 Recipes without a doc comment (`# Description`) won't appear clearly in `just --list` — all public recipes should have a comment
 
 ### Consistency with scripts/ and CI
-- 🔴 The `check` recipe must invoke `scripts/check.sh` with flags consistent with what CI runs — drift between `just check` and the CI workflow means "green locally" ≠ "green in CI"
+- 🔴 The `check` recipe must invoke `scripts/check.py` with flags consistent with what CI runs — drift between `just check` and the CI workflow means "green locally" ≠ "green in CI"
 - 🟡 If `scripts/release.py` is the canonical release tool, the `release` recipe should delegate to it — no release logic should live directly in the justfile
 - 🟡 Database-related recipes (`migrate`, `clean-db`) should document required prerequisites (running DB, correct `DATABASE_URL`) in their doc comment
 - 🟡 The `generate-types` recipe uses `--features generate-bindings` — verify this matches the feature name declared in `src-tauri/Cargo.toml`
@@ -184,14 +184,14 @@ Always perform these checks across files together:
 - 🔴 Every hook must start with `#!/usr/bin/env bash` — missing shebang causes silent skip on some Git configurations
 - 🔴 Hook files must be executable (`chmod +x`) — Git silently skips non-executable hooks; verify with `git ls-files --stage .githooks/`
 - 🔴 `PROJECT_ROOT` must be derived from `git rev-parse --show-toplevel` (not hardcoded or assumed from `$PWD`) — hooks are invoked from various working directories
-- 🔴 Hooks that call external scripts (e.g. `scripts/check.sh`) must guard with `[ -f ... ]` before executing to avoid cryptic "command not found" errors in fresh clones
+- 🔴 Hooks that call external scripts (e.g. `scripts/check.py`) must guard with `[ -f ... ]` before executing to avoid cryptic "command not found" errors in fresh clones
 - 🟡 All hooks should use `set -euo pipefail` or explicitly handle failures — a hook that exits 0 despite an internal error silently passes the gate it is supposed to enforce
 - 🟡 `pre-push` hook running the full test suite blocks legitimate fast pushes (e.g. docs-only commits). Consider checking the diff and skipping heavy checks when only non-code files changed
 - 🟡 Color codes (`\033[...`) should check for TTY support (`[ -t 1 ]`) or use `tput` — raw ANSI codes in non-TTY environments (CI, IDEs) pollute logs
 - 🔵 Each hook should print its name at the start so developers know which hook is running when multiple hooks are installed
 
 ### Consistency with CI and scripts/
-- 🔴 `pre-commit` and `pre-push` hooks must call `scripts/check.sh` with the same flags as CI — drift between local hooks and CI means green local ≠ green CI
+- 🔴 `pre-commit` and `pre-push` hooks must call `scripts/check.py` with the same flags as CI — drift between local hooks and CI means green local ≠ green CI
 - 🟡 `commit-msg` conventional commit pattern must match the types accepted by `scripts/release.py` — if `release.py` parses `feat|fix|...` but `commit-msg` allows additional types, version bumps will be miscalculated
 - 🟡 If `.githooks/` is not registered as the Git hooks directory in the repo (via `git config core.hooksPath .githooks`), hooks silently do nothing for developers who clone fresh. Check for a setup step in `README.md` or `scripts/`
 - 🔵 A `post-checkout` hook that runs `npm install` when `package-lock.json` changes would prevent "missing dependency" errors after branch switches

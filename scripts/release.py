@@ -5,12 +5,12 @@ Release script for PatientManager.
 Automates version bumping, changelog generation, and git tagging.
 
 Process:
-  1. Verify src-tauri/.sqlx/ offline files are committed and up to date
-  2. Run all tests (React + Rust) - stops if tests fail
-  3. Analyze git history since last tag
-  4. Determine version bump using semver
-  5. Update version in package.json, Cargo.toml, and tauri.conf.json
-  6. Create/update CHANGELOG.md
+  1. Run all quality checks via check.py (tests, lint, SQLx, build)
+  2. Analyze git history since last tag
+  3. Determine version bump using semver
+  4. Update version in package.json, Cargo.toml, and tauri.conf.json
+  5. Create/update CHANGELOG.md
+  6. Format files via just format
   7. Create commit and git tag
 
 Usage:
@@ -27,6 +27,7 @@ import subprocess
 import json
 import re
 import sys
+from check import QualityChecker
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List
@@ -81,35 +82,33 @@ class ReleaseManager:
             return None
 
     def get_commits_since_tag(self, tag: Optional[str]) -> List[dict]:
-        """Get commits since the last tag."""
+        """Get commits since the last tag (subject + body to capture BREAKING CHANGE footers)."""
         commit_range = f'{tag}..HEAD' if tag else 'HEAD'
 
         result = subprocess.run(
-            ['git', 'log', commit_range, '--pretty=format:%s'],
+            ['git', 'log', commit_range, '--pretty=format:%s%n%b%x00'],
             cwd=self.repo_root,
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
 
-        return [
-            self.parse_commit_message(line)
-            for line in result.stdout.strip().split('\n')
-            if line
-        ]
+        entries = [e.strip() for e in result.stdout.split('\x00') if e.strip()]
+        return [self.parse_commit_message(entry) for entry in entries]
 
     def parse_commit_message(self, message: str) -> dict:
-        """Parse conventional commit message format: type(scope): description."""
+        """Parse conventional commit message format: type[(scope)][!]: description."""
         match = re.match(
-            r'^(feat|fix|docs|chore|refactor|test|perf|style)(\(.+\))?: (.+)$',
-            message
+            r'^(feat|fix|docs|chore|refactor|test|ci)(\(.+\))?(!)?: (.+)$',
+            message,
+            re.DOTALL,
         )
 
         if not match:
             return {'type': 'other', 'scope': None, 'description': message}
 
-        commit_type, scope, description = match.groups()
-        is_breaking = 'BREAKING CHANGE' in message or description.startswith('!')
+        commit_type, scope, bang, description = match.groups()
+        is_breaking = bang == '!' or 'BREAKING CHANGE' in message
 
         return {
             'type': commit_type,
@@ -224,6 +223,16 @@ class ReleaseManager:
         self._update_json_file(self.repo_root / 'src-tauri' / 'tauri.conf.json', 'version')
         print('  ✓ src-tauri/tauri.conf.json')
 
+        if not self.dry_run:
+            print(f'{BLUE}  Updating src-tauri/Cargo.lock...{NC}')
+            subprocess.run(
+                ['cargo', 'metadata', '--format-version', '1'],
+                cwd=self.repo_root / 'src-tauri',
+                capture_output=True,
+                check=True
+            )
+            print('  ✓ src-tauri/Cargo.lock updated')
+
     def _build_changelog_entry(self) -> str:
         """Build new changelog entry from commits."""
         today = datetime.now().strftime('%Y-%m-%d')
@@ -282,6 +291,32 @@ class ReleaseManager:
         changelog.write_text(content, encoding='utf-8')
         print('  ✓ CHANGELOG.md')
 
+    def format_files(self) -> bool:
+        """Run 'just format' to ensure CHANGELOG and code are clean."""
+        mode = self._format_mode_prefix()
+        print(f'{BLUE}{mode}Running formatters via just...{NC}')
+
+        if self.dry_run:
+            print('  → just format')
+            return True
+
+        try:
+            subprocess.run(
+                ['just', 'format'],
+                cwd=self.repo_root,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            print('  ✓ Files formatted')
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f'{RED}❌ Error during format: {e.stderr or e.stdout}{NC}')
+            return False
+        except FileNotFoundError:
+            print(f'{YELLOW}⚠ "just" command not found. Skipping format.{NC}')
+            return True
+
     def commit_and_tag(self) -> bool:
         """Commit version changes and create git tag."""
         mode = self._format_mode_prefix()
@@ -295,7 +330,7 @@ class ReleaseManager:
         try:
             subprocess.run(
                 ['git', 'add', 'package.json', 'src-tauri/Cargo.toml',
-                 'src-tauri/tauri.conf.json', 'CHANGELOG.md'],
+                 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json', 'CHANGELOG.md'],
                 cwd=self.repo_root,
                 check=True
             )
@@ -320,89 +355,29 @@ class ReleaseManager:
             print(f'{RED}Error: {e}{NC}')
             return False
 
-    def _run_test(self, name: str, cmd: List[str], cwd: Optional[Path] = None) -> bool:
-        """Run test command and return success status."""
-        print(f'\n{BLUE}Running {name}...{NC}')
-        result = subprocess.run(cmd, cwd=cwd or self.repo_root, capture_output=False)
-
-        if result.returncode != 0:
-            print(f'{RED}❌ {name} failed{NC}')
-            return False
-
-        print(f'{GREEN}✓ {name} passed{NC}')
-        return True
-
     def run_tests(self) -> bool:
-        """Run React and Rust tests."""
-        print(f'{BLUE}Running tests...{NC}')
+        """
+        Exécute la suite de tests complète via le QualityChecker de check.py.
+        """
+        print(f"{BLUE}🚀 Lancement de la validation qualité complète...{NC}")
 
         if self.dry_run:
-            print('  → npm test (React tests)')
-            print('  → cargo test (Rust tests)')
+            print(f"{YELLOW}[DRY-RUN] Simulation de la suite de tests (check.py){NC}")
             return True
 
-        if not self._run_test('React tests', ['npm', 'test', '--', '--run']):
+        # On initialise le checker (fast_mode=False pour une release officielle)
+        checker = QualityChecker(fast_mode=False)
+
+        # On lance la suite complète (Tests, Build, Lint, SQLx)
+        # La méthode run_all() affiche déjà tout dans le terminal en temps réel
+        success = checker.run_all()
+
+        if not success:
+            print(f"\n{RED}❌ La validation qualité a échoué.{NC}")
+            print(f"{RED}Corrigez les erreurs avant de tenter une nouvelle release.{NC}")
             return False
 
-        if not self._run_test('Rust tests', ['cargo', 'test'],
-                            cwd=self.repo_root / 'src-tauri'):
-            return False
-
-        return True
-
-    def check_sqlx_files(self) -> bool:
-        """Verify .sqlx offline query files are committed and up to date."""
-        print(f'{BLUE}Checking SQLx offline files...{NC}')
-
-        sqlx_dir = self.repo_root / 'src-tauri' / '.sqlx'
-        if not sqlx_dir.exists() or not any(sqlx_dir.iterdir()):
-            print(f'{RED}❌ src-tauri/.sqlx/ is missing or empty.{NC}')
-            print(f'   Run: cd src-tauri && cargo sqlx prepare')
-            return False
-
-        # Check for uncommitted .sqlx changes
-        result = subprocess.run(
-            ['git', 'status', '--porcelain', 'src-tauri/.sqlx/'],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        if result.stdout.strip():
-            print(f'{RED}❌ Uncommitted .sqlx file changes detected:{NC}')
-            print(result.stdout)
-            print(f'   Run: cd src-tauri && cargo sqlx prepare')
-            print(f'   Then commit the updated .sqlx/ files before releasing.')
-            return False
-
-        # Run cargo sqlx prepare --check if sqlx CLI is available
-        sqlx_available = subprocess.run(
-            ['cargo', 'sqlx', '--version'],
-            cwd=self.repo_root / 'src-tauri',
-            capture_output=True
-        ).returncode == 0
-
-        if sqlx_available:
-            if self.dry_run:
-                print(f'  → cargo sqlx prepare --check (skipped in dry-run)')
-            else:
-                result = subprocess.run(
-                    ['cargo', 'sqlx', 'prepare', '--check'],
-                    cwd=self.repo_root / 'src-tauri',
-                    capture_output=True,
-                    text=True
-                )
-                if result.returncode != 0:
-                    print(f'{RED}❌ SQLx offline files are stale (queries changed but .sqlx/ not regenerated):{NC}')
-                    print(result.stderr or result.stdout)
-                    print(f'   Run: cd src-tauri && cargo sqlx prepare')
-                    print(f'   Then commit the updated .sqlx/ files before releasing.')
-                    return False
-        else:
-            print(f'{YELLOW}⚠ cargo-sqlx not installed — skipping prepare --check (only uncommitted changes checked).{NC}')
-            print(f'  Install with: cargo install sqlx-cli --no-default-features --features sqlite')
-
-        print(f'{GREEN}✓ SQLx offline files OK{NC}')
+        print(f"\n{GREEN}✅ Validation qualité réussie. Passage au versionnage...{NC}")
         return True
 
     def run(self) -> bool:
@@ -410,12 +385,7 @@ class ReleaseManager:
         dry_run_banner = f' {YELLOW}[DRY-RUN MODE]{NC}' if self.dry_run else ''
         print(f'\n{BLUE}🚀 Release Manager{dry_run_banner}{NC}\n')
 
-        if not self.check_sqlx_files():
-            print(f'\n{RED}❌ SQLx check failed. Release cancelled.{NC}\n')
-            return False
-
         if not self.run_tests():
-            print(f'\n{RED}❌ Tests failed. Release EVENT_CANCELled.{NC}\n')
             return False
 
         latest_tag = self.get_latest_tag()
@@ -454,6 +424,10 @@ class ReleaseManager:
         self.update_version_files()
         self.update_changelog()
 
+        if not self.format_files():
+            print(f'\n{RED}❌ Formatting failed. Release cancelled.{NC}\n')
+            return False
+
         if not self.commit_and_tag():
             return False
 
@@ -468,8 +442,18 @@ class ReleaseManager:
         return True
 
     def push_release(self) -> bool:
-        """Push commit and tag to origin (skipping pre-push hooks)."""
+        """Push commit and tag to origin."""
         print(f'{BLUE}Pushing to origin...{NC}')
+
+        # Safety: ensure we are on main before pushing
+        branch = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=self.repo_root, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        if branch != 'main':
+            print(f'{RED}❌ Current branch is "{branch}", not "main". Release must be run from main.{NC}')
+            return False
+
         try:
             subprocess.run(
                 ['git', 'push', 'origin', 'main', '--no-verify'],

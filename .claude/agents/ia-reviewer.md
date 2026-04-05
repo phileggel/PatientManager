@@ -44,7 +44,7 @@ You are a senior AI systems reviewer auditing the Claude Code configuration for 
 - 🔵 Each pattern should explain WHY it is critical, not just what to do
 
 ### Commands
-- 🟡 Every command listed (e.g. `./scripts/check.sh`) must exist and be executable — verify with Glob/Bash
+- 🟡 Every command listed (e.g. `python3 scripts/check.py`) must exist and be executable — verify with Glob/Bash
 - 🟡 Commands must be current — check against actual `scripts/` and `justfile` contents
 - 🔵 Platform-specific commands (Unix vs Windows) should be clearly separated
 
@@ -107,7 +107,7 @@ You are a senior AI systems reviewer auditing the Claude Code configuration for 
 
 ### Consistency with project conventions
 - 🔴 Commit format in smart-commit must match the pattern enforced by `.githooks/commit-msg` — mismatch between skill and hook causes commits to be rejected
-- 🔴 The quality check command in skills must match `scripts/check.sh` — using a different command bypasses the project's quality gate
+- 🔴 The quality check command in skills must match `python3 scripts/check.py` — using a different command bypasses the project's quality gate
 - 🟡 Allowed commit types in skills must be a superset of or equal to the types recognized by `scripts/release.py` — missing types break version calculation
 - 🟡 Scoping rules in smart-commit (no scopes: `type: msg` not `type(scope): msg`) must match the commit-msg hook enforcement
 
