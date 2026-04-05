@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE procedure_type SET is_deleted = 1 WHERE id = 'type-deleted'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "ddf41c8b837829a6484bcdc9a33f73ab30e7963b2693e913fb2f587bd9cd84a6"
+}

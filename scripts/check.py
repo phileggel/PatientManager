@@ -74,11 +74,11 @@ class QualityChecker:
             self.metrics["sqlx"] = "N/A"
             return True
 
-        # 1. Check uncommitted changes
-        status = subprocess.run(['git', 'status', '--porcelain', str(sqlx_dir)],
+        # 1. Check unstaged changes (staged changes are fine — they're part of the current commit)
+        status = subprocess.run(['git', 'diff', '--name-only', str(sqlx_dir)],
                                capture_output=True, text=True).stdout
         if status.strip():
-            print(f"{RED}✗ SQLx: Uncommitted changes in .sqlx/. Run 'cargo sqlx prepare'.{NC}")
+            print(f"{RED}✗ SQLx: Unstaged changes in .sqlx/. Run 'just prepare-sqlx' and stage the result.{NC}")
             self.metrics["sqlx"] = "Uncommitted"
             self.suite_failed = True
             return False

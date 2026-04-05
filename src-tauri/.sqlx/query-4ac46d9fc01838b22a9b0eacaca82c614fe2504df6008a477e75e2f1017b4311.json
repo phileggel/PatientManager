@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES ($1, 'Test Type', 24000, 0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "4ac46d9fc01838b22a9b0eacaca82c614fe2504df6008a477e75e2f1017b4311"
+}

@@ -33,6 +33,10 @@ collect-logs:
 migrate:
     cd src-tauri && sqlx migrate run
 
+# Regenerate SQLx offline query cache (run after schema or query changes)
+prepare-sqlx:
+    cd src-tauri && DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests
+
 # Take a screenshot of the app
 screenshot:
     ./scripts/screenshot.sh
