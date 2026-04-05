@@ -74,7 +74,8 @@ Use `TaskCreate` / `TaskUpdate` to track workflow steps for non-trivial tasks:
 
 ### Available Skills (`.claude/skills/`)
 - `/spec-writer` — interactive spec writer: interviews the user, reads the domain, produces `docs/{feature}.md` with Rn rules + UX draft; optional Stitch mockup generation (step 0)
-- `/commit` — smart-commit: conventional commit avec validation tests + linters + confirmation (step 12)
+- `/smart-commit` — conventional commit avec validation tests + linters + confirmation (step 12)
+- `/dep-audit` — audit npm + Cargo deps (versions outdées, CVEs) via web search; à lancer avant chaque release
 
 ---
 

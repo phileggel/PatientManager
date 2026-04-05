@@ -1,18 +1,14 @@
-# PROD Skill — `smart-commit`
+---
+name: smart-commit
+description: Create conventional commits in production context with strict validation, tests, linters, and confirmation.
+---
+
+# Skill — `smart-commit`
 
 Create **conventional commits** in a production context.
 This skill enforces **tests, linters, commit conventions, and safety checks**.
 
 All commits must pass before being accepted.
-
----
-
-## Skill Definition
-
----
-name: smart-commit
-description: Create conventional commits in production context with strict validation, tests, linters, and confirmation.
----
 
 ---
 
@@ -56,14 +52,14 @@ Based on changed files, recommend:
 Use **AskUserQuestion** to get:
 
 1. Commit type (mandatory, default to suggested)
-2. Optional scope (e.g. `patient`, `bank`, `ci`) — leave blank for no scope
-3. Commit message (imperative, ≤72 characters)
-4. Commit body (optional, max 5 lines; include context, references to tasks)
+2. Optional scope (e.g. `domain`, `feature`, `ci`) — leave blank for no scope
+3. Commit message (imperative, **English**, ≤72 characters)
+4. Commit body (optional, **English**, max 5 lines; include context, references to tasks)
 
 ### 6. Validate message format
 
 - Title ≤72 chars, body ≤5 lines
-- Block commit if not compliant
+- If non-compliant: return to step 5 and prompt the user to correct the message
 
 ### 7. Create commit
 
@@ -87,7 +83,7 @@ git log -1 --oneline
 1. Never commit sensitive files
 2. All tests must pass (`python3 scripts/check.py`) before committing
 3. All linters must pass
-4. Commit message must follow conventional format: `type: message` or `type(scope): message`
+4. Commit message must be in **English** and follow conventional format: `type: message` or `type(scope): message`
 5. Never use `git add -A` — stage files explicitly by name
 6. User confirmation required before commit
 7. No bypassing rules in production
