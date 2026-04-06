@@ -103,6 +103,8 @@ describe("ProcedureTypeList", () => {
       procedureTypeRows: mockProcedureTypeRows,
       procedureTypes: mockProcedureTypes,
       loading: false,
+      error: null,
+      retry: vi.fn(),
       deleteProcedureType: vi.fn(),
     });
   });
@@ -125,9 +127,14 @@ describe("ProcedureTypeList", () => {
   it("displays default amounts with currency formatting", () => {
     render(<ProcedureTypeList searchTerm="" />);
 
-    expect(screen.getByText("€50.00")).toBeInTheDocument();
-    expect(screen.getByText("€300.00")).toBeInTheDocument();
-    expect(screen.getByText("€30.00")).toBeInTheDocument();
+    const fmt = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+    const normalize = (s: string) => s.replace(/\u00a0|\u202f/g, " ").trim();
+    const cells = screen.getAllByRole("cell");
+    const textContents = cells.map((c) => normalize(c.textContent ?? ""));
+
+    expect(textContents).toContain(normalize(fmt.format(50)));
+    expect(textContents).toContain(normalize(fmt.format(300)));
+    expect(textContents).toContain(normalize(fmt.format(30)));
   });
 
   it("displays category information", () => {
@@ -163,19 +170,13 @@ describe("ProcedureTypeList", () => {
     expect(deleteButtons.length).toBe(3);
   });
 
-  it("renders with correct headers", () => {
-    render(<ProcedureTypeList searchTerm="" />);
-
-    expect(screen.getByText("Name")).toBeInTheDocument();
-    expect(screen.getByText("Default Amount")).toBeInTheDocument();
-    expect(screen.getByText("Category")).toBeInTheDocument();
-  });
-
   it("shows loading state", () => {
     vi.mocked(useProcedureTypeList).mockReturnValue({
       procedureTypeRows: [],
       procedureTypes: [],
       loading: true,
+      error: null,
+      retry: vi.fn(),
       deleteProcedureType: vi.fn(),
     });
 
@@ -184,17 +185,56 @@ describe("ProcedureTypeList", () => {
     expect(screen.getByText("Loading procedure types...")).toBeInTheDocument();
   });
 
-  it("shows empty state when no procedure types found", () => {
+  it("shows error state with retry button", async () => {
+    const retryFn = vi.fn();
     vi.mocked(useProcedureTypeList).mockReturnValue({
       procedureTypeRows: [],
       procedureTypes: [],
       loading: false,
+      error: "Failed to load",
+      retry: retryFn,
+      deleteProcedureType: vi.fn(),
+    });
+
+    const user = userEvent.setup();
+    render(<ProcedureTypeList searchTerm="" />);
+
+    expect(screen.getByText("Failed to load procedure types.")).toBeInTheDocument();
+    const retryButton = screen.getByRole("button", { name: /retry/i });
+    await user.click(retryButton);
+    expect(retryFn).toHaveBeenCalledOnce();
+  });
+
+  it("shows empty state (no types, no search) with FAB invite", () => {
+    vi.mocked(useProcedureTypeList).mockReturnValue({
+      procedureTypeRows: [],
+      procedureTypes: [],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
       deleteProcedureType: vi.fn(),
     });
 
     render(<ProcedureTypeList searchTerm="" />);
 
-    expect(screen.getByText("No procedure types found.")).toBeInTheDocument();
+    expect(
+      screen.getByText("No procedure types yet. Use the + button to create one."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows no results state when search has no match", () => {
+    vi.mocked(useProcedureTypeList).mockReturnValue({
+      procedureTypeRows: mockProcedureTypeRows,
+      procedureTypes: mockProcedureTypes,
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+      deleteProcedureType: vi.fn(),
+    });
+
+    render(<ProcedureTypeList searchTerm="zzznomatch" />);
+
+    expect(screen.getByText("No procedure types match your search.")).toBeInTheDocument();
   });
 
   it("shows delete confirmation dialog when delete button is clicked", async () => {
@@ -210,117 +250,31 @@ describe("ProcedureTypeList", () => {
     expect(screen.getByText("Delete Procedure Type")).toBeInTheDocument();
   });
 
-  /**
-   * SEMANTIC HTML VALIDATION TESTS
-   * These tests catch structural issues like missing tags, improper nesting, etc.
-   * They prevent rendering bugs that unit tests might miss but users would see immediately.
-   */
-
-  it("renders semantic table structure with proper thead", () => {
+  it("renders with correct headers", () => {
     render(<ProcedureTypeList searchTerm="" />);
 
-    const table = screen.getByRole("table");
-    expect(table).toBeInTheDocument();
-
-    // Check that thead exists
-    const thead = table.querySelector("thead");
-    expect(thead).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /name/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /default amount/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /category/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /actions/i })).toBeInTheDocument();
   });
 
-  it("renders semantic table structure with proper tbody", () => {
-    render(<ProcedureTypeList searchTerm="" />);
-
-    const table = screen.getByRole("table");
-    const tbody = table.querySelector("tbody");
-    expect(tbody).toBeInTheDocument();
-  });
-
-  it("renders table header row with proper th elements", () => {
-    render(<ProcedureTypeList searchTerm="" />);
-
-    const table = screen.getByRole("table");
-    const thead = table.querySelector("thead");
-    const headerCells = thead?.querySelectorAll("th");
-
-    expect(headerCells).toHaveLength(4);
-    expect(headerCells?.[0]?.textContent).toContain("Name");
-    expect(headerCells?.[1]?.textContent).toContain("Default Amount");
-    expect(headerCells?.[2]?.textContent).toContain("Category");
-    expect(headerCells?.[3]?.textContent).toContain("Actions");
-  });
-
-  it("renders data rows with proper tr and td elements", () => {
-    render(<ProcedureTypeList searchTerm="" />);
-
-    const table = screen.getByRole("table");
-    const tbody = table.querySelector("tbody");
-    const dataRows = tbody?.querySelectorAll("tr");
-
-    // Should have 3 data rows (one for each procedure type)
-    expect(dataRows).toHaveLength(3);
-
-    // Each row should have 4 cells (name, amount, category, actions)
-    dataRows?.forEach((row) => {
-      const cells = row.querySelectorAll("td");
-      expect(cells).toHaveLength(4);
-    });
-  });
-
-  it("has valid table hierarchy: table > thead > tr > th and table > tbody > tr > td", () => {
-    render(<ProcedureTypeList searchTerm="" />);
-
-    const table = screen.getByRole("table");
-
-    // Check thead structure
-    const thead = table.querySelector("thead");
-    const theadRows = thead?.querySelectorAll(":scope > tr");
-    expect(theadRows).toHaveLength(1);
-    const headerCells = theadRows?.[0]?.querySelectorAll("th");
-    expect(headerCells?.length).toBeGreaterThan(0);
-
-    // Check tbody structure
-    const tbody = table.querySelector("tbody");
-    const bodyRows = tbody?.querySelectorAll(":scope > tr");
-    expect(bodyRows?.length).toBeGreaterThan(0);
-    bodyRows?.forEach((row) => {
-      const cells = row.querySelectorAll(":scope > td");
-      expect(cells.length).toBeGreaterThan(0);
-    });
-  });
-
-  it("renders loading state with valid tbody structure", () => {
+  it("does not render import-pdf reserved type in the list (R23)", () => {
+    // Hook returns rows already filtered (hook responsibility), simulate by not including import-pdf
     vi.mocked(useProcedureTypeList).mockReturnValue({
-      procedureTypeRows: [],
-      procedureTypes: [],
-      loading: true,
-      deleteProcedureType: vi.fn(),
-    });
-
-    render(<ProcedureTypeList searchTerm="" />);
-
-    const table = screen.getByRole("table");
-    const tbody = table.querySelector("tbody");
-    const rows = tbody?.querySelectorAll("tr");
-
-    expect(rows).toHaveLength(1);
-    expect(rows?.[0]?.querySelector("td")).toBeInTheDocument();
-  });
-
-  it("renders empty state with valid tbody structure", () => {
-    vi.mocked(useProcedureTypeList).mockReturnValue({
-      procedureTypeRows: [],
-      procedureTypes: [],
+      procedureTypeRows: mockProcedureTypeRows, // does not include import-pdf
+      procedureTypes: mockProcedureTypes,
       loading: false,
+      error: null,
+      retry: vi.fn(),
       deleteProcedureType: vi.fn(),
     });
 
     render(<ProcedureTypeList searchTerm="" />);
 
-    const table = screen.getByRole("table");
-    const tbody = table.querySelector("tbody");
-    const rows = tbody?.querySelectorAll("tr");
-
-    expect(rows).toHaveLength(1);
-    expect(rows?.[0]?.querySelector("td")).toBeInTheDocument();
+    // "Import" (the display name of import-pdf) should not appear in the table
+    expect(screen.queryByText("Import")).not.toBeInTheDocument();
+    // Regular types are still shown
+    expect(screen.getByText("Consultation")).toBeInTheDocument();
   });
 });

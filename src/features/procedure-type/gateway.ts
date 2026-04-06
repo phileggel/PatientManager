@@ -10,6 +10,21 @@ export function readAllProcedureTypes(): ServiceResult<ProcedureType[]> {
   return { success: true, data: procedureTypes };
 }
 
+/**
+ * Fetches all procedure types from the backend.
+ * Callers are responsible for writing the result back to the store
+ * (e.g. via setProcedureTypes / setProcedureTypesError).
+ */
+export async function reloadProcedureTypes(): Promise<ServiceResult<ProcedureType[]>> {
+  logger.debug("Reloading procedure types from backend");
+  const result = await commands.readAllProcedureTypes();
+  if (result.status === "ok") {
+    return { success: true, data: result.data };
+  }
+  logger.error("Failed to reload procedure types", { error: result.error });
+  return { success: false, error: result.error };
+}
+
 export async function addProcedureType(
   name: string,
   defaultAmount: number,

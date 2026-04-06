@@ -1,14 +1,14 @@
 {
   "page": {
     "title": "Types d'actes",
-    "searchPlaceholder": "Rechercher un type d'acte...",
-    "addDescription": "Ajouter un nouveau type d'acte."
+    "searchPlaceholder": "Rechercher un type d'acte..."
   },
   "form": {
     "name": "Nom du type d'acte",
     "namePlaceholder": "ex. : Consultation",
     "amount": "Montant par défaut (€)",
     "category": "Catégorie",
+    "amountPlaceholder": "0,00",
     "categoryPlaceholder": "ex. : Médical",
     "nameRequired": "Le nom est obligatoire",
     "amountRequired": "Le montant par défaut est obligatoire",
@@ -19,10 +19,15 @@
     "amount": "Montant par défaut",
     "category": "Catégorie",
     "loading": "Chargement des types d'actes...",
-    "noData": "Aucun type d'acte trouvé."
+    "empty": "Aucun type d'acte. Utilisez le bouton + pour en créer un.",
+    "noResults": "Aucun type d'acte ne correspond à votre recherche.",
+    "loadError": "Impossible de charger les types d'actes.",
+    "retry": "Réessayer"
   },
   "action": {
     "add": "Ajouter un type d'acte",
+    "addTitle": "Nouveau type d'acte",
+    "fabAriaLabel": "Créer un type d'acte",
     "adding": "Ajout en cours...",
     "update": "Mettre à jour",
     "updating": "Mise à jour...",

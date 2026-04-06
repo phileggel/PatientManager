@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toastService } from "@/core/snackbar";
 import { addProcedureType } from "@/features/procedure-type/gateway";
@@ -12,7 +12,7 @@ const initialFormData: ProcedureTypeFormData = {
   category: "",
 };
 
-export function useAddProcedureTypePanel() {
+export function useCreateProcedureTypeModal(isOpen: boolean, onClose: () => void) {
   const { t } = useTranslation("procedure-type");
   const { t: tc } = useTranslation("common");
 
@@ -20,39 +20,34 @@ export function useAddProcedureTypePanel() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
 
-  const validateForm = (): boolean => {
-    const newErrors = validateProcedureType(formData, {
-      nameRequired: t("form.nameRequired"),
-      amountRequired: t("form.amountRequired"),
-      amountInvalid: t("form.amountInvalid"),
-    });
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  // Reset form when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData(initialFormData);
+      setErrors({});
+    }
+  }, [isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear error for this field as user types
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: undefined,
-      }));
+      setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    const newErrors = validateProcedureType(formData, {
+      nameRequired: t("form.nameRequired"),
+      amountRequired: t("form.amountRequired"),
+      amountInvalid: t("form.amountInvalid"),
+    });
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
-    logger.debug("Submitting add procedure type form", {
+    logger.debug("Submitting create procedure type form", {
       name: formData.name.trim(),
       defaultAmount: Number(formData.defaultAmount),
     });
@@ -66,16 +61,15 @@ export function useAddProcedureTypePanel() {
       );
 
       if (result.success) {
-        logger.info("Procedure type added successfully");
+        logger.info("Procedure type created successfully");
         toastService.show("success", t("action.addSuccess"));
-        setFormData(initialFormData);
-        setErrors({});
+        onClose();
       } else {
-        logger.error("Failed to add procedure type", { error: result.error });
+        logger.error("Failed to create procedure type", { error: result.error });
         toastService.show("error", t("action.addError", { error: result.error }));
       }
     } catch (error) {
-      logger.error("Exception occurred while adding procedure type", { error });
+      logger.error("Exception occurred while creating procedure type", { error });
       toastService.show("error", tc("error.unknown"));
     } finally {
       setLoading(false);

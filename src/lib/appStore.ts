@@ -22,6 +22,9 @@ interface AppState {
   bankAccountsLoading: boolean;
   fundPaymentGroupsLoading: boolean;
 
+  // Error states
+  procedureTypesError: string | null;
+
   // Actions
   setPatients: (patients: Patient[]) => void;
   addPatients: (patients: Patient[]) => void;
@@ -33,6 +36,7 @@ interface AppState {
   addBankAccounts: (accounts: BankAccount[]) => void;
   setFundPaymentGroups: (groups: FundPaymentGroup[]) => void;
   addFundPaymentGroups: (groups: FundPaymentGroup[]) => void;
+  setProcedureTypesError: (error: string | null) => void;
 
   setLoading: (
     type: "patients" | "funds" | "procedureTypes" | "bankAccounts" | "fundPaymentGroups",
@@ -52,6 +56,7 @@ export const useAppStore = create<AppState>((set) => ({
   procedureTypesLoading: false,
   bankAccountsLoading: false,
   fundPaymentGroupsLoading: false,
+  procedureTypesError: null,
 
   // Actions
   setPatients: (patients) => set({ patients }),
@@ -71,6 +76,7 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       procedureTypes: [...state.procedureTypes, ...procedureTypes],
     })),
+  setProcedureTypesError: (error) => set({ procedureTypesError: error }),
 
   setBankAccounts: (accounts) => set({ bankAccounts: accounts }),
   addBankAccounts: (accounts) =>

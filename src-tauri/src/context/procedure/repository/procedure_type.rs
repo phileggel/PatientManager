@@ -164,7 +164,7 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
             r#"
             SELECT id, name, default_amount, category, is_deleted
             FROM procedure_type
-            WHERE name = $1 AND is_deleted = 0
+            WHERE LOWER(name) = LOWER($1) AND is_deleted = 0
             "#,
             name,
         )

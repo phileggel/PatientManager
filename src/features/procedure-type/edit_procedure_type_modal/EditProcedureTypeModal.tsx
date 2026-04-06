@@ -57,7 +57,13 @@ export function EditProcedureTypeModal({
       <Button type="button" onClick={onClose} variant="secondary" disabled={loading}>
         {tc("action.cancel")}
       </Button>
-      <Button type="submit" variant="primary" loading={loading}>
+      <Button
+        type="submit"
+        form="edit-procedure-type-form"
+        variant="primary"
+        loading={loading}
+        disabled={loading}
+      >
         {loading ? t("action.updating") : t("action.update")}
       </Button>
     </>
@@ -65,7 +71,7 @@ export function EditProcedureTypeModal({
 
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title={t("action.editTitle")} actions={actions}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <form id="edit-procedure-type-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
         <fieldset disabled={loading} className="disabled:opacity-50">
           <ProcedureTypeForm
             formData={formData}

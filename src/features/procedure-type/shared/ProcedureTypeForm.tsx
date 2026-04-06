@@ -1,6 +1,4 @@
-import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { logger } from "@/lib/logger";
 import { TextField } from "@/ui/components";
 import type { FormErrors, ProcedureTypeFormData } from "./types";
 
@@ -18,10 +16,6 @@ export function ProcedureTypeForm({
   idPrefix = "procedure-type",
 }: ProcedureTypeFormProps) {
   const { t } = useTranslation("procedure-type");
-
-  useEffect(() => {
-    logger.info("[ProcedureTypeForm] Component mounted");
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -45,8 +39,9 @@ export function ProcedureTypeForm({
         value={formData.defaultAmount}
         onChange={handleChange}
         name="defaultAmount"
-        placeholder="0.00"
+        placeholder={t("form.amountPlaceholder")}
         error={errors?.defaultAmount}
+        required
       />
       <TextField
         id={`${idPrefix}-category`}
