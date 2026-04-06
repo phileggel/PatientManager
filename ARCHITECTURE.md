@@ -124,16 +124,22 @@ FundPaymentService: CRUD + `get_by_status`
 - `confirmed_payment_date?`, `actual_payment_amount?`
 
 **Entity: `ProcedureType`**
-- `id`, `name`, `default_amount` (i64), `category?`
+- `id`, `name`, `default_amount` (i64 thousandths of euro), `category?`
+- Reserved sentinel: id `import-pdf` (renamed "Import" in DB) — hidden from UI, protected from update/delete
 - Factory methods: `new()`, `with_id()`, `restore()`
 
 **Repository traits: `ProcedureRepository`, `ProcedureTypeRepository`**
 
 ProcedureRepository: CRUD + `read_procedures_by_ids`, `read_by_fund`, `read_by_patient`, `create_batch`
 
-ProcedureTypeRepository: CRUD
+ProcedureTypeRepository: CRUD + `find_by_name` (case-insensitive, soft-delete aware)
 
 **Services: `ProcedureService`, `ProcedureTypeService`**
+
+`ProcedureTypeService` business rules:
+- Duplicate name check (case-insensitive) on add and update (skips same-id on update)
+- `import-pdf` guard: add/update/delete on the reserved id is rejected
+- Category normalization: trims whitespace, stores `None` if blank
 
 > Note: `ProcedureService` in this context handles basic CRUD. Business logic (FK validation, patient tracking) lives in `use_cases/procedure_orchestration/`.
 
@@ -350,10 +356,11 @@ Queries:
 | `patients` | `Patient[]` | `PatientUpdated` event |
 | `funds` | `AffiliatedFund[]` | `FundUpdated` event |
 | `procedureTypes` | `ProcedureType[]` | `ProcedureTypeUpdated` event |
+| `procedureTypesError` | `string \| null` | Set on load failure, cleared on success |
 | `bankAccounts` | `BankAccount[]` | `BankAccountUpdated` event |
 | `fundPaymentGroups` | `FundPaymentGroup[]` | `FundPaymentGroupUpdated` event |
 
-Actions: `setPatients`, `addPatients`, `setFunds`, `addFunds`, `setProcedureTypes`, `addProcedureTypes`, `setBankAccounts`, `addBankAccounts`, `setFundPaymentGroups`, `addFundPaymentGroups`, `setLoading`
+Actions: `setPatients`, `addPatients`, `setFunds`, `addFunds`, `setProcedureTypes`, `addProcedureTypes`, `setProcedureTypesError`, `setBankAccounts`, `addBankAccounts`, `setFundPaymentGroups`, `addFundPaymentGroups`, `setLoading`
 
 ### Infrastructure
 

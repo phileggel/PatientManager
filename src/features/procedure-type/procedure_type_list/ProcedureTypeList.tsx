@@ -9,17 +9,20 @@
  */
 
 import { Edit2, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
 
 import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
-import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
+import { Button, ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
 import { EditProcedureTypeModal } from "../edit_procedure_type_modal/EditProcedureTypeModal";
 import type { ProcedureTypeRow } from "../shared/types";
+import { useDoubleClickRow } from "./useDoubleClickRow";
 import { useProcedureTypeList } from "./useProcedureTypeList";
 import { useSortProcedureTypeList } from "./useSortProcedureTypeList";
+
+const euroFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
 interface ProcedureTypeListProps {
   searchTerm: string;
@@ -32,10 +35,9 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
   useEffect(() => {
     logger.info("[ProcedureTypeList] Component mounted");
   }, []);
-  const { procedureTypeRows, procedureTypes, loading, deleteProcedureType } =
+
+  const { procedureTypeRows, procedureTypes, loading, error, retry, deleteProcedureType } =
     useProcedureTypeList();
-  const [lastClickedId, setLastClickedId] = useState<string | null>(null);
-  const [lastClickTime, setLastClickTime] = useState<number>(0);
   const { sortedAndFilteredProcedureTypes, sortConfig, handleSort } = useSortProcedureTypeList(
     procedureTypeRows,
     searchTerm,
@@ -45,22 +47,14 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
   const [deleteData, setDeleteData] = useState<{ id: string; name: string } | null>(null);
   const [editData, setEditData] = useState<ProcedureType | null>(null);
 
-  const handleRowClick = (procedureTypeId: string | undefined) => {
-    if (!procedureTypeId) return;
-
-    const now = Date.now();
-    const isDoubleClick = lastClickedId === procedureTypeId && now - lastClickTime < 300;
-
-    setLastClickedId(procedureTypeId);
-    setLastClickTime(now);
-
-    if (isDoubleClick) {
-      const procedureTypeObject = procedureTypes.find((pt) => pt.id === procedureTypeId);
-      if (procedureTypeObject) {
-        setEditData(procedureTypeObject);
-      }
-    }
-  };
+  const onDoubleClick = useCallback(
+    (id: string) => {
+      const pt = procedureTypes.find((p) => p.id === id);
+      if (pt) setEditData(pt);
+    },
+    [procedureTypes],
+  );
+  const { handleRowClick } = useDoubleClickRow(onDoubleClick);
 
   return (
     <div className="m3-table-container flex-1">
@@ -95,10 +89,25 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
                 </span>
               </td>
             </tr>
+          ) : error ? (
+            <tr>
+              <td colSpan={4} className="m3-td text-center py-12">
+                <p className="text-m3-error mb-3">{t("list.loadError")}</p>
+                <Button variant="secondary" size="sm" onClick={retry}>
+                  {t("list.retry")}
+                </Button>
+              </td>
+            </tr>
+          ) : procedureTypeRows.length === 0 && !searchTerm ? (
+            <tr>
+              <td colSpan={4} className="m3-td text-center py-12 text-m3-on-surface-variant">
+                {t("list.empty")}
+              </td>
+            </tr>
           ) : sortedAndFilteredProcedureTypes.length === 0 ? (
             <tr>
               <td colSpan={4} className="m3-td text-center py-12 text-m3-on-surface-variant">
-                {t("list.noData")}
+                {t("list.noResults")}
               </td>
             </tr>
           ) : (
@@ -112,7 +121,9 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
                   title={tc("table.doubleClickToEdit")}
                 >
                   <td className="m3-td font-medium text-m3-on-surface">{row.name}</td>
-                  <td className="m3-td text-m3-on-surface">€{row.defaultAmount.toFixed(2)}</td>
+                  <td className="m3-td text-m3-on-surface">
+                    {euroFormatter.format(row.defaultAmount)}
+                  </td>
                   <td className="m3-td text-m3-on-surface">{row.category || "-"}</td>
                   <td className="m3-td text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -169,7 +180,8 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
                 error,
                 procedureTypeId: deleteData.id,
               });
-              toastService.show("error", t("action.delete.error", { error: String(error) }));
+              const message = error instanceof Error ? error.message : String(error);
+              toastService.show("error", t("action.delete.error", { error: message }));
             }
           }
         }}

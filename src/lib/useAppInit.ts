@@ -21,6 +21,7 @@ export function useAppInit() {
   const setPatients = useAppStore((state) => state.setPatients);
   const setFunds = useAppStore((state) => state.setFunds);
   const setProcedureTypes = useAppStore((state) => state.setProcedureTypes);
+  const setProcedureTypesError = useAppStore((state) => state.setProcedureTypesError);
   const setBankAccounts = useAppStore((state) => state.setBankAccounts);
   const setFundPaymentGroups = useAppStore((state) => state.setFundPaymentGroups);
   const setLoading = useAppStore((state) => state.setLoading);
@@ -53,7 +54,11 @@ export function useAppInit() {
         const typesResult = await commands.readAllProcedureTypes();
         if (typesResult.status === "ok") {
           setProcedureTypes(typesResult.data);
+          setProcedureTypesError(null);
           logger.info("Procedure types loaded and cached", { count: typesResult.data.length });
+        } else {
+          setProcedureTypesError(typesResult.error);
+          logger.error("Failed to load procedure types", { error: typesResult.error });
         }
         setLoading("procedureTypes", false);
 
@@ -116,6 +121,7 @@ export function useAppInit() {
           const result = await commands.readAllProcedureTypes();
           if (result.status === "ok") {
             setProcedureTypes(result.data);
+            setProcedureTypesError(null);
           }
         });
 
@@ -177,5 +183,13 @@ export function useAppInit() {
         cleanup();
       }
     };
-  }, [setPatients, setFunds, setProcedureTypes, setBankAccounts, setLoading, setFundPaymentGroups]);
+  }, [
+    setPatients,
+    setFunds,
+    setProcedureTypes,
+    setProcedureTypesError,
+    setBankAccounts,
+    setLoading,
+    setFundPaymentGroups,
+  ]);
 }

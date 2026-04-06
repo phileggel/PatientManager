@@ -1,3 +1,5 @@
+export const RESERVED_PROCEDURE_TYPE_ID = "import-pdf";
+
 /**
  * Form data for procedure type add/edit forms (ProcedureTypeForm component)
  */

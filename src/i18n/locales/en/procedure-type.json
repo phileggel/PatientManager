@@ -1,14 +1,14 @@
 {
   "page": {
     "title": "Procedure Types",
-    "searchPlaceholder": "Search procedure types...",
-    "addDescription": "Add a new procedure type."
+    "searchPlaceholder": "Search procedure types..."
   },
   "form": {
     "name": "Procedure Type Name",
     "namePlaceholder": "e.g., Consultation",
     "amount": "Default Amount (€)",
     "category": "Category",
+    "amountPlaceholder": "0.00",
     "categoryPlaceholder": "e.g., Medical",
     "nameRequired": "Name is required",
     "amountRequired": "Default amount is required",
@@ -19,10 +19,15 @@
     "amount": "Default Amount",
     "category": "Category",
     "loading": "Loading procedure types...",
-    "noData": "No procedure types found."
+    "empty": "No procedure types yet. Use the + button to create one.",
+    "noResults": "No procedure types match your search.",
+    "loadError": "Failed to load procedure types.",
+    "retry": "Retry"
   },
   "action": {
     "add": "Add Procedure Type",
+    "addTitle": "New Procedure Type",
+    "fabAriaLabel": "Create a procedure type",
     "adding": "Adding...",
     "update": "Update",
     "updating": "Updating...",

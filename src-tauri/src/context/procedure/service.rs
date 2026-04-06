@@ -3,6 +3,7 @@ use std::sync::Arc;
 use super::domain::{Procedure, ProcedureType};
 use super::repository::{ProcedureRepository, ProcedureTypeRepository};
 use crate::core::event_bus::{EventBus, ProcedureTypeUpdated, ProcedureUpdated};
+use crate::core::logger::BACKEND;
 
 /// Application service for procedure type operations
 ///
@@ -40,9 +41,23 @@ impl ProcedureTypeService {
         default_amount: i64,
         category: Option<String>,
     ) -> anyhow::Result<ProcedureType> {
+        tracing::info!(name: BACKEND, procedure_name = %name, default_amount, "Adding procedure type");
+        if name.trim().is_empty() {
+            anyhow::bail!("Procedure type name cannot be empty");
+        }
+        if default_amount < 0 {
+            anyhow::bail!(
+                "Default amount cannot be negative (received: {})",
+                default_amount
+            );
+        }
+        let category = category.filter(|s| !s.trim().is_empty());
+        if self.repository.find_by_name(name.trim()).await?.is_some() {
+            anyhow::bail!("A procedure type with this name already exists");
+        }
         let result = self
             .repository
-            .create_procedure_type(name, default_amount, category)
+            .create_procedure_type(name.trim().to_string(), default_amount, category)
             .await?;
         let _ = self
             .event_bus
@@ -55,6 +70,19 @@ impl ProcedureTypeService {
         &self,
         procedure_type: ProcedureType,
     ) -> anyhow::Result<ProcedureType> {
+        tracing::info!(name: BACKEND, id = %procedure_type.id, procedure_name = %procedure_type.name, "Updating procedure type");
+        if procedure_type.id == "import-pdf" {
+            anyhow::bail!("The reserved import-pdf type cannot be updated");
+        }
+        if let Some(existing) = self
+            .repository
+            .find_by_name(procedure_type.name.trim())
+            .await?
+        {
+            if existing.id != procedure_type.id {
+                anyhow::bail!("A procedure type with this name already exists");
+            }
+        }
         let result = self
             .repository
             .update_procedure_type(procedure_type)
@@ -67,6 +95,10 @@ impl ProcedureTypeService {
 
     /// Soft-delete a procedure type
     pub async fn delete_procedure_type(&self, id: &str) -> anyhow::Result<()> {
+        tracing::info!(name: BACKEND, id = %id, "Deleting procedure type");
+        if id == "import-pdf" {
+            anyhow::bail!("The reserved import-pdf type cannot be deleted");
+        }
         self.repository.delete_procedure_type(id).await?;
         let _ = self
             .event_bus
@@ -287,9 +319,34 @@ mod tests {
     use super::*;
     use anyhow::anyhow;
 
-    /// Mock repository for testing using anyhow::Result
     struct MockProcedureTypeRepository {
         should_fail: bool,
+        existing_name: Option<String>,
+        existing_id: Option<String>,
+    }
+
+    impl MockProcedureTypeRepository {
+        fn new() -> Self {
+            Self {
+                should_fail: false,
+                existing_name: None,
+                existing_id: None,
+            }
+        }
+        fn failing() -> Self {
+            Self {
+                should_fail: true,
+                existing_name: None,
+                existing_id: None,
+            }
+        }
+        fn with_existing(name: &str, id: &str) -> Self {
+            Self {
+                should_fail: false,
+                existing_name: Some(name.to_string()),
+                existing_id: Some(id.to_string()),
+            }
+        }
     }
 
     #[async_trait::async_trait]
@@ -303,12 +360,12 @@ mod tests {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
-            Ok(ProcedureType {
-                id: "test-type-id-12345".to_string(),
+            Ok(ProcedureType::restore(
+                "test-type-id-12345".to_string(),
                 name,
                 default_amount,
                 category,
-            })
+            ))
         }
 
         async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>> {
@@ -322,12 +379,12 @@ mod tests {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
-            Ok(Some(ProcedureType {
-                id: "test-type-id".to_string(),
-                name: "Consultation".to_string(),
-                default_amount: 100000,
-                category: Some("Medical".to_string()),
-            }))
+            Ok(Some(ProcedureType::restore(
+                "test-type-id".to_string(),
+                "Consultation".to_string(),
+                100000,
+                Some("Medical".to_string()),
+            )))
         }
 
         async fn update_procedure_type(
@@ -347,9 +404,21 @@ mod tests {
             Ok(())
         }
 
-        async fn find_by_name(&self, _name: &str) -> anyhow::Result<Option<ProcedureType>> {
+        async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
+            }
+            if let (Some(existing_name), Some(existing_id)) =
+                (&self.existing_name, &self.existing_id)
+            {
+                if existing_name.to_lowercase() == name.to_lowercase() {
+                    return Ok(Some(ProcedureType::restore(
+                        existing_id.clone(),
+                        existing_name.clone(),
+                        100000,
+                        None,
+                    )));
+                }
             }
             Ok(None)
         }
@@ -357,25 +426,145 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_procedure_type_error_propagates() {
-        let repo = Arc::new(MockProcedureTypeRepository { should_fail: true });
-        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
-
+        let service = ProcedureTypeService::new(
+            Arc::new(MockProcedureTypeRepository::failing()),
+            Arc::new(EventBus::new()),
+        );
         let result = service
             .add_procedure_type("Test Type".to_string(), 150000, None)
             .await;
-
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
     }
 
     #[tokio::test]
     async fn test_delete_procedure_type_error_propagates() {
-        let repo = Arc::new(MockProcedureTypeRepository { should_fail: true });
-        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
-
+        let service = ProcedureTypeService::new(
+            Arc::new(MockProcedureTypeRepository::failing()),
+            Arc::new(EventBus::new()),
+        );
         let result = service.delete_procedure_type("test-id").await;
-
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
+    }
+
+    #[tokio::test]
+    async fn test_add_procedure_type_rejects_empty_name() {
+        let service = ProcedureTypeService::new(
+            Arc::new(MockProcedureTypeRepository::new()),
+            Arc::new(EventBus::new()),
+        );
+        let result = service
+            .add_procedure_type("   ".to_string(), 100000, None)
+            .await;
+        assert!(result.is_err());
+        assert!(
+            result.unwrap_err().to_string().contains("cannot be empty"),
+            "Expected 'cannot be empty' error for blank name"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_add_procedure_type_rejects_negative_amount() {
+        let service = ProcedureTypeService::new(
+            Arc::new(MockProcedureTypeRepository::new()),
+            Arc::new(EventBus::new()),
+        );
+        let result = service
+            .add_procedure_type("Valid Name".to_string(), -1, None)
+            .await;
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("cannot be negative"),
+            "Expected 'cannot be negative' error for negative amount"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_add_procedure_type_rejects_duplicate_name() {
+        let repo = Arc::new(MockProcedureTypeRepository::with_existing(
+            "Consultation",
+            "existing-id",
+        ));
+        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
+        let result = service
+            .add_procedure_type("consultation".to_string(), 100000, None)
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("already exists"));
+    }
+
+    #[tokio::test]
+    async fn test_add_procedure_type_normalizes_empty_category() {
+        let service = ProcedureTypeService::new(
+            Arc::new(MockProcedureTypeRepository::new()),
+            Arc::new(EventBus::new()),
+        );
+        let result = service
+            .add_procedure_type("Test".to_string(), 100000, Some("  ".to_string()))
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().category, None);
+    }
+
+    #[tokio::test]
+    async fn test_update_procedure_type_rejects_import_pdf() {
+        let service = ProcedureTypeService::new(
+            Arc::new(MockProcedureTypeRepository::new()),
+            Arc::new(EventBus::new()),
+        );
+        let pt = ProcedureType::restore("import-pdf".to_string(), "Import".to_string(), 0, None);
+        let result = service.update_procedure_type(pt).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("import-pdf"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_type_rejects_import_pdf() {
+        let service = ProcedureTypeService::new(
+            Arc::new(MockProcedureTypeRepository::new()),
+            Arc::new(EventBus::new()),
+        );
+        let result = service.delete_procedure_type("import-pdf").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("import-pdf"));
+    }
+
+    #[tokio::test]
+    async fn test_update_procedure_type_rejects_duplicate_name() {
+        let repo = Arc::new(MockProcedureTypeRepository::with_existing(
+            "Consultation",
+            "other-id",
+        ));
+        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
+        let pt = ProcedureType::restore(
+            "my-id".to_string(),
+            "CONSULTATION".to_string(),
+            100000,
+            None,
+        );
+        let result = service.update_procedure_type(pt).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("already exists"));
+    }
+
+    #[tokio::test]
+    async fn test_update_procedure_type_allows_same_name_same_id() {
+        let repo = Arc::new(MockProcedureTypeRepository::with_existing(
+            "Consultation",
+            "my-id",
+        ));
+        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
+        let pt = ProcedureType::restore(
+            "my-id".to_string(),
+            "Consultation".to_string(),
+            100000,
+            None,
+        );
+        let result = service.update_procedure_type(pt).await;
+        assert!(result.is_ok());
     }
 }
