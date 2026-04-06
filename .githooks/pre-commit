@@ -22,9 +22,9 @@ fi
 
 # English comment: We now use the --fast flag to skip heavy tests and builds
 if python3 "$CHECK_SCRIPT" --fast; then
-  echo -e "${GREEN}✨ Fast checks passed. Commit allowed.${NC}"
-  exit 0
+    echo -e "${GREEN}✨ Fast checks passed. Commit allowed.${NC}"
+    exit 0
 else
-  echo -e "${RED}❌ Quality checks failed. Commit blocked.${NC}"
-  exit 1
+    echo -e "${RED}❌ Quality checks failed. Commit blocked.${NC}"
+    exit 1
 fi

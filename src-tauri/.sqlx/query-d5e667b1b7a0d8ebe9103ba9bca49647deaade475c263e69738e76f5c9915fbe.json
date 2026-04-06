@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, name, default_amount, category, is_deleted\n            FROM procedure_type\n            WHERE name = $1 AND is_deleted = 0\n            ",
+  "query": "\n            SELECT id, name, default_amount, category, is_deleted\n            FROM procedure_type\n            WHERE LOWER(name) = LOWER($1) AND is_deleted = 0\n            ",
   "describe": {
     "columns": [
       {
@@ -40,5 +40,5 @@
       false
     ]
   },
-  "hash": "ac2d1941c5077f3aef9add315b544a32c15b3807a2b2c5b8d7e597e85a11e465"
+  "hash": "d5e667b1b7a0d8ebe9103ba9bca49647deaade475c263e69738e76f5c9915fbe"
 }

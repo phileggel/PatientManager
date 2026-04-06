@@ -14,7 +14,7 @@ TITLE=$(grep -v '^#' "$COMMIT_MSG_FILE" | head -n 1)
 
 # If title is empty or whitespace-only, exit (e.g. empty commit)
 if [ -z "$(echo "$TITLE" | tr -d '[:space:]')" ]; then
-  exit 0
+    exit 0
 fi
 
 ERRORS=0
@@ -22,23 +22,23 @@ ERRORS=0
 # --- TITLE RULES ---
 
 # RULE 1 & 2: Format and type (Conventional Commits, optional scope)
-if ! echo "$TITLE" | grep -E "^(feat|fix|docs|test|chore|refactor|ci)(\([^)]+\))?: .+" > /dev/null; then
-  echo -e "${RED}❌ Invalid commit format (expected: type: description or type(scope): description)${NC}"
-  ERRORS=$((ERRORS + 1))
+if ! echo "$TITLE" | grep -E "^(feat|fix|docs|test|chore|refactor|ci)(\([^)]+\))?: .+" >/dev/null; then
+    echo -e "${RED}❌ Invalid commit format (expected: type: description or type(scope): description)${NC}"
+    ERRORS=$((ERRORS + 1))
 fi
 
 # RULE 3: Title length
 if [ ${#TITLE} -gt 72 ]; then
-  echo -e "${RED}❌ Title longer than 72 characters (${#TITLE})${NC}"
-  ERRORS=$((ERRORS + 1))
+    echo -e "${RED}❌ Title longer than 72 characters (${#TITLE})${NC}"
+    ERRORS=$((ERRORS + 1))
 fi
 
 # RULE 4: No trailing period
 # Trim trailing whitespace to catch "feat: add feature. " cases
 TITLE_TRIMMED=$(echo "$TITLE" | sed 's/[[:space:]]*$//')
 if [[ "$TITLE_TRIMMED" == *. ]]; then
-  echo -e "${RED}❌ Title must not end with a period${NC}"
-  ERRORS=$((ERRORS + 1))
+    echo -e "${RED}❌ Title must not end with a period${NC}"
+    ERRORS=$((ERRORS + 1))
 fi
 
 # --- BODY RULES ---
@@ -48,21 +48,21 @@ BODY_LINES=$(sed '1d' "$COMMIT_MSG_FILE" | { grep -v '^#' || true; } | { grep -v
 
 # RULE 5: Body length limit
 if [ "$BODY_LINES" -gt 5 ]; then
-  echo -e "${RED}❌ Commit body longer than 5 lines ($BODY_LINES)${NC}"
-  echo "    Note: Empty lines and Git comments are ignored."
-  ERRORS=$((ERRORS + 1))
+    echo -e "${RED}❌ Commit body longer than 5 lines ($BODY_LINES)${NC}"
+    echo "    Note: Empty lines and Git comments are ignored."
+    ERRORS=$((ERRORS + 1))
 fi
 
 # RULE 6: No Co-Authored-By
-if grep -i "^Co-Authored-By:" "$COMMIT_MSG_FILE" > /dev/null; then
-  echo -e "${RED}❌ Commit contains a Co-Authored-By line${NC}"
-  ERRORS=$((ERRORS + 1))
+if grep -i "^Co-Authored-By:" "$COMMIT_MSG_FILE" >/dev/null; then
+    echo -e "${RED}❌ Commit contains a Co-Authored-By line${NC}"
+    ERRORS=$((ERRORS + 1))
 fi
 
 # --- VERDICT ---
 if [ $ERRORS -gt 0 ]; then
-  echo -e "${RED}❌ Commit blocked: $ERRORS error(s)${NC}"
-  exit 1
+    echo -e "${RED}❌ Commit blocked: $ERRORS error(s)${NC}"
+    exit 1
 fi
 
 echo -e "${GREEN}✅ Commit format OK${NC}"

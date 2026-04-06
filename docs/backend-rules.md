@@ -57,6 +57,8 @@ tracing::info!(name: BACKEND, field = value, "message");
 
 **B14** — MAY use `#[allow(clippy::too_many_arguments)]` on domain factory methods.
 
+**B17** — EVERY new Tauri command declared in api.rs (per B5/B9) MUST be registered in src-tauri/src/core/specta_builder.rs to ensure frontend type synchronization.
+
 ## Tests
 
 **B15** — Tests MUST NOT be trivial. A trivial test is one that verifies:

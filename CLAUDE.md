@@ -4,126 +4,82 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Full architecture reference: [ARCHITECTURE.md](ARCHITECTURE.md)
 
-## ⚠️ Workflow & Planning
-**IMPORTANT**: Claude Code will NOT commit, create branches, or create PRs. The user handles all git operations.
-
-### CRITICAL: Implementation task
-- Any code file is considered as implementation task
-- ONLY exception is doc files
-- Every task should follow *Plan Before Implementation*
-
-### Workflow
-0. (Optional) For new features with unclear requirements → run **`/spec-writer`** skill to produce `docs/{feature}.md`, then **`spec-reviewer`** agent to validate the spec quality, then **`feature-planner`** agent to generate the implementation plan.
-1. Read relevant documentation
-   - for backend **follow** `/docs/backend-rules.md`
-   - for frontend **follow** `/docs/frontend-rules.md`
-2. **Analyze** the request and current codebase.
-3. **Propose a TODO plan** — or run `feature-planner` agent for complex features (reads spec + architecture, produces exact file paths and tasks by layer)
-4. CRITICAL: ask user to validate. If changes, go back to step 3 with the adapted plan.
-4b. (Optional) For significant new/redesigned UI → run **Stitch workflow** (see 🎨 Stitch Workflow section)
-5. Implementation
-6. Test & Lint `python3 scripts/check.py`
-7. Run the `reviewer` subagent → **show the full report to the user** → ask which issues to tackle → fix selected issues → re-run until 0 critical
-7b. If any `.tsx` file was modified → run `ux-reviewer` subagent → **show the full report to the user** → ask which issues to tackle → fix selected issues → re-run until 0 critical
-7c. If any `.sh`, `.py`, or `.githooks` file was modified → run `script-reviewer` subagent
-8. If frontend text was added/changed → run `i18n-checker` subagent
-9. If tests are missing → write them directly (backend: Rust `#[cfg(test)]` inline, frontend: `.test.ts` colocated) — follow `/docs/testing.md`
-10. Update documentation:
-    - Update `ARCHITECTURE.md` if new files, modules, or features were added/removed
-    - Update `docs/todo.md` to remove resolved items or add newly discovered ones
-    - Update the relevant spec in `docs/` if new business rules were added
-    - If a spec doc exists → run `spec-checker` subagent to confirm all rules are covered
-11. **Self-check** — before asking to commit, explicitly verify each step:
-    - [ ] (Si step 0 utilisé) spec-reviewer + feature-planner run avant implémentation (step 0)
-    - [ ] Docs read (step 1)
-    - [ ] Reviewer run and clean (step 7)
-    - [ ] UX reviewer run and clean if .tsx modified (step 7b)
-    - [ ] script-reviewer run if .sh/.py/.githooks modified (step 7c)
-    - [ ] i18n-checker run if text changed (step 8)
-    - [ ] Tests written (step 9)
-    - [ ] ARCHITECTURE.md updated if needed (step 10)
-    - [ ] docs/todo.md updated if needed (step 10) — manual edit ou `todo-manager` agent
-    - [ ] Spec updated + spec-checker run if spec exists (step 10)
-12. CRITICAL: ask user if commit is needed and follow his instructions
-
-### Task tracking (within a conversation)
-Use `TaskCreate` / `TaskUpdate` to track workflow steps for non-trivial tasks:
-- Create one task per workflow step at the start of implementation
-- Mark each step `in_progress` when starting, `completed` when done
-- This prevents skipping steps and gives the user visibility
-
-### Available Subagents (`.claude/agents/`)
-
-**Pre-implementation (spec & planning)**
-- `spec-reviewer` — reviews a draft spec doc for quality before implementation: rule atomicity, scope coverage, DDD alignment, UX completeness, conflicts; use between spec-writer and feature-planner
-- `feature-planner` — reads a validated spec doc + architecture, produces an exact TODO plan (file paths, function names, layers); use at step 3 for complex features
-
-**Post-implementation (review & quality)**
-- `reviewer` — DDD + backend/frontend rules compliance check (step 7)
-- `ux-reviewer` — M3 + Clinical Atelier compliance, empty/loading/error states, form UX, accessibility, consistency (step 7b, frontend only)
-- `i18n-checker` — finds hardcoded strings, missing/dead translation keys fr + en (step 8)
-- `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested (step 10)
-- `maintainer` — reviews `.github/workflows/`, `tauri.conf.json`, `Cargo.toml`, `package.json`, `scripts/`, `.githooks/`, and `justfile` for CI correctness, security, reliability, and cross-file consistency; also suggests CI improvements (performance, cost, observability, DX) when run as a standalone audit
-- `script-reviewer` — Bash and Python expert reviewer for `scripts/` and `.githooks/` files; checks safety (`set -euo pipefail`, quoting, injection), robustness, portability, and consistency with CI
-
-**Project management**
-- `todo-manager` — cross-references docs/todo.md with git history and codebase; removes resolved items, translates English items to French, adds newly discovered tech debt; use at the start of a work session
-
-**Meta**
-- `ia-reviewer` — meta-reviewer for AI configuration: audits all agent definitions, skills, and CLAUDE.md for correctness, clarity, completeness, and internal consistency
-
-### Available Skills (`.claude/skills/`)
-- `/spec-writer` — interactive spec writer: interviews the user, reads the domain, produces `docs/{feature}.md` with Rn rules + UX draft; optional Stitch mockup generation (step 0)
-- `/smart-commit` — conventional commit avec validation tests + linters + confirmation (step 12)
-- `/dep-audit` — audit npm + Cargo deps (versions outdées, CVEs) via web search; à lancer avant chaque release
+## ⚠️ Core Rules
+**IMPORTANT**: Claude Code will NOT commit, create branches, or create PRs via raw git commands. The user handles all git operations. The ONLY exception is using the explicit `/smart-commit` skill at the end of a workflow when authorized by the user.
 
 ---
 
-## 🎨 Stitch Workflow
+## 🔄 Workflows & Planning
 
-### When to use Stitch
-Use Stitch when the task involves a **significant new or redesigned UI component** (new page, new modal, major UX change). Not for small fixes or backend-only work. Insert as optional **step 3b**, between plan validation and implementation.
+Before starting any task, analyze the request, state which workflow you are following, and follow its steps precisely.
 
-### Process
-```
-Step 3b-1: Claude generates initial mockup
-           → mcp__stitch__generate_screen_from_text (project: ProjectSF / 7705025027636758446)
-           → device: DESKTOP, model: GEMINI_3_1_PRO
-           Optional: generate variants for design exploration
-           → mcp__stitch__generate_variants (2-5 variants, EXPLORE range)
-           → present variants to user, user picks one
-Step 3b-2: User refines the chosen design on stitch.withgoogle.com
-           Minor corrections can be done by Claude via mcp__stitch__edit_screens
-           (e.g. "move the search field below the section label")
-Step 3b-3: Claude downloads the result
-           → mcp__stitch__list_screens → mcp__stitch__get_screen
-           → curl HTML to docs/stitch/{feature}.stitch  (.stitch = no linting, gitignored, ephemeral)
-Step 3b-4: Claude reads the HTML and extracts structure as implementation reference
-```
+### OPTION A: Full Feature Workflow
+*Use for: New features, new business logic, significant UI changes, or complex refactoring.*
 
-### Adapting Stitch output to the codebase
-- **Layout/structure** → reimplement in TSX using `ui/components` — never copy-paste Stitch HTML
-- **Colors** → map Stitch tokens to our M3 tokens (same semantic names, our values in `tailwind.css`)
-- **Fonts/shadows/glassmorphism** → only use if already adopted in our design system (see design system alignment)
-- **Stitch HTML is reference only** — it shows intent, not implementation
+**Phase 1: Pre-implementation (Spec & Plan)**
+1. Run **`/spec-writer`** skill to interview the user and produce `docs/spec/{feature}.md`.
+2. (Optional) **/adr-manager** skill to produce `docs/adr/{ref}.md` if required.
+3. Run **`spec-reviewer`** agent to validate the spec quality (DDD alignment, rule atomicity).
+4. Run **`feature-planner`** agent. It reads the spec and architecture, and outputs a persistent implementation plan at `docs/spec/{feature}-plan.md`.
 
-### UX changes made during Stitch edition
-After downloading, Claude identifies UX elements added/changed by the user in Stitch (e.g. new button, new section). These become **complementary todos** — not blocking the current implementation. Implementation follows two phases:
-1. **UI structure** — match the Stitch screen layout and visual design
-2. **UX wiring** — implement the behavior behind new UI elements (separate task)
+**Phase 2: Execution (CRITICAL)**
+1. Read relevant documentation (`docs/backend-rules.md` and `docs/frontend-rules.md`).
+2. Read the generated `docs/spec/{feature}-plan.md`. **This file is your Primary TaskList.** You are strictly forbidden from deviating from it.
+3. Implement the feature layer by layer.
+4. **Real-time Tracking**: You MUST physically update the checkboxes (`[ ]` to `[x]`) in the `docs/spec/{feature}-plan.md` file using file editing tools (`write_file` or `replace_lines`) immediately after completing each task. This allows the user to monitor your exact progress.
 
-### .stitch file lifecycle
-- Created at step 3b-3
-- Used during implementation (step 5) as visual reference
-- **Delete when `ux-reviewer` passes** on the implemented component — the reference is done
+**Phase 3: Review & Quality**
+1. Test & Lint: Run `python3 scripts/check.py` (or `just format`).
+2. Write missing tests directly following `docs/testing.md` (Backend: `#[cfg(test)]`, Frontend: `.test.ts`).
+3. Run the Subagent Gauntlet:
+   - Run **`reviewer`** agent → fix issues.
+   - If `.tsx` modified: run **`ux-reviewer`** agent → fix issues.
+   - If `.sh`, `.py`, or `.githooks` modified: run **`script-reviewer`** agent.
+   - If UI text changed: run **`i18n-checker`** agent.
 
-### Design system alignment
-When Stitch introduces new design patterns (new tokens, shadows, component styles), create a **dedicated todo** for design system alignment — never block feature implementation on it. After alignment, update the `ux-reviewer` agent rules to enforce the new patterns. Stitch project design system and our `tailwind.css` stay naturally in sync once T20 is done.
+**Phase 4: Validation & Closure**
+1. Update documentation (`ARCHITECTURE.md` and `docs/todo.md` if needed).
+2. Run **`spec-checker`** agent to confirm all Rn rules from the spec are successfully covered in the code.
+3. Run **`workflow-validator`** agent to verify that the whole workflow was executed and all checkboxes in the `plan.md` file are ticked.
+4. CRITICAL: Ask user if commit is needed. If yes, use the **`/smart-commit`** skill.
 
-### Design system reference
-- Stitch project: `projects/7705025027636758446` — use this single project for all features, never create a new one
-- Design system spec: `docs/stitch/design-system.md` ("The Clinical Atelier") — committed to git
-- Target alignment: indigo/purple M3 palette, Manrope (headlines) + Inter (body), primary-tinted ambient shadows, no structural borders (tonal surfaces instead), gradient primary CTAs, glassmorphism modals
+---
+
+### OPTION B: Simple Technical Workflow
+*Use for: Bug fixes, dependency updates, minor maintenance (no new business rules).*
+
+1. **Analysis**: Read relevant documentation and analyze the codebase.
+2. **Direct Plan**: Propose a concise TODO plan with exact file paths in the chat. Ask user to validate.
+3. **Tracking**: Use internal `TaskCreate` / `TaskUpdate` tools to track workflow steps (mark `in_progress` when starting, `completed` when done) for user visibility.
+4. **Implementation**: Execute the code changes.
+5. **Review & Quality**: Run static checks (`python3 scripts/check.py`), write tests, and run the relevant subagents (`reviewer`, `script-reviewer`, etc.) just like in Phase 3 of the Full Workflow.
+6. **Closure**: Ask user if another task is needed before commit, otherwise use **`/smart-commit`** skill.
+
+---
+
+## 🤖 Available Subagents (`.claude/agents/`)
+
+**Pre-implementation (spec & planning)**
+- `/spec-writer` (Skill) — Interactive spec writer: interviews the user, reads the domain, produces `docs/spec/{feature}.md` with Rn rules + UX draft.
+- `/adr-manager` (Skill) — Technical decision maker: interviews the user on architecture/tech choices, produces `docs/adr/ADR-XXX.md`.
+- `spec-reviewer` (Agent) — Quality control: reviews draft specs for rule atomicity, DDD alignment, and UX completeness before planning.
+- `feature-planner` (Agent) — Architect: reads spec + ADRs + architecture, produces the persistent implementation plan in `docs/spec/{feature}-plan.md`.
+
+**Post-implementation (review & quality)**
+- `reviewer` — DDD + backend/frontend rules compliance check
+- `ux-reviewer` — M3 + Clinical Atelier compliance, empty/loading/error states, form UX, accessibility, consistency (frontend only)
+- `i18n-checker` — finds hardcoded strings, missing/dead translation keys fr + en
+- `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested
+- `maintainer` — reviews CI/CD, manifests, and scripts for security, reliability, and cross-file consistency
+- `script-reviewer` — Bash and Python expert reviewer for `scripts/` and `.githooks/` files
+- `workflow-validator` — verifies that the entire workflow was executed correctly and all plan checkboxes are checked
+
+**Meta & Skills**
+- **`ia-reviewer`** (Agent) — Meta-auditor: audits agent definitions, skills, and CLAUDE.md for internal consistency.
+- **`/dep-audit`** (Skill) — Security: audits npm and Cargo dependencies for CVEs and updates.
+- **`/smart-commit`** (Skill) — Finalizer: generates conventional commits after final validation.
+
+---
 
 ## 🛠 Commands
 - Dev: `./scripts/start-app.sh`
@@ -138,11 +94,8 @@ Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
 
 **Backend (`src-tauri/src/`)**:
 - `core/specta_builder.rs` — Tauri command registry (DO NOT add commands elsewhere)
-- `context/{domain}/` — Bounded contexts (self-contained, no cross-context imports):
-  - `bank/`, `fund/`, `patient/`, `procedure/`
-  - Each has: `domain.rs`, `service.rs`, `repository.rs`, `api.rs`, `mod.rs`
-- `use_cases/{name}/` — Cross-context orchestrators:
-  - `bank_manual_match/`, `bank_statement_reconciliation/`, `excel_import/`, `fund_payment_reconciliation/`, `procedure_orchestration/`
+- `context/{domain}/` — Bounded contexts (self-contained, no cross-context imports)
+- `use_cases/{name}/` — Cross-context orchestrators
 
 **Frontend (`src/`)**:
 - `bindings.ts` — Auto-generated from Rust via Specta (DO NOT EDIT)
@@ -177,7 +130,7 @@ All domain objects use factory methods (NEVER direct struct literals):
 ---
 
 ## 📋 Plan Format Guidelines
-When proposing a TODO plan, Claude Code MUST:
+When proposing a direct TODO plan (Option B), Claude Code MUST:
 - List exact file paths, not abstract locations
 - Name the specific functions/methods/components to create or modify
 - Separate clearly by architectural layer (backend / frontend)
