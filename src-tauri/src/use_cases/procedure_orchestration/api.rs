@@ -1,4 +1,5 @@
 use crate::context::procedure::{PaymentMethod, Procedure, ProcedureCandidate, ProcedureStatus};
+use crate::core::logger::BACKEND;
 use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -149,6 +150,20 @@ pub async fn read_all_procedures(
         })
 }
 
+/// Returns true for statuses that block deletion and restrict editing (R5, R26).
+/// NOTE: Must stay in sync with `isBlockingStatus` in the frontend
+/// (`src/features/procedure/model/procedure-row.types.ts`).
+fn is_blocking_status(status: &str) -> bool {
+    matches!(
+        status,
+        "RECONCILIATED"
+            | "PARTIALLY_RECONCILED"
+            | "FUND_PAYED"
+            | "PARTIALLY_FUND_PAYED"
+            | "DIRECTLY_PAYED"
+    )
+}
+
 /// Tauri command: Update an existing procedure
 #[tauri::command]
 #[specta::specta]
@@ -157,6 +172,17 @@ pub async fn update_procedure(
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<Procedure, String> {
     tracing::info!(procedure_id = %raw.id, "Processing update procedure");
+
+    // R18/R26: frontend restricts edits on blocking-status procedures to procedure_type_id only.
+    // Log a warning if this invariant is violated (e.g. by a bug or direct API call).
+    if is_blocking_status(&raw.payment_status) {
+        tracing::warn!(
+            name: BACKEND,
+            procedure_id = %raw.id,
+            payment_status = %raw.payment_status,
+            "update_procedure called on blocking-status procedure - only procedure_type_id should change (R18/R26)"
+        );
+    }
 
     // Convert raw data to validated domain object
     let procedure = raw.into_procedure().map_err(|e| {

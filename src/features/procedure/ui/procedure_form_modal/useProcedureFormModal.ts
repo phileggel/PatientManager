@@ -1,18 +1,22 @@
 /**
  * useProcedureFormModal — unified hook for create, edit and view procedure modal.
  *
- * Create mode: auto-fill from patient, entity creation modals, calls addProcedure.
- * Edit mode:   initialises from existing Procedure, calls updateProcedure.
- * View mode:   initialises from existing Procedure, handleSubmit returns early (no gateway call).
+ * Create mode: auto-fill from patient history (R4), patient inline creation (R9),
+ *              calls addProcedure on submit.
+ * Edit mode:   initialises from existing Procedure, ComboboxField for patient (R29),
+ *              calls updateProcedure (payment fields passed through unchanged).
+ * View mode:   procedure_type_id editable only (R26), calls updateProcedure with
+ *              all other fields preserved from the original procedure.
  */
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AffiliatedFund, Patient, PaymentMethod, Procedure } from "@/bindings";
+import type { Patient, Procedure } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import * as gateway from "../../api/gateway";
+import { formatPatientLabel } from "../../model";
 
 const TAG = "[useProcedureFormModal]";
 
@@ -50,16 +54,11 @@ export function useProcedureFormModal({
   const [procedureAmount, setProcedureAmount] = useState<number | null>(
     procedure?.procedure_amount != null ? procedure.procedure_amount / 1000 : null,
   );
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">(
-    procedure?.payment_method ?? "NONE",
-  );
-  const [paymentDate, setPaymentDate] = useState(procedure?.confirmed_payment_date ?? "");
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  // Creation modal state (used in create mode)
+  // Creation modal state (create mode only)
   const [patientModal, setPatientModal] = useState({ open: false, query: "" });
-  const [fundModal, setFundModal] = useState({ open: false, query: "" });
 
   // Extract primitives to use as stable effect deps (avoids object identity issues)
   const initPatientId = procedure?.patient_id ?? "";
@@ -67,28 +66,16 @@ export function useProcedureFormModal({
   const initProcedureTypeId = procedure?.procedure_type_id ?? "";
   const initProcedureDate = procedure?.procedure_date ?? "";
   const initProcedureAmount = procedure?.procedure_amount ?? null;
-  const initPaymentMethod = procedure?.payment_method ?? "NONE";
-  const initPaymentDate = procedure?.confirmed_payment_date ?? "";
 
-  // Reset form when procedure changes (edit modal re-opened with different row)
+  // Reset form when procedure changes (edit/view modal re-opened with different row)
   useEffect(() => {
     setPatientId(initPatientId);
     setFundId(initFundId);
     setProcedureTypeId(initProcedureTypeId);
     setProcedureDate(initProcedureDate);
     setProcedureAmount(initProcedureAmount != null ? initProcedureAmount / 1000 : null);
-    setPaymentMethod(initPaymentMethod);
-    setPaymentDate(initPaymentDate);
     setFieldErrors({});
-  }, [
-    initPatientId,
-    initFundId,
-    initProcedureTypeId,
-    initProcedureDate,
-    initProcedureAmount,
-    initPaymentMethod,
-    initPaymentDate,
-  ]);
+  }, [initPatientId, initFundId, initProcedureTypeId, initProcedureDate, initProcedureAmount]);
 
   // Auto-fill on patient selection (create mode only, R4)
   const handlePatientChange = useCallback(
@@ -112,8 +99,6 @@ export function useProcedureFormModal({
     setProcedureTypeId("");
     setProcedureDate("");
     setProcedureAmount(null);
-    setPaymentMethod("NONE");
-    setPaymentDate("");
     setFieldErrors({});
   }, []);
 
@@ -127,7 +112,35 @@ export function useProcedureFormModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (mode === "view") return;
+
+    if (mode === "view") {
+      // View mode: only procedure_type_id is editable (R26)
+      if (!procedure || !procedureTypeId) return;
+      setLoading(true);
+      try {
+        await gateway.updateProcedure({
+          id: procedure.id,
+          patient_id: procedure.patient_id,
+          fund_id: procedure.fund_id,
+          procedure_type_id: procedureTypeId,
+          procedure_date: procedure.procedure_date,
+          procedure_amount: procedure.procedure_amount,
+          payment_method: procedure.payment_method,
+          confirmed_payment_date: procedure.confirmed_payment_date,
+          actual_payment_amount: procedure.actual_payment_amount,
+          payment_status: procedure.payment_status,
+        });
+        toastService.show("success", t("state.updated"));
+        onSuccess?.();
+        onClose();
+      } catch (error) {
+        logger.error(`${TAG} Error updating procedure type in view mode`, { error });
+        toastService.show("error", error instanceof Error ? error.message : tc("error.unknown"));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     const errors = validate();
     if (Object.keys(errors).length > 0) {
@@ -154,6 +167,7 @@ export function useProcedureFormModal({
         onSuccess?.();
         onClose();
       } else {
+        // Edit mode: payment fields passed through unchanged from original procedure (R30)
         if (!procedure) return;
         await gateway.updateProcedure({
           id: procedure.id,
@@ -162,8 +176,8 @@ export function useProcedureFormModal({
           procedure_type_id: procedureTypeId,
           procedure_date: procedureDate,
           procedure_amount: procedureAmount != null ? Math.round(procedureAmount * 1000) : null,
-          payment_method: (paymentMethod || "NONE") as PaymentMethod,
-          confirmed_payment_date: paymentDate || null,
+          payment_method: procedure.payment_method,
+          confirmed_payment_date: procedure.confirmed_payment_date,
           actual_payment_amount: procedure.actual_payment_amount,
           payment_status: procedure.payment_status,
         });
@@ -179,7 +193,7 @@ export function useProcedureFormModal({
     }
   };
 
-  // Entity creation handlers (create mode)
+  // Patient inline creation handler (create mode only, R9)
   const handlePatientCreated = useCallback(
     async (data: { name: string; ssn?: string }) => {
       try {
@@ -195,32 +209,22 @@ export function useProcedureFormModal({
     [tc],
   );
 
-  const handleFundCreated = useCallback(
-    async (data: { fundIdentifier: string; name: string }) => {
-      try {
-        const fund: AffiliatedFund = await gateway.createNewFund(data.fundIdentifier, data.name);
-        setFundId(fund.id);
-        setFundModal({ open: false, query: "" });
-      } catch (error) {
-        logger.error(`${TAG} Error creating fund`, { error });
-        toastService.show("error", error instanceof Error ? error.message : tc("error.unknown"));
-      }
-    },
-    [tc],
-  );
-
   const selectedPatient = patients.find((p) => p.id === patientId);
-  const selectedFund = funds.find((f) => f.id === fundId);
   const sortedFunds = [...funds].sort((a, b) => a.fund_identifier.localeCompare(b.fund_identifier));
+
+  // Patient items formatted with INS for ComboboxField (R28, R31)
+  const patientItems = useMemo(
+    () => patients.map((p) => ({ id: p.id, label: formatPatientLabel(p) })),
+    [patients],
+  );
 
   return {
     // Reference data
-    patients,
+    patientItems,
     sortedFunds,
     procedureTypes,
     // Derived
     selectedPatient,
-    selectedFund,
     // Form state
     patientId,
     handlePatientChange,
@@ -232,19 +236,12 @@ export function useProcedureFormModal({
     setProcedureDate,
     procedureAmount,
     setProcedureAmount,
-    paymentMethod,
-    setPaymentMethod,
-    paymentDate,
-    setPaymentDate,
     loading,
     fieldErrors,
     handleSubmit,
-    // Creation modals
+    // Creation modals (create mode only)
     patientModal,
     setPatientModal,
-    fundModal,
-    setFundModal,
     handlePatientCreated,
-    handleFundCreated,
   };
 }

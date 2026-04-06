@@ -5,12 +5,9 @@
     "procedureType": "Procedure Type",
     "procedureDate": "Procedure Date",
     "amount": "Amount",
-    "paymentMethod": "Payment Method",
-    "paymentDate": "Payment Date",
     "noSelection": "—",
     "selectPatient": "Enter patient name",
     "selectFund": "Enter fund identifier or name",
-    "selectPaymentMethod": "Select payment method",
     "payment": {
       "none": "—",
       "cash": "Cash",
@@ -96,15 +93,7 @@
   "modal": {
     "title": "Update Procedure",
     "viewTitle": "View Procedure",
-    "closeAriaLabel": "Close",
-    "systemInfo": "System Information",
-    "procedureId": "Procedure ID",
-    "patientInfo": "Patient Information",
-    "ssn": "SSN",
-    "fundName": "Fund Name",
-    "paymentInfo": "Payment Information",
-    "status": "Status",
-    "paidAmount": "Paid Amount"
+    "closeAriaLabel": "Close"
   },
   "createPatient": {
     "title": "Create New Patient",
@@ -114,16 +103,6 @@
     "ssnLabel": "SSN (Optional)",
     "ssnPlaceholder": "Enter SSN (optional)",
     "submit": "Create Patient"
-  },
-  "createFund": {
-    "title": "Create New Fund",
-    "identifierLabel": "Fund Identifier",
-    "identifierPlaceholder": "Enter fund identifier (e.g., FUND001)",
-    "identifierRequired": "Fund identifier is required",
-    "nameLabel": "Fund Name",
-    "namePlaceholder": "Enter fund name",
-    "nameRequired": "Fund name is required",
-    "submit": "Create Fund"
   },
   "createProcedureType": {
     "title": "Create New Procedure Type",
