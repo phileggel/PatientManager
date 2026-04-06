@@ -27,7 +27,9 @@ encore été saisie.
 
 **R5 — Confirmation avant suppression** : La suppression d'un acte requiert toujours une `ConfirmationDialog`. Aucune ligne ne peut être supprimée sans confirmation explicite. La suppression est bloquée (frontend + backend) pour les actes en statut `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed` ou `DirectlyPayed` — ces actes sont rattachées à un groupe de paiement fond ou à une transaction bancaire directe ; les supprimer rendrait ces enregistrements incohérents. Pour les supprimer, il faut d'abord supprimer le virement, le groupe de paiement fond ou le paiement direct associé. Côté frontend, le bouton de suppression est `disabled` (`isBlockingStatus`) pour ces statuts. Côté backend, `delete_procedure` vérifie le statut avant suppression et retourne une erreur explicite.
 
-**R6 — Édition via modal** : Les actes enregistrés peuvent être édités dans `ProcedureFormModal` (mode="edit"), sauf pour les actes dont la suppression est bloquée (statuts `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`) qui s'ouvrent en mode lecture seule (cf. R26). Pour les actes éditables, le modal pré-remplit tous les champs depuis l'acte existante. Champs éditables : `patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `confirmed_payment_date`. Champs en lecture seule : `payment_status` et `actual_payment_amount` (affichés à titre informatif, transmis tels quels lors de la mise à jour). Note : `payment_method` et `confirmed_payment_date` ne sont disponibles qu'en mode édition — la commande `add_procedure` ne les expose pas (cf. R15).
+**R6 — Routage du modal selon le statut (frontend)** : Un double-clic sur une ligne ou un clic sur le bouton Éditer ouvre le modal dans le mode correspondant au statut de l'acte. Les actes dont le statut n'est pas bloquant (`None`, `Created`, `ImportDirectlyPayed`, `ImportFundPayed`) s'ouvrent en mode édition (cf. R30). Les actes dont la suppression est bloquée (`Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`) s'ouvrent en mode vue partielle (cf. R26).
+
+**R30 — Contenu du modal en mode édition (frontend)** : En mode édition, le modal pré-remplit tous les champs depuis l'acte existante. Champs éditables : `patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`. La sélection du patient s'effectue via un ComboboxField (cf. R29, R32). Les informations de paiement (`payment_method`, `confirmed_payment_date`, `payment_status`, `actual_payment_amount`) ne sont pas affichées — leur modification s'effectue exclusivement via la gestion des virements et des transactions bancaires. L'identifiant technique de l'acte n'est pas affiché. Pendant la sauvegarde, le bouton est désactivé et affiche un indicateur de chargement ; après sauvegarde réussie, le modal se ferme et une snackbar de succès est affichée ; en cas d'erreur backend ou réseau, le modal reste ouvert et une snackbar d'erreur est affichée.
 
 **R7 — Statistiques agrégées** : La barre d'en-tête affiche des statistiques agrégées pour les lignes filtrées (période + recherche) : nombre de patients uniques, nombre d'actes, total facturé (`procedureAmount`), total perçu (`actualPaymentAmount`), et total attendu (`max(0, procedureAmount − actualPaymentAmount)` par ligne). Les lignes brouillon (actes dont le champ `isDraft` est vrai, correspondant aux actes en cours de saisie pour la période active) sont exclues de toutes les statistiques.
 
@@ -36,7 +38,7 @@ encore été saisie.
 automatiquement. Les échecs de rechargement doivent être loggés et affichés à l'utilisateur
 via un toast.
 
-**R9 — Création d'entité inline** : Depuis le champ patient ou fonds **en mode création uniquement**, le praticien peut créer un nouveau patient ou un nouveau fonds sans fermer le modal. Le formulaire de création apparaît dans un modal imbriqué ; à la validation, la nouvelle entité est automatiquement sélectionnée. Cette fonctionnalité n'est pas disponible en mode édition.
+**R9 — Création de patient inline (frontend)** : Depuis le champ patient **en mode création uniquement**, le praticien peut créer un nouveau patient sans fermer le modal. Le formulaire de création apparaît dans un modal imbriqué ; à la validation, le nouveau patient est automatiquement sélectionné. Cette fonctionnalité n'est pas disponible en mode édition.
 
 **R10 — Badge de statut** : Le statut de paiement de chaque acte est affiché sous forme de
 badge coloré. Correspondance avec les tokens M3 :
@@ -57,6 +59,14 @@ largeur du contenu.
 
 **R27 — Validation du formulaire (frontend)** : Trois champs sont obligatoires dans le formulaire de création et d'édition : le patient (`patient_id`), le type d'acte (`procedure_type_id`) et la date de réalisation (`procedure_date`). Un message d'erreur est affiché par champ manquant et un toast d'erreur global est déclenché. Le montant (`procedure_amount`) et le fonds (`fund_id`) sont optionnels — une acte peut être enregistrée sans montant ni fonds.
 
+**R28 — Format d'affichage de l'INS (frontend)** : Lorsque le numéro de sécurité sociale du patient (INS — champ `ssn`) est renseigné, il est affiché entre parenthèses directement après le nom du patient. Exemple : `DUPOND Floriane (1234567890123)`. Si le patient n'a pas de numéro de sécurité sociale, les parenthèses et leur contenu sont omis.
+
+**R31 — Contextes d'application du format INS (frontend)** : Le format défini en R28 s'applique dans trois contextes : les entrées de la liste déroulante du ComboboxField patient (cf. R29), la valeur affichée dans le ComboboxField après sélection, et l'affichage du patient en lecture seule dans le modal de vue partielle (cf. R26).
+
+**R29 — Recherche patient par ComboboxField (frontend)** : Le champ patient en mode création et en mode édition est un ComboboxField à recherche textuelle. La saisie filtre en temps réel la liste des patients par nom ou par INS. Chaque entrée affiche le patient au format R28. Lorsque la recherche ne retourne aucun résultat, un message neutre est affiché.
+
+**R32 — Comportement du ComboboxField selon le mode (frontend)** : En mode création, le bouton de création inline de patient (cf. R9) reste visible même lorsque la recherche ne retourne aucun résultat. En mode édition, le ComboboxField est pré-positionné sur le patient de l'acte existant affiché au format R28 ; lorsque la recherche ne retourne aucun résultat, seul le message neutre (cf. R29) est affiché — aucun bouton de création n'est présent.
+
 ---
 
 ## Règles backend
@@ -71,7 +81,7 @@ vérifie que `patient_id` et `procedure_type_id` référencent des entités exis
 `fund_id` est fourni, le fonds doit également exister. Toute référence manquante interrompt
 la création avec une erreur.
 
-**R15 — Inférence du mode de paiement à la création** : À la création ou à l'import uniquement, `payment_method` est déterminé depuis les données brutes. En création via le formulaire frontend, la commande `add_procedure` n'expose pas les paramètres `payment_method` ni `confirmed_payment_date` — la méthode est donc toujours `None` et le statut initial est toujours `Created` (cf. R16). À l'import Excel, les codes de la colonne `T` sont traduits : code `"ES"` → `Cash` ; code `"CH"` → `Check` ; date présente + tout autre code ou absent → `BankTransfer`. Après création, `payment_method` est modifiable librement via le formulaire d'édition (R6, R18) ou atomiquement par les use cases de réconciliation (cf. specs dédiées).
+**R15 — Inférence du mode de paiement à la création** : À la création ou à l'import uniquement, `payment_method` est déterminé depuis les données brutes. En création via le formulaire frontend, la commande `add_procedure` n'expose pas les paramètres `payment_method` ni `confirmed_payment_date` — la méthode est donc toujours `None` et le statut initial est toujours `Created` (cf. R16). À l'import Excel, les codes de la colonne `T` sont traduits : code `"ES"` → `Cash` ; code `"CH"` → `Check` ; date présente + tout autre code ou absent → `BankTransfer`. Après création, `payment_method` est modifiable atomiquement par les use cases de réconciliation (cf. specs dédiées) via la commande `update_procedure` (R18) — il n'est pas exposé dans le formulaire d'édition (cf. R6).
 
 **R16 — Détermination du statut initial** : Le statut est calculé par l'orchestration,
 jamais accepté tel quel depuis l'appelant. Un acte est « payé » si (`confirmed_payment_date`
@@ -84,7 +94,7 @@ Non payé → `Created`. Payé + (méthode ES/CH OU pas de fonds) → `ImportDir
 **R17 — awaited_amount ignoré** : La valeur `awaited_amount` transmise par l'appelant est
 toujours ignorée et jamais persistée.
 
-**R18 — Mise à jour libre via le frontend** : La commande `update_procedure` accepte tous les champs d'un acte (`patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `confirmed_payment_date`, `actual_payment_amount`, `payment_status`) sans ré-inférence. Aucune validation de FK n'est effectuée à la mise à jour — choix délibéré : la mise à jour via le frontend est une opération de correction directe, et le frontend est responsable des valeurs envoyées. Seuls les champs exposés par R6 sont modifiables depuis l'interface.
+**R18 — Mise à jour libre via le frontend (backend)** : La commande `update_procedure` accepte tous les champs d'un acte (`patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `confirmed_payment_date`, `actual_payment_amount`, `payment_status`) sans ré-inférence. Aucune validation de FK n'est effectuée à la mise à jour — choix délibéré : la mise à jour via le frontend est une opération de correction directe, et le frontend est responsable des valeurs envoyées. Le backend n'impose aucune restriction sur les champs modifiables selon le statut de l'acte (y compris pour les statuts bloquants) — la restriction à `procedure_type_id` uniquement pour les actes bloquants est garantie exclusivement par le frontend (cf. R26).
 
 **R19 — Suivi patient à la création** : Après une création réussie (unitaire ou batch), si
 `procedure_date > patient.latest_date` (ou `latest_date` est null), l'orchestration met à
@@ -96,7 +106,7 @@ refléter que le dernier acte connu n'est plus rattaché à un fonds.
 
 > **Limitation connue** : l'implémentation actuelle ne met à jour `latest_fund` que si
 > `fund_id` est présent — elle ne l'efface pas lorsque l'acte la plus récente n'a pas de
-> fonds. Ce comportement est à corriger.
+> fonds. Ce comportement est à corriger (voir `docs/todo.md`).
 
 **R20 — Suivi patient à la suppression** : Après la suppression d'un acte, si le patient n'a plus aucune procédure et que `latest_date` est renseigné, les quatre champs de suivi sont effacés. Limitation connue : si l'acte supprimée était la plus récente mais que le patient a d'autres actes, les champs de suivi ne sont pas recalculés — ils conservent leurs anciennes valeurs jusqu'à la création d'un acte plus récent.
 
@@ -115,7 +125,7 @@ persiste toutes les procédures dans une seule transaction et publie exactement 
 
 **R25 — Filtre par statut** : Un sélecteur dédié permet de restreindre l'affichage à un statut de paiement précis. Ce filtre est indépendant de la recherche textuelle (R11) ; les deux filtres sont appliqués cumulativement sur les lignes de la période.
 
-**R26 — Consultation en lecture seule** : Les actes dont la suppression est bloquée (cf. R5 — statuts `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`) doivent pouvoir être consultées dans un modal en lecture seule (mode="view"). Tous les champs sont affichés mais non modifiables. Le bouton de sauvegarde est absent ; le bouton de suppression est absent ou désactivé.
+**R26 — Vue partielle (actes bloquants)** : Les actes dont la suppression est bloquée (cf. R5 — statuts `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`) s'ouvrent dans un modal en mode vue partielle (mode="view"). Le champ `procedure_type_id` reste éditable ; tous les autres champs sont affichés en lecture seule. Les champs affichés en lecture seule sont : le nom du patient (avec INS entre parenthèses si renseigné, cf. R28), la date de l'acte, le montant facturé et la caisse. Les informations de paiement ne sont pas affichées. L'identifiant technique de l'acte n'est pas affiché. Un bouton de sauvegarde est présent pour permettre la modification du type d'acte ; pendant la sauvegarde, il est désactivé et affiche un indicateur de chargement ; après sauvegarde réussie, le modal se ferme et une snackbar de succès est affichée ; en cas d'erreur backend ou réseau, le modal reste ouvert et une snackbar d'erreur est affichée. Le bouton de suppression est absent ou désactivé.
 
 ---
 
@@ -151,11 +161,11 @@ Cette feature est responsable de la **création** des actes uniquement. Les tran
 | `Created`             | oui (avec confirmation) | oui                       |
 | `ImportDirectlyPayed` | oui (avec confirmation) | oui                       |
 | `ImportFundPayed`     | oui (avec confirmation) | oui                       |
-| `DirectlyPayed`       | non — bloquée           | non — lecture seule (R26) |
-| `Reconciliated`       | non — bloquée           | non — lecture seule (R26) |
-| `PartiallyReconciled` | non — bloquée           | non — lecture seule (R26) |
-| `FundPayed`           | non — bloquée           | non — lecture seule (R26) |
-| `PartiallyFundPayed`  | non — bloquée           | non — lecture seule (R26) |
+| `DirectlyPayed`       | non — bloquée           | partielle — type d'acte uniquement (R26) |
+| `Reconciliated`       | non — bloquée           | partielle — type d'acte uniquement (R26) |
+| `PartiallyReconciled` | non — bloquée           | partielle — type d'acte uniquement (R26) |
+| `FundPayed`           | non — bloquée           | partielle — type d'acte uniquement (R26) |
+| `PartiallyFundPayed`  | non — bloquée           | partielle — type d'acte uniquement (R26) |
 
 ---
 
@@ -188,5 +198,4 @@ procedure/
       useProcedureFormModal.ts        — état du formulaire, validation, pré-remplissage (R4), appels gateway
     form/
       CreatePatientForm.tsx           — modal imbriqué pour la création inline de patient (R9)
-      CreateFundForm.tsx              — modal imbriqué pour la création inline de fonds (R9)
 ```

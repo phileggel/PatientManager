@@ -5,12 +5,9 @@
     "procedureType": "Type d'acte",
     "procedureDate": "Date de l'acte",
     "amount": "Montant",
-    "paymentMethod": "Méthode de paiement",
-    "paymentDate": "Date de paiement",
     "noSelection": "—",
     "selectPatient": "Entrez le nom du patient",
     "selectFund": "Entrez l'identifiant ou le nom de la caisse",
-    "selectPaymentMethod": "Sélectionner une méthode de paiement",
     "payment": {
       "none": "—",
       "cash": "Espèce",
@@ -96,15 +93,7 @@
   "modal": {
     "title": "Modifier l'acte",
     "viewTitle": "Consulter l'acte",
-    "closeAriaLabel": "Fermer",
-    "systemInfo": "Informations système",
-    "procedureId": "ID de l'acte",
-    "patientInfo": "Informations patient",
-    "ssn": "INS",
-    "fundName": "Nom de la caisse",
-    "paymentInfo": "Informations de paiement",
-    "status": "Statut",
-    "paidAmount": "Montant payé"
+    "closeAriaLabel": "Fermer"
   },
   "createPatient": {
     "title": "Créer un nouveau patient",
@@ -114,16 +103,6 @@
     "ssnLabel": "INS (Optionnel)",
     "ssnPlaceholder": "Entrez le numéro INS (optionnel)",
     "submit": "Créer le patient"
-  },
-  "createFund": {
-    "title": "Créer une nouvelle caisse",
-    "identifierLabel": "Identifiant caisse",
-    "identifierPlaceholder": "Entrez l'identifiant (ex. : CPAM75)",
-    "identifierRequired": "L'identifiant caisse est obligatoire",
-    "nameLabel": "Nom de la caisse",
-    "namePlaceholder": "Entrez le nom de la caisse",
-    "nameRequired": "Le nom de la caisse est obligatoire",
-    "submit": "Créer la caisse"
   },
   "createProcedureType": {
     "title": "Créer un nouveau type d'acte",
