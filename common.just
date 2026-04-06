@@ -1,5 +1,5 @@
-sync-kit version="main":
-    ./scripts/sync-config.sh {{version}}
+sync-kit:
+    ./scripts/sync-config.sh
 
 # Run fast quality check (lint/format only, no tests)
 check:
