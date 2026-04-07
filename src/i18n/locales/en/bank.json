@@ -43,6 +43,7 @@
       "noCredit": "No credit lines could be matched to a fund.",
       "noIban": "No IBAN found in the bank statement.",
       "noTransfer": "No transfer has been selected.",
+      "noVirSepaLines": "The statement contains no VIR SEPA lines. Please check that the file is a bank statement with SEPA transfers.",
       "noAccount": {
         "title": "Bank account not found",
         "description": "The IBAN {{iban}} does not match any registered bank account.",
@@ -50,19 +51,23 @@
       },
       "done": "{{count}} transfer(s) created successfully",
       "doneDescription": "Transfers have been recorded and payment groups are now reconciled.",
-      "error": "Error"
+      "error": "Error",
+      "unknownError": "An unexpected error occurred."
     }
   },
   "labelMapping": {
-    "title": "Unrecognised labels",
-    "description": "The following labels appear on the bank statement but are not yet associated with a fund. Please select the corresponding fund or \"REJECTED\" if the line does not correspond to a fund transfer.",
+    "title": "Label → fund associations",
+    "description": "The following labels appear on the statement. Saved associations are pre-filled — review them and complete the unknown labels before confirming.",
     "suggestion": "Suggestion: {{name}}",
     "selectPlaceholder": "-- Select --",
     "rejected": "REJECTED (Not a fund)",
     "fundsGroup": "Funds",
     "fundAriaLabel": "Fund for {{label}}",
-    "confirm": "Confirm associations",
-    "saving": "Saving..."
+    "accept": "Accept",
+    "saving": "Saving...",
+    "sectionUnknown": "Unknown labels",
+    "sectionConfirmed": "Saved labels",
+    "empty": "No labels to display."
   },
   "transfer": {
     "date": "Transfer Date *",

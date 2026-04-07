@@ -248,4 +248,54 @@ mod tests {
         let found = repo.find_mappings_for_account("nonexistent").await.unwrap();
         assert!(found.is_empty());
     }
+
+    /// R8: rejected labels are stored with fund_id = NULL (ADR-001)
+    #[tokio::test]
+    async fn test_save_rejected_mapping_stores_null_fund_id() {
+        let (repo, pool) = setup_test_repo().await;
+        let account_id = create_test_bank_account(&pool).await;
+
+        let mapping = repo
+            .save_mapping(&account_id, "CHARGES", "REJECTED")
+            .await
+            .unwrap();
+
+        assert_eq!(mapping.bank_label, "CHARGES");
+        assert_eq!(
+            mapping.fund_id, None,
+            "REJECTED sentinel must be stored as NULL"
+        );
+
+        let found = repo.find_mappings_for_account(&account_id).await.unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].fund_id, None);
+    }
+
+    /// R9: re-saving a confirmed mapping (idempotent upsert) preserves the same UUID
+    #[tokio::test]
+    async fn test_save_label_mappings_idempotent() {
+        let (repo, pool) = setup_test_repo().await;
+        let account_id = create_test_bank_account(&pool).await;
+        let fund_id = create_test_fund(&pool).await;
+
+        let first = repo
+            .save_mapping(&account_id, "CPAM93", &fund_id)
+            .await
+            .unwrap();
+
+        // Re-save the same label → same fund (idempotent)
+        let second = repo
+            .save_mapping(&account_id, "CPAM93", &fund_id)
+            .await
+            .unwrap();
+
+        assert_eq!(first.id, second.id, "Upsert must preserve UUID");
+
+        let found = repo.find_mappings_for_account(&account_id).await.unwrap();
+        assert_eq!(
+            found.len(),
+            1,
+            "Only one row should exist after idempotent save"
+        );
+    }
 }

@@ -43,6 +43,7 @@
       "noCredit": "Aucune ligne de crédit n'a pu être associée à un organisme.",
       "noIban": "Aucun IBAN trouvé dans le relevé bancaire.",
       "noTransfer": "Aucun virement n'a été sélectionné.",
+      "noVirSepaLines": "Le relevé ne contient aucune ligne VIR SEPA. Vérifiez que le fichier est bien un relevé de compte comportant des virements SEPA.",
       "noAccount": {
         "title": "Compte bancaire non trouvé",
         "description": "L'IBAN {{iban}} ne correspond à aucun compte bancaire enregistré.",
@@ -50,19 +51,23 @@
       },
       "done": "{{count}} virement(s) créé(s) avec succès",
       "doneDescription": "Les virements ont été enregistrés et les groupes de paiement sont maintenant rapprochés.",
-      "error": "Erreur"
+      "error": "Erreur",
+      "unknownError": "Une erreur inattendue s'est produite."
     }
   },
   "labelMapping": {
-    "title": "Labels non reconnus",
-    "description": "Les labels suivants apparaissent sur le relevé bancaire mais ne sont pas encore associés à un organisme. Veuillez sélectionner l'organisme correspondant ou \"REJETÉ\" si la ligne ne correspond pas à un virement d'un organisme.",
+    "title": "Associations labels → organismes",
+    "description": "Les labels suivants apparaissent sur le relevé. Les associations déjà enregistrées sont pré-remplies — vérifiez-les et complétez les labels inconnus avant de valider.",
     "suggestion": "Suggestion : {{name}}",
     "selectPlaceholder": "-- Sélectionner --",
     "rejected": "REJETÉ (Pas un organisme)",
     "fundsGroup": "Organismes",
     "fundAriaLabel": "Organisme pour {{label}}",
-    "confirm": "Confirmer les associations",
-    "saving": "Enregistrement..."
+    "accept": "Accepter",
+    "saving": "Enregistrement...",
+    "sectionUnknown": "Labels inconnus",
+    "sectionConfirmed": "Labels déjà enregistrés",
+    "empty": "Aucun label à afficher."
   },
   "transfer": {
     "date": "Date du virement *",

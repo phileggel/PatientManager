@@ -265,7 +265,7 @@ Key domain types:
 
 **Entry point: `BankStatementOrchestrator`**
 
-Parses bank statements (PDF/bytes) and creates bank transfers linked to fund payment groups. Spec: [docs/bank-statement-auto-match.md](docs/bank-statement-auto-match.md)
+Parses bank statements (PDF/bytes) and creates bank transfers linked to fund payment groups. Spec: [docs/spec/bank-statement-auto-match-spec.md](docs/spec/bank-statement-auto-match-spec.md)
 
 Key domain types:
 - `BankStatementParseResult` — iban, credit_lines, total_credits
@@ -389,7 +389,7 @@ Mixed layout: root-level `gateway.ts`, `store.ts` (feature-scoped transfer list)
 - `shared/` — `validateBankTransfer.ts`
 
 #### Bank Statement Auto-Match (`features/bank-statement-match/`)
-Flat layout. `BankStatementPage` + gateway wrapping all `use_cases/bank_statement_reconciliation/` commands.
+Flat layout. `BankStatementPage` + gateway wrapping all `use_cases/bank_statement_reconciliation/` commands. UI sub-components: `BankStatementModal` (step machine: loading → label-mapping → matching → results → done/error), `FundLabelMappingStep` + `useFundLabelMappingStep` (label→fund mapping with two-block display), `MatchResultsStep`.
 
 #### Fund (`features/fund/`)
 Flat layout. Gateway: `add_fund`, `read_all_funds`, `update_fund`, `delete_fund`. Component: `FundsManager`.

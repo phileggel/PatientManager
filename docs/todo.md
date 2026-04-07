@@ -47,7 +47,6 @@ retour sur le précédant, on réavance direct sur le suivant (rapprochement cai
 
 In the list, replace "date" with start date (oldest procedure) and end date (latest procedure)
 
-
 ## (backend/fund-payment-reconciliation) — Perf: halve DB calls in duplicate candidate check
 
 In `orchestrator.rs`, `is_duplicate_candidate` is called twice per candidate in both `create_multiple_from_candidates` and `create_multiple_with_auto_corrections` (once to count duplicates, once to filter them). Each call hits the DB.

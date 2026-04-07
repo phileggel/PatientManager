@@ -8,6 +8,7 @@
 Le rapprochement bancaire automatique (spec `bank-statement-auto-match`) nécessite de mémoriser par compte bancaire l'association entre un label de virement (ex. `CPAM93`) et un fonds de la base, ou son rejet explicite (label non-caisse). Ces mappings sont saisis par l'utilisateur lors du premier import d'un relevé et doivent être pré-remplis lors des imports suivants.
 
 Trois décisions de conception ont été prises lors de l'implémentation initiale (R1–R22) :
+
 1. Comment représenter l'état "rejeté" en base.
 2. Quelle stratégie d'upsert adopter pour éviter la duplication des enregistrements.
 3. Comment garantir l'unicité fonctionnelle `(compte, label)` tout en restant cohérent avec le pattern soft-delete du projet.
@@ -21,6 +22,7 @@ L'état "rejeté" (label identifié comme non-caisse) est stocké comme `fund_id
 L'API Rust accepte la valeur sentinelle `"REJECTED"` en entrée (cohérence avec le frontend) et la convertit en `None` avant persistance. Le type de domaine `BankFundLabelMapping` expose `fund_id: Option<String>` — `None` = rejeté, `Some(id)` = fonds affecté.
 
 **Alternatives considérées :**
+
 - Colonne `is_rejected BOOLEAN` séparée : redondante avec la nullabilité de `fund_id`, introduit un état incohérent possible (`fund_id` renseigné ET `is_rejected = true`).
 - Valeur sentinelle persistée en base (`"REJECTED"`) : viole l'intégrité référentielle (FK sur `fund_id`).
 

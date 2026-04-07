@@ -50,6 +50,7 @@ La suggestion, si elle existe, est transmise au frontend à titre indicatif (cf.
 **R26 — Absence de lignes VIR SEPA (backend + frontend)** : Si le relevé ne contient aucune ligne VIR SEPA après filtrage (cf. R3), le backend retourne une erreur structurée distincte d'un résultat vide. Le frontend affiche un message d'erreur explicite et interrompt le workflow — aucune étape suivante n'est accessible.
 
 **R27 — Ordre d'affichage des labels dans l'étape de mapping (frontend)** : Les labels sont affichés en deux blocs :
+
 1. Labels sans mapping sauvegardé (inconnus), triés par ordre alphabétique du label.
 2. Labels avec mapping sauvegardé (fonds ou rejeté, cf. R8), triés par ordre alphabétique du label.
 
