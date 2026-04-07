@@ -25,25 +25,25 @@
 
 ## Reviewer Waivers
 
-| Finding | File | Reviewer verdict | Decision | Evidence |
-|---------|------|-----------------|----------|----------|
+| Finding                           | File                                     | Reviewer verdict | Decision   | Evidence                                                                                                                                                                               |
+| --------------------------------- | ---------------------------------------- | ---------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `status.payed` is a dead i18n key | `en/procedure.json`, `fr/procedure.json` | Warning — remove | **Waived** | Key IS consumed: `StatusBadge.tsx:32` uses `isAnyPayed ? "payed"` as a dynamic key under the `status.*` namespace. Grep confirms one consumer. Reviewer missed the dynamic key lookup. |
 
 ---
 
 ## Rules Coverage Table
 
-| Rule | Scope | Status | Tasks |
-|------|-------|--------|-------|
-| R6 (amended) | Frontend | Routing already implemented in `ProcedurePage.tsx` (`handleEdit` uses `isBlockingStatus`) — no change needed | — |
-| R9 (amended) | Frontend | Remove `CreateFundForm` from modal and all related state | Tasks F-1, F-2, F-3 |
-| R18 (amended) | Backend | Add `tracing::warn!` in `update_procedure` handler when blocking-status acte is updated with fields other than `procedure_type_id` | Task B-1 |
-| R26 (amended) | Frontend | Refactor view mode: read-only patient display uses INS format, hide system info block and payment info, enable save button with loading/success/error states | Tasks F-4, F-5 |
-| R28 (new) | Frontend | Create `formatPatientLabel(patient)` helper function returning `"NOM Prénom (INS)"` when SSN present, `"NOM Prénom"` otherwise | Task F-6 |
-| R29 (new) | Frontend | ComboboxField patient in edit mode: items use R28 format, `displayKey` renders via formatter | Tasks F-7, F-8 |
-| R30 (new) | Frontend | Edit mode: remove system info block (ID), remove payment info section, keep patient/fund/type/date/amount editable with loading/success/error | Task F-9 |
-| R31 (new) | Frontend | Apply `formatPatientLabel` in ComboboxField items (create + edit), selected value display, and read-only patient in view mode | Tasks F-6, F-7, F-8, F-4 |
-| R32 (new) | Frontend | Create mode: `onCreateNew` prop present on patient ComboboxField. Edit mode: `onCreateNew` prop absent, no create button | Tasks F-7, F-8 |
+| Rule          | Scope    | Status                                                                                                                                                       | Tasks                    |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| R6 (amended)  | Frontend | Routing already implemented in `ProcedurePage.tsx` (`handleEdit` uses `isBlockingStatus`) — no change needed                                                 | —                        |
+| R9 (amended)  | Frontend | Remove `CreateFundForm` from modal and all related state                                                                                                     | Tasks F-1, F-2, F-3      |
+| R18 (amended) | Backend  | Add `tracing::warn!` in `update_procedure` handler when blocking-status acte is updated with fields other than `procedure_type_id`                           | Task B-1                 |
+| R26 (amended) | Frontend | Refactor view mode: read-only patient display uses INS format, hide system info block and payment info, enable save button with loading/success/error states | Tasks F-4, F-5           |
+| R28 (new)     | Frontend | Create `formatPatientLabel(patient)` helper function returning `"NOM Prénom (INS)"` when SSN present, `"NOM Prénom"` otherwise                               | Task F-6                 |
+| R29 (new)     | Frontend | ComboboxField patient in edit mode: items use R28 format, `displayKey` renders via formatter                                                                 | Tasks F-7, F-8           |
+| R30 (new)     | Frontend | Edit mode: remove system info block (ID), remove payment info section, keep patient/fund/type/date/amount editable with loading/success/error                | Task F-9                 |
+| R31 (new)     | Frontend | Apply `formatPatientLabel` in ComboboxField items (create + edit), selected value display, and read-only patient in view mode                                | Tasks F-6, F-7, F-8, F-4 |
+| R32 (new)     | Frontend | Create mode: `onCreateNew` prop present on patient ComboboxField. Edit mode: `onCreateNew` prop absent, no create button                                     | Tasks F-7, F-8           |
 
 ---
 
@@ -68,6 +68,7 @@
 **File**: `src/features/procedure/ui/procedure_form_modal/useProcedureFormModal.ts`
 
 **What**:
+
 - Remove `fundModal` state (`useState`).
 - Remove `setFundModal` setter.
 - Remove `handleFundCreated` callback.
@@ -85,6 +86,7 @@
 **File**: `src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx`
 
 **What**:
+
 - Remove `import { CreateFundForm } from "../form/CreateFundForm"`.
 - Remove the destructured props from `useProcedureFormModal`: `fundModal`, `setFundModal`, `handleFundCreated`.
 - In the JSX, remove the `<CreateFundForm ... />` block entirely from the entity creation modals section at the bottom.
@@ -95,6 +97,7 @@
 ### Frontend — Task F-3: Delete `CreateFundForm.tsx` and clean up `form/index.ts`
 
 **Files**:
+
 - `src/features/procedure/ui/form/CreateFundForm.tsx` — delete entirely.
 - `src/features/procedure/ui/form/index.ts` — remove the `CreateFundForm` export line.
 
@@ -111,11 +114,16 @@
 **Recommendation**: Add as a named export in `src/features/procedure/model/index.ts` alongside existing model exports. Place the implementation in `procedure-row.mapper.ts` if the mapper already imports `Patient`, or create a dedicated `patient.presenter.ts` file — whichever keeps the mapper focused.
 
 **Signature**:
+
 ```ts
-export function formatPatientLabel(patient: { name: string | null; ssn: string | null }): string
+export function formatPatientLabel(patient: {
+  name: string | null;
+  ssn: string | null;
+}): string;
 ```
 
 **Behavior**:
+
 - If `ssn` is non-null and non-empty: return `"${patient.name ?? '—'} (${patient.ssn})"`.
 - Otherwise: return `patient.name ?? "—"`.
 
@@ -132,6 +140,7 @@ export function formatPatientLabel(patient: { name: string | null; ssn: string |
 **Current state**: Edit mode uses a `SelectField` for the patient. This must be replaced with a `ComboboxField`.
 
 **What**:
+
 - In the `mode !== "create"` branch of the patient field, replace `<SelectField>` with `<ComboboxField>`.
 - Use `formatPatientLabel` to build a display-ready list. Since `ComboboxField` uses `displayKey` to render items, one approach is to transform the `patients` array into `{ id, label }` objects before passing them in, where `label = formatPatientLabel(patient)`. Alternatively, since `ComboboxField` is generic, pass a `searchKeys` array covering both `name` and a pre-formatted label field.
 - The simplest conforming approach: derive a `patientItems` list in the hook as `patients.map(p => ({ id: p.id, label: formatPatientLabel(p) }))` and pass `displayKey="label"` and `idKey="id"` and `searchKeys={["label"]}`.
@@ -150,6 +159,7 @@ export function formatPatientLabel(patient: { name: string | null; ssn: string |
 **Current state**: Create mode `ComboboxField` uses `displayKey="name"` directly on the `Patient` object, showing only the name. The INS is not shown.
 
 **What**:
+
 - In the create mode ComboboxField for patient, also use the pre-formatted `patientItems` list (same as task F-7) instead of raw `patients`.
 - `onCreateNew` remains present in create mode (R32).
 - This ensures R31 is satisfied in create mode ComboboxField items and selected value.
@@ -161,6 +171,7 @@ export function formatPatientLabel(patient: { name: string | null; ssn: string |
 **File**: `src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx`
 
 **Current state**: In view mode, the modal shows:
+
 - Patient field: `SelectField` (disabled).
 - Fund field: `SelectField` (disabled).
 - Procedure type: `SelectField` (disabled because `isViewMode` makes all fields disabled).
@@ -170,6 +181,7 @@ export function formatPatientLabel(patient: { name: string | null; ssn: string |
 - Payment info block: shows payment method, payment date, status, paid amount.
 
 **Target state** per R26:
+
 - Patient: read-only display of patient name with INS format (`formatPatientLabel`). Not a form field — a `TextField` with `readOnly` or a plain div.
 - Date: read-only `TextField`.
 - Amount: read-only `TextField` (formatted).
@@ -203,6 +215,7 @@ export function formatPatientLabel(patient: { name: string | null; ssn: string |
 This task is largely covered by Task F-4. Ensure the same cleanup (`modal.systemInfo`, `modal.procedureId`, patient info block, payment info block) applies to edit mode (`mode === "edit"`) as well.
 
 **Current state**: In edit mode, the modal shows:
+
 - System info block with procedure ID.
 - Patient info block with SSN and fund name.
 - Payment info block with method, date, status, paid amount.
@@ -216,12 +229,14 @@ This task is largely covered by Task F-4. Ensure the same cleanup (`modal.system
 ### i18n Cleanup Summary
 
 **Keys to REMOVE** from both `en/procedure.json` and `fr/procedure.json`:
+
 - `createFund.*` (entire sub-object) — component deleted (Task F-3).
 - `modal.systemInfo`, `modal.procedureId` — system info block removed (Tasks F-4, F-9).
 - `modal.patientInfo`, `modal.ssn`, `modal.fundName` — patient info block removed (Tasks F-4, F-9).
 - `modal.paymentInfo`, `modal.status`, `modal.paidAmount` — payment info block removed (Tasks F-4, F-9).
 
 **Keys to ADD**:
+
 - `modal.patient` (or reuse `form.patient`) — label for the read-only patient in view mode if a dedicated label is needed.
 - Verify `filter.emptySearch` is still used after changes (it may remain used in `ProcedureList`).
 
@@ -230,32 +245,35 @@ This task is largely covered by Task F-4. Ensure the same cleanup (`modal.system
 ### Test Updates
 
 **`useProcedureFormModal.test.ts`**:
+
 - Remove test cases that reference `fundModal`, `setFundModal`, `handleFundCreated`, `createNewFund` mock calls.
 - Add test: in `mode="view"`, `handleSubmit` calls `gateway.updateProcedure` with only `procedure_type_id` changed.
 - Add test: in `mode="edit"`, patient ComboboxField items use `formatPatientLabel` format (test via hook's `patientItems` return value).
 
 **`patient.presenter.test.ts`** (or in mapper test file):
+
 - Test `formatPatientLabel` with SSN, without SSN, null name.
 
 **`useProcedureFormModal.test.ts`** — update existing mock:
+
 - Remove `createNewFund` from gateway mock (it is no longer called from this hook).
 
 ---
 
 ## File Change Summary
 
-| File | Action | Tasks |
-|------|--------|-------|
-| `src-tauri/src/use_cases/procedure_orchestration/api.rs` | Modify — add `tracing::warn!` in `update_procedure` | B-1 |
-| `src/features/procedure/ui/procedure_form_modal/useProcedureFormModal.ts` | Modify — remove fund modal state/handler, add `patientItems`, fix view-mode submit | F-1, F-4, F-7 |
-| `src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx` | Modify — remove fund ComboboxField create, use ComboboxField for patient in edit, refactor view/edit content | F-2, F-4, F-7, F-8, F-9 |
-| `src/features/procedure/ui/procedure_form_modal/useProcedureFormModal.test.ts` | Modify — remove fund mock calls, add view-mode submit test, update patientItems tests | Tests |
-| `src/features/procedure/ui/form/CreateFundForm.tsx` | Delete | F-3 |
-| `src/features/procedure/ui/form/index.ts` | Modify — remove CreateFundForm export | F-3 |
-| `src/features/procedure/model/procedure-row.mapper.ts` or `patient.presenter.ts` | Modify/Create — add `formatPatientLabel` | F-6 |
-| `src/features/procedure/model/index.ts` | Modify — re-export `formatPatientLabel` | F-6 |
-| `src/i18n/locales/en/procedure.json` | Modify — remove `createFund.*`, remove system/patient/payment modal blocks | F-3, F-4, F-9 |
-| `src/i18n/locales/fr/procedure.json` | Modify — same as en | F-3, F-4, F-9 |
+| File                                                                             | Action                                                                                                       | Tasks                   |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| `src-tauri/src/use_cases/procedure_orchestration/api.rs`                         | Modify — add `tracing::warn!` in `update_procedure`                                                          | B-1                     |
+| `src/features/procedure/ui/procedure_form_modal/useProcedureFormModal.ts`        | Modify — remove fund modal state/handler, add `patientItems`, fix view-mode submit                           | F-1, F-4, F-7           |
+| `src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx`          | Modify — remove fund ComboboxField create, use ComboboxField for patient in edit, refactor view/edit content | F-2, F-4, F-7, F-8, F-9 |
+| `src/features/procedure/ui/procedure_form_modal/useProcedureFormModal.test.ts`   | Modify — remove fund mock calls, add view-mode submit test, update patientItems tests                        | Tests                   |
+| `src/features/procedure/ui/form/CreateFundForm.tsx`                              | Delete                                                                                                       | F-3                     |
+| `src/features/procedure/ui/form/index.ts`                                        | Modify — remove CreateFundForm export                                                                        | F-3                     |
+| `src/features/procedure/model/procedure-row.mapper.ts` or `patient.presenter.ts` | Modify/Create — add `formatPatientLabel`                                                                     | F-6                     |
+| `src/features/procedure/model/index.ts`                                          | Modify — re-export `formatPatientLabel`                                                                      | F-6                     |
+| `src/i18n/locales/en/procedure.json`                                             | Modify — remove `createFund.*`, remove system/patient/payment modal blocks                                   | F-3, F-4, F-9           |
+| `src/i18n/locales/fr/procedure.json`                                             | Modify — same as en                                                                                          | F-3, F-4, F-9           |
 
 ---
 

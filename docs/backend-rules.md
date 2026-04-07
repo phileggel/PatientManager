@@ -42,7 +42,9 @@
 
 **B12** — MUST use `tracing::{info, debug, warn, error}` with structured fields. Never use `println!`.
 
-**B16** — When using the `name:` field in tracing calls, MUST use the `BACKEND` constant from `crate::core::logger` instead of the string literal `"backend"`:
+**B17** - MUST use `target:` field when adding a new backend specific log.
+
+**B16** — When using the `target:` field in tracing calls, MUST use the `BACKEND` or `FRONTEND` constant from `crate::core::logger` instead of string literals:
 
 ```rust
 use crate::core::logger::BACKEND;

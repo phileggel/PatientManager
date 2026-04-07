@@ -14,11 +14,11 @@ La page de gestion des types d'actes est une vue CRUD autonome accessible depuis
 
 Un modèle d'acte médical paramétrable par l'utilisateur.
 
-| Champ            | Signification métier                                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| Champ            | Signification métier                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `name`           | Nom lisible du type d'acte défini par l'utilisateur (ex. « Consultation »). Requis. Unique parmi les types actifs. |
-| `default_amount` | Montant par défaut de l'acte, exprimé en millièmes d'euro (`i64`). Doit être ≥ 0. Affiché en euros côté UI. |
-| `category`       | Regroupement libre et optionnel défini par l'utilisateur (ex. « Biologie », « Imagerie »). Peut être absent. |
+| `default_amount` | Montant par défaut de l'acte, exprimé en millièmes d'euro (`i64`). Doit être ≥ 0. Affiché en euros côté UI.        |
+| `category`       | Regroupement libre et optionnel défini par l'utilisateur (ex. « Biologie », « Imagerie »). Peut être absent.       |
 
 Tous les champs (`name`, `default_amount`, `category`) sont modifiables après création pour les types utilisateur. Le champ `id` est immuable une fois généré. Le type réservé `import-pdf` fait exception : aucun de ses champs n'est modifiable (voir R22).
 
@@ -54,12 +54,12 @@ Tous les champs (`name`, `default_amount`, `category`) sont modifiables après c
 
 **R9 — Tableau des types d'actes (frontend)** : Le tableau affiche les colonnes suivantes, sans tri par défaut :
 
-| Colonne   | Contenu                                    | Triable |
-| --------- | ------------------------------------------ | ------- |
-| Nom       | `name`                                     | Oui     |
-| Montant   | `€{(default_amount / 1000).toFixed(2)}`   | Oui     |
-| Catégorie | `category` (ou `–` si absent)             | Non     |
-| Actions   | Bouton Éditer + Bouton Supprimer           | Non     |
+| Colonne   | Contenu                                 | Triable |
+| --------- | --------------------------------------- | ------- |
+| Nom       | `name`                                  | Oui     |
+| Montant   | `€{(default_amount / 1000).toFixed(2)}` | Oui     |
+| Catégorie | `category` (ou `–` si absent)           | Non     |
+| Actions   | Bouton Éditer + Bouton Supprimer        | Non     |
 
 **R10 — Comportement du tri (frontend)** : Cliquer sur l'en-tête d'une colonne triable fait cycler le tri : ascendant → descendant → aucun tri. Un indicateur visuel sur l'en-tête reflète le tri actif et son sens. L'état du tri n'est pas persisté entre navigations : la page s'ouvre toujours sans tri actif.
 

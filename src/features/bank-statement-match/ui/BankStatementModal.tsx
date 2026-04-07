@@ -1,4 +1,4 @@
-import { Loader } from "lucide-react";
+import { Loader, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -10,6 +10,7 @@ import type {
 import { useSnackbar } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
+import { IconButton } from "@/ui/components/button/IconButton";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import {
   createBankTransfersFromStatement,
@@ -56,7 +57,9 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
       const resolvedLines: IdentifiableCreditLine[] = [];
       for (const line of parsed.credit_lines) {
         const resolution = resolutions.find((r) => r.bank_label === line.label);
-        const fundId = resolution?.fund_id || resolution?.suggested_fund_id;
+        // R8: rejected labels are excluded from matching
+        if (!resolution || resolution.is_rejected) continue;
+        const fundId = resolution.fund_id;
         if (fundId) {
           resolvedLines.push({
             date: line.date,
@@ -141,25 +144,26 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
         const resolutions = await resolveBankFundLabels(account.id, labels);
         setLabelResolutions(resolutions);
 
-        // Check if any labels need mapping
-        const unmapped = resolutions.filter((r) => !r.is_confirmed && !r.is_rejected);
-        if (unmapped.length > 0) {
-          logger.info(TAG, `${unmapped.length} labels need mapping`);
-          setStep("label-mapping");
-        } else {
-          // All labels mapped, proceed to matching
-          await proceedToMatching(parsed, resolutions);
-        }
+        // R7: always show label-mapping step for all labels (confirmed pre-filled, unknown empty)
+        logger.info(TAG, `${resolutions.length} labels to review in mapping step`);
+        setStep("label-mapping");
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
+        // R26: dedicated message when no VIR SEPA lines found
+        if (msg === "NO_VIR_SEPA_LINES") {
+          logger.error(TAG, "No VIR SEPA lines found in bank statement");
+          setError(t("statement.modal.noVirSepaLines"));
+          setStep("error");
+          return;
+        }
         logger.error(TAG, "Failed to process bank statement", { message: msg, error: err });
-        setError(msg || "Unknown error");
+        setError(msg || t("statement.modal.unknownError"));
         setStep("error");
       }
     }
 
     loadAndParse();
-  }, [file, proceedToMatching, t]);
+  }, [file, t]);
 
   const handleLabelMappingConfirm = async (
     mappings: Map<string, string>, // bankLabel → fundId
@@ -196,7 +200,7 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
       await proceedToMatching(parseResult, updatedResolutions);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      logger.error(TAG, "Failed to save label mappings", msg);
+      logger.error(TAG, "Failed to save label mappings", { message: msg });
       setError(msg);
       setStep("error");
     } finally {
@@ -242,7 +246,7 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
       logger.info(TAG, `Created ${count} bank transfers`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      logger.error(TAG, "Failed to create bank transfers", msg);
+      logger.error(TAG, "Failed to create bank transfers", { message: msg });
       setError(msg);
       setStep("error");
     } finally {
@@ -251,50 +255,53 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
   };
 
   return (
-    <ModalContainer isOpen={true} onClose={onClose} maxWidth="max-w-4xl">
-      <div className="flex flex-col h-full overflow-hidden bg-surface rounded-2xl shadow-elevation-3">
+    <ModalContainer isOpen={true} onClose={onClose} maxWidth="max-w-2xl">
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-20 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 bg-m3-surface-container-low shrink-0 rounded-t-[28px]">
           <div>
-            <h2 className="text-lg font-semibold text-neutral-90">{t("statement.title")}</h2>
-            <p className="text-sm text-neutral-60">{file.name}</p>
-            {parseResult?.period && <p className="text-xs text-neutral-50">{parseResult.period}</p>}
+            <h2 className="text-lg font-semibold text-m3-on-surface">{t("statement.title")}</h2>
+            <p className="text-sm text-m3-on-surface-variant">{file.name}</p>
+            {parseResult?.period && (
+              <p className="text-xs text-m3-on-surface-variant">{parseResult.period}</p>
+            )}
           </div>
-          <button
-            type="button"
+          <IconButton
+            icon={<X size={20} />}
+            variant="ghost"
+            shape="round"
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-neutral-20 transition-colors"
             aria-label={t("statement.modal.closeAria")}
-          >
-            <span className="text-xl">&times;</span>
-          </button>
+          />
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {step === "loading" && (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
-              <Loader className="w-8 h-8 animate-spin text-primary-60" />
-              <p className="text-neutral-60">{t("statement.modal.loading")}</p>
+              <Loader className="w-8 h-8 animate-spin text-m3-primary" />
+              <p className="text-m3-on-surface-variant">{t("statement.modal.loading")}</p>
             </div>
           )}
 
           {step === "matching" && (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
-              <Loader className="w-8 h-8 animate-spin text-primary-60" />
-              <p className="text-neutral-60">{t("statement.modal.matching")}</p>
+              <Loader className="w-8 h-8 animate-spin text-m3-primary" />
+              <p className="text-m3-on-surface-variant">{t("statement.modal.matching")}</p>
             </div>
           )}
 
           {step === "no-account" && parseResult && (
             <div className="text-center py-12 space-y-4">
-              <p className="text-lg font-medium text-neutral-90">
+              <p className="text-lg font-medium text-m3-on-surface">
                 {t("statement.modal.noAccount.title")}
               </p>
-              <p className="text-neutral-60">
+              <p className="text-m3-on-surface-variant">
                 {t("statement.modal.noAccount.description", { iban: parseResult.iban })}
               </p>
-              <p className="text-sm text-neutral-50">{t("statement.modal.noAccount.hint")}</p>
+              <p className="text-sm text-m3-on-surface-variant">
+                {t("statement.modal.noAccount.hint")}
+              </p>
             </div>
           )}
 
@@ -316,41 +323,48 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
 
           {step === "done" && (
             <div className="text-center py-12 space-y-4">
-              <p className="text-lg font-medium text-success-70">
+              <p className="text-lg font-medium text-m3-on-success-container">
                 {t("statement.modal.done", { count: createdCount })}
               </p>
-              <p className="text-neutral-60">{t("statement.modal.doneDescription")}</p>
+              <p className="text-m3-on-surface-variant">{t("statement.modal.doneDescription")}</p>
             </div>
           )}
 
           {step === "error" && (
             <div className="text-center py-12 space-y-4">
-              <p className="text-lg font-medium text-error-70">{t("statement.modal.error")}</p>
-              <p className="text-neutral-60">{error}</p>
+              <p className="text-lg font-medium text-m3-error">{t("statement.modal.error")}</p>
+              <p className="text-m3-on-surface-variant">{error}</p>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-neutral-20 shrink-0">
-          {step === "results" && (
-            <Button onClick={handleCreateTransfers} variant="primary" disabled={isProcessing}>
-              {isProcessing ? t("statement.modal.creating") : t("statement.modal.validate")}
-            </Button>
-          )}
+        {/* Footer — not shown during label-mapping (Accepter is embedded in FundLabelMappingStep) */}
+        {step !== "label-mapping" && (
+          <div className="flex justify-end gap-3 px-6 py-4 bg-m3-surface-container-low shrink-0 rounded-b-[28px]">
+            {step === "results" && (
+              <Button
+                onClick={handleCreateTransfers}
+                variant="primary"
+                disabled={isProcessing}
+                loading={isProcessing}
+              >
+                {isProcessing ? t("statement.modal.creating") : t("statement.modal.validate")}
+              </Button>
+            )}
 
-          {(step === "done" || step === "error" || step === "no-account") && (
-            <Button onClick={onClose} variant="primary">
-              {t("statement.modal.close")}
-            </Button>
-          )}
+            {(step === "done" || step === "error" || step === "no-account") && (
+              <Button onClick={onClose} variant="secondary">
+                {t("statement.modal.close")}
+              </Button>
+            )}
 
-          {(step === "loading" || step === "matching" || step === "results") && (
-            <Button onClick={onClose} variant="secondary">
-              {t("statement.modal.cancel")}
-            </Button>
-          )}
-        </div>
+            {(step === "loading" || step === "matching" || step === "results") && (
+              <Button onClick={onClose} variant="secondary">
+                {t("statement.modal.cancel")}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </ModalContainer>
   );

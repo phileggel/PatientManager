@@ -155,12 +155,12 @@ Cette feature est responsable de la **création** des actes uniquement. Les tran
 
 ### Actions autorisées par statut (cette feature)
 
-| Statut                | Suppression             | Édition                   |
-| --------------------- | ----------------------- | ------------------------- |
-| `None`                | oui (avec confirmation) | oui                       |
-| `Created`             | oui (avec confirmation) | oui                       |
-| `ImportDirectlyPayed` | oui (avec confirmation) | oui                       |
-| `ImportFundPayed`     | oui (avec confirmation) | oui                       |
+| Statut                | Suppression             | Édition                                  |
+| --------------------- | ----------------------- | ---------------------------------------- |
+| `None`                | oui (avec confirmation) | oui                                      |
+| `Created`             | oui (avec confirmation) | oui                                      |
+| `ImportDirectlyPayed` | oui (avec confirmation) | oui                                      |
+| `ImportFundPayed`     | oui (avec confirmation) | oui                                      |
 | `DirectlyPayed`       | non — bloquée           | partielle — type d'acte uniquement (R26) |
 | `Reconciliated`       | non — bloquée           | partielle — type d'acte uniquement (R26) |
 | `PartiallyReconciled` | non — bloquée           | partielle — type d'acte uniquement (R26) |

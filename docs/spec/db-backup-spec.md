@@ -23,6 +23,7 @@ un bouton dédié. Un dialog natif de sélection de fichier s'ouvre (type `save`
 sur les fichiers `.db.gz`, avec un nom par défaut au format `backup_YYYYMMDD_HHMMSS.db.gz`
 (ex. `backup_20260323_143022.db.gz`). Ce nom est modifiable par l'utilisateur avant
 confirmation. L'export ne démarre qu'après confirmation de la destination.
+
 > Test coverage : la vérification du format exact du nom par défaut est intentionnellement
 > omise (comportement trivial de formatage de date — la logique est directement lisible dans
 > le code).

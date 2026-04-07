@@ -35,10 +35,13 @@
 ### Étape 1 — Migration base de données (R21)
 
 Créer `src-tauri/migrations/20260406_rename_import_pdf.sql` :
+
 ```sql
 UPDATE procedure_type SET name = 'Import' WHERE id = 'import-pdf';
 ```
+
 Puis :
+
 ```bash
 just clean-db
 just prepare-sqlx
@@ -60,14 +63,17 @@ just prepare-sqlx
 **`src-tauri/src/context/procedure/service.rs`**
 
 **`add_procedure_type`** :
+
 - Normaliser catégorie vide → `None` : `let category = category.filter(|s| !s.trim().is_empty());`
 - Avant création, appeler `self.repository.find_by_name(name.trim())` → si trouvé : `anyhow::bail!("Un type d'acte portant ce nom existe déjà")`
 
 **`update_procedure_type`** :
+
 - Guard en premier : `if procedure_type.id == "import-pdf" { anyhow::bail!("Le type réservé import-pdf ne peut pas être modifié") }`
 - Vérification doublon : `find_by_name(name.trim())` → si trouvé et `found.id != procedure_type.id` → bail doublon
 
 **`delete_procedure_type`** :
+
 - Guard en premier : `if id == "import-pdf" { anyhow::bail!("Le type réservé import-pdf ne peut pas être supprimé") }`
 
 ---
@@ -77,6 +83,7 @@ just prepare-sqlx
 **`src-tauri/src/context/procedure/service.rs`** — module `#[cfg(test)]`
 
 Tests à ajouter :
+
 - `test_add_procedure_type_rejects_duplicate_name`
 - `test_add_procedure_type_normalizes_empty_category`
 - `test_update_procedure_type_rejects_import_pdf`
@@ -97,8 +104,9 @@ just generate-types
 ### Étape 6 — Frontend : constante réservée (R23)
 
 **`src/features/procedure-type/shared/types.ts`**
+
 ```ts
-export const RESERVED_PROCEDURE_TYPE_ID = 'import-pdf';
+export const RESERVED_PROCEDURE_TYPE_ID = "import-pdf";
 ```
 
 ---
@@ -106,6 +114,7 @@ export const RESERVED_PROCEDURE_TYPE_ID = 'import-pdf';
 ### Étape 7 — Frontend : filtre + erreur + retry (R23, R15)
 
 **`src/features/procedure-type/procedure_type_list/useProcedureTypeList.ts`**
+
 - Filtrer avant map : `.filter(pt => pt.id !== RESERVED_PROCEDURE_TYPE_ID)`
 - Ajouter `error: string | null` et `retry: () => void` (appel gateway direct)
 
@@ -114,6 +123,7 @@ export const RESERVED_PROCEDURE_TYPE_ID = 'import-pdf';
 ### Étape 8 — Frontend : compteur filtré (R11, R23)
 
 **`src/features/procedure-type/useProcedureTypeManager.ts`** (ou fichier équivalent)
+
 - Compteur : `procedureTypes.filter(pt => pt.id !== RESERVED_PROCEDURE_TYPE_ID).length`
 
 ---
@@ -123,6 +133,7 @@ export const RESERVED_PROCEDURE_TYPE_ID = 'import-pdf';
 **`src/features/procedure-type/procedure_type_list/ProcedureTypeList.tsx`**
 
 5 états `tbody` distincts :
+
 1. `loading` → ligne animée (existant)
 2. `error` → message + bouton "Réessayer" (**nouveau** — R15)
 3. `rows.length === 0 && !searchTerm` → message vide avec invite FAB (R12)
@@ -134,11 +145,13 @@ export const RESERVED_PROCEDURE_TYPE_ID = 'import-pdf';
 ### Étape 10 — Frontend : modal de création (R16)
 
 **Créer `src/features/procedure-type/create_procedure_type_modal/useCreateProcedureTypeModal.ts`**
+
 - Migrer logique depuis `useAddProcedureTypePanel.ts`
 - Reset formulaire à la fermeture (`useEffect` sur `isOpen`)
 - Exposer : `formData`, `errors`, `loading`, `handleChange`, `handleSubmit`
 
 **Créer `src/features/procedure-type/create_procedure_type_modal/CreateProcedureTypeModal.tsx`**
+
 - Utiliser `FormModal` (de `ui/components`)
 - Réutiliser `ProcedureTypeForm` depuis `shared/`
 - Props : `isOpen: boolean`, `onClose: () => void`
@@ -150,6 +163,7 @@ export const RESERVED_PROCEDURE_TYPE_ID = 'import-pdf';
 ### Étape 11 — Frontend : ProcedureTypeManager (R16)
 
 **`src/features/procedure-type/ProcedureTypeManager.tsx`**
+
 - Remplacer `ManagerLayout` par layout `div` pleine largeur :
   - `ManagerHeader` (titre, compteur filtré, champ recherche)
   - `div` scrollable contenant `ProcedureTypeList`
@@ -162,6 +176,7 @@ export const RESERVED_PROCEDURE_TYPE_ID = 'import-pdf';
 ### Étape 12 — Suppression add_procedure_type_panel/
 
 Supprimer :
+
 - `src/features/procedure-type/add_procedure_type_panel/AddProcedureTypePanel.tsx`
 - `src/features/procedure-type/add_procedure_type_panel/useAddProcedureTypePanel.ts`
 - `src/features/procedure-type/add_procedure_type_panel/AddProcedureTypePanel.test.tsx`
@@ -174,12 +189,12 @@ Supprimer :
 
 Ajouter sous `list` :
 
-| Clé | FR | EN |
-|---|---|---|
-| `list.noResults` | `"Aucun type d'acte ne correspond à votre recherche."` | `"No procedure types match your search."` |
-| `list.empty` | `"Aucun type d'acte. Utilisez le bouton + pour en créer un."` | `"No procedure types yet. Use the + button to create one."` |
-| `list.loadError` | `"Impossible de charger les types d'actes."` | `"Failed to load procedure types."` |
-| `list.retry` | `"Réessayer"` | `"Retry"` |
+| Clé              | FR                                                            | EN                                                          |
+| ---------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
+| `list.noResults` | `"Aucun type d'acte ne correspond à votre recherche."`        | `"No procedure types match your search."`                   |
+| `list.empty`     | `"Aucun type d'acte. Utilisez le bouton + pour en créer un."` | `"No procedure types yet. Use the + button to create one."` |
+| `list.loadError` | `"Impossible de charger les types d'actes."`                  | `"Failed to load procedure types."`                         |
+| `list.retry`     | `"Réessayer"`                                                 | `"Retry"`                                                   |
 
 Supprimer clés obsolètes liées au side-panel (`page.addDescription`, `action.adding` si inutilisées).
 
@@ -188,15 +203,18 @@ Supprimer clés obsolètes liées au side-panel (`page.addDescription`, `action.
 ### Étape 14 — Tests frontend
 
 **Créer `src/features/procedure-type/create_procedure_type_modal/useCreateProcedureTypeModal.test.ts`**
+
 - Soumission valide → `addProcedureType` appelé + formulaire réinitialisé
 - Nom vide → erreur inline, pas d'appel gateway
 - Erreur backend (doublon) → snackbar erreur, modal reste ouverte
 
 **Modifier `src/features/procedure-type/ProcedureTypeManager.test.tsx`**
+
 - Clic FAB → modal de création s'ouvre
 - Compteur exclut `import-pdf`
 
 **Modifier `src/features/procedure-type/procedure_type_list/ProcedureTypeList.test.tsx`**
+
 - État vide (0 types, pas de recherche) → message avec invite FAB
 - Aucun résultat (recherche sans match) → message neutre sans invite
 - État erreur → message + bouton "Réessayer"

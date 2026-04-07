@@ -42,6 +42,12 @@ pub async fn parse_bank_statement(bytes: Vec<u8>) -> Result<BankStatementParseRe
     // Step 2: Parse the extracted text
     let result = parser::parse_bank_statement(&text);
 
+    // R26: Stop workflow if no VIR SEPA lines found after filtering
+    if result.credit_lines.is_empty() {
+        tracing::warn!("Bank statement parsed but contains no VIR SEPA credit lines");
+        return Err("NO_VIR_SEPA_LINES".to_string());
+    }
+
     tracing::info!(
         iban = ?result.iban,
         credit_lines = result.credit_lines.len(),
