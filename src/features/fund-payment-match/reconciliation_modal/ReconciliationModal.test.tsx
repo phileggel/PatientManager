@@ -248,6 +248,43 @@ describe("ReconciliationModal", () => {
     });
   });
 
+  // R31 — Print button visible in report step, absent during workflow steps
+  it("shows Print button in report step and calls window.print on click", async () => {
+    const user = userEvent.setup();
+    const printMock = vi.fn();
+    window.print = printMock;
+
+    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
+      [],
+    );
+
+    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Unreconciled procedures/)).toBeInTheDocument();
+    });
+
+    const printButton = screen.getByRole("button", { name: /print/i });
+    expect(printButton).toBeInTheDocument();
+
+    await user.click(printButton);
+    expect(printMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show Print button during reconciliation workflow (non-report steps)", async () => {
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockReconciliationWithAnomaly,
+    );
+
+    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Auto-correct all/)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /print/i })).not.toBeInTheDocument();
+  });
+
   it("shows error message when auto-validation fails", async () => {
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("Validation failed"),
