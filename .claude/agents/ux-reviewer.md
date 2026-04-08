@@ -23,7 +23,7 @@ For each candidate issue you are about to report, ask yourself: "Does this match
 | What you see in code                                                                                                     | Why it is NOT an issue                                                                                                                                                                                                            |
 | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `text-neutral-*`, `bg-neutral-*`, `border-neutral-*`                                                                     | Project-specific CSS variable scale — fully dark-mode aware. Explicitly allowed. Never flag these.                                                                                                                                |
-| `bg-m3-primary` on a button (flat, no gradient)                                                                          | Clinical Atelier flat-primary rule. Flat is correct. Never suggest adding a gradient.                                                                                                                                             |
+| `bg-m3-primary` on a button (flat, no gradient)                                                                          | Project design system: flat primary is correct. Never suggest adding a gradient.                                                                                                                                                  |
 | `hover:enabled:bg-m3-primary-container` on a primary button                                                              | This IS the correct hover state for flat primary. Not a violation.                                                                                                                                                                |
 | `bg-m3-primary` used in dark mode                                                                                        | Brand colors stay consistent across modes — only surface tokens invert. Not a violation.                                                                                                                                          |
 | `primary-60`, `neutral-*` tokens inside `ProgressIndicator.tsx` or other pre-existing components not in the current diff | Out-of-scope — only review files in the diff.                                                                                                                                                                                     |
@@ -35,7 +35,9 @@ If you are unsure whether a finding survives the pre-check, default to **discard
 
 ## M3 Design System — Token Usage
 
-This project uses M3 tokens via Tailwind. Enforce these rules:
+This project uses M3 tokens via Tailwind. The token names and exception list below reflect this project's design system — adapt them in your local copy if your project uses different naming conventions.
+
+Enforce these rules:
 
 ### Colors — MUST use M3 tokens, never raw Tailwind colors
 
@@ -47,9 +49,9 @@ This project uses M3 tokens via Tailwind. Enforce these rules:
 - ⚠️ Exception: `text-neutral-*` and `bg-neutral-*` are project-specific tokens — allowed.
 - ✅ New tokens available: `bg-m3-outline-variant`, `bg-m3-surface-dim` — use these instead of custom colors.
 
-### Clinical Atelier Design System — enforced rules
+### Project Design System — enforced rules
 
-- **Primary buttons**: MUST use flat `bg-m3-primary text-m3-on-primary` with `hover:enabled:bg-m3-primary-container`. ✅ Flat fill is correct and intentional (Stitch alignment). ❌ Do NOT flag flat primary buttons. ❌ Do NOT suggest adding a gradient to primary buttons — gradient has been permanently removed from the design system.
+- **Primary buttons**: MUST use flat `bg-m3-primary text-m3-on-primary` with `hover:enabled:bg-m3-primary-container`. ✅ Flat fill is correct and intentional. ❌ Do NOT flag flat primary buttons. ❌ Do NOT suggest adding a gradient to primary buttons — gradient has been removed from the design system.
   > **OVERRIDE**: If you are about to write "bg-gradient-to-br from-m3-primary" as a fix for primary buttons — STOP. That is wrong. Flat `bg-m3-primary` IS the correct style. Never suggest the gradient pattern for primary buttons.
 - **Tonal buttons**: MUST use `bg-m3-tertiary-container text-m3-on-tertiary-container`. Used for accent/hero actions (amber/gold in both light and dark mode).
 - **Icon buttons**: Use `IconButton` from `@/ui/components` (variants: `filled`, `outlined`, `tonal`, `ghost`; shapes: `round`, `square`).
@@ -130,8 +132,8 @@ For every component, verify:
 - Destructive confirm MUST use `variant="danger"`.
 - All user-visible text MUST use `useTranslation` — no hardcoded French or English strings.
 - Amount display formatting depends on the project's data model — two valid patterns:
-  - **Multi-currency / data-driven** (e.g. PortfolioManager): use `Intl.NumberFormat` with the currency code from data — never hardcode the symbol.
-  - **Single-currency / millis storage** (e.g. PatientManager / ProjectSF): use `€{(millis / 1000).toFixed(2)}` — amounts are stored as integer centimes/millis, never as floats. Check `ARCHITECTURE.md` or a domain entity to determine which model applies.
+  - **Multi-currency / data-driven**: use `Intl.NumberFormat` with the currency code from data — never hardcode the symbol.
+  - **Single-currency / millis storage**: use `€{(millis / 1000).toFixed(2)}` — amounts are stored as integer centimes/millis, never as floats. Check `ARCHITECTURE.md` or a domain entity to determine which model applies.
 - Dates MUST be formatted consistently (use `Intl.DateTimeFormat` or a shared formatter — never raw ISO strings shown to user).
 
 ---
