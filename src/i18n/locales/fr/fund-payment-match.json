@@ -25,6 +25,10 @@
     },
     "blocking": {
       "banner": "{{count}} anomalie(s) bloquante(s) — la validation est impossible tant qu'elles ne sont pas résolues manuellement."
+    },
+    "header": {
+      "print": "Imprimer",
+      "close": "Fermer le modal"
     }
   },
   "table": {

@@ -61,7 +61,7 @@ Un acte sans aucune de ces anomalies est considérée comme parfaitement corresp
 
 **R13 — Correction de fonds (backend)** : Le fonds associé à la acte est mis à jour avec le fonds PDF (`FundMismatch` → `AutoCorrection::FundMismatch`).
 
-**R14 — Correction de date (backend)** : Le backend détecte un écart de date entre la acte et la ligne PDF uniquement sur une tolérance de -1 jour (passes 5–8 du matching). Un bouton "Corriger la date" est affiché dans la `SingleMatchCard` parmi les autres anomalies, sans card dédiée.
+**R14 — Correction de date (backend + frontend)** : Le backend détecte un écart de date entre la acte et la ligne PDF uniquement sur une tolérance de -1 jour (passes 5–8 du matching). Un bouton "Corriger la date" est affiché dans la `SingleMatchCard` parmi les autres anomalies, sans card dédiée.
 
 **R15 — Liaison manuelle (frontend + backend)** : Pour un `NotFoundIssue`, l'utilisateur peut lier la ligne PDF à un acte existante suggérée (`AutoCorrection::LinkProcedure`). Un acte ne peut être liée qu'une seule fois. Lors de la liaison, le SSN du patient est mis à jour avec le SSN du PDF — le PDF fait autorité sur le SSN.
 
@@ -115,6 +115,8 @@ Action appliquée par type d'anomalie :
 
 **R27 — Rapport d'actes non rapprochés (backend + frontend)** : Après validation, un rapport des actes non rapprochées dans la plage de dates du PDF est affiché, permettant au praticien de détecter les actes oubliés ou non remboursés.
 
+**R31 — Impression du rapport (frontend)** : Lors de l'affichage du rapport (étape post-validation uniquement), un bouton « Imprimer » est présent dans la partie fixe du header du modal. Il déclenche l'impression du contenu du rapport via le mécanisme d'impression du navigateur (`window.print()`). L'annulation ou l'interruption de l'impression par l'utilisateur est gérée entièrement par le navigateur — aucun état d'erreur applicatif n'est requis. Le bouton est absent pendant toutes les autres étapes du workflow.
+
 ---
 
 ## Workflow
@@ -165,3 +167,11 @@ Action appliquée par type d'anomalie :
           ▼
 [Fin — fermeture du modal ou consultation du rapport]
 ```
+
+---
+
+## Questions ouvertes
+
+- [ ] **R6 — Critère "toutes les actes du patient dans la période couverte"** : La condition de correspondance parfaite exige que *toutes* les actes du patient dans la période concernée soient couvertes par le match. Cette formulation est ambiguë : s'agit-il de toutes les actes du patient sur la même date ? sur la plage de dates du groupe PDF ? sur la période de la ligne PDF uniquement ? Préciser le périmètre exact pour rendre la règle testable de façon indépendante.
+
+- [ ] **R29 — Traitement des montants négatifs et cohérence avec procedure-orchestration-spec** : R29 indique que les actes créées depuis une ligne à montant négatif reçoivent le statut `Reconciliated` directement à la création. Vérifier si ce comportement est compatible avec le cycle de statut défini dans procedure-orchestration-spec (qui décrit les transitions valides depuis `Created`). Si un conflit existe, trancher : soit R29 crée l'acte avec un statut exceptionnel, soit l'acte passe par `Created` → `Reconciliated` via le flux de rapprochement normal.

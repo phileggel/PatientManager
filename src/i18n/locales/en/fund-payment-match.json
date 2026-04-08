@@ -25,6 +25,10 @@
     },
     "blocking": {
       "banner": "{{count}} blocking issue(s) — validation is impossible until they are resolved manually."
+    },
+    "header": {
+      "print": "Print",
+      "close": "Close modal"
     }
   },
   "table": {

@@ -33,20 +33,18 @@ export function UnreconciledReportView({
   return (
     <div className="flex flex-col gap-4 p-4">
       <div>
-        <h3 className="text-base font-semibold text-slate-900">{t("report.title")}</h3>
-        <p className="text-sm text-slate-500">
+        <h3 className="text-base font-semibold text-m3-on-surface">{t("report.title")}</h3>
+        <p className="text-sm text-m3-on-surface-variant">
           {t("report.period", { start: startDate, end: endDate })}
         </p>
       </div>
 
       {procedures.length === 0 ? (
-        <p className="text-sm text-success-70 font-medium">{t("report.empty")}</p>
+        <p className="text-sm text-m3-tertiary font-medium">{t("report.empty")}</p>
       ) : (
         <>
-          <p className="text-sm text-warning-70">
-            {t("report.count", { count: procedures.length })}
-          </p>
-          <div className="m3-table-container overflow-auto max-h-80">
+          <p className="text-sm text-m3-error">{t("report.count", { count: procedures.length })}</p>
+          <div className="m3-table-container overflow-auto max-h-80 print:max-h-none print:overflow-visible">
             <table className="w-full">
               <thead className="sticky top-0">
                 <tr>
@@ -71,7 +69,7 @@ export function UnreconciledReportView({
         </>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end print:hidden">
         <Button onClick={onClose} variant="primary">
           {t("report.close")}
         </Button>
