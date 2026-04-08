@@ -40,3 +40,6 @@ clean-db:
 clean-branches:
     git fetch --prune
     git branch -vv | grep ': gone]' | awk '{print $1}' | xargs git branch -D || true
+
+stat:
+    cloc . --vcs=git

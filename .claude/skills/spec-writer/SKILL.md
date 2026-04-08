@@ -48,16 +48,16 @@ After round 3 (or earlier if all blocking uncertainties are resolved), draft the
 
 ---
 
-### 3. Infer from the codebase
+### 3. Retro-engineering mode (exception only)
 
-Search the codebase to fill in gaps before writing:
+Only if the user explicitly asked to derive the spec from existing code (e.g., "retro-engineering", "documente ce qui existe"):
 
 - Grep for related entities in `src-tauri/src/context/`
 - Grep for related frontend components in `src/features/`
 - Check `src-tauri/src/core/specta_builder.rs` for existing commands in the domain
 - Look for existing i18n keys in `src/i18n/locales/fr/` for the domain
 
-Note what exists (reuse) vs what's missing (new rules needed).
+In all other cases, skip this step. The spec must express business intent, not describe current implementation.
 
 ---
 
@@ -182,10 +182,9 @@ After writing the spec, check the `## Questions ouvertes` section for unchecked 
    - If the answer resolves the question: update the affected Rn rule(s) in the spec, then mark the item `[x]` (or remove it if the answer makes the question moot).
    - If the answer reveals a new unknown: add a new `[ ]` item for it.
    - **If the user has no preference** ("peu importe", "comme tu veux", "je ne sais pas", or similar): do NOT decide silently. Instead:
-     1. Search the codebase for how similar cases are handled (Grep existing specs in `docs/`, existing domain rules in `src-tauri/src/`, existing frontend patterns in `src/features/`).
-     2. Reason from the findings + known DDD/UX best practices.
-     3. Propose 2–3 concrete options (each one sentence, no implementation detail), with a recommended default clearly marked. Present them via **AskUserQuestion** so the user explicitly picks one.
-     4. Once a choice is made, apply it and close the question.
+     1. Reason from DDD/UX best practices and the patterns visible in `docs/` specs and ADRs (no code search).
+     2. Propose 2–3 concrete options (each one sentence, no implementation detail), with a recommended default clearly marked. Present them via **AskUserQuestion** so the user explicitly picks one.
+     3. Once a choice is made, apply it and close the question.
    - **If the user remains indecisive after options have been proposed** (still no preference on a second pass): apply the recommended default, close the question, and annotate the resulting rule with `<!-- IA-Decision -->` so the user can spot and revisit it later. Never loop more than twice on the same open question.
 3. Rewrite the spec file with the updated rules and question list.
 4. Loop back — ask again if `[ ]` items still remain.
@@ -265,7 +264,7 @@ Then ask: **"Valider, affiner, passer à la rédaction de l'ADR, ou lancer le pl
 
 ## Critical Rules
 
-1. Read the domain context BEFORE asking — never ask what the codebase can answer
+1. Read design docs BEFORE asking (`ARCHITECTURE.md`, `docs/`, ADRs) — never ask what the docs already answer. Do NOT read source code unless the user explicitly requested retro-engineering.
 2. Interview is capped at 3 rounds (Round 1: max 4 questions, Round 2: max 3, Round 3: max 2) — stop earlier if all blocking unknowns are resolved; remaining unknowns go into `## Questions ouvertes` for step 5
 3. Open Questions section is mandatory — never decide silently; if the user has no preference, search the codebase for similar patterns, propose 2–3 options with a recommended default, and let the user pick
 4. **Never leave `[ ]` items unresolved** — step 5 loops until all opens are closed

@@ -31,12 +31,11 @@ Read the full spec. Extract:
 
 ### Step 2 — Load context
 
-Read for comparison:
+Read for comparison (skip silently if a file or directory is absent):
 
-- `ARCHITECTURE.md` — **CRITICAL**: Verify that the feature belongs to the right bounded context and that entity relationships follow the defined data flow.
-- `docs/adr/` — Read all ADRs to ensure the spec doesn't violate a past technical decision (e.g., storage formats, deletion strategies).
-- `docs/*.md` (excluding rules/todo) — to detect functional conflicts between features.
-- `src-tauri/src/context/` — to check the current domain implementation.
+- `ARCHITECTURE.md` — if present, verify that the feature belongs to the right bounded context and that entity relationships follow the defined data flow; if absent, note it as a missing reference in findings.
+- `docs/adr/` — if present, read all ADRs to ensure the spec doesn't violate a past technical decision (e.g., storage formats, deletion strategies).
+- `docs/*.md` (excluding rules/todo) — if present, to detect functional conflicts between features.
 
 ### Step 3 — Apply review checks
 

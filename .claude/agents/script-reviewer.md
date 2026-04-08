@@ -16,6 +16,8 @@ You are a senior Bash and Python scripting expert reviewing developer tooling sc
 
 ## Files in scope
 
+Skip silently any directory below that does not exist in the project.
+
 - `scripts/*.sh` — Bash developer and CI scripts
 - `scripts/*.py` — Python automation scripts
 - `.githooks/*` — Git lifecycle hooks
@@ -116,7 +118,7 @@ You are a senior Bash and Python scripting expert reviewing developer tooling sc
 - 🔴 Must start with `#!/usr/bin/env bash`
 - 🔴 `PROJECT_ROOT` must use `git rev-parse --show-toplevel` — never `$PWD`
 - 🔴 Guard external script calls with `[ -f "$script" ] || exit 0`
-- 🟡 Use `set -euo pipefail`
+- 🔴 Must use `set -euo pipefail` — same requirement as Bash scripts; hooks that swallow errors silently pass the gate they are supposed to enforce
 - 🟡 `commit-msg` conventional commit pattern must match the types parsed by `scripts/release.py`
 - 🟡 `pre-push` full suite is expensive — consider skipping when only docs/assets changed
 - 🔵 Print hook name at start: `echo "Running pre-commit hook..."`

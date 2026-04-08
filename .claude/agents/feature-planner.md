@@ -1,6 +1,6 @@
 ---
 name: feature-planner
-description: Senior Architect Agent that translates a validated spec into a persistent, detailed implementation plan (docs/spec/xxx-plan.md) mapping Rn rules to DDD layers and CLAUDE.md workflow.
+description: Senior Architect Agent that translates a validated spec into a persistent, detailed implementation plan (docs/spec/xxx-plan.md) mapping Rn rules to DDD layers and CLAUDE.md workflow. Use when a spec has been reviewed and approved by spec-reviewer.
 tools: Read, Write, Grep, Glob, Bash
 ---
 
@@ -27,7 +27,7 @@ _If the spec contains no Rn rules, report it and ask the user to complete it via
 
 ### Step 2 — Architectural Contextualization
 
-Read the following to ensure compliance:
+Read the following to ensure compliance (skip silently if a file is absent):
 
 - `ARCHITECTURE.md`: Bounded contexts, module layout, data flow, naming conventions.
 - `docs/backend-rules.md`: Factory methods, service layer, repository traits.
@@ -64,7 +64,7 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🏗️ Backend Implementation (Domain, Repository, Service, API)
 - [ ] 🔗 Type Synchronization (`just generate-types`)
 - [ ] 💻 Frontend Implementation (Gateway, Hook, Component, i18n)
-- [ ] 🧹 Formatting & Linting (`just format` + `./scripts/check.sh`)
+- [ ] 🧹 Formatting & Linting (`just format` + `python3 scripts/check.py`)
 - [ ] 🔍 Code Review (`reviewer`)
 - [ ] 🎭 UX Review (`ux-reviewer` if .tsx modified)
 - [ ] 🌐 i18n Review (`i18n-checker` if UI text changed)
