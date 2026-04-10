@@ -9,20 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - add print button to report header (R31)
-Print button shown only during post-validation report step via window.print().
-Header hidden on print, table max-height removed. R31.
 - always show label mapping step with two-block display
-R7/R23-R28: two-block display, sticky Accepter, confirmed pre-filled, hint-only suggestion
-R26: NO_VIR_SEPA_LINES structured error; ADR-001: BankFundLabelMapping persistence
-UX: M3 semantic tokens for dark mode, CompactSelectField with chevron
-UX: rejected row left-border style, modal reduced to max-w-2xl, sticky header padding
-Extract logic to useFundLabelMappingStep hook (F10)
 - add INS label and view-partial mode to procedure modal
-R26: view-partial mode — only procedure_type_id editable, payment fields absent
-R28/R31: formatPatientLabel returns "NOM Prénom (INS)"
-R29/R32: ComboboxField for patient in create+edit, onCreateNew in create only
-R30: edit mode passes payment fields through unchanged
-R9: fund inline creation removed from modal
 - add procedure type management with FAB modal
 - Backend: case-insensitive dedup, import-pdf guard, category normalization (R3,R4,R22,R21)
 - Frontend: CreateProcedureTypeModal (FAB) replaces side panel, filter sentinel import-pdf (R16,R23)
