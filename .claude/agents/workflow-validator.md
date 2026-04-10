@@ -36,6 +36,7 @@ Run `git diff --name-only HEAD` and `git status --short`. Determine which condit
 - `.tsx` files modified → UX Review (`ux-reviewer`) required
 - User-visible text added/changed in `.tsx`/`.ts` feature files → i18n Review required
 - A spec doc exists in `docs/` for this feature → `spec-checker` required
+- Any `.sh`, `.py` (in `scripts/`) or `.githooks/` file added/modified → Script Review (`script-reviewer`) required
 
 ### Step 4 — Validate each item
 

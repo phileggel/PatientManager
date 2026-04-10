@@ -83,10 +83,10 @@ and the main entities involved.}
 
 {One sentence describing what this entity represents in the business domain.}
 
-| Field         | Business meaning                                                        |
-| ------------- | ----------------------------------------------------------------------- |
-| `field_name`  | {What this field represents to the user, without technical detail.}     |
-| `other_field` | {Same.}                                                                 |
+| Field         | Business meaning                                                    |
+| ------------- | ------------------------------------------------------------------- |
+| `field_name`  | {What this field represents to the user, without technical detail.} |
+| `other_field` | {Same.}                                                             |
 
 > Entity and field names in English, Rust convention (`snake_case` for fields,
 > `PascalCase` for entities). No implementation detail: describe business meaning only,
