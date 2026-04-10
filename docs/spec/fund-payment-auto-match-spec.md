@@ -172,6 +172,6 @@ Action appliquée par type d'anomalie :
 
 ## Questions ouvertes
 
-- [ ] **R6 — Critère "toutes les actes du patient dans la période couverte"** : La condition de correspondance parfaite exige que *toutes* les actes du patient dans la période concernée soient couvertes par le match. Cette formulation est ambiguë : s'agit-il de toutes les actes du patient sur la même date ? sur la plage de dates du groupe PDF ? sur la période de la ligne PDF uniquement ? Préciser le périmètre exact pour rendre la règle testable de façon indépendante.
+- [ ] **R6 — Critère "toutes les actes du patient dans la période couverte"** : La condition de correspondance parfaite exige que _toutes_ les actes du patient dans la période concernée soient couvertes par le match. Cette formulation est ambiguë : s'agit-il de toutes les actes du patient sur la même date ? sur la plage de dates du groupe PDF ? sur la période de la ligne PDF uniquement ? Préciser le périmètre exact pour rendre la règle testable de façon indépendante.
 
 - [ ] **R29 — Traitement des montants négatifs et cohérence avec procedure-orchestration-spec** : R29 indique que les actes créées depuis une ligne à montant négatif reçoivent le statut `Reconciliated` directement à la création. Vérifier si ce comportement est compatible avec le cycle de statut défini dans procedure-orchestration-spec (qui décrit les transitions valides depuis `Created`). Si un conflit existe, trancher : soit R29 crée l'acte avec un statut exceptionnel, soit l'acte passe par `Created` → `Reconciliated` via le flux de rapprochement normal.
