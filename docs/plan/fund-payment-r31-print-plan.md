@@ -30,6 +30,7 @@ No backend changes. No `just generate-types` required.
 The post-validation branch (lines 52–76) renders a standalone header `<div>` before `<UnreconciledReportView>`. This is the "fixed/sticky" header that R31 refers to. A "Print" button must be added there, to the left of the close (`X`) button, inside the existing `flex items-center justify-between` row.
 
 Specifically, replace the right-hand side of that header from a single close button to a small row containing:
+
 - A `<Button variant="outline" size="sm">` labeled with `t("modal.header.print")`, with `onClick={() => window.print()}`.
 - The existing `X` close button unchanged.
 
@@ -40,6 +41,7 @@ Import `Printer` from `lucide-react` and pass it as the `icon` prop to `Button` 
 ### Task 2 — Add i18n keys
 
 **Files**:
+
 - `src/i18n/locales/fr/fund-payment-match.json`
 - `src/i18n/locales/en/fund-payment-match.json`
 
@@ -97,23 +99,23 @@ Spy on `window.print` with `vi.spyOn(window, "print").mockImplementation(() => {
 
 ## Rules Coverage
 
-| Rule | Implementation |
-|------|---------------|
-| R31 — Print button in report header only | Task 1: Button in post-validation branch of `ReconciliationModal.tsx` |
-| R31 — `window.print()` trigger | Task 1: `onClick={() => window.print()}` |
-| R31 — Button absent during other steps | Task 1: button only in the `unreconciledReport !== null` branch, not in the main workflow branch |
-| R31 — No applicative error state | No state or error handling added; browser manages print lifecycle |
-| R31 — i18n label | Task 2: `modal.header.print` key in fr + en |
+| Rule                                     | Implementation                                                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| R31 — Print button in report header only | Task 1: Button in post-validation branch of `ReconciliationModal.tsx`                            |
+| R31 — `window.print()` trigger           | Task 1: `onClick={() => window.print()}`                                                         |
+| R31 — Button absent during other steps   | Task 1: button only in the `unreconciledReport !== null` branch, not in the main workflow branch |
+| R31 — No applicative error state         | No state or error handling added; browser manages print lifecycle                                |
+| R31 — i18n label                         | Task 2: `modal.header.print` key in fr + en                                                      |
 
 ---
 
 ## File Summary
 
-| File | Action |
-|------|--------|
-| `src/features/fund-payment-match/reconciliation_modal/ReconciliationModal.tsx` | Add Print button + `print:hidden` to header |
-| `src/features/fund-payment-match/unreconciled_report/UnreconciledReport.tsx` | Add `print:hidden` to Close button |
-| `src/i18n/locales/fr/fund-payment-match.json` | Add `modal.header.print` |
-| `src/i18n/locales/en/fund-payment-match.json` | Add `modal.header.print` |
-| `src/ui/tailwind.css` | Add `@media print` backdrop hide rule |
-| `src/features/fund-payment-match/reconciliation_modal/ReconciliationModal.test.tsx` | Add R31 test case |
+| File                                                                                | Action                                      |
+| ----------------------------------------------------------------------------------- | ------------------------------------------- |
+| `src/features/fund-payment-match/reconciliation_modal/ReconciliationModal.tsx`      | Add Print button + `print:hidden` to header |
+| `src/features/fund-payment-match/unreconciled_report/UnreconciledReport.tsx`        | Add `print:hidden` to Close button          |
+| `src/i18n/locales/fr/fund-payment-match.json`                                       | Add `modal.header.print`                    |
+| `src/i18n/locales/en/fund-payment-match.json`                                       | Add `modal.header.print`                    |
+| `src/ui/tailwind.css`                                                               | Add `@media print` backdrop hide rule       |
+| `src/features/fund-payment-match/reconciliation_modal/ReconciliationModal.test.tsx` | Add R31 test case                           |
