@@ -25,8 +25,8 @@ Skip silently any file or directory below that does not exist in the project.
 - `src-tauri/tauri.conf.json` — Tauri bundle and app configuration
 - `src-tauri/Cargo.toml` — Rust dependencies and build configuration
 - `package.json` — Node.js dependencies and scripts
-- `scripts/*.sh`, `scripts/*.bat`, `scripts/*.py` — Developer and CI helper scripts
-- `.githooks/*` — Git lifecycle hooks (pre-commit, commit-msg, pre-push, etc.)
+- `scripts/*.sh`, `scripts/*.bat`, `scripts/*.py` — read only to verify files referenced from CI exist and are callable; not reviewed for internal quality (use `script-reviewer` for that)
+- `.githooks/*` — read only to verify hook wiring and CI/local consistency; not reviewed for internal quality (use `script-reviewer` for that)
 - `justfile` — Command runner recipes (task aliases for scripts and dev commands)
 
 ---
@@ -159,16 +159,7 @@ Always perform these checks across files together:
 
 ## scripts/ Rules
 
-### Correctness
-
-- 🔴 Shell scripts must start with a proper shebang (`#!/bin/bash` or `#!/usr/bin/env bash`) — missing shebang causes silent failure when executed directly
-- 🔴 Scripts called from CI workflows must be executable (`chmod +x`) — verify with `git ls-files --stage scripts/` that the file mode is `100755`, not `100644`
-- 🔴 Scripts that invoke tools (`cargo`, `npm`, `tauri`, `python`) must handle the case where those tools are not on `$PATH` — either check with `command -v` or let `set -e` propagate the error
-- 🔴 Python scripts must declare their interpreter requirements (shebang + compatible version) and must not rely on globally installed packages without a `requirements.txt` or inline comment
-- 🟡 Bash scripts used in CI should set `set -euo pipefail` at the top — `set -e` stops on error, `-u` catches unbound variables, `-o pipefail` catches failures in pipelines
-- 🟡 Scripts that accept arguments should validate them and print usage on bad input — silent wrong-arg failures are hard to debug in CI logs
-- 🟡 Hardcoded paths (e.g. `~/AppData`, `/usr/local/bin`) should use environment variables or be computed dynamically — they break on other machines
-- 🔵 Long scripts (>80 lines) benefit from a header comment block explaining purpose, usage, required env vars, and expected side effects
+> Internal quality of scripts (shebang, `set -euo pipefail`, argument validation, etc.) is `script-reviewer`'s domain. This section covers only how scripts are referenced and consumed from CI and config.
 
 ### Consistency with CI
 
@@ -176,12 +167,6 @@ Always perform these checks across files together:
 - 🟡 Scripts referenced in `package.json` scripts (e.g. `"check": "python3 scripts/check.py"`) must be consistent with what the CI workflow actually runs
 - 🟡 The quality check script (e.g. `scripts/check.py`) must cover the same checks as the CI workflow — if CI runs `cargo clippy` but the local script doesn't, local and CI parity is broken
 - 🔵 Scripts used both locally and in CI should support a `--ci` flag or `CI=true` env var to adjust output format (e.g. no interactive prompts, machine-readable output)
-
-### Security
-
-- 🔴 Scripts must not hardcode secrets, tokens, or passwords — use environment variables
-- 🟡 Scripts that `curl` or `wget` external URLs should verify checksums or use HTTPS — flag plain HTTP fetches
-- 🟡 Scripts that use `eval` or `$()` with user-supplied input are injection risks — flag and suggest alternatives
 
 ---
 
@@ -212,16 +197,7 @@ Always perform these checks across files together:
 
 ## .githooks/ Rules
 
-### Correctness
-
-- 🔴 Every hook must start with `#!/usr/bin/env bash` — missing shebang causes silent skip on some Git configurations
-- 🔴 Hook files must be executable (`chmod +x`) — Git silently skips non-executable hooks; verify with `git ls-files --stage .githooks/`
-- 🔴 `PROJECT_ROOT` must be derived from `git rev-parse --show-toplevel` (not hardcoded or assumed from `$PWD`) — hooks are invoked from various working directories
-- 🔴 Hooks that call external scripts (e.g. `scripts/check.py`) must guard with `[ -f ... ]` before executing to avoid cryptic "command not found" errors in fresh clones
-- 🟡 All hooks should use `set -euo pipefail` or explicitly handle failures — a hook that exits 0 despite an internal error silently passes the gate it is supposed to enforce
-- 🟡 `pre-push` hook running the full test suite blocks legitimate fast pushes (e.g. docs-only commits). Consider checking the diff and skipping heavy checks when only non-code files changed
-- 🟡 Color codes (`\033[...`) should check for TTY support (`[ -t 1 ]`) or use `tput` — raw ANSI codes in non-TTY environments (CI, IDEs) pollute logs
-- 🔵 Each hook should print its name at the start so developers know which hook is running when multiple hooks are installed
+> Internal quality of hooks (shebang, `set -euo pipefail`, `PROJECT_ROOT` derivation, etc.) is `script-reviewer`'s domain. This section covers only how hooks are wired into the project and consistent with CI.
 
 ### Consistency with CI and scripts/
 
@@ -229,11 +205,6 @@ Always perform these checks across files together:
 - 🟡 `commit-msg` conventional commit pattern must match the types accepted by `scripts/release.py` — if `release.py` parses `feat|fix|...` but `commit-msg` allows additional types, version bumps will be miscalculated
 - 🟡 If `.githooks/` is not registered as the Git hooks directory in the repo (via `git config core.hooksPath .githooks`), hooks silently do nothing for developers who clone fresh. Check for a setup step in `README.md` or `scripts/`
 - 🔵 A `post-checkout` hook that runs `npm install` when `package-lock.json` changes would prevent "missing dependency" errors after branch switches
-
-### Security
-
-- 🔴 Hooks must not echo or log secret values from environment variables
-- 🟡 `commit-msg` hook blocking `Co-Authored-By:` is a project policy — verify the regex is case-insensitive and handles variations (`co-authored-by`, `CO-AUTHORED-BY`)
 
 ---
 

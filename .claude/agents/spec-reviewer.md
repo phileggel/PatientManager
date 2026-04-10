@@ -34,6 +34,8 @@ Read the full spec. Extract:
 Read for comparison (skip silently if a file or directory is absent):
 
 - `ARCHITECTURE.md` — if present, verify that the feature belongs to the right bounded context and that entity relationships follow the defined data flow; if absent, note it as a missing reference in findings.
+- `docs/backend-rules.md` — factory methods, service layer conventions, repository traits.
+- `docs/frontend-rules.md` — gateway, hook, component patterns, colocated tests.
 - `docs/adr/` — if present, read all ADRs to ensure the spec doesn't violate a past technical decision (e.g., storage formats, deletion strategies).
 - `docs/*.md` (excluding rules/todo) — if present, to detect functional conflicts between features.
 
@@ -41,18 +43,19 @@ Read for comparison (skip silently if a file or directory is absent):
 
 #### A — Structure
 
-- 🔴 Missing `## Contexte` section
+- 🔴 Missing `## Context` section
+- 🔴 Missing `## Business Rules` section
 - 🔴 No Rn rules found
-- 🟡 Rules not using the `**Rn — Titre (scope)**` format
-- 🟡 Missing `## Maquette UX` or UX section when frontend rules are present
-- 🟡 Prose is not in French (prose must be French, identifiers must be English)
+- 🟡 Rules not using the `**Rn — Title (scope)**` format
+- 🟡 Missing `## UX Draft` section when frontend rules are present
+- 🔴 Prose is not in English — all spec content must be in English
 
 #### B — Rule quality
 
 - 🔴 Rule describes multiple behaviors in one (not atomic) → split needed
 - 🔴 Rule is not testable (e.g. "the UI should be nice") → must be rephrased
 - 🔴 Rule scope missing or ambiguous (must be one of: `frontend`, `backend`, `frontend + backend`)
-- 🟡 Rule uses "should" or "may" instead of assertive language ("est", "doit", "ne peut pas")
+- 🟡 Rule uses "should" or "may" instead of assertive language
 - 🟡 Frontend rule that reads or writes data has no corresponding backend rule
 
 #### C — Completeness
@@ -90,35 +93,35 @@ Read for comparison (skip silently if a file or directory is absent):
 Group findings by category, then by severity:
 
 ```
-## {nom du fichier spec}
+## {spec file name}
 
 ### A — Structure
 🔴 ...
 🟡 ...
 
-### B — Qualité des règles
+### B — Rule Quality
 🔴 ...
 
-### C — Complétude
+### C — Completeness
 🟡 ...
 
-### D — Alignement DDD
+### D — DDD Alignment
 ...
 
-### E — Conflits avec les specs existantes
+### E — Conflicts with existing specs
 ...
 
-### F — Questions ouvertes
+### F — Open Questions
 ...
 ```
 
-If a section has no issues, write `✅ RAS.`
+If a section has no issues, write `✅ None.`
 
 End with:
 
 ```
-Revue terminée : N critique(s), N avertissement(s), N suggestion(s).
-Prêt pour feature-planner : oui / non (si critique > 0).
+Review complete: N critical, N warning(s), N suggestion(s).
+Ready for feature-planner: yes / no (if critical > 0).
 ```
 
 ---
@@ -127,5 +130,5 @@ Prêt pour feature-planner : oui / non (si critique > 0).
 
 1. Never suggest implementation details (file names, functions) — that's feature-planner's job
 2. Every 🔴 finding must block the spec from going to feature-planner
-3. Report findings against rule numbers (e.g. "R3 — scope manquant") not against lines
+3. Report findings against rule numbers (e.g. "R3 — scope missing") not against lines
 4. Do not rewrite the spec — report issues only, the user corrects via spec-writer

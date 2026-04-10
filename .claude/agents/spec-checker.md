@@ -19,7 +19,10 @@ The user normally passes the spec path explicitly. If no document is specified, 
 ### Step 1 — Extract rules & context
 
 1. Read the spec document: extract every rule **R1, R2, … Rn**.
-2. **Read docs/adr/ (if exists)**: identify global technical constraints (e.g., storage types, soft-delete, event naming) that apply to the current domain.
+2. Read the following for project conventions (skip silently if absent):
+   - `docs/adr/` — global technical constraints (storage types, soft-delete, event naming).
+   - `docs/backend-rules.md` — factory methods, service layer, repository traits.
+   - `docs/frontend-rules.md` — gateway, hook, component patterns.
 
 ### Step 2 — Check backend implementation
 
@@ -40,7 +43,7 @@ For each frontend rule:
 
 - Search in `src/features/` for the relevant component, hook, or gateway call
 - Verify: correct command called, correct params, error handling present, i18n used
-- **UX Check**: Ensure the component structure matches the `## Maquette UX` section of the spec.
+- **UX Check**: Ensure the component structure matches the `## UX Draft` section of the spec.
 
 ### Step 4 — Check test coverage
 
