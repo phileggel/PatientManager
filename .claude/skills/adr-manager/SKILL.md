@@ -91,11 +91,11 @@ Maintain `docs/adr/README.md` as a navigable index of all ADRs:
 ```markdown
 # Architecture Decision Records
 
-| ADR | Title | Status |
-|-----|-------|--------|
-| [ADR-001](001-title-slug.md) | {Title} | Accepted |
+| ADR                          | Title   | Status                |
+| ---------------------------- | ------- | --------------------- |
+| [ADR-001](001-title-slug.md) | {Title} | Accepted              |
 | [ADR-002](002-title-slug.md) | {Title} | Superseded by ADR-003 |
-| [ADR-003](003-title-slug.md) | {Title} | Accepted |
+| [ADR-003](003-title-slug.md) | {Title} | Accepted              |
 ```
 
 If `docs/adr/` does not exist yet, create it along with the empty `README.md`.

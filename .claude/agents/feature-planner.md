@@ -68,6 +68,7 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🔍 Code Review (`reviewer`)
 - [ ] 🎭 UX Review (`ux-reviewer` if .tsx modified)
 - [ ] 🌐 i18n Review (`i18n-checker` if UI text changed)
+- [ ] 🔧 Script Review (`script-reviewer` if any script or hook was added/modified)
 - [ ] 🧪 Unit & Integration Tests
 - [ ] 📚 Documentation Update (`ARCHITECTURE.md` + `docs/todo.md`)
 - [ ] ✅ Final Validation (`spec-checker` + `workflow-validator`)
