@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-04-10
+
+### Added
+- add print button to report header (R31)
+Print button shown only during post-validation report step via window.print().
+Header hidden on print, table max-height removed. R31.
+- always show label mapping step with two-block display
+R7/R23-R28: two-block display, sticky Accepter, confirmed pre-filled, hint-only suggestion
+R26: NO_VIR_SEPA_LINES structured error; ADR-001: BankFundLabelMapping persistence
+UX: M3 semantic tokens for dark mode, CompactSelectField with chevron
+UX: rejected row left-border style, modal reduced to max-w-2xl, sticky header padding
+Extract logic to useFundLabelMappingStep hook (F10)
+- add INS label and view-partial mode to procedure modal
+R26: view-partial mode — only procedure_type_id editable, payment fields absent
+R28/R31: formatPatientLabel returns "NOM Prénom (INS)"
+R29/R32: ComboboxField for patient in create+edit, onCreateNew in create only
+R30: edit mode passes payment fields through unchanged
+R9: fund inline creation removed from modal
+- add procedure type management with FAB modal
+- Backend: case-insensitive dedup, import-pdf guard, category normalization (R3,R4,R22,R21)
+- Frontend: CreateProcedureTypeModal (FAB) replaces side panel, filter sentinel import-pdf (R16,R23)
+- Frontend: empty/no-results/error+retry states, fix EditProcedureTypeModal submit (R12,R13,R15)
+- Extract useDoubleClickRow hook; i18n keys fr+en
+- docs/plan/procedure-type-plan.md: all 20 steps checked
+
+### Fixed
+- regenerate offline cache with test queries
+
 ## [0.13.0] - 2026-03-24
 
 ### Added
