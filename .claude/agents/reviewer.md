@@ -41,7 +41,7 @@ All code MUST be written in English:
 - Log messages (`tracing::info!`, `logger.info`, etc.) — English only
 - Error messages returned from functions or thrown — English only
 - ❌ Flag any identifier, comment, or log string written in French or another language
-- ⚠️ Exception: user-visible strings that go through i18n (`t("key")`, translation JSON values) — these are intentionally in French/English per locale and must NOT be flagged
+- ⚠️ Exception: user-visible strings that go through i18n (`t("key")`, translation JSON values) — these are intentionally in the project's target locale(s) and must NOT be flagged
 
 ---
 

@@ -76,7 +76,7 @@ A synthetic checklist for mandatory quality and process steps:
 
 A granular breakdown by architectural layer:
 
-- **Backend**: Exact file paths, struct names, factory methods (`new`, `update_from`, `from_storage`), service methods, and Tauri handlers.
+- **Backend**: Exact file paths, struct names, factory methods (follow project conventions from `docs/backend-rules.md`), service methods, and Tauri handlers.
 - **Frontend**: Exact file paths, gateway methods, custom hooks, and React components.
 - **Rules Coverage**: A table mapping every Rn rule to its corresponding implementation task.
 

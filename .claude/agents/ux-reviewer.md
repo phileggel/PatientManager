@@ -85,7 +85,7 @@ For every component, verify:
 ### Empty States
 
 - Every list, table, or collection MUST show a message when empty — never render nothing.
-- Conditional sections that hide entirely when empty MUST have an explanatory fallback (e.g. "Aucun élément disponible").
+- Conditional sections that hide entirely when empty MUST have an explanatory fallback (e.g. `{t("common.empty")}`).
 - ❌ Pattern to flag: `{items.length > 0 && <div>…</div>}` with no fallback.
 - ✅ Correct: `{items.length > 0 ? <div>…</div> : <p>{t("empty")}</p>}`
 
@@ -130,10 +130,10 @@ For every component, verify:
 - Modal structure: header (title + close button) → scrollable content → footer (cancel + confirm).
 - Cancel button MUST always be `variant="secondary"`, confirm MUST be `variant="primary"`.
 - Destructive confirm MUST use `variant="danger"`.
-- All user-visible text MUST use `useTranslation` — no hardcoded French or English strings.
+- All user-visible text MUST use `useTranslation` — no hardcoded strings in any language.
 - Amount display formatting depends on the project's data model — two valid patterns:
   - **Multi-currency / data-driven**: use `Intl.NumberFormat` with the currency code from data — never hardcode the symbol.
-  - **Single-currency / millis storage**: use `€{(millis / 1000).toFixed(2)}` — amounts are stored as integer centimes/millis, never as floats. Check `ARCHITECTURE.md` or a domain entity to determine which model applies.
+  - **Single-currency / millis storage**: use `{currencySymbol}{(millis / 1000).toFixed(2)}` — amounts are stored as integer centimes/millis, never as floats. Check `ARCHITECTURE.md` or a domain entity for the currency symbol.
 - Dates MUST be formatted consistently (use `Intl.DateTimeFormat` or a shared formatter — never raw ISO strings shown to user).
 
 ---

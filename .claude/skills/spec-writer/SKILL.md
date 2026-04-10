@@ -33,14 +33,14 @@ This avoids asking the user what the codebase already answers.
 
 Use **AskUserQuestion** with up to 4 questions at once:
 
-1. **Nom de la feature** — quel nom court utilisera-t-on pour le fichier et les règles ?
-2. **Besoin métier** — en une phrase : qui fait quoi, et pourquoi ?
-3. **Domaine touché** — quel(s) contexte(s) sont impliqués ? (lire ARCHITECTURE.md pour les bounded contexts du projet)
-4. **Contraintes connues** — y a-t-il des règles métier déjà certaines ? (ex. "ne peut pas supprimer si lié", "nécessite qu'un fond existe")
+1. **Feature name** — what short name will be used for the file and rules?
+2. **Business need** — in one sentence: who does what, and why?
+3. **Domain** — which bounded context(s) are involved? (read ARCHITECTURE.md for the project's bounded contexts)
+4. **Known constraints** — are there business rules already certain? (e.g. "cannot delete if linked", "requires an entity to exist")
 
 If the user's answers reveal new unknowns, continue with additional rounds — up to **3 rounds maximum** to avoid indefinite ping-pong. Each subsequent round is more targeted than the previous: max 3 questions in round 2, max 2 in round 3.
 
-After round 3 (or earlier if all blocking uncertainties are resolved), draft the spec with what you have and move any remaining unknowns into `## Questions ouvertes` for step 5.
+After round 3 (or earlier if all blocking uncertainties are resolved), draft the spec with what you have and move any remaining unknowns into `## Open Questions` for step 5.
 
 - Only ask what you genuinely cannot infer from the codebase
 - Never ask about file names, function names, or implementation choices (that's `feature-planner`'s job)
@@ -50,12 +50,12 @@ After round 3 (or earlier if all blocking uncertainties are resolved), draft the
 
 ### 3. Retro-engineering mode (exception only)
 
-Only if the user explicitly asked to derive the spec from existing code (e.g., "retro-engineering", "documente ce qui existe"):
+Only if the user explicitly asked to derive the spec from existing code (e.g., "retro-engineering", "document what already exists"):
 
 - Grep for related entities in `src-tauri/src/context/`
 - Grep for related frontend components in `src/features/`
 - Check `src-tauri/src/core/specta_builder.rs` for existing commands in the domain
-- Look for existing i18n keys in `src/i18n/locales/fr/` for the domain
+- Look for existing i18n keys in `src/i18n/locales/` for the domain (inspect whatever locale directories are present)
 
 In all other cases, skip this step. The spec must express business intent, not describe current implementation.
 
@@ -63,86 +63,86 @@ In all other cases, skip this step. The spec must express business intent, not d
 
 ### 4. Write the spec
 
-Create `docs/{feature-name}.md` using **exactly this structure** (French, matching the project's existing spec style):
+Create `docs/{feature-name}.md` using **exactly this structure** (English):
 
 ```markdown
-# Règles métier — {Titre de la feature}
+# Business Rules — {Feature Title}
 
-## Contexte
+## Context
 
-{2-4 phrases décrivant le besoin métier, le rôle de cette feature dans l'application,
-et les entités principales impliquées.}
+{2-4 sentences describing the business need, the role of this feature in the application,
+and the main entities involved.}
 
 ---
 
-## Définition des entités
+## Entity Definition
 
-> Omettre cette section si la feature ne manipule pas d'entité persistée.
+> Omit this section if the feature does not manipulate a persisted entity.
 
 ### {EntityName}
 
-{Une phrase décrivant ce que représente cette entité dans le domaine métier.}
+{One sentence describing what this entity represents in the business domain.}
 
-| Champ         | Signification métier                                                    |
+| Field         | Business meaning                                                        |
 | ------------- | ----------------------------------------------------------------------- |
-| `field_name`  | {Ce que représente ce champ pour l'utilisateur, sans détail technique.} |
-| `other_field` | {Idem.}                                                                 |
+| `field_name`  | {What this field represents to the user, without technical detail.}     |
+| `other_field` | {Same.}                                                                 |
 
-> Noms d'entités et de champs en anglais, convention Rust (`snake_case` pour les champs,
-> `PascalCase` pour les entités). Aucun détail d'implémentation : décrire le sens métier,
-> pas le type, le format de stockage, ni la valeur par défaut.
+> Entity and field names in English, Rust convention (`snake_case` for fields,
+> `PascalCase` for entities). No implementation detail: describe business meaning only,
+> not the type, storage format, or default value.
 
 ---
 
-## Règles métier
+## Business Rules
 
-**R1 — {Titre court} (frontend + backend)** : {Description précise et testable de la règle.}
+**R1 — {Short Title} (frontend + backend)**: {Precise, testable description of the rule.}
 
-**R2 — {Titre court} (backend)** : {Description.}
+**R2 — {Short Title} (backend)**: {Description.}
 
-**R3 — {Titre court} (frontend)** : {Description.}
+**R3 — {Short Title} (frontend)**: {Description.}
 
 ...
 
-> Les règles couvrent : création, validation, modification, suppression,
-> transitions d'état, dépendances inter-entités, cas limites.
+> Rules cover: creation, validation, update, deletion,
+> state transitions, inter-entity dependencies, edge cases.
 
 ---
 
 ## Workflow
 
-{Diagramme ASCII du flux utilisateur principal, si pertinent}
+{ASCII diagram of the main user flow, if relevant}
 
 ---
 
-## Maquette UX
+## UX Draft
 
-### Point d'entrée
+### Entry Point
 
-{Comment l'utilisateur accède à la feature : entrée drawer, bouton FAB, action contextuelle...}
+{How the user accesses the feature: drawer entry, FAB button, contextual action...}
 
-### Composant principal
+### Main Component
 
-{Type : modal / page / panel / dialog. Sous-composants notables.}
+{Type: modal / page / panel / dialog. Notable sub-components.}
 
-### États
+### States
 
-- **Vide** : {ce que l'utilisateur voit sans données}
-- **Chargement** : {état de chargement}
-- **Erreur** : {messages d'erreur, validation}
-- **Succès** : {feedback de succès}
+- **Empty**: {what the user sees with no data}
+- **Loading**: {loading state}
+- **Error**: {error messages, validation}
+- **Success**: {success feedback}
 
-### Flux utilisateur
+### User Flow
 
-1. {Étape 1}
-2. {Étape 2}
+1. {Step 1}
+2. {Step 2}
 3. ...
 
 ---
 
-## Questions ouvertes
+## Open Questions
 
-- [ ] {Point à clarifier avant ou pendant l'implémentation}
+- [ ] {Point to clarify before or during implementation}
 ```
 
 **Rules for writing:**
@@ -152,7 +152,7 @@ et les entités principales impliquées.}
 - Open Questions must list every assumption you made — do not silently decide
 - If a rule has a notable edge case, add it as a separate rule (not a sub-clause)
 - **What & why only** — never describe how something is implemented (no SQL, no component names, no library choices, no data structures); describe the observable behaviour and its business reason
-- Entity/field names in the field table use English Rust conventions (`snake_case` fields, `PascalCase` entities); all surrounding prose remains French
+- Entity and field names use English Rust conventions (`snake_case` fields, `PascalCase` entities); all surrounding prose in English
 
 ---
 
@@ -165,7 +165,7 @@ While drafting the Rn rules, if the feature requires a choice that:
 - Requires a trade-off between two technical solutions
 - Supersedes a previous ADR found in Step 1
 
-**Action**: Add a mandatory item in `## Questions ouvertes` :
+**Action**: Add a mandatory item in `## Open Questions`:
 
 - [ ] `ADR-REQUIRED`: {Briefly describe the architectural decision to be recorded}.
 
@@ -173,7 +173,7 @@ While drafting the Rn rules, if the feature requires a choice that:
 
 ### 5. Resolve open questions (loop)
 
-After writing the spec, check the `## Questions ouvertes` section for unchecked items (`[ ]`).
+After writing the spec, check the `## Open Questions` section for unchecked items (`[ ]`).
 
 **While `[ ]` items remain:**
 
@@ -181,18 +181,18 @@ After writing the spec, check the `## Questions ouvertes` section for unchecked 
 2. For each answer received:
    - If the answer resolves the question: update the affected Rn rule(s) in the spec, then mark the item `[x]` (or remove it if the answer makes the question moot).
    - If the answer reveals a new unknown: add a new `[ ]` item for it.
-   - **If the user has no preference** ("peu importe", "comme tu veux", "je ne sais pas", or similar): do NOT decide silently. Instead:
+   - **If the user has no preference** ("doesn't matter", "up to you", "I don't know", or similar): do NOT decide silently. Instead:
      1. Reason from DDD/UX best practices and the patterns visible in `docs/` specs and ADRs (no code search).
      2. Propose 2–3 concrete options (each one sentence, no implementation detail), with a recommended default clearly marked. Present them via **AskUserQuestion** so the user explicitly picks one.
      3. Once a choice is made, apply it and close the question.
-   - **If the user remains indecisive after options have been proposed** (still no preference on a second pass): apply the recommended default, close the question, and annotate the resulting rule with `<!-- IA-Decision -->` so the user can spot and revisit it later. Never loop more than twice on the same open question.
+   - **If the user remains indecisive after options have been proposed** (still no preference on a second pass): apply the recommended default, close the question, and annotate the resulting rule with `<!-- AI-Decision -->` so the user can spot and revisit it later. Never loop more than twice on the same open question.
 3. Rewrite the spec file with the updated rules and question list.
 4. Loop back — ask again if `[ ]` items still remain.
 
-**Exit condition:** all items in `## Questions ouvertes` are either `[x]` or removed. The section must end with the line:
+**Exit condition:** all items in `## Open Questions` are either `[x]` or removed. The section must end with the line:
 
 ```
-Aucune — toutes les questions ont été tranchées.
+None — all questions have been resolved.
 ```
 
 Only proceed to step 6 once this condition is met.
@@ -228,18 +228,18 @@ After applying all fixes, rewrite the spec file once. Then proceed to step 7.
 
 Use **AskUserQuestion**:
 
-> "Voulez-vous générer un mockup visuel via Stitch ?"
+> "Do you want to generate a visual mockup via Stitch?"
 
 **If yes:**
 
 1. Call `mcp__stitch__generate_screen_from_text` with:
-   - `project_id`: `7705025027636758446`
+   - `project_id`: `{STITCH_PROJECT_ID}`
    - `device`: `DESKTOP`
    - `model`: `GEMINI_3_1_PRO`
-   - Prompt: derive from the `## Maquette UX` section just written — describe the layout, key components, states
+   - Prompt: derive from the `## UX Draft` section just written — describe the layout, key components, states
 2. Call `mcp__stitch__list_screens` then `mcp__stitch__get_screen` to fetch the HTML
 3. Use the **Write** tool to save the HTML to `docs/stitch/{feature-name}.stitch`
-4. Add a `> Mockup Stitch : docs/stitch/{feature-name}.stitch` reference in the `## Maquette UX` section of the spec
+4. Add a `> Stitch mockup: docs/stitch/{feature-name}.stitch` reference in the `## UX Draft` section of the spec
 
 **If no:** skip — the textual UX draft is sufficient to start.
 
@@ -252,12 +252,12 @@ Show the user:
 - Path of the spec: `docs/{feature-name}.md`
 - List of Rn rules extracted
 - **Architectural Alert**: If an `ADR-REQUIRED` was flagged in Open Questions, explicitly tell the user:
-  > "Une décision d'architecture a été identifiée. Il est recommandé de lancer le skill `adr-manager` pour documenter ce point avant de passer au `feature-planner`."
+  > "An architectural decision has been identified. It is recommended to run the `adr-manager` skill to document it before proceeding to `feature-planner`."
 
-Then ask: **"Valider, affiner, passer à la rédaction de l'ADR, ou lancer le plan d'implémentation ?"**
+Then ask: **"Validate, refine, write the ADR, or generate the implementation plan?"**
 
-- **Valider** → spec ready, done
-- **Affiner** → iterate on the specified section, rewrite, re-present
+- **Validate** → spec ready, done
+- **Refine** → iterate on the specified section, rewrite, re-present
 - **Plan** → tell the user to invoke the `feature-planner` agent with this spec path (Claude does not invoke it automatically from within this skill — the user triggers it as a separate step)
 
 ---
@@ -265,17 +265,17 @@ Then ask: **"Valider, affiner, passer à la rédaction de l'ADR, ou lancer le pl
 ## Critical Rules
 
 1. Read design docs BEFORE asking (`ARCHITECTURE.md`, `docs/`, ADRs) — never ask what the docs already answer. Do NOT read source code unless the user explicitly requested retro-engineering.
-2. Interview is capped at 3 rounds (Round 1: max 4 questions, Round 2: max 3, Round 3: max 2) — stop earlier if all blocking unknowns are resolved; remaining unknowns go into `## Questions ouvertes` for step 5
+2. Interview is capped at 3 rounds (Round 1: max 4 questions, Round 2: max 3, Round 3: max 2) — stop earlier if all blocking unknowns are resolved; remaining unknowns go into `## Open Questions` for step 5
 3. Open Questions section is mandatory — never decide silently; if the user has no preference, search the codebase for similar patterns, propose 2–3 options with a recommended default, and let the user pick
 4. **Never leave `[ ]` items unresolved** — step 5 loops until all opens are closed
 5. **Run the coherence & completeness check (step 6) silently** — fix spec directly, only loop back to step 5 if a fix requires a new business decision
 6. **What & why, never how** — the spec describes observable behaviour and business intent only; no SQL, no file paths, no function names, no component names, no library choices, no data structures; implementation is `feature-planner`'s job
-7. **Entity section mandatory when an entity is involved** — names in English Rust convention, field descriptions in French, business meaning only
+7. **Entity section mandatory when an entity is involved** — names in English Rust convention, field descriptions in English, business meaning only
 8. Each Rn rule must be independently verifiable by a test
-9. Stitch uses project `7705025027636758446` exclusively — never create a new project
-10. Write specs in French, matching the existing docs/ style
+9. Stitch uses project `{STITCH_PROJECT_ID}` exclusively — never create a new project
+10. Write specs in English — all prose, section headers, and rule descriptions must be in English
 11. Use the **Write** tool (not curl) to save `.stitch` HTML files
-12. **Moindre friction** — ne pose pas de question sur ce que les patterns existants du projet tranchent déjà (navigation, feedback de succès, gestion d'erreur réseau) ; génère directement une règle alignée sur ces patterns. Les questions sont réservées aux décisions métier genuinement nouvelles.
+12. **Minimum friction** — do not ask about what the project's existing patterns already answer (navigation, success feedback, network error handling); generate a rule aligned with those patterns directly. Questions are reserved for genuinely new business decisions.
 13. **No implicit behaviour** — every observable behaviour must be covered by an explicit Rn rule. If a behaviour is described in the workflow or UX section but has no corresponding rule, add the rule. Common implicit gaps: default values in forms, sort toggle behaviour, modal-stays-open-on-error, empty-state vs no-search-results distinction.
 14. **Rn numbers are permanent** — once a rule number is assigned it never changes for the lifetime of the project. Tests reference rules by number (`// R1 — ...`). If a rule is removed, leave the number vacant. New rules always get the next available number. Never renumber existing rules.
 15. **ADR Consistency** — If a choice is already documented in `docs/adr/` (e.g., storing amounts in i64), you MUST apply it in the Rn rules without asking the user. You only ask if the new feature explicitly requires breaking a past ADR.
@@ -284,6 +284,8 @@ Then ask: **"Valider, affiner, passer à la rédaction de l'ADR, ou lancer le pl
 
 ## Notes
 
-The 3-round cap on the initial interview forces an early draft rather than endless clarification. For simple features one round is enough; the cap only kicks in for complex ones. Anything unresolved goes into `## Questions ouvertes` as `[ ]` items. Step 5 then loops — interviewing the user until every `[ ]` is answered and the spec is fully closed. The spec must always end with "Aucune — toutes les questions ont été tranchées." before proceeding.
+The 3-round cap on the initial interview forces an early draft rather than endless clarification. For simple features one round is enough; the cap only kicks in for complex ones. Anything unresolved goes into `## Open Questions` as `[ ]` items. Step 5 then loops — interviewing the user until every `[ ]` is answered and the spec is fully closed. The spec must always end with "None — all questions have been resolved." before proceeding.
 
-Specs are written in French to match the project's existing doc language (`docs/backend-rules.md`, `docs/frontend-rules.md`, etc.). Code identifiers (function names, file paths) remain in English as per the codebase convention.
+Specs are written in English. Code identifiers (function names, file paths) remain in English as per the codebase convention.
+
+**Stitch MCP setup**: Replace `{STITCH_PROJECT_ID}` in this file with your project's actual Stitch project ID before use. If the Stitch MCP is not configured in your environment, skip step 7 entirely — the textual UX draft is sufficient.
