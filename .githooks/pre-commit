@@ -20,7 +20,7 @@ if [ ! -f "$CHECK_SCRIPT" ]; then
     exit 0
 fi
 
-# English comment: We now use the --fast flag to skip heavy tests and builds
+# Fast mode: skip expensive checks (tests, full formatting)
 if python3 "$CHECK_SCRIPT" --fast; then
     echo -e "${GREEN}✨ Fast checks passed. Commit allowed.${NC}"
     exit 0

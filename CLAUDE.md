@@ -75,7 +75,6 @@ Before starting any task, analyze the request, state which workflow you are foll
 - `workflow-validator` — verifies that the entire workflow was executed correctly and all plan checkboxes are checked
 
 **Meta & Skills**
-- **`ia-reviewer`** (Agent) — Meta-auditor: audits agent definitions, skills, and CLAUDE.md for internal consistency.
 - **`/dep-audit`** (Skill) — Security: audits npm and Cargo dependencies for CVEs and updates.
 - **`/smart-commit`** (Skill) — Finalizer: generates conventional commits after final validation.
 
