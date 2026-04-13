@@ -1,7 +1,7 @@
 ---
 name: adr-manager
 description: Manage Architecture Decision Records (ADR). Use this to create, update (supersede), or index architectural decisions in docs/adr/.
-tools: Read, Glob, Write, AskUserQuestion
+tools: Read, Grep, Glob, Write, AskUserQuestion
 ---
 
 # Skill — `adr-manager`
@@ -65,7 +65,7 @@ If the intent is to document a new decision:
 
 If the intent is to replace a past decision with a new one:
 
-1. List `docs/adr/` and identify the ADR to supersede.
+1. List `docs/adr/` and identify the ADR to supersede. If `docs/adr/` does not exist or is empty, inform the user that there are no existing ADRs to supersede and offer to create a new one (step 2) instead.
 2. Create the new ADR following step 2, with **Status**: `Accepted — supersedes ADR-{NNN}`.
 3. Update the superseded ADR: change its **Status** line to `Superseded by ADR-{NEW}`.
 4. Update the ADR index (see step 4).

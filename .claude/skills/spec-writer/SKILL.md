@@ -177,7 +177,9 @@ and the main entities involved.}
 - Each `{TRIGRAM}-NNN` rule must be atomic (one behavior per rule) and testable
 - Scope `(frontend + backend)`, `(frontend)`, or `(backend)` is mandatory on every rule
 - **Trigram declaration**: Header must include the trigram in parentheses (e.g., `# Business Rules — Feature Name (REF)`)
-- **Thematic numbering**: Group rules by operation type (010–019 initiation, 020–029 creation, 030–039 updates, 040–049 deletion, 050+ future).- **Registry entry**: Trigram MUST be registered in `docs/spec-index.md` before writing the spec file (done in step 2.5).- Open Questions must list every assumption you made — do not silently decide
+- **Thematic numbering**: Group rules by operation type (010–019 initiation, 020–029 creation, 030–039 updates, 040–049 deletion, 050+ future).
+- **Registry entry**: Trigram MUST be registered in `docs/spec-index.md` before writing the spec file (done in step 2.5).
+- Open Questions must list every assumption you made — do not silently decide
 - If a rule has a notable edge case, add it as a separate rule (not a sub-clause)
 - **What & why only** — never describe how something is implemented (no SQL, no component names, no library choices, no data structures); describe the observable behaviour and its business reason
 - Entity and field names use English Rust conventions (`snake_case` fields, `PascalCase` entities); all surrounding prose in English
@@ -260,14 +262,15 @@ Use **AskUserQuestion**:
 
 **If yes:**
 
-1. Call `mcp__stitch__generate_screen_from_text` with:
+1. Check whether `{STITCH_PROJECT_ID}` in this skill file has been replaced with an actual project ID. If it is still the literal placeholder `{STITCH_PROJECT_ID}`, skip Stitch generation entirely, output `ℹ️ Stitch project ID not configured — skipping visual mockup.`, and proceed with textual UX draft only.
+2. Call `mcp__stitch__generate_screen_from_text` with:
    - `project_id`: `{STITCH_PROJECT_ID}`
    - `device`: `DESKTOP`
    - `model`: `GEMINI_3_1_PRO`
    - Prompt: derive from the `## UX Draft` section just written — describe the layout, key components, states
-2. Call `mcp__stitch__list_screens` then `mcp__stitch__get_screen` to fetch the HTML
-3. Use the **Write** tool to save the HTML to `docs/stitch/{feature-name}.stitch`
-4. Add a `> Stitch mockup: docs/stitch/{feature-name}.stitch` reference in the `## UX Draft` section of the spec
+3. Call `mcp__stitch__list_screens` then `mcp__stitch__get_screen` to fetch the HTML
+4. Use the **Write** tool to save the HTML to `docs/stitch/{feature-name}.stitch`
+5. Add a `> Stitch mockup: docs/stitch/{feature-name}.stitch` reference in the `## UX Draft` section of the spec
 
 **If no:** skip — the textual UX draft is sufficient to start.
 
@@ -304,10 +307,12 @@ Then ask: **"Validate, refine, write the ADR, or generate the implementation pla
 9. Each `{TRIGRAM}-NNN` rule must be independently verifiable by a test
 10. Stitch uses project `{STITCH_PROJECT_ID}` exclusively — never create a new project
 11. Write specs in English — all prose, section headers, and rule descriptions must be in English
-12. Use the **Write** tool (not curl) to save `.stitch` HTML files- **Create in correct folder** — specs MUST be saved to `docs/spec/` folder (created automatically if missing)13. **Minimum friction** — do not ask about what the project's existing patterns already answer (navigation, success feedback, network error handling); generate a rule aligned with those patterns directly. Questions are reserved for genuinely new business decisions.
-13. **No implicit behaviour** — every observable behaviour must be covered by an explicit `{TRIGRAM}-NNN` rule. If a behaviour is described in the workflow or UX section but has no corresponding rule, add the rule. Common implicit gaps: default values in forms, sort toggle behaviour, modal-stays-open-on-error, empty-state vs no-search-results distinction.
-14. **Rule IDs are permanent** — once a rule number is assigned it never changes for the lifetime of the project. Tests reference rules by ID (e.g., `// REF-010 — ...`). If a rule is removed, leave the number vacant. New rules in the same theme increment by 1 (REF-010, REF-011, REF-012...). Never renumber existing rules.
-15. **ADR Consistency** — If a choice is already documented in `docs/adr/` (e.g., storing amounts in i64), you MUST apply it in the TRIGRAMME-NNN rules without asking the user. You only ask if the new feature explicitly requires breaking a past ADR.
+12. Use the **Write** tool (not curl) to save `.stitch` HTML files.
+13. **Create in correct folder** — specs MUST be saved to `docs/spec/` folder (created automatically if missing).
+14. **Minimum friction** — do not ask about what the project's existing patterns already answer (navigation, success feedback, network error handling); generate a rule aligned with those patterns directly. Questions are reserved for genuinely new business decisions.
+15. **No implicit behaviour** — every observable behaviour must be covered by an explicit `{TRIGRAM}-NNN` rule. If a behaviour is described in the workflow or UX section but has no corresponding rule, add the rule. Common implicit gaps: default values in forms, sort toggle behaviour, modal-stays-open-on-error, empty-state vs no-search-results distinction.
+16. **Rule IDs are permanent** — once a rule number is assigned it never changes for the lifetime of the project. Tests reference rules by ID (e.g., `// REF-010 — ...`). If a rule is removed, leave the number vacant. New rules in the same theme increment by 1 (REF-010, REF-011, REF-012...). Never renumber existing rules.
+17. **ADR Consistency** — If a choice is already documented in `docs/adr/` (e.g., storing amounts in i64), you MUST apply it in the TRIGRAMME-NNN rules without asking the user. You only ask if the new feature explicitly requires breaking a past ADR.
 
 ---
 

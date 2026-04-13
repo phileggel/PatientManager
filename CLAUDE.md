@@ -4,9 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Full architecture reference: [ARCHITECTURE.md](ARCHITECTURE.md)
 
-## ⚠️ Core Rules
-**IMPORTANT**: Claude Code will NOT commit, create branches, or create PRs via raw git commands. The user handles all git operations. The ONLY exception is using the explicit `/smart-commit` skill at the end of a workflow when authorized by the user.
+This project is governed by the `tauri-claude-kit` infrastructure. 
+Before any technical task, you MUST read `.claude/KIT_TOOLS.md` to synchronize with the current version of our agents, skills, and scripts.
 
+## ⚠️ Core Rules
+1. **IMPORTANT**: Claude Code will NOT commit, create branches, or create PRs via raw git commands. The user handles all git operations. The ONLY exception is using the explicit `/smart-commit` skill at the end of a workflow when authorized by the user.
+2. **Always use `just`**: Never suggest or execute native commands (e.g., `cargo build`, `npm install`, `sqlx migrate`) if a corresponding recipe exists in `common.just` or `justfile`.
 ---
 
 ## 🔄 Workflows & Planning
@@ -56,37 +59,6 @@ Before starting any task, analyze the request, state which workflow you are foll
 6. **Closure**: Ask user if another task is needed before commit, otherwise use **`/smart-commit`** skill.
 
 ---
-
-## 🤖 Available Subagents (`.claude/agents/`)
-
-**Pre-implementation (spec & planning)**
-- `/spec-writer` (Skill) — Interactive spec writer: interviews the user, reads the domain, produces `docs/spec/{feature}.md` with Rn rules + UX draft.
-- `/adr-manager` (Skill) — Technical decision maker: interviews the user on architecture/tech choices, produces `docs/adr/ADR-XXX.md`.
-- `spec-reviewer` (Agent) — Quality control: reviews draft specs for rule atomicity, DDD alignment, and UX completeness before planning.
-- `feature-planner` (Agent) — Architect: reads spec + ADRs + architecture, produces the persistent implementation plan in `docs/spec/{feature}-plan.md`.
-
-**Post-implementation (review & quality)**
-- `reviewer` — DDD + backend/frontend rules compliance check
-- `ux-reviewer` — M3 + Clinical Atelier compliance, empty/loading/error states, form UX, accessibility, consistency (frontend only)
-- `i18n-checker` — finds hardcoded strings, missing/dead translation keys fr + en
-- `spec-checker` — verifies all Rn rules in a feature spec are implemented and tested
-- `maintainer` — reviews CI/CD, manifests, and scripts for security, reliability, and cross-file consistency
-- `script-reviewer` — Bash and Python expert reviewer for `scripts/` and `.githooks/` files
-- `workflow-validator` — verifies that the entire workflow was executed correctly and all plan checkboxes are checked
-
-**Meta & Skills**
-- **`/dep-audit`** (Skill) — Security: audits npm and Cargo dependencies for CVEs and updates.
-- **`/smart-commit`** (Skill) — Finalizer: generates conventional commits after final validation.
-
----
-
-## 🛠 Commands
-- Dev: `./scripts/start-app.sh`
-- Quality: `python3 scripts/check.py` (Full check) | `python3 scripts/check.py --fast` (Lint only)
-- Tests: `npm run test` (Frontend) | `cd src-tauri && cargo test` (Backend)
-- Types: `just generate-types` (Sync Rust to TS via Specta)
-- Database schema update: `just clean-db`
-- Release: `python3 scripts/release.py [--dry-run] [--version X.Y.Z] [-y]`
 
 ## 🏗 Architecture Summary
 Tauri 2 app (React 19 + Rust) using Domain-Driven Design.

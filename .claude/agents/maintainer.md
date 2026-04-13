@@ -1,6 +1,6 @@
 ---
 name: maintainer
-description: Project maintainer reviewer for Tauri 2 / React 19 / Rust projects. Reviews GitHub Actions workflows and project config files (tauri.conf.json, Cargo.toml, package.json). Also checks how scripts/, .githooks/, and justfile are referenced and used from CI and config (not their internal quality — use script-reviewer for that). Delegates dependency audit to the /dep-audit skill when invoked before a release. Checks for correctness, security, performance, and consistency issues. Use when any workflow or config file is modified, or before cutting a release.
+description: Project maintainer reviewer for Tauri 2 / React 19 / Rust projects. Reviews GitHub Actions workflows and config files (tauri.conf.json, Cargo.toml, package.json, justfile). Checks CI/local consistency of scripts and hooks (not internal quality — use script-reviewer for that). Delegates dependency audit to /dep-audit before releases. Use when any workflow or config file is modified, or before cutting a release.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -201,7 +201,7 @@ Always perform these checks across files together:
 
 ### Consistency with CI and scripts/
 
-- 🔴 `pre-commit` and `pre-push` hooks must call the quality check script (e.g. `scripts/check.py`) with the same flags as CI — drift between local hooks and CI means green local ≠ green CI
+- 🟡 `pre-commit` and `pre-push` hooks should call the quality check script (e.g. `scripts/check.py`) with the same flags as CI — drift between local hooks and CI means green local ≠ green CI. (Internal hook correctness — shebang, `set -euo pipefail`, quoting — is `script-reviewer`'s domain; this rule covers only CI/local flag parity.)
 - 🟡 `commit-msg` conventional commit pattern must match the types accepted by `scripts/release.py` — if `release.py` parses `feat|fix|...` but `commit-msg` allows additional types, version bumps will be miscalculated
 - 🟡 If `.githooks/` is not registered as the Git hooks directory in the repo (via `git config core.hooksPath .githooks`), hooks silently do nothing for developers who clone fresh. Check for a setup step in `README.md` or `scripts/`
 - 🔵 A `post-checkout` hook that runs `npm install` when `package-lock.json` changes would prevent "missing dependency" errors after branch switches

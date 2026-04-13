@@ -16,9 +16,10 @@ NC = "\033[0m"
 
 
 class QualityChecker:
-    def __init__(self, fast_mode: bool = False):
+    def __init__(self, fast_mode: bool = False, verbose: bool = False):
         self.repo_root = Path(__file__).parent.parent
         self.fast_mode = fast_mode
+        self.verbose = verbose
         self.metrics = {
             "react_tests": "SKIPPED",
             "rust_lib": "SKIPPED",
@@ -32,10 +33,17 @@ class QualityChecker:
             "tsc": "Pending",
         }
         self.suite_failed = False
+        self.failures: dict[str, str] = {}
+
+    def _vprint(self, *args, **kwargs):
+        if self.verbose:
+            print(*args, **kwargs)
 
     def print_header(self, title: str):
-        print(f"\n{BLUE}🚀 {title}{NC}")
-        print(f"{BLUE}═══════════════════════════════════════════════════════════{NC}")
+        self._vprint(f"\n{BLUE}🚀 {title}{NC}")
+        self._vprint(
+            f"{BLUE}═══════════════════════════════════════════════════════════{NC}"
+        )
 
     def run_step(
         self,
@@ -44,54 +52,66 @@ class QualityChecker:
         cwd: Optional[Path] = None,
         env_update: Optional[dict] = None,
     ) -> bool:
-        """Exécute une commande en affichant la sortie en temps réel dans le terminal."""
-        print(f"\n{BLUE}▶ Running {name}...{NC}")
+        self._vprint(f"\n{BLUE}▶ Running {name}...{NC}")
 
         current_env = os.environ.copy()
         if env_update:
             current_env.update(env_update)
 
         try:
-            # On ne capture pas stdout/stderr ici pour laisser le flux défiler en direct
-            result = subprocess.run(cmd, cwd=cwd or self.repo_root, env=current_env)
+            if self.verbose:
+                result = subprocess.run(cmd, cwd=cwd or self.repo_root, env=current_env)
+                output = ""
+            else:
+                result = subprocess.run(
+                    cmd,
+                    cwd=cwd or self.repo_root,
+                    env=current_env,
+                    capture_output=True,
+                    text=True,
+                )
+                output = (result.stdout + result.stderr).strip()
 
             success = result.returncode == 0
             if success:
-                print(f"{GREEN}✓ {name}: Passed{NC}")
+                self._vprint(f"{GREEN}✓ {name}: Passed{NC}")
             else:
-                print(f"{RED}✗ {name}: Failed (Exit {result.returncode}){NC}")
+                self._vprint(f"{RED}✗ {name}: Failed (Exit {result.returncode}){NC}")
                 self.suite_failed = True
+                if output:
+                    self.failures[name] = output
             return success
         except Exception as e:
-            print(f"{RED}✗ {name}: Exception: {e}{NC}")
+            self._vprint(f"{RED}✗ {name}: Exception: {e}{NC}")
             self.suite_failed = True
+            self.failures[name] = str(e)
             return False
 
     def check_sqlx(self) -> bool:
-        """Vérification spécifique SQLx Offline avec affichage."""
-        print(f"\n{BLUE}▶ Checking SQLx Integrity...{NC}")
+        self._vprint(f"\n{BLUE}▶ Checking SQLx Integrity...{NC}")
         sqlx_dir = self.repo_root / "src-tauri" / ".sqlx"
 
         if not sqlx_dir.exists():
-            print(f"{YELLOW}ℹ SQLx directory not found, skipping.{NC}")
+            self._vprint(f"{YELLOW}ℹ SQLx directory not found, skipping.{NC}")
             self.metrics["sqlx"] = "N/A"
             return True
 
-        # 1. Check unstaged changes (staged changes are fine — they're part of the current commit)
         status = subprocess.run(
             ["git", "diff", "--name-only", str(sqlx_dir)],
             capture_output=True,
             text=True,
         ).stdout
         if status.strip():
-            print(
+            self._vprint(
                 f"{RED}✗ SQLx: Unstaged changes in .sqlx/. Run 'just prepare-sqlx' and stage the result.{NC}"
             )
             self.metrics["sqlx"] = "Uncommitted"
             self.suite_failed = True
+            self.failures["SQLx"] = (
+                "Unstaged changes in .sqlx/. Run 'just prepare-sqlx' and stage the result."
+            )
             return False
 
-        # 2. Check prepare --check
         success = self.run_step(
             "SQLx Prepare Check",
             ["cargo", "sqlx", "prepare", "--check"],
@@ -103,13 +123,10 @@ class QualityChecker:
     def run_all(self):
         self.print_header("Quality Check Suite")
 
-        # --- Section Tests & Build ---
         if not self.fast_mode:
-            # React
             if self.run_step("React Tests", ["npm", "test", "--", "--run"]):
                 self.metrics["react_tests"] = "Pass"
 
-            # Rust Lib
             if self.run_step(
                 "Rust Lib Tests",
                 ["cargo", "test", "--lib"],
@@ -118,7 +135,6 @@ class QualityChecker:
             ):
                 self.metrics["rust_lib"] = "Pass"
 
-            # Rust Behavior
             if self.run_step(
                 "Rust Behavior Tests",
                 ["cargo", "test", "--tests"],
@@ -127,13 +143,11 @@ class QualityChecker:
             ):
                 self.metrics["rust_beh"] = "Pass"
 
-            # Build
             if self.run_step("Application Build", ["npm", "run", "build"]):
                 self.metrics["build"] = "Pass"
         else:
-            print(f"{YELLOW}⏩ Fast mode: skipping tests and build.{NC}")
+            self._vprint(f"{YELLOW}⏩ Fast mode: skipping tests and build.{NC}")
 
-        # --- Section Database & Linting ---
         self.check_sqlx()
 
         if self.run_step("Oxlint", ["npm", "run", "lint"]):
@@ -154,8 +168,7 @@ class QualityChecker:
         ):
             self.metrics["rust_fmt"] = "Pass"
 
-        # TypeScript (TSC) - On capture juste celui-là pour compter les erreurs sans polluer
-        print(f"\n{BLUE}▶ Running TypeScript Check (TSC)...{NC}")
+        self._vprint(f"\n{BLUE}▶ Running TypeScript Check (TSC)...{NC}")
         tsc_res = subprocess.run(
             ["npx", "tsc", "--noEmit"],
             cwd=self.repo_root,
@@ -163,18 +176,20 @@ class QualityChecker:
             text=True,
         )
         if tsc_res.returncode == 0:
-            print(f"{GREEN}✓ TSC: Pass{NC}")
+            self._vprint(f"{GREEN}✓ TSC: Pass{NC}")
             self.metrics["tsc"] = "Pass"
         else:
             err_count = len(re.findall(r"error TS", tsc_res.stdout))
-            print(f"{ORANGE}⚠️  TSC: {err_count} errors found{NC}")
+            self._vprint(f"{ORANGE}⚠️  TSC: {err_count} errors found{NC}")
             self.metrics["tsc"] = f"{err_count} errors"
+            if not self.verbose and tsc_res.stdout.strip():
+                self.failures["TSC"] = tsc_res.stdout.strip()
 
         self.print_report()
         return not self.suite_failed
 
     def print_report(self):
-        self.print_header("Final Quality Report")
+        print(f"\n{BLUE}🚀 Quality Report{NC}")
         print(f"| {'Check':<20} | {'Status':<30} |")
         print(f"|{'-' * 22}|{'-' * 32}|")
 
@@ -196,16 +211,22 @@ class QualityChecker:
             else:
                 status_str = f"{RED}❌ {value}{NC}"
 
-            print(f"| {name:<20} | {status_str:<40} |")  # Ajusté pour les codes couleur
+            print(f"| {name:<20} | {status_str:<40} |")
 
         if self.suite_failed:
-            print(f"\n{RED}❌ SUITE FAILED - Check logs above{NC}\n")
+            print(f"\n{RED}❌ SUITE FAILED{NC}")
+            if self.failures:
+                print(f"\n{BLUE}— Failure details —{NC}")
+                for step, output in self.failures.items():
+                    print(f"\n{RED}▶ {step}{NC}")
+                    print(output)
         else:
             print(f"\n{GREEN}✨ ALL CHECKS PASSED{NC}\n")
 
 
 if __name__ == "__main__":
     is_fast = "--fast" in sys.argv
-    checker = QualityChecker(fast_mode=is_fast)
+    is_verbose = "--verbose" in sys.argv
+    checker = QualityChecker(fast_mode=is_fast, verbose=is_verbose)
     if not checker.run_all():
         sys.exit(1)

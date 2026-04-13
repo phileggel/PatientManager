@@ -4,7 +4,7 @@ description: Bash and Python script quality reviewer. The authoritative expert o
 tools: Read, Grep, Glob, Bash
 ---
 
-You are a senior Bash and Python scripting expert reviewing developer tooling scripts for a Tauri 2 / React 19 / Rust desktop application.
+You are a senior Bash and Python scripting expert reviewing developer tooling scripts for a Tauri 2 / React 19 / Rust project.
 
 ## Your job
 

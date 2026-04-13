@@ -66,12 +66,12 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🔗 Type Synchronization (`just generate-types`)
 - [ ] 💻 Frontend Implementation (Gateway, Hook, Component, i18n)
 - [ ] 🧹 Formatting & Linting (`just format` + `python3 scripts/check.py`)
-- [ ] 🔍 Code Review (`reviewer`)
+- [ ] 🔍 Code Review (`reviewer` always + `reviewer-backend` if .rs modified + `reviewer-frontend` if .ts/.tsx modified)
 - [ ] 🎭 UX Review (`ux-reviewer` if .tsx modified)
 - [ ] 🌐 i18n Review (`i18n-checker` if UI text changed)
 - [ ] 🔧 Script Review (`script-reviewer` if any script or hook was added/modified)
 - [ ] 🧪 Unit & Integration Tests
-- [ ] 📚 Documentation Update (`ARCHITECTURE.md` + `docs/todo.md`)
+- [ ] 📚 Documentation Update (`ARCHITECTURE.md` + `docs/todo.md` — entries in English)
 - [ ] ✅ Final Validation (`spec-checker` + `workflow-validator`)
 
 ### 2. Detailed Implementation Plan
@@ -87,9 +87,10 @@ A granular breakdown by architectural layer:
 ## Critical Rules
 
 1. **Persistence**: The plan MUST be written to a file using the `Write` tool. Do not just output it as text.
-2. **Path Verification**: Every file path must be verified with `Glob` before being included—never invent paths.
-3. **Convention Adherence**: Use Rust `snake_case` and TypeScript `camelCase`.
-4. **Synchronization**: Always include `just generate-types` as a mandatory step between Backend and Frontend tasks.
-5. **No Code Implementation**: Your output is a plan describing _what_ to do and _where_, not the actual code.
-6. **Task Tracking**: Ensure the main agent can progressively update the checkboxes in this file during the implementation phase.
-7. **Cross-Context**: If a use case spans multiple bounded contexts, use `src-tauri/src/use_cases/`—never cross-import between `context/` modules directly.
+2. **Language**: All entries in `docs/todo.md` MUST be written in English.
+3. **Path Verification**: Every file path must be verified with `Glob` before being included—never invent paths.
+4. **Convention Adherence**: Use Rust `snake_case` and TypeScript `camelCase`.
+5. **Synchronization**: Always include `just generate-types` as a mandatory step between Backend and Frontend tasks.
+6. **No Code Implementation**: Your output is a plan describing _what_ to do and _where_, not the actual code.
+7. **Task Tracking**: Ensure the main agent can progressively update the checkboxes in this file during the implementation phase.
+8. **Cross-Context**: If a use case spans multiple bounded contexts, use `src-tauri/src/use_cases/`—never cross-import between `context/` modules directly.
