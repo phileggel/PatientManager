@@ -130,7 +130,7 @@ End with:
 
 ```
 Review complete: N critical, N warning(s), N suggestion(s).
-Ready for feature-planner: yes / no (if critical > 0).
+Ready for feature-planner: yes — 0 critical findings. / no — blocked by N critical finding(s).
 ```
 
 ---

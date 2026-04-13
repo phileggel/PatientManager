@@ -10,7 +10,13 @@ Translation files are expected in `src/i18n/locales/`. Discover available locale
 
 ## Your job
 
-1. Run `git diff --name-only HEAD` and `git diff --name-only --cached` to identify modified `.tsx` / `.ts` files (both unstaged and staged changes).
+1. Run the following three commands and union the results to identify all `.tsx` / `.ts` files to analyse:
+   - `git diff --name-only HEAD` — working tree vs HEAD (includes staged + unstaged changes to tracked files)
+   - `git diff --name-only --cached` — staged changes vs HEAD
+   - `git status --porcelain | grep "^A " | awk '{print $2}'` — staged-new files never previously committed
+
+   Deduplicate the combined list before analysing.
+
 2. For each modified file, scan for i18n issues (see below).
 3. Also check the corresponding translation JSON files if they were modified.
 
@@ -40,7 +46,7 @@ For every `t("some.key")` call found in modified files:
 If a translation JSON was modified (keys added):
 
 - Check whether each new key is actually referenced by `t("...")` somewhere in `src/`
-- Use: `grep -r "\"new\.key\"" src/` to verify (escape dots in key path)
+- Use: `grep -r 't("new\.key")' src/` to verify (target `t(...)` call sites only; escape dots in the key path)
 - Unused new keys → **Warning**
 
 ### 4. Key/value mismatches across locales
@@ -67,4 +73,4 @@ For every key in one locale's JSON, verify the same key exists in every other lo
 ✅ No issues found.  (if clean)
 ```
 
-Final summary: `i18n check: N critical, N warnings, N suggestions across N files.`
+Final summary: `i18n check: N critical, N warnings across N files.`
