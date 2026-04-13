@@ -21,7 +21,7 @@ Un groupe de paiement fond devient verrouillé dès qu'une de ses actes atteint 
 
 ### Règles communes aux transactions
 
-**R2 — Types de transaction (backend)** : Quatre types sont supportés : `FUND` (virement caisse), `CHECK` (chèque), `CREDIT_CARD` (carte bancaire), `CASH` (espèces).
+**R2 — Types de transaction (backend)** : Quatre types sont supportés : `FUND` (virement caisse), `CHECK` (chèque), `CREDIT_CARD` (carte bancaire), `CASH` (espèces). Le type `OutgoingWire` est exclusivement réservé au flux de remboursement trop-perçu et ne peut pas être créé via ce flow (cf. REF-080).
 
 **R3 — Champs d'une transaction (frontend + backend)** : Une transaction est définie par un compte bancaire, une date et un type. Le montant est calculé dynamiquement en temps réel à partir des éléments sélectionnés (groupes ou actes) et ne peut pas être saisi manuellement. Exception pour le type `CASH` : cf. R13.
 

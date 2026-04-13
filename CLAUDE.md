@@ -7,6 +7,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This project is governed by the `tauri-claude-kit` infrastructure. 
 Before any technical task, you MUST read `.claude/KIT_TOOLS.md` to synchronize with the current version of our agents, skills, and scripts.
 
+## 🧭 Behavioral Principles
+
+Before coding:
+
+- State assumptions explicitly. If multiple interpretations exist, present them — don't pick silently.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+While coding:
+
+- Every changed line must trace directly to the user's request.
+- If you notice unrelated dead code, mention it — don't delete it.
+- If 200 lines could be 50, stop and rewrite. Ask: "Would a senior engineer say this is overcomplicated?"
+
 ## ⚠️ Core Rules
 1. **IMPORTANT**: Claude Code will NOT commit, create branches, or create PRs via raw git commands. The user handles all git operations. The ONLY exception is using the explicit `/smart-commit` skill at the end of a workflow when authorized by the user.
 2. **Always use `just`**: Never suggest or execute native commands (e.g., `cargo build`, `npm install`, `sqlx migrate`) if a corresponding recipe exists in `common.just` or `justfile`.
