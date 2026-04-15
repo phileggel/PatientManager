@@ -336,10 +336,41 @@ Queries:
 
 ---
 
+### Overpayment (`use_cases/overpayment/`)
+
+**Entry point: `OverpaymentOrchestrator`**
+
+Records and cancels overpayment refunds. Cross-context: coordinates Procedure, Fund, and Bank bounded contexts. Spec: [docs/spec/overpayment.md](docs/spec/overpayment.md)
+
+Key domain types:
+- `ProcedureRefund` (`context/procedure/domain/procedure_refund.rs`) — links source procedure to refund procedure + fund group + bank transfer; stores `previous_payment_status` for cancel revert.
+- `CreateOverpaymentRequest` — source_procedure_id, refund_date, transfer_type (CreditCard/Check/OutgoingWire), bank_account_id, reason (optional, ≤255 chars).
+- `CancelOverpaymentRequest` — source_procedure_id.
+- `ProcedureRefundInfo` — surface DTO for the frontend.
+
+**Domain extensions added:**
+- `ProcedureStatus::Overpaid` — source procedure after overpayment recorded (blocks deletion, REF-220).
+- `ProcedureStatus::OverpaymentRefund` — mirror negative procedure (blocks deletion, REF-230).
+- `BankTransferType::OutgoingWire` — exclusive to the overpayment refund flow (REF-080/REF-110). Rejected in `create_direct_transfer`.
+
+**Tauri commands (`api.rs`)**
+- `create_overpayment(request: CreateOverpaymentRequest)` — full 12-step cascade: validate eligibility → create refund Procedure + FundPaymentGroup + BankTransfer + BankTransferLink + ProcedureRefund → update source status to Overpaid.
+- `cancel_overpayment(request: CancelOverpaymentRequest)` — reverse cascade: revert source status → delete ProcedureRefund → unlink + delete BankTransfer → delete FundPaymentGroup + lines → delete refund Procedure.
+- `get_procedure_refund_by_source(sourceProcedureId)` — resolves ProcedureRefundInfo for the frontend cancel flow.
+
+**Guards:**
+- `delete_fund_payment_group` (fund/api.rs): rejects deletion if group belongs to an overpayment refund (REF-240). Injected via `OverpaymentOrchestrator` Tauri state.
+- `delete_procedure` (procedure_orchestration/service.rs): `is_blocking_status` now includes `Overpaid` and `OverpaymentRefund`.
+- `procedure_orchestration/api.rs`: `is_blocking_status` (string-based) extended with `"OVERPAID"` and `"OVERPAYMENT_REFUND"`.
+
+**REF-170:** `ProcedureOrchestrationService::update_procedure` propagates `procedure_type_id` changes to the linked `OverpaymentRefund` procedure when the source is `Overpaid`.
+
+---
+
 ### Database
 
 - SQLite, migrations in `src-tauri/migrations/`
-- Latest: `20260316_bank_manual_match.sql`
+- Latest: `20260414_overpayment.sql` (adds `procedure_refund` table)
 - After schema changes: `just clean-db` → `cargo sqlx prepare`
 - Never add `BEGIN`/`COMMIT` in migrations (sqlx wraps each in a transaction)
 

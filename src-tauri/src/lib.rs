@@ -29,7 +29,8 @@ use crate::context::bank::{
 };
 use crate::context::fund::FundService;
 use crate::context::procedure::{
-    ProcedureService, SqliteProcedureRepository, SqliteProcedureTypeRepository,
+    ProcedureService, SqliteProcedureRefundRepository, SqliteProcedureRepository,
+    SqliteProcedureTypeRepository,
 };
 
 use crate::context::fund::{FundPaymentService, SqliteFundPaymentRepository};
@@ -44,6 +45,7 @@ use crate::use_cases::excel_import::{ExcelImportOrchestrator, SqliteExcelAmountM
 use crate::use_cases::fund_payment_reconciliation::{
     FundPaymentReconciliationOrchestrator, ReconciliationService,
 };
+use crate::use_cases::overpayment::OverpaymentOrchestrator;
 use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 
 /// Initialize the application backend
@@ -137,12 +139,18 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     ));
     tracing::info!(target: BACKEND, "Context procedure service created");
 
+    // Create ProcedureRefund repository (owned by context/procedure, REF-150)
+    let procedure_refund_repository =
+        Arc::new(SqliteProcedureRefundRepository::new(db.get_pool().clone()));
+    tracing::info!(target: BACKEND, "Procedure refund repository created");
+
     // Create orchestration service with cross-context dependencies
     let procedure_orchestration_service = Arc::new(ProcedureOrchestrationService::new(
         context_procedure_service.clone(),
         patient_repository.clone(),
         procedure_type_repository.clone(),
         fund_repository.clone(),
+        procedure_refund_repository.clone(),
     ));
     tracing::info!(target: BACKEND, "Procedure orchestration service created");
 
@@ -232,6 +240,17 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     ));
     tracing::info!(target: BACKEND, "Bank manual match orchestrator created");
 
+    // Create overpayment orchestrator (use_cases/overpayment, REF)
+    let overpayment_orchestrator = Arc::new(OverpaymentOrchestrator::new(
+        context_procedure_service.clone(),
+        fund_payment_service.clone(),
+        bank_transfer_service.clone(),
+        bank_account_service.clone(),
+        transfer_link_repo.clone(),
+        procedure_refund_repository.clone(),
+    ));
+    tracing::info!(target: BACKEND, "Overpayment orchestrator created");
+
     // Create database backup orchestrator
     let db_backup_orchestrator = Arc::new(DbBackupOrchestrator::new(db.clone()));
     tracing::info!(target: BACKEND, "Database backup orchestrator created");
@@ -251,6 +270,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     app.manage(excel_import_orchestrator);
     app.manage(excel_amount_mapping_repo);
     app.manage(bank_manual_match_orchestrator);
+    app.manage(overpayment_orchestrator);
     app.manage(db_backup_orchestrator);
     tracing::info!(target: BACKEND, "Application backend initialized successfully");
     Ok(())

@@ -39,6 +39,8 @@ const BLOCKING_STATUSES = new Set([
   "FUND_PAYED",
   "PARTIALLY_FUND_PAYED",
   "DIRECTLY_PAYED",
+  "OVERPAID",
+  "OVERPAYMENT_REFUND",
 ]);
 
 /**
@@ -47,6 +49,16 @@ const BLOCKING_STATUSES = new Set([
  */
 export function isBlockingStatus(status: string | null): boolean {
   return status != null && BLOCKING_STATUSES.has(status);
+}
+
+/** Returns true if the procedure is a source that has been overpaid (REF-160). */
+export function isOverpaidStatus(status: string | null): boolean {
+  return status === "OVERPAID";
+}
+
+/** Returns true if the procedure is the mirror refund procedure (REF-090). */
+export function isOverpaymentRefundStatus(status: string | null): boolean {
+  return status === "OVERPAYMENT_REFUND";
 }
 
 /**

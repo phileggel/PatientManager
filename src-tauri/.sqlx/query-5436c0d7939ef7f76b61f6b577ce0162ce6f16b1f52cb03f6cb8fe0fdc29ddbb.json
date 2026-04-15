@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                id,\n                source_procedure_id,\n                refund_procedure_id,\n                refund_fund_payment_group_id,\n                refund_bank_transfer_id,\n                refund_date,\n                reason,\n                previous_payment_status\n            FROM procedure_refund\n            WHERE source_procedure_id = $1\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "source_procedure_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "refund_procedure_id",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "refund_fund_payment_group_id",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "refund_bank_transfer_id",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "refund_date",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "reason",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "previous_payment_status",
+        "ordinal": 7,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "5436c0d7939ef7f76b61f6b577ce0162ce6f16b1f52cb03f6cb8fe0fdc29ddbb"
+}

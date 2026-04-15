@@ -86,6 +86,30 @@ impl BankTransferService {
         Ok(updated)
     }
 
+    /// Persist a fully-constructed BankTransfer directly, bypassing amount validation.
+    /// Used for overpayment refund transfers which carry a negative amount (REF-110).
+    /// Validates that the bank account exists before persisting.
+    pub async fn persist_refund_transfer(
+        &self,
+        transfer: crate::context::bank::domain::BankTransfer,
+        is_silent: bool,
+    ) -> anyhow::Result<crate::context::bank::domain::BankTransfer> {
+        self.account_repository
+            .read_account(&transfer.bank_account.id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Bank account not found"))?;
+
+        let persisted = self.repository.persist_transfer(transfer).await?;
+
+        if !is_silent {
+            let _ = self
+                .event_bus
+                .publish::<BankTransferUpdated>(BankTransferUpdated);
+        }
+
+        Ok(persisted)
+    }
+
     /// Soft-delete a transfer
     pub async fn delete_transfer(&self, id: &str) -> anyhow::Result<()> {
         // Verify transfer exists
@@ -251,6 +275,13 @@ mod tests {
                 return Err(anyhow!("Mock repository error"));
             }
             Ok(())
+        }
+
+        async fn persist_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer> {
+            if self.should_fail {
+                return Err(anyhow!("Mock repository error"));
+            }
+            Ok(transfer)
         }
     }
 

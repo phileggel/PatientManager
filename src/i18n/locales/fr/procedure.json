@@ -54,7 +54,9 @@
     "partially_fund_payed": "Partiellement réglé",
     "import_directly_payed": "Importé (direct)",
     "import_fund_payed": "Importé (caisse)",
-    "payed": "Réglé"
+    "payed": "Réglé",
+    "overpaid": "Trop-perçu",
+    "overpayment_refund": "Remboursement"
   },
   "filter": {
     "placeholder": "Filtrer par patient...",

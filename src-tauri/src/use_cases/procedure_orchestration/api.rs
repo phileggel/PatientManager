@@ -44,6 +44,8 @@ impl RawProcedure {
             "PARTIALLY_FUND_PAYED" => ProcedureStatus::PartiallyFundPayed,
             "IMPORT_DIRECTLY_PAYED" => ProcedureStatus::ImportDirectlyPayed,
             "IMPORT_FUND_PAYED" => ProcedureStatus::ImportFundPayed,
+            "OVERPAID" => ProcedureStatus::Overpaid,
+            "OVERPAYMENT_REFUND" => ProcedureStatus::OverpaymentRefund,
             _ => ProcedureStatus::None,
         };
 
@@ -150,7 +152,7 @@ pub async fn read_all_procedures(
         })
 }
 
-/// Returns true for statuses that block deletion and restrict editing (R5, R26).
+/// Returns true for statuses that block deletion and restrict editing (R5, R26, REF-220, REF-230).
 /// NOTE: Must stay in sync with `isBlockingStatus` in the frontend
 /// (`src/features/procedure/model/procedure-row.types.ts`).
 fn is_blocking_status(status: &str) -> bool {
@@ -161,6 +163,8 @@ fn is_blocking_status(status: &str) -> bool {
             | "FUND_PAYED"
             | "PARTIALLY_FUND_PAYED"
             | "DIRECTLY_PAYED"
+            | "OVERPAID"           // REF-220: must cancel overpayment first
+            | "OVERPAYMENT_REFUND" // REF-230: must cancel via procedure detail modal
     )
 }
 

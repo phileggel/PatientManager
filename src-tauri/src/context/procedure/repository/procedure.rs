@@ -68,6 +68,8 @@ impl From<ProcedureRow> for Procedure {
             Some("PARTIALLY_FUND_PAYED") => ProcedureStatus::PartiallyFundPayed,
             Some("IMPORT_DIRECTLY_PAYED") => ProcedureStatus::ImportDirectlyPayed,
             Some("IMPORT_FUND_PAYED") => ProcedureStatus::ImportFundPayed,
+            Some("OVERPAID") => ProcedureStatus::Overpaid,
+            Some("OVERPAYMENT_REFUND") => ProcedureStatus::OverpaymentRefund,
             _ => ProcedureStatus::None,
         };
 
@@ -217,6 +219,8 @@ fn payment_status_to_str(status: ProcedureStatus) -> &'static str {
         ProcedureStatus::PartiallyFundPayed => "PARTIALLY_FUND_PAYED",
         ProcedureStatus::ImportDirectlyPayed => "IMPORT_DIRECTLY_PAYED",
         ProcedureStatus::ImportFundPayed => "IMPORT_FUND_PAYED",
+        ProcedureStatus::Overpaid => "OVERPAID",
+        ProcedureStatus::OverpaymentRefund => "OVERPAYMENT_REFUND",
     }
 }
 

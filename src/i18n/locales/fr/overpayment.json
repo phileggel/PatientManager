@@ -1,0 +1,44 @@
+{
+  "modal": {
+    "title": "Enregistrer un trop-perçu",
+    "confirmTitle": "Confirmer le remboursement",
+    "cancelTitle": "Annuler le remboursement",
+    "confirmBody": "Cela créera un virement bancaire et un groupe de paiement négatifs pour compenser le trop-perçu.",
+    "cancelBody": "Cela annulera définitivement le remboursement et rétablira le statut précédent de l'acte source.",
+    "viewTitle": "Acte en trop-perçu",
+    "refundViewTitle": "Remboursement de trop-perçu",
+    "closeAriaLabel": "Fermer"
+  },
+  "form": {
+    "refundDate": "Date de remboursement",
+    "paymentMethod": "Mode de paiement",
+    "bankAccount": "Compte bancaire",
+    "reason": "Motif (optionnel)",
+    "sourceProcedure": "Acte source",
+    "selectBankAccount": "Sélectionner un compte bancaire",
+    "selectPaymentMethod": "Sélectionner un mode de paiement"
+  },
+  "action": {
+    "refund": "Rembourser",
+    "cancelRefund": "Annuler le remboursement",
+    "confirmRefund": "Confirmer le remboursement"
+  },
+  "paymentMethod": {
+    "creditCard": "Carte bancaire",
+    "check": "Chèque",
+    "outgoingWire": "Virement sortant"
+  },
+  "noAccountTooltip": "Un compte bancaire doit être créé avant d'enregistrer un remboursement.",
+  "success": {
+    "created": "Remboursement enregistré avec succès.",
+    "cancelled": "Remboursement annulé avec succès."
+  },
+  "error": {
+    "create": "Échec de l'enregistrement du remboursement.",
+    "cancel": "Échec de l'annulation du remboursement.",
+    "refundDate": "La date de remboursement est requise et ne doit pas être dans le futur.",
+    "paymentMethod": "Le mode de paiement est requis.",
+    "bankAccount": "Le compte bancaire est requis.",
+    "reasonTooLong": "Le motif ne doit pas dépasser 255 caractères."
+  }
+}

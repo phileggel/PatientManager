@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM procedure_refund WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "daea8e89c2d77680f24c51cc7100ec9c660776f73e8d9633a1550f7c6be5b794"
+}

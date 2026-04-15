@@ -26,6 +26,10 @@ pub trait BankTransferRepository: Send + Sync {
 
     /// Hard-delete a transfer (permanent)
     async fn delete_transfer(&self, id: &str) -> anyhow::Result<()>;
+
+    /// Persist a fully-constructed BankTransfer directly (no factory validation).
+    /// Used for overpayment refund transfers which carry a negative amount (REF-110).
+    async fn persist_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer>;
 }
 
 pub struct SqliteBankTransferRepository {
@@ -197,6 +201,39 @@ impl BankTransferRepository for SqliteBankTransferRepository {
 
         Ok(())
     }
+
+    /// Persist a fully-constructed BankTransfer (no factory validation).
+    /// Used for overpayment refund transfers which carry a negative amount (REF-110).
+    async fn persist_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer> {
+        let type_str = transfer_type_to_str(transfer.transfer_type);
+        let transfer_date_str = transfer.transfer_date.format("%Y-%m-%d").to_string();
+
+        tracing::info!(
+            id = %transfer.id,
+            transfer_date = %transfer_date_str,
+            amount = transfer.amount,
+            transfer_type = %type_str,
+            account_id = %transfer.bank_account.id,
+            "Persisting bank transfer (bypass validation)"
+        );
+
+        sqlx::query!(
+            r#"
+            INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id)
+            VALUES ($1, $2, $3, $4, $5)
+            "#,
+            transfer.id,
+            transfer_date_str,
+            transfer.amount,
+            type_str,
+            transfer.bank_account.id,
+        )
+        .execute(&self.pool)
+        .await
+        .context("Failed to persist bank transfer")?;
+
+        Ok(transfer)
+    }
 }
 
 fn transfer_type_to_str(t: BankTransferType) -> &'static str {
@@ -205,6 +242,7 @@ fn transfer_type_to_str(t: BankTransferType) -> &'static str {
         BankTransferType::Check => "CHECK",
         BankTransferType::CreditCard => "CREDIT_CARD",
         BankTransferType::Cash => "CASH",
+        BankTransferType::OutgoingWire => "OUTGOING_WIRE",
     }
 }
 
@@ -214,6 +252,7 @@ fn parse_transfer_type(type_str: &str) -> BankTransferType {
         "CHECK" => BankTransferType::Check,
         "CREDIT_CARD" => BankTransferType::CreditCard,
         "CASH" => BankTransferType::Cash,
+        "OUTGOING_WIRE" => BankTransferType::OutgoingWire,
         other => unreachable!("Unknown transfer_type in database: {}", other),
     }
 }

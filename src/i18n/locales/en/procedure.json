@@ -54,7 +54,9 @@
     "partially_fund_payed": "Partially Fund Paid",
     "import_directly_payed": "Imported (Direct)",
     "import_fund_payed": "Imported (Fund)",
-    "payed": "Paid"
+    "payed": "Paid",
+    "overpaid": "Overpaid",
+    "overpayment_refund": "Refund"
   },
   "filter": {
     "placeholder": "Filter by patient...",

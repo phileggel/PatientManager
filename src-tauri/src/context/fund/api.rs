@@ -265,7 +265,8 @@ pub async fn read_all_fund_payment_groups(
 /// Tauri command: Delete a fund payment group with procedure cleanup
 ///
 /// Deletes the group, its lines, and resets associated procedures
-/// (status → Created, clears confirmed_payment_date and actual_payment_amount)
+/// (status → Created, clears confirmed_payment_date and actual_payment_amount).
+/// REF-240: Rejects deletion if the group belongs to an overpayment refund cascade.
 #[tauri::command]
 #[specta::specta]
 pub async fn delete_fund_payment_group(
@@ -274,8 +275,24 @@ pub async fn delete_fund_payment_group(
     fund_payment_service: State<'_, Arc<FundPaymentService>>,
     procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>,
     event_bus: State<'_, Arc<crate::core::event_bus::EventBus>>,
+    overpayment_orchestrator: State<
+        '_,
+        Arc<crate::use_cases::overpayment::OverpaymentOrchestrator>,
+    >,
 ) -> Result<(), String> {
     tracing::info!(group_id = %group_id, "Processing delete fund payment group request");
+
+    // REF-240: block direct deletion of refund fund payment groups
+    let is_refund = overpayment_orchestrator
+        .is_refund_fund_payment_group(&group_id)
+        .await
+        .map_err(|e| format!("{:#}", e))?;
+
+    if is_refund {
+        return Err(
+            "This fund payment group belongs to an overpayment refund and can only be removed by cancelling the refund.".to_string()
+        );
+    }
 
     let orchestrator =
         crate::use_cases::fund_payment_reconciliation::FundPaymentReconciliationOrchestrator::new(

@@ -441,7 +441,8 @@ async readAllFundPaymentGroups() : Promise<Result<FundPaymentGroup[], string>> {
  * Tauri command: Delete a fund payment group with procedure cleanup
  * 
  * Deletes the group, its lines, and resets associated procedures
- * (status → Created, clears confirmed_payment_date and actual_payment_amount)
+ * (status → Created, clears confirmed_payment_date and actual_payment_amount).
+ * REF-240: Rejects deletion if the group belongs to an overpayment refund cascade.
  */
 async deleteFundPaymentGroup(groupId: string) : Promise<Result<null, string>> {
     try {
@@ -764,6 +765,7 @@ async getAllEligibleProceduresForDirectPayment() : Promise<Result<DirectPaymentP
 },
 /**
  * R15 — Create a direct payment transfer linked to the given procedure IDs.
+ * REF-080: OutgoingWire is reserved for the overpayment flow and is rejected here.
  */
 async createDirectTransfer(bankAccountId: string, transferDate: string, transferType: BankTransferType, procedureIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
     try {
@@ -873,6 +875,40 @@ async checkHealth() : Promise<HealthResponse> {
 },
 async logFrontend(level: string, message: string) : Promise<void> {
     await TAURI_INVOKE("log_frontend", { level, message });
+},
+/**
+ * REF-050/REF-090-REF-160 — Create an overpayment refund for the given source procedure.
+ */
+async createOverpayment(request: CreateOverpaymentRequest) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_overpayment", { request }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * REF-210 — Cancel an overpayment refund (reverse creation cascade).
+ */
+async cancelOverpayment(request: CancelOverpaymentRequest) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cancel_overpayment", { request }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * REF-200 — Fetch ProcedureRefund by source_procedure_id.
+ * Used by the OverpaymentRefund modal to resolve source_procedure_id before cancel.
+ */
+async getProcedureRefundBySource(sourceProcedureId: string) : Promise<Result<ProcedureRefundInfo | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_procedure_refund_by_source", { sourceProcedureId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -1031,8 +1067,21 @@ max_date_offset_days: number }
 export type BankTransfer = { id: string; transfer_date: string; amount: number; transfer_type: BankTransferType; bank_account: BankAccount }
 /**
  * Payment type for bank transfers
+ * 
+ * Note: `OutgoingWire` is exclusively created via the overpayment refund flow (REF-080).
+ * It must NOT be accepted in the bank statement manual-match UI.
  */
-export type BankTransferType = "FUND" | "CHECK" | "CREDIT_CARD" | "CASH"
+export type BankTransferType = "FUND" | "CHECK" | "CREDIT_CARD" | "CASH" | 
+/**
+ * Outgoing wire refund — only creatable via the overpayment flow (REF-080, REF-110).
+ * Carries a negative amount to represent money returned to a fund.
+ */
+"OUTGOING_WIRE"
+/**
+ * Request DTO for cancelling an overpayment (REF-210).
+ * The frontend always passes the source_procedure_id as identifier.
+ */
+export type CancelOverpaymentRequest = { source_procedure_id: string }
 /**
  * A confirmed match ready for bank transfer creation
  */
@@ -1069,6 +1118,26 @@ candidates: FundPaymentGroupCandidate[];
  * Auto-corrections to apply
  */
 auto_corrections: AutoCorrection[] }
+/**
+ * Request DTO for creating an overpayment refund (REF-050 through REF-160).
+ */
+export type CreateOverpaymentRequest = { source_procedure_id: string; 
+/**
+ * ISO date string (YYYY-MM-DD) — validated against REF-030.
+ */
+refund_date: string; 
+/**
+ * Domain enum name: "CreditCard", "Check", or "OutgoingWire" (REF-060).
+ */
+transfer_type: string; 
+/**
+ * Bank account to use for the refund bank transfer (REF-070).
+ */
+bank_account_id: string; 
+/**
+ * Optional free-text reason, max 255 chars (REF-040).
+ */
+reason: string | null }
 /**
  * A single DB procedure match within an issue
  */
@@ -1439,6 +1508,11 @@ id: string }
  */
 export type ProcedureCandidate = { patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; procedure_amount: number | null; payment_method: string | null; confirmed_payment_date: string | null; actual_payment_amount: number | null; awaited_amount: number | null }
 /**
+ * DTO for surfacing ProcedureRefund data to the frontend.
+ * Used when the OverpaymentRefund modal needs to resolve source_procedure_id (REF-200).
+ */
+export type ProcedureRefundInfo = { id: string; source_procedure_id: string; refund_procedure_id: string; refund_date: string; reason: string | null; previous_payment_status: ProcedureStatus }
+/**
  * Procedure status lifecycle
  * 
  * Represents the reconciliation state of a healthcare procedure:
@@ -1449,6 +1523,8 @@ export type ProcedureCandidate = { patient_id: string; fund_id: string | null; p
  * - FundPayed: A bank payment has been matched/reconciled with this procedure via fund (blocking re-import)
  * - ImportDirectlyPayed: From Excel import — paid directly (ES/CH), non-blocking re-import
  * - ImportFundPayed: From Excel import — fund present, method not ES/CH (non-blocking re-import)
+ * - Overpaid: Source procedure whose full overpayment has been recorded (REF-160). Blocks deletion (REF-220).
+ * - OverpaymentRefund: Mirror negative procedure created to offset an overpayment (REF-090). Blocks deletion (REF-230).
  */
 export type ProcedureStatus = "NONE" | "CREATED" | "RECONCILIATED" | 
 /**
@@ -1458,7 +1534,15 @@ export type ProcedureStatus = "NONE" | "CREATED" | "RECONCILIATED" |
 /**
  * Bank transfer confirmed for a partially reconciled procedure
  */
-"PARTIALLY_FUND_PAYED" | "IMPORT_DIRECTLY_PAYED" | "IMPORT_FUND_PAYED"
+"PARTIALLY_FUND_PAYED" | "IMPORT_DIRECTLY_PAYED" | "IMPORT_FUND_PAYED" | 
+/**
+ * Source procedure whose full overpayment has been recorded (REF-160)
+ */
+"OVERPAID" | 
+/**
+ * Mirror negative procedure created to offset an overpayment (REF-090)
+ */
+"OVERPAYMENT_REFUND"
 /**
  * Procedure Type aggregate root
  * 

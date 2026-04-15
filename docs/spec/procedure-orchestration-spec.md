@@ -143,33 +143,33 @@ Cette feature est responsable de la **création** des actes uniquement. Les tran
 
 ### Transitions gérées par d'autres features
 
-| De                    | Vers                                    | Feature responsable                                                |
-| --------------------- | --------------------------------------- | ------------------------------------------------------------------ |
-| `Created`             | `Reconciliated` / `PartiallyReconciled` | fund-payment-auto-match, fund-payment-manual-match                 |
-| `Created`             | `DirectlyPayed`                         | bank-statement-manual-match                                        |
-| `Reconciliated`       | `FundPayed`                             | bank-statement-auto-match, bank-statement-manual-match             |
-| `PartiallyReconciled` | `PartiallyFundPayed`                    | bank-statement-auto-match, bank-statement-manual-match             |
-| `FundPayed`           | → `Reconciliated` (retour)              | Suppression du virement — bank-statement-manual-match (R8)         |
-| `PartiallyFundPayed`  | → `PartiallyReconciled` (retour)        | Suppression du virement — bank-statement-manual-match (R8)         |
-| `DirectlyPayed`       | → `Created` (retour)                    | Suppression du paiement direct — bank-statement-manual-match (R16) |
-| `FundPayed` / `PartiallyFundPayed` | `Overpaid`             | Enregistrement d'un remboursement — overpayment (REF-160)          |
-| `Overpaid`            | → `FundPayed` / `PartiallyFundPayed` (retour) | Annulation du remboursement — overpayment (REF-210)          |
+| De                                 | Vers                                          | Feature responsable                                                |
+| ---------------------------------- | --------------------------------------------- | ------------------------------------------------------------------ |
+| `Created`                          | `Reconciliated` / `PartiallyReconciled`       | fund-payment-auto-match, fund-payment-manual-match                 |
+| `Created`                          | `DirectlyPayed`                               | bank-statement-manual-match                                        |
+| `Reconciliated`                    | `FundPayed`                                   | bank-statement-auto-match, bank-statement-manual-match             |
+| `PartiallyReconciled`              | `PartiallyFundPayed`                          | bank-statement-auto-match, bank-statement-manual-match             |
+| `FundPayed`                        | → `Reconciliated` (retour)                    | Suppression du virement — bank-statement-manual-match (R8)         |
+| `PartiallyFundPayed`               | → `PartiallyReconciled` (retour)              | Suppression du virement — bank-statement-manual-match (R8)         |
+| `DirectlyPayed`                    | → `Created` (retour)                          | Suppression du paiement direct — bank-statement-manual-match (R16) |
+| `FundPayed` / `PartiallyFundPayed` | `Overpaid`                                    | Enregistrement d'un remboursement — overpayment (REF-160)          |
+| `Overpaid`                         | → `FundPayed` / `PartiallyFundPayed` (retour) | Annulation du remboursement — overpayment (REF-210)                |
 
 ### Actions autorisées par statut (cette feature)
 
-| Statut                | Suppression             | Édition                                  |
-| --------------------- | ----------------------- | ---------------------------------------- |
-| `None`                | oui (avec confirmation) | oui                                      |
-| `Created`             | oui (avec confirmation) | oui                                      |
-| `ImportDirectlyPayed` | oui (avec confirmation) | oui                                      |
-| `ImportFundPayed`     | oui (avec confirmation) | oui                                      |
-| `DirectlyPayed`       | non — bloquée           | partielle — type d'acte uniquement (R26) |
-| `Reconciliated`       | non — bloquée           | partielle — type d'acte uniquement (R26) |
-| `PartiallyReconciled` | non — bloquée           | partielle — type d'acte uniquement (R26) |
-| `FundPayed`           | non — bloquée           | partielle — type d'acte uniquement (R26) |
-| `PartiallyFundPayed`  | non — bloquée           | partielle — type d'acte uniquement (R26)                             |
+| Statut                | Suppression             | Édition                                                                                 |
+| --------------------- | ----------------------- | --------------------------------------------------------------------------------------- |
+| `None`                | oui (avec confirmation) | oui                                                                                     |
+| `Created`             | oui (avec confirmation) | oui                                                                                     |
+| `ImportDirectlyPayed` | oui (avec confirmation) | oui                                                                                     |
+| `ImportFundPayed`     | oui (avec confirmation) | oui                                                                                     |
+| `DirectlyPayed`       | non — bloquée           | partielle — type d'acte uniquement (R26)                                                |
+| `Reconciliated`       | non — bloquée           | partielle — type d'acte uniquement (R26)                                                |
+| `PartiallyReconciled` | non — bloquée           | partielle — type d'acte uniquement (R26)                                                |
+| `FundPayed`           | non — bloquée           | partielle — type d'acte uniquement (R26)                                                |
+| `PartiallyFundPayed`  | non — bloquée           | partielle — type d'acte uniquement (R26)                                                |
 | `Overpaid`            | non — bloquée (REF-220) | partielle — type d'acte uniquement avec propagation au remboursement (REF-190, REF-170) |
-| `OverpaymentRefund`   | non — bloquée (REF-230) | non — lecture seule (REF-200)                                        |
+| `OverpaymentRefund`   | non — bloquée (REF-230) | non — lecture seule (REF-200)                                                           |
 
 ---
 

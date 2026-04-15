@@ -3,7 +3,7 @@ use crate::{
     core::{health, logger},
     use_cases::{
         bank_manual_match, bank_statement_reconciliation, db_backup, excel_import,
-        fund_payment_reconciliation, procedure_orchestration as use_cases_procedure,
+        fund_payment_reconciliation, overpayment, procedure_orchestration as use_cases_procedure,
     },
 };
 
@@ -64,6 +64,9 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<bank_manual_match::FundGroupCandidate>()
         .typ::<bank_manual_match::DirectPaymentProcedureCandidate>()
         .typ::<bank_manual_match::BankManualMatchResult>()
+        .typ::<overpayment::CreateOverpaymentRequest>()
+        .typ::<overpayment::CancelOverpaymentRequest>()
+        .typ::<overpayment::ProcedureRefundInfo>()
         .commands(tauri_specta::collect_commands![
             patient::add_patient,
             patient::read_all_patients,
@@ -143,6 +146,9 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             db_backup::import_database,
             health::check_health,
             logger::log_frontend,
+            overpayment::create_overpayment,
+            overpayment::cancel_overpayment,
+            overpayment::get_procedure_refund_by_source,
         ])
     //.events(tauri_specta::collect_events![Event])
 }
