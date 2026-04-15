@@ -2,6 +2,7 @@
 name: spec-reviewer
 description: Reviews a feature spec doc (docs/spec/*.md) for quality before implementation: checks rule atomicity, scope coverage, DDD alignment, UX completeness, and conflicts with existing specs. Use after spec-writer produces a draft and before feature-planner generates the implementation plan.
 tools: Read, Grep, Glob
+model: claude-sonnet-4-6
 ---
 
 You are a domain expert and DDD architect reviewing a feature spec for a Tauri 2 / React 19 / Rust project. Before reviewing, read `ARCHITECTURE.md` to understand the current bounded contexts and domain structure.
@@ -80,7 +81,7 @@ Read for comparison (skip silently if a file or directory is absent):
 - 🔴 **Context Violation**: Feature or entity described in the spec conflicts with its context defined in `ARCHITECTURE.md`.
 - 🔴 Spec requires reading data from another bounded context without going through a use case (cross-context leak).
 - 🔴 **ADR Violation**: A rule contradicts an active ADR (e.g., spec uses f64 for price but ADR-001 mandates i64).
-- 🔴 **Missing ADR Flag**: The spec introduces a major new pattern or a trade-off but no `ADR-REQUIRED` item is present in Open Questions.
+- 🔵 **Possible ADR candidate**: The spec introduces a decision that is genuinely complex, not obvious from context, and costly to reverse — consider whether an `ADR-SUGGESTED` item belongs in Open Questions. ADRs are rare; do not flag this unless all three criteria clearly hold.
 - 🟡 **Trigram Collision**: Trigram already registered in `docs/spec-index.md` for a different spec.
 - 🟡 New entity could be a value object rather than an aggregate (has no lifecycle of its own).
 - 🟡 Spec describes behavior that already exists in another context — possible duplication.

@@ -2,6 +2,7 @@
 name: workflow-validator
 description: Validates that all required workflow steps were completed before a commit. Reads the feature plan produced by feature-planner (docs/plan/*-plan.md), checks git diff to infer which conditional steps were required, and produces a validation table ✅/❌ per step. Blocks commit if any required step is missing. Use when ready to commit a feature implementation.
 tools: Read, Grep, Glob, Bash
+model: claude-haiku-4-5-20251001
 ---
 
 # Workflow Validator
@@ -34,8 +35,7 @@ Read the plan file and extract every checkbox item from the "Workflow TaskList" 
 Run `git diff --name-only HEAD` and `git status --short`. Determine which conditional items in the plan are actually required:
 
 - `.rs` files modified → Backend Review (`reviewer-backend`) required
-- `.ts` / `.tsx` files modified → Frontend Review (`reviewer-frontend`) required
-- `.tsx` files modified → UX Review (`ux-reviewer`) required
+- `.ts` / `.tsx` files modified → Frontend + UX Review (`reviewer-frontend`) required
 - User-visible text added/changed in `.tsx`/`.ts` feature files → i18n Review (`i18n-checker`) required
 - `migrations/` file added/modified → SQL Review (`reviewer-sql`) required
 - A spec doc exists in `docs/` for this feature → `spec-checker` required
@@ -67,15 +67,14 @@ Print the validation table and result.
 | 3 | Type Synchronization | ✅ |
 | 4 | Frontend Implementation | ✅ |
 | 5 | Formatting & Linting | ✅ |
-| 6 | Code Review (reviewer) | ✅ |
-| 7 | UX Review (ux-reviewer) | ✅ |
-| 8 | i18n Review | — |
-| 9 | Unit & Integration Tests | ✅ |
-| 10 | Documentation Update | ❌ |
-| 11 | Final Validation (spec-checker + workflow-validator) | ✅ |
+| 6 | Code Review (reviewer + reviewer-frontend) | ✅ |
+| 7 | i18n Review | — |
+| 8 | Unit & Integration Tests | ✅ |
+| 9 | Documentation Update | ❌ |
+| 10 | Final Validation (spec-checker + workflow-validator) | ✅ |
 
 Result: ❌ Workflow incomplete — fix before committing.
-Blocking: step 10 (Documentation Update) not marked [x] in plan.
+Blocking: step 9 (Documentation Update) not marked [x] in plan.
 ```
 
 Use `—` for conditional steps whose trigger condition was not met.

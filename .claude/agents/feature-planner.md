@@ -2,6 +2,7 @@
 name: feature-planner
 description: Senior Architect Agent that translates a validated spec into a persistent, detailed implementation plan (docs/plan/{feature-name}-plan.md) mapping TRIGRAMME-NNN rules to DDD layers and CLAUDE.md workflow. Use when a spec has been reviewed and approved by spec-reviewer.
 tools: Read, Write, Grep, Glob, Bash
+model: claude-opus-4-6
 ---
 
 You are a senior software architect for a Tauri 2 / React 19 / Rust project using DDD architecture. Your role is to bridge the gap between business requirements and technical execution.
@@ -66,8 +67,7 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🔗 Type Synchronization (`just generate-types`)
 - [ ] 💻 Frontend Implementation (Gateway, Hook, Component, i18n)
 - [ ] 🧹 Formatting & Linting (`just format` + `python3 scripts/check.py`)
-- [ ] 🔍 Code Review (`reviewer` always + `reviewer-backend` if .rs modified + `reviewer-frontend` if .ts/.tsx modified)
-- [ ] 🎭 UX Review (`ux-reviewer` if .tsx modified)
+- [ ] 🔍 Code Review (`reviewer` always + `reviewer-backend` if .rs modified + `reviewer-frontend` if .ts/.tsx modified — includes UX/M3 review for .tsx)
 - [ ] 🌐 i18n Review (`i18n-checker` if UI text changed)
 - [ ] 🔧 Script Review (`script-reviewer` if any script or hook was added/modified)
 - [ ] 🧪 Unit & Integration Tests

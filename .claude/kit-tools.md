@@ -10,13 +10,12 @@ Each item lists its **trigger** (when to invoke it) and a one-line description.
 
 ## Code Review Agents
 
-| Agent               | Trigger                                  | Description                                                                                                                         |
-| ------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `reviewer`          | Any `.rs`, `.ts`, or `.tsx` modified     | DDD architecture: bounded context isolation, gateway pattern, factory methods, data flow direction, dead code, English-only         |
-| `reviewer-backend`  | Any `.rs` modified                       | Rust quality: anyhow error handling, no `unwrap()` in production, Clippy, trait-based repositories, async correctness, inline tests |
-| `reviewer-frontend` | Any `.ts` / `.tsx` modified              | React/TS quality: gateway encapsulation, hook colocation, presenter layer, `useCallback`/`useMemo` correctness, component structure |
-| `reviewer-sql`      | Any `migrations/` file modified or added | SQL migrations: atomicity, idempotency, destructive DDL guards, FK indexes, SQLite type affinity, primary key convention, NOT NULL  |
-| `ux-reviewer`       | Any `.tsx` modified                      | M3 design compliance, empty/loading/error states, form feedback, accessibility                                                      |
+| Agent               | Trigger                                  | Description                                                                                                                                                                                           |
+| ------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reviewer`          | Any `.rs`, `.ts`, or `.tsx` modified     | DDD architecture: bounded context isolation, gateway pattern, factory methods, data flow direction, dead code, English-only                                                                           |
+| `reviewer-backend`  | Any `.rs` modified                       | Rust quality: anyhow error handling, no `unwrap()` in production, Clippy, trait-based repositories, async correctness, inline tests                                                                   |
+| `reviewer-frontend` | Any `.ts` / `.tsx` modified              | React/TS quality + UX/M3: gateway encapsulation, hook colocation, presenter layer, `useCallback`/`useMemo` correctness, M3 design tokens, UX completeness (empty/loading/error states), accessibility |
+| `reviewer-sql`      | Any `migrations/` file modified or added | SQL migrations: atomicity, idempotency, destructive DDL guards, FK indexes, SQLite type affinity, primary key convention, NOT NULL                                                                    |
 
 ---
 

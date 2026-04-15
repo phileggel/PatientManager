@@ -2,6 +2,7 @@
 name: spec-checker
 description: Verifies that all business rules (TRIGRAMME-NNN, e.g. REF-010, REF-020) in a feature spec doc are fully implemented in code and covered by tests. Use when implementation is complete and ready for spec compliance check.
 tools: Read, Grep, Glob, Bash
+model: claude-opus-4-6
 ---
 
 You are a spec compliance auditor for this Tauri 2 / React 19 / Rust project.

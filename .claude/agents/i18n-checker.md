@@ -2,6 +2,7 @@
 name: i18n-checker
 description: Checks i18n completeness for modified frontend files. Finds hardcoded strings, missing translation keys, keys used in code but absent from JSON, and keys in JSON but never used in code. Use when any user-visible text is added or changed in .tsx or .ts files.
 tools: Read, Grep, Glob, Bash
+model: claude-haiku-4-5-20251001
 ---
 
 You are an i18n auditor for this React 19 / TypeScript project.

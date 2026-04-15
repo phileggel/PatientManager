@@ -188,16 +188,17 @@ and the main entities involved.}
 
 ### 4.1 Architecture Decision (ADR) Detection
 
-While drafting the `{TRIGRAM}-NNN` rules, if the feature requires a choice that:
+ADRs are rare. Only flag one when **all three** conditions hold simultaneously:
 
-- Differs from existing patterns in the codebase
-- Impacts multiple contexts (e.g., a new complex UseCase)
-- Requires a trade-off between two technical solutions
-- Supersedes a previous ADR found in Step 1
+1. **Genuinely complex** — real trade-offs exist, not just a preference between two reasonable options.
+2. **Not obvious from context** — a future developer could not infer the reasoning from the spec or existing patterns.
+3. **Costly to reverse** — changing course later would require significant rework.
 
-**Action**: Add a mandatory item in `## Open Questions`:
+If you believe a decision clears this bar, **do not mandate it** — add it as a suggested open question and let the user decide:
 
-- [ ] `ADR-REQUIRED`: {Briefly describe the architectural decision to be recorded}.
+- [ ] `ADR-SUGGESTED`: {Briefly describe the decision and why it may warrant an ADR — the user decides whether to proceed}.
+
+Do **not** flag an ADR for: minor preferences, standard framework patterns, choices already self-evident from the spec, or anything reversible with a normal refactor.
 
 ---
 
@@ -283,8 +284,8 @@ Show the user:
 - Path of the spec: `docs/spec/{feature-name}.md`
 - Trigram assigned: `{TRIGRAM}`
 - List of `{TRIGRAM}-NNN` rules extracted
-- **Architectural Alert**: If an `ADR-REQUIRED` was flagged in Open Questions, explicitly tell the user:
-  > "An architectural decision has been identified. It is recommended to run the `adr-manager` skill to document it before proceeding to `feature-planner`."
+- **Architectural Alert**: If an `ADR-SUGGESTED` was flagged in Open Questions, explicitly tell the user:
+  > "A potential architectural decision was identified. Consider running `adr-manager` if you agree it warrants documentation — it is not required to proceed."
 
 Then ask: **"Validate, refine, write the ADR, or generate the implementation plan?"**
 
