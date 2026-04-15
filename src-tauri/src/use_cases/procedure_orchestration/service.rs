@@ -860,6 +860,12 @@ mod tests {
         ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
             Ok(None)
         }
+        async fn find_by_refund_procedure_id(
+            &self,
+            _refund_procedure_id: &str,
+        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
+            Ok(None)
+        }
         async fn delete_procedure_refund(&self, _id: &str) -> anyhow::Result<()> {
             Ok(())
         }

@@ -135,9 +135,9 @@ export function ProcedureFormModal({
       setCancelSourceProcedureId(procedure.id);
       setShowCancelRefundDialog(true);
     } else if (isRefundMode && procedure) {
-      // Refund procedure — resolve source_procedure_id first (REF-200)
+      // Refund procedure — resolve source_procedure_id via refund_procedure_id (REF-200)
       try {
-        const result = await overpaymentGateway.getProcedureRefundBySource(procedure.id);
+        const result = await overpaymentGateway.getProcedureRefundByRefundProcedure(procedure.id);
         if (result.success && result.data) {
           setCancelSourceProcedureId(result.data.source_procedure_id);
           setShowCancelRefundDialog(true);

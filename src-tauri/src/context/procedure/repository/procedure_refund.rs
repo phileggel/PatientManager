@@ -17,6 +17,13 @@ pub trait ProcedureRefundRepository: Send + Sync {
         source_id: &str,
     ) -> anyhow::Result<Option<ProcedureRefund>>;
 
+    /// Find a ProcedureRefund by refund procedure ID (REF-200).
+    /// Used when cancelling from the OverpaymentRefund procedure modal to resolve source_procedure_id.
+    async fn find_by_refund_procedure_id(
+        &self,
+        refund_procedure_id: &str,
+    ) -> anyhow::Result<Option<ProcedureRefund>>;
+
     /// Delete a ProcedureRefund record by its ID (REF-210).
     async fn delete_procedure_refund(&self, id: &str) -> anyhow::Result<()>;
 
@@ -93,6 +100,49 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
         .fetch_optional(&self.pool)
         .await
         .context("Failed to find procedure_refund by source_procedure_id")?;
+
+        Ok(row.map(|r| {
+            let date =
+                NaiveDate::parse_from_str(&r.refund_date, "%Y-%m-%d").unwrap_or(NaiveDate::MIN);
+            let status = parse_procedure_status(&r.previous_payment_status);
+
+            ProcedureRefund::restore(
+                r.id,
+                r.source_procedure_id,
+                r.refund_procedure_id,
+                r.refund_fund_payment_group_id,
+                r.refund_bank_transfer_id,
+                date,
+                r.reason,
+                status,
+            )
+        }))
+    }
+
+    async fn find_by_refund_procedure_id(
+        &self,
+        refund_procedure_id: &str,
+    ) -> anyhow::Result<Option<ProcedureRefund>> {
+        let row = sqlx::query!(
+            r#"
+            SELECT
+                id,
+                source_procedure_id,
+                refund_procedure_id,
+                refund_fund_payment_group_id,
+                refund_bank_transfer_id,
+                refund_date,
+                reason,
+                previous_payment_status
+            FROM procedure_refund
+            WHERE refund_procedure_id = $1
+            LIMIT 1
+            "#,
+            refund_procedure_id,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("Failed to find procedure_refund by refund_procedure_id")?;
 
         Ok(row.map(|r| {
             let date =

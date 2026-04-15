@@ -65,3 +65,20 @@ export async function getProcedureRefundBySource(
     return { success: false, error: String(error) };
   }
 }
+
+export async function getProcedureRefundByRefundProcedure(
+  refundProcedureId: string,
+): Promise<ServiceResult<ProcedureRefundInfo | null>> {
+  logger.debug("Fetching procedure refund by refund procedure", { refundProcedureId });
+  try {
+    const result = await commands.getProcedureRefundByRefundProcedure(refundProcedureId);
+    if (result.status === "ok") {
+      return { success: true, data: result.data };
+    }
+    logger.error("Failed to fetch procedure refund by refund procedure", { error: result.error });
+    return { success: false, error: result.error };
+  } catch (error) {
+    logger.error("Exception fetching procedure refund by refund procedure", { error });
+    return { success: false, error: String(error) };
+  }
+}
