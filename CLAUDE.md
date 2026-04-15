@@ -49,7 +49,7 @@ Before starting any task, analyze the request, state which workflow you are foll
 2. Write missing tests directly following `docs/testing.md` (Backend: `#[cfg(test)]`, Frontend: `.test.ts`).
 3. Run the Subagent Gauntlet:
    - Run **`reviewer`** agent → fix issues.
-   - If `.tsx` modified: run **`ux-reviewer`** agent → fix issues.
+   - If `.ts` / `.tsx` modified: run **`reviewer-frontend`** agent → fix issues (covers code quality + UX/M3).
    - If `.sh`, `.py`, or `.githooks` modified: run **`script-reviewer`** agent.
    - If UI text changed: run **`i18n-checker`** agent.
 

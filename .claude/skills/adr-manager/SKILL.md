@@ -11,6 +11,20 @@ An ADR documents the "Why" behind a significant technical or business structural
 
 ---
 
+## When to write an ADR
+
+ADRs are rare. Write one only when **all three** conditions hold:
+
+1. **Genuinely complex** — the decision involves real trade-offs with no obvious right answer.
+2. **Not obvious from context** — a future developer reading the code or the spec could not reasonably infer why this choice was made.
+3. **Costly to reverse** — undoing the decision later would require significant rework across the codebase.
+
+If the decision is a minor preference, a standard pattern, or self-evident from the spec, do not create an ADR.
+
+**Always ask before writing.** If `adr-manager` is invoked from another agent or skill, confirm with the user that an ADR is truly warranted before proceeding — never create one automatically.
+
+---
+
 ## Execution Steps
 
 ### 1. Identify Intent

@@ -2,6 +2,7 @@
 name: reviewer-backend
 description: Rust-specific code reviewer for Tauri 2 projects. Checks Clippy patterns, anyhow error handling, trait-based repositories, async correctness, no unwrap() in production paths, inline test conventions. Use when any .rs file is modified.
 tools: Read, Grep, Glob, Bash
+model: claude-haiku-4-5-20251001
 ---
 
 You are a senior Rust engineer reviewing backend code quality for a Tauri 2 project.
