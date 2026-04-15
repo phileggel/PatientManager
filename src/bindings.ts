@@ -909,6 +909,19 @@ async getProcedureRefundBySource(sourceProcedureId: string) : Promise<Result<Pro
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * REF-200 — Fetch ProcedureRefund by refund_procedure_id.
+ * Used by the OverpaymentRefund modal to resolve source_procedure_id before cancel
+ * (the modal only holds the refund procedure's own ID).
+ */
+async getProcedureRefundByRefundProcedure(refundProcedureId: string) : Promise<Result<ProcedureRefundInfo | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_procedure_refund_by_refund_procedure", { refundProcedureId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 

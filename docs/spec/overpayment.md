@@ -71,6 +71,9 @@ The backend rejects the request if no `bank_account_id` is provided.
 - `procedure_amount` = `-source.procedure_amount`.
 - `payment_status` = `OverpaymentRefund` (direct assignment, no lifecycle transition).
 - `procedure_date` = `refund_date`.
+- `payment_method` = mapped from the user-selected transfer type (REF-060): `CreditCard → BankCard`, `Check → Check`, `OutgoingWire → BankTransfer`. This field must be populated so that the refund procedure appears correctly in the procedure list payment method column.
+- `confirmed_payment_date` = `refund_date`. The refund is considered executed on that date.
+- `actual_payment_amount` = `-source.procedure_amount`. Consistent with the negative `procedure_amount`.
 
 **REF-100 — Create Refund Fund Payment Group (backend)**: A new `FundPaymentGroup` is created containing only the refund procedure, with:
 

@@ -141,6 +141,15 @@ impl OverpaymentOrchestrator {
         // Direct assignment of OverpaymentRefund status — bypasses lifecycle transitions.
         // Uses the ProcedureService.create_procedure which calls Procedure::new() internally.
         // Negative procedure_amount is allowed (no amount validation in Procedure).
+        // payment_method is mapped from the user-selected transfer_type so it appears in the
+        // procedure list column. confirmed_payment_date is set to refund_date because the
+        // refund is considered executed at that date.
+        let refund_payment_method = match transfer_type {
+            BankTransferType::Check => PaymentMethod::Check,
+            BankTransferType::CreditCard => PaymentMethod::BankCard,
+            BankTransferType::OutgoingWire => PaymentMethod::BankTransfer,
+            _ => PaymentMethod::None,
+        };
         let refund_procedure = self
             .procedure_service
             .create_procedure(
@@ -149,9 +158,9 @@ impl OverpaymentOrchestrator {
                 source.procedure_type_id.clone(),
                 req.refund_date.clone(),
                 Some(-source_amount),
-                PaymentMethod::None,
-                None,
-                None,
+                refund_payment_method,
+                Some(req.refund_date.clone()),
+                Some(-source_amount),
                 ProcedureStatus::OverpaymentRefund,
             )
             .await?;
@@ -336,6 +345,28 @@ impl OverpaymentOrchestrator {
         let record = self
             .procedure_refund_repo
             .find_by_source_procedure_id(source_procedure_id)
+            .await?;
+
+        Ok(record.map(|r| ProcedureRefundInfo {
+            id: r.id,
+            source_procedure_id: r.source_procedure_id,
+            refund_procedure_id: r.refund_procedure_id,
+            refund_date: r.refund_date.format("%Y-%m-%d").to_string(),
+            reason: r.reason,
+            previous_payment_status: r.previous_payment_status,
+        }))
+    }
+
+    /// Fetch a ProcedureRefund by refund_procedure_id.
+    /// Used by the frontend when cancelling from the OverpaymentRefund modal (REF-200):
+    /// the modal only has the refund procedure's ID and must resolve source_procedure_id.
+    pub async fn get_procedure_refund_by_refund_procedure(
+        &self,
+        refund_procedure_id: &str,
+    ) -> anyhow::Result<Option<ProcedureRefundInfo>> {
+        let record = self
+            .procedure_refund_repo
+            .find_by_refund_procedure_id(refund_procedure_id)
             .await?;
 
         Ok(record.map(|r| ProcedureRefundInfo {

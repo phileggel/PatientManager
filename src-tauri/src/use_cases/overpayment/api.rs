@@ -48,6 +48,30 @@ pub async fn cancel_overpayment(
         })
 }
 
+/// REF-200 — Fetch ProcedureRefund by refund_procedure_id.
+/// Used by the OverpaymentRefund modal to resolve source_procedure_id before cancel
+/// (the modal only holds the refund procedure's own ID).
+#[tauri::command]
+#[specta::specta]
+pub async fn get_procedure_refund_by_refund_procedure(
+    refund_procedure_id: String,
+    orchestrator: State<'_, Arc<OverpaymentOrchestrator>>,
+) -> Result<Option<ProcedureRefundInfo>, String> {
+    tracing::info!(
+        name: BACKEND,
+        refund_procedure_id = %refund_procedure_id,
+        "Processing get_procedure_refund_by_refund_procedure command"
+    );
+
+    orchestrator
+        .get_procedure_refund_by_refund_procedure(&refund_procedure_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(name: BACKEND, error = %e, "Failed to get procedure refund by refund procedure");
+            format!("{:#}", e)
+        })
+}
+
 /// REF-200 — Fetch ProcedureRefund by source_procedure_id.
 /// Used by the OverpaymentRefund modal to resolve source_procedure_id before cancel.
 #[tauri::command]
