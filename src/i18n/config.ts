@@ -10,6 +10,7 @@ import fundPaymentEn from "./locales/en/fund-payment.json";
 import fundPaymentMatchEn from "./locales/en/fund-payment-match.json";
 import importModalEn from "./locales/en/import-modal.json";
 import managementModalEn from "./locales/en/management-modal.json";
+import overpaymentEn from "./locales/en/overpayment.json";
 import patientEn from "./locales/en/patient.json";
 import procedureEn from "./locales/en/procedure.json";
 import procedureTypeEn from "./locales/en/procedure-type.json";
@@ -23,6 +24,7 @@ import fundPaymentFr from "./locales/fr/fund-payment.json";
 import fundPaymentMatchFr from "./locales/fr/fund-payment-match.json";
 import importModalFr from "./locales/fr/import-modal.json";
 import managementModalFr from "./locales/fr/management-modal.json";
+import overpaymentFr from "./locales/fr/overpayment.json";
 import patientFr from "./locales/fr/patient.json";
 import procedureFr from "./locales/fr/procedure.json";
 import procedureTypeFr from "./locales/fr/procedure-type.json";
@@ -45,6 +47,7 @@ i18n.use(initReactI18next).init({
     "db-backup",
     "import-modal",
     "management-modal",
+    "overpayment",
   ],
   resources: {
     fr: {
@@ -61,6 +64,7 @@ i18n.use(initReactI18next).init({
       "db-backup": dbBackupFr,
       "import-modal": importModalFr,
       "management-modal": managementModalFr,
+      overpayment: overpaymentFr,
     },
     en: {
       common: commonEn,
@@ -76,6 +80,7 @@ i18n.use(initReactI18next).init({
       "db-backup": dbBackupEn,
       "import-modal": importModalEn,
       "management-modal": managementModalEn,
+      overpayment: overpaymentEn,
     },
   },
   interpolation: {

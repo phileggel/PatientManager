@@ -15,6 +15,9 @@ function getBadgeColor(status: string | null | undefined): string {
     case "IMPORT_DIRECTLY_PAYED":
     case "IMPORT_FUND_PAYED":
       return "bg-m3-primary-container text-m3-on-primary-container";
+    case "OVERPAID":
+    case "OVERPAYMENT_REFUND":
+      return "bg-m3-error-container text-m3-on-error-container";
     default:
       return "bg-m3-surface-container-high text-m3-on-surface-variant";
   }

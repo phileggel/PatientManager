@@ -678,4 +678,67 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
 
         Ok(count > 0)
     }
+
+    /// Persist a fully-constructed FundPaymentGroup with its lines, preserving status/is_locked.
+    /// Used for overpayment refund groups (BankPayed status + negative amount, REF-100).
+    async fn persist_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
+        let payment_date_str = group.payment_date.format("%Y-%m-%d").to_string();
+        let status_str = match group.status {
+            crate::context::fund::FundPaymentGroupStatus::Active => "ACTIVE",
+            crate::context::fund::FundPaymentGroupStatus::BankPayed => "BANK_PAYED",
+        };
+
+        tracing::info!(
+            group_id = %group.id,
+            fund_id = %group.fund_id,
+            total_amount = group.total_amount,
+            status = %status_str,
+            line_count = group.lines.len(),
+            "Persisting fund payment group (bypass validation)"
+        );
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .context("Failed to begin transaction")?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO fund_payment_group (
+                id, fund_id, payment_date, total_amount, status, is_deleted
+            )
+            VALUES ($1, $2, $3, $4, $5, 0)
+            "#,
+            group.id,
+            group.fund_id,
+            payment_date_str,
+            group.total_amount,
+            status_str,
+        )
+        .execute(&mut *tx)
+        .await
+        .context("Failed to insert fund payment group")?;
+
+        for line in &group.lines {
+            sqlx::query!(
+                r#"
+                INSERT INTO fund_payment_line (
+                    id, fund_payment_group_id, procedure_id, is_deleted
+                )
+                VALUES ($1, $2, $3, 0)
+                "#,
+                line.id,
+                line.fund_payment_group_id,
+                line.procedure_id,
+            )
+            .execute(&mut *tx)
+            .await
+            .context("Failed to insert fund payment line")?;
+        }
+
+        tx.commit().await.context("Failed to commit transaction")?;
+
+        Ok(group)
+    }
 }

@@ -316,4 +316,8 @@ pub trait FundPaymentRepository: Send + Sync {
         payment_date: &str,
         total_amount: i64,
     ) -> anyhow::Result<bool>;
+
+    /// Persist a fully-constructed FundPaymentGroup with its lines, preserving status/is_locked.
+    /// Used for overpayment refund groups created with BankPayed status + negative amount (REF-100).
+    async fn persist_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup>;
 }

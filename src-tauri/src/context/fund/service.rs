@@ -356,6 +356,23 @@ impl FundPaymentService {
         Ok(())
     }
 
+    /// Persist a fully-constructed FundPaymentGroup directly, preserving status and amount.
+    /// Used for overpayment refund groups (BankPayed status + negative total_amount, REF-100).
+    pub async fn persist_refund_group(
+        &self,
+        group: FundPaymentGroup,
+    ) -> anyhow::Result<FundPaymentGroup> {
+        let result = self.repository.persist_group(group).await?;
+
+        let _ = self
+            .event_bus
+            .publish::<crate::core::event_bus::FundPaymentGroupUpdated>(
+                crate::core::event_bus::FundPaymentGroupUpdated,
+            );
+
+        Ok(result)
+    }
+
     /// Delete fund payment group
     pub async fn delete_group(&self, group_id: String) -> anyhow::Result<()> {
         tracing::info!(group_id = %group_id, "Deleting fund payment group");

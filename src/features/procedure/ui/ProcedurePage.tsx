@@ -9,7 +9,7 @@ import { CompactSelectField, ConfirmationDialog, FAB, SearchField } from "@/ui/c
 import * as gateway from "../api/gateway";
 import { useProcedureData } from "../hooks/useProcedureData";
 import { useProcedurePeriod } from "../hooks/useProcedurePeriod";
-import { isBlockingStatus } from "../model";
+import { isBlockingStatus, isOverpaidStatus, isOverpaymentRefundStatus } from "../model";
 import { toProcedureRow } from "../model/procedure-row.mapper";
 import type { ProcedureRow } from "../model/procedure-row.types";
 import { PeriodSelector } from "./PeriodSelector";
@@ -43,7 +43,9 @@ export default function ProcedurePage() {
   const [selectedStatus, setSelectedStatus] = useState("");
 
   // Modal state
-  const [modalMode, setModalMode] = useState<"create" | "edit" | "view">("create");
+  const [modalMode, setModalMode] = useState<"create" | "edit" | "view" | "overpaid" | "refund">(
+    "create",
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProcedure, setEditingProcedure] = useState<ProcedureRow | null>(null);
 
@@ -98,7 +100,15 @@ export default function ProcedurePage() {
   }, []);
 
   const handleEdit = useCallback((row: ProcedureRow) => {
-    setModalMode(isBlockingStatus(row.status) ? "view" : "edit");
+    let mode: "create" | "edit" | "view" | "overpaid" | "refund" = "edit";
+    if (isOverpaidStatus(row.status)) {
+      mode = "overpaid";
+    } else if (isOverpaymentRefundStatus(row.status)) {
+      mode = "refund";
+    } else if (isBlockingStatus(row.status)) {
+      mode = "view";
+    }
+    setModalMode(mode);
     setEditingProcedure(row);
     setIsModalOpen(true);
   }, []);
@@ -228,6 +238,8 @@ export default function ProcedurePage() {
               <option value="PARTIALLY_FUND_PAYED">{t("status.partially_fund_payed")}</option>
               <option value="IMPORT_DIRECTLY_PAYED">{t("status.import_directly_payed")}</option>
               <option value="IMPORT_FUND_PAYED">{t("status.import_fund_payed")}</option>
+              <option value="OVERPAID">{t("status.overpaid")}</option>
+              <option value="OVERPAYMENT_REFUND">{t("status.overpayment_refund")}</option>
             </CompactSelectField>
             <div className="flex items-center gap-3">
               <label htmlFor="procedure-search" className="sr-only">

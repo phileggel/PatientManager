@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::context::fund::FundRepository;
 use crate::context::patient::PatientRepository;
 use crate::context::procedure::{
-    PaymentMethod, Procedure, ProcedureCandidate, ProcedureService as ContextProcedureService,
-    ProcedureStatus, ProcedureTypeRepository,
+    PaymentMethod, Procedure, ProcedureCandidate, ProcedureRefundRepository,
+    ProcedureService as ContextProcedureService, ProcedureStatus, ProcedureTypeRepository,
 };
 use crate::core::logger::BACKEND;
 
@@ -19,6 +19,7 @@ pub struct ProcedureOrchestrationService {
     patient_repository: Arc<dyn PatientRepository>,
     procedure_type_repository: Arc<dyn ProcedureTypeRepository>,
     fund_repository: Arc<dyn FundRepository>,
+    procedure_refund_repository: Arc<dyn ProcedureRefundRepository>,
 }
 
 impl ProcedureOrchestrationService {
@@ -28,12 +29,14 @@ impl ProcedureOrchestrationService {
         patient_repository: Arc<dyn PatientRepository>,
         procedure_type_repository: Arc<dyn ProcedureTypeRepository>,
         fund_repository: Arc<dyn FundRepository>,
+        procedure_refund_repository: Arc<dyn ProcedureRefundRepository>,
     ) -> Self {
         ProcedureOrchestrationService {
             context_procedure_service,
             patient_repository,
             procedure_type_repository,
             fund_repository,
+            procedure_refund_repository,
         }
     }
 
@@ -170,13 +173,57 @@ impl ProcedureOrchestrationService {
         Ok(procedure)
     }
 
-    /// Update a procedure (delegates to context service)
+    /// Update a procedure (delegates to context service).
     ///
-    /// The context service automatically recalculates awaited_amount from the procedure amounts.
+    /// REF-170: If the updated procedure has `Overpaid` status, propagates any
+    /// `procedure_type_id` change to the linked `OverpaymentRefund` procedure atomically.
     pub async fn update_procedure(&self, procedure: Procedure) -> anyhow::Result<Procedure> {
-        self.context_procedure_service
-            .update_procedure(procedure)
-            .await
+        let updated = self
+            .context_procedure_service
+            .update_procedure(procedure.clone())
+            .await?;
+
+        // REF-170: propagate procedure_type_id to the linked refund procedure
+        if updated.payment_status == ProcedureStatus::Overpaid {
+            if let Some(refund_record) = self
+                .procedure_refund_repository
+                .find_by_source_procedure_id(&updated.id)
+                .await?
+            {
+                if let Some(refund_proc) = self
+                    .context_procedure_service
+                    .read_procedure(&refund_record.refund_procedure_id)
+                    .await?
+                {
+                    if refund_proc.procedure_type_id != updated.procedure_type_id {
+                        let updated_refund = Procedure::restore(
+                            refund_proc.id,
+                            refund_proc.patient_id,
+                            refund_proc.fund_id,
+                            updated.procedure_type_id.clone(),
+                            refund_proc.procedure_date,
+                            refund_proc.procedure_amount,
+                            refund_proc.payment_method,
+                            refund_proc.confirmed_payment_date,
+                            refund_proc.actual_payment_amount,
+                            refund_proc.payment_status,
+                        );
+                        self.context_procedure_service
+                            .update_procedure(updated_refund)
+                            .await?;
+                        tracing::info!(
+                            name: BACKEND,
+                            source_procedure_id = %updated.id,
+                            refund_procedure_id = %refund_record.refund_procedure_id,
+                            new_procedure_type_id = %updated.procedure_type_id,
+                            "REF-170: propagated procedure_type_id to refund procedure"
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(updated)
     }
 
     /// Delete a healthcare procedure with patient tracking cleanup
@@ -500,6 +547,11 @@ impl ProcedureOrchestrationService {
                 | ProcedureStatus::FundPayed
                 | ProcedureStatus::PartiallyFundPayed
                 | ProcedureStatus::DirectlyPayed
+                // REF-220: Overpaid source procedures cannot be deleted directly.
+                // REF-230: OverpaymentRefund mirror procedures cannot be deleted directly.
+                // Deletion must go through the cancel_overpayment cascade.
+                | ProcedureStatus::Overpaid
+                | ProcedureStatus::OverpaymentRefund
         )
     }
 
@@ -792,6 +844,30 @@ mod tests {
         }
     }
 
+    struct MockProcedureRefundRepository;
+
+    #[async_trait::async_trait]
+    impl crate::context::procedure::ProcedureRefundRepository for MockProcedureRefundRepository {
+        async fn create_procedure_refund(
+            &self,
+            _refund: &crate::context::procedure::ProcedureRefund,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn find_by_source_procedure_id(
+            &self,
+            _source_id: &str,
+        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
+            Ok(None)
+        }
+        async fn delete_procedure_refund(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn is_refund_fund_payment_group(&self, _group_id: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+    }
+
     #[tokio::test]
     async fn test_create_batch_updates_latest_xx() {
         let patient = Patient::restore(
@@ -821,6 +897,7 @@ mod tests {
             patient_repo.clone(),
             Arc::new(MockProcedureTypeRepository),
             Arc::new(MockFundRepository),
+            Arc::new(MockProcedureRefundRepository),
         );
 
         let candidate = ProcedureCandidate {
@@ -888,6 +965,7 @@ mod tests {
             patient_repo.clone(),
             Arc::new(MockProcedureTypeRepository),
             Arc::new(MockFundRepository),
+            Arc::new(MockProcedureRefundRepository),
         );
 
         // Older procedure date (2024-06-15 < 2024-12-01)
@@ -1055,6 +1133,7 @@ mod tests {
             patient_repo,
             Arc::new(MockProcedureTypeRepository),
             Arc::new(MockFundRepository),
+            Arc::new(MockProcedureRefundRepository),
         )
     }
 

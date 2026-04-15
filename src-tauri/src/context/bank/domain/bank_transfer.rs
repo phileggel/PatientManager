@@ -7,6 +7,9 @@ use uuid::Uuid;
 use super::bank_account::BankAccount;
 
 /// Payment type for bank transfers
+///
+/// Note: `OutgoingWire` is exclusively created via the overpayment refund flow (REF-080).
+/// It must NOT be accepted in the bank statement manual-match UI.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankTransferType {
@@ -15,6 +18,9 @@ pub enum BankTransferType {
     Check,
     CreditCard,
     Cash,
+    /// Outgoing wire refund — only creatable via the overpayment flow (REF-080, REF-110).
+    /// Carries a negative amount to represent money returned to a fund.
+    OutgoingWire,
 }
 
 /// BankTransfer aggregate root

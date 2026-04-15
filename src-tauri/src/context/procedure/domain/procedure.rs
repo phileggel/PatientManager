@@ -33,6 +33,8 @@ pub enum PaymentMethod {
 /// - FundPayed: A bank payment has been matched/reconciled with this procedure via fund (blocking re-import)
 /// - ImportDirectlyPayed: From Excel import — paid directly (ES/CH), non-blocking re-import
 /// - ImportFundPayed: From Excel import — fund present, method not ES/CH (non-blocking re-import)
+/// - Overpaid: Source procedure whose full overpayment has been recorded (REF-160). Blocks deletion (REF-220).
+/// - OverpaymentRefund: Mirror negative procedure created to offset an overpayment (REF-090). Blocks deletion (REF-230).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProcedureStatus {
@@ -48,6 +50,10 @@ pub enum ProcedureStatus {
     PartiallyFundPayed,
     ImportDirectlyPayed,
     ImportFundPayed,
+    /// Source procedure whose full overpayment has been recorded (REF-160)
+    Overpaid,
+    /// Mirror negative procedure created to offset an overpayment (REF-090)
+    OverpaymentRefund,
 }
 
 /// Healthcare Procedure aggregate root

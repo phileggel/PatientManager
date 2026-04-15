@@ -651,6 +651,8 @@ fn transfer_type_to_payment_method(t: BankTransferType) -> PaymentMethod {
         BankTransferType::CreditCard => PaymentMethod::BankCard,
         BankTransferType::Cash => PaymentMethod::Cash,
         BankTransferType::Fund => PaymentMethod::BankTransfer,
+        // OutgoingWire is an overpayment refund type — not a patient payment method
+        BankTransferType::OutgoingWire => PaymentMethod::None,
     }
 }
 

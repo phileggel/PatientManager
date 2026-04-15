@@ -1,0 +1,44 @@
+{
+  "modal": {
+    "title": "Record Overpayment",
+    "confirmTitle": "Confirm Refund",
+    "cancelTitle": "Cancel Refund",
+    "confirmBody": "This will create a negative bank transfer and fund payment group to offset the overpayment.",
+    "cancelBody": "This will permanently cancel the refund and revert the source procedure to its previous status.",
+    "viewTitle": "Overpaid Procedure",
+    "refundViewTitle": "Overpayment Refund",
+    "closeAriaLabel": "Close"
+  },
+  "form": {
+    "refundDate": "Repayment Date",
+    "paymentMethod": "Payment Method",
+    "bankAccount": "Bank Account",
+    "reason": "Reason (optional)",
+    "sourceProcedure": "Source Procedure",
+    "selectBankAccount": "Select a bank account",
+    "selectPaymentMethod": "Select a payment method"
+  },
+  "action": {
+    "refund": "Refund",
+    "cancelRefund": "Cancel Refund",
+    "confirmRefund": "Confirm Refund"
+  },
+  "paymentMethod": {
+    "creditCard": "Credit Card",
+    "check": "Check",
+    "outgoingWire": "Outgoing Wire Transfer"
+  },
+  "noAccountTooltip": "A bank account must be created before recording a refund.",
+  "success": {
+    "created": "Refund recorded successfully.",
+    "cancelled": "Refund cancelled successfully."
+  },
+  "error": {
+    "create": "Failed to record the refund.",
+    "cancel": "Failed to cancel the refund.",
+    "refundDate": "Refund date is required and must not be in the future.",
+    "paymentMethod": "Payment method is required.",
+    "bankAccount": "Bank account is required.",
+    "reasonTooLong": "Reason must not exceed 255 characters."
+  }
+}
