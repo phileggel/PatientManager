@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-04-18
+
+### Added
+- add overpayment refund management (REF)
+Implements REF-010 to REF-240: create/cancel overpayment refund cascade
+across Procedure, Fund, and Bank contexts. Adds ProcedureStatus::Overpaid
+and OverpaymentRefund, BankTransferType::OutgoingWire, ProcedureRefund
+entity, deletion guards (REF-220/230/240). ADR-002 documents the
+accepted partial-state trade-off (no DB transaction, REF-050).
+
+### Fixed
+- cancel from refund modal and populate payment method
+Cancel from OverpaymentRefund modal was calling getProcedureRefundBySource with the refund procedure id instead of the source id. Added find_by_refund_procedure_id to resolve source_procedure_id correctly. Also propagates transfer_type and refund_date to the refund Procedure fields so the payment method column is populated in the list.
+
 ## [0.14.0] - 2026-04-10
 
 ### Added
