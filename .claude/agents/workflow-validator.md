@@ -1,7 +1,7 @@
 ---
 name: workflow-validator
 description: Validates that all required workflow steps were completed before a commit. Reads the feature plan produced by feature-planner (docs/plan/*-plan.md), checks git diff to infer which conditional steps were required, and produces a validation table ✅/❌ per step. Blocks commit if any required step is missing. Use when ready to commit a feature implementation.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Write
 model: claude-haiku-4-5-20251001
 ---
 
@@ -38,7 +38,8 @@ Run `git diff --name-only HEAD` and `git status --short`. Determine which condit
 - `.ts` / `.tsx` files modified → Frontend + UX Review (`reviewer-frontend`) required
 - User-visible text added/changed in `.tsx`/`.ts` feature files → i18n Review (`i18n-checker`) required
 - `migrations/` file added/modified → SQL Review (`reviewer-sql`) required
-- A spec doc exists in `docs/` for this feature → `spec-checker` required
+- A spec doc exists in `docs/spec/` for this feature → `spec-checker` required
+- A contract doc exists in `docs/contracts/` for this feature's domain → Contract Review (`contract-reviewer`), Backend test stubs (`test-writer-backend`), and Frontend test stubs (`test-writer-frontend`) steps required
 - Any `.sh`, `.py` (in `scripts/`) or `.githooks/` file added/modified → Script Review (`script-reviewer`) required
 
 ### Step 4 — Validate each item
@@ -71,7 +72,7 @@ Print the validation table and result.
 | 7 | i18n Review | — |
 | 8 | Unit & Integration Tests | ✅ |
 | 9 | Documentation Update | ❌ |
-| 10 | Final Validation (spec-checker + workflow-validator) | ✅ |
+| 10 | Spec check (spec-checker) | ✅ |
 
 Result: ❌ Workflow incomplete — fix before committing.
 Blocking: step 9 (Documentation Update) not marked [x] in plan.
@@ -82,6 +83,37 @@ Use `❌` for required steps marked `[ ]` in the plan, with an explanation.
 If all required steps are `[x]`: print `Result: ✅ All required steps completed — commit allowed.`
 If any `❌`: print `Result: ❌ Workflow incomplete — fix before committing.` and list the blocking steps.
 
+## Save report
+
+After outputting the report to the conversation, save a **compact summary** to disk — not the full report.
+
+Compute the next available filename:
+
+```bash
+mkdir -p tmp
+DATE=$(date +%Y-%m-%d)
+i=1
+while [ -f "tmp/workflow-validator-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
+echo "tmp/workflow-validator-${DATE}-$(printf '%02d' $i).md"
+```
+
+Compose the compact summary in this format:
+
+```
+## workflow-validator — {date}-{N}
+
+{result line}
+
+### Blocking steps
+- Step N — {step name}: {reason}
+```
+
+Omit "Blocking steps" if the result is ✅. Use the Write tool to save the compact summary to that path.
+
+Tell the user: `Report saved to {path}`
+
+---
+
 ## Rules
 
 1. The plan file is the single source of truth — do not infer completion from conversation history, file timestamps, or agent outputs visible in the chat
@@ -89,3 +121,4 @@ If any `❌`: print `Result: ❌ Workflow incomplete — fix before committing.`
 3. Conditional steps whose trigger is not met are always `—`, never `❌`
 4. If no plan file exists, block commit and instruct the user to run `feature-planner` first
 5. Human-driven phases (spec writing, planning, implementation code) are not validated — they are tracked in the plan's implementation section, not the Workflow TaskList
+6. **No self-reference**: do not look for or validate a checkbox referencing `workflow-validator` itself — your successful completion is the final gate, not a checkbox

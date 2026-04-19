@@ -379,30 +379,24 @@ class ReleaseManager:
             return False
 
     def run_tests(self) -> bool:
-        """
-        Exécute la suite de tests complète via le QualityChecker de check.py.
-        """
-        print(f"{BLUE}🚀 Lancement de la validation qualité complète...{NC}")
+        """Run the full test suite via the QualityChecker from check.py."""
+        print(f"{BLUE}🚀 Running full quality validation...{NC}")
 
         if self.dry_run:
-            print(f"{YELLOW}[DRY-RUN] Simulation de la suite de tests (check.py){NC}")
+            print(f"{YELLOW}[DRY-RUN] Simulating test suite (check.py){NC}")
             return True
 
-        # On initialise le checker (fast_mode=False pour une release officielle)
         checker = QualityChecker(fast_mode=False)
 
-        # On lance la suite complète (Tests, Build, Lint, SQLx)
-        # La méthode run_all() affiche déjà tout dans le terminal en temps réel
+        # run_all() streams output directly to the terminal
         success = checker.run_all()
 
         if not success:
-            print(f"\n{RED}❌ La validation qualité a échoué.{NC}")
-            print(
-                f"{RED}Corrigez les erreurs avant de tenter une nouvelle release.{NC}"
-            )
+            print(f"\n{RED}❌ Quality validation failed.{NC}")
+            print(f"{RED}Fix the errors before attempting a new release.{NC}")
             return False
 
-        print(f"\n{GREEN}✅ Validation qualité réussie. Passage au versionnage...{NC}")
+        print(f"\n{GREEN}✅ Quality validation passed. Moving to versioning...{NC}")
         return True
 
     def run(self) -> bool:

@@ -52,6 +52,7 @@ class QualityChecker:
         cwd: Optional[Path] = None,
         env_update: Optional[dict] = None,
     ) -> bool:
+        print(f"  {name}...", flush=True)
         self._vprint(f"\n{BLUE}▶ Running {name}...{NC}")
 
         current_env = os.environ.copy()
@@ -96,11 +97,13 @@ class QualityChecker:
             self.metrics["sqlx"] = "N/A"
             return True
 
-        status = subprocess.run(
+        result = subprocess.run(
             ["git", "diff", "--name-only", str(sqlx_dir)],
             capture_output=True,
             text=True,
-        ).stdout
+            check=True,
+        )
+        status = result.stdout
         if status.strip():
             self._vprint(
                 f"{RED}✗ SQLx: Unstaged changes in .sqlx/. Run 'just prepare-sqlx' and stage the result.{NC}"
@@ -168,6 +171,7 @@ class QualityChecker:
         ):
             self.metrics["rust_fmt"] = "Pass"
 
+        print("  TSC...", flush=True)
         self._vprint(f"\n{BLUE}▶ Running TypeScript Check (TSC)...{NC}")
         tsc_res = subprocess.run(
             ["npx", "tsc", "--noEmit"],
@@ -182,6 +186,7 @@ class QualityChecker:
             err_count = len(re.findall(r"error TS", tsc_res.stdout))
             self._vprint(f"{ORANGE}⚠️  TSC: {err_count} errors found{NC}")
             self.metrics["tsc"] = f"{err_count} errors"
+            self.suite_failed = True
             if not self.verbose and tsc_res.stdout.strip():
                 self.failures["TSC"] = tsc_res.stdout.strip()
 

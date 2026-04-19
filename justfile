@@ -11,7 +11,7 @@ default:
 dev *ARGS:
     ./scripts/start-app.sh {{ARGS}}
 
-# Generate TypeScript bindings from Rust
+# Override kit default: project uses a dedicated binary with generate-bindings feature
 generate-types:
     cd src-tauri && cargo run --features generate-bindings --bin generate_bindings
 

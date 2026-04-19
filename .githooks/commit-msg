@@ -43,13 +43,13 @@ fi
 
 # --- BODY RULES ---
 
-# Count body lines (ignore title, comments, and empty lines)
-BODY_LINES=$(sed '1d' "$COMMIT_MSG_FILE" | { grep -v '^#' || true; } | { grep -v '^$' || true; } | wc -l)
+# Count body lines (ignore title, comments, empty lines, and BREAKING CHANGE footers)
+BODY_LINES=$(sed '1d' "$COMMIT_MSG_FILE" | { grep -v '^#' || true; } | { grep -v '^$' || true; } | { grep -v '^BREAKING CHANGE:' || true; } | wc -l)
 
 # RULE 5: Body length limit
 if [ "$BODY_LINES" -gt 5 ]; then
     echo -e "${RED}❌ Commit body longer than 5 lines ($BODY_LINES)${NC}"
-    echo "    Note: Empty lines and Git comments are ignored."
+    echo "    Note: Empty lines, Git comments, and BREAKING CHANGE: footers are ignored."
     ERRORS=$((ERRORS + 1))
 fi
 

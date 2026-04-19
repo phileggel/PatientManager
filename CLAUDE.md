@@ -27,49 +27,7 @@ While coding:
 
 ## 🔄 Workflows & Planning
 
-Before starting any task, analyze the request, state which workflow you are following, and follow its steps precisely.
-
-### OPTION A: Full Feature Workflow
-*Use for: New features, new business logic, significant UI changes, or complex refactoring.*
-
-**Phase 1: Pre-implementation (Spec & Plan)**
-1. Run **`/spec-writer`** skill to interview the user and produce `docs/spec/{feature}.md`.
-2. (Optional) **/adr-manager** skill to produce `docs/adr/{ref}.md` if required.
-3. Run **`spec-reviewer`** agent to validate the spec quality (DDD alignment, rule atomicity).
-4. Run **`feature-planner`** agent. It reads the spec and architecture, and outputs a persistent implementation plan at `docs/spec/{feature}-plan.md`.
-
-**Phase 2: Execution (CRITICAL)**
-1. Read relevant documentation (`docs/backend-rules.md` and `docs/frontend-rules.md`).
-2. Read the generated `docs/spec/{feature}-plan.md`. **This file is your Primary TaskList.** You are strictly forbidden from deviating from it.
-3. Implement the feature layer by layer.
-4. **Real-time Tracking**: You MUST physically update the checkboxes (`[ ]` to `[x]`) in the `docs/spec/{feature}-plan.md` file using file editing tools (`write_file` or `replace_lines`) immediately after completing each task. This allows the user to monitor your exact progress.
-
-**Phase 3: Review & Quality**
-1. Test & Lint: Run `python3 scripts/check.py` (or `just format`).
-2. Write missing tests directly following `docs/testing.md` (Backend: `#[cfg(test)]`, Frontend: `.test.ts`).
-3. Run the Subagent Gauntlet:
-   - Run **`reviewer`** agent → fix issues.
-   - If `.ts` / `.tsx` modified: run **`reviewer-frontend`** agent → fix issues (covers code quality + UX/M3).
-   - If `.sh`, `.py`, or `.githooks` modified: run **`script-reviewer`** agent.
-   - If UI text changed: run **`i18n-checker`** agent.
-
-**Phase 4: Validation & Closure**
-1. Update documentation (`ARCHITECTURE.md` and `docs/todo.md` if needed).
-2. Run **`spec-checker`** agent to confirm all Rn rules from the spec are successfully covered in the code.
-3. Run **`workflow-validator`** agent to verify that the whole workflow was executed and all checkboxes in the `plan.md` file are ticked.
-4. CRITICAL: Ask user if commit is needed. If yes, use the **`/smart-commit`** skill.
-
----
-
-### OPTION B: Simple Technical Workflow
-*Use for: Bug fixes, dependency updates, minor maintenance (no new business rules).*
-
-1. **Analysis**: Read relevant documentation and analyze the codebase.
-2. **Direct Plan**: Propose a concise TODO plan with exact file paths in the chat. Ask user to validate.
-3. **Tracking**: Use internal `TaskCreate` / `TaskUpdate` tools to track workflow steps (mark `in_progress` when starting, `completed` when done) for user visibility.
-4. **Implementation**: Execute the code changes.
-5. **Review & Quality**: Run static checks (`python3 scripts/check.py`), write tests, and run the relevant subagents (`reviewer`, `script-reviewer`, etc.) just like in Phase 3 of the Full Workflow.
-6. **Closure**: Ask user if another task is needed before commit, otherwise use **`/smart-commit`** skill.
+See `.claude/kit-readme.md` for the full workflow guide and `.claude/kit-tools.md` for the agent/skill reference.
 
 ---
 
@@ -111,12 +69,3 @@ All domain objects use factory methods (NEVER direct struct literals):
 - `restore()` - From database: no validation (already validated at storage)
 - Repository ONLY uses these factory methods, never direct literals
 
----
-
-## 📋 Plan Format Guidelines
-When proposing a direct TODO plan (Option B), Claude Code MUST:
-- List exact file paths, not abstract locations
-- Name the specific functions/methods/components to create or modify
-- Separate clearly by architectural layer (backend / frontend)
-- Include validation and testing steps
-- Wait for explicit user approval before implementing

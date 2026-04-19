@@ -1,7 +1,7 @@
 ---
 name: maintainer
-description: Project maintainer reviewer for Tauri 2 / React 19 / Rust projects. Reviews GitHub Actions workflows and config files (tauri.conf.json, Cargo.toml, package.json, justfile). Checks CI/local consistency of scripts and hooks (not internal quality — use script-reviewer for that). Delegates dependency audit to /dep-audit before releases. Use when any workflow or config file is modified, or before cutting a release.
-tools: Read, Grep, Glob, Bash
+description: Project maintainer reviewer for Tauri 2 / React 19 / Rust projects. Reviews GitHub Actions workflows and config files (tauri.conf.json, capabilities/*.json, Cargo.toml, package.json, justfile). Checks CI/local consistency of scripts and hooks (not internal quality — use script-reviewer for that). Delegates dependency audit to /dep-audit before releases. Use when any workflow, config, or capability file is modified, or before cutting a release.
+tools: Read, Grep, Glob, Bash, Write
 model: claude-sonnet-4-6
 ---
 
@@ -24,6 +24,7 @@ Skip silently any file or directory below that does not exist in the project.
 
 - `.github/workflows/*.yml` — GitHub Actions CI/CD workflows
 - `src-tauri/tauri.conf.json` — Tauri bundle and app configuration
+- `src-tauri/capabilities/*.json` — Tauri 2 ACL capability files (security boundary)
 - `src-tauri/Cargo.toml` — Rust dependencies and build configuration
 - `package.json` — Node.js dependencies and scripts
 - `scripts/*.sh`, `scripts/*.bat`, `scripts/*.py` — read only to verify files referenced from CI exist and are callable; not reviewed for internal quality (use `script-reviewer` for that)
@@ -91,6 +92,16 @@ Skip silently any file or directory below that does not exist in the project.
 
 - 🔴 `plugins.updater.endpoints` must point to a reachable URL that serves a valid `latest.json`
 - 🟡 Updater `pubkey` should be non-empty and match the `TAURI_SIGNING_PRIVATE_KEY` secret used in CI
+
+---
+
+## capabilities/\*.json Rules
+
+- 🔴 Wildcard permissions (e.g. `allow-*`, `"permissions": ["*"]`) must not be used — grant only the specific permissions the app needs
+- 🔴 `"windows": ["*"]` grants the capability to all windows — use explicit window labels unless the project intentionally has a single window
+- 🟡 `identifier` fields should follow a consistent naming convention (e.g. `kebab-case`, prefixed by feature domain)
+- 🟡 Capabilities that reference plugin permissions (e.g. `shell:allow-open`, `fs:allow-read-file`) should be limited to paths/scopes needed — avoid granting broad plugin access
+- 🔵 Each capability file should have a `description` field to explain its purpose
 
 ---
 
@@ -276,3 +287,40 @@ If a file has no issues, write `✅ No issues found.`
 
 Then output the **Cross-file consistency** section, then the **CI Improvement Opportunities** section, then:
 `Review complete: N critical, N warnings, N suggestions across N files.`
+
+---
+
+## Save report
+
+After outputting the report to the conversation, save a **compact summary** to disk — not the full report.
+
+Compute the next available filename:
+
+```bash
+mkdir -p tmp
+DATE=$(date +%Y-%m-%d)
+i=1
+while [ -f "tmp/maintainer-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
+echo "tmp/maintainer-${DATE}-$(printf '%02d' $i).md"
+```
+
+Compose the compact summary in this format:
+
+```
+## maintainer — {date}-{N}
+
+{summary line}
+
+### 🔴 Critical
+- {file}:{line} — {issue}
+
+### 🟡 Warning
+- {file}:{line} — {issue}
+
+### 🔵 Suggestion
+- {file}:{line} — {issue}
+```
+
+Omit any section that has no findings. Use the Write tool to save the compact summary to that path.
+
+Tell the user: `Report saved to {path}`

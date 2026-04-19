@@ -59,12 +59,12 @@ Use **AskUserQuestion** to get:
 1. Commit type (mandatory, default to suggested)
 2. Optional scope (e.g. `domain`, `feature`, `ci`) — leave blank for no scope
 3. Commit message (imperative, **English**, ≤72 characters) — pre-populate with the suggested title from step 4 (including its char count) so the user can accept or adjust inline without a back-and-forth correction loop
-4. Commit body (optional, **English**, max 5 lines; include context, references to tasks)
+4. Commit body (optional, **English**, max 5 lines; `BREAKING CHANGE:` footer lines don't count toward the limit)
 
 ### 6. Validate message format
 
 - Commit type must be one of: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `ci`
-- Title ≤72 chars, body ≤5 lines
+- Title ≤72 chars, body ≤5 lines (`BREAKING CHANGE:` footer lines excluded from count)
 - If non-compliant: return to step 5 and prompt the user to correct the message
 
 ### 7. Confirm before committing
