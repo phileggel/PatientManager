@@ -1,7 +1,7 @@
 ---
 name: reviewer-sql
 description: SQL migration reviewer for SQLite-backed Tauri 2 projects. Checks transaction wrapping, idempotency guards, destructive DDL safety, foreign key indexes, SQLite type affinity, primary key conventions, and NOT NULL completeness. Use when any file in migrations/ is modified or added.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Write
 model: claude-haiku-4-5-20251001
 ---
 
@@ -98,3 +98,40 @@ If a file has no issues, write `✅ No issues found.`
 
 At the end, output a one-line summary:
 `Review complete: N critical, N warnings, N suggestions across N files.`
+
+---
+
+## Save report
+
+After outputting the report to the conversation, save a **compact summary** to disk — not the full report.
+
+Compute the next available filename:
+
+```bash
+mkdir -p tmp
+DATE=$(date +%Y-%m-%d)
+i=1
+while [ -f "tmp/reviewer-sql-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
+echo "tmp/reviewer-sql-${DATE}-$(printf '%02d' $i).md"
+```
+
+Compose the compact summary in this format:
+
+```
+## reviewer-sql — {date}-{N}
+
+{summary line}
+
+### 🔴 Critical
+- {file}:{line} — {issue}
+
+### 🟡 Warning
+- {file}:{line} — {issue}
+
+### 🔵 Suggestion
+- {file}:{line} — {issue}
+```
+
+Omit any section that has no findings. Use the Write tool to save the compact summary to that path.
+
+Tell the user: `Report saved to {path}`

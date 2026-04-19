@@ -42,7 +42,7 @@ This skill requires: `Bash`, `Read`, `WebSearch`.
 
 ### 1. Read declared dependencies
 
-Read `package.json` and `src-tauri/Cargo.toml`. Extract all declared packages and their version ranges.
+Read `package.json`. Locate `Cargo.toml` by reading `ARCHITECTURE.md` or by searching for `Cargo.toml` in the project root and one level of subdirectories; skip Cargo checks if not found. Extract all declared packages and their version ranges.
 
 ### 2. Get current toolchain version
 
@@ -60,7 +60,9 @@ npm audit 2>/dev/null || true
 ```
 
 ```bash
-cd src-tauri && cargo outdated 2>/dev/null || echo "(cargo-outdated not installed)" && cargo audit 2>/dev/null || echo "(cargo-audit not installed)"
+# Run from the directory containing Cargo.toml (discovered in Step 1)
+cargo outdated 2>/dev/null || echo "(cargo-outdated not installed)"
+cargo audit 2>/dev/null || echo "(cargo-audit not installed)"
 ```
 
 If `cargo-outdated` or `cargo-audit` are missing, flag them in the report: `⚠️ {tool} not installed — install with: cargo install {tool}`
@@ -110,7 +112,7 @@ Get today's date (`date +%Y-%m-%d`) for the report heading.
 🟡 Misplaced: {package} in {wrong-section} — should be in {correct-section}
 🔵 Minor drift: {package} {current} → {latest} (source: {url})
 
-### Cargo (`src-tauri/Cargo.toml`)
+### Cargo (`Cargo.toml`)
 🔴 CVE: {crate} {version} — {advisory} — {description}
 🟡 Major drift: {crate} {current} → {latest} (source: {url})
 🔵 Minor drift: {crate} {current} → {latest} (source: {url})

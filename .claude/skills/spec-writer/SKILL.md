@@ -1,7 +1,7 @@
 ---
 name: spec-writer
-description: Interactive spec writer for new features. Interviews the user to understand the feature (even if vague), reads the existing domain, then produces docs/spec/{feature}.md with structured TRIGRAMME-NNN business rules and an optional UX draft (textual or Stitch mockup).
-tools: Read, Glob, Grep, Write, AskUserQuestion, mcp__stitch__generate_screen_from_text, mcp__stitch__list_screens, mcp__stitch__get_screen
+description: Interactive spec writer for new features. Interviews the user to understand the feature (even if vague), reads the existing domain, then produces docs/spec/{feature}.md with structured TRIGRAM-NNN business rules and an optional UX draft.
+tools: Read, Glob, Grep, Write, AskUserQuestion
 ---
 
 # Skill — `spec-writer`
@@ -20,10 +20,10 @@ Before asking anything, read:
 - `ARCHITECTURE.md` — bounded contexts, data flow, naming conventions
   - If `ARCHITECTURE.md` does not exist, note it in the Open Questions section and proceed
 - List all files in `docs/spec/` with Glob to understand what spec documents already exist
-- Read the most recently modified spec in `docs/spec/` (excluding `todo.md`, `stitch/`, `*-rules.md`) to internalize the exact format and writing style
+- Read the most recently modified spec in `docs/spec/` (excluding `todo.md`, `*-rules.md`) to internalize the exact format and writing style
 - Read docs/adr/ (if exists) to identify historical architectural decisions
   (e.g., amount storage format, soft-delete strategy, state management)
-  that MUST be respected in the new TRIGRAMME-NNN rules.
+  that MUST be respected in the new TRIGRAM-NNN rules.
 
 This avoids asking the user what the codebase already answers.
 
@@ -69,10 +69,8 @@ This step guarantees trigram uniqueness across all specs in the project.
 
 Only if the user explicitly asked to derive the spec from existing code (e.g., "retro-engineering", "document what already exists"):
 
-- Grep for related entities in `src-tauri/src/context/`
-- Grep for related frontend components in `src/features/`
-- Check `src-tauri/src/core/specta_builder.rs` for existing commands in the domain
-- Look for existing i18n keys in `src/i18n/locales/` for the domain (inspect whatever locale directories are present)
+- Read `ARCHITECTURE.md` to discover backend and frontend module paths, then Grep for related entities in the backend module and frontend feature directory
+- Look for existing i18n keys in the project's i18n directory for the domain (inspect whatever locale directories are present)
 
 In all other cases, skip this step. The spec must express business intent, not describe current implementation.
 
@@ -255,29 +253,7 @@ After applying all fixes, rewrite the spec file once. Then proceed to step 7.
 
 ---
 
-### 7. UX visual draft (optional)
-
-Use **AskUserQuestion**:
-
-> "Do you want to generate a visual mockup via Stitch?"
-
-**If yes:**
-
-1. Check whether `{STITCH_PROJECT_ID}` in this skill file has been replaced with an actual project ID. If it is still the literal placeholder `{STITCH_PROJECT_ID}`, skip Stitch generation entirely, output `ℹ️ Stitch project ID not configured — skipping visual mockup.`, and proceed with textual UX draft only.
-2. Call `mcp__stitch__generate_screen_from_text` with:
-   - `project_id`: `{STITCH_PROJECT_ID}`
-   - `device`: `DESKTOP`
-   - `model`: `GEMINI_3_1_PRO`
-   - Prompt: derive from the `## UX Draft` section just written — describe the layout, key components, states
-3. Call `mcp__stitch__list_screens` then `mcp__stitch__get_screen` to fetch the HTML
-4. Use the **Write** tool to save the HTML to `docs/stitch/{feature-name}.stitch`
-5. Add a `> Stitch mockup: docs/stitch/{feature-name}.stitch` reference in the `## UX Draft` section of the spec
-
-**If no:** skip — the textual UX draft is sufficient to start.
-
----
-
-### 8. Present and validate
+### 7. Present and validate
 
 Show the user:
 
@@ -287,11 +263,14 @@ Show the user:
 - **Architectural Alert**: If an `ADR-SUGGESTED` was flagged in Open Questions, explicitly tell the user:
   > "A potential architectural decision was identified. Consider running `adr-manager` if you agree it warrants documentation — it is not required to proceed."
 
-Then ask: **"Validate, refine, write the ADR, or generate the implementation plan?"**
+Then ask: **"Validate, refine, or write the ADR?"**
 
-- **Validate** → spec ready, done
-- **Refine** → iterate on the specified section, rewrite, re-present
-- **Plan** → tell the user to invoke the `feature-planner` agent with this spec path (Claude does not invoke it automatically from within this skill — the user triggers it as a separate step)
+Next steps after validation:
+
+1. Run `spec-reviewer` agent to quality-check the spec
+2. Run `/contract` skill to derive the domain contract
+3. Run `contract-reviewer` agent to validate the contract
+4. Run `feature-planner` agent to generate the implementation plan
 
 ---
 
@@ -306,14 +285,12 @@ Then ask: **"Validate, refine, write the ADR, or generate the implementation pla
 7. **What & why, never how** — the spec describes observable behaviour and business intent only; no SQL, no file paths, no function names, no component names, no library choices, no data structures; implementation is `feature-planner`'s job
 8. **Entity section mandatory when an entity is involved** — names in English Rust convention, field descriptions in English, business meaning only
 9. Each `{TRIGRAM}-NNN` rule must be independently verifiable by a test
-10. Stitch uses project `{STITCH_PROJECT_ID}` exclusively — never create a new project
-11. Write specs in English — all prose, section headers, and rule descriptions must be in English
-12. Use the **Write** tool (not curl) to save `.stitch` HTML files.
-13. **Create in correct folder** — specs MUST be saved to `docs/spec/` folder (created automatically if missing).
-14. **Minimum friction** — do not ask about what the project's existing patterns already answer (navigation, success feedback, network error handling); generate a rule aligned with those patterns directly. Questions are reserved for genuinely new business decisions.
-15. **No implicit behaviour** — every observable behaviour must be covered by an explicit `{TRIGRAM}-NNN` rule. If a behaviour is described in the workflow or UX section but has no corresponding rule, add the rule. Common implicit gaps: default values in forms, sort toggle behaviour, modal-stays-open-on-error, empty-state vs no-search-results distinction.
-16. **Rule IDs are permanent** — once a rule number is assigned it never changes for the lifetime of the project. Tests reference rules by ID (e.g., `// REF-010 — ...`). If a rule is removed, leave the number vacant. New rules in the same theme increment by 1 (REF-010, REF-011, REF-012...). Never renumber existing rules.
-17. **ADR Consistency** — If a choice is already documented in `docs/adr/` (e.g., storing amounts in i64), you MUST apply it in the TRIGRAMME-NNN rules without asking the user. You only ask if the new feature explicitly requires breaking a past ADR.
+10. Write specs in English — all prose, section headers, and rule descriptions must be in English
+11. **Create in correct folder** — specs MUST be saved to `docs/spec/` folder (created automatically if missing).
+12. **Minimum friction** — do not ask about what the project's existing patterns already answer (navigation, success feedback, network error handling); generate a rule aligned with those patterns directly. Questions are reserved for genuinely new business decisions.
+13. **No implicit behaviour** — every observable behaviour must be covered by an explicit `{TRIGRAM}-NNN` rule. If a behaviour is described in the workflow or UX section but has no corresponding rule, add the rule. Common implicit gaps: default values in forms, sort toggle behaviour, modal-stays-open-on-error, empty-state vs no-search-results distinction.
+14. **Rule IDs are permanent** — once a rule number is assigned it never changes for the lifetime of the project. Tests reference rules by ID (e.g., `// REF-010 — ...`). If a rule is removed, leave the number vacant. New rules in the same theme increment by 1 (REF-010, REF-011, REF-012...). Never renumber existing rules.
+15. **ADR Consistency** — If a choice is already documented in `docs/adr/` (e.g., storing amounts in i64), you MUST apply it in the TRIGRAM-NNN rules without asking the user. You only ask if the new feature explicitly requires breaking a past ADR.
 
 ---
 
@@ -324,8 +301,6 @@ The 3-round cap on the initial interview forces an early draft rather than endle
 Specs are written in English. Code identifiers (function names, file paths) remain in English as per the codebase convention.
 
 **Folder convention**: Specs always live in `docs/spec/` subfolder, not at `docs/` root.
-
-**Stitch MCP setup**: Replace `{STITCH_PROJECT_ID}` in this file with your project's actual Stitch project ID before use. If the Stitch MCP is not configured in your environment, skip step 7 entirely — the textual UX draft is sufficient.
 
 ---
 
