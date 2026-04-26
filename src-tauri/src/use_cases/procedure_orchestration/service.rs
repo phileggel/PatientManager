@@ -155,10 +155,7 @@ impl ProcedureOrchestrationService {
             updated_patient.latest_date = Some(procedure.procedure_date);
             updated_patient.latest_procedure_type = Some(procedure_type_id.clone());
             updated_patient.latest_procedure_amount = procedure_amount;
-            // Store fund_id (UUID) for direct FK lookup
-            if let Some(fid) = &fund_id {
-                updated_patient.latest_fund = Some(fid.clone());
-            }
+            updated_patient.latest_fund = fund_id.clone();
 
             self.patient_repository
                 .update_patient(updated_patient)
@@ -259,31 +256,36 @@ impl ProcedureOrchestrationService {
 
         tracing::debug!(procedure_id = %id, "Procedure deleted successfully");
 
-        // Clear patient tracking if this procedure was the latest (cross-context side effect)
-        let all_procedures = self.context_procedure_service.read_all_procedures().await?;
-        let all_patients = self.patient_repository.read_all_patients().await?;
+        // Recalculate patient tracking after deletion (cross-context side effect, R20)
+        let remaining: Vec<_> = self
+            .context_procedure_service
+            .read_all_procedures()
+            .await?
+            .into_iter()
+            .filter(|p| p.patient_id == procedure.patient_id)
+            .collect();
 
-        // For each patient with tracking fields, check if the deleted procedure was their latest
-        for patient in all_patients {
-            let patient_id = &patient.id;
+        if let Some(patient) = self
+            .patient_repository
+            .read_patient(&procedure.patient_id)
+            .await?
+        {
+            let mut updated = patient;
+            if remaining.is_empty() {
+                updated.latest_date = None;
+                updated.latest_procedure_type = None;
+                updated.latest_fund = None;
+                updated.latest_procedure_amount = None;
+            } else if let Some(new_latest) = remaining
+                .iter()
+                .max_by(|a, b| a.procedure_date.cmp(&b.procedure_date))
             {
-                let patient_procedures: Vec<_> = all_procedures
-                    .iter()
-                    .filter(|p| p.patient_id == *patient_id)
-                    .collect();
-
-                if patient_procedures.is_empty() && patient.latest_date.is_some() {
-                    // No more procedures, clear all tracking
-                    let mut updated_patient = patient.clone();
-                    updated_patient.latest_date = None;
-                    updated_patient.latest_procedure_type = None;
-                    updated_patient.latest_fund = None;
-                    updated_patient.latest_procedure_amount = None;
-                    self.patient_repository
-                        .update_patient(updated_patient)
-                        .await?;
-                }
+                updated.latest_date = Some(new_latest.procedure_date);
+                updated.latest_procedure_type = Some(new_latest.procedure_type_id.clone());
+                updated.latest_fund = new_latest.fund_id.clone();
+                updated.latest_procedure_amount = new_latest.procedure_amount;
             }
+            self.patient_repository.update_patient(updated).await?;
         }
 
         Ok(())
@@ -510,9 +512,7 @@ impl ProcedureOrchestrationService {
                     updated_patient.latest_date = Some(latest.procedure_date);
                     updated_patient.latest_procedure_type = Some(latest.procedure_type_id.clone());
                     updated_patient.latest_procedure_amount = latest.procedure_amount;
-                    if let Some(fid) = &latest.fund_id {
-                        updated_patient.latest_fund = Some(fid.clone());
-                    }
+                    updated_patient.latest_fund = latest.fund_id.clone();
                     self.patient_repository
                         .update_patient(updated_patient)
                         .await?;
@@ -803,6 +803,160 @@ mod tests {
             unimplemented!()
         }
         async fn find_by_name(&self, _name: &str) -> anyhow::Result<Option<ProcedureType>> {
+            unimplemented!()
+        }
+    }
+
+    struct MockProcedureTypeRepositoryWithType;
+
+    #[async_trait::async_trait]
+    impl ProcedureTypeRepository for MockProcedureTypeRepositoryWithType {
+        async fn create_procedure_type(
+            &self,
+            _name: String,
+            _default_amount: i64,
+            _category: Option<String>,
+        ) -> anyhow::Result<ProcedureType> {
+            unimplemented!()
+        }
+        async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>> {
+            Ok(vec![])
+        }
+        async fn read_procedure_type(&self, id: &str) -> anyhow::Result<Option<ProcedureType>> {
+            Ok(Some(ProcedureType::restore(
+                id.to_string(),
+                "Test Type".to_string(),
+                10000,
+                None,
+            )))
+        }
+        async fn update_procedure_type(&self, _pt: ProcedureType) -> anyhow::Result<ProcedureType> {
+            unimplemented!()
+        }
+        async fn delete_procedure_type(&self, _id: &str) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+        async fn find_by_name(&self, _name: &str) -> anyhow::Result<Option<ProcedureType>> {
+            unimplemented!()
+        }
+    }
+
+    struct MockProcedureRepositoryCreating;
+
+    #[async_trait::async_trait]
+    impl ProcedureRepository for MockProcedureRepositoryCreating {
+        #[allow(clippy::too_many_arguments)]
+        async fn create_procedure(
+            &self,
+            patient_id: String,
+            fund_id: Option<String>,
+            procedure_type_id: String,
+            procedure_date: String,
+            procedure_amount: Option<i64>,
+            payment_method: PaymentMethod,
+            confirmed_payment_date: Option<String>,
+            actual_payment_amount: Option<i64>,
+            payment_status: ProcedureStatus,
+        ) -> anyhow::Result<Procedure> {
+            Procedure::with_id(
+                "new-proc-id".to_string(),
+                patient_id,
+                fund_id,
+                procedure_type_id,
+                procedure_date,
+                procedure_amount,
+                payment_method,
+                confirmed_payment_date,
+                actual_payment_amount,
+                payment_status,
+            )
+            .map_err(|e| anyhow::anyhow!("{}", e))
+        }
+        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
+            unimplemented!()
+        }
+        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
+            Ok(p)
+        }
+        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+        async fn find_procedures_by_ssn_and_date_range(
+            &self,
+            _ssn: &str,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_procedures_by_ssns_and_date_range(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_procedures_by_ssns_and_date_range_with_ssn(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<(String, Procedure)>> {
+            unimplemented!()
+        }
+        async fn find_procedure_exact(
+            &self,
+            _patient_id: &str,
+            _fund_id: Option<&str>,
+            _procedure_date: &str,
+            _procedure_amount: i64,
+        ) -> anyhow::Result<Option<Procedure>> {
+            unimplemented!()
+        }
+        async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
+            Ok(procedures)
+        }
+        async fn update_batch(
+            &self,
+            _procedures: Vec<Procedure>,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
+            unimplemented!()
+        }
+        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
+            unimplemented!()
+        }
+        async fn find_unreconciled_by_date_range(
+            &self,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
+            unimplemented!()
+        }
+        async fn find_created_in_date_range(
+            &self,
+            _date_min: &str,
+            _date_max: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_created_by_fund_before_date(
+            &self,
+            _fund_id: &str,
+            _date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
     }
@@ -1208,5 +1362,405 @@ mod tests {
             let result = orchestrator.delete_procedure("proc-id-1").await;
             assert!(result.is_ok(), "Status {:?} should be deletable", status);
         }
+    }
+
+    // --- R20: patient tracking recalculated when latest procedure is deleted ---
+
+    struct MockProcedureRepositoryWithRemainingAfterDelete {
+        to_delete: Procedure,
+        remaining: Vec<Procedure>,
+    }
+
+    #[async_trait::async_trait]
+    impl ProcedureRepository for MockProcedureRepositoryWithRemainingAfterDelete {
+        #[allow(clippy::too_many_arguments)]
+        async fn create_procedure(
+            &self,
+            _patient_id: String,
+            _fund_id: Option<String>,
+            _procedure_type_id: String,
+            _procedure_date: String,
+            _procedure_amount: Option<i64>,
+            _payment_method: PaymentMethod,
+            _confirmed_payment_date: Option<String>,
+            _actual_payment_amount: Option<i64>,
+            _payment_status: ProcedureStatus,
+        ) -> anyhow::Result<Procedure> {
+            unimplemented!()
+        }
+        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
+            Ok(self.remaining.clone())
+        }
+        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
+            Ok(Some(self.to_delete.clone()))
+        }
+        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
+            Ok(p)
+        }
+        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn find_procedures_by_ssn_and_date_range(
+            &self,
+            _ssn: &str,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_procedures_by_ssns_and_date_range(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_procedures_by_ssns_and_date_range_with_ssn(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<(String, Procedure)>> {
+            unimplemented!()
+        }
+        async fn find_procedure_exact(
+            &self,
+            _patient_id: &str,
+            _fund_id: Option<&str>,
+            _procedure_date: &str,
+            _procedure_amount: i64,
+        ) -> anyhow::Result<Option<Procedure>> {
+            unimplemented!()
+        }
+        async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
+            Ok(procedures)
+        }
+        async fn update_batch(
+            &self,
+            _procedures: Vec<Procedure>,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
+            unimplemented!()
+        }
+        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
+            unimplemented!()
+        }
+        async fn find_unreconciled_by_date_range(
+            &self,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
+            unimplemented!()
+        }
+        async fn find_created_in_date_range(
+            &self,
+            _date_min: &str,
+            _date_max: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn find_created_by_fund_before_date(
+            &self,
+            _fund_id: &str,
+            _date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_recalculates_tracking_when_older_procedures_remain() {
+        // Patient has two procedures: older (2024-01-15) and newer (2024-06-15, the one being deleted).
+        // After deleting the newer one, tracking should reflect the older procedure.
+        let newer = Procedure::with_id(
+            "proc-newer".to_string(),
+            "patient-id-1".to_string(),
+            Some("fund-newer".to_string()),
+            "type-newer".to_string(),
+            "2024-06-15".to_string(),
+            Some(200000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .unwrap();
+
+        let older = Procedure::with_id(
+            "proc-older".to_string(),
+            "patient-id-1".to_string(),
+            Some("fund-older".to_string()),
+            "type-older".to_string(),
+            "2024-01-15".to_string(),
+            Some(100000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .unwrap();
+
+        let patient = Patient::restore(
+            "patient-id-1".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            None,
+            Some("type-newer".to_string()),
+            Some("fund-newer".to_string()),
+            Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()),
+            Some(200000),
+        );
+
+        let patient_repo = Arc::new(MockPatientRepository {
+            patient: Mutex::new(Some(patient)),
+            updated_patient: Mutex::new(None),
+        });
+
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(MockProcedureRepositoryWithRemainingAfterDelete {
+                to_delete: newer,
+                remaining: vec![older],
+            }),
+            event_bus,
+        ));
+
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo.clone(),
+            Arc::new(MockProcedureTypeRepository),
+            Arc::new(MockFundRepository),
+            Arc::new(MockProcedureRefundRepository),
+        );
+
+        orchestrator.delete_procedure("proc-newer").await.unwrap();
+
+        let updated = patient_repo
+            .updated_patient
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap();
+        assert_eq!(
+            updated.latest_date,
+            Some(NaiveDate::from_ymd_opt(2024, 1, 15).unwrap())
+        );
+        assert_eq!(
+            updated.latest_procedure_type,
+            Some("type-older".to_string())
+        );
+        assert_eq!(updated.latest_fund, Some("fund-older".to_string()));
+        assert_eq!(updated.latest_procedure_amount, Some(100000));
+    }
+
+    #[tokio::test]
+    async fn test_delete_procedure_clears_tracking_when_no_procedures_remain() {
+        let proc = Procedure::with_id(
+            "proc-only".to_string(),
+            "patient-id-1".to_string(),
+            Some("fund-1".to_string()),
+            "type-1".to_string(),
+            "2024-06-15".to_string(),
+            Some(100000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .unwrap();
+
+        let patient = Patient::restore(
+            "patient-id-1".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            None,
+            Some("type-1".to_string()),
+            Some("fund-1".to_string()),
+            Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap()),
+            Some(100000),
+        );
+
+        let patient_repo = Arc::new(MockPatientRepository {
+            patient: Mutex::new(Some(patient)),
+            updated_patient: Mutex::new(None),
+        });
+
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(MockProcedureRepositoryWithRemainingAfterDelete {
+                to_delete: proc,
+                remaining: vec![],
+            }),
+            event_bus,
+        ));
+
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo.clone(),
+            Arc::new(MockProcedureTypeRepository),
+            Arc::new(MockFundRepository),
+            Arc::new(MockProcedureRefundRepository),
+        );
+
+        orchestrator.delete_procedure("proc-only").await.unwrap();
+
+        let updated = patient_repo
+            .updated_patient
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap();
+        assert_eq!(updated.latest_date, None);
+        assert_eq!(updated.latest_procedure_type, None);
+        assert_eq!(updated.latest_fund, None);
+        assert_eq!(updated.latest_procedure_amount, None);
+    }
+
+    // --- R19: latest_fund cleared when newest single procedure has no fund ---
+
+    #[tokio::test]
+    async fn test_create_procedure_clears_latest_fund_when_no_fund() {
+        let patient = Patient::restore(
+            "patient-id-1".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            None,
+            Some("old-type-id".to_string()),
+            Some("old-fund-id".to_string()),
+            Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            Some(50000),
+        );
+
+        let patient_repo = Arc::new(MockPatientRepository {
+            patient: Mutex::new(Some(patient)),
+            updated_patient: Mutex::new(None),
+        });
+
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(MockProcedureRepositoryCreating),
+            event_bus,
+        ));
+
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo.clone(),
+            Arc::new(MockProcedureTypeRepositoryWithType),
+            Arc::new(MockFundRepository),
+            Arc::new(MockProcedureRefundRepository),
+        );
+
+        orchestrator
+            .create_procedure(
+                "patient-id-1".to_string(),
+                None, // no fund
+                "new-type-id".to_string(),
+                "2024-06-15".to_string(),
+                Some(100000),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+
+        let updated = patient_repo
+            .updated_patient
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap();
+        assert_eq!(
+            updated.latest_date,
+            Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap())
+        );
+        assert_eq!(
+            updated.latest_procedure_type,
+            Some("new-type-id".to_string())
+        );
+        assert_eq!(
+            updated.latest_fund, None,
+            "latest_fund must be cleared when newest single procedure has no fund (R19)"
+        );
+        assert_eq!(updated.latest_procedure_amount, Some(100000));
+    }
+
+    // --- R19: latest_fund cleared when newest batch procedure has no fund ---
+
+    #[tokio::test]
+    async fn test_create_batch_clears_latest_fund_when_newest_has_no_fund() {
+        let patient = Patient::restore(
+            "patient-id-1".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            None,
+            Some("old-type-id".to_string()),
+            Some("old-fund-id".to_string()),
+            Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            Some(50000),
+        );
+
+        let patient_repo = Arc::new(MockPatientRepository {
+            patient: Mutex::new(Some(patient)),
+            updated_patient: Mutex::new(None),
+        });
+
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(MockProcedureRepository),
+            event_bus,
+        ));
+
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo.clone(),
+            Arc::new(MockProcedureTypeRepository),
+            Arc::new(MockFundRepository),
+            Arc::new(MockProcedureRefundRepository),
+        );
+
+        let candidate = ProcedureCandidate {
+            patient_id: "patient-id-1".to_string(),
+            fund_id: None, // no fund on this new procedure
+            procedure_type_id: "new-type-id".to_string(),
+            procedure_date: "2024-06-15".to_string(),
+            procedure_amount: Some(100000),
+            payment_method: None,
+            confirmed_payment_date: None,
+            actual_payment_amount: None,
+            awaited_amount: None,
+        };
+
+        orchestrator.create_batch(vec![candidate]).await.unwrap();
+
+        let updated = patient_repo
+            .updated_patient
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap();
+        assert_eq!(
+            updated.latest_date,
+            Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap())
+        );
+        assert_eq!(
+            updated.latest_procedure_type,
+            Some("new-type-id".to_string())
+        );
+        assert_eq!(
+            updated.latest_fund, None,
+            "latest_fund must be cleared when newest procedure has no fund"
+        );
+        assert_eq!(updated.latest_procedure_amount, Some(100000));
     }
 }
