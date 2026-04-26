@@ -85,3 +85,23 @@ Lors de l'affichage des informations par défaut d'un patient (latest_procedure_
 ## F10 — Extract logic to dedicated hooks (procedure feature)
 
 The reviewer flagged multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. These are deferred because they are large architectural refactors with no functional impact.
+
+## (frontend/fund-payment-match) — Créer plusieurs procédures lors de la correction automatique
+
+Actuellement, la correction automatique (rapprochement caisse) ne permet de créer qu'une seule procédure. Il faudrait pouvoir en créer plusieurs dans la même opération.
+
+## (frontend/fund-payment-match) — Impression du rapport après rapprochement : centrage et contenu
+
+Le document imprimé après rapprochement n'est pas correctement centré — une partie du contenu est coupée. À corriger. Amélioration complémentaire : lister dans le rapport les corrections automatiques effectuées.
+
+## (backend/procedure) — Format de date invalide sur confirmed_payment_date lors de la mise à jour
+
+Lors de la mise à jour d'une procédure, une erreur "invalid confirmed payment date format" est déclenchée. À investiguer et corriger.
+
+## (backend/frontend) — Structured errors: replace anyhow/String with typed error variants
+
+Tauri commands currently return `Result<T, String>` (via `anyhow` formatted with `{:#}`). Replace with a typed error enum per domain, serialized via Specta, so the frontend can pattern-match on error codes instead of parsing strings. Scope: define error enums in each bounded context, expose via Specta, update gateway.ts to switch on error type.
+
+## (frontend/excel-import) — Déclencher l'import directement depuis le bouton
+
+Le bouton d'import devrait ouvrir directement le sélecteur de fichier, sans naviguer vers une page dédiée qui ne contient qu'un seul bouton. Supprimer la page intermédiaire ou intégrer le sélecteur dans la navigation existante.

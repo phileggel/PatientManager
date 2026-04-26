@@ -400,7 +400,7 @@ describe("edit mode — calls updateProcedure on submit", () => {
         procedure_amount: 50000,
         // Payment fields passed through unchanged from original procedure (R30)
         payment_method: "NONE",
-        confirmed_payment_date: "",
+        confirmed_payment_date: null,
         actual_payment_amount: null,
         payment_status: "CREATED",
       }),

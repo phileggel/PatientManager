@@ -126,7 +126,7 @@ export function useProcedureFormModal({
           procedure_date: procedure.procedure_date,
           procedure_amount: procedure.procedure_amount,
           payment_method: procedure.payment_method,
-          confirmed_payment_date: procedure.confirmed_payment_date,
+          confirmed_payment_date: procedure.confirmed_payment_date || null,
           actual_payment_amount: procedure.actual_payment_amount,
           payment_status: procedure.payment_status,
         });
@@ -177,7 +177,7 @@ export function useProcedureFormModal({
           procedure_date: procedureDate,
           procedure_amount: procedureAmount != null ? Math.round(procedureAmount * 1000) : null,
           payment_method: procedure.payment_method,
-          confirmed_payment_date: procedure.confirmed_payment_date,
+          confirmed_payment_date: procedure.confirmed_payment_date || null,
           actual_payment_amount: procedure.actual_payment_amount,
           payment_status: procedure.payment_status,
         });
