@@ -70,13 +70,17 @@ Highest priority (behavioral regressions possible):
 
 ## saisie des actes: champs reçu et en attente ne sont jamais mis à jour → doublon avec todo ci-dessus, à vérifier en prod
 
+## (backend/procedure-orchestration) — Full table scan in delete_procedure (R20)
+
+`ProcedureOrchestrationService::delete_procedure` calls `read_all_procedures()` then filters by `patient_id` in Rust. Should use a targeted `read_procedures_by_patient_id` repository query to avoid a full table scan at production data volumes. Requires adding the method to `ProcedureRepository` trait and its SQLite implementation.
+
 ## (backend/procedure-orchestration) — Suivi patient non recalculé à la suppression du dernier acte (R20)
 
 Si l'acte supprimée était la plus récente mais que le patient a d'autres actes, les champs de suivi (`latest_date`, `latest_procedure_type`, `latest_fund`, `latest_procedure_amount`) ne sont pas recalculés — ils conservent des valeurs "fantômes". Cela fausse le pré-remplissage R4 pour le prochain acte du patient. À corriger dans `use_cases/procedure_orchestration/` : chercher le nouvel acte le plus récent du patient après suppression et mettre à jour les champs en conséquence.
 
-## (backend/procedure-orchestration) — latest_fund non effacé quand le dernier acte n'a pas de fonds
+## ~~(backend/procedure-orchestration) — latest_fund non effacé quand le dernier acte n'a pas de fonds~~ ✅ DONE
 
-R19 de `procedure-orchestration-spec.md` : `ProcedureOrchestrationService::create_batch()` ne remet pas `latest_fund` à `None` lorsque l'acte la plus récente du patient n'a pas de `fund_id`. Le champ conserve l'ancienne valeur jusqu'à la création d'un acte plus récent avec un fonds. À corriger dans `use_cases/procedure_orchestration/`.
+R19 fixed: `create_procedure` now unconditionally assigns `latest_fund = fund_id.clone()` instead of skipping when `fund_id` is `None`.
 
 ## (frontend/procedure) — Infos patient par défaut si type d'acte supprimé
 

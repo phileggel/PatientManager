@@ -29,14 +29,13 @@ export default function ProcedurePage() {
   const { patients, funds, procedureTypes, initialRows, isLoading, error, deleteRow } =
     useProcedureData();
 
-  const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const saved = sessionStorage.getItem("procedureSelectedMonth");
-    return saved ? parseInt(saved, 10) : currentDate.getMonth() + 1;
+    return saved ? parseInt(saved, 10) : new Date().getMonth() + 1;
   });
   const [selectedYear, setSelectedYear] = useState(() => {
     const saved = sessionStorage.getItem("procedureSelectedYear");
-    return saved ? parseInt(saved, 10) : currentDate.getFullYear();
+    return saved ? parseInt(saved, 10) : new Date().getFullYear();
   });
   const [rows, setRows] = useState<ProcedureRow[]>([]);
   const [searchTerm, setSearchTerm] = useState("");

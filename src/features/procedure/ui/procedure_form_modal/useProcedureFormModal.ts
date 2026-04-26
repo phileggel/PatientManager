@@ -20,6 +20,19 @@ import { formatPatientLabel } from "../../model";
 
 const TAG = "[useProcedureFormModal]";
 
+function validateForm(
+  patientId: string,
+  procedureTypeId: string,
+  procedureDate: string,
+  t: (key: string) => string,
+): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!patientId) errors.patientId = t("error.requiredField");
+  if (!procedureTypeId) errors.procedureTypeId = t("error.requiredField");
+  if (!procedureDate) errors.procedureDate = t("error.requiredField");
+  return errors;
+}
+
 interface FieldErrors {
   patientId?: string;
   procedureTypeId?: string;
@@ -102,96 +115,104 @@ export function useProcedureFormModal({
     setFieldErrors({});
   }, []);
 
-  const validate = (): FieldErrors => {
-    const errors: FieldErrors = {};
-    if (!patientId) errors.patientId = t("error.requiredField");
-    if (!procedureTypeId) errors.procedureTypeId = t("error.requiredField");
-    if (!procedureDate) errors.procedureDate = t("error.requiredField");
-    return errors;
-  };
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+      if (mode === "view") {
+        // View mode: only procedure_type_id is editable (R26)
+        if (!procedure || !procedureTypeId) return;
+        setLoading(true);
+        try {
+          await gateway.updateProcedure({
+            id: procedure.id,
+            patient_id: procedure.patient_id,
+            fund_id: procedure.fund_id,
+            procedure_type_id: procedureTypeId,
+            procedure_date: procedure.procedure_date,
+            procedure_amount: procedure.procedure_amount,
+            payment_method: procedure.payment_method,
+            confirmed_payment_date: procedure.confirmed_payment_date || null,
+            actual_payment_amount: procedure.actual_payment_amount,
+            payment_status: procedure.payment_status,
+          });
+          toastService.show("success", t("state.updated"));
+          onSuccess?.();
+          onClose();
+        } catch (error) {
+          logger.error(`${TAG} Error updating procedure type in view mode`, { error });
+          toastService.show("error", error instanceof Error ? error.message : tc("error.unknown"));
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
 
-    if (mode === "view") {
-      // View mode: only procedure_type_id is editable (R26)
-      if (!procedure || !procedureTypeId) return;
+      const errors = validateForm(patientId, procedureTypeId, procedureDate, t);
+      if (Object.keys(errors).length > 0) {
+        logger.warn(`${TAG} Submit with missing required fields`);
+        setFieldErrors(errors);
+        toastService.show("error", t("error.requiredFields"));
+        return;
+      }
+
+      setFieldErrors({});
       setLoading(true);
       try {
-        await gateway.updateProcedure({
-          id: procedure.id,
-          patient_id: procedure.patient_id,
-          fund_id: procedure.fund_id,
-          procedure_type_id: procedureTypeId,
-          procedure_date: procedure.procedure_date,
-          procedure_amount: procedure.procedure_amount,
-          payment_method: procedure.payment_method,
-          confirmed_payment_date: procedure.confirmed_payment_date || null,
-          actual_payment_amount: procedure.actual_payment_amount,
-          payment_status: procedure.payment_status,
-        });
-        toastService.show("success", t("state.updated"));
-        onSuccess?.();
-        onClose();
+        if (mode === "create") {
+          const result = await gateway.addProcedure(
+            patientId,
+            fundId || null,
+            procedureTypeId,
+            procedureDate,
+            procedureAmount !== null ? Math.round(procedureAmount * 1000) : null,
+          );
+          logger.info(`${TAG} Procedure added`, { id: result.id });
+          reset();
+          toastService.show("success", t("state.added"));
+          onSuccess?.();
+          onClose();
+        } else {
+          // Edit mode: payment fields passed through unchanged from original procedure (R30)
+          if (!procedure) return;
+          await gateway.updateProcedure({
+            id: procedure.id,
+            patient_id: patientId,
+            fund_id: fundId || null,
+            procedure_type_id: procedureTypeId,
+            procedure_date: procedureDate,
+            procedure_amount: procedureAmount != null ? Math.round(procedureAmount * 1000) : null,
+            payment_method: procedure.payment_method,
+            confirmed_payment_date: procedure.confirmed_payment_date || null,
+            actual_payment_amount: procedure.actual_payment_amount,
+            payment_status: procedure.payment_status,
+          });
+          toastService.show("success", t("state.updated"));
+          onSuccess?.();
+          onClose();
+        }
       } catch (error) {
-        logger.error(`${TAG} Error updating procedure type in view mode`, { error });
+        logger.error(`${TAG} Error submitting`, { error });
         toastService.show("error", error instanceof Error ? error.message : tc("error.unknown"));
       } finally {
         setLoading(false);
       }
-      return;
-    }
-
-    const errors = validate();
-    if (Object.keys(errors).length > 0) {
-      logger.warn(`${TAG} Submit with missing required fields`);
-      setFieldErrors(errors);
-      toastService.show("error", t("error.requiredFields"));
-      return;
-    }
-
-    setFieldErrors({});
-    setLoading(true);
-    try {
-      if (mode === "create") {
-        const result = await gateway.addProcedure(
-          patientId,
-          fundId || null,
-          procedureTypeId,
-          procedureDate,
-          procedureAmount !== null ? Math.round(procedureAmount * 1000) : null,
-        );
-        logger.info(`${TAG} Procedure added`, { id: result.id });
-        reset();
-        toastService.show("success", t("state.added"));
-        onSuccess?.();
-        onClose();
-      } else {
-        // Edit mode: payment fields passed through unchanged from original procedure (R30)
-        if (!procedure) return;
-        await gateway.updateProcedure({
-          id: procedure.id,
-          patient_id: patientId,
-          fund_id: fundId || null,
-          procedure_type_id: procedureTypeId,
-          procedure_date: procedureDate,
-          procedure_amount: procedureAmount != null ? Math.round(procedureAmount * 1000) : null,
-          payment_method: procedure.payment_method,
-          confirmed_payment_date: procedure.confirmed_payment_date || null,
-          actual_payment_amount: procedure.actual_payment_amount,
-          payment_status: procedure.payment_status,
-        });
-        toastService.show("success", t("state.updated"));
-        onSuccess?.();
-        onClose();
-      }
-    } catch (error) {
-      logger.error(`${TAG} Error submitting`, { error });
-      toastService.show("error", error instanceof Error ? error.message : tc("error.unknown"));
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [
+      mode,
+      procedure,
+      procedureTypeId,
+      patientId,
+      fundId,
+      procedureDate,
+      procedureAmount,
+      t,
+      tc,
+      onSuccess,
+      onClose,
+      reset,
+    ],
+  );
 
   // Patient inline creation handler (create mode only, R9)
   const handlePatientCreated = useCallback(
@@ -209,8 +230,14 @@ export function useProcedureFormModal({
     [tc],
   );
 
-  const selectedPatient = patients.find((p) => p.id === patientId);
-  const sortedFunds = [...funds].sort((a, b) => a.fund_identifier.localeCompare(b.fund_identifier));
+  const selectedPatient = useMemo(
+    () => patients.find((p) => p.id === patientId),
+    [patients, patientId],
+  );
+  const sortedFunds = useMemo(
+    () => [...funds].sort((a, b) => a.fund_identifier.localeCompare(b.fund_identifier)),
+    [funds],
+  );
 
   // Patient items formatted with INS for ComboboxField (R28, R31)
   const patientItems = useMemo(
