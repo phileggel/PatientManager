@@ -338,6 +338,55 @@ describe("view mode — calls updateProcedure with only procedure_type_id change
   });
 });
 
+describe("view mode — confirmed_payment_date empty string is sent as null", () => {
+  it("converts empty confirmed_payment_date to null in view mode", async () => {
+    const { updateProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(updateProcedure).mockResolvedValueOnce({
+      id: "proc-view-nodate",
+      patient_id: "p1",
+      fund_id: null,
+      procedure_type_id: "pt1",
+      procedure_date: "2026-02-10",
+      procedure_amount: 50000,
+      payment_method: "NONE",
+      confirmed_payment_date: "",
+      payment_status: "CREATED",
+      actual_payment_amount: null,
+    });
+
+    const procedure = {
+      id: "proc-view-nodate",
+      patient_id: "p1",
+      fund_id: null,
+      procedure_type_id: "pt2",
+      procedure_date: "2026-02-10",
+      procedure_amount: 50000,
+      payment_method: "NONE" as const,
+      confirmed_payment_date: "",
+      payment_status: "CREATED" as const,
+      actual_payment_amount: null,
+    };
+
+    const { result } = makeHook({ mode: "view", procedure, onClose: vi.fn() });
+
+    act(() => {
+      result.current.setProcedureTypeId("pt1");
+    });
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as FormEvent);
+    });
+
+    expect(updateProcedure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        confirmed_payment_date: null,
+      }),
+    );
+  });
+});
+
 describe("patientItems — formatted with INS for ComboboxField", () => {
   it("includes name and SSN in parentheses for each patient", () => {
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });

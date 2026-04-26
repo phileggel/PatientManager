@@ -1,4 +1,4 @@
-# Procedure Orchestration — Amendment Plan
+# Procedure Orchestration — Amendment Plan [DONE]
 
 > Spec: `docs/spec/procedure-orchestration-spec.md`
 > Scope: Amendments only — rules R6, R9, R18, R26, R28, R29, R30, R31, R32.
