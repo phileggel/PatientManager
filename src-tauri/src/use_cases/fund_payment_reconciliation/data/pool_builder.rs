@@ -172,6 +172,9 @@ mod tests {
         async fn read_procedures_by_ids(&self, _: &[String]) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
+        async fn read_procedures_by_patient_id(&self, _: &str) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
         async fn find_procedures_by_ssn_and_date_range(
             &self,
             _: &str,

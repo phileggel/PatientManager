@@ -70,13 +70,13 @@ Highest priority (behavioral regressions possible):
 
 ## saisie des actes: champs reçu et en attente ne sont jamais mis à jour → doublon avec todo ci-dessus, à vérifier en prod
 
-## (backend/procedure-orchestration) — Full table scan in delete_procedure (R20)
+## ~~(backend/procedure-orchestration) — Full table scan in delete_procedure (R20)~~ ✅ DONE
 
-`ProcedureOrchestrationService::delete_procedure` calls `read_all_procedures()` then filters by `patient_id` in Rust. Should use a targeted `read_procedures_by_patient_id` repository query to avoid a full table scan at production data volumes. Requires adding the method to `ProcedureRepository` trait and its SQLite implementation.
+Added `read_procedures_by_patient_id` to `ProcedureRepository` trait (uses `idx_procedure_patient`); `delete_procedure` now does a targeted query instead of `read_all_procedures + filter`.
 
-## (backend/procedure-orchestration) — Suivi patient non recalculé à la suppression du dernier acte (R20)
+## ~~(backend/procedure-orchestration) — Suivi patient non recalculé à la suppression du dernier acte (R20)~~ ✅ DONE
 
-Si l'acte supprimée était la plus récente mais que le patient a d'autres actes, les champs de suivi (`latest_date`, `latest_procedure_type`, `latest_fund`, `latest_procedure_amount`) ne sont pas recalculés — ils conservent des valeurs "fantômes". Cela fausse le pré-remplissage R4 pour le prochain acte du patient. À corriger dans `use_cases/procedure_orchestration/` : chercher le nouvel acte le plus récent du patient après suppression et mettre à jour les champs en conséquence.
+Fixed: `delete_procedure` now finds the new latest procedure for the patient after deletion and updates tracking fields accordingly.
 
 ## ~~(backend/procedure-orchestration) — latest_fund non effacé quand le dernier acte n'a pas de fonds~~ ✅ DONE
 
