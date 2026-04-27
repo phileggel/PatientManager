@@ -14,11 +14,11 @@ The procedure-type management page is a self-contained CRUD view reachable from 
 
 A user-configurable medical-procedure template.
 
-| Field            | Business meaning                                                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `name`           | User-defined readable name of the procedure type (e.g. "Consultation"). Required. Unique among active types.              |
-| `default_amount` | Default amount of the procedure, expressed in thousandths of a euro (`i64`). Must be ≥ 0. Displayed in euros in the UI.   |
-| `category`       | Free-form, optional grouping defined by the user (e.g. "Biology", "Imaging"). May be absent.                              |
+| Field            | Business meaning                                                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `name`           | User-defined readable name of the procedure type (e.g. "Consultation"). Required. Unique among active types.            |
+| `default_amount` | Default amount of the procedure, expressed in thousandths of a euro (`i64`). Must be ≥ 0. Displayed in euros in the UI. |
+| `category`       | Free-form, optional grouping defined by the user (e.g. "Biology", "Imaging"). May be absent.                            |
 
 All fields (`name`, `default_amount`, `category`) are editable after creation for user types. The `id` field is immutable once generated. The reserved `import-pdf` type is the exception: none of its fields can be edited (see R22).
 

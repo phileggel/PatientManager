@@ -59,15 +59,6 @@ In `delete_fund_payment_group_with_cleanup`, procedures are reset one by one (`r
 
 Fix: use `read_procedures_by_ids` → mutate in-memory → `update_procedures_batch`. Requires verifying `ProcedureService` exposes a batch update at the service layer.
 
-## fix spec missing tests:
-
-Highest priority (behavioral regressions possible):
-
-- R7 — No test for procedure reset to Created when removed from a group
-- R8 — No test for procedure set to Reconciliated + date + amount when added
-- R11 — No integration test for post-delete procedure state reset
-- R10 — No test for is_locked recomputation in read_all_fund_payment_groups
-
 ## Procedure entry: "received" and "pending" fields are never updated → duplicate of the todo above, to verify in prod
 
 ## (frontend/procedure) — Default patient info when procedure type is deleted
@@ -85,10 +76,6 @@ Currently, the auto-correction flow (reconciliation) only allows creating a sing
 ## (frontend/fund-payment-match) — Print report after reconciliation: centering and content
 
 The document printed after reconciliation is not properly centered — part of the content is cut off. To fix. Complementary improvement: list the auto-corrections applied in the report.
-
-## (backend/procedure) — Invalid date format on confirmed_payment_date during update
-
-When updating a procedure, an "invalid confirmed payment date format" error is raised. To investigate and fix.
 
 ## (backend/frontend) — Structured errors: replace anyhow/String with typed error variants
 

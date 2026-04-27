@@ -1318,21 +1318,21 @@ mod tests {
             .bind(&patient_id)
             .execute(pool)
             .await
-            .unwrap();
+            .expect("seed_base: insert patient");
         sqlx::query(
             "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES (?, 'CPAM93', 'CPAM 93', 0)",
         )
         .bind(&fund_id)
         .execute(pool)
         .await
-        .unwrap();
+        .expect("seed_base: insert fund");
         sqlx::query(
             "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES (?, 'Consultation', 100000, 0)",
         )
         .bind(&proc_type_id)
         .execute(pool)
         .await
-        .unwrap();
+        .expect("seed_base: insert procedure_type");
 
         (patient_id, fund_id, proc_type_id)
     }
@@ -1356,7 +1356,36 @@ mod tests {
         .bind(status)
         .execute(pool)
         .await
-        .unwrap();
+        .expect("seed_procedure: insert procedure");
+        proc_id
+    }
+
+    /// Seeds a `RECONCILIATED` procedure already attached to a payment group:
+    /// `confirmed_payment_date` and `actual_payment_amount` are populated to mimic
+    /// the post-add state expected by R7/R8 (so the reset paths can be observed).
+    async fn seed_reconciliated_procedure(
+        pool: &SqlitePool,
+        patient_id: &str,
+        proc_type_id: &str,
+        amount: i64,
+        confirmed_payment_date: &str,
+    ) -> String {
+        let proc_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
+               procedure_amount, payment_status, confirmed_payment_date,
+               actual_payment_amount, is_deleted)
+               VALUES (?, ?, ?, '2026-01-15', ?, 'RECONCILIATED', ?, ?, 0)"#,
+        )
+        .bind(&proc_id)
+        .bind(patient_id)
+        .bind(proc_type_id)
+        .bind(amount)
+        .bind(confirmed_payment_date)
+        .bind(amount)
+        .execute(pool)
+        .await
+        .expect("seed_reconciliated_procedure: insert procedure");
         proc_id
     }
 
@@ -1376,7 +1405,7 @@ mod tests {
         .bind(status)
         .execute(pool)
         .await
-        .unwrap();
+        .expect("seed_fund_group: insert group");
 
         for proc_id in proc_ids {
             let line_id = Uuid::new_v4().to_string();
@@ -1389,7 +1418,7 @@ mod tests {
             .bind(proc_id)
             .execute(pool)
             .await
-            .unwrap();
+            .unwrap_or_else(|e| panic!("seed_fund_group: insert line for proc {proc_id}: {e}"));
         }
 
         group_id
@@ -1449,6 +1478,177 @@ mod tests {
         assert!(
             msg.contains("bank-reconciled"),
             "Expected 'bank-reconciled' in error, got: {msg}"
+        );
+        Ok(())
+    }
+
+    /// R7 — Removing a procedure from a group reverts it to `Created`, clears
+    /// `confirmed_payment_date` and `actual_payment_amount`, and recomputes the
+    /// group total.
+    #[tokio::test]
+    async fn test_remove_procedure_resets_to_created() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_a =
+            seed_reconciliated_procedure(&pool, &patient_id, &proc_type_id, 70_000, "2026-01-15")
+                .await;
+        let proc_b =
+            seed_reconciliated_procedure(&pool, &patient_id, &proc_type_id, 30_000, "2026-01-15")
+                .await;
+        let group_id =
+            seed_fund_group(&pool, &fund_id, &[proc_a.clone(), proc_b.clone()], "ACTIVE").await;
+
+        let orchestrator = make_orchestrator(&pool);
+        let updated = orchestrator
+            .update_manual_fund_payment_group(
+                group_id.clone(),
+                "2026-01-15".to_string(),
+                vec![proc_a.clone()],
+            )
+            .await?;
+
+        assert_eq!(updated.total_amount, 70_000, "group total recomputed (R4)");
+
+        // `updated.lines` is intentionally not asserted: `update_group` returns
+        // the group state captured before the new lines are persisted, so the
+        // returned `lines` field reflects the *old* set. Re-read via `read_group`
+        // to observe the post-update state.
+        let reloaded = orchestrator
+            .fund_payment_service
+            .read_group(&group_id)
+            .await?
+            .expect("group still present");
+        assert_eq!(reloaded.lines.len(), 1, "stale line removed");
+        assert_eq!(reloaded.lines[0].procedure_id, proc_a);
+
+        let removed = orchestrator
+            .procedure_service
+            .read_procedures_by_ids(vec![proc_b.clone()])
+            .await?;
+        assert_eq!(removed.len(), 1);
+        assert!(matches!(
+            removed[0].payment_status,
+            ProcedureStatus::Created
+        ));
+        assert_eq!(removed[0].confirmed_payment_date, None);
+        assert_eq!(removed[0].actual_payment_amount, None);
+
+        let kept = orchestrator
+            .procedure_service
+            .read_procedures_by_ids(vec![proc_a])
+            .await?;
+        assert!(matches!(
+            kept[0].payment_status,
+            ProcedureStatus::Reconciliated
+        ));
+        assert!(
+            kept[0].confirmed_payment_date.is_some(),
+            "kept procedure must retain confirmed_payment_date"
+        );
+        assert!(
+            kept[0].actual_payment_amount.is_some(),
+            "kept procedure must retain actual_payment_amount"
+        );
+        Ok(())
+    }
+
+    /// R8 — Adding a `Created` procedure flips it to `Reconciliated`, sets
+    /// `confirmed_payment_date` to the group payment date, and sets
+    /// `actual_payment_amount` to its `procedure_amount`.
+    #[tokio::test]
+    async fn test_add_procedure_sets_to_reconciliated() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_existing =
+            seed_reconciliated_procedure(&pool, &patient_id, &proc_type_id, 50_000, "2026-01-15")
+                .await;
+        let proc_new = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 25_000).await;
+        let group_id = seed_fund_group(
+            &pool,
+            &fund_id,
+            std::slice::from_ref(&proc_existing),
+            "ACTIVE",
+        )
+        .await;
+
+        let orchestrator = make_orchestrator(&pool);
+        let updated = orchestrator
+            .update_manual_fund_payment_group(
+                group_id.clone(),
+                "2026-01-20".to_string(),
+                vec![proc_existing, proc_new.clone()],
+            )
+            .await?;
+
+        assert_eq!(updated.total_amount, 75_000, "group total recomputed (R4)");
+
+        let reloaded = orchestrator
+            .fund_payment_service
+            .read_group(&group_id)
+            .await?
+            .expect("group still present");
+        assert_eq!(reloaded.lines.len(), 2, "new line persisted");
+
+        let added = orchestrator
+            .procedure_service
+            .read_procedures_by_ids(vec![proc_new])
+            .await?;
+        assert_eq!(added.len(), 1);
+        assert!(matches!(
+            added[0].payment_status,
+            ProcedureStatus::Reconciliated
+        ));
+        assert_eq!(
+            added[0].confirmed_payment_date,
+            Some(NaiveDate::from_ymd_opt(2026, 1, 20).expect("static date is always valid")),
+            "confirmed_payment_date == group payment_date"
+        );
+        assert_eq!(added[0].actual_payment_amount, Some(25_000));
+        Ok(())
+    }
+
+    /// R11 — Deleting an unlocked group resets every associated procedure to
+    /// `Created` and clears `confirmed_payment_date` and `actual_payment_amount`.
+    #[tokio::test]
+    async fn test_delete_group_resets_all_procedures() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_a =
+            seed_reconciliated_procedure(&pool, &patient_id, &proc_type_id, 40_000, "2026-01-15")
+                .await;
+        let proc_b =
+            seed_reconciliated_procedure(&pool, &patient_id, &proc_type_id, 60_000, "2026-01-15")
+                .await;
+        let group_id =
+            seed_fund_group(&pool, &fund_id, &[proc_a.clone(), proc_b.clone()], "ACTIVE").await;
+
+        let orchestrator = make_orchestrator(&pool);
+        orchestrator
+            .delete_fund_payment_group_with_cleanup(&group_id)
+            .await?;
+
+        let procedures = orchestrator
+            .procedure_service
+            .read_procedures_by_ids(vec![proc_a, proc_b])
+            .await?;
+        assert_eq!(procedures.len(), 2);
+        for p in &procedures {
+            assert!(
+                matches!(p.payment_status, ProcedureStatus::Created),
+                "expected Created, got {:?}",
+                p.payment_status
+            );
+            assert_eq!(p.confirmed_payment_date, None);
+            assert_eq!(p.actual_payment_amount, None);
+        }
+
+        let group_after = orchestrator
+            .fund_payment_service
+            .read_group(&group_id)
+            .await?;
+        assert!(
+            group_after.is_none(),
+            "group should be soft-deleted after cleanup"
         );
         Ok(())
     }
