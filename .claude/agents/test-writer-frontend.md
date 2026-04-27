@@ -8,7 +8,7 @@ description:
   Verifies vitest run exits non-zero (red) before finishing. Does not implement.
   Run after the backend commit (bindings are fresh), before frontend implementation.
 tools: Read, Grep, Glob, Write, Edit, Bash
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 You are a test engineer for a React 19 / TypeScript frontend of a Tauri 2 project. Your job is

@@ -5,7 +5,7 @@ description:
   coverage, traceability, error exhaustiveness, and type correctness. Blocks progression to
   feature-planner on critical findings. Run after /contract produces or updates the contract.
 tools: Read, Grep, Glob, Bash, Write
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 You are a technical reviewer validating a domain contract for a full-stack project.
@@ -23,14 +23,28 @@ If no path is given, list files in `docs/contracts/` and ask which to review.
 
 ## Process
 
-### Step 1 — Load files
+### Step 1 — Compute REPORT_PATH
+
+The saved compact summary IS the deliverable — compute its path before reading any files:
+
+```bash
+mkdir -p tmp
+DATE=$(date +%Y-%m-%d)
+i=1
+while [ -f "tmp/contract-reviewer-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
+echo "tmp/contract-reviewer-${DATE}-$(printf '%02d' $i).md"
+```
+
+Remember the printed path as `REPORT_PATH`.
+
+### Step 2 — Load files
 
 1. Read the contract file in full
 2. Extract the source spec name from the contract's `> Last updated by:` line; read that spec
    from `docs/spec/{name}.md`
 3. Read `docs/adr/` if present — ADRs constrain valid types (e.g. `i64` for amounts)
 
-### Step 2 — Extract reference data
+### Step 3 — Extract reference data
 
 From the **spec**: collect every rule with scope `backend` or `frontend + backend`. Note each
 rule's operation type (create / read / update / delete / transition), described error cases, and
@@ -38,7 +52,7 @@ entities involved.
 
 From the **contract**: collect every command (name, args, return, errors) and every shared type.
 
-### Step 3 — Apply review checks
+### Step 4 — Apply review checks
 
 #### A — Coverage (spec → contract)
 
@@ -72,6 +86,12 @@ From the **contract**: collect every command (name, args, return, errors) and ev
 #### F — Infallible commands
 
 - 🟡 A command has no error variants and no inline comment explaining why it cannot fail
+
+### Step 5 — Output, save, confirm
+
+1. Output the review to the conversation using `## Output format` below.
+2. **Save** the compact summary to `REPORT_PATH` using the Write tool — mandatory final action. The workflow is incomplete until Write succeeds. Format defined in `## Save report` below.
+3. Reply: `Report saved to {REPORT_PATH}`.
 
 ---
 
@@ -117,25 +137,13 @@ Ready for feature-planner: yes — 0 critical findings.
 
 ## Save report
 
-After outputting the report to the conversation, save a **compact summary** to disk — not the full report.
-
-Compute the next available filename:
-
-```bash
-mkdir -p tmp
-DATE=$(date +%Y-%m-%d)
-i=1
-while [ -f "tmp/contract-reviewer-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
-echo "tmp/contract-reviewer-${DATE}-$(printf '%02d' $i).md"
-```
-
-Compose the compact summary in this format:
+The compact summary written to `REPORT_PATH` (Step 5 of `## Process`) uses this format:
 
 ```
 ## contract-reviewer — {date}-{N}
 
-{summary line}
-{Ready for feature-planner line}
+Review complete: N critical, N warning(s).
+Ready for feature-planner: yes/no — {reason}.
 
 ### 🔴 Critical
 - {section}: {issue}
@@ -144,9 +152,7 @@ Compose the compact summary in this format:
 - {section}: {issue}
 ```
 
-Omit any section that has no findings. Use the Write tool to save the compact summary to that path.
-
-Tell the user: `Report saved to {path}`
+Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section that has no findings.
 
 ---
 

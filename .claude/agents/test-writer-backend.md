@@ -8,7 +8,7 @@ description:
   implement — implementation is a separate step. Run after contract-reviewer approves,
   before backend implementation.
 tools: Read, Grep, Glob, Write, Edit, Bash
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 You are a test engineer for a Tauri 2 / Rust project. Your job is to write failing tests

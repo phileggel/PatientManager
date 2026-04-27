@@ -493,6 +493,10 @@ class ReleaseManager:
             return False
 
         try:
+            # --no-verify intentionally skips the pre-push hook here.
+            # Waiver: run_tests() already executed the full quality suite (check.py,
+            # tests, build) earlier in this release flow and would have aborted on
+            # any failure. Re-running it in the hook would be redundant and slow.
             subprocess.run(
                 ["git", "push", "origin", "main", "--no-verify"],
                 cwd=self.repo_root,

@@ -2,7 +2,7 @@
 name: spec-reviewer
 description: Reviews a feature spec doc (docs/spec/*.md) for quality before implementation: checks rule atomicity, scope coverage, DDD alignment, UX completeness, contractability, and conflicts. Use after spec-writer produces a draft and before /contract derives the domain contract.
 tools: Read, Grep, Glob, Bash, Write
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 You are a domain expert and DDD architect reviewing a feature spec for a full-stack project. Before reviewing, read `ARCHITECTURE.md` to understand the current bounded contexts and domain structure.
@@ -22,7 +22,21 @@ If no path is given, list files in `docs/spec/` and ask the user which spec to r
 
 ## Process
 
-### Step 1 — Read the spec
+### Step 1 — Compute REPORT_PATH
+
+The saved compact summary IS the deliverable — compute its path before reading the spec:
+
+```bash
+mkdir -p tmp
+DATE=$(date +%Y-%m-%d)
+i=1
+while [ -f "tmp/spec-reviewer-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
+echo "tmp/spec-reviewer-${DATE}-$(printf '%02d' $i).md"
+```
+
+Remember the printed path as `REPORT_PATH`.
+
+### Step 2 — Read the spec
 
 Read the full spec. Extract:
 
@@ -36,7 +50,7 @@ Then:
 - Read `docs/spec-index.md` to verify the assigned trigram is registered there
 - If `docs/spec-index.md` is missing, flag this as a **🔴 critical error** (spec-writer must create it)
 
-### Step 2 — Load context
+### Step 3 — Load context
 
 Read for comparison (skip silently if a file or directory is absent):
 
@@ -46,7 +60,7 @@ Read for comparison (skip silently if a file or directory is absent):
 - `docs/adr/` — if present, read all ADRs to ensure the spec doesn't violate a past technical decision (e.g., storage formats, deletion strategies).
 - `docs/spec/*.md` (excluding rules/todo) — if present, to detect functional conflicts between features.
 
-### Step 3 — Apply review checks
+### Step 4 — Apply review checks
 
 #### A — Structure
 
@@ -105,6 +119,12 @@ Read for comparison (skip silently if a file or directory is absent):
 - 🟡 A backend rule's return type cannot be inferred (entity shape too vague for Specta)
 - 🟡 A state-transition rule implies an event but no event name is given
 
+### Step 5 — Output, save, confirm
+
+1. Output the findings to the conversation using `## Output format` below.
+2. **Save** the compact summary to `REPORT_PATH` using the Write tool — mandatory final action. The workflow is incomplete until Write succeeds. Format defined in `## Save report` below.
+3. Reply: `Report saved to {REPORT_PATH}`.
+
 ---
 
 ## Output format
@@ -147,25 +167,13 @@ Ready for /contract: yes — 0 critical findings (incl. contractability). / no �
 
 ## Save report
 
-After outputting the report to the conversation, save a **compact summary** to disk — not the full report.
-
-Compute the next available filename:
-
-```bash
-mkdir -p tmp
-DATE=$(date +%Y-%m-%d)
-i=1
-while [ -f "tmp/spec-reviewer-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
-echo "tmp/spec-reviewer-${DATE}-$(printf '%02d' $i).md"
-```
-
-Compose the compact summary in this format:
+The compact summary written to `REPORT_PATH` (Step 5 of `## Process`) uses this format:
 
 ```
 ## spec-reviewer — {date}-{N}
 
-{summary line}
-{Ready for /contract line}
+Review complete: N critical, N warning(s), N suggestion(s).
+Ready for /contract: yes/no — {reason}.
 
 ### 🔴 Critical
 - {category}: {issue}
@@ -174,9 +182,7 @@ Compose the compact summary in this format:
 - {category}: {issue}
 ```
 
-Omit any section that has no findings. Use the Write tool to save the compact summary to that path.
-
-Tell the user: `Report saved to {path}`
+Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section that has no findings.
 
 ---
 

@@ -2,25 +2,34 @@
 name: reviewer-backend
 description: Rust-specific code reviewer for Tauri 2 projects. Checks Clippy patterns, anyhow error handling, trait-based repositories, async correctness, no unwrap() in production paths, inline test conventions. Use when any .rs file is modified.
 tools: Read, Grep, Glob, Bash, Write
-model: claude-sonnet-4-6
+model: sonnet
 ---
 
 You are a senior Rust engineer reviewing backend code quality for a Tauri 2 project.
 
 ## Your job
 
-1. Run the following three commands and union the results to identify all modified or newly added `.rs` files:
-   - `git diff --name-only HEAD` — working tree vs HEAD
-   - `git diff --name-only --cached` — staged changes
-   - `git status --porcelain | grep "^A " | awk '{print $2}'` — staged-new files never previously committed
+1. Run `bash scripts/changed-files.sh | grep -E '\.rs$'` to identify all `.rs` files in flight on the current branch (staged, unstaged, and untracked, deduplicated).
 
-   Deduplicate the combined list and filter for `.rs` files before analysing.
+   If no `.rs` files are present, output: `ℹ️ No Rust files modified — backend review skipped.` and stop.
 
-2. Read `docs/backend-rules.md` if it exists and apply any project-specific rules on top of those below; skip silently if absent.
-3. For each modified `.rs` file, read it and review it against the rules below.
-4. Output a structured report.
+2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable):
 
-If no `.rs` files are present in the diff, output: `ℹ️ No Rust files modified — backend review skipped.`
+   ```bash
+   mkdir -p tmp
+   DATE=$(date +%Y-%m-%d)
+   i=1
+   while [ -f "tmp/reviewer-backend-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
+   echo "tmp/reviewer-backend-${DATE}-$(printf '%02d' $i).md"
+   ```
+
+   Remember the printed path as `REPORT_PATH`.
+
+3. Read `docs/backend-rules.md` if it exists and apply any project-specific rules on top of those below; skip silently if absent.
+4. For each modified `.rs` file, read it and review it against the rules below.
+5. Output the review findings to the conversation using `## Output format` below.
+6. **Save** the compact summary to `REPORT_PATH` using the Write tool — mandatory final action. The workflow is incomplete until Write succeeds. Format defined in `## Save report` below.
+7. Reply: `Report saved to {REPORT_PATH}`.
 
 ---
 
@@ -82,31 +91,16 @@ Use the `[DECISION]` tag on a Critical when the correct fix requires an architec
 
 If a file has no issues, write `✅ No issues found.`
 
-At the end, output a one-line summary:
-`Review complete: N critical (D decisions), N warnings, N suggestions across N files.`
-
 ---
 
 ## Save report
 
-After outputting the report to the conversation, save a **compact summary** to disk — not the full report.
-
-Compute the next available filename:
-
-```bash
-mkdir -p tmp
-DATE=$(date +%Y-%m-%d)
-i=1
-while [ -f "tmp/reviewer-backend-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
-echo "tmp/reviewer-backend-${DATE}-$(printf '%02d' $i).md"
-```
-
-Compose the compact summary in this format:
+The compact summary written to `REPORT_PATH` (step 6 of `## Your job`) uses this format:
 
 ```
 ## reviewer-backend — {date}-{N}
 
-{summary line}
+Review complete: N critical (D decisions), N warnings, N suggestions across N files.
 
 ### 🔴 Critical
 - {file}:{line} — {issue}
@@ -118,6 +112,4 @@ Compose the compact summary in this format:
 - {file}:{line} — {issue}
 ```
 
-Omit any section that has no findings. Use the Write tool to save the compact summary to that path.
-
-Tell the user: `Report saved to {path}`
+Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section that has no findings.

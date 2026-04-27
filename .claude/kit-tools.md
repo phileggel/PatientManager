@@ -25,6 +25,19 @@ use the generic layer and manage quality agents locally.
 
 ---
 
+## Discovery files (`.claude/`)
+
+Sync writes these kit-managed files at the root of `.claude/` alongside agents and skills.
+Read on demand to orient — none are auto-loaded by Claude Code.
+
+| File             | Purpose                                                                 |
+| ---------------- | ----------------------------------------------------------------------- |
+| `kit-tools.md`   | This inventory — what the kit provides across all surfaces              |
+| `kit-readme.md`  | Onboarding readme for the kit                                           |
+| `kit-version.md` | Current kit version + changelog delta since the project's previous sync |
+
+---
+
 ## Generic Agents (always synced)
 
 ### Spec & Planning Agents
@@ -77,11 +90,14 @@ use the generic layer and manage quality agents locally.
 | Skill          | Command          | Description                                                                                                                                              |
 | -------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `start`        | `/start [scope]` | Select workflow A (full) or B (simple) for the current task; outputs actionable checklist. Optional scope: `fix`, `chore`, `test`, `feature`, `refactor` |
+| `whats-next`   | `/whats-next`    | Triage pending work across TODOs, plans, specs, and in-flight git; returns value/effort table and one suggested next action                              |
 | `smart-commit` | `/smart-commit`  | Conventional commit with sensitive-file check, linter run, suggested title with char count, and user confirmation                                        |
 | `dep-audit`    | `/dep-audit`     | Audit npm + Cargo dependencies for outdated versions and CVEs; run before every release                                                                  |
 | `adr-manager`  | `/adr-manager`   | Create, update (supersede), or index Architecture Decision Records in `docs/adr/`                                                                        |
 | `spec-writer`  | `/spec-writer`   | Interactive spec writer: interviews user, reads domain, produces `docs/spec/{feature}.md` with TRIGRAM-NNN rules                                         |
+| `spec-diff`    | `/spec-diff`     | Diffs a spec against an earlier git ref (default: last commit touching the matching plan file); flags stale plan tasks and code/test references          |
 | `contract`     | `/contract`      | Derives or updates `docs/contracts/{domain}-contract.md` from a validated spec; upsert-aware, human-approved                                             |
+| `kit-discover` | `/kit-discover`  | Cross-references CLAUDE.md against `kit-tools.md` and `kit-version.md`; surfaces drift, gaps, and redundancies and proposes a patch (never auto-applied) |
 
 ---
 
@@ -94,6 +110,14 @@ use the generic layer and manage quality agents locally.
 | `pre-push`   | `git push`   | Runs `python3 scripts/check.py` (full suite: tests + build + lint); blocks push on failure          |
 
 Activate with: `git config core.hooksPath .githooks`
+
+---
+
+## Generic Scripts (always synced)
+
+| Script             | Command                         | Description                                                                                                                |
+| ------------------ | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `changed-files.sh` | `bash scripts/changed-files.sh` | Print sort-unique union of changed-vs-HEAD, staged, and untracked files. Used by review agents to discover in-flight files |
 
 ---
 

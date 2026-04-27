@@ -26,10 +26,10 @@ git status --porcelain | grep -E '\.(env|key|pem|secret|password)$|credentials'
 - If found: warn and **stop** commit
 - User must remove sensitive files before proceeding
 
-### 3. Run tests and linters (mandatory)
+### 3. Run linters (mandatory)
 
 ```bash
-python3 scripts/check.py
+just check
 ```
 
 - If any check fails: stop, report the failure, do not proceed to commit
@@ -99,7 +99,7 @@ git log -1 --oneline
 ## Critical Rules
 
 1. Never commit sensitive files
-2. All tests must pass (`python3 scripts/check.py`) before committing
+2. All linters must pass (`just check`) before committing
 3. All linters must pass
 4. Commit message must be in **English** and follow conventional format: `type: message` or `type(scope): message`
 5. Never use `git add -A` — stage files explicitly by name
