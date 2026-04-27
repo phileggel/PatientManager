@@ -143,6 +143,16 @@ impl ProcedureService {
         self.repository.read_procedures_by_ids(&ids).await
     }
 
+    /// Get all procedures for a given patient (uses idx_procedure_patient)
+    pub async fn read_procedures_by_patient_id(
+        &self,
+        patient_id: &str,
+    ) -> anyhow::Result<Vec<Procedure>> {
+        self.repository
+            .read_procedures_by_patient_id(patient_id)
+            .await
+    }
+
     /// Create a new procedure (basic CRUD, no cross-context logic)
     #[allow(clippy::too_many_arguments)]
     pub async fn create_procedure(

@@ -118,6 +118,10 @@ pub trait ProcedureRepository: Send + Sync {
     async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>>;
     async fn read_procedure(&self, id: &str) -> anyhow::Result<Option<Procedure>>;
     async fn read_procedures_by_ids(&self, ids: &[String]) -> anyhow::Result<Vec<Procedure>>;
+    async fn read_procedures_by_patient_id(
+        &self,
+        patient_id: &str,
+    ) -> anyhow::Result<Vec<Procedure>>;
     async fn update_procedure(&self, procedure: Procedure) -> anyhow::Result<Procedure>;
     async fn delete_procedure(&self, id: &str) -> anyhow::Result<()>;
 
@@ -350,6 +354,28 @@ impl ProcedureRepository for SqliteProcedureRepository {
             .fetch_all(&self.pool)
             .await
             .context("Failed to fetch procedures by IDs")?;
+
+        Ok(rows.into_iter().map(Procedure::from).collect())
+    }
+
+    async fn read_procedures_by_patient_id(
+        &self,
+        patient_id: &str,
+    ) -> anyhow::Result<Vec<Procedure>> {
+        tracing::trace!(patient_id = %patient_id, "Fetching procedures by patient_id");
+
+        let rows = sqlx::query_as!(
+            ProcedureRow,
+            r#"
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted
+            FROM procedure
+            WHERE patient_id = $1 AND is_deleted = 0
+            "#,
+            patient_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to fetch procedures by patient_id")?;
 
         Ok(rows.into_iter().map(Procedure::from).collect())
     }

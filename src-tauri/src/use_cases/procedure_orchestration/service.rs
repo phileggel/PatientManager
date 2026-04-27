@@ -257,13 +257,10 @@ impl ProcedureOrchestrationService {
         tracing::debug!(procedure_id = %id, "Procedure deleted successfully");
 
         // Recalculate patient tracking after deletion (cross-context side effect, R20)
-        let remaining: Vec<_> = self
+        let remaining = self
             .context_procedure_service
-            .read_all_procedures()
-            .await?
-            .into_iter()
-            .filter(|p| p.patient_id == procedure.patient_id)
-            .collect();
+            .read_procedures_by_patient_id(&procedure.patient_id)
+            .await?;
 
         if let Some(patient) = self
             .patient_repository
@@ -661,6 +658,12 @@ mod tests {
         async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
+        async fn read_procedures_by_patient_id(
+            &self,
+            _patient_id: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
         async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
             Ok(p)
         }
@@ -879,6 +882,12 @@ mod tests {
             unimplemented!()
         }
         async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
+            unimplemented!()
+        }
+        async fn read_procedures_by_patient_id(
+            &self,
+            _patient_id: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
         async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
@@ -1198,6 +1207,12 @@ mod tests {
         async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
+        async fn read_procedures_by_patient_id(
+            &self,
+            _patient_id: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
         async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
             Ok(p)
         }
@@ -1396,6 +1411,17 @@ mod tests {
         }
         async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
+        }
+        async fn read_procedures_by_patient_id(
+            &self,
+            patient_id: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(self
+                .remaining
+                .iter()
+                .filter(|p| p.patient_id == patient_id)
+                .cloned()
+                .collect())
         }
         async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
             Ok(p)
