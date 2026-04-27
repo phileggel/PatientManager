@@ -20,7 +20,7 @@ const createMockFund = (overrides?: Partial<AffiliatedFund>): AffiliatedFund => 
 const createMockProcedureType = (overrides?: Partial<ProcedureType>): ProcedureType => ({
   id: "procedure-type-1",
   name: "Consultation",
-  default_amount: 25.0,
+  default_amount: 25000, // 25.00€ in thousandths (matches backend i64 representation)
   category: "test",
   ...overrides,
 });
@@ -305,5 +305,85 @@ describe("toProcedureRow - Edge Cases", () => {
     const result = toProcedureRow(procedure, referenceData);
 
     expect(result.procedureDate).toBe("2026-12-31");
+  });
+});
+
+// ============================================================================
+// toProcedureRow Tests - effectiveAmount fallback to procedure type default
+// ============================================================================
+// `procedureAmount` reflects the raw backend value (null stays null so the
+// table cell shows "—" and the edit modal opens with an empty input).
+// `effectiveAmount` is the value used by aggregates and falls back to the
+// procedure type's default_amount when the user did not set an explicit amount.
+
+describe("toProcedureRow - effectiveAmount fallback", () => {
+  test("procedureAmount stays null when procedure_amount is null", () => {
+    const procedure = createMockProcedure({ procedure_amount: null });
+    const referenceData = createMockReferenceData({
+      procedureTypes: [createMockProcedureType({ default_amount: 30000 })], // 30€
+    });
+
+    const result = toProcedureRow(procedure, referenceData);
+
+    expect(result.procedureAmount).toBeNull();
+  });
+
+  test("effectiveAmount falls back to procedure type default_amount when procedure_amount is null", () => {
+    const procedure = createMockProcedure({ procedure_amount: null });
+    const referenceData = createMockReferenceData({
+      procedureTypes: [createMockProcedureType({ default_amount: 30000 })], // 30€
+    });
+
+    const result = toProcedureRow(procedure, referenceData);
+
+    expect(result.effectiveAmount).toBe(30.0);
+  });
+
+  test("effectiveAmount uses procedure_amount over default_amount when both are present", () => {
+    const procedure = createMockProcedure({ procedure_amount: 75000 }); // 75€
+    const referenceData = createMockReferenceData({
+      procedureTypes: [createMockProcedureType({ default_amount: 30000 })], // 30€
+    });
+
+    const result = toProcedureRow(procedure, referenceData);
+
+    expect(result.procedureAmount).toBe(75.0);
+    expect(result.effectiveAmount).toBe(75.0);
+  });
+
+  test("effectiveAmount is null when procedure_amount is null and procedure type is not found", () => {
+    const procedure = createMockProcedure({
+      procedure_amount: null,
+      procedure_type_id: "missing-type",
+    });
+    const referenceData = createMockReferenceData();
+
+    const result = toProcedureRow(procedure, referenceData);
+
+    expect(result.procedureAmount).toBeNull();
+    expect(result.effectiveAmount).toBeNull();
+  });
+
+  test("effectiveAmount is null when procedure_amount is null and procedure_type_id is empty", () => {
+    const procedure = createMockProcedure({
+      procedure_amount: null,
+      procedure_type_id: "",
+    });
+    const referenceData = createMockReferenceData();
+
+    const result = toProcedureRow(procedure, referenceData);
+
+    expect(result.effectiveAmount).toBeNull();
+  });
+
+  test("effectiveAmount is 0 when procedure_amount is null and default_amount is 0 (zero is a valid amount)", () => {
+    const procedure = createMockProcedure({ procedure_amount: null });
+    const referenceData = createMockReferenceData({
+      procedureTypes: [createMockProcedureType({ default_amount: 0 })],
+    });
+
+    const result = toProcedureRow(procedure, referenceData);
+
+    expect(result.effectiveAmount).toBe(0);
   });
 });

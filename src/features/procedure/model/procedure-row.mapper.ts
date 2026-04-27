@@ -47,6 +47,16 @@ export const toProcedureRow = (
     // Procedure data — amounts converted from thousandths (i64) to euros (number)
     procedureDate: procedure.procedure_date,
     procedureAmount: procedure.procedure_amount != null ? procedure.procedure_amount / 1000 : null,
+    // Effective billed amount used by aggregations: falls back to the type's
+    // default_amount when the procedure has no explicit override. Keeps
+    // received / awaited totals meaningful for null-amount procedures without
+    // affecting how the table cell or the edit modal display the raw value.
+    effectiveAmount:
+      procedure.procedure_amount != null
+        ? procedure.procedure_amount / 1000
+        : procedureType?.default_amount != null
+          ? procedureType.default_amount / 1000
+          : null,
     // Payment data (readonly from backend) — amounts converted from thousandths to euros
     paymentMethod: procedure.payment_method,
     confirmedPaymentDate: procedure.confirmed_payment_date,

@@ -19,10 +19,11 @@ export function SummaryStats({ rows }: SummaryStatsProps) {
   // Count procedures (non-draft rows only)
   const procedureCount = rows.filter((r) => !r.isDraft).length;
 
-  // Sum procedure amounts
+  // Sum billed amounts using effectiveAmount so procedures with no explicit
+  // override still contribute their procedure type's default_amount.
   const totalAmount = rows
-    .filter((r) => !r.isDraft && r.procedureAmount)
-    .reduce((sum, r) => sum + (r.procedureAmount || 0), 0);
+    .filter((r) => !r.isDraft && r.effectiveAmount != null)
+    .reduce((sum, r) => sum + (r.effectiveAmount || 0), 0);
 
   // Sum actual payment amounts (amounts received)
   const totalReceived = rows
@@ -33,7 +34,7 @@ export function SummaryStats({ rows }: SummaryStatsProps) {
   const totalAwaited = rows
     .filter((r) => !r.isDraft)
     .reduce((sum, r) => {
-      const diff = (r.procedureAmount || 0) - (r.actualPaymentAmount || 0);
+      const diff = (r.effectiveAmount || 0) - (r.actualPaymentAmount || 0);
       return sum + (diff > 0 ? diff : 0);
     }, 0);
 
