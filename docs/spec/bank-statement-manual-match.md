@@ -89,12 +89,12 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **Affected fields — on payment creation**
 
-| Entity    | Field                    | Value                                                                            |
-| --------- | ------------------------ | -------------------------------------------------------------------------------- |
-| Procedure | `payment_status`         | `Created` → `DirectlyPayed`                                                      |
+| Entity    | Field                    | Value                                                                                  |
+| --------- | ------------------------ | -------------------------------------------------------------------------------------- |
+| Procedure | `payment_status`         | `Created` → `DirectlyPayed`                                                            |
 | Procedure | `payment_method`         | `Check` / `BankCard` / `Cash` (depending on the `CHECK` / `CREDIT_CARD` / `CASH` type) |
-| Procedure | `confirmed_payment_date` | = payment date                                                                   |
-| Procedure | `actual_payment_amount`  | = procedure amount                                                               |
+| Procedure | `confirmed_payment_date` | = payment date                                                                         |
+| Procedure | `actual_payment_amount`  | = procedure amount                                                                     |
 
 **Affected fields — on payment deletion**
 

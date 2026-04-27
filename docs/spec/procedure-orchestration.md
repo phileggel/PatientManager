@@ -131,41 +131,41 @@ This feature is responsible for procedure **creation** only. Subsequent status t
 
 ### Statuses created by this feature
 
-| Initial status        | Condition                                            | Trigger                       |
-| --------------------- | ---------------------------------------------------- | ----------------------------- |
-| `Created`             | Procedure with no confirmed payment                  | Frontend form or Excel import |
-| `ImportDirectlyPayed` | Confirmed payment + ES/CH method or no fund          | Excel import only             |
-| `ImportFundPayed`     | Confirmed payment + other method + fund present      | Excel import only             |
+| Initial status        | Condition                                       | Trigger                       |
+| --------------------- | ----------------------------------------------- | ----------------------------- |
+| `Created`             | Procedure with no confirmed payment             | Frontend form or Excel import |
+| `ImportDirectlyPayed` | Confirmed payment + ES/CH method or no fund     | Excel import only             |
+| `ImportFundPayed`     | Confirmed payment + other method + fund present | Excel import only             |
 
 ### Transitions handled by other features
 
-| From                               | To                                            | Owner feature                                                   |
-| ---------------------------------- | --------------------------------------------- | --------------------------------------------------------------- |
-| `Created`                          | `Reconciliated` / `PartiallyReconciled`       | fund-payment-auto-match, fund-payment-manual-match              |
-| `Created`                          | `DirectlyPayed`                               | bank-statement-manual-match                                     |
-| `Reconciliated`                    | `FundPayed`                                   | bank-statement-auto-match, bank-statement-manual-match          |
-| `PartiallyReconciled`              | `PartiallyFundPayed`                          | bank-statement-auto-match, bank-statement-manual-match          |
-| `FundPayed`                        | → `Reconciliated` (rollback)                  | Transfer deletion — bank-statement-manual-match (R8)            |
-| `PartiallyFundPayed`               | → `PartiallyReconciled` (rollback)            | Transfer deletion — bank-statement-manual-match (R8)            |
-| `DirectlyPayed`                    | → `Created` (rollback)                        | Direct-payment deletion — bank-statement-manual-match (R16)     |
-| `FundPayed` / `PartiallyFundPayed` | `Overpaid`                                    | Refund recording — overpayment (REF-160)                        |
-| `Overpaid`                         | → `FundPayed` / `PartiallyFundPayed` (rollback) | Refund cancellation — overpayment (REF-210)                   |
+| From                               | To                                              | Owner feature                                               |
+| ---------------------------------- | ----------------------------------------------- | ----------------------------------------------------------- |
+| `Created`                          | `Reconciliated` / `PartiallyReconciled`         | fund-payment-auto-match, fund-payment-manual-match          |
+| `Created`                          | `DirectlyPayed`                                 | bank-statement-manual-match                                 |
+| `Reconciliated`                    | `FundPayed`                                     | bank-statement-auto-match, bank-statement-manual-match      |
+| `PartiallyReconciled`              | `PartiallyFundPayed`                            | bank-statement-auto-match, bank-statement-manual-match      |
+| `FundPayed`                        | → `Reconciliated` (rollback)                    | Transfer deletion — bank-statement-manual-match (R8)        |
+| `PartiallyFundPayed`               | → `PartiallyReconciled` (rollback)              | Transfer deletion — bank-statement-manual-match (R8)        |
+| `DirectlyPayed`                    | → `Created` (rollback)                          | Direct-payment deletion — bank-statement-manual-match (R16) |
+| `FundPayed` / `PartiallyFundPayed` | `Overpaid`                                      | Refund recording — overpayment (REF-160)                    |
+| `Overpaid`                         | → `FundPayed` / `PartiallyFundPayed` (rollback) | Refund cancellation — overpayment (REF-210)                 |
 
 ### Allowed actions per status (this feature)
 
-| Status                | Deletion                  | Edit                                                                                  |
-| --------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
-| `None`                | yes (with confirmation)   | yes                                                                                   |
-| `Created`             | yes (with confirmation)   | yes                                                                                   |
-| `ImportDirectlyPayed` | yes (with confirmation)   | yes                                                                                   |
-| `ImportFundPayed`     | yes (with confirmation)   | yes                                                                                   |
-| `DirectlyPayed`       | no — blocked              | partial — procedure type only (R26)                                                   |
-| `Reconciliated`       | no — blocked              | partial — procedure type only (R26)                                                   |
-| `PartiallyReconciled` | no — blocked              | partial — procedure type only (R26)                                                   |
-| `FundPayed`           | no — blocked              | partial — procedure type only (R26)                                                   |
-| `PartiallyFundPayed`  | no — blocked              | partial — procedure type only (R26)                                                   |
-| `Overpaid`            | no — blocked (REF-220)    | partial — procedure type only with propagation to the refund (REF-190, REF-170)       |
-| `OverpaymentRefund`   | no — blocked (REF-230)    | no — read-only (REF-200)                                                              |
+| Status                | Deletion                | Edit                                                                            |
+| --------------------- | ----------------------- | ------------------------------------------------------------------------------- |
+| `None`                | yes (with confirmation) | yes                                                                             |
+| `Created`             | yes (with confirmation) | yes                                                                             |
+| `ImportDirectlyPayed` | yes (with confirmation) | yes                                                                             |
+| `ImportFundPayed`     | yes (with confirmation) | yes                                                                             |
+| `DirectlyPayed`       | no — blocked            | partial — procedure type only (R26)                                             |
+| `Reconciliated`       | no — blocked            | partial — procedure type only (R26)                                             |
+| `PartiallyReconciled` | no — blocked            | partial — procedure type only (R26)                                             |
+| `FundPayed`           | no — blocked            | partial — procedure type only (R26)                                             |
+| `PartiallyFundPayed`  | no — blocked            | partial — procedure type only (R26)                                             |
+| `Overpaid`            | no — blocked (REF-220)  | partial — procedure type only with propagation to the refund (REF-190, REF-170) |
+| `OverpaymentRefund`   | no — blocked (REF-230)  | no — read-only (REF-200)                                                        |
 
 ---
 

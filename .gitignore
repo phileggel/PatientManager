@@ -63,3 +63,5 @@ htmlcov/
 
 # Stitch design references (ephemeral .stitch files, delete after feature is implemented)
 docs/stitch/*.stitch
+
+tmp/

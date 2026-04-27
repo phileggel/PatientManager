@@ -26,12 +26,12 @@ This document covers exclusively the **automatic flow**: PDF parsing, matching a
 
 **R4 — 8-pass algorithm (backend)**: Reconciliation runs in 8 sequential passes, each with different criteria. A PDF line not resolved in pass N is retried in pass N+1:
 
-| Passes | Line type             | Amount   | Date tolerance               |
-| ------ | --------------------- | -------- | ---------------------------- |
-| 1–2    | Single procedure / Period | Exact    | Exact                        |
-| 3–4    | Single procedure / Period | Closest  | Exact                        |
-| 5–6    | Single procedure / Period | Exact    | -1 day on the start date     |
-| 7–8    | Single procedure / Period | Closest  | -1 day on the start date     |
+| Passes | Line type                 | Amount  | Date tolerance           |
+| ------ | ------------------------- | ------- | ------------------------ |
+| 1–2    | Single procedure / Period | Exact   | Exact                    |
+| 3–4    | Single procedure / Period | Closest | Exact                    |
+| 5–6    | Single procedure / Period | Exact   | -1 day on the start date |
+| 7–8    | Single procedure / Period | Closest | -1 day on the start date |
 
 Odd-numbered passes handle single-date procedures; even-numbered passes handle periods (start date ≠ end date).
 
@@ -100,14 +100,14 @@ A procedure with none of these anomalies is considered a perfect match.
 
 Action applied per anomaly type:
 
-| Type                                  | Auto-correction action                                                                                                  |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Type                                  | Auto-correction action                                                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `NotFoundIssue`                       | Triggers a `CreateProcedure` — unless the line is already accepted or a nearby candidate has already been linked manually |
-| `SingleMatchIssue` — `AmountMismatch` | Applies `AutoCorrection::AmountMismatch` with the PDF amount                                                            |
-| `SingleMatchIssue` — `FundMismatch`   | Applies `AutoCorrection::FundMismatch` with the PDF fund label                                                          |
-| `SingleMatchIssue` — `DateMismatch`   | Applies `AutoCorrection::DateMismatch` with the PDF date                                                                |
-| `GroupMatchIssue`                     | Not handled — button hidden as long as group issues remain unresolved                                                   |
-| `TooManyMatchIssue`                   | Not handled — button hidden                                                                                             |
+| `SingleMatchIssue` — `AmountMismatch` | Applies `AutoCorrection::AmountMismatch` with the PDF amount                                                              |
+| `SingleMatchIssue` — `FundMismatch`   | Applies `AutoCorrection::FundMismatch` with the PDF fund label                                                            |
+| `SingleMatchIssue` — `DateMismatch`   | Applies `AutoCorrection::DateMismatch` with the PDF date                                                                  |
+| `GroupMatchIssue`                     | Not handled — button hidden as long as group issues remain unresolved                                                     |
+| `TooManyMatchIssue`                   | Not handled — button hidden                                                                                               |
 
 **R26 — Auto-validation (frontend)**: As soon as all anomalies are resolved, validation is triggered automatically without user action. On failure, the cycle is not retried.
 
