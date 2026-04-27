@@ -59,8 +59,6 @@ In `delete_fund_payment_group_with_cleanup`, procedures are reset one by one (`r
 
 Fix: use `read_procedures_by_ids` → mutate in-memory → `update_procedures_batch`. Requires verifying `ProcedureService` exposes a batch update at the service layer.
 
-## Procedure entry: "received" and "pending" fields are never updated → duplicate of the todo above, to verify in prod
-
 ## (frontend/procedure) — Default patient info when procedure type is deleted
 
 When showing default patient info (latest_procedure_type), the referenced procedure type may have been deleted. The `procedure-type.md` spec does not cover this case: document it in the procedure-creation spec and handle it on the frontend (degraded display or fallback).

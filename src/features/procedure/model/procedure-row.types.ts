@@ -21,6 +21,13 @@ export interface ProcedureRow {
   procedureName: string | null;
   procedureDate: string | null;
   procedureAmount: number | null;
+  /**
+   * Billed amount actually used for aggregations (received / awaited totals).
+   * Falls back to the procedure type's `default_amount` when `procedureAmount`
+   * is null. Display sites (table cell, edit modal) keep using `procedureAmount`
+   * so unset values stay visible as "—" / empty input.
+   */
+  effectiveAmount: number | null;
 
   // Payment data (readonly)
   paymentMethod: string | null; // NONE | CASH | CHECK | BANK_CARD | BANK_TRANSFER
