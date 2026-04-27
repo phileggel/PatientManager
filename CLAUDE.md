@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Full architecture reference: [ARCHITECTURE.md](ARCHITECTURE.md)
 
-This project is governed by the `tauri-claude-kit` infrastructure. 
-Before any technical task, you MUST read `.claude/KIT_TOOLS.md` to synchronize with the current version of our agents, skills, and scripts.
+This project is governed by the `tauri-claude-kit` infrastructure.
+Before any technical task, consult `.claude/kit-tools.md` to discover available agents, skills, scripts, and recipes.
 
 ## 🧭 Behavioral Principles
 
@@ -27,6 +27,7 @@ While coding:
 
 ## 🔄 Workflows & Planning
 
+Run `/start` at session start to pick the right workflow for the task at hand.
 See `.claude/kit-readme.md` for the full workflow guide and `.claude/kit-tools.md` for the agent/skill reference.
 
 ---

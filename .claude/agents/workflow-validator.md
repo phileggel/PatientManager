@@ -2,7 +2,7 @@
 name: workflow-validator
 description: Validates that all required workflow steps were completed before a commit. Reads the feature plan produced by feature-planner (docs/plan/*-plan.md), checks git diff to infer which conditional steps were required, and produces a validation table ✅/❌ per step. Blocks commit if any required step is missing. Use when ready to commit a feature implementation.
 tools: Read, Grep, Glob, Bash, Write
-model: claude-haiku-4-5-20251001
+model: haiku
 ---
 
 # Workflow Validator
@@ -17,32 +17,46 @@ The plan file (`docs/plan/{feature}-plan.md`) is the machine-readable source of 
 
 ## How to validate
 
-### Step 1 — Locate the plan file
+### Step 1 — Compute REPORT_PATH
+
+The saved compact summary IS the deliverable — compute its path before locating the plan:
+
+```bash
+mkdir -p tmp
+DATE=$(date +%Y-%m-%d)
+i=1
+while [ -f "tmp/workflow-validator-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
+echo "tmp/workflow-validator-${DATE}-$(printf '%02d' $i).md"
+```
+
+Remember the printed path as `REPORT_PATH`.
+
+### Step 2 — Locate the plan file
 
 - If the user provides a plan path, use it directly.
-- Otherwise: run `git diff --name-only HEAD` and `git status --short`, infer the feature domain from modified file paths, then search for a matching file via `Glob docs/plan/*-plan.md`.
+- Otherwise: run `bash scripts/changed-files.sh`, infer the feature domain from the modified file paths, then search for a matching file via `Glob docs/plan/*-plan.md`.
 - If no plan file is found: check whether the changes look like a simple technical fix (no spec doc in `docs/` for this feature). If so, report: `ℹ️ No plan file found. This validator applies to feature workflows only. For simple technical fixes (bug fixes, dependency updates, maintenance), skip this validator and proceed with /smart-commit directly.` and stop. If feature context is clear but no plan exists: report `❌ No plan file found — run feature-planner before committing.` and stop.
 
-### Step 2 — Extract the Workflow TaskList
+### Step 3 — Extract the Workflow TaskList
 
 Read the plan file and extract every checkbox item from the "Workflow TaskList" section:
 
 - `[x]` → done
 - `[ ]` → not done
 
-### Step 3 — Infer conditional triggers from git diff
+### Step 4 — Infer conditional triggers from git diff
 
-Run `git diff --name-only HEAD` and `git status --short`. Determine which conditional items in the plan are actually required:
+Run `bash scripts/changed-files.sh`. Determine which conditional items in the plan are actually required:
 
 - `.rs` files modified → Backend Review (`reviewer-backend`) required
 - `.ts` / `.tsx` files modified → Frontend + UX Review (`reviewer-frontend`) required
 - User-visible text added/changed in `.tsx`/`.ts` feature files → i18n Review (`i18n-checker`) required
 - `migrations/` file added/modified → SQL Review (`reviewer-sql`) required
 - A spec doc exists in `docs/spec/` for this feature → `spec-checker` required
-- A contract doc exists in `docs/contracts/` for this feature's domain → Contract Review (`contract-reviewer`), Backend test stubs (`test-writer-backend`), and Frontend test stubs (`test-writer-frontend`) steps required
+- A contract doc exists in `docs/contracts/` for this feature's domain → Backend test stubs (`test-writer-backend`) and Frontend test stubs (`test-writer-frontend`) steps required
 - Any `.sh`, `.py` (in `scripts/`) or `.githooks/` file added/modified → Script Review (`script-reviewer`) required
 
-### Step 4 — Validate each item
+### Step 5 — Validate each item
 
 For each checkbox in the Workflow TaskList:
 
@@ -52,9 +66,11 @@ For each checkbox in the Workflow TaskList:
 - Item is conditional AND trigger met AND `[ ]` → ❌
 - Item is conditional AND trigger NOT met → — (n/a)
 
-### Step 5 — Report
+### Step 6 — Output, save, confirm
 
-Print the validation table and result.
+1. Print the validation table and result to the conversation using `## Output format` below.
+2. **Save** the compact summary to `REPORT_PATH` using the Write tool — mandatory final action. The workflow is incomplete until Write succeeds. Format defined in `## Save report` below.
+3. Reply: `Report saved to {REPORT_PATH}`.
 
 ## Output format
 
@@ -85,32 +101,19 @@ If any `❌`: print `Result: ❌ Workflow incomplete — fix before committing.`
 
 ## Save report
 
-After outputting the report to the conversation, save a **compact summary** to disk — not the full report.
-
-Compute the next available filename:
-
-```bash
-mkdir -p tmp
-DATE=$(date +%Y-%m-%d)
-i=1
-while [ -f "tmp/workflow-validator-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
-echo "tmp/workflow-validator-${DATE}-$(printf '%02d' $i).md"
-```
-
-Compose the compact summary in this format:
+The compact summary written to `REPORT_PATH` (Step 6 of `## How to validate`) uses this format:
 
 ```
 ## workflow-validator — {date}-{N}
 
-{result line}
+Result: ✅ All required steps completed — commit allowed.
+       (or) Result: ❌ Workflow incomplete — fix before committing.
 
 ### Blocking steps
 - Step N — {step name}: {reason}
 ```
 
-Omit "Blocking steps" if the result is ✅. Use the Write tool to save the compact summary to that path.
-
-Tell the user: `Report saved to {path}`
+Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit "Blocking steps" if the result is ✅.
 
 ---
 

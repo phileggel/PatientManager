@@ -19,7 +19,7 @@ tauri
 | Profile | What you get                                                                              |
 | ------- | ----------------------------------------------------------------------------------------- |
 | `tauri` | Generic layer + 7 Tauri quality agents + `check.py` / `release.py` + `tauri.just` recipes |
-| `web`   | 🚧 planned — generic layer + Axum/React/PostgreSQL agents (post-Muvimu2 POC)              |
+| `web`   | 🚧 planned — generic layer + Axum/React/PostgreSQL agents                                 |
 | (none)  | Generic layer only — process agents, skills, hooks. Manage quality agents locally.        |
 
 **No profile is not an error.** Lua mods, Python CLIs, and any stack the kit doesn't cover yet use the generic layer and add their own local quality agents in `.claude/agents/`.

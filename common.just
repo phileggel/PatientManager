@@ -16,13 +16,6 @@ release *ARGS:
     @[ -f scripts/release.py ] || { echo "❌ scripts/release.py not found — run: just sync-kit"; exit 1; }
     python3 scripts/release.py {{ARGS}}
 
-# Auto-fix formatting and linting
-format:
-    @cd src-tauri && cargo fmt
-    @cd src-tauri && cargo clippy --fix --allow-dirty --quiet
-    @npm run format:fix
-    @npm run format:docs
-
 # ⚠️  Destructive: removes stale remote-tracking branches
 clean-branches:
     git fetch --prune
@@ -38,10 +31,16 @@ stat:
 migrate:
     cd src-tauri && sqlx migrate run
 
-
 # Regenerate SQLx offline query cache (run after schema or query changes)
 prepare-sqlx:
     cd src-tauri && DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests
+
+# Auto-fix formatting and linting
+format:
+    @cd src-tauri && cargo fmt
+    @cd src-tauri && cargo clippy --fix --allow-dirty --quiet
+    @npm run format:fix
+    @npm run format:docs
 
 # ⚠️  Destructive: deletes local database and recreates schema
 clean-db:
