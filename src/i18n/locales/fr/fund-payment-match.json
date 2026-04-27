@@ -78,6 +78,9 @@
     "allCorrect": "Tout est correct — aucune anomalie détectée.",
     "progress": "{{resolved}} / {{total}} résolues",
     "stepNav": "Anomalie {{current}} sur {{total}}",
+    "prevAria": "Anomalie précédente",
+    "nextAria": "Anomalie suivante",
+    "dotAria": "Aller à l'anomalie {{index}}",
     "issueType": {
       "notFound": "Acte manquant",
       "singleMatch": "Anomalie de correspondance",

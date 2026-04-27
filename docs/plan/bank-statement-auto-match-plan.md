@@ -1,7 +1,7 @@
 # Implementation Plan — bank-statement-auto-match (R5/R6/R7/R9/R23–R28 update)
 
 > **Context**: R1–R22 are already fully implemented. This plan covers only the new or modified rules.
-> **Spec**: `docs/spec/bank-statement-auto-match-spec.md`
+> **Spec**: `docs/spec/bank-statement-auto-match.md`
 > **ADR**: `docs/adr/001-bank-fund-label-mapping-persistence.md`
 
 ---

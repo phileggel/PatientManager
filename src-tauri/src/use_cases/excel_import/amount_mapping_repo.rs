@@ -4,7 +4,7 @@ use specta::Type;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-/// A saved mapping between a procedure amount (millièmes d'euro) and a procedure type id
+/// A saved mapping between a procedure amount (thousandths of a euro) and a procedure type id
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ExcelAmountMapping {
     pub amount: i64,

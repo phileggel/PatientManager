@@ -37,7 +37,7 @@ const CREATE_MARKER = "@@CREATE";
  *   value={patientId}
  *   onChange={setPatientId}
  *   onCreateNew={(q) => openCreatePatient(q)}
- *   createLabel="+ Créer un patient"
+ *   createLabel="+ Create a patient"
  * />
  */
 export function ComboboxField<T extends object>({
@@ -53,7 +53,7 @@ export function ComboboxField<T extends object>({
   error,
   disabled,
   onCreateNew,
-  createLabel = "+ Créer",
+  createLabel = "+ Create",
 }: ComboboxFieldProps<T>) {
   const { query, setQuery, filteredItems } = useComboboxField(
     items,

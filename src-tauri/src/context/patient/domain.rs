@@ -24,7 +24,7 @@ pub struct Patient {
     pub latest_fund: Option<String>, // Fund ID (UUID) for fast lookup
     #[specta(type = String)]
     pub latest_date: Option<NaiveDate>, // Latest procedure date for chronological comparison
-    pub latest_procedure_amount: Option<i64>, // Amount of latest procedure in millièmes
+    pub latest_procedure_amount: Option<i64>, // Amount of latest procedure in thousandths of a euro
 }
 
 impl Patient {

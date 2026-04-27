@@ -1,46 +1,46 @@
-# Plan d'implémentation — Gestion des types d'actes
+# Implementation Plan — Procedure Type Management
 
-> Spec : `docs/spec/procedure-type-spec.md`
-> Règles couvertes : R1 → R23
+> Spec: `docs/spec/procedure-type.md`
+> Rules covered: R1 → R23
 
 ---
 
-## TODO — Ordre d'exécution
+## TODO — Execution order
 
-- [x] **1. Migration SQL** — renommer `"Import PDF"` → `"Import"`
+- [x] **1. SQL migration** — rename `"Import PDF"` → `"Import"`
 - [x] **2. Backend repository** — `find_by_name` case-insensitive (R4)
-- [x] **3. Backend service** — guard `import-pdf` + doublon + normalisation catégorie (R3, R4, R22)
-- [x] **4. Tests backend** — service.rs (R3, R4, R22)
+- [x] **3. Backend service** — `import-pdf` guard + duplicate check + category normalization (R3, R4, R22)
+- [x] **4. Backend tests** — service.rs (R3, R4, R22)
 - [x] **5. generate-types** — `just generate-types`
-- [x] **6. Frontend shared** — constante `RESERVED_PROCEDURE_TYPE_ID`
-- [x] **7. Frontend useProcedureTypeList** — filtre `import-pdf` + erreur + retry (R23, R15)
-- [x] **8. Frontend useProcedureTypeManager** — compteur filtré (R11, R23)
-- [x] **9. Frontend ProcedureTypeList** — états vide / aucun résultat / erreur (R12, R13, R15)
-- [x] **10. Frontend create_procedure_type_modal** — hook + composant FAB + modal (R16)
-- [x] **11. Frontend ProcedureTypeManager** — layout pleine largeur + FAB + nouvelle modal (R16)
-- [x] **12. Supprimer add_procedure_type_panel/**
+- [x] **6. Frontend shared** — `RESERVED_PROCEDURE_TYPE_ID` constant
+- [x] **7. Frontend useProcedureTypeList** — filter `import-pdf` + error + retry (R23, R15)
+- [x] **8. Frontend useProcedureTypeManager** — filtered counter (R11, R23)
+- [x] **9. Frontend ProcedureTypeList** — empty / no-result / error states (R12, R13, R15)
+- [x] **10. Frontend create_procedure_type_modal** — hook + FAB component + modal (R16)
+- [x] **11. Frontend ProcedureTypeManager** — full-width layout + FAB + new modal (R16)
+- [x] **12. Remove add_procedure_type_panel/**
 - [x] **13. i18n** — fr + en (R12, R13, R15, R16)
-- [x] **14. Tests frontend** — useCreateProcedureTypeModal + ProcedureTypeManager + ProcedureTypeList
+- [x] **14. Frontend tests** — useCreateProcedureTypeModal + ProcedureTypeManager + ProcedureTypeList
 - [x] **15. Quality checks** — `python3 scripts/check.py`
-- [x] **16. reviewer** — 0 critique avant de continuer
-- [x] **17. ux-reviewer** — 0 critique avant de continuer (.tsx modifiés)
-- [x] **18. i18n-checker** — clés manquantes / hardcodées
+- [x] **16. reviewer** — 0 finding before continuing
+- [x] **17. ux-reviewer** — 0 finding before continuing (.tsx files modified)
+- [x] **18. i18n-checker** — missing or hardcoded keys
 - [x] **19. Docs** — ARCHITECTURE.md + docs/todo.md
-- [x] **20. spec-checker** — R1→R23 tous couverts
+- [x] **20. spec-checker** — R1→R23 all covered
 
 ---
 
-## Plan détaillé
+## Detailed plan
 
-### Étape 1 — Migration base de données (R21)
+### Step 1 — Database migration (R21)
 
-Créer `src-tauri/migrations/20260406_rename_import_pdf.sql` :
+Create `src-tauri/migrations/20260406_rename_import_pdf.sql`:
 
 ```sql
 UPDATE procedure_type SET name = 'Import' WHERE id = 'import-pdf';
 ```
 
-Puis :
+Then:
 
 ```bash
 just clean-db
@@ -49,40 +49,40 @@ just prepare-sqlx
 
 ---
 
-### Étape 2 — Backend : repository (R4)
+### Step 2 — Backend: repository (R4)
 
 **`src-tauri/src/context/procedure/repository/procedure_type.rs`**
 
-- Méthode `find_by_name` : remplacer `WHERE name = $1` par `WHERE LOWER(name) = LOWER($1) AND is_deleted = 0`
-- Signature du trait inchangée : `async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>>`
+- `find_by_name` method: replace `WHERE name = $1` with `WHERE LOWER(name) = LOWER($1) AND is_deleted = 0`
+- Trait signature unchanged: `async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>>`
 
 ---
 
-### Étape 3 — Backend : service (R3, R4, R22)
+### Step 3 — Backend: service (R3, R4, R22)
 
 **`src-tauri/src/context/procedure/service.rs`**
 
-**`add_procedure_type`** :
+**`add_procedure_type`**:
 
-- Normaliser catégorie vide → `None` : `let category = category.filter(|s| !s.trim().is_empty());`
-- Avant création, appeler `self.repository.find_by_name(name.trim())` → si trouvé : `anyhow::bail!("Un type d'acte portant ce nom existe déjà")`
+- Normalize empty category → `None`: `let category = category.filter(|s| !s.trim().is_empty());`
+- Before creation, call `self.repository.find_by_name(name.trim())` → if found: `anyhow::bail!("A procedure type with this name already exists")`
 
-**`update_procedure_type`** :
+**`update_procedure_type`**:
 
-- Guard en premier : `if procedure_type.id == "import-pdf" { anyhow::bail!("Le type réservé import-pdf ne peut pas être modifié") }`
-- Vérification doublon : `find_by_name(name.trim())` → si trouvé et `found.id != procedure_type.id` → bail doublon
+- Guard first: `if procedure_type.id == "import-pdf" { anyhow::bail!("The reserved import-pdf type cannot be edited") }`
+- Duplicate check: `find_by_name(name.trim())` → if found and `found.id != procedure_type.id` → bail duplicate
 
-**`delete_procedure_type`** :
+**`delete_procedure_type`**:
 
-- Guard en premier : `if id == "import-pdf" { anyhow::bail!("Le type réservé import-pdf ne peut pas être supprimé") }`
+- Guard first: `if id == "import-pdf" { anyhow::bail!("The reserved import-pdf type cannot be deleted") }`
 
 ---
 
-### Étape 4 — Tests backend (R3, R4, R22)
+### Step 4 — Backend tests (R3, R4, R22)
 
-**`src-tauri/src/context/procedure/service.rs`** — module `#[cfg(test)]`
+**`src-tauri/src/context/procedure/service.rs`** — `#[cfg(test)]` module
 
-Tests à ajouter :
+Tests to add:
 
 - `test_add_procedure_type_rejects_duplicate_name`
 - `test_add_procedure_type_normalizes_empty_category`
@@ -93,7 +93,7 @@ Tests à ajouter :
 
 ---
 
-### Étape 5 — Synchronisation des types
+### Step 5 — Type synchronization
 
 ```bash
 just generate-types
@@ -101,7 +101,7 @@ just generate-types
 
 ---
 
-### Étape 6 — Frontend : constante réservée (R23)
+### Step 6 — Frontend: reserved constant (R23)
 
 **`src/features/procedure-type/shared/types.ts`**
 
@@ -111,71 +111,71 @@ export const RESERVED_PROCEDURE_TYPE_ID = "import-pdf";
 
 ---
 
-### Étape 7 — Frontend : filtre + erreur + retry (R23, R15)
+### Step 7 — Frontend: filter + error + retry (R23, R15)
 
 **`src/features/procedure-type/procedure_type_list/useProcedureTypeList.ts`**
 
-- Filtrer avant map : `.filter(pt => pt.id !== RESERVED_PROCEDURE_TYPE_ID)`
-- Ajouter `error: string | null` et `retry: () => void` (appel gateway direct)
+- Filter before mapping: `.filter(pt => pt.id !== RESERVED_PROCEDURE_TYPE_ID)`
+- Add `error: string | null` and `retry: () => void` (direct gateway call)
 
 ---
 
-### Étape 8 — Frontend : compteur filtré (R11, R23)
+### Step 8 — Frontend: filtered counter (R11, R23)
 
-**`src/features/procedure-type/useProcedureTypeManager.ts`** (ou fichier équivalent)
+**`src/features/procedure-type/useProcedureTypeManager.ts`** (or equivalent file)
 
-- Compteur : `procedureTypes.filter(pt => pt.id !== RESERVED_PROCEDURE_TYPE_ID).length`
+- Counter: `procedureTypes.filter(pt => pt.id !== RESERVED_PROCEDURE_TYPE_ID).length`
 
 ---
 
-### Étape 9 — Frontend : 5 états du tableau (R12, R13, R15)
+### Step 9 — Frontend: 5 table states (R12, R13, R15)
 
 **`src/features/procedure-type/procedure_type_list/ProcedureTypeList.tsx`**
 
-5 états `tbody` distincts :
+5 distinct `tbody` states:
 
-1. `loading` → ligne animée (existant)
-2. `error` → message + bouton "Réessayer" (**nouveau** — R15)
-3. `rows.length === 0 && !searchTerm` → message vide avec invite FAB (R12)
-4. `sortedAndFiltered.length === 0 && searchTerm` → message neutre sans invite (R13)
-5. Lignes de données (existant)
-
----
-
-### Étape 10 — Frontend : modal de création (R16)
-
-**Créer `src/features/procedure-type/create_procedure_type_modal/useCreateProcedureTypeModal.ts`**
-
-- Migrer logique depuis `useAddProcedureTypePanel.ts`
-- Reset formulaire à la fermeture (`useEffect` sur `isOpen`)
-- Exposer : `formData`, `errors`, `loading`, `handleChange`, `handleSubmit`
-
-**Créer `src/features/procedure-type/create_procedure_type_modal/CreateProcedureTypeModal.tsx`**
-
-- Utiliser `FormModal` (de `ui/components`)
-- Réutiliser `ProcedureTypeForm` depuis `shared/`
-- Props : `isOpen: boolean`, `onClose: () => void`
-- Erreur backend → snackbar erreur, modal reste ouverte (R16)
-- Succès → modal fermée + formulaire réinitialisé (R16)
+1. `loading` → animated row (existing)
+2. `error` → message + "Retry" button (**new** — R15)
+3. `rows.length === 0 && !searchTerm` → empty message with FAB invitation (R12)
+4. `sortedAndFiltered.length === 0 && searchTerm` → neutral message without invitation (R13)
+5. Data rows (existing)
 
 ---
 
-### Étape 11 — Frontend : ProcedureTypeManager (R16)
+### Step 10 — Frontend: creation modal (R16)
+
+**Create `src/features/procedure-type/create_procedure_type_modal/useCreateProcedureTypeModal.ts`**
+
+- Migrate logic from `useAddProcedureTypePanel.ts`
+- Reset form on close (`useEffect` on `isOpen`)
+- Expose: `formData`, `errors`, `loading`, `handleChange`, `handleSubmit`
+
+**Create `src/features/procedure-type/create_procedure_type_modal/CreateProcedureTypeModal.tsx`**
+
+- Use `FormModal` (from `ui/components`)
+- Reuse `ProcedureTypeForm` from `shared/`
+- Props: `isOpen: boolean`, `onClose: () => void`
+- Backend error → error snackbar, modal stays open (R16)
+- Success → modal closed + form reset (R16)
+
+---
+
+### Step 11 — Frontend: ProcedureTypeManager (R16)
 
 **`src/features/procedure-type/ProcedureTypeManager.tsx`**
 
-- Remplacer `ManagerLayout` par layout `div` pleine largeur :
-  - `ManagerHeader` (titre, compteur filtré, champ recherche)
-  - `div` scrollable contenant `ProcedureTypeList`
-  - `FAB` (`ui/components`) positionné `fixed bottom-12 right-12`
-  - `CreateProcedureTypeModal` (état local `isCreateModalOpen`)
-- Supprimer imports `AddProcedureTypePanel` et `ManagerLayout`
+- Replace `ManagerLayout` with a full-width `div` layout:
+  - `ManagerHeader` (title, filtered counter, search field)
+  - Scrollable `div` containing `ProcedureTypeList`
+  - `FAB` (`ui/components`) positioned `fixed bottom-12 right-12`
+  - `CreateProcedureTypeModal` (local `isCreateModalOpen` state)
+- Remove imports `AddProcedureTypePanel` and `ManagerLayout`
 
 ---
 
-### Étape 12 — Suppression add_procedure_type_panel/
+### Step 12 — Removal of add_procedure_type_panel/
 
-Supprimer :
+Delete:
 
 - `src/features/procedure-type/add_procedure_type_panel/AddProcedureTypePanel.tsx`
 - `src/features/procedure-type/add_procedure_type_panel/useAddProcedureTypePanel.ts`
@@ -183,45 +183,45 @@ Supprimer :
 
 ---
 
-### Étape 13 — i18n (R12, R13, R15, R16)
+### Step 13 — i18n (R12, R13, R15, R16)
 
-**`src/i18n/locales/fr/procedure-type.json`** et **`src/i18n/locales/en/procedure-type.json`**
+**`src/i18n/locales/fr/procedure-type.json`** and **`src/i18n/locales/en/procedure-type.json`**
 
-Ajouter sous `list` :
+Add under `list`:
 
-| Clé              | FR                                                            | EN                                                          |
+| Key              | FR                                                            | EN                                                          |
 | ---------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
 | `list.noResults` | `"Aucun type d'acte ne correspond à votre recherche."`        | `"No procedure types match your search."`                   |
 | `list.empty`     | `"Aucun type d'acte. Utilisez le bouton + pour en créer un."` | `"No procedure types yet. Use the + button to create one."` |
 | `list.loadError` | `"Impossible de charger les types d'actes."`                  | `"Failed to load procedure types."`                         |
 | `list.retry`     | `"Réessayer"`                                                 | `"Retry"`                                                   |
 
-Supprimer clés obsolètes liées au side-panel (`page.addDescription`, `action.adding` si inutilisées).
+Remove obsolete keys related to the side panel (`page.addDescription`, `action.adding` if unused).
 
 ---
 
-### Étape 14 — Tests frontend
+### Step 14 — Frontend tests
 
-**Créer `src/features/procedure-type/create_procedure_type_modal/useCreateProcedureTypeModal.test.ts`**
+**Create `src/features/procedure-type/create_procedure_type_modal/useCreateProcedureTypeModal.test.ts`**
 
-- Soumission valide → `addProcedureType` appelé + formulaire réinitialisé
-- Nom vide → erreur inline, pas d'appel gateway
-- Erreur backend (doublon) → snackbar erreur, modal reste ouverte
+- Valid submission → `addProcedureType` called + form reset
+- Empty name → inline error, no gateway call
+- Backend error (duplicate) → error snackbar, modal stays open
 
-**Modifier `src/features/procedure-type/ProcedureTypeManager.test.tsx`**
+**Edit `src/features/procedure-type/ProcedureTypeManager.test.tsx`**
 
-- Clic FAB → modal de création s'ouvre
-- Compteur exclut `import-pdf`
+- FAB click → creation modal opens
+- Counter excludes `import-pdf`
 
-**Modifier `src/features/procedure-type/procedure_type_list/ProcedureTypeList.test.tsx`**
+**Edit `src/features/procedure-type/procedure_type_list/ProcedureTypeList.test.tsx`**
 
-- État vide (0 types, pas de recherche) → message avec invite FAB
-- Aucun résultat (recherche sans match) → message neutre sans invite
-- État erreur → message + bouton "Réessayer"
+- Empty state (0 types, no search) → message with FAB invitation
+- No results (search with no match) → neutral message without invitation
+- Error state → message + "Retry" button
 
 ---
 
-### Étape 15 — Quality checks
+### Step 15 — Quality checks
 
 ```bash
 python3 scripts/check.py
@@ -229,31 +229,31 @@ python3 scripts/check.py
 
 ---
 
-### Étape 16 — Code review (agent `reviewer`)
+### Step 16 — Code review (`reviewer` agent)
 
-Lancer l'agent `reviewer` sur les fichiers modifiés. Afficher le rapport complet. Corriger les critiques. Re-lancer jusqu'à 0 critique.
-
----
-
-### Étape 17 — UX review (agent `ux-reviewer`)
-
-Des fichiers `.tsx` ont été modifiés → lancer l'agent `ux-reviewer`. Afficher le rapport complet. Corriger les critiques. Re-lancer jusqu'à 0 critique.
+Run the `reviewer` agent on the modified files. Display the full report. Fix the findings. Re-run until 0 finding.
 
 ---
 
-### Étape 18 — i18n check (agent `i18n-checker`)
+### Step 17 — UX review (`ux-reviewer` agent)
 
-Du texte frontend a été ajouté/modifié → lancer l'agent `i18n-checker`. Corriger les clés manquantes ou hardcodées.
-
----
-
-### Étape 19 — Documentation
-
-- `ARCHITECTURE.md` — section `procedure-type/` : noter `create_procedure_type_modal/` (remplace `add_procedure_type_panel/`)
-- `docs/todo.md` — retirer les items résolus liés à `procedure-type`
+`.tsx` files were modified → run the `ux-reviewer` agent. Display the full report. Fix the findings. Re-run until 0 finding.
 
 ---
 
-### Étape 20 — Spec checker (agent `spec-checker`)
+### Step 18 — i18n check (`i18n-checker` agent)
 
-Lancer l'agent `spec-checker` sur `docs/spec/procedure-type-spec.md` pour vérifier que toutes les règles R1→R23 sont implémentées et couvertes par des tests.
+Frontend text was added/modified → run the `i18n-checker` agent. Fix missing or hardcoded keys.
+
+---
+
+### Step 19 — Documentation
+
+- `ARCHITECTURE.md` — `procedure-type/` section: note `create_procedure_type_modal/` (replaces `add_procedure_type_panel/`)
+- `docs/todo.md` — remove resolved items related to `procedure-type`
+
+---
+
+### Step 20 — Spec checker (`spec-checker` agent)
+
+Run the `spec-checker` agent on `docs/spec/procedure-type.md` to verify that all rules R1→R23 are implemented and covered by tests.

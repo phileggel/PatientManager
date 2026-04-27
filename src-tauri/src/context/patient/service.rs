@@ -170,7 +170,7 @@ mod tests {
             if self.should_fail {
                 return Err(anyhow!("Update failed"));
             }
-            // Retourne le patient passé en paramètre pour simuler l'update
+            // Return the patient passed as parameter to simulate the update
             Ok(_patient)
         }
 

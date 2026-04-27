@@ -178,7 +178,7 @@ fn format_procedure_date(
     }
 }
 
-/// Format an i64 millièmes amount as euros with French locale (comma separator)
+/// Format an i64 thousandths-of-euro amount as euros with French locale (comma separator)
 /// e.g. 50000 → "50,00", 1234560 → "1234,56"
 fn format_french_decimal(value: i64) -> String {
     let euros = value as f64 / 1000.0;

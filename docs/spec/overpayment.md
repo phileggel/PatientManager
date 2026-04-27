@@ -12,9 +12,9 @@ Recording an overpayment creates a "mirror" negative record across the entire ch
 
 The following domain changes are required before this feature can be implemented:
 
-1. **`PaymentStatus` enum extension**: Add `Overpaid` and `OverpaymentRefund` to the `Procedure` payment status enum and the corresponding SQLite migration. The procedure lifecycle table in `procedure-orchestration-spec.md` must also be updated to include these statuses (already done as part of this spec).
+1. **`PaymentStatus` enum extension**: Add `Overpaid` and `OverpaymentRefund` to the `Procedure` payment status enum and the corresponding SQLite migration. The procedure lifecycle table in `procedure-orchestration.md` must also be updated to include these statuses (already done as part of this spec).
 2. **`TransferType` enum extension**: Add an `OutgoingWire` variant to the `BankTransfer.transfer_type` enum and the corresponding migration. This variant represents an outgoing refund payment (distinct from `Fund`, which is an incoming insurance payment). It is only creatable via the overpayment flow and must not be exposed in the bank statement manual-match UI.
-3. **POC R5 update**: The procedure deletion guard in `procedure-orchestration-spec.md` (POC R5) must be extended to include `Overpaid` and `OverpaymentRefund`. REF-220 and REF-230 are the authoritative definitions; POC R5 must cross-reference them.
+3. **POC R5 update**: The procedure deletion guard in `procedure-orchestration.md` (POC R5) must be extended to include `Overpaid` and `OverpaymentRefund`. REF-220 and REF-230 are the authoritative definitions; POC R5 must cross-reference them.
 4. **`ProcedureRefund` repository**: Although the entity spans multiple contexts, its persistence (repository trait, migration, SQLite implementation) is owned by the `context/procedure/` bounded context, as the `ProcedureRefund` record is a direct extension of the procedure domain.
 
 ---

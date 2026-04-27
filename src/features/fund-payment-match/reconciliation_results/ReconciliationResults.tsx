@@ -147,7 +147,7 @@ export function ReconciliationResultsView({
           onClick={goPrev}
           disabled={currentIndex === 0}
           className="m3-icon-button-primary disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label="Anomalie précédente"
+          aria-label={t("results.prevAria")}
         >
           <ArrowLeft size={18} />
         </button>
@@ -164,7 +164,7 @@ export function ReconciliationResultsView({
           onClick={goNext}
           disabled={currentIndex === total - 1}
           className="m3-icon-button-primary disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label="Anomalie suivante"
+          aria-label={t("results.nextAria")}
         >
           <ArrowRight size={18} />
         </button>
@@ -234,7 +234,7 @@ export function ReconciliationResultsView({
                       ? "w-2 h-2 bg-m3-success/60"
                       : "w-2 h-2 bg-m3-outline/30 hover:bg-m3-outline/60"
                 }`}
-                aria-label={`Aller à l'anomalie ${i + 1}`}
+                aria-label={t("results.dotAria", { index: i + 1 })}
               />
             );
           })}

@@ -1,8 +1,6 @@
 /**
  * EditFundPaymentModal - Modal for editing a fund payment group
  *
- * Design reference: docs/stitch/update-fund-payment-modal.stitch (Clinical Atelier)
- *
  * Layout:
  * - Read-only fund info grid (fund name + fund identifier)
  * - Payment date field
