@@ -51,6 +51,19 @@ use crate::core::logger::BACKEND;
 tracing::info!(name: BACKEND, field = value, "message");
 ```
 
+## UseCase - Service
+
+**B18** — Use cases MUST depend only on bounded context services. 
+They MUST NOT depend on repositories, domain entities' persistence concerns, or
+infrastructure types (sqlx::Pool, sqlx::Transaction, sqlx::query!, etc.).
+Reaching into a context's data goes through that context's service.
+
+**B19** — Bounded context services MAY expose thin pass-through methods that
+delegate to a repository (e.g., existence checks). 
+They MUST NOT expose repository types or sqlx types in their public signature.
+
+**B20** - If atomic transaction is needed, orchestrator or service MUST use UnitOfWork pattern.
+
 ## General
 
 **B13** — MUST use `anyhow::Result<T>` for error handling.
@@ -69,3 +82,7 @@ tracing::info!(name: BACKEND, field = value, "message");
 - An empty input returns empty output (no logic traversed)
 - A getter returns what was just passed in
 - A test helper disguised as a test
+
+**B21** — Unit tests (mod tests inside src/) MUST mock repository dependencies using mockall-generated mocks. 
+
+**B22** — Integration tests (tests/ folder) MUST use real SQLite repos. They test cross-layer behavior end-to-end and MUST NOT use mocks.
