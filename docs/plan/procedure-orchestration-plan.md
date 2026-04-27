@@ -1,6 +1,6 @@
 # Procedure Orchestration — Amendment Plan [DONE]
 
-> Spec: `docs/spec/procedure-orchestration-spec.md`
+> Spec: `docs/spec/procedure-orchestration.md`
 > Scope: Amendments only — rules R6, R9, R18, R26, R28, R29, R30, R31, R32.
 > Existing feature: `src/features/procedure/` (layer-first layout: `api/`, `hooks/`, `model/`, `ui/`)
 > Backend: `src-tauri/src/use_cases/procedure_orchestration/`
@@ -39,7 +39,7 @@
 | R9 (amended)  | Frontend | Remove `CreateFundForm` from modal and all related state                                                                                                     | Tasks F-1, F-2, F-3      |
 | R18 (amended) | Backend  | Add `tracing::warn!` in `update_procedure` handler when blocking-status acte is updated with fields other than `procedure_type_id`                           | Task B-1                 |
 | R26 (amended) | Frontend | Refactor view mode: read-only patient display uses INS format, hide system info block and payment info, enable save button with loading/success/error states | Tasks F-4, F-5           |
-| R28 (new)     | Frontend | Create `formatPatientLabel(patient)` helper function returning `"NOM Prénom (INS)"` when SSN present, `"NOM Prénom"` otherwise                               | Task F-6                 |
+| R28 (new)     | Frontend | Create `formatPatientLabel(patient)` helper function returning `"LASTNAME Firstname (SSN)"` when SSN present, `"LASTNAME Firstname"` otherwise              | Task F-6                 |
 | R29 (new)     | Frontend | ComboboxField patient in edit mode: items use R28 format, `displayKey` renders via formatter                                                                 | Tasks F-7, F-8           |
 | R30 (new)     | Frontend | Edit mode: remove system info block (ID), remove payment info section, keep patient/fund/type/date/amount editable with loading/success/error                | Task F-9                 |
 | R31 (new)     | Frontend | Apply `formatPatientLabel` in ComboboxField items (create + edit), selected value display, and read-only patient in view mode                                | Tasks F-6, F-7, F-8, F-4 |

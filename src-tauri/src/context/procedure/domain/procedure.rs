@@ -62,8 +62,8 @@ pub enum ProcedureStatus {
 /// to Patient, Fund, and Procedure Type. Uses soft-delete pattern.
 ///
 /// Payment tracking:
-/// - procedure_amount: Total amount charged/invoiced for the procedure (millièmes)
-/// - actual_payment_amount: Amount actually paid/received from patient or fund (millièmes)
+/// - procedure_amount: Total amount charged/invoiced for the procedure (thousandths of a euro)
+/// - actual_payment_amount: Amount actually paid/received from patient or fund (thousandths of a euro)
 /// - confirmed_payment_date: When the payment was confirmed (from reconciliation)
 /// - payment_method: How payment was made (Cash/Check/BankCard/BankTransfer/None)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -77,7 +77,7 @@ pub struct Procedure {
     /// Procedure date (required, ISO format: YYYY-MM-DD)
     #[specta(type = String)]
     pub procedure_date: NaiveDate,
-    /// Total amount charged/invoiced for this procedure, in millièmes (e.g. 1234 = 1.234 €)
+    /// Total amount charged/invoiced for this procedure, in thousandths of a euro (e.g. 1234 = 1.234 €)
     /// Optional - uses procedure type default amount if not specified
     /// Source: Excel import column F or manual entry
     pub procedure_amount: Option<i64>,
@@ -106,7 +106,7 @@ pub struct Procedure {
     #[specta(type = String)]
     pub confirmed_payment_date: Option<NaiveDate>,
 
-    /// Actual amount paid/received from patient or fund, in millièmes (e.g. 1234 = 1.234 €)
+    /// Actual amount paid/received from patient or fund, in thousandths of a euro (e.g. 1234 = 1.234 €)
     /// May differ from procedure_amount (partial payment, overpayment, etc.)
     /// Source: Excel import column K or reconciliation statement
     pub actual_payment_amount: Option<i64>,
@@ -278,7 +278,7 @@ impl Procedure {
     /// Reverts fund payment info when a FUND bank transfer is deleted (R8).
     ///
     /// Clears payment_method and restores confirmed_payment_date to the group's payment date.
-    /// actual_payment_amount is preserved (per R8 spec: "conservé").
+    /// actual_payment_amount is preserved (per R8 spec).
     pub fn revert_fund_payment(mut self, group_payment_date: NaiveDate) -> Self {
         self.payment_method = PaymentMethod::None;
         self.confirmed_payment_date = Some(group_payment_date);

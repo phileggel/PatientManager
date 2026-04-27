@@ -1,40 +1,40 @@
-# ADR 001 — Persistance des mappings label→fonds (BankFundLabelMapping)
+# ADR 001 — Persistence of label→fund mappings (BankFundLabelMapping)
 
 **Date**: 2026-04-07
 **Status**: Accepted
 
 ## Context
 
-Le rapprochement bancaire automatique (spec `bank-statement-auto-match`) nécessite de mémoriser par compte bancaire l'association entre un label de virement (ex. `CPAM93`) et un fonds de la base, ou son rejet explicite (label non-caisse). Ces mappings sont saisis par l'utilisateur lors du premier import d'un relevé et doivent être pré-remplis lors des imports suivants.
+Automatic bank reconciliation (spec `bank-statement-auto-match`) needs to remember, per bank account, the association between a transfer label (e.g. `CPAM93`) and a fund in the database, or an explicit rejection (non-fund label). These mappings are entered by the user during the first import of a statement and must be pre-filled on subsequent imports.
 
-Trois décisions de conception ont été prises lors de l'implémentation initiale (R1–R22) :
+Three design decisions were made during the initial implementation (R1–R22):
 
-1. Comment représenter l'état "rejeté" en base.
-2. Quelle stratégie d'upsert adopter pour éviter la duplication des enregistrements.
-3. Comment garantir l'unicité fonctionnelle `(compte, label)` tout en restant cohérent avec le pattern soft-delete du projet.
+1. How to represent the "rejected" state in the database.
+2. Which upsert strategy to adopt to avoid duplicate records.
+3. How to guarantee functional uniqueness `(account, label)` while staying consistent with the project's soft-delete pattern.
 
-## Décision
+## Decision
 
-### 1. Rejet représenté par `fund_id = NULL`
+### 1. Rejection represented by `fund_id = NULL`
 
-L'état "rejeté" (label identifié comme non-caisse) est stocké comme `fund_id = NULL` dans la table `bank_fund_label_mapping`. Pas de colonne `is_rejected` booléenne séparée.
+The "rejected" state (label identified as non-fund) is stored as `fund_id = NULL` in the `bank_fund_label_mapping` table. No separate `is_rejected` boolean column.
 
-L'API Rust accepte la valeur sentinelle `"REJECTED"` en entrée (cohérence avec le frontend) et la convertit en `None` avant persistance. Le type de domaine `BankFundLabelMapping` expose `fund_id: Option<String>` — `None` = rejeté, `Some(id)` = fonds affecté.
+The Rust API accepts the sentinel value `"REJECTED"` as input (for consistency with the frontend) and converts it to `None` before persistence. The `BankFundLabelMapping` domain type exposes `fund_id: Option<String>` — `None` = rejected, `Some(id)` = fund assigned.
 
-**Alternatives considérées :**
+**Alternatives considered:**
 
-- Colonne `is_rejected BOOLEAN` séparée : redondante avec la nullabilité de `fund_id`, introduit un état incohérent possible (`fund_id` renseigné ET `is_rejected = true`).
-- Valeur sentinelle persistée en base (`"REJECTED"`) : viole l'intégrité référentielle (FK sur `fund_id`).
+- Separate `is_rejected BOOLEAN` column: redundant with `fund_id` nullability, introduces a possible inconsistent state (`fund_id` set AND `is_rejected = true`).
+- Sentinel value persisted in the database (`"REJECTED"`): violates referential integrity (FK on `fund_id`).
 
-### 2. Upsert par check-then-update
+### 2. Upsert via check-then-update
 
-La sauvegarde d'un mapping effectue d'abord une recherche de l'enregistrement actif `(bank_account_id, bank_label)`, puis une mise à jour `UPDATE SET fund_id` si trouvé, ou un `INSERT` sinon.
+Saving a mapping first looks up the active record `(bank_account_id, bank_label)`, then performs an `UPDATE SET fund_id` if found, or an `INSERT` otherwise.
 
-Cette approche préserve l'`id` UUID de l'enregistrement à travers les mises à jour, contrairement à `INSERT OR REPLACE` qui génèrerait un nouvel UUID à chaque upsert et casserait toute référence externe potentielle.
+This approach preserves the record's UUID `id` across updates, unlike `INSERT OR REPLACE` which would generate a new UUID on every upsert and break any potential external reference.
 
-### 3. Soft-delete avec index partiel d'unicité
+### 3. Soft-delete with partial uniqueness index
 
-La table utilise `is_deleted INTEGER NOT NULL DEFAULT 0` (cohérent avec toutes les autres entités du projet). L'unicité fonctionnelle est garantie par un index partiel :
+The table uses `is_deleted INTEGER NOT NULL DEFAULT 0` (consistent with all other entities in the project). Functional uniqueness is guaranteed by a partial index:
 
 ```sql
 CREATE UNIQUE INDEX idx_bank_fund_label_active
@@ -42,18 +42,18 @@ CREATE UNIQUE INDEX idx_bank_fund_label_active
     WHERE is_deleted = 0;
 ```
 
-Cela permet à un enregistrement soft-deleted de coexister avec un nouvel enregistrement actif pour le même `(compte, label)`, sans contrainte d'unicité globale.
+This allows a soft-deleted record to coexist with a new active record for the same `(account, label)`, without a global uniqueness constraint.
 
-La clé fonctionnelle est donc `(bank_account_id, bank_label)` parmi les enregistrements actifs.
+The functional key is therefore `(bank_account_id, bank_label)` among active records.
 
 ## Consequences
 
-- **Pros** :
-  - Cohérence totale avec le pattern soft-delete du projet (pas d'exception).
-  - `fund_id: Option<String>` est idiomatique en Rust — le compilateur force la gestion du cas `None`.
-  - L'`id` UUID est stable à travers les mises à jour, compatible avec d'éventuelles références futures.
-  - FK sur `fund_id` garantie par SQLite (NULL exclu de la vérification FK).
+- **Pros**:
+  - Full consistency with the project's soft-delete pattern (no exception).
+  - `fund_id: Option<String>` is idiomatic in Rust — the compiler forces handling of the `None` case.
+  - The UUID `id` is stable across updates, compatible with potential future references.
+  - FK on `fund_id` enforced by SQLite (NULL excluded from FK checks).
 
-- **Cons** :
-  - Si un fonds est supprimé (soft-delete), ses mappings actifs pointent vers un `fund_id` valide en base mais vers une entité invisible dans l'UI — orphelins fonctionnels non détectés au niveau SQL. Comportement accepté : la cascade soft-delete sur les mappings n'est pas implémentée.
-  - La valeur sentinelle `"REJECTED"` dans l'API de commande Tauri (`save_bank_fund_label_mappings`) est une convention implicite non typée côté frontend — un type discriminant explicite serait plus robuste.
+- **Cons**:
+  - If a fund is deleted (soft-delete), its active mappings point to a `fund_id` that is valid in the database but invisible in the UI — functional orphans not detected at the SQL level. Accepted behavior: cascading soft-delete to mappings is not implemented.
+  - The sentinel value `"REJECTED"` in the Tauri command API (`save_bank_fund_label_mappings`) is an implicit, untyped convention on the frontend — an explicit discriminated type would be more robust.

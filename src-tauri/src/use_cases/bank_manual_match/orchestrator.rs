@@ -547,7 +547,7 @@ impl BankManualMatchOrchestrator {
                         other => other, // Unexpected — leave as-is
                     };
                     // Restore confirmed_payment_date to group payment_date, clear payment_method (R8)
-                    // actual_payment_amount is conserved (R8 spec: "conservé")
+                    // actual_payment_amount is preserved (per R8 spec)
                     p.revert_fund_payment(group.payment_date)
                 })
                 .collect();

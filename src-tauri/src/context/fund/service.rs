@@ -407,7 +407,7 @@ mod tests {
             fund_name: &str,
         ) -> anyhow::Result<AffiliatedFund> {
             if self.should_fail {
-                // On utilise anyhow! pour créer l'erreur
+                // Use anyhow! to build the error
                 return Err(anyhow!("Mock repository error"));
             }
             Ok(AffiliatedFund {
@@ -491,7 +491,7 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        // Pour comparer une erreur anyhow, on compare sa représentation en String
+        // To compare an anyhow error, compare its String representation
         assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
     }
 

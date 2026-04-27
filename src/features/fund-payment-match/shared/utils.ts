@@ -168,7 +168,7 @@ export function countTotalAnomalies(result: { matches: ReconciliationMatch[] }):
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
-/** Format a millièmes amount as euros string, e.g. 50000 → "50.00" */
-export function formatAmount(millièmes: number): string {
-  return (millièmes / 1000).toFixed(2);
+/** Format a thousandths-of-euro amount as a euros string, e.g. 50000 → "50.00" */
+export function formatAmount(thousandths: number): string {
+  return (thousandths / 1000).toFixed(2);
 }

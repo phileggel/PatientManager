@@ -265,7 +265,7 @@ Key domain types:
 
 **Entry point: `BankStatementOrchestrator`**
 
-Parses bank statements (PDF/bytes) and creates bank transfers linked to fund payment groups. Spec: [docs/spec/bank-statement-auto-match-spec.md](docs/spec/bank-statement-auto-match-spec.md)
+Parses bank statements (PDF/bytes) and creates bank transfers linked to fund payment groups. Spec: [docs/spec/bank-statement-auto-match.md](docs/spec/bank-statement-auto-match.md)
 
 Key domain types:
 - `BankStatementParseResult` — iban, credit_lines, total_credits

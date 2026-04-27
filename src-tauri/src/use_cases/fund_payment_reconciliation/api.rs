@@ -40,7 +40,7 @@ pub struct NormalizedPdfLine {
     pub procedure_end_date: NaiveDate,
     /// True if this line covers a period (start ≠ end)
     pub is_period: bool,
-    /// Amount in millièmes (e.g. 1234 = 1.234 €)
+    /// Amount in thousandths of a euro (e.g. 1234 = 1.234 €)
     pub amount: i64,
 }
 
@@ -54,7 +54,7 @@ pub struct PdfProcedureGroup {
     /// Payment date for this group
     #[specta(type = String)]
     pub payment_date: NaiveDate,
-    /// Total amount stated in the PDF (millièmes)
+    /// Total amount stated in the PDF (thousandths of a euro)
     pub total_amount: i64,
     /// Whether the sum of line amounts matches the stated total
     pub is_total_valid: bool,
@@ -239,7 +239,7 @@ pub enum AutoCorrection {
     /// Sets payment_status to PartiallyReconciled.
     ContestAmount {
         procedure_id: String,
-        /// Amount actually paid by the fund (from PDF), in millièmes
+        /// Amount actually paid by the fund (from PDF), in thousandths of a euro
         actual_payment_amount: i64,
     },
 }

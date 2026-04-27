@@ -2,46 +2,46 @@
 
 ## (backend/frontend) — Specta
 
-convertir les objets domain en camelCase lors du passage ds le frontend
+Convert domain objects to camelCase when crossing into the frontend.
 
 ## (frontend/fund-payment) — confirmed_payment_date
 
-normalement la date de confirmation de paiement ne devrait pas etre mise à jour par cette opération (on doit attendre le bank-transfer)
+Normally the payment confirmation date should not be updated by this operation (it should wait for the bank-transfer).
 
-## (backend/fund) — Tech Debt fund/patient creation in reconciliation feature
+## (backend/fund) — Tech Debt: fund/patient creation in reconciliation feature
 
-- Actuellement les fund/patient sont créé automatiquement lors d'une réconciliation fund-payment
-- est-ce normal ?
-- solution ?
+- Currently fund/patient records are created automatically during fund-payment reconciliation.
+- Is this expected?
+- What's the right solution?
 
-## (backend/fund) — Tech debt purpose of FundPaymentLine as domain object
+## (backend/fund) — Tech debt: purpose of FundPaymentLine as domain object
 
-## (frontend/procedure) — Page procédure
+## (frontend/procedure) — Procedure page
 
-- fix: recu/en attente toujours egal a 0 (??) → à vérifier en prod : `actualPaymentAmount` est calculé dans SummaryStats, `awaitedAmount` calculé côté frontend (procedureAmount - actualPaymentAmount)
+- fix: "received / pending" always equal to 0 (??) → to verify in prod: `actualPaymentAmount` is computed in SummaryStats, `awaitedAmount` computed on the frontend (procedureAmount - actualPaymentAmount)
 
-## (frontend/fund-payment-match) — Page Rapprochement Caisse
+## (frontend/fund-payment-match) — Reconciliation page
 
-- supprimer le texte en dessous du titre (doublon)
-- vérifier la limite indiquée (10MO, pourquoi?)
+- Remove the duplicated text under the title.
+- Verify the displayed limit (10 MB — why?).
 
-## (frontend) — Tech debt — showSnackbar deprecated
+## (frontend) — Tech debt: showSnackbar deprecated
 
 8 components still use the backward-compat showSnackbar shim instead of toastService.show()
 directly. Should be migrated at some point.
 
-## (backend) — Tech debt - Event emission reduction — Steps 3 & 4
+## (backend) — Tech debt: Event emission reduction — Steps 3 & 4
 
 From the previous multi-session work (noted in memory):
 
 - Step 3: Batch patient/fund creation during reconciliation (instead of N individual creations)
 - Step 4: Batch group creation events
 
-## (frontend/fund-payment-match) — retour sur le précédant
+## (frontend/fund-payment-match) — Back-then-forward shortcut
 
-retour sur le précédant, on réavance direct sur le suivant (rapprochement caisse)
+When the user goes back to the previous step, advance directly to the next one (reconciliation flow).
 
-## (backend/excel-import) — Reduce import excel logs
+## (backend/excel-import) — Reduce excel-import logs
 
 ## (frontend/fund-payment) — Date range in list
 
@@ -68,44 +68,36 @@ Highest priority (behavioral regressions possible):
 - R11 — No integration test for post-delete procedure state reset
 - R10 — No test for is_locked recomputation in read_all_fund_payment_groups
 
-## saisie des actes: champs reçu et en attente ne sont jamais mis à jour → doublon avec todo ci-dessus, à vérifier en prod
+## Procedure entry: "received" and "pending" fields are never updated → duplicate of the todo above, to verify in prod
 
-## ~~(backend/procedure-orchestration) — Full table scan in delete_procedure (R20)~~ ✅ DONE
+## (frontend/procedure) — Default patient info when procedure type is deleted
 
-Added `read_procedures_by_patient_id` to `ProcedureRepository` trait (uses `idx_procedure_patient`); `delete_procedure` now does a targeted query instead of `read_all_procedures + filter`.
-
-## ~~(backend/procedure-orchestration) — Suivi patient non recalculé à la suppression du dernier acte (R20)~~ ✅ DONE
-
-Fixed: `delete_procedure` now finds the new latest procedure for the patient after deletion and updates tracking fields accordingly.
-
-## ~~(backend/procedure-orchestration) — latest_fund non effacé quand le dernier acte n'a pas de fonds~~ ✅ DONE
-
-R19 fixed: `create_procedure` now unconditionally assigns `latest_fund = fund_id.clone()` instead of skipping when `fund_id` is `None`.
-
-## (frontend/procedure) — Infos patient par défaut si type d'acte supprimé
-
-Lors de l'affichage des informations par défaut d'un patient (latest_procedure_type), le type d'acte référencé peut avoir été supprimé. La spec `procedure-type-spec.md` ne couvre pas ce cas : à documenter dans la spec d'ajout d'acte et à gérer côté frontend (affichage dégradé ou fallback).
+When showing default patient info (latest_procedure_type), the referenced procedure type may have been deleted. The `procedure-type.md` spec does not cover this case: document it in the procedure-creation spec and handle it on the frontend (degraded display or fallback).
 
 ## F10 — Extract logic to dedicated hooks (procedure feature)
 
 The reviewer flagged multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. These are deferred because they are large architectural refactors with no functional impact.
 
-## (frontend/fund-payment-match) — Créer plusieurs procédures lors de la correction automatique
+## (frontend/fund-payment-match) — Create multiple procedures during auto-correction
 
-Actuellement, la correction automatique (rapprochement caisse) ne permet de créer qu'une seule procédure. Il faudrait pouvoir en créer plusieurs dans la même opération.
+Currently, the auto-correction flow (reconciliation) only allows creating a single procedure. It should support creating multiple procedures in the same operation.
 
-## (frontend/fund-payment-match) — Impression du rapport après rapprochement : centrage et contenu
+## (frontend/fund-payment-match) — Print report after reconciliation: centering and content
 
-Le document imprimé après rapprochement n'est pas correctement centré — une partie du contenu est coupée. À corriger. Amélioration complémentaire : lister dans le rapport les corrections automatiques effectuées.
+The document printed after reconciliation is not properly centered — part of the content is cut off. To fix. Complementary improvement: list the auto-corrections applied in the report.
 
-## (backend/procedure) — Format de date invalide sur confirmed_payment_date lors de la mise à jour
+## (backend/procedure) — Invalid date format on confirmed_payment_date during update
 
-Lors de la mise à jour d'une procédure, une erreur "invalid confirmed payment date format" est déclenchée. À investiguer et corriger.
+When updating a procedure, an "invalid confirmed payment date format" error is raised. To investigate and fix.
 
 ## (backend/frontend) — Structured errors: replace anyhow/String with typed error variants
 
 Tauri commands currently return `Result<T, String>` (via `anyhow` formatted with `{:#}`). Replace with a typed error enum per domain, serialized via Specta, so the frontend can pattern-match on error codes instead of parsing strings. Scope: define error enums in each bounded context, expose via Specta, update gateway.ts to switch on error type.
 
-## (frontend/excel-import) — Déclencher l'import directement depuis le bouton
+## (frontend/excel-import) — Trigger import directly from the button
 
-Le bouton d'import devrait ouvrir directement le sélecteur de fichier, sans naviguer vers une page dédiée qui ne contient qu'un seul bouton. Supprimer la page intermédiaire ou intégrer le sélecteur dans la navigation existante.
+The import button should open the file picker directly, without navigating to a dedicated page that contains a single button. Remove the intermediate page or integrate the file picker into the existing navigation.
+
+## (backend/fund-payment-reconciliation) — Hardcoded French strings in CSV export
+
+`use_cases/fund_payment_reconciliation/output/csv_exporter.rs` hardcodes French strings (e.g. `"Procédure non trouvée en base de données"`, `"Caisse différente"`, `"Montant différent"`, `"Date différente"`). The CSV export is French-locale by design today. If bilingual exports are ever needed, route these strings through a backend translation layer or pass localized labels in from the caller.

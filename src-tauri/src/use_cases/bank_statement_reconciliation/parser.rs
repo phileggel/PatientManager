@@ -11,7 +11,7 @@ pub struct BankStatementCreditLine {
     pub date: String,
     /// Fund label extracted from VIR SEPA, e.g. "CPAM93", "MUTUELLEGENERALEEDUCATIONNAT"
     pub label: String,
-    /// Credit amount in millièmes (1€ = 1000)
+    /// Credit amount in thousandths of a euro (1 € = 1000)
     pub amount: i64,
 }
 
@@ -24,7 +24,7 @@ pub struct BankStatementParseResult {
     pub period: Option<String>,
     /// Credit lines from VIR SEPA entries
     pub credit_lines: Vec<BankStatementCreditLine>,
-    /// Sum of all credit amounts in millièmes
+    /// Sum of all credit amounts in thousandths of a euro
     pub total_credits: i64,
     /// Number of lines that couldn't be parsed
     pub unparsed_count: u32,
@@ -137,7 +137,7 @@ fn extract_credit_lines(text: &str) -> Vec<BankStatementCreditLine> {
                 None => continue,
             };
 
-            // Parse French amount: "148,80" or "1 234,56" → i64 millièmes
+            // Parse French-formatted amount: "148,80" or "1 234,56" → i64 thousandths of a euro
             let amount = match parse_french_amount(amount_str) {
                 Some(euros) => (euros * 1000.0).round() as i64,
                 None => continue,

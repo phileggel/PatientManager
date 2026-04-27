@@ -78,6 +78,9 @@
     "allCorrect": "All correct — no anomalies detected.",
     "progress": "{{resolved}} / {{total}} resolved",
     "stepNav": "Anomaly {{current}} of {{total}}",
+    "prevAria": "Previous anomaly",
+    "nextAria": "Next anomaly",
+    "dotAria": "Go to anomaly {{index}}",
     "issueType": {
       "notFound": "Missing procedure",
       "singleMatch": "Match anomaly",
