@@ -2,6 +2,27 @@
 
 ---
 
+## (all domains) — Retroactive domain contracts
+
+Create `docs/contracts/{domain}-contract.md` for all shipped features. Contracts define the frontend/backend surface: Tauri commands, their parameters, return types, and error variants. They are the co-decision point between test coverage and command definitions — useful when extending a feature or running `contract-reviewer` / `test-writer-*` in future workflows.
+
+Domains to cover (one contract per bounded context / use-case surface):
+- `bank-account`
+- `bank-statement-auto-match`
+- `bank-statement-manual-match`
+- `db-backup`
+- `excel-import`
+- `fund-payment-auto-match`
+- `fund-payment-manual-match`
+- `overpayment`
+- `procedure-orchestration`
+- `procedure-type`
+- `theme`
+
+Run `/contract` for each domain (reads the Tauri commands and bindings.ts, not the spec). No implementation changes required.
+
+---
+
 ## DDD Convergence — Quick renames ✅ done
 
 ## DDD Convergence — Major refactors (structural, plan carefully)
