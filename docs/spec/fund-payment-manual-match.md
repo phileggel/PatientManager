@@ -124,6 +124,7 @@ A group becomes locked as soon as one of its procedures reaches Stage 2 (see R9)
 
 ### Deletion
 
+
 ```
 [User clicks delete]
   → Lock check: if any procedure is FundPayed/PartiallyFundPayed → inaccessible
@@ -139,3 +140,9 @@ A group becomes locked as soon as one of its procedures reaches Stage 2 (see R9)
           ▼
 [Refresh groups list]
 ```
+
+---
+
+## Open Questions
+
+- [ ] **confirmed_payment_date at fund-reconciliation vs. bank-transfer time**: Rules R8 and R19 currently set `confirmed_payment_date` to the group's payment date at the moment of fund reconciliation (Stage 1). The question is whether this is semantically correct: `confirmed_payment_date` could be argued to mean "the date the bank transfer was confirmed", which only becomes known at Stage 2 (bank-statement reconciliation). Setting it at Stage 1 means the dashboard payment timeline reflects fund-reconciliation dates rather than actual bank-transfer dates. Decide: keep current behaviour (Stage 1 sets the date), or defer the date to Stage 2 (leave `confirmed_payment_date` null until bank-statement match). Note: changing this would shift dashboard payment aggregations. See also: fund-payment-auto-match spec, same open question.

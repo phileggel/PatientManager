@@ -40,10 +40,6 @@ Run `/contract` for each domain (reads the Tauri commands and bindings.ts, not t
 
 Convert domain objects to camelCase when crossing into the frontend.
 
-## (frontend/fund-payment) — confirmed_payment_date
-
-Normally the payment confirmation date should not be updated by this operation (it should wait for the bank-transfer).
-
 ## (backend/fund) — Tech Debt: fund/patient creation in reconciliation feature
 
 - Currently fund/patient records are created automatically during fund-payment reconciliation.
