@@ -61,7 +61,7 @@
   },
   "monthSelection": {
     "title": "Select months to import",
-    "description": "Choose which months to import. Existing procedures for selected months will be deleted and replaced. Months with reconciliated procedures cannot be re-imported.",
+    "description": "Choose which months to import. Existing procedures for selected months will be deleted and replaced. Months with reconciled procedures cannot be re-imported.",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "monthsSelected": "months selected",
@@ -91,7 +91,7 @@
     "deletedBeforeReimport_other": "{{count}} deleted before reimport",
     "skipped_one": "{{count}} skipped",
     "skipped_other": "{{count}} skipped",
-    "blockedMonthsTitle": "Months not imported (reconciliated procedures)",
+    "blockedMonthsTitle": "Months not imported (reconciled procedures)",
     "importAnother": "Import another file",
     "viewReport": "View parsing report"
   },
