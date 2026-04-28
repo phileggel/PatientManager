@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     context::fund::{
-        AffiliatedFund, FundCandidate, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine,
+        Fund, FundCandidate, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine,
         FundPaymentRepository, FundRepository, FundValidationResult, FundValidationStatus,
     },
     core::event_bus::{EventBus, FundPaymentGroupUpdated, FundUpdated},
@@ -25,32 +25,25 @@ impl FundService {
         }
     }
 
-    pub async fn create_fund(
-        &self,
-        fund_identifier: String,
-        name: String,
-    ) -> anyhow::Result<AffiliatedFund> {
+    pub async fn create_fund(&self, fund_identifier: String, name: String) -> anyhow::Result<Fund> {
         let result = self.repository.create_fund(&fund_identifier, &name).await?;
         let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
         Ok(result)
     }
 
-    pub async fn read_fund(&self, id: &str) -> anyhow::Result<Option<AffiliatedFund>> {
+    pub async fn read_fund(&self, id: &str) -> anyhow::Result<Option<Fund>> {
         self.repository.read_fund(id).await
     }
 
-    pub async fn read_all_funds(&self) -> anyhow::Result<Vec<AffiliatedFund>> {
+    pub async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
         self.repository.read_all_funds().await
     }
 
-    pub async fn find_fund_by_identifier(
-        &self,
-        identifier: &str,
-    ) -> anyhow::Result<Option<AffiliatedFund>> {
+    pub async fn find_fund_by_identifier(&self, identifier: &str) -> anyhow::Result<Option<Fund>> {
         self.repository.find_fund_by_identifier(identifier).await
     }
 
-    pub async fn update_fund(&self, fund: AffiliatedFund) -> anyhow::Result<AffiliatedFund> {
+    pub async fn update_fund(&self, fund: Fund) -> anyhow::Result<Fund> {
         let result = self.repository.update_fund(fund).await?;
         let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
         Ok(result)
@@ -113,15 +106,12 @@ impl FundService {
 
     /// Create batch of valid funds
     /// Candidates should have been validated first
-    pub async fn create_batch(
-        &self,
-        candidates: Vec<FundCandidate>,
-    ) -> anyhow::Result<Vec<AffiliatedFund>> {
-        let mut funds: Vec<AffiliatedFund> = Vec::new();
+    pub async fn create_batch(&self, candidates: Vec<FundCandidate>) -> anyhow::Result<Vec<Fund>> {
+        let mut funds: Vec<Fund> = Vec::new();
 
         for candidate in candidates {
             // Domain layer creates and validates each fund
-            let fund = AffiliatedFund::new_with_temp_id(
+            let fund = Fund::new_with_temp_id(
                 candidate.fund_identifier,
                 candidate.fund_name,
                 candidate.temp_id,
@@ -357,7 +347,7 @@ impl FundPaymentService {
     }
 
     /// Persist a fully-constructed FundPaymentGroup directly, preserving status and amount.
-    /// Used for overpayment refund groups (BankPayed status + negative total_amount, REF-100).
+    /// Used for overpayment refund groups (BankPaid status + negative total_amount, REF-100).
     pub async fn persist_refund_group(
         &self,
         group: FundPaymentGroup,
@@ -405,12 +395,12 @@ mod tests {
             &self,
             fund_identifier: &str,
             fund_name: &str,
-        ) -> anyhow::Result<AffiliatedFund> {
+        ) -> anyhow::Result<Fund> {
             if self.should_fail {
                 // Use anyhow! to build the error
                 return Err(anyhow!("Mock repository error"));
             }
-            Ok(AffiliatedFund {
+            Ok(Fund {
                 id: "test-fund-id-12345".to_string(),
                 fund_identifier: fund_identifier.to_string(),
                 name: fund_name.to_string(),
@@ -418,38 +408,32 @@ mod tests {
             })
         }
 
-        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<AffiliatedFund>> {
+        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<Fund>> {
             Err(anyhow!("Not implemented in mock"))
         }
 
-        async fn read_all_funds(&self) -> anyhow::Result<Vec<AffiliatedFund>> {
+        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
             Ok(vec![])
         }
 
-        async fn update_fund(&self, fund: AffiliatedFund) -> anyhow::Result<AffiliatedFund> {
+        async fn update_fund(&self, fund: Fund) -> anyhow::Result<Fund> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
             Ok(fund)
         }
 
-        async fn find_fund_by_identifier(
-            &self,
-            _identifier: &str,
-        ) -> anyhow::Result<Option<AffiliatedFund>> {
+        async fn find_fund_by_identifier(&self, _identifier: &str) -> anyhow::Result<Option<Fund>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
             Ok(None)
         }
 
-        async fn create_batch(
-            &self,
-            funds: Vec<AffiliatedFund>,
-        ) -> anyhow::Result<Vec<AffiliatedFund>> {
+        async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }

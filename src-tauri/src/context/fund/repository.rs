@@ -2,8 +2,7 @@ use anyhow::{anyhow, Context};
 use sqlx::SqlitePool;
 
 use super::{
-    AffiliatedFund, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine,
-    FundPaymentRepository,
+    Fund, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine, FundPaymentRepository,
 };
 
 /// Internal row type for affiliated fund database mapping
@@ -16,9 +15,9 @@ pub struct FundRow {
 }
 
 // Conversion function from row type to domain object
-impl From<FundRow> for AffiliatedFund {
+impl From<FundRow> for Fund {
     fn from(row: FundRow) -> Self {
-        AffiliatedFund::restore(row.id, row.fund_identifier, row.name)
+        Fund::restore(row.id, row.fund_identifier, row.name)
     }
 }
 
@@ -28,20 +27,12 @@ impl From<FundRow> for AffiliatedFund {
 /// The application layer uses this trait without knowing about concrete implementations (e.g., database).
 #[async_trait::async_trait]
 pub trait FundRepository: Send + Sync {
-    async fn create_fund(
-        &self,
-        fund_identifier: &str,
-        fund_name: &str,
-    ) -> anyhow::Result<AffiliatedFund>;
-    async fn read_all_funds(&self) -> anyhow::Result<Vec<AffiliatedFund>>;
-    async fn read_fund(&self, id: &str) -> anyhow::Result<Option<AffiliatedFund>>;
-    async fn update_fund(&self, fund: AffiliatedFund) -> anyhow::Result<AffiliatedFund>;
-    async fn find_fund_by_identifier(
-        &self,
-        identifier: &str,
-    ) -> anyhow::Result<Option<AffiliatedFund>>;
-    async fn create_batch(&self, funds: Vec<AffiliatedFund>)
-        -> anyhow::Result<Vec<AffiliatedFund>>;
+    async fn create_fund(&self, fund_identifier: &str, fund_name: &str) -> anyhow::Result<Fund>;
+    async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>>;
+    async fn read_fund(&self, id: &str) -> anyhow::Result<Option<Fund>>;
+    async fn update_fund(&self, fund: Fund) -> anyhow::Result<Fund>;
+    async fn find_fund_by_identifier(&self, identifier: &str) -> anyhow::Result<Option<Fund>>;
+    async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>>;
     async fn delete_fund(&self, id: &str) -> anyhow::Result<()>;
 }
 
@@ -57,13 +48,9 @@ impl SqliteFundRepository {
 
 #[async_trait::async_trait]
 impl FundRepository for SqliteFundRepository {
-    async fn create_fund(
-        &self,
-        fund_identifier: &str,
-        fund_name: &str,
-    ) -> anyhow::Result<AffiliatedFund> {
+    async fn create_fund(&self, fund_identifier: &str, fund_name: &str) -> anyhow::Result<Fund> {
         // Domain layer creates and validates the fund
-        let fund = AffiliatedFund::new(fund_identifier.to_string(), fund_name.to_string())?;
+        let fund = Fund::new(fund_identifier.to_string(), fund_name.to_string())?;
 
         tracing::trace!(fund_id = %fund.id, fund_identifier = %fund.fund_identifier, "Inserting affiliated fund into database");
 
@@ -91,7 +78,7 @@ impl FundRepository for SqliteFundRepository {
         Ok(fund)
     }
 
-    async fn read_all_funds(&self) -> anyhow::Result<Vec<AffiliatedFund>> {
+    async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
         tracing::trace!("Fetching all affiliated funds from database");
 
         let rows = sqlx::query_as!(
@@ -105,10 +92,10 @@ impl FundRepository for SqliteFundRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(AffiliatedFund::from).collect())
+        Ok(rows.into_iter().map(Fund::from).collect())
     }
 
-    async fn read_fund(&self, id: &str) -> anyhow::Result<Option<AffiliatedFund>> {
+    async fn read_fund(&self, id: &str) -> anyhow::Result<Option<Fund>> {
         tracing::trace!(fund_id = %id, "Fetching affiliated fund from database");
 
         let row = sqlx::query_as!(
@@ -123,10 +110,10 @@ impl FundRepository for SqliteFundRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(row.map(AffiliatedFund::from))
+        Ok(row.map(Fund::from))
     }
 
-    async fn update_fund(&self, fund: AffiliatedFund) -> anyhow::Result<AffiliatedFund> {
+    async fn update_fund(&self, fund: Fund) -> anyhow::Result<Fund> {
         tracing::trace!(fund_identifier = %fund.fund_identifier, "Updating affiliated fund in database");
 
         sqlx::query!(
@@ -147,10 +134,7 @@ impl FundRepository for SqliteFundRepository {
         Ok(fund.clone())
     }
 
-    async fn find_fund_by_identifier(
-        &self,
-        identifier: &str,
-    ) -> anyhow::Result<Option<AffiliatedFund>> {
+    async fn find_fund_by_identifier(&self, identifier: &str) -> anyhow::Result<Option<Fund>> {
         tracing::trace!(fund_identifier = %identifier, "Fetching affiliated fund by identifier from database");
 
         let row = sqlx::query_as!(
@@ -165,13 +149,10 @@ impl FundRepository for SqliteFundRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(row.map(AffiliatedFund::from))
+        Ok(row.map(Fund::from))
     }
 
-    async fn create_batch(
-        &self,
-        funds: Vec<AffiliatedFund>,
-    ) -> anyhow::Result<Vec<AffiliatedFund>> {
+    async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
         let mut tx = self.pool.begin().await?;
 
         let mut created_funds = Vec::new();
@@ -244,7 +225,7 @@ pub struct FundPaymentGroupRow {
 
 fn parse_group_status(s: &str) -> FundPaymentGroupStatus {
     match s {
-        "BANK_PAYED" => FundPaymentGroupStatus::BankPayed,
+        "BANK_PAYED" => FundPaymentGroupStatus::BankPaid,
         _ => FundPaymentGroupStatus::Active,
     }
 }
@@ -252,7 +233,7 @@ fn parse_group_status(s: &str) -> FundPaymentGroupStatus {
 fn group_status_to_str(s: FundPaymentGroupStatus) -> &'static str {
     match s {
         FundPaymentGroupStatus::Active => "ACTIVE",
-        FundPaymentGroupStatus::BankPayed => "BANK_PAYED",
+        FundPaymentGroupStatus::BankPaid => "BANK_PAYED",
     }
 }
 
@@ -680,12 +661,12 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     }
 
     /// Persist a fully-constructed FundPaymentGroup with its lines, preserving status/is_locked.
-    /// Used for overpayment refund groups (BankPayed status + negative amount, REF-100).
+    /// Used for overpayment refund groups (BankPaid status + negative amount, REF-100).
     async fn persist_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
         let payment_date_str = group.payment_date.format("%Y-%m-%d").to_string();
         let status_str = match group.status {
             crate::context::fund::FundPaymentGroupStatus::Active => "ACTIVE",
-            crate::context::fund::FundPaymentGroupStatus::BankPayed => "BANK_PAYED",
+            crate::context::fund::FundPaymentGroupStatus::BankPaid => "BANK_PAYED",
         };
 
         tracing::info!(

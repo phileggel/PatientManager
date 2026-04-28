@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::State;
 
-use crate::context::fund::{AffiliatedFund, FundPaymentGroup, FundPaymentService, FundService};
+use crate::context::fund::{Fund, FundPaymentGroup, FundPaymentService, FundService};
 
 // ============ Domain-Relevant Types ============
 
-/// Fund candidate for batch import - semantically different from AffiliatedFund (lacks ID, created_at)
+/// Fund candidate for batch import - semantically different from Fund (lacks ID, created_at)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct FundCandidate {
     pub temp_id: String,
@@ -63,7 +63,7 @@ pub struct ValidateBatchFundsResponse {
 /// Complex response: created funds + temp ID mapping for import tracking
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct CreateBatchFundsResponse {
-    pub funds: Vec<AffiliatedFund>,
+    pub funds: Vec<Fund>,
     pub temp_id_map: HashMap<String, String>,
 }
 
@@ -76,7 +76,7 @@ pub async fn add_fund(
     fund_identifier: String,
     fund_name: String,
     service: State<'_, Arc<FundService>>,
-) -> Result<AffiliatedFund, String> {
+) -> Result<Fund, String> {
     tracing::info!(fund_identifier = %fund_identifier, fund_name = %fund_name, "Processing add fund request");
 
     service
@@ -94,9 +94,7 @@ pub async fn add_fund(
 /// Tauri command: Read all affiliated funds
 #[tauri::command]
 #[specta::specta]
-pub async fn read_all_funds(
-    service: State<'_, Arc<FundService>>,
-) -> Result<Vec<AffiliatedFund>, String> {
+pub async fn read_all_funds(service: State<'_, Arc<FundService>>) -> Result<Vec<Fund>, String> {
     tracing::info!("Processing read all funds request");
 
     service
@@ -114,10 +112,7 @@ pub async fn read_all_funds(
 /// Tauri command: Update an existing affiliated fund
 #[tauri::command]
 #[specta::specta]
-pub async fn update_fund(
-    fund: AffiliatedFund,
-    service: State<'_, Arc<FundService>>,
-) -> Result<AffiliatedFund, String> {
+pub async fn update_fund(fund: Fund, service: State<'_, Arc<FundService>>) -> Result<Fund, String> {
     tracing::info!(fund_id = ?fund.id, "Processing update fund request");
 
     service
@@ -207,7 +202,7 @@ pub async fn create_batch_funds(
 /// Tauri command: Read all fund payment groups
 ///
 /// Computes is_locked for each group by checking if any associated procedure
-/// is in a bank-reconciled status (FundPayed or PartiallyFundPayed).
+/// is in a bank-reconciled status (FundPaid or PartiallyFundPaid).
 #[tauri::command]
 #[specta::specta]
 pub async fn read_all_fund_payment_groups(
@@ -246,7 +241,7 @@ pub async fn read_all_fund_payment_groups(
 /// R10 — Recompute `is_locked` on each group from procedure statuses.
 ///
 /// A group is considered locked as soon as any of its lines references a
-/// procedure currently in `FundPayed` or `PartiallyFundPayed`. This guarantees
+/// procedure currently in `FundPaid` or `PartiallyFundPaid`. This guarantees
 /// the read view stays consistent with the procedures' actual lifecycle, even
 /// if the group's own status hasn't been transitioned yet.
 pub(crate) fn recompute_is_locked(
@@ -259,7 +254,7 @@ pub(crate) fn recompute_is_locked(
         .filter(|p| {
             matches!(
                 p.payment_status,
-                ProcedureStatus::FundPayed | ProcedureStatus::PartiallyFundPayed
+                ProcedureStatus::FundPaid | ProcedureStatus::PartiallyFundPaid
             )
         })
         .map(|p| p.id.as_str())
@@ -276,7 +271,7 @@ pub(crate) fn recompute_is_locked(
 /// Tauri command: Delete a fund payment group with procedure cleanup
 ///
 /// Deletes the group, its lines, and resets associated procedures
-/// (status → Created, clears confirmed_payment_date and actual_payment_amount).
+/// (status → Created, clears confirmed_payment_date and paid_amount).
 /// REF-240: Rejects deletion if the group belongs to an overpayment refund cascade.
 #[tauri::command]
 #[specta::specta]
@@ -327,7 +322,7 @@ pub async fn delete_fund_payment_group(
 
 /// Tauri command: Create a fund payment group from manual UI selection
 ///
-/// Calculates total_amount from procedure amounts and sets procedures to Reconciliated.
+/// Calculates total_amount from procedure amounts and sets procedures to Reconciled.
 #[tauri::command]
 #[specta::specta]
 pub async fn create_fund_payment_group(
@@ -370,9 +365,9 @@ pub async fn create_fund_payment_group(
 ///
 /// Handles add/remove procedure logic via orchestrator:
 /// - Removed procedures → reset to Created
-/// - Added procedures → set to Reconciliated
+/// - Added procedures → set to Reconciled
 /// - Recalculates total_amount
-/// - Rejects if any procedure is bank-reconciled (FundPayed/PartiallyFundPayed)
+/// - Rejects if any procedure is bank-reconciled (FundPaid/PartiallyFundPaid)
 #[tauri::command]
 #[specta::specta]
 pub async fn update_fund_payment_group_with_procedures(
@@ -469,7 +464,7 @@ mod tests {
         assert!(!groups[1].is_locked, "fixture starts unlocked");
 
         let procedures = vec![
-            make_procedure("proc-fund-payed", ProcedureStatus::FundPayed),
+            make_procedure("proc-fund-payed", ProcedureStatus::FundPaid),
             make_procedure("proc-created", ProcedureStatus::Created),
         ];
 
@@ -477,7 +472,7 @@ mod tests {
 
         assert!(
             groups[0].is_locked,
-            "group containing a FundPayed procedure must be locked"
+            "group containing a FundPaid procedure must be locked"
         );
         assert!(
             !groups[1].is_locked,
@@ -485,30 +480,27 @@ mod tests {
         );
     }
 
-    /// R10 — `PartiallyFundPayed` also locks the group.
+    /// R10 — `PartiallyFundPaid` also locks the group.
     #[test]
     fn test_recompute_is_locked_locks_on_partially_fund_payed() {
         let mut groups = vec![make_group("group-1", &["proc-1"])];
-        let procedures = vec![make_procedure(
-            "proc-1",
-            ProcedureStatus::PartiallyFundPayed,
-        )];
+        let procedures = vec![make_procedure("proc-1", ProcedureStatus::PartiallyFundPaid)];
 
         recompute_is_locked(&mut groups, &procedures);
 
         assert!(
             groups[0].is_locked,
-            "PartiallyFundPayed must also lock the group"
+            "PartiallyFundPaid must also lock the group"
         );
     }
 
-    /// R10 — Non-bank-reconciled statuses (Reconciliated, PartiallyReconciled,
-    /// DirectlyPayed, …) must not lock the group.
+    /// R10 — Non-bank-reconciled statuses (Reconciled, PartiallyReconciled,
+    /// DirectlyPaid, …) must not lock the group.
     #[test]
     fn test_recompute_is_locked_ignores_non_bank_statuses() {
         let mut groups = vec![make_group("group-1", &["proc-1", "proc-2"])];
         let procedures = vec![
-            make_procedure("proc-1", ProcedureStatus::Reconciliated),
+            make_procedure("proc-1", ProcedureStatus::Reconciled),
             make_procedure("proc-2", ProcedureStatus::PartiallyReconciled),
         ];
 
@@ -516,7 +508,7 @@ mod tests {
 
         assert!(
             !groups[0].is_locked,
-            "Reconciliated/PartiallyReconciled must not lock the group"
+            "Reconciled/PartiallyReconciled must not lock the group"
         );
     }
 }

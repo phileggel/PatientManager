@@ -1,5 +1,6 @@
 use chrono::NaiveDate;
 use regex::Regex;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::api::AutoCorrection;
@@ -139,7 +140,7 @@ impl FundPaymentReconciliationOrchestrator {
         payment_date: NaiveDate,
         total_amount: i64,
         procedure_ids: Vec<String>,
-        actual_payment_amount: Option<i64>,
+        paid_amount: Option<i64>,
     ) -> anyhow::Result<FundPaymentGroup> {
         let payment_date_iso = payment_date.format("%Y-%m-%d").to_string();
 
@@ -176,8 +177,9 @@ impl FundPaymentReconciliationOrchestrator {
         let updated_procedures: Vec<_> = procedures_to_update
             .into_iter()
             .map(|mut procedure| {
-                procedure.payment_status = ProcedureStatus::Reconciliated;
-                procedure.actual_payment_amount = actual_payment_amount;
+                procedure.payment_status = ProcedureStatus::Reconciled;
+                procedure.paid_amount = paid_amount;
+                procedure.confirmed_payment_date = Some(payment_date);
                 procedure
             })
             .collect();
@@ -286,6 +288,15 @@ impl FundPaymentReconciliationOrchestrator {
         );
 
         // Step 4: Update all procedures with reconciliation status (single batch)
+        let procedure_date_map: HashMap<String, NaiveDate> = created_groups
+            .iter()
+            .flat_map(|g| {
+                g.lines
+                    .iter()
+                    .map(move |l| (l.procedure_id.clone(), g.payment_date))
+            })
+            .collect();
+
         let procedures_to_update = self
             .procedure_service
             .read_procedures_by_ids(all_procedure_ids)
@@ -294,8 +305,9 @@ impl FundPaymentReconciliationOrchestrator {
         let updated_procedures: Vec<_> = procedures_to_update
             .into_iter()
             .map(|mut procedure| {
-                procedure.payment_status = ProcedureStatus::Reconciliated;
-                procedure.actual_payment_amount = procedure.procedure_amount;
+                procedure.payment_status = ProcedureStatus::Reconciled;
+                procedure.paid_amount = procedure.billed_amount;
+                procedure.confirmed_payment_date = procedure_date_map.get(&procedure.id).copied();
                 procedure
             })
             .collect();
@@ -435,8 +447,17 @@ impl FundPaymentReconciliationOrchestrator {
         );
 
         // Step 6: Update all procedures with reconciliation status (single batch)
-        // Contested procedures (PartiallyReconciled) already have status + actual_payment_amount
+        // Contested procedures (PartiallyReconciled) already have status + paid_amount
         // set by apply_update_corrections — preserve them; update all others normally.
+        let procedure_date_map: HashMap<String, NaiveDate> = created_groups
+            .iter()
+            .flat_map(|g| {
+                g.lines
+                    .iter()
+                    .map(move |l| (l.procedure_id.clone(), g.payment_date))
+            })
+            .collect();
+
         let procedures_to_update = self
             .procedure_service
             .read_procedures_by_ids(all_procedure_ids)
@@ -446,10 +467,12 @@ impl FundPaymentReconciliationOrchestrator {
             .into_iter()
             .map(|mut procedure| {
                 if procedure.payment_status == ProcedureStatus::PartiallyReconciled {
-                    // Contest correction already set actual_payment_amount and status — keep them
+                    // Contest correction already set paid_amount and status — keep them
                 } else {
-                    procedure.payment_status = ProcedureStatus::Reconciliated;
-                    procedure.actual_payment_amount = procedure.procedure_amount;
+                    procedure.payment_status = ProcedureStatus::Reconciled;
+                    procedure.paid_amount = procedure.billed_amount;
+                    procedure.confirmed_payment_date =
+                        procedure_date_map.get(&procedure.id).copied();
                 }
                 procedure
             })
@@ -512,7 +535,7 @@ impl FundPaymentReconciliationOrchestrator {
     /// Steps:
     /// 1. Load procedures to calculate total_amount (R4)
     /// 2. Create the fund payment group
-    /// 3. Set each procedure to Reconciliated + confirmed_payment_date + actual_payment_amount (R8)
+    /// 3. Set each procedure to Reconciled + confirmed_payment_date + paid_amount (R8)
     /// 4. Publish events
     pub async fn create_manual_fund_payment_group(
         &self,
@@ -535,7 +558,7 @@ impl FundPaymentReconciliationOrchestrator {
 
         let total_amount: i64 = procedures
             .iter()
-            .map(|p| p.procedure_amount.unwrap_or(0))
+            .map(|p| p.billed_amount.unwrap_or(0))
             .sum();
 
         let parsed_payment_date =
@@ -560,13 +583,13 @@ impl FundPaymentReconciliationOrchestrator {
 
         tracing::info!(group_id = %group.id, total_amount, "Manual fund payment group created");
 
-        // Step 3: Update procedures — Reconciliated + confirmed_payment_date + actual_payment_amount (R8)
+        // Step 3: Update procedures — Reconciled + confirmed_payment_date + paid_amount (R8)
         let updated_procedures: Vec<_> = procedures
             .into_iter()
             .map(|mut p| {
-                p.payment_status = ProcedureStatus::Reconciliated;
+                p.payment_status = ProcedureStatus::Reconciled;
                 p.confirmed_payment_date = Some(parsed_payment_date);
-                p.actual_payment_amount = p.procedure_amount;
+                p.paid_amount = p.billed_amount;
                 p
             })
             .collect();
@@ -590,7 +613,7 @@ impl FundPaymentReconciliationOrchestrator {
     /// 1. Load existing group and check for bank-reconciled lock (R9)
     /// 2. Detect removed and added procedures
     /// 3. Reset removed procedures to Created (R7)
-    /// 4. Set added procedures to Reconciliated (R8)
+    /// 4. Set added procedures to Reconciled (R8)
     /// 5. Recalculate total_amount from final procedure list (R4)
     /// 6. Update the group
     /// 7. Publish events
@@ -626,7 +649,7 @@ impl FundPaymentReconciliationOrchestrator {
         let is_locked = existing_procedures.iter().any(|p| {
             matches!(
                 p.payment_status,
-                ProcedureStatus::FundPayed | ProcedureStatus::PartiallyFundPayed
+                ProcedureStatus::FundPaid | ProcedureStatus::PartiallyFundPaid
             )
         });
 
@@ -657,7 +680,7 @@ impl FundPaymentReconciliationOrchestrator {
                 .map(|mut p| {
                     p.payment_status = ProcedureStatus::Created;
                     p.confirmed_payment_date = None;
-                    p.actual_payment_amount = None;
+                    p.paid_amount = None;
                     p
                 })
                 .collect();
@@ -672,7 +695,7 @@ impl FundPaymentReconciliationOrchestrator {
             );
         }
 
-        // Step 4: Set added procedures → Reconciliated (R8)
+        // Step 4: Set added procedures → Reconciled (R8)
         if !added_ids.is_empty() {
             let parsed_payment_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
                 .map_err(|_| {
@@ -690,9 +713,9 @@ impl FundPaymentReconciliationOrchestrator {
             let reconciled: Vec<_> = added_procedures
                 .into_iter()
                 .map(|mut p| {
-                    p.payment_status = ProcedureStatus::Reconciliated;
+                    p.payment_status = ProcedureStatus::Reconciled;
                     p.confirmed_payment_date = Some(parsed_payment_date);
-                    p.actual_payment_amount = p.procedure_amount;
+                    p.paid_amount = p.billed_amount;
                     p
                 })
                 .collect();
@@ -703,7 +726,7 @@ impl FundPaymentReconciliationOrchestrator {
 
             tracing::debug!(
                 count = added_ids.len(),
-                "Set added procedures to Reconciliated"
+                "Set added procedures to Reconciled"
             );
         }
 
@@ -715,7 +738,7 @@ impl FundPaymentReconciliationOrchestrator {
 
         let total_amount: i64 = final_procedures
             .iter()
-            .map(|p| p.procedure_amount.unwrap_or(0))
+            .map(|p| p.billed_amount.unwrap_or(0))
             .sum();
 
         // Step 6: Update the group
@@ -751,7 +774,7 @@ impl FundPaymentReconciliationOrchestrator {
     /// Steps:
     /// 1. Read the group to get its lines (procedure IDs)
     /// 2. Soft-delete the lines
-    /// 3. Reset each procedure: status → Created, clear confirmed_payment_date, clear actual_payment_amount
+    /// 3. Reset each procedure: status → Created, clear confirmed_payment_date, clear paid_amount
     /// 4. Soft-delete the group
     pub async fn delete_fund_payment_group_with_cleanup(
         &self,
@@ -779,7 +802,7 @@ impl FundPaymentReconciliationOrchestrator {
             let is_locked = procedures.iter().any(|p| {
                 matches!(
                     p.payment_status,
-                    ProcedureStatus::FundPayed | ProcedureStatus::PartiallyFundPayed
+                    ProcedureStatus::FundPaid | ProcedureStatus::PartiallyFundPaid
                 )
             });
 
@@ -797,7 +820,7 @@ impl FundPaymentReconciliationOrchestrator {
             {
                 procedure.payment_status = ProcedureStatus::Created;
                 procedure.confirmed_payment_date = None;
-                procedure.actual_payment_amount = None;
+                procedure.paid_amount = None;
 
                 self.procedure_service.update_procedure(procedure).await?;
 
@@ -830,9 +853,9 @@ impl FundPaymentReconciliationOrchestrator {
     /// Verify data integrity AFTER persistence
     ///
     /// This check runs AFTER creating the fund-payment group to ensure the sum of
-    /// actual_payment_amount across all procedures equals the group's total_amount.
-    /// Uses actual_payment_amount (not procedure_amount) because contested procedures
-    /// keep their original procedure_amount while actual_payment_amount reflects what
+    /// paid_amount across all procedures equals the group's total_amount.
+    /// Uses paid_amount (not billed_amount) because contested procedures
+    /// keep their original billed_amount while paid_amount reflects what
     /// the fund actually paid.
     /// If verification fails, the issue is reported for manual review, but the persisted
     /// data is NOT rolled back.
@@ -840,14 +863,14 @@ impl FundPaymentReconciliationOrchestrator {
         let mut payments_total: i64 = 0;
         let mut payment_amounts = Vec::new();
 
-        // Fetch all persisted procedures in the group and sum their actual_payment_amount
+        // Fetch all persisted procedures in the group and sum their paid_amount
         for line in &group.lines {
             if let Some(procedure) = self
                 .procedure_service
                 .read_procedure(&line.procedure_id)
                 .await?
             {
-                let amount = procedure.actual_payment_amount.unwrap_or(0);
+                let amount = procedure.paid_amount.unwrap_or(0);
                 payments_total += amount;
                 payment_amounts.push((line.procedure_id.clone(), amount));
             } else {
@@ -862,7 +885,7 @@ impl FundPaymentReconciliationOrchestrator {
             }
         }
 
-        // Verify the sum of actual_payment_amount matches the group total
+        // Verify the sum of paid_amount matches the group total
         if payments_total != group.total_amount {
             let amounts_str = payment_amounts
                 .iter()
@@ -883,7 +906,7 @@ impl FundPaymentReconciliationOrchestrator {
                 difference = payments_total - group.total_amount,
                 procedure_count = group.lines.len(),
                 payment_breakdown = %amounts_str,
-                "Post-persistence integrity check: sum of actual_payment_amount does not match group total"
+                "Post-persistence integrity check: sum of paid_amount does not match group total"
             );
             anyhow::bail!(
                 "Integrity mismatch in group {}: expected {:.2}€, got {:.2}€. Breakdown: {}.",
@@ -898,7 +921,7 @@ impl FundPaymentReconciliationOrchestrator {
             group_id = %group.id,
             total_amount = group.total_amount,
             procedure_count = group.lines.len(),
-            "Post-persistence integrity check passed: sum of actual_payment_amount matches group total"
+            "Post-persistence integrity check passed: sum of paid_amount matches group total"
         );
 
         Ok(())
@@ -1011,7 +1034,7 @@ impl FundPaymentReconciliationOrchestrator {
                     pdf_amount,
                 } => {
                     if let Some(procedure) = procedures_to_update.get_mut(&procedure_id) {
-                        procedure.procedure_amount = Some(pdf_amount);
+                        procedure.billed_amount = Some(pdf_amount);
                         stats.amount_corrections += 1;
                     }
                 }
@@ -1039,10 +1062,10 @@ impl FundPaymentReconciliationOrchestrator {
 
                 AutoCorrection::ContestAmount {
                     procedure_id,
-                    actual_payment_amount,
+                    paid_amount,
                 } => {
                     if let Some(procedure) = procedures_to_update.get_mut(&procedure_id) {
-                        procedure.actual_payment_amount = Some(actual_payment_amount);
+                        procedure.paid_amount = Some(paid_amount);
                         procedure.payment_status = ProcedureStatus::PartiallyReconciled;
                         stats.contest_corrections += 1;
                     }
@@ -1143,7 +1166,7 @@ impl FundPaymentReconciliationOrchestrator {
                 patient_name,
                 procedure_date,
                 payment_date,
-                procedure_amount,
+                billed_amount,
                 pdf_fund_label,
             } = correction
             {
@@ -1173,10 +1196,10 @@ impl FundPaymentReconciliationOrchestrator {
                     fund_id: Some(fund_id),
                     procedure_type_id: "import-pdf".to_string(),
                     procedure_date: procedure_date_iso,
-                    procedure_amount: Some(procedure_amount),
+                    billed_amount: Some(billed_amount),
                     payment_method: None,
                     confirmed_payment_date: None,
-                    actual_payment_amount: None,
+                    paid_amount: None,
                     awaited_amount: None,
                 };
 
@@ -1207,7 +1230,7 @@ impl FundPaymentReconciliationOrchestrator {
     }
 
     /// Returns the data needed to edit a fund payment group:
-    /// - `current_procedures`: procedures currently in the group (Reconciliated/PartiallyReconciled)
+    /// - `current_procedures`: procedures currently in the group (Reconciled/PartiallyReconciled)
     /// - `available_procedures`: Created procedures for the same fund, not already in the group
     ///
     /// This centralises the classification logic server-side so the frontend only handles display.
@@ -1347,7 +1370,7 @@ mod tests {
         let proc_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
-               procedure_amount, payment_status, is_deleted) VALUES (?, ?, ?, '2026-01-15', ?, ?, 0)"#,
+               billed_amount, payment_status, is_deleted) VALUES (?, ?, ?, '2026-01-15', ?, ?, 0)"#,
         )
         .bind(&proc_id)
         .bind(patient_id)
@@ -1361,7 +1384,7 @@ mod tests {
     }
 
     /// Seeds a `RECONCILIATED` procedure already attached to a payment group:
-    /// `confirmed_payment_date` and `actual_payment_amount` are populated to mimic
+    /// `confirmed_payment_date` and `paid_amount` are populated to mimic
     /// the post-add state expected by R7/R8 (so the reset paths can be observed).
     async fn seed_reconciliated_procedure(
         pool: &SqlitePool,
@@ -1373,8 +1396,8 @@ mod tests {
         let proc_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
-               procedure_amount, payment_status, confirmed_payment_date,
-               actual_payment_amount, is_deleted)
+               billed_amount, payment_status, confirmed_payment_date,
+               paid_amount, is_deleted)
                VALUES (?, ?, ?, '2026-01-15', ?, 'RECONCILIATED', ?, ?, 0)"#,
         )
         .bind(&proc_id)
@@ -1424,7 +1447,7 @@ mod tests {
         group_id
     }
 
-    /// R9 — update is rejected when a procedure is bank-reconciled (FundPayed)
+    /// R9 — update is rejected when a procedure is bank-reconciled (FundPaid)
     #[tokio::test]
     async fn test_update_locked_group_is_rejected() -> anyhow::Result<()> {
         let pool = setup_db().await;
@@ -1453,7 +1476,7 @@ mod tests {
         Ok(())
     }
 
-    /// R9 — delete is rejected when a procedure is bank-reconciled (PartiallyFundPayed)
+    /// R9 — delete is rejected when a procedure is bank-reconciled (PartiallyFundPaid)
     #[tokio::test]
     async fn test_delete_locked_group_is_rejected() -> anyhow::Result<()> {
         let pool = setup_db().await;
@@ -1483,7 +1506,7 @@ mod tests {
     }
 
     /// R7 — Removing a procedure from a group reverts it to `Created`, clears
-    /// `confirmed_payment_date` and `actual_payment_amount`, and recomputes the
+    /// `confirmed_payment_date` and `paid_amount`, and recomputes the
     /// group total.
     #[tokio::test]
     async fn test_remove_procedure_resets_to_created() -> anyhow::Result<()> {
@@ -1531,7 +1554,7 @@ mod tests {
             ProcedureStatus::Created
         ));
         assert_eq!(removed[0].confirmed_payment_date, None);
-        assert_eq!(removed[0].actual_payment_amount, None);
+        assert_eq!(removed[0].paid_amount, None);
 
         let kept = orchestrator
             .procedure_service
@@ -1539,22 +1562,22 @@ mod tests {
             .await?;
         assert!(matches!(
             kept[0].payment_status,
-            ProcedureStatus::Reconciliated
+            ProcedureStatus::Reconciled
         ));
         assert!(
             kept[0].confirmed_payment_date.is_some(),
             "kept procedure must retain confirmed_payment_date"
         );
         assert!(
-            kept[0].actual_payment_amount.is_some(),
-            "kept procedure must retain actual_payment_amount"
+            kept[0].paid_amount.is_some(),
+            "kept procedure must retain paid_amount"
         );
         Ok(())
     }
 
-    /// R8 — Adding a `Created` procedure flips it to `Reconciliated`, sets
+    /// R8 — Adding a `Created` procedure flips it to `Reconciled`, sets
     /// `confirmed_payment_date` to the group payment date, and sets
-    /// `actual_payment_amount` to its `procedure_amount`.
+    /// `paid_amount` to its `billed_amount`.
     #[tokio::test]
     async fn test_add_procedure_sets_to_reconciliated() -> anyhow::Result<()> {
         let pool = setup_db().await;
@@ -1596,19 +1619,19 @@ mod tests {
         assert_eq!(added.len(), 1);
         assert!(matches!(
             added[0].payment_status,
-            ProcedureStatus::Reconciliated
+            ProcedureStatus::Reconciled
         ));
         assert_eq!(
             added[0].confirmed_payment_date,
             Some(NaiveDate::from_ymd_opt(2026, 1, 20).expect("static date is always valid")),
             "confirmed_payment_date == group payment_date"
         );
-        assert_eq!(added[0].actual_payment_amount, Some(25_000));
+        assert_eq!(added[0].paid_amount, Some(25_000));
         Ok(())
     }
 
     /// R11 — Deleting an unlocked group resets every associated procedure to
-    /// `Created` and clears `confirmed_payment_date` and `actual_payment_amount`.
+    /// `Created` and clears `confirmed_payment_date` and `paid_amount`.
     #[tokio::test]
     async fn test_delete_group_resets_all_procedures() -> anyhow::Result<()> {
         let pool = setup_db().await;
@@ -1639,7 +1662,7 @@ mod tests {
                 p.payment_status
             );
             assert_eq!(p.confirmed_payment_date, None);
-            assert_eq!(p.actual_payment_amount, None);
+            assert_eq!(p.paid_amount, None);
         }
 
         let group_after = orchestrator

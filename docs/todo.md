@@ -2,18 +2,7 @@
 
 ---
 
-## DDD Convergence — Quick renames (mechanical, low risk)
-
-Validated in `docs/ubiquitous-language.md`. Each item is a rename with no behavioural change.
-
-- `AffiliatedFund` → `Fund` (struct + all references)
-- `BankTransfer` → `BankEntry`, `BankTransferType` → `BankEntryType` (struct + enum + references)
-- `BankTransferType` variants: `Fund` → `FundWire`, `Check` → `PatientCheck`, `CreditCard` → `PatientCreditCard`, `Cash` → `PatientCash`, `OutgoingWire` → `FundOutgoingWire`
-- `BankTransferUpdated` event → `BankEntryUpdated`
-- `ProcedureStatus` variants: `Reconciliated` → `Reconciled`, `DirectlyPayed` → `DirectlyPaid`, `FundPayed` → `FundPaid`, `PartiallyFundPayed` → `PartiallyFundPaid`, `ImportDirectlyPayed` → `ImportDirectlyPaid`, `ImportFundPayed` → `ImportFundPaid`
-- `FundPaymentGroupStatus::BankPayed` → `BankPaid`
-- `Procedure::procedure_amount` → `billed_amount`, `actual_payment_amount` → `paid_amount`
-- **Bug fix**: auto-reconciliation flow does not set `confirmed_payment_date` on procedures — date is available but not passed through (`fund_payment_reconciliation/orchestrator.rs:179, :297, :452`)
+## DDD Convergence — Quick renames ✅ done
 
 ## DDD Convergence — Major refactors (structural, plan carefully)
 

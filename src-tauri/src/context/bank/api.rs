@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use tauri::State;
 
-use super::{BankAccount, BankAccountService, BankTransfer, BankTransferService, BankTransferType};
+use super::{BankAccount, BankAccountService, BankEntry, BankEntryService, BankEntryType};
 
-// ============ BankTransfer Tauri Commands ============
+// ============ BankEntry Tauri Commands ============
 
 /// Tauri command: Create a new bank transfer (bare — links managed by bank_manual_match use_case)
 #[tauri::command]
@@ -12,10 +12,10 @@ use super::{BankAccount, BankAccountService, BankTransfer, BankTransferService, 
 pub async fn create_bank_transfer(
     transfer_date: String,
     amount: i64,
-    transfer_type: BankTransferType,
+    transfer_type: BankEntryType,
     bank_account_id: String,
-    service: State<'_, Arc<BankTransferService>>,
-) -> Result<BankTransfer, String> {
+    service: State<'_, Arc<BankEntryService>>,
+) -> Result<BankEntry, String> {
     service
         .create_transfer(transfer_date, amount, transfer_type, bank_account_id, false)
         .await
@@ -26,8 +26,8 @@ pub async fn create_bank_transfer(
 #[tauri::command]
 #[specta::specta]
 pub async fn read_all_bank_transfers(
-    service: State<'_, Arc<BankTransferService>>,
-) -> Result<Vec<BankTransfer>, String> {
+    service: State<'_, Arc<BankEntryService>>,
+) -> Result<Vec<BankEntry>, String> {
     service
         .read_all_transfers()
         .await
@@ -39,8 +39,8 @@ pub async fn read_all_bank_transfers(
 #[specta::specta]
 pub async fn read_bank_transfer(
     id: String,
-    service: State<'_, Arc<BankTransferService>>,
-) -> Result<Option<BankTransfer>, String> {
+    service: State<'_, Arc<BankEntryService>>,
+) -> Result<Option<BankEntry>, String> {
     service
         .read_transfer(&id)
         .await
@@ -51,9 +51,9 @@ pub async fn read_bank_transfer(
 #[tauri::command]
 #[specta::specta]
 pub async fn update_bank_transfer(
-    transfer: BankTransfer,
-    service: State<'_, Arc<BankTransferService>>,
-) -> Result<BankTransfer, String> {
+    transfer: BankEntry,
+    service: State<'_, Arc<BankEntryService>>,
+) -> Result<BankEntry, String> {
     service
         .update_transfer(transfer)
         .await
@@ -65,7 +65,7 @@ pub async fn update_bank_transfer(
 #[specta::specta]
 pub async fn delete_bank_transfer(
     id: String,
-    service: State<'_, Arc<BankTransferService>>,
+    service: State<'_, Arc<BankEntryService>>,
 ) -> Result<(), String> {
     service
         .delete_transfer(&id)

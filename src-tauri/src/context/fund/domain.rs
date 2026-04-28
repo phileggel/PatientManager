@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
-/// AffiliatedFund aggregate root
+/// Fund aggregate root
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct AffiliatedFund {
+pub struct Fund {
     pub fund_identifier: String,
     pub name: String,
 
@@ -20,8 +20,8 @@ pub struct AffiliatedFund {
     pub id: String,
 }
 
-impl AffiliatedFund {
-    /// Creates a new AffiliatedFund with validation and generates ID.
+impl Fund {
+    /// Creates a new Fund with validation and generates ID.
     pub fn new(fund_identifier: String, name: String) -> Result<Self> {
         Self::validate(&fund_identifier, &name)?;
 
@@ -33,7 +33,7 @@ impl AffiliatedFund {
         })
     }
 
-    /// Creates a new AffiliatedFund from batch import with temporary ID.
+    /// Creates a new Fund from batch import with temporary ID.
     pub fn new_with_temp_id(
         fund_identifier: String,
         name: String,
@@ -49,7 +49,7 @@ impl AffiliatedFund {
         })
     }
 
-    /// Creates an AffiliatedFund with an existing ID and validation.
+    /// Creates an Fund with an existing ID and validation.
     /// Does NOT generate a new ID.
     pub fn with_id(id: String, fund_identifier: String, name: String) -> Result<Self> {
         Self::validate(&fund_identifier, &name)?;
@@ -62,7 +62,7 @@ impl AffiliatedFund {
         })
     }
 
-    /// Restores an AffiliatedFund from database storage (no validation).
+    /// Restores an Fund from database storage (no validation).
     /// Data from storage is already validated.
     pub fn restore(id: String, fund_identifier: String, name: String) -> Self {
         Self {
@@ -93,7 +93,7 @@ pub enum FundPaymentGroupStatus {
     #[default]
     Active,
     /// Group has been bank-reconciled — locked, cannot be edited or deleted
-    BankPayed,
+    BankPaid,
 }
 
 /// FundPaymentGroup aggregate root
@@ -108,7 +108,7 @@ pub struct FundPaymentGroup {
     pub total_amount: i64,
     pub lines: Vec<FundPaymentLine>,
     pub status: FundPaymentGroupStatus,
-    /// Derived from status: true when BankPayed. Group cannot be edited or deleted when locked.
+    /// Derived from status: true when BankPaid. Group cannot be edited or deleted when locked.
     pub is_locked: bool,
 }
 
@@ -189,7 +189,7 @@ impl FundPaymentGroup {
     ) -> Self {
         let parsed_date =
             NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").unwrap_or(NaiveDate::MIN);
-        let is_locked = status == FundPaymentGroupStatus::BankPayed;
+        let is_locked = status == FundPaymentGroupStatus::BankPaid;
 
         Self {
             id,
@@ -318,6 +318,6 @@ pub trait FundPaymentRepository: Send + Sync {
     ) -> anyhow::Result<bool>;
 
     /// Persist a fully-constructed FundPaymentGroup with its lines, preserving status/is_locked.
-    /// Used for overpayment refund groups created with BankPayed status + negative amount (REF-100).
+    /// Used for overpayment refund groups created with BankPaid status + negative amount (REF-100).
     async fn persist_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup>;
 }

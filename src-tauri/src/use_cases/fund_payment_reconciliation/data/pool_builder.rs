@@ -92,10 +92,10 @@ impl ProcedurePoolBuilder {
         let mut pool: HashMap<String, Vec<Procedure>> = HashMap::new();
         let mut paid_count = 0;
         for (ssn, proc) in all_procedures {
-            if proc.payment_status != ProcedureStatus::DirectlyPayed
-                && proc.payment_status != ProcedureStatus::FundPayed
-                && proc.payment_status != ProcedureStatus::ImportDirectlyPayed
-                && proc.payment_status != ProcedureStatus::ImportFundPayed
+            if proc.payment_status != ProcedureStatus::DirectlyPaid
+                && proc.payment_status != ProcedureStatus::FundPaid
+                && proc.payment_status != ProcedureStatus::ImportDirectlyPaid
+                && proc.payment_status != ProcedureStatus::ImportFundPaid
             {
                 pool.entry(ssn).or_default().push(proc);
             } else {
@@ -280,9 +280,9 @@ mod tests {
     async fn test_filters_paid_procedures() {
         let procs = vec![
             create_procedure("111111111", ProcedureStatus::None),
-            create_procedure("111111111", ProcedureStatus::DirectlyPayed),
-            create_procedure("111111111", ProcedureStatus::FundPayed),
-            create_procedure("111111111", ProcedureStatus::Reconciliated),
+            create_procedure("111111111", ProcedureStatus::DirectlyPaid),
+            create_procedure("111111111", ProcedureStatus::FundPaid),
+            create_procedure("111111111", ProcedureStatus::Reconciled),
         ];
 
         let repo = Arc::new(MockProcedureRepository { procedures: procs });
@@ -293,7 +293,7 @@ mod tests {
         assert!(result.is_ok());
         let pool = result.unwrap();
         assert_eq!(pool.len(), 1);
-        // Should have 2 procedures: None + Reconciliated (DirectlyPayed and FundPayed are excluded)
+        // Should have 2 procedures: None + Reconciled (DirectlyPaid and FundPaid are excluded)
         assert_eq!(pool["111111111"].len(), 2);
     }
 
@@ -302,7 +302,7 @@ mod tests {
         let procs = vec![
             create_procedure("111111111", ProcedureStatus::None),
             create_procedure("222222222", ProcedureStatus::None),
-            create_procedure("111111111", ProcedureStatus::Reconciliated),
+            create_procedure("111111111", ProcedureStatus::Reconciled),
         ];
 
         let repo = Arc::new(MockProcedureRepository { procedures: procs });

@@ -41,9 +41,9 @@ impl BusTopic for FundPaymentGroupUpdated {
 }
 
 #[derive(Debug, Serialize, Clone)]
-pub struct BankTransferUpdated;
+pub struct BankEntryUpdated;
 
-impl BusTopic for BankTransferUpdated {
+impl BusTopic for BankEntryUpdated {
     type Message = Self;
 }
 

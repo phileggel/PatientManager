@@ -263,7 +263,7 @@ impl ReconciliationPass {
 
         let mut anomalies = base_anomalies.clone();
 
-        if let Some(db_amount) = proc.procedure_amount {
+        if let Some(db_amount) = proc.billed_amount {
             let db_internal = InternalAmount(db_amount);
             if db_internal != InternalAmount(normalized.amount) {
                 anomalies.push(AnomalyType::AmountMismatch);
@@ -315,7 +315,7 @@ impl ReconciliationPass {
                 procedure_id: proc.id.clone(),
                 procedure_date: proc.procedure_date,
                 fund_id: proc.fund_id.clone(),
-                amount: proc.procedure_amount,
+                amount: proc.billed_amount,
                 anomalies,
             }],
         );
@@ -354,7 +354,7 @@ impl ReconciliationPass {
                 procedure_id: proc.id.clone(),
                 procedure_date: proc.procedure_date,
                 fund_id: proc.fund_id.clone(),
-                amount: proc.procedure_amount,
+                amount: proc.billed_amount,
                 anomalies: proc_anomalies,
             });
         }
@@ -375,7 +375,7 @@ impl ReconciliationPass {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::fund::AffiliatedFund;
+    use crate::context::fund::Fund;
     use crate::context::procedure::PaymentMethod;
     use crate::context::procedure::ProcedureStatus;
     use chrono::NaiveDate;
@@ -406,7 +406,7 @@ mod tests {
     }
 
     fn create_fund_cache() -> FundCache {
-        let fund = AffiliatedFund::new("CPAM n° 931".to_string(), "CPAM 931".to_string())
+        let fund = Fund::new("CPAM n° 931".to_string(), "CPAM 931".to_string())
             .expect("Fund creation failed in test");
         FundCache::for_test(vec![fund])
     }

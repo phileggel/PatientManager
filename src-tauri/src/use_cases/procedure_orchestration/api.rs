@@ -17,10 +17,10 @@ pub struct RawProcedure {
     pub fund_id: Option<String>,
     pub procedure_type_id: String,
     pub procedure_date: String,
-    pub procedure_amount: Option<i64>,
+    pub billed_amount: Option<i64>,
     pub payment_method: Option<String>,
     pub confirmed_payment_date: Option<String>,
-    pub actual_payment_amount: Option<i64>,
+    pub paid_amount: Option<i64>,
     pub payment_status: String,
 }
 
@@ -37,13 +37,13 @@ impl RawProcedure {
 
         let payment_status = match self.payment_status.as_str() {
             "CREATED" => ProcedureStatus::Created,
-            "RECONCILIATED" => ProcedureStatus::Reconciliated,
+            "RECONCILIATED" => ProcedureStatus::Reconciled,
             "PARTIALLY_RECONCILED" => ProcedureStatus::PartiallyReconciled,
-            "DIRECTLY_PAYED" => ProcedureStatus::DirectlyPayed,
-            "FUND_PAYED" => ProcedureStatus::FundPayed,
-            "PARTIALLY_FUND_PAYED" => ProcedureStatus::PartiallyFundPayed,
-            "IMPORT_DIRECTLY_PAYED" => ProcedureStatus::ImportDirectlyPayed,
-            "IMPORT_FUND_PAYED" => ProcedureStatus::ImportFundPayed,
+            "DIRECTLY_PAYED" => ProcedureStatus::DirectlyPaid,
+            "FUND_PAYED" => ProcedureStatus::FundPaid,
+            "PARTIALLY_FUND_PAYED" => ProcedureStatus::PartiallyFundPaid,
+            "IMPORT_DIRECTLY_PAYED" => ProcedureStatus::ImportDirectlyPaid,
+            "IMPORT_FUND_PAYED" => ProcedureStatus::ImportFundPaid,
             "OVERPAID" => ProcedureStatus::Overpaid,
             "OVERPAYMENT_REFUND" => ProcedureStatus::OverpaymentRefund,
             _ => ProcedureStatus::None,
@@ -55,10 +55,10 @@ impl RawProcedure {
             self.fund_id,
             self.procedure_type_id,
             self.procedure_date,
-            self.procedure_amount,
+            self.billed_amount,
             payment_method,
             self.confirmed_payment_date,
-            self.actual_payment_amount,
+            self.paid_amount,
             payment_status,
         )
     }
@@ -102,7 +102,7 @@ pub async fn add_procedure(
     fund_id: Option<String>,
     procedure_type_id: String,
     procedure_date: String,
-    procedure_amount: Option<i64>,
+    billed_amount: Option<i64>,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<Procedure, String> {
     tracing::info!(patient_id = %patient_id, "Processing add procedure");
@@ -113,7 +113,7 @@ pub async fn add_procedure(
             fund_id,
             procedure_type_id,
             procedure_date,
-            procedure_amount,
+            billed_amount,
             None,
             None,
             None,

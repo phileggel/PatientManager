@@ -61,13 +61,13 @@ impl From<ProcedureRow> for Procedure {
 
         let payment_status = match row.payment_status.as_deref() {
             Some("CREATED") => ProcedureStatus::Created,
-            Some("RECONCILIATED") => ProcedureStatus::Reconciliated,
+            Some("RECONCILIATED") => ProcedureStatus::Reconciled,
             Some("PARTIALLY_RECONCILED") => ProcedureStatus::PartiallyReconciled,
-            Some("DIRECTLY_PAYED") => ProcedureStatus::DirectlyPayed,
-            Some("FUND_PAYED") => ProcedureStatus::FundPayed,
-            Some("PARTIALLY_FUND_PAYED") => ProcedureStatus::PartiallyFundPayed,
-            Some("IMPORT_DIRECTLY_PAYED") => ProcedureStatus::ImportDirectlyPayed,
-            Some("IMPORT_FUND_PAYED") => ProcedureStatus::ImportFundPayed,
+            Some("DIRECTLY_PAYED") => ProcedureStatus::DirectlyPaid,
+            Some("FUND_PAYED") => ProcedureStatus::FundPaid,
+            Some("PARTIALLY_FUND_PAYED") => ProcedureStatus::PartiallyFundPaid,
+            Some("IMPORT_DIRECTLY_PAYED") => ProcedureStatus::ImportDirectlyPaid,
+            Some("IMPORT_FUND_PAYED") => ProcedureStatus::ImportFundPaid,
             Some("OVERPAID") => ProcedureStatus::Overpaid,
             Some("OVERPAYMENT_REFUND") => ProcedureStatus::OverpaymentRefund,
             _ => ProcedureStatus::None,
@@ -108,10 +108,10 @@ pub trait ProcedureRepository: Send + Sync {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: String,
-        procedure_amount: Option<i64>,
+        billed_amount: Option<i64>,
         payment_method: PaymentMethod,
         confirmed_payment_date: Option<String>,
-        actual_payment_amount: Option<i64>,
+        paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> anyhow::Result<Procedure>;
 
@@ -153,7 +153,7 @@ pub trait ProcedureRepository: Send + Sync {
         patient_id: &str,
         fund_id: Option<&str>,
         procedure_date: &str,
-        procedure_amount: i64,
+        billed_amount: i64,
     ) -> anyhow::Result<Option<Procedure>>;
 
     async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>>;
@@ -216,13 +216,13 @@ fn payment_status_to_str(status: ProcedureStatus) -> &'static str {
     match status {
         ProcedureStatus::None => "NONE",
         ProcedureStatus::Created => "CREATED",
-        ProcedureStatus::Reconciliated => "RECONCILIATED",
+        ProcedureStatus::Reconciled => "RECONCILIATED",
         ProcedureStatus::PartiallyReconciled => "PARTIALLY_RECONCILED",
-        ProcedureStatus::DirectlyPayed => "DIRECTLY_PAYED",
-        ProcedureStatus::FundPayed => "FUND_PAYED",
-        ProcedureStatus::PartiallyFundPayed => "PARTIALLY_FUND_PAYED",
-        ProcedureStatus::ImportDirectlyPayed => "IMPORT_DIRECTLY_PAYED",
-        ProcedureStatus::ImportFundPayed => "IMPORT_FUND_PAYED",
+        ProcedureStatus::DirectlyPaid => "DIRECTLY_PAYED",
+        ProcedureStatus::FundPaid => "FUND_PAYED",
+        ProcedureStatus::PartiallyFundPaid => "PARTIALLY_FUND_PAYED",
+        ProcedureStatus::ImportDirectlyPaid => "IMPORT_DIRECTLY_PAYED",
+        ProcedureStatus::ImportFundPaid => "IMPORT_FUND_PAYED",
         ProcedureStatus::Overpaid => "OVERPAID",
         ProcedureStatus::OverpaymentRefund => "OVERPAYMENT_REFUND",
     }
@@ -237,10 +237,10 @@ impl ProcedureRepository for SqliteProcedureRepository {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: String,
-        procedure_amount: Option<i64>,
+        billed_amount: Option<i64>,
         payment_method: PaymentMethod,
         confirmed_payment_date: Option<String>,
-        actual_payment_amount: Option<i64>,
+        paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> anyhow::Result<Procedure> {
         let procedure = Procedure::new(
@@ -248,10 +248,10 @@ impl ProcedureRepository for SqliteProcedureRepository {
             fund_id,
             procedure_type_id,
             procedure_date,
-            procedure_amount,
+            billed_amount,
             payment_method,
             confirmed_payment_date,
-            actual_payment_amount,
+            paid_amount,
             payment_status,
         )?;
 
@@ -278,10 +278,10 @@ impl ProcedureRepository for SqliteProcedureRepository {
             procedure.fund_id,
             procedure.procedure_type_id,
             procedure_date_str,
-            procedure.procedure_amount,
+            procedure.billed_amount,
             payment_method_str,
             confirmed_payment_date_str,
-            procedure.actual_payment_amount,
+            procedure.paid_amount,
             payment_status_str,
         )
         .execute(&self.pool)
@@ -400,10 +400,10 @@ impl ProcedureRepository for SqliteProcedureRepository {
             procedure.fund_id,
             procedure.procedure_type_id,
             procedure_date_str,
-            procedure.procedure_amount,
+            procedure.billed_amount,
             payment_method_str,
             confirmed_payment_date_str,
-            procedure.actual_payment_amount,
+            procedure.paid_amount,
             payment_status_str,
             procedure.id,
         )
@@ -596,13 +596,13 @@ impl ProcedureRepository for SqliteProcedureRepository {
         patient_id: &str,
         fund_id: Option<&str>,
         procedure_date: &str,
-        procedure_amount: i64,
+        billed_amount: i64,
     ) -> anyhow::Result<Option<Procedure>> {
         tracing::trace!(
             patient_id = %patient_id,
             fund_id = ?fund_id,
             procedure_date = %procedure_date,
-            procedure_amount = %procedure_amount,
+            billed_amount = %billed_amount,
             "Querying for exact procedure match"
         );
 
@@ -621,7 +621,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             patient_id,
             fund_id,
             procedure_date,
-            procedure_amount,
+            billed_amount,
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -657,10 +657,10 @@ impl ProcedureRepository for SqliteProcedureRepository {
                 procedure.fund_id,
                 procedure.procedure_type_id,
                 procedure_date_str,
-                procedure.procedure_amount,
+                procedure.billed_amount,
                 payment_method_str,
                 confirmed_payment_date_str,
-                procedure.actual_payment_amount,
+                procedure.paid_amount,
                 payment_status_str,
             )
             .execute(&mut *tx)
@@ -705,10 +705,10 @@ impl ProcedureRepository for SqliteProcedureRepository {
                 procedure.fund_id,
                 procedure.procedure_type_id,
                 procedure_date_str,
-                procedure.procedure_amount,
+                procedure.billed_amount,
                 payment_method_str,
                 confirmed_payment_date_str,
-                procedure.actual_payment_amount,
+                procedure.paid_amount,
                 payment_status_str,
                 procedure.id,
             )

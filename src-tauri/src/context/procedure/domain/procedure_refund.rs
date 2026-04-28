@@ -119,13 +119,13 @@ mod tests {
             "transfer-id".to_string(),
             "2026-04-01".to_string(),
             Some("Test reason".to_string()),
-            ProcedureStatus::FundPayed,
+            ProcedureStatus::FundPaid,
         )
         .unwrap();
 
         assert_eq!(refund.source_procedure_id, "src-id");
         assert_eq!(refund.refund_procedure_id, "refund-id");
-        assert_eq!(refund.previous_payment_status, ProcedureStatus::FundPayed);
+        assert_eq!(refund.previous_payment_status, ProcedureStatus::FundPaid);
         assert!(!refund.id.is_empty());
     }
 
@@ -139,7 +139,7 @@ mod tests {
             "transfer-id".to_string(),
             "2026-04-01".to_string(),
             Some(long_reason),
-            ProcedureStatus::FundPayed,
+            ProcedureStatus::FundPaid,
         );
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("255"));
@@ -155,7 +155,7 @@ mod tests {
             "transfer-id".to_string(),
             "2026-04-01".to_string(),
             Some(reason),
-            ProcedureStatus::FundPayed,
+            ProcedureStatus::FundPaid,
         );
         assert!(result.is_ok());
     }

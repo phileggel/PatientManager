@@ -12,28 +12,28 @@ use super::bank_account::BankAccount;
 /// It must NOT be accepted in the bank statement manual-match UI.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum BankTransferType {
+pub enum BankEntryType {
     #[default]
-    Fund,
-    Check,
-    CreditCard,
-    Cash,
+    FundWire,
+    PatientCheck,
+    PatientCreditCard,
+    PatientCash,
     /// Outgoing wire refund — only creatable via the overpayment flow (REF-080, REF-110).
     /// Carries a negative amount to represent money returned to a fund.
-    OutgoingWire,
+    FundOutgoingWire,
 }
 
-/// BankTransfer aggregate root
+/// BankEntry aggregate root
 /// Represents a bank transfer (FUND) or direct payment (CHECK/CREDIT_CARD/CASH).
 /// Links to fund payment groups or procedures are stored in junction tables.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct BankTransfer {
+pub struct BankEntry {
     pub id: String,
     #[serde(serialize_with = "serialize_date")]
     #[specta(type = String)]
     pub transfer_date: NaiveDate,
     pub amount: i64,
-    pub transfer_type: BankTransferType,
+    pub transfer_type: BankEntryType,
     pub bank_account: BankAccount,
 }
 
@@ -45,12 +45,12 @@ where
     serializer.serialize_str(&date.format("%Y-%m-%d").to_string())
 }
 
-impl BankTransfer {
-    /// Creates a new BankTransfer with validation and generates ID.
+impl BankEntry {
+    /// Creates a new BankEntry with validation and generates ID.
     pub fn new(
         transfer_date: String,
         amount: i64,
-        transfer_type: BankTransferType,
+        transfer_type: BankEntryType,
         bank_account: BankAccount,
     ) -> Result<Self> {
         Self::validate(amount)?;
@@ -71,13 +71,13 @@ impl BankTransfer {
         })
     }
 
-    /// Creates a BankTransfer with an existing ID and validation.
+    /// Creates a BankEntry with an existing ID and validation.
     /// Does NOT generate a new ID.
     pub fn with_id(
         id: String,
         transfer_date: String,
         amount: i64,
-        transfer_type: BankTransferType,
+        transfer_type: BankEntryType,
         bank_account: BankAccount,
     ) -> Result<Self> {
         Self::validate(amount)?;
@@ -98,13 +98,13 @@ impl BankTransfer {
         })
     }
 
-    /// Restores a BankTransfer from database storage (no validation).
+    /// Restores a BankEntry from database storage (no validation).
     /// Data from storage is already validated.
     pub fn restore(
         id: String,
         transfer_date: String,
         amount: i64,
-        transfer_type: BankTransferType,
+        transfer_type: BankEntryType,
         bank_account: BankAccount,
     ) -> Self {
         let parsed_date =
@@ -142,25 +142,25 @@ mod tests {
 
     #[test]
     fn test_bank_transfer_creation() {
-        let transfer = BankTransfer::new(
+        let transfer = BankEntry::new(
             "2026-02-15".to_string(),
             1500500,
-            BankTransferType::Fund,
+            BankEntryType::FundWire,
             make_account(),
         )
-        .expect("BankTransfer creation failed");
+        .expect("BankEntry creation failed");
 
         assert_eq!(transfer.amount, 1500500);
-        assert_eq!(transfer.transfer_type, BankTransferType::Fund);
+        assert_eq!(transfer.transfer_type, BankEntryType::FundWire);
         assert!(!transfer.id.is_empty());
     }
 
     #[test]
     fn test_bank_transfer_zero_amount_rejected() {
-        let result = BankTransfer::new(
+        let result = BankEntry::new(
             "2026-02-15".to_string(),
             0,
-            BankTransferType::Fund,
+            BankEntryType::FundWire,
             make_account(),
         );
         assert!(result.is_err());
@@ -169,10 +169,10 @@ mod tests {
 
     #[test]
     fn test_bank_transfer_negative_amount_rejected() {
-        let result = BankTransfer::new(
+        let result = BankEntry::new(
             "2026-02-15".to_string(),
             -100,
-            BankTransferType::Check,
+            BankEntryType::PatientCheck,
             make_account(),
         );
         assert!(result.is_err());
@@ -181,30 +181,30 @@ mod tests {
     #[test]
     fn test_bank_transfer_type_serialization() {
         assert_eq!(
-            serde_json::to_string(&BankTransferType::Check).unwrap(),
+            serde_json::to_string(&BankEntryType::PatientCheck).unwrap(),
             r#""CHECK""#
         );
         assert_eq!(
-            serde_json::to_string(&BankTransferType::CreditCard).unwrap(),
+            serde_json::to_string(&BankEntryType::PatientCreditCard).unwrap(),
             r#""CREDIT_CARD""#
         );
         assert_eq!(
-            serde_json::to_string(&BankTransferType::Cash).unwrap(),
+            serde_json::to_string(&BankEntryType::PatientCash).unwrap(),
             r#""CASH""#
         );
         assert_eq!(
-            serde_json::to_string(&BankTransferType::Fund).unwrap(),
+            serde_json::to_string(&BankEntryType::FundWire).unwrap(),
             r#""FUND""#
         );
     }
 
     #[test]
     fn test_with_id_preserves_id() {
-        let transfer = BankTransfer::with_id(
+        let transfer = BankEntry::with_id(
             "fixed-id".to_string(),
             "2026-03-01".to_string(),
             500,
-            BankTransferType::Cash,
+            BankEntryType::PatientCash,
             make_account(),
         )
         .unwrap();
@@ -213,11 +213,11 @@ mod tests {
 
     #[test]
     fn test_restore_uses_min_date_on_invalid() {
-        let transfer = BankTransfer::restore(
+        let transfer = BankEntry::restore(
             "id".to_string(),
             "not-a-date".to_string(),
             1000,
-            BankTransferType::Fund,
+            BankEntryType::FundWire,
             make_account(),
         );
         assert_eq!(transfer.transfer_date, NaiveDate::MIN);

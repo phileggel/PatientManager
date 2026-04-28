@@ -4,7 +4,7 @@ pub mod observer;
 
 pub use bus::EventBus;
 pub use event::{
-    BankAccountUpdated, BankTransferUpdated, BusTopic, FundPaymentGroupUpdated, FundUpdated,
+    BankAccountUpdated, BankEntryUpdated, BusTopic, FundPaymentGroupUpdated, FundUpdated,
     PatientUpdated, ProcedureTypeUpdated, ProcedureUpdated,
 };
 pub use observer::EventObserver;

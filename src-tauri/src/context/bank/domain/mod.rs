@@ -1,5 +1,5 @@
 mod bank_account;
-mod bank_transfer;
+mod bank_entry;
 
 pub use bank_account::BankAccount;
-pub use bank_transfer::{BankTransfer, BankTransferType};
+pub use bank_entry::{BankEntry, BankEntryType};

@@ -5,13 +5,11 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::context::bank::{
-    BankAccountService, BankTransferLinkRepository, BankTransferService, BankTransferType,
+    BankAccountService, BankEntryLinkRepository, BankEntryService, BankEntryType,
 };
-use crate::context::fund::{
-    AffiliatedFund, FundPaymentGroupStatus, FundPaymentService, FundService,
-};
+use crate::context::fund::{Fund, FundPaymentGroupStatus, FundPaymentService, FundService};
 use crate::context::procedure::{ProcedureService, ProcedureStatus};
-use crate::core::event_bus::{BankTransferUpdated, EventBus, ProcedureUpdated};
+use crate::core::event_bus::{BankEntryUpdated, EventBus, ProcedureUpdated};
 
 use super::label_mapping_repo::BankFundLabelMappingRepository;
 
@@ -90,8 +88,8 @@ pub struct BankStatementOrchestrator {
     bank_account_service: Arc<BankAccountService>,
     fund_service: Arc<FundService>,
     fund_payment_service: Arc<FundPaymentService>,
-    bank_transfer_service: Arc<BankTransferService>,
-    transfer_link_repo: Arc<dyn BankTransferLinkRepository>,
+    bank_transfer_service: Arc<BankEntryService>,
+    transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
     procedure_service: Arc<ProcedureService>,
     label_mapping_repo: Arc<dyn BankFundLabelMappingRepository>,
     event_bus: Arc<EventBus>,
@@ -103,8 +101,8 @@ impl BankStatementOrchestrator {
         bank_account_service: Arc<BankAccountService>,
         fund_service: Arc<FundService>,
         fund_payment_service: Arc<FundPaymentService>,
-        bank_transfer_service: Arc<BankTransferService>,
-        transfer_link_repo: Arc<dyn BankTransferLinkRepository>,
+        bank_transfer_service: Arc<BankEntryService>,
+        transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
         procedure_service: Arc<ProcedureService>,
         label_mapping_repo: Arc<dyn BankFundLabelMappingRepository>,
         event_bus: Arc<EventBus>,
@@ -193,7 +191,7 @@ impl BankStatementOrchestrator {
 
     /// Match resolved credit lines against unsettled FundPaymentGroups.
     ///
-    /// A group is "unsettled" if no BankTransfer exists with
+    /// A group is "unsettled" if no BankEntry exists with
     /// source = `fund_payment_group_{group_id}`.
     ///
     /// Algorithm:
@@ -332,7 +330,7 @@ impl BankStatementOrchestrator {
                 .create_transfer(
                     m.date.clone(),
                     m.amount,
-                    BankTransferType::Fund,
+                    BankEntryType::FundWire,
                     bank_account_id.to_string(),
                     true,
                 )
@@ -350,16 +348,16 @@ impl BankStatementOrchestrator {
                 "Bank transfer created"
             );
 
-            // Step 3: Update group status to BankPayed
+            // Step 3: Update group status to BankPaid
             if let Err(e) = self
                 .fund_payment_service
-                .update_group_status(&m.group_id, FundPaymentGroupStatus::BankPayed)
+                .update_group_status(&m.group_id, FundPaymentGroupStatus::BankPaid)
                 .await
             {
                 tracing::warn!(
                     group_id = %m.group_id,
                     error = %e,
-                    "Failed to update group status to BankPayed"
+                    "Failed to update group status to BankPaid"
                 );
             }
 
@@ -376,23 +374,20 @@ impl BankStatementOrchestrator {
                     let updated_procedures: Vec<_> = procedures_to_update
                         .into_iter()
                         .map(|mut procedure| {
-                            // Contested procedures keep their actual_payment_amount (pdf amount)
-                            // and transition to PartiallyFundPayed instead of FundPayed.
-                            let (new_status, actual_payment_amount) = if procedure.payment_status
+                            // Contested procedures keep their paid_amount (pdf amount)
+                            // and transition to PartiallyFundPaid instead of FundPaid.
+                            let (new_status, paid_amount) = if procedure.payment_status
                                 == ProcedureStatus::PartiallyReconciled
                             {
-                                (
-                                    ProcedureStatus::PartiallyFundPayed,
-                                    procedure.actual_payment_amount,
-                                )
+                                (ProcedureStatus::PartiallyFundPaid, procedure.paid_amount)
                             } else {
-                                (ProcedureStatus::FundPayed, procedure.procedure_amount)
+                                (ProcedureStatus::FundPaid, procedure.billed_amount)
                             };
                             procedure.payment_status = new_status;
                             procedure = procedure.with_payment_info(
                                 crate::context::procedure::PaymentMethod::BankTransfer,
                                 Some(confirmed_date),
-                                actual_payment_amount,
+                                paid_amount,
                             );
                             procedure
                         })
@@ -435,9 +430,7 @@ impl BankStatementOrchestrator {
         // Publish events once after all transfers are created
         if created_count > 0 {
             let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
-            let _ = self
-                .event_bus
-                .publish::<BankTransferUpdated>(BankTransferUpdated);
+            let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
         }
 
         Ok(created_count)
@@ -446,9 +439,7 @@ impl BankStatementOrchestrator {
     /// Publish batched events after batch reconciliation completes
     pub fn publish_batch_events(&self) {
         let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
-        let _ = self
-            .event_bus
-            .publish::<BankTransferUpdated>(BankTransferUpdated);
+        let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
     }
 
     /// Resolve IBAN to bank account
@@ -465,7 +456,7 @@ impl BankStatementOrchestrator {
 /// Strategy:
 /// 1. Extract number from CPAM/CAISSE labels → match fund_identifier
 /// 2. Fuzzy name matching as fallback
-fn suggest_fund(label: &str, funds: &[AffiliatedFund]) -> (Option<String>, Option<String>) {
+fn suggest_fund(label: &str, funds: &[Fund]) -> (Option<String>, Option<String>) {
     // Strategy 1: Extract CPAM number
     // Labels like "CPAM93", "CPAM94", "CPAM75PRESTATIONS"
     let cpam_re = Regex::new(r"(?i)(?:CPAM|CAISSE)(\d+)").ok();
@@ -484,7 +475,7 @@ fn suggest_fund(label: &str, funds: &[AffiliatedFund]) -> (Option<String>, Optio
     // Strategy 2: Word overlap fuzzy matching
     let label_upper = label.to_uppercase();
     let mut best_score = 0usize;
-    let mut best_fund: Option<&AffiliatedFund> = None;
+    let mut best_fund: Option<&Fund> = None;
 
     for fund in funds {
         let fund_name_upper = fund.name.to_uppercase().replace(' ', "");
@@ -530,8 +521,8 @@ mod tests {
     #[test]
     fn test_suggest_fund_cpam() {
         let funds = vec![
-            AffiliatedFund::restore("f1".into(), "93".into(), "CPAM 93".into()),
-            AffiliatedFund::restore("f2".into(), "94".into(), "CPAM 94".into()),
+            Fund::restore("f1".into(), "93".into(), "CPAM 93".into()),
+            Fund::restore("f2".into(), "94".into(), "CPAM 94".into()),
         ];
 
         let (id, name) = suggest_fund("CPAM93", &funds);
@@ -544,11 +535,7 @@ mod tests {
 
     #[test]
     fn test_suggest_fund_cpam_with_suffix() {
-        let funds = vec![AffiliatedFund::restore(
-            "f1".into(),
-            "75".into(),
-            "CPAM 75".into(),
-        )];
+        let funds = vec![Fund::restore("f1".into(), "75".into(), "CPAM 75".into())];
 
         let (id, _) = suggest_fund("CPAM75PRESTATIONS", &funds);
         assert_eq!(id.as_deref(), Some("f1"));
@@ -556,11 +543,7 @@ mod tests {
 
     #[test]
     fn test_suggest_fund_no_match() {
-        let funds = vec![AffiliatedFund::restore(
-            "f1".into(),
-            "93".into(),
-            "CPAM 93".into(),
-        )];
+        let funds = vec![Fund::restore("f1".into(), "93".into(), "CPAM 93".into())];
 
         let (id, _) = suggest_fund("XY", &funds);
         assert!(id.is_none());
@@ -568,7 +551,7 @@ mod tests {
 
     #[test]
     fn test_suggest_fund_fuzzy_name() {
-        let funds = vec![AffiliatedFund::restore(
+        let funds = vec![Fund::restore(
             "f1".into(),
             "MGEN".into(),
             "MUTUELLE GENERALE EDUCATION NAT".into(),

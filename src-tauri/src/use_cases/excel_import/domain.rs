@@ -31,7 +31,7 @@ pub struct ExcelProcedure {
     pub sheet_month: String,
     pub payment_method: Option<String>,
     pub confirmed_payment_date: Option<String>,
-    pub actual_payment_amount: Option<i64>,
+    pub paid_amount: Option<i64>,
     pub awaited_amount: Option<i64>,
 }
 

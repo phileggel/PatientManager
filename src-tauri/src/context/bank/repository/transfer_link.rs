@@ -5,7 +5,7 @@ use uuid::Uuid;
 /// Repository for junction tables linking bank transfers to fund groups and procedures.
 /// Operates on IDs only — no cross-context domain objects.
 #[async_trait::async_trait]
-pub trait BankTransferLinkRepository: Send + Sync {
+pub trait BankEntryLinkRepository: Send + Sync {
     /// Link a bank transfer to one or more fund payment groups
     async fn link_fund_groups(
         &self,
@@ -39,18 +39,18 @@ pub trait BankTransferLinkRepository: Send + Sync {
     async fn unlink_all_procedures(&self, bank_transfer_id: &str) -> anyhow::Result<()>;
 }
 
-pub struct SqliteBankTransferLinkRepository {
+pub struct SqliteBankEntryLinkRepository {
     pool: SqlitePool,
 }
 
-impl SqliteBankTransferLinkRepository {
+impl SqliteBankEntryLinkRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait::async_trait]
-impl BankTransferLinkRepository for SqliteBankTransferLinkRepository {
+impl BankEntryLinkRepository for SqliteBankEntryLinkRepository {
     async fn link_fund_groups(
         &self,
         bank_transfer_id: &str,
