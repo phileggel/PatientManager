@@ -867,12 +867,6 @@ async importDatabase(sourcePath: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-/**
- * Tauri command: Health check
- */
-async checkHealth() : Promise<HealthResponse> {
-    return await TAURI_INVOKE("check_health");
-},
 async logFrontend(level: string, message: string) : Promise<void> {
     await TAURI_INVOKE("log_frontend", { level, message });
 },
@@ -1290,7 +1284,6 @@ export type FundValidationResult = { candidate: FundCandidate; status: FundValid
  * Validation status for fund candidate
  */
 export type FundValidationStatus = "VALID" | "ALREADY_EXISTS" | "INVALID"
-export type HealthResponse = { status: string }
 /**
  * Result of a completed Excel import execution
  */
@@ -1398,7 +1391,7 @@ export type PatientValidationStatus = "VALID" | "ALREADY_EXISTS" | "INVALID"
  * - Cash: Electronic payment (ES code in Excel)
  * - Check: Check payment (CH code in Excel)
  * - BankCard: Credit/debit card payment (not currently in Excel imports, handled later)
- * - BankEntry: Bank transfer (inferred when confirmed_payment_date exists but no explicit method)
+ * - BankTransfer: Bank transfer (inferred when confirmed_payment_date exists but no explicit method)
  */
 export type PaymentMethod = "NONE" | "CASH" | "CHECK" | "BANK_CARD" | "BANK_TRANSFER"
 /**
@@ -1455,7 +1448,7 @@ lines: NormalizedPdfLine[] }
  * - billed_amount: Total amount charged/invoiced for the procedure (thousandths of a euro)
  * - paid_amount: Amount actually paid/received from patient or fund (thousandths of a euro)
  * - confirmed_payment_date: When the payment was confirmed (from reconciliation)
- * - payment_method: How payment was made (Cash/Check/BankCard/BankEntry/None)
+ * - payment_method: How payment was made (Cash/Check/BankCard/BankTransfer/None)
  */
 export type Procedure = { 
 /**
@@ -1482,11 +1475,11 @@ procedure_date: string;
 billed_amount: number | null; 
 /**
  * Payment method used for this procedure
- * Determines how payment was made: Cash/Check/BankCard/BankEntry/None
+ * Determines how payment was made: Cash/Check/BankCard/BankTransfer/None
  * - Cash: Electronic payment (ES in Excel)
  * - Check: Check payment (CH in Excel)
  * - BankCard: Credit/debit card (available for future use)
- * - BankEntry: Inferred from confirmed_payment_date during reconciliation
+ * - BankTransfer: Inferred from confirmed_payment_date during reconciliation
  * - None: No payment information or no confirmed payment date
  */
 payment_method: PaymentMethod; 
@@ -1503,7 +1496,7 @@ payment_status: ProcedureStatus;
 /**
  * Date when payment was confirmed (ISO format: YYYY-MM-DD)
  * Source: Excel import column J or PDF reconciliation data
- * Presence of this date triggers BankEntry inference if payment_method not explicit
+ * Presence of this date triggers BankTransfer inference if payment_method not explicit
  */
 confirmed_payment_date: string; 
 /**
