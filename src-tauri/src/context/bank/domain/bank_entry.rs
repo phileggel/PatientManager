@@ -182,19 +182,19 @@ mod tests {
     fn test_bank_transfer_type_serialization() {
         assert_eq!(
             serde_json::to_string(&BankEntryType::PatientCheck).unwrap(),
-            r#""CHECK""#
+            r#""PATIENT_CHECK""#
         );
         assert_eq!(
             serde_json::to_string(&BankEntryType::PatientCreditCard).unwrap(),
-            r#""CREDIT_CARD""#
+            r#""PATIENT_CREDIT_CARD""#
         );
         assert_eq!(
             serde_json::to_string(&BankEntryType::PatientCash).unwrap(),
-            r#""CASH""#
+            r#""PATIENT_CASH""#
         );
         assert_eq!(
             serde_json::to_string(&BankEntryType::FundWire).unwrap(),
-            r#""FUND""#
+            r#""FUND_WIRE""#
         );
     }
 

@@ -466,13 +466,11 @@ impl FundPaymentReconciliationOrchestrator {
         let updated_procedures: Vec<_> = procedures_to_update
             .into_iter()
             .map(|mut procedure| {
-                if procedure.payment_status == ProcedureStatus::PartiallyReconciled {
+                procedure.confirmed_payment_date = procedure_date_map.get(&procedure.id).copied();
+                if procedure.payment_status != ProcedureStatus::PartiallyReconciled {
                     // Contest correction already set paid_amount and status — keep them
-                } else {
                     procedure.payment_status = ProcedureStatus::Reconciled;
                     procedure.paid_amount = procedure.billed_amount;
-                    procedure.confirmed_payment_date =
-                        procedure_date_map.get(&procedure.id).copied();
                 }
                 procedure
             })

@@ -167,7 +167,7 @@ pub trait ProcedureRepository: Send + Sync {
     ) -> anyhow::Result<Vec<UnreconciledProcedureRow>>;
 
     /// Returns true if any non-deleted procedure in the given month (YYYY-MM) has a
-    /// blocking status (RECONCILIATED or FUND_PAYED), preventing re-import.
+    /// blocking status (Reconciled or FundPaid), preventing re-import.
     async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool>;
 
     /// Hard-deletes all procedures (including soft-deleted) for the given month (YYYY-MM).

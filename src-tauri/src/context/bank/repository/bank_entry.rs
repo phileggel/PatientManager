@@ -268,6 +268,7 @@ mod tests {
             BankEntryType::PatientCheck,
             BankEntryType::PatientCreditCard,
             BankEntryType::PatientCash,
+            BankEntryType::FundOutgoingWire,
         ] {
             assert_eq!(parse_transfer_type(transfer_type_to_str(t)), t);
         }
