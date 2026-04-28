@@ -10,14 +10,14 @@ use crate::{
 /// create the Specta builder for standard and generate_bindings
 pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new()
-        .typ::<fund::AffiliatedFund>()
+        .typ::<fund::Fund>()
         .typ::<patient::Patient>()
         .typ::<procedure::Procedure>()
         .typ::<procedure::ProcedureType>()
         .typ::<fund::FundPaymentGroup>()
         .typ::<fund::FundPaymentLine>()
-        .typ::<bank::BankTransfer>()
-        .typ::<bank::BankTransferType>()
+        .typ::<bank::BankEntry>()
+        .typ::<bank::BankEntryType>()
         .typ::<bank::BankAccount>()
         .typ::<patient::PatientCandidate>()
         .typ::<patient::PatientValidationStatus>()

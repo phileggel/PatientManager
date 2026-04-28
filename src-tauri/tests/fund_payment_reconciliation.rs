@@ -8,7 +8,7 @@
 ///
 /// 1. `test_full_reconciliation_scenario_with_amount_correction`
 ///    Direct orchestrator path (no reconciliation service):
-///    candidates + AmountMismatch → 2 groups created, 5 procedures Reconciliated.
+///    candidates + AmountMismatch → 2 groups created, 5 procedures Reconciled.
 ///
 /// 2. `test_full_chain_via_reconciliation_service`
 ///    Full chain from PdfParseResult (French dates, raw PDF format):
@@ -228,7 +228,7 @@ async fn test_full_reconciliation_scenario_with_amount_correction() {
     assert_eq!(cpam_group.lines.len(), 3);
     assert_eq!(mgen_group.lines.len(), 2);
 
-    // ---- Assert: all procedures Reconciliated -------------------------
+    // ---- Assert: all procedures Reconciled -------------------------
     let procedures = ctx
         .procedure_service
         .read_procedures_by_ids(vec![
@@ -243,12 +243,12 @@ async fn test_full_reconciliation_scenario_with_amount_correction() {
 
     assert_eq!(procedures.len(), 5);
     for proc in &procedures {
-        assert_eq!(proc.payment_status, ProcedureStatus::Reconciliated);
+        assert_eq!(proc.payment_status, ProcedureStatus::Reconciled);
     }
 
     // ---- Assert: p5 amount corrected in DB ---------------------------
     let p5_db = procedures.iter().find(|p| p.id == p5.id).unwrap();
-    assert_eq!(p5_db.procedure_amount, Some(28_500));
+    assert_eq!(p5_db.billed_amount, Some(28_500));
 
     // ---- Assert: duplicate guard -------------------------------------
     let dup = create_fund_payment_with_auto_corrections_fn(
@@ -514,7 +514,7 @@ async fn test_full_chain_via_reconciliation_service() {
     assert_eq!(cpam_group.lines.len(), 2);
     assert_eq!(mgen_group.lines.len(), 1);
 
-    // ---- Assert: all 3 procedures Reconciliated ----------------------
+    // ---- Assert: all 3 procedures Reconciled ----------------------
     let procedures = ctx
         .procedure_service
         .read_procedures_by_ids(vec![p1.id.clone(), p2.id.clone(), p3.id.clone()])
@@ -525,8 +525,8 @@ async fn test_full_chain_via_reconciliation_service() {
     for proc in &procedures {
         assert_eq!(
             proc.payment_status,
-            ProcedureStatus::Reconciliated,
-            "Procedure {} should be Reconciliated",
+            ProcedureStatus::Reconciled,
+            "Procedure {} should be Reconciled",
             proc.id
         );
     }
@@ -534,7 +534,7 @@ async fn test_full_chain_via_reconciliation_service() {
     // ---- Assert: p3 amount corrected in DB ---------------------------
     let p3_db = procedures.iter().find(|p| p.id == p3.id).unwrap();
     assert_eq!(
-        p3_db.procedure_amount,
+        p3_db.billed_amount,
         Some(28_500),
         "p3 amount should be corrected from 25 000 to 28 500"
     );

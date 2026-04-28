@@ -24,8 +24,8 @@ use tauri::{AppHandle, Manager};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use crate::context::bank::{
-    BankAccountService, BankTransferService, SqliteBankAccountRepository,
-    SqliteBankTransferLinkRepository, SqliteBankTransferRepository,
+    BankAccountService, BankEntryService, SqliteBankAccountRepository,
+    SqliteBankEntryLinkRepository, SqliteBankEntryRepository,
 };
 use crate::context::fund::FundService;
 use crate::context::procedure::{
@@ -98,8 +98,8 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         EventObserver::<_, FundPaymentGroupUpdated>::new(app.clone(), rx)
             .spawn("fund_payment_group_updated");
     }
-    if let Ok(rx) = event_bus.subscribe::<BankTransferUpdated>() {
-        EventObserver::<_, BankTransferUpdated>::new(app.clone(), rx).spawn("banktransfer_updated");
+    if let Ok(rx) = event_bus.subscribe::<BankEntryUpdated>() {
+        EventObserver::<_, BankEntryUpdated>::new(app.clone(), rx).spawn("banktransfer_updated");
     }
     if let Ok(rx) = event_bus.subscribe::<BankAccountUpdated>() {
         EventObserver::<_, BankAccountUpdated>::new(app.clone(), rx).spawn("bankaccount_updated");
@@ -178,9 +178,8 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     tracing::info!(target: BACKEND, "Bank account service created");
 
     // Create bank transfer service with database as repository and event bus
-    let bank_transfer_repository =
-        Arc::new(SqliteBankTransferRepository::new(db.get_pool().clone()));
-    let bank_transfer_service = Arc::new(BankTransferService::new(
+    let bank_transfer_repository = Arc::new(SqliteBankEntryRepository::new(db.get_pool().clone()));
+    let bank_transfer_service = Arc::new(BankEntryService::new(
         bank_transfer_repository,
         bank_account_repository,
         event_bus.clone(),
@@ -188,7 +187,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     tracing::info!(target: BACKEND, "Bank transfer service created");
 
     // Create bank transfer link repository (junction tables)
-    let transfer_link_repo = Arc::new(SqliteBankTransferLinkRepository::new(db.get_pool().clone()));
+    let transfer_link_repo = Arc::new(SqliteBankEntryLinkRepository::new(db.get_pool().clone()));
 
     // Create bank statement reconciliation orchestrator
     let label_mapping_repo = Arc::new(SqliteBankFundLabelMappingRepository::new(

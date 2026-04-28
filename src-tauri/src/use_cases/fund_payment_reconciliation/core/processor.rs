@@ -66,7 +66,7 @@ impl ReconciliationProcessor {
         candidates
             .iter()
             .find(|p| {
-                p.procedure_amount
+                p.billed_amount
                     .map(|a| InternalAmount(a) == amount)
                     .unwrap_or(false)
             })
@@ -81,7 +81,7 @@ impl ReconciliationProcessor {
         candidates
             .iter()
             .filter_map(|p| {
-                p.procedure_amount
+                p.billed_amount
                     .map(|proc_amt| (p, InternalAmount(proc_amt)))
             })
             .min_by_key(|(_, proc_amount)| (proc_amount.0 - amount.0).abs())
@@ -148,7 +148,7 @@ impl ReconciliationProcessor {
             .filter_map(|&i| {
                 candidates
                     .get(i)
-                    .and_then(|proc| proc.procedure_amount.map(InternalAmount))
+                    .and_then(|proc| proc.billed_amount.map(InternalAmount))
             })
             .map(|a| a.0)
             .sum();

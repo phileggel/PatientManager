@@ -20,7 +20,7 @@ struct ColIdx {
     date: usize,
     payment_method: usize,
     confirmed_payment_date: usize,
-    actual_payment_amount: usize,
+    paid_amount: usize,
     awaited_amount: usize,
 }
 
@@ -36,7 +36,7 @@ impl ColIdx {
         let mut date = None;
         let mut payment_method = None;
         let mut confirmed_payment_date = None;
-        let mut actual_payment_amount = None;
+        let mut paid_amount = None;
         let mut awaited_amount = None;
 
         for (i, cell) in row.iter().enumerate() {
@@ -52,7 +52,7 @@ impl ColIdx {
             }
             // Case-sensitive matches for accented characters
             match trimmed {
-                "Versé" => actual_payment_amount = Some(i),
+                "Versé" => paid_amount = Some(i),
                 "En attente" => awaited_amount = Some(i),
                 _ => {}
             }
@@ -69,7 +69,7 @@ impl ColIdx {
             date,
             payment_method: payment_method.unwrap_or(fund + 5),
             confirmed_payment_date: confirmed_payment_date.unwrap_or(fund + 6),
-            actual_payment_amount: actual_payment_amount.unwrap_or(fund + 7),
+            paid_amount: paid_amount.unwrap_or(fund + 7),
             awaited_amount: awaited_amount.unwrap_or(fund + 8),
         })
     }
@@ -517,8 +517,8 @@ impl ExcelParserService {
                             .get(idx.confirmed_payment_date)
                             .map(|c| c.to_string())
                             .unwrap_or_default();
-                        let actual_payment_amount = row
-                            .get(idx.actual_payment_amount)
+                        let paid_amount = row
+                            .get(idx.paid_amount)
                             .map(|c| c.to_string())
                             .and_then(|s| s.trim().parse::<f64>().ok())
                             .map(|v| (v * 1000.0).round() as i64);
@@ -687,7 +687,7 @@ impl ExcelParserService {
                                 sheet_month: canonical_month.to_string(),
                                 payment_method,
                                 confirmed_payment_date,
-                                actual_payment_amount,
+                                paid_amount,
                                 awaited_amount,
                             });
                         }
@@ -752,7 +752,7 @@ mod tests {
             sheet_month: "Jan".to_string(),
             payment_method: Some("CH".to_string()),
             confirmed_payment_date: Some("25/04/2025".to_string()),
-            actual_payment_amount: Some(100500),
+            paid_amount: Some(100500),
             awaited_amount: Some(0),
         };
 

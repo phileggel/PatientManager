@@ -209,10 +209,10 @@ impl ExcelImportOrchestrator {
                 fund_id,
                 procedure_type_id,
                 procedure_date: excel_proc.procedure_date.clone(),
-                procedure_amount: Some(excel_proc.amount),
+                billed_amount: Some(excel_proc.amount),
                 payment_method: excel_proc.payment_method.clone(),
                 confirmed_payment_date: excel_proc.confirmed_payment_date.clone(),
-                actual_payment_amount: excel_proc.actual_payment_amount,
+                paid_amount: excel_proc.paid_amount,
                 awaited_amount: excel_proc.awaited_amount,
             });
         }

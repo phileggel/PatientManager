@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::context::bank::{BankTransferLinkRepository, BankTransferService, BankTransferType};
+use crate::context::bank::{BankEntryLinkRepository, BankEntryService, BankEntryType};
 use crate::context::fund::{FundPaymentGroup, FundPaymentGroupStatus, FundPaymentService};
 use crate::context::procedure::{PaymentMethod, Procedure, ProcedureService, ProcedureStatus};
 
@@ -30,7 +30,7 @@ pub struct DirectPaymentProcedureCandidate {
     pub procedure_id: String,
     pub patient_id: String,
     pub procedure_date: String,
-    pub procedure_amount: Option<i64>,
+    pub billed_amount: Option<i64>,
 }
 
 /// Result of creating a bank transfer with links
@@ -41,16 +41,16 @@ pub struct BankManualMatchResult {
 }
 
 pub struct BankManualMatchOrchestrator {
-    bank_transfer_service: Arc<BankTransferService>,
-    transfer_link_repo: Arc<dyn BankTransferLinkRepository>,
+    bank_transfer_service: Arc<BankEntryService>,
+    transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
     fund_payment_service: Arc<FundPaymentService>,
     procedure_service: Arc<ProcedureService>,
 }
 
 impl BankManualMatchOrchestrator {
     pub fn new(
-        bank_transfer_service: Arc<BankTransferService>,
-        transfer_link_repo: Arc<dyn BankTransferLinkRepository>,
+        bank_transfer_service: Arc<BankEntryService>,
+        transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
         fund_payment_service: Arc<FundPaymentService>,
         procedure_service: Arc<ProcedureService>,
     ) -> Self {
@@ -96,7 +96,7 @@ impl BankManualMatchOrchestrator {
     }
 
     /// R7 — Create a FUND bank transfer, link it to the selected groups,
-    /// update procedure statuses and group statuses (BankPayed).
+    /// update procedure statuses and group statuses (BankPaid).
     pub async fn create_fund_transfer(
         &self,
         bank_account_id: String,
@@ -111,7 +111,7 @@ impl BankManualMatchOrchestrator {
             .create_transfer(
                 transfer_date.clone(),
                 total_amount,
-                BankTransferType::Fund,
+                BankEntryType::FundWire,
                 bank_account_id,
                 false,
             )
@@ -123,7 +123,7 @@ impl BankManualMatchOrchestrator {
 
         let confirmed_date = parse_date(&transfer_date)?;
 
-        // Update each group: procedures → FundPayed/PartiallyFundPayed, group → BankPayed
+        // Update each group: procedures → FundPaid/PartiallyFundPaid, group → BankPaid
         for group_id in &group_ids {
             self.apply_fund_transfer_to_group(group_id, confirmed_date)
                 .await?;
@@ -136,7 +136,7 @@ impl BankManualMatchOrchestrator {
     }
 
     /// R9 — Update a FUND transfer: change date and/or groups.
-    /// Reverts old groups (Active), applies new groups (BankPayed).
+    /// Reverts old groups (Active), applies new groups (BankPaid).
     pub async fn update_fund_transfer(
         &self,
         transfer_id: String,
@@ -150,7 +150,7 @@ impl BankManualMatchOrchestrator {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?;
         anyhow::ensure!(
-            transfer.transfer_type == BankTransferType::Fund,
+            transfer.transfer_type == BankEntryType::FundWire,
             "R4: transfer {} has type {:?}, not FUND — use update_direct_transfer instead",
             transfer_id,
             transfer.transfer_type
@@ -169,11 +169,11 @@ impl BankManualMatchOrchestrator {
         let total_amount = self.compute_fund_groups_amount(&new_group_ids).await?;
         let confirmed_date = parse_date(&new_transfer_date)?;
 
-        let updated = crate::context::bank::BankTransfer::with_id(
+        let updated = crate::context::bank::BankEntry::with_id(
             transfer.id.clone(),
             new_transfer_date.clone(),
             total_amount,
-            BankTransferType::Fund,
+            BankEntryType::FundWire,
             transfer.bank_account,
         )?;
         self.bank_transfer_service.update_transfer(updated).await?;
@@ -208,7 +208,7 @@ impl BankManualMatchOrchestrator {
             .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?
             .transfer_type;
         anyhow::ensure!(
-            transfer_type == BankTransferType::Fund,
+            transfer_type == BankEntryType::FundWire,
             "R4: transfer {} has type {:?}, not FUND — use delete_direct_transfer instead",
             transfer_id,
             transfer_type
@@ -273,12 +273,12 @@ impl BankManualMatchOrchestrator {
     }
 
     /// R15 — Create a direct payment transfer, link it to selected procedures,
-    /// update procedure statuses to DirectlyPayed.
+    /// update procedure statuses to DirectlyPaid.
     pub async fn create_direct_transfer(
         &self,
         bank_account_id: String,
         transfer_date: String,
-        transfer_type: BankTransferType,
+        transfer_type: BankEntryType,
         procedure_ids: Vec<String>,
     ) -> anyhow::Result<BankManualMatchResult> {
         let total_amount = self.compute_procedures_amount(&procedure_ids).await?;
@@ -324,7 +324,7 @@ impl BankManualMatchOrchestrator {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?;
         anyhow::ensure!(
-            transfer.transfer_type != BankTransferType::Fund,
+            transfer.transfer_type != BankEntryType::FundWire,
             "R4: transfer {} is a FUND transfer — use update_fund_transfer instead",
             transfer_id
         );
@@ -343,7 +343,7 @@ impl BankManualMatchOrchestrator {
         let confirmed_date = parse_date(&new_transfer_date)?;
         let payment_method = transfer_type_to_payment_method(transfer_type);
 
-        let updated = crate::context::bank::BankTransfer::with_id(
+        let updated = crate::context::bank::BankEntry::with_id(
             transfer.id.clone(),
             new_transfer_date,
             total_amount,
@@ -380,7 +380,7 @@ impl BankManualMatchOrchestrator {
             .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?
             .transfer_type;
         anyhow::ensure!(
-            transfer_type != BankTransferType::Fund,
+            transfer_type != BankEntryType::FundWire,
             "R4: transfer {} is a FUND transfer — use delete_fund_transfer instead",
             transfer_id
         );
@@ -424,7 +424,7 @@ impl BankManualMatchOrchestrator {
     }
 
     /// R21 — Fetch fund group candidates by IDs for the edit modal.
-    /// Groups are BankPayed at this point and won't appear in get_unsettled_fund_groups.
+    /// Groups are BankPaid at this point and won't appear in get_unsettled_fund_groups.
     pub async fn get_fund_groups_by_ids(
         &self,
         group_ids: Vec<String>,
@@ -440,7 +440,7 @@ impl BankManualMatchOrchestrator {
     }
 
     /// R21 — Fetch procedure candidates by IDs for the edit modal.
-    /// Procedures are DirectlyPayed at this point and won't appear in get_eligible_procedures_for_direct_payment.
+    /// Procedures are DirectlyPaid at this point and won't appear in get_eligible_procedures_for_direct_payment.
     pub async fn get_procedures_by_ids(
         &self,
         procedure_ids: Vec<String>,
@@ -477,14 +477,14 @@ impl BankManualMatchOrchestrator {
             .await?;
         let total: i64 = procedures
             .iter()
-            .map(|p| p.procedure_amount.unwrap_or(0))
+            .map(|p| p.billed_amount.unwrap_or(0))
             .sum();
         anyhow::ensure!(total > 0, "Total amount must be greater than 0");
         Ok(total)
     }
 
-    /// R7 — Transition procedures of a group to FundPayed/PartiallyFundPayed
-    /// and set the group status to BankPayed.
+    /// R7 — Transition procedures of a group to FundPaid/PartiallyFundPaid
+    /// and set the group status to BankPaid.
     async fn apply_fund_transfer_to_group(
         &self,
         group_id: &str,
@@ -503,13 +503,13 @@ impl BankManualMatchOrchestrator {
                 .into_iter()
                 .map(|mut p| {
                     let new_status = if p.payment_status == ProcedureStatus::PartiallyReconciled {
-                        ProcedureStatus::PartiallyFundPayed
+                        ProcedureStatus::PartiallyFundPaid
                     } else {
-                        ProcedureStatus::FundPayed
+                        ProcedureStatus::FundPaid
                     };
                     p.payment_status = new_status;
-                    // actual_payment_amount is conserved (R7 spec)
-                    let amount = p.actual_payment_amount;
+                    // paid_amount is conserved (R7 spec)
+                    let amount = p.paid_amount;
                     p.with_payment_info(PaymentMethod::BankTransfer, Some(confirmed_date), amount)
                 })
                 .collect();
@@ -520,13 +520,13 @@ impl BankManualMatchOrchestrator {
         }
 
         self.fund_payment_service
-            .update_group_status(group_id, FundPaymentGroupStatus::BankPayed)
+            .update_group_status(group_id, FundPaymentGroupStatus::BankPaid)
             .await?;
 
         Ok(())
     }
 
-    /// R8 — Revert procedures of a group to Reconciliated/PartiallyReconciled
+    /// R8 — Revert procedures of a group to Reconciled/PartiallyReconciled
     /// and set the group status back to Active.
     async fn revert_fund_transfer_from_group(&self, group_id: &str) -> anyhow::Result<()> {
         if let Some(group) = self.fund_payment_service.read_group(group_id).await? {
@@ -542,12 +542,12 @@ impl BankManualMatchOrchestrator {
                 .into_iter()
                 .map(|mut p| {
                     p.payment_status = match p.payment_status {
-                        ProcedureStatus::FundPayed => ProcedureStatus::Reconciliated,
-                        ProcedureStatus::PartiallyFundPayed => ProcedureStatus::PartiallyReconciled,
+                        ProcedureStatus::FundPaid => ProcedureStatus::Reconciled,
+                        ProcedureStatus::PartiallyFundPaid => ProcedureStatus::PartiallyReconciled,
                         other => other, // Unexpected — leave as-is
                     };
                     // Restore confirmed_payment_date to group payment_date, clear payment_method (R8)
-                    // actual_payment_amount is preserved (per R8 spec)
+                    // paid_amount is preserved (per R8 spec)
                     p.revert_fund_payment(group.payment_date)
                 })
                 .collect();
@@ -564,7 +564,7 @@ impl BankManualMatchOrchestrator {
         Ok(())
     }
 
-    /// R15 — Set procedures to DirectlyPayed with payment info.
+    /// R15 — Set procedures to DirectlyPaid with payment info.
     async fn apply_direct_payment_to_procedures(
         &self,
         procedure_ids: &[String],
@@ -579,8 +579,8 @@ impl BankManualMatchOrchestrator {
         let updated: Vec<Procedure> = procedures
             .into_iter()
             .map(|mut p| {
-                p.payment_status = ProcedureStatus::DirectlyPayed;
-                let amount = p.procedure_amount;
+                p.payment_status = ProcedureStatus::DirectlyPaid;
+                let amount = p.billed_amount;
                 p.with_payment_info(payment_method, Some(confirmed_date), amount)
             })
             .collect();
@@ -641,18 +641,18 @@ fn procedure_to_candidate(p: Procedure) -> DirectPaymentProcedureCandidate {
         procedure_id: p.id,
         patient_id: p.patient_id,
         procedure_date: p.procedure_date.format("%Y-%m-%d").to_string(),
-        procedure_amount: p.procedure_amount,
+        billed_amount: p.billed_amount,
     }
 }
 
-fn transfer_type_to_payment_method(t: BankTransferType) -> PaymentMethod {
+fn transfer_type_to_payment_method(t: BankEntryType) -> PaymentMethod {
     match t {
-        BankTransferType::Check => PaymentMethod::Check,
-        BankTransferType::CreditCard => PaymentMethod::BankCard,
-        BankTransferType::Cash => PaymentMethod::Cash,
-        BankTransferType::Fund => PaymentMethod::BankTransfer,
+        BankEntryType::PatientCheck => PaymentMethod::Check,
+        BankEntryType::PatientCreditCard => PaymentMethod::BankCard,
+        BankEntryType::PatientCash => PaymentMethod::Cash,
+        BankEntryType::FundWire => PaymentMethod::BankTransfer,
         // OutgoingWire is an overpayment refund type — not a patient payment method
-        BankTransferType::OutgoingWire => PaymentMethod::None,
+        BankEntryType::FundOutgoingWire => PaymentMethod::None,
     }
 }
 
@@ -684,8 +684,8 @@ mod tests {
     use uuid::Uuid;
 
     use crate::context::bank::{
-        BankTransferService, BankTransferType, SqliteBankAccountRepository,
-        SqliteBankTransferLinkRepository, SqliteBankTransferRepository,
+        BankEntryService, BankEntryType, SqliteBankAccountRepository,
+        SqliteBankEntryLinkRepository, SqliteBankEntryRepository,
     };
     use crate::context::fund::{
         FundPaymentGroupStatus, FundPaymentService, SqliteFundPaymentRepository,
@@ -723,12 +723,12 @@ mod tests {
             Arc::new(SqliteProcedureRepository::new(pool.clone())),
             event_bus.clone(),
         ));
-        let bank_svc = Arc::new(BankTransferService::new(
-            Arc::new(SqliteBankTransferRepository::new(pool.clone())),
+        let bank_svc = Arc::new(BankEntryService::new(
+            Arc::new(SqliteBankEntryRepository::new(pool.clone())),
             Arc::new(SqliteBankAccountRepository::new(pool.clone())),
             event_bus.clone(),
         ));
-        let link_repo = Arc::new(SqliteBankTransferLinkRepository::new(pool.clone()));
+        let link_repo = Arc::new(SqliteBankEntryLinkRepository::new(pool.clone()));
         let orchestrator = BankManualMatchOrchestrator::new(
             bank_svc,
             link_repo,
@@ -778,7 +778,7 @@ mod tests {
         let proc_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
-               procedure_amount, payment_status, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 0)"#,
+               billed_amount, payment_status, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 0)"#,
         )
         .bind(&proc_id)
         .bind(patient_id)
@@ -864,7 +864,7 @@ mod tests {
         let group_out =
             seed_fund_group(&pool, &fund_id, "2026-03-07", 100_000, &[p2], "ACTIVE").await;
 
-        // Within window but already BankPayed (locked) → excluded
+        // Within window but already BankPaid (locked) → excluded
         let p3 = seed_procedure(
             &pool,
             &patient_id,
@@ -891,13 +891,13 @@ mod tests {
         );
         assert!(
             !ids.contains(&group_locked.as_str()),
-            "BankPayed group should be excluded"
+            "BankPaid group should be excluded"
         );
 
         Ok(())
     }
 
-    /// R7 — Creating a FUND transfer marks the group BankPayed and procedures FundPayed.
+    /// R7 — Creating a FUND transfer marks the group BankPaid and procedures FundPaid.
     #[tokio::test]
     async fn test_create_fund_transfer_sets_bank_payed_status() -> anyhow::Result<()> {
         let pool = setup_db().await;
@@ -934,11 +934,11 @@ mod tests {
         assert_eq!(result.linked_count, 1);
 
         let group = fund_svc.read_group(&group_id).await?.unwrap();
-        assert_eq!(group.status, FundPaymentGroupStatus::BankPayed);
+        assert_eq!(group.status, FundPaymentGroupStatus::BankPaid);
         assert!(group.is_locked);
 
         let procedure = proc_svc.read_procedure(&proc_id).await?.unwrap();
-        assert_eq!(procedure.payment_status, ProcedureStatus::FundPayed);
+        assert_eq!(procedure.payment_status, ProcedureStatus::FundPaid);
         assert_eq!(
             procedure.confirmed_payment_date,
             NaiveDate::from_ymd_opt(2026, 3, 15)
@@ -947,7 +947,7 @@ mod tests {
         Ok(())
     }
 
-    /// R8 — Deleting a FUND transfer reverts the group to Active and procedures to Reconciliated.
+    /// R8 — Deleting a FUND transfer reverts the group to Active and procedures to Reconciled.
     #[tokio::test]
     async fn test_delete_fund_transfer_reverts_group_to_active() -> anyhow::Result<()> {
         let pool = setup_db().await;
@@ -990,7 +990,7 @@ mod tests {
         assert!(!group.is_locked);
 
         let procedure = proc_svc.read_procedure(&proc_id).await?.unwrap();
-        assert_eq!(procedure.payment_status, ProcedureStatus::Reconciliated);
+        assert_eq!(procedure.payment_status, ProcedureStatus::Reconciled);
 
         Ok(())
     }
@@ -1066,28 +1066,28 @@ mod tests {
         let gb = fund_svc.read_group(&group_b).await?.unwrap();
         assert_eq!(
             gb.status,
-            FundPaymentGroupStatus::BankPayed,
-            "New group should be BankPayed"
+            FundPaymentGroupStatus::BankPaid,
+            "New group should be BankPaid"
         );
 
         let proc1 = proc_svc.read_procedure(&p1).await?.unwrap();
         assert_eq!(
             proc1.payment_status,
-            ProcedureStatus::Reconciliated,
+            ProcedureStatus::Reconciled,
             "Old group procedure should revert"
         );
 
         let proc2 = proc_svc.read_procedure(&p2).await?.unwrap();
         assert_eq!(
             proc2.payment_status,
-            ProcedureStatus::FundPayed,
-            "New group procedure should be FundPayed"
+            ProcedureStatus::FundPaid,
+            "New group procedure should be FundPaid"
         );
 
         Ok(())
     }
 
-    /// R15 — Creating a direct transfer sets procedures to DirectlyPayed.
+    /// R15 — Creating a direct transfer sets procedures to DirectlyPaid.
     #[tokio::test]
     async fn test_create_direct_transfer_sets_directly_payed() -> anyhow::Result<()> {
         let pool = setup_db().await;
@@ -1108,7 +1108,7 @@ mod tests {
             .create_direct_transfer(
                 "cash-account-default".to_string(),
                 "2026-03-15".to_string(),
-                BankTransferType::Check,
+                BankEntryType::PatientCheck,
                 vec![proc_id.clone()],
             )
             .await?;
@@ -1116,7 +1116,7 @@ mod tests {
         assert_eq!(result.linked_count, 1);
 
         let procedure = proc_svc.read_procedure(&proc_id).await?.unwrap();
-        assert_eq!(procedure.payment_status, ProcedureStatus::DirectlyPayed);
+        assert_eq!(procedure.payment_status, ProcedureStatus::DirectlyPaid);
         assert_eq!(
             procedure.confirmed_payment_date,
             NaiveDate::from_ymd_opt(2026, 3, 15)
@@ -1146,7 +1146,7 @@ mod tests {
             .create_direct_transfer(
                 "cash-account-default".to_string(),
                 "2026-03-15".to_string(),
-                BankTransferType::Check,
+                BankEntryType::PatientCheck,
                 vec![proc_id.clone()],
             )
             .await?;
@@ -1194,7 +1194,7 @@ mod tests {
             .create_direct_transfer(
                 "cash-account-default".to_string(),
                 "2026-03-15".to_string(),
-                BankTransferType::Check,
+                BankEntryType::PatientCheck,
                 vec![proc_a.clone()],
             )
             .await?;
@@ -1220,12 +1220,12 @@ mod tests {
             "Old procedure payment date should be cleared"
         );
 
-        // R18 — new procedure is DirectlyPayed with new date
+        // R18 — new procedure is DirectlyPaid with new date
         let pb = proc_svc.read_procedure(&proc_b).await?.unwrap();
         assert_eq!(
             pb.payment_status,
-            ProcedureStatus::DirectlyPayed,
-            "New procedure should be DirectlyPayed"
+            ProcedureStatus::DirectlyPaid,
+            "New procedure should be DirectlyPaid"
         );
         assert_eq!(
             pb.confirmed_payment_date,
@@ -1236,7 +1236,7 @@ mod tests {
         Ok(())
     }
 
-    /// R21 — get_fund_groups_by_ids returns FundGroupCandidate for BankPayed groups.
+    /// R21 — get_fund_groups_by_ids returns FundGroupCandidate for BankPaid groups.
     #[tokio::test]
     async fn test_get_fund_groups_by_ids_returns_candidate_for_bank_payed_group(
     ) -> anyhow::Result<()> {
@@ -1254,7 +1254,7 @@ mod tests {
         )
         .await;
 
-        // Seed the group already in BankPayed state (as it would be after a FUND transfer).
+        // Seed the group already in BankPaid state (as it would be after a FUND transfer).
         let group_id: String = seed_fund_group(
             &pool,
             &fund_id,
@@ -1302,7 +1302,7 @@ mod tests {
         Ok(())
     }
 
-    /// R21 — get_procedures_by_ids returns DirectPaymentProcedureCandidate for DirectlyPayed procedures.
+    /// R21 — get_procedures_by_ids returns DirectPaymentProcedureCandidate for DirectlyPaid procedures.
     #[tokio::test]
     async fn test_get_procedures_by_ids_returns_candidate_for_directly_payed_procedure(
     ) -> anyhow::Result<()> {
@@ -1310,7 +1310,7 @@ mod tests {
         let (patient_id, _, proc_type_id) = seed_base(&pool).await;
         let (orchestrator, _, proc_svc) = make_components(&pool);
 
-        // Seed a procedure then create a direct transfer to put it into DirectlyPayed state.
+        // Seed a procedure then create a direct transfer to put it into DirectlyPaid state.
         let proc_id: String = seed_procedure(
             &pool,
             &patient_id,
@@ -1325,13 +1325,13 @@ mod tests {
             .create_direct_transfer(
                 "cash-account-default".to_string(),
                 "2026-03-12".to_string(),
-                BankTransferType::Check,
+                BankEntryType::PatientCheck,
                 vec![proc_id.clone()],
             )
             .await?;
 
         let procedure = proc_svc.read_procedure(&proc_id).await?.unwrap();
-        assert_eq!(procedure.payment_status, ProcedureStatus::DirectlyPayed);
+        assert_eq!(procedure.payment_status, ProcedureStatus::DirectlyPaid);
 
         let candidates = orchestrator
             .get_procedures_by_ids(vec![proc_id.clone()])
@@ -1347,7 +1347,7 @@ mod tests {
         assert_eq!(candidate.procedure_id, proc_id);
         assert_eq!(candidate.patient_id, patient_id);
         assert_eq!(candidate.procedure_date, "2026-03-10");
-        assert_eq!(candidate.procedure_amount, Some(120_000));
+        assert_eq!(candidate.billed_amount, Some(120_000));
 
         Ok(())
     }
@@ -1395,7 +1395,7 @@ mod tests {
             .create_direct_transfer(
                 "cash-account-default".to_string(),
                 "2026-03-10".to_string(),
-                BankTransferType::Check,
+                BankEntryType::PatientCheck,
                 vec![proc_id],
             )
             .await?;
@@ -1490,7 +1490,7 @@ mod tests {
             .create_direct_transfer(
                 "cash-account-default".to_string(),
                 "2026-03-10".to_string(),
-                BankTransferType::Check,
+                BankEntryType::PatientCheck,
                 vec![proc_id],
             )
             .await?;

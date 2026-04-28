@@ -1,57 +1,57 @@
 use anyhow::Context;
 use sqlx::SqlitePool;
 
-use crate::context::bank::domain::{BankAccount, BankTransfer, BankTransferType};
+use crate::context::bank::domain::{BankAccount, BankEntry, BankEntryType};
 
-/// BankTransferRepository trait defines the contract for bank transfer data access
+/// BankEntryRepository trait defines the contract for bank transfer data access
 #[async_trait::async_trait]
-pub trait BankTransferRepository: Send + Sync {
+pub trait BankEntryRepository: Send + Sync {
     /// Create a new bank transfer
     async fn create_transfer(
         &self,
         transfer_date: String,
         amount: i64,
-        transfer_type: BankTransferType,
+        transfer_type: BankEntryType,
         bank_account: BankAccount,
-    ) -> anyhow::Result<BankTransfer>;
+    ) -> anyhow::Result<BankEntry>;
 
     /// Read a single transfer by ID with bank account info
-    async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankTransfer>>;
+    async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankEntry>>;
 
     /// Read all transfers with bank account info
-    async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankTransfer>>;
+    async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>>;
 
     /// Update an existing transfer
-    async fn update_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer>;
+    async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry>;
 
     /// Hard-delete a transfer (permanent)
     async fn delete_transfer(&self, id: &str) -> anyhow::Result<()>;
 
-    /// Persist a fully-constructed BankTransfer directly (no factory validation).
+    /// Persist a fully-constructed BankEntry directly (no factory validation).
     /// Used for overpayment refund transfers which carry a negative amount (REF-110).
-    async fn persist_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer>;
+    async fn persist_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry>;
 }
 
-pub struct SqliteBankTransferRepository {
+pub struct SqliteBankEntryRepository {
     pool: SqlitePool,
 }
 
-impl SqliteBankTransferRepository {
+impl SqliteBankEntryRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait::async_trait]
-impl BankTransferRepository for SqliteBankTransferRepository {
+impl BankEntryRepository for SqliteBankEntryRepository {
     async fn create_transfer(
         &self,
         transfer_date: String,
         amount: i64,
-        transfer_type: BankTransferType,
+        transfer_type: BankEntryType,
         bank_account: BankAccount,
-    ) -> anyhow::Result<BankTransfer> {
-        let transfer = BankTransfer::new(transfer_date, amount, transfer_type, bank_account)?;
+    ) -> anyhow::Result<BankEntry> {
+        let transfer = BankEntry::new(transfer_date, amount, transfer_type, bank_account)?;
 
         let type_str = transfer_type_to_str(transfer.transfer_type);
 
@@ -84,7 +84,7 @@ impl BankTransferRepository for SqliteBankTransferRepository {
         Ok(transfer)
     }
 
-    async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankTransfer>> {
+    async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankEntry>> {
         tracing::debug!(transfer_id = %id, "Reading bank transfer");
 
         let row = sqlx::query!(
@@ -110,7 +110,7 @@ impl BankTransferRepository for SqliteBankTransferRepository {
 
         Ok(row.map(|r| {
             let account = BankAccount::restore(r.account_id, r.account_name, r.account_iban);
-            BankTransfer::restore(
+            BankEntry::restore(
                 r.id,
                 r.transfer_date,
                 r.amount,
@@ -120,7 +120,7 @@ impl BankTransferRepository for SqliteBankTransferRepository {
         }))
     }
 
-    async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankTransfer>> {
+    async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>> {
         tracing::debug!("Reading all bank transfers");
 
         let rows = sqlx::query!(
@@ -148,7 +148,7 @@ impl BankTransferRepository for SqliteBankTransferRepository {
             .into_iter()
             .map(|r| {
                 let account = BankAccount::restore(r.account_id, r.account_name, r.account_iban);
-                BankTransfer::restore(
+                BankEntry::restore(
                     r.id,
                     r.transfer_date,
                     r.amount,
@@ -159,7 +159,7 @@ impl BankTransferRepository for SqliteBankTransferRepository {
             .collect())
     }
 
-    async fn update_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer> {
+    async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
         let type_str = transfer_type_to_str(transfer.transfer_type);
 
         tracing::info!(
@@ -202,9 +202,9 @@ impl BankTransferRepository for SqliteBankTransferRepository {
         Ok(())
     }
 
-    /// Persist a fully-constructed BankTransfer (no factory validation).
+    /// Persist a fully-constructed BankEntry (no factory validation).
     /// Used for overpayment refund transfers which carry a negative amount (REF-110).
-    async fn persist_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer> {
+    async fn persist_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
         let type_str = transfer_type_to_str(transfer.transfer_type);
         let transfer_date_str = transfer.transfer_date.format("%Y-%m-%d").to_string();
 
@@ -236,23 +236,23 @@ impl BankTransferRepository for SqliteBankTransferRepository {
     }
 }
 
-fn transfer_type_to_str(t: BankTransferType) -> &'static str {
+fn transfer_type_to_str(t: BankEntryType) -> &'static str {
     match t {
-        BankTransferType::Fund => "FUND",
-        BankTransferType::Check => "CHECK",
-        BankTransferType::CreditCard => "CREDIT_CARD",
-        BankTransferType::Cash => "CASH",
-        BankTransferType::OutgoingWire => "OUTGOING_WIRE",
+        BankEntryType::FundWire => "FUND",
+        BankEntryType::PatientCheck => "CHECK",
+        BankEntryType::PatientCreditCard => "CREDIT_CARD",
+        BankEntryType::PatientCash => "CASH",
+        BankEntryType::FundOutgoingWire => "OUTGOING_WIRE",
     }
 }
 
-fn parse_transfer_type(type_str: &str) -> BankTransferType {
+fn parse_transfer_type(type_str: &str) -> BankEntryType {
     match type_str {
-        "FUND" => BankTransferType::Fund,
-        "CHECK" => BankTransferType::Check,
-        "CREDIT_CARD" => BankTransferType::CreditCard,
-        "CASH" => BankTransferType::Cash,
-        "OUTGOING_WIRE" => BankTransferType::OutgoingWire,
+        "FUND" => BankEntryType::FundWire,
+        "CHECK" => BankEntryType::PatientCheck,
+        "CREDIT_CARD" => BankEntryType::PatientCreditCard,
+        "CASH" => BankEntryType::PatientCash,
+        "OUTGOING_WIRE" => BankEntryType::FundOutgoingWire,
         other => unreachable!("Unknown transfer_type in database: {}", other),
     }
 }
@@ -264,10 +264,10 @@ mod tests {
     #[test]
     fn test_parse_transfer_type_roundtrip() {
         for t in [
-            BankTransferType::Fund,
-            BankTransferType::Check,
-            BankTransferType::CreditCard,
-            BankTransferType::Cash,
+            BankEntryType::FundWire,
+            BankEntryType::PatientCheck,
+            BankEntryType::PatientCreditCard,
+            BankEntryType::PatientCash,
         ] {
             assert_eq!(parse_transfer_type(transfer_type_to_str(t)), t);
         }

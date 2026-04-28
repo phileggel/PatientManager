@@ -1,22 +1,22 @@
 use std::sync::Arc;
 
-use super::domain::{BankAccount, BankTransfer, BankTransferType};
-use super::repository::{BankAccountRepository, BankTransferRepository};
-use crate::core::event_bus::event::{BankAccountUpdated, BankTransferUpdated};
+use super::domain::{BankAccount, BankEntry, BankEntryType};
+use super::repository::{BankAccountRepository, BankEntryRepository};
+use crate::core::event_bus::event::{BankAccountUpdated, BankEntryUpdated};
 use crate::core::event_bus::EventBus;
 
-// ============ BankTransferService ============
+// ============ BankEntryService ============
 
 /// Application service for bank transfer operations
-pub struct BankTransferService {
-    repository: Arc<dyn BankTransferRepository>,
+pub struct BankEntryService {
+    repository: Arc<dyn BankEntryRepository>,
     account_repository: Arc<dyn BankAccountRepository>,
     event_bus: Arc<EventBus>,
 }
 
-impl BankTransferService {
+impl BankEntryService {
     pub fn new(
-        repository: Arc<dyn BankTransferRepository>,
+        repository: Arc<dyn BankEntryRepository>,
         account_repository: Arc<dyn BankAccountRepository>,
         event_bus: Arc<EventBus>,
     ) -> Self {
@@ -32,10 +32,10 @@ impl BankTransferService {
         &self,
         transfer_date: String,
         amount: i64,
-        transfer_type: BankTransferType,
+        transfer_type: BankEntryType,
         bank_account_id: String,
         is_silent: bool,
-    ) -> anyhow::Result<BankTransfer> {
+    ) -> anyhow::Result<BankEntry> {
         // Fetch and validate bank account exists
         let bank_account = self
             .account_repository
@@ -50,26 +50,24 @@ impl BankTransferService {
 
         // Publish event
         if !is_silent {
-            let _ = self
-                .event_bus
-                .publish::<BankTransferUpdated>(BankTransferUpdated);
+            let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
         }
 
         Ok(transfer)
     }
 
     /// Read a single transfer with account info
-    pub async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankTransfer>> {
+    pub async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankEntry>> {
         self.repository.read_transfer(id).await
     }
 
     /// Read all transfers with account info
-    pub async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankTransfer>> {
+    pub async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>> {
         self.repository.read_all_transfers().await
     }
 
     /// Update an existing transfer
-    pub async fn update_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer> {
+    pub async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
         // Validate that the bank account exists
         self.account_repository
             .read_account(&transfer.bank_account.id)
@@ -79,21 +77,19 @@ impl BankTransferService {
         let updated = self.repository.update_transfer(transfer).await?;
 
         // Publish event
-        let _ = self
-            .event_bus
-            .publish::<BankTransferUpdated>(BankTransferUpdated);
+        let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
 
         Ok(updated)
     }
 
-    /// Persist a fully-constructed BankTransfer directly, bypassing amount validation.
+    /// Persist a fully-constructed BankEntry directly, bypassing amount validation.
     /// Used for overpayment refund transfers which carry a negative amount (REF-110).
     /// Validates that the bank account exists before persisting.
     pub async fn persist_refund_transfer(
         &self,
-        transfer: crate::context::bank::domain::BankTransfer,
+        transfer: crate::context::bank::domain::BankEntry,
         is_silent: bool,
-    ) -> anyhow::Result<crate::context::bank::domain::BankTransfer> {
+    ) -> anyhow::Result<crate::context::bank::domain::BankEntry> {
         self.account_repository
             .read_account(&transfer.bank_account.id)
             .await?
@@ -102,9 +98,7 @@ impl BankTransferService {
         let persisted = self.repository.persist_transfer(transfer).await?;
 
         if !is_silent {
-            let _ = self
-                .event_bus
-                .publish::<BankTransferUpdated>(BankTransferUpdated);
+            let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
         }
 
         Ok(persisted)
@@ -121,9 +115,7 @@ impl BankTransferService {
         self.repository.delete_transfer(id).await?;
 
         // Publish event
-        let _ = self
-            .event_bus
-            .publish::<BankTransferUpdated>(BankTransferUpdated);
+        let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
 
         Ok(())
     }
@@ -219,51 +211,51 @@ mod tests {
     use super::*;
     use anyhow::anyhow;
 
-    // ============ BankTransferService Tests ============
+    // ============ BankEntryService Tests ============
 
-    struct MockBankTransferRepository {
+    struct MockBankEntryRepository {
         should_fail: bool,
     }
 
     #[async_trait::async_trait]
-    impl BankTransferRepository for MockBankTransferRepository {
+    impl BankEntryRepository for MockBankEntryRepository {
         async fn create_transfer(
             &self,
             transfer_date: String,
             amount: i64,
-            transfer_type: BankTransferType,
+            transfer_type: BankEntryType,
             bank_account: BankAccount,
-        ) -> anyhow::Result<BankTransfer> {
+        ) -> anyhow::Result<BankEntry> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
-            BankTransfer::new(transfer_date, amount, transfer_type, bank_account)
+            BankEntry::new(transfer_date, amount, transfer_type, bank_account)
         }
 
-        async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankTransfer>> {
+        async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
             let account =
                 BankAccount::restore("acc-123".to_string(), "Main Account".to_string(), None);
-            let transfer = BankTransfer::with_id(
+            let transfer = BankEntry::with_id(
                 "test-id".to_string(),
                 "2026-02-15".to_string(),
                 1000000,
-                BankTransferType::Fund,
+                BankEntryType::FundWire,
                 account,
             )?;
             Ok(Some(transfer))
         }
 
-        async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankTransfer>> {
+        async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
             Ok(vec![])
         }
 
-        async fn update_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer> {
+        async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
@@ -277,7 +269,7 @@ mod tests {
             Ok(())
         }
 
-        async fn persist_transfer(&self, transfer: BankTransfer) -> anyhow::Result<BankTransfer> {
+        async fn persist_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
@@ -287,15 +279,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_transfer_success() {
-        let repo = Arc::new(MockBankTransferRepository { should_fail: false });
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
         let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
-        let service = BankTransferService::new(repo, account_repo, Arc::new(EventBus::new()));
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
 
         let result = service
             .create_transfer(
                 "2026-02-15".to_string(),
                 1500000,
-                BankTransferType::Fund,
+                BankEntryType::FundWire,
                 "acc-123".to_string(),
                 false,
             )
@@ -308,15 +300,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_transfer_invalid_amount() {
-        let repo = Arc::new(MockBankTransferRepository { should_fail: false });
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
         let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
-        let service = BankTransferService::new(repo, account_repo, Arc::new(EventBus::new()));
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
 
         let result = service
             .create_transfer(
                 "2026-02-15".to_string(),
                 -100000,
-                BankTransferType::Fund,
+                BankEntryType::FundWire,
                 "acc-123".to_string(),
                 false,
             )
@@ -328,9 +320,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_transfer_success() {
-        let repo = Arc::new(MockBankTransferRepository { should_fail: false });
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
         let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
-        let service = BankTransferService::new(repo, account_repo, Arc::new(EventBus::new()));
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
 
         let result = service.delete_transfer("test-id").await;
 

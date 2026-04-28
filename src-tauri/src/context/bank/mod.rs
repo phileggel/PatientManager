@@ -6,4 +6,4 @@ mod service;
 pub use api::*;
 pub use domain::*;
 pub use repository::*;
-pub use service::{BankAccountService, BankTransferService};
+pub use service::{BankAccountService, BankEntryService};

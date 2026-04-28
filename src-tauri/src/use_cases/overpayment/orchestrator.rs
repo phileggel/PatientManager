@@ -3,8 +3,7 @@ use std::sync::Arc;
 use chrono::Local;
 
 use crate::context::bank::{
-    BankAccountService, BankTransfer, BankTransferLinkRepository, BankTransferService,
-    BankTransferType,
+    BankAccountService, BankEntry, BankEntryLinkRepository, BankEntryService, BankEntryType,
 };
 use crate::context::fund::{
     FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine, FundPaymentService,
@@ -21,9 +20,9 @@ use super::domain::{CreateOverpaymentRequest, ProcedureRefundInfo};
 pub struct OverpaymentOrchestrator {
     procedure_service: Arc<ProcedureService>,
     fund_payment_service: Arc<FundPaymentService>,
-    bank_transfer_service: Arc<BankTransferService>,
+    bank_transfer_service: Arc<BankEntryService>,
     bank_account_service: Arc<BankAccountService>,
-    transfer_link_repo: Arc<dyn BankTransferLinkRepository>,
+    transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
     procedure_refund_repo: Arc<dyn ProcedureRefundRepository>,
 }
 
@@ -31,9 +30,9 @@ impl OverpaymentOrchestrator {
     pub fn new(
         procedure_service: Arc<ProcedureService>,
         fund_payment_service: Arc<FundPaymentService>,
-        bank_transfer_service: Arc<BankTransferService>,
+        bank_transfer_service: Arc<BankEntryService>,
         bank_account_service: Arc<BankAccountService>,
-        transfer_link_repo: Arc<dyn BankTransferLinkRepository>,
+        transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
         procedure_refund_repo: Arc<dyn ProcedureRefundRepository>,
     ) -> Self {
         Self {
@@ -73,7 +72,7 @@ impl OverpaymentOrchestrator {
         anyhow::ensure!(
             matches!(
                 source.payment_status,
-                ProcedureStatus::FundPayed | ProcedureStatus::PartiallyFundPayed
+                ProcedureStatus::FundPaid | ProcedureStatus::PartiallyFundPaid
             ),
             "REF-010: procedure {} is not eligible for a refund (status: {:?})",
             source.id,
@@ -82,7 +81,7 @@ impl OverpaymentOrchestrator {
 
         // Step 2 — Full refund only: amount must equal source amount (REF-020)
         let source_amount = source
-            .procedure_amount
+            .billed_amount
             .ok_or_else(|| anyhow::anyhow!("Source procedure {} has no amount set", source.id))?;
 
         // Step 3 — Validate refund_date (REF-030)
@@ -140,14 +139,14 @@ impl OverpaymentOrchestrator {
         // Step 7 — Create refund Procedure (REF-090)
         // Direct assignment of OverpaymentRefund status — bypasses lifecycle transitions.
         // Uses the ProcedureService.create_procedure which calls Procedure::new() internally.
-        // Negative procedure_amount is allowed (no amount validation in Procedure).
+        // Negative billed_amount is allowed (no amount validation in Procedure).
         // payment_method is mapped from the user-selected transfer_type so it appears in the
         // procedure list column. confirmed_payment_date is set to refund_date because the
         // refund is considered executed at that date.
         let refund_payment_method = match transfer_type {
-            BankTransferType::Check => PaymentMethod::Check,
-            BankTransferType::CreditCard => PaymentMethod::BankCard,
-            BankTransferType::OutgoingWire => PaymentMethod::BankTransfer,
+            BankEntryType::PatientCheck => PaymentMethod::Check,
+            BankEntryType::PatientCreditCard => PaymentMethod::BankCard,
+            BankEntryType::FundOutgoingWire => PaymentMethod::BankTransfer,
             _ => PaymentMethod::None,
         };
         let refund_procedure = self
@@ -166,7 +165,7 @@ impl OverpaymentOrchestrator {
             .await?;
 
         // Step 8 — Create refund FundPaymentGroup (REF-100)
-        // BankPayed status and negative total_amount bypass normal validation.
+        // BankPaid status and negative total_amount bypass normal validation.
         // Build the group with a known ID so we can set the line's group_id.
         let group_id = uuid::Uuid::new_v4().to_string();
         let refund_line = FundPaymentLine::new(group_id.clone(), refund_procedure.id.clone())?;
@@ -184,7 +183,7 @@ impl OverpaymentOrchestrator {
             req.refund_date.clone(),
             -source_amount,
             vec![refund_line],
-            FundPaymentGroupStatus::BankPayed,
+            FundPaymentGroupStatus::BankPaid,
         );
 
         let refund_group = self
@@ -192,10 +191,10 @@ impl OverpaymentOrchestrator {
             .persist_refund_group(refund_group)
             .await?;
 
-        // Step 9 — Create refund BankTransfer (REF-110)
-        // Uses BankTransfer::restore() via persist_refund_transfer to bypass positive-amount check.
+        // Step 9 — Create refund BankEntry (REF-110)
+        // Uses BankEntry::restore() via persist_refund_transfer to bypass positive-amount check.
         let transfer_id = uuid::Uuid::new_v4().to_string();
-        let refund_transfer = BankTransfer::restore(
+        let refund_transfer = BankEntry::restore(
             transfer_id,
             req.refund_date.clone(),
             -source_amount,
@@ -235,10 +234,10 @@ impl OverpaymentOrchestrator {
             source.fund_id,
             source.procedure_type_id,
             source.procedure_date,
-            source.procedure_amount,
+            source.billed_amount,
             source.payment_method,
             source.confirmed_payment_date,
-            source.actual_payment_amount,
+            source.paid_amount,
             ProcedureStatus::Overpaid,
         );
 
@@ -290,10 +289,10 @@ impl OverpaymentOrchestrator {
             source.fund_id,
             source.procedure_type_id,
             source.procedure_date,
-            source.procedure_amount,
+            source.billed_amount,
             source.payment_method,
             source.confirmed_payment_date,
-            source.actual_payment_amount,
+            source.paid_amount,
             refund_record.previous_payment_status,
         );
         self.procedure_service
@@ -310,7 +309,7 @@ impl OverpaymentOrchestrator {
             .unlink_all_fund_groups(&refund_record.refund_bank_transfer_id)
             .await?;
 
-        // 4. Delete refund BankTransfer
+        // 4. Delete refund BankEntry
         self.bank_transfer_service
             .delete_transfer(&refund_record.refund_bank_transfer_id)
             .await?;
@@ -388,14 +387,14 @@ impl OverpaymentOrchestrator {
     }
 }
 
-/// Parse a transfer_type string from the frontend into a `BankTransferType`.
+/// Parse a transfer_type string from the frontend into a `BankEntryType`.
 /// Accepted values: "CreditCard", "Check", "OutgoingWire" (REF-060).
 /// "Cash" and "Fund" are explicitly rejected.
-fn parse_transfer_type(s: &str) -> anyhow::Result<BankTransferType> {
+fn parse_transfer_type(s: &str) -> anyhow::Result<BankEntryType> {
     match s {
-        "CreditCard" => Ok(BankTransferType::CreditCard),
-        "Check" => Ok(BankTransferType::Check),
-        "OutgoingWire" => Ok(BankTransferType::OutgoingWire),
+        "CreditCard" => Ok(BankEntryType::PatientCreditCard),
+        "Check" => Ok(BankEntryType::PatientCheck),
+        "OutgoingWire" => Ok(BankEntryType::FundOutgoingWire),
         "Cash" => anyhow::bail!("REF-060: 'Cash' is not an accepted refund payment method"),
         "Fund" => anyhow::bail!(
             "REF-060: 'Fund' is not an accepted refund payment method (it is an incoming type)"

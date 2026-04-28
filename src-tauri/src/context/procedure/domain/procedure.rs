@@ -28,11 +28,11 @@ pub enum PaymentMethod {
 /// Represents the reconciliation state of a healthcare procedure:
 /// - None: Initial state, no reconciliation activity
 /// - Created: Procedure has been created and is awaiting payment/reconciliation
-/// - Reconciliated: A fund payment group has been associated with this procedure
-/// - DirectlyPayed: Procedure was paid directly (cash/card) without fund reconciliation (blocking re-import)
-/// - FundPayed: A bank payment has been matched/reconciled with this procedure via fund (blocking re-import)
-/// - ImportDirectlyPayed: From Excel import — paid directly (ES/CH), non-blocking re-import
-/// - ImportFundPayed: From Excel import — fund present, method not ES/CH (non-blocking re-import)
+/// - Reconciled: A fund payment group has been associated with this procedure
+/// - DirectlyPaid: Procedure was paid directly (cash/card) without fund reconciliation (blocking re-import)
+/// - FundPaid: A bank payment has been matched/reconciled with this procedure via fund (blocking re-import)
+/// - ImportDirectlyPaid: From Excel import — paid directly (ES/CH), non-blocking re-import
+/// - ImportFundPaid: From Excel import — fund present, method not ES/CH (non-blocking re-import)
 /// - Overpaid: Source procedure whose full overpayment has been recorded (REF-160). Blocks deletion (REF-220).
 /// - OverpaymentRefund: Mirror negative procedure created to offset an overpayment (REF-090). Blocks deletion (REF-230).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -41,15 +41,15 @@ pub enum ProcedureStatus {
     #[default]
     None,
     Created,
-    Reconciliated,
-    /// Fund reconciliation done but amount disputed: actual_payment_amount ≠ procedure_amount
+    Reconciled,
+    /// Fund reconciliation done but amount disputed: paid_amount ≠ billed_amount
     PartiallyReconciled,
-    DirectlyPayed,
-    FundPayed,
+    DirectlyPaid,
+    FundPaid,
     /// Bank transfer confirmed for a partially reconciled procedure
-    PartiallyFundPayed,
-    ImportDirectlyPayed,
-    ImportFundPayed,
+    PartiallyFundPaid,
+    ImportDirectlyPaid,
+    ImportFundPaid,
     /// Source procedure whose full overpayment has been recorded (REF-160)
     Overpaid,
     /// Mirror negative procedure created to offset an overpayment (REF-090)
@@ -62,15 +62,15 @@ pub enum ProcedureStatus {
 /// to Patient, Fund, and Procedure Type. Uses soft-delete pattern.
 ///
 /// Payment tracking:
-/// - procedure_amount: Total amount charged/invoiced for the procedure (thousandths of a euro)
-/// - actual_payment_amount: Amount actually paid/received from patient or fund (thousandths of a euro)
+/// - billed_amount: Total amount charged/invoiced for the procedure (thousandths of a euro)
+/// - paid_amount: Amount actually paid/received from patient or fund (thousandths of a euro)
 /// - confirmed_payment_date: When the payment was confirmed (from reconciliation)
 /// - payment_method: How payment was made (Cash/Check/BankCard/BankTransfer/None)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct Procedure {
     /// Foreign key to Patient (required)
     pub patient_id: String,
-    /// Foreign key to AffiliatedFund (optional - procedure can exist without a fund)
+    /// Foreign key to Fund (optional - procedure can exist without a fund)
     pub fund_id: Option<String>,
     /// Foreign key to ProcedureType (required)
     pub procedure_type_id: String,
@@ -80,7 +80,7 @@ pub struct Procedure {
     /// Total amount charged/invoiced for this procedure, in thousandths of a euro (e.g. 1234 = 1.234 €)
     /// Optional - uses procedure type default amount if not specified
     /// Source: Excel import column F or manual entry
-    pub procedure_amount: Option<i64>,
+    pub billed_amount: Option<i64>,
 
     /// Payment method used for this procedure
     /// Determines how payment was made: Cash/Check/BankCard/BankTransfer/None
@@ -92,12 +92,12 @@ pub struct Procedure {
     pub payment_method: PaymentMethod,
 
     /// Procedure status in the reconciliation lifecycle
-    /// Tracks progress through: None → Created → Reconciliated → FundPayed (or DirectlyPayed)
+    /// Tracks progress through: None → Created → Reconciled → FundPaid (or DirectlyPaid)
     /// - None: Initial state
     /// - Created: Procedure created, awaiting reconciliation
-    /// - Reconciliated: Associated with a fund payment group
-    /// - DirectlyPayed: Paid directly (cash/card), no fund reconciliation
-    /// - FundPayed: Bank payment matched via fund reconciliation
+    /// - Reconciled: Associated with a fund payment group
+    /// - DirectlyPaid: Paid directly (cash/card), no fund reconciliation
+    /// - FundPaid: Bank payment matched via fund reconciliation
     pub payment_status: ProcedureStatus,
 
     /// Date when payment was confirmed (ISO format: YYYY-MM-DD)
@@ -107,9 +107,9 @@ pub struct Procedure {
     pub confirmed_payment_date: Option<NaiveDate>,
 
     /// Actual amount paid/received from patient or fund, in thousandths of a euro (e.g. 1234 = 1.234 €)
-    /// May differ from procedure_amount (partial payment, overpayment, etc.)
+    /// May differ from billed_amount (partial payment, overpayment, etc.)
     /// Source: Excel import column K or reconciliation statement
-    pub actual_payment_amount: Option<i64>,
+    pub paid_amount: Option<i64>,
 
     /// Metadata - not a domain property
     pub id: String,
@@ -123,10 +123,10 @@ impl Procedure {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: String,
-        procedure_amount: Option<i64>,
+        billed_amount: Option<i64>,
         payment_method: PaymentMethod,
         confirmed_payment_date: Option<String>,
-        actual_payment_amount: Option<i64>,
+        paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> Result<Self> {
         Self::validate(&patient_id, &procedure_type_id, &procedure_date)?;
@@ -158,10 +158,10 @@ impl Procedure {
             fund_id,
             procedure_type_id,
             procedure_date: parsed_procedure_date,
-            procedure_amount,
+            billed_amount,
             payment_method,
             confirmed_payment_date: parsed_confirmed_payment_date,
-            actual_payment_amount,
+            paid_amount,
             payment_status,
         })
     }
@@ -176,10 +176,10 @@ impl Procedure {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: String,
-        procedure_amount: Option<i64>,
+        billed_amount: Option<i64>,
         payment_method: PaymentMethod,
         confirmed_payment_date: Option<String>,
-        actual_payment_amount: Option<i64>,
+        paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> Result<Self> {
         Self::validate(&patient_id, &procedure_type_id, &procedure_date)?;
@@ -211,10 +211,10 @@ impl Procedure {
             fund_id,
             procedure_type_id,
             procedure_date: parsed_procedure_date,
-            procedure_amount,
+            billed_amount,
             payment_method,
             confirmed_payment_date: parsed_confirmed_payment_date,
-            actual_payment_amount,
+            paid_amount,
             payment_status,
         })
     }
@@ -228,10 +228,10 @@ impl Procedure {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: NaiveDate,
-        procedure_amount: Option<i64>,
+        billed_amount: Option<i64>,
         payment_method: PaymentMethod,
         confirmed_payment_date: Option<NaiveDate>,
-        actual_payment_amount: Option<i64>,
+        paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> Self {
         Self {
@@ -240,15 +240,15 @@ impl Procedure {
             fund_id,
             procedure_type_id,
             procedure_date,
-            procedure_amount,
+            billed_amount,
             payment_method,
             confirmed_payment_date,
-            actual_payment_amount,
+            paid_amount,
             payment_status,
         }
     }
 
-    /// Sets all payment-related fields together (payment_method, confirmed_payment_date, actual_payment_amount)
+    /// Sets all payment-related fields together (payment_method, confirmed_payment_date, paid_amount)
     ///
     /// Used when adding or updating payment information from reconciliation data.
     /// Ensures all 3 fields are updated consistently as a single logical operation.
@@ -256,11 +256,11 @@ impl Procedure {
         mut self,
         payment_method: PaymentMethod,
         confirmed_payment_date: Option<NaiveDate>,
-        actual_payment_amount: Option<i64>,
+        paid_amount: Option<i64>,
     ) -> Self {
         self.payment_method = payment_method;
         self.confirmed_payment_date = confirmed_payment_date;
-        self.actual_payment_amount = actual_payment_amount;
+        self.paid_amount = paid_amount;
         self
     }
 
@@ -271,14 +271,14 @@ impl Procedure {
     pub fn clear_payment_info(mut self) -> Self {
         self.payment_method = PaymentMethod::None;
         self.confirmed_payment_date = None;
-        self.actual_payment_amount = None;
+        self.paid_amount = None;
         self
     }
 
     /// Reverts fund payment info when a FUND bank transfer is deleted (R8).
     ///
     /// Clears payment_method and restores confirmed_payment_date to the group's payment date.
-    /// actual_payment_amount is preserved (per R8 spec).
+    /// paid_amount is preserved (per R8 spec).
     pub fn revert_fund_payment(mut self, group_payment_date: NaiveDate) -> Self {
         self.payment_method = PaymentMethod::None;
         self.confirmed_payment_date = Some(group_payment_date);

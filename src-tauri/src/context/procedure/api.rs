@@ -25,10 +25,10 @@ pub struct ProcedureCandidate {
     pub fund_id: Option<String>,
     pub procedure_type_id: String,
     pub procedure_date: String,
-    pub procedure_amount: Option<i64>,
+    pub billed_amount: Option<i64>,
     pub payment_method: Option<String>,
     pub confirmed_payment_date: Option<String>,
-    pub actual_payment_amount: Option<i64>,
+    pub paid_amount: Option<i64>,
     pub awaited_amount: Option<i64>,
 }
 

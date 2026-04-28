@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tauri::State;
 
-use crate::context::bank::BankTransferType;
+use crate::context::bank::BankEntryType;
 
 use super::orchestrator::{
     BankManualMatchOrchestrator, BankManualMatchResult, DirectPaymentProcedureCandidate,
@@ -117,12 +117,12 @@ pub async fn get_all_eligible_procedures_for_direct_payment(
 pub async fn create_direct_transfer(
     bank_account_id: String,
     transfer_date: String,
-    transfer_type: BankTransferType,
+    transfer_type: BankEntryType,
     procedure_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
 ) -> Result<BankManualMatchResult, String> {
     // REF-080: OutgoingWire is exclusively created via the overpayment flow
-    if transfer_type == BankTransferType::OutgoingWire {
+    if transfer_type == BankEntryType::FundOutgoingWire {
         return Err(
             "REF-080: OutgoingWire transfers can only be created via the overpayment refund flow."
                 .to_string(),
@@ -193,7 +193,7 @@ pub async fn get_transfer_procedure_ids(
         .map_err(|e| format!("{:#}", e))
 }
 
-/// R21 — Return fund group candidates by IDs for the edit modal (groups are BankPayed).
+/// R21 — Return fund group candidates by IDs for the edit modal (groups are BankPaid).
 #[tauri::command]
 #[specta::specta]
 pub async fn get_fund_groups_by_ids(
@@ -206,7 +206,7 @@ pub async fn get_fund_groups_by_ids(
         .map_err(|e| format!("{:#}", e))
 }
 
-/// R21 — Return procedure candidates by IDs for the edit modal (procedures are DirectlyPayed).
+/// R21 — Return procedure candidates by IDs for the edit modal (procedures are DirectlyPaid).
 #[tauri::command]
 #[specta::specta]
 pub async fn get_procedures_by_ids(

@@ -223,7 +223,7 @@ pub enum AutoCorrection {
         procedure_date: NaiveDate,
         #[specta(type = String)]
         payment_date: NaiveDate,
-        procedure_amount: i64,
+        billed_amount: i64,
         pdf_fund_label: String,
     },
     /// Link existing procedure to fund payment and correct patient SSN from PDF
@@ -234,13 +234,13 @@ pub enum AutoCorrection {
         #[specta(type = String)]
         payment_date: NaiveDate,
     },
-    /// Contest the fund payment amount: keep procedure_amount unchanged,
-    /// set actual_payment_amount to the PDF amount (what the fund claims to have paid).
+    /// Contest the fund payment amount: keep billed_amount unchanged,
+    /// set paid_amount to the PDF amount (what the fund claims to have paid).
     /// Sets payment_status to PartiallyReconciled.
     ContestAmount {
         procedure_id: String,
         /// Amount actually paid by the fund (from PDF), in thousandths of a euro
-        actual_payment_amount: i64,
+        paid_amount: i64,
     },
 }
 
@@ -491,7 +491,7 @@ pub async fn get_unreconciled_procedures_in_range(
 /// Response for the edit modal: procedures in the group + procedures available to add
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct FundPaymentGroupEditData {
-    /// Procedures currently in the group (Reconciliated / PartiallyReconciled)
+    /// Procedures currently in the group (Reconciled / PartiallyReconciled)
     pub current_procedures: Vec<crate::context::procedure::Procedure>,
     /// Created procedures for the same fund not yet in the group
     pub available_procedures: Vec<crate::context::procedure::Procedure>,
@@ -500,7 +500,7 @@ pub struct FundPaymentGroupEditData {
 /// Tauri command: Get edit data for a fund payment group
 ///
 /// Returns two classified lists server-side so the frontend only handles display:
-/// - `current_procedures`: in the group (Reconciliated / PartiallyReconciled)
+/// - `current_procedures`: in the group (Reconciled / PartiallyReconciled)
 /// - `available_procedures`: Created procedures for the same fund, not in the group
 #[tauri::command]
 #[specta::specta]

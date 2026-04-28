@@ -66,7 +66,7 @@ impl ProcedureOrchestrationService {
     /// 3. Maps payment_method string to PaymentMethod enum
     ///
     /// IMPORTANT: awaited_amount parameter is ignored and always recalculated
-    /// from (procedure_amount - actual_payment_amount) to ensure consistency.
+    /// from (billed_amount - paid_amount) to ensure consistency.
     #[allow(clippy::too_many_arguments)]
     pub async fn create_procedure(
         &self,
@@ -74,10 +74,10 @@ impl ProcedureOrchestrationService {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: String,
-        procedure_amount: Option<i64>,
+        billed_amount: Option<i64>,
         payment_method: Option<String>,
         confirmed_payment_date: Option<String>,
-        actual_payment_amount: Option<i64>,
+        paid_amount: Option<i64>,
         _awaited_amount: Option<i64>,
     ) -> anyhow::Result<Procedure> {
         tracing::debug!(
@@ -120,8 +120,8 @@ impl ProcedureOrchestrationService {
 
         // Determine initial status based on payment info
         let status = Self::determine_procedure_status(
-            procedure_amount,
-            actual_payment_amount,
+            billed_amount,
+            paid_amount,
             confirmed_payment_date.as_deref(),
             payment_method.as_deref(),
             fund_id.as_deref(),
@@ -135,10 +135,10 @@ impl ProcedureOrchestrationService {
                 fund_id.clone(),
                 procedure_type_id.clone(),
                 procedure_date.clone(),
-                procedure_amount,
+                billed_amount,
                 mapped_payment_method,
                 confirmed_payment_date,
-                actual_payment_amount,
+                paid_amount,
                 status,
             )
             .await?;
@@ -154,7 +154,7 @@ impl ProcedureOrchestrationService {
         if should_update_tracking {
             updated_patient.latest_date = Some(procedure.procedure_date);
             updated_patient.latest_procedure_type = Some(procedure_type_id.clone());
-            updated_patient.latest_procedure_amount = procedure_amount;
+            updated_patient.latest_procedure_amount = billed_amount;
             updated_patient.latest_fund = fund_id.clone();
 
             self.patient_repository
@@ -199,10 +199,10 @@ impl ProcedureOrchestrationService {
                             refund_proc.fund_id,
                             updated.procedure_type_id.clone(),
                             refund_proc.procedure_date,
-                            refund_proc.procedure_amount,
+                            refund_proc.billed_amount,
                             refund_proc.payment_method,
                             refund_proc.confirmed_payment_date,
-                            refund_proc.actual_payment_amount,
+                            refund_proc.paid_amount,
                             refund_proc.payment_status,
                         );
                         self.context_procedure_service
@@ -280,7 +280,7 @@ impl ProcedureOrchestrationService {
                 updated.latest_date = Some(new_latest.procedure_date);
                 updated.latest_procedure_type = Some(new_latest.procedure_type_id.clone());
                 updated.latest_fund = new_latest.fund_id.clone();
-                updated.latest_procedure_amount = new_latest.procedure_amount;
+                updated.latest_procedure_amount = new_latest.billed_amount;
             }
             self.patient_repository.update_patient(updated).await?;
         }
@@ -432,7 +432,7 @@ impl ProcedureOrchestrationService {
 
     /// Create a batch of valid procedures
     ///
-    /// awaited_amount is recalculated from procedure_amount and actual_payment_amount
+    /// awaited_amount is recalculated from billed_amount and paid_amount
     /// before saving to ensure consistency.
     /// Also updates patient tracking fields (latest_date, latest_procedure_type, etc.)
     /// for each patient that received new procedures.
@@ -451,8 +451,8 @@ impl ProcedureOrchestrationService {
 
             // Determine status based on payment completeness
             let status = Self::determine_procedure_status(
-                candidate.procedure_amount,
-                candidate.actual_payment_amount,
+                candidate.billed_amount,
+                candidate.paid_amount,
                 candidate.confirmed_payment_date.as_deref(),
                 candidate.payment_method.as_deref(),
                 candidate.fund_id.as_deref(),
@@ -464,10 +464,10 @@ impl ProcedureOrchestrationService {
                 candidate.fund_id,
                 candidate.procedure_type_id,
                 candidate.procedure_date,
-                candidate.procedure_amount,
+                candidate.billed_amount,
                 payment_method,
                 candidate.confirmed_payment_date,
-                candidate.actual_payment_amount,
+                candidate.paid_amount,
                 status,
             ) {
                 Ok(procedure) => procedures_to_create.push(procedure),
@@ -508,7 +508,7 @@ impl ProcedureOrchestrationService {
                     let mut updated_patient = patient.clone();
                     updated_patient.latest_date = Some(latest.procedure_date);
                     updated_patient.latest_procedure_type = Some(latest.procedure_type_id.clone());
-                    updated_patient.latest_procedure_amount = latest.procedure_amount;
+                    updated_patient.latest_procedure_amount = latest.billed_amount;
                     updated_patient.latest_fund = latest.fund_id.clone();
                     self.patient_repository
                         .update_patient(updated_patient)
@@ -534,16 +534,16 @@ impl ProcedureOrchestrationService {
     /// Returns true if the procedure status prevents deletion and direct editing (R5, R6).
     ///
     /// Blocking statuses are those linked to a fund payment group or bank transaction.
-    /// Import statuses (ImportDirectlyPayed, ImportFundPayed) are intentionally excluded:
+    /// Import statuses (ImportDirectlyPaid, ImportFundPaid) are intentionally excluded:
     /// they represent non-blocking re-importable data and allow deletion with confirmation.
     fn is_blocking_status(status: &ProcedureStatus) -> bool {
         matches!(
             status,
-            ProcedureStatus::Reconciliated
+            ProcedureStatus::Reconciled
                 | ProcedureStatus::PartiallyReconciled
-                | ProcedureStatus::FundPayed
-                | ProcedureStatus::PartiallyFundPayed
-                | ProcedureStatus::DirectlyPayed
+                | ProcedureStatus::FundPaid
+                | ProcedureStatus::PartiallyFundPaid
+                | ProcedureStatus::DirectlyPaid
                 // REF-220: Overpaid source procedures cannot be deleted directly.
                 // REF-230: OverpaymentRefund mirror procedures cannot be deleted directly.
                 // Deletion must go through the cancel_overpayment cascade.
@@ -555,19 +555,19 @@ impl ProcedureOrchestrationService {
     /// Determine procedure status based on payment completeness and metadata.
     ///
     /// Import-specific statuses (non-blocking re-import):
-    /// - ImportDirectlyPayed: payment confirmed (date + amount) AND (method is ES/CH OR no fund)
-    /// - ImportFundPayed: payment confirmed AND method is not ES/CH AND fund is present
+    /// - ImportDirectlyPaid: payment confirmed (date + amount) AND (method is ES/CH OR no fund)
+    /// - ImportFundPaid: payment confirmed AND method is not ES/CH AND fund is present
     fn determine_procedure_status(
-        procedure_amount: Option<i64>,
-        actual_payment_amount: Option<i64>,
+        billed_amount: Option<i64>,
+        paid_amount: Option<i64>,
         confirmed_payment_date: Option<&str>,
         payment_method: Option<&str>,
         fund_id: Option<&str>,
     ) -> ProcedureStatus {
         let is_paid = (confirmed_payment_date.is_some()
             && !confirmed_payment_date.unwrap_or("").is_empty()
-            && actual_payment_amount.unwrap_or(0) > 0)
-            || Self::is_fully_paid(procedure_amount, actual_payment_amount);
+            && paid_amount.unwrap_or(0) > 0)
+            || Self::is_fully_paid(billed_amount, paid_amount);
 
         if !is_paid {
             // NEVER return None here, Created is the minimum state for a valid procedure
@@ -576,9 +576,9 @@ impl ProcedureOrchestrationService {
 
         let is_direct_method = matches!(payment_method, Some("ES") | Some("CH"));
         if is_direct_method || fund_id.is_none() {
-            ProcedureStatus::ImportDirectlyPayed
+            ProcedureStatus::ImportDirectlyPaid
         } else {
-            ProcedureStatus::ImportFundPayed
+            ProcedureStatus::ImportFundPaid
         }
     }
 
@@ -597,7 +597,7 @@ impl ProcedureOrchestrationService {
     /// - If confirmed_payment_date exists:
     ///   - If payment_method is "ES" → Cash
     ///   - If payment_method is "CH" → Check
-    ///   - Otherwise → BankTransfer (inferred from presence of date)
+    ///   - Otherwise → BankEntry (inferred from presence of date)
     fn determine_payment_method(
         payment_method: Option<&str>,
         confirmed_payment_date: Option<&str>,
@@ -619,7 +619,7 @@ impl ProcedureOrchestrationService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::fund::AffiliatedFund;
+    use crate::context::fund::Fund;
     use crate::context::patient::{Patient, PatientRepository};
     use crate::context::procedure::{
         Procedure, ProcedureRepository, ProcedureService as ContextProcedureService,
@@ -855,10 +855,10 @@ mod tests {
             fund_id: Option<String>,
             procedure_type_id: String,
             procedure_date: String,
-            procedure_amount: Option<i64>,
+            billed_amount: Option<i64>,
             payment_method: PaymentMethod,
             confirmed_payment_date: Option<String>,
-            actual_payment_amount: Option<i64>,
+            paid_amount: Option<i64>,
             payment_status: ProcedureStatus,
         ) -> anyhow::Result<Procedure> {
             Procedure::with_id(
@@ -867,10 +867,10 @@ mod tests {
                 fund_id,
                 procedure_type_id,
                 procedure_date,
-                procedure_amount,
+                billed_amount,
                 payment_method,
                 confirmed_payment_date,
-                actual_payment_amount,
+                paid_amount,
                 payment_status,
             )
             .map_err(|e| anyhow::anyhow!("{}", e))
@@ -978,28 +978,22 @@ mod tests {
             &self,
             _fund_identifier: &str,
             _fund_name: &str,
-        ) -> anyhow::Result<AffiliatedFund> {
+        ) -> anyhow::Result<Fund> {
             unimplemented!()
         }
-        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<AffiliatedFund>> {
+        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<Fund>> {
             unimplemented!()
         }
-        async fn read_all_funds(&self) -> anyhow::Result<Vec<AffiliatedFund>> {
+        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
             Ok(vec![])
         }
-        async fn update_fund(&self, _fund: AffiliatedFund) -> anyhow::Result<AffiliatedFund> {
+        async fn update_fund(&self, _fund: Fund) -> anyhow::Result<Fund> {
             unimplemented!()
         }
-        async fn find_fund_by_identifier(
-            &self,
-            _identifier: &str,
-        ) -> anyhow::Result<Option<AffiliatedFund>> {
+        async fn find_fund_by_identifier(&self, _identifier: &str) -> anyhow::Result<Option<Fund>> {
             unimplemented!()
         }
-        async fn create_batch(
-            &self,
-            _funds: Vec<AffiliatedFund>,
-        ) -> anyhow::Result<Vec<AffiliatedFund>> {
+        async fn create_batch(&self, _funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
             unimplemented!()
         }
         async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
@@ -1074,10 +1068,10 @@ mod tests {
             fund_id: Some("fund-id-1".to_string()),
             procedure_type_id: "type-id-1".to_string(),
             procedure_date: "2024-06-15".to_string(),
-            procedure_amount: Some(100000),
+            billed_amount: Some(100000),
             payment_method: None,
             confirmed_payment_date: None,
-            actual_payment_amount: None,
+            paid_amount: None,
             awaited_amount: None,
         };
 
@@ -1143,10 +1137,10 @@ mod tests {
             fund_id: Some("fund-id-1".to_string()),
             procedure_type_id: "type-id-1".to_string(),
             procedure_date: "2024-06-15".to_string(),
-            procedure_amount: Some(100000),
+            billed_amount: Some(100000),
             payment_method: None,
             confirmed_payment_date: None,
-            actual_payment_amount: None,
+            paid_amount: None,
             awaited_amount: None,
         };
 
@@ -1314,7 +1308,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_procedure_blocked_for_reconciliated() {
-        let proc = make_procedure_with_status(ProcedureStatus::Reconciliated);
+        let proc = make_procedure_with_status(ProcedureStatus::Reconciled);
         let orchestrator = make_orchestrator_with_procedure(proc);
         let result = orchestrator.delete_procedure("proc-id-1").await;
         assert!(result.is_err());
@@ -1332,7 +1326,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_procedure_blocked_for_fund_payed() {
-        let proc = make_procedure_with_status(ProcedureStatus::FundPayed);
+        let proc = make_procedure_with_status(ProcedureStatus::FundPaid);
         let orchestrator = make_orchestrator_with_procedure(proc);
         let result = orchestrator.delete_procedure("proc-id-1").await;
         assert!(result.is_err());
@@ -1341,7 +1335,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_procedure_blocked_for_partially_fund_payed() {
-        let proc = make_procedure_with_status(ProcedureStatus::PartiallyFundPayed);
+        let proc = make_procedure_with_status(ProcedureStatus::PartiallyFundPaid);
         let orchestrator = make_orchestrator_with_procedure(proc);
         let result = orchestrator.delete_procedure("proc-id-1").await;
         assert!(result.is_err());
@@ -1350,7 +1344,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_procedure_blocked_for_directly_payed() {
-        let proc = make_procedure_with_status(ProcedureStatus::DirectlyPayed);
+        let proc = make_procedure_with_status(ProcedureStatus::DirectlyPaid);
         let orchestrator = make_orchestrator_with_procedure(proc);
         let result = orchestrator.delete_procedure("proc-id-1").await;
         assert!(result.is_err());
@@ -1368,8 +1362,8 @@ mod tests {
     #[tokio::test]
     async fn test_delete_procedure_allowed_for_import_statuses() {
         for status in [
-            ProcedureStatus::ImportDirectlyPayed,
-            ProcedureStatus::ImportFundPayed,
+            ProcedureStatus::ImportDirectlyPaid,
+            ProcedureStatus::ImportFundPaid,
             ProcedureStatus::None,
         ] {
             let proc = make_procedure_with_status(status);
@@ -1760,10 +1754,10 @@ mod tests {
             fund_id: None, // no fund on this new procedure
             procedure_type_id: "new-type-id".to_string(),
             procedure_date: "2024-06-15".to_string(),
-            procedure_amount: Some(100000),
+            billed_amount: Some(100000),
             payment_method: None,
             confirmed_payment_date: None,
-            actual_payment_amount: None,
+            paid_amount: None,
             awaited_amount: None,
         };
 

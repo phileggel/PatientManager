@@ -1,5 +1,5 @@
 /// Fund caching to eliminate N+1 queries
-use crate::context::fund::{AffiliatedFund, FundRepository};
+use crate::context::fund::{Fund, FundRepository};
 use crate::context::procedure::Procedure;
 use crate::use_cases::fund_payment_reconciliation::api::{AnomalyType, NormalizedPdfLine};
 use std::collections::HashMap;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 /// Cache of all funds loaded at reconciliation start
 pub struct FundCache {
-    cache: HashMap<String, AffiliatedFund>,
+    cache: HashMap<String, Fund>,
 }
 
 impl FundCache {
@@ -55,7 +55,7 @@ impl FundCache {
 #[cfg(test)]
 impl FundCache {
     /// Helper for creating test fixtures with predefined funds
-    pub fn for_test(funds: Vec<AffiliatedFund>) -> Self {
+    pub fn for_test(funds: Vec<Fund>) -> Self {
         let mut cache = HashMap::new();
         for fund in funds {
             cache.insert(fund.id.clone(), fund);
@@ -71,33 +71,30 @@ mod tests {
     use async_trait::async_trait;
 
     struct MockFundRepository {
-        funds: Vec<AffiliatedFund>,
+        funds: Vec<Fund>,
     }
 
     #[async_trait]
     impl FundRepository for MockFundRepository {
-        async fn create_fund(&self, _: &str, _: &str) -> anyhow::Result<AffiliatedFund> {
+        async fn create_fund(&self, _: &str, _: &str) -> anyhow::Result<Fund> {
             unimplemented!()
         }
-        async fn read_fund(&self, _: &str) -> anyhow::Result<Option<AffiliatedFund>> {
+        async fn read_fund(&self, _: &str) -> anyhow::Result<Option<Fund>> {
             unimplemented!()
         }
-        async fn read_all_funds(&self) -> anyhow::Result<Vec<AffiliatedFund>> {
+        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
             Ok(self.funds.clone())
         }
-        async fn update_fund(&self, _: AffiliatedFund) -> anyhow::Result<AffiliatedFund> {
+        async fn update_fund(&self, _: Fund) -> anyhow::Result<Fund> {
             unimplemented!()
         }
         async fn delete_fund(&self, _: &str) -> anyhow::Result<()> {
             unimplemented!()
         }
-        async fn find_fund_by_identifier(&self, _: &str) -> anyhow::Result<Option<AffiliatedFund>> {
+        async fn find_fund_by_identifier(&self, _: &str) -> anyhow::Result<Option<Fund>> {
             unimplemented!()
         }
-        async fn create_batch(
-            &self,
-            _: Vec<AffiliatedFund>,
-        ) -> anyhow::Result<Vec<AffiliatedFund>> {
+        async fn create_batch(&self, _: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
             unimplemented!()
         }
     }
@@ -136,7 +133,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fund_cache_build() {
-        let fund = AffiliatedFund::new("CPAM n° 931".to_string(), "CPAM 931".to_string())
+        let fund = Fund::new("CPAM n° 931".to_string(), "CPAM 931".to_string())
             .expect("Fund creation failed");
 
         let repo = Arc::new(MockFundRepository { funds: vec![fund] });
@@ -154,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_check_fund_anomaly_matching() {
-        let fund = AffiliatedFund::new("fund-931".to_string(), "CPAM 931".to_string())
+        let fund = Fund::new("fund-931".to_string(), "CPAM 931".to_string())
             .expect("Fund creation failed");
 
         let cache = FundCache::for_test(vec![fund]);
@@ -167,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_check_fund_anomaly_mismatch() {
-        let fund = AffiliatedFund::new("fund-931".to_string(), "CPAM 931".to_string())
+        let fund = Fund::new("fund-931".to_string(), "CPAM 931".to_string())
             .expect("Fund creation failed");
 
         let fund_id = fund.id.clone();
@@ -181,7 +178,7 @@ mod tests {
 
     #[test]
     fn test_check_fund_anomaly_no_procedure_fund() {
-        let fund = AffiliatedFund::new("fund-931".to_string(), "CPAM 931".to_string())
+        let fund = Fund::new("fund-931".to_string(), "CPAM 931".to_string())
             .expect("Fund creation failed");
 
         let cache = FundCache::for_test(vec![fund]);
@@ -194,8 +191,8 @@ mod tests {
 
     #[test]
     fn test_check_fund_anomaly_fund_identifier_match() {
-        let fund = AffiliatedFund::new("CPAM n° 931".to_string(), "CPAM".to_string())
-            .expect("Fund creation failed");
+        let fund =
+            Fund::new("CPAM n° 931".to_string(), "CPAM".to_string()).expect("Fund creation failed");
 
         let fund_id = fund.id.clone();
         let cache = FundCache::for_test(vec![fund]);

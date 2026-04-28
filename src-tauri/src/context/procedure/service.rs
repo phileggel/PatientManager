@@ -161,10 +161,10 @@ impl ProcedureService {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: String,
-        procedure_amount: Option<i64>,
+        billed_amount: Option<i64>,
         payment_method: super::domain::PaymentMethod,
         confirmed_payment_date: Option<String>,
-        actual_payment_amount: Option<i64>,
+        paid_amount: Option<i64>,
         payment_status: super::domain::ProcedureStatus,
     ) -> anyhow::Result<Procedure> {
         let procedure = self
@@ -174,10 +174,10 @@ impl ProcedureService {
                 fund_id,
                 procedure_type_id,
                 procedure_date,
-                procedure_amount,
+                billed_amount,
                 payment_method,
                 confirmed_payment_date,
-                actual_payment_amount,
+                paid_amount,
                 payment_status,
             )
             .await?;
@@ -214,10 +214,10 @@ impl ProcedureService {
                 candidate.fund_id,
                 candidate.procedure_type_id,
                 candidate.procedure_date,
-                candidate.procedure_amount,
+                candidate.billed_amount,
                 super::domain::PaymentMethod::None, // Default for batch creation
                 candidate.confirmed_payment_date,
-                candidate.actual_payment_amount,
+                candidate.paid_amount,
                 super::domain::ProcedureStatus::None,
             )?;
             procedures.push(procedure);
