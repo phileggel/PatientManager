@@ -1,5 +1,31 @@
 # TODO
 
+---
+
+## DDD Convergence — Quick renames (mechanical, low risk)
+
+Validated in `docs/ubiquitous-language.md`. Each item is a rename with no behavioural change.
+
+- `AffiliatedFund` → `Fund` (struct + all references)
+- `BankTransfer` → `BankEntry`, `BankTransferType` → `BankEntryType` (struct + enum + references)
+- `BankTransferType` variants: `Fund` → `FundWire`, `Check` → `PatientCheck`, `CreditCard` → `PatientCreditCard`, `Cash` → `PatientCash`, `OutgoingWire` → `FundOutgoingWire`
+- `BankTransferUpdated` event → `BankEntryUpdated`
+- `ProcedureStatus` variants: `Reconciliated` → `Reconciled`, `DirectlyPayed` → `DirectlyPaid`, `FundPayed` → `FundPaid`, `PartiallyFundPayed` → `PartiallyFundPaid`, `ImportDirectlyPayed` → `ImportDirectlyPaid`, `ImportFundPayed` → `ImportFundPaid`
+- `FundPaymentGroupStatus::BankPayed` → `BankPaid`
+- `Procedure::procedure_amount` → `billed_amount`, `actual_payment_amount` → `paid_amount`
+- **Bug fix**: auto-reconciliation flow does not set `confirmed_payment_date` on procedures — date is available but not passed through (`fund_payment_reconciliation/orchestrator.rs:179, :297, :452`)
+
+## DDD Convergence — Major refactors (structural, plan carefully)
+
+- **Folder restructure**: migrate all bounded contexts to per-aggregate sub-folders per B0/B0d (`context/{domain}/{aggregate}/domain.rs`, `repository.rs`, `service.rs`)
+- **Extract aggregate root methods on `Procedure`**: `reconcile()`, `unreconcile()`, `dispute()`, `record_payment()`, `revert_payment()`, `clear_payment()`, `correct_billed_amount()`, `correct_fund()`, `correct_date()` — currently all direct field mutations in orchestrators
+- **Extract aggregate root methods on `Patient`**: `correct_ssn()`
+- **Extract aggregate root methods on `FundPaymentGroup`**: `confirm_bank_payment()`, `revert_bank_payment()`, `update()`
+- **Introduce `FundPayment` aggregate root**: currently missing — `FundPaymentGroup` is incorrectly the top-level object; `FundPayment` is the monthly document wrapping all groups
+- **Implement UoW pattern**: `core/uow.rs` per ADR-003 — needed for atomic cross-aggregate writes in reconciliation
+
+---
+
 ## (backend/frontend) — Specta
 
 Convert domain objects to camelCase when crossing into the frontend.
@@ -13,8 +39,6 @@ Normally the payment confirmation date should not be updated by this operation (
 - Currently fund/patient records are created automatically during fund-payment reconciliation.
 - Is this expected?
 - What's the right solution?
-
-## (backend/fund) — Tech debt: purpose of FundPaymentLine as domain object
 
 ## (frontend/procedure) — Procedure page
 
