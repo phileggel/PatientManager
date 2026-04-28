@@ -119,7 +119,7 @@ export function RecordOverpaymentModal({
             <TextField
               id="sourceProcedurePatient"
               label={t("form.sourceProcedure")}
-              value={`${patientLabel} — ${formatCurrency(sourceProcedure.procedure_amount ?? 0)} (${formatDate(sourceProcedure.procedure_date)})`}
+              value={`${patientLabel} — ${formatCurrency(sourceProcedure.billed_amount ?? 0)} (${formatDate(sourceProcedure.procedure_date)})`}
               readOnly
             />
 
@@ -172,7 +172,7 @@ export function RecordOverpaymentModal({
             <TextField
               id="confirmPatient"
               label={t("form.sourceProcedure")}
-              value={`${patientLabel} — ${formatCurrency(sourceProcedure.procedure_amount ?? 0)}`}
+              value={`${patientLabel} — ${formatCurrency(sourceProcedure.billed_amount ?? 0)}`}
               readOnly
             />
             <TextField

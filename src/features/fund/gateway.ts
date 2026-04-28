@@ -1,9 +1,9 @@
-import { type AffiliatedFund, commands } from "@/bindings";
+import { commands, type Fund } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import type { ServiceResult } from "@/types/api";
 
-export function readAllFunds(): ServiceResult<AffiliatedFund[]> {
+export function readAllFunds(): ServiceResult<Fund[]> {
   logger.debug("Fetching all funds from store");
   const funds = useAppStore.getState().funds;
   return { success: true, data: funds };
@@ -12,7 +12,7 @@ export function readAllFunds(): ServiceResult<AffiliatedFund[]> {
 export async function addFund(
   fundIdentifier: string,
   fundName: string,
-): Promise<ServiceResult<AffiliatedFund>> {
+): Promise<ServiceResult<Fund>> {
   logger.info("Adding fund", { fundIdentifier, fundName });
 
   const result = await commands.addFund(fundIdentifier, fundName);
@@ -26,7 +26,7 @@ export async function addFund(
   }
 }
 
-export async function updateFund(fund: AffiliatedFund): Promise<ServiceResult<AffiliatedFund>> {
+export async function updateFund(fund: Fund): Promise<ServiceResult<Fund>> {
   logger.info("Updating fund");
 
   const result = await commands.updateFund(fund);

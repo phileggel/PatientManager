@@ -1,4 +1,4 @@
-import type { AffiliatedFund, Patient } from "@/bindings";
+import type { Fund, Patient } from "@/bindings";
 import type { PatientFormData, PatientRow } from "./types";
 
 /**
@@ -16,7 +16,7 @@ export const PatientPresenter = {
    * Transform domain Patient to UI row data for table display
    * Extracts display fields and adds UI-specific properties
    */
-  toRow(patient: Patient, funds?: AffiliatedFund[]): PatientRow {
+  toRow(patient: Patient, funds?: Fund[]): PatientRow {
     let latestFund: string | null = patient.latest_fund ?? null;
     if (latestFund && funds) {
       const fund = funds.find((f) => f.id === latestFund);

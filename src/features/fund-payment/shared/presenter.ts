@@ -1,10 +1,10 @@
-import type { AffiliatedFund, FundPaymentGroup, Procedure } from "@/bindings";
+import type { Fund, FundPaymentGroup, Procedure } from "@/bindings";
 import type { FundDisplayData, FundPaymentRow } from "./types";
 
 /**
- * FundPaymentPresenter - UI Projection of AffiliatedFund Domain Object
+ * FundPaymentPresenter - UI Projection of Fund Domain Object
  *
- * Transforms the AffiliatedFund domain model into UI representations
+ * Transforms the Fund domain model into UI representations
  * for the fund-payment context, ensuring the UI doesn't directly depend
  * on domain fields and properties.
  *
@@ -34,7 +34,7 @@ export const FundPaymentPresenter = {
    * Transform domain FundPaymentGroup to UI row data for table display
    * Extracts display fields and adds UI-specific properties
    */
-  toRow(group: FundPaymentGroup, funds: AffiliatedFund[]): FundPaymentRow {
+  toRow(group: FundPaymentGroup, funds: Fund[]): FundPaymentRow {
     const fund = funds.find((f) => f.id === group.fund_id);
     return {
       rowId: group.id,
@@ -49,11 +49,11 @@ export const FundPaymentPresenter = {
     };
   },
   /**
-   * Transform domain AffiliatedFund to UI display data
+   * Transform domain Fund to UI display data
    * Extracts only the fields needed for display in fund-payment UI
    * Used to show fund info in modals and panels
    */
-  toDisplayData(fund: AffiliatedFund | undefined): FundDisplayData | null {
+  toDisplayData(fund: Fund | undefined): FundDisplayData | null {
     if (!fund) return null;
 
     return {
@@ -63,11 +63,11 @@ export const FundPaymentPresenter = {
   },
 
   /**
-   * Transform array of AffiliatedFund to selector options
+   * Transform array of Fund to selector options
    * Used for dropdowns and selection lists
    */
   toSelectorOptions(
-    funds: AffiliatedFund[],
+    funds: Fund[],
     placeholderLabel: string,
   ): Array<{ label: string; value: string }> {
     return [
@@ -86,7 +86,7 @@ export const FundPaymentPresenter = {
    */
   toSelectionSummary(procedures: Procedure[]) {
     const count = procedures.length;
-    const totalAmount = procedures.reduce((sum, p) => sum + (p.procedure_amount || 0), 0);
+    const totalAmount = procedures.reduce((sum, p) => sum + (p.billed_amount || 0), 0);
 
     return {
       count,

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AffiliatedFund } from "@/bindings";
+import type { Fund } from "@/bindings";
 import { EditFundModal } from "./EditFundModal";
 
 vi.mock("../shared/FundForm", () => ({
@@ -33,7 +33,7 @@ vi.mock("../shared/FundForm", () => ({
 }));
 
 vi.mock("./useEditFundModal", () => ({
-  useEditFundModal: (fund: AffiliatedFund | null) => {
+  useEditFundModal: (fund: Fund | null) => {
     const [formData, setFormData] = useState({
       fund_identifier: fund?.fund_identifier || "",
       name: fund?.name || "",
@@ -89,7 +89,7 @@ vi.mock("@/ui/components", () => ({
 }));
 
 describe("EditFundModal", () => {
-  const mockFund: AffiliatedFund = {
+  const mockFund: Fund = {
     id: "f1",
     fund_identifier: "CPAM-001",
     name: "CPAM",

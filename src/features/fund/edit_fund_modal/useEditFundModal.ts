@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AffiliatedFund } from "@/bindings";
+import type { Fund } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 import { updateFund } from "@/features/fund/gateway";
 import { logger } from "@/lib/logger";
@@ -8,7 +8,7 @@ import { FundPresenter } from "../shared/presenter";
 import type { FundFormData } from "../shared/types";
 import { type FormErrors, validateFund } from "../shared/validateFund";
 
-export function useEditFundModal(fund: AffiliatedFund | null, onSuccess?: () => void) {
+export function useEditFundModal(fund: Fund | null, onSuccess?: () => void) {
   const { t } = useTranslation("fund");
   const { t: tc } = useTranslation("common");
 

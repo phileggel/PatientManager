@@ -1,7 +1,7 @@
 import type {
+  BankEntry,
+  BankEntryType,
   BankManualMatchResult,
-  BankTransfer,
-  BankTransferType,
   DirectPaymentProcedureCandidate,
   FundGroupCandidate,
 } from "@/bindings";
@@ -19,9 +19,9 @@ export type ServiceResult<T> = {
 export async function createBankTransfer(
   transferDate: string,
   amount: number,
-  transferType: BankTransferType,
+  transferType: BankEntryType,
   bankAccount: string,
-): Promise<ServiceResult<BankTransfer>> {
+): Promise<ServiceResult<BankEntry>> {
   logger.info("[bank-transfer] createBankTransfer", { transferDate, amount, transferType });
   try {
     const result = await commands.createBankTransfer(
@@ -39,7 +39,7 @@ export async function createBankTransfer(
   }
 }
 
-export async function readAllBankTransfers(): Promise<ServiceResult<BankTransfer[]>> {
+export async function readAllBankTransfers(): Promise<ServiceResult<BankEntry[]>> {
   logger.debug("[bank-transfer] readAllBankTransfers");
   try {
     const result = await commands.readAllBankTransfers();
@@ -52,9 +52,7 @@ export async function readAllBankTransfers(): Promise<ServiceResult<BankTransfer
   }
 }
 
-export async function updateBankTransfer(
-  transfer: BankTransfer,
-): Promise<ServiceResult<BankTransfer>> {
+export async function updateBankTransfer(transfer: BankEntry): Promise<ServiceResult<BankEntry>> {
   logger.info("[bank-transfer] updateBankTransfer", { id: transfer.id });
   try {
     const result = await commands.updateBankTransfer(transfer);
@@ -243,7 +241,7 @@ export async function getProceduresByIds(
 export async function createDirectTransfer(
   bankAccountId: string,
   transferDate: string,
-  transferType: BankTransferType,
+  transferType: BankEntryType,
   procedureIds: string[],
 ): Promise<ServiceResult<BankManualMatchResult>> {
   logger.info("[bank-transfer] createDirectTransfer", {

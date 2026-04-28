@@ -10,7 +10,7 @@ export type FormErrors = Partial<Record<keyof FundFormData, string>>;
 
 /**
  * UI representation of a fund for table display
- * Transforms domain model (AffiliatedFund) to UI format
+ * Transforms domain model (Fund) to UI format
  * - Converts snake_case (domain) to camelCase (UI)
  * - Adds rowId for React keys
  *

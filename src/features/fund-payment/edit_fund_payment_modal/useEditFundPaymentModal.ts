@@ -52,7 +52,7 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClos
   const totalAmount = useMemo(() => {
     return allProcedures
       .filter((p) => selectedIds.has(p.id))
-      .reduce((sum, p) => sum + (p.procedure_amount || 0), 0);
+      .reduce((sum, p) => sum + (p.billed_amount || 0), 0);
   }, [allProcedures, selectedIds]);
 
   // Load edit data (classified server-side) when payment changes

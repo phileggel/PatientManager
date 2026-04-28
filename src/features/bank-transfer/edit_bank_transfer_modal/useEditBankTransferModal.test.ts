@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BankTransfer } from "@/bindings";
+import type { BankEntry } from "@/bindings";
 
 const mockToastShow = vi.hoisted(() => vi.fn());
 
@@ -22,20 +22,20 @@ import { useEditBankTransferModal } from "./useEditBankTransferModal";
 
 const makeBankAccount = () => ({ id: "account-1", name: "Compte principal", iban: null });
 
-const makeFundTransfer = (overrides?: Partial<BankTransfer>): BankTransfer => ({
+const makeFundTransfer = (overrides?: Partial<BankEntry>): BankEntry => ({
   id: "transfer-fund-1",
   transfer_date: "2026-03-10",
   amount: 150000,
-  transfer_type: "FUND",
+  transfer_type: "FUND_WIRE",
   bank_account: makeBankAccount(),
   ...overrides,
 });
 
-const makeDirectTransfer = (overrides?: Partial<BankTransfer>): BankTransfer => ({
+const makeDirectTransfer = (overrides?: Partial<BankEntry>): BankEntry => ({
   id: "transfer-check-1",
   transfer_date: "2026-03-12",
   amount: 120000,
-  transfer_type: "CHECK",
+  transfer_type: "PATIENT_CHECK",
   bank_account: makeBankAccount(),
   ...overrides,
 });
@@ -51,7 +51,7 @@ const mockProcedure = {
   procedure_id: "proc-1",
   patient_id: "pat-1",
   procedure_date: "2026-03-10",
-  procedure_amount: 120000,
+  billed_amount: 120000,
 };
 
 describe("useEditBankTransferModal", () => {
@@ -103,7 +103,7 @@ describe("useEditBankTransferModal", () => {
 
   it("R13 — isCash is true for CASH transfer and false for CHECK", async () => {
     // CASH falls into the direct-payment branch → calls getTransferProcedureIds
-    const cashTransfer = makeFundTransfer({ transfer_type: "CASH" });
+    const cashTransfer = makeFundTransfer({ transfer_type: "PATIENT_CASH" });
     const { result: cashResult } = renderHook(() =>
       useEditBankTransferModal(cashTransfer, vi.fn()),
     );

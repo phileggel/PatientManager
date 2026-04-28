@@ -67,7 +67,7 @@ export function useSelectProceduresPanel({
           const ids = selectedProcedureIdsRef.current;
           if (ids.length > 0) {
             const total = ids.reduce(
-              (sum, id) => sum + (candidateMapRef.current.get(id)?.procedure_amount ?? 0),
+              (sum, id) => sum + (candidateMapRef.current.get(id)?.billed_amount ?? 0),
               0,
             );
             onSelectionChangeRef.current(ids, total);
@@ -91,7 +91,7 @@ export function useSelectProceduresPanel({
       ? selectedProcedureIds.filter((id) => id !== proc.procedure_id)
       : [...selectedProcedureIds, proc.procedure_id];
     const total = newIds.reduce(
-      (sum, id) => sum + (candidateMapRef.current.get(id)?.procedure_amount ?? 0),
+      (sum, id) => sum + (candidateMapRef.current.get(id)?.billed_amount ?? 0),
       0,
     );
     onSelectionChange(newIds, total);

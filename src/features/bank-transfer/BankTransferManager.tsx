@@ -1,7 +1,7 @@
 import { Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BankTransfer } from "@/bindings";
+import type { BankEntry } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { ConfirmationDialog, ManagerLayout } from "@/ui/components";
@@ -23,13 +23,13 @@ export default function BankTransferManager() {
   }, []);
 
   // Edit modal state
-  const [editingTransfer, setEditingTransfer] = useState<BankTransfer | null>(null);
+  const [editingTransfer, setEditingTransfer] = useState<BankEntry | null>(null);
 
   // Delete confirmation state
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [transferToDelete, setTransferToDelete] = useState<BankTransfer | null>(null);
+  const [transferToDelete, setTransferToDelete] = useState<BankEntry | null>(null);
 
-  const handleEdit = (transfer: BankTransfer) => {
+  const handleEdit = (transfer: BankEntry) => {
     setEditingTransfer(transfer);
   };
 
@@ -48,7 +48,7 @@ export default function BankTransferManager() {
 
     try {
       const result =
-        transfer.transfer_type === "FUND"
+        transfer.transfer_type === "FUND_WIRE"
           ? await deleteFundTransfer(transfer.id)
           : await deleteDirectTransfer(transfer.id);
 

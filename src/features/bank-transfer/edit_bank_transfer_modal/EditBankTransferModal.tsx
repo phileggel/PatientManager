@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { BankTransfer } from "@/bindings";
+import type { BankEntry } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import { Button, DateField, SelectField } from "@/ui/components";
@@ -22,7 +22,7 @@ import { useEditBankTransferModal } from "./useEditBankTransferModal";
  * Logic lives in useEditBankTransferModal.
  */
 interface EditBankTransferModalProps {
-  transfer: BankTransfer | null;
+  transfer: BankEntry | null;
   onClose: () => void;
 }
 
@@ -58,9 +58,9 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
 
   const typeLabel = isFund
     ? t("transfer.typeFund")
-    : transfer?.transfer_type === "CHECK"
+    : transfer?.transfer_type === "PATIENT_CHECK"
       ? t("transfer.typeCheck")
-      : transfer?.transfer_type === "CASH"
+      : transfer?.transfer_type === "PATIENT_CASH"
         ? t("transfer.typeCash")
         : t("transfer.typeCreditCard");
 

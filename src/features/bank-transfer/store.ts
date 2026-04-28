@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { BankTransfer } from "@/bindings";
+import type { BankEntry } from "@/bindings";
 
 /**
  * BankTransferStore - On-demand feature-scoped state
@@ -8,7 +8,7 @@ import type { BankTransfer } from "@/bindings";
  * Components read-only via useBankTransferStore() selector.
  */
 interface BankTransferStore {
-  transfers: BankTransfer[];
+  transfers: BankEntry[];
   loading: boolean;
   error: string | null;
 }

@@ -70,7 +70,7 @@ describe("ReconciliationResults interactions", () => {
         patient_name: "AUTRE PATIENT",
         procedure_date: "2025-02-06",
         payment_date: "2025-02-10",
-        procedure_amount: 50000,
+        billed_amount: 50000,
         pdf_fund_label: "MGEN",
       },
     });

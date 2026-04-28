@@ -53,7 +53,7 @@ const parsedDataWithProcedures = {
       sheet_month: "2025-02",
       payment_method: null,
       confirmed_payment_date: null,
-      actual_payment_amount: null,
+      paid_amount: null,
       awaited_amount: null,
     },
   ],

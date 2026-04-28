@@ -50,7 +50,7 @@ export function useSelectedProcedures() {
     const procedures = Array.from(procedureMap.values());
     return {
       count: procedures.length,
-      total: procedures.reduce((sum, p) => sum + (p.procedure_amount || 0), 0),
+      total: procedures.reduce((sum, p) => sum + (p.billed_amount || 0), 0),
     };
   }, [procedureMap]);
 

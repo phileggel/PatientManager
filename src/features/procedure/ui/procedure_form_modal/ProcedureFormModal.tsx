@@ -7,7 +7,7 @@
  *                 for Fund, payment fields absent (R30), calls updateProcedure.
  * mode="view":    procedure_type_id editable only (R26), all other fields read-only,
  *                 patient displayed as "NOM (INS)" (R28), calls updateProcedure.
- *                 Shows "Refund" button for FundPayed/PartiallyFundPayed status (REF-010).
+ *                 Shows "Refund" button for FundPaid/PartiallyFundPaid status (REF-010).
  * mode="overpaid": procedure_type_id editable only; shows "Cancel Refund" button (REF-190).
  * mode="refund":  all fields read-only; shows "Cancel Refund" button only (REF-200).
  */
@@ -121,11 +121,11 @@ export function ProcedureFormModal({
   // Refund mode: all read-only (REF-200)
   const isProcedureTypeEditable = mode !== "refund";
 
-  // "Refund" button: shown in view mode for FundPayed/PartiallyFundPayed (REF-010)
+  // "Refund" button: shown in view mode for FundPaid/PartiallyFundPaid (REF-010)
   const canShowRefundButton =
     mode === "view" &&
-    (procedure?.payment_status === "FUND_PAYED" ||
-      procedure?.payment_status === "PARTIALLY_FUND_PAYED");
+    (procedure?.payment_status === "FUND_PAID" ||
+      procedure?.payment_status === "PARTIALLY_FUND_PAID");
 
   const handleRefundClick = () => setShowRefundModal(true);
 
@@ -355,7 +355,7 @@ export function ProcedureFormModal({
             {isReadOnlyMode ? tc("action.close") : tc("action.cancel")}
           </Button>
 
-          {/* Refund button — view mode with FundPayed/PartiallyFundPayed (REF-010, REF-070) */}
+          {/* Refund button — view mode with FundPaid/PartiallyFundPaid (REF-010, REF-070) */}
           {canShowRefundButton && (
             <span
               title={bankAccounts.length === 0 ? tov("noAccountTooltip") : undefined}

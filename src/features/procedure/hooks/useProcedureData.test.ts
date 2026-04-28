@@ -40,10 +40,10 @@ describe("useProcedureData", () => {
         fund_id: null,
         procedure_type_id: "type1",
         procedure_date: "2026-01-15",
-        procedure_amount: 50000,
+        billed_amount: 50000,
         payment_method: "NONE",
         confirmed_payment_date: "",
-        actual_payment_amount: null,
+        paid_amount: null,
         payment_status: "CREATED",
       } satisfies Procedure,
     ]);

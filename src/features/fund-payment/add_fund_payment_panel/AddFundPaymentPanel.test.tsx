@@ -1,11 +1,11 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { AffiliatedFund } from "@/bindings";
+import type { Fund } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
 import { AddFundPaymentPanel } from "./AddFundPaymentPanel";
 
-const mockFunds: AffiliatedFund[] = [
+const mockFunds: Fund[] = [
   {
     id: "f1",
     fund_identifier: "CPAM",

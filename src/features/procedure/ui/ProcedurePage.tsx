@@ -173,7 +173,7 @@ export default function ProcedurePage() {
       fund_id: editingProcedure.fundId || null,
       procedure_type_id: editingProcedure.procedureTypeId || "",
       procedure_date: editingProcedure.procedureDate || "",
-      procedure_amount:
+      billed_amount:
         editingProcedure.procedureAmount != null
           ? Math.round(editingProcedure.procedureAmount * 1000)
           : null,
@@ -182,7 +182,7 @@ export default function ProcedurePage() {
       // optional — send empty string here; the hook converts "" || null before the gateway call.
       confirmed_payment_date: editingProcedure.confirmedPaymentDate ?? "",
       payment_status: (editingProcedure.status || "NONE") as ProcedureStatus,
-      actual_payment_amount:
+      paid_amount:
         editingProcedure.actualPaymentAmount != null
           ? Math.round(editingProcedure.actualPaymentAmount * 1000)
           : null,
@@ -232,13 +232,13 @@ export default function ProcedurePage() {
               <option value="">{t("filter.allStatuses")}</option>
               <option value="NONE">{t("status.none")}</option>
               <option value="CREATED">{t("status.created")}</option>
-              <option value="RECONCILIATED">{t("status.reconciliated")}</option>
+              <option value="RECONCILED">{t("status.reconciled")}</option>
               <option value="PARTIALLY_RECONCILED">{t("status.partially_reconciled")}</option>
-              <option value="DIRECTLY_PAYED">{t("status.directly_payed")}</option>
-              <option value="FUND_PAYED">{t("status.fund_payed")}</option>
-              <option value="PARTIALLY_FUND_PAYED">{t("status.partially_fund_payed")}</option>
-              <option value="IMPORT_DIRECTLY_PAYED">{t("status.import_directly_payed")}</option>
-              <option value="IMPORT_FUND_PAYED">{t("status.import_fund_payed")}</option>
+              <option value="DIRECTLY_PAID">{t("status.directly_paid")}</option>
+              <option value="FUND_PAID">{t("status.fund_paid")}</option>
+              <option value="PARTIALLY_FUND_PAID">{t("status.partially_fund_paid")}</option>
+              <option value="IMPORT_DIRECTLY_PAID">{t("status.import_directly_paid")}</option>
+              <option value="IMPORT_FUND_PAID">{t("status.import_fund_paid")}</option>
               <option value="OVERPAID">{t("status.overpaid")}</option>
               <option value="OVERPAYMENT_REFUND">{t("status.overpayment_refund")}</option>
             </CompactSelectField>

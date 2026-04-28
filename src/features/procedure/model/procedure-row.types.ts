@@ -1,4 +1,4 @@
-import type { AffiliatedFund, Patient, ProcedureType } from "@/bindings";
+import type { Fund, Patient, ProcedureType } from "@/bindings";
 
 export interface ProcedureRow {
   // Ui metadata
@@ -41,11 +41,11 @@ export interface ProcedureRow {
 }
 
 const BLOCKING_STATUSES = new Set([
-  "RECONCILIATED",
+  "RECONCILED",
   "PARTIALLY_RECONCILED",
-  "FUND_PAYED",
-  "PARTIALLY_FUND_PAYED",
-  "DIRECTLY_PAYED",
+  "FUND_PAID",
+  "PARTIALLY_FUND_PAID",
+  "DIRECTLY_PAID",
   "OVERPAID",
   "OVERPAYMENT_REFUND",
 ]);
@@ -73,6 +73,6 @@ export function isOverpaymentRefundStatus(status: string | null): boolean {
  */
 export interface ProcedureRowReferenceData {
   patients: Patient[];
-  funds: AffiliatedFund[];
+  funds: Fund[];
   procedureTypes: ProcedureType[];
 }

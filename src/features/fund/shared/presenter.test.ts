@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AffiliatedFund } from "@/bindings";
+import type { Fund } from "@/bindings";
 import { FundPresenter } from "./presenter";
 
 /**
@@ -16,7 +16,7 @@ import { FundPresenter } from "./presenter";
 describe("FundPresenter", () => {
   describe("toFormData - Happy Path", () => {
     it("transforms complete Fund with all fields populated", () => {
-      const fund: AffiliatedFund = {
+      const fund: Fund = {
         id: "fund-1",
         fund_identifier: "CPAM-75",
         name: "CPAM Essonne",
@@ -37,7 +37,7 @@ describe("FundPresenter", () => {
         id: "fund-1",
         fund_identifier: undefined,
         name: "CPAM Essonne",
-      } as unknown as AffiliatedFund;
+      } as unknown as Fund;
 
       const result = FundPresenter.toFormData(fund);
 
@@ -49,7 +49,7 @@ describe("FundPresenter", () => {
         id: "fund-1",
         fund_identifier: null,
         name: "CPAM Essonne",
-      } as unknown as AffiliatedFund;
+      } as unknown as Fund;
 
       const result = FundPresenter.toFormData(fund);
 
@@ -61,7 +61,7 @@ describe("FundPresenter", () => {
         id: "fund-1",
         fund_identifier: "CPAM-75",
         name: undefined,
-      } as unknown as AffiliatedFund;
+      } as unknown as Fund;
 
       const result = FundPresenter.toFormData(fund);
 
@@ -73,7 +73,7 @@ describe("FundPresenter", () => {
         id: "fund-1",
         fund_identifier: "CPAM-75",
         name: null,
-      } as unknown as AffiliatedFund;
+      } as unknown as Fund;
 
       const result = FundPresenter.toFormData(fund);
 
@@ -81,7 +81,7 @@ describe("FundPresenter", () => {
     });
 
     it("handles empty string fund_identifier", () => {
-      const fund: AffiliatedFund = {
+      const fund: Fund = {
         id: "fund-1",
         fund_identifier: "",
         name: "CPAM Essonne",
@@ -93,7 +93,7 @@ describe("FundPresenter", () => {
     });
 
     it("handles empty string name", () => {
-      const fund: AffiliatedFund = {
+      const fund: Fund = {
         id: "fund-1",
         fund_identifier: "CPAM-75",
         name: "",
@@ -109,7 +109,7 @@ describe("FundPresenter", () => {
         id: "fund-1",
         fund_identifier: undefined,
         name: undefined,
-      } as unknown as AffiliatedFund;
+      } as unknown as Fund;
 
       const result = FundPresenter.toFormData(fund);
 
@@ -122,7 +122,7 @@ describe("FundPresenter", () => {
 
   describe("toRow - Happy Path", () => {
     it("transforms complete Fund to row data", () => {
-      const fund: AffiliatedFund = {
+      const fund: Fund = {
         id: "fund-1",
         fund_identifier: "CPAM-75",
         name: "CPAM Essonne",
@@ -146,7 +146,7 @@ describe("FundPresenter", () => {
         id: "fund-1",
         fund_identifier: undefined,
         name: "CPAM Essonne",
-      } as unknown as AffiliatedFund;
+      } as unknown as Fund;
 
       const result = FundPresenter.toRow(fund);
 
@@ -158,7 +158,7 @@ describe("FundPresenter", () => {
         id: "fund-1",
         fund_identifier: null,
         name: "CPAM Essonne",
-      } as unknown as AffiliatedFund;
+      } as unknown as Fund;
 
       const result = FundPresenter.toRow(fund);
 
@@ -170,7 +170,7 @@ describe("FundPresenter", () => {
         id: "fund-1",
         fund_identifier: "CPAM-75",
         name: undefined,
-      } as unknown as AffiliatedFund;
+      } as unknown as Fund;
 
       const result = FundPresenter.toRow(fund);
 
@@ -182,7 +182,7 @@ describe("FundPresenter", () => {
         id: "fund-1",
         fund_identifier: "CPAM-75",
         name: null,
-      } as unknown as AffiliatedFund;
+      } as unknown as Fund;
 
       const result = FundPresenter.toRow(fund);
 

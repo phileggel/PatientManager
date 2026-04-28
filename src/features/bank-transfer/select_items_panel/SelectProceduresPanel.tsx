@@ -8,7 +8,7 @@ interface SelectProceduresPanelProps {
   transferDate: string;
   selectedProcedureIds: string[];
   onSelectionChange: (procedureIds: string[], totalAmountMillis: number) => void;
-  /** Currently linked procedures (DirectlyPayed) shown pre-selected in edit mode. */
+  /** Currently linked procedures (DirectlyPaid) shown pre-selected in edit mode. */
   currentProcedures?: DirectPaymentProcedureCandidate[];
 }
 
@@ -58,7 +58,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
                     {new Date(proc.procedure_date).toLocaleDateString("fr-FR")}
                   </span>
                   <span className="font-semibold whitespace-nowrap">
-                    €{((proc.procedure_amount ?? 0) / 1000).toFixed(2)}
+                    €{((proc.billed_amount ?? 0) / 1000).toFixed(2)}
                   </span>
                 </div>
               </label>
@@ -107,7 +107,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
                   {new Date(proc.procedure_date).toLocaleDateString("fr-FR")}
                 </span>
                 <span className="font-semibold whitespace-nowrap">
-                  €{((proc.procedure_amount ?? 0) / 1000).toFixed(2)}
+                  €{((proc.billed_amount ?? 0) / 1000).toFixed(2)}
                 </span>
               </div>
             </label>

@@ -53,7 +53,7 @@ describe("useAddBankTransferForm — R13 (CASH auto-account)", () => {
 
     await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalled());
 
-    act(() => result.current.handleTypeChange("CASH"));
+    act(() => result.current.handleTypeChange("PATIENT_CASH"));
 
     expect(result.current.bankAccount).toBe(CASH_ID);
     expect(result.current.isCash).toBe(true);
@@ -70,7 +70,7 @@ describe("useAddBankTransferForm — R13 (CASH auto-account)", () => {
     const { result } = renderHook(() => useAddBankTransferForm());
 
     // Select CASH before the fetch completes — bankAccount still empty
-    act(() => result.current.handleTypeChange("CASH"));
+    act(() => result.current.handleTypeChange("PATIENT_CASH"));
     expect(result.current.bankAccount).toBe("");
 
     // Now the fetch resolves
@@ -84,10 +84,10 @@ describe("useAddBankTransferForm — R13 (CASH auto-account)", () => {
 
     await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalled());
 
-    act(() => result.current.handleTypeChange("CASH"));
+    act(() => result.current.handleTypeChange("PATIENT_CASH"));
     expect(result.current.bankAccount).toBe(CASH_ID);
 
-    act(() => result.current.handleTypeChange("CHECK"));
+    act(() => result.current.handleTypeChange("PATIENT_CHECK"));
     expect(result.current.bankAccount).toBe("");
     expect(result.current.isCash).toBe(false);
   });
@@ -98,7 +98,7 @@ describe("useAddBankTransferForm — R13 (CASH auto-account)", () => {
     await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalled());
 
     // Default type is FUND — bankAccount should remain empty
-    expect(result.current.transferType).toBe("FUND");
+    expect(result.current.transferType).toBe("FUND_WIRE");
     expect(result.current.bankAccount).toBe("");
   });
 });

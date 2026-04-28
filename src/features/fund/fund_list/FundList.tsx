@@ -11,7 +11,7 @@
 import { Edit2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AffiliatedFund } from "@/bindings";
+import type { Fund } from "@/bindings";
 
 import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
@@ -39,7 +39,7 @@ export function FundList({ searchTerm }: FundListProps) {
 
   // Modals
   const [deleteData, setDeleteData] = useState<{ id: string; name: string } | null>(null);
-  const [editData, setEditData] = useState<AffiliatedFund | null>(null);
+  const [editData, setEditData] = useState<Fund | null>(null);
 
   const handleRowClick = (fundId: string | undefined) => {
     if (!fundId) return;

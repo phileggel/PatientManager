@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AffiliatedFund, Patient } from "@/bindings";
+import type { Fund, Patient } from "@/bindings";
 import { PatientPresenter } from "./presenter";
 
 /**
@@ -167,7 +167,7 @@ describe("PatientPresenter", () => {
         latest_date: "2025-01-15",
         latest_procedure_amount: null,
       };
-      const funds: AffiliatedFund[] = [
+      const funds: Fund[] = [
         { id: "fund-uuid-1", fund_identifier: "440", name: "CPAM Loire-Atlantique", temp_id: null },
         { id: "fund-uuid-2", fund_identifier: "750", name: "MGEN Paris", temp_id: null },
       ];
@@ -189,7 +189,7 @@ describe("PatientPresenter", () => {
         latest_date: "",
         latest_procedure_amount: null,
       };
-      const funds: AffiliatedFund[] = [
+      const funds: Fund[] = [
         { id: "fund-uuid-1", fund_identifier: "440", name: "CPAM Loire-Atlantique", temp_id: null },
       ];
 
@@ -210,7 +210,7 @@ describe("PatientPresenter", () => {
         latest_date: "",
         latest_procedure_amount: null,
       };
-      const funds: AffiliatedFund[] = [
+      const funds: Fund[] = [
         { id: "fund-uuid-1", fund_identifier: "440", name: "CPAM Loire-Atlantique", temp_id: null },
       ];
 
