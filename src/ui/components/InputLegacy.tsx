@@ -7,7 +7,6 @@ import type { InputHTMLAttributes } from "react";
  *
  * TODO: Refactor consumers to use TextField and remove this component.
  * Consumers:
- * - src/features/shared/ui/ProcedureTypeForm.tsx
  * - src/features/procedure/ui/form/CreateFundForm.tsx
  * - src/features/procedure/ui/form/CreatePatientForm.tsx
  * - (ProcedureUpdateModal replaced by ProcedureFormModal)

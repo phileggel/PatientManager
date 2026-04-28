@@ -6,7 +6,6 @@ import { BankStatementPage } from "@/features/bank-statement-match";
 import { BankTransferManager } from "@/features/bank-transfer";
 import DashboardPage from "@/features/dashboard/presentation/DashboardPage";
 import { DbBackupModal } from "@/features/db-backup";
-import { DesignSystemPage } from "@/features/design-system/DesignSystemPage";
 import { ImportExcelPage } from "@/features/excel-import/presentation";
 import { FundsManager } from "@/features/fund";
 import { FundPaymentManager } from "@/features/fund-payment";
@@ -23,8 +22,9 @@ import {
   ManagementModal,
   useDrawerController,
 } from "@/features/shell";
-import { UpdateBanner } from "@/features/updater/UpdateBanner";
-import { useUpdater } from "@/features/updater/useUpdater";
+import { DesignSystemPage } from "@/features/shell/DesignSystemPage";
+import { UpdateBanner } from "@/features/shell/UpdateBanner";
+import { useUpdater } from "@/features/shell/useUpdater";
 import { logger } from "@/lib/logger";
 import { useAppInit } from "@/lib/useAppInit";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
