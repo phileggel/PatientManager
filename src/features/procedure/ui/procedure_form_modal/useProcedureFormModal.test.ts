@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import type { FormEvent } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AffiliatedFund, ProcedureType } from "@/bindings";
+import type { Fund, ProcedureType } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
 import { makePatient } from "@/tests/patient.factory";
 import { useProcedureFormModal } from "./useProcedureFormModal";
@@ -24,7 +24,7 @@ const mockProcedureTypes: ProcedureType[] = [
   { id: "pt2", name: "Radio", default_amount: 50000, category: null },
 ];
 
-const mockFunds: AffiliatedFund[] = [
+const mockFunds: Fund[] = [
   { id: "f1", fund_identifier: "CPAM", name: "CPAM France", temp_id: null },
 ];
 
@@ -134,11 +134,11 @@ describe("create mode — gateway arguments on submit", () => {
       fund_id: "f1",
       procedure_type_id: "pt2",
       procedure_date: "2026-03-01",
-      procedure_amount: 42500,
+      billed_amount: 42500,
       payment_method: "NONE",
       confirmed_payment_date: "",
       payment_status: "CREATED",
-      actual_payment_amount: null,
+      paid_amount: null,
     });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
@@ -166,11 +166,11 @@ describe("create mode — gateway arguments on submit", () => {
       fund_id: null,
       procedure_type_id: "pt1",
       procedure_date: "2026-03-01",
-      procedure_amount: null,
+      billed_amount: null,
       payment_method: "NONE",
       confirmed_payment_date: "",
       payment_status: "CREATED",
-      actual_payment_amount: null,
+      paid_amount: null,
     });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
@@ -202,11 +202,11 @@ describe("create mode — reset after successful submit", () => {
       fund_id: "f1",
       procedure_type_id: "pt2",
       procedure_date: "2026-03-01",
-      procedure_amount: 42500,
+      billed_amount: 42500,
       payment_method: "NONE",
       confirmed_payment_date: "",
       payment_status: "CREATED",
-      actual_payment_amount: null,
+      paid_amount: null,
     });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
@@ -265,11 +265,11 @@ describe("edit mode — initializes from procedure", () => {
       fund_id: "f1",
       procedure_type_id: "pt2",
       procedure_date: "2026-02-10",
-      procedure_amount: 50000,
+      billed_amount: 50000,
       payment_method: "CASH" as const,
       confirmed_payment_date: "2026-02-15",
       payment_status: "CREATED" as const,
-      actual_payment_amount: 50000,
+      paid_amount: 50000,
     };
 
     const { result } = makeHook({ mode: "edit", procedure, onClose: vi.fn() });
@@ -291,11 +291,11 @@ describe("view mode — calls updateProcedure with only procedure_type_id change
       fund_id: "f1",
       procedure_type_id: "pt1",
       procedure_date: "2026-02-10",
-      procedure_amount: 50000,
+      billed_amount: 50000,
       payment_method: "CASH",
       confirmed_payment_date: "2026-02-15",
-      payment_status: "RECONCILIATED",
-      actual_payment_amount: 50000,
+      payment_status: "RECONCILED",
+      paid_amount: 50000,
     });
 
     const procedure = {
@@ -304,11 +304,11 @@ describe("view mode — calls updateProcedure with only procedure_type_id change
       fund_id: "f1",
       procedure_type_id: "pt2",
       procedure_date: "2026-02-10",
-      procedure_amount: 50000,
+      billed_amount: 50000,
       payment_method: "CASH" as const,
       confirmed_payment_date: "2026-02-15",
-      payment_status: "RECONCILIATED" as const,
-      actual_payment_amount: 50000,
+      payment_status: "RECONCILED" as const,
+      paid_amount: 50000,
     };
 
     const { result } = makeHook({ mode: "view", procedure, onClose: vi.fn() });
@@ -329,11 +329,11 @@ describe("view mode — calls updateProcedure with only procedure_type_id change
       fund_id: "f1",
       procedure_type_id: "pt1",
       procedure_date: "2026-02-10",
-      procedure_amount: 50000,
+      billed_amount: 50000,
       payment_method: "CASH",
       confirmed_payment_date: "2026-02-15",
-      actual_payment_amount: 50000,
-      payment_status: "RECONCILIATED",
+      paid_amount: 50000,
+      payment_status: "RECONCILED",
     });
   });
 });
@@ -347,11 +347,11 @@ describe("view mode — confirmed_payment_date empty string is sent as null", ()
       fund_id: null,
       procedure_type_id: "pt1",
       procedure_date: "2026-02-10",
-      procedure_amount: 50000,
+      billed_amount: 50000,
       payment_method: "NONE",
       confirmed_payment_date: "",
       payment_status: "CREATED",
-      actual_payment_amount: null,
+      paid_amount: null,
     });
 
     const procedure = {
@@ -360,11 +360,11 @@ describe("view mode — confirmed_payment_date empty string is sent as null", ()
       fund_id: null,
       procedure_type_id: "pt2",
       procedure_date: "2026-02-10",
-      procedure_amount: 50000,
+      billed_amount: 50000,
       payment_method: "NONE" as const,
       confirmed_payment_date: "",
       payment_status: "CREATED" as const,
-      actual_payment_amount: null,
+      paid_amount: null,
     };
 
     const { result } = makeHook({ mode: "view", procedure, onClose: vi.fn() });
@@ -411,11 +411,11 @@ describe("edit mode — calls updateProcedure on submit", () => {
       fund_id: "f1",
       procedure_type_id: "pt1",
       procedure_date: "2026-02-10",
-      procedure_amount: 25000,
+      billed_amount: 25000,
       payment_method: "NONE",
       confirmed_payment_date: "",
       payment_status: "CREATED",
-      actual_payment_amount: null,
+      paid_amount: null,
     });
 
     const procedure = {
@@ -424,11 +424,11 @@ describe("edit mode — calls updateProcedure on submit", () => {
       fund_id: "f1",
       procedure_type_id: "pt2",
       procedure_date: "2026-02-10",
-      procedure_amount: 50000,
+      billed_amount: 50000,
       payment_method: "NONE" as const,
       confirmed_payment_date: "",
       payment_status: "CREATED" as const,
-      actual_payment_amount: null,
+      paid_amount: null,
     };
 
     const { result } = makeHook({ mode: "edit", procedure, onClose: vi.fn() });
@@ -446,11 +446,11 @@ describe("edit mode — calls updateProcedure on submit", () => {
         fund_id: "f1",
         procedure_type_id: "pt2",
         procedure_date: "2026-02-10",
-        procedure_amount: 50000,
+        billed_amount: 50000,
         // Payment fields passed through unchanged from original procedure (R30)
         payment_method: "NONE",
         confirmed_payment_date: null,
-        actual_payment_amount: null,
+        paid_amount: null,
         payment_status: "CREATED",
       }),
     );

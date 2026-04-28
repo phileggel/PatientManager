@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import type { AffiliatedFund, FundLabelResolution } from "@/bindings";
+import type { Fund, FundLabelResolution } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
 import { FundLabelMappingStep } from "./FundLabelMappingStep";
 
@@ -26,7 +26,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-const mockFunds: AffiliatedFund[] = [
+const mockFunds: Fund[] = [
   { id: "f1", fund_identifier: "93", name: "CPAM 93", temp_id: null },
   { id: "f2", fund_identifier: "75", name: "CPAM 75", temp_id: null },
 ];

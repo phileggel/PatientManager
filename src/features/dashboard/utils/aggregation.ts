@@ -76,13 +76,13 @@ export function aggregateDashboardMetrics(
           procedurePatients.get(month)?.add(proc.patient_id);
           allProcedurePatients.add(proc.patient_id);
           procMonthData.amounts[category] =
-            (procMonthData.amounts[category] || 0) + (proc.procedure_amount || 0);
+            (procMonthData.amounts[category] || 0) + (proc.billed_amount || 0);
         }
       }
     }
 
     // Process payments by confirmed_payment_date
-    if (proc.confirmed_payment_date && proc.actual_payment_amount) {
+    if (proc.confirmed_payment_date && proc.paid_amount) {
       const paymentDate = new Date(proc.confirmed_payment_date);
       const year = paymentDate.getFullYear();
 
@@ -93,8 +93,7 @@ export function aggregateDashboardMetrics(
           payMonthData.procedureCount += 1;
           paymentPatients.get(month)?.add(proc.patient_id);
           allPaymentPatients.add(proc.patient_id);
-          payMonthData.amounts[category] =
-            (payMonthData.amounts[category] || 0) + proc.actual_payment_amount;
+          payMonthData.amounts[category] = (payMonthData.amounts[category] || 0) + proc.paid_amount;
         }
       }
     }

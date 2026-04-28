@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BankAccount, BankTransferType } from "@/bindings";
+import type { BankAccount, BankEntryType } from "@/bindings";
 import { useSnackbar } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
@@ -14,7 +14,7 @@ export function useAddBankTransferForm() {
   const bankAccounts = useAppStore((state) => state.bankAccounts);
 
   const [transferDate, setTransferDateState] = useState<string>("");
-  const [transferType, setTransferType] = useState<BankTransferType>("FUND");
+  const [transferType, setTransferType] = useState<BankEntryType>("FUND_WIRE");
   const [bankAccount, setBankAccountState] = useState<string>("");
   const [cashAccountId, setCashAccountId] = useState<string>("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
@@ -39,13 +39,13 @@ export function useAddBankTransferForm() {
   // Reactively sync bank account when CASH is selected and cashAccountId is available (R13)
   // Handles the case where cashAccountId loads after the user already selected CASH
   useEffect(() => {
-    if (transferType === "CASH" && cashAccountId) {
+    if (transferType === "PATIENT_CASH" && cashAccountId) {
       setBankAccountState(cashAccountId);
     }
   }, [transferType, cashAccountId]);
 
-  const isFund = transferType === "FUND";
-  const isCash = transferType === "CASH";
+  const isFund = transferType === "FUND_WIRE";
+  const isCash = transferType === "PATIENT_CASH";
   const hasItems = isFund ? selectedGroupIds.length > 0 : selectedProcedureIds.length > 0;
 
   // Exclude the cash account from the regular dropdown once its id is known (R13)
@@ -70,14 +70,14 @@ export function useAddBankTransferForm() {
     if (errors.bankAccount) setErrors((prev) => ({ ...prev, bankAccount: undefined }));
   };
 
-  const handleTypeChange = (newType: BankTransferType) => {
+  const handleTypeChange = (newType: BankEntryType) => {
     setTransferType(newType);
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);
     setTotalAmountMillis(0);
     setErrors({});
     // Auto-assign cash account for CASH type, clear for others (R13)
-    if (newType === "CASH") {
+    if (newType === "PATIENT_CASH") {
       setBankAccountState(cashAccountId);
     } else {
       setBankAccountState("");
@@ -102,7 +102,7 @@ export function useAddBankTransferForm() {
 
   const resetForm = () => {
     setTransferDateState("");
-    setTransferType("FUND"); // Resetting to FUND prevents the CASH reactive effect from firing
+    setTransferType("FUND_WIRE"); // Resetting to FUND prevents the CASH reactive effect from firing
     setBankAccountState("");
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);

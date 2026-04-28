@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { AffiliatedFund } from "@/bindings";
+import type { Fund } from "@/bindings";
 import { logger } from "@/lib/logger";
 import { SelectionModal } from "@/ui/components";
 import { useSelectFundModal } from "./useSelectFundModal";
@@ -9,7 +9,7 @@ const TAG = "[SelectFundModal]";
 
 interface SelectFundModalProps {
   isOpen: boolean;
-  onSelect: (fund: AffiliatedFund) => void;
+  onSelect: (fund: Fund) => void;
   onCancel: () => void;
 }
 

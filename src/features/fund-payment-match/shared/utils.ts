@@ -76,14 +76,11 @@ export function buildLinkProcedureCorrection(
   };
 }
 
-export function buildContestCorrection(
-  procedureId: string,
-  actualPaymentAmount: number,
-): AutoCorrection {
+export function buildContestCorrection(procedureId: string, paidAmount: number): AutoCorrection {
   return {
     ContestAmount: {
       procedure_id: procedureId,
-      actual_payment_amount: actualPaymentAmount,
+      paid_amount: paidAmount,
     },
   };
 }
@@ -95,7 +92,7 @@ export function buildNotFoundCorrection(line: NormalizedPdfLine): AutoCorrection
       patient_name: line.patient_name,
       procedure_date: line.procedure_start_date,
       payment_date: line.payment_date,
-      procedure_amount: line.amount,
+      billed_amount: line.amount,
       pdf_fund_label: line.fund_name,
     },
   };

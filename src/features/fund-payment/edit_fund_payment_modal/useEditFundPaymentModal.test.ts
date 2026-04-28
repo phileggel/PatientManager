@@ -42,11 +42,11 @@ const mockCurrentProcedure: Procedure = {
   fund_id: "fund-1",
   procedure_type_id: "pt-1",
   procedure_date: "2025-02-01",
-  procedure_amount: 75000,
+  billed_amount: 75000,
   payment_method: "NONE" as const,
   confirmed_payment_date: "",
-  actual_payment_amount: null,
-  payment_status: "RECONCILIATED" as const,
+  paid_amount: null,
+  payment_status: "RECONCILED" as const,
 };
 
 const mockAvailableProcedure: Procedure = {
@@ -55,10 +55,10 @@ const mockAvailableProcedure: Procedure = {
   fund_id: "fund-1",
   procedure_type_id: "pt-1",
   procedure_date: "2025-02-10",
-  procedure_amount: 50000,
+  billed_amount: 50000,
   payment_method: "NONE" as const,
   confirmed_payment_date: "",
-  actual_payment_amount: null,
+  paid_amount: null,
   payment_status: "CREATED" as const,
 };
 

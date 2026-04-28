@@ -8,12 +8,12 @@ function getBadgeColor(status: string | null | undefined): string {
   switch (status?.toUpperCase()) {
     case "CREATED":
       return "bg-m3-secondary-container text-m3-on-secondary-container";
-    case "RECONCILIATED":
+    case "RECONCILED":
       return "bg-m3-tertiary-container text-m3-on-tertiary-container";
-    case "DIRECTLY_PAYED":
-    case "FUND_PAYED":
-    case "IMPORT_DIRECTLY_PAYED":
-    case "IMPORT_FUND_PAYED":
+    case "DIRECTLY_PAID":
+    case "FUND_PAID":
+    case "IMPORT_DIRECTLY_PAID":
+    case "IMPORT_FUND_PAID":
       return "bg-m3-primary-container text-m3-on-primary-container";
     case "OVERPAID":
     case "OVERPAYMENT_REFUND":
@@ -26,13 +26,13 @@ function getBadgeColor(status: string | null | undefined): string {
 export function StatusBadge({ status }: StatusBadgeProps) {
   const { t } = useTranslation("procedure");
   const upper = status?.toUpperCase() ?? "";
-  const isAnyPayed = [
-    "DIRECTLY_PAYED",
-    "FUND_PAYED",
-    "IMPORT_DIRECTLY_PAYED",
-    "IMPORT_FUND_PAYED",
+  const isAnyPaid = [
+    "DIRECTLY_PAID",
+    "FUND_PAID",
+    "IMPORT_DIRECTLY_PAID",
+    "IMPORT_FUND_PAID",
   ].includes(upper);
-  const key = isAnyPayed ? "payed" : (status?.toLowerCase() ?? "none");
+  const key = isAnyPaid ? "paid" : (status?.toLowerCase() ?? "none");
   const label = t(`status.${key}`, { defaultValue: "—" });
 
   return (

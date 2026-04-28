@@ -123,12 +123,12 @@ describe("ProcedurePage — R6: modal mode routing based on blocking status", ()
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  test("opens modal in view mode for blocking status RECONCILIATED", async () => {
+  test("opens modal in view mode for blocking status RECONCILED", async () => {
     render(<ProcedurePage />);
     await waitFor(() => expect(capturedOnEdit).not.toBeNull());
 
     act(() => {
-      capturedOnEdit?.(makeRow("RECONCILIATED"));
+      capturedOnEdit?.(makeRow("RECONCILED"));
     });
 
     // View mode title key is "modal.viewTitle" — modal should be open

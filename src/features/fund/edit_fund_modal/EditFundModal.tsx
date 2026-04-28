@@ -15,14 +15,14 @@
 
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { AffiliatedFund } from "@/bindings";
+import type { Fund } from "@/bindings";
 import { FundForm } from "@/features/fund/shared/FundForm";
 import { logger } from "@/lib/logger";
 import { Button, Dialog } from "@/ui/components";
 import { useEditFundModal } from "./useEditFundModal";
 
 interface EditFundModalProps {
-  fund: AffiliatedFund | null;
+  fund: Fund | null;
   isOpen: boolean;
   onClose: () => void;
 }

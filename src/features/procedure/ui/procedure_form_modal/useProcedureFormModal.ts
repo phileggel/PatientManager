@@ -65,7 +65,7 @@ export function useProcedureFormModal({
   const [procedureTypeId, setProcedureTypeId] = useState(procedure?.procedure_type_id ?? "");
   const [procedureDate, setProcedureDate] = useState(procedure?.procedure_date ?? "");
   const [procedureAmount, setProcedureAmount] = useState<number | null>(
-    procedure?.procedure_amount != null ? procedure.procedure_amount / 1000 : null,
+    procedure?.billed_amount != null ? procedure.billed_amount / 1000 : null,
   );
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -78,7 +78,7 @@ export function useProcedureFormModal({
   const initFundId = procedure?.fund_id ?? "";
   const initProcedureTypeId = procedure?.procedure_type_id ?? "";
   const initProcedureDate = procedure?.procedure_date ?? "";
-  const initProcedureAmount = procedure?.procedure_amount ?? null;
+  const initProcedureAmount = procedure?.billed_amount ?? null;
 
   // Reset form when procedure changes (edit/view modal re-opened with different row)
   useEffect(() => {
@@ -130,10 +130,10 @@ export function useProcedureFormModal({
             fund_id: procedure.fund_id,
             procedure_type_id: procedureTypeId,
             procedure_date: procedure.procedure_date,
-            procedure_amount: procedure.procedure_amount,
+            billed_amount: procedure.billed_amount,
             payment_method: procedure.payment_method,
             confirmed_payment_date: procedure.confirmed_payment_date || null,
-            actual_payment_amount: procedure.actual_payment_amount,
+            paid_amount: procedure.paid_amount,
             payment_status: procedure.payment_status,
           });
           toastService.show("success", t("state.updated"));
@@ -181,10 +181,10 @@ export function useProcedureFormModal({
             fund_id: fundId || null,
             procedure_type_id: procedureTypeId,
             procedure_date: procedureDate,
-            procedure_amount: procedureAmount != null ? Math.round(procedureAmount * 1000) : null,
+            billed_amount: procedureAmount != null ? Math.round(procedureAmount * 1000) : null,
             payment_method: procedure.payment_method,
             confirmed_payment_date: procedure.confirmed_payment_date || null,
-            actual_payment_amount: procedure.actual_payment_amount,
+            paid_amount: procedure.paid_amount,
             payment_status: procedure.payment_status,
           });
           toastService.show("success", t("state.updated"));

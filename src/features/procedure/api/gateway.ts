@@ -11,8 +11,8 @@
  */
 
 import {
-  type AffiliatedFund,
   commands,
+  type Fund,
   type Patient,
   type Procedure,
   type ProcedureType,
@@ -93,7 +93,7 @@ export async function fetchAllPatients(): Promise<Patient[]> {
 /**
  * Fetch all funds for autocomplete
  */
-export async function fetchAllFunds(): Promise<AffiliatedFund[]> {
+export async function fetchAllFunds(): Promise<Fund[]> {
   const result = await commands.readAllFunds();
   return unwrapResult(result);
 }
@@ -117,7 +117,7 @@ export async function createNewPatient(name: string | null, ssn: string | null):
 /**
  * Create a new fund
  */
-export async function createNewFund(fundIdentifier: string, name: string): Promise<AffiliatedFund> {
+export async function createNewFund(fundIdentifier: string, name: string): Promise<Fund> {
   const result = await commands.addFund(fundIdentifier, name);
   return unwrapResult(result);
 }

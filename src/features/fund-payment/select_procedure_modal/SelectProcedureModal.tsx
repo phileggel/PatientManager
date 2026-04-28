@@ -158,7 +158,7 @@ export function ProcedureSelectionModal({
                           {getPatientName(proc.patient_id)}
                         </p>
                         <span className="font-semibold text-m3-on-surface whitespace-nowrap">
-                          {formatAmountEUR(proc.procedure_amount ?? 0)}
+                          {formatAmountEUR(proc.billed_amount ?? 0)}
                         </span>
                       </div>
                     </div>

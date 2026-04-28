@@ -1,10 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AffiliatedFund, Procedure } from "@/bindings";
+import type { Fund, Procedure } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
 import { useAddFundPaymentPanel } from "./useAddFundPaymentPanel";
 
-const mockFunds: AffiliatedFund[] = [
+const mockFunds: Fund[] = [
   {
     id: "f1",
     fund_identifier: "CPAM",
@@ -141,10 +141,10 @@ describe("useAddFundPaymentPanel", () => {
         fund_id: "f1",
         procedure_type_id: "pt1",
         procedure_date: "2025-02-01",
-        procedure_amount: 50,
+        billed_amount: 50,
         payment_method: "NONE",
         confirmed_payment_date: "",
-        actual_payment_amount: null,
+        paid_amount: null,
         payment_status: "CREATED",
       },
     ];
@@ -167,7 +167,7 @@ describe("useAddFundPaymentPanel", () => {
   });
 
   it("sorts funds by identifier correctly with special characters", () => {
-    const fundsWithSpecialChars: AffiliatedFund[] = [
+    const fundsWithSpecialChars: Fund[] = [
       {
         id: "f1",
         fund_identifier: "Z-FUND",

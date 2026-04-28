@@ -1,16 +1,16 @@
 import { Edit2, Trash2 } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { BankTransfer } from "@/bindings";
+import type { BankEntry } from "@/bindings";
 import { logger } from "@/lib/logger";
 import { IconButton } from "@/ui/components";
 
 const TAG = "[BankTransferList]";
 
 interface BankTransferListProps {
-  transfers: BankTransfer[];
+  transfers: BankEntry[];
   loading: boolean;
-  onEdit: (transfer: BankTransfer) => void;
+  onEdit: (transfer: BankEntry) => void;
   onDelete: (id: string) => void;
 }
 
@@ -59,11 +59,11 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                   €{(transfer.amount / 1000).toFixed(2)}
                 </td>
                 <td className="m3-td text-m3-on-surface capitalize">
-                  {transfer.transfer_type === "FUND"
+                  {transfer.transfer_type === "FUND_WIRE"
                     ? t("transfer.typeFund")
-                    : transfer.transfer_type === "CHECK"
+                    : transfer.transfer_type === "PATIENT_CHECK"
                       ? t("transfer.typeCheck")
-                      : transfer.transfer_type === "CASH"
+                      : transfer.transfer_type === "PATIENT_CASH"
                         ? t("transfer.typeCash")
                         : t("transfer.typeCreditCard")}
                 </td>

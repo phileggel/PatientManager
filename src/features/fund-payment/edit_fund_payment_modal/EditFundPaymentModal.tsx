@@ -99,7 +99,7 @@ export function EditFundPaymentModal({
           </div>
         </div>
         <span className="text-[13px] font-semibold text-m3-on-surface tabular-nums whitespace-nowrap">
-          {formatAmountEUR(proc.procedure_amount ?? 0)}
+          {formatAmountEUR(proc.billed_amount ?? 0)}
         </span>
       </label>
     );

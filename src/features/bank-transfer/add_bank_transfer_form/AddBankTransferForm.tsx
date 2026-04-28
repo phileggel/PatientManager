@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { BankTransferType } from "@/bindings";
+import type { BankEntryType } from "@/bindings";
 import { logger } from "@/lib/logger";
 import { Button, DateField, SelectField } from "@/ui/components";
 import { SelectFundGroupsPanel } from "../select_items_panel/SelectFundGroupsPanel";
@@ -62,12 +62,12 @@ export function AddBankTransferForm() {
         id="type"
         label={t("transfer.type")}
         value={transferType}
-        onChange={(e) => handleTypeChange(e.target.value as BankTransferType)}
+        onChange={(e) => handleTypeChange(e.target.value as BankEntryType)}
         options={[
-          { value: "FUND", label: t("transfer.typeFund") },
-          { value: "CHECK", label: t("transfer.typeCheck") },
-          { value: "CREDIT_CARD", label: t("transfer.typeCreditCard") },
-          { value: "CASH", label: t("transfer.typeCash") },
+          { value: "FUND_WIRE", label: t("transfer.typeFund") },
+          { value: "PATIENT_CHECK", label: t("transfer.typeCheck") },
+          { value: "PATIENT_CREDIT_CARD", label: t("transfer.typeCreditCard") },
+          { value: "PATIENT_CASH", label: t("transfer.typeCash") },
         ]}
       />
 

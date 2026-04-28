@@ -5,11 +5,11 @@ import { isBlockingStatus } from "./procedure-row.types";
 
 describe("isBlockingStatus", () => {
   it.each([
-    "RECONCILIATED",
+    "RECONCILED",
     "PARTIALLY_RECONCILED",
-    "FUND_PAYED",
-    "PARTIALLY_FUND_PAYED",
-    "DIRECTLY_PAYED",
+    "FUND_PAID",
+    "PARTIALLY_FUND_PAID",
+    "DIRECTLY_PAID",
   ])("returns true for blocking status %s", (status) => {
     expect(isBlockingStatus(status)).toBe(true);
   });
@@ -17,8 +17,8 @@ describe("isBlockingStatus", () => {
   it.each([
     "CREATED",
     "NONE",
-    "IMPORT_DIRECTLY_PAYED",
-    "IMPORT_FUND_PAYED",
+    "IMPORT_DIRECTLY_PAID",
+    "IMPORT_FUND_PAID",
   ])("returns false for non-blocking status %s", (status) => {
     expect(isBlockingStatus(status)).toBe(false);
   });

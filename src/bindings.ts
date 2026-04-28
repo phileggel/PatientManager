@@ -77,7 +77,7 @@ async createBatchPatients(patients: PatientCandidate[]) : Promise<Result<CreateB
 /**
  * Tauri command: Add a new affiliated fund
  */
-async addFund(fundIdentifier: string, fundName: string) : Promise<Result<AffiliatedFund, string>> {
+async addFund(fundIdentifier: string, fundName: string) : Promise<Result<Fund, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_fund", { fundIdentifier, fundName }) };
 } catch (e) {
@@ -88,7 +88,7 @@ async addFund(fundIdentifier: string, fundName: string) : Promise<Result<Affilia
 /**
  * Tauri command: Read all affiliated funds
  */
-async readAllFunds() : Promise<Result<AffiliatedFund[], string>> {
+async readAllFunds() : Promise<Result<Fund[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_all_funds") };
 } catch (e) {
@@ -99,7 +99,7 @@ async readAllFunds() : Promise<Result<AffiliatedFund[], string>> {
 /**
  * Tauri command: Update an existing affiliated fund
  */
-async updateFund(fund: AffiliatedFund) : Promise<Result<AffiliatedFund, string>> {
+async updateFund(fund: Fund) : Promise<Result<Fund, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_fund", { fund }) };
 } catch (e) {
@@ -143,9 +143,9 @@ async createBatchFunds(funds: FundCandidate[]) : Promise<Result<CreateBatchFunds
 /**
  * Tauri command: Add a new healthcare procedure
  */
-async addProcedure(patientId: string, fundId: string | null, procedureTypeId: string, procedureDate: string, procedureAmount: number | null) : Promise<Result<Procedure, string>> {
+async addProcedure(patientId: string, fundId: string | null, procedureTypeId: string, procedureDate: string, billedAmount: number | null) : Promise<Result<Procedure, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("add_procedure", { patientId, fundId, procedureTypeId, procedureDate, procedureAmount }) };
+    return { status: "ok", data: await TAURI_INVOKE("add_procedure", { patientId, fundId, procedureTypeId, procedureDate, billedAmount }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -427,7 +427,7 @@ async getUnreconciledProceduresInRange(startDate: string, endDate: string) : Pro
  * Tauri command: Read all fund payment groups
  * 
  * Computes is_locked for each group by checking if any associated procedure
- * is in a bank-reconciled status (FundPayed or PartiallyFundPayed).
+ * is in a bank-reconciled status (FundPaid or PartiallyFundPaid).
  */
 async readAllFundPaymentGroups() : Promise<Result<FundPaymentGroup[], string>> {
     try {
@@ -441,7 +441,7 @@ async readAllFundPaymentGroups() : Promise<Result<FundPaymentGroup[], string>> {
  * Tauri command: Delete a fund payment group with procedure cleanup
  * 
  * Deletes the group, its lines, and resets associated procedures
- * (status → Created, clears confirmed_payment_date and actual_payment_amount).
+ * (status → Created, clears confirmed_payment_date and paid_amount).
  * REF-240: Rejects deletion if the group belongs to an overpayment refund cascade.
  */
 async deleteFundPaymentGroup(groupId: string) : Promise<Result<null, string>> {
@@ -455,7 +455,7 @@ async deleteFundPaymentGroup(groupId: string) : Promise<Result<null, string>> {
 /**
  * Tauri command: Create a fund payment group from manual UI selection
  * 
- * Calculates total_amount from procedure amounts and sets procedures to Reconciliated.
+ * Calculates total_amount from procedure amounts and sets procedures to Reconciled.
  */
 async createFundPaymentGroup(fundId: string, paymentDate: string, procedureIds: string[]) : Promise<Result<FundPaymentGroup, string>> {
     try {
@@ -470,9 +470,9 @@ async createFundPaymentGroup(fundId: string, paymentDate: string, procedureIds: 
  * 
  * Handles add/remove procedure logic via orchestrator:
  * - Removed procedures → reset to Created
- * - Added procedures → set to Reconciliated
+ * - Added procedures → set to Reconciled
  * - Recalculates total_amount
- * - Rejects if any procedure is bank-reconciled (FundPayed/PartiallyFundPayed)
+ * - Rejects if any procedure is bank-reconciled (FundPaid/PartiallyFundPaid)
  */
 async updateFundPaymentGroupWithProcedures(groupId: string, paymentDate: string, procedureIds: string[]) : Promise<Result<FundPaymentGroup, string>> {
     try {
@@ -486,7 +486,7 @@ async updateFundPaymentGroupWithProcedures(groupId: string, paymentDate: string,
  * Tauri command: Get edit data for a fund payment group
  * 
  * Returns two classified lists server-side so the frontend only handles display:
- * - `current_procedures`: in the group (Reconciliated / PartiallyReconciled)
+ * - `current_procedures`: in the group (Reconciled / PartiallyReconciled)
  * - `available_procedures`: Created procedures for the same fund, not in the group
  */
 async getFundPaymentGroupEditData(groupId: string, fundId: string) : Promise<Result<FundPaymentGroupEditData, string>> {
@@ -500,7 +500,7 @@ async getFundPaymentGroupEditData(groupId: string, fundId: string) : Promise<Res
 /**
  * Tauri command: Create a new bank transfer (bare — links managed by bank_manual_match use_case)
  */
-async createBankTransfer(transferDate: string, amount: number, transferType: BankTransferType, bankAccountId: string) : Promise<Result<BankTransfer, string>> {
+async createBankTransfer(transferDate: string, amount: number, transferType: BankEntryType, bankAccountId: string) : Promise<Result<BankEntry, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_bank_transfer", { transferDate, amount, transferType, bankAccountId }) };
 } catch (e) {
@@ -511,7 +511,7 @@ async createBankTransfer(transferDate: string, amount: number, transferType: Ban
 /**
  * Tauri command: Read all bank transfers with account info
  */
-async readAllBankTransfers() : Promise<Result<BankTransfer[], string>> {
+async readAllBankTransfers() : Promise<Result<BankEntry[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_all_bank_transfers") };
 } catch (e) {
@@ -522,7 +522,7 @@ async readAllBankTransfers() : Promise<Result<BankTransfer[], string>> {
 /**
  * Tauri command: Read a single bank transfer with account info
  */
-async readBankTransfer(id: string) : Promise<Result<BankTransfer | null, string>> {
+async readBankTransfer(id: string) : Promise<Result<BankEntry | null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_bank_transfer", { id }) };
 } catch (e) {
@@ -533,7 +533,7 @@ async readBankTransfer(id: string) : Promise<Result<BankTransfer | null, string>
 /**
  * Tauri command: Update an existing bank transfer
  */
-async updateBankTransfer(transfer: BankTransfer) : Promise<Result<BankTransfer, string>> {
+async updateBankTransfer(transfer: BankEntry) : Promise<Result<BankEntry, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_bank_transfer", { transfer }) };
 } catch (e) {
@@ -767,7 +767,7 @@ async getAllEligibleProceduresForDirectPayment() : Promise<Result<DirectPaymentP
  * R15 — Create a direct payment transfer linked to the given procedure IDs.
  * REF-080: OutgoingWire is reserved for the overpayment flow and is rejected here.
  */
-async createDirectTransfer(bankAccountId: string, transferDate: string, transferType: BankTransferType, procedureIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
+async createDirectTransfer(bankAccountId: string, transferDate: string, transferType: BankEntryType, procedureIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_direct_transfer", { bankAccountId, transferDate, transferType, procedureIds }) };
 } catch (e) {
@@ -820,7 +820,7 @@ async getTransferProcedureIds(transferId: string) : Promise<Result<string[], str
 }
 },
 /**
- * R21 — Return fund group candidates by IDs for the edit modal (groups are BankPayed).
+ * R21 — Return fund group candidates by IDs for the edit modal (groups are BankPaid).
  */
 async getFundGroupsByIds(groupIds: string[]) : Promise<Result<FundGroupCandidate[], string>> {
     try {
@@ -831,7 +831,7 @@ async getFundGroupsByIds(groupIds: string[]) : Promise<Result<FundGroupCandidate
 }
 },
 /**
- * R21 — Return procedure candidates by IDs for the edit modal (procedures are DirectlyPayed).
+ * R21 — Return procedure candidates by IDs for the edit modal (procedures are DirectlyPaid).
  */
 async getProceduresByIds(procedureIds: string[]) : Promise<Result<DirectPaymentProcedureCandidate[], string>> {
     try {
@@ -936,20 +936,6 @@ async getProcedureRefundByRefundProcedure(refundProcedureId: string) : Promise<R
 /** user-defined types **/
 
 /**
- * AffiliatedFund aggregate root
- */
-export type AffiliatedFund = { fund_identifier: string; name: string; 
-/**
- * Temporary ID used during batch imports to map temp_id → real_id
- * None for funds created through regular API
- * Some(uuid) for funds created via Excel import
- */
-temp_id?: string | null; 
-/**
- * Metadata - not a domain property
- */
-id: string }
-/**
  * Type of detected anomaly
  */
 export type AnomalyType = 
@@ -984,21 +970,21 @@ export type AutoCorrection =
 /**
  * Create new procedure from PDF line (creates patient if not found)
  */
-{ CreateProcedure: { ssn: string; patient_name: string; procedure_date: string; payment_date: string; procedure_amount: number; pdf_fund_label: string } } | 
+{ CreateProcedure: { ssn: string; patient_name: string; procedure_date: string; payment_date: string; billed_amount: number; pdf_fund_label: string } } | 
 /**
  * Link existing procedure to fund payment and correct patient SSN from PDF
  */
 { LinkProcedure: { procedure_id: string; pdf_ssn: string; pdf_fund_label: string; payment_date: string } } | 
 /**
- * Contest the fund payment amount: keep procedure_amount unchanged,
- * set actual_payment_amount to the PDF amount (what the fund claims to have paid).
+ * Contest the fund payment amount: keep billed_amount unchanged,
+ * set paid_amount to the PDF amount (what the fund claims to have paid).
  * Sets payment_status to PartiallyReconciled.
  */
 { ContestAmount: { procedure_id: string; 
 /**
- * Amount actually paid by the fund (from PDF), in millièmes
+ * Amount actually paid by the fund (from PDF), in thousandths of a euro
  */
-actual_payment_amount: number } }
+paid_amount: number } }
 /**
  * Bank Account aggregate root
  * Represents a bank account used for transfers
@@ -1008,6 +994,24 @@ export type BankAccount = { name: string; iban: string | null;
  * Metadata - not a domain property
  */
 id: string }
+/**
+ * BankEntry aggregate root
+ * Represents a bank transfer (FUND) or direct payment (CHECK/CREDIT_CARD/CASH).
+ * Links to fund payment groups or procedures are stored in junction tables.
+ */
+export type BankEntry = { id: string; transfer_date: string; amount: number; transfer_type: BankEntryType; bank_account: BankAccount }
+/**
+ * Payment type for bank transfers
+ * 
+ * Note: `OutgoingWire` is exclusively created via the overpayment refund flow (REF-080).
+ * It must NOT be accepted in the bank statement manual-match UI.
+ */
+export type BankEntryType = "FUND_WIRE" | "PATIENT_CHECK" | "PATIENT_CREDIT_CARD" | "PATIENT_CASH" | 
+/**
+ * Outgoing wire refund — only creatable via the overpayment flow (REF-080, REF-110).
+ * Carries a negative amount to represent money returned to a fund.
+ */
+"FUND_OUTGOING_WIRE"
 /**
  * A mapping between a bank label (as seen on statements) and a fund
  */
@@ -1029,7 +1033,7 @@ date: string;
  */
 label: string; 
 /**
- * Credit amount in millièmes (1€ = 1000)
+ * Credit amount in thousandths of a euro (1 € = 1000)
  */
 amount: number }
 /**
@@ -1057,7 +1061,7 @@ period: string | null;
  */
 credit_lines: BankStatementCreditLine[]; 
 /**
- * Sum of all credit amounts in millièmes
+ * Sum of all credit amounts in thousandths of a euro
  */
 total_credits: number; 
 /**
@@ -1073,24 +1077,6 @@ export type BankStatementReconciliationConfig = {
  */
 max_date_offset_days: number }
 /**
- * BankTransfer aggregate root
- * Represents a bank transfer (FUND) or direct payment (CHECK/CREDIT_CARD/CASH).
- * Links to fund payment groups or procedures are stored in junction tables.
- */
-export type BankTransfer = { id: string; transfer_date: string; amount: number; transfer_type: BankTransferType; bank_account: BankAccount }
-/**
- * Payment type for bank transfers
- * 
- * Note: `OutgoingWire` is exclusively created via the overpayment refund flow (REF-080).
- * It must NOT be accepted in the bank statement manual-match UI.
- */
-export type BankTransferType = "FUND" | "CHECK" | "CREDIT_CARD" | "CASH" | 
-/**
- * Outgoing wire refund — only creatable via the overpayment flow (REF-080, REF-110).
- * Carries a negative amount to represent money returned to a fund.
- */
-"OUTGOING_WIRE"
-/**
  * Request DTO for cancelling an overpayment (REF-210).
  * The frontend always passes the source_procedure_id as identifier.
  */
@@ -1102,7 +1088,7 @@ export type ConfirmedMatch = { group_id: string; date: string; amount: number }
 /**
  * Complex response: created funds + temp ID mapping for import tracking
  */
-export type CreateBatchFundsResponse = { funds: AffiliatedFund[]; temp_id_map: Partial<{ [key in string]: string }> }
+export type CreateBatchFundsResponse = { funds: Fund[]; temp_id_map: Partial<{ [key in string]: string }> }
 /**
  * Complex response: created patients + temp ID mapping for import tracking
  */
@@ -1158,9 +1144,9 @@ export type DbMatch = { procedure_id: string; procedure_date: string; fund_id: s
 /**
  * A procedure candidate for a direct payment (R14)
  */
-export type DirectPaymentProcedureCandidate = { procedure_id: string; patient_id: string; procedure_date: string; procedure_amount: number | null }
+export type DirectPaymentProcedureCandidate = { procedure_id: string; patient_id: string; procedure_date: string; billed_amount: number | null }
 /**
- * A saved mapping between a procedure amount (millièmes d'euro) and a procedure type id
+ * A saved mapping between a procedure amount (thousandths of a euro) and a procedure type id
  */
 export type ExcelAmountMapping = { amount: number; procedure_type_id: string }
 /**
@@ -1174,9 +1160,23 @@ export type ExcelPatient = { temp_id: string; name: string; ssn: string; latest_
 /**
  * Parsed procedure data from Excel monthly sheets
  */
-export type ExcelProcedure = { patient_temp_id: string; fund_temp_id: string | null; procedure_type_tmp_id: string; amount: number; procedure_date: string; sheet_month: string; payment_method: string | null; confirmed_payment_date: string | null; actual_payment_amount: number | null; awaited_amount: number | null }
+export type ExcelProcedure = { patient_temp_id: string; fund_temp_id: string | null; procedure_type_tmp_id: string; amount: number; procedure_date: string; sheet_month: string; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; awaited_amount: number | null }
 /**
- * Fund candidate for batch import - semantically different from AffiliatedFund (lacks ID, created_at)
+ * Fund aggregate root
+ */
+export type Fund = { fund_identifier: string; name: string; 
+/**
+ * Temporary ID used during batch imports to map temp_id → real_id
+ * None for funds created through regular API
+ * Some(uuid) for funds created via Excel import
+ */
+temp_id?: string | null; 
+/**
+ * Metadata - not a domain property
+ */
+id: string }
+/**
+ * Fund candidate for batch import - semantically different from Fund (lacks ID, created_at)
  */
 export type FundCandidate = { temp_id: string; fund_identifier: string; fund_name: string }
 /**
@@ -1217,7 +1217,7 @@ export type FundPaymentCandidateValidation = { candidate: FundPaymentGroupCandid
  */
 export type FundPaymentGroup = { id: string; fund_id: string; payment_date: string; total_amount: number; lines: FundPaymentLine[]; status: FundPaymentGroupStatus; 
 /**
- * Derived from status: true when BankPayed. Group cannot be edited or deleted when locked.
+ * Derived from status: true when BankPaid. Group cannot be edited or deleted when locked.
  */
 is_locked: boolean }
 /**
@@ -1254,7 +1254,7 @@ is_fully_covered: boolean }
  */
 export type FundPaymentGroupEditData = { 
 /**
- * Procedures currently in the group (Reconciliated / PartiallyReconciled)
+ * Procedures currently in the group (Reconciled / PartiallyReconciled)
  */
 current_procedures: Procedure[]; 
 /**
@@ -1272,7 +1272,7 @@ export type FundPaymentGroupStatus =
 /**
  * Group has been bank-reconciled — locked, cannot be edited or deleted
  */
-"BANK_PAYED"
+"BANK_PAID"
 /**
  * FundPaymentLine aggregate
  * Links a fund payment group to a specific procedure
@@ -1348,7 +1348,7 @@ procedure_end_date: string;
  */
 is_period: boolean; 
 /**
- * Amount in millièmes (e.g. 1234 = 1.234 €)
+ * Amount in thousandths of a euro (e.g. 1234 = 1.234 €)
  */
 amount: number }
 /**
@@ -1398,7 +1398,7 @@ export type PatientValidationStatus = "VALID" | "ALREADY_EXISTS" | "INVALID"
  * - Cash: Electronic payment (ES code in Excel)
  * - Check: Check payment (CH code in Excel)
  * - BankCard: Credit/debit card payment (not currently in Excel imports, handled later)
- * - BankTransfer: Bank transfer (inferred when confirmed_payment_date exists but no explicit method)
+ * - BankEntry: Bank transfer (inferred when confirmed_payment_date exists but no explicit method)
  */
 export type PaymentMethod = "NONE" | "CASH" | "CHECK" | "BANK_CARD" | "BANK_TRANSFER"
 /**
@@ -1434,7 +1434,7 @@ fund_full_name: string;
  */
 payment_date: string; 
 /**
- * Total amount stated in the PDF (millièmes)
+ * Total amount stated in the PDF (thousandths of a euro)
  */
 total_amount: number; 
 /**
@@ -1452,10 +1452,10 @@ lines: NormalizedPdfLine[] }
  * to Patient, Fund, and Procedure Type. Uses soft-delete pattern.
  * 
  * Payment tracking:
- * - procedure_amount: Total amount charged/invoiced for the procedure (millièmes)
- * - actual_payment_amount: Amount actually paid/received from patient or fund (millièmes)
+ * - billed_amount: Total amount charged/invoiced for the procedure (thousandths of a euro)
+ * - paid_amount: Amount actually paid/received from patient or fund (thousandths of a euro)
  * - confirmed_payment_date: When the payment was confirmed (from reconciliation)
- * - payment_method: How payment was made (Cash/Check/BankCard/BankTransfer/None)
+ * - payment_method: How payment was made (Cash/Check/BankCard/BankEntry/None)
  */
 export type Procedure = { 
 /**
@@ -1463,7 +1463,7 @@ export type Procedure = {
  */
 patient_id: string; 
 /**
- * Foreign key to AffiliatedFund (optional - procedure can exist without a fund)
+ * Foreign key to Fund (optional - procedure can exist without a fund)
  */
 fund_id: string | null; 
 /**
@@ -1475,43 +1475,43 @@ procedure_type_id: string;
  */
 procedure_date: string; 
 /**
- * Total amount charged/invoiced for this procedure, in millièmes (e.g. 1234 = 1.234 €)
+ * Total amount charged/invoiced for this procedure, in thousandths of a euro (e.g. 1234 = 1.234 €)
  * Optional - uses procedure type default amount if not specified
  * Source: Excel import column F or manual entry
  */
-procedure_amount: number | null; 
+billed_amount: number | null; 
 /**
  * Payment method used for this procedure
- * Determines how payment was made: Cash/Check/BankCard/BankTransfer/None
+ * Determines how payment was made: Cash/Check/BankCard/BankEntry/None
  * - Cash: Electronic payment (ES in Excel)
  * - Check: Check payment (CH in Excel)
  * - BankCard: Credit/debit card (available for future use)
- * - BankTransfer: Inferred from confirmed_payment_date during reconciliation
+ * - BankEntry: Inferred from confirmed_payment_date during reconciliation
  * - None: No payment information or no confirmed payment date
  */
 payment_method: PaymentMethod; 
 /**
  * Procedure status in the reconciliation lifecycle
- * Tracks progress through: None → Created → Reconciliated → FundPayed (or DirectlyPayed)
+ * Tracks progress through: None → Created → Reconciled → FundPaid (or DirectlyPaid)
  * - None: Initial state
  * - Created: Procedure created, awaiting reconciliation
- * - Reconciliated: Associated with a fund payment group
- * - DirectlyPayed: Paid directly (cash/card), no fund reconciliation
- * - FundPayed: Bank payment matched via fund reconciliation
+ * - Reconciled: Associated with a fund payment group
+ * - DirectlyPaid: Paid directly (cash/card), no fund reconciliation
+ * - FundPaid: Bank payment matched via fund reconciliation
  */
 payment_status: ProcedureStatus; 
 /**
  * Date when payment was confirmed (ISO format: YYYY-MM-DD)
  * Source: Excel import column J or PDF reconciliation data
- * Presence of this date triggers BankTransfer inference if payment_method not explicit
+ * Presence of this date triggers BankEntry inference if payment_method not explicit
  */
 confirmed_payment_date: string; 
 /**
- * Actual amount paid/received from patient or fund, in millièmes (e.g. 1234 = 1.234 €)
- * May differ from procedure_amount (partial payment, overpayment, etc.)
+ * Actual amount paid/received from patient or fund, in thousandths of a euro (e.g. 1234 = 1.234 €)
+ * May differ from billed_amount (partial payment, overpayment, etc.)
  * Source: Excel import column K or reconciliation statement
  */
-actual_payment_amount: number | null; 
+paid_amount: number | null; 
 /**
  * Metadata - not a domain property
  */
@@ -1519,7 +1519,7 @@ id: string }
 /**
  * Candidate procedure for batch creation and validation for orchestrators
  */
-export type ProcedureCandidate = { patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; procedure_amount: number | null; payment_method: string | null; confirmed_payment_date: string | null; actual_payment_amount: number | null; awaited_amount: number | null }
+export type ProcedureCandidate = { patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number | null; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; awaited_amount: number | null }
 /**
  * DTO for surfacing ProcedureRefund data to the frontend.
  * Used when the OverpaymentRefund modal needs to resolve source_procedure_id (REF-200).
@@ -1531,23 +1531,23 @@ export type ProcedureRefundInfo = { id: string; source_procedure_id: string; ref
  * Represents the reconciliation state of a healthcare procedure:
  * - None: Initial state, no reconciliation activity
  * - Created: Procedure has been created and is awaiting payment/reconciliation
- * - Reconciliated: A fund payment group has been associated with this procedure
- * - DirectlyPayed: Procedure was paid directly (cash/card) without fund reconciliation (blocking re-import)
- * - FundPayed: A bank payment has been matched/reconciled with this procedure via fund (blocking re-import)
- * - ImportDirectlyPayed: From Excel import — paid directly (ES/CH), non-blocking re-import
- * - ImportFundPayed: From Excel import — fund present, method not ES/CH (non-blocking re-import)
+ * - Reconciled: A fund payment group has been associated with this procedure
+ * - DirectlyPaid: Procedure was paid directly (cash/card) without fund reconciliation (blocking re-import)
+ * - FundPaid: A bank payment has been matched/reconciled with this procedure via fund (blocking re-import)
+ * - ImportDirectlyPaid: From Excel import — paid directly (ES/CH), non-blocking re-import
+ * - ImportFundPaid: From Excel import — fund present, method not ES/CH (non-blocking re-import)
  * - Overpaid: Source procedure whose full overpayment has been recorded (REF-160). Blocks deletion (REF-220).
  * - OverpaymentRefund: Mirror negative procedure created to offset an overpayment (REF-090). Blocks deletion (REF-230).
  */
-export type ProcedureStatus = "NONE" | "CREATED" | "RECONCILIATED" | 
+export type ProcedureStatus = "NONE" | "CREATED" | "RECONCILED" | 
 /**
- * Fund reconciliation done but amount disputed: actual_payment_amount ≠ procedure_amount
+ * Fund reconciliation done but amount disputed: paid_amount ≠ billed_amount
  */
-"PARTIALLY_RECONCILED" | "DIRECTLY_PAYED" | "FUND_PAYED" | 
+"PARTIALLY_RECONCILED" | "DIRECTLY_PAID" | "FUND_PAID" | 
 /**
  * Bank transfer confirmed for a partially reconciled procedure
  */
-"PARTIALLY_FUND_PAYED" | "IMPORT_DIRECTLY_PAYED" | "IMPORT_FUND_PAYED" | 
+"PARTIALLY_FUND_PAID" | "IMPORT_DIRECTLY_PAID" | "IMPORT_FUND_PAID" | 
 /**
  * Source procedure whose full overpayment has been recorded (REF-160)
  */
@@ -1579,7 +1579,7 @@ export type ProcedureValidationStatus = "VALID" | "INVALID"
  * Raw healthcare procedure data from frontend (unvalidated)
  * Used for updating an existing procedure with data from an external source
  */
-export type RawProcedure = { id: string; patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; procedure_amount: number | null; payment_method: string | null; confirmed_payment_date: string | null; actual_payment_amount: number | null; payment_status: string }
+export type RawProcedure = { id: string; patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number | null; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; payment_status: string }
 /**
  * Raw procedure type data from frontend (unvalidated)
  */

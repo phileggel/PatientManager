@@ -82,7 +82,7 @@
   "status": {
     "none": "—",
     "created": "Created",
-    "reconciliated": "Reconciliated",
-    "payed": "Paid"
+    "reconciled": "Reconciled",
+    "paid": "Paid"
   }
 }

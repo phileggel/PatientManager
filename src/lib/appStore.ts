@@ -1,16 +1,10 @@
 import { create } from "zustand";
-import type {
-  AffiliatedFund,
-  BankAccount,
-  FundPaymentGroup,
-  Patient,
-  ProcedureType,
-} from "@/bindings";
+import type { BankAccount, Fund, FundPaymentGroup, Patient, ProcedureType } from "@/bindings";
 
 interface AppState {
   // Data (persistent, global)
   patients: Patient[];
-  funds: AffiliatedFund[];
+  funds: Fund[];
   procedureTypes: ProcedureType[];
   bankAccounts: BankAccount[];
   fundPaymentGroups: FundPaymentGroup[];
@@ -28,8 +22,8 @@ interface AppState {
   // Actions
   setPatients: (patients: Patient[]) => void;
   addPatients: (patients: Patient[]) => void;
-  setFunds: (funds: AffiliatedFund[]) => void;
-  addFunds: (funds: AffiliatedFund[]) => void;
+  setFunds: (funds: Fund[]) => void;
+  addFunds: (funds: Fund[]) => void;
   setProcedureTypes: (procedureTypes: ProcedureType[]) => void;
   addProcedureTypes: (procedureTypes: ProcedureType[]) => void;
   setBankAccounts: (accounts: BankAccount[]) => void;

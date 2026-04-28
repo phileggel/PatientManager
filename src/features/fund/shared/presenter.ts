@@ -1,10 +1,10 @@
-import type { AffiliatedFund } from "@/bindings";
+import type { Fund } from "@/bindings";
 import type { FundFormData, FundRow } from "./types";
 
 /**
- * FundPresenter - UI Projection of AffiliatedFund Domain Object
+ * FundPresenter - UI Projection of Fund Domain Object
  *
- * Transforms the AffiliatedFund domain model into different UI representations:
+ * Transforms the Fund domain model into different UI representations:
  * - toRow: For table display (with sorting/filtering)
  * - toFormData: For form editing (only editable fields)
  *
@@ -13,10 +13,10 @@ import type { FundFormData, FundRow } from "./types";
  */
 export const FundPresenter = {
   /**
-   * Transform domain AffiliatedFund to UI row data for table display
+   * Transform domain Fund to UI row data for table display
    * Extracts display fields and adds UI-specific properties
    */
-  toRow(fund: AffiliatedFund): FundRow {
+  toRow(fund: Fund): FundRow {
     return {
       rowId: crypto.randomUUID(),
       fundIdentifier: fund.fund_identifier,
@@ -26,11 +26,11 @@ export const FundPresenter = {
   },
 
   /**
-   * Transform domain AffiliatedFund to form data for editing
+   * Transform domain Fund to form data for editing
    * Extracts only the fields that users can edit
    * Used for both initial form setup and resetting the form
    */
-  toFormData(fund: AffiliatedFund): FundFormData {
+  toFormData(fund: Fund): FundFormData {
     return {
       fund_identifier: fund.fund_identifier,
       name: fund.name,

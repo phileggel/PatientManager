@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BankTransfer, DirectPaymentProcedureCandidate, FundGroupCandidate } from "@/bindings";
+import type { BankEntry, DirectPaymentProcedureCandidate, FundGroupCandidate } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import {
@@ -20,7 +20,7 @@ import {
  * - Handles date and selection changes
  * - Submits update to backend
  */
-export function useEditBankTransferModal(transfer: BankTransfer | null, onClose: () => void) {
+export function useEditBankTransferModal(transfer: BankEntry | null, onClose: () => void) {
   const { t } = useTranslation("bank");
 
   const [transferDate, setTransferDate] = useState<string>("");
@@ -32,8 +32,8 @@ export function useEditBankTransferModal(transfer: BankTransfer | null, onClose:
   const [currentProcedures, setCurrentProcedures] = useState<DirectPaymentProcedureCandidate[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const isFund = transfer?.transfer_type === "FUND";
-  const isCash = transfer?.transfer_type === "CASH";
+  const isFund = transfer?.transfer_type === "FUND_WIRE";
+  const isCash = transfer?.transfer_type === "PATIENT_CASH";
 
   // Load linked IDs and current candidates when transfer changes.
   // bankAccount is synced here (not in a separate effect) to avoid stale state
@@ -50,7 +50,7 @@ export function useEditBankTransferModal(transfer: BankTransfer | null, onClose:
     setTotalAmountMillis(transfer.amount);
 
     const loadLinks = async () => {
-      if (transfer.transfer_type === "FUND") {
+      if (transfer.transfer_type === "FUND_WIRE") {
         const idsResult = await getTransferFundGroupIds(transfer.id);
         if (!idsResult.success || !idsResult.data) {
           logger.error("[useEditBankTransferModal] Failed to load fund group ids", {
