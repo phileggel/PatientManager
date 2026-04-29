@@ -15,10 +15,6 @@ vi.mock("../gateway", () => ({
   importDatabase: vi.fn(),
 }));
 
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: vi.fn() },
-}));
-
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => key,

@@ -28,7 +28,9 @@ Fix: trigger the file picker on mount, remove the `FileUploadSection` landing UI
 
 ## (frontend) — Add shared test data factories
 
-Tests construct domain objects inline (`{ id: "1", name: "...", ssn: "..." }`) in many places. Add `src/test/factories.ts` with helpers like `makePatient()`, `makeProcedure()`, `makeFund()`, etc. with sensible defaults and optional overrides. Single place to update when the domain model changes.
+Tests construct domain objects inline (`{ id: "1", name: "...", ssn: "..." }`) in many places. Add factories with helpers like `makePatient()`, `makeProcedure()`, `makeFund()`, etc. with sensible defaults and optional overrides. Single place to update when the domain model changes.
+
+Note: `src/tests/patient.factory.ts` already exists (used in `useProcedureFormModal.test.ts`). Extend that pattern to the other domains rather than creating a new file.
 
 ---
 

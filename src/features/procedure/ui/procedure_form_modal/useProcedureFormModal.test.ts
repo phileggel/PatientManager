@@ -13,10 +13,6 @@ vi.mock("@/features/procedure/api/gateway", () => ({
   readAllProcedures: vi.fn(),
 }));
 
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
-}));
-
 // --- Test data ---
 
 const mockProcedureTypes: ProcedureType[] = [

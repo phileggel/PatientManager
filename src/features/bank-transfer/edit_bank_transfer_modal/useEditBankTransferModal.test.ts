@@ -1,12 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankEntry } from "@/bindings";
-
-const mockToastShow = vi.hoisted(() => vi.fn());
-
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: mockToastShow, subscribe: vi.fn(() => vi.fn()) },
-}));
+import { toastService } from "@/core/snackbar";
 
 vi.mock("../gateway", () => ({
   getTransferFundGroupIds: vi.fn(),
@@ -57,7 +52,6 @@ const mockProcedure = {
 describe("useEditBankTransferModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockToastShow.mockReset();
     vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({ success: true, data: [] });
     vi.mocked(gateway.getTransferProcedureIds).mockResolvedValue({ success: true, data: [] });
     vi.mocked(gateway.getFundGroupsByIds).mockResolvedValue({ success: true, data: [] });
@@ -255,7 +249,7 @@ describe("useEditBankTransferModal", () => {
     });
 
     expect(onClose).not.toHaveBeenCalled();
-    expect(mockToastShow).toHaveBeenCalledWith("error", expect.any(String));
+    expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
   });
 
   it("shows validation error when no groups selected for FUND", async () => {
@@ -269,6 +263,6 @@ describe("useEditBankTransferModal", () => {
     });
 
     expect(gateway.updateFundTransfer).not.toHaveBeenCalled();
-    expect(mockToastShow).toHaveBeenCalledWith("error", expect.any(String));
+    expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
   });
 });

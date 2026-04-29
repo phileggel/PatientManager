@@ -8,10 +8,6 @@ vi.mock("../gateway", () => ({
   createDirectTransfer: vi.fn(),
 }));
 
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
-}));
-
 import * as gateway from "../gateway";
 import { useAddBankTransferForm } from "./useAddBankTransferForm";
 
