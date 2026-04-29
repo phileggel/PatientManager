@@ -215,23 +215,21 @@ impl FundPaymentReconciliationOrchestrator {
         &self,
         candidates: Vec<FundPaymentGroupCandidate>,
     ) -> anyhow::Result<Vec<FundPaymentGroup>> {
-        // Step 1: Check for duplicates
-        let mut duplicate_count = 0u32;
+        // Step 1: Check for duplicates (single pass — results reused in Step 2)
+        let mut duplicate_flags = Vec::with_capacity(candidates.len());
         for candidate in &candidates {
-            let is_duplicate = self
-                .is_duplicate_candidate(
+            duplicate_flags.push(
+                self.is_duplicate_candidate(
                     &candidate.fund_label,
                     candidate.payment_date,
                     candidate.total_amount,
                 )
-                .await?;
-
-            if is_duplicate {
-                duplicate_count += 1;
-            }
+                .await?,
+            );
         }
 
-        if duplicate_count == candidates.len() as u32 {
+        let duplicate_count = duplicate_flags.iter().filter(|&&d| d).count();
+        if !candidates.is_empty() && duplicate_count == candidates.len() {
             anyhow::bail!(
                 "All {} payment groups already exist. PDF was likely already processed.",
                 duplicate_count
@@ -239,18 +237,11 @@ impl FundPaymentReconciliationOrchestrator {
         }
 
         // Step 2: Filter non-duplicates and resolve fund IDs
+        // duplicate_flags[i] corresponds to candidates[i] — both built in the same loop order above
         let mut batch_data = Vec::new();
         let mut all_procedure_ids = Vec::new();
 
-        for candidate in candidates {
-            let is_duplicate = self
-                .is_duplicate_candidate(
-                    &candidate.fund_label,
-                    candidate.payment_date,
-                    candidate.total_amount,
-                )
-                .await?;
-
+        for (candidate, is_duplicate) in candidates.into_iter().zip(duplicate_flags) {
             if is_duplicate {
                 continue;
             }
@@ -260,16 +251,16 @@ impl FundPaymentReconciliationOrchestrator {
 
             let iso_date = candidate.payment_date.format("%Y-%m-%d").to_string();
 
+            // Track all procedures for status update
+            all_procedure_ids.extend(candidate.procedure_ids.iter().cloned());
+
             // Collect batch data for atomic creation
             batch_data.push((
                 fund_id,
                 iso_date,
                 candidate.total_amount,
-                candidate.procedure_ids.clone(),
+                candidate.procedure_ids,
             ));
-
-            // Track all procedures for status update
-            all_procedure_ids.extend(candidate.procedure_ids);
         }
 
         if batch_data.is_empty() {
@@ -374,23 +365,21 @@ impl FundPaymentReconciliationOrchestrator {
             }
         }
 
-        // Step 3: Check for duplicates
-        let mut duplicate_count = 0u32;
+        // Step 3: Check for duplicates (single pass — results reused in Step 4)
+        let mut duplicate_flags = Vec::with_capacity(candidates.len());
         for candidate in &candidates {
-            let is_duplicate = self
-                .is_duplicate_candidate(
+            duplicate_flags.push(
+                self.is_duplicate_candidate(
                     &candidate.fund_label,
                     candidate.payment_date,
                     candidate.total_amount,
                 )
-                .await?;
-
-            if is_duplicate {
-                duplicate_count += 1;
-            }
+                .await?,
+            );
         }
 
-        if duplicate_count == candidates.len() as u32 {
+        let duplicate_count = duplicate_flags.iter().filter(|&&d| d).count();
+        if !candidates.is_empty() && duplicate_count == candidates.len() {
             anyhow::bail!(
                 "All {} payment groups already exist. PDF was likely already processed.",
                 duplicate_count
@@ -398,18 +387,11 @@ impl FundPaymentReconciliationOrchestrator {
         }
 
         // Step 4: Filter non-duplicates and resolve fund IDs (build batch data)
+        // duplicate_flags[i] corresponds to candidates[i] — both built in the same loop order above
         let mut batch_data = Vec::new();
         let mut all_procedure_ids = Vec::new();
 
-        for candidate in candidates {
-            let is_duplicate = self
-                .is_duplicate_candidate(
-                    &candidate.fund_label,
-                    candidate.payment_date,
-                    candidate.total_amount,
-                )
-                .await?;
-
+        for (candidate, is_duplicate) in candidates.into_iter().zip(duplicate_flags) {
             if is_duplicate {
                 continue;
             }
@@ -419,16 +401,16 @@ impl FundPaymentReconciliationOrchestrator {
 
             let iso_date = candidate.payment_date.format("%Y-%m-%d").to_string();
 
+            // Track all procedures for status update
+            all_procedure_ids.extend(candidate.procedure_ids.iter().cloned());
+
             // Collect batch data for atomic creation
             batch_data.push((
                 fund_id,
                 iso_date,
                 candidate.total_amount,
-                candidate.procedure_ids.clone(),
+                candidate.procedure_ids,
             ));
-
-            // Track all procedures for status update
-            all_procedure_ids.extend(candidate.procedure_ids);
         }
 
         if batch_data.is_empty() {
