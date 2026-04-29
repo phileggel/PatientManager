@@ -45,7 +45,7 @@ impl ExcelImportOrchestrator {
         procedure_type_mapping: HashMap<String, String>,
         selected_months: Vec<String>,
     ) -> anyhow::Result<ImportExecutionResult> {
-        tracing::info!(
+        tracing::debug!(
             patients = parsed_data.patients.len(),
             funds = parsed_data.funds.len(),
             procedures = parsed_data.procedures.len(),
@@ -161,7 +161,7 @@ impl ExcelImportOrchestrator {
                     .delete_procedures_by_month(month)
                     .await?;
                 procedures_deleted += deleted as u32;
-                tracing::info!(month = %month, deleted = deleted, "Cleared procedures for month before re-import");
+                tracing::debug!(month = %month, deleted = deleted, "Cleared procedures for month before re-import");
                 allowed_months.insert(month.clone());
             }
         }

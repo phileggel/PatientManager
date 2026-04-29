@@ -60,7 +60,7 @@ pub struct ImportExecutionResult {
 #[tauri::command]
 #[specta::specta]
 pub async fn parse_excel_file(file_path: String) -> Result<ParseExcelResponse, String> {
-    tracing::info!(path = %file_path, "Processing parse_excel_file request");
+    tracing::debug!(path = %file_path, "Processing parse_excel_file request");
 
     ExcelParserService::parse_excel(&file_path)
         .await
@@ -95,7 +95,7 @@ pub async fn execute_excel_import(
     selected_months: Vec<String>,
     service: State<'_, Arc<ExcelImportOrchestrator>>,
 ) -> Result<ImportExecutionResult, String> {
-    tracing::info!(
+    tracing::debug!(
         patients = parsed_data.patients.len(),
         funds = parsed_data.funds.len(),
         procedures = parsed_data.procedures.len(),
@@ -143,7 +143,7 @@ pub async fn save_excel_amount_mappings(
     mappings: Vec<SaveExcelAmountMappingRequest>,
     repo: State<'_, Arc<SqliteExcelAmountMappingRepository>>,
 ) -> Result<(), String> {
-    tracing::info!(
+    tracing::debug!(
         count = mappings.len(),
         "Processing save_excel_amount_mappings request"
     );
