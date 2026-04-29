@@ -128,13 +128,10 @@ export function useAppInit() {
         // Listen for fund payment groups updated event
         const unlistenFundPaymentGroups = await listen("fund_payment_group_updated", async () => {
           logger.info("Fund payment groups updated event received");
-          // Reload all fund payment groups from backend and update store
           const result = await commands.readAllFundPaymentGroups();
           if (result.status === "ok") {
             setFundPaymentGroups(result.data);
           }
-          // Also emit custom event for local UI triggers if needed
-          window.dispatchEvent(new Event("fundpaymentgroup_updated"));
         });
 
         // Listen for bank transfers updated event

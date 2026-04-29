@@ -16,7 +16,6 @@ import { useAddFundPaymentPanel } from "./useAddFundPaymentPanel";
  * - Manages modal state
  * - Fetches procedures via gateway
  * - Creates payment via gateway
- * - Emits success event for parent to refresh
  * - Handles errors via snackbar
  *
  * No props needed - it's completely independent
@@ -51,8 +50,6 @@ export function AddFundPaymentPanel() {
     const result = await handleCreatePayment();
     if (result?.success) {
       toastService.show("success", t("add.success"));
-      // Emit event for parent to refresh
-      window.dispatchEvent(new Event("fundpaymentgroup_updated"));
     } else {
       toastService.show("error", result?.error || tc("error.unknown"));
     }
