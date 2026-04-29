@@ -53,7 +53,6 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 ## (frontend/fund-payment-match) — Reconciliation page
 
-- Remove the duplicated text under the title.
 - Verify the displayed limit (10 MB — why?).
 
 ## (frontend/fund-payment) — F7 violation: window.dispatchEvent in AddFundPaymentPanel

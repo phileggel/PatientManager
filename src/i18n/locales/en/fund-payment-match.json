@@ -1,7 +1,6 @@
 {
   "page": {
     "title": "Payment Statement Reconciliation",
-    "subtitle": "Upload a PDF payment statement to reconcile with procedures in the database.",
     "selectButton": "Select PDF file",
     "formats": "Accepted formats: PDF",
     "maxSize": "Maximum size: 10 MB",
