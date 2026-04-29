@@ -13,7 +13,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount } from "@/bindings";
-import { useSnackbar } from "@/core/snackbar";
 import { BankAccountForm } from "@/features/bank-account/shared/BankAccountForm";
 import { logger } from "@/lib/logger";
 import { Button, Dialog } from "@/ui/components";
@@ -26,7 +25,6 @@ interface EditBankAccountModalProps {
 
 export function EditBankAccountModal({ bankAccount, onClose }: EditBankAccountModalProps) {
   const { t } = useTranslation("bank");
-  const { showSnackbar } = useSnackbar();
   const [isOpen, setIsOpen] = useState(false);
 
   // Show modal when bankAccount is provided
@@ -45,7 +43,7 @@ export function EditBankAccountModal({ bankAccount, onClose }: EditBankAccountMo
     onClose();
   };
 
-  const hookResult = useEditBankAccountModal(bankAccount, showSnackbar, handleClose);
+  const hookResult = useEditBankAccountModal(bankAccount, handleClose);
 
   if (!isOpen || !bankAccount) return null;
 

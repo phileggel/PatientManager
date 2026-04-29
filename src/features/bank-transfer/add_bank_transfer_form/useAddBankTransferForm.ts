@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount, BankEntryType } from "@/bindings";
-import { useSnackbar } from "@/core/snackbar";
+import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import { createDirectTransfer, createFundTransfer, getCashBankAccountId } from "../gateway";
@@ -9,7 +9,6 @@ import { type BankTransferFormErrors, validateBankTransfer } from "../shared/val
 
 export function useAddBankTransferForm() {
   const { t } = useTranslation("bank");
-  const { showSnackbar } = useSnackbar();
 
   const bankAccounts = useAppStore((state) => state.bankAccounts);
 
@@ -145,14 +144,14 @@ export function useAddBankTransferForm() {
       }
 
       if (result.success) {
-        showSnackbar("success", t("transfer.add.success"));
+        toastService.show("success", t("transfer.add.success"));
         resetForm();
       } else {
-        showSnackbar("error", t("transfer.add.error", { error: result.error }));
+        toastService.show("error", t("transfer.add.error", { error: result.error }));
       }
     } catch (error) {
       logger.error("[useAddBankTransferForm] Exception", { error });
-      showSnackbar("error", t("transfer.add.errorUnknown"));
+      toastService.show("error", t("transfer.add.errorUnknown"));
     } finally {
       setSubmitting(false);
     }

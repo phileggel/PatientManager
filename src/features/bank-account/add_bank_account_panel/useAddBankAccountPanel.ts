@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { SnackbarType } from "@/core/snackbar";
+import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { createBankAccount } from "../gateway";
 import type { BankAccountFormData, FormErrors } from "../shared/types";
@@ -13,9 +13,7 @@ interface UseAddBankAccountPanelReturn {
   handleSubmit: (e: FormEvent<HTMLFormElement>) => Promise<void>;
 }
 
-type ShowSnackbar = (type: SnackbarType, message: string) => void;
-
-export function useAddBankAccountPanel(showSnackbar: ShowSnackbar): UseAddBankAccountPanelReturn {
+export function useAddBankAccountPanel(): UseAddBankAccountPanelReturn {
   const { t } = useTranslation("bank");
   const [formData, setFormData] = useState<BankAccountFormData>({
     name: "",
@@ -66,19 +64,19 @@ export function useAddBankAccountPanel(showSnackbar: ShowSnackbar): UseAddBankAc
       if (result.success) {
         logger.info("Bank account created", { name: formData.name });
         setFormData({ name: "", iban: "" });
-        showSnackbar("success", t("account.add.success"));
+        toastService.show("success", t("account.add.success"));
         // Backend event will trigger useAppInit to refresh data
       } else {
         logger.error("Failed to create bank account", { error: result.error });
         const message = result.error || t("account.add.error");
         setErrors({ name: message });
-        showSnackbar("error", message);
+        toastService.show("error", message);
       }
     } catch (err) {
       logger.error("Exception creating bank account", { error: err });
       const message = t("account.add.errorUnknown");
       setErrors({ name: message });
-      showSnackbar("error", message);
+      toastService.show("error", message);
     } finally {
       setLoading(false);
     }

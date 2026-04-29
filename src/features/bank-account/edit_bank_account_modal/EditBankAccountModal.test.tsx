@@ -6,9 +6,7 @@ import type { BankAccount } from "@/bindings";
 import { EditBankAccountModal } from "./EditBankAccountModal";
 
 vi.mock("@/core/snackbar", () => ({
-  useSnackbar: () => ({
-    showSnackbar: vi.fn(),
-  }),
+  toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
 }));
 
 vi.mock("../gateway");

@@ -56,10 +56,9 @@ Convert domain objects to camelCase when crossing into the frontend.
 - Remove the duplicated text under the title.
 - Verify the displayed limit (10 MB — why?).
 
-## (frontend) — Tech debt: showSnackbar deprecated
+## (frontend/fund-payment) — F7 violation: window.dispatchEvent in AddFundPaymentPanel
 
-8 components still use the backward-compat showSnackbar shim instead of toastService.show()
-directly. Should be migrated at some point.
+`AddFundPaymentPanel.tsx:55` emits `window.dispatchEvent(new Event("fundpaymentgroup_updated"))` after a successful group creation. This violates F7 — components must not emit window events; those are emitted by the backend. The backend already publishes `FundPaymentGroupUpdated` which `useAppInit` listens to. Remove the manual dispatch.
 
 ## (backend) — Tech debt: Event emission reduction — Steps 3 & 4
 

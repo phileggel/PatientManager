@@ -9,7 +9,7 @@ vi.mock("../gateway", () => ({
 }));
 
 vi.mock("@/core/snackbar", () => ({
-  useSnackbar: () => ({ showSnackbar: vi.fn() }),
+  toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
 }));
 
 import * as gateway from "../gateway";
