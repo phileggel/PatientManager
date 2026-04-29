@@ -7,6 +7,7 @@
 Create `docs/contracts/{domain}-contract.md` for all shipped features. Contracts define the frontend/backend surface: Tauri commands, their parameters, return types, and error variants. They are the co-decision point between test coverage and command definitions — useful when extending a feature or running `contract-reviewer` / `test-writer-*` in future workflows.
 
 Domains to cover (one contract per bounded context / use-case surface):
+
 - `bank-account`
 - `bank-statement-auto-match`
 - `bank-statement-manual-match`
@@ -76,18 +77,6 @@ When the user goes back to the previous step, advance directly to the next one (
 ## (frontend/fund-payment) — Date range in list
 
 In the list, replace "date" with start date (oldest procedure) and end date (latest procedure)
-
-## (backend/fund-payment-reconciliation) — Perf: halve DB calls in duplicate candidate check
-
-In `orchestrator.rs`, `is_duplicate_candidate` is called twice per candidate in both `create_multiple_from_candidates` and `create_multiple_with_auto_corrections` (once to count duplicates, once to filter them). Each call hits the DB.
-
-Fix: collect results into a `Vec<bool>` in the first pass and reuse in the filter pass.
-
-## (backend/fund-payment-reconciliation) — Perf: batch procedure reset on group delete
-
-In `delete_fund_payment_group_with_cleanup`, procedures are reset one by one (`read_procedure` + `update_procedure` per ID, N+N DB round-trips).
-
-Fix: use `read_procedures_by_ids` → mutate in-memory → `update_procedures_batch`. Requires verifying `ProcedureService` exposes a batch update at the service layer.
 
 ## (frontend/procedure) — Default patient info when procedure type is deleted
 

@@ -124,7 +124,6 @@ A group becomes locked as soon as one of its procedures reaches Stage 2 (see R9)
 
 ### Deletion
 
-
 ```
 [User clicks delete]
   → Lock check: if any procedure is FundPayed/PartiallyFundPayed → inaccessible

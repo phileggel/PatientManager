@@ -771,46 +771,43 @@ impl FundPaymentReconciliationOrchestrator {
 
         let procedure_ids: Vec<String> =
             group.lines.iter().map(|l| l.procedure_id.clone()).collect();
+        let procedure_count = procedure_ids.len();
 
-        // R9: Reject deletion if any procedure is bank-reconciled
-        if !procedure_ids.is_empty() {
-            let procedures = self
-                .procedure_service
-                .read_procedures_by_ids(procedure_ids.clone())
-                .await?;
+        // R9 + Step 2: Single read reused for both lock check and reset
+        let procedures = self
+            .procedure_service
+            .read_procedures_by_ids(procedure_ids)
+            .await?;
 
-            let is_locked = procedures.iter().any(|p| {
-                matches!(
-                    p.payment_status,
-                    ProcedureStatus::FundPaid | ProcedureStatus::PartiallyFundPaid
-                )
-            });
+        let is_locked = procedures.iter().any(|p| {
+            matches!(
+                p.payment_status,
+                ProcedureStatus::FundPaid | ProcedureStatus::PartiallyFundPaid
+            )
+        });
 
-            if is_locked {
-                anyhow::bail!(
-                    "Cannot delete fund payment group {}: it contains bank-reconciled procedures",
-                    group_id
-                );
-            }
+        if is_locked {
+            anyhow::bail!(
+                "Cannot delete fund payment group {}: it contains bank-reconciled procedures",
+                group_id
+            );
         }
 
-        // Step 2: Reset each procedure's reconciliation data
-        for procedure_id in &procedure_ids {
-            if let Some(mut procedure) = self.procedure_service.read_procedure(procedure_id).await?
-            {
-                procedure.payment_status = ProcedureStatus::Created;
-                procedure.confirmed_payment_date = None;
-                procedure.paid_amount = None;
+        // Step 2: Reset reconciliation data in a single batch transaction
+        let procedures_to_reset: Vec<_> = procedures
+            .into_iter()
+            .map(|mut p| {
+                p.payment_status = ProcedureStatus::Created;
+                p.confirmed_payment_date = None;
+                p.paid_amount = None;
+                p
+            })
+            .collect();
 
-                self.procedure_service.update_procedure(procedure).await?;
-
-                tracing::trace!(
-                    procedure_id = %procedure_id,
-                    "Reset procedure reconciliation data"
-                );
-            } else {
-                tracing::warn!(procedure_id = %procedure_id, "Procedure not found during cleanup");
-            }
+        if !procedures_to_reset.is_empty() {
+            self.procedure_service
+                .update_procedures_batch(procedures_to_reset, false)
+                .await?;
         }
 
         // Step 3: Soft-delete lines and group
@@ -823,7 +820,7 @@ impl FundPaymentReconciliationOrchestrator {
 
         tracing::info!(
             group_id = %group_id,
-            procedure_count = procedure_ids.len(),
+            procedure_count,
             "Fund payment group deleted with procedure cleanup complete"
         );
 
