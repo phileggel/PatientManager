@@ -2,6 +2,42 @@
 
 ---
 
+## (frontend/fund-payment-match) — Remove ReconciliationPage landing screen
+
+`ReconciliationPage` is a full page with only an icon, a title, and a single "Select PDF" button. The entire workflow lives inside `ReconciliationModal`. The landing page adds no value.
+
+Fix: trigger `fileInputRef.current.click()` on mount via `useEffect`. The page becomes just a hidden `<input>` + `ReconciliationModal`. Decide what happens on cancel (file picker dismissed with no selection): navigate back to dashboard, or stay on a blank page.
+
+## (frontend/bank-statement-match) — Remove BankStatementPage landing screen
+
+Same pattern as `ReconciliationPage`: `BankStatementPage` is a full page with icon + title + description + single "Select PDF" button. All workflow is inside `BankStatementModal`.
+
+Fix: same as above — trigger file picker on mount, page becomes hidden `<input>` + modal. Handle cancel consistently with the fund-payment-match fix.
+
+## (frontend/excel-import) — Remove ImportExcelPage file upload landing step
+
+`ImportExcelPage` starts with a `FileUploadSection` landing UI (icon + button) before the multi-step wizard. Unlike the other two, the subsequent steps (month selection, type mapping, progress, result) still render in-page, so the page itself must stay.
+
+Fix: trigger the file picker on mount, remove the `FileUploadSection` landing UI. The page opens directly at the parsing step once a file is selected. Handle cancel (no file selected) by navigating back to dashboard or showing a minimal empty state.
+
+---
+
+## (frontend) — Move toastService mock to test-setup.ts
+
+`toastService` is mocked inline in every test file that triggers a toast. Move the mock to `src/lib/test-setup.ts` so it applies globally — no per-file duplication.
+
+## (frontend) — Add shared test data factories
+
+Tests construct domain objects inline (`{ id: "1", name: "...", ssn: "..." }`) in many places. Add `src/test/factories.ts` with helpers like `makePatient()`, `makeProcedure()`, `makeFund()`, etc. with sensible defaults and optional overrides. Single place to update when the domain model changes.
+
+---
+
+## (backend) — Add mockall for service-layer unit tests
+
+Currently all backend tests hit a real SQLite DB. Add `mockall` as a dev-dependency so service-layer logic can be unit-tested with mock repositories (the existing trait-based `Arc<dyn Repository>` pattern makes this straightforward). Integration tests under `tests/` keep hitting the real DB — mockall only targets service/use-case unit tests where spinning up a DB is unnecessary overhead.
+
+---
+
 ## (all domains) — Retroactive domain contracts
 
 Create `docs/contracts/{domain}-contract.md` for all shipped features. Contracts define the frontend/backend surface: Tauri commands, their parameters, return types, and error variants. They are the co-decision point between test coverage and command definitions — useful when extending a feature or running `contract-reviewer` / `test-writer-*` in future workflows.
