@@ -87,7 +87,7 @@ impl ExcelParserService {
 
     /// Parse an Excel file and extract patients, funds, and procedures
     pub async fn parse_excel(file_path: &str) -> anyhow::Result<ParsedExcelData> {
-        tracing::info!("Starting Excel file parse: {}", file_path);
+        tracing::debug!("Starting Excel file parse: {}", file_path);
 
         let path = Path::new(file_path);
         if !path.exists() {
@@ -108,11 +108,11 @@ impl ExcelParserService {
 
         // Parse Patiente sheet (generates temp_ids)
         let patients = Self::parse_patients_sheet(&mut workbook, &mut parsing_issues)?;
-        tracing::info!("Parsed {} patients from Patiente sheet", patients.len());
+        tracing::debug!("Parsed {} patients from Patiente sheet", patients.len());
 
         // Fallback: if Patiente sheet was absent, extract patients from monthly sheets
         let patients = if patients.is_empty() {
-            tracing::info!("Patiente sheet absent — extracting patients from monthly sheets");
+            tracing::debug!("Patiente sheet absent — extracting patients from monthly sheets");
             Self::extract_patients_from_monthly_sheets(&mut workbook)?
         } else {
             patients
@@ -120,7 +120,7 @@ impl ExcelParserService {
 
         // Parse Secu sheet (generates temp_ids)
         let funds = Self::parse_funds_sheet(&mut workbook, &mut parsing_issues)?;
-        tracing::info!("Parsed {} funds", funds.len());
+        tracing::debug!("Parsed {} funds", funds.len());
 
         // Create lookup maps for procedures to reference patient/fund temp_ids
         // SSN-based lookup is primary (stable, avoids name variation issues)
@@ -147,7 +147,7 @@ impl ExcelParserService {
             &patient_name_to_temp_id,
             &fund_identifier_to_temp_id,
         )?;
-        tracing::info!("Parsed {} procedures", procedures.len());
+        tracing::debug!("Parsed {} procedures", procedures.len());
 
         // Create tmp_ids for each unique procedure amount and assign to procedures
         let mut amount_to_procedure_type_tmp_id: HashMap<i64, String> = HashMap::new();
@@ -171,7 +171,7 @@ impl ExcelParserService {
             parsing_issues,
         };
 
-        tracing::info!(
+        tracing::debug!(
             patients = result.patients.len(),
             funds = result.funds.len(),
             procedures = result.procedures.len(),
@@ -275,7 +275,7 @@ impl ExcelParserService {
 
         let mut patients: Vec<ExcelPatient> = by_ssn.into_values().collect();
         patients.extend(by_name.into_values());
-        tracing::info!(
+        tracing::debug!(
             "Extracted {} unique patients from monthly sheets",
             patients.len()
         );
@@ -667,7 +667,7 @@ impl ExcelParserService {
                             continue;
                         }
 
-                        tracing::info!(
+                        tracing::trace!(
                             month = canonical_month,
                             row = row_number,
                             patient = %patient_name,
