@@ -22,10 +22,6 @@ Fix: trigger the file picker on mount, remove the `FileUploadSection` landing UI
 
 ---
 
-## (frontend) — Move toastService mock to test-setup.ts
-
-`toastService` is mocked inline in every test file that triggers a toast. Move the mock to `src/lib/test-setup.ts` so it applies globally — no per-file duplication.
-
 ## (frontend) — Add shared test data factories
 
 Tests construct domain objects inline (`{ id: "1", name: "...", ssn: "..." }`) in many places. Add factories with helpers like `makePatient()`, `makeProcedure()`, `makeFund()`, etc. with sensible defaults and optional overrides. Single place to update when the domain model changes.
@@ -93,10 +89,6 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 - Verify the displayed limit (10 MB — why?).
 
-## (frontend/fund-payment) — F7 violation: window.dispatchEvent in AddFundPaymentPanel
-
-`AddFundPaymentPanel.tsx:55` emits `window.dispatchEvent(new Event("fundpaymentgroup_updated"))` after a successful group creation. This violates F7 — components must not emit window events; those are emitted by the backend. The backend already publishes `FundPaymentGroupUpdated` which `useAppInit` listens to. Remove the manual dispatch.
-
 ## (backend) — Tech debt: Event emission reduction — Steps 3 & 4
 
 From the previous multi-session work (noted in memory):
@@ -131,10 +123,6 @@ The document printed after reconciliation is not properly centered — part of t
 ## (backend/frontend) — Structured errors: replace anyhow/String with typed error variants
 
 Tauri commands currently return `Result<T, String>` (via `anyhow` formatted with `{:#}`). Replace with a typed error enum per domain, serialized via Specta, so the frontend can pattern-match on error codes instead of parsing strings. Scope: define error enums in each bounded context, expose via Specta, update gateway.ts to switch on error type.
-
-## (frontend/excel-import) — Trigger import directly from the button
-
-The import button should open the file picker directly, without navigating to a dedicated page that contains a single button. Remove the intermediate page or integrate the file picker into the existing navigation.
 
 ## (backend/fund-payment-reconciliation) — Hardcoded French strings in CSV export
 
