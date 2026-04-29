@@ -70,8 +70,6 @@ From the previous multi-session work (noted in memory):
 
 When the user goes back to the previous step, advance directly to the next one (reconciliation flow).
 
-## (backend/excel-import) — Reduce excel-import logs
-
 ## (frontend/fund-payment) — Date range in list
 
 In the list, replace "date" with start date (oldest procedure) and end date (latest procedure)
