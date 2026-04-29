@@ -7,7 +7,7 @@ import type {
   FundLabelResolution,
   ResolvedCreditLine,
 } from "@/bindings";
-import { useSnackbar } from "@/core/snackbar";
+import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
 import { IconButton } from "@/ui/components/button/IconButton";
@@ -47,7 +47,6 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
   const [userSelections, setUserSelections] = useState<Map<string, string | null>>(new Map()); // lineId -> groupId
   const [isProcessing, setIsProcessing] = useState(false);
   const [createdCount, setCreatedCount] = useState(0);
-  const { showSnackbar } = useSnackbar();
 
   const proceedToMatching = useCallback(
     async (parsed: BankStatementParseResult, resolutions: FundLabelResolution[]) => {
@@ -235,7 +234,7 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
       }
 
       if (confirmedMatches.length === 0) {
-        showSnackbar("error", t("statement.modal.noTransfer"));
+        toastService.show("error", t("statement.modal.noTransfer"));
         setIsProcessing(false);
         return;
       }

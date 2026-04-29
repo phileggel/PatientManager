@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useSnackbar } from "@/core/snackbar";
+import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { Button, DateField, SelectField } from "@/ui/components";
 import { ProcedureSelectionModal } from "../select_procedure_modal/SelectProcedureModal";
@@ -28,7 +28,6 @@ export function AddFundPaymentPanel() {
   useEffect(() => {
     logger.info("[AddFundPaymentPanel] Component mounted");
   }, []);
-  const { showSnackbar } = useSnackbar();
 
   const {
     selectedFundId,
@@ -51,11 +50,11 @@ export function AddFundPaymentPanel() {
   const handleCreatePaymentWithFeedback = async () => {
     const result = await handleCreatePayment();
     if (result?.success) {
-      showSnackbar("success", t("add.success"));
+      toastService.show("success", t("add.success"));
       // Emit event for parent to refresh
       window.dispatchEvent(new Event("fundpaymentgroup_updated"));
     } else {
-      showSnackbar("error", result?.error || tc("error.unknown"));
+      toastService.show("error", result?.error || tc("error.unknown"));
     }
   };
 

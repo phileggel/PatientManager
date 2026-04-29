@@ -1,7 +1,6 @@
 import { Landmark } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useSnackbar } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components";
 import { BankAccountForm } from "../shared/BankAccountForm";
@@ -20,9 +19,7 @@ import { useAddBankAccountPanel } from "./useAddBankAccountPanel";
  */
 export function AddBankAccountPanel() {
   const { t } = useTranslation("bank");
-  const { showSnackbar } = useSnackbar();
-  const { formData, errors, loading, handleChange, handleSubmit } =
-    useAddBankAccountPanel(showSnackbar);
+  const { formData, errors, loading, handleChange, handleSubmit } = useAddBankAccountPanel();
 
   useEffect(() => {
     logger.info("[AddBankAccountPanel] Panel mounted");

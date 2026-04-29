@@ -1,19 +1,13 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount } from "@/bindings";
-import type { SnackbarType } from "@/core/snackbar";
+import { toastService } from "@/core/snackbar";
 import { updateBankAccount } from "@/features/bank-account/gateway";
 import { logger } from "@/lib/logger";
 import { BankAccountPresenter } from "../shared/presenter";
 import type { BankAccountFormData, FormErrors } from "../shared/types";
 
-type ShowSnackbar = (type: SnackbarType, message: string) => void;
-
-export function useEditBankAccountModal(
-  bankAccount: BankAccount | null,
-  showSnackbar: ShowSnackbar,
-  onClose: () => void,
-) {
+export function useEditBankAccountModal(bankAccount: BankAccount | null, onClose: () => void) {
   const { t } = useTranslation("bank");
   const [formData, setFormData] = useState<BankAccountFormData>(
     bankAccount ? BankAccountPresenter.toFormData(bankAccount) : { name: "", iban: "" },
@@ -77,16 +71,16 @@ export function useEditBankAccountModal(
 
       if (result.success) {
         logger.info("Bank account updated successfully");
-        showSnackbar("success", t("account.edit.success", { name: result.data?.name }));
+        toastService.show("success", t("account.edit.success", { name: result.data?.name }));
         onClose();
         // Backend event will trigger useAppInit to refresh data
       } else {
         logger.error("Failed to update bank account", { error: result.error });
-        showSnackbar("error", t("account.edit.error", { error: result.error }));
+        toastService.show("error", t("account.edit.error", { error: result.error }));
       }
     } catch (error) {
       logger.error("Exception occurred while updating bank account", { error });
-      showSnackbar("error", t("account.edit.errorUnknown"));
+      toastService.show("error", t("account.edit.errorUnknown"));
     } finally {
       setLoading(false);
     }
