@@ -1,7 +1,6 @@
 {
   "page": {
     "title": "Rapprochement de relevés de paiement",
-    "subtitle": "Téléchargez un fichier PDF de relevé de paiement pour le rapprocher avec les actes enregistrés dans la base de données.",
     "selectButton": "Sélectionner un fichier PDF",
     "formats": "Formats acceptés : PDF",
     "maxSize": "Taille maximale : 10 Mo",

@@ -38,7 +38,6 @@ export function ReconciliationPage() {
         <div className="text-center space-y-4">
           <FileText className="w-16 h-16 mx-auto text-primary-60" />
           <h2 className="text-2xl font-semibold text-slate-900">{t("page.title")}</h2>
-          <p className="text-slate-600 max-w-md">{t("page.subtitle")}</p>
         </div>
 
         <Button onClick={handleUploadClick} variant="primary" size="lg">
