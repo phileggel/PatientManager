@@ -4,10 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as gateway from "../gateway";
 import { AddBankAccountPanel } from "./AddBankAccountPanel";
 
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
-}));
-
 vi.mock("../gateway");
 
 describe("AddBankAccountPanel", () => {

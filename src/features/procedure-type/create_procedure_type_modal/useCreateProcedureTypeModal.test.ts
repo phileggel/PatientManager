@@ -6,10 +6,6 @@ vi.mock("../gateway", () => ({
   addProcedureType: vi.fn(),
 }));
 
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: vi.fn() },
-}));
-
 import { toastService } from "@/core/snackbar";
 import { addProcedureType } from "../gateway";
 

@@ -5,9 +5,6 @@ import { useAppStore } from "@/lib/appStore";
 import * as gateway from "../gateway";
 
 vi.mock("../gateway");
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
-}));
 
 import { useEditFundPaymentModal } from "./useEditFundPaymentModal";
 

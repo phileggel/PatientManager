@@ -6,10 +6,6 @@ import { AddFundPanel } from "./AddFundPanel";
 vi.mock("@/features/fund/gateway", () => ({
   addFund: vi.fn(),
 }));
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
-}));
-
 describe("AddFundPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -5,9 +5,6 @@ import * as gateway from "../gateway";
 import { AddPatientPanel } from "./AddPatientPanel";
 
 vi.mock("../gateway");
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
-}));
 
 describe("AddPatientPanel", () => {
   beforeEach(() => {

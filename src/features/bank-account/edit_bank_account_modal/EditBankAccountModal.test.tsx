@@ -5,10 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankAccount } from "@/bindings";
 import { EditBankAccountModal } from "./EditBankAccountModal";
 
-vi.mock("@/core/snackbar", () => ({
-  toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
-}));
-
 vi.mock("../gateway");
 
 vi.mock("../shared/BankAccountForm", () => ({
