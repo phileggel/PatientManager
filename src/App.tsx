@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Snackbar, useSnackbar } from "@/core/snackbar";
 import { BankAccountManager } from "@/features/bank-account";
@@ -48,9 +48,13 @@ function AppContent() {
     logger.info(TAG, "component mounted");
   }, []);
 
-  const handleNavigate = (page: Page) => {
+  const handleNavigate = useCallback((page: Page) => {
     setCurrentPage(page);
-  };
+  }, []);
+
+  const handleCloseToDashboard = useCallback(() => {
+    handleNavigate("dashboard");
+  }, [handleNavigate]);
 
   // Page-specific titles and subtitles
   const pageTitle = useMemo(() => {
@@ -123,10 +127,14 @@ function AppContent() {
           {currentPage === "procedure-types" && <ProcedureTypeManager />}
           {currentPage === "excel-import" && <ImportExcelPage />}
           {currentPage === "fund-payment" && <FundPaymentManager />}
-          {currentPage === "fund-payment-match" && <ReconciliationPage />}
+          {currentPage === "fund-payment-match" && (
+            <ReconciliationPage onClose={handleCloseToDashboard} />
+          )}
           {currentPage === "bank-transfer" && <BankTransferManager />}
           {currentPage === "bank-account" && <BankAccountManager />}
-          {currentPage === "bank-statement-match" && <BankStatementPage />}
+          {currentPage === "bank-statement-match" && (
+            <BankStatementPage onClose={handleCloseToDashboard} />
+          )}
           {import.meta.env.DEV && currentPage === "design-system" && <DesignSystemPage />}
 
           {/* Snackbars - display in center-bottom with slide-up animation */}
