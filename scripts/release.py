@@ -353,7 +353,13 @@ class ReleaseManager:
             )
 
             subprocess.run(
-                ["git", "commit", "-m", f"chore: release v{self.new_version}"],
+                [
+                    "git",
+                    "commit",
+                    "--no-verify",
+                    "-m",
+                    f"chore: release v{self.new_version}",
+                ],
                 cwd=self.repo_root,
                 check=True,
             )

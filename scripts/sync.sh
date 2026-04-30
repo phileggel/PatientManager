@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# sync.sh — Profile-aware sync logic for tauri-claude-kit.
+# sync.sh — Profile-aware sync logic for claude-kit.
 #
 # Executed from the cloned kit by the bootstrap (kit/sync-config.sh).
 # This script is ephemeral — it runs from $TMP and is cleaned up on exit.
@@ -64,6 +64,7 @@ echo -e "${BLUE}📁 Syncing .githooks...${NC}"
 mkdir -p "$PROJECT_ROOT/.githooks"
 cp "$TMP/kit/githooks/commit-msg" "$PROJECT_ROOT/.githooks/"
 cp "$TMP/kit/githooks/pre-commit" "$PROJECT_ROOT/.githooks/"
+cp "$TMP/kit/githooks/pre-merge-commit" "$PROJECT_ROOT/.githooks/"
 cp "$TMP/kit/githooks/pre-push" "$PROJECT_ROOT/.githooks/"
 cp "$TMP/kit/githooks/README.md" "$PROJECT_ROOT/.githooks/"
 
@@ -123,7 +124,7 @@ import sys, re
 pat = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_-]*)(?:[ \t]+[^:\n]*)?:(?!=)", re.MULTILINE)
 for path in sys.argv[1:]:
     try:
-        for m in pat.finditer(open(path).read()):
+        for m in pat.finditer(open(path, encoding="utf-8").read()):
             print(m.group(1))
     except (FileNotFoundError, IsADirectoryError):
         pass
@@ -158,7 +159,7 @@ for path in sys.argv[1:]:
 import sys, re
 
 src_file, skip_names = sys.argv[1], set(sys.argv[2:])
-with open(src_file) as f:
+with open(src_file, encoding='utf-8') as f:
     lines = f.readlines()
 
 RECIPE_RE = re.compile(r'^([a-zA-Z_][a-zA-Z0-9_-]*)(?:[ \t]+[^:\n]*)?:(?!=)')
@@ -220,7 +221,7 @@ else
 import re, sys
 path, prev, curr = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
-    text = open(path).read()
+    text = open(path, encoding='utf-8').read()
 except FileNotFoundError:
     sys.exit(0)
 header = re.compile(r'^## \[(v\d+\.\d+\.\d+)\].*$', re.MULTILINE)
@@ -255,7 +256,7 @@ fi
 cat >"$PROJECT_ROOT/.claude/kit-version.md" <<EOF
 # Kit version
 
-tauri-claude-kit **${VERSION}** — synced ${TODAY}
+claude-kit **${VERSION}** — synced ${TODAY}
 
 ${DELTA_BODY}
 EOF
@@ -264,9 +265,9 @@ EOF
 rm -f "$PROJECT_ROOT/.claude-kit-version"
 
 if [ -n "${PROFILE:-}" ]; then
-    echo -e "${GREEN}✅ Synced tauri-claude-kit@${VERSION} — generic agents + profile: ${PROFILE}${NC}"
+    echo -e "${GREEN}✅ Synced claude-kit@${VERSION} — generic agents + profile: ${PROFILE}${NC}"
 else
-    echo -e "${GREEN}✅ Synced tauri-claude-kit@${VERSION} — generic agents only${NC}"
+    echo -e "${GREEN}✅ Synced claude-kit@${VERSION} — generic agents only${NC}"
 fi
 echo -e "${YELLOW}→ Review changes before committing (git diff).${NC}"
 if [ -n "$PREV_VERSION" ] && [ "$PREV_VERSION" != "$VERSION" ]; then

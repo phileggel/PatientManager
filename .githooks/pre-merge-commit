@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-merge-commit hook
+# Blocks non-fast-forward merge commits to enforce a linear history.
+# Fast-forward merges and squash merges are unaffected (no merge commit created).
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${RED}❌ Merge commits are not allowed — linear history is enforced.${NC}"
+echo -e "${YELLOW}   Rebase your branch first:  git rebase main${NC}"
+echo -e "${YELLOW}   Then merge fast-forward:   git merge --ff-only feat/{name}${NC}"
+echo -e "${YELLOW}   To bypass (emergencies):   git merge --no-verify${NC}"
+exit 1

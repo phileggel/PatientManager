@@ -40,7 +40,7 @@ Read the following to ensure compliance (skip silently if a file is absent):
 
 ### Step 3 — Codebase Verification
 
-Read `ARCHITECTURE.md` to discover the backend and frontend module layout. Verify paths with `Glob` or `Grep` before referencing them in the plan. If `ARCHITECTURE.md` is absent, fall back to common conventions (`src-tauri/src/context/` for backend, `src/features/` for frontend) and note the assumption.
+Read `ARCHITECTURE.md` to discover the backend and frontend module layout. Verify paths with `Glob` or `Grep` before referencing them in the plan. If `ARCHITECTURE.md` is absent, search for common roots (`src/`, `server/src/`, `src-tauri/src/` for backend; `src/features/`, `client/src/` for frontend) and note the assumption.
 
 ### Step 4 — Mapping & Dependency Graph
 
@@ -69,8 +69,8 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🏗️ Backend Implementation (minimal — make failing tests pass, green confirmed)
 - [ ] 🧹 `just format` (rustfmt + clippy --fix)
 - [ ] 🔍 Backend Review (`reviewer-backend` → fix issues) — if .rs modified
-- [ ] 🔗 Type Synchronization (`just generate-types`) — if backend rules present
-- [ ] 🔧 Compilation fixup (TypeScript errors from new bindings only — no UI work) — if backend rules present
+- [ ] 🔗 Type Synchronization (`just generate-types`) — Tauri profile only, if backend rules present
+- [ ] 🔧 Compilation fixup (TypeScript errors from new bindings only — no UI work) — Tauri profile only, if backend rules present
 - [ ] ✅ `just check` — TypeScript clean
 - [ ] 💾 Commit: backend layer (suggested title from plan)
 - [ ] ✍️ Frontend test stubs (`test-writer-frontend` — all stubs written, red confirmed) — if frontend rules present
@@ -78,9 +78,8 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🧹 `just format`
 - [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues) — if .ts/.tsx modified
 - [ ] 💾 Commit: frontend layer (suggested title from plan)
-- [ ] 🔍 Cross-cutting Review (`reviewer` always + `reviewer-sql` if migrations + `maintainer` if project config files modified (see `ARCHITECTURE.md`))
+- [ ] 🔍 Cross-cutting Review (`reviewer-arch` always + `reviewer-sql` if migrations + `reviewer-infra` if any config, script, hook, or workflow file changed)
 - [ ] 🌐 i18n Review (`i18n-checker` if UI text changed)
-- [ ] 🔧 Script Review (`script-reviewer` if any script or hook was added/modified)
 - [ ] 📚 Documentation Update (`ARCHITECTURE.md` + `docs/todo.md` — entries in English)
 - [ ] ✅ Spec check (`spec-checker`)
 - [ ] 💾 Commit: tests & docs (suggested title from plan)
@@ -102,7 +101,7 @@ A granular breakdown by architectural layer:
 2. **Language**: All entries in `docs/todo.md` MUST be written in English.
 3. **Path Verification**: Every file path must be verified with `Glob` before being included—never invent paths.
 4. **Convention Adherence**: Use Rust `snake_case` and TypeScript `camelCase`.
-5. **Synchronization**: Always include `just generate-types` as a mandatory step between Backend and Frontend tasks.
+5. **Synchronization**: On Tauri projects, include `just generate-types` as a mandatory step between Backend and Frontend tasks. Skip on other profiles (no TypeScript bindings generated from Rust).
 6. **No Code Implementation**: Your output is a plan describing _what_ to do and _where_, not the actual code.
 7. **Task Tracking**: Ensure the main agent can progressively update the checkboxes in this file during the implementation phase.
 8. **Cross-Context**: If a use case spans multiple bounded contexts, use the cross-context module as defined in `ARCHITECTURE.md` — never cross-import between context modules directly.

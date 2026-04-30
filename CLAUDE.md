@@ -30,7 +30,17 @@ While coding:
 Run `/start` at session start to pick the right workflow for the task at hand.
 See `.claude/kit-readme.md` for the full workflow guide and `.claude/kit-tools.md` for the agent/skill reference.
 
+Key skills: `/smart-commit` (commit), `/create-pr` (push + open PR), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check).
+
 ---
+
+## 📖 Ubiquitous Language
+
+`docs/ubiquitous-language.md` is the authoritative dictionary of domain terms.
+
+- **All agents** (reviewer-arch, spec-writer, feature-planner, etc.) MUST read it before naming or reviewing any domain concept.
+- Confirmed terms MUST be used consistently in code, specs, comments, and logs — even when existing code still uses a discrepant name (those are tracked as `⚠️ Code discrepancy` in the UL doc and are known migration targets).
+- New code MUST use the UL name; do not extend usage of a discrepant term.
 
 ## 🏗 Architecture Summary
 Tauri 2 app (React 19 + Rust) using Domain-Driven Design.

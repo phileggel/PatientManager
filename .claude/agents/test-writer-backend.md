@@ -150,38 +150,90 @@ mod tests {
     }
 ```
 
-### Step 4 — Verify red
+### Step 4 — Write integration tests
 
-Run via Bash:
+Integration tests live in `src-tauri/tests/` and call the **service layer via the crate's public API** — they verify that layers are wired together correctly and that the public API is fully exported, which inline tests cannot catch.
+
+1. Read `src-tauri/Cargo.toml` to find the crate `name` field (needed for `use {crate_name}::…` imports).
+2. Search for existing integration test helpers via `Glob("src-tauri/tests/*.rs")` and grep for common setup patterns (`in_memory_`, `test_pool`, `test_state`). Reuse them — do not invent new helpers if equivalent ones exist.
+3. Locate `src-tauri/tests/{domain}_crud.rs` via Glob. If it exists, append to it. If absent, create it (and the `tests/` directory if needed).
+
+**Test pyramid constraint**: integration tests verify wiring and public API shape — not business logic. Keep them minimal: **1–2 tests per command maximum**. Exhaustive edge cases and business rules belong in the inline unit tests written in Step 3, not here.
+
+Write `src-tauri/tests/{domain}_crud.rs` covering:
+
+**a) Happy-path end-to-end** — one test per command, exercises Service → Repository → real in-memory SQLite through the public API. Call the command handler directly, not via Tauri invoke; do not call the repository directly.
+
+**b) Error propagation** — one test per command verifying a domain error surfaces correctly through the full stack (e.g. `NotFound` propagates as the right variant end-to-end). Pick the most representative error variant; do not enumerate all of them here.
+
+**c) Event publishing** — where the contract mandates an event, subscribe to the bus before calling the service and assert the event arrives after the call. One test per event type is sufficient.
+
+```rust
+// src-tauri/tests/{domain}_crud.rs
+use {crate_name}::{CommandInput, AppError};
+
+#[tokio::test]
+async fn test_create_{domain}_end_to_end() {
+    let state = test_helpers::in_memory_app_state().await;
+    let input = CommandInput { /* fields from contract */ };
+    let result = create_{domain}(state, input).await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_get_{domain}_not_found_propagates() {
+    let state = test_helpers::in_memory_app_state().await;
+    let result = get_{domain}(state, 999).await;
+    assert!(matches!(result, Err(AppError::NotFound)));
+}
+```
+
+**Rules:**
+
+- Import only from the crate's public API (`use {crate_name}::…`) — no `crate::` imports allowed
+- If a type is absent from the public API, add `pub` to the source; never use `pub(crate)` workarounds to paper over a missing export
+- Call the service or command handler, never the repository directly
+
+### Step 5 — Verify red
+
+Run inline tests:
 
 ```bash
 cd src-tauri && cargo test {domain} 2>&1 | tail -20
+```
+
+Run integration tests:
+
+```bash
+cd src-tauri && cargo test --test {domain}_crud 2>&1 | tail -20
 ```
 
 Expected outcomes:
 
 - **Real tests**: fail with assertion errors or "not yet implemented" panics from missing functions — both are valid red
 - **Stubs**: fail with `todo` panics
+- **Integration tests**: fail with the same — compilation errors from missing public exports must be fixed (add `pub`), not worked around
 
-If compilation fails, fix the compilation error (wrong import, missing use statement, undefined
-type) without implementing any logic. Do not proceed until compilation succeeds and tests fail.
+If compilation fails, fix the error (wrong import, missing use statement, missing `pub` export) without implementing any logic. Do not proceed until compilation succeeds and all tests fail.
 
-### Step 5 — Report
+### Step 6 — Report
 
 ```
 ## test-writer-backend — {domain}
 
-Tests written: N real tests, M stubs across K commands
+Unit tests written: N real tests, M stubs across K commands
+Integration tests written: N tests in src-tauri/tests/{domain}_crud.rs
 File: src-tauri/src/context/{domain}/api.rs
 
-| Command       | Behavior        | Test                               | Type  |
-|---------------|-----------------|------------------------------------|-------|
-| get_user      | happy path      | test_get_user_returns_user         | real  |
-| get_user      | NotFound        | test_get_user_not_found            | real  |
-| create_user   | happy path      | test_create_user_succeeds          | real  |
-| create_user   | ValidationError | test_create_user_validation_error  | real  |
+| Command       | Behavior        | Test                               | Type        |
+|---------------|-----------------|------------------------------------|-------------|
+| get_user      | happy path      | test_get_user_returns_user         | unit/real   |
+| get_user      | NotFound        | test_get_user_not_found            | unit/real   |
+| get_user      | end-to-end      | test_get_user_end_to_end           | integration |
+| get_user      | NotFound e2e    | test_get_user_not_found_propagates | integration |
 
 cargo test output: [last few lines confirming red]
+cargo test --test output: [last few lines confirming integration red]
 
 Next step: implement backend commands to make these tests pass (minimal — only what each test requires).
 ```
@@ -196,7 +248,10 @@ Next step: implement backend commands to make these tests pass (minimal — only
 4. Never write `todo!()` stubs without first asking the user to confirm
 5. Use actual types from the source file and contract — never invent types
 6. If a `#[cfg(test)]` module already exists, append inside it — never create a duplicate module
-7. Fix compilation errors only (missing imports, wrong module path) — never implement logic
-8. Must confirm non-zero cargo test exit before finishing — do not report done on a green run
+7. Fix compilation errors only (missing imports, wrong module path, missing `pub` exports) — never implement logic
+8. Must confirm non-zero `cargo test` and `cargo test --test` exits before finishing — do not report done on a green run
 9. Async commands use `#[tokio::test]`, sync commands use `#[test]`
 10. Check for existing test helpers via Grep before writing new mock utilities
+11. Integration tests import from the crate's public API only — a compile error means a missing `pub` export; fix the export, not the test
+12. Integration tests call the service or command handler, never the repository directly
+13. **Test pyramid**: max 1–2 integration tests per command; all edge cases and business rule variants belong in inline unit tests

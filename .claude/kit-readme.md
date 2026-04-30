@@ -1,6 +1,6 @@
 # Kit Reference Guide
 
-Onboarding guide for tauri-claude-kit. For the full inventory of agents, skills, scripts, hooks, and justfile recipes, see `.claude/kit-tools.md`.
+Onboarding guide for claude-kit. For the full inventory of agents, skills, scripts, hooks, and justfile recipes, see `.claude/kit-tools.md`.
 
 **Location**: `.claude/kit-readme.md` (read-only reference)
 
@@ -16,11 +16,11 @@ Declare your stack in `.claude/kit-profile` (plain text, one line):
 tauri
 ```
 
-| Profile | What you get                                                                              |
-| ------- | ----------------------------------------------------------------------------------------- |
-| `tauri` | Generic layer + 7 Tauri quality agents + `check.py` / `release.py` + `tauri.just` recipes |
-| `web`   | 🚧 planned — generic layer + Axum/React/PostgreSQL agents                                 |
-| (none)  | Generic layer only — process agents, skills, hooks. Manage quality agents locally.        |
+| Profile | Stack                        | What you get                                                                        |
+| ------- | ---------------------------- | ----------------------------------------------------------------------------------- |
+| `tauri` | Tauri 2 + React 19 + Rust    | Generic layer + 7 quality agents + `check.py` / `release.py` + `tauri.just` recipes |
+| `web`   | Axum + React 19 + PostgreSQL | Generic layer + 7 quality agents + `check.py` / `release.py` + `web.just` recipes   |
+| (none)  | any                          | Generic layer only — process agents, skills, hooks. Manage quality agents locally.  |
 
 **No profile is not an error.** Lua mods, Python CLIs, and any stack the kit doesn't cover yet use the generic layer and add their own local quality agents in `.claude/agents/`.
 
@@ -50,6 +50,12 @@ _Use for: New features, new business logic, significant UI changes, or complex r
 - **Hard gate** — must stop and wait for user: `/smart-commit` only
 - **Soft gate** — agent presents output, user may review; auto-proceeds if no 🔴 criticals
 
+**Before starting:** confirm you are on a feature branch, not `main` (the pre-commit hook blocks direct commits to `main`). Create one if needed:
+
+```bash
+git checkout -b feat/{feature-name}
+```
+
 **Phase 1: Pre-implementation (Spec & Contract & Plan)**
 
 1. Run **`/spec-writer`** skill → produces `docs/spec/{feature}.md`. [soft gate]
@@ -66,10 +72,8 @@ _Use for: New features, new business logic, significant UI changes, or complex r
 3. Implement backend — minimal: make failing tests pass, confirm green.
 4. Run `just format` (rustfmt + clippy --fix).
 5. Run **`reviewer-backend`** agent → fix issues.
-6. Run `just generate-types` → updates `src/bindings.ts`.
-7. Fix TypeScript compilation errors from new bindings only (no UI work).
-8. Run `just check` → TypeScript clean.
-9. **`/smart-commit`**: backend layer. [HARD GATE]
+6. _(Tauri only)_ Run `just generate-types` → updates `src/bindings.ts`. Fix TypeScript compilation errors from new bindings only (no UI work). Run `just check` → TypeScript clean.
+7. **`/smart-commit`**: backend layer. [HARD GATE]
 
 **Phase 3: Frontend layer**
 
@@ -79,15 +83,15 @@ _Use for: New features, new business logic, significant UI changes, or complex r
 4. Run **`reviewer-frontend`** agent → fix issues.
 5. **`/smart-commit`**: frontend layer. [HARD GATE]
 
-**Phase 4: Review & Closure** _(Tauri profile agents)_
+**Phase 4: Review & Closure**
 
-1. Run **`reviewer`** agent (always) + **`reviewer-sql`** (if migrations) + **`maintainer`** (if project config files changed).
+1. Run **`reviewer-arch`** agent (always) + **`reviewer-sql`** (if migrations) + **`reviewer-infra`** (if project config files changed).
 2. Run **`i18n-checker`** if UI text changed.
-3. Run **`script-reviewer`** if scripts or hooks were modified.
+3. Run **`reviewer-infra`** if scripts, hooks, workflow, or config files were modified.
 4. Update documentation (`ARCHITECTURE.md`, `docs/todo.md`).
 5. Run **`spec-checker`** agent → confirm all spec rules and contract commands are covered.
 6. **`/smart-commit`**: tests & docs. [HARD GATE]
-7. Run **`workflow-validator`** agent → final sign-off (verifies all plan checkboxes ticked).
+7. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff feat/{name}`).
 
 ---
 
@@ -95,12 +99,15 @@ _Use for: New features, new business logic, significant UI changes, or complex r
 
 _Use for: Bug fixes, dependency updates, minor maintenance (no new business rules or features)._
 
+**Before starting:** create a feature branch if on `main`: `git checkout -b fix/{description}` (or `chore/`, `test/`, etc.)
+
 1. **Analysis**: Read relevant documentation and analyze the codebase.
 2. **Direct Plan**: Propose a concise TODO plan with exact file paths in the chat. Ask user to validate.
 3. **Tracking**: Use `TaskCreate` / `TaskUpdate` tools to track workflow steps (`in_progress` when starting, `completed` when done).
 4. **Implementation**: Execute the code changes.
-5. **Review & Quality**: Run `python3 scripts/check.py` (or `just check-full`), write missing tests, and run relevant subagents (`reviewer`, `script-reviewer`, etc.) as in Phase 3 above.
+5. **Review & Quality**: Run `python3 scripts/check.py` (or `just check-full`), write missing tests, and run relevant subagents (`reviewer-arch`, `reviewer-infra`, etc.) as in Phase 3 above.
 6. **Closure**: Ask user if another task is needed before commit, otherwise use **`/smart-commit`** skill.
+7. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff fix/{name}`).
 
 ---
 
@@ -165,7 +172,7 @@ If you need to extend a kit agent's behaviour:
 
 - Check if the agent file exists: `ls -la .claude/agents/`
 - Re-sync the kit (with your profile): `./scripts/sync-config.sh`
-- Tauri-profile agents (reviewer, maintainer, test-writer-\*) require `.claude/kit-profile` to contain `tauri`
+- Tauri-profile agents (reviewer-arch, reviewer-infra, test-writer-\*) require `.claude/kit-profile` to contain `tauri`
 
 **Agent gives wrong output?**
 

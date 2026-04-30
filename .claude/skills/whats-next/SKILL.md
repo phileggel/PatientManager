@@ -35,15 +35,12 @@ Not needed when you already know what you're working on — use `/start` instead
 
 The saved compact summary IS the deliverable — compute its path before scanning anything:
 
-```bash
-mkdir -p tmp
-DATE=$(date +%Y-%m-%d)
-i=1
-while [ -f "tmp/whats-next-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
-echo "tmp/whats-next-${DATE}-$(printf '%02d' $i).md"
-```
+1. Run `mkdir -p tmp` (Bash — single simple command).
+2. Run `date +%Y-%m-%d` (Bash) to get DATE.
+3. Use `Glob("tmp/whats-next-*.md")` to list existing reports; from the results, find the highest `{DATE}-NN` index for today and increment it, or use `01` if none exist for today. Derive this in-context — no loop needed.
+4. Set `REPORT_PATH = tmp/whats-next-{DATE}-{NN}.md`.
 
-Remember the printed path as `REPORT_PATH`.
+Remember the derived path as `REPORT_PATH`.
 
 ### Step 2 — Survey the five sources
 
@@ -51,17 +48,23 @@ Run each scan independently. Skip sources whose files do not exist (no error).
 
 **a) Top-level TODOs** — `docs/TODO.md` (or `docs/todo.md`). Read the full file; extract every section heading and bullet as a candidate item.
 
-**b) Planning docs** — `docs/plan-*.md` at the docs/ root (kit-level / cross-cutting plans). For each, extract the title and any `## Open Questions` section.
+**b) Planning docs** — `docs/plan-*.md` at the docs/ root. Use `Glob("docs/plan-*.md")`; then `Read` each result to extract the title and any `## Open Questions` section.
 
-**c) Unfinished feature plans** — `docs/plan/*-plan.md`. For each, locate the `Workflow TaskList` (or equivalent checklist) and extract every `[ ]` item. A plan with all `[x]` is finished and not a candidate.
+**c) Unfinished feature plans** — `docs/plan/*-plan.md`. Use `Glob("docs/plan/*-plan.md")`; then `Read` each result to locate the `Workflow TaskList` (or equivalent checklist) and extract every `[ ]` item. A plan with all `[x]` is finished and not a candidate.
 
-**d) Open spec questions** — `docs/spec/*.md`. For each, locate the `## Open Questions` section and extract every `[ ]` item.
+**d) Open spec questions** — `docs/spec/*.md`. Use `Glob("docs/spec/*.md")`; then for each file use `Grep` for `[ ]` to find unchecked items under `## Open Questions`.
 
-**e) In-flight git work** — run:
+**e) In-flight git work** — run each as a separate Bash call:
 
 ```bash
 bash scripts/changed-files.sh
+```
+
+```bash
 git branch --no-merged main 2>/dev/null | grep -v '^\*' | head -10
+```
+
+```bash
 git log --oneline -10
 ```
 
@@ -179,7 +182,7 @@ Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section who
 
 ## Notes
 
-This skill complements `/start` (which selects a workflow when you already know the task) and `/spec-diff` (which diagnoses spec drift on a specific feature). The natural session flow when returning to a project after a gap:
+This skill complements `/start` (which selects a workflow when you already know the task). The natural session flow when returning to a project after a gap:
 
 1. `/whats-next` → pick the task
 2. `/start` → set up the workflow for that task

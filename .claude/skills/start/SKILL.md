@@ -51,6 +51,9 @@ Replace `{task}` with the user's description and `{type}` with the scope argumen
 **Type**: {type}
 **Workflow**: A — Full Feature Workflow
 
+### Pre-flight
+- [ ] 🌿 On a feature branch (not `main`)? If not: `git checkout -b feat/{feature-name}`
+
 ### Phase 1 — Spec & Contract & Plan
 - [ ] `/spec-writer` → `docs/spec/{domain}.md`
 - [ ] `spec-reviewer` → validate spec quality [soft gate — hard if 🔴]
@@ -63,7 +66,7 @@ Replace `{task}` with the user's description and `{type}` with the scope argumen
 - [ ] Implement backend (make tests green)
 - [ ] `just format`
 - [ ] `reviewer-backend` → fix issues
-- [ ] `just generate-types` → updates `src/bindings.ts`
+- [ ] `just generate-types` → updates `src/bindings.ts` _(Tauri only)_
 - [ ] `/smart-commit`: backend layer [HARD GATE]
 
 ### Phase 3 — Frontend
@@ -74,13 +77,12 @@ Replace `{task}` with the user's description and `{type}` with the scope argumen
 - [ ] `/smart-commit`: frontend layer [HARD GATE]
 
 ### Phase 4 — Review & Closure
-- [ ] `reviewer` (always) + `reviewer-sql` (if migrations) + `maintainer` (if config changed)
+- [ ] `reviewer-arch` (always) + `reviewer-sql` (if migrations) + `reviewer-infra` (if any config, script, hook, or workflow file changed)
 - [ ] `i18n-checker` (if UI text changed)
-- [ ] `script-reviewer` (if scripts or hooks modified)
 - [ ] Update `ARCHITECTURE.md` + `docs/todo.md`
 - [ ] `spec-checker` → all rules and contract commands covered
 - [ ] `/smart-commit`: tests & docs [HARD GATE]
-- [ ] `workflow-validator` → final sign-off
+- [ ] `/create-pr` → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff feat/{name}`)
 ```
 
 ---
@@ -95,11 +97,13 @@ Replace `{task}` with the user's description and `{type}` with the scope argumen
 **Workflow**: B — Simple Technical Workflow
 
 ### Steps
+- [ ] 🌿 On a feature branch (not `main`)? If not: `git checkout -b fix/{description}` (or `chore/`, `test/`, etc.)
 - [ ] Analyze: read relevant docs and code
 - [ ] Propose plan in chat → wait for user validation
 - [ ] Implement changes
 - [ ] `just check` (or `just check-full` if tests needed)
-- [ ] Run relevant reviewers (`reviewer`, `script-reviewer`, etc.) as needed
+- [ ] Run relevant reviewers (`reviewer-arch`, `reviewer-infra`, etc.) as needed
 - [ ] Ask user if another task is needed
 - [ ] `/smart-commit` [HARD GATE]
+- [ ] `/create-pr` → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff fix/{name}`)
 ```
