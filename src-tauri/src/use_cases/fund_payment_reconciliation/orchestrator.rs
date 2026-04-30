@@ -1347,7 +1347,7 @@ mod tests {
         let proc_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
-               billed_amount, payment_status, is_deleted) VALUES (?, ?, ?, '2026-01-15', ?, ?, 0)"#,
+               procedure_amount, payment_status, is_deleted) VALUES (?, ?, ?, '2026-01-15', ?, ?, 0)"#,
         )
         .bind(&proc_id)
         .bind(patient_id)
@@ -1373,8 +1373,8 @@ mod tests {
         let proc_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
-               billed_amount, payment_status, confirmed_payment_date,
-               paid_amount, is_deleted)
+               procedure_amount, payment_status, confirmed_payment_date,
+               actual_payment_amount, is_deleted)
                VALUES (?, ?, ?, '2026-01-15', ?, 'RECONCILIATED', ?, ?, 0)"#,
         )
         .bind(&proc_id)

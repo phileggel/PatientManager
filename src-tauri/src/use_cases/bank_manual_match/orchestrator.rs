@@ -778,7 +778,7 @@ mod tests {
         let proc_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
-               billed_amount, payment_status, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 0)"#,
+               procedure_amount, payment_status, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 0)"#,
         )
         .bind(&proc_id)
         .bind(patient_id)
