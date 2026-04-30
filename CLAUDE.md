@@ -27,10 +27,11 @@ While coding:
 
 ## 🔄 Workflows & Planning
 
-Run `/start` at session start to pick the right workflow for the task at hand.
+Run `/whats-next` first to triage pending work, then `/start` to pick the right workflow for the task at hand.
 See `.claude/kit-readme.md` for the full workflow guide and `.claude/kit-tools.md` for the agent/skill reference.
 
 Key skills: `/smart-commit` (commit), `/create-pr` (push + open PR), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check).
+Key recipes: `just merge` (fast-forward branch into main + delete).
 
 ---
 
