@@ -69,7 +69,13 @@ ls .githooks/ 2>/dev/null
 For justfile recipes, list recipe names from the local justfiles:
 
 ```bash
-just --list 2>/dev/null || grep -hE '^[a-zA-Z_][a-zA-Z0-9_-]*:' justfile common.just *.just 2>/dev/null
+just --list 2>/dev/null
+```
+
+If the above returns no output (i.e. `just` is not installed or no justfile is present), fall back:
+
+```bash
+grep -hE '^[a-zA-Z_][a-zA-Z0-9_-]*:' justfile common.just *.just 2>/dev/null
 ```
 
 Flag any catalog item not actually present on disk as `missing — kit-tools.md lists it but it isn't synced`. This is a sync problem, not a CLAUDE.md problem — surface it separately and continue.
@@ -152,4 +158,4 @@ Kit version: <…>
 
 The catalog in `kit-tools.md` is the kit's self-description; `kit-version.md` provides the temporal context (what changed since the project's previous sync). Read both before forming any judgment about CLAUDE.md drift — a section that looks stale may simply have been updated by the most recent kit version.
 
-This skill complements `/whats-next` (which surveys _project_ backlog) and `/spec-diff` (which surveys _spec_ drift). All three are revisit-time tools for catching what edit-time memory has forgotten.
+This skill complements `/whats-next` (which surveys _project_ backlog). Both are revisit-time tools for catching what edit-time memory has forgotten.

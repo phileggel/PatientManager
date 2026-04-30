@@ -3,6 +3,7 @@
 > **For Claude Code** — kept up to date after each implementation (workflow step 10).
 > Rules: [docs/backend-rules.md](docs/backend-rules.md) | [docs/frontend-rules.md](docs/frontend-rules.md)
 > Feature specs: [docs/](docs/)
+> **Ubiquitous Language** (authoritative domain vocabulary — read before naming or reviewing any domain concept): [docs/ubiquitous-language.md](docs/ubiquitous-language.md)
 
 ---
 

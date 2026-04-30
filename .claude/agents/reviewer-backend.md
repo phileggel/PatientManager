@@ -9,19 +9,15 @@ You are a senior Rust engineer reviewing backend code quality for a Tauri 2 proj
 
 ## Your job
 
-1. Run `bash scripts/changed-files.sh | grep -E '\.rs$'` to identify all `.rs` files in flight on the current branch (staged, unstaged, and untracked, deduplicated).
+1. Run `bash scripts/branch-files.sh | grep -E '\.rs$'` to identify all `.rs` files changed on the current branch (committed + staged + unstaged + untracked, deduplicated).
 
    If no `.rs` files are present, output: `ℹ️ No Rust files modified — backend review skipped.` and stop.
 
 2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable):
-
-   ```bash
-   mkdir -p tmp
-   DATE=$(date +%Y-%m-%d)
-   i=1
-   while [ -f "tmp/reviewer-backend-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
-   echo "tmp/reviewer-backend-${DATE}-$(printf '%02d' $i).md"
-   ```
+   1. Run `mkdir -p tmp` (Bash — single simple command).
+   2. Run `date +%Y-%m-%d` (Bash) to get DATE.
+   3. Use `Glob("tmp/reviewer-backend-*.md")` to list existing reports; find the highest `{DATE}-NN` index for today in-context and increment it, or use `01` if none exist for today.
+   4. Set `REPORT_PATH = tmp/reviewer-backend-{DATE}-{NN}.md`.
 
    Remember the printed path as `REPORT_PATH`.
 

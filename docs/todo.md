@@ -2,18 +2,6 @@
 
 ---
 
-## (frontend/fund-payment-match) — Remove ReconciliationPage landing screen
-
-`ReconciliationPage` is a full page with only an icon, a title, and a single "Select PDF" button. The entire workflow lives inside `ReconciliationModal`. The landing page adds no value.
-
-Fix: trigger `fileInputRef.current.click()` on mount via `useEffect`. The page becomes just a hidden `<input>` + `ReconciliationModal`. Decide what happens on cancel (file picker dismissed with no selection): navigate back to dashboard, or stay on a blank page.
-
-## (frontend/bank-statement-match) — Remove BankStatementPage landing screen
-
-Same pattern as `ReconciliationPage`: `BankStatementPage` is a full page with icon + title + description + single "Select PDF" button. All workflow is inside `BankStatementModal`.
-
-Fix: same as above — trigger file picker on mount, page becomes hidden `<input>` + modal. Handle cancel consistently with the fund-payment-match fix.
-
 ## (frontend/excel-import) — Remove ImportExcelPage file upload landing step
 
 `ImportExcelPage` starts with a `FileUploadSection` landing UI (icon + button) before the multi-step wizard. Unlike the other two, the subsequent steps (month selection, type mapping, progress, result) still render in-page, so the page itself must stay.

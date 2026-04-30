@@ -55,15 +55,22 @@ rustc --version
 Run the following — failures are expected if tools are not installed and must appear in the report under "Tool availability":
 
 ```bash
-npm outdated 2>/dev/null || true
-npm audit 2>/dev/null || true
+npm outdated 2>/dev/null
 ```
 
 ```bash
-# Run from the directory containing Cargo.toml (discovered in Step 1)
-cargo outdated 2>/dev/null || echo "(cargo-outdated not installed)"
-cargo audit 2>/dev/null || echo "(cargo-audit not installed)"
+npm audit 2>/dev/null
 ```
+
+```bash
+cargo outdated 2>/dev/null
+```
+
+```bash
+cargo audit 2>/dev/null
+```
+
+Non-zero exit is expected when tools are missing or issues are found — treat the output as informational and continue. If a command produces no output and exits non-zero, note the tool as unavailable in the report.
 
 If `cargo-outdated` or `cargo-audit` are missing, flag them in the report: `⚠️ {tool} not installed — install with: cargo install {tool}`
 

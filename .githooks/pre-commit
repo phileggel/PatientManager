@@ -13,6 +13,15 @@ YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
+# Block direct commits to main
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" = "main" ]; then
+    echo -e "${RED}❌ Direct commits to main are not allowed.${NC}"
+    echo -e "${YELLOW}   Create a feature branch: git checkout -b feat/your-feature${NC}"
+    echo -e "${YELLOW}   To bypass (emergencies only): git commit --no-verify${NC}"
+    exit 1
+fi
+
 echo -e "${YELLOW}🔍 Pre-commit checks running (Fast Mode)...${NC}"
 
 if [ ! -f "$CHECK_SCRIPT" ]; then

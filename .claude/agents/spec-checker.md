@@ -11,7 +11,7 @@ You are a spec compliance auditor for this full-stack project.
 
 Given a feature spec document (e.g. `docs/spec/asset-pricing.md`), verify that every business rule is implemented and tested.
 
-The user normally passes the spec path explicitly. If no document is specified, run `bash scripts/changed-files.sh` and infer the relevant spec from the modified files by matching domain names to files in `docs/spec/`.
+The user normally passes the spec path explicitly. If no document is specified, run `bash scripts/branch-files.sh` and infer the relevant spec from the modified files by matching domain names to files in `docs/spec/`.
 
 ---
 
@@ -21,13 +21,10 @@ The user normally passes the spec path explicitly. If no document is specified, 
 
 The saved compact summary IS the deliverable — compute its path before reading the spec:
 
-```bash
-mkdir -p tmp
-DATE=$(date +%Y-%m-%d)
-i=1
-while [ -f "tmp/spec-checker-${DATE}-$(printf '%02d' $i).md" ]; do i=$((i+1)); done
-echo "tmp/spec-checker-${DATE}-$(printf '%02d' $i).md"
-```
+1. Run `mkdir -p tmp` (Bash — single simple command).
+2. Run `date +%Y-%m-%d` (Bash) to get DATE.
+3. Use `Glob("tmp/spec-checker-*.md")` to list existing reports; find the highest `{DATE}-NN` index for today in-context and increment it, or use `01` if none exist for today.
+4. Set `REPORT_PATH = tmp/spec-checker-{DATE}-{NN}.md`.
 
 Remember the printed path as `REPORT_PATH`.
 
@@ -43,7 +40,7 @@ Remember the printed path as `REPORT_PATH`.
 
 ### Step 3 — Check backend implementation
 
-Read `ARCHITECTURE.md` to locate the backend module path (fall back to `src-tauri/src/` if absent). If the backend path does not exist, skip this step and note it in the summary.
+Read `ARCHITECTURE.md` to locate the backend module path. If absent, search for common backend roots (`src/`, `server/src/`, `src-tauri/src/`) and note the assumption. If no backend path is found, skip this step and note it in the summary.
 
 For each backend rule:
 
@@ -54,7 +51,7 @@ For each backend rule:
 
 ### Step 4 — Check frontend implementation
 
-Read `ARCHITECTURE.md` to locate the frontend module path (fall back to `src/features/` if absent). If the frontend path does not exist, skip this step and note it in the summary.
+Read `ARCHITECTURE.md` to locate the frontend module path. If absent, search for common frontend roots (`src/features/`, `client/src/`) and note the assumption. If no frontend path is found, skip this step and note it in the summary.
 
 For each frontend rule:
 
@@ -76,7 +73,7 @@ If `docs/contracts/{domain}-contract.md` exists for this feature's domain:
 
 For each command in the contract:
 
-- **Backend**: verify a `#[tauri::command]` with that name exists in `src-tauri/`
+- **Backend**: verify a handler function with that name exists in the backend module path (from `ARCHITECTURE.md`). On Tauri projects, look for `#[tauri::command]`; on Axum projects, look for the function registered in the router.
 - **Frontend**: verify a gateway call to that command exists in the frontend module's `{domain}/gateway.ts` (path from `ARCHITECTURE.md`)
 - **Tests**: verify at least one `#[tokio::test]` (backend) and one `it(` or `test(` (frontend)
   references or is named after that command
