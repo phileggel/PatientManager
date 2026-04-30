@@ -29,9 +29,7 @@
         "none": "No unsettled group found within ± {{days}} days."
       }
     },
-    "description": "Upload a bank statement PDF to reconcile received transfers with pending payment groups.",
-    "selectButton": "Select bank statement",
-    "acceptedFormats": "Accepted formats: PDF",
+    "uploadAriaLabel": "Upload bank statement PDF",
     "modal": {
       "loading": "Analysing bank statement...",
       "matching": "Reconciling...",

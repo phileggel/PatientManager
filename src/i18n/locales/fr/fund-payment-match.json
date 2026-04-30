@@ -1,9 +1,5 @@
 {
   "page": {
-    "title": "Rapprochement de relevés de paiement",
-    "selectButton": "Sélectionner un fichier PDF",
-    "formats": "Formats acceptés : PDF",
-    "maxSize": "Taille maximale : 10 Mo",
     "uploadAriaLabel": "Télécharger un fichier PDF"
   },
   "modal": {
