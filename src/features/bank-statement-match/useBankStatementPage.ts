@@ -1,5 +1,5 @@
 /**
- * Hook for ReconciliationPage.
+ * Hook for BankStatementPage.
  * Manages file selection, modal open/close state, the close→navigate flow,
  * and the auto-open / cancel-listener lifecycle tied to the file input.
  */
@@ -7,13 +7,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "@/lib/logger";
 
-const TAG = "[ReconciliationPage]";
+const TAG = "[BankStatementPage]";
 
-interface UseReconciliationPageOptions {
+interface UseBankStatementPageOptions {
   onClose: () => void;
 }
 
-export function useReconciliationPage({ onClose }: UseReconciliationPageOptions) {
+export function useBankStatementPage({ onClose }: UseBankStatementPageOptions) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,7 +40,7 @@ export function useReconciliationPage({ onClose }: UseReconciliationPageOptions)
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      logger.info(TAG, "PDF file selected", { name: file.name, size: file.size });
+      logger.info(TAG, "Bank statement PDF selected", { name: file.name, size: file.size });
       setSelectedFile(file);
       setIsModalOpen(true);
     }

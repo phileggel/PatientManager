@@ -1,9 +1,5 @@
 {
   "page": {
-    "title": "Payment Statement Reconciliation",
-    "selectButton": "Select PDF file",
-    "formats": "Accepted formats: PDF",
-    "maxSize": "Maximum size: 10 MB",
     "uploadAriaLabel": "Upload PDF file"
   },
   "modal": {

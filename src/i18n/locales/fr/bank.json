@@ -29,9 +29,7 @@
         "none": "Aucun groupe non réglé trouvé à ± {{days}} jours."
       }
     },
-    "description": "Téléchargez un relevé bancaire PDF pour rapprocher les virements reçus avec les groupes de paiement en attente.",
-    "selectButton": "Sélectionner un relevé bancaire",
-    "acceptedFormats": "Formats acceptés : PDF",
+    "uploadAriaLabel": "Télécharger un relevé bancaire PDF",
     "modal": {
       "loading": "Analyse du relevé bancaire...",
       "matching": "Rapprochement en cours...",
