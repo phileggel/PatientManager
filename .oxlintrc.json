@@ -4,7 +4,11 @@
     "es2021": true,
     "node": true
   },
-  "extends": ["oxc/recommended"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
   "rules": {
     "no-console": "warn",
     "no-unused-vars": "warn"

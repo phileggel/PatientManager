@@ -133,11 +133,8 @@ export function PdfDataTable({ data }: PdfDataTableProps) {
         </div>
       )}
 
-      {data.groups.map((group, groupIndex) => (
-        <ProcedureGroupCard
-          key={`${group.fund_label}-${group.payment_date}-${groupIndex}`}
-          group={group}
-        />
+      {data.groups.map((group) => (
+        <ProcedureGroupCard key={`${group.fund_label}-${group.payment_date}`} group={group} />
       ))}
     </div>
   );
