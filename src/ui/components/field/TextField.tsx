@@ -32,7 +32,11 @@ export function TextField({ id, label, error, className = "", ...props }: TextFi
         className={`m3-input w-full ${error ? "border-m3-error" : ""} ${className}`}
         {...props}
       />
-      {error && <p className="text-xs text-m3-error mt-1 ml-1">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-m3-error mt-1 ml-1">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

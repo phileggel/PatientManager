@@ -184,7 +184,11 @@ export function DateField({
             document.body,
           )}
       </div>
-      {error && <p className="text-xs text-m3-error mt-1 ml-1">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-m3-error mt-1 ml-1">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
