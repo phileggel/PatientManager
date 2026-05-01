@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ImportExecutionResult, ParseExcelResponse } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
@@ -6,11 +7,14 @@ import { logger } from "@/lib/logger";
 import { FormModal } from "@/ui/components";
 import { Button } from "@/ui/components/button";
 import { executeExcelImport, parseExcelFile } from "../api/gateway";
-import { FileUploadSection } from "./components/FileUploadSection";
 import { MonthSelectionStep } from "./components/MonthSelectionStep";
 import { ParsingReportModal } from "./components/ParsingReportModal";
 import { ProcedureTypeMappingStep } from "./components/ProcedureTypeMappingStep";
 import { ProgressIndicator } from "./components/ProgressIndicator";
+
+interface ImportExcelPageProps {
+  onClose?: () => void;
+}
 
 type Step =
   | "upload"
@@ -20,7 +24,10 @@ type Step =
   | "importing"
   | "complete";
 
-export function ImportExcelPage() {
+// Stable no-op used as default for onClose to avoid recreating handleOpenFilePicker on every render
+const noop = () => {};
+
+export function ImportExcelPage({ onClose = noop }: ImportExcelPageProps) {
   const { t } = useTranslation("excel-import");
 
   const procedureTypes = useAppStore((state) => state.procedureTypes);
@@ -30,6 +37,8 @@ export function ImportExcelPage() {
   const [loadingStatus, setLoadingStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [showParsingReport, setShowParsingReport] = useState(false);
+  // TODO: isCancelledRef is set but never read — async-after-unmount guard is incomplete.
+  // Either implement fully (set true on unmount, check before each setState) or remove.
   const isCancelledRef = useRef(false);
 
   // Parsed data from Excel (held in state so the mapping step can use it)
@@ -46,116 +55,158 @@ export function ImportExcelPage() {
     null,
   );
 
-  useEffect(() => {
-    logger.info("[ImportExcelPage] Component mounted");
-  }, []);
+  const handleFileSelect = useCallback(
+    async (fileData: { name: string; path: string }) => {
+      setError(null);
+      setCurrentFileData(fileData);
+      setCurrentStep("parsing");
+      setIsLoading(true);
+      isCancelledRef.current = false;
+      setLoadingStatus(t("status.parsing"));
 
-  const handleMonthSelectionConfirm = (months: string[]) => {
-    setSelectedMonths(months);
-    setCurrentStep("mapping_procedure_types");
-  };
+      try {
+        logger.info("[ImportExcelPage] Starting import workflow", {
+          fileName: fileData.name,
+          filePath: fileData.path,
+        });
 
-  const handleMappingComplete = async (mapping: Record<string, string>) => {
-    if (!parsed) return;
+        const parseResult = await parseExcelFile(fileData.path);
+        if (!parseResult.success || !parseResult.data) {
+          throw new Error(parseResult.error || t("error.failedParseExcel"));
+        }
 
-    setIsLoading(true);
-    setCurrentStep("importing");
-    setLoadingStatus(t("status.parsing")); // reuse "processing" label
+        setParsed(parseResult.data);
+        logger.info("[ImportExcelPage] Excel parsed successfully", {
+          patients: parseResult.data.patients.length,
+          funds: parseResult.data.funds.length,
+          procedures: parseResult.data.procedures.length,
+        });
 
-    logger.info("Procedure mapping completed, executing import", {
-      mappedTypes: Object.keys(mapping).length,
-      selectedMonths,
-    });
+        // If no procedures, skip month selection and mapping steps
+        if (parseResult.data.procedures.length === 0) {
+          logger.info(
+            "[ImportExcelPage] No procedures to import, skipping month selection and mapping steps",
+          );
+          setIsLoading(false);
+          setLoadingStatus("");
 
-    try {
-      const result = await executeExcelImport(parsed, mapping, selectedMonths);
+          setCurrentStep("importing");
+          setIsLoading(true);
 
-      if (!result.success || !result.data) {
-        throw new Error(result.error || t("error.failedCreateProcedures"));
-      }
+          const result = await executeExcelImport(parseResult.data, {}, []);
+          if (!result.success || !result.data) {
+            throw new Error(result.error || t("error.failedCreateProcedures"));
+          }
+          setImportResult(result.data);
+          setCurrentStep("complete");
+          return;
+        }
 
-      setImportResult(result.data);
-      setCurrentStep("complete");
-      logger.info("Import workflow completed successfully", result.data);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-      logger.error("Import execution failed", { error: errorMessage });
-      setCurrentStep("mapping_procedure_types");
-    } finally {
-      setIsLoading(false);
-      setLoadingStatus("");
-    }
-  };
-
-  const handleFileSelect = async (fileData: { name: string; path: string }) => {
-    setError(null);
-    setCurrentFileData(fileData);
-    setCurrentStep("parsing");
-    setIsLoading(true);
-    isCancelledRef.current = false;
-    setLoadingStatus(t("status.parsing"));
-
-    try {
-      logger.info("Starting import workflow", { fileName: fileData.name, filePath: fileData.path });
-
-      const parseResult = await parseExcelFile(fileData.path);
-      if (!parseResult.success || !parseResult.data) {
-        throw new Error(parseResult.error || t("error.failedParseExcel"));
-      }
-
-      setParsed(parseResult.data);
-      logger.info("Excel parsed successfully", {
-        patients: parseResult.data.patients.length,
-        funds: parseResult.data.funds.length,
-        procedures: parseResult.data.procedures.length,
-      });
-
-      // If no procedures, skip month selection and mapping steps
-      if (parseResult.data.procedures.length === 0) {
-        logger.info("No procedures to import, skipping month selection and mapping steps");
+        // Show month selection UI
+        setCurrentStep("month_selection");
+        setIsLoading(false);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        logger.error("[ImportExcelPage] Import workflow failed", { error: errorMessage });
+        setCurrentStep("upload");
+      } finally {
         setIsLoading(false);
         setLoadingStatus("");
+      }
+    },
+    [t],
+  );
 
-        setCurrentStep("importing");
-        setIsLoading(true);
+  const handleOpenFilePicker = useCallback(async () => {
+    logger.info("[ImportExcelPage] Opening file picker");
+    try {
+      const filePath = await open({
+        multiple: false,
+        filters: [{ name: "Excel Files", extensions: ["xlsx", "xls", "csv"] }],
+      });
 
-        const result = await executeExcelImport(parseResult.data, {}, []);
-        if (!result.success || !result.data) {
-          throw new Error(result.error || t("error.failedCreateProcedures"));
-        }
-        setImportResult(result.data);
-        setCurrentStep("complete");
+      if (!filePath) {
+        logger.info("[ImportExcelPage] File picker cancelled; navigating back");
+        onClose();
         return;
       }
 
-      // Show month selection UI
-      setCurrentStep("month_selection");
-      setIsLoading(false);
+      const path = Array.isArray(filePath) ? filePath[0] : filePath;
+      const name = path.split(/[\\/]/).pop() || path;
+      logger.info("[ImportExcelPage] File selected via dialog", { path });
+      void handleFileSelect({ name, path });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-      logger.error("Import workflow failed", { error: errorMessage });
-      setCurrentStep("upload");
-    } finally {
-      setIsLoading(false);
-      setLoadingStatus("");
+      logger.error("[ImportExcelPage] File picker error", { error: err });
     }
-  };
+  }, [onClose, handleFileSelect]);
 
-  const handleRetry = () => {
+  useEffect(() => {
+    logger.info("[ImportExcelPage] Component mounted; opening file picker");
+    void handleOpenFilePicker();
+  }, [handleOpenFilePicker]);
+
+  const handleMonthSelectionConfirm = useCallback((months: string[]) => {
+    setSelectedMonths(months);
+    setCurrentStep("mapping_procedure_types");
+  }, []);
+
+  const handleMappingComplete = useCallback(
+    async (mapping: Record<string, string>) => {
+      if (!parsed) return;
+
+      setIsLoading(true);
+      setCurrentStep("importing");
+      setLoadingStatus(t("status.parsing")); // reuse "processing" label
+
+      logger.info("[ImportExcelPage] Procedure mapping completed, executing import", {
+        mappedTypes: Object.keys(mapping).length,
+        selectedMonths,
+      });
+
+      try {
+        const result = await executeExcelImport(parsed, mapping, selectedMonths);
+
+        if (!result.success || !result.data) {
+          throw new Error(result.error || t("error.failedCreateProcedures"));
+        }
+
+        setImportResult(result.data);
+        setCurrentStep("complete");
+        logger.info("[ImportExcelPage] Import workflow completed successfully", result.data);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        logger.error("[ImportExcelPage] Import execution failed", { error: errorMessage });
+        setCurrentStep("mapping_procedure_types");
+      } finally {
+        setIsLoading(false);
+        setLoadingStatus("");
+      }
+    },
+    [parsed, t, selectedMonths],
+  );
+
+  const handleRetry = useCallback(() => {
     if (currentFileData) {
-      handleFileSelect(currentFileData);
+      void handleFileSelect(currentFileData);
     }
-  };
+  }, [currentFileData, handleFileSelect]);
 
-  const handleReset = () => {
-    setCurrentStep("upload");
+  const handleReset = useCallback(() => {
     setParsed(null);
     setSelectedMonths([]);
     setImportResult(null);
     setError(null);
-  };
+    // Closing the mapping modal or "Import Another" resets state and re-opens the file picker
+    void handleOpenFilePicker();
+  }, [handleOpenFilePicker]);
+
+  const handleMappingModalClose = useCallback(() => {
+    if (!isLoading) {
+      handleReset();
+    }
+  }, [isLoading, handleReset]);
 
   return (
     <div className="flex flex-col h-full">
@@ -199,10 +250,6 @@ export function ImportExcelPage() {
           </div>
         )}
 
-        {currentStep === "upload" && (
-          <FileUploadSection onFileSelect={handleFileSelect} isLoading={isLoading} />
-        )}
-
         {parsed && (
           <ParsingReportModal
             isOpen={showParsingReport}
@@ -225,11 +272,7 @@ export function ImportExcelPage() {
         <FormModal
           isOpen={currentStep === "mapping_procedure_types" && parsed !== null}
           title={t("mapping.modalTitle")}
-          onClose={() => {
-            if (!isLoading) {
-              handleReset();
-            }
-          }}
+          onClose={handleMappingModalClose}
           maxWidth="max-w-3xl"
           maxHeight="max-h-[80vh]"
         >
@@ -319,15 +362,11 @@ export function ImportExcelPage() {
           </div>
         )}
 
-        {currentStep !== "upload" &&
-          currentStep !== "complete" &&
-          currentStep !== "month_selection" &&
-          currentStep !== "mapping_procedure_types" &&
-          isLoading && (
-            <div className="rounded-xl bg-m3-primary/10 p-4 text-center">
-              <p className="text-m3-primary">{loadingStatus || t("status.parsing")}</p>
-            </div>
-          )}
+        {(currentStep === "parsing" || currentStep === "importing") && isLoading && (
+          <div className="rounded-xl bg-m3-primary/10 p-4 text-center">
+            <p className="text-m3-primary">{loadingStatus || t("status.parsing")}</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -125,7 +125,7 @@ function AppContent() {
           {currentPage === "funds" && <FundsManager />}
           {currentPage === "procedures" && <ProcedurePage />}
           {currentPage === "procedure-types" && <ProcedureTypeManager />}
-          {currentPage === "excel-import" && <ImportExcelPage />}
+          {currentPage === "excel-import" && <ImportExcelPage onClose={handleCloseToDashboard} />}
           {currentPage === "fund-payment" && <FundPaymentManager />}
           {currentPage === "fund-payment-match" && (
             <ReconciliationPage onClose={handleCloseToDashboard} />

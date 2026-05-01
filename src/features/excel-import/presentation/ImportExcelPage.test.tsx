@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as excelImportService from "../api/gateway";
@@ -6,6 +6,10 @@ import { ImportExcelPage } from "./ImportExcelPage";
 
 // Mock the service module
 vi.mock("../api/gateway");
+
+// Mock Tauri dialog — must be hoisted so vi.mock factory can reference it
+const mockOpen = vi.hoisted(() => vi.fn());
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mockOpen }));
 
 // Mock procedure types from store
 interface MockAppState {
@@ -31,7 +35,6 @@ const parsedDataWithProcedures = {
       temp_id: "temp_pat_1",
       name: "Marie Dupont",
       ssn: "1234567890123",
-
       latest_fund: null,
     },
   ],
@@ -76,10 +79,15 @@ const importExecutionResult = {
   funds_reused: 0,
   procedures_created: 1,
   procedures_skipped: 0,
+  procedures_deleted: 0,
+  blocked_months: [],
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+
+  // Default: picker returns null (cancelled) to avoid triggering parse in most tests
+  mockOpen.mockResolvedValue(null);
 
   mockParseExcelFile.mockResolvedValue({
     success: true,
@@ -97,84 +105,28 @@ beforeEach(() => {
 });
 
 describe("ImportExcelPage", () => {
-  it("renders upload section on initial load", () => {
+  it("opens the file picker on mount", async () => {
     render(<ImportExcelPage />);
-    expect(screen.getByText("Step 1: Select File")).toBeInTheDocument();
-    expect(screen.getByText("Drag and drop your Excel file here")).toBeInTheDocument();
-  });
-
-  it("shows initial upload UI with select file button", () => {
-    render(<ImportExcelPage />);
-    const selectButtons = screen.getAllByRole("button", { name: /Select File/i });
-    expect(selectButtons.length).toBeGreaterThan(0);
-    expect(selectButtons[0]).not.toBeDisabled();
-  });
-
-  it("provides accessible navigation with keyboard", async () => {
-    const user = userEvent.setup();
-    render(<ImportExcelPage />);
-
-    const selectButtons = screen.getAllByRole("button", { name: /Select File/i });
-    expect(selectButtons.length).toBeGreaterThan(0);
-
-    await user.tab();
-    const selectButton = selectButtons[0];
-    expect(selectButton).toHaveFocus();
-  });
-
-  it("handles parse error gracefully", async () => {
-    mockParseExcelFile.mockResolvedValue({
-      success: false,
-      error: "Failed to parse Excel file: Invalid format",
+    await waitFor(() => expect(mockOpen).toHaveBeenCalledOnce());
+    expect(mockOpen).toHaveBeenCalledWith({
+      multiple: false,
+      filters: [{ name: "Excel Files", extensions: ["xlsx", "xls", "csv"] }],
     });
-
-    render(<ImportExcelPage />);
-    // Error during parsing will show an error alert and return to upload step
-    expect(screen.getByText("Step 1: Select File")).toBeInTheDocument();
   });
 
-  it("shows mapping step after successful parse with procedures", async () => {
-    mockParseExcelFile.mockResolvedValue({
-      success: true,
-      data: parsedDataWithProcedures,
-    });
-
-    render(<ImportExcelPage />);
-    expect(screen.getByText("Step 1: Select File")).toBeInTheDocument();
+  it("calls onClose when the file picker is cancelled", async () => {
+    mockOpen.mockResolvedValue(null);
+    const onClose = vi.fn();
+    render(<ImportExcelPage onClose={onClose} />);
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
 
-  it("skips mapping step when no procedures in parsed data", async () => {
-    mockParseExcelFile.mockResolvedValue({
-      success: true,
-      data: parsedDataNoProcedures,
-    });
-
-    render(<ImportExcelPage />);
-    expect(screen.getByText("Step 1: Select File")).toBeInTheDocument();
-  });
-
-  it("calls executeExcelImport when mapping is confirmed", async () => {
-    // This test verifies the new simplified architecture:
-    // parse → mapping → executeExcelImport → complete
-    mockExecuteExcelImport.mockResolvedValue({
-      success: true,
-      data: importExecutionResult,
-    });
-
-    render(<ImportExcelPage />);
-    expect(screen.getByText("Step 1: Select File")).toBeInTheDocument();
-    // File selection is via Tauri dialog so we can't fully simulate it in tests,
-    // but we verify the component renders correctly at each stage.
-  });
-
-  it("handles executeExcelImport error gracefully", async () => {
-    mockExecuteExcelImport.mockResolvedValue({
-      success: false,
-      error: "Import failed: Database error",
-    });
-
-    render(<ImportExcelPage />);
-    expect(screen.getByText("Step 1: Select File")).toBeInTheDocument();
+  it("omitting onClose does not throw when picker is cancelled", async () => {
+    mockOpen.mockResolvedValue(null);
+    expect(() => render(<ImportExcelPage />)).not.toThrow();
+    await waitFor(() => expect(mockOpen).toHaveBeenCalled());
+    // Component still renders without error
+    expect(document.body).toBeInTheDocument();
   });
 
   it("does not show import result on initial render", () => {
@@ -182,42 +134,67 @@ describe("ImportExcelPage", () => {
     expect(screen.queryByText("Import completed successfully!")).not.toBeInTheDocument();
   });
 
-  it("shows import result with correct counts when complete", async () => {
-    // Simulate the complete step by checking what would be shown
+  it("parses the selected file after picker returns a path", async () => {
+    mockOpen.mockResolvedValue("/tmp/data.xlsx");
     render(<ImportExcelPage />);
-    // Initially not in complete state
-    expect(screen.queryByText("Import completed successfully!")).not.toBeInTheDocument();
-    expect(screen.queryByText("Patients processed")).not.toBeInTheDocument();
-    expect(screen.queryByText("Procedures created")).not.toBeInTheDocument();
+    await waitFor(() => expect(mockParseExcelFile).toHaveBeenCalledWith("/tmp/data.xlsx"));
   });
 
-  it("reset allows importing another file", async () => {
+  it("handles parse error gracefully — shows alert, does not reopen picker", async () => {
+    mockOpen.mockResolvedValue("/tmp/bad.xlsx");
+    mockParseExcelFile.mockResolvedValue({
+      success: false,
+      error: "Failed to parse Excel file: Invalid format",
+    });
+
     render(<ImportExcelPage />);
-    expect(screen.getByText("Step 1: Select File")).toBeInTheDocument();
-    // handleReset returns to upload step
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    // Picker was opened exactly once on mount; error state does not auto-reopen it
+    expect(mockOpen).toHaveBeenCalledOnce();
+  });
+
+  it("skips to complete when parsed data has no procedures", async () => {
+    mockOpen.mockResolvedValue("/tmp/empty.xlsx");
+    mockParseExcelFile.mockResolvedValue({ success: true, data: parsedDataNoProcedures });
+
+    render(<ImportExcelPage />);
+    await waitFor(() => expect(mockExecuteExcelImport).toHaveBeenCalledOnce());
+    expect(mockExecuteExcelImport).toHaveBeenCalledWith(parsedDataNoProcedures, {}, []);
+  });
+
+  it("does not call executeExcelImport before mapping is confirmed", async () => {
+    mockOpen.mockResolvedValue(null);
+    render(<ImportExcelPage />);
+    await waitFor(() => expect(mockOpen).toHaveBeenCalled());
+    expect(mockExecuteExcelImport).not.toHaveBeenCalled();
   });
 
   it("does not show error alert initially", () => {
     render(<ImportExcelPage />);
-    expect(screen.queryByText("L'import a échoué")).not.toBeInTheDocument();
-    expect(screen.queryByText("Import failed")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("parseExcelFile is called with file path on file select", async () => {
+  it("does not show import result counts on initial render", () => {
     render(<ImportExcelPage />);
-    // File select triggers parseExcelFile — the component is ready to call it
-    expect(mockParseExcelFile).not.toHaveBeenCalled();
+    expect(screen.queryByText("Patients processed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Procedures created")).not.toBeInTheDocument();
   });
 
-  it("executeExcelImport is not called before mapping is confirmed", async () => {
-    render(<ImportExcelPage />);
-    expect(mockExecuteExcelImport).not.toHaveBeenCalled();
-  });
+  it("re-opens the file picker when Import Another is clicked after a successful import", async () => {
+    const user = userEvent.setup();
+    mockOpen.mockResolvedValue("/tmp/empty.xlsx");
+    mockParseExcelFile.mockResolvedValue({ success: true, data: parsedDataNoProcedures });
 
-  it("progress indicator is rendered", () => {
     render(<ImportExcelPage />);
-    // Progress indicator renders steps: upload, parsing, map types, importing, complete
-    const progressContainer = document.querySelector(".mb-8");
-    expect(progressContainer).toBeInTheDocument();
+
+    // Wait for the import to complete and the result screen to appear
+    await waitFor(() => expect(mockExecuteExcelImport).toHaveBeenCalledOnce());
+
+    // Picker is called a second time when "Import Another" is clicked
+    mockOpen.mockResolvedValue(null);
+    const importAnotherButton = await screen.findByRole("button", { name: /import another/i });
+    await user.click(importAnotherButton);
+
+    await waitFor(() => expect(mockOpen).toHaveBeenCalledTimes(2));
   });
 });
