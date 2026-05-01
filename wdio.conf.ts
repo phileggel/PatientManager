@@ -11,6 +11,7 @@
 //   npm run test:e2e          # local (headed window)
 //   npm run test:e2e:ci       # Linux CI (xvfb virtual display)
 import os from "os";
+import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "child_process";
 import { fileURLToPath } from "url";
@@ -24,6 +25,12 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 // Only the Tauri CLI build embeds the frontend dist into the binary.
 const BINARY_NAME = "patient_manager_app";
 const BINARY_PATH = resolve(`./src-tauri/target/debug/${BINARY_NAME}`);
+
+// Ephemeral database used exclusively by the E2E test suite.
+// The binary reads PATIENT_MANAGER_E2E_DB and, when set, uses that path instead
+// of the normal app-data-dir location. This keeps test data fully isolated from
+// the developer's real application data and guarantees a clean state each run.
+const E2E_DB_PATH = resolve(os.tmpdir(), "patient_manager_e2e.db");
 
 let tauriDriver: ChildProcess;
 let exit = false;
@@ -67,6 +74,14 @@ export const config: Options.Testrunner = {
   // beforeSession (not onPrepare) is correct: tauri-driver is a per-session
   // intermediary and must be alive when the worker creates the session.
   beforeSession: () => {
+    // Delete any leftover ephemeral DB from a previous interrupted run.
+    if (existsSync(E2E_DB_PATH)) {
+      rmSync(E2E_DB_PATH);
+    }
+    // Expose the ephemeral DB path to the binary via env var. tauri-driver
+    // inherits this process environment and passes it to the launched binary.
+    process.env.PATIENT_MANAGER_E2E_DB = E2E_DB_PATH;
+
     // tauri-driver is expected at ~/.cargo/bin/tauri-driver (installed via `cargo install tauri-driver`).
     // In CI, ensure Rust toolchain installs to the default cargo home or adjust this path.
     tauriDriver = spawn(
@@ -86,10 +101,13 @@ export const config: Options.Testrunner = {
     });
   },
 
-  // Kill tauri-driver cleanly after the session ends.
+  // Kill tauri-driver cleanly after the session ends and remove the ephemeral DB.
   afterSession: () => {
     exit = true;
     tauriDriver?.kill();
+    if (existsSync(E2E_DB_PATH)) {
+      rmSync(E2E_DB_PATH);
+    }
   },
 };
 
@@ -111,4 +129,7 @@ function onShutdown(fn: () => void) {
 onShutdown(() => {
   exit = true;
   tauriDriver?.kill();
+  if (existsSync(E2E_DB_PATH)) {
+    rmSync(E2E_DB_PATH);
+  }
 });
