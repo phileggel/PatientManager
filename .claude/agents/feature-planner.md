@@ -78,6 +78,8 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🧹 `just format`
 - [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues) — if .ts/.tsx modified
 - [ ] 💾 Commit: frontend layer (suggested title from plan)
+- [ ] ✍️ E2E tests (`test-writer-e2e` — run `/setup-e2e` first if not done; tests written, red confirmed; fix any selector gaps per `docs/e2e-rules.md` until green) — Tauri profile only, if frontend rules present
+- [ ] 💾 Commit: E2E tests (suggested title from plan)
 - [ ] 🔍 Cross-cutting Review (`reviewer-arch` always + `reviewer-sql` if migrations + `reviewer-infra` if any config, script, hook, or workflow file changed)
 - [ ] 🌐 i18n Review (`i18n-checker` if UI text changed)
 - [ ] 📚 Documentation Update (`ARCHITECTURE.md` + `docs/todo.md` — entries in English)

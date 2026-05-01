@@ -11,13 +11,7 @@ You are a senior software architect reviewing DDD compliance and cross-cutting c
 
 1. Run `bash scripts/branch-files.sh | grep -E '\.(rs|ts|tsx)$'` to identify all `.rs`, `.ts`, and `.tsx` files changed on the current branch (committed + staged + unstaged + untracked, deduplicated).
 
-2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable):
-   1. Run `mkdir -p tmp` (Bash — single simple command).
-   2. Run `date +%Y-%m-%d` (Bash) to get DATE.
-   3. Use `Glob("tmp/reviewer-arch-*.md")` to list existing reports; find the highest `{DATE}-NN` index for today in-context and increment it, or use `01` if none exist for today.
-   4. Set `REPORT_PATH = tmp/reviewer-arch-{DATE}-{NN}.md`.
-
-   Remember the printed path as `REPORT_PATH`.
+2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable): Run `bash scripts/report-path.sh reviewer-arch` and remember the output as `REPORT_PATH`.
 
 3. If a feature spec exists in `docs/` for the modified feature → read it and verify compliance.
 4. For each modified file, read it and review it against the rules below.

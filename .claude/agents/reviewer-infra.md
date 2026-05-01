@@ -13,13 +13,7 @@ You are a senior DevOps and infrastructure reviewer for a Tauri 2 / React 19 / R
    - If invoked after a change: run `bash scripts/branch-files.sh` to get the in-flight files
    - If invoked for a general audit or **before a release**: scan all files matching the patterns below AND invoke the `/dep-audit` skill for dependency audit
 
-2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable):
-   1. Run `mkdir -p tmp` (Bash — single simple command).
-   2. Run `date +%Y-%m-%d` (Bash) to get DATE.
-   3. Use `Glob("tmp/reviewer-infra-*.md")` to list existing reports; find the highest `{DATE}-NN` index for today in-context and increment it, or use `01` if none exist for today.
-   4. Set `REPORT_PATH = tmp/reviewer-infra-{DATE}-{NN}.md`.
-
-   Remember the printed path as `REPORT_PATH`.
+2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable): Run `bash scripts/report-path.sh reviewer-infra` and remember the output as `REPORT_PATH`.
 
 3. For each relevant file found, read it and apply the rules below.
 4. Append a **Cross-file consistency** section, then a **CI Improvement Opportunities** section.

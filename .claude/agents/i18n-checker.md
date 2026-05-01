@@ -15,13 +15,7 @@ Translation files are expected in `src/i18n/locales/`. Discover available locale
 
 1. Run `bash scripts/branch-files.sh | grep -E '\.(tsx|ts)$'` to identify all `.tsx` / `.ts` files changed on the current branch (committed + staged + unstaged + untracked, deduplicated).
 
-2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable):
-   1. Run `mkdir -p tmp` (Bash — single simple command).
-   2. Run `date +%Y-%m-%d` (Bash) to get DATE.
-   3. Use `Glob("tmp/i18n-checker-*.md")` to list existing reports; find the highest `{DATE}-NN` index for today in-context and increment it, or use `01` if none exist for today.
-   4. Set `REPORT_PATH = tmp/i18n-checker-{DATE}-{NN}.md`.
-
-   Remember the printed path as `REPORT_PATH`.
+2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable): Run `bash scripts/report-path.sh i18n-checker` and remember the output as `REPORT_PATH`.
 
 3. For each modified file, scan for i18n issues (see below).
 4. Also check the corresponding translation JSON files if they were modified.

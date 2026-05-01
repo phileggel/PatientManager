@@ -24,14 +24,7 @@ If no path is given, list files in `docs/spec/` and ask the user which spec to r
 
 ### Step 1 — Compute REPORT_PATH
 
-The saved compact summary IS the deliverable — compute its path before reading the spec:
-
-1. Run `mkdir -p tmp` (Bash — single simple command).
-2. Run `date +%Y-%m-%d` (Bash) to get DATE.
-3. Use `Glob("tmp/spec-reviewer-*.md")` to list existing reports; find the highest `{DATE}-NN` index for today in-context and increment it, or use `01` if none exist for today.
-4. Set `REPORT_PATH = tmp/spec-reviewer-{DATE}-{NN}.md`.
-
-Remember the printed path as `REPORT_PATH`.
+Run `bash scripts/report-path.sh spec-reviewer` and remember the output as `REPORT_PATH`.
 
 ### Step 2 — Read the spec
 
