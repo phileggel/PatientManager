@@ -26,7 +26,7 @@ export function AddBankAccountPanel() {
   }, []);
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form id="add-bank-account-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
       <fieldset disabled={loading} className="disabled:opacity-50">
         <BankAccountForm
           formData={formData}
@@ -35,7 +35,13 @@ export function AddBankAccountPanel() {
           idPrefix="add-bank-account"
         />
       </fieldset>
-      <Button type="submit" variant="primary" loading={loading} icon={<Landmark size={18} />}>
+      <Button
+        type="submit"
+        form="add-bank-account-form"
+        variant="primary"
+        loading={loading}
+        icon={<Landmark size={18} />}
+      >
         {loading ? t("account.creating") : t("account.createButton")}
       </Button>
     </form>

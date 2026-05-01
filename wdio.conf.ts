@@ -30,9 +30,9 @@ let tauriDriver: ChildProcess;
 let exit = false;
 
 export const config: Options.Testrunner = {
-  // tauri-driver runs on port 4444 by default.
+  // tauri-driver port — use 4446/4447 to avoid collision with other projects on the default 4444/4445.
   host: "127.0.0.1",
-  port: 4444,
+  port: 4446,
 
   framework: "mocha",
   specs: ["./e2e/**/*.test.ts"],
@@ -67,7 +67,7 @@ export const config: Options.Testrunner = {
   beforeSession: () => {
     tauriDriver = spawn(
       path.resolve(os.homedir(), ".cargo", "bin", "tauri-driver"),
-      [],
+      ["--port", "4446", "--native-port", "4447"],
       { stdio: [null, process.stdout, process.stderr] },
     );
     tauriDriver.on("error", (error) => {

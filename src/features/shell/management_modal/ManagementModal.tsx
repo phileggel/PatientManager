@@ -46,7 +46,12 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
     <Dialog isOpen={isOpen} onClose={onClose} title={t("modalTitle")} maxWidth="max-w-lg">
       <div className="flex flex-col gap-3 pb-2">
         {/* Patients */}
-        <button type="button" className={cardClasses} onClick={handlePatient}>
+        <button
+          type="button"
+          className={cardClasses}
+          onClick={handlePatient}
+          aria-label={t("patient.title")}
+        >
           <span className="text-sm font-medium text-m3-on-surface">{t("patient.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
             {t("patient.description")}
@@ -54,7 +59,12 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
         </button>
 
         {/* Funds */}
-        <button type="button" className={cardClasses} onClick={handleFunds}>
+        <button
+          type="button"
+          className={cardClasses}
+          onClick={handleFunds}
+          aria-label={t("funds.title")}
+        >
           <span className="text-sm font-medium text-m3-on-surface">{t("funds.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
             {t("funds.description")}
@@ -62,7 +72,12 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
         </button>
 
         {/* Procedure Types */}
-        <button type="button" className={cardClasses} onClick={handleProcedureTypes}>
+        <button
+          type="button"
+          className={cardClasses}
+          onClick={handleProcedureTypes}
+          aria-label={t("procedureTypes.title")}
+        >
           <span className="text-sm font-medium text-m3-on-surface">
             {t("procedureTypes.title")}
           </span>
@@ -72,7 +87,12 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
         </button>
 
         {/* Fund Payment */}
-        <button type="button" className={cardClasses} onClick={handleFundPayment}>
+        <button
+          type="button"
+          className={cardClasses}
+          onClick={handleFundPayment}
+          aria-label={t("fundPayment.title")}
+        >
           <span className="text-sm font-medium text-m3-on-surface">{t("fundPayment.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
             {t("fundPayment.description")}
@@ -80,7 +100,12 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
         </button>
 
         {/* Bank Transfer */}
-        <button type="button" className={cardClasses} onClick={handleBankTransfer}>
+        <button
+          type="button"
+          className={cardClasses}
+          onClick={handleBankTransfer}
+          aria-label={t("bankTransfer.title")}
+        >
           <span className="text-sm font-medium text-m3-on-surface">{t("bankTransfer.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
             {t("bankTransfer.description")}
@@ -88,7 +113,12 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
         </button>
 
         {/* Bank Accounts */}
-        <button type="button" className={cardClasses} onClick={handleBankAccount}>
+        <button
+          type="button"
+          className={cardClasses}
+          onClick={handleBankAccount}
+          aria-label={t("bankAccount.title")}
+        >
           <span className="text-sm font-medium text-m3-on-surface">{t("bankAccount.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
             {t("bankAccount.description")}

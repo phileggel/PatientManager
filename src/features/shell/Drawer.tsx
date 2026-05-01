@@ -102,7 +102,7 @@ export const Drawer = ({
               className={navItemClasses}
               onClick={() => onNavigate?.("dashboard")}
               title={!isExpanded ? t("nav.dashboard") : undefined}
-              aria-label={!isExpanded ? t("nav.dashboard") : undefined}
+              aria-label={t("nav.dashboard")}
               aria-current={currentPage === "dashboard" ? "page" : undefined}
             >
               <LayoutDashboard size={20} className="shrink-0" />
@@ -115,7 +115,7 @@ export const Drawer = ({
               className={navItemClasses}
               onClick={() => onNavigate?.("procedures")}
               title={!isExpanded ? t("nav.procedures") : undefined}
-              aria-label={!isExpanded ? t("nav.procedures") : undefined}
+              aria-label={t("nav.procedures")}
               aria-current={currentPage === "procedures" ? "page" : undefined}
             >
               <ClipboardList size={20} className="shrink-0" />
@@ -129,7 +129,7 @@ export const Drawer = ({
                 className={navItemClasses}
                 onClick={onOpenImport}
                 title={!isExpanded ? t("nav.import") : undefined}
-                aria-label={!isExpanded ? t("nav.import") : undefined}
+                aria-label={t("nav.import")}
               >
                 <Upload size={20} className="shrink-0" />
                 {isExpanded && <span>{t("nav.import")}</span>}
@@ -143,7 +143,7 @@ export const Drawer = ({
                 className={navItemClasses}
                 onClick={onOpenManagement}
                 title={!isExpanded ? t("nav.management") : undefined}
-                aria-label={!isExpanded ? t("nav.management") : undefined}
+                aria-label={t("nav.management")}
               >
                 <Settings2 size={20} className="shrink-0" />
                 {isExpanded && <span>{t("nav.management")}</span>}
@@ -161,7 +161,7 @@ export const Drawer = ({
               className={navItemClasses}
               onClick={() => onOpenDbBackup?.()}
               title={!isExpanded ? t("nav.dbBackup") : undefined}
-              aria-label={!isExpanded ? t("nav.dbBackup") : undefined}
+              aria-label={t("nav.dbBackup")}
             >
               <HardDrive size={20} className="shrink-0" />
               {isExpanded && <span>{t("nav.dbBackup")}</span>}
