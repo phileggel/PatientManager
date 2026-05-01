@@ -16,7 +16,13 @@ pub struct Database {
 
 impl Database {
     pub async fn new(app_data_dir: PathBuf, is_db_reset: bool) -> Result<Self> {
-        let db_path = app_data_dir.join(DATABASE_FILENAME);
+        // E2E test suite sets this env var to redirect to an isolated ephemeral database,
+        // keeping test data fully separated from the developer's real app data.
+        let db_path = if let Ok(e2e_path) = std::env::var("PATIENT_MANAGER_E2E_DB") {
+            PathBuf::from(e2e_path)
+        } else {
+            app_data_dir.join(DATABASE_FILENAME)
+        };
 
         // Apply pending import if one was staged by import_database (R10/R11)
         let pending_path = app_data_dir.join(format!("{DATABASE_FILENAME}.pending"));
