@@ -11,9 +11,8 @@
 //   npm run test:e2e          # local (headed window)
 //   npm run test:e2e:ci       # Linux CI (xvfb virtual display)
 import os from "os";
-import path from "path";
-import { spawn, spawnSync, type ChildProcess } from "child_process";
 import { resolve } from "node:path";
+import { spawn, spawnSync, type ChildProcess } from "child_process";
 import { fileURLToPath } from "url";
 import type { Options } from "@wdio/types";
 
@@ -54,19 +53,24 @@ export const config: Options.Testrunner = {
   // --no-bundle: skip installer packaging, just produce the binary.
   // --debug: debug profile (faster compile, includes debug symbols).
   onPrepare: () => {
-    spawnSync("npx", ["tauri", "build", "--debug", "--no-bundle"], {
-      cwd: path.resolve(__dirname),
+    const result = spawnSync("npx", ["tauri", "build", "--debug", "--no-bundle"], {
+      cwd: resolve(__dirname),
       stdio: "inherit",
       shell: true,
     });
+    if (result.status !== 0) {
+      throw new Error(`tauri build failed with exit code ${result.status}`);
+    }
   },
 
   // Start tauri-driver just before the WebDriver session is created.
   // beforeSession (not onPrepare) is correct: tauri-driver is a per-session
   // intermediary and must be alive when the worker creates the session.
   beforeSession: () => {
+    // tauri-driver is expected at ~/.cargo/bin/tauri-driver (installed via `cargo install tauri-driver`).
+    // In CI, ensure Rust toolchain installs to the default cargo home or adjust this path.
     tauriDriver = spawn(
-      path.resolve(os.homedir(), ".cargo", "bin", "tauri-driver"),
+      resolve(os.homedir(), ".cargo", "bin", "tauri-driver"),
       ["--port", "4446", "--native-port", "4447"],
       { stdio: [null, process.stdout, process.stderr] },
     );

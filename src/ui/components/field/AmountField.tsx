@@ -64,7 +64,6 @@ export function AmountField({
           onBlur={handleBlur}
           disabled={disabled}
           placeholder={placeholder}
-          aria-label={t("field.amountAriaLabel")}
         />
         {displayValue && !disabled && (
           <button
