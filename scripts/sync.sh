@@ -54,10 +54,25 @@ fi
 # ── Skills (always) ───────────────────────────────────────────────────────────
 echo -e "${BLUE}📁 Syncing skills...${NC}"
 for skill_dir in "$TMP/kit/skills/"/*/; do
+    [ -d "$skill_dir" ] || continue
     skill_name=$(basename "$skill_dir")
+    # Skip profile subdirectories — those are handled below
+    [ -f "$skill_dir/SKILL.md" ] || continue
     mkdir -p "$PROJECT_ROOT/.claude/skills/$skill_name"
     cp "$skill_dir/SKILL.md" "$PROJECT_ROOT/.claude/skills/$skill_name/"
 done
+
+# ── Profile skills (overlay, additive) ────────────────────────────────────────
+if [ -n "${PROFILE:-}" ] && [ -d "$TMP/kit/skills/$PROFILE" ]; then
+    echo -e "${BLUE}📁 Syncing ${PROFILE} profile skills...${NC}"
+    for skill_dir in "$TMP/kit/skills/$PROFILE/"/*/; do
+        [ -d "$skill_dir" ] || continue
+        [ -f "$skill_dir/SKILL.md" ] || continue
+        skill_name=$(basename "$skill_dir")
+        mkdir -p "$PROJECT_ROOT/.claude/skills/$skill_name"
+        cp "$skill_dir/SKILL.md" "$PROJECT_ROOT/.claude/skills/$skill_name/"
+    done
+fi
 
 # ── Git hooks (always) ────────────────────────────────────────────────────────
 echo -e "${BLUE}📁 Syncing .githooks...${NC}"
@@ -100,6 +115,23 @@ if [ -n "${PROFILE:-}" ] && [ -d "$TMP/kit/scripts/$PROFILE" ]; then
             cp "$f" "$PROJECT_ROOT/scripts/"
         done
     fi
+fi
+
+# ── Profile docs (copy-once — never overwrite project customisations) ─────────
+if [ -n "${PROFILE:-}" ] && [ -d "$TMP/kit/docs/$PROFILE" ]; then
+    echo -e "${BLUE}📁 Syncing ${PROFILE} profile docs...${NC}"
+    mkdir -p "$PROJECT_ROOT/docs"
+    for doc in "$TMP/kit/docs/$PROFILE/"*.md; do
+        [ -f "$doc" ] || continue
+        doc_name=$(basename "$doc")
+        dest="$PROJECT_ROOT/docs/$doc_name"
+        if [ ! -f "$dest" ]; then
+            cp "$doc" "$dest"
+            echo -e "  → docs/$doc_name (new)"
+        else
+            echo -e "  ↩ docs/$doc_name (already exists — not overwritten)"
+        fi
+    done
 fi
 
 # ── Profile justfile recipes (append with collision detection) ────────────────

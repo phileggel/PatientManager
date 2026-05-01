@@ -13,13 +13,7 @@ You are a senior Rust engineer reviewing backend code quality for a Tauri 2 proj
 
    If no `.rs` files are present, output: `ℹ️ No Rust files modified — backend review skipped.` and stop.
 
-2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable):
-   1. Run `mkdir -p tmp` (Bash — single simple command).
-   2. Run `date +%Y-%m-%d` (Bash) to get DATE.
-   3. Use `Glob("tmp/reviewer-backend-*.md")` to list existing reports; find the highest `{DATE}-NN` index for today in-context and increment it, or use `01` if none exist for today.
-   4. Set `REPORT_PATH = tmp/reviewer-backend-{DATE}-{NN}.md`.
-
-   Remember the printed path as `REPORT_PATH`.
+2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable): Run `bash scripts/report-path.sh reviewer-backend` and remember the output as `REPORT_PATH`.
 
 3. Read `docs/backend-rules.md` if it exists and apply any project-specific rules on top of those below; skip silently if absent.
 4. For each modified `.rs` file, read it and review it against the rules below.
