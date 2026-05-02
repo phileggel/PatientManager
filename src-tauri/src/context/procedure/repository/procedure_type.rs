@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use sqlx::SqlitePool;
 
-use crate::context::procedure::domain::ProcedureType;
+use crate::context::procedure::domain::{ProcedureType, ProcedureTypeRepository};
 
 /// Internal row type for procedure type database mapping
 #[derive(sqlx::FromRow)]
@@ -18,28 +18,6 @@ impl From<ProcedureTypeRow> for ProcedureType {
     fn from(row: ProcedureTypeRow) -> Self {
         ProcedureType::restore(row.id, row.name, row.default_amount, row.category)
     }
-}
-
-/// ProcedureTypeRepository trait defines the contract for procedure type data access
-///
-/// Implementations of this trait handle persistence and retrieval of procedure type data.
-/// The application layer uses this trait without knowing about concrete implementations (e.g., database).
-#[async_trait::async_trait]
-pub trait ProcedureTypeRepository: Send + Sync {
-    async fn create_procedure_type(
-        &self,
-        name: String,
-        default_amount: i64,
-        category: Option<String>,
-    ) -> anyhow::Result<ProcedureType>;
-    async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>>;
-    async fn read_procedure_type(&self, id: &str) -> anyhow::Result<Option<ProcedureType>>;
-    async fn update_procedure_type(
-        &self,
-        procedure_type: ProcedureType,
-    ) -> anyhow::Result<ProcedureType>;
-    async fn delete_procedure_type(&self, id: &str) -> anyhow::Result<()>;
-    async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>>;
 }
 
 pub struct SqliteProcedureTypeRepository {

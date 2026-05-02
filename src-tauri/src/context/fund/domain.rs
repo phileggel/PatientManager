@@ -274,6 +274,7 @@ impl FundPaymentLine {
 }
 
 /// FundPaymentRepository trait for fund payment group and line operations
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait FundPaymentRepository: Send + Sync {
     /// Create a fund payment group with lines (atomic operation)

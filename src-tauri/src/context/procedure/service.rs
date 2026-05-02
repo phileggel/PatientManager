@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use super::domain::{Procedure, ProcedureType};
-use super::repository::{ProcedureRepository, ProcedureTypeRepository};
+use super::domain::{Procedure, ProcedureRepository, ProcedureType, ProcedureTypeRepository};
 use crate::core::event_bus::{EventBus, ProcedureTypeUpdated, ProcedureUpdated};
 use crate::core::logger::BACKEND;
 

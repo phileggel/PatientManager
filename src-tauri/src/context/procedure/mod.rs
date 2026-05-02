@@ -3,14 +3,12 @@ mod domain;
 mod repository;
 mod service;
 
-// Export domain types (entities, enums, traits)
-pub use domain::{PaymentMethod, Procedure, ProcedureRefund, ProcedureStatus, ProcedureType};
+// Export all domain types, traits, and projections
+pub use domain::*;
 
-// Export repository traits and implementations
+// Export infra implementations
 pub use repository::{
-    ProcedureRefundRepository, ProcedureRepository, ProcedureTypeRepository,
     SqliteProcedureRefundRepository, SqliteProcedureRepository, SqliteProcedureTypeRepository,
-    UnreconciledProcedureRow,
 };
 
 // Export services

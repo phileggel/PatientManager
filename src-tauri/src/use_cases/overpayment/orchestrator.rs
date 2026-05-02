@@ -410,7 +410,7 @@ mod tests {
     use super::*;
     use crate::context::bank::{BankAccount, BankAccountRepository, BankEntryRepository};
     use crate::context::fund::FundPaymentRepository;
-    use crate::context::procedure::{ProcedureRepository, UnreconciledProcedureRow};
+    use crate::context::procedure::{ProcedureRepository, UnreconciledProcedure};
     use crate::core::event_bus::EventBus;
     use chrono::NaiveDate;
     use std::sync::Arc;
@@ -512,7 +512,7 @@ mod tests {
             &self,
             _start_date: &str,
             _end_date: &str,
-        ) -> anyhow::Result<Vec<UnreconciledProcedureRow>> {
+        ) -> anyhow::Result<Vec<UnreconciledProcedure>> {
             unimplemented!()
         }
         async fn find_created_in_date_range(

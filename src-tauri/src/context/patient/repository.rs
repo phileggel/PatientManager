@@ -39,6 +39,7 @@ impl From<PatientRow> for Patient {
 }
 
 /// PatientRepository trait defines the contract for patient data access
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait PatientRepository: Send + Sync {
     async fn create_patient(&self, patient: Patient) -> anyhow::Result<Patient>;

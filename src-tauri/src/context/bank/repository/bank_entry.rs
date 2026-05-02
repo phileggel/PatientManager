@@ -4,6 +4,7 @@ use sqlx::SqlitePool;
 use crate::context::bank::domain::{BankAccount, BankEntry, BankEntryType};
 
 /// BankEntryRepository trait defines the contract for bank transfer data access
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait BankEntryRepository: Send + Sync {
     /// Create a new bank transfer

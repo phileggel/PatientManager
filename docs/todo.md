@@ -33,6 +33,12 @@ Currently all backend tests hit a real SQLite DB. Add `mockall` as a dev-depende
 
 ## DDD Convergence — Quick renames ✅ done
 
+## (backend/procedure) — Review procedure projections and read models
+
+`UnreconciledProcedure` is a domain projection introduced when moving `ProcedureRepository` to the domain layer. It sits alongside `Procedure` (the aggregate root) and other procedure-related structures. Before adding more projections, review whether these are genuinely distinct domain concepts or whether `Procedure` should be enriched to cover these cases. Key question: is `UnreconciledProcedure` a real ubiquitous-language concept, or just a query convenience that should be folded into `Procedure` with a different fetch strategy?
+
+---
+
 ## DDD Convergence — Major refactors (structural, plan carefully)
 
 - **Folder restructure**: migrate all bounded contexts to per-aggregate sub-folders per B0/B0d (`context/{domain}/{aggregate}/domain.rs`, `repository.rs`, `service.rs`)

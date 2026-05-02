@@ -619,389 +619,18 @@ impl ProcedureOrchestrationService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::fund::Fund;
-    use crate::context::patient::{Patient, PatientRepository};
+    use crate::context::fund::{Fund, MockFundRepository};
+    use crate::context::patient::{MockPatientRepository, Patient};
     use crate::context::procedure::{
-        Procedure, ProcedureRepository, ProcedureService as ContextProcedureService,
-        ProcedureStatus, ProcedureType, ProcedureTypeRepository,
+        MockProcedureRepository, MockProcedureTypeRepository, Procedure,
+        ProcedureService as ContextProcedureService, ProcedureStatus, ProcedureType,
     };
     use crate::core::event_bus::EventBus;
     use crate::use_cases::procedure_orchestration::ProcedureValidationStatus;
-    use crate::FundRepository;
     use chrono::NaiveDate;
     use std::sync::{Arc, Mutex};
 
-    struct MockProcedureRepository;
-
-    #[async_trait::async_trait]
-    impl ProcedureRepository for MockProcedureRepository {
-        #[allow(clippy::too_many_arguments)]
-        async fn create_procedure(
-            &self,
-            _patient_id: String,
-            _fund_id: Option<String>,
-            _procedure_type_id: String,
-            _procedure_date: String,
-            _procedure_amount: Option<i64>,
-            _payment_method: PaymentMethod,
-            _confirmed_payment_date: Option<String>,
-            _actual_payment_amount: Option<i64>,
-            _payment_status: ProcedureStatus,
-        ) -> anyhow::Result<Procedure> {
-            unimplemented!()
-        }
-        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
-            unimplemented!()
-        }
-        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn read_procedures_by_patient_id(
-            &self,
-            _patient_id: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
-            Ok(p)
-        }
-        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssn_and_date_range(
-            &self,
-            _ssn: &str,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssns_and_date_range(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssns_and_date_range_with_ssn(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<(String, Procedure)>> {
-            unimplemented!()
-        }
-        async fn find_procedure_exact(
-            &self,
-            _patient_id: &str,
-            _fund_id: Option<&str>,
-            _procedure_date: &str,
-            _procedure_amount: i64,
-        ) -> anyhow::Result<Option<Procedure>> {
-            unimplemented!()
-        }
-        async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
-            Ok(procedures)
-        }
-        async fn update_batch(
-            &self,
-            _procedures: Vec<Procedure>,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
-            unimplemented!()
-        }
-        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
-            unimplemented!()
-        }
-        async fn find_unreconciled_by_date_range(
-            &self,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
-            unimplemented!()
-        }
-        async fn find_created_in_date_range(
-            &self,
-            _date_min: &str,
-            _date_max: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_created_by_fund_before_date(
-            &self,
-            _fund_id: &str,
-            _date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-    }
-
-    struct MockPatientRepository {
-        patient: Mutex<Option<Patient>>,
-        updated_patient: Mutex<Option<Patient>>,
-    }
-
-    #[async_trait::async_trait]
-    impl PatientRepository for MockPatientRepository {
-        async fn create_patient(&self, _p: Patient) -> anyhow::Result<Patient> {
-            unimplemented!()
-        }
-        async fn read_all_patients(&self) -> anyhow::Result<Vec<Patient>> {
-            Ok(self
-                .patient
-                .lock()
-                .unwrap()
-                .clone()
-                .map(|p| vec![p])
-                .unwrap_or_default())
-        }
-        async fn read_patient(&self, _id: &str) -> anyhow::Result<Option<Patient>> {
-            Ok(self.patient.lock().unwrap().clone())
-        }
-        async fn update_patient(&self, patient: Patient) -> anyhow::Result<Patient> {
-            *self.updated_patient.lock().unwrap() = Some(patient.clone());
-            Ok(patient)
-        }
-        async fn find_patient_by_ssn(&self, _ssn: &str) -> anyhow::Result<Option<Patient>> {
-            unimplemented!()
-        }
-        async fn create_batch(&self, _patients: Vec<Patient>) -> anyhow::Result<Vec<Patient>> {
-            unimplemented!()
-        }
-        async fn delete_patient(&self, _id: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-    }
-
-    struct MockProcedureTypeRepository;
-
-    #[async_trait::async_trait]
-    impl ProcedureTypeRepository for MockProcedureTypeRepository {
-        async fn create_procedure_type(
-            &self,
-            _name: String,
-            _default_amount: i64,
-            _category: Option<String>,
-        ) -> anyhow::Result<ProcedureType> {
-            unimplemented!()
-        }
-        async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>> {
-            Ok(vec![])
-        }
-        async fn read_procedure_type(&self, _id: &str) -> anyhow::Result<Option<ProcedureType>> {
-            unimplemented!()
-        }
-        async fn update_procedure_type(&self, _pt: ProcedureType) -> anyhow::Result<ProcedureType> {
-            unimplemented!()
-        }
-        async fn delete_procedure_type(&self, _id: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-        async fn find_by_name(&self, _name: &str) -> anyhow::Result<Option<ProcedureType>> {
-            unimplemented!()
-        }
-    }
-
-    struct MockProcedureTypeRepositoryWithType;
-
-    #[async_trait::async_trait]
-    impl ProcedureTypeRepository for MockProcedureTypeRepositoryWithType {
-        async fn create_procedure_type(
-            &self,
-            _name: String,
-            _default_amount: i64,
-            _category: Option<String>,
-        ) -> anyhow::Result<ProcedureType> {
-            unimplemented!()
-        }
-        async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>> {
-            Ok(vec![])
-        }
-        async fn read_procedure_type(&self, id: &str) -> anyhow::Result<Option<ProcedureType>> {
-            Ok(Some(ProcedureType::restore(
-                id.to_string(),
-                "Test Type".to_string(),
-                10000,
-                None,
-            )))
-        }
-        async fn update_procedure_type(&self, _pt: ProcedureType) -> anyhow::Result<ProcedureType> {
-            unimplemented!()
-        }
-        async fn delete_procedure_type(&self, _id: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-        async fn find_by_name(&self, _name: &str) -> anyhow::Result<Option<ProcedureType>> {
-            unimplemented!()
-        }
-    }
-
-    struct MockProcedureRepositoryCreating;
-
-    #[async_trait::async_trait]
-    impl ProcedureRepository for MockProcedureRepositoryCreating {
-        #[allow(clippy::too_many_arguments)]
-        async fn create_procedure(
-            &self,
-            patient_id: String,
-            fund_id: Option<String>,
-            procedure_type_id: String,
-            procedure_date: String,
-            billed_amount: Option<i64>,
-            payment_method: PaymentMethod,
-            confirmed_payment_date: Option<String>,
-            paid_amount: Option<i64>,
-            payment_status: ProcedureStatus,
-        ) -> anyhow::Result<Procedure> {
-            Procedure::with_id(
-                "new-proc-id".to_string(),
-                patient_id,
-                fund_id,
-                procedure_type_id,
-                procedure_date,
-                billed_amount,
-                payment_method,
-                confirmed_payment_date,
-                paid_amount,
-                payment_status,
-            )
-            .map_err(|e| anyhow::anyhow!("{}", e))
-        }
-        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
-            unimplemented!()
-        }
-        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn read_procedures_by_patient_id(
-            &self,
-            _patient_id: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
-            Ok(p)
-        }
-        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssn_and_date_range(
-            &self,
-            _ssn: &str,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssns_and_date_range(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssns_and_date_range_with_ssn(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<(String, Procedure)>> {
-            unimplemented!()
-        }
-        async fn find_procedure_exact(
-            &self,
-            _patient_id: &str,
-            _fund_id: Option<&str>,
-            _procedure_date: &str,
-            _procedure_amount: i64,
-        ) -> anyhow::Result<Option<Procedure>> {
-            unimplemented!()
-        }
-        async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
-            Ok(procedures)
-        }
-        async fn update_batch(
-            &self,
-            _procedures: Vec<Procedure>,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
-            unimplemented!()
-        }
-        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
-            unimplemented!()
-        }
-        async fn find_unreconciled_by_date_range(
-            &self,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
-            unimplemented!()
-        }
-        async fn find_created_in_date_range(
-            &self,
-            _date_min: &str,
-            _date_max: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_created_by_fund_before_date(
-            &self,
-            _fund_id: &str,
-            _date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-    }
-
-    struct MockFundRepository;
-
-    #[async_trait::async_trait]
-    impl FundRepository for MockFundRepository {
-        async fn create_fund(
-            &self,
-            _fund_identifier: &str,
-            _fund_name: &str,
-        ) -> anyhow::Result<Fund> {
-            unimplemented!()
-        }
-        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<Fund>> {
-            unimplemented!()
-        }
-        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
-            Ok(vec![])
-        }
-        async fn update_fund(&self, _fund: Fund) -> anyhow::Result<Fund> {
-            unimplemented!()
-        }
-        async fn find_fund_by_identifier(&self, _identifier: &str) -> anyhow::Result<Option<Fund>> {
-            unimplemented!()
-        }
-        async fn create_batch(&self, _funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
-            unimplemented!()
-        }
-        async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-    }
-
+    // Manual mock kept for ProcedureRefundRepository (small, behavior varies)
     struct MockProcedureRefundRepository;
 
     #[async_trait::async_trait]
@@ -1032,6 +661,291 @@ mod tests {
         }
     }
 
+    /// Build a MockProcedureRepository that stubs all methods as unimplemented
+    /// except create_batch (pass-through) and update_procedure (pass-through).
+    fn mock_proc_repo_passthrough() -> MockProcedureRepository {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_create_procedure()
+            .returning(|_, _, _, _, _, _, _, _, _| {
+                panic!("create_procedure not expected in this test")
+            });
+        mock.expect_read_all_procedures().returning(|| Ok(vec![]));
+        mock.expect_read_procedure()
+            .returning(|_| panic!("read_procedure not expected in this test"));
+        mock.expect_read_procedures_by_ids()
+            .returning(|_| panic!("read_procedures_by_ids not expected in this test"));
+        mock.expect_read_procedures_by_patient_id()
+            .returning(|_| panic!("read_procedures_by_patient_id not expected in this test"));
+        mock.expect_update_procedure().returning(Ok);
+        mock.expect_delete_procedure()
+            .returning(|_| panic!("delete_procedure not expected in this test"));
+        mock.expect_find_procedures_by_ssn_and_date_range()
+            .returning(|_, _, _| panic!("not expected"));
+        mock.expect_find_procedures_by_ssns_and_date_range()
+            .returning(|_, _, _| panic!("not expected"));
+        mock.expect_find_procedures_by_ssns_and_date_range_with_ssn()
+            .returning(|_, _, _| panic!("not expected"));
+        mock.expect_find_procedure_exact()
+            .returning(|_, _, _, _| panic!("not expected"));
+        mock.expect_create_batch().returning(Ok);
+        mock.expect_update_batch()
+            .returning(|_| panic!("not expected"));
+        mock.expect_find_unpaid_by_fund()
+            .returning(|_| panic!("not expected"));
+        mock.expect_has_blocking_procedures_in_month()
+            .returning(|_| panic!("not expected"));
+        mock.expect_delete_procedures_by_month()
+            .returning(|_| panic!("not expected"));
+        mock.expect_find_unreconciled_by_date_range()
+            .returning(|_, _| panic!("not expected"));
+        mock.expect_find_created_in_date_range()
+            .returning(|_, _| panic!("not expected"));
+        mock.expect_find_created_by_fund_before_date()
+            .returning(|_, _| panic!("not expected"));
+        mock
+    }
+
+    /// Build a patient mock that returns `patient` from read_patient / read_all_patients
+    /// and captures any update into `updated_capture`.
+    fn mock_patient_repo(
+        patient: Option<Patient>,
+        updated_capture: Arc<Mutex<Option<Patient>>>,
+    ) -> MockPatientRepository {
+        let patient_for_read = patient.clone();
+        let patient_for_all = patient.clone();
+        let cap = updated_capture;
+        let mut mock = MockPatientRepository::new();
+        mock.expect_read_patient()
+            .returning(move |_| Ok(patient_for_read.clone()));
+        mock.expect_read_all_patients()
+            .returning(move || Ok(patient_for_all.clone().map(|p| vec![p]).unwrap_or_default()));
+        mock.expect_update_patient().returning(move |p| {
+            *cap.lock().unwrap() = Some(p.clone());
+            Ok(p)
+        });
+        mock.expect_create_patient()
+            .returning(|_| panic!("not expected"));
+        mock.expect_find_patient_by_ssn()
+            .returning(|_| panic!("not expected"));
+        mock.expect_create_batch()
+            .returning(|_| panic!("not expected"));
+        mock.expect_delete_patient()
+            .returning(|_| panic!("not expected"));
+        mock
+    }
+
+    /// Build a ProcedureTypeRepository mock that always returns a found type
+    fn mock_type_repo_with_type() -> MockProcedureTypeRepository {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type().returning(|id| {
+            Ok(Some(ProcedureType::restore(
+                id.to_string(),
+                "Test Type".to_string(),
+                10000,
+                None,
+            )))
+        });
+        mock.expect_read_all_procedure_types()
+            .returning(|| Ok(vec![]));
+        mock
+    }
+
+    /// Build a ProcedureTypeRepository mock that always returns None (not found)
+    fn mock_type_repo_not_found() -> MockProcedureTypeRepository {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type().returning(|_| Ok(None));
+        mock.expect_read_all_procedure_types()
+            .returning(|| Ok(vec![]));
+        mock
+    }
+
+    /// Build a ProcedureTypeRepository stub (read_procedure_type never called)
+    fn mock_type_repo_stub() -> MockProcedureTypeRepository {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_all_procedure_types()
+            .returning(|| Ok(vec![]));
+        mock
+    }
+
+    /// Build a FundRepository mock that returns a fund on read_fund
+    fn mock_fund_repo_with_fund() -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_fund().returning(|id| {
+            Ok(Some(Fund::restore(
+                id.to_string(),
+                "FND".to_string(),
+                "Test Fund".to_string(),
+            )))
+        });
+        mock.expect_read_all_funds().returning(|| Ok(vec![]));
+        mock
+    }
+
+    /// Build a FundRepository mock that returns None on read_fund
+    fn mock_fund_repo_not_found() -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_fund().returning(|_| Ok(None));
+        mock.expect_read_all_funds().returning(|| Ok(vec![]));
+        mock
+    }
+
+    /// Build a FundRepository stub (read_fund never called)
+    fn mock_fund_repo_stub() -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_all_funds().returning(|| Ok(vec![]));
+        mock
+    }
+
+    /// Build a ProcedureRepository mock that creates a procedure with id "new-proc-id"
+    fn mock_proc_repo_creating() -> MockProcedureRepository {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_create_procedure().returning(
+            |patient_id,
+             fund_id,
+             procedure_type_id,
+             procedure_date,
+             billed_amount,
+             payment_method,
+             confirmed_payment_date,
+             paid_amount,
+             payment_status| {
+                Procedure::with_id(
+                    "new-proc-id".to_string(),
+                    patient_id,
+                    fund_id,
+                    procedure_type_id,
+                    procedure_date,
+                    billed_amount,
+                    payment_method,
+                    confirmed_payment_date,
+                    paid_amount,
+                    payment_status,
+                )
+                .map_err(|e| anyhow::anyhow!("{}", e))
+            },
+        );
+        mock.expect_read_all_procedures().returning(|| Ok(vec![]));
+        mock.expect_update_procedure().returning(Ok);
+        mock.expect_create_batch().returning(Ok);
+        mock
+    }
+
+    /// Build a ProcedureRepository mock that returns `procedure` from read_procedure,
+    /// returns empty vec from read_procedures_by_patient_id.
+    fn mock_proc_repo_with_procedure(procedure: Procedure) -> MockProcedureRepository {
+        let proc_for_read = procedure.clone();
+        let proc_for_all = procedure;
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_read_procedure()
+            .returning(move |_| Ok(Some(proc_for_read.clone())));
+        mock.expect_read_all_procedures()
+            .returning(move || Ok(vec![proc_for_all.clone()]));
+        mock.expect_read_procedures_by_patient_id()
+            .returning(|_| Ok(vec![]));
+        mock.expect_update_procedure().returning(Ok);
+        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_create_batch().returning(Ok);
+        mock
+    }
+
+    /// Build a ProcedureRepository mock for the WithRemainingAfterDelete pattern:
+    /// - read_procedure returns `to_delete`
+    /// - read_procedures_by_patient_id returns `remaining` filtered by patient_id
+    /// - delete_procedure and update_procedure are pass-throughs
+    fn mock_proc_repo_with_remaining(
+        to_delete: Procedure,
+        remaining: Vec<Procedure>,
+    ) -> MockProcedureRepository {
+        let proc_for_read = to_delete;
+        let remaining_for_filter = remaining;
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_read_procedure()
+            .returning(move |_| Ok(Some(proc_for_read.clone())));
+        mock.expect_read_procedures_by_patient_id()
+            .returning(move |patient_id| {
+                Ok(remaining_for_filter
+                    .iter()
+                    .filter(|p| p.patient_id == patient_id)
+                    .cloned()
+                    .collect())
+            });
+        mock.expect_update_procedure().returning(Ok);
+        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_read_all_procedures().returning(|| Ok(vec![]));
+        mock.expect_create_batch().returning(Ok);
+        mock
+    }
+
+    fn make_procedure_with_status(status: ProcedureStatus) -> Procedure {
+        Procedure::with_id(
+            "proc-id-1".to_string(),
+            "patient-id-1".to_string(),
+            None,
+            "type-id-1".to_string(),
+            "2024-06-15".to_string(),
+            Some(100000),
+            PaymentMethod::None,
+            None,
+            None,
+            status,
+        )
+        .expect("valid procedure")
+    }
+
+    fn make_orchestrator_with_procedure(procedure: Procedure) -> ProcedureOrchestrationService {
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(mock_proc_repo_with_procedure(procedure)),
+            event_bus,
+        ));
+        let updated_capture = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(None, updated_capture));
+        ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo,
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(MockProcedureRefundRepository),
+        )
+    }
+
+    fn make_orchestrator_with_repos(
+        patient_repo: Arc<dyn PatientRepository>,
+        type_repo: Arc<dyn ProcedureTypeRepository>,
+        fund_repo: Arc<dyn FundRepository>,
+    ) -> ProcedureOrchestrationService {
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(mock_proc_repo_passthrough()),
+            event_bus,
+        ));
+        ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo,
+            type_repo,
+            fund_repo,
+            Arc::new(MockProcedureRefundRepository),
+        )
+    }
+
+    fn make_valid_patient() -> Patient {
+        Patient::restore(
+            "patient-id-1".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    fn make_patient_repo(patient: Option<Patient>) -> Arc<MockPatientRepository> {
+        let updated_capture = Arc::new(Mutex::new(None));
+        Arc::new(mock_patient_repo(patient, updated_capture))
+    }
+
     #[tokio::test]
     async fn test_create_batch_updates_latest_xx() {
         let patient = Patient::restore(
@@ -1045,22 +959,20 @@ mod tests {
             None,
         );
 
-        let patient_repo = Arc::new(MockPatientRepository {
-            patient: Mutex::new(Some(patient)),
-            updated_patient: Mutex::new(None),
-        });
+        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
 
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepository),
+            Arc::new(mock_proc_repo_passthrough()),
             event_bus,
         ));
 
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
-            patient_repo.clone(),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            patient_repo,
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
             Arc::new(MockProcedureRefundRepository),
         );
 
@@ -1079,7 +991,7 @@ mod tests {
         let result = orchestrator.create_batch(vec![candidate]).await;
         assert!(result.is_ok());
 
-        let updated = patient_repo.updated_patient.lock().unwrap().clone();
+        let updated = updated_capture.lock().unwrap().clone();
         assert!(
             updated.is_some(),
             "Patient should have been updated with latest_xx fields"
@@ -1113,22 +1025,20 @@ mod tests {
             Some(200000),
         );
 
-        let patient_repo = Arc::new(MockPatientRepository {
-            patient: Mutex::new(Some(patient)),
-            updated_patient: Mutex::new(None),
-        });
+        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
 
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepository),
+            Arc::new(mock_proc_repo_passthrough()),
             event_bus,
         ));
 
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
-            patient_repo.clone(),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            patient_repo,
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
             Arc::new(MockProcedureRefundRepository),
         );
 
@@ -1149,162 +1059,11 @@ mod tests {
         assert!(result.is_ok());
 
         // Patient should NOT have been updated (existing date is newer)
-        let updated = patient_repo.updated_patient.lock().unwrap().clone();
+        let updated = updated_capture.lock().unwrap().clone();
         assert!(
             updated.is_none(),
             "Patient should NOT be updated when batch procedure is older"
         );
-    }
-
-    fn make_procedure_with_status(status: ProcedureStatus) -> Procedure {
-        Procedure::with_id(
-            "proc-id-1".to_string(),
-            "patient-id-1".to_string(),
-            None,
-            "type-id-1".to_string(),
-            "2024-06-15".to_string(),
-            Some(100000),
-            PaymentMethod::None,
-            None,
-            None,
-            status,
-        )
-        .expect("valid procedure")
-    }
-
-    struct MockProcedureRepositoryWithProcedure {
-        procedure: Procedure,
-    }
-
-    #[async_trait::async_trait]
-    impl ProcedureRepository for MockProcedureRepositoryWithProcedure {
-        #[allow(clippy::too_many_arguments)]
-        async fn create_procedure(
-            &self,
-            _patient_id: String,
-            _fund_id: Option<String>,
-            _procedure_type_id: String,
-            _procedure_date: String,
-            _procedure_amount: Option<i64>,
-            _payment_method: PaymentMethod,
-            _confirmed_payment_date: Option<String>,
-            _actual_payment_amount: Option<i64>,
-            _payment_status: ProcedureStatus,
-        ) -> anyhow::Result<Procedure> {
-            unimplemented!()
-        }
-        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![self.procedure.clone()])
-        }
-        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
-            Ok(Some(self.procedure.clone()))
-        }
-        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn read_procedures_by_patient_id(
-            &self,
-            _patient_id: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
-            Ok(p)
-        }
-        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn find_procedures_by_ssn_and_date_range(
-            &self,
-            _ssn: &str,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssns_and_date_range(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssns_and_date_range_with_ssn(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<(String, Procedure)>> {
-            unimplemented!()
-        }
-        async fn find_procedure_exact(
-            &self,
-            _patient_id: &str,
-            _fund_id: Option<&str>,
-            _procedure_date: &str,
-            _procedure_amount: i64,
-        ) -> anyhow::Result<Option<Procedure>> {
-            unimplemented!()
-        }
-        async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
-            Ok(procedures)
-        }
-        async fn update_batch(
-            &self,
-            _procedures: Vec<Procedure>,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
-            unimplemented!()
-        }
-        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
-            unimplemented!()
-        }
-        async fn find_unreconciled_by_date_range(
-            &self,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
-            unimplemented!()
-        }
-        async fn find_created_in_date_range(
-            &self,
-            _date_min: &str,
-            _date_max: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_created_by_fund_before_date(
-            &self,
-            _fund_id: &str,
-            _date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-    }
-
-    fn make_orchestrator_with_procedure(procedure: Procedure) -> ProcedureOrchestrationService {
-        let event_bus = Arc::new(EventBus::new());
-        let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepositoryWithProcedure { procedure }),
-            event_bus,
-        ));
-        let patient_repo = Arc::new(MockPatientRepository {
-            patient: Mutex::new(None),
-            updated_patient: Mutex::new(None),
-        });
-        ProcedureOrchestrationService::new(
-            context_service,
-            patient_repo,
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
-            Arc::new(MockProcedureRefundRepository),
-        )
     }
 
     #[tokio::test]
@@ -1376,128 +1135,6 @@ mod tests {
 
     // --- R20: patient tracking recalculated when latest procedure is deleted ---
 
-    struct MockProcedureRepositoryWithRemainingAfterDelete {
-        to_delete: Procedure,
-        remaining: Vec<Procedure>,
-    }
-
-    #[async_trait::async_trait]
-    impl ProcedureRepository for MockProcedureRepositoryWithRemainingAfterDelete {
-        #[allow(clippy::too_many_arguments)]
-        async fn create_procedure(
-            &self,
-            _patient_id: String,
-            _fund_id: Option<String>,
-            _procedure_type_id: String,
-            _procedure_date: String,
-            _procedure_amount: Option<i64>,
-            _payment_method: PaymentMethod,
-            _confirmed_payment_date: Option<String>,
-            _actual_payment_amount: Option<i64>,
-            _payment_status: ProcedureStatus,
-        ) -> anyhow::Result<Procedure> {
-            unimplemented!()
-        }
-        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-            Ok(self.remaining.clone())
-        }
-        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
-            Ok(Some(self.to_delete.clone()))
-        }
-        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn read_procedures_by_patient_id(
-            &self,
-            patient_id: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            Ok(self
-                .remaining
-                .iter()
-                .filter(|p| p.patient_id == patient_id)
-                .cloned()
-                .collect())
-        }
-        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
-            Ok(p)
-        }
-        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn find_procedures_by_ssn_and_date_range(
-            &self,
-            _ssn: &str,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssns_and_date_range(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_procedures_by_ssns_and_date_range_with_ssn(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<(String, Procedure)>> {
-            unimplemented!()
-        }
-        async fn find_procedure_exact(
-            &self,
-            _patient_id: &str,
-            _fund_id: Option<&str>,
-            _procedure_date: &str,
-            _procedure_amount: i64,
-        ) -> anyhow::Result<Option<Procedure>> {
-            unimplemented!()
-        }
-        async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
-            Ok(procedures)
-        }
-        async fn update_batch(
-            &self,
-            _procedures: Vec<Procedure>,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
-            unimplemented!()
-        }
-        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
-            unimplemented!()
-        }
-        async fn find_unreconciled_by_date_range(
-            &self,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
-            unimplemented!()
-        }
-        async fn find_created_in_date_range(
-            &self,
-            _date_min: &str,
-            _date_max: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-        async fn find_created_by_fund_before_date(
-            &self,
-            _fund_id: &str,
-            _date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
-    }
-
     #[tokio::test]
     async fn test_delete_procedure_recalculates_tracking_when_older_procedures_remain() {
         // Patient has two procedures: older (2024-01-15) and newer (2024-06-15, the one being deleted).
@@ -1541,36 +1178,26 @@ mod tests {
             Some(200000),
         );
 
-        let patient_repo = Arc::new(MockPatientRepository {
-            patient: Mutex::new(Some(patient)),
-            updated_patient: Mutex::new(None),
-        });
+        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
 
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepositoryWithRemainingAfterDelete {
-                to_delete: newer,
-                remaining: vec![older],
-            }),
+            Arc::new(mock_proc_repo_with_remaining(newer, vec![older])),
             event_bus,
         ));
 
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
-            patient_repo.clone(),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            patient_repo,
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
             Arc::new(MockProcedureRefundRepository),
         );
 
         orchestrator.delete_procedure("proc-newer").await.unwrap();
 
-        let updated = patient_repo
-            .updated_patient
-            .lock()
-            .unwrap()
-            .clone()
-            .unwrap();
+        let updated = updated_capture.lock().unwrap().clone().unwrap();
         assert_eq!(
             updated.latest_date,
             Some(NaiveDate::from_ymd_opt(2024, 1, 15).unwrap())
@@ -1610,36 +1237,26 @@ mod tests {
             Some(100000),
         );
 
-        let patient_repo = Arc::new(MockPatientRepository {
-            patient: Mutex::new(Some(patient)),
-            updated_patient: Mutex::new(None),
-        });
+        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
 
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepositoryWithRemainingAfterDelete {
-                to_delete: proc,
-                remaining: vec![],
-            }),
+            Arc::new(mock_proc_repo_with_remaining(proc, vec![])),
             event_bus,
         ));
 
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
-            patient_repo.clone(),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            patient_repo,
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
             Arc::new(MockProcedureRefundRepository),
         );
 
         orchestrator.delete_procedure("proc-only").await.unwrap();
 
-        let updated = patient_repo
-            .updated_patient
-            .lock()
-            .unwrap()
-            .clone()
-            .unwrap();
+        let updated = updated_capture.lock().unwrap().clone().unwrap();
         assert_eq!(updated.latest_date, None);
         assert_eq!(updated.latest_procedure_type, None);
         assert_eq!(updated.latest_fund, None);
@@ -1661,22 +1278,20 @@ mod tests {
             Some(50000),
         );
 
-        let patient_repo = Arc::new(MockPatientRepository {
-            patient: Mutex::new(Some(patient)),
-            updated_patient: Mutex::new(None),
-        });
+        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
 
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepositoryCreating),
+            Arc::new(mock_proc_repo_creating()),
             event_bus,
         ));
 
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
-            patient_repo.clone(),
-            Arc::new(MockProcedureTypeRepositoryWithType),
-            Arc::new(MockFundRepository),
+            patient_repo,
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_stub()),
             Arc::new(MockProcedureRefundRepository),
         );
 
@@ -1695,12 +1310,7 @@ mod tests {
             .await
             .unwrap();
 
-        let updated = patient_repo
-            .updated_patient
-            .lock()
-            .unwrap()
-            .clone()
-            .unwrap();
+        let updated = updated_capture.lock().unwrap().clone().unwrap();
         assert_eq!(
             updated.latest_date,
             Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap())
@@ -1731,22 +1341,20 @@ mod tests {
             Some(50000),
         );
 
-        let patient_repo = Arc::new(MockPatientRepository {
-            patient: Mutex::new(Some(patient)),
-            updated_patient: Mutex::new(None),
-        });
+        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
 
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepository),
+            Arc::new(mock_proc_repo_passthrough()),
             event_bus,
         ));
 
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
-            patient_repo.clone(),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            patient_repo,
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
             Arc::new(MockProcedureRefundRepository),
         );
 
@@ -1764,12 +1372,7 @@ mod tests {
 
         orchestrator.create_batch(vec![candidate]).await.unwrap();
 
-        let updated = patient_repo
-            .updated_patient
-            .lock()
-            .unwrap()
-            .clone()
-            .unwrap();
+        let updated = updated_capture.lock().unwrap().clone().unwrap();
         assert_eq!(
             updated.latest_date,
             Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap())
@@ -1783,142 +1386,6 @@ mod tests {
             "latest_fund must be cleared when newest procedure has no fund"
         );
         assert_eq!(updated.latest_procedure_amount, Some(100000));
-    }
-
-    // --- Additional mocks for Tier 2 tests ---
-
-    struct MockProcedureTypeRepositoryNotFound;
-
-    #[async_trait::async_trait]
-    impl ProcedureTypeRepository for MockProcedureTypeRepositoryNotFound {
-        async fn create_procedure_type(
-            &self,
-            _name: String,
-            _default_amount: i64,
-            _category: Option<String>,
-        ) -> anyhow::Result<ProcedureType> {
-            unimplemented!()
-        }
-        async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>> {
-            Ok(vec![])
-        }
-        async fn read_procedure_type(&self, _id: &str) -> anyhow::Result<Option<ProcedureType>> {
-            Ok(None)
-        }
-        async fn update_procedure_type(&self, _pt: ProcedureType) -> anyhow::Result<ProcedureType> {
-            unimplemented!()
-        }
-        async fn delete_procedure_type(&self, _id: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-        async fn find_by_name(&self, _name: &str) -> anyhow::Result<Option<ProcedureType>> {
-            unimplemented!()
-        }
-    }
-
-    struct MockFundRepositoryWithFund;
-
-    #[async_trait::async_trait]
-    impl FundRepository for MockFundRepositoryWithFund {
-        async fn create_fund(
-            &self,
-            _fund_identifier: &str,
-            _fund_name: &str,
-        ) -> anyhow::Result<Fund> {
-            unimplemented!()
-        }
-        async fn read_fund(&self, id: &str) -> anyhow::Result<Option<Fund>> {
-            Ok(Some(Fund::restore(
-                id.to_string(),
-                "FND".to_string(),
-                "Test Fund".to_string(),
-            )))
-        }
-        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
-            Ok(vec![])
-        }
-        async fn update_fund(&self, _fund: Fund) -> anyhow::Result<Fund> {
-            unimplemented!()
-        }
-        async fn find_fund_by_identifier(&self, _identifier: &str) -> anyhow::Result<Option<Fund>> {
-            unimplemented!()
-        }
-        async fn create_batch(&self, _funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
-            unimplemented!()
-        }
-        async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-    }
-
-    struct MockFundRepositoryNotFound;
-
-    #[async_trait::async_trait]
-    impl FundRepository for MockFundRepositoryNotFound {
-        async fn create_fund(
-            &self,
-            _fund_identifier: &str,
-            _fund_name: &str,
-        ) -> anyhow::Result<Fund> {
-            unimplemented!()
-        }
-        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<Fund>> {
-            Ok(None)
-        }
-        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
-            Ok(vec![])
-        }
-        async fn update_fund(&self, _fund: Fund) -> anyhow::Result<Fund> {
-            unimplemented!()
-        }
-        async fn find_fund_by_identifier(&self, _identifier: &str) -> anyhow::Result<Option<Fund>> {
-            unimplemented!()
-        }
-        async fn create_batch(&self, _funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
-            unimplemented!()
-        }
-        async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-    }
-
-    fn make_orchestrator_with_repos(
-        patient_repo: Arc<dyn PatientRepository>,
-        type_repo: Arc<dyn ProcedureTypeRepository>,
-        fund_repo: Arc<dyn FundRepository>,
-    ) -> ProcedureOrchestrationService {
-        let event_bus = Arc::new(EventBus::new());
-        let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepository),
-            event_bus,
-        ));
-        ProcedureOrchestrationService::new(
-            context_service,
-            patient_repo,
-            type_repo,
-            fund_repo,
-            Arc::new(MockProcedureRefundRepository),
-        )
-    }
-
-    fn make_valid_patient() -> Patient {
-        Patient::restore(
-            "patient-id-1".to_string(),
-            false,
-            Some("Marie Dupont".to_string()),
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-    }
-
-    fn make_patient_repo(patient: Option<Patient>) -> Arc<MockPatientRepository> {
-        Arc::new(MockPatientRepository {
-            patient: Mutex::new(patient),
-            updated_patient: Mutex::new(None),
-        })
     }
 
     // --- determine_payment_method ---
@@ -2082,8 +1549,8 @@ mod tests {
     async fn validate_batch_empty_candidates_returns_empty() {
         let orchestrator = make_orchestrator_with_repos(
             make_patient_repo(None),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
         );
         let result = orchestrator.validate_batch(vec![]).await.unwrap();
         assert!(result.is_empty());
@@ -2093,8 +1560,8 @@ mod tests {
     async fn validate_batch_missing_patient_id_returns_invalid() {
         let orchestrator = make_orchestrator_with_repos(
             make_patient_repo(None),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
         );
         let candidate = ProcedureCandidate {
             patient_id: "".to_string(),
@@ -2119,8 +1586,8 @@ mod tests {
     async fn validate_batch_patient_not_found_returns_invalid() {
         let orchestrator = make_orchestrator_with_repos(
             make_patient_repo(None),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
         );
         let candidate = ProcedureCandidate {
             patient_id: "missing-patient".to_string(),
@@ -2146,8 +1613,8 @@ mod tests {
     async fn validate_batch_procedure_type_not_found_returns_invalid() {
         let orchestrator = make_orchestrator_with_repos(
             make_patient_repo(Some(make_valid_patient())),
-            Arc::new(MockProcedureTypeRepositoryNotFound),
-            Arc::new(MockFundRepository),
+            Arc::new(mock_type_repo_not_found()),
+            Arc::new(mock_fund_repo_stub()),
         );
         let candidate = ProcedureCandidate {
             patient_id: "patient-id-1".to_string(),
@@ -2176,8 +1643,8 @@ mod tests {
     async fn validate_batch_fund_not_found_returns_invalid() {
         let orchestrator = make_orchestrator_with_repos(
             make_patient_repo(Some(make_valid_patient())),
-            Arc::new(MockProcedureTypeRepositoryWithType),
-            Arc::new(MockFundRepositoryNotFound),
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_not_found()),
         );
         let candidate = ProcedureCandidate {
             patient_id: "patient-id-1".to_string(),
@@ -2203,8 +1670,8 @@ mod tests {
     async fn validate_batch_valid_candidate_with_fund_returns_valid() {
         let orchestrator = make_orchestrator_with_repos(
             make_patient_repo(Some(make_valid_patient())),
-            Arc::new(MockProcedureTypeRepositoryWithType),
-            Arc::new(MockFundRepositoryWithFund),
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_with_fund()),
         );
         let candidate = ProcedureCandidate {
             patient_id: "patient-id-1".to_string(),
@@ -2258,17 +1725,18 @@ mod tests {
             Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
             None,
         );
-        let patient_repo = make_patient_repo(Some(patient));
+        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepository),
+            Arc::new(mock_proc_repo_passthrough()),
             event_bus,
         ));
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
-            patient_repo.clone(),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            patient_repo,
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
             Arc::new(MockProcedureRefundRepository),
         );
 
@@ -2277,12 +1745,7 @@ mod tests {
             .await
             .unwrap();
 
-        let updated = patient_repo
-            .updated_patient
-            .lock()
-            .unwrap()
-            .clone()
-            .unwrap();
+        let updated = updated_capture.lock().unwrap().clone().unwrap();
         assert_eq!(updated.latest_procedure_type, None);
         assert_eq!(updated.latest_date, None);
     }
@@ -2301,17 +1764,18 @@ mod tests {
             Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
             None,
         );
-        let patient_repo = make_patient_repo(Some(patient));
+        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(MockProcedureRepository),
+            Arc::new(mock_proc_repo_passthrough()),
             event_bus,
         ));
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
-            patient_repo.clone(),
-            Arc::new(MockProcedureTypeRepository),
-            Arc::new(MockFundRepository),
+            patient_repo,
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
             Arc::new(MockProcedureRefundRepository),
         );
 
@@ -2320,12 +1784,7 @@ mod tests {
             .await
             .unwrap();
 
-        let updated = patient_repo
-            .updated_patient
-            .lock()
-            .unwrap()
-            .clone()
-            .unwrap();
+        let updated = updated_capture.lock().unwrap().clone().unwrap();
         assert_eq!(updated.latest_fund, None);
     }
 }

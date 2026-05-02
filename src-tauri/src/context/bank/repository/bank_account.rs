@@ -4,6 +4,7 @@ use sqlx::SqlitePool;
 use crate::context::bank::domain::BankAccount;
 
 /// BankAccountRepository trait defines the contract for bank account data access
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait BankAccountRepository: Send + Sync {
     async fn create_account(&self, account: BankAccount) -> anyhow::Result<BankAccount>;

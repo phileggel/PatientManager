@@ -216,7 +216,7 @@ mod tests {
             &self,
             _: &str,
             _: &str,
-        ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedureRow>> {
+        ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedure>> {
             unimplemented!()
         }
         async fn find_created_in_date_range(

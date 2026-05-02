@@ -311,3 +311,108 @@ impl Procedure {
         Ok(())
     }
 }
+
+/// Domain projection: a procedure pending reconciliation, enriched with patient identity data.
+pub struct UnreconciledProcedure {
+    pub procedure_id: String,
+    pub patient_id: String,
+    pub patient_name: Option<String>,
+    pub patient_ssn: Option<String>,
+    pub procedure_date: String,
+    pub amount: Option<i64>,
+}
+
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
+pub trait ProcedureRepository: Send + Sync {
+    #[allow(clippy::too_many_arguments)]
+    async fn create_procedure(
+        &self,
+        patient_id: String,
+        fund_id: Option<String>,
+        procedure_type_id: String,
+        procedure_date: String,
+        billed_amount: Option<i64>,
+        payment_method: PaymentMethod,
+        confirmed_payment_date: Option<String>,
+        paid_amount: Option<i64>,
+        payment_status: ProcedureStatus,
+    ) -> anyhow::Result<Procedure>;
+
+    async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>>;
+    async fn read_procedure(&self, id: &str) -> anyhow::Result<Option<Procedure>>;
+    async fn read_procedures_by_ids(&self, ids: &[String]) -> anyhow::Result<Vec<Procedure>>;
+    async fn read_procedures_by_patient_id(
+        &self,
+        patient_id: &str,
+    ) -> anyhow::Result<Vec<Procedure>>;
+    async fn update_procedure(&self, procedure: Procedure) -> anyhow::Result<Procedure>;
+    async fn delete_procedure(&self, id: &str) -> anyhow::Result<()>;
+
+    async fn find_procedures_by_ssn_and_date_range(
+        &self,
+        ssn: &str,
+        start_date: &str,
+        end_date: &str,
+    ) -> anyhow::Result<Vec<Procedure>>;
+
+    async fn find_procedures_by_ssns_and_date_range(
+        &self,
+        ssns: &[String],
+        start_date: &str,
+        end_date: &str,
+    ) -> anyhow::Result<Vec<Procedure>>;
+
+    async fn find_procedures_by_ssns_and_date_range_with_ssn(
+        &self,
+        ssns: &[String],
+        start_date: &str,
+        end_date: &str,
+    ) -> anyhow::Result<Vec<(String, Procedure)>>;
+
+    /// Find exact procedure match for import deduplication.
+    /// Matches by patient_id, fund_id (nullable), procedure_date, and exact amount.
+    #[cfg_attr(test, mockall::concretize)]
+    async fn find_procedure_exact(
+        &self,
+        patient_id: &str,
+        fund_id: Option<&str>,
+        procedure_date: &str,
+        billed_amount: i64,
+    ) -> anyhow::Result<Option<Procedure>>;
+
+    async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>>;
+    async fn update_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>>;
+    async fn find_unpaid_by_fund(&self, fund_id: &str) -> anyhow::Result<Vec<Procedure>>;
+
+    async fn find_unreconciled_by_date_range(
+        &self,
+        start_date: &str,
+        end_date: &str,
+    ) -> anyhow::Result<Vec<UnreconciledProcedure>>;
+
+    /// Returns true if any non-deleted procedure in the given month (YYYY-MM) has a
+    /// blocking status (Reconciled or FundPaid), preventing re-import.
+    async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool>;
+
+    /// Hard-deletes all procedures (including soft-deleted) for the given month (YYYY-MM).
+    /// Returns the number of deleted rows.
+    async fn delete_procedures_by_month(&self, month: &str) -> anyhow::Result<u64>;
+
+    /// Find procedures eligible for a direct bank payment (CHECK/CREDIT_CARD/CASH).
+    /// Returns procedures with status CREATED and procedure_date in [date_min, date_max].
+    /// Used for the 7-day window selection (R14) and expanded search (R20).
+    async fn find_created_in_date_range(
+        &self,
+        date_min: &str,
+        date_max: &str,
+    ) -> anyhow::Result<Vec<Procedure>>;
+
+    /// Find Created procedures for a given fund with procedure_date <= date (R19).
+    /// Used by the edit modal to populate the "add procedures" selector.
+    async fn find_created_by_fund_before_date(
+        &self,
+        fund_id: &str,
+        date: &str,
+    ) -> anyhow::Result<Vec<Procedure>>;
+}

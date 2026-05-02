@@ -80,3 +80,22 @@ impl ProcedureType {
         Ok(())
     }
 }
+
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
+pub trait ProcedureTypeRepository: Send + Sync {
+    async fn create_procedure_type(
+        &self,
+        name: String,
+        default_amount: i64,
+        category: Option<String>,
+    ) -> anyhow::Result<ProcedureType>;
+    async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>>;
+    async fn read_procedure_type(&self, id: &str) -> anyhow::Result<Option<ProcedureType>>;
+    async fn update_procedure_type(
+        &self,
+        procedure_type: ProcedureType,
+    ) -> anyhow::Result<ProcedureType>;
+    async fn delete_procedure_type(&self, id: &str) -> anyhow::Result<()>;
+    async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>>;
+}
