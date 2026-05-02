@@ -713,75 +713,116 @@ impl ExcelParserService {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_excel_patient_creation() {
-        let patient = ExcelPatient {
-            temp_id: "temp-123".to_string(),
-            name: "Marie Dupont".to_string(),
-            ssn: "1234567890123".to_string(),
-            latest_fund: Some("CPAM".to_string()),
-        };
+    // --- ColIdx::from_header_row ---
 
-        assert_eq!(patient.name, "Marie Dupont");
-        assert_eq!(patient.ssn, "1234567890123");
-        assert!(patient.latest_fund.is_some());
+    fn s(v: &str) -> calamine::Data {
+        calamine::Data::String(v.to_string())
     }
 
     #[test]
-    fn test_excel_fund_creation() {
-        let fund = ExcelFund {
-            temp_id: "temp-fund-123".to_string(),
-            fund_identifier: "CPAM".to_string(),
-            fund_name: "Caisse Primaire d'Assurance Maladie".to_string(),
-            fund_address: Some("123 Rue de Paris".to_string()),
-        };
-
-        assert_eq!(fund.fund_identifier, "CPAM");
-        assert_eq!(fund.fund_name, "Caisse Primaire d'Assurance Maladie");
-        assert!(fund.fund_address.is_some());
+    fn col_idx_parses_explicit_column_positions() {
+        // All optional columns present; positions must be read from header, not defaulted
+        let header = vec![
+            s("CODE"),       // 0
+            s("NOM"),        // 1 — patient always = 1
+            s("NOM SECU"),   // 2
+            s("CAISSE"),     // 3 → fund
+            s("ADRESSE"),    // 4
+            s("TARIF"),      // 5 → amount
+            s("DATE"),       // 6 → date
+            s("ENVOI"),      // 7
+            s("T"),          // 8 → payment_method
+            s("REMBSE"),     // 9 → confirmed_payment_date
+            s("Versé"),      // 10 → paid_amount
+            s("En attente"), // 11 → awaited_amount
+        ];
+        let col = ColIdx::from_header_row(&header).expect("valid header should parse");
+        assert_eq!(col.fund, 3);
+        assert_eq!(col.amount, 5);
+        assert_eq!(col.date, 6);
+        assert_eq!(col.payment_method, 8);
+        assert_eq!(col.confirmed_payment_date, 9);
+        assert_eq!(col.paid_amount, 10);
+        assert_eq!(col.awaited_amount, 11);
+        assert_eq!(col.patient, 1);
     }
 
     #[test]
-    fn test_excel_procedure_creation() {
-        let procedure = ExcelProcedure {
-            patient_temp_id: "temp-patient-123".to_string(),
-            fund_temp_id: Some("temp-fund-123".to_string()),
-            procedure_type_tmp_id: "temp-proc-type-123".to_string(),
-            amount: 100500,
-            procedure_date: "23/04/2025".to_string(),
-            sheet_month: "Jan".to_string(),
-            payment_method: Some("CH".to_string()),
-            confirmed_payment_date: Some("25/04/2025".to_string()),
-            paid_amount: Some(100500),
-            awaited_amount: Some(0),
-        };
-
-        assert_eq!(procedure.amount, 100500);
-        assert!(procedure.amount > 0);
-        assert_eq!(procedure.payment_method, Some("CH".to_string()));
+    fn col_idx_applies_fund_relative_offsets_when_optional_columns_absent() {
+        // Only the three required columns; optional columns should default to fund + fixed offset
+        let header = vec![
+            calamine::Data::Empty, // 0
+            calamine::Data::Empty, // 1
+            calamine::Data::Empty, // 2
+            s("CAISSE"),           // 3 → fund
+            calamine::Data::Empty, // 4
+            s("TARIF"),            // 5 → amount
+            s("DATE"),             // 6 → date
+        ];
+        let col = ColIdx::from_header_row(&header).expect("valid header should parse");
+        // Defaults: T = fund+5, REMBSE = fund+6, Versé = fund+7, En attente = fund+8
+        assert_eq!(col.payment_method, 8); // 3+5
+        assert_eq!(col.confirmed_payment_date, 9); // 3+6
+        assert_eq!(col.paid_amount, 10); // 3+7
+        assert_eq!(col.awaited_amount, 11); // 3+8
     }
 
     #[test]
-    fn test_parsed_excel_data_creation() {
-        let data = ParsedExcelData {
-            patients: vec![],
-            funds: vec![],
-            procedures: vec![],
-            parsing_issues: crate::use_cases::excel_import::domain::ParsingIssues {
-                skipped_rows: vec![],
-                missing_sheets: vec![],
-            },
-        };
-
-        assert_eq!(data.patients.len(), 0);
-        assert_eq!(data.funds.len(), 0);
-        assert_eq!(data.procedures.len(), 0);
+    fn col_idx_returns_none_when_required_column_missing() {
+        // TARIF missing — amount cannot be located
+        let header = vec![s("CAISSE"), s("DATE")];
+        assert!(ColIdx::from_header_row(&header).is_none());
     }
+
+    #[test]
+    fn col_idx_returns_none_for_empty_header() {
+        assert!(ColIdx::from_header_row(&[]).is_none());
+    }
+
+    #[test]
+    fn col_idx_column_matching_is_case_insensitive_for_required_columns() {
+        let header = vec![s("caisse"), s("tarif"), s("date")];
+        assert!(ColIdx::from_header_row(&header).is_some());
+    }
+
+    // --- ExcelParserService::is_excel_error ---
+
+    #[test]
+    fn is_excel_error_detects_div_zero() {
+        assert!(ExcelParserService::is_excel_error("#DIV/0!"));
+    }
+
+    #[test]
+    fn is_excel_error_detects_n_a() {
+        assert!(ExcelParserService::is_excel_error("#N/A"));
+    }
+
+    #[test]
+    fn is_excel_error_detects_ref_error() {
+        assert!(ExcelParserService::is_excel_error("#REF!"));
+    }
+
+    #[test]
+    fn is_excel_error_rejects_normal_cell_value() {
+        assert!(!ExcelParserService::is_excel_error("CPAM"));
+    }
+
+    #[test]
+    fn is_excel_error_rejects_hash_without_bang_and_not_na() {
+        // Starts with # but neither ends with ! nor equals "#N/A"
+        assert!(!ExcelParserService::is_excel_error("#UNKNOWN"));
+    }
+
+    #[test]
+    fn is_excel_error_trims_surrounding_whitespace() {
+        assert!(ExcelParserService::is_excel_error("  #DIV/0!  "));
+    }
+
+    // --- ExcelParserService::parse_excel (integration: file system) ---
 
     #[tokio::test]
-    async fn test_parse_nonexistent_file() {
+    async fn parse_excel_returns_error_for_nonexistent_file() {
         let result = ExcelParserService::parse_excel("/path/to/nonexistent/file.xlsx").await;
-
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("File not found"));
     }

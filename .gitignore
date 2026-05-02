@@ -57,6 +57,7 @@ Thumbs.db
 # Testing
 .coverage
 coverage/
+tarpaulin-report.json
 htmlcov/
 .pytest_cache/
 .screenshots/
