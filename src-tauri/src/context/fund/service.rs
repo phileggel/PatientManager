@@ -525,4 +525,322 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
     }
+
+    // --- FundPaymentService ---
+
+    use crate::context::fund::MockFundPaymentRepository;
+
+    fn make_payment_repo_ok() -> MockFundPaymentRepository {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_read_all_groups().returning(|| Ok(vec![]));
+        mock.expect_create_group().returning(
+            |fund_id, payment_date, total_amount, procedure_ids| {
+                let lines = procedure_ids
+                    .iter()
+                    .map(|id| FundPaymentLine::new("group-id".to_string(), id.clone()).unwrap())
+                    .collect();
+                Ok(FundPaymentGroup::restore(
+                    "group-id".to_string(),
+                    fund_id,
+                    payment_date,
+                    total_amount,
+                    lines,
+                    FundPaymentGroupStatus::Active,
+                ))
+            },
+        );
+        mock.expect_read_group().returning(|id| {
+            Ok(Some(FundPaymentGroup::restore(
+                id.to_string(),
+                "fund-1".to_string(),
+                "2026-01-15".to_string(),
+                10000,
+                vec![],
+                FundPaymentGroupStatus::Active,
+            )))
+        });
+        mock.expect_update_group().returning(Ok);
+        mock.expect_delete_lines_by_group().returning(|_| Ok(()));
+        mock.expect_create_lines().returning(Ok);
+        mock.expect_delete_group().returning(|_| Ok(()));
+        mock.expect_exists_group().returning(|_, _, _| Ok(false));
+        mock.expect_create_batch_groups().returning(Ok);
+        mock.expect_update_group_status().returning(|_, _| Ok(()));
+        mock.expect_persist_group().returning(Ok);
+        mock
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_read_all_groups_returns_empty() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        let result = service.read_all_groups().await.unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_create_group_success() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        let result = service
+            .create_group(
+                "fund-1".to_string(),
+                "2026-01-15".to_string(),
+                10000,
+                vec![],
+                false,
+            )
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().fund_id, "fund-1");
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_delete_group_success() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        assert!(service.delete_group("group-1".to_string()).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_exists_group_returns_false() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        let result = service
+            .exists_group("fund-1", "2026-01-15", 10000)
+            .await
+            .unwrap();
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_update_group_not_found_returns_error() {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_read_group().returning(|_| Ok(None));
+        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service
+            .update_group("g1".to_string(), "2026-01-15".to_string(), vec![], 10000)
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_update_group_success() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        let result = service
+            .update_group(
+                "group-1".to_string(),
+                "2026-01-20".to_string(),
+                vec!["p1".to_string()],
+                20000,
+            )
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_create_groups_batch_success() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        let batch = vec![(
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            10000i64,
+            vec!["p1".to_string()],
+        )];
+        let result = service.create_groups_batch(batch, false).await;
+        assert!(result.is_ok());
+    }
+
+    // --- FundService: uncovered paths ---
+    // Use the automocked repo, aliased to avoid conflict with local MockFundRepository struct above.
+    use crate::context::fund::FundCandidate;
+    use crate::context::fund::MockFundRepository as AutoMockFundRepository;
+
+    fn make_fund() -> Fund {
+        Fund::restore("f1".into(), "93".into(), "CPAM 93".into())
+    }
+
+    fn make_candidate() -> FundCandidate {
+        FundCandidate {
+            fund_identifier: "93".to_string(),
+            fund_name: "CPAM 93".to_string(),
+            temp_id: String::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn fund_service_read_fund_delegates_to_repo() {
+        let mut mock = AutoMockFundRepository::new();
+        mock.expect_read_fund().returning(|_| {
+            Ok(Some(Fund::restore(
+                "f1".into(),
+                "93".into(),
+                "CPAM 93".into(),
+            )))
+        });
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service.read_fund("f1").await.unwrap();
+        assert!(result.is_some());
+    }
+
+    #[tokio::test]
+    async fn fund_service_find_fund_by_identifier_delegates() {
+        let mut mock = AutoMockFundRepository::new();
+        mock.expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        assert!(service
+            .find_fund_by_identifier("93")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn fund_service_update_fund_returns_updated() {
+        let mut mock = AutoMockFundRepository::new();
+        mock.expect_update_fund().returning(Ok);
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service.update_fund(make_fund()).await.unwrap();
+        assert_eq!(result.id, "f1");
+    }
+
+    #[tokio::test]
+    async fn fund_service_create_batch_returns_funds() {
+        let mut mock = AutoMockFundRepository::new();
+        mock.expect_create_batch().returning(Ok);
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service.create_batch(vec![make_candidate()]).await.unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn validate_batch_valid_fund() {
+        let mut mock = AutoMockFundRepository::new();
+        mock.expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let results = service
+            .validate_batch(vec![make_candidate()])
+            .await
+            .unwrap();
+        assert!(matches!(results[0].status, FundValidationStatus::Valid));
+    }
+
+    #[tokio::test]
+    async fn validate_batch_already_exists() {
+        let mut mock = AutoMockFundRepository::new();
+        mock.expect_find_fund_by_identifier().returning(|_| {
+            Ok(Some(Fund::restore(
+                "f1".into(),
+                "93".into(),
+                "CPAM 93".into(),
+            )))
+        });
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let results = service
+            .validate_batch(vec![make_candidate()])
+            .await
+            .unwrap();
+        assert!(matches!(
+            results[0].status,
+            FundValidationStatus::AlreadyExists
+        ));
+        assert_eq!(results[0].existing_id.as_deref(), Some("f1"));
+    }
+
+    #[tokio::test]
+    async fn validate_batch_empty_identifier_is_invalid() {
+        let mock = AutoMockFundRepository::new();
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let bad = FundCandidate {
+            fund_identifier: "".into(),
+            fund_name: "X".into(),
+            temp_id: String::new(),
+        };
+        let results = service.validate_batch(vec![bad]).await.unwrap();
+        assert!(matches!(results[0].status, FundValidationStatus::Invalid));
+        assert!(results[0].error.is_some());
+    }
+
+    #[tokio::test]
+    async fn validate_batch_db_error_marks_invalid() {
+        let mut mock = AutoMockFundRepository::new();
+        mock.expect_find_fund_by_identifier()
+            .returning(|_| Err(anyhow!("DB error")));
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let results = service
+            .validate_batch(vec![make_candidate()])
+            .await
+            .unwrap();
+        assert!(matches!(results[0].status, FundValidationStatus::Invalid));
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_read_lines_by_group_delegates() {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_read_lines_by_group().returning(|_| Ok(vec![]));
+        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service.read_lines_by_group("group-1").await.unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_update_group_status_delegates() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        let result = service
+            .update_group_status("group-1", FundPaymentGroupStatus::BankPaid)
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_persist_refund_group_delegates() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        let group = FundPaymentGroup::restore(
+            "g1".into(),
+            "fund-1".into(),
+            "2026-01-15".into(),
+            10000,
+            vec![],
+            FundPaymentGroupStatus::BankPaid,
+        );
+        let result = service.persist_refund_group(group).await.unwrap();
+        assert_eq!(result.fund_id, "fund-1");
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_delete_lines_by_group_delegates() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        assert!(service.delete_lines_by_group("group-1").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_read_group_returns_some() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        let result = service.read_group("group-1").await.unwrap();
+        assert!(result.is_some());
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_create_group_silent_does_not_panic() {
+        let service =
+            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
+        let result = service
+            .create_group(
+                "fund-1".to_string(),
+                "2026-01-15".to_string(),
+                10000,
+                vec![],
+                true,
+            )
+            .await;
+        assert!(result.is_ok());
+    }
 }

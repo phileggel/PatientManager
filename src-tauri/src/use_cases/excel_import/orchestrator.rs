@@ -245,3 +245,446 @@ impl ExcelImportOrchestrator {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::context::fund::{FundService, MockFundRepository};
+    use crate::context::patient::{MockPatientRepository, PatientService};
+    use crate::context::procedure::{
+        MockProcedureRefundRepository, MockProcedureRepository, MockProcedureTypeRepository,
+        ProcedureService,
+    };
+    use crate::core::event_bus::EventBus;
+    use crate::use_cases::excel_import::domain::{
+        ExcelFund, ExcelPatient, ExcelProcedure, ParsingIssues,
+    };
+    use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
+
+    #[allow(clippy::too_many_arguments)]
+    fn make_orchestrator(
+        patient_repo: MockPatientRepository,
+        fund_repo: MockFundRepository,
+        proc_repo: MockProcedureRepository,
+        orch_proc_repo: MockProcedureRepository,
+        orch_patient_repo: MockPatientRepository,
+        orch_fund_repo: MockFundRepository,
+        orch_type_repo: MockProcedureTypeRepository,
+        orch_refund_repo: MockProcedureRefundRepository,
+    ) -> ExcelImportOrchestrator {
+        let bus = Arc::new(EventBus::new());
+        let patient_svc = Arc::new(PatientService::new(Arc::new(patient_repo), bus.clone()));
+        let fund_svc = Arc::new(FundService::new(Arc::new(fund_repo), bus.clone()));
+        let proc_svc = Arc::new(ProcedureService::new(Arc::new(proc_repo), bus.clone()));
+        let orch_proc_svc = Arc::new(ProcedureService::new(Arc::new(orch_proc_repo), bus.clone()));
+        let proc_orch = Arc::new(ProcedureOrchestrationService::new(
+            orch_proc_svc,
+            Arc::new(orch_patient_repo),
+            Arc::new(orch_type_repo),
+            Arc::new(orch_fund_repo),
+            Arc::new(orch_refund_repo),
+        ));
+        ExcelImportOrchestrator::new(patient_svc, fund_svc, proc_svc, proc_orch)
+    }
+
+    fn empty_parse_result() -> ParseExcelResponse {
+        ParseExcelResponse {
+            patients: vec![],
+            funds: vec![],
+            procedures: vec![],
+            total_records: 0,
+            parsing_issues: ParsingIssues {
+                skipped_rows: vec![],
+                missing_sheets: vec![],
+            },
+        }
+    }
+
+    #[tokio::test]
+    async fn execute_import_empty_input_returns_all_zeros() {
+        let orchestrator = make_orchestrator(
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureRepository::new(),
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+
+        let result = orchestrator
+            .execute_import(empty_parse_result(), HashMap::new(), vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(result.patients_created, 0);
+        assert_eq!(result.patients_reused, 0);
+        assert_eq!(result.funds_created, 0);
+        assert_eq!(result.funds_reused, 0);
+        assert_eq!(result.procedures_created, 0);
+        assert_eq!(result.procedures_skipped, 0);
+        assert!(result.blocked_months.is_empty());
+    }
+
+    #[tokio::test]
+    async fn execute_import_reuses_existing_patient_by_ssn() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "existing-id".to_string(),
+                false,
+                Some("Marie Dupont".to_string()),
+                Some("1234567890123".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Marie Dupont".to_string(),
+            ssn: "1234567890123".to_string(),
+            latest_fund: None,
+        }];
+
+        let orchestrator = make_orchestrator(
+            patient_repo,
+            MockFundRepository::new(),
+            MockProcedureRepository::new(),
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(result.patients_reused, 1);
+        assert_eq!(result.patients_created, 0);
+    }
+
+    #[tokio::test]
+    async fn execute_import_creates_new_patient_when_not_found() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo
+            .expect_find_patient_by_ssn()
+            .returning(|_| Ok(None));
+        patient_repo
+            .expect_create_batch()
+            .returning(|mut patients| {
+                for p in &mut patients {
+                    p.temp_id = p.temp_id.clone();
+                }
+                Ok(patients)
+            });
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "New Patient".to_string(),
+            ssn: "9876543210987".to_string(),
+            latest_fund: None,
+        }];
+
+        let orchestrator = make_orchestrator(
+            patient_repo,
+            MockFundRepository::new(),
+            MockProcedureRepository::new(),
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(result.patients_created, 1);
+        assert_eq!(result.patients_reused, 0);
+    }
+
+    #[tokio::test]
+    async fn execute_import_reuses_existing_fund() {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo.expect_find_fund_by_identifier().returning(|_| {
+            Ok(Some(crate::context::fund::Fund::restore(
+                "existing-fund-id".to_string(),
+                "75".to_string(),
+                "CPAM 75".to_string(),
+            )))
+        });
+
+        let mut parse_result = empty_parse_result();
+        parse_result.funds = vec![ExcelFund {
+            temp_id: "fund-tmp-1".to_string(),
+            fund_identifier: "75".to_string(),
+            fund_name: "CPAM 75".to_string(),
+            fund_address: None,
+        }];
+
+        let orchestrator = make_orchestrator(
+            MockPatientRepository::new(),
+            fund_repo,
+            MockProcedureRepository::new(),
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(result.funds_reused, 1);
+        assert_eq!(result.funds_created, 0);
+    }
+
+    #[tokio::test]
+    async fn execute_import_skips_blocked_month() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(true));
+
+        let orchestrator = make_orchestrator(
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            proc_repo,
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+        let result = orchestrator
+            .execute_import(
+                empty_parse_result(),
+                HashMap::new(),
+                vec!["2026-01".to_string()],
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.blocked_months, vec!["2026-01"]);
+    }
+
+    #[tokio::test]
+    async fn execute_import_skips_procedure_for_unresolved_patient() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut parse_result = empty_parse_result();
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "unknown-patient-tmp".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "2026-01".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        }];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            proc_repo,
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["2026-01".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(result.procedures_skipped, 1);
+        assert_eq!(result.procedures_created, 0);
+    }
+
+    #[tokio::test]
+    async fn execute_import_patient_with_empty_ssn_creates_new() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_create_batch().returning(Ok);
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-anon".to_string(),
+            name: "Anonymous".to_string(),
+            ssn: "".to_string(),
+            latest_fund: None,
+        }];
+
+        let orchestrator = make_orchestrator(
+            patient_repo,
+            MockFundRepository::new(),
+            MockProcedureRepository::new(),
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(result.patients_created, 1);
+        assert_eq!(result.patients_reused, 0);
+    }
+
+    #[tokio::test]
+    async fn execute_import_creates_new_fund_when_not_found() {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        fund_repo.expect_create_batch().returning(Ok);
+
+        let mut parse_result = empty_parse_result();
+        parse_result.funds = vec![ExcelFund {
+            temp_id: "fund-tmp-2".to_string(),
+            fund_identifier: "59".to_string(),
+            fund_name: "CPAM 59".to_string(),
+            fund_address: None,
+        }];
+
+        let orchestrator = make_orchestrator(
+            MockPatientRepository::new(),
+            fund_repo,
+            MockProcedureRepository::new(),
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(result.funds_created, 1);
+        assert_eq!(result.funds_reused, 0);
+    }
+
+    #[tokio::test]
+    async fn execute_import_allowed_month_deletes_procedures() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(3));
+
+        let orchestrator = make_orchestrator(
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            proc_repo,
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+        let result = orchestrator
+            .execute_import(
+                empty_parse_result(),
+                HashMap::new(),
+                vec!["2026-02".to_string()],
+            )
+            .await
+            .unwrap();
+
+        assert!(result.blocked_months.is_empty());
+        assert_eq!(result.procedures_deleted, 3);
+    }
+
+    #[tokio::test]
+    async fn execute_import_skips_procedure_for_unmapped_type() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "unmapped-type".to_string(),
+            amount: 5000,
+            procedure_date: "2026-02-15".to_string(),
+            sheet_month: "2026-02".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        }];
+
+        let orchestrator = make_orchestrator(
+            patient_repo,
+            MockFundRepository::new(),
+            proc_repo,
+            MockProcedureRepository::new(),
+            MockPatientRepository::new(),
+            MockFundRepository::new(),
+            MockProcedureTypeRepository::new(),
+            MockProcedureRefundRepository::new(),
+        );
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec!["2026-02".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(result.procedures_skipped, 1);
+        assert_eq!(result.procedures_created, 0);
+    }
+}

@@ -326,6 +326,7 @@ impl ProcedureService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::procedure::{PaymentMethod, ProcedureStatus};
     use anyhow::anyhow;
 
     struct MockProcedureTypeRepository {
@@ -575,5 +576,176 @@ mod tests {
         );
         let result = service.update_procedure_type(pt).await;
         assert!(result.is_ok());
+    }
+
+    // --- ProcedureService ---
+
+    use crate::context::procedure::MockProcedureRepository;
+
+    fn make_mock_proc_repo() -> MockProcedureRepository {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_read_all_procedures().returning(|| Ok(vec![]));
+        mock.expect_read_procedure().returning(|_| Ok(None));
+        mock.expect_create_procedure().returning(
+            |patient_id,
+             fund_id,
+             procedure_type_id,
+             procedure_date,
+             billed_amount,
+             payment_method,
+             confirmed_payment_date,
+             paid_amount,
+             payment_status| {
+                Procedure::new(
+                    patient_id,
+                    fund_id,
+                    procedure_type_id,
+                    procedure_date,
+                    billed_amount,
+                    payment_method,
+                    confirmed_payment_date,
+                    paid_amount,
+                    payment_status,
+                )
+            },
+        );
+        mock.expect_update_procedure().returning(Ok);
+        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_create_batch().returning(Ok);
+        mock.expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        mock.expect_delete_procedures_by_month()
+            .returning(|_| Ok(3));
+        mock.expect_find_unpaid_by_fund().returning(|_| Ok(vec![]));
+        mock.expect_find_created_in_date_range()
+            .returning(|_, _| Ok(vec![]));
+        mock.expect_find_created_by_fund_before_date()
+            .returning(|_, _| Ok(vec![]));
+        mock
+    }
+
+    #[tokio::test]
+    async fn procedure_service_read_all_returns_empty() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        let result = service.read_all_procedures().await.unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn procedure_service_read_procedure_not_found() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        let result = service.read_procedure("unknown-id").await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn procedure_service_create_procedure_success() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        let result = service
+            .create_procedure(
+                "patient-1".to_string(),
+                None,
+                "type-1".to_string(),
+                "2026-01-15".to_string(),
+                Some(10000),
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn procedure_service_delete_success() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        assert!(service.delete_procedure("proc-1").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn procedure_service_has_blocking_returns_false() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        assert!(!service
+            .has_blocking_procedures_in_month("2026-01")
+            .await
+            .unwrap());
+    }
+
+    #[tokio::test]
+    async fn procedure_service_delete_by_month_returns_count() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        assert_eq!(
+            service.delete_procedures_by_month("2026-01").await.unwrap(),
+            3
+        );
+    }
+
+    #[tokio::test]
+    async fn procedure_service_create_batch_success() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        let p = Procedure::new(
+            "p1".to_string(),
+            None,
+            "t1".to_string(),
+            "2026-01-01".to_string(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::None,
+        )
+        .unwrap();
+        let result = service.create_batch(vec![p]).await.unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn procedure_service_update_procedure_success() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        let p = Procedure::new(
+            "p1".to_string(),
+            None,
+            "t1".to_string(),
+            "2026-01-01".to_string(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::None,
+        )
+        .unwrap();
+        let result = service.update_procedure(p).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn procedure_service_find_unpaid_by_fund_returns_empty() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        assert!(service
+            .find_unpaid_by_fund("fund-1")
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn procedure_service_find_created_in_date_range_returns_empty() {
+        let service =
+            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
+        assert!(service
+            .find_created_in_date_range("2026-01-01", "2026-01-31")
+            .await
+            .unwrap()
+            .is_empty());
     }
 }

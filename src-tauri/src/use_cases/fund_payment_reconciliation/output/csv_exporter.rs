@@ -309,4 +309,119 @@ mod tests {
         assert!(csv.contains("100,00"));
         assert!(csv.contains("Procédure non trouvée en base de données"));
     }
+
+    #[test]
+    fn test_export_perfect_matches_are_skipped() {
+        let pdf_line = make_pdf_line("1234567890123", 50000, false);
+        let db_match = DbMatch {
+            procedure_id: "proc-1".to_string(),
+            procedure_date: NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
+            fund_id: None,
+            amount: Some(50000),
+            anomalies: vec![],
+        };
+        let result = ReconciliationResult {
+            matches: vec![
+                ReconciliationMatch::PerfectSingleMatch {
+                    pdf_line: pdf_line.clone(),
+                    db_match: db_match.clone(),
+                },
+                ReconciliationMatch::PerfectGroupMatch {
+                    pdf_line,
+                    db_matches: vec![db_match],
+                },
+            ],
+        };
+        let csv = export_to_csv(&result).expect("CSV export failed");
+        // Only header row — no data rows for perfect matches
+        let lines: Vec<&str> = csv.lines().collect();
+        assert_eq!(
+            lines.len(),
+            1,
+            "only header, no data rows for perfect matches"
+        );
+    }
+
+    #[test]
+    fn test_export_group_match_issue_generates_start_and_part_rows() {
+        let pdf_line = make_pdf_line("1111111111111", 80000, false);
+        let db_match_a = DbMatch {
+            procedure_id: "proc-a".to_string(),
+            procedure_date: NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
+            fund_id: None,
+            amount: Some(50000),
+            anomalies: vec![AnomalyType::AmountMismatch],
+        };
+        let db_match_b = DbMatch {
+            procedure_id: "proc-b".to_string(),
+            procedure_date: NaiveDate::from_ymd_opt(2025, 5, 11).unwrap(),
+            fund_id: None,
+            amount: Some(30000),
+            anomalies: vec![],
+        };
+        let result = ReconciliationResult {
+            matches: vec![ReconciliationMatch::GroupMatchIssue {
+                pdf_line,
+                db_matches: vec![db_match_a, db_match_b],
+            }],
+        };
+        let csv = export_to_csv(&result).expect("CSV export failed");
+        assert!(csv.contains("GROUP_MATCH_START"));
+        assert!(csv.contains("GROUP_MATCH_PART"));
+    }
+
+    #[test]
+    fn test_export_too_many_candidates() {
+        let pdf_line = make_pdf_line("2222222222222", 50000, false);
+        let result = ReconciliationResult {
+            matches: vec![ReconciliationMatch::TooManyMatchIssue {
+                pdf_line,
+                candidate_ids: vec!["a".into(), "b".into(), "c".into()],
+            }],
+        };
+        let csv = export_to_csv(&result).expect("CSV export failed");
+        assert!(csv.contains("TOO_MANY_CANDIDATES"));
+        assert!(csv.contains("3 > 8 max"));
+    }
+
+    #[test]
+    fn test_format_anomalies_empty() {
+        assert_eq!(format_anomalies(&[]), "Aucune");
+    }
+
+    #[test]
+    fn test_format_anomalies_multiple() {
+        let anomalies = vec![AnomalyType::FundMismatch, AnomalyType::DateMismatch];
+        let result = format_anomalies(&anomalies);
+        assert!(result.contains("Caisse différente"));
+        assert!(result.contains("Date différente"));
+        assert!(result.contains("; "));
+    }
+
+    #[test]
+    fn test_format_anomalies_date_mismatch() {
+        assert_eq!(
+            format_anomalies(&[AnomalyType::DateMismatch]),
+            "Date différente"
+        );
+    }
+
+    #[test]
+    fn test_calculate_delay() {
+        let payment = NaiveDate::from_ymd_opt(2025, 5, 15).unwrap();
+        let procedure = NaiveDate::from_ymd_opt(2025, 5, 10).unwrap();
+        assert_eq!(calculate_delay(&payment, &procedure), "5");
+    }
+
+    #[test]
+    fn test_format_procedure_date_non_period() {
+        let line = make_pdf_line("1111", 0, false);
+        assert_eq!(format_procedure_date(&line), "2025-05-10");
+    }
+
+    #[test]
+    fn test_format_procedure_date_period() {
+        let line = make_pdf_line("1111", 0, true);
+        assert_eq!(format_procedure_date(&line), "2025-05-10 au 2025-05-15");
+    }
 }

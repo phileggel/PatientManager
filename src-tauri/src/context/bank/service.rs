@@ -496,4 +496,261 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("protected"));
     }
+
+    // ============ Additional mock helpers ============
+
+    struct MockBankAccountRepositoryReturnsNone;
+
+    #[async_trait::async_trait]
+    impl BankAccountRepository for MockBankAccountRepositoryReturnsNone {
+        async fn create_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+            Ok(a)
+        }
+        async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
+            Ok(vec![])
+        }
+        async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
+        async fn read_account(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
+        async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+            Ok(a)
+        }
+        async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    struct MockBankEntryRepositoryReturnsNone;
+
+    #[async_trait::async_trait]
+    impl BankEntryRepository for MockBankEntryRepositoryReturnsNone {
+        async fn create_transfer(
+            &self,
+            transfer_date: String,
+            amount: i64,
+            transfer_type: BankEntryType,
+            bank_account: BankAccount,
+        ) -> anyhow::Result<BankEntry> {
+            BankEntry::new(transfer_date, amount, transfer_type, bank_account)
+        }
+        async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
+            Ok(None)
+        }
+        async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>> {
+            Ok(vec![])
+        }
+        async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+            Ok(transfer)
+        }
+        async fn delete_transfer(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn persist_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+            Ok(transfer)
+        }
+    }
+
+    // ============ BankEntryService additional tests ============
+
+    #[tokio::test]
+    async fn test_read_transfer_returns_some() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service.read_transfer("test-id").await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_read_all_transfers_returns_list() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service.read_all_transfers().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_transfer_success() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let account = BankAccount::restore("acc-123".to_string(), "Main Account".to_string(), None);
+        let transfer = BankEntry::with_id(
+            "entry-1".to_string(),
+            "2026-03-01".to_string(),
+            200000,
+            BankEntryType::FundWire,
+            account,
+        )
+        .unwrap();
+
+        let result = service.update_transfer(transfer).await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().amount, 200000);
+    }
+
+    #[tokio::test]
+    async fn test_update_transfer_account_not_found() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepositoryReturnsNone);
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let account = BankAccount::restore("missing-acc".to_string(), "Ghost".to_string(), None);
+        let transfer = BankEntry::with_id(
+            "entry-1".to_string(),
+            "2026-03-01".to_string(),
+            200000,
+            BankEntryType::FundWire,
+            account,
+        )
+        .unwrap();
+
+        let result = service.update_transfer(transfer).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn test_persist_refund_transfer_success() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let account = BankAccount::restore("acc-123".to_string(), "Main Account".to_string(), None);
+        let transfer = BankEntry::restore(
+            "refund-1".to_string(),
+            "2026-03-01".to_string(),
+            -50000,
+            BankEntryType::FundOutgoingWire,
+            account,
+        );
+
+        let result = service.persist_refund_transfer(transfer, false).await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().amount, -50000);
+    }
+
+    #[tokio::test]
+    async fn test_persist_refund_transfer_account_not_found() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepositoryReturnsNone);
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let account = BankAccount::restore("missing-acc".to_string(), "Ghost".to_string(), None);
+        let transfer = BankEntry::restore(
+            "refund-1".to_string(),
+            "2026-03-01".to_string(),
+            -50000,
+            BankEntryType::FundOutgoingWire,
+            account,
+        );
+
+        let result = service.persist_refund_transfer(transfer, false).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_transfer_not_found() {
+        let repo = Arc::new(MockBankEntryRepositoryReturnsNone);
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service.delete_transfer("missing-id").await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn test_create_transfer_account_not_found() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepositoryReturnsNone);
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service
+            .create_transfer(
+                "2026-02-15".to_string(),
+                1000000,
+                BankEntryType::FundWire,
+                "missing-acc".to_string(),
+                false,
+            )
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    // ============ BankAccountService additional tests ============
+
+    #[tokio::test]
+    async fn test_read_account_success() {
+        let repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.read_account("test-id").await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name, "Test Account");
+    }
+
+    #[tokio::test]
+    async fn test_read_all_accounts_returns_list() {
+        let repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.read_all_accounts().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_find_account_by_iban_returns_none() {
+        let repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.find_account_by_iban("FR76123456").await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_update_account_success() {
+        let repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service
+            .update_account("some-id".to_string(), "Updated Name".to_string(), None)
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name, "Updated Name");
+    }
+
+    #[tokio::test]
+    async fn test_delete_account_not_found() {
+        let repo = Arc::new(MockBankAccountRepositoryReturnsNone);
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.delete_account("missing-id").await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
 }

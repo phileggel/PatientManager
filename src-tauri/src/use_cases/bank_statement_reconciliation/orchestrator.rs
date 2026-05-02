@@ -517,6 +517,758 @@ fn is_exact_date_offset(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::bank::{
+        BankAccount, BankAccountRepository, BankEntryRepository, BankEntryType,
+    };
+    use crate::context::fund::{
+        FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine, FundPaymentRepository,
+        FundRepository,
+    };
+    use crate::context::procedure::{
+        PaymentMethod, Procedure, ProcedureRepository, ProcedureStatus, UnreconciledProcedure,
+    };
+    use crate::core::event_bus::EventBus;
+    use crate::use_cases::bank_statement_reconciliation::label_mapping_repo::{
+        BankFundLabelMapping, BankFundLabelMappingRepository,
+    };
+    use chrono::NaiveDate;
+    use std::sync::Arc;
+
+    // --- Minimal mock repositories ---
+
+    struct FundRepoReturns(Vec<Fund>);
+    #[async_trait::async_trait]
+    impl FundRepository for FundRepoReturns {
+        async fn create_fund(&self, id: &str, name: &str) -> anyhow::Result<Fund> {
+            Ok(Fund::restore(
+                uuid::Uuid::new_v4().to_string(),
+                id.to_string(),
+                name.to_string(),
+            ))
+        }
+        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
+            Ok(self.0.clone())
+        }
+        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<Fund>> {
+            Ok(None)
+        }
+        async fn update_fund(&self, f: Fund) -> anyhow::Result<Fund> {
+            Ok(f)
+        }
+        async fn find_fund_by_identifier(&self, id: &str) -> anyhow::Result<Option<Fund>> {
+            Ok(self.0.iter().find(|f| f.fund_identifier == id).cloned())
+        }
+        async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
+            Ok(funds)
+        }
+        async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    struct FundPaymentRepoReturnsGroups(Vec<FundPaymentGroup>);
+    #[async_trait::async_trait]
+    impl FundPaymentRepository for FundPaymentRepoReturnsGroups {
+        async fn create_group(
+            &self,
+            _fund_id: String,
+            _payment_date: String,
+            _total_amount: i64,
+            _procedure_ids: Vec<String>,
+        ) -> anyhow::Result<FundPaymentGroup> {
+            unimplemented!()
+        }
+        async fn create_batch_groups(
+            &self,
+            _groups: Vec<FundPaymentGroup>,
+        ) -> anyhow::Result<Vec<FundPaymentGroup>> {
+            unimplemented!()
+        }
+        async fn create_lines(
+            &self,
+            lines: Vec<FundPaymentLine>,
+        ) -> anyhow::Result<Vec<FundPaymentLine>> {
+            Ok(lines)
+        }
+        async fn read_group(&self, id: &str) -> anyhow::Result<Option<FundPaymentGroup>> {
+            Ok(self.0.iter().find(|g| g.id == id).cloned())
+        }
+        async fn read_lines_by_group(
+            &self,
+            _group_id: &str,
+        ) -> anyhow::Result<Vec<FundPaymentLine>> {
+            Ok(vec![])
+        }
+        async fn read_all_groups(&self) -> anyhow::Result<Vec<FundPaymentGroup>> {
+            Ok(self.0.clone())
+        }
+        async fn update_group(&self, g: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
+            Ok(g)
+        }
+        async fn update_group_status(
+            &self,
+            _group_id: &str,
+            _status: FundPaymentGroupStatus,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn delete_lines_by_group(&self, _group_id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn delete_group(&self, _group_id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn exists_group(
+            &self,
+            _fund_id: &str,
+            _payment_date: &str,
+            _total_amount: i64,
+        ) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+        async fn persist_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
+            Ok(group)
+        }
+    }
+
+    struct BankAccountRepoReturns(Option<BankAccount>);
+    #[async_trait::async_trait]
+    impl BankAccountRepository for BankAccountRepoReturns {
+        async fn create_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+            Ok(a)
+        }
+        async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
+            Ok(vec![])
+        }
+        async fn read_account(&self, _id: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(self.0.clone())
+        }
+        async fn find_by_iban(&self, _iban: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(self.0.clone())
+        }
+        async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+            Ok(a)
+        }
+        async fn delete_account(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    struct BankEntryRepoNoop;
+    #[async_trait::async_trait]
+    impl BankEntryRepository for BankEntryRepoNoop {
+        async fn create_transfer(
+            &self,
+            transfer_date: String,
+            amount: i64,
+            transfer_type: BankEntryType,
+            bank_account: BankAccount,
+        ) -> anyhow::Result<crate::context::bank::BankEntry> {
+            use crate::context::bank::BankEntry;
+            Ok(BankEntry::restore(
+                uuid::Uuid::new_v4().to_string(),
+                transfer_date,
+                amount,
+                transfer_type,
+                bank_account,
+            ))
+        }
+        async fn read_transfer(
+            &self,
+            _id: &str,
+        ) -> anyhow::Result<Option<crate::context::bank::BankEntry>> {
+            Ok(None)
+        }
+        async fn read_all_transfers(&self) -> anyhow::Result<Vec<crate::context::bank::BankEntry>> {
+            Ok(vec![])
+        }
+        async fn update_transfer(
+            &self,
+            t: crate::context::bank::BankEntry,
+        ) -> anyhow::Result<crate::context::bank::BankEntry> {
+            Ok(t)
+        }
+        async fn delete_transfer(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn persist_transfer(
+            &self,
+            t: crate::context::bank::BankEntry,
+        ) -> anyhow::Result<crate::context::bank::BankEntry> {
+            Ok(t)
+        }
+    }
+
+    struct BankLinkRepoNoop;
+    #[async_trait::async_trait]
+    impl crate::context::bank::BankEntryLinkRepository for BankLinkRepoNoop {
+        async fn link_fund_groups(
+            &self,
+            _bank_transfer_id: &str,
+            _fund_group_ids: &[String],
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn get_fund_group_ids(&self, _bank_transfer_id: &str) -> anyhow::Result<Vec<String>> {
+            Ok(vec![])
+        }
+        async fn unlink_all_fund_groups(&self, _bank_transfer_id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn get_transfer_for_fund_group(
+            &self,
+            _fund_group_id: &str,
+        ) -> anyhow::Result<Option<String>> {
+            Ok(None)
+        }
+        async fn link_procedures(
+            &self,
+            _bank_transfer_id: &str,
+            _procedure_ids: &[String],
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn get_procedure_ids(&self, _bank_transfer_id: &str) -> anyhow::Result<Vec<String>> {
+            Ok(vec![])
+        }
+        async fn unlink_all_procedures(&self, _bank_transfer_id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    struct ProcRepoNoop;
+    #[async_trait::async_trait]
+    impl ProcedureRepository for ProcRepoNoop {
+        #[allow(clippy::too_many_arguments)]
+        async fn create_procedure(
+            &self,
+            patient_id: String,
+            fund_id: Option<String>,
+            procedure_type_id: String,
+            procedure_date: String,
+            billed_amount: Option<i64>,
+            payment_method: PaymentMethod,
+            confirmed_payment_date: Option<String>,
+            paid_amount: Option<i64>,
+            payment_status: ProcedureStatus,
+        ) -> anyhow::Result<Procedure> {
+            let date = NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d").unwrap_or_default();
+            Ok(Procedure::restore(
+                uuid::Uuid::new_v4().to_string(),
+                patient_id,
+                fund_id,
+                procedure_type_id,
+                date,
+                billed_amount,
+                payment_method,
+                confirmed_payment_date
+                    .as_deref()
+                    .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
+                paid_amount,
+                payment_status,
+            ))
+        }
+        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
+            Ok(None)
+        }
+        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn read_procedures_by_patient_id(
+            &self,
+            _patient_id: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
+            Ok(p)
+        }
+        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn find_procedures_by_ssn_and_date_range(
+            &self,
+            _ssn: &str,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn find_procedures_by_ssns_and_date_range(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn find_procedures_by_ssns_and_date_range_with_ssn(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<(String, Procedure)>> {
+            Ok(vec![])
+        }
+        async fn find_procedure_exact(
+            &self,
+            _patient_id: &str,
+            _fund_id: Option<&str>,
+            _procedure_date: &str,
+            _procedure_amount: i64,
+        ) -> anyhow::Result<Option<Procedure>> {
+            Ok(None)
+        }
+        async fn create_batch(&self, p: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
+            Ok(p)
+        }
+        async fn update_batch(&self, p: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
+            Ok(p)
+        }
+        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
+            Ok(0)
+        }
+        async fn find_unreconciled_by_date_range(
+            &self,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<UnreconciledProcedure>> {
+            Ok(vec![])
+        }
+        async fn find_created_in_date_range(
+            &self,
+            _date_min: &str,
+            _date_max: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn find_created_by_fund_before_date(
+            &self,
+            _fund_id: &str,
+            _date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+    }
+
+    struct LabelMappingRepoReturns(Vec<BankFundLabelMapping>);
+    #[async_trait::async_trait]
+    impl BankFundLabelMappingRepository for LabelMappingRepoReturns {
+        async fn find_mappings_for_account(
+            &self,
+            _bank_account_id: &str,
+        ) -> anyhow::Result<Vec<BankFundLabelMapping>> {
+            Ok(self.0.clone())
+        }
+        async fn save_mapping(
+            &self,
+            bank_account_id: &str,
+            bank_label: &str,
+            fund_id: &str,
+        ) -> anyhow::Result<BankFundLabelMapping> {
+            Ok(BankFundLabelMapping {
+                id: uuid::Uuid::new_v4().to_string(),
+                bank_account_id: bank_account_id.to_string(),
+                bank_label: bank_label.to_string(),
+                fund_id: Some(fund_id.to_string()),
+            })
+        }
+    }
+
+    fn make_orchestrator_with(
+        funds: Vec<Fund>,
+        groups: Vec<FundPaymentGroup>,
+        account: Option<BankAccount>,
+        mappings: Vec<BankFundLabelMapping>,
+    ) -> BankStatementOrchestrator {
+        let event_bus = Arc::new(EventBus::new());
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(BankAccountRepoReturns(account));
+        BankStatementOrchestrator::new(
+            Arc::new(BankAccountService::new(
+                bank_account_repo.clone(),
+                event_bus.clone(),
+            )),
+            Arc::new(FundService::new(
+                Arc::new(FundRepoReturns(funds)),
+                event_bus.clone(),
+            )),
+            Arc::new(FundPaymentService::new(
+                Arc::new(FundPaymentRepoReturnsGroups(groups)),
+                event_bus.clone(),
+            )),
+            Arc::new(BankEntryService::new(
+                Arc::new(BankEntryRepoNoop),
+                bank_account_repo,
+                event_bus.clone(),
+            )),
+            Arc::new(BankLinkRepoNoop),
+            Arc::new(ProcedureService::new(
+                Arc::new(ProcRepoNoop),
+                event_bus.clone(),
+            )),
+            Arc::new(LabelMappingRepoReturns(mappings)),
+            event_bus,
+        )
+    }
+
+    // --- BankStatementReconciliationConfig ---
+
+    #[test]
+    fn config_instance_has_expected_offset() {
+        let config = BankStatementReconciliationConfig::instance();
+        assert_eq!(config.max_date_offset_days, MAX_DATE_OFFSET_DAYS as i32);
+    }
+
+    // --- match_against_unsettled_groups ---
+
+    #[tokio::test]
+    async fn match_empty_lines_returns_empty() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        let result = orchestrator
+            .match_against_unsettled_groups(vec![])
+            .await
+            .unwrap();
+        assert!(result.matched.is_empty());
+        assert!(result.unmatched_lines.is_empty());
+    }
+
+    #[tokio::test]
+    async fn match_rejected_line_is_filtered() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        let result = orchestrator
+            .match_against_unsettled_groups(vec![ResolvedCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "REJECTED LINE".to_string(),
+                amount: 100_000,
+                fund_id: "REJECTED".to_string(),
+            }])
+            .await
+            .unwrap();
+        assert!(result.matched.is_empty());
+        assert!(result.unmatched_lines.is_empty());
+    }
+
+    #[tokio::test]
+    async fn match_line_with_no_groups_is_unmatched() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        let result = orchestrator
+            .match_against_unsettled_groups(vec![ResolvedCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+                fund_id: "fund-1".to_string(),
+            }])
+            .await
+            .unwrap();
+        assert!(result.matched.is_empty());
+        assert_eq!(result.unmatched_lines.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn match_line_finds_group_with_exact_date() {
+        let group = FundPaymentGroup::restore(
+            "group-1".to_string(),
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![]);
+        let result = orchestrator
+            .match_against_unsettled_groups(vec![ResolvedCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+                fund_id: "fund-1".to_string(),
+            }])
+            .await
+            .unwrap();
+        assert_eq!(result.matched.len(), 1);
+        assert_eq!(result.matched[0].group_id, "group-1");
+        assert!(result.unmatched_lines.is_empty());
+    }
+
+    #[tokio::test]
+    async fn match_line_finds_group_within_offset() {
+        let group = FundPaymentGroup::restore(
+            "group-2".to_string(),
+            "fund-1".to_string(),
+            "2026-01-10".to_string(), // 5 days before bank date
+            50_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![]);
+        let result = orchestrator
+            .match_against_unsettled_groups(vec![ResolvedCreditLine {
+                date: "2026-01-15".to_string(), // 5 days after group date
+                label: "CPAM93".to_string(),
+                amount: 50_000,
+                fund_id: "fund-1".to_string(),
+            }])
+            .await
+            .unwrap();
+        assert_eq!(result.matched.len(), 1);
+        assert_eq!(result.matched[0].group_id, "group-2");
+    }
+
+    #[tokio::test]
+    async fn match_locked_group_is_skipped() {
+        let group = FundPaymentGroup::restore(
+            "group-locked".to_string(),
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::BankPaid, // is_locked = true
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![]);
+        let result = orchestrator
+            .match_against_unsettled_groups(vec![ResolvedCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+                fund_id: "fund-1".to_string(),
+            }])
+            .await
+            .unwrap();
+        assert!(result.matched.is_empty());
+        assert_eq!(result.unmatched_lines.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn match_wrong_amount_not_matched() {
+        let group = FundPaymentGroup::restore(
+            "group-1".to_string(),
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            200_000, // different amount
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![]);
+        let result = orchestrator
+            .match_against_unsettled_groups(vec![ResolvedCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+                fund_id: "fund-1".to_string(),
+            }])
+            .await
+            .unwrap();
+        assert!(result.matched.is_empty());
+        assert_eq!(result.unmatched_lines.len(), 1);
+    }
+
+    // --- resolve_fund_labels ---
+
+    #[tokio::test]
+    async fn resolve_fund_labels_no_mappings_returns_suggestion() {
+        let funds = vec![Fund::restore("f1".into(), "93".into(), "CPAM 93".into())];
+        let orchestrator = make_orchestrator_with(funds, vec![], None, vec![]);
+        let resolutions = orchestrator
+            .resolve_fund_labels("account-1", vec!["CPAM93".to_string()])
+            .await
+            .unwrap();
+        assert_eq!(resolutions.len(), 1);
+        assert!(!resolutions[0].is_confirmed);
+        assert_eq!(resolutions[0].suggested_fund_id.as_deref(), Some("f1"));
+    }
+
+    #[tokio::test]
+    async fn resolve_fund_labels_with_confirmed_mapping() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "account-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("f1".to_string()),
+        };
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![mapping]);
+        let resolutions = orchestrator
+            .resolve_fund_labels("account-1", vec!["CPAM93".to_string()])
+            .await
+            .unwrap();
+        assert_eq!(resolutions.len(), 1);
+        assert!(resolutions[0].is_confirmed);
+        assert!(!resolutions[0].is_rejected);
+        assert_eq!(resolutions[0].fund_id.as_deref(), Some("f1"));
+    }
+
+    #[tokio::test]
+    async fn resolve_fund_labels_rejected_mapping() {
+        let mapping = BankFundLabelMapping {
+            id: "m2".to_string(),
+            bank_account_id: "account-1".to_string(),
+            bank_label: "SALAIRES".to_string(),
+            fund_id: None, // rejected
+        };
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![mapping]);
+        let resolutions = orchestrator
+            .resolve_fund_labels("account-1", vec!["SALAIRES".to_string()])
+            .await
+            .unwrap();
+        assert_eq!(resolutions.len(), 1);
+        assert!(resolutions[0].is_confirmed);
+        assert!(resolutions[0].is_rejected);
+    }
+
+    #[tokio::test]
+    async fn resolve_fund_labels_deduplicates_labels() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        let resolutions = orchestrator
+            .resolve_fund_labels(
+                "account-1",
+                vec!["CPAM93".to_string(), "CPAM93".to_string()],
+            )
+            .await
+            .unwrap();
+        assert_eq!(resolutions.len(), 1);
+    }
+
+    // --- save_label_mappings ---
+
+    #[tokio::test]
+    async fn save_label_mappings_returns_ok() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        let result = orchestrator
+            .save_label_mappings(
+                "account-1",
+                vec![("CPAM93".to_string(), "fund-1".to_string())],
+            )
+            .await;
+        assert!(result.is_ok());
+    }
+
+    // --- resolve_bank_account_from_iban ---
+
+    #[tokio::test]
+    async fn resolve_bank_account_from_iban_returns_account_when_found() {
+        let account = BankAccount::restore("acc-1".to_string(), "My Bank".to_string(), None);
+        let orchestrator = make_orchestrator_with(vec![], vec![], Some(account.clone()), vec![]);
+        let result = orchestrator
+            .resolve_bank_account_from_iban("FR76...")
+            .await
+            .unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().id, "acc-1");
+    }
+
+    #[tokio::test]
+    async fn resolve_bank_account_from_iban_returns_none_when_not_found() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        let result = orchestrator
+            .resolve_bank_account_from_iban("UNKNOWN")
+            .await
+            .unwrap();
+        assert!(result.is_none());
+    }
+
+    // --- publish_batch_events ---
+
+    #[test]
+    fn publish_batch_events_does_not_panic() {
+        let event_bus = Arc::new(EventBus::new());
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(BankAccountRepoReturns(None));
+        let orchestrator = BankStatementOrchestrator::new(
+            Arc::new(BankAccountService::new(
+                bank_account_repo.clone(),
+                event_bus.clone(),
+            )),
+            Arc::new(FundService::new(
+                Arc::new(FundRepoReturns(vec![])),
+                event_bus.clone(),
+            )),
+            Arc::new(FundPaymentService::new(
+                Arc::new(FundPaymentRepoReturnsGroups(vec![])),
+                event_bus.clone(),
+            )),
+            Arc::new(BankEntryService::new(
+                Arc::new(BankEntryRepoNoop),
+                bank_account_repo,
+                event_bus.clone(),
+            )),
+            Arc::new(BankLinkRepoNoop),
+            Arc::new(ProcedureService::new(
+                Arc::new(ProcRepoNoop),
+                event_bus.clone(),
+            )),
+            Arc::new(LabelMappingRepoReturns(vec![])),
+            event_bus,
+        );
+        orchestrator.publish_batch_events();
+    }
+
+    // --- create_transfers ---
+
+    #[tokio::test]
+    async fn create_transfers_empty_input_returns_zero() {
+        let account = BankAccount::restore("acc-1".to_string(), "My Bank".to_string(), None);
+        let orchestrator = make_orchestrator_with(vec![], vec![], Some(account), vec![]);
+        let count = orchestrator
+            .create_transfers("acc-1", vec![])
+            .await
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn create_transfers_invalid_date_returns_error() {
+        let account = BankAccount::restore("acc-1".to_string(), "My Bank".to_string(), None);
+        let orchestrator = make_orchestrator_with(vec![], vec![], Some(account), vec![]);
+        let result = orchestrator
+            .create_transfers(
+                "acc-1",
+                vec![ConfirmedMatch {
+                    group_id: "group-1".to_string(),
+                    date: "not-a-date".to_string(),
+                    amount: 100_000,
+                }],
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid date format"));
+    }
+
+    #[tokio::test]
+    async fn create_transfers_valid_match_returns_one() {
+        let account = BankAccount::restore("acc-1".to_string(), "My Bank".to_string(), None);
+        let group = FundPaymentGroup::restore(
+            "group-1".to_string(),
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group], Some(account), vec![]);
+        let count = orchestrator
+            .create_transfers(
+                "acc-1",
+                vec![ConfirmedMatch {
+                    group_id: "group-1".to_string(),
+                    date: "2026-01-15".to_string(),
+                    amount: 100_000,
+                }],
+            )
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+    }
 
     #[test]
     fn test_suggest_fund_cpam() {

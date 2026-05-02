@@ -1750,6 +1750,408 @@ mod tests {
         assert_eq!(updated.latest_date, None);
     }
 
+    // --- create_procedure error paths ---
+
+    #[tokio::test]
+    async fn create_procedure_patient_not_found_returns_error() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(None),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+        );
+        let result = orchestrator
+            .create_procedure(
+                "p1".into(),
+                None,
+                "t1".into(),
+                "2024-01-01".into(),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Patient not found"));
+    }
+
+    #[tokio::test]
+    async fn create_procedure_type_not_found_returns_error() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(Some(make_valid_patient())),
+            Arc::new(mock_type_repo_not_found()),
+            Arc::new(mock_fund_repo_stub()),
+        );
+        let result = orchestrator
+            .create_procedure(
+                "patient-id-1".into(),
+                None,
+                "missing-type".into(),
+                "2024-01-01".into(),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Procedure type not found"));
+    }
+
+    #[tokio::test]
+    async fn create_procedure_fund_not_found_returns_error() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(Some(make_valid_patient())),
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_not_found()),
+        );
+        let result = orchestrator
+            .create_procedure(
+                "patient-id-1".into(),
+                Some("missing-fund".into()),
+                "t1".into(),
+                "2024-01-01".into(),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    // --- delete_procedure not found ---
+
+    fn mock_proc_repo_read_none() -> MockProcedureRepository {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_read_procedure().returning(|_| Ok(None));
+        mock.expect_update_procedure().returning(Ok);
+        mock.expect_read_all_procedures().returning(|| Ok(vec![]));
+        mock.expect_create_batch().returning(Ok);
+        mock
+    }
+
+    #[tokio::test]
+    async fn delete_procedure_not_found_returns_error() {
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(mock_proc_repo_read_none()),
+            event_bus,
+        ));
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            make_patient_repo(None),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(MockProcedureRefundRepository),
+        );
+        let result = orchestrator.delete_procedure("non-existent").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    // --- validate_batch DB error paths ---
+
+    fn mock_patient_repo_db_error() -> Arc<MockPatientRepository> {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_read_patient()
+            .returning(|_| Err(anyhow::anyhow!("DB error")));
+        Arc::new(mock)
+    }
+
+    fn mock_type_repo_db_error() -> MockProcedureTypeRepository {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type()
+            .returning(|_| Err(anyhow::anyhow!("DB error")));
+        mock
+    }
+
+    fn mock_fund_repo_db_error() -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_fund()
+            .returning(|_| Err(anyhow::anyhow!("DB error")));
+        mock
+    }
+
+    #[tokio::test]
+    async fn validate_batch_patient_db_error_returns_invalid() {
+        let orchestrator = make_orchestrator_with_repos(
+            mock_patient_repo_db_error(),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+        );
+        let candidate = ProcedureCandidate {
+            patient_id: "p1".to_string(),
+            fund_id: None,
+            procedure_type_id: "t1".to_string(),
+            procedure_date: "2024-01-01".to_string(),
+            billed_amount: None,
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        };
+        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(matches!(
+            results[0].status,
+            ProcedureValidationStatus::Invalid
+        ));
+        assert!(results[0]
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("Database error checking patient"));
+    }
+
+    #[tokio::test]
+    async fn validate_batch_type_db_error_returns_invalid() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(Some(make_valid_patient())),
+            Arc::new(mock_type_repo_db_error()),
+            Arc::new(mock_fund_repo_stub()),
+        );
+        let candidate = ProcedureCandidate {
+            patient_id: "patient-id-1".to_string(),
+            fund_id: None,
+            procedure_type_id: "t1".to_string(),
+            procedure_date: "2024-01-01".to_string(),
+            billed_amount: None,
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        };
+        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(matches!(
+            results[0].status,
+            ProcedureValidationStatus::Invalid
+        ));
+        assert!(results[0]
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("Database error checking procedure type"));
+    }
+
+    #[tokio::test]
+    async fn validate_batch_fund_db_error_returns_invalid() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(Some(make_valid_patient())),
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_db_error()),
+        );
+        let candidate = ProcedureCandidate {
+            patient_id: "patient-id-1".to_string(),
+            fund_id: Some("fund-1".to_string()),
+            procedure_type_id: "type-1".to_string(),
+            procedure_date: "2024-01-01".to_string(),
+            billed_amount: None,
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        };
+        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(matches!(
+            results[0].status,
+            ProcedureValidationStatus::Invalid
+        ));
+        assert!(results[0]
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("Database error checking fund"));
+    }
+
+    // --- create_batch skips invalid candidate (bad date format) ---
+
+    #[tokio::test]
+    async fn create_batch_skips_invalid_candidate_with_bad_date() {
+        let patient = make_valid_patient();
+        let updated_capture = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture));
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(mock_proc_repo_passthrough()),
+            event_bus,
+        ));
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo,
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(MockProcedureRefundRepository),
+        );
+        let candidate = ProcedureCandidate {
+            patient_id: "p1".to_string(),
+            fund_id: None,
+            procedure_type_id: "t1".to_string(),
+            procedure_date: "INVALID-DATE".to_string(),
+            billed_amount: None,
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        };
+        let result = orchestrator.create_batch(vec![candidate]).await.unwrap();
+        assert!(result.is_empty(), "Invalid candidate should be skipped");
+    }
+
+    // --- REF-170: update_procedure propagation paths ---
+
+    fn make_refund_record(
+        source_id: &str,
+        refund_proc_id: &str,
+    ) -> crate::context::procedure::ProcedureRefund {
+        crate::context::procedure::ProcedureRefund::restore(
+            "refund-rec-1".to_string(),
+            source_id.to_string(),
+            refund_proc_id.to_string(),
+            "group-1".to_string(),
+            "transfer-1".to_string(),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            None,
+            ProcedureStatus::FundPaid,
+        )
+    }
+
+    struct ProcedureRefundRepoReturningRecord {
+        record: crate::context::procedure::ProcedureRefund,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::context::procedure::ProcedureRefundRepository for ProcedureRefundRepoReturningRecord {
+        async fn create_procedure_refund(
+            &self,
+            _: &crate::context::procedure::ProcedureRefund,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn find_by_source_procedure_id(
+            &self,
+            _: &str,
+        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
+            Ok(Some(self.record.clone()))
+        }
+        async fn find_by_refund_procedure_id(
+            &self,
+            _: &str,
+        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
+            Ok(None)
+        }
+        async fn delete_procedure_refund(&self, _: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn is_refund_fund_payment_group(&self, _: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+    }
+
+    #[tokio::test]
+    async fn update_procedure_overpaid_refund_record_found_but_proc_not_in_db() {
+        let source_proc = make_procedure_with_status(ProcedureStatus::Overpaid);
+        let refund_record = make_refund_record(&source_proc.id, "refund-proc-999");
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(mock_proc_repo_read_none()),
+            event_bus,
+        ));
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            make_patient_repo(None),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(ProcedureRefundRepoReturningRecord {
+                record: refund_record,
+            }),
+        );
+        let result = orchestrator.update_procedure(source_proc).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn update_procedure_overpaid_refund_proc_same_type_no_propagation() {
+        let source_proc = make_procedure_with_status(ProcedureStatus::Overpaid);
+        let refund_proc = Procedure::with_id(
+            "refund-proc-1".to_string(),
+            "patient-id-1".to_string(),
+            None,
+            source_proc.procedure_type_id.clone(),
+            "2024-06-15".to_string(),
+            Some(-50000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::OverpaymentRefund,
+        )
+        .unwrap();
+        let refund_record = make_refund_record(&source_proc.id, "refund-proc-1");
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(mock_proc_repo_with_procedure(refund_proc)),
+            event_bus,
+        ));
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            make_patient_repo(None),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(ProcedureRefundRepoReturningRecord {
+                record: refund_record,
+            }),
+        );
+        let result = orchestrator.update_procedure(source_proc).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn update_procedure_overpaid_refund_proc_different_type_propagates() {
+        let source_proc = make_procedure_with_status(ProcedureStatus::Overpaid);
+        let refund_proc = Procedure::with_id(
+            "refund-proc-1".to_string(),
+            "patient-id-1".to_string(),
+            None,
+            "type-DIFFERENT".to_string(),
+            "2024-06-15".to_string(),
+            Some(-50000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::OverpaymentRefund,
+        )
+        .unwrap();
+        let refund_record = make_refund_record(&source_proc.id, "refund-proc-1");
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(mock_proc_repo_with_procedure(refund_proc)),
+            event_bus,
+        ));
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            make_patient_repo(None),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(ProcedureRefundRepoReturningRecord {
+                record: refund_record,
+            }),
+        );
+        let result = orchestrator.update_procedure(source_proc).await;
+        assert!(result.is_ok());
+    }
+
     // --- clear_fund_tracking ---
 
     #[tokio::test]
