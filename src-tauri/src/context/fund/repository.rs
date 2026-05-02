@@ -724,3 +724,388 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         Ok(group)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+
+    use super::*;
+
+    async fn make_pool() -> sqlx::SqlitePool {
+        let opts = SqliteConnectOptions::new()
+            .in_memory(true)
+            .foreign_keys(false);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        pool
+    }
+
+    async fn setup_fund_repo() -> SqliteFundRepository {
+        SqliteFundRepository {
+            pool: make_pool().await,
+        }
+    }
+
+    async fn setup_payment_repos() -> (SqliteFundRepository, SqliteFundPaymentRepository) {
+        let pool = make_pool().await;
+        (
+            SqliteFundRepository { pool: pool.clone() },
+            SqliteFundPaymentRepository { pool },
+        )
+    }
+
+    // --- SqliteFundRepository ---
+
+    #[tokio::test]
+    async fn create_and_read_fund() {
+        let repo = setup_fund_repo().await;
+        let fund = repo.create_fund("75", "CPAM 75").await.unwrap();
+        assert!(!fund.id.is_empty());
+
+        let found = repo.read_fund(&fund.id).await.unwrap().unwrap();
+        assert_eq!(found.fund_identifier, "75");
+        assert_eq!(found.name, "CPAM 75");
+    }
+
+    #[tokio::test]
+    async fn read_fund_returns_none_for_unknown_id() {
+        let repo = setup_fund_repo().await;
+        assert!(repo.read_fund("no-such-id").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn read_all_funds_returns_all_active() {
+        let repo = setup_fund_repo().await;
+        repo.create_fund("75", "CPAM 75").await.unwrap();
+        repo.create_fund("59", "CPAM 59").await.unwrap();
+        let all = repo.read_all_funds().await.unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn create_fund_rejects_duplicate_identifier() {
+        let repo = setup_fund_repo().await;
+        repo.create_fund("75", "CPAM 75").await.unwrap();
+        let err = repo.create_fund("75", "CPAM 75 bis").await.unwrap_err();
+        assert!(err.to_string().contains("already exists"));
+    }
+
+    #[tokio::test]
+    async fn update_fund_persists_name_change() {
+        let repo = setup_fund_repo().await;
+        let fund = repo.create_fund("75", "CPAM 75").await.unwrap();
+        let updated =
+            Fund::with_id(fund.id.clone(), "75".to_string(), "CPAM Paris".to_string()).unwrap();
+        repo.update_fund(updated).await.unwrap();
+
+        let read = repo.read_fund(&fund.id).await.unwrap().unwrap();
+        assert_eq!(read.name, "CPAM Paris");
+    }
+
+    #[tokio::test]
+    async fn find_fund_by_identifier_returns_match() {
+        let repo = setup_fund_repo().await;
+        repo.create_fund("75", "CPAM 75").await.unwrap();
+
+        let found = repo.find_fund_by_identifier("75").await.unwrap().unwrap();
+        assert_eq!(found.name, "CPAM 75");
+    }
+
+    #[tokio::test]
+    async fn find_fund_by_identifier_returns_none_when_absent() {
+        let repo = setup_fund_repo().await;
+        assert!(repo
+            .find_fund_by_identifier("no-such")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn delete_fund_soft_deletes() {
+        let repo = setup_fund_repo().await;
+        let fund = repo.create_fund("75", "CPAM 75").await.unwrap();
+        repo.delete_fund(&fund.id).await.unwrap();
+
+        assert!(repo.read_fund(&fund.id).await.unwrap().is_none());
+        assert!(repo.read_all_funds().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn create_batch_inserts_all_funds() {
+        let repo = setup_fund_repo().await;
+        let funds = vec![
+            Fund::new("A".to_string(), "Fund A".to_string()).unwrap(),
+            Fund::new("B".to_string(), "Fund B".to_string()).unwrap(),
+        ];
+        let created = repo.create_batch(funds).await.unwrap();
+        assert_eq!(created.len(), 2);
+        assert_eq!(repo.read_all_funds().await.unwrap().len(), 2);
+    }
+
+    // --- SqliteFundPaymentRepository ---
+
+    #[tokio::test]
+    async fn create_group_and_read_group() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+
+        let group = payment_repo
+            .create_group(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+            .await
+            .unwrap();
+
+        assert!(!group.id.is_empty());
+        let read = payment_repo.read_group(&group.id).await.unwrap().unwrap();
+        assert_eq!(read.fund_id, fund.id);
+        assert_eq!(read.total_amount, 10000);
+        assert_eq!(read.status, FundPaymentGroupStatus::Active);
+    }
+
+    #[tokio::test]
+    async fn read_group_returns_none_for_unknown_id() {
+        let (_, payment_repo) = setup_payment_repos().await;
+        assert!(payment_repo
+            .read_group("no-such-id")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn read_all_groups_returns_all_active() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+
+        payment_repo
+            .create_group(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+            .await
+            .unwrap();
+        payment_repo
+            .create_group(fund.id.clone(), "2026-02-15".to_string(), 20000, vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(payment_repo.read_all_groups().await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn read_lines_by_group_returns_empty_when_no_lines() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+        let group = payment_repo
+            .create_group(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+            .await
+            .unwrap();
+
+        let lines = payment_repo.read_lines_by_group(&group.id).await.unwrap();
+        assert!(lines.is_empty());
+    }
+
+    #[tokio::test]
+    async fn update_group_persists_changes() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+        let group = payment_repo
+            .create_group(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+            .await
+            .unwrap();
+
+        let updated = FundPaymentGroup::with_id(
+            group.id.clone(),
+            fund.id.clone(),
+            "2026-01-20".to_string(),
+            20000,
+            vec![],
+        )
+        .unwrap();
+        payment_repo.update_group(updated).await.unwrap();
+
+        let read = payment_repo.read_group(&group.id).await.unwrap().unwrap();
+        assert_eq!(read.total_amount, 20000);
+    }
+
+    #[tokio::test]
+    async fn update_group_status_to_bank_paid() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+        let group = payment_repo
+            .create_group(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+            .await
+            .unwrap();
+
+        payment_repo
+            .update_group_status(&group.id, FundPaymentGroupStatus::BankPaid)
+            .await
+            .unwrap();
+
+        let read = payment_repo.read_group(&group.id).await.unwrap().unwrap();
+        assert_eq!(read.status, FundPaymentGroupStatus::BankPaid);
+        assert!(read.is_locked);
+    }
+
+    #[tokio::test]
+    async fn delete_group_soft_deletes() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+        let group = payment_repo
+            .create_group(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+            .await
+            .unwrap();
+
+        payment_repo.delete_group(&group.id).await.unwrap();
+        assert!(payment_repo.read_group(&group.id).await.unwrap().is_none());
+        assert!(payment_repo.read_all_groups().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn exists_group_returns_true_when_matching() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+        payment_repo
+            .create_group(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+            .await
+            .unwrap();
+
+        assert!(payment_repo
+            .exists_group(&fund.id, "2026-01-15", 10000)
+            .await
+            .unwrap());
+    }
+
+    #[tokio::test]
+    async fn exists_group_returns_false_when_absent() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+
+        assert!(!payment_repo
+            .exists_group(&fund.id, "2026-01-15", 10000)
+            .await
+            .unwrap());
+    }
+
+    #[tokio::test]
+    async fn persist_group_stores_bank_paid_status() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+
+        let group = FundPaymentGroup::restore(
+            "refund-group-1".to_string(),
+            fund.id.clone(),
+            "2026-01-15".to_string(),
+            -5000,
+            vec![],
+            FundPaymentGroupStatus::BankPaid,
+        );
+
+        let stored = payment_repo.persist_group(group).await.unwrap();
+        let read = payment_repo.read_group(&stored.id).await.unwrap().unwrap();
+        assert_eq!(read.status, FundPaymentGroupStatus::BankPaid);
+        assert!(read.is_locked);
+    }
+
+    #[tokio::test]
+    async fn create_batch_groups_inserts_all() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+
+        let groups = vec![
+            FundPaymentGroup::new(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+                .unwrap(),
+            FundPaymentGroup::new(fund.id.clone(), "2026-02-15".to_string(), 20000, vec![])
+                .unwrap(),
+        ];
+        let created = payment_repo.create_batch_groups(groups).await.unwrap();
+        assert_eq!(created.len(), 2);
+        assert_eq!(payment_repo.read_all_groups().await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn create_batch_groups_empty_returns_empty() {
+        let (_, payment_repo) = setup_payment_repos().await;
+        let result = payment_repo.create_batch_groups(vec![]).await.unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn create_group_with_procedure_lines_reads_back() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+
+        let group = payment_repo
+            .create_group(
+                fund.id.clone(),
+                "2026-01-15".to_string(),
+                10000,
+                vec!["proc-1".to_string(), "proc-2".to_string()],
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(group.lines.len(), 2);
+        let lines = payment_repo.read_lines_by_group(&group.id).await.unwrap();
+        assert_eq!(lines.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn create_lines_inserts_and_returns() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+        let group = payment_repo
+            .create_group(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+            .await
+            .unwrap();
+
+        let new_lines =
+            vec![FundPaymentLine::new(group.id.clone(), "proc-99".to_string()).unwrap()];
+        let created = payment_repo.create_lines(new_lines).await.unwrap();
+        assert_eq!(created.len(), 1);
+
+        let lines = payment_repo.read_lines_by_group(&group.id).await.unwrap();
+        assert_eq!(lines.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn delete_lines_by_group_removes_all_lines() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+        let group = payment_repo
+            .create_group(
+                fund.id.clone(),
+                "2026-01-15".to_string(),
+                10000,
+                vec!["proc-a".to_string(), "proc-b".to_string()],
+            )
+            .await
+            .unwrap();
+
+        payment_repo.delete_lines_by_group(&group.id).await.unwrap();
+
+        let lines = payment_repo.read_lines_by_group(&group.id).await.unwrap();
+        assert!(lines.is_empty());
+    }
+
+    #[tokio::test]
+    async fn create_batch_groups_with_lines_reads_back() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+
+        let mut g1 =
+            FundPaymentGroup::new(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
+                .unwrap();
+        g1.lines = vec![FundPaymentLine::new(g1.id.clone(), "proc-x".to_string()).unwrap()];
+
+        let created = payment_repo.create_batch_groups(vec![g1]).await.unwrap();
+        assert_eq!(created.len(), 1);
+
+        let lines = payment_repo
+            .read_lines_by_group(&created[0].id)
+            .await
+            .unwrap();
+        assert_eq!(lines.len(), 1);
+    }
+}

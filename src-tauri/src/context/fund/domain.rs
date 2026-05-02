@@ -322,3 +322,130 @@ pub trait FundPaymentRepository: Send + Sync {
     /// Used for overpayment refund groups created with BankPaid status + negative amount (REF-100).
     async fn persist_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- Fund ---
+
+    #[test]
+    fn fund_new_rejects_empty_identifier() {
+        assert!(Fund::new("".to_string(), "Name".to_string()).is_err());
+    }
+
+    #[test]
+    fn fund_new_rejects_empty_name() {
+        assert!(Fund::new("ID".to_string(), "".to_string()).is_err());
+    }
+
+    #[test]
+    fn fund_new_success() {
+        let f = Fund::new("75".to_string(), "CPAM 75".to_string()).unwrap();
+        assert!(!f.id.is_empty());
+        assert!(f.temp_id.is_none());
+    }
+
+    #[test]
+    fn fund_with_id_preserves_id() {
+        let f =
+            Fund::with_id("my-id".to_string(), "75".to_string(), "CPAM 75".to_string()).unwrap();
+        assert_eq!(f.id, "my-id");
+    }
+
+    // --- FundPaymentGroup ---
+
+    #[test]
+    fn fund_payment_group_new_success() {
+        let g = FundPaymentGroup::new(
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            10000,
+            vec![],
+        )
+        .unwrap();
+        assert!(!g.id.is_empty());
+        assert_eq!(g.status, FundPaymentGroupStatus::Active);
+        assert!(!g.is_locked);
+    }
+
+    #[test]
+    fn fund_payment_group_new_rejects_empty_fund_id() {
+        assert!(
+            FundPaymentGroup::new("".to_string(), "2026-01-15".to_string(), 10000, vec![]).is_err()
+        );
+    }
+
+    #[test]
+    fn fund_payment_group_new_rejects_zero_amount() {
+        assert!(
+            FundPaymentGroup::new("fund-1".to_string(), "2026-01-15".to_string(), 0, vec![])
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn fund_payment_group_new_rejects_negative_amount() {
+        assert!(FundPaymentGroup::new(
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            -100,
+            vec![]
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn fund_payment_group_restore_bank_paid_is_locked() {
+        let g = FundPaymentGroup::restore(
+            "id".to_string(),
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            10000,
+            vec![],
+            FundPaymentGroupStatus::BankPaid,
+        );
+        assert!(g.is_locked);
+        assert_eq!(g.status, FundPaymentGroupStatus::BankPaid);
+    }
+
+    #[test]
+    fn fund_payment_group_restore_active_not_locked() {
+        let g = FundPaymentGroup::restore(
+            "id".to_string(),
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            10000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        assert!(!g.is_locked);
+    }
+
+    // --- FundPaymentLine ---
+
+    #[test]
+    fn fund_payment_line_new_success() {
+        let l = FundPaymentLine::new("group-1".to_string(), "proc-1".to_string()).unwrap();
+        assert!(!l.id.is_empty());
+        assert_eq!(l.fund_payment_group_id, "group-1");
+        assert_eq!(l.procedure_id, "proc-1");
+    }
+
+    #[test]
+    fn fund_payment_line_new_rejects_empty_group_id() {
+        assert!(FundPaymentLine::new("".to_string(), "proc-1".to_string()).is_err());
+    }
+
+    #[test]
+    fn fund_payment_line_new_rejects_empty_procedure_id() {
+        assert!(FundPaymentLine::new("group-1".to_string(), "".to_string()).is_err());
+    }
+
+    #[test]
+    fn fund_payment_line_with_id_preserves_id() {
+        let l = FundPaymentLine::with_id("my-id".to_string(), "g1".to_string(), "p1".to_string())
+            .unwrap();
+        assert_eq!(l.id, "my-id");
+    }
+}

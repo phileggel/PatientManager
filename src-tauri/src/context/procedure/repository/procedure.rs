@@ -803,3 +803,770 @@ impl ProcedureRepository for SqliteProcedureRepository {
         Ok(rows.into_iter().map(Procedure::from).collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+
+    use super::*;
+
+    async fn setup() -> SqliteProcedureRepository {
+        let opts = SqliteConnectOptions::new()
+            .in_memory(true)
+            .foreign_keys(false);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        SqliteProcedureRepository { pool }
+    }
+
+    fn make_procedure(
+        patient_id: &str,
+        procedure_type_id: &str,
+        date: &str,
+    ) -> anyhow::Result<Procedure> {
+        Procedure::new(
+            patient_id.to_string(),
+            None,
+            procedure_type_id.to_string(),
+            date.to_string(),
+            Some(10000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+    }
+
+    #[tokio::test]
+    async fn create_and_read_procedure() {
+        let repo = setup().await;
+        let p = make_procedure("patient-1", "type-1", "2026-01-15").unwrap();
+        let created = repo
+            .create_procedure(
+                p.patient_id.clone(),
+                p.fund_id.clone(),
+                p.procedure_type_id.clone(),
+                "2026-01-15".to_string(),
+                p.billed_amount,
+                p.payment_method,
+                None,
+                p.paid_amount,
+                p.payment_status,
+            )
+            .await
+            .unwrap();
+
+        let found = repo.read_procedure(&created.id).await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().patient_id, "patient-1");
+    }
+
+    #[tokio::test]
+    async fn read_procedure_returns_none_for_unknown_id() {
+        let repo = setup().await;
+        let found = repo.read_procedure("no-such-id").await.unwrap();
+        assert!(found.is_none());
+    }
+
+    #[tokio::test]
+    async fn read_all_procedures_returns_created_records() {
+        let repo = setup().await;
+        repo.create_procedure(
+            "p1".to_string(),
+            None,
+            "t1".to_string(),
+            "2026-01-01".to_string(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        repo.create_procedure(
+            "p2".to_string(),
+            None,
+            "t1".to_string(),
+            "2026-01-02".to_string(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        let all = repo.read_all_procedures().await.unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn delete_procedure_soft_deletes() {
+        let repo = setup().await;
+        let created = repo
+            .create_procedure(
+                "p1".to_string(),
+                None,
+                "t1".to_string(),
+                "2026-01-01".to_string(),
+                None,
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+        repo.delete_procedure(&created.id).await.unwrap();
+        let found = repo.read_procedure(&created.id).await.unwrap();
+        assert!(found.is_none());
+        let all = repo.read_all_procedures().await.unwrap();
+        assert!(all.is_empty());
+    }
+
+    #[tokio::test]
+    async fn update_procedure_persists_changes() {
+        let repo = setup().await;
+        let created = repo
+            .create_procedure(
+                "p1".to_string(),
+                None,
+                "t1".to_string(),
+                "2026-01-01".to_string(),
+                Some(5000),
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+        let updated = Procedure::restore(
+            created.id.clone(),
+            "p1".to_string(),
+            None,
+            "t1".to_string(),
+            created.procedure_date,
+            Some(9999),
+            PaymentMethod::Cash,
+            None,
+            None,
+            ProcedureStatus::DirectlyPaid,
+        );
+        repo.update_procedure(updated).await.unwrap();
+        let found = repo.read_procedure(&created.id).await.unwrap().unwrap();
+        assert_eq!(found.billed_amount, Some(9999));
+        assert_eq!(found.payment_status, ProcedureStatus::DirectlyPaid);
+    }
+
+    #[tokio::test]
+    async fn has_blocking_procedures_in_month_returns_false_when_none() {
+        let repo = setup().await;
+        let result = repo
+            .has_blocking_procedures_in_month("2026-01")
+            .await
+            .unwrap();
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn has_blocking_procedures_in_month_returns_true_when_reconciled() {
+        let repo = setup().await;
+        let created = repo
+            .create_procedure(
+                "p1".to_string(),
+                None,
+                "t1".to_string(),
+                "2026-01-10".to_string(),
+                None,
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Reconciled,
+            )
+            .await
+            .unwrap();
+        // Update to reconciled status
+        let updated = Procedure::restore(
+            created.id.clone(),
+            "p1".to_string(),
+            None,
+            "t1".to_string(),
+            created.procedure_date,
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Reconciled,
+        );
+        repo.update_procedure(updated).await.unwrap();
+        let result = repo
+            .has_blocking_procedures_in_month("2026-01")
+            .await
+            .unwrap();
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn delete_procedures_by_month_removes_all() {
+        let repo = setup().await;
+        repo.create_procedure(
+            "p1".to_string(),
+            None,
+            "t1".to_string(),
+            "2026-02-05".to_string(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        repo.create_procedure(
+            "p2".to_string(),
+            None,
+            "t1".to_string(),
+            "2026-02-15".to_string(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        let deleted = repo.delete_procedures_by_month("2026-02").await.unwrap();
+        assert_eq!(deleted, 2);
+        assert!(repo.read_all_procedures().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn find_created_in_date_range_returns_matching() {
+        let repo = setup().await;
+        repo.create_procedure(
+            "p1".to_string(),
+            None,
+            "t1".to_string(),
+            "2026-03-05".to_string(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        repo.create_procedure(
+            "p2".to_string(),
+            None,
+            "t1".to_string(),
+            "2026-04-01".to_string(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        let result = repo
+            .find_created_in_date_range("2026-03-01", "2026-03-31")
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].patient_id, "p1");
+    }
+
+    #[tokio::test]
+    async fn read_procedures_by_ids_returns_subset() {
+        let repo = setup().await;
+        let c1 = repo
+            .create_procedure(
+                "p1".to_string(),
+                None,
+                "t1".to_string(),
+                "2026-01-01".to_string(),
+                None,
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+        let c2 = repo
+            .create_procedure(
+                "p2".to_string(),
+                None,
+                "t1".to_string(),
+                "2026-01-02".to_string(),
+                None,
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+        repo.create_procedure(
+            "p3".to_string(),
+            None,
+            "t1".to_string(),
+            "2026-01-03".to_string(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        let found = repo
+            .read_procedures_by_ids(&[c1.id.clone(), c2.id.clone()])
+            .await
+            .unwrap();
+        assert_eq!(found.len(), 2);
+    }
+
+    async fn seed_patient(pool: &sqlx::SqlitePool, id: &str, ssn: &str) {
+        sqlx::query!(
+            "INSERT INTO patient (id, is_anonymous, ssn, is_deleted) VALUES (?, 0, ?, 0)",
+            id,
+            ssn
+        )
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn read_procedures_by_patient_id_returns_matching() {
+        let repo = setup().await;
+        repo.create_procedure(
+            "p1".into(),
+            None,
+            "t1".into(),
+            "2026-01-01".into(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        repo.create_procedure(
+            "p2".into(),
+            None,
+            "t1".into(),
+            "2026-01-02".into(),
+            None,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        let result = repo.read_procedures_by_patient_id("p1").await.unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].patient_id, "p1");
+    }
+
+    #[tokio::test]
+    async fn create_batch_inserts_multiple_in_transaction() {
+        let repo = setup().await;
+        let p1 = make_procedure("p1", "t1", "2026-01-10").unwrap();
+        let p2 = make_procedure("p2", "t1", "2026-01-11").unwrap();
+        let created = repo.create_batch(vec![p1, p2]).await.unwrap();
+        assert_eq!(created.len(), 2);
+        let all = repo.read_all_procedures().await.unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn update_batch_updates_multiple_in_transaction() {
+        let repo = setup().await;
+        let c1 = repo
+            .create_procedure(
+                "p1".into(),
+                None,
+                "t1".into(),
+                "2026-01-10".into(),
+                Some(1000),
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+        let c2 = repo
+            .create_procedure(
+                "p2".into(),
+                None,
+                "t1".into(),
+                "2026-01-11".into(),
+                Some(2000),
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+
+        let u1 = Procedure::restore(
+            c1.id.clone(),
+            "p1".into(),
+            None,
+            "t1".into(),
+            c1.procedure_date,
+            Some(9999),
+            PaymentMethod::Cash,
+            None,
+            None,
+            ProcedureStatus::DirectlyPaid,
+        );
+        let u2 = Procedure::restore(
+            c2.id.clone(),
+            "p2".into(),
+            None,
+            "t1".into(),
+            c2.procedure_date,
+            Some(8888),
+            PaymentMethod::Check,
+            None,
+            None,
+            ProcedureStatus::FundPaid,
+        );
+
+        let updated = repo.update_batch(vec![u1, u2]).await.unwrap();
+        assert_eq!(updated.len(), 2);
+
+        let r1 = repo.read_procedure(&c1.id).await.unwrap().unwrap();
+        assert_eq!(r1.billed_amount, Some(9999));
+        assert_eq!(r1.payment_method, PaymentMethod::Cash);
+        let r2 = repo.read_procedure(&c2.id).await.unwrap().unwrap();
+        assert_eq!(r2.payment_status, ProcedureStatus::FundPaid);
+        assert_eq!(r2.payment_method, PaymentMethod::Check);
+    }
+
+    #[tokio::test]
+    async fn find_procedures_by_ssn_and_date_range_returns_matching() {
+        let repo = setup().await;
+        seed_patient(&repo.pool, "patient-1", "123456789012").await;
+        repo.create_procedure(
+            "patient-1".into(),
+            None,
+            "t1".into(),
+            "2026-03-10".into(),
+            Some(5000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        repo.create_procedure(
+            "patient-1".into(),
+            None,
+            "t1".into(),
+            "2026-05-01".into(),
+            Some(5000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+
+        let result = repo
+            .find_procedures_by_ssn_and_date_range("123456789012", "2026-03-01", "2026-03-31")
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].patient_id, "patient-1");
+    }
+
+    #[tokio::test]
+    async fn find_procedures_by_ssns_and_date_range_empty_returns_empty() {
+        let repo = setup().await;
+        let result = repo
+            .find_procedures_by_ssns_and_date_range(&[], "2026-01-01", "2026-12-31")
+            .await
+            .unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn find_procedures_by_ssns_and_date_range_returns_matching() {
+        let repo = setup().await;
+        seed_patient(&repo.pool, "patient-1", "111111111111").await;
+        seed_patient(&repo.pool, "patient-2", "222222222222").await;
+        repo.create_procedure(
+            "patient-1".into(),
+            None,
+            "t1".into(),
+            "2026-03-15".into(),
+            Some(1000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        repo.create_procedure(
+            "patient-2".into(),
+            None,
+            "t1".into(),
+            "2026-03-20".into(),
+            Some(2000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+
+        let ssns = vec!["111111111111".to_string(), "222222222222".to_string()];
+        let result = repo
+            .find_procedures_by_ssns_and_date_range(&ssns, "2026-03-01", "2026-03-31")
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn find_procedures_by_ssns_and_date_range_with_ssn_returns_ssn_field() {
+        let repo = setup().await;
+        seed_patient(&repo.pool, "patient-1", "333333333333").await;
+        repo.create_procedure(
+            "patient-1".into(),
+            None,
+            "t1".into(),
+            "2026-04-10".into(),
+            Some(3000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+
+        let ssns = vec!["333333333333".to_string()];
+        let result = repo
+            .find_procedures_by_ssns_and_date_range_with_ssn(&ssns, "2026-04-01", "2026-04-30")
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "333333333333");
+        assert_eq!(result[0].1.patient_id, "patient-1");
+    }
+
+    #[tokio::test]
+    async fn find_procedures_by_ssns_and_date_range_with_ssn_empty_returns_empty() {
+        let repo = setup().await;
+        let result = repo
+            .find_procedures_by_ssns_and_date_range_with_ssn(&[], "2026-01-01", "2026-12-31")
+            .await
+            .unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn find_procedure_exact_returns_match() {
+        let repo = setup().await;
+        let created = repo
+            .create_procedure(
+                "p1".into(),
+                Some("fund-1".into()),
+                "t1".into(),
+                "2026-01-15".into(),
+                Some(7500),
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+
+        let result = repo
+            .find_procedure_exact("p1", Some("fund-1"), "2026-01-15", 7500)
+            .await
+            .unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().id, created.id);
+    }
+
+    #[tokio::test]
+    async fn find_procedure_exact_returns_none_when_no_match() {
+        let repo = setup().await;
+        let result = repo
+            .find_procedure_exact("p1", None, "2026-01-15", 9999)
+            .await
+            .unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn find_unpaid_by_fund_returns_created_with_fund() {
+        let repo = setup().await;
+        // Created with fund → should appear
+        repo.create_procedure(
+            "p1".into(),
+            Some("fund-1".into()),
+            "t1".into(),
+            "2026-01-10".into(),
+            Some(5000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        // Created without fund → should NOT appear
+        repo.create_procedure(
+            "p2".into(),
+            None,
+            "t1".into(),
+            "2026-01-11".into(),
+            Some(5000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+
+        let result = repo.find_unpaid_by_fund("fund-1").await.unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].patient_id, "p1");
+    }
+
+    #[tokio::test]
+    async fn find_unreconciled_by_date_range_returns_created_not_in_group() {
+        let repo = setup().await;
+        seed_patient(&repo.pool, "patient-1", "444444444444").await;
+        let created = repo
+            .create_procedure(
+                "patient-1".into(),
+                None,
+                "t1".into(),
+                "2026-02-10".into(),
+                Some(1000),
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+
+        let result = repo
+            .find_unreconciled_by_date_range("2026-02-01", "2026-02-28")
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].procedure_id, created.id);
+        assert_eq!(result[0].patient_ssn, Some("444444444444".to_string()));
+    }
+
+    #[tokio::test]
+    async fn find_created_by_fund_before_date_returns_matching() {
+        let repo = setup().await;
+        // Created with fund-1, within date range
+        repo.create_procedure(
+            "p1".into(),
+            Some("fund-1".into()),
+            "t1".into(),
+            "2026-01-10".into(),
+            Some(1000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        // Created with fund-1, after cutoff → should not appear
+        repo.create_procedure(
+            "p2".into(),
+            Some("fund-1".into()),
+            "t1".into(),
+            "2026-03-01".into(),
+            Some(2000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        // Created with different fund → should not appear
+        repo.create_procedure(
+            "p3".into(),
+            Some("fund-2".into()),
+            "t1".into(),
+            "2026-01-15".into(),
+            Some(3000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+
+        let result = repo
+            .find_created_by_fund_before_date("fund-1", "2026-02-01")
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].patient_id, "p1");
+    }
+
+    #[tokio::test]
+    async fn payment_method_roundtrip_all_variants() {
+        let repo = setup().await;
+        let methods = vec![
+            PaymentMethod::Cash,
+            PaymentMethod::Check,
+            PaymentMethod::BankCard,
+            PaymentMethod::BankTransfer,
+        ];
+        for method in methods {
+            let created = repo
+                .create_procedure(
+                    "p1".into(),
+                    None,
+                    "t1".into(),
+                    "2026-01-15".into(),
+                    Some(1000),
+                    method,
+                    None,
+                    None,
+                    ProcedureStatus::Created,
+                )
+                .await
+                .unwrap();
+            let found = repo.read_procedure(&created.id).await.unwrap().unwrap();
+            assert_eq!(found.payment_method, method);
+            repo.delete_procedure(&created.id).await.unwrap();
+        }
+    }
+}

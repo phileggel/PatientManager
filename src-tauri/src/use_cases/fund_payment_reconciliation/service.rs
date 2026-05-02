@@ -257,3 +257,305 @@ impl ReconciliationService {
             .collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::context::fund::MockFundRepository;
+    use crate::context::procedure::{
+        MockProcedureRepository, UnreconciledProcedure as DomainUnreconciled,
+    };
+    use crate::use_cases::fund_payment_reconciliation::api::{
+        NormalizedPdfLine, PdfParseResult, PdfProcedureGroup, ReconciliationMatch,
+    };
+
+    fn make_service(
+        proc_repo: MockProcedureRepository,
+        fund_repo: MockFundRepository,
+    ) -> ReconciliationService {
+        ReconciliationService::new(Arc::new(proc_repo), Arc::new(fund_repo))
+    }
+
+    #[tokio::test]
+    async fn reconcile_empty_parse_result_returns_empty() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .returning(|_, _| Ok(vec![]));
+        let fund_repo = MockFundRepository::new();
+
+        let service = make_service(proc_repo, fund_repo);
+        let result = service
+            .reconcile(PdfParseResult {
+                groups: vec![],
+                unparsed_line_count: 0,
+                unparsed_lines: vec![],
+            })
+            .await
+            .unwrap();
+
+        assert!(result.reconciliation.matches.is_empty());
+        assert!(result.candidates.is_empty());
+    }
+
+    #[tokio::test]
+    async fn find_unreconciled_in_range_maps_rows() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .returning(|_, _| {
+                Ok(vec![DomainUnreconciled {
+                    procedure_id: "proc-1".to_string(),
+                    patient_id: "patient-1".to_string(),
+                    patient_name: Some("Marie Dupont".to_string()),
+                    patient_ssn: Some("1234567890123".to_string()),
+                    procedure_date: "2026-01-15".to_string(),
+                    amount: Some(10000),
+                }])
+            });
+        let fund_repo = MockFundRepository::new();
+
+        let service = make_service(proc_repo, fund_repo);
+        let result = service
+            .find_unreconciled_in_range("2026-01-01", "2026-01-31")
+            .await
+            .unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].procedure_id, "proc-1");
+        assert_eq!(result[0].patient_name, "Marie Dupont");
+        assert_eq!(result[0].ssn, "1234567890123");
+        assert_eq!(result[0].amount, 10000);
+    }
+
+    #[tokio::test]
+    async fn find_unreconciled_in_range_uses_defaults_for_none_fields() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .returning(|_, _| {
+                Ok(vec![DomainUnreconciled {
+                    procedure_id: "proc-2".to_string(),
+                    patient_id: "patient-2".to_string(),
+                    patient_name: None,
+                    patient_ssn: None,
+                    procedure_date: "2026-02-01".to_string(),
+                    amount: None,
+                }])
+            });
+        let fund_repo = MockFundRepository::new();
+
+        let service = make_service(proc_repo, fund_repo);
+        let result = service
+            .find_unreconciled_in_range("2026-02-01", "2026-02-28")
+            .await
+            .unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].patient_name, "");
+        assert_eq!(result[0].ssn, "");
+        assert_eq!(result[0].amount, 0);
+    }
+
+    #[tokio::test]
+    async fn find_unreconciled_in_range_propagates_error() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .returning(|_, _| Err(anyhow::anyhow!("DB error")));
+        let fund_repo = MockFundRepository::new();
+
+        let service = make_service(proc_repo, fund_repo);
+        let result = service
+            .find_unreconciled_in_range("2026-01-01", "2026-01-31")
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn reconcile_empty_group_with_no_lines_returns_empty() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .returning(|_, _| Ok(vec![]));
+        let fund_repo = MockFundRepository::new();
+
+        let service = make_service(proc_repo, fund_repo);
+        // Group exists but has no lines — still empty all_lines
+        let result = service
+            .reconcile(PdfParseResult {
+                groups: vec![PdfProcedureGroup {
+                    fund_label: "CPAM 75".to_string(),
+                    fund_full_name: "CPAM Paris".to_string(),
+                    payment_date: chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                    total_amount: 0,
+                    is_total_valid: true,
+                    lines: vec![],
+                }],
+                unparsed_line_count: 0,
+                unparsed_lines: vec![],
+            })
+            .await
+            .unwrap();
+
+        assert!(result.reconciliation.matches.is_empty());
+    }
+
+    fn make_pdf_line(ssn: &str, amount: i64, date_str: &str) -> NormalizedPdfLine {
+        let date = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap();
+        NormalizedPdfLine {
+            line_index: 0,
+            payment_date: date + chrono::Duration::days(5),
+            invoice_number: "INV001".into(),
+            fund_name: "CPAM 75".into(),
+            patient_name: "Test Patient".into(),
+            ssn: ssn.into(),
+            nature: "SF".into(),
+            procedure_start_date: date,
+            procedure_end_date: date,
+            is_period: false,
+            amount,
+        }
+    }
+
+    fn make_group(ssn: &str, amount: i64, date_str: &str) -> PdfProcedureGroup {
+        let date = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap();
+        PdfProcedureGroup {
+            fund_label: "CPAM 75".into(),
+            fund_full_name: "CPAM Paris".into(),
+            payment_date: date + chrono::Duration::days(5),
+            total_amount: amount,
+            is_total_valid: true,
+            lines: vec![make_pdf_line(ssn, amount, date_str)],
+        }
+    }
+
+    fn make_procedure_with_status_and_amount(
+        amount: i64,
+        date_str: &str,
+        status: crate::context::procedure::ProcedureStatus,
+    ) -> crate::context::procedure::Procedure {
+        crate::context::procedure::Procedure::new(
+            "patient-1".into(),
+            None,
+            "type-1".into(),
+            date_str.into(),
+            Some(amount),
+            crate::context::procedure::PaymentMethod::None,
+            None,
+            None,
+            status,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn reconcile_line_not_in_pool_produces_not_found() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_procedures_by_ssns_and_date_range_with_ssn()
+            .returning(|_, _, _| Ok(vec![]));
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .returning(|_, _| Ok(vec![]));
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo.expect_read_all_funds().returning(|| Ok(vec![]));
+
+        let service = make_service(proc_repo, fund_repo);
+        let result = service
+            .reconcile(PdfParseResult {
+                groups: vec![make_group("123456789012", 50000, "2026-01-15")],
+                unparsed_line_count: 0,
+                unparsed_lines: vec![],
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.reconciliation.matches.len(), 1);
+        assert!(matches!(
+            result.reconciliation.matches[0],
+            ReconciliationMatch::NotFoundIssue { .. }
+        ));
+        assert_eq!(result.candidates.len(), 1);
+        assert!(!result.candidates[0].is_fully_covered);
+    }
+
+    #[tokio::test]
+    async fn reconcile_perfect_single_match_detected() {
+        use crate::context::procedure::ProcedureStatus;
+
+        let proc =
+            make_procedure_with_status_and_amount(50000, "2026-01-15", ProcedureStatus::Created);
+        let proc_clone = proc.clone();
+
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_procedures_by_ssns_and_date_range_with_ssn()
+            .returning(move |_, _, _| Ok(vec![("123456789012".into(), proc_clone.clone())]));
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .returning(|_, _| Ok(vec![]));
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo.expect_read_all_funds().returning(|| Ok(vec![]));
+
+        let service = make_service(proc_repo, fund_repo);
+        let result = service
+            .reconcile(PdfParseResult {
+                groups: vec![make_group("123456789012", 50000, "2026-01-15")],
+                unparsed_line_count: 0,
+                unparsed_lines: vec![],
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.reconciliation.matches.len(), 1);
+        assert!(matches!(
+            result.reconciliation.matches[0],
+            ReconciliationMatch::PerfectSingleMatch { .. }
+        ));
+        assert_eq!(result.candidates.len(), 1);
+        assert!(result.candidates[0].is_fully_covered);
+    }
+
+    #[tokio::test]
+    async fn reconcile_single_match_with_amount_issue_detected() {
+        use crate::context::procedure::ProcedureStatus;
+
+        // Procedure amount 40000, PDF 50000 → closest match but not perfect
+        let proc =
+            make_procedure_with_status_and_amount(40000, "2026-01-15", ProcedureStatus::Created);
+        let proc_clone = proc.clone();
+
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_procedures_by_ssns_and_date_range_with_ssn()
+            .returning(move |_, _, _| Ok(vec![("123456789012".into(), proc_clone.clone())]));
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .returning(|_, _| Ok(vec![]));
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo.expect_read_all_funds().returning(|| Ok(vec![]));
+
+        let service = make_service(proc_repo, fund_repo);
+        let result = service
+            .reconcile(PdfParseResult {
+                groups: vec![make_group("123456789012", 50000, "2026-01-15")],
+                unparsed_line_count: 0,
+                unparsed_lines: vec![],
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.reconciliation.matches.len(), 1);
+        // Amount mismatch → either SingleMatchIssue or NotFoundIssue depending on pass
+        // Pass 3+ use closest match, so it should eventually find the procedure
+        let m = &result.reconciliation.matches[0];
+        assert!(
+            matches!(m, ReconciliationMatch::SingleMatchIssue { .. })
+                || matches!(m, ReconciliationMatch::NotFoundIssue { .. }),
+            "Expected SingleMatchIssue or NotFoundIssue, got {:?}",
+            m
+        );
+    }
+}

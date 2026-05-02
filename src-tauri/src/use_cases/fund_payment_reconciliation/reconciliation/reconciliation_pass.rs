@@ -757,6 +757,265 @@ mod tests {
     }
 
     // ============================================================================
+    // TEST: process_period_match paths
+    // ============================================================================
+
+    /// Build a fund cache where fund_id is a known constant, so we can trigger anomalies
+    fn create_fund_cache_with_id(fund_id: &str) -> FundCache {
+        let fund = crate::context::fund::Fund::restore(
+            fund_id.to_string(),
+            "CPAM 931".to_string(),
+            "CPAM n° 931".to_string(),
+        );
+        FundCache::for_test(vec![fund])
+    }
+
+    fn create_procedure_with_id(
+        fund_id: Option<&str>,
+        procedure_date: &str,
+        amount: Option<i64>,
+    ) -> Procedure {
+        Procedure::new(
+            "patient-1".to_string(),
+            fund_id.map(|s| s.to_string()),
+            "proc-type-1".to_string(),
+            procedure_date.to_string(),
+            amount,
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::None,
+        )
+        .expect("Procedure creation failed in test")
+    }
+
+    #[tokio::test]
+    async fn test_period_match_exact_amount_produces_match() {
+        let mut pool = HashMap::new();
+        let proc1 = create_procedure_with_id(None, "2025-05-12", Some(50000));
+        let proc2 = create_procedure_with_id(None, "2025-05-13", Some(30000));
+        pool.insert("123456789".to_string(), vec![proc1, proc2]);
+
+        let mut pass = ReconciliationPass::new(pool);
+
+        let normalized_lines = vec![make_normalized_line(
+            0,
+            "123456789",
+            80000, // 50000 + 30000 = exact
+            NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
+            NaiveDate::from_ymd_opt(2025, 5, 15).unwrap(),
+            true, // period
+        )];
+
+        let fund_cache = create_fund_cache();
+        // Pass 2 = period, exact amount
+        let result = pass.run(2, &normalized_lines, &fund_cache).await;
+        assert!(result.is_ok());
+
+        let result = pass.into_result();
+        assert_eq!(
+            result.raw_matches.len(),
+            1,
+            "period match should produce one entry"
+        );
+        assert_eq!(
+            result.raw_matches[&0].len(),
+            2,
+            "both procedures should be included"
+        );
+        assert!(result.raw_matches[&0]
+            .iter()
+            .all(|m| m.anomalies.is_empty()));
+    }
+
+    #[tokio::test]
+    async fn test_period_match_amount_mismatch() {
+        let mut pool = HashMap::new();
+        // proc total = 80000, PDF = 90000 → amount mismatch
+        let proc1 = create_procedure_with_id(None, "2025-05-12", Some(50000));
+        let proc2 = create_procedure_with_id(None, "2025-05-13", Some(30000));
+        pool.insert("123456789".to_string(), vec![proc1, proc2]);
+
+        let mut pass = ReconciliationPass::new(pool);
+
+        let normalized_lines = vec![make_normalized_line(
+            0,
+            "123456789",
+            90000, // mismatch
+            NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
+            NaiveDate::from_ymd_opt(2025, 5, 15).unwrap(),
+            true,
+        )];
+
+        let fund_cache = create_fund_cache();
+        // Pass 4 = period (even), non-exact → find_best_combination
+        let result = pass.run(4, &normalized_lines, &fund_cache).await;
+        assert!(result.is_ok());
+
+        let result = pass.into_result();
+        // best combination found but amount differs → AmountMismatch anomaly
+        if result.raw_matches.len() == 1 {
+            let has_mismatch = result.raw_matches[&0]
+                .iter()
+                .any(|m| m.anomalies.contains(&AnomalyType::AmountMismatch));
+            assert!(
+                has_mismatch,
+                "expected AmountMismatch anomaly in period match"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_period_match_with_fund_anomaly() {
+        let known_fund_id = "fund-id-known";
+        let (fund_cache, _) = (create_fund_cache_with_id(known_fund_id), known_fund_id);
+
+        let mut pool = HashMap::new();
+        let proc = create_procedure_with_id(Some(known_fund_id), "2025-05-12", Some(50000));
+        pool.insert("123456789".to_string(), vec![proc]);
+
+        let mut pass = ReconciliationPass::new(pool);
+
+        // PDF line with DIFFERENT fund name → FundMismatch in build_period_db_matches
+        let line = NormalizedPdfLine {
+            line_index: 0,
+            payment_date: NaiveDate::from_ymd_opt(2025, 5, 15).unwrap(),
+            invoice_number: "INV001".to_string(),
+            fund_name: "MGEN".to_string(), // Doesn't match "CPAM n° 931" or "CPAM 931"
+            patient_name: "Test Patient".to_string(),
+            ssn: "123456789".to_string(),
+            nature: "SF".to_string(),
+            procedure_start_date: NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
+            procedure_end_date: NaiveDate::from_ymd_opt(2025, 5, 15).unwrap(),
+            is_period: true,
+            amount: 50000,
+        };
+
+        let result = pass.run(2, &[line], &fund_cache).await;
+        assert!(result.is_ok());
+
+        let result = pass.into_result();
+        assert_eq!(result.raw_matches.len(), 1);
+        let has_fund_mismatch = result.raw_matches[&0]
+            .iter()
+            .any(|m| m.anomalies.contains(&AnomalyType::FundMismatch));
+        assert!(
+            has_fund_mismatch,
+            "expected FundMismatch anomaly from build_period_db_matches"
+        );
+    }
+
+    // ============================================================================
+    // TEST: process_single_match paths
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_single_match_non_exact_closest_amount() {
+        let mut pool = HashMap::new();
+        // procedure at 40000, PDF at 50000 — non-exact pass uses closest
+        let proc = create_procedure_with_id(None, "2025-05-10", Some(40000));
+        pool.insert("123456789".to_string(), vec![proc]);
+
+        let mut pass = ReconciliationPass::new(pool);
+
+        let normalized_lines = vec![make_normalized_line(
+            0,
+            "123456789",
+            50000,
+            NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
+            NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
+            false,
+        )];
+
+        let fund_cache = create_fund_cache();
+        // Pass 3 = single, non-exact (closest) — between 2 and 5
+        let result = pass.run(3, &normalized_lines, &fund_cache).await;
+        assert!(result.is_ok());
+
+        let result = pass.into_result();
+        assert_eq!(result.raw_matches.len(), 1);
+        let db_match = &result.raw_matches[&0][0];
+        assert!(
+            db_match.anomalies.contains(&AnomalyType::AmountMismatch),
+            "closest-amount match with mismatched amounts should produce AmountMismatch"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_single_match_with_fund_anomaly() {
+        let known_fund_id = "fund-id-known";
+        let fund_cache = create_fund_cache_with_id(known_fund_id);
+
+        let mut pool = HashMap::new();
+        let proc = create_procedure_with_id(Some(known_fund_id), "2025-05-10", Some(50000));
+        pool.insert("123456789".to_string(), vec![proc]);
+
+        let mut pass = ReconciliationPass::new(pool);
+
+        let line = NormalizedPdfLine {
+            line_index: 0,
+            payment_date: NaiveDate::from_ymd_opt(2025, 5, 15).unwrap(),
+            invoice_number: "INV001".to_string(),
+            fund_name: "MGEN".to_string(), // Doesn't match CPAM 931
+            patient_name: "Test Patient".to_string(),
+            ssn: "123456789".to_string(),
+            nature: "SF".to_string(),
+            procedure_start_date: NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
+            procedure_end_date: NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
+            is_period: false,
+            amount: 50000,
+        };
+
+        let result = pass.run(1, &[line], &fund_cache).await;
+        assert!(result.is_ok());
+
+        let result = pass.into_result();
+        assert_eq!(result.raw_matches.len(), 1);
+        let db_match = &result.raw_matches[&0][0];
+        assert!(
+            db_match.anomalies.contains(&AnomalyType::FundMismatch),
+            "single match with wrong fund should produce FundMismatch"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_single_match_date_minus_one_adds_date_mismatch() {
+        let mut pool = HashMap::new();
+        // Procedure date: 2025-05-10; PDF line date: 2025-05-11
+        // With date-1 applied: filter range = 2025-05-10 to 2025-05-11 → matches
+        let proc = create_procedure_with_id(None, "2025-05-10", Some(50000));
+        pool.insert("123456789".to_string(), vec![proc]);
+
+        let mut pass = ReconciliationPass::new(pool);
+
+        let normalized_lines = vec![make_normalized_line(
+            0,
+            "123456789",
+            50000,
+            NaiveDate::from_ymd_opt(2025, 5, 11).unwrap(), // one day after procedure
+            NaiveDate::from_ymd_opt(2025, 5, 11).unwrap(),
+            false,
+        )];
+
+        let fund_cache = create_fund_cache();
+        // Pass 5 = single, exact, use_date_minus_one
+        let result = pass.run(5, &normalized_lines, &fund_cache).await;
+        assert!(result.is_ok());
+
+        let result = pass.into_result();
+        assert_eq!(
+            result.raw_matches.len(),
+            1,
+            "date-1 pass should match procedure one day before PDF"
+        );
+        let db_match = &result.raw_matches[&0][0];
+        assert!(
+            db_match.anomalies.contains(&AnomalyType::DateMismatch),
+            "date-minus-one match should carry DateMismatch anomaly"
+        );
+    }
+
+    // ============================================================================
     // TEST: State preservation across multiple runs
     // ============================================================================
 

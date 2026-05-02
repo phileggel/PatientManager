@@ -722,6 +722,404 @@ mod tests {
         }
     }
 
+    // --- Full-success mock repositories (for steps 7-12) ---
+
+    struct ProcRepoForSuccess;
+
+    #[async_trait::async_trait]
+    impl ProcedureRepository for ProcRepoForSuccess {
+        #[allow(clippy::too_many_arguments)]
+        async fn create_procedure(
+            &self,
+            patient_id: String,
+            fund_id: Option<String>,
+            procedure_type_id: String,
+            procedure_date: String,
+            billed_amount: Option<i64>,
+            payment_method: PaymentMethod,
+            confirmed_payment_date: Option<String>,
+            paid_amount: Option<i64>,
+            payment_status: ProcedureStatus,
+        ) -> anyhow::Result<Procedure> {
+            let date =
+                chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d").unwrap_or_default();
+            Ok(Procedure::restore(
+                "refund-proc-1".to_string(),
+                patient_id,
+                fund_id,
+                procedure_type_id,
+                date,
+                billed_amount,
+                payment_method,
+                confirmed_payment_date
+                    .as_deref()
+                    .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
+                paid_amount,
+                payment_status,
+            ))
+        }
+        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
+            Ok(Some(fund_paid_procedure()))
+        }
+        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn read_procedures_by_patient_id(
+            &self,
+            _patient_id: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
+            Ok(p)
+        }
+        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn find_procedures_by_ssn_and_date_range(
+            &self,
+            _ssn: &str,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn find_procedures_by_ssns_and_date_range(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn find_procedures_by_ssns_and_date_range_with_ssn(
+            &self,
+            _ssns: &[String],
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<(String, Procedure)>> {
+            Ok(vec![])
+        }
+        async fn find_procedure_exact(
+            &self,
+            _patient_id: &str,
+            _fund_id: Option<&str>,
+            _procedure_date: &str,
+            _procedure_amount: i64,
+        ) -> anyhow::Result<Option<Procedure>> {
+            Ok(None)
+        }
+        async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
+            Ok(procedures)
+        }
+        async fn update_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
+            Ok(procedures)
+        }
+        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
+            Ok(0)
+        }
+        async fn find_unreconciled_by_date_range(
+            &self,
+            _start_date: &str,
+            _end_date: &str,
+        ) -> anyhow::Result<Vec<UnreconciledProcedure>> {
+            Ok(vec![])
+        }
+        async fn find_created_in_date_range(
+            &self,
+            _date_min: &str,
+            _date_max: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+        async fn find_created_by_fund_before_date(
+            &self,
+            _fund_id: &str,
+            _date: &str,
+        ) -> anyhow::Result<Vec<Procedure>> {
+            Ok(vec![])
+        }
+    }
+
+    struct FundPaymentRepoPersistOk;
+
+    #[async_trait::async_trait]
+    impl FundPaymentRepository for FundPaymentRepoPersistOk {
+        async fn create_group(
+            &self,
+            _fund_id: String,
+            _payment_date: String,
+            _total_amount: i64,
+            _procedure_ids: Vec<String>,
+        ) -> anyhow::Result<FundPaymentGroup> {
+            unimplemented!()
+        }
+        async fn create_batch_groups(
+            &self,
+            _groups: Vec<FundPaymentGroup>,
+        ) -> anyhow::Result<Vec<FundPaymentGroup>> {
+            unimplemented!()
+        }
+        async fn create_lines(
+            &self,
+            lines: Vec<FundPaymentLine>,
+        ) -> anyhow::Result<Vec<FundPaymentLine>> {
+            Ok(lines)
+        }
+        async fn read_group(&self, _id: &str) -> anyhow::Result<Option<FundPaymentGroup>> {
+            Ok(None)
+        }
+        async fn read_lines_by_group(
+            &self,
+            _group_id: &str,
+        ) -> anyhow::Result<Vec<FundPaymentLine>> {
+            Ok(vec![])
+        }
+        async fn read_all_groups(&self) -> anyhow::Result<Vec<FundPaymentGroup>> {
+            Ok(vec![])
+        }
+        async fn update_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
+            Ok(group)
+        }
+        async fn update_group_status(
+            &self,
+            _group_id: &str,
+            _status: FundPaymentGroupStatus,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn delete_lines_by_group(&self, _group_id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn delete_group(&self, _group_id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn exists_group(
+            &self,
+            _fund_id: &str,
+            _payment_date: &str,
+            _total_amount: i64,
+        ) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+        async fn persist_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
+            Ok(group)
+        }
+    }
+
+    struct BankAccountRepoReturnsAccount;
+
+    #[async_trait::async_trait]
+    impl BankAccountRepository for BankAccountRepoReturnsAccount {
+        async fn create_account(&self, account: BankAccount) -> anyhow::Result<BankAccount> {
+            Ok(account)
+        }
+        async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
+            Ok(vec![])
+        }
+        async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(Some(BankAccount::restore(
+                id.to_string(),
+                "Test Account".to_string(),
+                None,
+            )))
+        }
+        async fn find_by_iban(&self, _iban: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
+        async fn update_account(&self, account: BankAccount) -> anyhow::Result<BankAccount> {
+            Ok(account)
+        }
+        async fn delete_account(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    struct BankEntryRepoPersistOk;
+
+    #[async_trait::async_trait]
+    impl BankEntryRepository for BankEntryRepoPersistOk {
+        async fn create_transfer(
+            &self,
+            _transfer_date: String,
+            _amount: i64,
+            _transfer_type: BankEntryType,
+            _bank_account: BankAccount,
+        ) -> anyhow::Result<BankEntry> {
+            unimplemented!()
+        }
+        async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankEntry>> {
+            Ok(Some(BankEntry::restore(
+                id.to_string(),
+                "2024-03-01".to_string(),
+                -100_000,
+                BankEntryType::PatientCheck,
+                BankAccount::restore("account-1".to_string(), "Test Account".to_string(), None),
+            )))
+        }
+        async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>> {
+            Ok(vec![])
+        }
+        async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+            Ok(transfer)
+        }
+        async fn delete_transfer(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn persist_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+            Ok(transfer)
+        }
+    }
+
+    struct BankEntryLinkRepoNoop;
+
+    #[async_trait::async_trait]
+    impl BankEntryLinkRepository for BankEntryLinkRepoNoop {
+        async fn link_fund_groups(
+            &self,
+            _bank_transfer_id: &str,
+            _fund_group_ids: &[String],
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn get_fund_group_ids(&self, _bank_transfer_id: &str) -> anyhow::Result<Vec<String>> {
+            Ok(vec![])
+        }
+        async fn unlink_all_fund_groups(&self, _bank_transfer_id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn get_transfer_for_fund_group(
+            &self,
+            _fund_group_id: &str,
+        ) -> anyhow::Result<Option<String>> {
+            Ok(None)
+        }
+        async fn link_procedures(
+            &self,
+            _bank_transfer_id: &str,
+            _procedure_ids: &[String],
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn get_procedure_ids(&self, _bank_transfer_id: &str) -> anyhow::Result<Vec<String>> {
+            Ok(vec![])
+        }
+        async fn unlink_all_procedures(&self, _bank_transfer_id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    struct ProcedureRefundRepoWithRecord(crate::context::procedure::ProcedureRefund);
+
+    #[async_trait::async_trait]
+    impl ProcedureRefundRepository for ProcedureRefundRepoWithRecord {
+        async fn create_procedure_refund(
+            &self,
+            _refund: &crate::context::procedure::ProcedureRefund,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn find_by_source_procedure_id(
+            &self,
+            _source_id: &str,
+        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
+            Ok(Some(self.0.clone()))
+        }
+        async fn find_by_refund_procedure_id(
+            &self,
+            _refund_procedure_id: &str,
+        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
+            Ok(Some(self.0.clone()))
+        }
+        async fn delete_procedure_refund(&self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn is_refund_fund_payment_group(&self, _group_id: &str) -> anyhow::Result<bool> {
+            Ok(true)
+        }
+    }
+
+    fn make_success_orchestrator() -> OverpaymentOrchestrator {
+        let event_bus = Arc::new(EventBus::new());
+        let procedure_service = Arc::new(ProcedureService::new(
+            Arc::new(ProcRepoForSuccess),
+            event_bus.clone(),
+        ));
+        let fund_payment_service = Arc::new(FundPaymentService::new(
+            Arc::new(FundPaymentRepoPersistOk),
+            event_bus.clone(),
+        ));
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(BankAccountRepoReturnsAccount);
+        let bank_transfer_service = Arc::new(BankEntryService::new(
+            Arc::new(BankEntryRepoPersistOk),
+            bank_account_repo.clone(),
+            event_bus.clone(),
+        ));
+        let bank_account_service = Arc::new(BankAccountService::new(
+            bank_account_repo,
+            event_bus.clone(),
+        ));
+        OverpaymentOrchestrator::new(
+            procedure_service,
+            fund_payment_service,
+            bank_transfer_service,
+            bank_account_service,
+            Arc::new(BankEntryLinkRepoNoop),
+            Arc::new(ProcedureRefundRepoNoop),
+        )
+    }
+
+    fn make_cancel_orchestrator() -> OverpaymentOrchestrator {
+        let refund_record = crate::context::procedure::ProcedureRefund::restore(
+            "refund-id-1".to_string(),
+            "source-proc-1".to_string(),
+            "refund-proc-1".to_string(),
+            "group-1".to_string(),
+            "transfer-1".to_string(),
+            NaiveDate::from_ymd_opt(2024, 3, 1).unwrap(),
+            None,
+            ProcedureStatus::FundPaid,
+        );
+        let event_bus = Arc::new(EventBus::new());
+        let procedure_service = Arc::new(ProcedureService::new(
+            Arc::new(ProcRepoForSuccess),
+            event_bus.clone(),
+        ));
+        let fund_payment_service = Arc::new(FundPaymentService::new(
+            Arc::new(FundPaymentRepoPersistOk),
+            event_bus.clone(),
+        ));
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(BankAccountRepoReturnsAccount);
+        let bank_transfer_service = Arc::new(BankEntryService::new(
+            Arc::new(BankEntryRepoPersistOk),
+            bank_account_repo.clone(),
+            event_bus.clone(),
+        ));
+        let bank_account_service = Arc::new(BankAccountService::new(
+            bank_account_repo,
+            event_bus.clone(),
+        ));
+        OverpaymentOrchestrator::new(
+            procedure_service,
+            fund_payment_service,
+            bank_transfer_service,
+            bank_account_service,
+            Arc::new(BankEntryLinkRepoNoop),
+            Arc::new(ProcedureRefundRepoWithRecord(refund_record)),
+        )
+    }
+
     fn make_orchestrator(proc_result: Option<Procedure>) -> OverpaymentOrchestrator {
         let event_bus = Arc::new(EventBus::new());
         let procedure_service = Arc::new(ProcedureService::new(
@@ -976,5 +1374,267 @@ mod tests {
         let msg = err.to_string();
         assert!(msg.contains("REF-060"));
         assert!(msg.contains("Venmo"));
+    }
+
+    // --- create_overpayment success path (steps 7-12) ---
+
+    #[tokio::test]
+    async fn create_overpayment_success_returns_ok() {
+        let orchestrator = make_success_orchestrator();
+        let result = orchestrator.create_overpayment(base_request()).await;
+        assert!(result.is_ok(), "expected Ok, got: {:?}", result.err());
+    }
+
+    #[tokio::test]
+    async fn create_overpayment_success_with_outgoing_wire() {
+        let orchestrator = make_success_orchestrator();
+        let mut req = base_request();
+        req.transfer_type = "OutgoingWire".to_string();
+        let result = orchestrator.create_overpayment(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_overpayment_success_with_credit_card() {
+        let orchestrator = make_success_orchestrator();
+        let mut req = base_request();
+        req.transfer_type = "CreditCard".to_string();
+        let result = orchestrator.create_overpayment(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_overpayment_success_with_reason() {
+        let orchestrator = make_success_orchestrator();
+        let mut req = base_request();
+        req.reason = Some("Billing error correction".to_string());
+        let result = orchestrator.create_overpayment(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_overpayment_with_partially_fund_paid_source_succeeds() {
+        let event_bus = Arc::new(EventBus::new());
+        // Override proc repo to return PartiallyFundPaid status
+        struct ProcRepoPartiallyFundPaid;
+        #[async_trait::async_trait]
+        impl ProcedureRepository for ProcRepoPartiallyFundPaid {
+            #[allow(clippy::too_many_arguments)]
+            async fn create_procedure(
+                &self,
+                patient_id: String,
+                fund_id: Option<String>,
+                procedure_type_id: String,
+                procedure_date: String,
+                billed_amount: Option<i64>,
+                payment_method: PaymentMethod,
+                confirmed_payment_date: Option<String>,
+                paid_amount: Option<i64>,
+                payment_status: ProcedureStatus,
+            ) -> anyhow::Result<Procedure> {
+                let date = chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
+                    .unwrap_or_default();
+                Ok(Procedure::restore(
+                    "refund-proc-2".to_string(),
+                    patient_id,
+                    fund_id,
+                    procedure_type_id,
+                    date,
+                    billed_amount,
+                    payment_method,
+                    confirmed_payment_date
+                        .as_deref()
+                        .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
+                    paid_amount,
+                    payment_status,
+                ))
+            }
+            async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
+                Ok(vec![])
+            }
+            async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
+                Ok(Some(Procedure::restore(
+                    "source-proc-1".to_string(),
+                    "patient-1".to_string(),
+                    Some("fund-1".to_string()),
+                    "type-1".to_string(),
+                    NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+                    Some(50_000),
+                    PaymentMethod::None,
+                    Some(NaiveDate::from_ymd_opt(2024, 1, 10).unwrap()),
+                    Some(50_000),
+                    ProcedureStatus::PartiallyFundPaid,
+                )))
+            }
+            async fn read_procedures_by_ids(
+                &self,
+                _ids: &[String],
+            ) -> anyhow::Result<Vec<Procedure>> {
+                Ok(vec![])
+            }
+            async fn read_procedures_by_patient_id(
+                &self,
+                _: &str,
+            ) -> anyhow::Result<Vec<Procedure>> {
+                Ok(vec![])
+            }
+            async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
+                Ok(p)
+            }
+            async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
+                Ok(())
+            }
+            async fn find_procedures_by_ssn_and_date_range(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+            ) -> anyhow::Result<Vec<Procedure>> {
+                Ok(vec![])
+            }
+            async fn find_procedures_by_ssns_and_date_range(
+                &self,
+                _: &[String],
+                _: &str,
+                _: &str,
+            ) -> anyhow::Result<Vec<Procedure>> {
+                Ok(vec![])
+            }
+            async fn find_procedures_by_ssns_and_date_range_with_ssn(
+                &self,
+                _: &[String],
+                _: &str,
+                _: &str,
+            ) -> anyhow::Result<Vec<(String, Procedure)>> {
+                Ok(vec![])
+            }
+            async fn find_procedure_exact(
+                &self,
+                _: &str,
+                _: Option<&str>,
+                _: &str,
+                _: i64,
+            ) -> anyhow::Result<Option<Procedure>> {
+                Ok(None)
+            }
+            async fn create_batch(&self, p: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
+                Ok(p)
+            }
+            async fn update_batch(&self, p: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
+                Ok(p)
+            }
+            async fn find_unpaid_by_fund(&self, _: &str) -> anyhow::Result<Vec<Procedure>> {
+                Ok(vec![])
+            }
+            async fn has_blocking_procedures_in_month(&self, _: &str) -> anyhow::Result<bool> {
+                Ok(false)
+            }
+            async fn delete_procedures_by_month(&self, _: &str) -> anyhow::Result<u64> {
+                Ok(0)
+            }
+            async fn find_unreconciled_by_date_range(
+                &self,
+                _: &str,
+                _: &str,
+            ) -> anyhow::Result<Vec<UnreconciledProcedure>> {
+                Ok(vec![])
+            }
+            async fn find_created_in_date_range(
+                &self,
+                _: &str,
+                _: &str,
+            ) -> anyhow::Result<Vec<Procedure>> {
+                Ok(vec![])
+            }
+            async fn find_created_by_fund_before_date(
+                &self,
+                _: &str,
+                _: &str,
+            ) -> anyhow::Result<Vec<Procedure>> {
+                Ok(vec![])
+            }
+        }
+
+        let procedure_service = Arc::new(ProcedureService::new(
+            Arc::new(ProcRepoPartiallyFundPaid),
+            event_bus.clone(),
+        ));
+        let fund_payment_service = Arc::new(FundPaymentService::new(
+            Arc::new(FundPaymentRepoPersistOk),
+            event_bus.clone(),
+        ));
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(BankAccountRepoReturnsAccount);
+        let bank_transfer_service = Arc::new(BankEntryService::new(
+            Arc::new(BankEntryRepoPersistOk),
+            bank_account_repo.clone(),
+            event_bus.clone(),
+        ));
+        let bank_account_service = Arc::new(BankAccountService::new(
+            bank_account_repo,
+            event_bus.clone(),
+        ));
+        let orchestrator = OverpaymentOrchestrator::new(
+            procedure_service,
+            fund_payment_service,
+            bank_transfer_service,
+            bank_account_service,
+            Arc::new(BankEntryLinkRepoNoop),
+            Arc::new(ProcedureRefundRepoNoop),
+        );
+
+        let result = orchestrator.create_overpayment(base_request()).await;
+        assert!(result.is_ok());
+    }
+
+    // --- cancel_overpayment success path ---
+
+    #[tokio::test]
+    async fn cancel_overpayment_success_returns_ok() {
+        let orchestrator = make_cancel_orchestrator();
+        let result = orchestrator.cancel_overpayment("source-proc-1").await;
+        assert!(result.is_ok(), "expected Ok, got: {:?}", result.err());
+    }
+
+    // --- get_procedure_refund_by_source with record ---
+
+    #[tokio::test]
+    async fn get_procedure_refund_by_source_returns_some_when_present() {
+        let orchestrator = make_cancel_orchestrator();
+        let result = orchestrator
+            .get_procedure_refund_by_source("source-proc-1")
+            .await
+            .unwrap();
+        assert!(result.is_some());
+        let info = result.unwrap();
+        assert_eq!(info.source_procedure_id, "source-proc-1");
+        assert_eq!(info.refund_procedure_id, "refund-proc-1");
+    }
+
+    // --- get_procedure_refund_by_refund_procedure with record ---
+
+    #[tokio::test]
+    async fn get_procedure_refund_by_refund_procedure_returns_some_when_present() {
+        let orchestrator = make_cancel_orchestrator();
+        let result = orchestrator
+            .get_procedure_refund_by_refund_procedure("refund-proc-1")
+            .await
+            .unwrap();
+        assert!(result.is_some());
+        let info = result.unwrap();
+        assert_eq!(info.refund_procedure_id, "refund-proc-1");
+        assert_eq!(info.refund_date, "2024-03-01");
+    }
+
+    // --- is_refund_fund_payment_group returns true ---
+
+    #[tokio::test]
+    async fn is_refund_fund_payment_group_returns_true_when_present() {
+        let orchestrator = make_cancel_orchestrator();
+        let result = orchestrator
+            .is_refund_fund_payment_group("group-1")
+            .await
+            .unwrap();
+        assert!(result);
     }
 }

@@ -1260,6 +1260,8 @@ impl FundPaymentReconciliationOrchestrator {
     }
 }
 
+// TODO: These tests are integration tests using real SQLite. They should be refactored
+// to unit tests using mock repositories (consistent with the unit test = mock rule).
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1604,6 +1606,291 @@ mod tests {
             "confirmed_payment_date == group payment_date"
         );
         assert_eq!(added[0].paid_amount, Some(25_000));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_fund_payment_from_candidate_creates_group_and_reconciles_procedures(
+    ) -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, _fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_id = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 100_000).await;
+
+        // Fund "CPAM93" is already seeded by seed_base — but the orchestrator needs to find it
+        // by label "CPAM n° 93" which extracts identifier "93". That fund doesn't exist yet,
+        // so it will be auto-created.
+        let orchestrator = make_orchestrator(&pool);
+        let group = orchestrator
+            .create_fund_payment_from_candidate(
+                "CPAM n° 93".to_string(),
+                NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                100_000,
+                vec![proc_id.clone()],
+                Some(100_000),
+            )
+            .await?;
+
+        assert_eq!(group.total_amount, 100_000);
+        assert_eq!(group.lines.len(), 1);
+        assert_eq!(group.lines[0].procedure_id, proc_id);
+
+        // Procedure should be Reconciled
+        let procs = orchestrator
+            .procedure_service
+            .read_procedures_by_ids(vec![proc_id])
+            .await?;
+        assert_eq!(procs.len(), 1);
+        assert!(matches!(
+            procs[0].payment_status,
+            ProcedureStatus::Reconciled
+        ));
+        assert_eq!(procs[0].paid_amount, Some(100_000));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_fund_payment_from_candidate_resolves_existing_fund() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_id = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 50_000).await;
+        let _ = fund_id; // fund with identifier "CPAM93" is seeded
+
+        let orchestrator = make_orchestrator(&pool);
+
+        // "CPAM93" matches fund_identifier "CPAM93" seeded by seed_base
+        let group = orchestrator
+            .create_fund_payment_from_candidate(
+                "CPAM93".to_string(),
+                NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
+                50_000,
+                vec![proc_id.clone()],
+                None,
+            )
+            .await?;
+
+        assert_eq!(group.total_amount, 50_000);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn is_duplicate_candidate_returns_false_when_fund_not_found() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let orchestrator = make_orchestrator(&pool);
+
+        let result = orchestrator
+            .is_duplicate_candidate(
+                "UNKNOWN FUND",
+                NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                50_000,
+            )
+            .await?;
+
+        assert!(!result);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_multiple_from_candidates_creates_groups() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, _fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_id = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 75_000).await;
+
+        let orchestrator = make_orchestrator(&pool);
+        let groups = orchestrator
+            .create_multiple_from_candidates(vec![FundPaymentGroupCandidate {
+                fund_label: "CPAM n° 75".to_string(),
+                payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                total_amount: 75_000,
+                procedure_ids: vec![proc_id.clone()],
+                matched_amount: 75_000,
+                is_fully_covered: true,
+            }])
+            .await?;
+
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].total_amount, 75_000);
+
+        let procs = orchestrator
+            .procedure_service
+            .read_procedures_by_ids(vec![proc_id])
+            .await?;
+        assert!(matches!(
+            procs[0].payment_status,
+            ProcedureStatus::Reconciled
+        ));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_multiple_from_candidates_all_duplicates_returns_error() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_id = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 100_000).await;
+        let _ = fund_id;
+
+        let orchestrator = make_orchestrator(&pool);
+        // First creation
+        orchestrator
+            .create_multiple_from_candidates(vec![FundPaymentGroupCandidate {
+                fund_label: "CPAM93".to_string(),
+                payment_date: NaiveDate::from_ymd_opt(2026, 3, 1).unwrap(),
+                total_amount: 100_000,
+                procedure_ids: vec![proc_id.clone()],
+                matched_amount: 100_000,
+                is_fully_covered: true,
+            }])
+            .await?;
+
+        // Second creation with same fund/date/amount should return all-duplicates error
+        let proc_id2 = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 100_000).await;
+        let result = orchestrator
+            .create_multiple_from_candidates(vec![FundPaymentGroupCandidate {
+                fund_label: "CPAM93".to_string(),
+                payment_date: NaiveDate::from_ymd_opt(2026, 3, 1).unwrap(),
+                total_amount: 100_000,
+                procedure_ids: vec![proc_id2],
+                matched_amount: 100_000,
+                is_fully_covered: true,
+            }])
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("already exist"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_manual_fund_payment_group_creates_group_and_reconciles() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_a = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 60_000).await;
+        let proc_b = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 40_000).await;
+
+        let orchestrator = make_orchestrator(&pool);
+        let group = orchestrator
+            .create_manual_fund_payment_group(
+                fund_id,
+                "2026-01-20".to_string(),
+                vec![proc_a.clone(), proc_b.clone()],
+            )
+            .await?;
+
+        assert_eq!(group.total_amount, 100_000);
+        assert_eq!(group.lines.len(), 2);
+
+        let procs = orchestrator
+            .procedure_service
+            .read_procedures_by_ids(vec![proc_a, proc_b])
+            .await?;
+        for p in &procs {
+            assert!(
+                matches!(p.payment_status, ProcedureStatus::Reconciled),
+                "expected Reconciled, got {:?}",
+                p.payment_status
+            );
+            assert_eq!(
+                p.confirmed_payment_date,
+                Some(NaiveDate::from_ymd_opt(2026, 1, 20).unwrap())
+            );
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_manual_fund_payment_group_invalid_date_returns_error() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (_, fund_id, _) = seed_base(&pool).await;
+
+        let orchestrator = make_orchestrator(&pool);
+        let result = orchestrator
+            .create_manual_fund_payment_group(fund_id, "not-a-date".to_string(), vec![])
+            .await;
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid payment date"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn verify_created_groups_empty_list_is_noop() {
+        let pool = setup_db().await;
+        let orchestrator = make_orchestrator(&pool);
+        orchestrator.verify_created_groups(&[]).await;
+    }
+
+    #[tokio::test]
+    async fn get_group_edit_data_returns_current_and_available() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
+        let proc_in_group =
+            seed_reconciliated_procedure(&pool, &patient_id, &proc_type_id, 50_000, "2026-01-15")
+                .await;
+        // Seed a procedure with fund_id so find_created_by_fund_before_date can find it
+        let proc_available = {
+            let id = Uuid::new_v4().to_string();
+            sqlx::query(
+                r#"INSERT INTO "procedure" (id, patient_id, fund_id, procedure_type_id,
+                   procedure_date, procedure_amount, payment_status, is_deleted)
+                   VALUES (?, ?, ?, ?, '2026-01-10', 30000, 'CREATED', 0)"#,
+            )
+            .bind(&id)
+            .bind(&patient_id)
+            .bind(&fund_id)
+            .bind(&proc_type_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+            id
+        };
+        let group_id = seed_fund_group(
+            &pool,
+            &fund_id,
+            std::slice::from_ref(&proc_in_group),
+            "ACTIVE",
+        )
+        .await;
+
+        let orchestrator = make_orchestrator(&pool);
+        let (current, available) = orchestrator
+            .get_group_edit_data(&group_id, &fund_id)
+            .await?;
+
+        assert_eq!(current.len(), 1);
+        assert_eq!(current[0].id, proc_in_group);
+        // `proc_available` is Created with fund_id, date <= payment_date — should appear as available
+        assert!(
+            available.iter().any(|p| p.id == proc_available),
+            "proc_available should be in available list"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_group_edit_data_not_found_returns_error() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let orchestrator = make_orchestrator(&pool);
+        let result = orchestrator
+            .get_group_edit_data("nonexistent-group", "nonexistent-fund")
+            .await;
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn update_manual_fund_payment_group_not_found_returns_error() -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let orchestrator = make_orchestrator(&pool);
+        let result = orchestrator
+            .update_manual_fund_payment_group(
+                "nonexistent-group".to_string(),
+                "2026-01-15".to_string(),
+                vec![],
+            )
+            .await;
+        assert!(result.is_err());
         Ok(())
     }
 

@@ -194,3 +194,123 @@ fn parse_procedure_status(s: &str) -> ProcedureStatus {
         _ => ProcedureStatus::None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+
+    use super::*;
+    use crate::context::procedure::domain::ProcedureRefund;
+
+    async fn setup() -> SqliteProcedureRefundRepository {
+        let opts = SqliteConnectOptions::new()
+            .in_memory(true)
+            .foreign_keys(false);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        SqliteProcedureRefundRepository { pool }
+    }
+
+    fn make_refund(source_id: &str, refund_id: &str) -> ProcedureRefund {
+        ProcedureRefund::new(
+            source_id.to_string(),
+            refund_id.to_string(),
+            "group-1".to_string(),
+            "transfer-1".to_string(),
+            "2026-01-15".to_string(),
+            None,
+            ProcedureStatus::FundPaid,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn create_and_find_by_source_procedure_id() {
+        let repo = setup().await;
+        let refund = make_refund("src-1", "ref-1");
+        repo.create_procedure_refund(&refund).await.unwrap();
+
+        let found = repo.find_by_source_procedure_id("src-1").await.unwrap();
+        assert!(found.is_some());
+        let found = found.unwrap();
+        assert_eq!(found.source_procedure_id, "src-1");
+        assert_eq!(found.refund_procedure_id, "ref-1");
+        assert_eq!(found.previous_payment_status, ProcedureStatus::FundPaid);
+    }
+
+    #[tokio::test]
+    async fn find_by_source_procedure_id_returns_none_when_absent() {
+        let repo = setup().await;
+        let found = repo
+            .find_by_source_procedure_id("no-such-id")
+            .await
+            .unwrap();
+        assert!(found.is_none());
+    }
+
+    #[tokio::test]
+    async fn create_and_find_by_refund_procedure_id() {
+        let repo = setup().await;
+        let refund = make_refund("src-2", "ref-2");
+        repo.create_procedure_refund(&refund).await.unwrap();
+
+        let found = repo.find_by_refund_procedure_id("ref-2").await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().source_procedure_id, "src-2");
+    }
+
+    #[tokio::test]
+    async fn delete_procedure_refund_removes_record() {
+        let repo = setup().await;
+        let refund = make_refund("src-3", "ref-3");
+        repo.create_procedure_refund(&refund).await.unwrap();
+        repo.delete_procedure_refund(&refund.id).await.unwrap();
+
+        let found = repo.find_by_source_procedure_id("src-3").await.unwrap();
+        assert!(found.is_none());
+    }
+
+    #[tokio::test]
+    async fn is_refund_fund_payment_group_returns_true_when_exists() {
+        let repo = setup().await;
+        let refund = make_refund("src-4", "ref-4");
+        repo.create_procedure_refund(&refund).await.unwrap();
+
+        let result = repo.is_refund_fund_payment_group("group-1").await.unwrap();
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn is_refund_fund_payment_group_returns_false_when_absent() {
+        let repo = setup().await;
+        let result = repo.is_refund_fund_payment_group("no-group").await.unwrap();
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn create_stores_reason_when_provided() {
+        let repo = setup().await;
+        let refund = ProcedureRefund::new(
+            "src-5".to_string(),
+            "ref-5".to_string(),
+            "group-5".to_string(),
+            "transfer-5".to_string(),
+            "2026-02-01".to_string(),
+            Some("Overpayment correction".to_string()),
+            ProcedureStatus::Overpaid,
+        )
+        .unwrap();
+        repo.create_procedure_refund(&refund).await.unwrap();
+        let found = repo
+            .find_by_source_procedure_id("src-5")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.reason.as_deref(), Some("Overpayment correction"));
+        assert_eq!(found.previous_payment_status, ProcedureStatus::Overpaid);
+    }
+}
