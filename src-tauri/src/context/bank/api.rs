@@ -103,19 +103,6 @@ pub async fn read_all_bank_accounts(
         .map_err(|e| format!("{:#}", e))
 }
 
-/// Tauri command: Read a single bank account
-#[tauri::command]
-#[specta::specta]
-pub async fn read_bank_account(
-    id: String,
-    service: State<'_, Arc<BankAccountService>>,
-) -> Result<BankAccount, String> {
-    service
-        .read_account(&id)
-        .await
-        .map_err(|e| format!("{:#}", e))
-}
-
 /// Tauri command: Update a bank account
 #[tauri::command]
 #[specta::specta]
