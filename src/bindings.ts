@@ -575,17 +575,6 @@ async readAllBankAccounts() : Promise<Result<BankAccount[], string>> {
 }
 },
 /**
- * Tauri command: Read a single bank account
- */
-async readBankAccount(id: string) : Promise<Result<BankAccount, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("read_bank_account", { id }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
  * Tauri command: Update a bank account
  */
 async updateBankAccount(id: string, name: string, iban: string | null) : Promise<Result<BankAccount, string>> {
