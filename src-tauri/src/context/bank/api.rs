@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use tauri::State;
 
-use super::{BankAccount, BankAccountService, BankEntry, BankEntryService, BankEntryType};
+use super::{
+    BankAccount, BankAccountService, BankEntry, BankEntryService, BankEntryType, CASH_ACCOUNT_ID,
+};
 
 // ============ BankEntry Tauri Commands ============
 
@@ -107,7 +109,7 @@ pub async fn read_all_bank_accounts(
 pub async fn read_bank_account(
     id: String,
     service: State<'_, Arc<BankAccountService>>,
-) -> Result<Option<BankAccount>, String> {
+) -> Result<BankAccount, String> {
     service
         .read_account(&id)
         .await
@@ -128,9 +130,6 @@ pub async fn update_bank_account(
         .await
         .map_err(|e| format!("{:#}", e))
 }
-
-/// The fixed ID of the default cash account (seeded by migration).
-pub const CASH_ACCOUNT_ID: &str = "cash-account-default";
 
 /// Tauri command: Returns the ID of the default cash account.
 /// Used by the frontend to auto-assign the account for CASH transfers (R13).

@@ -2,14 +2,9 @@
 
 ---
 
-## — Review pending items in domain contracts
+## — Review pending items in domain contracts ✅ done
 
-Several contracts have `⚠️ Backend gap` notes or unresolved questions flagged during creation. Review each contract file in `docs/contracts/` and either fix the backend gap, update the contract to reflect actual behavior, or document a known deviation.
-
-Known gaps (from bank-account-contract.md):
-- `read_bank_account`: returns `Option<BankAccount>` instead of raising `NotFound`
-- `update_bank_account`: `CashAccountProtected` not enforced
-- `delete_bank_account`: `CashAccountProtected` not enforced
+Bank account gaps fixed (2026-05-02): `read_bank_account` now raises `NotFound`, `CashAccountProtected` enforced on update/delete. Contract renamed to `bank-contract.md`.
 
 ---
 
