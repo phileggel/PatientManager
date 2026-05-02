@@ -116,3 +116,4 @@ support.
 - HeadlessUI issue [#3294](https://github.com/tailwindlabs/headlessui/issues/3294) — portal testing
 - HeadlessUI discussion [#3665](https://github.com/tailwindlabs/headlessui/discussions/3665) — programmatic value setting
 - Playwright issue [#31741](https://github.com/microsoft/playwright/issues/31741) — ComboboxField click failures
+- `docs/adr/005-combobox-feasibility-investigation.md` — full replacement feasibility study; accepted Option 1 (Tauri invoke seed helper, `e2e/helpers/seed.ts::seedProcedure`)

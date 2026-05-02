@@ -81,3 +81,48 @@ export async function seedPatient(name: string): Promise<void> {
   await $(`//td[text()="${name}"]`).waitForExist({ timeout: 10000 });
 }
 
+/**
+ * Seed a procedure directly via Tauri invoke, bypassing ComboboxField.
+ *
+ * ComboboxField cannot be automated in WebDriver (isTrusted + floating-ui portal —
+ * see ADR 004). This helper creates a procedure at the Tauri command layer so
+ * downstream tests (payment, reconciliation, overpayment) can assume a pre-existing
+ * procedure without any UI interaction.
+ *
+ * Prerequisites: the patient and procedure type referenced by patientId and
+ * procedureTypeId must already exist in the database (use seedPatient and
+ * seedProcedureType first, then read their IDs from the store or UI).
+ *
+ * Returns the created procedure id.
+ */
+export async function seedProcedure(
+  patientId: string,
+  procedureTypeId: string,
+  procedureDate: string,
+  fundId: string | null = null,
+  billedAmount: number | null = null,
+): Promise<string> {
+  const procedure = await browser.execute(
+    async (pId, ptId, date, fId, amount) => {
+      // biome-ignore lint/suspicious/noExplicitAny: window.__TAURI_INTERNALS__ is not typed
+      const invoke = (window as any).__TAURI_INTERNALS__.invoke as (
+        cmd: string,
+        args: unknown,
+      ) => Promise<unknown>;
+      return invoke("add_procedure", {
+        patientId: pId,
+        fundId: fId,
+        procedureTypeId: ptId,
+        procedureDate: date,
+        billedAmount: amount,
+      });
+    },
+    patientId,
+    procedureTypeId,
+    procedureDate,
+    fundId,
+    billedAmount,
+  );
+  return (procedure as { id: string }).id;
+}
+
