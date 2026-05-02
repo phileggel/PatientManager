@@ -40,6 +40,9 @@ export const config: Options.Testrunner = {
   host: "127.0.0.1",
   port: 4446,
 
+  // Suppress WebDriver protocol logs (COMMAND/POST/RESULT chatter) — keep warnings and errors only.
+  logLevel: "warn",
+
   framework: "mocha",
   specs: ["./e2e/**/*.test.ts"],
   maxInstances: 1,
@@ -81,6 +84,8 @@ export const config: Options.Testrunner = {
     // Expose the ephemeral DB path to the binary via env var. tauri-driver
     // inherits this process environment and passes it to the launched binary.
     process.env.PATIENT_MANAGER_E2E_DB = E2E_DB_PATH;
+    // Suppress verbose Rust/frontend tracing — only show warnings and errors.
+    process.env.RUST_LOG = "warn";
 
     // tauri-driver is expected at ~/.cargo/bin/tauri-driver (installed via `cargo install tauri-driver`).
     // In CI, ensure Rust toolchain installs to the default cargo home or adjust this path.
