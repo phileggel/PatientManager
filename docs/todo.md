@@ -2,11 +2,14 @@
 
 ---
 
-## (frontend/excel-import) — Remove ImportExcelPage file upload landing step
+## — Review pending items in domain contracts
 
-`ImportExcelPage` starts with a `FileUploadSection` landing UI (icon + button) before the multi-step wizard. Unlike the other two, the subsequent steps (month selection, type mapping, progress, result) still render in-page, so the page itself must stay.
+Several contracts have `⚠️ Backend gap` notes or unresolved questions flagged during creation. Review each contract file in `docs/contracts/` and either fix the backend gap, update the contract to reflect actual behavior, or document a known deviation.
 
-Fix: trigger the file picker on mount, remove the `FileUploadSection` landing UI. The page opens directly at the parsing step once a file is selected. Handle cancel (no file selected) by navigating back to dashboard or showing a minimal empty state.
+Known gaps (from bank-account-contract.md):
+- `read_bank_account`: returns `Option<BankAccount>` instead of raising `NotFound`
+- `update_bank_account`: `CashAccountProtected` not enforced
+- `delete_bank_account`: `CashAccountProtected` not enforced
 
 ---
 
@@ -21,28 +24,6 @@ Note: `src/tests/patient.factory.ts` already exists (used in `useProcedureFormMo
 ## (backend) — Add mockall for service-layer unit tests
 
 Currently all backend tests hit a real SQLite DB. Add `mockall` as a dev-dependency so service-layer logic can be unit-tested with mock repositories (the existing trait-based `Arc<dyn Repository>` pattern makes this straightforward). Integration tests under `tests/` keep hitting the real DB — mockall only targets service/use-case unit tests where spinning up a DB is unnecessary overhead.
-
----
-
-## (all domains) — Retroactive domain contracts
-
-Create `docs/contracts/{domain}-contract.md` for all shipped features. Contracts define the frontend/backend surface: Tauri commands, their parameters, return types, and error variants. They are the co-decision point between test coverage and command definitions — useful when extending a feature or running `contract-reviewer` / `test-writer-*` in future workflows.
-
-Domains to cover (one contract per bounded context / use-case surface):
-
-- `bank-account`
-- `bank-statement-auto-match`
-- `bank-statement-manual-match`
-- `db-backup`
-- `excel-import`
-- `fund-payment-auto-match`
-- `fund-payment-manual-match`
-- `overpayment`
-- `procedure-orchestration`
-- `procedure-type`
-- `theme`
-
-Run `/contract` for each domain (reads the Tauri commands and bindings.ts, not the spec). No implementation changes required.
 
 ---
 
