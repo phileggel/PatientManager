@@ -27,9 +27,9 @@ screenshot:
 coverage-fe:
     npm run test:coverage
 
-# Generate backend coverage report (outputs tarpaulin-report.json)
+# Generate backend coverage report (outputs coverage/tarpaulin-report.json)
 coverage-be:
-    cd src-tauri && cargo tarpaulin --out Json --output-dir ..
+    cd src-tauri && cargo tarpaulin --out Json --output-dir ../coverage
 
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be
