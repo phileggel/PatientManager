@@ -626,6 +626,7 @@ mod tests {
         ProcedureStatus, ProcedureType, ProcedureTypeRepository,
     };
     use crate::core::event_bus::EventBus;
+    use crate::use_cases::procedure_orchestration::ProcedureValidationStatus;
     use crate::FundRepository;
     use chrono::NaiveDate;
     use std::sync::{Arc, Mutex};
@@ -1782,5 +1783,549 @@ mod tests {
             "latest_fund must be cleared when newest procedure has no fund"
         );
         assert_eq!(updated.latest_procedure_amount, Some(100000));
+    }
+
+    // --- Additional mocks for Tier 2 tests ---
+
+    struct MockProcedureTypeRepositoryNotFound;
+
+    #[async_trait::async_trait]
+    impl ProcedureTypeRepository for MockProcedureTypeRepositoryNotFound {
+        async fn create_procedure_type(
+            &self,
+            _name: String,
+            _default_amount: i64,
+            _category: Option<String>,
+        ) -> anyhow::Result<ProcedureType> {
+            unimplemented!()
+        }
+        async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>> {
+            Ok(vec![])
+        }
+        async fn read_procedure_type(&self, _id: &str) -> anyhow::Result<Option<ProcedureType>> {
+            Ok(None)
+        }
+        async fn update_procedure_type(&self, _pt: ProcedureType) -> anyhow::Result<ProcedureType> {
+            unimplemented!()
+        }
+        async fn delete_procedure_type(&self, _id: &str) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+        async fn find_by_name(&self, _name: &str) -> anyhow::Result<Option<ProcedureType>> {
+            unimplemented!()
+        }
+    }
+
+    struct MockFundRepositoryWithFund;
+
+    #[async_trait::async_trait]
+    impl FundRepository for MockFundRepositoryWithFund {
+        async fn create_fund(
+            &self,
+            _fund_identifier: &str,
+            _fund_name: &str,
+        ) -> anyhow::Result<Fund> {
+            unimplemented!()
+        }
+        async fn read_fund(&self, id: &str) -> anyhow::Result<Option<Fund>> {
+            Ok(Some(Fund::restore(
+                id.to_string(),
+                "FND".to_string(),
+                "Test Fund".to_string(),
+            )))
+        }
+        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
+            Ok(vec![])
+        }
+        async fn update_fund(&self, _fund: Fund) -> anyhow::Result<Fund> {
+            unimplemented!()
+        }
+        async fn find_fund_by_identifier(&self, _identifier: &str) -> anyhow::Result<Option<Fund>> {
+            unimplemented!()
+        }
+        async fn create_batch(&self, _funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
+            unimplemented!()
+        }
+        async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+    }
+
+    struct MockFundRepositoryNotFound;
+
+    #[async_trait::async_trait]
+    impl FundRepository for MockFundRepositoryNotFound {
+        async fn create_fund(
+            &self,
+            _fund_identifier: &str,
+            _fund_name: &str,
+        ) -> anyhow::Result<Fund> {
+            unimplemented!()
+        }
+        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<Fund>> {
+            Ok(None)
+        }
+        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
+            Ok(vec![])
+        }
+        async fn update_fund(&self, _fund: Fund) -> anyhow::Result<Fund> {
+            unimplemented!()
+        }
+        async fn find_fund_by_identifier(&self, _identifier: &str) -> anyhow::Result<Option<Fund>> {
+            unimplemented!()
+        }
+        async fn create_batch(&self, _funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
+            unimplemented!()
+        }
+        async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+    }
+
+    fn make_orchestrator_with_repos(
+        patient_repo: Arc<dyn PatientRepository>,
+        type_repo: Arc<dyn ProcedureTypeRepository>,
+        fund_repo: Arc<dyn FundRepository>,
+    ) -> ProcedureOrchestrationService {
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(MockProcedureRepository),
+            event_bus,
+        ));
+        ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo,
+            type_repo,
+            fund_repo,
+            Arc::new(MockProcedureRefundRepository),
+        )
+    }
+
+    fn make_valid_patient() -> Patient {
+        Patient::restore(
+            "patient-id-1".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    fn make_patient_repo(patient: Option<Patient>) -> Arc<MockPatientRepository> {
+        Arc::new(MockPatientRepository {
+            patient: Mutex::new(patient),
+            updated_patient: Mutex::new(None),
+        })
+    }
+
+    // --- determine_payment_method ---
+
+    #[test]
+    fn determine_payment_method_no_date_returns_none() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_payment_method(Some("ES"), None),
+            PaymentMethod::None
+        );
+    }
+
+    #[test]
+    fn determine_payment_method_empty_date_returns_none() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_payment_method(None, Some("")),
+            PaymentMethod::None
+        );
+    }
+
+    #[test]
+    fn determine_payment_method_es_returns_cash() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_payment_method(Some("ES"), Some("2024-01-01")),
+            PaymentMethod::Cash
+        );
+    }
+
+    #[test]
+    fn determine_payment_method_ch_returns_check() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_payment_method(Some("CH"), Some("2024-01-01")),
+            PaymentMethod::Check
+        );
+    }
+
+    #[test]
+    fn determine_payment_method_other_infers_bank_transfer() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_payment_method(
+                Some("VIR"),
+                Some("2024-01-01")
+            ),
+            PaymentMethod::BankTransfer
+        );
+    }
+
+    // --- determine_procedure_status ---
+
+    #[test]
+    fn determine_procedure_status_no_payment_returns_created() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_procedure_status(
+                Some(100_000),
+                None,
+                None,
+                None,
+                None
+            ),
+            ProcedureStatus::Created
+        );
+    }
+
+    #[test]
+    fn determine_procedure_status_paid_es_no_fund_returns_import_directly_paid() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_procedure_status(
+                Some(100_000),
+                Some(100_000),
+                Some("2024-01-01"),
+                Some("ES"),
+                Some("fund-1")
+            ),
+            ProcedureStatus::ImportDirectlyPaid
+        );
+    }
+
+    #[test]
+    fn determine_procedure_status_paid_no_fund_returns_import_directly_paid() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_procedure_status(
+                Some(100_000),
+                Some(100_000),
+                Some("2024-01-01"),
+                Some("VIR"),
+                None
+            ),
+            ProcedureStatus::ImportDirectlyPaid
+        );
+    }
+
+    #[test]
+    fn determine_procedure_status_paid_with_fund_returns_import_fund_paid() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_procedure_status(
+                Some(100_000),
+                Some(100_000),
+                Some("2024-01-01"),
+                Some("VIR"),
+                Some("fund-1")
+            ),
+            ProcedureStatus::ImportFundPaid
+        );
+    }
+
+    #[test]
+    fn determine_procedure_status_date_present_zero_paid_returns_created() {
+        assert_eq!(
+            ProcedureOrchestrationService::determine_procedure_status(
+                Some(100_000),
+                Some(0),
+                Some("2024-01-01"),
+                Some("VIR"),
+                Some("fund-1")
+            ),
+            ProcedureStatus::Created
+        );
+    }
+
+    // --- is_fully_paid ---
+
+    #[test]
+    fn is_fully_paid_true_when_paid_equals_required() {
+        assert!(ProcedureOrchestrationService::is_fully_paid(
+            Some(100_000),
+            Some(100_000)
+        ));
+    }
+
+    #[test]
+    fn is_fully_paid_true_when_paid_exceeds_required() {
+        assert!(ProcedureOrchestrationService::is_fully_paid(
+            Some(100_000),
+            Some(110_000)
+        ));
+    }
+
+    #[test]
+    fn is_fully_paid_false_when_paid_less_than_required() {
+        assert!(!ProcedureOrchestrationService::is_fully_paid(
+            Some(100_000),
+            Some(50_000)
+        ));
+    }
+
+    #[test]
+    fn is_fully_paid_false_when_amounts_are_none() {
+        assert!(!ProcedureOrchestrationService::is_fully_paid(
+            None,
+            Some(100_000)
+        ));
+        assert!(!ProcedureOrchestrationService::is_fully_paid(
+            Some(100_000),
+            None
+        ));
+    }
+
+    // --- validate_batch ---
+
+    #[tokio::test]
+    async fn validate_batch_empty_candidates_returns_empty() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(None),
+            Arc::new(MockProcedureTypeRepository),
+            Arc::new(MockFundRepository),
+        );
+        let result = orchestrator.validate_batch(vec![]).await.unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn validate_batch_missing_patient_id_returns_invalid() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(None),
+            Arc::new(MockProcedureTypeRepository),
+            Arc::new(MockFundRepository),
+        );
+        let candidate = ProcedureCandidate {
+            patient_id: "".to_string(),
+            fund_id: None,
+            procedure_type_id: "type-1".to_string(),
+            procedure_date: "2024-01-01".to_string(),
+            billed_amount: None,
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        };
+        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(matches!(
+            results[0].status,
+            ProcedureValidationStatus::Invalid
+        ));
+    }
+
+    #[tokio::test]
+    async fn validate_batch_patient_not_found_returns_invalid() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(None),
+            Arc::new(MockProcedureTypeRepository),
+            Arc::new(MockFundRepository),
+        );
+        let candidate = ProcedureCandidate {
+            patient_id: "missing-patient".to_string(),
+            fund_id: None,
+            procedure_type_id: "type-1".to_string(),
+            procedure_date: "2024-01-01".to_string(),
+            billed_amount: None,
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        };
+        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(matches!(
+            results[0].status,
+            ProcedureValidationStatus::Invalid
+        ));
+        assert_eq!(results[0].error, Some("Patient not found".to_string()));
+    }
+
+    #[tokio::test]
+    async fn validate_batch_procedure_type_not_found_returns_invalid() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(Some(make_valid_patient())),
+            Arc::new(MockProcedureTypeRepositoryNotFound),
+            Arc::new(MockFundRepository),
+        );
+        let candidate = ProcedureCandidate {
+            patient_id: "patient-id-1".to_string(),
+            fund_id: None,
+            procedure_type_id: "missing-type".to_string(),
+            procedure_date: "2024-01-01".to_string(),
+            billed_amount: None,
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        };
+        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(matches!(
+            results[0].status,
+            ProcedureValidationStatus::Invalid
+        ));
+        assert_eq!(
+            results[0].error,
+            Some("Procedure type not found".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn validate_batch_fund_not_found_returns_invalid() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(Some(make_valid_patient())),
+            Arc::new(MockProcedureTypeRepositoryWithType),
+            Arc::new(MockFundRepositoryNotFound),
+        );
+        let candidate = ProcedureCandidate {
+            patient_id: "patient-id-1".to_string(),
+            fund_id: Some("missing-fund".to_string()),
+            procedure_type_id: "type-1".to_string(),
+            procedure_date: "2024-01-01".to_string(),
+            billed_amount: None,
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        };
+        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(matches!(
+            results[0].status,
+            ProcedureValidationStatus::Invalid
+        ));
+        assert_eq!(results[0].error, Some("Fund not found".to_string()));
+    }
+
+    #[tokio::test]
+    async fn validate_batch_valid_candidate_with_fund_returns_valid() {
+        let orchestrator = make_orchestrator_with_repos(
+            make_patient_repo(Some(make_valid_patient())),
+            Arc::new(MockProcedureTypeRepositoryWithType),
+            Arc::new(MockFundRepositoryWithFund),
+        );
+        let candidate = ProcedureCandidate {
+            patient_id: "patient-id-1".to_string(),
+            fund_id: Some("fund-1".to_string()),
+            procedure_type_id: "type-1".to_string(),
+            procedure_date: "2024-01-01".to_string(),
+            billed_amount: Some(100_000),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+        };
+        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(matches!(
+            results[0].status,
+            ProcedureValidationStatus::Valid
+        ));
+    }
+
+    // --- update_procedure ---
+
+    #[tokio::test]
+    async fn update_procedure_non_overpaid_status_succeeds() {
+        let proc = make_procedure_with_status(ProcedureStatus::Created);
+        let orchestrator = make_orchestrator_with_procedure(proc.clone());
+        let updated = orchestrator.update_procedure(proc).await.unwrap();
+        assert_eq!(updated.payment_status, ProcedureStatus::Created);
+    }
+
+    #[tokio::test]
+    async fn update_procedure_overpaid_no_refund_record_succeeds() {
+        let proc = make_procedure_with_status(ProcedureStatus::Overpaid);
+        let orchestrator = make_orchestrator_with_procedure(proc.clone());
+        // MockProcedureRefundRepository returns None → no propagation path taken
+        let updated = orchestrator.update_procedure(proc).await.unwrap();
+        assert_eq!(updated.payment_status, ProcedureStatus::Overpaid);
+    }
+
+    // --- clear_procedure_type_tracking ---
+
+    #[tokio::test]
+    async fn clear_procedure_type_tracking_clears_matching_patient() {
+        let patient = Patient::restore(
+            "patient-id-1".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            None,
+            Some("type-to-clear".to_string()),
+            None,
+            Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            None,
+        );
+        let patient_repo = make_patient_repo(Some(patient));
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(MockProcedureRepository),
+            event_bus,
+        ));
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo.clone(),
+            Arc::new(MockProcedureTypeRepository),
+            Arc::new(MockFundRepository),
+            Arc::new(MockProcedureRefundRepository),
+        );
+
+        orchestrator
+            .clear_procedure_type_tracking("type-to-clear")
+            .await
+            .unwrap();
+
+        let updated = patient_repo
+            .updated_patient
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap();
+        assert_eq!(updated.latest_procedure_type, None);
+        assert_eq!(updated.latest_date, None);
+    }
+
+    // --- clear_fund_tracking ---
+
+    #[tokio::test]
+    async fn clear_fund_tracking_clears_matching_patient() {
+        let patient = Patient::restore(
+            "patient-id-1".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            None,
+            Some("type-1".to_string()),
+            Some("fund-to-clear".to_string()),
+            Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            None,
+        );
+        let patient_repo = make_patient_repo(Some(patient));
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(MockProcedureRepository),
+            event_bus,
+        ));
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo.clone(),
+            Arc::new(MockProcedureTypeRepository),
+            Arc::new(MockFundRepository),
+            Arc::new(MockProcedureRefundRepository),
+        );
+
+        orchestrator
+            .clear_fund_tracking("fund-to-clear")
+            .await
+            .unwrap();
+
+        let updated = patient_repo
+            .updated_patient
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap();
+        assert_eq!(updated.latest_fund, None);
     }
 }
