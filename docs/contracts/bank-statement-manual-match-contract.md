@@ -5,7 +5,7 @@
 
 ## Commands
 
-> `get_cash_bank_account_id` is owned by `context/bank` — see bank-account-contract.md.
+> `get_cash_bank_account_id` is owned by `context/bank` — see bank-contract.md.
 
 ### `get_unsettled_fund_groups` — R6
 
@@ -152,7 +152,7 @@ Returns the IDs of procedures currently linked to a direct payment. Used alongsi
 ## Shared Types
 
 ```rust
-// BankEntry and BankAccount are defined in bank-account-contract.md (context/bank)
+// BankEntry and BankAccount are defined in bank-contract.md (context/bank)
 
 // R2 — transfer/payment type; governs which flow applies and what payment_method is set on procedures
 enum BankEntryType {
@@ -188,13 +188,13 @@ struct BankManualMatchResult {
 
 ## Events
 
-| Event              | Trigger                                                                                                             |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `ProcedureUpdated` | After create/update/delete of either transfer type — procedure status or payment fields changed                     |
-| `FundGroupUpdated` | After create/update/delete of a FUND transfer — group status or lock state changed                                  |
-| `BankEntryUpdated` | After any write operation — `BankEntry` records created or removed                                                 |
+| Event              | Trigger                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| `ProcedureUpdated` | After create/update/delete of either transfer type — procedure status or payment fields changed |
+| `FundGroupUpdated` | After create/update/delete of a FUND transfer — group status or lock state changed              |
+| `BankEntryUpdated` | After any write operation — `BankEntry` records created or removed                              |
 
 ## Changelog
 
 - 2026-05-02 — Added by `bank-statement-manual-match` spec: get_cash_bank_account_id, get_unsettled_fund_groups, get_all_unsettled_fund_groups, get_fund_groups_by_ids, create_fund_transfer, update_fund_transfer, delete_fund_transfer, get_transfer_fund_group_ids, get_eligible_procedures_for_direct_payment, get_all_eligible_procedures_for_direct_payment, get_procedures_by_ids, create_direct_transfer, update_direct_transfer, delete_direct_transfer, get_transfer_procedure_ids
-- 2026-05-02 — Rescoped: read_all_bank_transfers moved to bank-account-contract.md (context/bank); BankEntry/BankAccount types moved there too
+- 2026-05-02 — Rescoped: read_all_bank_transfers moved to bank-contract.md (context/bank); BankEntry/BankAccount types moved there too

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::domain::{BankAccount, BankEntry, BankEntryType};
+use super::domain::{BankAccount, BankEntry, BankEntryType, CASH_ACCOUNT_ID};
 use super::repository::{BankAccountRepository, BankEntryRepository};
 use crate::core::event_bus::event::{BankAccountUpdated, BankEntryUpdated};
 use crate::core::event_bus::EventBus;
@@ -154,9 +154,12 @@ impl BankAccountService {
         Ok(created)
     }
 
-    /// Read a single account
-    pub async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
-        self.repository.read_account(id).await
+    /// Read a single account — fails with `NotFound` if the account does not exist.
+    pub async fn read_account(&self, id: &str) -> anyhow::Result<BankAccount> {
+        self.repository
+            .read_account(id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Bank account not found: {}", id))
     }
 
     /// Read all accounts
@@ -169,13 +172,16 @@ impl BankAccountService {
         self.repository.find_by_iban(iban).await
     }
 
-    /// Update an existing account
+    /// Update an existing account — fails with `CashAccountProtected` for the default cash account (R4).
     pub async fn update_account(
         &self,
         id: String,
         name: String,
         iban: Option<String>,
     ) -> anyhow::Result<BankAccount> {
+        if id == CASH_ACCOUNT_ID {
+            anyhow::bail!("Cash account is protected and cannot be modified");
+        }
         let account = BankAccount::with_id(id, name, iban)?;
         let updated = self.repository.update_account(account).await?;
 
@@ -187,8 +193,11 @@ impl BankAccountService {
         Ok(updated)
     }
 
-    /// Soft-delete an account
+    /// Soft-delete an account — fails with `CashAccountProtected` for the default cash account (R4).
     pub async fn delete_account(&self, id: &str) -> anyhow::Result<()> {
+        if id == CASH_ACCOUNT_ID {
+            anyhow::bail!("Cash account is protected and cannot be deleted");
+        }
         // Verify account exists
         self.repository
             .read_account(id)
@@ -430,5 +439,61 @@ mod tests {
         let result = service.delete_account("test-id").await;
 
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_read_account_not_found() {
+        struct NotFoundRepo;
+
+        #[async_trait::async_trait]
+        impl BankAccountRepository for NotFoundRepo {
+            async fn create_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+                Ok(a)
+            }
+            async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
+                Ok(vec![])
+            }
+            async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
+                Ok(None)
+            }
+            async fn read_account(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
+                Ok(None)
+            }
+            async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+                Ok(a)
+            }
+            async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
+                Ok(())
+            }
+        }
+
+        let service = BankAccountService::new(Arc::new(NotFoundRepo), Arc::new(EventBus::new()));
+        let result = service.read_account("missing-id").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn test_update_cash_account_is_protected() {
+        let repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service
+            .update_account(CASH_ACCOUNT_ID.to_string(), "New Name".to_string(), None)
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("protected"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_cash_account_is_protected() {
+        let repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.delete_account(CASH_ACCOUNT_ID).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("protected"));
     }
 }

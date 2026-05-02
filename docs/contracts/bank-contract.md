@@ -30,8 +30,6 @@ Returns all non-deleted bank accounts, including the default cash account (R4). 
 
 Returns a single bank account by ID.
 
-> ⚠️ Backend gap: currently returns `Option<BankAccount>` with `None` as the not-found signal. Should return `BankAccount` and raise `NotFound` instead.
-
 - **Args:** `id: String`
 - **Returns:** `BankAccount`
 - **Errors:** `NotFound`
@@ -42,8 +40,6 @@ Returns a single bank account by ID.
 
 Updates the name and/or IBAN of an existing account. The cash account (`cash-account-default`) must not be editable per R4.
 
-> ⚠️ Backend gap: `CashAccountProtected` is not currently enforced.
-
 - **Args:** `id: String, name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
 - **Errors:** `NameEmpty`, `NotFound`, `CashAccountProtected`
@@ -53,8 +49,6 @@ Updates the name and/or IBAN of an existing account. The cash account (`cash-acc
 ### `delete_bank_account` — R3, R4
 
 Soft-deletes a bank account (marks it as deleted; no data is removed). There is no blocking constraint on linked transfers — deletion is always allowed for non-cash accounts. The cash account (`cash-account-default`) must not be deletable per R4.
-
-> ⚠️ Backend gap: `CashAccountProtected` is not currently enforced.
 
 - **Args:** `id: String`
 - **Returns:** `()`
@@ -71,7 +65,6 @@ Returns the fixed ID of the default cash account (`cash-account-default`), seede
 - **Errors:** —
 
 ---
-
 
 ---
 
@@ -154,13 +147,14 @@ enum BankEntryType {
 
 ## Events
 
-| Event                | Trigger                                                                            |
-| -------------------- | ---------------------------------------------------------------------------------- |
-| `BankAccountUpdated` | After `create_bank_account`, `update_bank_account`, `delete_bank_account`         |
-| `BankEntryUpdated`   | After `create_bank_transfer`, `update_bank_transfer`, `delete_bank_transfer`      |
+| Event                | Trigger                                                                      |
+| -------------------- | ---------------------------------------------------------------------------- |
+| `BankAccountUpdated` | After `create_bank_account`, `update_bank_account`, `delete_bank_account`    |
+| `BankEntryUpdated`   | After `create_bank_transfer`, `update_bank_transfer`, `delete_bank_transfer` |
 
 ## Changelog
 
 - 2026-04-29 — Added by `bank-account` spec: create_bank_account, read_all_bank_accounts, read_bank_account, update_bank_account, delete_bank_account, get_cash_bank_account_id
 - 2026-04-29 — Deep review applied: added per-command intent and spec rule tracing, soft-delete exclusion note on read_all, None-signal note on read_bank_account, get_cash_bank_account_id frontend usage, backend gaps noted on update and delete, event triggers documented
 - 2026-05-02 — Added retroactively from specta_builder.rs: create_bank_transfer, read_all_bank_transfers, read_bank_transfer, update_bank_transfer, delete_bank_transfer
+- 2026-05-02 — Backend gaps resolved: read_bank_account now returns NotFound error (not Option), CashAccountProtected enforced on update/delete; file renamed from bank-account-contract.md to bank-contract.md

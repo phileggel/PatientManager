@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
+/// Fixed ID of the default cash account seeded by migration (R4).
+pub const CASH_ACCOUNT_ID: &str = "cash-account-default";
+
 /// Bank Account aggregate root
 /// Represents a bank account used for transfers
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

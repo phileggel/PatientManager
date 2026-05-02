@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context;
 use chrono::Local;
 
 use crate::context::bank::{
@@ -129,10 +130,8 @@ impl OverpaymentOrchestrator {
         let bank_account = self
             .bank_account_service
             .read_account(&req.bank_account_id)
-            .await?
-            .ok_or_else(|| {
-                anyhow::anyhow!("REF-070: bank account not found: {}", req.bank_account_id)
-            })?;
+            .await
+            .with_context(|| format!("REF-070: bank account not found: {}", req.bank_account_id))?;
 
         let previous_payment_status = source.payment_status;
 
