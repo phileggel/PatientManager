@@ -305,4 +305,167 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
     }
+
+    // --- read_patient ---
+
+    #[tokio::test]
+    async fn read_patient_returns_patient_from_repository() {
+        struct MockReturnsPatient;
+        #[async_trait::async_trait]
+        impl PatientRepository for MockReturnsPatient {
+            async fn create_patient(&self, p: Patient) -> anyhow::Result<Patient> {
+                Ok(p)
+            }
+            async fn read_all_patients(&self) -> anyhow::Result<Vec<Patient>> {
+                Ok(vec![])
+            }
+            async fn read_patient(&self, id: &str) -> anyhow::Result<Option<Patient>> {
+                Ok(Some(make_patient_with_id(id)))
+            }
+            async fn update_patient(&self, p: Patient) -> anyhow::Result<Patient> {
+                Ok(p)
+            }
+            async fn find_patient_by_ssn(&self, _ssn: &str) -> anyhow::Result<Option<Patient>> {
+                Ok(None)
+            }
+            async fn create_batch(&self, p: Vec<Patient>) -> anyhow::Result<Vec<Patient>> {
+                Ok(p)
+            }
+            async fn delete_patient(&self, _id: &str) -> anyhow::Result<()> {
+                Ok(())
+            }
+        }
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(Arc::new(MockReturnsPatient), event_bus);
+        let result = service.read_patient("patient-42").await.unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().id, "patient-42");
+    }
+
+    // --- find_patient_by_ssn ---
+
+    #[tokio::test]
+    async fn find_patient_by_ssn_returns_none_when_not_found() {
+        let repo = Arc::new(MockPatientRepository { should_fail: false });
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(repo, event_bus);
+        let result = service.find_patient_by_ssn("1234567890123").await.unwrap();
+        assert!(result.is_none());
+    }
+
+    // --- update_patient ---
+
+    #[tokio::test]
+    async fn update_patient_returns_updated_patient() {
+        let repo = Arc::new(MockPatientRepository { should_fail: false });
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(repo, event_bus);
+        let patient = make_patient_with_id("patient-42");
+        let updated = service.update_patient(patient.clone()).await.unwrap();
+        assert_eq!(updated.id, "patient-42");
+    }
+
+    // --- validate_batch ---
+
+    #[tokio::test]
+    async fn validate_batch_empty_returns_empty() {
+        let repo = Arc::new(MockPatientRepository { should_fail: false });
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(repo, event_bus);
+        let result = service.validate_batch(vec![]).await.unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn validate_batch_no_name_and_no_ssn_returns_invalid() {
+        let repo = Arc::new(MockPatientRepository { should_fail: false });
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(repo, event_bus);
+        let candidate = PatientCandidate {
+            temp_id: "tmp-1".to_string(),
+            name: None,
+            ssn: None,
+        };
+        let results = service.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].status, PatientValidationStatus::Invalid);
+    }
+
+    #[tokio::test]
+    async fn validate_batch_existing_ssn_returns_already_exists() {
+        struct MockWithExistingPatient;
+        #[async_trait::async_trait]
+        impl PatientRepository for MockWithExistingPatient {
+            async fn create_patient(&self, p: Patient) -> anyhow::Result<Patient> {
+                Ok(p)
+            }
+            async fn read_all_patients(&self) -> anyhow::Result<Vec<Patient>> {
+                Ok(vec![])
+            }
+            async fn read_patient(&self, _id: &str) -> anyhow::Result<Option<Patient>> {
+                Ok(None)
+            }
+            async fn update_patient(&self, p: Patient) -> anyhow::Result<Patient> {
+                Ok(p)
+            }
+            async fn find_patient_by_ssn(&self, _ssn: &str) -> anyhow::Result<Option<Patient>> {
+                Ok(Some(make_patient_with_id("existing-id")))
+            }
+            async fn create_batch(&self, p: Vec<Patient>) -> anyhow::Result<Vec<Patient>> {
+                Ok(p)
+            }
+            async fn delete_patient(&self, _id: &str) -> anyhow::Result<()> {
+                Ok(())
+            }
+        }
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(Arc::new(MockWithExistingPatient), event_bus);
+        let candidate = PatientCandidate {
+            temp_id: "tmp-1".to_string(),
+            name: Some("Marie Dupont".to_string()),
+            ssn: Some("1234567890123".to_string()),
+        };
+        let results = service.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].status, PatientValidationStatus::AlreadyExists);
+        assert_eq!(results[0].existing_id, Some("existing-id".to_string()));
+    }
+
+    #[tokio::test]
+    async fn validate_batch_new_patient_with_name_returns_valid() {
+        let repo = Arc::new(MockPatientRepository { should_fail: false });
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(repo, event_bus);
+        let candidate = PatientCandidate {
+            temp_id: "tmp-1".to_string(),
+            name: Some("Pierre Martin".to_string()),
+            ssn: None,
+        };
+        let results = service.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].status, PatientValidationStatus::Valid);
+    }
+
+    // --- create_batch ---
+
+    #[tokio::test]
+    async fn create_batch_creates_all_candidates() {
+        let repo = Arc::new(MockPatientRepository { should_fail: false });
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(repo, event_bus);
+        let candidates = vec![
+            PatientCandidate {
+                temp_id: "tmp-1".to_string(),
+                name: Some("Alice".to_string()),
+                ssn: None,
+            },
+            PatientCandidate {
+                temp_id: "tmp-2".to_string(),
+                name: Some("Bob".to_string()),
+                ssn: Some("9876543210987".to_string()),
+            },
+        ];
+        let result = service.create_batch(candidates).await.unwrap();
+        assert_eq!(result.len(), 2);
+    }
 }
