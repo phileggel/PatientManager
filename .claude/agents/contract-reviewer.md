@@ -4,7 +4,7 @@ description:
   Reviews a domain contract (docs/contracts/{domain}-contract.md) against its source spec for
   coverage, traceability, error exhaustiveness, and type correctness. Blocks progression to
   feature-planner on critical findings. Run after /contract produces or updates the contract.
-tools: Read, Grep, Glob, Bash, Write
+tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
 
@@ -23,18 +23,14 @@ If no path is given, list files in `docs/contracts/` and ask which to review.
 
 ## Process
 
-### Step 1 — Compute REPORT_PATH
-
-Run `bash scripts/report-path.sh contract-reviewer` and remember the output as `REPORT_PATH`.
-
-### Step 2 — Load files
+### Step 1 — Load files
 
 1. Read the contract file in full
 2. Extract the source spec name from the contract's `> Last updated by:` line; read that spec
    from `docs/spec/{name}.md`
 3. Read `docs/adr/` if present — ADRs constrain valid types (e.g. `i64` for amounts)
 
-### Step 3 — Extract reference data
+### Step 2 — Extract reference data
 
 From the **spec**: collect every rule with scope `backend` or `frontend + backend`. Note each
 rule's operation type (create / read / update / delete / transition), described error cases, and
@@ -42,7 +38,7 @@ entities involved.
 
 From the **contract**: collect every command (name, args, return, errors) and every shared type.
 
-### Step 4 — Apply review checks
+### Step 3 — Apply review checks
 
 #### A — Coverage (spec → contract)
 
@@ -59,6 +55,10 @@ From the **contract**: collect every command (name, args, return, errors) and ev
 - 🔴 An error case explicitly described in a spec rule is absent from the command's Errors column
 - 🟡 A command lists only a generic error (e.g. `DbError` alone) when the spec describes specific
   domain failure conditions (e.g. "cannot delete if linked records exist")
+- 🔴 A command accepts a parameter identifying an entity from another bounded context (a
+  foreign-domain ID) but has no corresponding error variant for that entity not being found —
+  cross-context existence checks must surface as typed errors on the mutating command, not as
+  separate commands
 
 #### D — Type correctness
 
@@ -77,11 +77,27 @@ From the **contract**: collect every command (name, args, return, errors) and ev
 
 - 🟡 A command has no error variants and no inline comment explaining why it cannot fail
 
-### Step 5 — Output, save, confirm
+#### G — Scope integrity
 
-1. Output the review to the conversation using `## Output format` below.
-2. **Save** the compact summary to `REPORT_PATH` using the Write tool — mandatory final action. The workflow is incomplete until Write succeeds. Format defined in `## Save report` below.
-3. Reply: `Report saved to {REPORT_PATH}`.
+Run `Glob docs/contracts/*-contract.md` and read every contract file other than the one under review.
+
+- 🔴 A command name in this contract already exists in another contract — each command must belong
+  to exactly one backend boundary; duplication means the domain split is wrong
+- 🟡 The contract domain name matches a frontend concept (page name, UI feature, route segment)
+  rather than a bounded context or aggregate root (`context/` folder) — may signal wrong granularity
+- 🟡 The contract domain name matches a use-case or operation name (e.g. `create-payment`,
+  `enroll-user`) rather than an aggregate or bounded context (`payment`, `user`) — use cases are
+  implementation details; the contract must be scoped to the aggregate it primarily mutates
+- 🔴 A command mutates aggregates from two or more distinct bounded contexts [DECISION] — this
+  signals a missing domain concept: the cross-domain operation likely has a name of its own
+  (e.g. `transfer_funds` implies a `Transfer` aggregate with its own contract); ask a domain
+  expert whether the operation can be named as a thing; if yes, introduce the new aggregate and
+  its contract; if no, own the command in the dominant aggregate and surface side-effects as
+  typed errors and domain events; this finding requires domain expert validation before sign-off
+
+### Step 4 — Output
+
+Output the review to the conversation using `## Output format` below.
 
 ---
 
@@ -110,11 +126,24 @@ From the **contract**: collect every command (name, args, return, errors) and ev
 ### F — Infallible commands
 🟡 `list_payments` has no error variants — add a comment if this is intentional.
 
+### G — Scope integrity
+✅ None.
+
 Review complete: 3 critical, 3 warning(s).
 Ready for feature-planner: no — blocked by 3 critical finding(s).
 ```
 
 If a section has no issues, write `✅ None.`
+
+Use the `[DECISION]` tag when the correct resolution requires a domain design choice that cannot
+be made without domain expert input:
+
+```
+### G — Scope integrity
+🔴 `transfer_funds` mutates both `account` and `fund` aggregates [DECISION] — signals a missing
+   `Transfer` aggregate; domain expert must decide whether to introduce it or own the command in
+   the dominant aggregate; sign-off required before proceeding.
+```
 
 If all checks pass:
 
@@ -125,27 +154,6 @@ Ready for feature-planner: yes — 0 critical findings.
 
 ---
 
-## Save report
-
-The compact summary written to `REPORT_PATH` (Step 5 of `## Process`) uses this format:
-
-```
-## contract-reviewer — {date}-{N}
-
-Review complete: N critical, N warning(s).
-Ready for feature-planner: yes/no — {reason}.
-
-### 🔴 Critical
-- {section}: {issue}
-
-### 🟡 Warning
-- {section}: {issue}
-```
-
-Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section that has no findings.
-
----
-
 ## Critical Rules
 
 1. Read-only — never edit the contract or the spec
@@ -153,4 +161,7 @@ Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section tha
 3. Every 🔴 finding blocks progression to `feature-planner` — the user must fix the contract
    (re-run `/contract`) and re-run this reviewer before continuing
 4. 🟡 warnings are non-blocking but must be listed — the user decides whether to address them
-5. Do not invent checks beyond the six categories above
+5. Do not invent checks beyond the seven categories above
+6. Use `[DECISION]` on a 🔴 finding when the resolution requires a domain design choice that
+   cannot be made without domain expert input — these findings block progression and require
+   explicit user sign-off; do not use it for findings with an obvious mechanical fix

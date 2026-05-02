@@ -177,9 +177,9 @@ substituting `{binary-name}` with the value from Step 1:
 //   npm run test:e2e          # local (headed window)
 //   npm run test:e2e:ci       # Linux CI (xvfb virtual display)
 import os from "os";
-import path from "path";
-import { spawn, spawnSync, type ChildProcess } from "child_process";
+import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
+import { spawn, spawnSync, type ChildProcess } from "child_process";
 import { fileURLToPath } from "url";
 import type { Options } from "@wdio/types";
 
@@ -192,13 +192,26 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const BINARY_NAME = "{binary-name}";
 const BINARY_PATH = resolve(`./src-tauri/target/debug/${BINARY_NAME}`);
 
+// OPTIONAL — Ephemeral DB isolation:
+// If the app reads a custom DB path from an env var (e.g. set in main.rs / lib.rs),
+// uncomment these lines to give each E2E run a clean, isolated database.
+// Replace MY_APP_E2E_DB with the actual env var name your binary reads.
+// const E2E_DB_PATH = resolve(os.tmpdir(), `${BINARY_NAME}_e2e.db`);
+
+// tauri-driver uses two ports that must stay in sync:
+//   TAURI_DRIVER_PORT  — WebdriverIO connects to tauri-driver on this port (config.port below)
+//   TAURI_NATIVE_PORT  — tauri-driver uses this to talk to WebKitWebDriver (Linux) or the native driver
+// Default: 4444 / 4445. If another project already occupies 4444 on this machine,
+// change both constants (e.g. 4446 / 4447) — no other edits needed.
+const TAURI_DRIVER_PORT = 4444;
+const TAURI_NATIVE_PORT = 4445;
+
 let tauriDriver: ChildProcess;
 let exit = false;
 
 export const config: Options.Testrunner = {
-  // tauri-driver runs on port 4444 by default.
   host: "127.0.0.1",
-  port: 4444,
+  port: TAURI_DRIVER_PORT,
   // Suppress WebDriver protocol logs (COMMAND/POST/RESULT chatter) — keep warnings and errors only.
   logLevel: "warn",
 
@@ -222,22 +235,39 @@ export const config: Options.Testrunner = {
   // --no-bundle: skip installer packaging, just produce the binary.
   // --debug: debug profile (faster compile, includes debug symbols).
   onPrepare: () => {
-    spawnSync("npx", ["tauri", "build", "--debug", "--no-bundle"], {
-      cwd: path.resolve(__dirname),
-      stdio: "inherit",
-      shell: true,
-    });
+    const result = spawnSync(
+      "npx",
+      ["tauri", "build", "--debug", "--no-bundle"],
+      {
+        cwd: resolve(__dirname),
+        stdio: "inherit",
+        shell: true,
+      },
+    );
+    if (result.status !== 0) {
+      throw new Error(`tauri build failed with exit code ${result.status}`);
+    }
   },
 
   // Start tauri-driver just before the WebDriver session is created.
   // beforeSession (not onPrepare) is correct: tauri-driver is a per-session
   // intermediary and must be alive when the worker creates the session.
   beforeSession: () => {
+    // OPTIONAL — Ephemeral DB isolation (uncomment if using E2E_DB_PATH above):
+    // if (existsSync(E2E_DB_PATH)) rmSync(E2E_DB_PATH);  // clean up any leftover from a previous interrupted run
+    // process.env.MY_APP_E2E_DB = E2E_DB_PATH;           // expose path to the binary via env var
+    //
     // Suppress verbose Rust/frontend tracing — only show warnings and errors.
     process.env.RUST_LOG = "warn";
+
     tauriDriver = spawn(
-      path.resolve(os.homedir(), ".cargo", "bin", "tauri-driver"),
-      [],
+      resolve(os.homedir(), ".cargo", "bin", "tauri-driver"),
+      [
+        "--port",
+        String(TAURI_DRIVER_PORT),
+        "--native-port",
+        String(TAURI_NATIVE_PORT),
+      ],
       { stdio: [null, process.stdout, process.stderr] },
     );
     tauriDriver.on("error", (error) => {
@@ -256,6 +286,8 @@ export const config: Options.Testrunner = {
   afterSession: () => {
     exit = true;
     tauriDriver?.kill();
+    // OPTIONAL — Ephemeral DB isolation (uncomment if using E2E_DB_PATH above):
+    // if (existsSync(E2E_DB_PATH)) rmSync(E2E_DB_PATH);
   },
 };
 
@@ -277,6 +309,8 @@ function onShutdown(fn: () => void) {
 onShutdown(() => {
   exit = true;
   tauriDriver?.kill();
+  // OPTIONAL — Ephemeral DB isolation (uncomment if using E2E_DB_PATH above):
+  // if (existsSync(E2E_DB_PATH)) rmSync(E2E_DB_PATH);
 });
 ```
 

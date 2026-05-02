@@ -124,9 +124,9 @@ struct SaveExcelAmountMappingRequest {
 
 ## Events
 
-| Event               | Trigger                                                                                   |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `ProcedureUpdated`  | After `execute_excel_import` — procedures created or deleted (R16, R17)                  |
+| Event              | Trigger                                                                 |
+| ------------------ | ----------------------------------------------------------------------- |
+| `ProcedureUpdated` | After `execute_excel_import` — procedures created or deleted (R16, R17) |
 
 ## Changelog
 

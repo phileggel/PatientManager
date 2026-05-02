@@ -219,8 +219,8 @@ enum FundPaymentValidationStatus {
 
 ## Events
 
-| Event              | Trigger                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| Event              | Trigger                                                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `ProcedureUpdated` | After `create_fund_payment_from_candidates` / `create_fund_payment_with_auto_corrections` — procedures move to `Reconciliated` / `PartiallyReconciled` |
 
 ## Changelog

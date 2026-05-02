@@ -30,8 +30,8 @@ While coding:
 Run `/whats-next` first to triage pending work, then `/start` to pick the right workflow for the task at hand.
 See `.claude/kit-readme.md` for the full workflow guide and `.claude/kit-tools.md` for the agent/skill reference.
 
-Key skills: `/smart-commit` (commit), `/create-pr` (push + open PR), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup).
-Key recipes: `just merge` (fast-forward branch into main + delete).
+Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/kit-discover` (post-sync reconcile), `/smart-commit` (commit), `/create-pr` (push + open PR), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup).
+Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just merge` (fast-forward into main + delete branch).
 
 ---
 

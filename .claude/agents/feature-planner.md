@@ -52,6 +52,7 @@ For each TRIGRAM-NNN rule, identify concrete tasks:
 - Define dependencies (e.g., Backend logic -> `just generate-types` -> Frontend gateway).
 - **Commit phases**: identify thematic boundaries where a `/smart-commit` is appropriate. Suggest a conventional commit title for each (e.g., `feat(asset): implement pricing backend`).
 - **Schema changes**: identify rules that imply a database schema change (new entity, new field, new status column, new FK). For each, note the expected migration filename (`{timestamp}_create_{table}.sql` or `{timestamp}_add_{column}_to_{table}.sql`) and infer the columns from the domain rules. Flag that `just prepare-sqlx` must be run after migrating.
+- **Modified-function coverage**: For each rule scoped to `frontend` or `frontend + backend` that **modifies an existing function** (not a new file/creation), mark it `[unit-test-needed]` in the Rules Coverage table. Collect these as a `modified_functions` list in the Phase 3 task description — e.g. `test-writer-frontend → {contract} + modified_functions: [useEditFoo.ts:recomputeUnitPrice]`. These rules have no contract entry and would otherwise receive no test coverage.
 
 ---
 
@@ -73,12 +74,13 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🔧 Compilation fixup (TypeScript errors from new bindings only — no UI work) — Tauri profile only, if backend rules present
 - [ ] ✅ `just check` — TypeScript clean
 - [ ] 💾 Commit: backend layer (suggested title from plan)
-- [ ] ✍️ Frontend test stubs (`test-writer-frontend` — all stubs written, red confirmed) — if frontend rules present
+- [ ] ✍️ Frontend test stubs (`test-writer-frontend` — all stubs written, red confirmed; pass `modified_functions` list if any `[unit-test-needed]` rules were identified in Step 4) — if frontend rules present
 - [ ] 💻 Frontend Implementation (minimal — make failing tests pass, green confirmed)
 - [ ] 🧹 `just format`
 - [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues) — if .ts/.tsx modified
 - [ ] 💾 Commit: frontend layer (suggested title from plan)
-- [ ] ✍️ E2E tests (`test-writer-e2e` — run `/setup-e2e` first if not done; tests written, red confirmed; fix any selector gaps per `docs/e2e-rules.md` until green) — Tauri profile only, if frontend rules present
+- [ ] ✍️ E2E tests (`test-writer-e2e` — run `/setup-e2e` first if not done; green confirmed) — Tauri profile only, if frontend rules present
+- [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues in E2E test files) — Tauri profile only, if frontend rules present
 - [ ] 💾 Commit: E2E tests (suggested title from plan)
 - [ ] 🔍 Cross-cutting Review (`reviewer-arch` always + `reviewer-sql` if migrations + `reviewer-infra` if any config, script, hook, or workflow file changed)
 - [ ] 🌐 i18n Review (`i18n-checker` if UI text changed)
@@ -107,5 +109,5 @@ A granular breakdown by architectural layer:
 6. **No Code Implementation**: Your output is a plan describing _what_ to do and _where_, not the actual code.
 7. **Task Tracking**: Ensure the main agent can progressively update the checkboxes in this file during the implementation phase.
 8. **Cross-Context**: If a use case spans multiple bounded contexts, use the cross-context module as defined in `ARCHITECTURE.md` — never cross-import between context modules directly.
-9. **Commit Checkpoints**: Every plan must include at least one commit checkpoint per thematic phase (backend, frontend, tests & docs). Each checkpoint provides only a suggested conventional commit title — the `/smart-commit` skill handles the rest.
-10. **Minimal implementation**: The backend and frontend implementation tasks must explicitly state "implement only what is required to make the failing tests pass — no additional methods, no defensive code, no anticipation of future rules." The `test-writer-*` agents define the scope; the implementation must not exceed it.
+9. **Commit Checkpoints**: Every plan must include at least one commit checkpoint per thematic phase (backend, frontend, E2E tests, tests & docs). Each checkpoint provides only a suggested conventional commit title — the `/smart-commit` skill handles the rest.
+10. **Minimal implementation**: The backend and frontend implementation tasks must explicitly state "implement only what is required to make the failing tests pass — no additional methods, no defensive code, no anticipation of future rules." `test-writer-backend` and `test-writer-frontend` define the scope; the implementation must not exceed it.

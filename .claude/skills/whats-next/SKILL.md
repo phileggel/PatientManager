@@ -63,6 +63,8 @@ git log --oneline -10
 
 Surface uncommitted changes and unmerged branches as candidates ("finish branch X" / "commit/discard pending changes in Y").
 
+**f) Roadmap** — `docs/roadmap.md` or `roadmap.md` at the project root. Check both paths; read the first that exists (prefer `docs/roadmap.md`). Extract every section heading and any `[ ]` bullet as a candidate item. Skip silently if neither file exists.
+
 ### Step 3 — Verify each candidate isn't already done
 
 This step prevents stale TODOs from polluting the recommendation. For every candidate item, do a cheap existence/grep check:
