@@ -98,3 +98,93 @@ pub fn convert_excel_date_to_iso(serial: f64) -> Option<String> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- parse_text_date_to_iso ---
+
+    #[test]
+    fn parse_date_dd_slash_mm_slash_yyyy() {
+        assert_eq!(
+            parse_text_date_to_iso("25/04/2025"),
+            Some("2025-04-25".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_date_iso_passthrough() {
+        assert_eq!(
+            parse_text_date_to_iso("2025-04-25"),
+            Some("2025-04-25".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_date_dd_dash_mm_dash_yyyy() {
+        assert_eq!(
+            parse_text_date_to_iso("25-04-2025"),
+            Some("2025-04-25".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_date_invalid_string_returns_none() {
+        assert!(parse_text_date_to_iso("not-a-date").is_none());
+    }
+
+    #[test]
+    fn parse_date_empty_string_returns_none() {
+        assert!(parse_text_date_to_iso("").is_none());
+    }
+
+    #[test]
+    fn parse_date_partial_format_returns_none() {
+        assert!(parse_text_date_to_iso("25/04").is_none());
+    }
+
+    // --- convert_excel_date_to_iso ---
+
+    #[test]
+    fn excel_serial_1_is_epoch_jan_1_1900() {
+        // Serial 1: days_offset = 1 - 1 = 0 → 1900-01-01
+        assert_eq!(
+            convert_excel_date_to_iso(1.0),
+            Some("1900-01-01".to_string())
+        );
+    }
+
+    #[test]
+    fn excel_serial_59_is_last_day_before_fake_leap_day() {
+        // Serial 59 (≤60): days_offset = 58 → 1900-02-28
+        assert_eq!(
+            convert_excel_date_to_iso(59.0),
+            Some("1900-02-28".to_string())
+        );
+    }
+
+    #[test]
+    fn excel_serial_61_is_first_day_after_fake_leap_day() {
+        // Serial 61 (>60): days_offset = 61 - 2 = 59 → 1900-03-01
+        // Excel's fake Feb 29 (serial 60) and serial 61 both map to 1900-03-01
+        assert_eq!(
+            convert_excel_date_to_iso(61.0),
+            Some("1900-03-01".to_string())
+        );
+    }
+
+    #[test]
+    fn excel_serial_modern_date_converted_correctly() {
+        // Verify against programmatically computed value to avoid hardcoding calendar math
+        let serial = 45000.0_f64;
+        let days_offset = serial - 2.0; // > 60
+        let expected = chrono::NaiveDate::from_ymd_opt(1900, 1, 1)
+            .unwrap()
+            .checked_add_signed(chrono::Duration::days(days_offset as i64))
+            .unwrap()
+            .format("%Y-%m-%d")
+            .to_string();
+        assert_eq!(convert_excel_date_to_iso(serial), Some(expected));
+    }
+}

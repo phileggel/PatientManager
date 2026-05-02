@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!src-tauri", "!node_modules", "!dist", "!src/bindings.ts"]
+    "includes": ["**", "!src-tauri", "!node_modules", "!dist", "!coverage", "!src/bindings.ts"]
   },
   "formatter": {
     "enabled": true,

@@ -404,3 +404,52 @@ fn parse_transfer_type(s: &str) -> anyhow::Result<BankEntryType> {
         ),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_transfer_type_credit_card() {
+        assert_eq!(
+            parse_transfer_type("CreditCard").unwrap(),
+            BankEntryType::PatientCreditCard
+        );
+    }
+
+    #[test]
+    fn parse_transfer_type_check() {
+        assert_eq!(
+            parse_transfer_type("Check").unwrap(),
+            BankEntryType::PatientCheck
+        );
+    }
+
+    #[test]
+    fn parse_transfer_type_outgoing_wire() {
+        assert_eq!(
+            parse_transfer_type("OutgoingWire").unwrap(),
+            BankEntryType::FundOutgoingWire
+        );
+    }
+
+    #[test]
+    fn parse_transfer_type_rejects_cash_with_ref_060() {
+        let err = parse_transfer_type("Cash").unwrap_err();
+        assert!(err.to_string().contains("REF-060"));
+    }
+
+    #[test]
+    fn parse_transfer_type_rejects_fund_with_ref_060() {
+        let err = parse_transfer_type("Fund").unwrap_err();
+        assert!(err.to_string().contains("REF-060"));
+    }
+
+    #[test]
+    fn parse_transfer_type_rejects_unknown_value_with_ref_060_and_value() {
+        let err = parse_transfer_type("Venmo").unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("REF-060"));
+        assert!(msg.contains("Venmo"));
+    }
+}
