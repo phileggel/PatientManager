@@ -28,18 +28,18 @@ end-to-end coverage of the actual dropdown interaction is a product requirement.
 
 **Usage A — create mode, patient field** (`ProcedureFormModal.tsx:215–227`)
 
-| Prop | Value |
-|------|-------|
-| `id` | `"procedurePatient"` |
-| `items` | `patientItems` — all patients from Zustand store, formatted via `formatPatientLabel` |
-| `displayKey` | `"label"` (string: `"NAME (SSN)"` or `"NAME"`) |
-| `idKey` | `"id"` |
-| `value` | `patientId` (string) |
-| `onChange` | `handlePatientChange` (also auto-fills fund, type, date, amount) |
-| `onCreateNew` | YES — opens `CreatePatientForm` nested modal |
-| `createLabel` | i18n key `"createPatient.submit"` |
-| `error` | `fieldErrors.patientId` |
-| `searchKeys` | none — defaults to `displayKey` only |
+| Prop          | Value                                                                                |
+| ------------- | ------------------------------------------------------------------------------------ |
+| `id`          | `"procedurePatient"`                                                                 |
+| `items`       | `patientItems` — all patients from Zustand store, formatted via `formatPatientLabel` |
+| `displayKey`  | `"label"` (string: `"NAME (SSN)"` or `"NAME"`)                                       |
+| `idKey`       | `"id"`                                                                               |
+| `value`       | `patientId` (string)                                                                 |
+| `onChange`    | `handlePatientChange` (also auto-fills fund, type, date, amount)                     |
+| `onCreateNew` | YES — opens `CreatePatientForm` nested modal                                         |
+| `createLabel` | i18n key `"createPatient.submit"`                                                    |
+| `error`       | `fieldErrors.patientId`                                                              |
+| `searchKeys`  | none — defaults to `displayKey` only                                                 |
 
 **Usage B — edit mode, patient field** (`ProcedureFormModal.tsx:229–239`)
 
@@ -47,17 +47,17 @@ Same as A except: no `onCreateNew`, no `createLabel`.
 
 **Usage C — create mode, fund field** (`ProcedureFormModal.tsx:251–261`)
 
-| Prop | Value |
-|------|-------|
-| `id` | `"procedureFund"` |
-| `items` | `sortedFunds` — funds from store, sorted by `fund_identifier` |
-| `displayKey` | `"fund_identifier"` |
-| `idKey` | `"id"` |
-| `searchKeys` | `["fund_identifier", "name"]` (two-key fuzzy search) |
-| `value` | `fundId` |
-| `onChange` | `setFundId` |
-| `onCreateNew` | NO |
-| `error` | none |
+| Prop          | Value                                                         |
+| ------------- | ------------------------------------------------------------- |
+| `id`          | `"procedureFund"`                                             |
+| `items`       | `sortedFunds` — funds from store, sorted by `fund_identifier` |
+| `displayKey`  | `"fund_identifier"`                                           |
+| `idKey`       | `"id"`                                                        |
+| `searchKeys`  | `["fund_identifier", "name"]` (two-key fuzzy search)          |
+| `value`       | `fundId`                                                      |
+| `onChange`    | `setFundId`                                                   |
+| `onCreateNew` | NO                                                            |
+| `error`       | none                                                          |
 
 ### 2.2 Items list size and loading
 
@@ -77,14 +77,14 @@ Same as A except: no `onCreateNew`, no `createLabel`.
 
 ### 2.3 Feature flags across usages
 
-| Feature | Usages A & B | Usage C |
-|---------|-------------|---------|
-| Multi-select | NO | NO |
-| Async / server search | NO | NO |
-| Custom item rendering (icons, secondary text, grouping) | NO | NO |
-| "Create new" inline | YES (A only) | NO |
-| `searchKeys` override | NO | YES |
-| Error display | YES | NO |
+| Feature                                                 | Usages A & B | Usage C |
+| ------------------------------------------------------- | ------------ | ------- |
+| Multi-select                                            | NO           | NO      |
+| Async / server search                                   | NO           | NO      |
+| Custom item rendering (icons, secondary text, grouping) | NO           | NO      |
+| "Create new" inline                                     | YES (A only) | NO      |
+| `searchKeys` override                                   | NO           | YES     |
+| Error display                                           | YES          | NO      |
 
 ### 2.4 Tests that mock or skip ComboboxField
 
@@ -108,15 +108,15 @@ interaction. No E2E test currently creates or edits a procedure.
 
 The following was checked in `docs/`, `src/`, and `README.md`.
 
-| Requirement | Evidence |
-|-------------|----------|
-| Multi-select | Not found anywhere. |
-| Async / server-side search | Not found. All data is in-memory Zustand store. |
-| Mobile-specific UX (full-screen picker) | Not found. App is desktop-only (Tauri). |
-| IME / composition input (CJK) | Not found. Patient names are French. |
-| RTL layouts | Not found. |
-| Grouped options | Not found. |
-| Virtualization | Not implemented. Dropdown caps at 6 results (`ComboboxField.tsx:114`). Full list is in-memory; Fuse index is rebuilt on each list change. No virtualised list component referenced anywhere. |
+| Requirement                             | Evidence                                                                                                                                                                                     |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Multi-select                            | Not found anywhere.                                                                                                                                                                          |
+| Async / server-side search              | Not found. All data is in-memory Zustand store.                                                                                                                                              |
+| Mobile-specific UX (full-screen picker) | Not found. App is desktop-only (Tauri).                                                                                                                                                      |
+| IME / composition input (CJK)           | Not found. Patient names are French.                                                                                                                                                         |
+| RTL layouts                             | Not found.                                                                                                                                                                                   |
+| Grouped options                         | Not found.                                                                                                                                                                                   |
+| Virtualization                          | Not implemented. Dropdown caps at 6 results (`ComboboxField.tsx:114`). Full list is in-memory; Fuse index is rebuilt on each list change. No virtualised list component referenced anywhere. |
 
 ---
 
@@ -149,15 +149,15 @@ clipped. This is the same physical constraint that floating-ui's portal solves b
 escaping to `document.body`. A non-portaled approach requires one of:
 
 (a) Remove `overflow-hidden` from the ModalContainer panel. Border-radius and
-    backdrop-blur do not depend on `overflow: hidden` (they are CSS properties on the
-    same element), but `overflow-hidden` is also what clips the content to the rounded
-    corners. In practice this means the scrollable form body's own `overflow-y-auto`
-    would need to be the only overflow constraint; the panel's visual corners would
-    still render correctly. **This change is likely safe but requires visual regression
-    testing.**
+backdrop-blur do not depend on `overflow: hidden` (they are CSS properties on the
+same element), but `overflow-hidden` is also what clips the content to the rounded
+corners. In practice this means the scrollable form body's own `overflow-y-auto`
+would need to be the only overflow constraint; the panel's visual corners would
+still render correctly. **This change is likely safe but requires visual regression
+testing.**
 
 (b) Set `overflow: visible` only on the specific ancestor between the dropdown and the
-    modal's scroll container, and manage z-index carefully.
+modal's scroll container, and manage z-index carefully.
 
 Neither option is a one-line change — both require verifying that the modal's visual
 appearance is preserved across all five modes (create, edit, view, overpaid, refund).
@@ -191,13 +191,13 @@ ComboboxField does not remove this dependency. `@headlessui/react` stays regardl
 
 ### 4.6 Risks
 
-| Risk | Severity | Notes |
-|------|----------|-------|
-| `overflow: hidden` clipping of dropdown | High | Must resolve before implementation — see 4.2 |
-| Accessibility regression vs. HeadlessUI's tested behavior | Medium | react-aria is also well-tested; risk is in the integration layer |
-| Focus escape from dropdown to modal-close on Escape | Low | Solvable with `e.stopPropagation()` in the combobox handler |
-| Fuse.js index rebuild cost with 1000+ patients | Pre-existing | Not introduced by this change; present today |
-| Visual regression from `overflow-hidden` removal | Medium | Requires manual check across all modal modes |
+| Risk                                                      | Severity     | Notes                                                            |
+| --------------------------------------------------------- | ------------ | ---------------------------------------------------------------- |
+| `overflow: hidden` clipping of dropdown                   | High         | Must resolve before implementation — see 4.2                     |
+| Accessibility regression vs. HeadlessUI's tested behavior | Medium       | react-aria is also well-tested; risk is in the integration layer |
+| Focus escape from dropdown to modal-close on Escape       | Low          | Solvable with `e.stopPropagation()` in the combobox handler      |
+| Fuse.js index rebuild cost with 1000+ patients            | Pre-existing | Not introduced by this change; present today                     |
+| Visual regression from `overflow-hidden` removal          | Medium       | Requires manual check across all modal modes                     |
 
 ---
 
@@ -234,9 +234,9 @@ This was rejected in ADR 004. The rejection holds:
 - **Hidden native `<select>` alongside the combobox**: The RTL mock in
   `ProcedureFormModal.test.tsx` already implements this exact pattern, but at the
   test layer. Promoting it to production code adds DOM weight, requires `aria-hidden`
-  + `tabIndex=-1` treatment, and in E2E would require `browser.execute` rather than
-  a real user interaction. The same wiring coverage is achieved without production
-  code risk by the existing mock. Still rejected.
+  - `tabIndex=-1` treatment, and in E2E would require `browser.execute` rather than
+    a real user interaction. The same wiring coverage is achieved without production
+    code risk by the existing mock. Still rejected.
 
 ---
 

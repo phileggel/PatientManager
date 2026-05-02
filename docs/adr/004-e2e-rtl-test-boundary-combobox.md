@@ -79,6 +79,7 @@ support.
 ## Consequences
 
 **Pros:**
+
 - RTL tests are deterministic and fast (no portal or timing issues).
 - E2E tests are stable and reliable (only native elements).
 - The ComboboxField → form state wiring is covered and will catch regressions if
@@ -86,6 +87,7 @@ support.
   changes.
 
 **Cons:**
+
 - No automated test verifies that a user can actually type, see dropdown options, and
   click one in a real browser. This interaction is covered only by manual testing.
 - Any E2E test requiring procedure seeding is blocked until a Tauri-invoke-based seed
