@@ -11,6 +11,7 @@ Bank account gaps fixed (2026-05-02): `read_bank_account` now raises `NotFound`,
 ## (frontend/bank-account) — Surface CashAccountProtected error and disable actions on cash account row
 
 The backend now enforces `CashAccountProtected` on `update_bank_account` and `delete_bank_account`, but the bank account list has no UI guard: the cash account row shows the same edit/delete actions as any other account. Two improvements needed:
+
 - Fetch the cash account ID on mount (via `getCashBankAccountId`) and disable the edit/delete buttons for that row.
 - If the error does reach the backend (e.g. via a future API path), surface a specific "Cash account cannot be modified" message instead of a generic error toast.
 
