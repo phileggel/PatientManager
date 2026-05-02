@@ -25,6 +25,7 @@ impl From<FundRow> for Fund {
 ///
 /// Implementations of this trait handle persistence and retrieval of affiliated fund data.
 /// The application layer uses this trait without knowing about concrete implementations (e.g., database).
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait FundRepository: Send + Sync {
     async fn create_fund(&self, fund_identifier: &str, fund_name: &str) -> anyhow::Result<Fund>;

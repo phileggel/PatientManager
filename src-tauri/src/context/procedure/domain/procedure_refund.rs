@@ -106,6 +106,31 @@ impl ProcedureRefund {
     }
 }
 
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
+pub trait ProcedureRefundRepository: Send + Sync {
+    /// Persist a new ProcedureRefund record (REF-130).
+    async fn create_procedure_refund(&self, refund: &ProcedureRefund) -> anyhow::Result<()>;
+
+    /// Find a ProcedureRefund by source procedure ID (REF-210, REF-200).
+    async fn find_by_source_procedure_id(
+        &self,
+        source_id: &str,
+    ) -> anyhow::Result<Option<ProcedureRefund>>;
+
+    /// Find a ProcedureRefund by refund procedure ID (REF-200).
+    async fn find_by_refund_procedure_id(
+        &self,
+        refund_procedure_id: &str,
+    ) -> anyhow::Result<Option<ProcedureRefund>>;
+
+    /// Delete a ProcedureRefund record by its ID (REF-210).
+    async fn delete_procedure_refund(&self, id: &str) -> anyhow::Result<()>;
+
+    /// Returns true if the given fund payment group belongs to a refund (REF-240 guard).
+    async fn is_refund_fund_payment_group(&self, group_id: &str) -> anyhow::Result<bool>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -2,7 +2,9 @@ use anyhow::{anyhow, Context};
 use chrono::NaiveDate;
 use sqlx::SqlitePool;
 
-use crate::context::procedure::domain::{PaymentMethod, Procedure, ProcedureStatus};
+use crate::context::procedure::domain::{
+    PaymentMethod, Procedure, ProcedureRepository, ProcedureStatus, UnreconciledProcedure,
+};
 
 /// Internal row type for procedure database mapping
 #[derive(sqlx::FromRow)]
@@ -37,15 +39,28 @@ pub struct ProcedureWithSSNRow {
     pub ssn: String,
 }
 
-/// Row type for unreconciled procedure queries with patient info
+/// Internal row type for unreconciled procedure queries with patient info
 #[derive(sqlx::FromRow)]
-pub struct UnreconciledProcedureRow {
-    pub procedure_id: String,
-    pub patient_id: String,
-    pub patient_name: Option<String>,
-    pub patient_ssn: Option<String>,
-    pub procedure_date: String,
-    pub amount: Option<i64>,
+struct UnreconciledProcedureRow {
+    procedure_id: String,
+    patient_id: String,
+    patient_name: Option<String>,
+    patient_ssn: Option<String>,
+    procedure_date: String,
+    amount: Option<i64>,
+}
+
+impl From<UnreconciledProcedureRow> for UnreconciledProcedure {
+    fn from(row: UnreconciledProcedureRow) -> Self {
+        UnreconciledProcedure {
+            procedure_id: row.procedure_id,
+            patient_id: row.patient_id,
+            patient_name: row.patient_name,
+            patient_ssn: row.patient_ssn,
+            procedure_date: row.procedure_date,
+            amount: row.amount,
+        }
+    }
 }
 
 // Conversion function from row type to domain object
@@ -96,100 +111,6 @@ impl From<ProcedureRow> for Procedure {
             payment_status,
         )
     }
-}
-
-/// ProcedureRepository trait defines the contract for procedure data access
-#[async_trait::async_trait]
-pub trait ProcedureRepository: Send + Sync {
-    #[allow(clippy::too_many_arguments)]
-    async fn create_procedure(
-        &self,
-        patient_id: String,
-        fund_id: Option<String>,
-        procedure_type_id: String,
-        procedure_date: String,
-        billed_amount: Option<i64>,
-        payment_method: PaymentMethod,
-        confirmed_payment_date: Option<String>,
-        paid_amount: Option<i64>,
-        payment_status: ProcedureStatus,
-    ) -> anyhow::Result<Procedure>;
-
-    async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>>;
-    async fn read_procedure(&self, id: &str) -> anyhow::Result<Option<Procedure>>;
-    async fn read_procedures_by_ids(&self, ids: &[String]) -> anyhow::Result<Vec<Procedure>>;
-    async fn read_procedures_by_patient_id(
-        &self,
-        patient_id: &str,
-    ) -> anyhow::Result<Vec<Procedure>>;
-    async fn update_procedure(&self, procedure: Procedure) -> anyhow::Result<Procedure>;
-    async fn delete_procedure(&self, id: &str) -> anyhow::Result<()>;
-
-    async fn find_procedures_by_ssn_and_date_range(
-        &self,
-        ssn: &str,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<Procedure>>;
-
-    async fn find_procedures_by_ssns_and_date_range(
-        &self,
-        ssns: &[String],
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<Procedure>>;
-
-    async fn find_procedures_by_ssns_and_date_range_with_ssn(
-        &self,
-        ssns: &[String],
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<(String, Procedure)>>;
-
-    /// Find exact procedure match for import deduplication.
-    /// Matches by patient_id, fund_id (nullable), procedure_date, and exact amount.
-    async fn find_procedure_exact(
-        &self,
-        patient_id: &str,
-        fund_id: Option<&str>,
-        procedure_date: &str,
-        billed_amount: i64,
-    ) -> anyhow::Result<Option<Procedure>>;
-
-    async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>>;
-    async fn update_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>>;
-    async fn find_unpaid_by_fund(&self, fund_id: &str) -> anyhow::Result<Vec<Procedure>>;
-
-    async fn find_unreconciled_by_date_range(
-        &self,
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<UnreconciledProcedureRow>>;
-
-    /// Returns true if any non-deleted procedure in the given month (YYYY-MM) has a
-    /// blocking status (Reconciled or FundPaid), preventing re-import.
-    async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool>;
-
-    /// Hard-deletes all procedures (including soft-deleted) for the given month (YYYY-MM).
-    /// Returns the number of deleted rows.
-    async fn delete_procedures_by_month(&self, month: &str) -> anyhow::Result<u64>;
-
-    /// Find procedures eligible for a direct bank payment (CHECK/CREDIT_CARD/CASH).
-    /// Returns procedures with status CREATED and procedure_date in [date_min, date_max].
-    /// Used for the 7-day window selection (R14) and expanded search (R20).
-    async fn find_created_in_date_range(
-        &self,
-        date_min: &str,
-        date_max: &str,
-    ) -> anyhow::Result<Vec<Procedure>>;
-
-    /// Find Created procedures for a given fund with procedure_date <= date (R19).
-    /// Used by the edit modal to populate the "add procedures" selector.
-    async fn find_created_by_fund_before_date(
-        &self,
-        fund_id: &str,
-        date: &str,
-    ) -> anyhow::Result<Vec<Procedure>>;
 }
 
 pub struct SqliteProcedureRepository {
@@ -755,7 +676,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         &self,
         start_date: &str,
         end_date: &str,
-    ) -> anyhow::Result<Vec<UnreconciledProcedureRow>> {
+    ) -> anyhow::Result<Vec<UnreconciledProcedure>> {
         tracing::debug!(start_date = %start_date, end_date = %end_date, "Finding unreconciled procedures by date range");
 
         let rows = sqlx::query_as!(
@@ -781,7 +702,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         .await
         .context("Failed to find unreconciled procedures by date range")?;
 
-        Ok(rows)
+        Ok(rows.into_iter().map(UnreconciledProcedure::from).collect())
     }
 
     async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool> {

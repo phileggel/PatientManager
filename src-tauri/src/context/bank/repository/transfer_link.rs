@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 /// Repository for junction tables linking bank transfers to fund groups and procedures.
 /// Operates on IDs only — no cross-context domain objects.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait BankEntryLinkRepository: Send + Sync {
     /// Link a bank transfer to one or more fund payment groups
