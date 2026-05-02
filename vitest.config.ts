@@ -11,6 +11,17 @@ export default defineConfig({
     testTimeout: 5000,
     hookTimeout: 5000,
     exclude: ["**/node_modules/**", "**/e2e/**"],
+    coverage: {
+      provider: "v8",
+      reporter: ["lcov", "text-summary"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/bindings.ts",
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.spec.{ts,tsx}",
+      ],
+    },
   },
   resolve: {
     alias: {

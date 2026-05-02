@@ -22,3 +22,14 @@ collect-logs:
 # Take a screenshot of the app
 screenshot:
     ./scripts/screenshot.sh
+
+# Generate frontend coverage report (outputs coverage/lcov.info)
+coverage-fe:
+    npm run test:coverage
+
+# Generate backend coverage report (outputs tarpaulin-report.json)
+coverage-be:
+    cd src-tauri && cargo tarpaulin --out Json --output-dir ..
+
+# Generate both coverage reports (run before /prune)
+coverage: coverage-fe coverage-be
