@@ -2,15 +2,20 @@
 
 ---
 
-## — Review pending items in domain contracts ✅ done
+## (e2e) — Force English locale during E2E tests so aria-labels are invariant
 
-Bank account gaps fixed (2026-05-02): `read_bank_account` now raises `NotFound`, `CashAccountProtected` enforced on update/delete. Contract renamed to `bank-contract.md`.
+E2E tests rely on aria-labels for element selection. If the app locale is not fixed, labels may vary by system language and cause flaky test failures. Force the app to run in English during E2E runs so aria-labels are always predictable.
+
+Options to explore:
+- Pass a `LANG=en` / `LC_ALL=en_US.UTF-8` env var when launching the Tauri app in WebDriver
+- Set a `test_locale` config flag in `tauri.conf.json` or a test-only config profile
+- Initialize the i18n layer with `en` unconditionally when a `TEST_LOCALE` env var is present
 
 ---
 
 ## (frontend/bank-account) — Surface CashAccountProtected error and disable actions on cash account row
 
-The backend now enforces `CashAccountProtected` on `update_bank_account` and `delete_bank_account`, but the bank account list has no UI guard: the cash account row shows the same edit/delete actions as any other account. Two improvements needed:
+The backend enforces `CashAccountProtected` on `update_bank_account` and `delete_bank_account`, but the bank account list has no UI guard: the cash account row shows the same edit/delete actions as any other account. Two improvements needed:
 
 - Fetch the cash account ID on mount (via `getCashBankAccountId`) and disable the edit/delete buttons for that row.
 - If the error does reach the backend (e.g. via a future API path), surface a specific "Cash account cannot be modified" message instead of a generic error toast.
@@ -24,14 +29,6 @@ Tests construct domain objects inline (`{ id: "1", name: "...", ssn: "..." }`) i
 Note: `src/tests/patient.factory.ts` already exists (used in `useProcedureFormModal.test.ts`). Extend that pattern to the other domains rather than creating a new file.
 
 ---
-
-## (backend) — Add mockall for service-layer unit tests
-
-Currently all backend tests hit a real SQLite DB. Add `mockall` as a dev-dependency so service-layer logic can be unit-tested with mock repositories (the existing trait-based `Arc<dyn Repository>` pattern makes this straightforward). Integration tests under `tests/` keep hitting the real DB — mockall only targets service/use-case unit tests where spinning up a DB is unnecessary overhead.
-
----
-
-## DDD Convergence — Quick renames ✅ done
 
 ## (backend/procedure) — Review procedure projections and read models
 
@@ -50,9 +47,11 @@ Currently all backend tests hit a real SQLite DB. Add `mockall` as a dev-depende
 
 ---
 
-## (backend/frontend) — Specta
+## (backend/frontend) — Specta: convert domain objects to camelCase at the boundary
 
 Convert domain objects to camelCase when crossing into the frontend.
+
+---
 
 ## (backend/fund) — Tech Debt: fund/patient creation in reconciliation feature
 
@@ -60,48 +59,7 @@ Convert domain objects to camelCase when crossing into the frontend.
 - Is this expected?
 - What's the right solution?
 
-## (frontend/procedure) — Procedure page
-
-- fix: "received / pending" always equal to 0 (??) → to verify in prod: `actualPaymentAmount` is computed in SummaryStats, `awaitedAmount` computed on the frontend (procedureAmount - actualPaymentAmount)
-
-## (frontend/fund-payment-match) — Reconciliation page
-
-- Verify the displayed limit (10 MB — why?).
-
-## (backend) — Tech debt: Event emission reduction — Steps 3 & 4
-
-From the previous multi-session work (noted in memory):
-
-- Step 3: Batch patient/fund creation during reconciliation (instead of N individual creations)
-- Step 4: Batch group creation events
-
-## (frontend/fund-payment-match) — Back-then-forward shortcut
-
-When the user goes back to the previous step, advance directly to the next one (reconciliation flow).
-
-## (frontend/fund-payment) — Date range in list
-
-In the list, replace "date" with start date (oldest procedure) and end date (latest procedure)
-
-## (frontend/procedure) — Default patient info when procedure type is deleted
-
-When showing default patient info (latest_procedure_type), the referenced procedure type may have been deleted. The `procedure-type.md` spec does not cover this case: document it in the procedure-creation spec and handle it on the frontend (degraded display or fallback).
-
-## F10 — Extract logic to dedicated hooks (procedure feature)
-
-The reviewer flagged multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. These are deferred because they are large architectural refactors with no functional impact.
-
-## (frontend/fund-payment-match) — Create multiple procedures during auto-correction
-
-Currently, the auto-correction flow (reconciliation) only allows creating a single procedure. It should support creating multiple procedures in the same operation.
-
-## (frontend/fund-payment-match) — Print report after reconciliation: centering and content
-
-The document printed after reconciliation is not properly centered — part of the content is cut off. To fix. Complementary improvement: list the auto-corrections applied in the report.
-
-## (backend/frontend) — Structured errors: replace anyhow/String with typed error variants
-
-Tauri commands currently return `Result<T, String>` (via `anyhow` formatted with `{:#}`). Replace with a typed error enum per domain, serialized via Specta, so the frontend can pattern-match on error codes instead of parsing strings. Scope: define error enums in each bounded context, expose via Specta, update gateway.ts to switch on error type.
+---
 
 ## (backend) — Tech Debt: Audit api.rs files for logic leakage
 
@@ -109,10 +67,69 @@ All `api.rs` files (Tauri command handlers) should be thin adapters only: receiv
 
 Files to audit: `context/bank/api.rs`, `context/fund/api.rs`, `context/patient/api.rs`, `context/procedure/api.rs`, `use_cases/bank_manual_match/api.rs`, `use_cases/bank_statement_reconciliation/api.rs`, `use_cases/excel_import/api.rs`, `use_cases/fund_payment_reconciliation/api.rs`, `use_cases/overpayment/api.rs`, `use_cases/procedure_orchestration/api.rs`, `use_cases/db_backup/api.rs`.
 
-For each: check that it contains only `#[tauri::command]` annotated functions with no branching/filtering logic. Any logic found should be moved to the service layer.
+---
+
+## (backend) — Tech Debt: Event emission reduction — Steps 3 & 4
+
+- Step 3: Batch patient/fund creation during reconciliation (instead of N individual creations)
+- Step 4: Batch group creation events
+
+---
+
+## (backend/frontend) — Structured errors: replace anyhow/String with typed error variants
+
+Tauri commands currently return `Result<T, String>` (via `anyhow` formatted with `{:#}`). Replace with a typed error enum per domain, serialized via Specta, so the frontend can pattern-match on error codes instead of parsing strings. Scope: define error enums in each bounded context, expose via Specta, update gateway.ts to switch on error type.
+
+---
+
+## (frontend/procedure) — Fix "received / pending" always showing 0
+
+`actualPaymentAmount` is computed in SummaryStats; `awaitedAmount` is computed on the frontend (`procedureAmount - actualPaymentAmount`). To verify in prod.
+
+---
+
+## (frontend/fund-payment-match) — Reconciliation page: verify 10 MB file size limit
+
+Verify why the displayed limit is 10 MB.
+
+---
+
+## (frontend/fund-payment-match) — Back-then-forward shortcut
+
+When the user goes back to the previous step, advance directly to the next one (reconciliation flow).
+
+---
+
+## (frontend/fund-payment) — Date range in list
+
+In the list, replace "date" with start date (oldest procedure) and end date (latest procedure).
+
+---
+
+## (frontend/procedure) — Default patient info when procedure type is deleted
+
+When showing default patient info (`latest_procedure_type`), the referenced procedure type may have been deleted. Document this case in the procedure-creation spec and handle it on the frontend (degraded display or fallback).
+
+---
+
+## (frontend/fund-payment-match) — Create multiple procedures during auto-correction
+
+Currently, the auto-correction flow only allows creating a single procedure. It should support creating multiple procedures in the same operation.
+
+---
+
+## (frontend/fund-payment-match) — Print report: centering and auto-correction list
+
+The printed report is not properly centered — part of the content is cut off. Complementary improvement: list the auto-corrections applied in the report.
+
+---
+
+## F10 — Extract logic to dedicated hooks (procedure feature)
+
+Multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. Deferred — large architectural refactors with no functional impact.
 
 ---
 
 ## (backend/fund-payment-reconciliation) — Hardcoded French strings in CSV export
 
-`use_cases/fund_payment_reconciliation/output/csv_exporter.rs` hardcodes French strings (e.g. `"Procédure non trouvée en base de données"`, `"Caisse différente"`, `"Montant différent"`, `"Date différente"`). The CSV export is French-locale by design today. If bilingual exports are ever needed, route these strings through a backend translation layer or pass localized labels in from the caller.
+`csv_exporter.rs` hardcodes French strings. The CSV export is French-locale by design today. If bilingual exports are ever needed, route these strings through a backend translation layer or pass localized labels in from the caller.
