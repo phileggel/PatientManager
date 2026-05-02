@@ -173,8 +173,8 @@ enum FundPaymentGroupStatus {
 
 ## Events
 
-| Event              | Trigger                                                                                              |
-| ------------------ | ---------------------------------------------------------------------------------------------------- |
+| Event              | Trigger                                                                                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ProcedureUpdated` | After `create_fund_payment_group`, `update_fund_payment_group_with_procedures`, `delete_fund_payment_group` — procedure statuses and payment fields change |
 
 ## Changelog

@@ -1,7 +1,7 @@
 ---
 name: i18n-checker
 description: Checks i18n completeness for modified frontend files. Finds hardcoded strings, missing translation keys, keys used in code but absent from JSON, and keys in JSON but never used in code. Use when any user-visible text is added or changed in .tsx or .ts files.
-tools: Read, Grep, Glob, Bash, Write
+tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
 
@@ -15,13 +15,9 @@ Translation files are expected in `src/i18n/locales/`. Discover available locale
 
 1. Run `bash scripts/branch-files.sh | grep -E '\.(tsx|ts)$'` to identify all `.tsx` / `.ts` files changed on the current branch (committed + staged + unstaged + untracked, deduplicated).
 
-2. **Compute REPORT_PATH** (mandatory — the saved compact summary IS the deliverable): Run `bash scripts/report-path.sh i18n-checker` and remember the output as `REPORT_PATH`.
-
-3. For each modified file, scan for i18n issues (see below).
-4. Also check the corresponding translation JSON files if they were modified.
-5. Output the findings to the conversation using `## Output format` below.
-6. **Save** the compact summary to `REPORT_PATH` using the Write tool — mandatory final action. The workflow is incomplete until Write succeeds. Format defined in `## Save report` below.
-7. Reply: `Report saved to {REPORT_PATH}`.
+2. For each modified file, scan for i18n issues (see below).
+3. Also check the corresponding translation JSON files if they were modified.
+4. Output the findings to the conversation using `## Output format` below.
 
 ---
 
@@ -75,23 +71,3 @@ For every key in one locale's JSON, verify the same key exists in every other lo
 
 ✅ No issues found.  (if clean)
 ```
-
----
-
-## Save report
-
-The compact summary written to `REPORT_PATH` (step 6 of `## Your job`) uses this format:
-
-```
-## i18n-checker — {date}-{N}
-
-i18n check: N critical, N warnings across N files.
-
-### 🔴 Critical
-- {item}
-
-### 🟡 Warning
-- {item}
-```
-
-Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section that has no findings.

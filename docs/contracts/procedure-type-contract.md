@@ -69,8 +69,8 @@ struct RawProcedureType {
 
 ## Events
 
-| Event                  | Trigger                                                                    |
-| ---------------------- | -------------------------------------------------------------------------- |
+| Event                  | Trigger                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------- |
 | `ProcedureTypeUpdated` | After `add_procedure_type`, `update_procedure_type`, `delete_procedure_type` (R5) |
 
 ## Changelog

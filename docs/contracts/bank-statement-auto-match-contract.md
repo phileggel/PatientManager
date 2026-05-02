@@ -153,10 +153,10 @@ struct BankStatementReconciliationConfig {
 
 ## Events
 
-| Event               | Trigger                                                              |
-| ------------------- | -------------------------------------------------------------------- |
-| `ProcedureUpdated`  | After `create_bank_transfers_from_statement` — procedures move to `FundPaid` / `PartiallyFundPaid` (R20) |
-| `BankEntryUpdated`  | After `create_bank_transfers_from_statement` — new `BankEntry` records created (R19) |
+| Event              | Trigger                                                                                                  |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `ProcedureUpdated` | After `create_bank_transfers_from_statement` — procedures move to `FundPaid` / `PartiallyFundPaid` (R20) |
+| `BankEntryUpdated` | After `create_bank_transfers_from_statement` — new `BankEntry` records created (R19)                     |
 
 ## Changelog
 

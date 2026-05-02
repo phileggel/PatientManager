@@ -8,6 +8,7 @@
 ### `create_overpayment` — REF-050 to REF-160
 
 Atomic transaction. Creates the full refund chain in sequence:
+
 1. Refund `Procedure` with negative amount and `OverpaymentRefund` status (REF-090)
 2. Refund `FundPaymentGroup` — `BankPayed`, locked (REF-100)
 3. Refund `BankTransfer` — `OutgoingWire` or other (REF-110)
@@ -83,10 +84,10 @@ struct ProcedureRefundInfo {
 
 ## Events
 
-| Event              | Trigger                                                                                                          |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Event              | Trigger                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------- |
 | `ProcedureUpdated` | After `create_overpayment` — source procedure moves to `Overpaid`; refund procedure created (REF-160, REF-090) |
-| `ProcedureUpdated` | After `cancel_overpayment` — source procedure reverts; refund procedure deleted (REF-210)                        |
+| `ProcedureUpdated` | After `cancel_overpayment` — source procedure reverts; refund procedure deleted (REF-210)                      |
 
 ## Changelog
 

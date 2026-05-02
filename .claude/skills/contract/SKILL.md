@@ -25,9 +25,12 @@ If no spec path is given, list files in `docs/spec/` and ask the user which spec
 
 ### 2. Identify domain
 
-Extract the domain name from the spec's `## Context` section (the bounded context this feature
-belongs to). If it cannot be inferred, ask the user: "Which domain does this feature belong to?
-(e.g. `user`, `portfolio`, `payment`)"
+Extract the domain name from the spec's `## Context` section. The domain must map to a
+**backend module boundary** — the `use_cases/{domain}/` folder or `context/{domain}/` service
+that owns these commands. It must NOT be named after a frontend feature, page, or UI concern.
+
+If it cannot be inferred, ask the user: "Which backend module does this feature belong to?
+(e.g. `user`, `portfolio`, `payment` — must match a `use_cases/` or `context/` folder)"
 
 ---
 
@@ -51,7 +54,20 @@ types, no `Option<>`, no derives. Those are implementation details for `feature-
 
 ---
 
-### 4. Check for existing contract
+### 4. Check for cross-contract command duplication
+
+Before writing anything, glob all existing contracts and scan for command name conflicts:
+
+- Run `Glob docs/contracts/*-contract.md` to collect every existing contract.
+- For each contract found (excluding `{domain}-contract.md` itself), read it and collect its command names.
+- If any command you are about to write already exists in another contract, **stop and report**:
+  ```
+  Command `{name}` already exists in docs/contracts/{other}-contract.md.
+  Each command must belong to exactly one backend boundary. Resolve the overlap before proceeding.
+  ```
+- Do not write the contract until all conflicts are resolved.
+
+### 5. Check for existing contract
 
 Run `Glob docs/contracts/{domain}-contract.md`.
 
@@ -76,7 +92,7 @@ Run `Glob docs/contracts/{domain}-contract.md`.
 
 ---
 
-### 5. Write changelog entry
+### 6. Write changelog entry
 
 After writing or patching, append to the `## Changelog` section:
 
@@ -86,7 +102,7 @@ After writing or patching, append to the `## Changelog` section:
 
 ---
 
-### 6. Confirm and hand off
+### 7. Confirm and hand off
 
 Report:
 
@@ -135,11 +151,16 @@ field_name: FieldType,
 ## Critical Rules
 
 1. Never silently overwrite existing commands — always diff and confirm with the user first
-2. Frontend-only features (no `backend` scoped rules): create a minimal contract with an empty
+2. **One contract = one backend boundary.** The domain must map to a single `use_cases/{domain}/`
+   or `context/{domain}/` service. A frontend gateway may call commands from multiple contracts —
+   that is expected. What is forbidden is the same command appearing in two contracts.
+3. **No cross-contract command duplication.** If a command name already exists in another contract,
+   stop and report before writing — do not proceed until the overlap is resolved.
+4. Frontend-only features (no `backend` scoped rules): create a minimal contract with an empty
    Commands table and a note "no backend commands — frontend-only feature" for traceability
-3. Types use Rust naming conventions: `snake_case` fields, `PascalCase` structs
-4. Errors must be exhaustive — every failure path described in a spec rule must appear as an
+5. Types use Rust naming conventions: `snake_case` fields, `PascalCase` structs
+6. Errors must be exhaustive — every failure path described in a spec rule must appear as an
    error variant; generic `DbError`-only entries are a warning, not acceptable alone
-5. Do not invent commands not backed by a spec rule — traceability is mandatory
-6. If the `docs/contracts/` directory does not exist, create it before writing
-7. This skill produces the contract shape — `contract-reviewer` validates correctness
+7. Do not invent commands not backed by a spec rule — traceability is mandatory
+8. If the `docs/contracts/` directory does not exist, create it before writing
+9. This skill produces the contract shape — `contract-reviewer` validates correctness

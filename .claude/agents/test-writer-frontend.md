@@ -5,9 +5,11 @@ description:
   (mocking invoke) for every command in docs/contracts/{domain}-contract.md, using actual
   types from src/bindings.ts. (2) RTL component integration tests (mocking the gateway)
   covering gateway→UI rendering and UI→gateway call wiring, 1 test per distinct
-  gateway-driven UI state. Falls back to expect(true).toBe(false) stubs only when the
-  contract is too vague, after user confirmation. Verifies vitest exits non-zero before
-  finishing. Does not implement. Run after the backend commit, before frontend implementation.
+  gateway-driven UI state. Also accepts an optional modified_functions list to write focused
+  unit tests for existing functions changed by the feature but absent from the contract.
+  Falls back to expect(true).toBe(false) stubs only when the contract is too vague, after
+  user confirmation. Verifies vitest exits non-zero before finishing. Does not implement.
+  Run after the backend commit, before frontend implementation.
 tools: Read, Grep, Glob, Write, Edit, Bash
 model: sonnet
 ---
@@ -27,6 +29,12 @@ the user confirms.
 
 The user passes a domain name or contract path (e.g. `docs/contracts/user-contract.md`).
 If not provided, list files in `docs/contracts/` and ask which to use.
+
+Optionally, the user may also pass a `modified_functions` list — entries of the form
+`{file}:{behavior}` identifying existing functions whose behavior changed in this feature
+but that have no contract entry (e.g. `useEditTransactionModal.ts:recomputeUnitPrice`).
+These come from `[unit-test-needed]` markers set by `feature-planner`. If provided, handle
+them in Step 3.5.
 
 ---
 
@@ -169,6 +177,41 @@ it("{gateway function} {behavior description}", async () => {
 });
 ```
 
+### Step 3.5 — Write unit tests for modified existing functions
+
+_Skip this step if no `modified_functions` were provided._
+
+For each `{file}:{behavior}` entry:
+
+1. Read the file to understand the current function signature and the changed behavior.
+2. Locate or create a colocated `.test.ts` file next to the file under test.
+3. Check for existing tests via Grep (`it(` or `test(`) to avoid duplicating covered behaviors.
+4. Write a focused unit test that covers only the changed behavior:
+   - No gateway mock unless the function calls the gateway
+   - No RTL render unless the function is a React hook (`renderHook` from `@testing-library/react` is fine)
+   - Assert the specific output or side-effect the spec rule mandates
+
+```typescript
+// Example — hook that recomputes a derived value
+import { renderHook } from "@testing-library/react";
+import { useEditTransactionModal } from "./useEditTransactionModal";
+
+it("recomputes unit_price from total_cost and quantity for OpeningBalance transactions", () => {
+  const { result } = renderHook(() =>
+    useEditTransactionModal({
+      transaction_kind: "OpeningBalance",
+      total_cost: 3000000,
+      quantity: 3,
+    }),
+  );
+
+  // unit_price = round(total_cost * 1e6 / quantity)
+  expect(result.current.unit_price).toBe(1000000000000);
+});
+```
+
+These tests must fail (red) before implementation — they are verified together in Step 5.
+
 ### Step 4 — Write RTL component integration tests
 
 Scan `src/features/{domain}/` for React components (`.tsx` files) that:
@@ -280,9 +323,11 @@ without implementing gateway logic. Do not proceed until compilation succeeds an
 
 Gateway unit tests: N real, M stubs across K commands
 Component integration tests: P tests across Q components
+Modified function unit tests: R tests   ← omit section if no modified_functions provided
 Files:
   src/features/{domain}/gateway.test.ts
   src/features/{domain}/{ComponentName}.integration.test.tsx
+  src/features/{domain}/{ModifiedFile}.test.ts   ← if applicable
 
 ### Gateway unit tests
 
@@ -300,6 +345,12 @@ Files:
 | UserList       | gateway→UI  | success | renders users returned by the gateway       |
 | UserList       | gateway→UI  | error   | shows error message when gateway rejects    |
 | CreateUserForm | UI→gateway  | success | calls createUser with form values on submit |
+
+### Modified function unit tests   ← omit section if no modified_functions provided
+
+| File                        | Behavior             | Test                                              |
+|-----------------------------|----------------------|---------------------------------------------------|
+| useEditTransactionModal.ts  | recompute unit_price | recomputes unit_price for OpeningBalance txns     |
 
 vitest output: [last few lines confirming red]
 
@@ -325,3 +376,4 @@ Next step: implement gateway.ts and components to make these tests pass (minimal
 13. Assert on visible UI elements only (`screen.findByText`, `screen.findByRole`) — never on component internals or state
 14. Use `screen.findBy*` for elements appearing after async gateway responses; `screen.getBy*` for elements present on initial render
 15. Skip components that only pass through props without rendering distinct gateway-driven states
+16. For `modified_functions` entries, write a targeted unit test covering only the changed behavior — no gateway mock, no full RTL render unless the function is a hook

@@ -173,8 +173,8 @@ struct CreateBatchProceduresResponse {
 
 ## Events
 
-| Event              | Trigger                                                                           |
-| ------------------ | --------------------------------------------------------------------------------- |
+| Event              | Trigger                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------- |
 | `ProcedureUpdated` | After `add_procedure`, `update_procedure`, `delete_procedure`, `create_batch_procedures` |
 
 ## Changelog
