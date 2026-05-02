@@ -199,6 +199,8 @@ export const config: Options.Testrunner = {
   // tauri-driver runs on port 4444 by default.
   host: "127.0.0.1",
   port: 4444,
+  // Suppress WebDriver protocol logs (COMMAND/POST/RESULT chatter) — keep warnings and errors only.
+  logLevel: "warn",
 
   framework: "mocha",
   specs: ["./e2e/**/*.test.ts"],
@@ -231,6 +233,8 @@ export const config: Options.Testrunner = {
   // beforeSession (not onPrepare) is correct: tauri-driver is a per-session
   // intermediary and must be alive when the worker creates the session.
   beforeSession: () => {
+    // Suppress verbose Rust/frontend tracing — only show warnings and errors.
+    process.env.RUST_LOG = "warn";
     tauriDriver = spawn(
       path.resolve(os.homedir(), ".cargo", "bin", "tauri-driver"),
       [],
