@@ -26,6 +26,51 @@ export async function setReactInputValue(elementId: string, value: string): Prom
   );
 }
 
+export async function setReactSelectValue(elementId: string, value: string): Promise<void> {
+  await browser.execute(
+    (id, val) => {
+      const el = document.getElementById(id) as HTMLSelectElement | null;
+      if (!el) return;
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLSelectElement.prototype,
+        "value",
+      )?.set;
+      nativeSetter?.call(el, val);
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    elementId,
+    value,
+  );
+}
+
+export async function readPatientIdByName(name: string): Promise<string> {
+  const patients = await browser.execute(async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: window.__TAURI_INTERNALS__ is not typed
+    const invoke = (window as any).__TAURI_INTERNALS__.invoke as (
+      cmd: string,
+    ) => Promise<unknown>;
+    return invoke("read_all_patients");
+  });
+  const patient = (patients as { id: string; name: string | null }[]).find(
+    (p) => p.name === name,
+  );
+  if (!patient) throw new Error(`Patient not found: ${name}`);
+  return patient.id;
+}
+
+export async function readProcedureTypeIdByName(name: string): Promise<string> {
+  const types = await browser.execute(async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: window.__TAURI_INTERNALS__ is not typed
+    const invoke = (window as any).__TAURI_INTERNALS__.invoke as (
+      cmd: string,
+    ) => Promise<unknown>;
+    return invoke("read_all_procedure_types");
+  });
+  const pt = (types as { id: string; name: string }[]).find((t) => t.name === name);
+  if (!pt) throw new Error(`ProcedureType not found: ${name}`);
+  return pt.id;
+}
+
 async function openManagementModal(): Promise<void> {
   await browser.keys(["Escape"]);
   const mgmtBtn = await $('button[aria-label="Gestion"]');
