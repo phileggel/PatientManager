@@ -47,7 +47,12 @@ export function AddBankTransferForm() {
   } = useAddBankTransferForm();
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+    <form
+      id="add-bank-transfer-form"
+      onSubmit={handleSubmit}
+      noValidate
+      className="flex flex-col gap-6"
+    >
       {/* Transfer Date */}
       <DateField
         id="transferDate"
@@ -118,6 +123,7 @@ export function AddBankTransferForm() {
 
       <Button
         type="submit"
+        form="add-bank-transfer-form"
         variant="primary"
         loading={submitting}
         disabled={!isValid || submitting}
