@@ -2,6 +2,12 @@
 
 ---
 
+## (frontend/patient) — Fix raw date and currency display in EditPatientModal
+
+`EditPatientModal.tsx` shows `patient.latest_date` as a raw ISO string and formats `latest_procedure_amount` inline with a hardcoded `€` symbol and `toFixed(2)`. Both should use `useFormatters()` (`formatDate` and `formatCurrency`) to respect locale settings consistently with the rest of the app.
+
+---
+
 ## (frontend) — Fix OxLint warnings (38 pre-existing)
 
 OxLint exits 0 on warnings so CI passes, but 38 warnings exist across the codebase. Main categories:
@@ -27,12 +33,6 @@ React 19 makes setState after unmount a silent no-op, so `isMountedRef` guards i
 
 ---
 
-## (frontend/bank-statement-match) — Translate raw backend error strings in error step
-
-The error step in `BankStatementModal` displays `error` directly, which can be a raw backend string (e.g. from a generic catch in `useBankStatementModal`). Only `NO_VIR_SEPA_LINES` is explicitly translated. Audit all `setError(msg)` call sites and either map known error codes to i18n keys or add a generic fallback translation so users never see raw technical strings.
-
----
-
 ## (frontend/bank-statement-match) — Inline bank account creation when IBAN is not found
 
 When `resolveBankAccountFromIban` returns no account, the modal currently shows a dead-end "no account" screen. Instead, show an inline form with the IBAN pre-filled (read-only) and a name field the user must fill in. On submit, create the account and continue the import flow automatically (proceed to label-mapping step).
@@ -48,15 +48,6 @@ Options to explore:
 - Pass a `LANG=en` / `LC_ALL=en_US.UTF-8` env var when launching the Tauri app in WebDriver
 - Set a `test_locale` config flag in `tauri.conf.json` or a test-only config profile
 - Initialize the i18n layer with `en` unconditionally when a `TEST_LOCALE` env var is present
-
----
-
-## (frontend/bank-account) — Surface CashAccountProtected error and disable actions on cash account row
-
-The backend enforces `CashAccountProtected` on `update_bank_account` and `delete_bank_account`, but the bank account list has no UI guard: the cash account row shows the same edit/delete actions as any other account. Two improvements needed:
-
-- Fetch the cash account ID on mount (via `getCashBankAccountId`) and disable the edit/delete buttons for that row.
-- If the error does reach the backend (e.g. via a future API path), surface a specific "Cash account cannot be modified" message instead of a generic error toast.
 
 ---
 
@@ -164,12 +155,6 @@ When the user goes back to the previous step, advance directly to the next one (
 ## (frontend/fund-payment) — Date range in list
 
 In the list, replace "date" with start date (oldest procedure) and end date (latest procedure).
-
----
-
-## (frontend/procedure) — Default patient info when procedure type is deleted
-
-When showing default patient info (`latest_procedure_type`), the referenced procedure type may have been deleted. Document this case in the procedure-creation spec and handle it on the frontend (degraded display or fallback).
 
 ---
 

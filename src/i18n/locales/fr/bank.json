@@ -205,6 +205,7 @@
       },
       "editAriaLabel": "Modifier le compte {{name}}",
       "deleteAriaLabel": "Supprimer le compte {{name}}",
+      "cashAccountProtectedTooltip": "Le compte caisse est géré automatiquement et ne peut pas être modifié",
       "success": {
         "deleted": "Compte \"{{name}}\" supprimé avec succès"
       },

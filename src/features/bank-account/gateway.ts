@@ -3,6 +3,18 @@ import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import type { ServiceResult } from "@/types/api";
 
+export async function getCashBankAccountId(): Promise<ServiceResult<string>> {
+  logger.debug("[bank-account] getCashBankAccountId");
+  try {
+    const id = await commands.getCashBankAccountId();
+    if (!id) return { success: false, error: "Cash account id is empty" };
+    return { success: true, data: id };
+  } catch (error) {
+    logger.error("[bank-account] getCashBankAccountId exception", { error });
+    return { success: false, error: String(error) };
+  }
+}
+
 export function readAllBankAccounts(): ServiceResult<BankAccount[]> {
   logger.debug("Fetching all bank accounts from store");
   const bankAccounts = useAppStore.getState().bankAccounts;

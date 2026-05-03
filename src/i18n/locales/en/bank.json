@@ -205,6 +205,7 @@
       },
       "editAriaLabel": "Edit account {{name}}",
       "deleteAriaLabel": "Delete account {{name}}",
+      "cashAccountProtectedTooltip": "The cash account is managed automatically and cannot be modified",
       "success": {
         "deleted": "Account \"{{name}}\" deleted successfully"
       },
