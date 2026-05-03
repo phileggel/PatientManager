@@ -25,12 +25,14 @@ If no spec path is given, list files in `docs/spec/` and ask the user which spec
 
 ### 2. Identify domain
 
-Extract the domain name from the spec's `## Context` section. The domain must map to a
-**backend module boundary** — the `use_cases/{domain}/` folder or `context/{domain}/` service
-that owns these commands. It must NOT be named after a frontend feature, page, or UI concern.
+Extract the domain name from the spec's `## Context` section. The domain must name a
+**bounded context (aggregate root)** — the `context/{domain}/` service that owns these
+commands. Use-case folders (`use_cases/{domain}/`) are implementation details; their commands
+belong in the aggregate contract they primarily mutate. The domain must NOT be named after a
+frontend feature, page, or UI concern.
 
-If it cannot be inferred, ask the user: "Which backend module does this feature belong to?
-(e.g. `user`, `portfolio`, `payment` — must match a `use_cases/` or `context/` folder)"
+If it cannot be inferred, ask the user: "Which bounded context (aggregate) does this feature
+belong to? (e.g. `user`, `portfolio`, `payment` — must match a `context/` folder)"
 
 ---
 
@@ -151,9 +153,11 @@ field_name: FieldType,
 ## Critical Rules
 
 1. Never silently overwrite existing commands — always diff and confirm with the user first
-2. **One contract = one backend boundary.** The domain must map to a single `use_cases/{domain}/`
-   or `context/{domain}/` service. A frontend gateway may call commands from multiple contracts —
-   that is expected. What is forbidden is the same command appearing in two contracts.
+2. **One contract = one bounded context (aggregate root).** The domain must name a
+   `context/{domain}/` bounded context, not a use case or module folder. Commands from
+   `use_cases/` that primarily mutate one aggregate belong in that aggregate's contract. A
+   frontend gateway may call commands from multiple contracts — that is expected. What is
+   forbidden is the same command appearing in two contracts.
 3. **No cross-contract command duplication.** If a command name already exists in another contract,
    stop and report before writing — do not proceed until the overlap is resolved.
 4. Frontend-only features (no `backend` scoped rules): create a minimal contract with an empty

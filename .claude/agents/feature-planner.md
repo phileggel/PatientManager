@@ -83,7 +83,6 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues in E2E test files) — Tauri profile only, if frontend rules present
 - [ ] 💾 Commit: E2E tests (suggested title from plan)
 - [ ] 🔍 Cross-cutting Review (`reviewer-arch` always + `reviewer-sql` if migrations + `reviewer-infra` if any config, script, hook, or workflow file changed)
-- [ ] 🌐 i18n Review (`i18n-checker` if UI text changed)
 - [ ] 📚 Documentation Update (`ARCHITECTURE.md` + `docs/todo.md` — entries in English)
 - [ ] ✅ Spec check (`spec-checker`)
 - [ ] 💾 Commit: tests & docs (suggested title from plan)

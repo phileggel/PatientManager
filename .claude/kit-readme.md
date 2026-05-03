@@ -1,6 +1,6 @@
-# Kit Reference Guide
+# Spec-Driven Dev Toolchain — Reference Guide
 
-Onboarding guide for claude-kit. For the full inventory of agents, skills, scripts, hooks, and justfile recipes, see `.claude/kit-tools.md`.
+Onboarding guide for claude-kit: a spec-driven dev toolchain that ships the agents, skills, scripts, and hooks driving the **spec → contract → plan → test-first → verify** workflow. For the full inventory, see `.claude/kit-tools.md`.
 
 **Location**: `.claude/kit-readme.md` (read-only reference)
 
@@ -85,13 +85,11 @@ git checkout -b feat/{feature-name}
 
 **Phase 4: Review & Closure**
 
-1. Run **`reviewer-arch`** agent (always) + **`reviewer-sql`** (if migrations) + **`reviewer-infra`** (if project config files changed).
-2. Run **`i18n-checker`** if UI text changed.
-3. Run **`reviewer-infra`** if scripts, hooks, workflow, or config files were modified.
-4. Update documentation (`ARCHITECTURE.md`, `docs/todo.md`).
-5. Run **`spec-checker`** agent → confirm all spec rules and contract commands are covered.
-6. **`/smart-commit`**: tests & docs. [HARD GATE]
-7. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff feat/{name}`).
+1. Run **`reviewer-arch`** agent (always) + **`reviewer-sql`** (if migrations) + **`reviewer-infra`** (if scripts, hooks, workflow, or config files were modified).
+2. Update documentation (`ARCHITECTURE.md`, `docs/todo.md`).
+3. Run **`spec-checker`** agent → confirm all spec rules and contract commands are covered.
+4. **`/smart-commit`**: tests & docs. [HARD GATE]
+5. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff feat/{name}`).
 
 ---
 
