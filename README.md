@@ -130,8 +130,8 @@ VITE_PORT=5174 npm run tauri:dev
 
 ## License
 
-Proprietary / Non-commercial
+MIT © [Philippe Eggel](https://github.com/phileggel)
 
 ---
 
-Created January 2026 for patient and service management.
+Created January 2026 by Philippe Eggel for patient and service management.

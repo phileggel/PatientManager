@@ -216,12 +216,6 @@ Delete or replace each with a test that exercises a real domain invariant or err
 
 ---
 
-## (ci) — Add PR check workflow
-
-The project has only release workflows (`release-manual.yml`, `release-windows.yml`) — no workflow runs on push or pull requests. Add a `ci.yml` triggered on `push` / `pull_request` running `cargo test`, `cargo clippy`, and `npm run test` on a Linux runner. This is the minimum needed to catch regressions before they reach `main`.
-
----
-
 ## (backend/arch) — Introduce a DI container for orchestrator wiring
 
 Production orchestrators are currently wired manually in `lib.rs` via explicit `Arc<dyn Trait>` constructor injection. This works but doesn't scale well as the number of dependencies grows: adding a dep means touching `lib.rs`, the orchestrator `new()`, and every integration test `Ctx`. A DI container (e.g. `shaku`) would centralize registration and resolve dependencies automatically, reducing wiring boilerplate and making the `new()` signature irrelevant to callers. Evaluate once the orchestrator count or dep count becomes a maintenance burden.
