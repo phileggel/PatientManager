@@ -1,4 +1,3 @@
-import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ImportExecutionResult, ParseExcelResponse } from "@/bindings";
@@ -13,33 +12,26 @@ import { ProcedureTypeMappingStep } from "./components/ProcedureTypeMappingStep"
 import { ProgressIndicator } from "./components/ProgressIndicator";
 
 interface ImportExcelPageProps {
-  onClose?: () => void;
+  filePath: string;
+  onClose: () => void;
 }
 
-type Step =
-  | "upload"
-  | "parsing"
-  | "month_selection"
-  | "mapping_procedure_types"
-  | "importing"
-  | "complete";
+type Step = "parsing" | "month_selection" | "mapping_procedure_types" | "importing" | "complete";
 
-// Stable no-op used as default for onClose to avoid recreating handleOpenFilePicker on every render
-const noop = () => {};
-
-export function ImportExcelPage({ onClose = noop }: ImportExcelPageProps) {
+export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
   const { t } = useTranslation("excel-import");
 
   const procedureTypes = useAppStore((state) => state.procedureTypes);
 
-  const [currentStep, setCurrentStep] = useState<Step>("upload");
+  useEffect(() => {
+    logger.info("[ImportExcelPage] mounted");
+  }, []);
+
+  const [currentStep, setCurrentStep] = useState<Step>("parsing");
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [showParsingReport, setShowParsingReport] = useState(false);
-  // TODO: isCancelledRef is set but never read — async-after-unmount guard is incomplete.
-  // Either implement fully (set true on unmount, check before each setState) or remove.
-  const isCancelledRef = useRef(false);
 
   // Parsed data from Excel (held in state so the mapping step can use it)
   const [parsed, setParsed] = useState<ParseExcelResponse | null>(null);
@@ -50,18 +42,11 @@ export function ImportExcelPage({ onClose = noop }: ImportExcelPageProps) {
   // Final import result
   const [importResult, setImportResult] = useState<ImportExecutionResult | null>(null);
 
-  // Current file being processed (for retry)
-  const [currentFileData, setCurrentFileData] = useState<{ name: string; path: string } | null>(
-    null,
-  );
-
   const handleFileSelect = useCallback(
     async (fileData: { name: string; path: string }) => {
       setError(null);
-      setCurrentFileData(fileData);
       setCurrentStep("parsing");
       setIsLoading(true);
-      isCancelledRef.current = false;
       setLoadingStatus(t("status.parsing"));
 
       try {
@@ -109,7 +94,7 @@ export function ImportExcelPage({ onClose = noop }: ImportExcelPageProps) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         setError(errorMessage);
         logger.error("[ImportExcelPage] Import workflow failed", { error: errorMessage });
-        setCurrentStep("upload");
+        setCurrentStep("parsing");
       } finally {
         setIsLoading(false);
         setLoadingStatus("");
@@ -118,33 +103,14 @@ export function ImportExcelPage({ onClose = noop }: ImportExcelPageProps) {
     [t],
   );
 
-  const handleOpenFilePicker = useCallback(async () => {
-    logger.info("[ImportExcelPage] Opening file picker");
-    try {
-      const filePath = await open({
-        multiple: false,
-        filters: [{ name: "Excel Files", extensions: ["xlsx", "xls", "csv"] }],
-      });
-
-      if (!filePath) {
-        logger.info("[ImportExcelPage] File picker cancelled; navigating back");
-        onClose();
-        return;
-      }
-
-      const path = Array.isArray(filePath) ? filePath[0] : filePath;
-      const name = path.split(/[\\/]/).pop() || path;
-      logger.info("[ImportExcelPage] File selected via dialog", { path });
-      void handleFileSelect({ name, path });
-    } catch (err) {
-      logger.error("[ImportExcelPage] File picker error", { error: err });
-    }
-  }, [onClose, handleFileSelect]);
-
+  const hasParsedRef = useRef(false);
   useEffect(() => {
-    logger.info("[ImportExcelPage] Component mounted; opening file picker");
-    void handleOpenFilePicker();
-  }, [handleOpenFilePicker]);
+    if (hasParsedRef.current) return;
+    hasParsedRef.current = true;
+    const name = filePath.split(/[\\/]/).pop() ?? filePath;
+    logger.info("[ImportExcelPage] Starting parse", { filePath });
+    void handleFileSelect({ name, path: filePath });
+  }, [filePath, handleFileSelect]);
 
   const handleMonthSelectionConfirm = useCallback((months: string[]) => {
     setSelectedMonths(months);
@@ -188,25 +154,15 @@ export function ImportExcelPage({ onClose = noop }: ImportExcelPageProps) {
   );
 
   const handleRetry = useCallback(() => {
-    if (currentFileData) {
-      void handleFileSelect(currentFileData);
-    }
-  }, [currentFileData, handleFileSelect]);
-
-  const handleReset = useCallback(() => {
-    setParsed(null);
-    setSelectedMonths([]);
-    setImportResult(null);
-    setError(null);
-    // Closing the mapping modal or "Import Another" resets state and re-opens the file picker
-    void handleOpenFilePicker();
-  }, [handleOpenFilePicker]);
+    const name = filePath.split(/[\\/]/).pop() ?? filePath;
+    void handleFileSelect({ name, path: filePath });
+  }, [filePath, handleFileSelect]);
 
   const handleMappingModalClose = useCallback(() => {
     if (!isLoading) {
-      handleReset();
+      onClose();
     }
-  }, [isLoading, handleReset]);
+  }, [isLoading, onClose]);
 
   return (
     <div className="flex flex-col h-full">
@@ -214,14 +170,7 @@ export function ImportExcelPage({ onClose = noop }: ImportExcelPageProps) {
       <div className="sticky top-0 z-10 bg-m3-surface">
         <ProgressIndicator
           currentStep={currentStep}
-          steps={[
-            "upload",
-            "parsing",
-            "month_selection",
-            "mapping_procedure_types",
-            "importing",
-            "complete",
-          ]}
+          steps={["parsing", "month_selection", "mapping_procedure_types", "importing", "complete"]}
         />
       </div>
 
@@ -236,12 +185,12 @@ export function ImportExcelPage({ onClose = noop }: ImportExcelPageProps) {
             <p className="font-medium">{t("status.importFailed")}</p>
             <p className="text-sm mt-1 opacity-90">{error}</p>
             <div className="flex gap-2 mt-3">
-              {currentFileData && <Button onClick={handleRetry}>{t("status.retry")}</Button>}
+              <Button onClick={handleRetry}>{t("status.retry")}</Button>
               <Button
                 variant="secondary"
                 onClick={() => {
                   setError(null);
-                  setCurrentStep("upload");
+                  setCurrentStep("parsing");
                 }}
               >
                 {t("action.dismiss", { ns: "common" })}
@@ -352,7 +301,7 @@ export function ImportExcelPage({ onClose = noop }: ImportExcelPageProps) {
             )}
 
             <div className="flex gap-2">
-              <Button onClick={handleReset}>{t("result.importAnother")}</Button>
+              <Button onClick={onClose}>{t("result.importAnother")}</Button>
               {parsed && (
                 <Button variant="secondary" onClick={() => setShowParsingReport(true)}>
                   {t("result.viewReport")}

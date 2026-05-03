@@ -1,38 +1,18 @@
-/**
- * ReconciliationPage - PDF Payment Statement Reconciliation
- *
- * Headless entry point: opens the system file picker on mount, then opens
- * ReconciliationModal on selection. The modal owns the workflow.
- * On picker cancel or modal close, the page calls onClose() to navigate
- * back to the previous route (typically the dashboard).
- */
-
-import { useTranslation } from "react-i18next";
+import { useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { ReconciliationModal } from "./reconciliation_modal/ReconciliationModal";
-import { useReconciliationPage } from "./useReconciliationPage";
+
+const TAG = "[ReconciliationPage]";
 
 interface ReconciliationPageProps {
+  filePath: string;
   onClose: () => void;
 }
 
-export function ReconciliationPage({ onClose }: ReconciliationPageProps) {
-  const { t } = useTranslation("fund-payment-match");
-  const { selectedFile, isModalOpen, fileInputRef, handleFileSelect, handleClose } =
-    useReconciliationPage({ onClose });
+export function ReconciliationPage({ filePath, onClose }: ReconciliationPageProps) {
+  useEffect(() => {
+    logger.info(TAG, "mounted");
+  }, []);
 
-  return (
-    <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf"
-        onChange={handleFileSelect}
-        style={{ display: "none" }}
-        aria-label={t("page.uploadAriaLabel")}
-      />
-      {selectedFile && isModalOpen && (
-        <ReconciliationModal file={selectedFile} onClose={handleClose} />
-      )}
-    </>
-  );
+  return <ReconciliationModal filePath={filePath} onClose={onClose} />;
 }

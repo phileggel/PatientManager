@@ -18,11 +18,11 @@ import { UnreconciledReportView } from "../unreconciled_report/UnreconciledRepor
 import { useReconciliationModal } from "./useReconciliationModal";
 
 interface ReconciliationModalProps {
-  file: File;
+  filePath: string;
   onClose: () => void;
 }
 
-export function ReconciliationModal({ file, onClose }: ReconciliationModalProps) {
+export function ReconciliationModal({ filePath, onClose }: ReconciliationModalProps) {
   const { t } = useTranslation("fund-payment-match");
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function ReconciliationModal({ file, onClose }: ReconciliationModalProps)
     handleReportUnresolvedGroupCount,
     handleAutoCorrectAll,
     unresolvedGroupCount,
-  } = useReconciliationModal(file, onClose);
+  } = useReconciliationModal(filePath, onClose);
 
   const isReportStep = unreconciledReport !== null && reportDateRange !== null;
 
@@ -58,7 +58,7 @@ export function ReconciliationModal({ file, onClose }: ReconciliationModalProps)
         <div>
           <h2 className="text-base font-semibold text-m3-on-surface">{t("modal.title")}</h2>
           <p className="text-xs text-m3-on-surface-variant mt-0.5">
-            {t("modal.subtitle", { name: file.name })}
+            {t("modal.subtitle", { name: filePath.split(/[\\/]/).pop() ?? filePath })}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -99,7 +99,9 @@ export function ReconciliationModal({ file, onClose }: ReconciliationModalProps)
               </div>
             ) : error ? (
               <div className="rounded-lg bg-m3-error-container/40 border border-m3-error/20 px-5 py-4">
-                <p className="text-sm text-m3-on-error-container">{error}</p>
+                <p role="alert" className="text-sm text-m3-on-error-container">
+                  {error}
+                </p>
               </div>
             ) : reconciliationData ? (
               <ReconciliationResultsView
@@ -116,7 +118,11 @@ export function ReconciliationModal({ file, onClose }: ReconciliationModalProps)
           {/* Footer */}
           {!isLoading && !error && reconciliationData && (
             <div className="shrink-0 border-t border-m3-outline/20 bg-m3-surface-container-low px-6 py-4">
-              {validationError && <p className="text-xs text-m3-error mb-3">{validationError}</p>}
+              {validationError && (
+                <p role="alert" className="text-xs text-m3-error mb-3">
+                  {validationError}
+                </p>
+              )}
               <div className="flex items-center justify-between gap-3">
                 <Button variant="ghost" onClick={onClose}>
                   {t("modal.footer.cancel")}
