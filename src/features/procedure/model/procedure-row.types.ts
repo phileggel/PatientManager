@@ -1,4 +1,4 @@
-import type { Fund, Patient, ProcedureType } from "@/bindings";
+import type { Fund, Patient, ProcedureStatus, ProcedureType } from "@/bindings";
 
 export interface ProcedureRow {
   // Ui metadata
@@ -38,6 +38,22 @@ export interface ProcedureRow {
 
   // Procedure database ID
   id?: string;
+}
+
+// Statuses where payment has occurred. Used to fall back to effectiveAmount when
+// paid_amount is null (backend sets paid_amount = billed_amount, which is null when the
+// procedure relies on its procedure type's default_amount).
+const PAID_STATUSES = new Set<ProcedureStatus>([
+  "RECONCILED",
+  "FUND_PAID",
+  "DIRECTLY_PAID",
+  "IMPORT_DIRECTLY_PAID",
+  "IMPORT_FUND_PAID",
+]);
+
+/** Returns true if payment has occurred for this procedure status. */
+export function isPaidStatus(status: string | null): boolean {
+  return status != null && PAID_STATUSES.has(status as ProcedureStatus);
 }
 
 const BLOCKING_STATUSES = new Set([

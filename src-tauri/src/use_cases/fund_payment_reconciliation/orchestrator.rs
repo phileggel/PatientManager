@@ -297,6 +297,11 @@ impl FundPaymentReconciliationOrchestrator {
             .into_iter()
             .map(|mut procedure| {
                 procedure.payment_status = ProcedureStatus::Reconciled;
+                // TODO: when billed_amount is None the procedure relies on its procedure type's
+                // default_amount, but we have no ProcedureTypeService here to resolve it.
+                // Add ProcedureTypeService to this orchestrator and use
+                // billed_amount.unwrap_or(default_amount) so paid_amount is never left null
+                // for reconciled procedures.
                 procedure.paid_amount = procedure.billed_amount;
                 procedure.confirmed_payment_date = procedure_date_map.get(&procedure.id).copied();
                 procedure
@@ -452,6 +457,8 @@ impl FundPaymentReconciliationOrchestrator {
                 if procedure.payment_status != ProcedureStatus::PartiallyReconciled {
                     // Contest correction already set paid_amount and status — keep them
                     procedure.payment_status = ProcedureStatus::Reconciled;
+                    // TODO: same as above — billed_amount may be None for procedures using
+                    // procedure type default_amount; add ProcedureTypeService to resolve it.
                     procedure.paid_amount = procedure.billed_amount;
                 }
                 procedure
