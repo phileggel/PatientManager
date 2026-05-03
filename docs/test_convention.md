@@ -112,9 +112,7 @@ it("loads data on mount", async () => {
   const item = makeItem();
   const { result } = renderHook(() => useMyHook(item, vi.fn()));
 
-  await waitFor(() =>
-    expect(result.current.items).toEqual(["item-1"]),
-  );
+  await waitFor(() => expect(result.current.items).toEqual(["item-1"]));
 });
 
 it("resets state when type changes", async () => {
@@ -144,9 +142,7 @@ it("assigns value reactively when fetch resolves late", async () => {
   act(() => result.current.handleTypeChange("OTHER"));
   expect(result.current.selectedItem).toBe(""); // not yet resolved
 
-  await act(async () =>
-    resolve({ success: true, data: "default-item" }),
-  );
+  await act(async () => resolve({ success: true, data: "default-item" }));
 
   expect(result.current.selectedItem).toBe("default-item");
 });
@@ -157,11 +153,9 @@ it("assigns value reactively when fetch resolves late", async () => {
 Check that the correct command is called with the correct arguments:
 
 ```ts
-expect(gateway.updateItem).toHaveBeenCalledWith(
-  "item-id-1",
-  "2026-03-10",
-  ["group-1"],
-);
+expect(gateway.updateItem).toHaveBeenCalledWith("item-id-1", "2026-03-10", [
+  "group-1",
+]);
 expect(gateway.deleteItem).not.toHaveBeenCalled();
 ```
 
