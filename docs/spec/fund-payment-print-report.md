@@ -4,7 +4,7 @@
 
 After validating a fund-payment reconciliation (FPA workflow), the practitioner may print a summary report. This feature defines the structure, content, and generation mechanism of that print document. The report covers two concerns: procedures that remain unreconciled in the reconciliation period, and a log of all corrections that were applied during the session.
 
-This spec supersedes rule R31 in the FPA spec (`fund-payment-auto-match.md`), which described only a minimal browser-print trigger.
+This spec supersedes FPA-510 in the FPA spec (`fund-payment-auto-match.md`), which described only a minimal browser-print trigger.
 
 ---
 
