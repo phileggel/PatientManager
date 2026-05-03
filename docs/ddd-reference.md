@@ -1,6 +1,6 @@
 # DDD Reference
 
-A concise reference for Domain-Driven Design concepts as applied in this project.
+A concise reference for Domain-Driven Design concepts as applied in a Tauri 2 / Rust / React stack.
 
 ---
 
@@ -44,7 +44,7 @@ A cluster of entities and value objects treated as a single unit. Has one **Aggr
 - External code MAY read internal entities for query purposes (CQRS-lite).
 - One transaction = one aggregate (the consistency boundary).
 - Aggregate root methods use domain/business vocabulary — they describe what happens to the
-  aggregate, not the internal mechanism. e.g. `order.place()` not `order.set_status()`.
+  aggregate, not the internal mechanism. e.g. `root.perform_action()` not `root.set_status()`.
   > Example: `Order` (root) + `OrderLine` (internal) + `Payment` (internal)
 
 ### Domain Service
@@ -62,7 +62,7 @@ Declares persistence operations. Lives in the domain layer — only the interfac
 
 A record of something that happened. Raised by aggregates after a state change. Immutable.
 
-> Example: `OrderPlaced`, `PaymentRecorded`
+> Examples: `OrderPlaced`, `PaymentRecorded`
 
 ---
 

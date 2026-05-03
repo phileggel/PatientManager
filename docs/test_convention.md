@@ -12,9 +12,9 @@
 Run checks before committing:
 
 ```bash
-npm run test          # Frontend (Vitest)
-cd src-tauri && cargo test  # Backend (Rust)
-python3 scripts/check.py    # Full check: lint + type-check + tests
+npm run test                   # Frontend (Vitest)
+cd src-tauri && cargo test     # Backend (Rust)
+<your-check-command>           # Full check: lint + type-check + tests
 ```
 
 ---
@@ -45,12 +45,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // 1. Mock gateway modules before importing the hook
 vi.mock("../gateway", () => ({
-  getCashBankAccountId: vi.fn(),
-}));
-
-vi.mock("../manual_match/gateway", () => ({
-  createFundTransfer: vi.fn(),
-  createDirectTransfer: vi.fn(),
+  fetchItems: vi.fn(),
 }));
 
 vi.mock("@/core/snackbar", () => ({
@@ -82,7 +77,7 @@ import { useAppStore } from "@/lib/appStore";
 beforeEach(() => {
   vi.clearAllMocks();
   useAppStore.setState({
-    bankAccounts: [{ id: "acc-1", name: "Compte principal", iban: null }],
+    items: [{ id: "item-1", name: "Example item" }],
   });
 });
 ```
@@ -95,12 +90,12 @@ Never create objects or functions inside the `renderHook` callback. The callback
 
 ```ts
 // ❌ BAD — new object reference on every render → infinite loop
-const { result } = renderHook(() => useMyHook(makeTransfer(), vi.fn()));
+const { result } = renderHook(() => useMyHook(makeItem(), vi.fn()));
 
 // ✅ GOOD — stable reference, effect fires once
-const transfer = makeTransfer();
+const item = makeItem();
 const onClose = vi.fn();
-const { result } = renderHook(() => useMyHook(transfer, onClose));
+const { result } = renderHook(() => useMyHook(item, onClose));
 ```
 
 ### Async patterns
@@ -108,32 +103,28 @@ const { result } = renderHook(() => useMyHook(transfer, onClose));
 Use `waitFor` to wait for async state to settle, `act` to trigger synchronous actions:
 
 ```ts
-it("loads linked groups on mount", async () => {
-  vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({
+it("loads data on mount", async () => {
+  vi.mocked(gateway.fetchItems).mockResolvedValue({
     success: true,
-    data: ["group-1"],
+    data: ["item-1"],
   });
 
-  const transfer = makeFundTransfer();
-  const { result } = renderHook(() =>
-    useEditBankTransferModal(transfer, vi.fn()),
-  );
+  const item = makeItem();
+  const { result } = renderHook(() => useMyHook(item, vi.fn()));
 
-  // Wait for async effect to complete
   await waitFor(() =>
-    expect(result.current.selectedGroupIds).toEqual(["group-1"]),
+    expect(result.current.items).toEqual(["item-1"]),
   );
 });
 
-it("clears selection when type changes", async () => {
-  const { result } = renderHook(() => useAddBankTransferForm());
+it("resets state when type changes", async () => {
+  const { result } = renderHook(() => useMyForm());
 
-  await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalled());
+  await waitFor(() => expect(gateway.fetchItems).toHaveBeenCalled());
 
-  // Trigger synchronous action
-  act(() => result.current.handleTypeChange("CHECK"));
+  act(() => result.current.handleTypeChange("OTHER"));
 
-  expect(result.current.bankAccount).toBe("");
+  expect(result.current.selectedItem).toBe("");
 });
 ```
 
@@ -142,22 +133,22 @@ For testing race conditions (value resolves after a user action):
 ```ts
 it("assigns value reactively when fetch resolves late", async () => {
   let resolve!: (v: { success: true; data: string }) => void;
-  vi.mocked(gateway.getCashBankAccountId).mockReturnValue(
+  vi.mocked(gateway.fetchItems).mockReturnValue(
     new Promise((r) => {
       resolve = r;
     }),
   );
 
-  const { result } = renderHook(() => useAddBankTransferForm());
+  const { result } = renderHook(() => useMyForm());
 
-  act(() => result.current.handleTypeChange("CASH"));
-  expect(result.current.bankAccount).toBe(""); // not yet resolved
+  act(() => result.current.handleTypeChange("OTHER"));
+  expect(result.current.selectedItem).toBe(""); // not yet resolved
 
   await act(async () =>
-    resolve({ success: true, data: "cash-account-default" }),
+    resolve({ success: true, data: "default-item" }),
   );
 
-  expect(result.current.bankAccount).toBe("cash-account-default");
+  expect(result.current.selectedItem).toBe("default-item");
 });
 ```
 
@@ -166,12 +157,12 @@ it("assigns value reactively when fetch resolves late", async () => {
 Check that the correct command is called with the correct arguments:
 
 ```ts
-expect(gateway.updateFundTransfer).toHaveBeenCalledWith(
-  "transfer-fund-1",
+expect(gateway.updateItem).toHaveBeenCalledWith(
+  "item-id-1",
   "2026-03-10",
   ["group-1"],
 );
-expect(gateway.updateDirectTransfer).not.toHaveBeenCalled();
+expect(gateway.deleteItem).not.toHaveBeenCalled();
 ```
 
 ---
@@ -192,21 +183,18 @@ Three distinct tiers, each with a clear purpose and location.
 
 ```rust
 #[tokio::test]
-async fn test_create_transfer_success() {
-    let mut repo = MockBankTransferRepository::new();
-    repo.expect_create_transfer()
-        .returning(|date, amount, kind, account| {
-            BankTransfer::new(date, amount, kind, account)
+async fn test_create_item_success() {
+    let mut repo = MockItemRepository::new();
+    repo.expect_create()
+        .returning(|name, value| {
+            Item::new(name, value)
         });
 
-    let service = BankTransferService::new(Arc::new(repo));
-    let account = BankAccount::new("Main account".to_string(), None).unwrap();
-    let result = service
-        .create_transfer("2026-03-10".to_string(), 150000, BankTransferType::Fund, account)
-        .await;
+    let service = ItemService::new(Arc::new(repo));
+    let result = service.create("example".to_string(), 100).await;
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap().amount, 150000);
+    assert_eq!(result.unwrap().value, 100);
 }
 ```
 
@@ -242,12 +230,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_and_read_fund() {
+    async fn test_create_and_read_item() {
         let pool = make_pool().await;
-        let repo = SqliteFundRepository::new(pool);
-        let fund = repo.create_fund("75", "CPAM 75").await.unwrap();
-        let found = repo.read_fund(&fund.id).await.unwrap().unwrap();
-        assert_eq!(found.fund_identifier, "75");
+        let repo = SqliteItemRepository::new(pool);
+        let item = repo.create("example", 100).await.unwrap();
+        let found = repo.find_by_id(&item.id).await.unwrap().unwrap();
+        assert_eq!(found.name, "example");
     }
 }
 ```
@@ -268,28 +256,24 @@ mod tests {
 **Purpose:** Validate spec-driven orchestrator flows end-to-end across multiple services and repositories. No mocking — real services backed by real in-memory SQLite.
 
 ```rust
-// tests/fund_payment_reconciliation.rs
 struct Ctx {
-    orchestrator: FundPaymentReconciliationOrchestrator,
-    fund_payment_service: Arc<FundPaymentService>,  // held separately for post-action assertions
+    orchestrator: MyOrchestrator,
+    item_service: Arc<ItemService>,  // held separately for post-action assertions
 }
 
 async fn build_ctx() -> Ctx {
     let pool = make_pool().await;
-    let fund_payment_repo = Arc::new(SqliteFundPaymentRepository::new(pool.clone()));
-    let fund_payment_service = Arc::new(FundPaymentService::new(fund_payment_repo.clone()));
-    let orchestrator = FundPaymentReconciliationOrchestrator::new(
-        fund_payment_service.clone(),
-        // ... other services
-    );
-    Ctx { orchestrator, fund_payment_service }
+    let item_repo = Arc::new(SqliteItemRepository::new(pool.clone()));
+    let item_service = Arc::new(ItemService::new(item_repo.clone()));
+    let orchestrator = MyOrchestrator::new(item_service.clone());
+    Ctx { orchestrator, item_service }
 }
 ```
 
 **What to test:**
 
-- Multi-service flows: procedure reconciliation, group creation, status transitions
-- Spec business rules: locked groups rejected, overpayment reset paths
+- Multi-service flows: orchestrated operations across multiple BCs
+- Spec business rules: invariants enforced across the full stack
 - Cross-context interactions that can't be exercised by a single unit test
 
 **Key constraint:** `tests/` can only access public API. Keep a separate `Arc<Service>` in the `Ctx` struct when you need to assert post-action state — do not access private fields.
@@ -310,7 +294,7 @@ async fn build_ctx() -> Ctx {
 ```bash
 cd src-tauri
 cargo test                     # All tests
-cargo test bank_transfer        # Filter by name
+cargo test {filter}            # Filter by name
 cargo test -- --nocapture      # Show println! output
 RUST_BACKTRACE=1 cargo test    # With backtraces
 ```

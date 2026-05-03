@@ -44,7 +44,7 @@ src-tauri/src/
 
 **B3** — `core/specta_builder.rs` is the ONLY place where Tauri commands are registered.
 
-**B4** — A bounded context MAY contain multiple aggregate roots (e.g. `procedure/` contains `Procedure` and `ProcedureType`). Each aggregate MUST have its own sub-folder. Aggregates within the same BC reference each other by ID only — never by direct object reference.
+**B4** — A bounded context MAY contain multiple aggregate roots. Each aggregate MUST have its own sub-folder. Aggregates within the same BC reference each other by ID only — never by direct object reference.
 
 ## Ubiquitous Language
 
@@ -67,9 +67,8 @@ The UL doc is the source of truth — not the current codebase.
 - `with_id()` — validates fields, uses provided id (use in service, use case, or api)
 - `restore()` — direct restore from database, no validation (use in repository only)
 
-Exception: internal aggregate entities (e.g. `OrderLine` within `Order`) have
-factory methods that are called ONLY from within the Aggregate Root's methods — never from
-services, use cases, or api.rs directly.
+Exception: internal aggregate entities have factory methods that are called ONLY from within
+the Aggregate Root's methods — never from services, use cases, or api.rs directly.
 
 Immutable domain concepts with no identity SHOULD be modelled as Value Objects (no ID, no factory method — constructed directly).
 
@@ -77,15 +76,15 @@ Immutable domain concepts with no identity SHOULD be modelled as Value Objects (
 
 **B8** — The BC's root entity (named after the BC folder, e.g. `Order` in `context/order/`) is the Aggregate Root. External code MUST NOT mutate internal entities directly. Reading internal entities for query purposes is acceptable (CQRS-lite).
 
-**B9** — All mutations to internal entities (e.g. `OrderLine` within `Order`) MUST go through the Aggregate Root methods or its BC Application Service. No external code constructs or mutates internal entities directly.
+**B9** — All mutations to internal entities MUST go through the Aggregate Root methods or its BC Application Service. No external code constructs or mutates internal entities directly.
 
 **B10** — One database transaction SHOULD modify at most one aggregate. Cross-aggregate writes require the UnitOfWork pattern.
 
 **B11** — Aggregate Root methods MUST use domain/business vocabulary — they describe what
 happens to the aggregate, not the internal mechanism.
 
-> ✅ `order.place()` — `order.cancel(reason)`
-> ❌ `order.status = OrderStatus::Cancelled` — `order.with_status(...)`
+> ✅ `root.perform_action()` — `root.cancel(reason)`
+> ❌ `root.status = Status::Cancelled` — `root.with_status(...)`
 
 **B12** — Boy scout rule: when a use case or service needs to mutate an aggregate field
 directly, extract an Aggregate Root method for that mutation first, then call the method.
@@ -99,7 +98,7 @@ and MUST be refactored incrementally.
 
 **B14** — MUST share its external API directly through its main `mod.rs`.
 
-- Outside the context, never import `crate::context::order::domain::Order` — always import `crate::context::order::Order`.
+- Outside the context, never import `crate::context::{domain}::domain::{Entity}` — always import `crate::context::{domain}::{Entity}`.
 
 **B15** — SHOULD always publish a `{Domain}Updated` event when its state changes (create, update, delete, etc.). The BC Application Service (`service.rs`) is responsible for event emission. If no Application Service exists, the `api.rs` handler is responsible.
 
@@ -153,11 +152,11 @@ implementations, `sqlx::Pool`, `sqlx::Transaction`, `sqlx::query!`, or any other
 **B26** — For cross-aggregate writes (operations that must write to more than one aggregate
 atomically), the use case orchestrator MUST use the UnitOfWork pattern (`TransactionManager`
 from `core/uow.rs`). Single-aggregate writes do NOT use UoW — the aggregate's own repository
-handles atomicity internally via its `save()` method. See `docs/adr/003-unit-of-work.md`.
+handles atomicity internally via its `save()` method.
 
 ## Repository
 
-**B27** — MUST use sqlx macros for queries. Use `just clean-db` to reset the database if needed.
+**B27** — MUST use sqlx macros for queries. Use your project's DB reset command to wipe and re-migrate if needed.
 
 ## Logging
 
@@ -165,10 +164,13 @@ handles atomicity internally via its `save()` method. See `docs/adr/003-unit-of-
 
 **B29** — MUST use `target:` field when adding a new backend specific log.
 
-**B30** — When using the `target:` field in tracing calls, MUST use the `BACKEND` or `FRONTEND` constant from `crate::core::logger` instead of string literals:
+**B30** — When using the `target:` field in tracing calls, MUST use a named constant instead of a string literal. Define `BACKEND` / `FRONTEND` constants in a shared `core::logger` module and reference them:
 
 ```rust
-use crate::core::logger::BACKEND;
+// Define once in core/logger.rs:
+pub const BACKEND: &str = "backend";
+
+// Use everywhere:
 tracing::info!(target: BACKEND, field = value, "message");
 ```
 
@@ -197,7 +199,3 @@ tracing::info!(target: BACKEND, field = value, "message");
 **B35** — Integration tests (tests/ folder) MUST use real database repos. They test cross-layer behavior end-to-end and MUST NOT use mocks.
 
 **B36** — e2e tests MUST use an ephemeral database.
-
-## Changelog
-
-- v1.0 - refine test rules
