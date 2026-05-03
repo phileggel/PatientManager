@@ -246,11 +246,17 @@ describe("ReconciliationModal", () => {
     });
   });
 
-  // R31 — Print button visible in report step, absent during workflow steps
-  it("shows Print button in report step and calls window.print on click", async () => {
+  // FPR-011 — Print button visible in report step, opens a new window instead of window.print
+  it("shows Print button in report step and calls window.open on click", async () => {
     const user = userEvent.setup();
-    const printMock = vi.fn();
-    window.print = printMock;
+    const fakeDoc = { open: vi.fn(), write: vi.fn(), close: vi.fn() };
+    const fakeWindow = {
+      document: fakeDoc,
+      onload: null as null | (() => void),
+      onafterprint: null as null | (() => void),
+    };
+    const openMock = vi.fn().mockReturnValue(fakeWindow);
+    vi.stubGlobal("open", openMock);
 
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
       [],
@@ -266,7 +272,36 @@ describe("ReconciliationModal", () => {
     expect(printButton).toBeInTheDocument();
 
     await user.click(printButton);
-    expect(printMock).toHaveBeenCalledTimes(1);
+
+    // FPR-011: new window opened, not the legacy window.print
+    expect(openMock).toHaveBeenCalled();
+  });
+
+  // FPR-014 — window.open returns null → error message in modal, modal stays open
+  it("shows error message in modal when window.open returns null", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("open", vi.fn().mockReturnValue(null));
+
+    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
+      [],
+    );
+
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Unreconciled procedures/)).toBeInTheDocument();
+    });
+
+    const printButton = screen.getByRole("button", { name: /print/i });
+    await user.click(printButton);
+
+    // FPR-014: error message rendered inside the modal with role="alert"
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    // Modal remains open — onClose not called
+    expect(mockOnClose).not.toHaveBeenCalled();
   });
 
   it("does not show Print button during reconciliation workflow (non-report steps)", async () => {
