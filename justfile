@@ -27,10 +27,10 @@ screenshot:
 coverage-fe:
     npm run test:coverage
 
-# Generate backend coverage report (outputs coverage/tarpaulin-report.json)
+# Generate backend coverage report (outputs coverage/rust/)
 # Requires: cargo install cargo-tarpaulin
 coverage-be:
-    mkdir -p coverage && cd src-tauri && cargo tarpaulin --out Json --output-dir ../coverage --print-summary
+    mkdir -p coverage/rust && cd src-tauri && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir ../coverage/rust --lib --exclude-files "build.rs" --exclude-files "src/bin/generate_bindings.rs"
 
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be
