@@ -163,6 +163,7 @@ class QualityChecker:
             "Clippy",
             ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"],
             cwd=self.repo_root / "src-tauri",
+            env_update={"SQLX_OFFLINE": "1"},
         ):
             self.metrics["clippy"] = "Pass"
 

@@ -45,7 +45,6 @@ find . -maxdepth 5 \( \
   -name "lcov.info" -o \
   -name "coverage-final.json" -o \
   -name "cobertura.xml" -o \
-  -name "tarpaulin-report.json" -o \
   -name "tarpaulin-report.html" \
 \) 2>/dev/null | grep -v node_modules | grep -v target | head -5
 ```
@@ -56,7 +55,7 @@ find . -maxdepth 5 \( \
 ❌ No coverage report found. /prune cannot safely suggest simplifications without one.
 
 Generate a report first:
-  Rust:    cargo install cargo-tarpaulin && cargo tarpaulin --out Json
+  Rust:    cargo install cargo-tarpaulin && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir coverage/rust --lib --exclude-files "build.rs"
   Jest:    jest --coverage
   Vitest:  vitest run --coverage
 
@@ -190,14 +189,9 @@ awk -v file="src/foo.ts" '
 # Output: "hits/total" — if hits == total → ✅; if hits == 0 → ❌; otherwise → ❓
 ```
 
-#### tarpaulin JSON (`tarpaulin-report.json`)
+#### tarpaulin HTML (`tarpaulin-report.html`)
 
-```bash
-jq --arg file "src/foo.rs" '
-  .[] | select(.path | endswith($file)) | .coverage
-' tarpaulin-report.json
-# Output: coverage percentage — 100.0 → ✅; 0.0 → ❌; partial → ❓
-```
+Human-readable report only — no machine-parseable coverage data. When this is the only Rust report present alongside `lcov.info`, use the lcov section above for per-file coverage. The HTML is for manual inspection.
 
 #### Jest JSON (`coverage-final.json`)
 

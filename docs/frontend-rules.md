@@ -89,17 +89,49 @@ feature/
 
 **F19** — When using `renderHook`, NEVER create objects or functions inside the render callback. The callback runs on every render; inline factories produce new references each render. If used as a `useEffect` dependency, this causes an infinite loop → OOM crash. Always extract stable references before calling `renderHook`.
 
+**F20** — NEVER use a shared `useRef` to track mounted state across effects. Use a local `let isMounted = true` variable per effect with `return () => { isMounted = false; }` as cleanup instead.
+
+React StrictMode (active in dev) double-invokes effects: mount → cleanup → mount again. A shared ref set to `false` in the first cleanup is never reset to `true` for the second run, so all async guards in the second run see `false` and abort silently. A local variable is scoped to each invocation and starts `true` every time.
+
+```ts
+// ✅ correct
+useEffect(() => {
+  let isMounted = true;
+  fetchData().then((data) => {
+    if (!isMounted) return;
+    setState(data);
+  });
+  return () => {
+    isMounted = false;
+  };
+}, []);
+
+// ❌ wrong — shared ref killed by StrictMode cleanup, never reset
+const isMountedRef = useRef(true);
+useEffect(() => {
+  return () => {
+    isMountedRef.current = false;
+  };
+}, []);
+useEffect(() => {
+  fetchData().then((data) => {
+    if (!isMountedRef.current) return; // always false in dev after first cleanup
+    setState(data);
+  });
+}, []);
+```
+
 ## Comments
 
-**F20** — SHOULD have concise English comments explaining usage and the sources a component listens to.
+**F21** — SHOULD have concise English comments explaining usage and the sources a component listens to.
 
 ## Backend/Frontend common ground
 
-**F21** — MUST never redeclare Specta enum values in the frontend.
+**F22** — MUST never redeclare Specta enum values in the frontend.
 
 ## Navigation
 
-**F22** — Inter-feature navigation MUST go through the router.
+**F23** — Inter-feature navigation MUST go through the router.
 
 Features are bounded contexts: a feature MUST NOT import components, hooks, or utilities directly from another
 feature. Cross-feature navigation is handled exclusively via useNavigate / route paths.
