@@ -63,14 +63,18 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     getBankStatementReconciliationConfig()
       .then((config) => {
-        if (!isMountedRef.current) return;
+        if (!isMounted) return;
         setMaxDateOffsetDays(config.max_date_offset_days);
       })
       .catch((err) => {
         logger.error(TAG, "Failed to load reconciliation config, using default", { error: err });
       });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const proceedToMatching = useCallback(
