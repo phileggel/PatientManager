@@ -18,7 +18,7 @@ This document covers exclusively the **automatic flow**: PDF parsing, matching a
 
 **R28 — Unparsed lines (backend + frontend)**: Some PDF lines may not be recognized by the parser (unexpected format, comment lines, etc.). They are silently excluded from reconciliation. The number of unparsed lines and the first 5 as samples are displayed as a warning to the user.
 
-**R29 — Negative-amount refunds (backend)**: The fund may emit lines with a negative amount (e.g. `-76,80 €`) to flag a refund. These lines are parsed normally and treated as a `NotFoundIssue` (no procedure in the database can match a negative amount). The user creates the procedure via the usual action (`CreateProcedure`) or via the global auto-correction. The created procedure receives the negative amount and the `Reconciliated` status.
+**R29 — Negative-amount refunds (backend)**: The fund may emit lines with a negative amount (e.g. `-76,80 €`) to flag a refund. These lines are parsed normally and treated as a `NotFoundIssue` (no procedure in the database can match a negative amount). The user creates the procedure via the usual action (`CreateProcedure`) or via the global auto-correction. The creation follows the same behaviour as R16: the procedure is added to the fund payment group and ends up `Reconciliated` after confirmation. The only distinction is that the `billed_amount` is negative.
 
 **R3 — PDF duplicate detection (backend)**: When fund-payment groups are created, the system checks whether a group with the same (fund, date, total amount) already exists. If all candidates are duplicates, the processing is rejected entirely — the PDF was likely already imported.
 
@@ -43,7 +43,7 @@ Odd-numbered passes handle single-date procedures; even-numbered passes handle p
 
 A procedure with none of these anomalies is considered a perfect match.
 
-**R6 — Perfect match (backend)**: A PDF line is a perfect match (`PerfectSingleMatch`, `PerfectGroupMatch`) if: (1) the sum of the procedure amounts exactly equals the PDF amount, (2) no anomaly is detected (see R5), and (3) **all** of the patient's procedures in the period concerned are covered by the match. No user action is required.
+**R6 — Perfect match (backend)**: A PDF line is a perfect match (`PerfectSingleMatch`, `PerfectGroupMatch`) if: (1) the sum of the procedure amounts exactly equals the PDF amount, (2) no anomaly is detected (see R5), and (3) **all** of the patient's procedures within the PDF line's own date/period field are covered by the match (single-date line → that exact date; period line → the `du…au` date range on the line). No user action is required.
 
 **R7 — Single match with anomaly (backend)**: A PDF line matches exactly one procedure but presents one or more anomalies (`SingleMatchIssue`, see R5).
 
@@ -65,7 +65,7 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **R15 — Manual linking (frontend + backend)**: For a `NotFoundIssue`, the user can link the PDF line to a suggested existing procedure (`AutoCorrection::LinkProcedure`). A procedure can only be linked once. On linking, the patient's SSN is updated to the PDF SSN — the PDF is authoritative for the SSN.
 
-**R16 — Missing procedure creation (backend)**: For a `NotFoundIssue`, if no existing procedure can be linked, the user can trigger creation of a new procedure from the PDF data (`AutoCorrection::CreateProcedure`). If the patient does not exist (unknown SSN), they are created automatically. The created procedure receives the `import-pdf` type.
+**R16 — Missing procedure creation (backend)**: For a `NotFoundIssue`, if no existing procedure can be linked, the user can trigger creation of a new procedure from the PDF data (`AutoCorrection::CreateProcedure`). If the patient does not exist (unknown SSN), they are created automatically. The created procedure receives the `import-pdf` type. After the reconciliation is confirmed, the procedure ends up with `Reconciliated` status — it is added to the fund payment group and reconciled atomically as part of the confirmation step, not as a separate action.
 
 **R17 — Automatic fund resolution (backend)**: The fund label in the PDF (e.g. "CPAM n° 931") is automatically resolved to an existing fund by extracting the numeric identifier. If the fund does not exist in the database, it is created automatically.
 
@@ -172,8 +172,8 @@ Action applied per anomaly type:
 
 ## Open questions
 
-- [ ] **R6 — "All of the patient's procedures in the covered period" criterion**: The perfect-match condition requires that _all_ of the patient's procedures in the period concerned be covered by the match. This wording is ambiguous: does it mean all of the patient's procedures on the same date? on the date range of the PDF group? on the PDF line's period only? Clarify the exact scope to make the rule independently testable.
+- [x] **R6 — "All of the patient's procedures in the covered period" criterion**: Resolved — "covered period" = the PDF line's own date/period field: exact date for single-date lines, the `du…au` range for period lines. R6 updated accordingly.
 
-- [ ] **R29 — Negative-amount handling and consistency with procedure-orchestration-spec**: R29 states that procedures created from a negative-amount line receive the `Reconciliated` status directly at creation. Verify that this behavior is compatible with the status lifecycle defined in procedure-orchestration-spec (which describes the valid transitions from `Created`). If a conflict exists, decide: either R29 creates the procedure with an exceptional status, or the procedure goes through `Created` → `Reconciliated` via the normal reconciliation flow.
+- [x] **R29 — Negative-amount handling and consistency with procedure-orchestration-spec**: Resolved — no conflict. `CreateProcedure` (both R16 and R29) creates procedures with status `None` via `create_procedures_batch_from_candidates`. They are added to the fund payment group and reach `Reconciliated` at group confirmation, following the normal lifecycle. R29 describes the end state, not an at-creation exception. Positive and negative-amount procedures follow identical flows.
 
-- [ ] **confirmed_payment_date at fund-reconciliation vs. bank-transfer time**: Both auto-match and manual-match currently set `confirmed_payment_date` to the group's payment date at Stage 1 (fund reconciliation). The question is whether this is semantically correct: `confirmed_payment_date` could be argued to mean "the date the bank transfer was confirmed", which only becomes known at Stage 2 (bank-statement reconciliation). Setting it at Stage 1 means the dashboard payment timeline reflects fund-reconciliation dates rather than actual bank-transfer dates. Decide: keep current behaviour (Stage 1 sets the date), or defer the date to Stage 2 (leave `confirmed_payment_date` null until bank-statement match). Note: changing this would shift dashboard payment aggregations.
+- [x] **confirmed_payment_date at fund-reconciliation vs. bank-transfer time**: Resolved — `confirmed_payment_date` will remain the bank-transfer date (Stage 2). A new `fund_reconciliation_date` column will be added to `Procedure` to record the Stage 1 fund-document payment date separately. See docs/todo.md for the migration task.

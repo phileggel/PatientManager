@@ -2,6 +2,12 @@
 
 ---
 
+## (backend+frontend) — Add fund_reconciliation_date to Procedure
+
+`confirmed_payment_date` is the bank-transfer date (Stage 2). A separate `fund_reconciliation_date` column is needed to record the fund-document payment date set at Stage 1 (fund reconciliation). Scope: SQLite migration, Rust domain + repository, Specta bindings regeneration, frontend display in procedure list and dashboard.
+
+---
+
 ## (frontend/patient) — Fix raw date and currency display in EditPatientModal
 
 `EditPatientModal.tsx` shows `patient.latest_date` as a raw ISO string and formats `latest_procedure_amount` inline with a hardcoded `€` symbol and `toFixed(2)`. Both should use `useFormatters()` (`formatDate` and `formatCurrency`) to respect locale settings consistently with the rest of the app.
