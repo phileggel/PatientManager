@@ -61,6 +61,18 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 ---
 
+## (backend/test) — Refactor fund-payment-reconciliation orchestrator tests to use mocks
+
+`use_cases/fund_payment_reconciliation/orchestrator.rs` (line 1263) has a test module that spins up real SQLite. Per the unit-test rule (unit test = mock, no real DB), these should be refactored to use mock repositories. The real-SQLite path belongs in an integration test file under `tests/`.
+
+---
+
+## (backend/procedure) — Migrate Procedure date fields from String to NaiveDate
+
+`parse_iso_date_to_naive_date` in `fund_payment_reconciliation/parsing/dates.rs` is explicitly marked temporary (line 13): it exists only because `Procedure` stores dates as `String` instead of `NaiveDate`. Once the domain model is migrated, this helper and all call sites should be removed.
+
+---
+
 ## (backend) — Tech Debt: Audit api.rs files for logic leakage
 
 All `api.rs` files (Tauri command handlers) should be thin adapters only: receive input, call service/orchestrator, return result. No business logic, validation, or branching beyond error mapping.
