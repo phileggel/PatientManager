@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount, BankStatementParseResult, FundLabelResolution } from "@/bindings";
 import { toastService } from "@/core/snackbar";
@@ -42,7 +42,6 @@ export interface UseBankStatementModalReturn {
 
 export function useBankStatementModal(filePath: string): UseBankStatementModalReturn {
   const { t } = useTranslation("bank");
-  const isMountedRef = useRef(true);
 
   const [step, setStep] = useState<Step>("loading");
   const [maxDateOffsetDays, setMaxDateOffsetDays] = useState(6);
@@ -57,9 +56,6 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
 
   useEffect(() => {
     logger.info(TAG, "mounted");
-    return () => {
-      isMountedRef.current = false;
-    };
   }, []);
 
   useEffect(() => {
@@ -79,7 +75,6 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
 
   const proceedToMatching = useCallback(
     async (parsed: BankStatementParseResult, resolutions: FundLabelResolution[]) => {
-      if (!isMountedRef.current) return;
       setStep("matching");
 
       const resolvedLines: IdentifiableCreditLine[] = [];
@@ -100,18 +95,15 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
       }
 
       if (resolvedLines.length === 0) {
-        if (!isMountedRef.current) return;
         setError(t("statement.modal.noCredit"));
         setStep("error");
         return;
       }
 
-      if (!isMountedRef.current) return;
       setAllCreditLines(resolvedLines);
 
       try {
         const result = await matchBankStatementLines(resolvedLines);
-        if (!isMountedRef.current) return;
 
         const initialSelections = new Map<string, string | null>();
         for (const line of resolvedLines) {
@@ -131,7 +123,6 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
           `Initial matching: ${result.matched.length} suggested, ${result.unmatched_lines.length} unmatched`,
         );
       } catch (err) {
-        if (!isMountedRef.current) return;
         const msg = err instanceof Error ? err.message : String(err);
         setError(msg);
         setStep("error");
@@ -275,18 +266,16 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
       }
 
       const count = await createBankTransfersFromStatement(bankAccount.id, confirmedMatches);
-      if (!isMountedRef.current) return;
       setCreatedCount(count);
       setStep("done");
       logger.info(TAG, `Created ${count} bank transfers`);
     } catch (err) {
-      if (!isMountedRef.current) return;
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(TAG, "Failed to create bank transfers", { message: msg });
       setError(msg);
       setStep("error");
     } finally {
-      if (isMountedRef.current) setIsProcessing(false);
+      setIsProcessing(false);
     }
   }, [bankAccount, allCreditLines, userSelections, t]);
 
