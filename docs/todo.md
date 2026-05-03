@@ -10,6 +10,18 @@ Fix: add a `parse_bank_statement_from_path(file_path: String)` Rust command (or 
 
 ---
 
+## (frontend) — Audit isMountedRef usage across all hooks
+
+React 19 makes setState after unmount a silent no-op, so `isMountedRef` guards in user-action callbacks (not effects) are dead code. Search for `isMountedRef` and `isMounted` patterns across all hooks and remove guards that are no longer needed. Keep local `let isMounted` guards inside effects (those guard against StrictMode double-invocation, which is a different problem).
+
+---
+
+## (frontend/bank-statement-match) — Translate raw backend error strings in error step
+
+The error step in `BankStatementModal` displays `error` directly, which can be a raw backend string (e.g. from a generic catch in `useBankStatementModal`). Only `NO_VIR_SEPA_LINES` is explicitly translated. Audit all `setError(msg)` call sites and either map known error codes to i18n keys or add a generic fallback translation so users never see raw technical strings.
+
+---
+
 ## (frontend/bank-statement-match) — Inline bank account creation when IBAN is not found
 
 When `resolveBankAccountFromIban` returns no account, the modal currently shows a dead-end "no account" screen. Instead, show an inline form with the IBAN pre-filled (read-only) and a name field the user must fill in. On submit, create the account and continue the import flow automatically (proceed to label-mapping step).
