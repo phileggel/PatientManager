@@ -261,8 +261,7 @@ mod tests {
     };
     use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 
-    #[allow(clippy::too_many_arguments)]
-    fn make_orchestrator(
+    struct OrchestratorMocks {
         patient_repo: MockPatientRepository,
         fund_repo: MockFundRepository,
         proc_repo: MockProcedureRepository,
@@ -271,18 +270,44 @@ mod tests {
         orch_fund_repo: MockFundRepository,
         orch_type_repo: MockProcedureTypeRepository,
         orch_refund_repo: MockProcedureRefundRepository,
-    ) -> ExcelImportOrchestrator {
+    }
+
+    impl Default for OrchestratorMocks {
+        fn default() -> Self {
+            Self {
+                patient_repo: MockPatientRepository::new(),
+                fund_repo: MockFundRepository::new(),
+                proc_repo: MockProcedureRepository::new(),
+                orch_proc_repo: MockProcedureRepository::new(),
+                orch_patient_repo: MockPatientRepository::new(),
+                orch_fund_repo: MockFundRepository::new(),
+                orch_type_repo: MockProcedureTypeRepository::new(),
+                orch_refund_repo: MockProcedureRefundRepository::new(),
+            }
+        }
+    }
+
+    fn make_orchestrator(mocks: OrchestratorMocks) -> ExcelImportOrchestrator {
         let bus = Arc::new(EventBus::new());
-        let patient_svc = Arc::new(PatientService::new(Arc::new(patient_repo), bus.clone()));
-        let fund_svc = Arc::new(FundService::new(Arc::new(fund_repo), bus.clone()));
-        let proc_svc = Arc::new(ProcedureService::new(Arc::new(proc_repo), bus.clone()));
-        let orch_proc_svc = Arc::new(ProcedureService::new(Arc::new(orch_proc_repo), bus.clone()));
+        let patient_svc = Arc::new(PatientService::new(
+            Arc::new(mocks.patient_repo),
+            bus.clone(),
+        ));
+        let fund_svc = Arc::new(FundService::new(Arc::new(mocks.fund_repo), bus.clone()));
+        let proc_svc = Arc::new(ProcedureService::new(
+            Arc::new(mocks.proc_repo),
+            bus.clone(),
+        ));
+        let orch_proc_svc = Arc::new(ProcedureService::new(
+            Arc::new(mocks.orch_proc_repo),
+            bus.clone(),
+        ));
         let proc_orch = Arc::new(ProcedureOrchestrationService::new(
             orch_proc_svc,
-            Arc::new(orch_patient_repo),
-            Arc::new(orch_type_repo),
-            Arc::new(orch_fund_repo),
-            Arc::new(orch_refund_repo),
+            Arc::new(mocks.orch_patient_repo),
+            Arc::new(mocks.orch_type_repo),
+            Arc::new(mocks.orch_fund_repo),
+            Arc::new(mocks.orch_refund_repo),
         ));
         ExcelImportOrchestrator::new(patient_svc, fund_svc, proc_svc, proc_orch)
     }
@@ -302,16 +327,7 @@ mod tests {
 
     #[tokio::test]
     async fn execute_import_empty_input_returns_all_zeros() {
-        let orchestrator = make_orchestrator(
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureRepository::new(),
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+        let orchestrator = make_orchestrator(OrchestratorMocks::default());
 
         let result = orchestrator
             .execute_import(empty_parse_result(), HashMap::new(), vec![])
@@ -351,16 +367,10 @@ mod tests {
             latest_fund: None,
         }];
 
-        let orchestrator = make_orchestrator(
+        let orchestrator = make_orchestrator(OrchestratorMocks {
             patient_repo,
-            MockFundRepository::new(),
-            MockProcedureRepository::new(),
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+            ..Default::default()
+        });
         let result = orchestrator
             .execute_import(parse_result, HashMap::new(), vec![])
             .await
@@ -376,14 +386,7 @@ mod tests {
         patient_repo
             .expect_find_patient_by_ssn()
             .returning(|_| Ok(None));
-        patient_repo
-            .expect_create_batch()
-            .returning(|mut patients| {
-                for p in &mut patients {
-                    p.temp_id = p.temp_id.clone();
-                }
-                Ok(patients)
-            });
+        patient_repo.expect_create_batch().returning(Ok);
 
         let mut parse_result = empty_parse_result();
         parse_result.patients = vec![ExcelPatient {
@@ -393,16 +396,10 @@ mod tests {
             latest_fund: None,
         }];
 
-        let orchestrator = make_orchestrator(
+        let orchestrator = make_orchestrator(OrchestratorMocks {
             patient_repo,
-            MockFundRepository::new(),
-            MockProcedureRepository::new(),
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+            ..Default::default()
+        });
         let result = orchestrator
             .execute_import(parse_result, HashMap::new(), vec![])
             .await
@@ -431,16 +428,10 @@ mod tests {
             fund_address: None,
         }];
 
-        let orchestrator = make_orchestrator(
-            MockPatientRepository::new(),
+        let orchestrator = make_orchestrator(OrchestratorMocks {
             fund_repo,
-            MockProcedureRepository::new(),
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+            ..Default::default()
+        });
         let result = orchestrator
             .execute_import(parse_result, HashMap::new(), vec![])
             .await
@@ -457,16 +448,10 @@ mod tests {
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(true));
 
-        let orchestrator = make_orchestrator(
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
+        let orchestrator = make_orchestrator(OrchestratorMocks {
             proc_repo,
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+            ..Default::default()
+        });
         let result = orchestrator
             .execute_import(
                 empty_parse_result(),
@@ -506,16 +491,10 @@ mod tests {
         let mut type_mapping = HashMap::new();
         type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
 
-        let orchestrator = make_orchestrator(
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
+        let orchestrator = make_orchestrator(OrchestratorMocks {
             proc_repo,
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+            ..Default::default()
+        });
         let result = orchestrator
             .execute_import(parse_result, type_mapping, vec!["2026-01".to_string()])
             .await
@@ -538,16 +517,10 @@ mod tests {
             latest_fund: None,
         }];
 
-        let orchestrator = make_orchestrator(
+        let orchestrator = make_orchestrator(OrchestratorMocks {
             patient_repo,
-            MockFundRepository::new(),
-            MockProcedureRepository::new(),
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+            ..Default::default()
+        });
         let result = orchestrator
             .execute_import(parse_result, HashMap::new(), vec![])
             .await
@@ -573,16 +546,10 @@ mod tests {
             fund_address: None,
         }];
 
-        let orchestrator = make_orchestrator(
-            MockPatientRepository::new(),
+        let orchestrator = make_orchestrator(OrchestratorMocks {
             fund_repo,
-            MockProcedureRepository::new(),
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+            ..Default::default()
+        });
         let result = orchestrator
             .execute_import(parse_result, HashMap::new(), vec![])
             .await
@@ -602,16 +569,10 @@ mod tests {
             .expect_delete_procedures_by_month()
             .returning(|_| Ok(3));
 
-        let orchestrator = make_orchestrator(
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
+        let orchestrator = make_orchestrator(OrchestratorMocks {
             proc_repo,
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+            ..Default::default()
+        });
         let result = orchestrator
             .execute_import(
                 empty_parse_result(),
@@ -669,16 +630,11 @@ mod tests {
             awaited_amount: None,
         }];
 
-        let orchestrator = make_orchestrator(
+        let orchestrator = make_orchestrator(OrchestratorMocks {
             patient_repo,
-            MockFundRepository::new(),
             proc_repo,
-            MockProcedureRepository::new(),
-            MockPatientRepository::new(),
-            MockFundRepository::new(),
-            MockProcedureTypeRepository::new(),
-            MockProcedureRefundRepository::new(),
-        );
+            ..Default::default()
+        });
         let result = orchestrator
             .execute_import(parse_result, HashMap::new(), vec!["2026-02".to_string()])
             .await

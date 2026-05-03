@@ -2,10 +2,12 @@
 
 ## Overview
 
-Tests live **colocated** with the code they test:
-
-- Frontend: `use{Feature}.test.ts` or `{Feature}.test.tsx` next to the file under test
-- Backend: `#[cfg(test)] mod tests { ... }` inline at the bottom of the `.rs` file
+| Tier                    | What                         | Location                                                     | Mocks?                        |
+| ----------------------- | ---------------------------- | ------------------------------------------------------------ | ----------------------------- |
+| Frontend                | Component and hook behavior  | colocated `*.test.ts(x)` next to the file                    | Gateway mocked                |
+| BE Tier 1 — Unit        | Service / orchestrator logic | inline `#[cfg(test)] mod tests` in the same `.rs` file       | All deps mocked (mockall)     |
+| BE Tier 2 — Repository  | SQL queries and persistence  | inline `#[cfg(test)] mod tests` in the repository `.rs` file | None — real in-memory SQLite  |
+| BE Tier 3 — Integration | Spec-driven end-to-end flows | `src-tauri/tests/` (separate binary)                         | None — real services + SQLite |
 
 Run checks before committing:
 
@@ -176,81 +178,132 @@ expect(gateway.updateDirectTransfer).not.toHaveBeenCalled();
 
 ## Backend Testing (Rust)
 
-### Structure
+Three distinct tiers, each with a clear purpose and location.
 
-Tests live inline at the bottom of the file under test, inside `#[cfg(test)] mod tests`:
+---
+
+### Tier 1 — Unit tests (mock dependencies)
+
+**Location:** inline `#[cfg(test)] mod tests { ... }` at the bottom of service and orchestrator files.
+
+**Purpose:** Test business logic in isolation. Every external dependency is mocked.
+
+**Use mockall** (`#[cfg_attr(test, mockall::automock)]` on the trait):
 
 ```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use anyhow::anyhow;
+#[tokio::test]
+async fn test_create_transfer_success() {
+    let mut repo = MockBankTransferRepository::new();
+    repo.expect_create_transfer()
+        .returning(|date, amount, kind, account| {
+            BankTransfer::new(date, amount, kind, account)
+        });
 
-    // Mock the repository trait
-    struct MockBankTransferRepository {
-        should_fail: bool,
-    }
+    let service = BankTransferService::new(Arc::new(repo));
+    let account = BankAccount::new("Main account".to_string(), None).unwrap();
+    let result = service
+        .create_transfer("2026-03-10".to_string(), 150000, BankTransferType::Fund, account)
+        .await;
 
-    #[async_trait::async_trait]
-    impl BankTransferRepository for MockBankTransferRepository {
-        async fn create_transfer(
-            &self,
-            transfer_date: String,
-            amount: i64,
-            transfer_type: BankTransferType,
-            bank_account: BankAccount,
-        ) -> anyhow::Result<BankTransfer> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            BankTransfer::new(transfer_date, amount, transfer_type, bank_account)
-        }
-        // ... other trait methods
-    }
-
-    #[tokio::test]
-    async fn test_create_transfer_success() {
-        let repo = Arc::new(MockBankTransferRepository { should_fail: false });
-        let service = BankTransferService::new(repo);
-
-        let account = BankAccount::new("Main account".to_string(), None).unwrap();
-        let result = service
-            .create_transfer("2026-03-10".to_string(), 150000, BankTransferType::Fund, account)
-            .await;
-
-        assert!(result.is_ok());
-        let transfer = result.unwrap();
-        assert_eq!(transfer.amount, 150000);
-    }
-
-    #[tokio::test]
-    async fn test_create_transfer_repository_failure() {
-        let repo = Arc::new(MockBankTransferRepository { should_fail: true });
-        let service = BankTransferService::new(repo);
-
-        let account = BankAccount::new("Main account".to_string(), None).unwrap();
-        let result = service
-            .create_transfer("2026-03-10".to_string(), 150000, BankTransferType::Fund, account)
-            .await;
-
-        assert!(result.is_err());
-    }
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap().amount, 150000);
 }
 ```
 
-### What to test
+**What to test:**
 
 - Service logic: correct values returned, correct state transitions
 - Error propagation: repository failures bubble up correctly
 - Domain factory methods: validation rules enforced (`new()`, `with_id()`)
 - Orchestrator flows: correct sequence of service calls, correct field values set
 
-### What not to test (trivial tests)
+---
+
+### Tier 2 — Repository tests (real SQLite)
+
+**Location:** inline `#[cfg(test)] mod tests { ... }` at the bottom of repository files.
+
+**Purpose:** Verify SQL queries and persistence behavior. No mocking — uses a real in-memory `SqlitePool` with migrations applied.
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+
+    async fn make_pool() -> SqlitePool {
+        let opts = SqliteConnectOptions::new().in_memory(true).foreign_keys(false);
+        SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap()
+            .tap_mut(|p| sqlx::migrate!("./migrations").run(p))
+    }
+
+    #[tokio::test]
+    async fn test_create_and_read_fund() {
+        let pool = make_pool().await;
+        let repo = SqliteFundRepository::new(pool);
+        let fund = repo.create_fund("75", "CPAM 75").await.unwrap();
+        let found = repo.read_fund(&fund.id).await.unwrap().unwrap();
+        assert_eq!(found.fund_identifier, "75");
+    }
+}
+```
+
+**What to test:**
+
+- CRUD correctness: insert → read round-trip
+- Constraint enforcement: duplicate key, foreign key
+- Query filters: find-by-X returns correct rows
+- Soft-delete behavior: deleted rows excluded from reads
+
+---
+
+### Tier 3 — Integration / spec tests (full flow)
+
+**Location:** `src-tauri/tests/` directory (separate Rust test binary — only public API visible).
+
+**Purpose:** Validate spec-driven orchestrator flows end-to-end across multiple services and repositories. No mocking — real services backed by real in-memory SQLite.
+
+```rust
+// tests/fund_payment_reconciliation.rs
+struct Ctx {
+    orchestrator: FundPaymentReconciliationOrchestrator,
+    fund_payment_service: Arc<FundPaymentService>,  // held separately for post-action assertions
+}
+
+async fn build_ctx() -> Ctx {
+    let pool = make_pool().await;
+    let fund_payment_repo = Arc::new(SqliteFundPaymentRepository::new(pool.clone()));
+    let fund_payment_service = Arc::new(FundPaymentService::new(fund_payment_repo.clone()));
+    let orchestrator = FundPaymentReconciliationOrchestrator::new(
+        fund_payment_service.clone(),
+        // ... other services
+    );
+    Ctx { orchestrator, fund_payment_service }
+}
+```
+
+**What to test:**
+
+- Multi-service flows: procedure reconciliation, group creation, status transitions
+- Spec business rules: locked groups rejected, overpayment reset paths
+- Cross-context interactions that can't be exercised by a single unit test
+
+**Key constraint:** `tests/` can only access public API. Keep a separate `Arc<Service>` in the `Ctx` struct when you need to assert post-action state — do not access private fields.
+
+---
+
+### What not to test (all tiers)
 
 - A constructor doesn't panic
 - An empty input returns empty output (no logic traversed)
 - A getter returns what was just passed in
 - A test helper disguised as a test
+
+---
 
 ### Running backend tests
 
