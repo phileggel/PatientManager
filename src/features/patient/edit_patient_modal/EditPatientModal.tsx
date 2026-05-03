@@ -17,6 +17,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { Patient } from "@/bindings";
 import { PatientForm } from "@/features/patient/shared/PatientForm";
+import { PatientPresenter } from "@/features/patient/shared/presenter";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import { Button, Dialog } from "@/ui/components";
@@ -35,6 +36,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
   // Call hook unconditionally at top level (required by React)
   // Hook returns safe defaults if patient is null
   const funds = useAppStore((state) => state.funds);
+  const procedureTypes = useAppStore((state) => state.procedureTypes);
   const hookResult = useEditPatientModal(patient, onClose);
 
   const latestFundLabel = (() => {
@@ -42,6 +44,10 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
     const fund = funds.find((f) => f.id === patient.latest_fund);
     return fund ? `${fund.fund_identifier} (${fund.name})` : patient.latest_fund;
   })();
+
+  const latestProcedureTypeName = patient
+    ? PatientPresenter.resolveLatestProcedureTypeName(patient, procedureTypes)
+    : null;
 
   useEffect(() => {
     if (isOpen && patient) {
@@ -90,7 +96,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
                 {t("modal.procedureType")}
               </div>
               <div className="px-4 py-2 rounded-lg bg-m3-surface text-m3-on-surface text-sm">
-                {patient.latest_procedure_type || "—"}
+                {latestProcedureTypeName || "—"}
               </div>
             </div>
             <div className="flex flex-col gap-1">

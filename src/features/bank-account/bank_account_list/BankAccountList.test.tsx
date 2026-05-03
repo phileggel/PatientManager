@@ -56,6 +56,7 @@ describe("BankAccountList", () => {
       bankAccountRows: [],
       accounts: [],
       loading: true,
+      cashAccountId: null,
       deleteBankAccount: vi.fn(),
     });
 
@@ -69,6 +70,7 @@ describe("BankAccountList", () => {
       bankAccountRows: [],
       accounts: [],
       loading: false,
+      cashAccountId: null,
       deleteBankAccount: vi.fn(),
     });
 
@@ -88,6 +90,7 @@ describe("BankAccountList", () => {
         { id: "acc-2", name: "Secondary Account", iban: "FR1420041010050500013M02606" },
       ],
       loading: false,
+      cashAccountId: null,
       deleteBankAccount: vi.fn(),
     });
 
@@ -108,6 +111,7 @@ describe("BankAccountList", () => {
         { id: "acc-2", name: "Secondary Account", iban: "FR1420041010050500013M02606" },
       ],
       loading: false,
+      cashAccountId: null,
       deleteBankAccount: vi.fn(),
     });
 
@@ -130,6 +134,7 @@ describe("BankAccountList", () => {
         { id: "acc-2", name: "Alpha Account", iban: "FR1420041010050500013M02606" },
       ],
       loading: false,
+      cashAccountId: null,
       deleteBankAccount: vi.fn(),
     });
 
@@ -146,6 +151,7 @@ describe("BankAccountList", () => {
       bankAccountRows: [{ rowId: "row-1", id: "acc-123", name: "Main Account" }],
       accounts: [{ id: "acc-123", name: "Main Account", iban: "DE89370400440532013000" }],
       loading: false,
+      cashAccountId: null,
       deleteBankAccount: vi.fn(),
     });
 
@@ -162,6 +168,7 @@ describe("BankAccountList", () => {
       bankAccountRows: [{ rowId: "row-1", id: "acc-123", name: "Main Account" }],
       accounts: [{ id: "acc-123", name: "Main Account", iban: "DE89370400440532013000" }],
       loading: false,
+      cashAccountId: null,
       deleteBankAccount: vi.fn(),
     });
 
@@ -173,5 +180,54 @@ describe("BankAccountList", () => {
     }
 
     expect(screen.getByText("Delete Bank Account")).toBeInTheDocument();
+  });
+
+  it("disables edit and delete buttons for the cash account row", () => {
+    vi.mocked(useBankAccountList).mockReturnValue({
+      bankAccountRows: [
+        { rowId: "row-cash", id: "acc-cash", name: "Cash Account" },
+        { rowId: "row-1", id: "acc-1", name: "Main Account" },
+      ],
+      accounts: [
+        { id: "acc-cash", name: "Cash Account", iban: null },
+        { id: "acc-1", name: "Main Account", iban: "DE89370400440532013000" },
+      ],
+      loading: false,
+      cashAccountId: "acc-cash",
+      deleteBankAccount: vi.fn(),
+    });
+
+    render(<BankAccountList searchTerm="" />);
+
+    const editCash = screen.getByRole("button", { name: /edit account cash account/i });
+    const deleteCash = screen.getByRole("button", { name: /delete account cash account/i });
+    const editMain = screen.getByRole("button", { name: /edit account main account/i });
+    const deleteMain = screen.getByRole("button", { name: /delete account main account/i });
+
+    expect(editCash).toBeDisabled();
+    expect(deleteCash).toBeDisabled();
+    expect(editMain).not.toBeDisabled();
+    expect(deleteMain).not.toBeDisabled();
+  });
+
+  it("does not open edit modal on double-click of cash account row", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useBankAccountList).mockReturnValue({
+      bankAccountRows: [{ rowId: "row-cash", id: "acc-cash", name: "Cash Account" }],
+      accounts: [{ id: "acc-cash", name: "Cash Account", iban: null }],
+      loading: false,
+      cashAccountId: "acc-cash",
+      deleteBankAccount: vi.fn(),
+    });
+
+    render(<BankAccountList searchTerm="" />);
+
+    const row = screen.getByText("Cash Account").closest("tr");
+    if (row) {
+      await user.dblClick(row);
+    }
+
+    expect(screen.queryByText("Edit Bank Account Modal Mock")).not.toBeInTheDocument();
   });
 });

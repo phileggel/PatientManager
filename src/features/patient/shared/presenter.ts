@@ -1,4 +1,4 @@
-import type { Fund, Patient } from "@/bindings";
+import type { Fund, Patient, ProcedureType } from "@/bindings";
 import type { PatientFormData, PatientRow } from "./types";
 
 /**
@@ -33,6 +33,11 @@ export const PatientPresenter = {
       latestDate: patient.latest_date ?? null,
       isAnonymous: patient.is_anonymous,
     };
+  },
+
+  resolveLatestProcedureTypeName(patient: Patient, procedureTypes: ProcedureType[]): string | null {
+    if (!patient.latest_procedure_type) return null;
+    return procedureTypes.find((pt) => pt.id === patient.latest_procedure_type)?.name ?? null;
   },
 
   /**

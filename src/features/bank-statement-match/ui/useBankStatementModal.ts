@@ -124,7 +124,8 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        setError(msg);
+        logger.error(TAG, "Failed to match bank statement lines", { message: msg });
+        setError(t("statement.modal.unknownError"));
         setStep("error");
       }
     },
@@ -180,7 +181,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
           return;
         }
         logger.error(TAG, "Failed to process bank statement", { message: msg, error: err });
-        setError(msg || t("statement.modal.unknownError"));
+        setError(t("statement.modal.unknownError"));
         setStep("error");
       }
     }
@@ -224,13 +225,13 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         logger.error(TAG, "Failed to save label mappings", { message: msg });
-        setError(msg);
+        setError(t("statement.modal.unknownError"));
         setStep("error");
       } finally {
         setIsProcessing(false);
       }
     },
-    [bankAccount, parseResult, labelResolutions, proceedToMatching],
+    [bankAccount, parseResult, labelResolutions, proceedToMatching, t],
   );
 
   const handleSelectionChange = useCallback((lineId: string, groupId: string | null) => {
@@ -272,7 +273,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(TAG, "Failed to create bank transfers", { message: msg });
-      setError(msg);
+      setError(t("statement.modal.unknownError"));
       setStep("error");
     } finally {
       setIsProcessing(false);

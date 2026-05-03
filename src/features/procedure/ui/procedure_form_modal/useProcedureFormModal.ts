@@ -98,12 +98,16 @@ export function useProcedureFormModal({
       const patient = patients.find((p) => p.id === id);
       if (!patient) return;
       if (!fundId && patient.latest_fund) setFundId(patient.latest_fund);
-      if (patient.latest_procedure_type) setProcedureTypeId(patient.latest_procedure_type);
+      if (
+        patient.latest_procedure_type &&
+        procedureTypes.some((pt) => pt.id === patient.latest_procedure_type)
+      )
+        setProcedureTypeId(patient.latest_procedure_type);
       if (!procedureDate) setProcedureDate(new Date().toISOString().split("T")[0] ?? "");
       if (procedureAmount == null && patient.latest_procedure_amount != null)
         setProcedureAmount(patient.latest_procedure_amount / 1000);
     },
-    [patients, fundId, procedureDate, procedureAmount, mode],
+    [patients, procedureTypes, fundId, procedureDate, procedureAmount, mode],
   );
 
   const reset = useCallback(() => {
