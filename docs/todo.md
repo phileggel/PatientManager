@@ -10,6 +10,12 @@ Fix: add a `parse_bank_statement_from_path(file_path: String)` Rust command (or 
 
 ---
 
+## (frontend/bank-statement-match) — Inline bank account creation when IBAN is not found
+
+When `resolveBankAccountFromIban` returns no account, the modal currently shows a dead-end "no account" screen. Instead, show an inline form with the IBAN pre-filled (read-only) and a name field the user must fill in. On submit, create the account and continue the import flow automatically (proceed to label-mapping step).
+
+---
+
 ## (e2e) — Force English locale during E2E tests so aria-labels are invariant
 
 E2E tests rely on aria-labels for element selection. If the app locale is not fixed, labels may vary by system language and cause flaky test failures. Force the app to run in English during E2E runs so aria-labels are always predictable.

@@ -137,12 +137,14 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
   );
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadAndParse() {
       try {
         logger.info(TAG, "Processing bank statement", { filePath });
 
         const parsed = await parseBankStatement(filePath);
-        if (!isMountedRef.current) return;
+        if (!isMounted) return;
         setParseResult(parsed);
         logger.info(
           TAG,
@@ -156,7 +158,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
         }
 
         const account = await resolveBankAccountFromIban(parsed.iban);
-        if (!isMountedRef.current) return;
+        if (!isMounted) return;
         if (!account) {
           setStep("no-account");
           return;
@@ -166,14 +168,14 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
 
         const labels = parsed.credit_lines.map((l) => l.label);
         const resolutions = await resolveBankFundLabels(account.id, labels);
-        if (!isMountedRef.current) return;
+        if (!isMounted) return;
         setLabelResolutions(resolutions);
 
         // R7: always show label-mapping step for all labels (confirmed pre-filled, unknown empty)
         logger.info(TAG, `${resolutions.length} labels to review in mapping step`);
         setStep("label-mapping");
       } catch (err) {
-        if (!isMountedRef.current) return;
+        if (!isMounted) return;
         const msg = err instanceof Error ? err.message : String(err);
         // R26: dedicated message when no VIR SEPA lines found
         if (msg === "NO_VIR_SEPA_LINES") {
@@ -189,6 +191,9 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
     }
 
     loadAndParse();
+    return () => {
+      isMounted = false;
+    };
   }, [filePath, t]);
 
   const handleLabelMappingConfirm = useCallback(
