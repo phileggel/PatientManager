@@ -143,9 +143,9 @@ Tauri commands currently return `Result<T, String>` (via `anyhow` formatted with
 
 ---
 
-## (frontend/procedure) — Fix "received / pending" always showing 0
+## (frontend/procedure) — Extract SummaryStats aggregation logic to a presenter function
 
-`actualPaymentAmount` is computed in SummaryStats; `awaitedAmount` is computed on the frontend (`procedureAmount - actualPaymentAmount`). To verify in prod.
+`SummaryStats.tsx` computes `uniquePatients`, `procedureCount`, `totalAmount`, `totalReceived`, and `totalAwaited` inline in the component render body. These are domain-to-UI transforms (F5/F10) and belong in `shared/presenter.ts` as a pure `summariseProcedureRows(rows): SummaryViewModel` function so they can be independently unit-tested. The component should only receive the pre-computed view model and render it.
 
 ---
 

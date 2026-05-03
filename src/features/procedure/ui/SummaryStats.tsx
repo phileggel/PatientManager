@@ -1,7 +1,7 @@
 import { ClipboardList, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@/lib/formatters";
-import type { ProcedureRow } from "../model/procedure-row.types";
+import { isPaidStatus, type ProcedureRow } from "../model/procedure-row.types";
 
 interface SummaryStatsProps {
   rows: ProcedureRow[];
@@ -25,16 +25,24 @@ export function SummaryStats({ rows }: SummaryStatsProps) {
     .filter((r) => !r.isDraft && r.effectiveAmount != null)
     .reduce((sum, r) => sum + (r.effectiveAmount || 0), 0);
 
-  // Sum actual payment amounts (amounts received)
+  // Sum actual payment amounts (amounts received).
+  // Falls back to effectiveAmount for paid-status procedures whose paid_amount is null
+  // (backend bug: paid_amount = billed_amount = null when procedure uses default_amount).
   const totalReceived = rows
-    .filter((r) => !r.isDraft && r.actualPaymentAmount != null)
-    .reduce((sum, r) => sum + (r.actualPaymentAmount || 0), 0);
+    .filter((r) => !r.isDraft)
+    .reduce((sum, r) => {
+      if (r.actualPaymentAmount != null) return sum + r.actualPaymentAmount;
+      if (isPaidStatus(r.status) && r.effectiveAmount != null) return sum + r.effectiveAmount;
+      return sum;
+    }, 0);
 
-  // Sum awaited amounts (outstanding balance = billed − received)
+  // Sum awaited amounts (outstanding balance = billed − received).
+  // Uses the same paid-status fallback so reconciled procedures don't appear as still awaited.
   const totalAwaited = rows
     .filter((r) => !r.isDraft)
     .reduce((sum, r) => {
-      const diff = (r.effectiveAmount || 0) - (r.actualPaymentAmount || 0);
+      const received = r.actualPaymentAmount ?? (isPaidStatus(r.status) ? r.effectiveAmount : null);
+      const diff = (r.effectiveAmount || 0) - (received || 0);
       return sum + (diff > 0 ? diff : 0);
     }, 0);
 
