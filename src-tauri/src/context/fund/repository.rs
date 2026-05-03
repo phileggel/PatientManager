@@ -238,17 +238,21 @@ fn group_status_to_str(s: FundPaymentGroupStatus) -> &'static str {
     }
 }
 
-impl From<FundPaymentGroupRow> for FundPaymentGroup {
-    fn from(row: FundPaymentGroupRow) -> Self {
+impl TryFrom<FundPaymentGroupRow> for FundPaymentGroup {
+    type Error = anyhow::Error;
+
+    fn try_from(row: FundPaymentGroupRow) -> anyhow::Result<Self> {
         let status = parse_group_status(&row.status);
-        FundPaymentGroup::restore(
+        let payment_date = chrono::NaiveDate::parse_from_str(&row.payment_date, "%Y-%m-%d")
+            .with_context(|| format!("Invalid payment_date in DB: {}", row.payment_date))?;
+        Ok(FundPaymentGroup::restore(
             row.id,
             row.fund_id,
-            row.payment_date,
+            payment_date,
             row.total_amount,
             Vec::new(), // Lines are fetched separately in repository
             status,
-        )
+        ))
     }
 }
 
@@ -498,7 +502,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             .fetch_all(&self.pool)
             .await?;
 
-            let mut group = FundPaymentGroup::from(row);
+            let mut group = FundPaymentGroup::try_from(row)?;
             group.lines = lines.into_iter().map(FundPaymentLine::from).collect();
 
             Ok(Some(group))
@@ -554,7 +558,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             .fetch_all(&self.pool)
             .await?;
 
-            let mut group = FundPaymentGroup::from(row);
+            let mut group = FundPaymentGroup::try_from(row)?;
             group.lines = lines.into_iter().map(FundPaymentLine::from).collect();
 
             groups.push(group);
@@ -996,7 +1000,7 @@ mod tests {
         let group = FundPaymentGroup::restore(
             "refund-group-1".to_string(),
             fund.id.clone(),
-            "2026-01-15".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             -5000,
             vec![],
             FundPaymentGroupStatus::BankPaid,

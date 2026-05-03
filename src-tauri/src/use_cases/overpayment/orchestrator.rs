@@ -179,7 +179,7 @@ impl OverpaymentOrchestrator {
         let refund_group = FundPaymentGroup::restore(
             group_id,
             fund_id,
-            req.refund_date.clone(),
+            refund_date,
             -source_amount,
             vec![refund_line],
             FundPaymentGroupStatus::BankPaid,

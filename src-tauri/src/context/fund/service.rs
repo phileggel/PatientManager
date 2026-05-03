@@ -400,12 +400,11 @@ mod tests {
                 // Use anyhow! to build the error
                 return Err(anyhow!("Mock repository error"));
             }
-            Ok(Fund {
-                id: "test-fund-id-12345".to_string(),
-                fund_identifier: fund_identifier.to_string(),
-                name: fund_name.to_string(),
-                temp_id: None,
-            })
+            Ok(Fund::restore(
+                "test-fund-id-12345".to_string(),
+                fund_identifier.to_string(),
+                fund_name.to_string(),
+            ))
         }
 
         async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<Fund>> {
@@ -539,10 +538,11 @@ mod tests {
                     .iter()
                     .map(|id| FundPaymentLine::new("group-id".to_string(), id.clone()).unwrap())
                     .collect();
+                let date = chrono::NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").unwrap();
                 Ok(FundPaymentGroup::restore(
                     "group-id".to_string(),
                     fund_id,
-                    payment_date,
+                    date,
                     total_amount,
                     lines,
                     FundPaymentGroupStatus::Active,
@@ -553,7 +553,7 @@ mod tests {
             Ok(Some(FundPaymentGroup::restore(
                 id.to_string(),
                 "fund-1".to_string(),
-                "2026-01-15".to_string(),
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                 10000,
                 vec![],
                 FundPaymentGroupStatus::Active,
@@ -804,7 +804,7 @@ mod tests {
         let group = FundPaymentGroup::restore(
             "g1".into(),
             "fund-1".into(),
-            "2026-01-15".into(),
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             10000,
             vec![],
             FundPaymentGroupStatus::BankPaid,

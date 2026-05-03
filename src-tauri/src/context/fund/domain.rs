@@ -182,19 +182,17 @@ impl FundPaymentGroup {
     pub fn restore(
         id: String,
         fund_id: String,
-        payment_date: String,
+        payment_date: NaiveDate,
         total_amount: i64,
         lines: Vec<FundPaymentLine>,
         status: FundPaymentGroupStatus,
     ) -> Self {
-        let parsed_date =
-            NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").unwrap_or(NaiveDate::MIN);
         let is_locked = status == FundPaymentGroupStatus::BankPaid;
 
         Self {
             id,
             fund_id,
-            payment_date: parsed_date,
+            payment_date,
             total_amount,
             lines,
             status,
@@ -400,7 +398,7 @@ mod tests {
         let g = FundPaymentGroup::restore(
             "id".to_string(),
             "fund-1".to_string(),
-            "2026-01-15".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             10000,
             vec![],
             FundPaymentGroupStatus::BankPaid,
@@ -414,7 +412,7 @@ mod tests {
         let g = FundPaymentGroup::restore(
             "id".to_string(),
             "fund-1".to_string(),
-            "2026-01-15".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             10000,
             vec![],
             FundPaymentGroupStatus::Active,
