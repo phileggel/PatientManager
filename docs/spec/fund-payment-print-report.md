@@ -48,14 +48,14 @@ This spec supersedes rule R31 in the FPA spec (`fund-payment-auto-match.md`), wh
 
 **FPR-042 — Correction group columns (frontend)**: Each group displays the columns relevant to its correction type:
 
-| Correction type  | Columns displayed                                              |
-| ---------------- | -------------------------------------------------------------- |
-| ContestAmount    | Patient, procedure date, billed amount, paid amount            |
-| CreateProcedure  | Patient name, SSN, procedure date, fund, billed amount         |
-| LinkProcedure    | Patient name, SSN, fund, payment date                          |
-| AmountMismatch   | Patient, procedure date, original billed amount, corrected billed amount |
-| FundMismatch     | Patient, procedure date, original fund, corrected fund         |
-| DateMismatch     | Patient, original date, corrected date                         |
+| Correction type | Columns displayed                                                        |
+| --------------- | ------------------------------------------------------------------------ |
+| ContestAmount   | Patient, procedure date, billed amount, paid amount                      |
+| CreateProcedure | Patient name, SSN, procedure date, fund, billed amount                   |
+| LinkProcedure   | Patient name, SSN, fund, payment date                                    |
+| AmountMismatch  | Patient, procedure date, original billed amount, corrected billed amount |
+| FundMismatch    | Patient, procedure date, original fund, corrected fund                   |
+| DateMismatch    | Patient, original date, corrected date                                   |
 
 ---
 
