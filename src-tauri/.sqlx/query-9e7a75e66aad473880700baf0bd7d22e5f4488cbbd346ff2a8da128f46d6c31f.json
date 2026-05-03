@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO patient (id, is_anonymous, ssn, is_deleted) VALUES (?, 0, ?, 0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "9e7a75e66aad473880700baf0bd7d22e5f4488cbbd346ff2a8da128f46d6c31f"
+}
