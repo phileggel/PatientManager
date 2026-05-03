@@ -7,6 +7,7 @@
 E2E tests rely on aria-labels for element selection. If the app locale is not fixed, labels may vary by system language and cause flaky test failures. Force the app to run in English during E2E runs so aria-labels are always predictable.
 
 Options to explore:
+
 - Pass a `LANG=en` / `LC_ALL=en_US.UTF-8` env var when launching the Tauri app in WebDriver
 - Set a `test_locale` config flag in `tauri.conf.json` or a test-only config profile
 - Initialize the i18n layer with `en` unconditionally when a `TEST_LOCALE` env var is present
@@ -139,6 +140,43 @@ The printed report is not properly centered — part of the content is cut off. 
 ## F10 — Extract logic to dedicated hooks (procedure feature)
 
 Multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. Deferred — large architectural refactors with no functional impact.
+
+---
+
+## (backend/test) — Migrate hand-rolled mock impls to mockall automock
+
+`bank_statement_reconciliation/orchestrator.rs`, `overpayment/orchestrator.rs`, and `procedure_orchestration/service.rs` still contain large hand-rolled full-trait mock structs (`ProcRepoNoop`, `ProcRepoForSuccess`, `BankEntryRepoUnimplemented`, etc.) despite those traits now carrying `#[cfg_attr(test, mockall::automock)]`. Every new method on any of those traits silently requires updating all manual impls. Replace with `MockXxx::new()` + `.expect_*()` per-test configuration throughout.
+
+---
+
+## (backend/test) — Remove dead hand-rolled MockProcedureTypeRepository and MockFundRepository
+
+`procedure/service.rs` has a hand-rolled `MockProcedureTypeRepository` struct (lines ~332–435) that shadows the automock-generated `MockProcedureTypeRepository` from `crate::context::procedure`. The pre-existing tests still use the manual one. `fund/service.rs` has the same problem with `MockFundRepository` (an `as AutoMockFundRepository` alias workaround exists). Migrate both to the generated mocks and remove the hand-rolled structs.
+
+---
+
+## (backend/test) — Remove or strengthen trivial B25-violating tests
+
+Several tests added in the coverage push assert nothing domain-meaningful:
+
+- `fund_new_success`, `fund_with_id_preserves_id`, `fund_payment_line_with_id_preserves_id` (fund/domain.rs) — getter-returns-what-was-passed-in
+- `create_batch_groups_empty_returns_empty` (fund/repository.rs) — empty-in empty-out
+- `publish_batch_events_does_not_panic` (bank_statement_reconciliation/orchestrator.rs) — does-not-panic
+- `procedure_service_read_all_returns_empty`, `procedure_service_read_procedure_not_found` (procedure/service.rs) — mock echo
+
+Delete or replace each with a test that exercises a real domain invariant or error-propagation path.
+
+---
+
+## (ci) — Add PR check workflow
+
+The project has only release workflows (`release-manual.yml`, `release-windows.yml`) — no workflow runs on push or pull requests. Add a `ci.yml` triggered on `push` / `pull_request` running `cargo test`, `cargo clippy`, and `npm run test` on a Linux runner. This is the minimum needed to catch regressions before they reach `main`.
+
+---
+
+## (backend/arch) — Introduce a DI container for orchestrator wiring
+
+Production orchestrators are currently wired manually in `lib.rs` via explicit `Arc<dyn Trait>` constructor injection. This works but doesn't scale well as the number of dependencies grows: adding a dep means touching `lib.rs`, the orchestrator `new()`, and every integration test `Ctx`. A DI container (e.g. `shaku`) would centralize registration and resolve dependencies automatically, reducing wiring boilerplate and making the `new()` signature irrelevant to callers. Evaluate once the orchestrator count or dep count becomes a maintenance burden.
 
 ---
 

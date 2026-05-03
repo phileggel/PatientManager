@@ -28,8 +28,9 @@ coverage-fe:
     npm run test:coverage
 
 # Generate backend coverage report (outputs coverage/tarpaulin-report.json)
+# Requires: cargo install cargo-tarpaulin
 coverage-be:
-    cd src-tauri && cargo tarpaulin --out Json --output-dir ../coverage
+    mkdir -p coverage && cd src-tauri && cargo tarpaulin --out Json --output-dir ../coverage
 
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be
