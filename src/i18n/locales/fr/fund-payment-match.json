@@ -27,7 +27,6 @@
       "patient": "Patient",
       "ssn": "INS",
       "fund": "Caisse",
-      "amount": "Montant",
       "billed": "Montant facturé",
       "paid": "Montant payé",
       "originalAmount": "Montant initial",
@@ -38,7 +37,6 @@
       "correctedDate": "Date corrigée",
       "paymentDate": "Date de paiement"
     },
-    "page": "Page",
     "error": {
       "windowOpenFailed": "Impossible d'ouvrir la fenêtre d'impression."
     }
@@ -49,7 +47,6 @@
   "modal": {
     "title": "Rapprochement PDF",
     "subtitle": "Fichier : {{name}}",
-    "notAvailable": "Non disponible",
     "loading": {
       "content": "Analyse du PDF en cours..."
     },
@@ -59,7 +56,6 @@
     "footer": {
       "cancel": "Annuler",
       "autoCorrect": "Corriger automatiquement",
-      "validate": "Valider",
       "validateSuccess": "Rapprochement validé avec succès"
     },
     "blocking": {

@@ -62,7 +62,6 @@ export type CorrectionGroup =
 
 export interface PrintReportViewModel {
   header: {
-    title: string;
     pdfFileName: string;
     periodStart: string;
     periodEnd: string;
@@ -220,7 +219,6 @@ export function buildPrintReportViewModel(input: PrintReportInput): PrintReportV
 
   return {
     header: {
-      title: "print.title",
       pdfFileName,
       periodStart,
       periodEnd,

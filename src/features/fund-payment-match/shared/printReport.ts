@@ -23,8 +23,8 @@ function renderCorrectionGroup(
   t: (key: string, opts?: object) => string,
 ): string {
   const heading = t(`print.section2.groups.${group.type}`);
-  let headerRow: string;
-  let bodyRows: string;
+  let headerRow = "";
+  let bodyRows = "";
 
   switch (group.type) {
     case "ContestAmount": {
@@ -121,7 +121,7 @@ export function buildPrintReportHtml(
 <html>
 <head>
 <meta charset="utf-8">
-<title>${t(header.title)}</title>
+<title>${t("print.title")}</title>
 <style>
 body{font-family:sans-serif;margin:2cm;font-size:12pt}
 h1{font-size:16pt}
@@ -137,7 +137,7 @@ th{background:#f0f0f0;font-weight:bold}
 <script>window.onload=function(){window.print();window.onafterprint=function(){window.close()};};</script>
 </head>
 <body>
-<h1>${t(header.title)}</h1>
+<h1>${t("print.title")}</h1>
 <div class="header-meta">
 <p>${t("print.header.fileName")}: ${esc(header.pdfFileName)}</p>
 <p>${t("print.header.period")}: ${header.periodStart} — ${header.periodEnd}</p>

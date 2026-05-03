@@ -179,12 +179,6 @@ Currently, the auto-correction flow only allows creating a single procedure. It 
 
 ---
 
-## (frontend/fund-payment-match) — Print report: centering and auto-correction list
-
-The printed report is not properly centered — part of the content is cut off. Complementary improvement: list the auto-corrections applied in the report.
-
----
-
 ## F10 — Extract logic to dedicated hooks (procedure feature)
 
 Multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. Deferred — large architectural refactors with no functional impact.

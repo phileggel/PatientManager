@@ -11,7 +11,6 @@ const tIdentity = (key: string, _opts?: object): string => key;
 
 const emptyVm: PrintReportViewModel = {
   header: {
-    title: "print.title",
     pdfFileName: "remise-2025-04.pdf",
     periodStart: "2025-04-01",
     periodEnd: "2025-04-30",
@@ -105,6 +104,49 @@ describe("buildPrintReportHtml — section 2 absent", () => {
     const html = buildPrintReportHtml(emptyVm, tIdentity);
 
     expect(html).not.toContain("print.section2.heading");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Section 1 — positive path (FPR-030, FPR-031)
+// ---------------------------------------------------------------------------
+
+describe("buildPrintReportHtml — section 1 positive path", () => {
+  const vmWithRows: PrintReportViewModel = {
+    ...emptyVm,
+    unreconciledRows: [
+      {
+        date: "2025-04-10",
+        patientName: "DUPONT Jean",
+        ssn: "123456789",
+        amountThousandths: 38400,
+      },
+      {
+        date: "2025-04-15",
+        patientName: "MARTIN Marie",
+        ssn: "987654321",
+        amountThousandths: 50000,
+      },
+    ],
+    unreconciledTotalThousandths: 88400,
+  };
+
+  it("renders a <table> with all four column headers and one row per unreconciled procedure (FPR-030, FPR-031)", () => {
+    const html = buildPrintReportHtml(vmWithRows, tIdentity);
+
+    expect(html).toContain("<table");
+    expect(html).toContain("print.columns.date");
+    expect(html).toContain("print.columns.patient");
+    expect(html).toContain("print.columns.ssn");
+    expect(html).toContain("print.columns.billed");
+    expect(html).toContain("DUPONT Jean");
+    expect(html).toContain("MARTIN Marie");
+  });
+
+  it("renders the total line (FPR-033)", () => {
+    const html = buildPrintReportHtml(vmWithRows, tIdentity);
+
+    expect(html).toContain("print.section1.total");
   });
 });
 
