@@ -207,7 +207,7 @@ impl ProcedureOrchestrationService {
                             .update_procedure(updated_refund)
                             .await?;
                         tracing::info!(
-                            name: BACKEND,
+                            target: BACKEND,
                             source_procedure_id = %updated.id,
                             refund_procedure_id = %refund_record.refund_procedure_id,
                             new_procedure_type_id = %updated.procedure_type_id,
