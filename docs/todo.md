@@ -1,5 +1,9 @@
 # TODO
 
+## (frontend) - Importer compabilité depuis un fichier excel: this open two file selector instead of one
+
+## (frontend) - Importer rapprochement caisse, rapprochement bancaire. open correctly the file selector but also on the background switch on uneeded new page.
+
 ---
 
 ## (e2e) — Force English locale during E2E tests so aria-labels are invariant
@@ -79,6 +83,17 @@ Convert domain objects to camelCase when crossing into the frontend.
 All `api.rs` files (Tauri command handlers) should be thin adapters only: receive input, call service/orchestrator, return result. No business logic, validation, or branching beyond error mapping.
 
 Files to audit: `context/bank/api.rs`, `context/fund/api.rs`, `context/patient/api.rs`, `context/procedure/api.rs`, `use_cases/bank_manual_match/api.rs`, `use_cases/bank_statement_reconciliation/api.rs`, `use_cases/excel_import/api.rs`, `use_cases/fund_payment_reconciliation/api.rs`, `use_cases/overpayment/api.rs`, `use_cases/procedure_orchestration/api.rs`, `use_cases/db_backup/api.rs`.
+
+---
+
+## (backend/fund) — DECISION: Move cross-context `is_locked` recomputation out of `context/fund/api.rs`
+
+`context/fund/api.rs` imports `context/procedure` directly (`ProcedureService`, `Procedure`, `ProcedureStatus`) to recompute `is_locked` on fund payment groups. This violates B13 (no cross-context imports). The fix requires an architectural decision:
+
+- **Option A**: Move the `recompute_is_locked` logic into a new or existing use-case (e.g. `use_cases/fund_payment_reconciliation/`) and inject the use-case orchestrator as Tauri state instead of the raw procedure service.
+- **Option B**: Enrich `FundPaymentGroup` to carry enough state to derive `is_locked` without querying procedures (if the procedure data is already available at write time).
+
+Related: `fund/api.rs` also constructs `FundPaymentReconciliationOrchestrator::new(...)` inline in three command handlers instead of injecting it as Tauri state — fix in the same pass.
 
 ---
 
