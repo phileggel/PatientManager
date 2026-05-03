@@ -1,257 +1,33 @@
 import { Loader, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type {
-  BankAccount,
-  BankStatementParseResult,
-  FundLabelResolution,
-  ResolvedCreditLine,
-} from "@/bindings";
-import { toastService } from "@/core/snackbar";
-import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
 import { IconButton } from "@/ui/components/button/IconButton";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
-import {
-  createBankTransfersFromStatement,
-  matchBankStatementLines,
-  parseBankStatement,
-  resolveBankAccountFromIban,
-  resolveBankFundLabels,
-  saveBankFundLabelMappings,
-} from "../gateway";
 import { FundLabelMappingStep } from "./FundLabelMappingStep";
 import { MatchResultsStep } from "./MatchResultsStep";
-
-const TAG = "[BankStatementModal]";
-
-type Step = "loading" | "no-account" | "label-mapping" | "matching" | "results" | "done" | "error";
-
-export interface IdentifiableCreditLine extends ResolvedCreditLine {
-  lineId: string;
-}
+import { useBankStatementModal } from "./useBankStatementModal";
 
 interface BankStatementModalProps {
-  file: File;
+  filePath: string;
   onClose: () => void;
 }
 
-export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
+export function BankStatementModal({ filePath, onClose }: BankStatementModalProps) {
   const { t } = useTranslation("bank");
-  const [step, setStep] = useState<Step>("loading");
-  const [error, setError] = useState<string | null>(null);
-  const [parseResult, setParseResult] = useState<BankStatementParseResult | null>(null);
-  const [bankAccount, setBankAccount] = useState<BankAccount | null>(null);
-  const [labelResolutions, setLabelResolutions] = useState<FundLabelResolution[]>([]);
-  const [allCreditLines, setAllCreditLines] = useState<IdentifiableCreditLine[]>([]);
-  const [userSelections, setUserSelections] = useState<Map<string, string | null>>(new Map()); // lineId -> groupId
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [createdCount, setCreatedCount] = useState(0);
-
-  const proceedToMatching = useCallback(
-    async (parsed: BankStatementParseResult, resolutions: FundLabelResolution[]) => {
-      setStep("matching");
-
-      // Build resolved lines with unique IDs
-      const resolvedLines: IdentifiableCreditLine[] = [];
-      for (const line of parsed.credit_lines) {
-        const resolution = resolutions.find((r) => r.bank_label === line.label);
-        // R8: rejected labels are excluded from matching
-        if (!resolution || resolution.is_rejected) continue;
-        const fundId = resolution.fund_id;
-        if (fundId) {
-          resolvedLines.push({
-            date: line.date,
-            label: line.label,
-            amount: line.amount,
-            fund_id: fundId,
-            lineId: crypto.randomUUID(),
-          });
-        }
-      }
-
-      if (resolvedLines.length === 0) {
-        setError(t("statement.modal.noCredit"));
-        setStep("error");
-        return;
-      }
-
-      setAllCreditLines(resolvedLines);
-
-      // Match against unsettled groups via backend
-      try {
-        const result = await matchBankStatementLines(resolvedLines);
-
-        // Initialize user selections with backend proposals
-        const initialSelections = new Map<string, string | null>();
-        for (const line of resolvedLines) {
-          const match = result.matched.find(
-            (m) =>
-              m.credit_line.date === line.date &&
-              m.credit_line.label === line.label &&
-              m.credit_line.amount === line.amount,
-          );
-          initialSelections.set(line.lineId, match?.group_id || null);
-        }
-
-        setUserSelections(initialSelections);
-        setStep("results");
-        logger.info(
-          TAG,
-          `Initial matching: ${result.matched.length} suggested, ${result.unmatched_lines.length} unmatched`,
-        );
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setError(msg);
-        setStep("error");
-      }
-    },
-    [t],
-  );
-
-  // Step 1: Parse PDF and resolve bank account
-  useEffect(() => {
-    async function loadAndParse() {
-      try {
-        logger.info(TAG, "Processing bank statement", { name: file.name });
-
-        // Parse PDF
-        const parsed = await parseBankStatement(file);
-        setParseResult(parsed);
-        logger.info(
-          TAG,
-          `Parsed: ${parsed.credit_lines.length} credit lines, IBAN: ${parsed.iban}`,
-        );
-
-        if (!parsed.iban) {
-          setError(t("statement.modal.noIban"));
-          setStep("error");
-          return;
-        }
-
-        // Resolve bank account from IBAN
-        const account = await resolveBankAccountFromIban(parsed.iban);
-        if (!account) {
-          setStep("no-account");
-          return;
-        }
-        setBankAccount(account);
-        logger.info(TAG, `Bank account resolved: ${account.name}`);
-
-        // Resolve fund labels
-        const labels = parsed.credit_lines.map((l) => l.label);
-        const resolutions = await resolveBankFundLabels(account.id, labels);
-        setLabelResolutions(resolutions);
-
-        // R7: always show label-mapping step for all labels (confirmed pre-filled, unknown empty)
-        logger.info(TAG, `${resolutions.length} labels to review in mapping step`);
-        setStep("label-mapping");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        // R26: dedicated message when no VIR SEPA lines found
-        if (msg === "NO_VIR_SEPA_LINES") {
-          logger.error(TAG, "No VIR SEPA lines found in bank statement");
-          setError(t("statement.modal.noVirSepaLines"));
-          setStep("error");
-          return;
-        }
-        logger.error(TAG, "Failed to process bank statement", { message: msg, error: err });
-        setError(msg || t("statement.modal.unknownError"));
-        setStep("error");
-      }
-    }
-
-    loadAndParse();
-  }, [file, t]);
-
-  const handleLabelMappingConfirm = async (
-    mappings: Map<string, string>, // bankLabel → fundId
-  ) => {
-    if (!bankAccount || !parseResult) return;
-
-    try {
-      setIsProcessing(true);
-
-      // Save new mappings
-      const newMappings = Array.from(mappings.entries()).map(([bank_label, fund_id]) => ({
-        bank_label,
-        fund_id,
-      }));
-      if (newMappings.length > 0) {
-        await saveBankFundLabelMappings(bankAccount.id, newMappings);
-      }
-
-      // Update resolutions with confirmed mappings
-      const updatedResolutions = labelResolutions.map((r) => {
-        const newFundId = mappings.get(r.bank_label);
-        if (newFundId) {
-          return {
-            ...r,
-            fund_id: newFundId === "REJECTED" ? null : newFundId,
-            is_confirmed: true,
-            is_rejected: newFundId === "REJECTED",
-          };
-        }
-        return r;
-      });
-      setLabelResolutions(updatedResolutions);
-
-      await proceedToMatching(parseResult, updatedResolutions);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      logger.error(TAG, "Failed to save label mappings", { message: msg });
-      setError(msg);
-      setStep("error");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleSelectionChange = (lineId: string, groupId: string | null) => {
-    setUserSelections((prev) => {
-      const next = new Map(prev);
-      next.set(lineId, groupId);
-      return next;
-    });
-  };
-
-  const handleCreateTransfers = async () => {
-    if (!bankAccount) return;
-
-    try {
-      setIsProcessing(true);
-
-      const confirmedMatches = [];
-      for (const line of allCreditLines) {
-        const groupId = userSelections.get(line.lineId);
-        if (groupId) {
-          confirmedMatches.push({
-            group_id: groupId,
-            date: line.date,
-            amount: line.amount,
-          });
-        }
-      }
-
-      if (confirmedMatches.length === 0) {
-        toastService.show("error", t("statement.modal.noTransfer"));
-        setIsProcessing(false);
-        return;
-      }
-
-      const count = await createBankTransfersFromStatement(bankAccount.id, confirmedMatches);
-      setCreatedCount(count);
-      setStep("done");
-      logger.info(TAG, `Created ${count} bank transfers`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      logger.error(TAG, "Failed to create bank transfers", { message: msg });
-      setError(msg);
-      setStep("error");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  const {
+    step,
+    error,
+    parseResult,
+    labelResolutions,
+    allCreditLines,
+    userSelections,
+    isProcessing,
+    createdCount,
+    maxDateOffsetDays,
+    handleLabelMappingConfirm,
+    handleSelectionChange,
+    handleCreateTransfers,
+  } = useBankStatementModal(filePath);
 
   return (
     <ModalContainer isOpen={true} onClose={onClose} maxWidth="max-w-2xl">
@@ -260,7 +36,7 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
         <div className="flex items-center justify-between px-6 py-4 bg-m3-surface-container-low shrink-0 rounded-t-[28px]">
           <div>
             <h2 className="text-lg font-semibold text-m3-on-surface">{t("statement.title")}</h2>
-            <p className="text-sm text-m3-on-surface-variant">{file.name}</p>
+            <p className="text-sm text-m3-on-surface-variant">{filePath.split(/[\\/]/).pop()}</p>
             {parseResult?.period && (
               <p className="text-xs text-m3-on-surface-variant">{parseResult.period}</p>
             )}
@@ -317,6 +93,7 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
               lines={allCreditLines}
               userSelections={userSelections}
               onSelectionChange={handleSelectionChange}
+              maxDateOffsetDays={maxDateOffsetDays}
             />
           )}
 
@@ -332,7 +109,9 @@ export function BankStatementModal({ file, onClose }: BankStatementModalProps) {
           {step === "error" && (
             <div className="text-center py-12 space-y-4">
               <p className="text-lg font-medium text-m3-error">{t("statement.modal.error")}</p>
-              <p className="text-m3-on-surface-variant">{error}</p>
+              <p role="alert" className="text-m3-on-surface-variant">
+                {error}
+              </p>
             </div>
           )}
         </div>

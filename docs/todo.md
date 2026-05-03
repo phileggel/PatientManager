@@ -1,8 +1,12 @@
 # TODO
 
-## (frontend) - Importer compabilité depuis un fichier excel: this open two file selector instead of one
+---
 
-## (frontend) - Importer rapprochement caisse, rapprochement bancaire. open correctly the file selector but also on the background switch on uneeded new page.
+## (backend+frontend/bank-statement) — Align PDF reading pattern with fund reconciliation
+
+Fund reconciliation passes a file path to Rust (`extract_pdf_text(filePath)`) and lets the backend read the file. Bank statement does the opposite: frontend reads bytes via `@tauri-apps/plugin-fs` then sends them to `parse_bank_statement(bytes)`. Both should follow the same path-based pattern.
+
+Fix: add a `parse_bank_statement_from_path(file_path: String)` Rust command (or change the existing one), update `parseBankStatement` in `bank-statement/gateway.ts` to pass the path directly, and remove the `readFile` import.
 
 ---
 

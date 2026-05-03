@@ -6,7 +6,7 @@ import { ReconciliationModal } from "./ReconciliationModal";
 
 // Mock the gateway
 vi.mock("../gateway", () => ({
-  extractPdfTextFromFile: vi.fn(),
+  extractPdfText: vi.fn(),
   parsePdfText: vi.fn(),
   reconcileAndCreateCandidates: vi.fn(),
   createFundPaymentWithAutoCorrections: vi.fn(),
@@ -134,14 +134,12 @@ const mockReconciliationWithAnomaly = {
 };
 
 describe("ReconciliationModal", () => {
-  const mockFile = new File(["dummy content"], "test.pdf", { type: "application/pdf" });
+  const mockFilePath = "/tmp/test.pdf";
   const mockOnClose = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (gateway.extractPdfTextFromFile as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "PDF text content",
-    );
+    (gateway.extractPdfText as ReturnType<typeof vi.fn>).mockResolvedValue("PDF text content");
     (gateway.parsePdfText as ReturnType<typeof vi.fn>).mockResolvedValue(mockParsedData);
     (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue(
       mockReconciliationNoAnomalies,
@@ -154,7 +152,7 @@ describe("ReconciliationModal", () => {
       mockReconciliationWithAnomaly,
     );
 
-    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(screen.getByText(/Auto-correct all/)).toBeInTheDocument();
@@ -173,7 +171,7 @@ describe("ReconciliationModal", () => {
       [],
     );
 
-    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(screen.getByText(/Auto-correct all/)).toBeInTheDocument();
@@ -191,7 +189,7 @@ describe("ReconciliationModal", () => {
       [],
     );
 
-    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(gateway.createFundPaymentWithAutoCorrections).toHaveBeenCalledWith({
@@ -206,7 +204,7 @@ describe("ReconciliationModal", () => {
       [],
     );
 
-    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(gateway.getUnreconciledProceduresInRange).toHaveBeenCalledWith(
@@ -225,7 +223,7 @@ describe("ReconciliationModal", () => {
       [],
     );
 
-    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(screen.getByText(/Unreconciled procedures/)).toBeInTheDocument();
@@ -241,7 +239,7 @@ describe("ReconciliationModal", () => {
       new Error("Network error"),
     );
 
-    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(screen.getByText("Network error")).toBeInTheDocument();
@@ -258,7 +256,7 @@ describe("ReconciliationModal", () => {
       [],
     );
 
-    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(screen.getByText(/Unreconciled procedures/)).toBeInTheDocument();
@@ -276,7 +274,7 @@ describe("ReconciliationModal", () => {
       mockReconciliationWithAnomaly,
     );
 
-    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(screen.getByText(/Auto-correct all/)).toBeInTheDocument();
@@ -290,7 +288,7 @@ describe("ReconciliationModal", () => {
       new Error("Validation failed"),
     );
 
-    render(<ReconciliationModal file={mockFile} onClose={mockOnClose} />);
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(screen.getByText("Validation failed")).toBeInTheDocument();

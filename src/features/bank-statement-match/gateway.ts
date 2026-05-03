@@ -1,3 +1,4 @@
+import { readFile } from "@tauri-apps/plugin-fs";
 import {
   type BankAccount,
   type BankStatementMatchResult,
@@ -13,11 +14,11 @@ import { logger } from "@/lib/logger";
 
 const TAG = "[BankStatementGateway]";
 
-export async function parseBankStatement(file: File): Promise<BankStatementParseResult> {
-  logger.info(TAG, "Parsing bank statement PDF", { name: file.name, size: file.size });
+export async function parseBankStatement(filePath: string): Promise<BankStatementParseResult> {
+  logger.info(TAG, "Parsing bank statement PDF", { filePath });
 
-  const arrayBuffer = await file.arrayBuffer();
-  const bytes = Array.from(new Uint8Array(arrayBuffer));
+  const fileBytes = await readFile(filePath);
+  const bytes = Array.from(fileBytes);
 
   const result = await commands.parseBankStatement(bytes);
 
@@ -117,6 +118,7 @@ export async function createBankTransfersFromStatement(
 export async function getBankStatementReconciliationConfig(): Promise<BankStatementReconciliationConfig> {
   logger.info(TAG, "Fetching bank statement reconciliation config");
 
+  // This command returns the config directly (not Result<T,E>), so no status check needed.
   const config = await commands.getBankStatementReconciliationConfig();
 
   logger.info(TAG, "Config fetched", config);

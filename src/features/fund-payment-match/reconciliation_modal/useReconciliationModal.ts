@@ -22,7 +22,7 @@ import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import {
   createFundPaymentWithAutoCorrections,
-  extractPdfTextFromFile,
+  extractPdfText,
   getUnreconciledProceduresInRange,
   parsePdfText,
   reconcileAndCreateCandidates,
@@ -36,7 +36,7 @@ import {
   countTotalAnomalies,
 } from "../shared/utils";
 
-export function useReconciliationModal(file: File, onClose: () => void) {
+export function useReconciliationModal(filePath: string, onClose: () => void) {
   const { t } = useTranslation("fund-payment-match");
 
   const [parsedData, setParsedData] = useState<PdfParseResult | null>(null);
@@ -65,7 +65,7 @@ export function useReconciliationModal(file: File, onClose: () => void) {
       try {
         setIsLoading(true);
         setError(null);
-        const text = await extractPdfTextFromFile(file);
+        const text = await extractPdfText(filePath);
         const parsed = await parsePdfText(text);
         setParsedData(parsed);
         const result = await reconcileAndCreateCandidates(parsed);
@@ -78,7 +78,7 @@ export function useReconciliationModal(file: File, onClose: () => void) {
       }
     }
     loadAndReconcilePdf();
-  }, [file, t]);
+  }, [filePath, t]);
 
   const totalAnomalies = useMemo(
     () => (reconciliationData ? countTotalAnomalies(reconciliationData.reconciliation) : 0),
@@ -204,7 +204,6 @@ export function useReconciliationModal(file: File, onClose: () => void) {
     resolvedCount,
     totalAnomalies,
     blockingCount,
-    canValidate,
     isValidating,
     validationError,
     unreconciledReport,

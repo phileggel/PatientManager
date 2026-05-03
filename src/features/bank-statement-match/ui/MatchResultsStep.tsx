@@ -1,15 +1,14 @@
 import { AlertCircle, Check, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
-import { getBankStatementReconciliationConfig } from "../gateway";
-import type { IdentifiableCreditLine } from "./BankStatementModal";
+import type { IdentifiableCreditLine } from "./types";
 
 interface MatchResultsStepProps {
   lines: IdentifiableCreditLine[];
   userSelections: Map<string, string | null>; // lineId -> groupId
   onSelectionChange: (lineId: string, groupId: string | null) => void;
+  maxDateOffsetDays: number;
 }
 
 /**
@@ -26,28 +25,13 @@ export function MatchResultsStep({
   lines,
   userSelections,
   onSelectionChange,
+  maxDateOffsetDays,
 }: MatchResultsStepProps) {
   const { t } = useTranslation("bank");
   const funds = useAppStore((state) => state.funds);
   const allGroups = useAppStore((state) => state.fundPaymentGroups);
 
-  // Track which lines have expanded search (to all funds) active
   const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
-  const [maxDateOffsetDays, setMaxDateOffsetDays] = useState(6); // Default, will be overridden
-
-  // Load config from backend
-  useEffect(() => {
-    getBankStatementReconciliationConfig()
-      .then((config) => {
-        setMaxDateOffsetDays(config.max_date_offset_days);
-      })
-      .catch((err) => {
-        logger.error("Failed to load bank statement reconciliation config, using default", {
-          error: err,
-        });
-        setMaxDateOffsetDays(6);
-      });
-  }, []);
 
   const getFundName = (fundId: string): string => {
     const fund = funds.find((f) => f.id === fundId);

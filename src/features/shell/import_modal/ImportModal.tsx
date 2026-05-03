@@ -12,18 +12,24 @@ interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (page: Page) => void;
+  onFileSelected: (
+    page: "excel-import" | "fund-payment-match" | "bank-statement-match",
+    filePath: string,
+  ) => void;
 }
 
 /**
  * Unified import modal — presents three import entry points (Excel, Fund, Bank).
  * Opened from the single "Importer" entry in the navigation drawer.
  */
-export function ImportModal({ isOpen, onClose, onNavigate }: ImportModalProps) {
+export function ImportModal({ isOpen, onClose, onNavigate, onFileSelected }: ImportModalProps) {
   const { t } = useTranslation("import-modal");
-  const { handleExcelImport, handleFundReconciliation, handleBankReconciliation } = useImportModal({
-    onNavigate,
-    onClose,
-  });
+  const { handleExcelImport, handleFundReconciliation, handleBankReconciliation, isPicking } =
+    useImportModal({
+      onNavigate,
+      onClose,
+      onFileSelected,
+    });
 
   useEffect(() => {
     logger.info(TAG, "mounted");
@@ -42,7 +48,12 @@ export function ImportModal({ isOpen, onClose, onNavigate }: ImportModalProps) {
     <Dialog isOpen={isOpen} onClose={onClose} title={t("modalTitle")} maxWidth="max-w-lg">
       <div className="flex flex-col gap-3 pb-2">
         {/* Excel import */}
-        <button type="button" className={cardClasses} onClick={handleExcelImport}>
+        <button
+          type="button"
+          className={cardClasses}
+          onClick={handleExcelImport}
+          disabled={isPicking}
+        >
           <span className="text-sm font-medium text-m3-on-surface">{t("excel.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
             {t("excel.description")}
@@ -50,7 +61,12 @@ export function ImportModal({ isOpen, onClose, onNavigate }: ImportModalProps) {
         </button>
 
         {/* Fund reconciliation */}
-        <button type="button" className={cardClasses} onClick={handleFundReconciliation}>
+        <button
+          type="button"
+          className={cardClasses}
+          onClick={handleFundReconciliation}
+          disabled={isPicking}
+        >
           <span className="text-sm font-medium text-m3-on-surface">
             {t("fundReconciliation.title")}
           </span>
@@ -60,7 +76,12 @@ export function ImportModal({ isOpen, onClose, onNavigate }: ImportModalProps) {
         </button>
 
         {/* Bank reconciliation */}
-        <button type="button" className={cardClasses} onClick={handleBankReconciliation}>
+        <button
+          type="button"
+          className={cardClasses}
+          onClick={handleBankReconciliation}
+          disabled={isPicking}
+        >
           <span className="text-sm font-medium text-m3-on-surface">
             {t("bankReconciliation.title")}
           </span>

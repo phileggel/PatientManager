@@ -39,6 +39,7 @@ function AppContent() {
   const [isDbBackupOpen, setIsDbBackupOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isManagementOpen, setIsManagementOpen] = useState(false);
+  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null);
 
   // Initialize app data and event listeners
   useAppInit();
@@ -52,7 +53,16 @@ function AppContent() {
     setCurrentPage(page);
   }, []);
 
-  const handleCloseToDashboard = useCallback(() => {
+  const handleImportFileSelected = useCallback(
+    (page: "excel-import" | "fund-payment-match" | "bank-statement-match", filePath: string) => {
+      setPendingFilePath(filePath);
+      handleNavigate(page);
+    },
+    [handleNavigate],
+  );
+
+  const handleCloseImportPage = useCallback(() => {
+    setPendingFilePath(null);
     handleNavigate("dashboard");
   }, [handleNavigate]);
 
@@ -125,15 +135,17 @@ function AppContent() {
           {currentPage === "funds" && <FundsManager />}
           {currentPage === "procedures" && <ProcedurePage />}
           {currentPage === "procedure-types" && <ProcedureTypeManager />}
-          {currentPage === "excel-import" && <ImportExcelPage onClose={handleCloseToDashboard} />}
+          {currentPage === "excel-import" && pendingFilePath && (
+            <ImportExcelPage filePath={pendingFilePath} onClose={handleCloseImportPage} />
+          )}
           {currentPage === "fund-payment" && <FundPaymentManager />}
-          {currentPage === "fund-payment-match" && (
-            <ReconciliationPage onClose={handleCloseToDashboard} />
+          {currentPage === "fund-payment-match" && pendingFilePath && (
+            <ReconciliationPage filePath={pendingFilePath} onClose={handleCloseImportPage} />
           )}
           {currentPage === "bank-transfer" && <BankTransferManager />}
           {currentPage === "bank-account" && <BankAccountManager />}
-          {currentPage === "bank-statement-match" && (
-            <BankStatementPage onClose={handleCloseToDashboard} />
+          {currentPage === "bank-statement-match" && pendingFilePath && (
+            <BankStatementPage filePath={pendingFilePath} onClose={handleCloseImportPage} />
           )}
           {import.meta.env.DEV && currentPage === "design-system" && <DesignSystemPage />}
 
@@ -165,6 +177,7 @@ function AppContent() {
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
         onNavigate={handleNavigate}
+        onFileSelected={handleImportFileSelected}
       />
       <ManagementModal
         isOpen={isManagementOpen}

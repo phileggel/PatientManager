@@ -1,11 +1,9 @@
 import {
-  type CreateFundPaymentFromCandidatesRequest,
   type CreateFundPaymentWithAutoCorrectionsRequest,
   commands,
   type FundPaymentGroup,
   type PdfParseResult,
   type ReconcileAndCandidatesResponse,
-  type ReconciliationResult,
   type UnreconciledProcedure,
 } from "@/bindings";
 import { logger } from "@/lib/logger";
@@ -23,33 +21,6 @@ export async function extractPdfText(filePath: string): Promise<string> {
   logger.debug(TAG, "Extracting text from PDF", filePath);
 
   const result = await commands.extractPdfText(filePath);
-
-  if (result.status === "error") {
-    logger.error(TAG, "Failed to extract PDF text", result.error);
-    throw new Error(result.error);
-  }
-
-  logger.info(TAG, `Successfully extracted ${result.data.length} characters`);
-  return result.data;
-}
-
-/**
- * Extract text content from a PDF file using bytes
- *
- * @param file - File object containing the PDF
- * @returns Extracted text content
- * @throws Error if extraction fails
- */
-export async function extractPdfTextFromFile(file: File): Promise<string> {
-  logger.debug(TAG, "Extracting text from PDF file", file.name);
-
-  // Read file as ArrayBuffer
-  const arrayBuffer = await file.arrayBuffer();
-  const bytes = Array.from(new Uint8Array(arrayBuffer));
-
-  logger.debug(TAG, `Read ${bytes.length} bytes from file`);
-
-  const result = await commands.extractPdfTextFromBytes(bytes);
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to extract PDF text", result.error);
@@ -79,88 +50,6 @@ export async function parsePdfText(text: string): Promise<PdfParseResult> {
 
   logger.info(TAG, `Parsed ${result.data.groups.length} groups`);
   return result.data;
-}
-
-/**
- * Reconcile PDF procedures with database
- *
- * @param parseResult - Parsed PDF procedure data
- * @returns Reconciliation result with matched/not-found procedures
- * @throws Error if reconciliation fails
- */
-export async function reconcilePdfProcedures(
-  parseResult: PdfParseResult,
-): Promise<ReconciliationResult> {
-  logger.debug(TAG, "Reconciling PDF procedures");
-
-  const result = await commands.reconcilePdfProcedures(parseResult);
-
-  if (result.status === "error") {
-    logger.error(TAG, "Reconciliation failed", result.error);
-    throw new Error(result.error);
-  }
-
-  logger.info(TAG, `Reconciled: ${result.data.matches.length} matched`);
-  return result.data;
-}
-
-/**
- * Export reconciliation results to CSV format and save to file
- *
- * @param result - Reconciliation result to export
- * @throws Error if export or file save fails
- * @throws Error is silently ignored if user cancels the save dialog
- */
-export async function exportReconciliationCsv(result: ReconciliationResult): Promise<void> {
-  try {
-    logger.debug(TAG, "Exporting reconciliation results to CSV");
-
-    // Generate CSV on backend
-    logger.debug(TAG, "Calling backend export command");
-    const csvResult = await commands.exportReconciliationCsv(result);
-
-    if (csvResult.status === "error") {
-      logger.error(TAG, "CSV export failed", csvResult.error);
-      throw new Error(csvResult.error);
-    }
-
-    const csvContent = csvResult.data;
-    logger.debug(TAG, `Generated CSV: ${csvContent.length} bytes`);
-
-    // Import plugins for file operations
-    logger.debug(TAG, "Importing Tauri plugins");
-    const { save } = await import("@tauri-apps/plugin-dialog");
-    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-    logger.debug(TAG, "Plugins imported successfully");
-
-    // Get file path from user
-    logger.debug(TAG, "Opening save dialog");
-    const filePath = await save({
-      defaultPath: `reconciliation_${new Date().toISOString().slice(0, 10)}.csv`,
-      filters: [
-        {
-          name: "CSV Files",
-          extensions: ["csv"],
-        },
-      ],
-    });
-
-    if (!filePath) {
-      // User cancelled the save dialog
-      logger.debug(TAG, "CSV export cancelled by user");
-      return;
-    }
-
-    logger.debug(TAG, `Writing CSV to file: ${filePath}`);
-    // Write CSV to file
-    await writeTextFile(filePath, csvContent);
-
-    logger.info(TAG, `CSV exported successfully to ${filePath}`);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(TAG, "Export operation failed", errorMessage);
-    throw error;
-  }
 }
 
 /**
@@ -194,36 +83,6 @@ export async function reconcileAndCreateCandidates(
     TAG,
     `Created ${result.data.candidates.length} fund payment candidates from ${result.data.reconciliation.matches.length} total matches (${issueCount} issues)`,
   );
-  return result.data;
-}
-
-/**
- * Create fund payment groups from validated reconciliation candidates
- *
- * For each candidate:
- * 1. Resolves fund label to fund ID
- * 2. Creates a FundPaymentGroup
- * 3. Updates procedures with reconciliation status
- *
- * @param request - Request containing validated candidates
- * @returns Created fund payment groups
- * @throws Error if creation fails for any candidate
- */
-export async function createFundPaymentFromCandidates(
-  request: CreateFundPaymentFromCandidatesRequest,
-): Promise<FundPaymentGroup[]> {
-  logger.debug(TAG, "Creating fund payment groups from validated candidates", {
-    candidateCount: request.candidates.length,
-  });
-
-  const result = await commands.createFundPaymentFromCandidates(request);
-
-  if (result.status === "error") {
-    logger.error(TAG, "Failed to create fund payment groups", result.error);
-    throw new Error(result.error);
-  }
-
-  logger.info(TAG, `Created ${result.data.length} fund payment groups successfully`);
   return result.data;
 }
 
