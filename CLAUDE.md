@@ -66,6 +66,23 @@ Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
 - **Style**: React functional components, Rust traits for repositories.
 - **Lints**: Oxlint & Biome (FE), Clippy (BE). All must pass.
 
+## 🖼 Frontend Visual Proof
+
+Full rules: `docs/frontend-visual-proof.md`
+
+Any `.tsx`, `.css`, or visual asset change **must** include a committed screenshot in `screenshots/` before merging.
+
+Quick workflow:
+1. One-time setup: `npx playwright install chromium`
+2. Create `preview.html` + `src/__preview__/main.tsx` with hardcoded mock data (both gitignored)
+3. Seed the Zustand store via `useAppStore.setState(...)` — no `invoke()` needed in presentational components
+4. Run: `just preview-screenshot <ComponentName>`
+5. Screenshot saved to `screenshots/<ComponentName>-preview.png` — commit it
+6. Delete `preview.html` and `src/__preview__/` before committing
+
+> **WSL2**: `--no-sandbox` is set in the script; no manual flag needed.
+> **No visual change**: write `No visual impact — internal refactor / Rust-only change.` at the top of the PR/commit, then screenshot a screen that *consumes* the modified code as non-regression proof.
+
 ## ⚠️ Critical Patterns
 
 ### Tauri Service Layer - Gateway Pattern

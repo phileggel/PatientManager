@@ -65,3 +65,7 @@ htmlcov/
 docs/stitch/*.stitch
 
 tmp/
+
+# Frontend visual proof — temporary per-task preview files (see docs/frontend-visual-proof.md)
+preview.html
+src/__preview__/
