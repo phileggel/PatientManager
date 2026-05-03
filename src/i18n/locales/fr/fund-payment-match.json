@@ -1,4 +1,48 @@
 {
+  "print": {
+    "title": "Rapport de rapprochement",
+    "header": {
+      "fileName": "Fichier PDF",
+      "period": "Période",
+      "generated": "Généré le"
+    },
+    "section1": {
+      "heading": "Actes non rapprochés",
+      "empty": "Tous les actes de la période ont été rapprochés.",
+      "total": "Total"
+    },
+    "section2": {
+      "heading": "Corrections appliquées",
+      "groups": {
+        "ContestAmount": "Montants contestés",
+        "CreateProcedure": "Actes créés",
+        "LinkProcedure": "Actes liés",
+        "AmountMismatch": "Corrections de montant",
+        "FundMismatch": "Corrections de caisse",
+        "DateMismatch": "Corrections de date"
+      }
+    },
+    "columns": {
+      "date": "Date acte",
+      "patient": "Patient",
+      "ssn": "INS",
+      "fund": "Caisse",
+      "amount": "Montant",
+      "billed": "Montant facturé",
+      "paid": "Montant payé",
+      "originalAmount": "Montant initial",
+      "correctedAmount": "Montant corrigé",
+      "originalFund": "Caisse initiale",
+      "correctedFund": "Caisse corrigée",
+      "originalDate": "Date initiale",
+      "correctedDate": "Date corrigée",
+      "paymentDate": "Date de paiement"
+    },
+    "page": "Page",
+    "error": {
+      "windowOpenFailed": "Impossible d'ouvrir la fenêtre d'impression."
+    }
+  },
   "page": {
     "uploadAriaLabel": "Télécharger un fichier PDF"
   },

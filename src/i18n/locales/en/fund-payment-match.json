@@ -1,4 +1,48 @@
 {
+  "print": {
+    "title": "Reconciliation Report",
+    "header": {
+      "fileName": "PDF file",
+      "period": "Period",
+      "generated": "Generated on"
+    },
+    "section1": {
+      "heading": "Unreconciled procedures",
+      "empty": "All procedures in the period have been reconciled.",
+      "total": "Total"
+    },
+    "section2": {
+      "heading": "Corrections applied",
+      "groups": {
+        "ContestAmount": "Contested amounts",
+        "CreateProcedure": "Created procedures",
+        "LinkProcedure": "Linked procedures",
+        "AmountMismatch": "Amount corrections",
+        "FundMismatch": "Fund corrections",
+        "DateMismatch": "Date corrections"
+      }
+    },
+    "columns": {
+      "date": "Procedure date",
+      "patient": "Patient",
+      "ssn": "SSN",
+      "fund": "Fund",
+      "amount": "Amount",
+      "billed": "Billed amount",
+      "paid": "Paid amount",
+      "originalAmount": "Original amount",
+      "correctedAmount": "Corrected amount",
+      "originalFund": "Original fund",
+      "correctedFund": "Corrected fund",
+      "originalDate": "Original date",
+      "correctedDate": "Corrected date",
+      "paymentDate": "Payment date"
+    },
+    "page": "Page",
+    "error": {
+      "windowOpenFailed": "Failed to open print window."
+    }
+  },
   "page": {
     "uploadAriaLabel": "Upload PDF file"
   },

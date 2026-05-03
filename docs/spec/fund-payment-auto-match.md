@@ -115,7 +115,7 @@ Action applied per anomaly type:
 
 **R27 — Unreconciled-procedures report (backend + frontend)**: After validation, a report of unreconciled procedures within the PDF date range is displayed, allowing the practitioner to detect forgotten or unreimbursed procedures.
 
-**R31 — Report printing (frontend)**: When the report is displayed (post-validation step only), a "Print" button is present in the modal's fixed header. It triggers printing of the report's content via the browser's printing mechanism (`window.print()`). Cancellation or interruption of printing by the user is handled entirely by the browser — no application-level error state is required. The button is absent during all other workflow steps.
+**R31 — Report printing (frontend)** ⚠️ *Superseded by FPR spec (`docs/spec/fund-payment-print-report.md`)*: When the report is displayed (post-validation step only), a "Print" button is present in the modal's fixed header. Full print behavior (document structure, new window, correction log) is defined in the FPR spec. The button is absent during all other workflow steps.
 
 ---
 

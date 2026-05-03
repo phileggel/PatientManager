@@ -15,6 +15,7 @@ import { IconButton } from "@/ui/components/button/IconButton";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { ReconciliationResultsView } from "../reconciliation_results/ReconciliationResults";
 import { UnreconciledReportView } from "../unreconciled_report/UnreconciledReport";
+import { usePrintReport } from "./usePrintReport";
 import { useReconciliationModal } from "./useReconciliationModal";
 
 interface ReconciliationModalProps {
@@ -51,6 +52,14 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
 
   const isReportStep = unreconciledReport !== null && reportDateRange !== null;
 
+  const { handlePrint, printError, clearPrintError } = usePrintReport({
+    filePath,
+    reportDateRange,
+    unreconciledReport,
+    autoCorrections,
+    reconciliationData,
+  });
+
   return (
     <ModalContainer isOpen={true} onClose={onClose} maxWidth="max-w-4xl">
       {/* Header — hidden when printing (R31) */}
@@ -62,12 +71,29 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* R31: Print button — only shown during report step */}
+          {/* FPR-010: Print button — only shown during report step */}
           {isReportStep && (
-            <Button variant="secondary" onClick={() => window.print()}>
-              <Printer size={16} className="mr-1.5" />
-              {t("modal.header.print")}
-            </Button>
+            <>
+              <Button variant="secondary" onClick={handlePrint}>
+                <Printer size={16} className="mr-1.5" />
+                {t("modal.header.print")}
+              </Button>
+              {/* FPR-014: inline error when print window cannot be opened */}
+              {printError && (
+                <div className="flex items-center gap-1">
+                  <p role="alert" className="text-xs text-m3-error">
+                    {printError}
+                  </p>
+                  <IconButton
+                    icon={<X size={14} />}
+                    variant="ghost"
+                    shape="round"
+                    aria-label={t("modal.header.close")}
+                    onClick={clearPrintError}
+                  />
+                </div>
+              )}
+            </>
           )}
           <IconButton
             icon={<X size={20} />}
