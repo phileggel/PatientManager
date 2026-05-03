@@ -23,6 +23,12 @@ collect-logs:
 screenshot:
     ./scripts/screenshot.sh
 
+# Take a frontend visual proof screenshot for a component (see docs/frontend-visual-proof.md)
+# One-time setup: npx playwright install chromium
+# Requires: preview.html + src/__preview__/main.tsx (gitignored, create per task then delete)
+preview-screenshot COMPONENT:
+    node scripts/preview-screenshot.mjs {{COMPONENT}}
+
 # Generate frontend coverage report (outputs coverage/lcov.info)
 coverage-fe:
     npm run test:coverage

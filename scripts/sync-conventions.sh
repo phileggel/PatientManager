@@ -17,6 +17,7 @@ FILES=(
   "test_convention.md"
   "ddd-reference.md"
   "i18n-rules.md"
+  "frontend-visual-proof.md"
 )
 
 # Self-update: pull latest version of this script before syncing docs

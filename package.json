@@ -58,6 +58,7 @@
     "@wdio/spec-reporter": "^9.27.1",
     "happy-dom": "^20.3.9",
     "oxlint": "^1.42.0",
+    "playwright": "^1.59.1",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
