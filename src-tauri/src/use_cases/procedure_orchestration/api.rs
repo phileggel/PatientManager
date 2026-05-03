@@ -1,6 +1,8 @@
 use crate::context::procedure::{PaymentMethod, Procedure, ProcedureCandidate, ProcedureStatus};
 use crate::core::logger::BACKEND;
-use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
+use crate::use_cases::procedure_orchestration::{
+    CreateProcedureRequest, ProcedureOrchestrationService,
+};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::sync::Arc;
@@ -108,17 +110,16 @@ pub async fn add_procedure(
     tracing::info!(patient_id = %patient_id, "Processing add procedure");
 
     service
-        .create_procedure(
+        .create_procedure(CreateProcedureRequest {
             patient_id,
             fund_id,
             procedure_type_id,
             procedure_date,
             billed_amount,
-            None,
-            None,
-            None,
-            None,
-        )
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+        })
         .await
         .inspect(|procedure| {
             tracing::info!(procedure_id = ?procedure.id, "Procedure created successfully");

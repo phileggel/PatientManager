@@ -57,51 +57,49 @@ impl ProcedureOrchestrationService {
     pub async fn get_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
         self.context_procedure_service.read_all_procedures().await
     }
+}
 
+pub struct CreateProcedureRequest {
+    pub patient_id: String,
+    pub fund_id: Option<String>,
+    pub procedure_type_id: String,
+    pub procedure_date: String,
+    pub billed_amount: Option<i64>,
+    pub payment_method: Option<String>,
+    pub confirmed_payment_date: Option<String>,
+    pub paid_amount: Option<i64>,
+}
+
+impl ProcedureOrchestrationService {
     /// Add a new healthcare procedure with FK validation and patient tracking
     ///
     /// Orchestration responsibilities:
     /// 1. Validates that referenced entities (Patient, ProcedureType, optional Fund) exist
     /// 2. Updates patient tracking fields if the procedure date is newer than latest_date
     /// 3. Maps payment_method string to PaymentMethod enum
-    ///
-    /// IMPORTANT: awaited_amount parameter is ignored and always recalculated
-    /// from (billed_amount - paid_amount) to ensure consistency.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn create_procedure(
-        &self,
-        patient_id: String,
-        fund_id: Option<String>,
-        procedure_type_id: String,
-        procedure_date: String,
-        billed_amount: Option<i64>,
-        payment_method: Option<String>,
-        confirmed_payment_date: Option<String>,
-        paid_amount: Option<i64>,
-        _awaited_amount: Option<i64>,
-    ) -> anyhow::Result<Procedure> {
+    pub async fn create_procedure(&self, req: CreateProcedureRequest) -> anyhow::Result<Procedure> {
         tracing::debug!(
-            patient_id = %patient_id,
-            procedure_type_id = %procedure_type_id,
+            patient_id = %req.patient_id,
+            procedure_type_id = %req.procedure_type_id,
             "Creating new healthcare procedure with FK validation"
         );
 
         // Validate: Does patient exist?
         let patient = self
             .patient_repository
-            .read_patient(&patient_id)
+            .read_patient(&req.patient_id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Patient not found or deleted"))?;
 
         // Validate: Does procedure type exist?
         let _ = self
             .procedure_type_repository
-            .read_procedure_type(&procedure_type_id)
+            .read_procedure_type(&req.procedure_type_id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Procedure type not found or deleted"))?;
 
         // Validate: Does fund exist if provided?
-        let _ = if let Some(id) = &fund_id {
+        let _ = if let Some(id) = &req.fund_id {
             Some(
                 self.fund_repository
                     .read_fund(id)
@@ -114,31 +112,31 @@ impl ProcedureOrchestrationService {
 
         // Map payment method string to enum
         let mapped_payment_method = Self::determine_payment_method(
-            payment_method.as_deref(),
-            confirmed_payment_date.as_deref(),
+            req.payment_method.as_deref(),
+            req.confirmed_payment_date.as_deref(),
         );
 
         // Determine initial status based on payment info
         let status = Self::determine_procedure_status(
-            billed_amount,
-            paid_amount,
-            confirmed_payment_date.as_deref(),
-            payment_method.as_deref(),
-            fund_id.as_deref(),
+            req.billed_amount,
+            req.paid_amount,
+            req.confirmed_payment_date.as_deref(),
+            req.payment_method.as_deref(),
+            req.fund_id.as_deref(),
         );
 
         // Delegate to context service for state change (which publishes event)
         let procedure = self
             .context_procedure_service
             .create_procedure(
-                patient_id.clone(),
-                fund_id.clone(),
-                procedure_type_id.clone(),
-                procedure_date.clone(),
-                billed_amount,
+                req.patient_id.clone(),
+                req.fund_id.clone(),
+                req.procedure_type_id.clone(),
+                req.procedure_date.clone(),
+                req.billed_amount,
                 mapped_payment_method,
-                confirmed_payment_date,
-                paid_amount,
+                req.confirmed_payment_date,
+                req.paid_amount,
                 status,
             )
             .await?;
@@ -153,16 +151,16 @@ impl ProcedureOrchestrationService {
 
         if should_update_tracking {
             updated_patient.latest_date = Some(procedure.procedure_date);
-            updated_patient.latest_procedure_type = Some(procedure_type_id.clone());
-            updated_patient.latest_procedure_amount = billed_amount;
-            updated_patient.latest_fund = fund_id.clone();
+            updated_patient.latest_procedure_type = Some(req.procedure_type_id.clone());
+            updated_patient.latest_procedure_amount = req.billed_amount;
+            updated_patient.latest_fund = req.fund_id.clone();
 
             self.patient_repository
                 .update_patient(updated_patient)
                 .await?;
 
             tracing::debug!(
-                patient_id = %patient_id,
+                patient_id = %req.patient_id,
                 "Patient tracking fields updated"
             );
         }
@@ -1296,17 +1294,16 @@ mod tests {
         );
 
         orchestrator
-            .create_procedure(
-                "patient-id-1".to_string(),
-                None, // no fund
-                "new-type-id".to_string(),
-                "2024-06-15".to_string(),
-                Some(100000),
-                None,
-                None,
-                None,
-                None,
-            )
+            .create_procedure(CreateProcedureRequest {
+                patient_id: "patient-id-1".to_string(),
+                fund_id: None,
+                procedure_type_id: "new-type-id".to_string(),
+                procedure_date: "2024-06-15".to_string(),
+                billed_amount: Some(100000),
+                payment_method: None,
+                confirmed_payment_date: None,
+                paid_amount: None,
+            })
             .await
             .unwrap();
 
@@ -1760,17 +1757,16 @@ mod tests {
             Arc::new(mock_fund_repo_stub()),
         );
         let result = orchestrator
-            .create_procedure(
-                "p1".into(),
-                None,
-                "t1".into(),
-                "2024-01-01".into(),
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
+            .create_procedure(CreateProcedureRequest {
+                patient_id: "p1".into(),
+                fund_id: None,
+                procedure_type_id: "t1".into(),
+                procedure_date: "2024-01-01".into(),
+                billed_amount: None,
+                payment_method: None,
+                confirmed_payment_date: None,
+                paid_amount: None,
+            })
             .await;
         assert!(result.is_err());
         assert!(result
@@ -1787,17 +1783,16 @@ mod tests {
             Arc::new(mock_fund_repo_stub()),
         );
         let result = orchestrator
-            .create_procedure(
-                "patient-id-1".into(),
-                None,
-                "missing-type".into(),
-                "2024-01-01".into(),
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
+            .create_procedure(CreateProcedureRequest {
+                patient_id: "patient-id-1".into(),
+                fund_id: None,
+                procedure_type_id: "missing-type".into(),
+                procedure_date: "2024-01-01".into(),
+                billed_amount: None,
+                payment_method: None,
+                confirmed_payment_date: None,
+                paid_amount: None,
+            })
             .await;
         assert!(result.is_err());
         assert!(result
@@ -1814,17 +1809,16 @@ mod tests {
             Arc::new(mock_fund_repo_not_found()),
         );
         let result = orchestrator
-            .create_procedure(
-                "patient-id-1".into(),
-                Some("missing-fund".into()),
-                "t1".into(),
-                "2024-01-01".into(),
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
+            .create_procedure(CreateProcedureRequest {
+                patient_id: "patient-id-1".into(),
+                fund_id: Some("missing-fund".into()),
+                procedure_type_id: "t1".into(),
+                procedure_date: "2024-01-01".into(),
+                billed_amount: None,
+                payment_method: None,
+                confirmed_payment_date: None,
+                paid_amount: None,
+            })
             .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("not found"));

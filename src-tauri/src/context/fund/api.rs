@@ -429,7 +429,7 @@ mod tests {
         FundPaymentGroup::restore(
             id.to_string(),
             "fund-1".to_string(),
-            "2026-01-15".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             100_000,
             lines,
             FundPaymentGroupStatus::Active,

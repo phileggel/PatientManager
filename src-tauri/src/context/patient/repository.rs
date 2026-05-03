@@ -301,17 +301,16 @@ mod tests {
 
         let test_date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
 
-        let updated_patient = Patient {
-            id: saved_patient.id.clone(),
-            is_anonymous: true,
-            name: Some("Marie Dupont".to_string()),
-            ssn: Some("1234567890123".to_string()),
-            temp_id: None,
-            latest_procedure_type: Some("type-123".to_string()),
-            latest_fund: Some("fund-456".to_string()),
-            latest_date: Some(test_date),
-            latest_procedure_amount: Some(150000),
-        };
+        let updated_patient = Patient::restore(
+            saved_patient.id.clone(),
+            true,
+            Some("Marie Dupont".to_string()),
+            Some("1234567890123".to_string()),
+            Some("type-123".to_string()),
+            Some("fund-456".to_string()),
+            Some(test_date),
+            Some(150000),
+        );
 
         db.update_patient(updated_patient).await.unwrap();
 

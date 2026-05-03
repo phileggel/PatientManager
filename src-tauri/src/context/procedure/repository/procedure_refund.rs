@@ -76,12 +76,11 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
         .await
         .context("Failed to find procedure_refund by source_procedure_id")?;
 
-        Ok(row.map(|r| {
-            let date =
-                NaiveDate::parse_from_str(&r.refund_date, "%Y-%m-%d").unwrap_or(NaiveDate::MIN);
+        row.map(|r| -> anyhow::Result<ProcedureRefund> {
+            let date = NaiveDate::parse_from_str(&r.refund_date, "%Y-%m-%d")
+                .with_context(|| format!("Invalid refund_date in DB: {}", r.refund_date))?;
             let status = parse_procedure_status(&r.previous_payment_status);
-
-            ProcedureRefund::restore(
+            Ok(ProcedureRefund::restore(
                 r.id,
                 r.source_procedure_id,
                 r.refund_procedure_id,
@@ -90,8 +89,9 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
                 date,
                 r.reason,
                 status,
-            )
-        }))
+            ))
+        })
+        .transpose()
     }
 
     async fn find_by_refund_procedure_id(
@@ -119,12 +119,11 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
         .await
         .context("Failed to find procedure_refund by refund_procedure_id")?;
 
-        Ok(row.map(|r| {
-            let date =
-                NaiveDate::parse_from_str(&r.refund_date, "%Y-%m-%d").unwrap_or(NaiveDate::MIN);
+        row.map(|r| -> anyhow::Result<ProcedureRefund> {
+            let date = NaiveDate::parse_from_str(&r.refund_date, "%Y-%m-%d")
+                .with_context(|| format!("Invalid refund_date in DB: {}", r.refund_date))?;
             let status = parse_procedure_status(&r.previous_payment_status);
-
-            ProcedureRefund::restore(
+            Ok(ProcedureRefund::restore(
                 r.id,
                 r.source_procedure_id,
                 r.refund_procedure_id,
@@ -133,8 +132,9 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
                 date,
                 r.reason,
                 status,
-            )
-        }))
+            ))
+        })
+        .transpose()
     }
 
     async fn delete_procedure_refund(&self, id: &str) -> anyhow::Result<()> {

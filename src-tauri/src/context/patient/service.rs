@@ -208,7 +208,6 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        // On compare le message d'erreur via to_string()
         assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
     }
 

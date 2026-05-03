@@ -30,7 +30,7 @@ coverage-fe:
 # Generate backend coverage report (outputs coverage/tarpaulin-report.json)
 # Requires: cargo install cargo-tarpaulin
 coverage-be:
-    mkdir -p coverage && cd src-tauri && cargo tarpaulin --out Json --output-dir ../coverage
+    mkdir -p coverage && cd src-tauri && cargo tarpaulin --out Json --output-dir ../coverage --print-summary
 
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be

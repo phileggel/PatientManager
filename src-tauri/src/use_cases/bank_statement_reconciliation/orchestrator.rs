@@ -979,7 +979,7 @@ mod tests {
         let group = FundPaymentGroup::restore(
             "group-1".to_string(),
             "fund-1".to_string(),
-            "2026-01-15".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             100_000,
             vec![],
             FundPaymentGroupStatus::Active,
@@ -1004,7 +1004,7 @@ mod tests {
         let group = FundPaymentGroup::restore(
             "group-2".to_string(),
             "fund-1".to_string(),
-            "2026-01-10".to_string(), // 5 days before bank date
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(), // 5 days before bank date
             50_000,
             vec![],
             FundPaymentGroupStatus::Active,
@@ -1028,7 +1028,7 @@ mod tests {
         let group = FundPaymentGroup::restore(
             "group-locked".to_string(),
             "fund-1".to_string(),
-            "2026-01-15".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             100_000,
             vec![],
             FundPaymentGroupStatus::BankPaid, // is_locked = true
@@ -1052,7 +1052,7 @@ mod tests {
         let group = FundPaymentGroup::restore(
             "group-1".to_string(),
             "fund-1".to_string(),
-            "2026-01-15".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             200_000, // different amount
             vec![],
             FundPaymentGroupStatus::Active,
@@ -1250,7 +1250,7 @@ mod tests {
         let group = FundPaymentGroup::restore(
             "group-1".to_string(),
             "fund-1".to_string(),
-            "2026-01-15".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             100_000,
             vec![],
             FundPaymentGroupStatus::Active,
