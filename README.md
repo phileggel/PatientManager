@@ -1,5 +1,8 @@
 # PatientManager
 
+![CI](https://github.com/phileggel/PatientManager/actions/workflows/ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/phileggel/PatientManager/graph/badge.svg?token=4f6fea9d-d23c-4189-88a0-0abdaead32fc)](https://codecov.io/gh/phileggel/PatientManager)
+
 Patient and service management system for desktop - manage patient records, track services, reconcile reimbursements, and analyze revenue.
 
 ## Quick Start

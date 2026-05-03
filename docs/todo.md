@@ -2,6 +2,17 @@
 
 ---
 
+## (frontend) — Fix OxLint warnings (38 pre-existing)
+
+OxLint exits 0 on warnings so CI passes, but 38 warnings exist across the codebase. Main categories:
+
+- `no-array-sort` / `no-array-reverse`: replace `.sort()` / `.reverse()` with `.toSorted()` / `.toReversed()` (immutable equivalents) — ~25 occurrences across sort hooks, presenters, utils
+- `consistent-function-scoping`: move helper functions that don't capture parent scope to module level — ~8 occurrences
+- `no-shadow`: rename short variable names (`p`, `t`, `error`, `label`) that shadow outer scope — ~5 occurrences
+- `no-console` in `wdio.conf.ts`: intentional driver error logging, add oxlint-disable comments
+
+---
+
 ## (backend+frontend/bank-statement) — Align PDF reading pattern with fund reconciliation
 
 Fund reconciliation passes a file path to Rust (`extract_pdf_text(filePath)`) and lets the backend read the file. Bank statement does the opposite: frontend reads bytes via `@tauri-apps/plugin-fs` then sends them to `parse_bank_statement(bytes)`. Both should follow the same path-based pattern.
