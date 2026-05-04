@@ -12,10 +12,9 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mockOpen }));
 
 import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
+import { makeBankAccount } from "@/tests/bank.factory";
+import { makeFund } from "@/tests/fund.factory";
 import { useImportModal } from "./useImportModal";
-
-const makeFund = (id: string) => ({ id, fund_identifier: id, name: "Caisse" });
-const makeBankAccount = (id: string) => ({ id, name: "Account", iban: null });
 
 describe("useImportModal", () => {
   const onNavigate = vi.fn();
@@ -77,7 +76,7 @@ describe("useImportModal", () => {
   });
 
   it("handleFundReconciliation: funds exist, cancelled — does nothing", async () => {
-    useAppStore.setState({ funds: [makeFund("f1")], bankAccounts: [] });
+    useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
     mockOpen.mockResolvedValue(null);
     const { result } = renderModal();
 
@@ -90,7 +89,7 @@ describe("useImportModal", () => {
   });
 
   it("handleFundReconciliation: funds exist, file selected — calls onFileSelected and closes", async () => {
-    useAppStore.setState({ funds: [makeFund("f1")], bankAccounts: [] });
+    useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
     mockOpen.mockResolvedValue("/tmp/statement.pdf");
     const { result } = renderModal();
 
@@ -119,7 +118,7 @@ describe("useImportModal", () => {
   });
 
   it("handleBankReconciliation: accounts exist, cancelled — does nothing", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount("b1")] });
+    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
     mockOpen.mockResolvedValue(null);
     const { result } = renderModal();
 
@@ -132,7 +131,7 @@ describe("useImportModal", () => {
   });
 
   it("handleBankReconciliation: accounts exist, file selected — calls onFileSelected and closes", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount("b1")] });
+    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
     mockOpen.mockResolvedValue("/tmp/bank.pdf");
     const { result } = renderModal();
 

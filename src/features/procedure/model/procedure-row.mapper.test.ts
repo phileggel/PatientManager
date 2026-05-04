@@ -1,7 +1,8 @@
 /// <reference types="vitest/globals" />
 
-import type { Fund, Procedure, ProcedureType } from "@/bindings";
+import { makeFund } from "@/tests/fund.factory";
 import { makePatient } from "@/tests/patient.factory";
+import { makeProcedure, makeProcedureType } from "@/tests/procedure.factory";
 import { toProcedureRow } from "./procedure-row.mapper";
 import type { ProcedureRowReferenceData } from "./procedure-row.types";
 
@@ -9,42 +10,12 @@ import type { ProcedureRowReferenceData } from "./procedure-row.types";
 // Test Helpers & Mocks
 // ============================================================================
 
-const createMockFund = (overrides?: Partial<Fund>): Fund => ({
-  id: "fund-1",
-  fund_identifier: "440",
-  name: "CPAM Loire-Atlantique",
-  temp_id: null,
-  ...overrides,
-});
-
-const createMockProcedureType = (overrides?: Partial<ProcedureType>): ProcedureType => ({
-  id: "procedure-type-1",
-  name: "Consultation",
-  default_amount: 25000, // 25.00€ in thousandths (matches backend i64 representation)
-  category: "test",
-  ...overrides,
-});
-
-const createMockProcedure = (overrides?: Partial<Procedure>): Procedure => ({
-  id: "procedure-1",
-  patient_id: "patient-1",
-  fund_id: "fund-1",
-  procedure_type_id: "procedure-type-1",
-  procedure_date: "2026-01-15",
-  billed_amount: 50000, // 50.00€ in thousandths
-  payment_method: "NONE",
-  confirmed_payment_date: "",
-  paid_amount: null,
-  payment_status: "CREATED",
-  ...overrides,
-});
-
 const createMockReferenceData = (
   overrides?: Partial<ProcedureRowReferenceData>,
 ): ProcedureRowReferenceData => ({
   patients: [makePatient()],
-  funds: [createMockFund()],
-  procedureTypes: [createMockProcedureType()],
+  funds: [makeFund()],
+  procedureTypes: [makeProcedureType()],
   ...overrides,
 });
 
@@ -54,7 +25,7 @@ const createMockReferenceData = (
 
 describe("toProcedureRow - Complete Conversions", () => {
   test("converts complete Procedure with all references found", () => {
-    const procedure = createMockProcedure();
+    const procedure = makeProcedure();
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -84,7 +55,7 @@ describe("toProcedureRow - Complete Conversions", () => {
   });
 
   test("generates unique rowId for each conversion", () => {
-    const procedure = createMockProcedure();
+    const procedure = makeProcedure();
     const referenceData = createMockReferenceData();
 
     const result1 = toProcedureRow(procedure, referenceData);
@@ -100,7 +71,7 @@ describe("toProcedureRow - Complete Conversions", () => {
 
 describe("toProcedureRow - Missing References", () => {
   test("handles missing patient reference (ID exists but not in referenceData)", () => {
-    const procedure = createMockProcedure({ patient_id: "patient-999" });
+    const procedure = makeProcedure({ patient_id: "patient-999" });
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -111,7 +82,7 @@ describe("toProcedureRow - Missing References", () => {
   });
 
   test("handles missing fund reference (ID exists but not in referenceData)", () => {
-    const procedure = createMockProcedure({ fund_id: "fund-999" });
+    const procedure = makeProcedure({ fund_id: "fund-999" });
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -122,7 +93,7 @@ describe("toProcedureRow - Missing References", () => {
   });
 
   test("handles missing procedure type reference (ID exists but not in referenceData)", () => {
-    const procedure = createMockProcedure({ procedure_type_id: "type-999" });
+    const procedure = makeProcedure({ procedure_type_id: "type-999" });
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -132,7 +103,7 @@ describe("toProcedureRow - Missing References", () => {
   });
 
   test("handles empty reference data arrays", () => {
-    const procedure = createMockProcedure();
+    const procedure = makeProcedure();
     const referenceData: ProcedureRowReferenceData = {
       patients: [],
       funds: [],
@@ -158,7 +129,7 @@ describe("toProcedureRow - Missing References", () => {
 
 describe("toProcedureRow - Null Foreign Keys", () => {
   test("handles missing patient when patient_id doesn't exist in references", () => {
-    const procedure = createMockProcedure({ patient_id: "non-existent-patient" });
+    const procedure = makeProcedure({ patient_id: "non-existent-patient" });
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -169,7 +140,7 @@ describe("toProcedureRow - Null Foreign Keys", () => {
   });
 
   test("handles null fund_id", () => {
-    const procedure = createMockProcedure({ fund_id: null });
+    const procedure = makeProcedure({ fund_id: null });
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -180,7 +151,7 @@ describe("toProcedureRow - Null Foreign Keys", () => {
   });
 
   test("handles missing procedure type when procedure_type_id doesn't exist in references", () => {
-    const procedure = createMockProcedure({ procedure_type_id: "non-existent-type" });
+    const procedure = makeProcedure({ procedure_type_id: "non-existent-type" });
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -190,7 +161,7 @@ describe("toProcedureRow - Null Foreign Keys", () => {
   });
 
   test("handles procedure with only nullable fund_id as null", () => {
-    const procedure = createMockProcedure({
+    const procedure = makeProcedure({
       fund_id: null,
     });
     const referenceData = createMockReferenceData();
@@ -224,7 +195,7 @@ describe("toProcedureRow - Multiple References", () => {
     const patient2 = makePatient({ id: "patient-2" });
     const patient3 = makePatient({ id: "patient-3" });
 
-    const procedure = createMockProcedure({ patient_id: "patient-2" });
+    const procedure = makeProcedure({ patient_id: "patient-2" });
     const referenceData = createMockReferenceData({
       patients: [patient1, patient2, patient3],
     });
@@ -235,11 +206,11 @@ describe("toProcedureRow - Multiple References", () => {
   });
 
   test("finds correct fund among multiple", () => {
-    const fund1 = createMockFund({ id: "fund-1", fund_identifier: "001", name: "Fund A" });
-    const fund2 = createMockFund({ id: "fund-2", fund_identifier: "002", name: "Fund B" });
-    const fund3 = createMockFund({ id: "fund-3", fund_identifier: "003", name: "Fund C" });
+    const fund1 = makeFund({ id: "fund-1", fund_identifier: "001", name: "Fund A" });
+    const fund2 = makeFund({ id: "fund-2", fund_identifier: "002", name: "Fund B" });
+    const fund3 = makeFund({ id: "fund-3", fund_identifier: "003", name: "Fund C" });
 
-    const procedure = createMockProcedure({ fund_id: "fund-3" });
+    const procedure = makeProcedure({ fund_id: "fund-3" });
     const referenceData = createMockReferenceData({
       funds: [fund1, fund2, fund3],
     });
@@ -251,11 +222,11 @@ describe("toProcedureRow - Multiple References", () => {
   });
 
   test("finds correct procedure type among multiple", () => {
-    const type1 = createMockProcedureType({ id: "type-1", name: "Type A" });
-    const type2 = createMockProcedureType({ id: "type-2", name: "Type B" });
-    const type3 = createMockProcedureType({ id: "type-3", name: "Type C" });
+    const type1 = makeProcedureType({ id: "type-1", name: "Type A" });
+    const type2 = makeProcedureType({ id: "type-2", name: "Type B" });
+    const type3 = makeProcedureType({ id: "type-3", name: "Type C" });
 
-    const procedure = createMockProcedure({ procedure_type_id: "type-1" });
+    const procedure = makeProcedure({ procedure_type_id: "type-1" });
     const referenceData = createMockReferenceData({
       procedureTypes: [type1, type2, type3],
     });
@@ -272,7 +243,7 @@ describe("toProcedureRow - Multiple References", () => {
 
 describe("toProcedureRow - Edge Cases", () => {
   test("handles procedure with zero amount", () => {
-    const procedure = createMockProcedure({ billed_amount: 0 });
+    const procedure = makeProcedure({ billed_amount: 0 });
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -281,7 +252,7 @@ describe("toProcedureRow - Edge Cases", () => {
   });
 
   test("handles procedure with negative amount (edge case)", () => {
-    const procedure = createMockProcedure({ billed_amount: -50000 }); // -50.00€ in thousandths
+    const procedure = makeProcedure({ billed_amount: -50000 }); // -50.00€ in thousandths
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -290,7 +261,7 @@ describe("toProcedureRow - Edge Cases", () => {
   });
 
   test("handles procedure with very large amount", () => {
-    const procedure = createMockProcedure({ billed_amount: 1000000000 }); // 1,000,000€ in thousandths
+    const procedure = makeProcedure({ billed_amount: 1000000000 }); // 1,000,000€ in thousandths
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -299,7 +270,7 @@ describe("toProcedureRow - Edge Cases", () => {
   });
 
   test("preserves date string exactly as provided", () => {
-    const procedure = createMockProcedure({ procedure_date: "2026-12-31" });
+    const procedure = makeProcedure({ procedure_date: "2026-12-31" });
     const referenceData = createMockReferenceData();
 
     const result = toProcedureRow(procedure, referenceData);
@@ -318,9 +289,9 @@ describe("toProcedureRow - Edge Cases", () => {
 
 describe("toProcedureRow - effectiveAmount fallback", () => {
   test("procedureAmount stays null when billed_amount is null", () => {
-    const procedure = createMockProcedure({ billed_amount: null });
+    const procedure = makeProcedure({ billed_amount: null });
     const referenceData = createMockReferenceData({
-      procedureTypes: [createMockProcedureType({ default_amount: 30000 })], // 30€
+      procedureTypes: [makeProcedureType({ default_amount: 30000 })], // 30€
     });
 
     const result = toProcedureRow(procedure, referenceData);
@@ -329,9 +300,9 @@ describe("toProcedureRow - effectiveAmount fallback", () => {
   });
 
   test("effectiveAmount falls back to procedure type default_amount when billed_amount is null", () => {
-    const procedure = createMockProcedure({ billed_amount: null });
+    const procedure = makeProcedure({ billed_amount: null });
     const referenceData = createMockReferenceData({
-      procedureTypes: [createMockProcedureType({ default_amount: 30000 })], // 30€
+      procedureTypes: [makeProcedureType({ default_amount: 30000 })], // 30€
     });
 
     const result = toProcedureRow(procedure, referenceData);
@@ -340,9 +311,9 @@ describe("toProcedureRow - effectiveAmount fallback", () => {
   });
 
   test("effectiveAmount uses billed_amount over default_amount when both are present", () => {
-    const procedure = createMockProcedure({ billed_amount: 75000 }); // 75€
+    const procedure = makeProcedure({ billed_amount: 75000 }); // 75€
     const referenceData = createMockReferenceData({
-      procedureTypes: [createMockProcedureType({ default_amount: 30000 })], // 30€
+      procedureTypes: [makeProcedureType({ default_amount: 30000 })], // 30€
     });
 
     const result = toProcedureRow(procedure, referenceData);
@@ -352,7 +323,7 @@ describe("toProcedureRow - effectiveAmount fallback", () => {
   });
 
   test("effectiveAmount is null when billed_amount is null and procedure type is not found", () => {
-    const procedure = createMockProcedure({
+    const procedure = makeProcedure({
       billed_amount: null,
       procedure_type_id: "missing-type",
     });
@@ -365,7 +336,7 @@ describe("toProcedureRow - effectiveAmount fallback", () => {
   });
 
   test("effectiveAmount is null when billed_amount is null and procedure_type_id is empty", () => {
-    const procedure = createMockProcedure({
+    const procedure = makeProcedure({
       billed_amount: null,
       procedure_type_id: "",
     });
@@ -377,9 +348,9 @@ describe("toProcedureRow - effectiveAmount fallback", () => {
   });
 
   test("effectiveAmount is 0 when billed_amount is null and default_amount is 0 (zero is a valid amount)", () => {
-    const procedure = createMockProcedure({ billed_amount: null });
+    const procedure = makeProcedure({ billed_amount: null });
     const referenceData = createMockReferenceData({
-      procedureTypes: [createMockProcedureType({ default_amount: 0 })],
+      procedureTypes: [makeProcedureType({ default_amount: 0 })],
     });
 
     const result = toProcedureRow(procedure, referenceData);

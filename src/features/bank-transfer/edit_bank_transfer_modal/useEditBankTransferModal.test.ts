@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankEntry } from "@/bindings";
 import { toastService } from "@/core/snackbar";
+import { makeBankEntry } from "@/tests/bank.factory";
 
 vi.mock("../gateway", () => ({
   getTransferFundGroupIds: vi.fn(),
@@ -15,25 +16,23 @@ vi.mock("../gateway", () => ({
 import * as gateway from "../gateway";
 import { useEditBankTransferModal } from "./useEditBankTransferModal";
 
-const makeBankAccount = () => ({ id: "account-1", name: "Compte principal", iban: null });
+const makeFundTransfer = (overrides?: Partial<BankEntry>) =>
+  makeBankEntry({
+    id: "transfer-fund-1",
+    transfer_date: "2026-03-10",
+    amount: 150000,
+    transfer_type: "FUND_WIRE",
+    ...overrides,
+  });
 
-const makeFundTransfer = (overrides?: Partial<BankEntry>): BankEntry => ({
-  id: "transfer-fund-1",
-  transfer_date: "2026-03-10",
-  amount: 150000,
-  transfer_type: "FUND_WIRE",
-  bank_account: makeBankAccount(),
-  ...overrides,
-});
-
-const makeDirectTransfer = (overrides?: Partial<BankEntry>): BankEntry => ({
-  id: "transfer-check-1",
-  transfer_date: "2026-03-12",
-  amount: 120000,
-  transfer_type: "PATIENT_CHECK",
-  bank_account: makeBankAccount(),
-  ...overrides,
-});
+const makeDirectTransfer = (overrides?: Partial<BankEntry>) =>
+  makeBankEntry({
+    id: "transfer-check-1",
+    transfer_date: "2026-03-12",
+    amount: 120000,
+    transfer_type: "PATIENT_CHECK",
+    ...overrides,
+  });
 
 const mockGroup = {
   group_id: "group-1",

@@ -27,17 +27,11 @@ vi.mock("@ui/components", async () => {
   };
 });
 
+import { makeFundPaymentGroup } from "@/tests/fund-payment.factory";
 import { useFundPaymentList } from "./useFundPaymentList";
 
-const makeGroup = (id: string, isLocked: boolean) => ({
-  id,
-  fund_id: "fund-1",
-  payment_date: "2026-03-01",
-  total_amount: 150000,
-  lines: [{ id: "line-1", fund_payment_group_id: id, procedure_id: "proc-1" }],
-  status: "ACTIVE" as const,
-  is_locked: isLocked,
-});
+const makeGroup = (id: string, isLocked: boolean) =>
+  makeFundPaymentGroup({ id, payment_date: "2026-03-01", is_locked: isLocked });
 
 const makeRow = (id: string, isLocked: boolean) => ({
   rowId: `row-${id}`,

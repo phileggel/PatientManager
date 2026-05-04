@@ -9,10 +9,9 @@ vi.mock("react-i18next", () => ({
 
 import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
+import { makeBankAccount } from "@/tests/bank.factory";
+import { makeFund } from "@/tests/fund.factory";
 import { useManagementModal } from "./useManagementModal";
-
-const makeFund = (id: string) => ({ id, fund_identifier: id, name: "Fund" });
-const makeBankAccount = (id: string) => ({ id, name: "Account", iban: null });
 
 describe("useManagementModal", () => {
   const onNavigate = vi.fn();
@@ -53,7 +52,7 @@ describe("useManagementModal", () => {
   });
 
   it("handleFundPayment navigates to fund-payment when funds exist", () => {
-    useAppStore.setState({ funds: [makeFund("f1")], bankAccounts: [] });
+    useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleFundPayment();
@@ -75,7 +74,7 @@ describe("useManagementModal", () => {
   });
 
   it("handleBankTransfer navigates to bank-transfer when bank accounts exist", () => {
-    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount("b1")] });
+    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleBankTransfer();

@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "@/lib/appStore";
+import { makeBankAccount } from "@/tests/bank.factory";
 
 vi.mock("../gateway", () => ({
   getCashBankAccountId: vi.fn(),
@@ -13,20 +14,14 @@ import { useAddBankTransferForm } from "./useAddBankTransferForm";
 
 const CASH_ID = "cash-account-default";
 
-const makeBankAccount = (id: string, name: string) => ({
-  id,
-  name,
-  iban: null,
-});
-
 describe("useAddBankTransferForm — R13 (CASH auto-account)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(gateway.getCashBankAccountId).mockResolvedValue({ success: true, data: CASH_ID });
     useAppStore.setState({
       bankAccounts: [
-        makeBankAccount(CASH_ID, "Caisse"),
-        makeBankAccount("acc-1", "Compte principal"),
+        makeBankAccount({ id: CASH_ID, name: "Caisse" }),
+        makeBankAccount({ id: "acc-1", name: "Compte principal" }),
       ],
     });
   });
