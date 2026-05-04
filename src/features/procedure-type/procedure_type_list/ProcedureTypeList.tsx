@@ -175,12 +175,12 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
               await deleteProcedureType(deleteData.id);
               setDeleteData(null);
               toastService.show("success", t("action.delete.success", { name: deleteData.name }));
-            } catch (error) {
+            } catch (err) {
               logger.error("Delete procedure type failed", {
-                error,
+                error: err,
                 procedureTypeId: deleteData.id,
               });
-              const message = error instanceof Error ? error.message : String(error);
+              const message = err instanceof Error ? err.message : String(err);
               toastService.show("error", t("action.delete.error", { error: message }));
             }
           }

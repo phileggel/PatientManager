@@ -9,6 +9,18 @@ interface DatePickerLegacyProps
   locale?: string;
 }
 
+function handleCalendarMouseDown(e: React.MouseEvent) {
+  e.preventDefault();
+}
+
+function getDaysInMonth(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+function getFirstDayOfMonth(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+}
+
 /**
  * DatePickerLegacy - Deprecated Component
  *
@@ -93,18 +105,6 @@ export function DatePickerLegacy({
     } as React.ChangeEvent<HTMLInputElement>);
     // Blur input so next click triggers onFocus and opens calendar again
     inputRef.current?.blur();
-  };
-
-  const handleCalendarMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-  };
-
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   };
 
   const renderCalendar = () => {

@@ -114,7 +114,7 @@ export function useSelectFundGroupsPanel({
             fund?.fund_identifier.toLowerCase().includes(query)
           );
         })
-        .sort((a, b) => b.payment_date.localeCompare(a.payment_date))
+        .toSorted((a, b) => b.payment_date.localeCompare(a.payment_date))
     : withoutCurrent;
 
   return {

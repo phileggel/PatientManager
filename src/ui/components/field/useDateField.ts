@@ -4,6 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const CALENDAR_WIDTH = 256;
 const CALENDAR_HEIGHT = 290;
 
+function getDaysInMonth(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+function getFirstDayOfMonth(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+}
+
 /**
  * useDateField - Logic for the DateField component.
  *
@@ -119,12 +127,6 @@ export function useDateField(
     onChange?.({ target: { value: isoDate } } as React.ChangeEvent<HTMLInputElement>);
     inputRef.current?.blur();
   };
-
-  const getDaysInMonth = (date: Date) =>
-    new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-
-  const getFirstDayOfMonth = (date: Date) =>
-    new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
   const monthYear = new Intl.DateTimeFormat(locale, {
     month: "long",

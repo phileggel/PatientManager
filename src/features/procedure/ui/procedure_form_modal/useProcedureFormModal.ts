@@ -239,7 +239,7 @@ export function useProcedureFormModal({
     [patients, patientId],
   );
   const sortedFunds = useMemo(
-    () => [...funds].sort((a, b) => a.fund_identifier.localeCompare(b.fund_identifier)),
+    () => funds.toSorted((a, b) => a.fund_identifier.localeCompare(b.fund_identifier)),
     [funds],
   );
 

@@ -118,7 +118,7 @@ export function computePdfDateRange(data: PdfParseResult): { start: string; end:
     }
   }
   if (dates.length === 0) return null;
-  const sorted = dates.filter(Boolean).sort();
+  const sorted = dates.filter(Boolean).toSorted();
   return { start: sorted[0] ?? "", end: sorted[sorted.length - 1] ?? "" };
 }
 
@@ -138,10 +138,10 @@ export function sortIssuesByPriority(matches: ReconciliationMatch[]): Reconcilia
   );
   const tooMany = filtered
     .filter((m) => m.type === "TooManyMatchIssue")
-    .sort((a, b) => getLineIndex(a) - getLineIndex(b));
+    .toSorted((a, b) => getLineIndex(a) - getLineIndex(b));
   const others = filtered
     .filter((m) => m.type !== "TooManyMatchIssue")
-    .sort((a, b) => getLineIndex(a) - getLineIndex(b));
+    .toSorted((a, b) => getLineIndex(a) - getLineIndex(b));
   return [...tooMany, ...others];
 }
 

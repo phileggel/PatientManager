@@ -9,6 +9,8 @@ import { exportDatabase, importDatabase } from "../gateway";
 
 const TAG = "[useDbBackupPanel]";
 
+const pad = (n: number) => String(n).padStart(2, "0");
+
 interface UseDbBackupPanelReturn {
   isExporting: boolean;
   isImporting: boolean;
@@ -37,7 +39,6 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
   const handleExport = async () => {
     // Build default filename with timestamp (R2)
     const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
     const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const defaultFilename = `backup_${timestamp}.db.gz`;
 

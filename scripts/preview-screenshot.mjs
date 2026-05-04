@@ -14,6 +14,7 @@ import { chromium } from "playwright";
 const COMPONENT = process.argv[2] ?? "preview";
 
 if (!/^[A-Za-z0-9_-]+$/.test(COMPONENT)) {
+  // oxlint-disable-next-line no-console
   console.error(`Invalid component name: "${COMPONENT}". Use only letters, digits, hyphens, underscores.`);
   process.exit(1);
 }
@@ -22,6 +23,7 @@ const OUT = `screenshots/${COMPONENT}-preview.png`;
 
 mkdirSync("screenshots", { recursive: true });
 
+// oxlint-disable-next-line no-console
 console.log("Starting Vite preview server…");
 
 const vite = spawn(
@@ -57,6 +59,7 @@ try {
 }
 
 const previewUrl = `${serverUrl}/preview.html`;
+// oxlint-disable-next-line no-console
 console.log(`\nOpening ${previewUrl}…`);
 
 // Extra time for initial compile
@@ -69,6 +72,7 @@ try {
   await page.goto(previewUrl, { waitUntil: "networkidle", timeout: 15_000 });
   await sleep(500);
   await page.screenshot({ path: OUT, fullPage: true });
+  // oxlint-disable-next-line no-console
   console.log(`\n✓ Screenshot saved: ${OUT}`);
 } finally {
   await browser.close();

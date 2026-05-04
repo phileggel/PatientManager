@@ -119,7 +119,7 @@ export function useSelectProceduresPanel({
             c.procedure_date.includes(query)
           );
         })
-        .sort((a, b) => b.procedure_date.localeCompare(a.procedure_date))
+        .toSorted((a, b) => b.procedure_date.localeCompare(a.procedure_date))
     : withoutCurrent;
 
   return {

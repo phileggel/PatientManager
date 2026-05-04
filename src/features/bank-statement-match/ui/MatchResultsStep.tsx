@@ -103,7 +103,7 @@ export function MatchResultsStep({
               );
 
               // Sort candidates: those with exact amount first, then by date proximity
-              const sortedCandidates = [...candidates].sort((a, b) => {
+              const sortedCandidates = candidates.toSorted((a, b) => {
                 const aExact = a.total_amount === line.amount;
                 const bExact = b.total_amount === line.amount;
                 if (aExact && !bExact) return -1;

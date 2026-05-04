@@ -56,7 +56,7 @@ export function ParsingReportModal({
     }
 
     // Sort by month order
-    const sortedEntries = [...groups.entries()].sort((a, b) => {
+    const sortedEntries = [...groups.entries()].toSorted((a, b) => {
       const orderA = monthOrder[a[0]] ?? 999;
       const orderB = monthOrder[b[0]] ?? 999;
       return orderA - orderB;
