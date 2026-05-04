@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useAppStore } from "@/lib/appStore";
 import { makePatient } from "@/tests/patient.factory";
 import { EditPatientModal } from "./EditPatientModal";
 
@@ -117,6 +118,16 @@ describe("EditPatientModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useAppStore.setState({
+      procedureTypes: [
+        { id: "Consultation", name: "Consultation", default_amount: 0, category: null },
+      ],
+      funds: [],
+    });
+  });
+
+  afterEach(() => {
+    useAppStore.setState({ procedureTypes: [], funds: [] });
   });
 
   it("renders modal when isOpen is true", () => {
@@ -147,6 +158,25 @@ describe("EditPatientModal", () => {
 
     expect(screen.getByText("Consultation")).toBeInTheDocument();
     expect(screen.getByText("€100.50")).toBeInTheDocument();
+  });
+
+  it("displays raw fund id as fallback when fund is not in store", () => {
+    render(<EditPatientModal patient={mockPatient} isOpen={true} onClose={mockOnClose} />);
+
+    expect(screen.getByText("CPAM00")).toBeInTheDocument();
+  });
+
+  it("displays resolved fund label when fund is in store", () => {
+    useAppStore.setState({
+      procedureTypes: [
+        { id: "Consultation", name: "Consultation", default_amount: 0, category: null },
+      ],
+      funds: [{ id: "CPAM00", fund_identifier: "CPAM00", name: "Caisse Primaire" }],
+    });
+
+    render(<EditPatientModal patient={mockPatient} isOpen={true} onClose={mockOnClose} />);
+
+    expect(screen.getByText("CPAM00 (Caisse Primaire)")).toBeInTheDocument();
   });
 
   it("updates form data when user changes input", async () => {
