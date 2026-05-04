@@ -70,9 +70,20 @@ export async function deleteTransferByType(transfer: BankEntry): Promise<Service
     id: transfer.id,
     type: transfer.transfer_type,
   });
-  return transfer.transfer_type === "FUND_WIRE"
-    ? deleteFundTransfer(transfer.id)
-    : deleteDirectTransfer(transfer.id);
+  switch (transfer.transfer_type) {
+    case "FUND_WIRE":
+    case "FUND_OUTGOING_WIRE":
+      return deleteFundTransfer(transfer.id);
+    case "PATIENT_CHECK":
+    case "PATIENT_CREDIT_CARD":
+    case "PATIENT_CASH":
+      return deleteDirectTransfer(transfer.id);
+    default: {
+      const unhandled: never = transfer.transfer_type;
+      logger.error("[bank-transfer] deleteTransferByType: unhandled type", { type: unhandled });
+      return { success: false, error: `Unhandled transfer type: ${String(unhandled)}` };
+    }
+  }
 }
 
 export async function getCashBankAccountId(): Promise<ServiceResult<string>> {
