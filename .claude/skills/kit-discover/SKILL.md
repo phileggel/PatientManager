@@ -159,3 +159,9 @@ Kit version: <…>
 The catalog in `kit-tools.md` is the kit's self-description; `kit-version.md` provides the temporal context (what changed since the project's previous sync). Read both before forming any judgment about CLAUDE.md drift — a section that looks stale may simply have been updated by the most recent kit version.
 
 This skill complements `/whats-next` (which surveys _project_ backlog). Both are revisit-time tools for catching what edit-time memory has forgotten.
+
+---
+
+## Migration note — tauri-conventions → kit (v3.18+)
+
+Convention docs previously distributed by the `tauri-conventions` repo are now synced directly by the kit into `docs/`. If your project has a `sync-conventions.sh` at the project root and a `sync-conventions` recipe in its justfile, remove both — they are superseded by the kit sync.

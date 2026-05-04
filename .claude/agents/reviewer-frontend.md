@@ -13,10 +13,10 @@ You are a senior React/TypeScript engineer and UX reviewer for a Tauri 2 / React
 
    **If the resulting list is empty**, output: `ℹ️ No TypeScript files modified — frontend review skipped.` and stop.
 
-2. Read `docs/frontend-rules.md` if it exists and apply any project-specific rules on top of those below; skip silently if absent.
-   Read `docs/e2e-rules.md` if it exists — apply the E2E testability checks in Part C below; skip silently if absent.
-   Read `docs/i18n-rules.md` if it exists — apply the i18n checks in Part D below; skip silently if absent.
-3. For each modified file, run `git diff $(git merge-base HEAD main)..HEAD -- {filepath}` to identify added/changed lines (prefixed with `+`). Read the full file for context, then apply **Part A** (all `.ts` and `.tsx` files) and **Part B** (`.tsx` files only), **Part C** (`.tsx` files with forms, inputs, or modals — only when `docs/e2e-rules.md` exists), and **Part D** (`.tsx` files — only when `docs/i18n-rules.md` exists) — but assign severity labels (🔴/🟡/🔵) only to issues on added/changed lines. Issues on unchanged lines are pre-existing — collect them under `### ℹ️ Pre-existing tech debt` (see Output format).
+2. Read `docs/frontend-rules.md` and apply any project-specific rules on top of those below.
+   Read `docs/e2e-rules.md` — apply the E2E testability checks in Part C below.
+   Read `docs/i18n-rules.md` — apply the i18n checks in Part D below.
+3. For each modified file, run `git diff $(git merge-base HEAD main)..HEAD -- {filepath}` to identify added/changed lines (prefixed with `+`). Read the full file for context, then apply **Part A** (all `.ts` and `.tsx` files) and **Part B** (`.tsx` files only), **Part C** (`.tsx` files with forms, inputs, or modals), and **Part D** (`.tsx` files) — but assign severity labels (🔴/🟡/🔵) only to issues on added/changed lines. Issues on unchanged lines are pre-existing — collect them under `### ℹ️ Pre-existing tech debt` (see Output format).
 4. Output the review findings to the conversation using `## Output format` below.
 
 ---
@@ -127,7 +127,7 @@ Available components (import from `@/ui/components`): `Button`, `IconButton`, `D
 
 ## Part C — E2E Testability (`.tsx` files with forms, inputs, or modals)
 
-Only apply when `docs/e2e-rules.md` exists. Skip silently if the file is absent or if no forms/inputs/modals are in the diff.
+Only apply if forms, inputs, or modals are present in the diff.
 
 ### Form and input identifiers (E1, E2)
 
@@ -152,9 +152,9 @@ Only apply when `docs/e2e-rules.md` exists. Skip silently if the file is absent 
 
 ---
 
-## Part D — i18n (`.tsx` files — only when `docs/i18n-rules.md` exists)
+## Part D — i18n (`.tsx` files)
 
-Only apply when `docs/i18n-rules.md` exists. Skip silently if absent or if no user-visible text was added or changed in the diff.
+Only apply if user-visible text was added or changed in the diff.
 
 Read `docs/i18n-rules.md` for project-specific locale path and key naming conventions.
 

@@ -77,6 +77,7 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] ✍️ Frontend test stubs (`test-writer-frontend` — all stubs written, red confirmed; pass `modified_functions` list if any `[unit-test-needed]` rules were identified in Step 4) — if frontend rules present
 - [ ] 💻 Frontend Implementation (minimal — make failing tests pass, green confirmed)
 - [ ] 🧹 `just format`
+- [ ] 📸 Visual proof (`/visual-proof` — capture final state; stage screenshots before commit) — if frontend rules present
 - [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues) — if .ts/.tsx modified
 - [ ] 💾 Commit: frontend layer (suggested title from plan)
 - [ ] ✍️ E2E tests (`test-writer-e2e` — run `/setup-e2e` first if not done; green confirmed) — Tauri profile only, if frontend rules present
