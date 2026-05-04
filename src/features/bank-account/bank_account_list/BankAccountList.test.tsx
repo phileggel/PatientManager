@@ -6,7 +6,21 @@ import { useBankAccountList } from "./useBankAccountList";
 vi.mock("../gateway");
 vi.mock("./useBankAccountList");
 vi.mock("../edit_bank_account_modal/EditBankAccountModal", () => ({
-  EditBankAccountModal: () => <div>Edit Bank Account Modal Mock</div>,
+  EditBankAccountModal: ({
+    bankAccount,
+    onClose,
+  }: {
+    bankAccount: unknown;
+    onClose: () => void;
+  }) =>
+    bankAccount ? (
+      <div>
+        Edit Bank Account Modal Mock
+        <button type="button" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    ) : null,
 }));
 
 interface ConfirmationDialogProps {
@@ -208,6 +222,27 @@ describe("BankAccountList", () => {
     expect(deleteCash).toBeDisabled();
     expect(editMain).not.toBeDisabled();
     expect(deleteMain).not.toBeDisabled();
+  });
+
+  it("opens edit modal on double-click of a normal account row", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useBankAccountList).mockReturnValue({
+      bankAccountRows: [{ rowId: "row-1", id: "acc-1", name: "Main Account" }],
+      accounts: [{ id: "acc-1", name: "Main Account", iban: "DE89370400440532013000" }],
+      loading: false,
+      cashAccountId: null,
+      deleteBankAccount: vi.fn(),
+    });
+
+    render(<BankAccountList searchTerm="" />);
+
+    const row = screen.getByText("Main Account").closest("tr");
+    if (row) {
+      await user.dblClick(row);
+    }
+
+    expect(screen.getByText("Edit Bank Account Modal Mock")).toBeInTheDocument();
   });
 
   it("does not open edit modal on double-click of cash account row", async () => {
