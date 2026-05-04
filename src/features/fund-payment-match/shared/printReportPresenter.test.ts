@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AutoCorrection, ReconciliationMatch, UnreconciledProcedure } from "@/bindings";
-import type { PrintReportInput } from "./printReportPresenter";
+import type { CorrectionGroup, PrintReportInput } from "./printReportPresenter";
 import { buildPrintReportViewModel } from "./printReportPresenter";
 
 // ---------------------------------------------------------------------------
@@ -170,8 +170,8 @@ describe("buildPrintReportViewModel — section 2", () => {
 
     // Only two groups: ContestAmount first (priority 1), DateMismatch last (priority 6)
     expect(vm.correctionGroups).toHaveLength(2);
-    expect(vm.correctionGroups[0]!.type).toBe("ContestAmount");
-    expect(vm.correctionGroups[1]!.type).toBe("DateMismatch");
+    expect(vm.correctionGroups[0]?.type).toBe("ContestAmount");
+    expect(vm.correctionGroups[1]?.type).toBe("DateMismatch");
   });
 
   it("all six correction types appear in correct priority order when all present", () => {
@@ -402,7 +402,7 @@ describe("buildPrintReportViewModel — section 2", () => {
     });
 
     expect(vm.correctionGroups).toHaveLength(1);
-    const group = vm.correctionGroups[0]!;
+    const group = vm.correctionGroups[0] as CorrectionGroup;
     expect(group.type).toBe("ContestAmount");
     expect(group.rows).toHaveLength(1);
     expect(group.rows[0]).toMatchObject({
@@ -434,7 +434,7 @@ describe("buildPrintReportViewModel — section 2", () => {
     });
 
     expect(vm.correctionGroups).toHaveLength(1);
-    const group = vm.correctionGroups[0]!;
+    const group = vm.correctionGroups[0] as CorrectionGroup;
     expect(group.type).toBe("CreateProcedure");
     expect(group.rows).toHaveLength(1);
     expect(group.rows[0]).toMatchObject({
@@ -494,7 +494,7 @@ describe("buildPrintReportViewModel — section 2", () => {
     });
 
     expect(vm.correctionGroups).toHaveLength(1);
-    const group = vm.correctionGroups[0]!;
+    const group = vm.correctionGroups[0] as CorrectionGroup;
     expect(group.type).toBe("LinkProcedure");
     expect(group.rows).toHaveLength(1);
     expect(group.rows[0]).toMatchObject({
@@ -546,7 +546,7 @@ describe("buildPrintReportViewModel — section 2", () => {
     });
 
     expect(vm.correctionGroups).toHaveLength(1);
-    const group = vm.correctionGroups[0]!;
+    const group = vm.correctionGroups[0] as CorrectionGroup;
     expect(group.type).toBe("AmountMismatch");
     expect(group.rows[0]).toMatchObject({
       patientName: "PATIENT B",
@@ -597,7 +597,7 @@ describe("buildPrintReportViewModel — section 2", () => {
     });
 
     expect(vm.correctionGroups).toHaveLength(1);
-    const group = vm.correctionGroups[0]!;
+    const group = vm.correctionGroups[0] as CorrectionGroup;
     expect(group.type).toBe("FundMismatch");
     expect(group.rows[0]).toMatchObject({
       patientName: "PATIENT C",
@@ -648,7 +648,7 @@ describe("buildPrintReportViewModel — section 2", () => {
     });
 
     expect(vm.correctionGroups).toHaveLength(1);
-    const group = vm.correctionGroups[0]!;
+    const group = vm.correctionGroups[0] as CorrectionGroup;
     expect(group.type).toBe("DateMismatch");
     expect(group.rows[0]).toMatchObject({
       patientName: "PATIENT D",
@@ -721,7 +721,7 @@ describe("buildPrintReportViewModel — section 2", () => {
     const vm = buildPrintReportViewModel({ ...baseInput, autoCorrections: corrections, matches });
 
     expect(vm.correctionGroups).toHaveLength(1);
-    const group = vm.correctionGroups[0]!;
+    const group = vm.correctionGroups[0] as CorrectionGroup;
     expect(group.rows).toHaveLength(2);
     // Earlier date must come first
     expect(group.rows[0]).toMatchObject({ originalDate: "2025-04-04" });
@@ -777,7 +777,7 @@ describe("buildPrintReportViewModel — section 2", () => {
       matches: [matchForLink],
     });
 
-    const group = vm.correctionGroups[0]!;
+    const group = vm.correctionGroups[0] as CorrectionGroup;
     expect(group.type).toBe("LinkProcedure");
     expect(group.rows[0]).toMatchObject({
       patientName: "BERNARD Sophie",

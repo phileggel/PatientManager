@@ -109,7 +109,7 @@ export function buildPrintReportHtml(
           `<tr><td>${row.date}</td><td>${esc(row.patientName)}</td><td>${esc(row.ssn)}</td><td>${formatAmount(row.amountThousandths)} €</td></tr>`,
       )
       .join("");
-    section1Body = `<table><thead><tr><th>${t("print.columns.date")}</th><th>${t("print.columns.patient")}</th><th>${t("print.columns.ssn")}</th><th>${t("print.columns.billed")}</th></tr></thead><tbody>${tableRows}</tbody></table><p class="total"><strong>${t("print.section1.total")}:</strong> ${formatAmount(unreconciledTotalThousandths!)} €</p>`;
+    section1Body = `<table><thead><tr><th>${t("print.columns.date")}</th><th>${t("print.columns.patient")}</th><th>${t("print.columns.ssn")}</th><th>${t("print.columns.billed")}</th></tr></thead><tbody>${tableRows}</tbody></table><p class="total"><strong>${t("print.section1.total")}:</strong> ${formatAmount(unreconciledTotalThousandths ?? 0)} €</p>`;
   }
 
   const section2Html =
