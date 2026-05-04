@@ -24,7 +24,7 @@ export function useSortProcedureList(rows: ProcedureRow[]) {
   const sortedRows = useMemo(() => {
     if (!sortConfig.key || !sortConfig.direction) return rows;
     const key = sortConfig.key;
-    return [...rows].sort((a, b) => {
+    return rows.toSorted((a, b) => {
       if (key === "procedureAmount") {
         const numA = a[key] ?? -Infinity;
         const numB = b[key] ?? -Infinity;

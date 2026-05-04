@@ -154,11 +154,11 @@ describe("buildPrintReportHtml — section 1 positive path", () => {
 // Locale switch (FPR-021)
 // ---------------------------------------------------------------------------
 
+const tFr = (key: string): string => `FR_${key}`;
+const tEn = (key: string): string => `EN_${key}`;
+
 describe("buildPrintReportHtml — locale switch", () => {
   it("output differs between a French translator and an English translator (FPR-021)", () => {
-    const tFr = (key: string): string => `FR_${key}`;
-    const tEn = (key: string): string => `EN_${key}`;
-
     const htmlFr = buildPrintReportHtml(emptyVm, tFr);
     const htmlEn = buildPrintReportHtml(emptyVm, tEn);
 

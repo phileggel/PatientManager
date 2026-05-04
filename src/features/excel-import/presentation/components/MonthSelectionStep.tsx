@@ -15,7 +15,7 @@ function extractMonths(parsedData: ParseExcelResponse): string[] {
     const m = proc.procedure_date.substring(0, 7);
     if (m.length === 7) months.add(m);
   }
-  return Array.from(months).sort();
+  return Array.from(months).toSorted();
 }
 
 interface MonthSelectionStepProps {

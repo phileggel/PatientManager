@@ -102,7 +102,7 @@ export function useProcedureSelectionModal({
       // Pre-filtered list from parent (edit modal R19 flow) — no fetch needed
       setAvailableProcedures(preloadedProcedures);
       reset();
-      for (const p of preloadedProcedures.filter((p) => initialSelectionIds.includes(p.id))) {
+      for (const p of preloadedProcedures.filter((proc) => initialSelectionIds.includes(proc.id))) {
         toggleSelection(p);
       }
       return;
@@ -117,7 +117,7 @@ export function useProcedureSelectionModal({
         if (result.success) {
           setAvailableProcedures(result.data);
           reset();
-          for (const p of result.data.filter((p) => initialSelectionIds.includes(p.id))) {
+          for (const p of result.data.filter((proc) => initialSelectionIds.includes(proc.id))) {
             toggleSelection(p);
           }
         } else {
@@ -141,7 +141,7 @@ export function useProcedureSelectionModal({
 
   // Sort: initial selections first, then by most recent date
   const procedures = useMemo(() => {
-    return [...availableProcedures].sort((a, b) => {
+    return availableProcedures.toSorted((a, b) => {
       // Priority 1: Was already selected at open time (stays on top)
       const aWasInitial = initialSelectionIds.includes(a.id) ? 1 : 0;
       const bWasInitial = initialSelectionIds.includes(b.id) ? 1 : 0;
@@ -158,7 +158,7 @@ export function useProcedureSelectionModal({
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       months.add(key);
     }
-    return Array.from(months).sort().reverse();
+    return Array.from(months).toSorted().toReversed();
   }, [procedures]);
 
   const filteredProcedures = useMemo(() => {

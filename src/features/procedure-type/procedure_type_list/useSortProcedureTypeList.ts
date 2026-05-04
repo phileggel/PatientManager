@@ -49,7 +49,7 @@ export function useSortProcedureTypeList(
       return filtered;
     }
 
-    return [...filtered].sort((a, b) => {
+    return filtered.toSorted((a, b) => {
       const aVal = a[sortConfig.key as keyof ProcedureTypeRow];
       const bVal = b[sortConfig.key as keyof ProcedureTypeRow];
 

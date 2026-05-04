@@ -57,10 +57,10 @@ export function useFundLabelMappingStep({ resolutions, onConfirm }: UseFundLabel
   // R27: unknown labels first (alpha), then confirmed/rejected (alpha)
   const unknownLabels = resolutions
     .filter((r) => !r.is_confirmed)
-    .sort((a, b) => a.bank_label.localeCompare(b.bank_label));
+    .toSorted((a, b) => a.bank_label.localeCompare(b.bank_label));
   const confirmedLabels = resolutions
     .filter((r) => r.is_confirmed)
-    .sort((a, b) => a.bank_label.localeCompare(b.bank_label));
+    .toSorted((a, b) => a.bank_label.localeCompare(b.bank_label));
 
   return {
     selections,

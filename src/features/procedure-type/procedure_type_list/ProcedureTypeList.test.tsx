@@ -96,6 +96,8 @@ vi.mock("./useSortProcedureTypeList", () => ({
 
 import { useProcedureTypeList } from "./useProcedureTypeList";
 
+const normalize = (s: string) => s.replace(/ | /g, " ").trim();
+
 describe("ProcedureTypeList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -128,7 +130,6 @@ describe("ProcedureTypeList", () => {
     render(<ProcedureTypeList searchTerm="" />);
 
     const fmt = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-    const normalize = (s: string) => s.replace(/\u00a0|\u202f/g, " ").trim();
     const cells = screen.getAllByRole("cell");
     const textContents = cells.map((c) => normalize(c.textContent ?? ""));
 

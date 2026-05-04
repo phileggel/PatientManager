@@ -34,7 +34,7 @@ export default function BankTransferManager() {
   };
 
   const handleDelete = (id: string) => {
-    const transfer = transfers.find((t) => t.id === id) ?? null;
+    const transfer = transfers.find((entry) => entry.id === id) ?? null;
     setTransferToDelete(transfer);
     setDeleteConfirmationOpen(true);
   };

@@ -95,11 +95,13 @@ export const config: Options.Testrunner = {
       { stdio: [null, process.stdout, process.stderr] },
     );
     tauriDriver.on("error", (error) => {
+      // oxlint-disable-next-line no-console
       console.error("tauri-driver error:", error);
       process.exit(1);
     });
     tauriDriver.on("exit", (code) => {
       if (!exit) {
+        // oxlint-disable-next-line no-console
         console.error("tauri-driver exited unexpectedly with code:", code);
         process.exit(1);
       }

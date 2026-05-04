@@ -2,20 +2,27 @@
 
 ---
 
-## (backend+frontend) — Add fund_reconciliation_date to Procedure
+## (frontend/bank-transfer) — BankTransferManager calls gateway directly (DDD violation)
 
-`confirmed_payment_date` is the bank-transfer date (Stage 2). A separate `fund_reconciliation_date` column is needed to record the fund-document payment date set at Stage 1 (fund reconciliation). Scope: SQLite migration, Rust domain + repository, Specta bindings regeneration, frontend display in procedure list and dashboard.
+`BankTransferManager.tsx` lines 51–54 call `deleteDirectTransfer` and `deleteFundTransfer` (imported from `./gateway`) directly inside the component's `handleDeleteConfirm` handler, bypassing the hook layer. Per the data-flow rule (Component → Hook → Gateway), these calls must be encapsulated in `useBankTransferOperations` or a dedicated hook, and the component should only call a handler function from the hook.
 
 ---
 
-## (frontend) — Fix OxLint warnings (38 pre-existing)
+## (frontend) — Fix snake_case identifier in DatePickerLegacy.tsx
 
-OxLint exits 0 on warnings so CI passes, but 38 warnings exist across the codebase. Main categories:
+`DatePickerLegacy.tsx` line 66: `locale_obj` uses snake_case, violating the TypeScript camelCase convention. Rename to `localeObj`.
 
-- `no-array-sort` / `no-array-reverse`: replace `.sort()` / `.reverse()` with `.toSorted()` / `.toReversed()` (immutable equivalents) — ~25 occurrences across sort hooks, presenters, utils
-- `consistent-function-scoping`: move helper functions that don't capture parent scope to module level — ~8 occurrences
-- `no-shadow`: rename short variable names (`p`, `t`, `error`, `label`) that shadow outer scope — ~5 occurrences
-- `no-console` in `wdio.conf.ts`: intentional driver error logging, add oxlint-disable comments
+---
+
+## (frontend/fund-payment-match) — Hardcoded French string in utils.ts
+
+`fund-payment-match/shared/utils.ts` line 106: `formatProcedureDateFromLine` returns `" au "` (French conjunction) hardcoded in a user-visible display string rendered in `PdfDataTable.tsx` and `CardParts.tsx`. Should be routed through `react-i18next` (`t("...")`) to be translatable.
+
+---
+
+## (backend+frontend) — Add fund_reconciliation_date to Procedure
+
+`confirmed_payment_date` is the bank-transfer date (Stage 2). A separate `fund_reconciliation_date` column is needed to record the fund-document payment date set at Stage 1 (fund reconciliation). Scope: SQLite migration, Rust domain + repository, Specta bindings regeneration, frontend display in procedure list and dashboard.
 
 ---
 

@@ -44,7 +44,7 @@ export function useSortBankAccountList(bankAccounts: BankAccountRow[], searchTer
     // Sort
     if (sortConfig.key && sortConfig.direction) {
       const key = sortConfig.key;
-      filtered = [...filtered].sort((a, b) => {
+      filtered = filtered.toSorted((a, b) => {
         const valueA = a[key] || "";
         const valueB = b[key] || "";
 

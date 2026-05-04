@@ -13,7 +13,7 @@ export function getAvailableYears(procedures: Procedure[]): number[] {
     }
   }
 
-  return Array.from(years).sort((a, b) => b - a); // descending order
+  return Array.from(years).toSorted((a, b) => b - a); // descending order
 }
 
 export function aggregateDashboardMetrics(
@@ -120,7 +120,7 @@ export function aggregateDashboardMetrics(
   return {
     payments,
     procedures: proceduresData,
-    categories: Array.from(categoriesSet).sort(),
+    categories: Array.from(categoriesSet).toSorted(),
     availableYears: getAvailableYears(procedures),
     annualDistinctPatientsPayments: allPaymentPatients.size,
     annualDistinctPatientsProcedures: allProcedurePatients.size,

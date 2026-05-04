@@ -43,7 +43,7 @@ export function useSortPatientList(patients: PatientRow[], searchTerm: string) {
     // Sort
     if (sortConfig.key && sortConfig.direction) {
       const key = sortConfig.key;
-      filtered = [...filtered].sort((a, b) => {
+      filtered = filtered.toSorted((a, b) => {
         const valueA = a[key];
         const valueB = b[key];
 

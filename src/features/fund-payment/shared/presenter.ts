@@ -73,7 +73,7 @@ export const FundPaymentPresenter = {
     return [
       { label: placeholderLabel, value: "" },
       ...funds
-        .sort((a, b) => a.fund_identifier.localeCompare(b.fund_identifier))
+        .toSorted((a, b) => a.fund_identifier.localeCompare(b.fund_identifier))
         .map((f) => ({
           label: `${f.fund_identifier} (${f.name})`,
           value: f.id,

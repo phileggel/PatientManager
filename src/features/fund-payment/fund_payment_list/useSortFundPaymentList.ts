@@ -42,7 +42,7 @@ export function useSortFundPaymentList(groups: FundPaymentRow[], searchTerm: str
     // Sort
     if (sortConfig.key && sortConfig.direction) {
       const key = sortConfig.key;
-      filtered = [...filtered].sort((a, b) => {
+      filtered = filtered.toSorted((a, b) => {
         const valueA = a[key];
         const valueB = b[key];
 
