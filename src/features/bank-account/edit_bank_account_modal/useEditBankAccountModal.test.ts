@@ -118,16 +118,26 @@ describe("useEditBankAccountModal", () => {
     expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
   });
 
-  it("resets form and errors when bankAccount prop changes", () => {
+  it("resets form and errors when bankAccount prop changes", async () => {
+    mockUpdate.mockResolvedValue({ success: true, data: account });
     const { result, rerender } = renderHook(({ acct }) => useEditBankAccountModal(acct, onClose), {
       initialProps: { acct: account },
     });
+
+    act(() => {
+      result.current.handleChange({
+        target: { name: "name", value: "" },
+      } as React.ChangeEvent<HTMLInputElement>);
+    });
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.SyntheticEvent);
+    });
+    expect(result.current.errors.name).toBeTruthy();
 
     const newAccount = makeBankAccount({ id: "acc-2", name: "Other Account", iban: null });
     rerender({ acct: newAccount });
 
     expect(result.current.formData.name).toBe("Other Account");
-    // TODO: submit first to produce errors, then rerender — currently vacuous (errors never set)
     expect(result.current.errors).toEqual({});
   });
 });
