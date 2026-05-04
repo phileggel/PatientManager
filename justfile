@@ -40,7 +40,3 @@ coverage-be:
 
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be
-
-# Sync convention docs from phileggel/tauri-conventions
-sync-conventions:
-    ./scripts/sync-conventions.sh

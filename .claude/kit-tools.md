@@ -1,6 +1,6 @@
 # Kit Tools Reference
 
-Thematic index of all agents, skills, scripts, git hooks, and justfile recipes provided by **claude-kit** — a spec-driven dev toolchain for the **spec → contract → plan → test-first → verify** workflow. Use this file to discover what is available without reading each agent definition individually.
+Thematic index of all agents, skills, convention docs, scripts, git hooks, and justfile recipes provided by **claude-kit** — an opinionated Claude-assisted factory for Tauri 2 + Axum/React 19 projects, built around the **spec → contract → plan → test-first → verify** workflow. Use this file to discover what is available without reading each agent definition individually.
 
 ---
 
@@ -33,6 +33,22 @@ Read on demand to orient — none are auto-loaded by Claude Code.
 | `kit-tools.md`   | This inventory — what the kit provides across all surfaces              |
 | `kit-readme.md`  | Onboarding readme for the kit                                           |
 | `kit-version.md` | Current kit version + changelog delta since the project's previous sync |
+
+---
+
+## Convention Docs (`tauri` profile only)
+
+Synced to `docs/` in downstream projects on first sync (copy-once — never overwrites project customizations). Agents reference these directly; no "if exists" hedging needed.
+
+| File                       | Purpose                                                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `backend-rules.md`         | Rust DDD structure: bounded context layout, aggregate roots, repositories, services, error handling, logging (B0–B36)        |
+| `frontend-rules.md`        | React feature layout: gateway pattern, smart/dumb components, hook colocation, i18n, logging, cross-feature routing (F1–F23) |
+| `e2e-rules.md`             | WebdriverIO testability: form/field `id` conventions, aria labels, `setReactInputValue`, deterministic dates (E1–E10)        |
+| `test_convention.md`       | Testing strategy across all tiers: frontend Vitest, BE unit/repo/integration, mocking rules, async patterns                  |
+| `ddd-reference.md`         | DDD concept glossary: Entity, Aggregate, Repository, Domain Event, Bounded Context, Unit of Work                             |
+| `i18n-rules.md`            | Translation structure, key naming (`domain.component.element`), locale consistency rules                                     |
+| `frontend-visual-proof.md` | Visual proof requirements: screenshot/video workflow for any `.tsx`/`.css` change, Playwright capture process                |
 
 ---
 
@@ -98,10 +114,11 @@ Skills that directly drive or support the spec → contract → plan → test-fi
 
 Generic lifecycle tools. No direct SDD connection — included because they must run somewhere in any project's lifecycle.
 
-| Skill       | Command         | Description                                                                                                                                     |
-| ----------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dep-audit` | `/dep-audit`    | Audit npm + Cargo dependencies for outdated versions and CVEs; run before every release                                                         |
-| `prune`     | `/prune [path]` | Audit the project for dead code, pass-through methods, verbose patterns, and duplicate definitions; coverage report mandatory, read-only output |
+| Skill          | Command         | Description                                                                                                                                                                                                              |
+| -------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dep-audit`    | `/dep-audit`    | Audit npm + Cargo dependencies for outdated versions and CVEs; run before every release                                                                                                                                  |
+| `prune`        | `/prune [path]` | Audit the project for dead code, pass-through methods, verbose patterns, and duplicate definitions; coverage report mandatory, read-only output                                                                          |
+| `visual-proof` | `/visual-proof` | Capture and commit visual proof screenshots for any `.tsx`/`.css` change. Auto-discovers config on first run. Generates a complete preview for all component states and captures with Playwright. _(Tauri profile only)_ |
 
 ### Kit sync
 

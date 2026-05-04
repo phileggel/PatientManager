@@ -1,6 +1,6 @@
-# Spec-Driven Dev Toolchain — Reference Guide
+# Claude-Assisted Factory — Reference Guide
 
-Onboarding guide for claude-kit: a spec-driven dev toolchain that ships the agents, skills, scripts, and hooks driving the **spec → contract → plan → test-first → verify** workflow. For the full inventory, see `.claude/kit-tools.md`.
+Onboarding guide for claude-kit: an opinionated Claude-assisted factory for Tauri 2 + Axum/React 19 projects. Ships the full SDD stack — convention docs, agents, skills, scripts, hooks, and justfile recipes — driving the **spec → contract → plan → test-first → verify** workflow. For the full inventory, see `.claude/kit-tools.md`.
 
 **Location**: `.claude/kit-readme.md` (read-only reference)
 
@@ -36,6 +36,24 @@ echo "tauri" > .claude/kit-profile
 # Or override once without changing the file
 ./scripts/sync-config.sh --profile tauri
 ```
+
+---
+
+## Convention Docs
+
+The `tauri` profile syncs 7 convention docs into `docs/` on first sync (copy-once — never overwrites project customizations). They are the authoritative reference for the stack's coding standards and are read directly by review and test agents:
+
+| Doc                        | What it governs                          |
+| -------------------------- | ---------------------------------------- |
+| `backend-rules.md`         | Rust DDD structure and patterns          |
+| `frontend-rules.md`        | React feature layout, gateway pattern    |
+| `e2e-rules.md`             | WebdriverIO testability conventions      |
+| `test_convention.md`       | Testing strategy across all tiers        |
+| `ddd-reference.md`         | DDD concept glossary                     |
+| `i18n-rules.md`            | Translation structure and key naming     |
+| `frontend-visual-proof.md` | Screenshot/video workflow for UI changes |
+
+**Do not edit these files directly.** Update them in the kit and re-sync. Rule numbers (B1, F3, etc.) are stable — never renumber.
 
 ---
 

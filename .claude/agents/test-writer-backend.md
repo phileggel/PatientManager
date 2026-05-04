@@ -33,8 +33,8 @@ If not provided, list files in `docs/contracts/` and ask which to use.
 ### Step 1 — Load context
 
 1. Read `docs/contracts/{domain}-contract.md` — source of truth for commands, args, return types, errors
-2. Read `docs/backend-rules.md` if present — follow project testing conventions
-3. Read `docs/testing.md` if present — follow project testing conventions
+2. Read `docs/backend-rules.md` — follow project testing conventions
+3. Read `docs/test_convention.md` — follow project testing conventions
 4. Locate the command file: search for `src-tauri/src/context/{domain}/api.rs` via Glob.
    If absent, search for any `.rs` file under `src-tauri/src/` containing `#[tauri::command]`
    attributes related to this domain.

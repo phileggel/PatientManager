@@ -69,3 +69,5 @@ tmp/
 # Frontend visual proof — temporary per-task preview files (see docs/frontend-visual-proof.md)
 preview.html
 src/__preview__/
+.visual-proof-capture.mjs
+screenshots/.console-errors.json

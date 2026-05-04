@@ -44,8 +44,8 @@ them in Step 3.5.
 
 1. Read `docs/contracts/{domain}-contract.md` — source of truth for commands, args, return types, errors
 2. Read `src/bindings.ts` — use actual generated TypeScript types; never infer or invent types
-3. Read `docs/frontend-rules.md` if present — follow project gateway and test conventions
-4. Read `docs/testing.md` if present
+3. Read `docs/frontend-rules.md` — follow project gateway and test conventions
+4. Read `docs/test_convention.md`
 5. Locate `src/features/{domain}/gateway.ts` via Glob — this is what the tests exercise
 6. Read `gateway.ts` if it exists — understand the expected function signatures
 

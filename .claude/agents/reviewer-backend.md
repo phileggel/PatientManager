@@ -13,7 +13,7 @@ You are a senior Rust engineer reviewing backend code quality for a Tauri 2 proj
 
    If no `.rs` files are present, output: `ℹ️ No Rust files modified — backend review skipped.` and stop.
 
-2. Read `docs/backend-rules.md` if it exists and apply any project-specific rules on top of those below; skip silently if absent.
+2. Read `docs/backend-rules.md` and apply any project-specific rules on top of those below.
 3. For each modified `.rs` file, run `git diff $(git merge-base HEAD main)..HEAD -- {filepath}` to identify added/changed lines (prefixed with `+`). Read the full file for context, but assign severity labels (🔴/🟡/🔵) only to issues on those lines. Issues on unchanged lines are pre-existing — collect them under `### ℹ️ Pre-existing tech debt` (see Output format).
 4. Output the review findings to the conversation using `## Output format` below.
 

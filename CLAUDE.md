@@ -30,7 +30,7 @@ While coding:
 Run `/whats-next` first to triage pending work, then `/start` to pick the right workflow for the task at hand.
 See `.claude/kit-readme.md` for the full workflow guide and `.claude/kit-tools.md` for the agent/skill reference.
 
-Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-manager` (Architecture Decision Records), `/kit-discover` (post-sync reconcile), `/smart-commit` (commit), `/create-pr` (push + open PR), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup).
+Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-manager` (Architecture Decision Records), `/kit-discover` (post-sync reconcile), `/smart-commit` (commit), `/create-pr` (push + open PR), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots).
 Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (fast-forward into main + delete branch).
 Key agents: `reviewer-security` — run when modifying any Tauri command, capability file, or security-sensitive code, and before every release.
 
@@ -72,15 +72,11 @@ Full rules: `docs/frontend-visual-proof.md`
 
 Any `.tsx`, `.css`, or visual asset change **must** include a committed screenshot in `screenshots/` before merging.
 
-Quick workflow:
-1. One-time setup: `npx playwright install chromium`
-2. Create `preview.html` + `src/__preview__/main.tsx` with hardcoded mock data (both gitignored)
-3. Seed the Zustand store via `useAppStore.setState(...)` — no `invoke()` needed in presentational components
-4. Run: `just preview-screenshot <ComponentName>`
-5. Screenshot saved to `screenshots/<ComponentName>-preview.png` — commit it
-6. Delete `preview.html` and `src/__preview__/` before committing
+One-time setup: `npx playwright install chromium`
 
-> **WSL2**: `--no-sandbox` is set in the script; no manual flag needed.
+Run `/visual-proof` after any frontend change — auto-discovers config on first run, generates previews for all component states in light + dark mode, captures with Playwright, and stages screenshots.
+
+> **WSL2**: add `args: ["--no-sandbox"]` to `chromium.launch()` in the generated `.visual-proof-capture.mjs` before running capture (pending kit fix).
 > **No visual change**: write `No visual impact — internal refactor / Rust-only change.` at the top of the PR/commit, then screenshot a screen that *consumes* the modified code as non-regression proof.
 
 ## ⚠️ Critical Patterns
