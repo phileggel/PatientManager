@@ -63,8 +63,8 @@ export function DatePickerLegacy({
   // Parse locale string (e.g., DD/MM/YYYY) to ISO date (YYYY-MM-DD)
   const formatDateForStorage = (displayDate: string): string => {
     if (!displayDate) return "";
-    const locale_obj = new Intl.DateTimeFormat(locale);
-    const parts = locale_obj.formatToParts(new Date());
+    const localeObj = new Intl.DateTimeFormat(locale);
+    const parts = localeObj.formatToParts(new Date());
 
     const dateParts = displayDate.split(/[/-]/);
     if (dateParts.length !== 3) return "";
