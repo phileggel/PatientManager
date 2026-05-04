@@ -29,14 +29,14 @@ screenshot:
 preview-screenshot COMPONENT:
     node scripts/preview-screenshot.mjs {{COMPONENT}}
 
-# Generate frontend coverage report (outputs coverage/lcov.info)
+# Generate frontend coverage report (outputs coverage/frontend/lcov.info)
 coverage-fe:
     npm run test:coverage
 
-# Generate backend coverage report (outputs coverage/rust/)
+# Generate backend coverage report (outputs coverage/backend/)
 # Requires: cargo install cargo-tarpaulin
 coverage-be:
-    mkdir -p coverage/rust && cd src-tauri && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir ../coverage/rust --lib --exclude-files "build.rs" --exclude-files "src/bin/generate_bindings.rs"
+    mkdir -p coverage/backend && cd src-tauri && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir ../coverage/backend --lib --exclude-files "build.rs" --exclude-files "src/bin/generate_bindings.rs"
 
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be
