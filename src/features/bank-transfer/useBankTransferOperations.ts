@@ -28,8 +28,11 @@ export function useBankTransferOperations() {
 
   // Initial load on mount
   useEffect(() => {
+    let isMounted = true;
+
     const loadData = async () => {
       const result = await readAllBankTransfers();
+      if (!isMounted) return;
       if (result.success && result.data) {
         useBankTransferStore.setState({ transfers: result.data, loading: false });
       } else {
@@ -39,20 +42,29 @@ export function useBankTransferOperations() {
 
     useBankTransferStore.setState({ loading: true, error: null });
     loadData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Event listener for real-time updates
   useEffect(() => {
+    let isMounted = true;
+
     const handleUpdate = async () => {
       logger.info("banktransfer_updated event received");
       const result = await readAllBankTransfers();
+      if (!isMounted) return;
       if (result.success && result.data) {
         useBankTransferStore.setState({ transfers: result.data });
       }
     };
 
     window.addEventListener("banktransfer_updated", handleUpdate);
-    return () => window.removeEventListener("banktransfer_updated", handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("banktransfer_updated", handleUpdate);
+    };
   }, []);
 
   // Operation handlers
