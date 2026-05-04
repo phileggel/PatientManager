@@ -121,16 +121,26 @@ describe("useEditFundModal", () => {
     expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
   });
 
-  it("resets form when fund prop changes", () => {
+  it("resets form when fund prop changes", async () => {
+    mockUpdate.mockResolvedValue({ success: true, data: fund });
     const { result, rerender } = renderHook(({ f }) => useEditFundModal(f, onSuccess), {
       initialProps: { f: fund },
     });
+
+    act(() => {
+      result.current.handleChange({
+        target: { name: "fund_identifier", value: "" },
+      } as React.ChangeEvent<HTMLInputElement>);
+    });
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+    expect(result.current.errors.fund_identifier).toBeTruthy();
 
     const other = makeFund({ id: "f-2", fund_identifier: "MGEN-01", name: "MGEN" });
     rerender({ f: other });
 
     expect(result.current.formData.fund_identifier).toBe("MGEN-01");
-    // TODO: submit first to produce errors, then rerender — currently vacuous (errors never set)
     expect(result.current.errors).toEqual({});
   });
 });

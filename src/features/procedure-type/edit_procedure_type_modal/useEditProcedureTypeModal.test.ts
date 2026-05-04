@@ -159,10 +159,21 @@ describe("useEditProcedureTypeModal", () => {
     expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
   });
 
-  it("resets form when procedureType prop changes", () => {
+  it("resets form when procedureType prop changes", async () => {
+    mockUpdate.mockResolvedValue({ success: true, data: pt });
     const { result, rerender } = renderHook(({ p }) => useEditProcedureTypeModal(p, onSuccess), {
       initialProps: { p: pt },
     });
+
+    act(() => {
+      result.current.handleChange({
+        target: { name: "name", value: "" },
+      } as React.ChangeEvent<HTMLInputElement>);
+    });
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+    expect(result.current.errors.name).toBeTruthy();
 
     const other = makeProcedureType({
       id: "pt-2",
@@ -174,7 +185,6 @@ describe("useEditProcedureTypeModal", () => {
 
     expect(result.current.formData.name).toBe("Radiologie");
     expect(result.current.formData.defaultAmount).toBe("80");
-    // TODO: submit first to produce errors, then rerender — currently vacuous (errors never set)
     expect(result.current.errors).toEqual({});
   });
 });
