@@ -137,6 +137,24 @@ impl BankAccountService {
         }
     }
 
+    /// R5 — IBAN uniqueness guard shared by create + update paths.
+    /// `exempt_id` lets `update_account` allow self-matches (renaming an account
+    /// without changing its IBAN must succeed). `None` rejects any match.
+    async fn ensure_iban_unique(
+        &self,
+        iban: Option<&str>,
+        exempt_id: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let Some(iban) = iban else { return Ok(()) };
+        let Some(other) = self.repository.find_by_iban_including_deleted(iban).await? else {
+            return Ok(());
+        };
+        if exempt_id.is_some_and(|id| id == other.id) {
+            return Ok(());
+        }
+        anyhow::bail!("IbanAlreadyUsed");
+    }
+
     /// Create a new bank account
     pub async fn create_account(
         &self,
@@ -144,21 +162,9 @@ impl BankAccountService {
         iban: Option<String>,
     ) -> anyhow::Result<BankAccount> {
         // R5 — Normalize and check IBAN uniqueness BEFORE calling the factory.
-        // Mirrors BankAccount::new normalization so the guard sees the same value.
-        let normalized_iban = iban
-            .as_deref()
-            .map(|i| i.trim().replace(' ', ""))
-            .filter(|i| !i.is_empty());
-        if let Some(ref iban_str) = normalized_iban {
-            if self
-                .repository
-                .find_by_iban_including_deleted(iban_str)
-                .await?
-                .is_some()
-            {
-                anyhow::bail!("IbanAlreadyUsed");
-            }
-        }
+        let normalized_iban = BankAccount::normalize_iban(iban.as_deref());
+        self.ensure_iban_unique(normalized_iban.as_deref(), None)
+            .await?;
         let account = BankAccount::new(name, iban)?;
         let created = self.repository.create_account(account).await?;
 
@@ -199,22 +205,10 @@ impl BankAccountService {
             anyhow::bail!("Cash account is protected and cannot be modified");
         }
         // R5 — Normalize and check IBAN uniqueness BEFORE calling the factory.
-        // Self-match (same id) is allowed so renaming an account without changing its IBAN succeeds.
-        let normalized_iban = iban
-            .as_deref()
-            .map(|i| i.trim().replace(' ', ""))
-            .filter(|i| !i.is_empty());
-        if let Some(ref iban_str) = normalized_iban {
-            if let Some(other) = self
-                .repository
-                .find_by_iban_including_deleted(iban_str)
-                .await?
-            {
-                if other.id != id {
-                    anyhow::bail!("IbanAlreadyUsed");
-                }
-            }
-        }
+        // Self-match (same id) is allowed via the exempt_id arg.
+        let normalized_iban = BankAccount::normalize_iban(iban.as_deref());
+        self.ensure_iban_unique(normalized_iban.as_deref(), Some(&id))
+            .await?;
         let account = BankAccount::with_id(id, name, iban)?;
         let updated = self.repository.update_account(account).await?;
 
