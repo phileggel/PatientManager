@@ -1,12 +1,6 @@
 import { useEffect } from "react";
-import type { BankEntry } from "@/bindings";
 import { logger } from "@/lib/logger";
-import {
-  deleteDirectTransfer,
-  deleteFundTransfer,
-  readAllBankTransfers,
-  type ServiceResult,
-} from "./gateway";
+import { deleteTransferByType, readAllBankTransfers } from "./gateway";
 import { useBankTransferStore } from "./store";
 import { useBankTransferController } from "./useBankTransferController";
 
@@ -67,16 +61,10 @@ export function useBankTransferOperations() {
     };
   }, []);
 
-  // Operation handlers
-  const handleDeleteTransfer = async (transfer: BankEntry): Promise<ServiceResult<void>> =>
-    transfer.transfer_type === "FUND_WIRE"
-      ? deleteFundTransfer(transfer.id)
-      : deleteDirectTransfer(transfer.id);
-
   return {
     transfers,
     isLoading,
     error,
-    deleteTransfer: handleDeleteTransfer,
+    deleteTransfer: deleteTransferByType,
   };
 }
