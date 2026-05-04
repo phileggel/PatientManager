@@ -12,9 +12,9 @@ Side benefit: makes the file-picker UX swappable (web `<input type="file">` if a
 
 ---
 
-## (frontend/rules) — Document F23 carve-out for gateway re-exports
+## (frontend/ui) — Split BankStatementModal step components
 
-`docs/frontend-rules.md` F23 currently forbids cross-feature imports of components, hooks, or utilities. The bank-statement-match feature now re-exports `createBankAccount` from the bank-account gateway (`src/features/bank-statement-match/gateway.ts`) so that hooks/components inside `bank-statement-match` import only from their own feature gateway. This is the established pattern when one feature needs a write operation owned by another aggregate. Add an explicit carve-out to F23: "A feature gateway MAY re-export a function from another feature's gateway when the intent is to contain the cross-context surface to a single file (gateway.ts). Hooks and components MUST still import from their own feature's gateway."
+`BankStatementModal.tsx` contains 7 conditional `step === "..."` blocks (loading, matching, create-account, label-mapping, results, done, error). The create-account step now has form state, validation, error display — non-trivial. Extract step components (e.g. `CreateAccountStep`, `DoneStep`, `ErrorStep`) once another step gains comparable logic, or if the modal grows past ~200 lines. Pure refactor — defer until there's a second non-trivial step or the file becomes unwieldy.
 
 ---
 
