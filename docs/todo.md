@@ -8,12 +8,6 @@
 
 ---
 
-## (frontend/patient) — Fix raw date and currency display in EditPatientModal
-
-`EditPatientModal.tsx` shows `patient.latest_date` as a raw ISO string and formats `latest_procedure_amount` inline with a hardcoded `€` symbol and `toFixed(2)`. Both should use `useFormatters()` (`formatDate` and `formatCurrency`) to respect locale settings consistently with the rest of the app.
-
----
-
 ## (frontend) — Fix OxLint warnings (38 pre-existing)
 
 OxLint exits 0 on warnings so CI passes, but 38 warnings exist across the codebase. Main categories:
@@ -30,12 +24,6 @@ OxLint exits 0 on warnings so CI passes, but 38 warnings exist across the codeba
 Fund reconciliation passes a file path to Rust (`extract_pdf_text(filePath)`) and lets the backend read the file. Bank statement does the opposite: frontend reads bytes via `@tauri-apps/plugin-fs` then sends them to `parse_bank_statement(bytes)`. Both should follow the same path-based pattern.
 
 Fix: add a `parse_bank_statement_from_path(file_path: String)` Rust command (or change the existing one), update `parseBankStatement` in `bank-statement/gateway.ts` to pass the path directly, and remove the `readFile` import.
-
----
-
-## (frontend) — Audit isMountedRef usage across all hooks
-
-React 19 makes setState after unmount a silent no-op, so `isMountedRef` guards in user-action callbacks (not effects) are dead code. Search for `isMountedRef` and `isMounted` patterns across all hooks and remove guards that are no longer needed. Keep local `let isMounted` guards inside effects (those guard against StrictMode double-invocation, which is a different problem).
 
 ---
 
