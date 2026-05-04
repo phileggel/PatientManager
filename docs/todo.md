@@ -2,17 +2,29 @@
 
 ---
 
+## (frontend/bank-transfer) — `handleDeleteTransfer` inline routing violates F5
+
+`useBankTransferOperations.ts` lines 71–74 — the `transfer_type === "FUND_WIRE"` dispatch is business logic sitting directly in the hook body. Extract to a helper in `gateway.ts` (e.g. `deleteTransferByType(transfer)`) or a presenter, and call the single function from the hook.
+
+---
+
+## (frontend/bank-transfer) — `deleteBankTransfer` in gateway.ts is dead code
+
+`src/features/bank-transfer/gateway.ts` — `deleteBankTransfer` is exported but has no consumers outside the file. Was superseded by the type-dispatched `deleteDirectTransfer`/`deleteFundTransfer` routing. Remove the export and verify `commands.deleteBankTransfer` is also unused on the backend side.
+
+---
+
+## (frontend/bank-transfer) — `handleDeleteTransfer` missing `useCallback`
+
+`useBankTransferOperations.ts` line 65 — `handleDeleteTransfer` is recreated on every render and returned from the hook as `deleteTransfer`. Wrap with `useCallback` (no deps) to give downstream components a stable reference.
+
+---
+
 ## (frontend/bank-transfer) — `handleDeleteTransfer` does not cover `FUND_OUTGOING_WIRE`
 
 `useBankTransferOperations.ts` — `handleDeleteTransfer` branches on `transfer_type === "FUND_WIRE"` and routes everything else to `deleteDirectTransfer`. The `"FUND_OUTGOING_WIRE"` type (overpayment refund, created exclusively via the overpayment flow) falls into the direct-transfer branch, which may be incorrect. Clarify the right delete command for outgoing wire entries and update the dispatch accordingly. At minimum, add an exhaustive `switch` so the compiler surfaces any future unhandled variant.
 
 Pre-existing (was in the original component before the hook refactor).
-
----
-
-## (frontend/bank-transfer) — `loadData` in `useBankTransferOperations` missing isMounted guard (F20)
-
-`useBankTransferOperations.ts` lines 31–42 — the `loadData` async function inside the mount `useEffect` calls `useBankTransferStore.setState(...)` after `readAllBankTransfers()` resolves, without checking if the component is still mounted. Add `let isMounted = true` / `if (isMounted)` guard and return `() => { isMounted = false; }` from the effect.
 
 ---
 
