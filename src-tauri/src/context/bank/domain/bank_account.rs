@@ -18,12 +18,19 @@ pub struct BankAccount {
 }
 
 impl BankAccount {
+    /// Normalizes a raw IBAN: trims whitespace, removes inner spaces, and
+    /// returns `None` for empty results. Single source of truth for IBAN
+    /// canonicalization — used by both factory methods and by the service-layer
+    /// uniqueness guard (R5) so all paths compare the same form.
+    pub fn normalize_iban(raw: Option<&str>) -> Option<String> {
+        raw.map(|i| i.trim().replace(' ', ""))
+            .filter(|i| !i.is_empty())
+    }
+
     /// Creates a new BankAccount with validation and generates ID.
     pub fn new(name: String, iban: Option<String>) -> Result<Self> {
         let trimmed_name = name.trim().to_string();
-        let trimmed_iban = iban
-            .map(|i| i.trim().replace(' ', ""))
-            .filter(|i| !i.is_empty());
+        let trimmed_iban = Self::normalize_iban(iban.as_deref());
         Self::validate(&trimmed_name)?;
 
         Ok(Self {
@@ -37,9 +44,7 @@ impl BankAccount {
     /// Does NOT generate a new ID.
     pub fn with_id(id: String, name: String, iban: Option<String>) -> Result<Self> {
         let trimmed_name = name.trim().to_string();
-        let trimmed_iban = iban
-            .map(|i| i.trim().replace(' ', ""))
-            .filter(|i| !i.is_empty());
+        let trimmed_iban = Self::normalize_iban(iban.as_deref());
         Self::validate(&trimmed_name)?;
 
         Ok(Self {

@@ -12,13 +12,32 @@ import {
 } from "@/bindings";
 import { logger } from "@/lib/logger";
 
-// Re-export for the inline-create flow (BAS-013/014). The bank-account aggregate
-// owns the command; this re-export keeps the cross-context dependency explicit
-// and contained inside the feature gateway, so hooks/components stay within the
-// `bank-statement-match` import boundary.
-export { createBankAccount } from "@/features/bank-account/gateway";
+import type { ServiceResult } from "@/types/api";
 
 const TAG = "[BankStatementGateway]";
+
+/**
+ * Inline create-account flow for the bank-statement import (BAS-013/014).
+ * Calls the same `commands.createBankAccount` Tauri command as the bank-account
+ * feature's own gateway, but lives inside this feature so we strictly respect
+ * F23 (no cross-feature imports). The duplication is bounded — both wrappers
+ * share the same shape because they wrap the same backend command.
+ */
+export async function createBankAccount(
+  name: string,
+  iban: string | null,
+): Promise<ServiceResult<BankAccount>> {
+  logger.info(TAG, "Creating bank account", { name, hasIban: iban !== null });
+
+  const result = await commands.createBankAccount(name, iban);
+
+  if (result.status === "error") {
+    logger.error(TAG, "Failed to create bank account", result.error);
+    return { success: false, error: result.error };
+  }
+
+  return { success: true, data: result.data };
+}
 
 export async function parseBankStatement(filePath: string): Promise<BankStatementParseResult> {
   logger.info(TAG, "Parsing bank statement PDF", { filePath });
