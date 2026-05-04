@@ -4,11 +4,11 @@ import { toastService } from "@/core/snackbar";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { useEditBankAccountModal } from "./useEditBankAccountModal";
 
-vi.mock("@/features/bank-account/gateway", () => ({
+vi.mock("../gateway", () => ({
   updateBankAccount: vi.fn(),
 }));
 
-import { updateBankAccount } from "@/features/bank-account/gateway";
+import { updateBankAccount } from "../gateway";
 
 const mockUpdate = vi.mocked(updateBankAccount);
 const mockToast = vi.mocked(toastService.show);
@@ -127,6 +127,7 @@ describe("useEditBankAccountModal", () => {
     rerender({ acct: newAccount });
 
     expect(result.current.formData.name).toBe("Other Account");
+    // TODO: submit first to produce errors, then rerender — currently vacuous (errors never set)
     expect(result.current.errors).toEqual({});
   });
 });

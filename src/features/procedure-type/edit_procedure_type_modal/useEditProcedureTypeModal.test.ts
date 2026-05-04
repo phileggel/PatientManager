@@ -174,6 +174,7 @@ describe("useEditProcedureTypeModal", () => {
 
     expect(result.current.formData.name).toBe("Radiologie");
     expect(result.current.formData.defaultAmount).toBe("80");
+    // TODO: submit first to produce errors, then rerender — currently vacuous (errors never set)
     expect(result.current.errors).toEqual({});
   });
 });
