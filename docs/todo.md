@@ -135,12 +135,6 @@ Tauri commands currently return `Result<T, String>` (via `anyhow` formatted with
 
 ---
 
-## (frontend/procedure) — Extract SummaryStats aggregation logic to a presenter function
-
-`SummaryStats.tsx` computes `uniquePatients`, `procedureCount`, `totalAmount`, `totalReceived`, and `totalAwaited` inline in the component render body. These are domain-to-UI transforms (F5/F10) and belong in `shared/presenter.ts` as a pure `summariseProcedureRows(rows): SummaryViewModel` function so they can be independently unit-tested. The component should only receive the pre-computed view model and render it.
-
----
-
 ## (frontend/fund-payment-match) — Reconciliation page: verify 10 MB file size limit
 
 Verify why the displayed limit is 10 MB.
