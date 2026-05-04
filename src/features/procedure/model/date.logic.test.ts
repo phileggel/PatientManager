@@ -108,11 +108,9 @@ describe("formatDateDisplay", () => {
     expect(formatDateDisplay("")).toBe("—");
   });
 
-  test("handles malformed date (splits by dash, may produce unexpected output)", () => {
-    // Note: No validation, just splits by "-"
-    // TODO: formatDateDisplay should return "—" for malformed input — fix function and update these assertions
-    expect(formatDateDisplay("2026-01")).toBe("undefined/01/2026");
-    expect(formatDateDisplay("invalid")).toBe("undefined/undefined/invalid");
+  test("returns em dash for malformed date (not 3 parts)", () => {
+    expect(formatDateDisplay("2026-01")).toBe("—");
+    expect(formatDateDisplay("invalid")).toBe("—");
   });
 
   test("handles dates with single-digit components", () => {
