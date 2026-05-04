@@ -281,7 +281,7 @@ describe("useBankStatementModal — BAS-010..017 (inline create-account flow)", 
 
     // User starts typing again — error must clear
     act(() => {
-      result.current.handleCreateNameChange("Cabinet principal modifié");
+      result.current.handleCreateNameChange("Cabinet principal updated");
     });
 
     expect(result.current.createError).toBeNull();

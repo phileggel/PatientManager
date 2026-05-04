@@ -16,7 +16,7 @@ describe("bank-statement-match gateway — createBankAccount re-export (BAS-014 
   it("returns ServiceResult success with the created BankAccount on happy path", async () => {
     const created: BankAccount = {
       id: "acc-new-1",
-      name: "Cabinet principal",
+      name: "Main Practice",
       iban: "FR7612345678901234567890189",
     };
 
@@ -24,7 +24,7 @@ describe("bank-statement-match gateway — createBankAccount re-export (BAS-014 
     mockInvoke.mockResolvedValue(created);
 
     const result: ServiceResult<BankAccount> = await createBankAccount(
-      "Cabinet principal",
+      "Main Practice",
       "FR7612345678901234567890189",
     );
 
@@ -33,27 +33,28 @@ describe("bank-statement-match gateway — createBankAccount re-export (BAS-014 
       expect(result.data).toEqual(created);
     }
     expect(mockInvoke).toHaveBeenCalledWith("create_bank_account", {
-      name: "Cabinet principal",
+      name: "Main Practice",
       iban: "FR7612345678901234567890189",
     });
   });
 
   it("returns ServiceResult failure with IbanAlreadyUsed when backend rejects (BAS-013)", async () => {
     // bindings.ts catch block: non-Error rejections become { status: "error", error: value }
-    // The backend surfaces "IbanAlreadyUsed: <iban>" as the error string.
-    mockInvoke.mockRejectedValue("IbanAlreadyUsed: FR7612345678901234567890189");
+    // The backend emits the bare sentinel "IbanAlreadyUsed" (no IBAN suffix — the
+    // IBAN is intentionally omitted to avoid PII leaking through error logs/UI).
+    mockInvoke.mockRejectedValue("IbanAlreadyUsed");
 
     const result: ServiceResult<BankAccount> = await createBankAccount(
-      "Doublon",
+      "Duplicate",
       "FR7612345678901234567890189",
     );
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("IbanAlreadyUsed");
+      expect(result.error).toBe("IbanAlreadyUsed");
     }
     expect(mockInvoke).toHaveBeenCalledWith("create_bank_account", {
-      name: "Doublon",
+      name: "Duplicate",
       iban: "FR7612345678901234567890189",
     });
   });

@@ -143,18 +143,23 @@ impl BankAccountService {
         name: String,
         iban: Option<String>,
     ) -> anyhow::Result<BankAccount> {
-        let account = BankAccount::new(name, iban)?;
-        // R5 — IBAN uniqueness across all accounts including soft-deleted.
-        if let Some(normalized_iban) = account.iban.as_deref() {
+        // R5 — Normalize and check IBAN uniqueness BEFORE calling the factory.
+        // Mirrors BankAccount::new normalization so the guard sees the same value.
+        let normalized_iban = iban
+            .as_deref()
+            .map(|i| i.trim().replace(' ', ""))
+            .filter(|i| !i.is_empty());
+        if let Some(ref iban_str) = normalized_iban {
             if self
                 .repository
-                .find_by_iban_including_deleted(normalized_iban)
+                .find_by_iban_including_deleted(iban_str)
                 .await?
                 .is_some()
             {
                 anyhow::bail!("IbanAlreadyUsed");
             }
         }
+        let account = BankAccount::new(name, iban)?;
         let created = self.repository.create_account(account).await?;
 
         // Publish event
@@ -193,20 +198,24 @@ impl BankAccountService {
         if id == CASH_ACCOUNT_ID {
             anyhow::bail!("Cash account is protected and cannot be modified");
         }
-        let account = BankAccount::with_id(id, name, iban)?;
-        // R5 — IBAN uniqueness across all accounts including soft-deleted.
+        // R5 — Normalize and check IBAN uniqueness BEFORE calling the factory.
         // Self-match (same id) is allowed so renaming an account without changing its IBAN succeeds.
-        if let Some(normalized_iban) = account.iban.as_deref() {
+        let normalized_iban = iban
+            .as_deref()
+            .map(|i| i.trim().replace(' ', ""))
+            .filter(|i| !i.is_empty());
+        if let Some(ref iban_str) = normalized_iban {
             if let Some(other) = self
                 .repository
-                .find_by_iban_including_deleted(normalized_iban)
+                .find_by_iban_including_deleted(iban_str)
                 .await?
             {
-                if other.id != account.id {
+                if other.id != id {
                     anyhow::bail!("IbanAlreadyUsed");
                 }
             }
         }
+        let account = BankAccount::with_id(id, name, iban)?;
         let updated = self.repository.update_account(account).await?;
 
         // Publish event

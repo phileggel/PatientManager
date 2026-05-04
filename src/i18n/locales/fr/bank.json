@@ -52,7 +52,8 @@
         "errorIbanAlreadyUsed": "Cet IBAN est déjà utilisé par un autre compte bancaire.",
         "errorUnknown": "Impossible de créer le compte bancaire. Veuillez réessayer.",
         "submit": "Créer et continuer",
-        "submitting": "Création..."
+        "submitting": "Création...",
+        "cancel": "Annuler et abandonner l'import"
       },
       "done": "{{count}} virement(s) créé(s) avec succès",
       "doneDescription": "Les virements ont été enregistrés et les groupes de paiement sont maintenant rapprochés.",
