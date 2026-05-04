@@ -8,14 +8,13 @@ import { ConfirmationDialog, ManagerLayout } from "@/ui/components";
 import { AddBankTransferForm } from "./add_bank_transfer_form/AddBankTransferForm";
 import { BankTransferList } from "./bank_transfer_list/BankTransferList";
 import { EditBankTransferModal } from "./edit_bank_transfer_modal/EditBankTransferModal";
-import { deleteDirectTransfer, deleteFundTransfer } from "./gateway";
 import { useBankTransferManager } from "./useBankTransferManager";
 import { useBankTransferOperations } from "./useBankTransferOperations";
 
 export default function BankTransferManager() {
   const { t } = useTranslation("bank");
   const { count } = useBankTransferManager();
-  const { transfers, isLoading, error } = useBankTransferOperations();
+  const { transfers, isLoading, error, deleteTransfer } = useBankTransferOperations();
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -47,10 +46,7 @@ export default function BankTransferManager() {
     setTransferToDelete(null);
 
     try {
-      const result =
-        transfer.transfer_type === "FUND_WIRE"
-          ? await deleteFundTransfer(transfer.id)
-          : await deleteDirectTransfer(transfer.id);
+      const result = await deleteTransfer(transfer);
 
       if (result.success) {
         toastService.show("success", t("transfer.manager.success.deleted"));
