@@ -2,12 +2,6 @@
 
 ---
 
-## (frontend/date-logic) — `formatDateDisplay` should return "—" for malformed input
-
-`src/features/procedure/model/date.logic.ts` — `formatDateDisplay` destructures by splitting on `"-"` with no validation. A two-part date like `"2026-01"` produces `"undefined/01/2026"`. The function should return `"—"` (the same fallback used for null/empty input) for any input that does not produce three valid parts. Update `date.logic.test.ts` malformed-input assertions when fixed.
-
----
-
 ## (backend+frontend) — Add fund_reconciliation_date to Procedure
 
 `confirmed_payment_date` is the bank-transfer date (Stage 2). A separate `fund_reconciliation_date` column is needed to record the fund-document payment date set at Stage 1 (fund reconciliation). Scope: SQLite migration, Rust domain + repository, Specta bindings regeneration, frontend display in procedure list and dashboard.

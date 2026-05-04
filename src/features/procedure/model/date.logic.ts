@@ -13,7 +13,9 @@ export const formatDayToIso = (day: number, isoPrefix: string): string => {
 
 export const formatDateDisplay = (isoDate: string | null | undefined) => {
   if (!isoDate) return "—";
-  const [y, m, d] = isoDate.split("-");
+  const parts = isoDate.split("-");
+  if (parts.length !== 3) return "—";
+  const [y, m, d] = parts;
   return `${d}/${m}/${y}`;
 };
 
