@@ -2,6 +2,18 @@
 
 ---
 
+## (frontend/rules) — Document F23 carve-out for gateway re-exports
+
+`docs/frontend-rules.md` F23 currently forbids cross-feature imports of components, hooks, or utilities. The bank-statement-match feature now re-exports `createBankAccount` from the bank-account gateway (`src/features/bank-statement-match/gateway.ts`) so that hooks/components inside `bank-statement-match` import only from their own feature gateway. This is the established pattern when one feature needs a write operation owned by another aggregate. Add an explicit carve-out to F23: "A feature gateway MAY re-export a function from another feature's gateway when the intent is to contain the cross-context surface to a single file (gateway.ts). Hooks and components MUST still import from their own feature's gateway."
+
+---
+
+## (frontend/db-index) — IBAN uniqueness DB constraint follow-up
+
+`bank-account` R5 (IBAN uniqueness across soft-deleted accounts) is enforced at the service layer (`BankAccountService::create_account` + `update_account` + `find_by_iban_including_deleted`). The existing partial unique index `idx_bank_account_iban_active` covers active rows only. Reconsider whether a DB-level CHECK / trigger / non-partial unique index would be preferable once SQLite version is upgraded — would close the (currently negligible) TOCTOU window between the service-layer guard and the INSERT.
+
+---
+
 ## (backend+frontend) — Add fund_reconciliation_date to Procedure
 
 `confirmed_payment_date` is the bank-transfer date (Stage 2). A separate `fund_reconciliation_date` column is needed to record the fund-document payment date set at Stage 1 (fund reconciliation). Scope: SQLite migration, Rust domain + repository, Specta bindings regeneration, frontend display in procedure list and dashboard.

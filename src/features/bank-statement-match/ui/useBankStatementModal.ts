@@ -4,6 +4,7 @@ import type { BankAccount, BankStatementParseResult, FundLabelResolution } from 
 import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import {
+  createBankAccount,
   createBankTransfersFromStatement,
   getBankStatementReconciliationConfig,
   matchBankStatementLines,
@@ -18,7 +19,7 @@ const TAG = "[BankStatementModal]";
 
 export type Step =
   | "loading"
-  | "no-account"
+  | "create-account"
   | "label-mapping"
   | "matching"
   | "results"
@@ -35,6 +36,12 @@ export interface UseBankStatementModalReturn {
   isProcessing: boolean;
   createdCount: number;
   maxDateOffsetDays: number;
+  // BAS-011..017 — inline create-account state
+  createName: string;
+  createError: string | null;
+  isCreatingAccount: boolean;
+  handleCreateNameChange: (value: string) => void;
+  handleCreateAccountSubmit: () => Promise<void>;
   handleLabelMappingConfirm: (mappings: Map<string, string>) => Promise<void>;
   handleSelectionChange: (lineId: string, groupId: string | null) => void;
   handleCreateTransfers: () => Promise<void>;
@@ -53,6 +60,10 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
   const [userSelections, setUserSelections] = useState<Map<string, string | null>>(new Map());
   const [isProcessing, setIsProcessing] = useState(false);
   const [createdCount, setCreatedCount] = useState(0);
+  // BAS-011..017 — inline create-account state
+  const [createName, setCreateName] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
   useEffect(() => {
     logger.info(TAG, "mounted");
@@ -156,7 +167,8 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
         const account = await resolveBankAccountFromIban(parsed.iban);
         if (!isMounted) return;
         if (!account) {
-          setStep("no-account");
+          // BAS-011 — IBAN unknown: drive the inline create form instead of dead-ending.
+          setStep("create-account");
           return;
         }
         setBankAccount(account);
@@ -191,6 +203,55 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
       isMounted = false;
     };
   }, [filePath, t]);
+
+  // BAS-016 — typing clears any previous backend error so the user can retry cleanly.
+  const handleCreateNameChange = useCallback((value: string) => {
+    setCreateName(value);
+    setCreateError(null);
+  }, []);
+
+  // BAS-012/013/014/015/016 — submit the inline create form.
+  const handleCreateAccountSubmit = useCallback(async () => {
+    if (!parseResult?.iban) return;
+
+    const trimmedName = createName.trim();
+    if (trimmedName.length === 0) {
+      setCreateError(t("statement.modal.createAccount.nameRequired"));
+      return;
+    }
+
+    setIsCreatingAccount(true);
+    setCreateError(null);
+    try {
+      const result = await createBankAccount(trimmedName, parseResult.iban);
+      if (!result.success) {
+        // BAS-016 — map known backend sentinels to translated user-facing text.
+        // Unknown errors fall back to a generic message so we never display raw sentinels.
+        const isIbanConflict = result.error.startsWith("IbanAlreadyUsed");
+        setCreateError(
+          isIbanConflict
+            ? t("statement.modal.createAccount.errorIbanAlreadyUsed")
+            : t("statement.modal.createAccount.errorUnknown"),
+        );
+        return;
+      }
+      const account = result.data;
+      setBankAccount(account);
+      logger.info(TAG, `Bank account created inline: ${account.name}`);
+
+      const labels = parseResult.credit_lines.map((l) => l.label);
+      const resolutions = await resolveBankFundLabels(account.id, labels);
+      setLabelResolutions(resolutions);
+      // BAS-014 — workflow continuation: proceed to label-mapping with the new account.
+      setStep("label-mapping");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(TAG, "Inline create-account failed", { message: msg });
+      setCreateError(t("statement.modal.unknownError"));
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  }, [createName, parseResult, t]);
 
   const handleLabelMappingConfirm = useCallback(
     async (mappings: Map<string, string>) => {
@@ -290,6 +351,11 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
     isProcessing,
     createdCount,
     maxDateOffsetDays,
+    createName,
+    createError,
+    isCreatingAccount,
+    handleCreateNameChange,
+    handleCreateAccountSubmit,
     handleLabelMappingConfirm,
     handleSelectionChange,
     handleCreateTransfers,
