@@ -20,14 +20,6 @@
 
 ---
 
-## (frontend/bank-transfer) — `handleDeleteTransfer` does not cover `FUND_OUTGOING_WIRE`
-
-`useBankTransferOperations.ts` — `handleDeleteTransfer` branches on `transfer_type === "FUND_WIRE"` and routes everything else to `deleteDirectTransfer`. The `"FUND_OUTGOING_WIRE"` type (overpayment refund, created exclusively via the overpayment flow) falls into the direct-transfer branch, which may be incorrect. Clarify the right delete command for outgoing wire entries and update the dispatch accordingly. At minimum, add an exhaustive `switch` so the compiler surfaces any future unhandled variant.
-
-Pre-existing (was in the original component before the hook refactor).
-
----
-
 ## (backend+frontend) — Add fund_reconciliation_date to Procedure
 
 `confirmed_payment_date` is the bank-transfer date (Stage 2). A separate `fund_reconciliation_date` column is needed to record the fund-document payment date set at Stage 1 (fund reconciliation). Scope: SQLite migration, Rust domain + repository, Specta bindings regeneration, frontend display in procedure list and dashboard.
