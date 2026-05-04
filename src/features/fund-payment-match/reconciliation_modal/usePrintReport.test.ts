@@ -110,7 +110,7 @@ describe("usePrintReport", () => {
     const calls = vi.mocked(window.open).mock.calls;
     expect(calls.length).toBeGreaterThan(0);
     // The second argument should be "_blank" (new window target)
-    expect(calls[0]![1]).toBe("_blank");
+    expect(calls[0]?.[1]).toBe("_blank");
   });
 
   // ── Failure path (FPR-014) ─────────────────────────────────────────────────
