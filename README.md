@@ -1,7 +1,9 @@
 # PatientManager
 
 ![CI](https://github.com/phileggel/PatientManager/actions/workflows/ci.yml/badge.svg)
-[![codecov](https://codecov.io/gh/phileggel/PatientManager/graph/badge.svg?token=4f6fea9d-d23c-4189-88a0-0abdaead32fc)](https://codecov.io/gh/phileggel/PatientManager)
+[![coverage](https://img.shields.io/codecov/c/github/phileggel/PatientManager?label=coverage)](https://codecov.io/gh/phileggel/PatientManager)
+[![frontend](https://img.shields.io/codecov/c/github/phileggel/PatientManager?flag=frontend&label=frontend)](https://codecov.io/gh/phileggel/PatientManager?flags=frontend)
+[![backend](https://img.shields.io/codecov/c/github/phileggel/PatientManager?flag=backend&label=backend)](https://codecov.io/gh/phileggel/PatientManager?flags=backend)
 
 Patient and service management system for desktop - manage patient records, track services, reconcile reimbursements, and analyze revenue.
 
