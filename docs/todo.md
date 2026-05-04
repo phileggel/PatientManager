@@ -2,9 +2,17 @@
 
 ---
 
-## (frontend/bank-transfer) — BankTransferManager calls gateway directly (DDD violation)
+## (frontend/bank-transfer) — `handleDeleteTransfer` does not cover `FUND_OUTGOING_WIRE`
 
-`BankTransferManager.tsx` lines 51–54 call `deleteDirectTransfer` and `deleteFundTransfer` (imported from `./gateway`) directly inside the component's `handleDeleteConfirm` handler, bypassing the hook layer. Per the data-flow rule (Component → Hook → Gateway), these calls must be encapsulated in `useBankTransferOperations` or a dedicated hook, and the component should only call a handler function from the hook.
+`useBankTransferOperations.ts` — `handleDeleteTransfer` branches on `transfer_type === "FUND_WIRE"` and routes everything else to `deleteDirectTransfer`. The `"FUND_OUTGOING_WIRE"` type (overpayment refund, created exclusively via the overpayment flow) falls into the direct-transfer branch, which may be incorrect. Clarify the right delete command for outgoing wire entries and update the dispatch accordingly. At minimum, add an exhaustive `switch` so the compiler surfaces any future unhandled variant.
+
+Pre-existing (was in the original component before the hook refactor).
+
+---
+
+## (frontend/bank-transfer) — `loadData` in `useBankTransferOperations` missing isMounted guard (F20)
+
+`useBankTransferOperations.ts` lines 31–42 — the `loadData` async function inside the mount `useEffect` calls `useBankTransferStore.setState(...)` after `readAllBankTransfers()` resolves, without checking if the component is still mounted. Add `let isMounted = true` / `if (isMounted)` guard and return `() => { isMounted = false; }` from the effect.
 
 ---
 
