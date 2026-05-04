@@ -93,3 +93,126 @@ describe("useAddBankTransferForm — R13 (CASH auto-account)", () => {
     expect(result.current.bankAccount).toBe("");
   });
 });
+
+describe("useAddBankTransferForm — form fields and validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(gateway.getCashBankAccountId).mockResolvedValue({ success: true, data: CASH_ID });
+    useAppStore.setState({ bankAccounts: [] });
+  });
+
+  it("setTransferDate updates date and clears selections", () => {
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    act(() => result.current.handleFundGroupSelectionChange(["g-1"], 5000));
+    act(() => result.current.setTransferDate("2025-06-01"));
+
+    expect(result.current.transferDate).toBe("2025-06-01");
+    expect(result.current.selectedGroupIds).toHaveLength(0);
+    expect(result.current.totalAmountMillis).toBe(0);
+  });
+
+  it("handleFundGroupSelectionChange updates selectedGroupIds and totalAmountMillis", () => {
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    act(() => result.current.handleFundGroupSelectionChange(["g-1", "g-2"], 75000));
+
+    expect(result.current.selectedGroupIds).toEqual(["g-1", "g-2"]);
+    expect(result.current.totalAmountMillis).toBe(75000);
+  });
+
+  it("handleProcedureSelectionChange updates selectedProcedureIds and totalAmountMillis", () => {
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    act(() => result.current.handleTypeChange("PATIENT_CHECK"));
+    act(() => result.current.handleProcedureSelectionChange(["p-1"], 30000));
+
+    expect(result.current.selectedProcedureIds).toEqual(["p-1"]);
+    expect(result.current.totalAmountMillis).toBe(30000);
+  });
+
+  it("handleSubmit sets validation errors when date, bankAccount or items are missing", async () => {
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(result.current.errors.transferDate).toBeTruthy();
+    expect(gateway.createFundTransfer).not.toHaveBeenCalled();
+  });
+
+  it("handleSubmit calls createFundTransfer for FUND_WIRE type", async () => {
+    vi.mocked(gateway.createFundTransfer).mockResolvedValue({ success: true });
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    act(() => result.current.setTransferDate("2025-06-01"));
+    act(() => result.current.setBankAccount("acc-1"));
+    act(() => result.current.handleFundGroupSelectionChange(["g-1"], 25000));
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(gateway.createFundTransfer).toHaveBeenCalledWith("acc-1", "2025-06-01", ["g-1"]);
+    expect(gateway.createDirectTransfer).not.toHaveBeenCalled();
+  });
+
+  it("handleSubmit calls createDirectTransfer for PATIENT_CHECK type", async () => {
+    vi.mocked(gateway.createDirectTransfer).mockResolvedValue({ success: true });
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    act(() => result.current.handleTypeChange("PATIENT_CHECK"));
+    act(() => result.current.setTransferDate("2025-06-01"));
+    act(() => result.current.setBankAccount("acc-1"));
+    act(() => result.current.handleProcedureSelectionChange(["p-1"], 15000));
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(gateway.createDirectTransfer).toHaveBeenCalledWith(
+      "acc-1",
+      "2025-06-01",
+      "PATIENT_CHECK",
+      ["p-1"],
+    );
+  });
+
+  it("handleSubmit shows success toast and resets form on success", async () => {
+    const { toastService } = await import("@/core/snackbar");
+    vi.mocked(gateway.createFundTransfer).mockResolvedValue({ success: true });
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    act(() => result.current.setTransferDate("2025-06-01"));
+    act(() => result.current.setBankAccount("acc-1"));
+    act(() => result.current.handleFundGroupSelectionChange(["g-1"], 25000));
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("success", expect.any(String));
+    expect(result.current.transferDate).toBe("");
+    expect(result.current.selectedGroupIds).toHaveLength(0);
+  });
+
+  it("handleSubmit shows error toast on backend failure", async () => {
+    const { toastService } = await import("@/core/snackbar");
+    vi.mocked(gateway.createFundTransfer).mockResolvedValue({
+      success: false,
+      error: "Server error",
+    });
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    act(() => result.current.setTransferDate("2025-06-01"));
+    act(() => result.current.setBankAccount("acc-1"));
+    act(() => result.current.handleFundGroupSelectionChange(["g-1"], 25000));
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
+  });
+});

@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { formatDateDisplay, formatDayToIso, getDayFromIso } from "./date.logic";
+import { formatDateDisplay, formatDayToIso, getDayFromIso, getMonthName } from "./date.logic";
 
 // ============================================================================
 // getDayFromIso Tests
@@ -149,5 +149,13 @@ describe("date.logic - Integration", () => {
     const display = formatDateDisplay(isoDate);
 
     expect(display).toBe("15/03/2026");
+  });
+});
+
+describe("getMonthName", () => {
+  test("returns French month names", () => {
+    expect(getMonthName(1)).toBe("janvier");
+    expect(getMonthName(6)).toBe("juin");
+    expect(getMonthName(12)).toBe("décembre");
   });
 });
