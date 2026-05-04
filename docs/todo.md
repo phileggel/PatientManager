@@ -58,12 +58,6 @@ Pre-existing (was in the original component before the hook refactor).
 
 ---
 
-## (frontend/fund-payment-match) — Hardcoded French string in utils.ts
-
-`fund-payment-match/shared/utils.ts` line 106: `formatProcedureDateFromLine` returns `" au "` (French conjunction) hardcoded in a user-visible display string rendered in `PdfDataTable.tsx` and `CardParts.tsx`. Should be routed through `react-i18next` (`t("...")`) to be translatable.
-
----
-
 ## (backend+frontend) — Add fund_reconciliation_date to Procedure
 
 `confirmed_payment_date` is the bank-transfer date (Stage 2). A separate `fund_reconciliation_date` column is needed to record the fund-document payment date set at Stage 1 (fund reconciliation). Scope: SQLite migration, Rust domain + repository, Specta bindings regeneration, frontend display in procedure list and dashboard.

@@ -103,7 +103,7 @@ export function SingleMatchCard({
               ? `${formatAmount(pdfLine.amount)} €`
               : anomaly === "FundMismatch"
                 ? pdfLine.fund_name
-                : formatProcedureDateFromLine(pdfLine);
+                : formatProcedureDateFromLine(pdfLine, t);
           const dbValue =
             anomaly === "AmountMismatch"
               ? `${formatAmount(dbMatch.amount || 0)} €`

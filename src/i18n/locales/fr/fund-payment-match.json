@@ -108,6 +108,9 @@
       "amount": "Montant"
     }
   },
+  "format": {
+    "datePeriod": "{{start}} au {{end}}"
+  },
   "results": {
     "ssn": "INS",
     "allCorrect": "Tout est correct — aucune anomalie détectée.",

@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { NormalizedPdfLine, PdfParseResult, PdfProcedureGroup } from "@/bindings";
@@ -12,13 +13,19 @@ function formatAmount(amount: number): string {
   return `${(amount / 1000).toFixed(2).replace(".", ",")} \u20AC`;
 }
 
-function ProcedureLineRow({ line }: { line: NormalizedPdfLine }) {
+function ProcedureLineRow({
+  line,
+  t,
+}: {
+  line: NormalizedPdfLine;
+  t: TFunction<"fund-payment-match">;
+}) {
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50">
       <td className="px-4 py-2 text-slate-900">{line.patient_name}</td>
       <td className="px-4 py-2 text-slate-600 font-mono text-xs">{line.ssn}</td>
       <td className="px-4 py-2 text-slate-600">{line.nature}</td>
-      <td className="px-4 py-2 text-slate-600">{formatProcedureDateFromLine(line)}</td>
+      <td className="px-4 py-2 text-slate-600">{formatProcedureDateFromLine(line, t)}</td>
       <td className="px-4 py-2 text-slate-900 text-right font-medium">
         {formatAmount(line.amount)}
       </td>
@@ -64,7 +71,7 @@ function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
         </thead>
         <tbody>
           {group.lines.map((line) => (
-            <ProcedureLineRow key={line.invoice_number} line={line} />
+            <ProcedureLineRow key={line.invoice_number} line={line} t={t} />
           ))}
         </tbody>
       </table>
