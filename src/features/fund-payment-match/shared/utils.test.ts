@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
-import type { PdfParseResult, ReconciliationMatch } from "@/bindings";
-import { computePdfDateRange, countTotalAnomalies, sortIssuesByPriority } from "./utils";
+import type {
+  AnomalyType,
+  NormalizedPdfLine,
+  PdfParseResult,
+  ReconciliationMatch,
+} from "@/bindings";
+import {
+  buildAutoCorrection,
+  buildContestCorrection,
+  buildContestKey,
+  buildCorrectionKey,
+  buildLinkProcedureCorrection,
+  buildLinkProcedureKey,
+  buildNotFoundCorrection,
+  buildNotFoundKey,
+  computePdfDateRange,
+  countTotalAnomalies,
+  formatAmount,
+  sortIssuesByPriority,
+} from "./utils";
 
 function makeParsedData(lines: { start: string; end: string }[]): PdfParseResult {
   return {
@@ -91,7 +109,7 @@ const makeDbMatch = (id: string) => ({
   procedure_date: "2025-05-01",
   fund_id: "fund-1",
   amount: 10000,
-  anomalies: [] as string[],
+  anomalies: [] as AnomalyType[],
 });
 
 describe("sortIssuesByPriority", () => {
@@ -234,5 +252,109 @@ describe("countTotalAnomalies", () => {
       } as ReconciliationMatch,
     ];
     expect(countTotalAnomalies({ matches })).toBe(0);
+  });
+});
+
+// ─── Key builders ─────────────────────────────────────────────────────────────
+
+describe("key builders", () => {
+  it("buildCorrectionKey combines anomaly and procedureId", () => {
+    expect(buildCorrectionKey("AmountMismatch", "p-1")).toBe("AmountMismatch-p-1");
+  });
+
+  it("buildNotFoundKey uses line_index", () => {
+    const line = { line_index: 3 } as NormalizedPdfLine;
+    expect(buildNotFoundKey(line)).toBe("CreateProcedure-3");
+  });
+
+  it("buildLinkProcedureKey uses procedureId", () => {
+    expect(buildLinkProcedureKey("p-42")).toBe("LinkProcedure-p-42");
+  });
+
+  it("buildContestKey uses procedureId", () => {
+    expect(buildContestKey("p-99")).toBe("ContestAmount-p-99");
+  });
+});
+
+// ─── Correction factories ─────────────────────────────────────────────────────
+
+const line = makePdfLine(0);
+const dbMatch = makeDbMatch("p-1");
+
+describe("buildAutoCorrection", () => {
+  it("builds AmountMismatch correction with pdf_amount from pdfLine", () => {
+    const result = buildAutoCorrection("AmountMismatch", line, dbMatch);
+    expect(result).toEqual({ AmountMismatch: { procedure_id: "p-1", pdf_amount: 10000 } });
+  });
+
+  it("builds AmountMismatch correction with customAmount override", () => {
+    const result = buildAutoCorrection("AmountMismatch", line, dbMatch, 99000);
+    expect(result).toEqual({ AmountMismatch: { procedure_id: "p-1", pdf_amount: 99000 } });
+  });
+
+  it("builds FundMismatch correction", () => {
+    const result = buildAutoCorrection("FundMismatch", line, dbMatch);
+    expect(result).toEqual({ FundMismatch: { procedure_id: "p-1", pdf_fund_label: "CPAM" } });
+  });
+
+  it("builds DateMismatch correction", () => {
+    const result = buildAutoCorrection("DateMismatch", line, dbMatch);
+    expect(result).toEqual({ DateMismatch: { procedure_id: "p-1", pdf_date: "2025-05-01" } });
+  });
+
+  it("throws for unknown anomaly type", () => {
+    expect(() => buildAutoCorrection("Unknown", line, dbMatch)).toThrow(
+      "Unknown anomaly type: Unknown",
+    );
+  });
+});
+
+describe("buildLinkProcedureCorrection", () => {
+  it("builds LinkProcedure correction from candidate and pdfLine", () => {
+    const candidate = { procedure_id: "p-2" } as Parameters<typeof buildLinkProcedureCorrection>[0];
+    const result = buildLinkProcedureCorrection(candidate, line);
+    expect(result).toEqual({
+      LinkProcedure: {
+        procedure_id: "p-2",
+        pdf_ssn: "1234567890123",
+        pdf_fund_label: "CPAM",
+        payment_date: "2025-05-01",
+      },
+    });
+  });
+});
+
+describe("buildContestCorrection", () => {
+  it("builds ContestAmount correction", () => {
+    expect(buildContestCorrection("p-3", 20000)).toEqual({
+      ContestAmount: { procedure_id: "p-3", paid_amount: 20000 },
+    });
+  });
+});
+
+describe("buildNotFoundCorrection", () => {
+  it("builds CreateProcedure correction from pdfLine", () => {
+    const result = buildNotFoundCorrection(line);
+    expect(result).toEqual({
+      CreateProcedure: {
+        ssn: "1234567890123",
+        patient_name: "Test",
+        procedure_date: "2025-05-01",
+        payment_date: "2025-05-01",
+        billed_amount: 10000,
+        pdf_fund_label: "CPAM",
+      },
+    });
+  });
+});
+
+// ─── formatAmount ─────────────────────────────────────────────────────────────
+
+describe("formatAmount", () => {
+  it("converts thousandths to euros string with 2 decimal places", () => {
+    expect(formatAmount(50000)).toBe("50.00");
+    expect(formatAmount(25500)).toBe("25.50");
+    expect(formatAmount(100)).toBe("0.10");
+    expect(formatAmount(0)).toBe("0.00");
   });
 });
