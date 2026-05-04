@@ -65,17 +65,14 @@ export async function updateBankTransfer(transfer: BankEntry): Promise<ServiceRe
   }
 }
 
-export async function deleteBankTransfer(id: string): Promise<ServiceResult<void>> {
-  logger.info("[bank-transfer] deleteBankTransfer", { id });
-  try {
-    const result = await commands.deleteBankTransfer(id);
-    if (result.status === "ok") return { success: true };
-    logger.error("[bank-transfer] deleteBankTransfer failed", { error: result.error });
-    return { success: false, error: result.error };
-  } catch (error) {
-    logger.error("[bank-transfer] deleteBankTransfer exception", { error });
-    return { success: false, error: String(error) };
-  }
+export async function deleteTransferByType(transfer: BankEntry): Promise<ServiceResult<void>> {
+  logger.info("[bank-transfer] deleteTransferByType", {
+    id: transfer.id,
+    type: transfer.transfer_type,
+  });
+  return transfer.transfer_type === "FUND_WIRE"
+    ? deleteFundTransfer(transfer.id)
+    : deleteDirectTransfer(transfer.id);
 }
 
 export async function getCashBankAccountId(): Promise<ServiceResult<string>> {
@@ -165,7 +162,7 @@ export async function updateFundTransfer(
   }
 }
 
-export async function deleteFundTransfer(transferId: string): Promise<ServiceResult<void>> {
+async function deleteFundTransfer(transferId: string): Promise<ServiceResult<void>> {
   logger.info("[bank-transfer] deleteFundTransfer", { transferId });
   try {
     const result = await commands.deleteFundTransfer(transferId);
@@ -284,7 +281,7 @@ export async function updateDirectTransfer(
   }
 }
 
-export async function deleteDirectTransfer(transferId: string): Promise<ServiceResult<void>> {
+async function deleteDirectTransfer(transferId: string): Promise<ServiceResult<void>> {
   logger.info("[bank-transfer] deleteDirectTransfer", { transferId });
   try {
     const result = await commands.deleteDirectTransfer(transferId);
