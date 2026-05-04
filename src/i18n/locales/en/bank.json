@@ -52,7 +52,8 @@
         "errorIbanAlreadyUsed": "This IBAN is already used by another bank account.",
         "errorUnknown": "Could not create the bank account. Please try again.",
         "submit": "Create and continue",
-        "submitting": "Creating..."
+        "submitting": "Creating...",
+        "cancel": "Cancel and abandon import"
       },
       "done": "{{count}} transfer(s) created successfully",
       "doneDescription": "Transfers have been recorded and payment groups are now reconciled.",

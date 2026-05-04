@@ -2,6 +2,16 @@
 
 ---
 
+## (frontend/arch) — Route Tauri native dialog calls through feature gateways
+
+`@tauri-apps/plugin-dialog`'s `open()` is currently called directly from hook/component code (e.g. `useImportModal.handleBankReconciliation`, fund-reconciliation flow). This violates F3: gateway.ts must be the only file calling native/IPC APIs. It also blocks E2E — there's no programmatic seam to bypass the native OS file picker, which is what stopped the inline-create E2E test (see plan §2.6).
+
+Fix: wrap `open()` in a gateway function per feature (e.g. `pickBankStatementFile(): Promise<string | null>` in `bank-statement-match/gateway.ts`). Hooks call the gateway function; tests mock it via the existing `vi.mock("../gateway")` pattern. E2E can override via a single window-level escape hatch on the gateway.
+
+Side benefit: makes the file-picker UX swappable (web `<input type="file">` if a browser build is ever needed). Audit all current `open()`/`save()` call sites and migrate them in one pass.
+
+---
+
 ## (frontend/rules) — Document F23 carve-out for gateway re-exports
 
 `docs/frontend-rules.md` F23 currently forbids cross-feature imports of components, hooks, or utilities. The bank-statement-match feature now re-exports `createBankAccount` from the bank-account gateway (`src/features/bank-statement-match/gateway.ts`) so that hooks/components inside `bank-statement-match` import only from their own feature gateway. This is the established pattern when one feature needs a write operation owned by another aggregate. Add an explicit carve-out to F23: "A feature gateway MAY re-export a function from another feature's gateway when the intent is to contain the cross-context surface to a single file (gateway.ts). Hooks and components MUST still import from their own feature's gateway."

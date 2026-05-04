@@ -182,12 +182,15 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
             </Button>
           )}
 
-          {(step === "loading" ||
-            step === "matching" ||
-            step === "results" ||
-            step === "create-account") && (
-            <Button onClick={onClose} variant="secondary" disabled={isCreatingAccount}>
+          {(step === "loading" || step === "matching" || step === "results") && (
+            <Button onClick={onClose} variant="secondary">
               {t("statement.modal.cancel")}
+            </Button>
+          )}
+
+          {step === "create-account" && (
+            <Button onClick={onClose} variant="secondary" disabled={isCreatingAccount}>
+              {t("statement.modal.createAccount.cancel")}
             </Button>
           )}
         </div>
