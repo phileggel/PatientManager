@@ -2,33 +2,9 @@
 
 ---
 
-## (frontend/test) — Strengthen "resets errors on prop change" in edit modal tests
-
-`useEditBankAccountModal.test.ts`, `useEditFundModal.test.ts`, `useEditProcedureTypeModal.test.ts` each have a rerender test that asserts `errors` equals `{}` after the prop changes — but since no prior submit was made, `errors` was already `{}` and the assertion is vacuous. Fix: trigger a validation error first (submit with an empty field), then rerender with a new prop, and assert errors are cleared.
-
----
-
 ## (frontend/date-logic) — `formatDateDisplay` should return "—" for malformed input
 
 `src/features/procedure/model/date.logic.ts` — `formatDateDisplay` destructures by splitting on `"-"` with no validation. A two-part date like `"2026-01"` produces `"undefined/01/2026"`. The function should return `"—"` (the same fallback used for null/empty input) for any input that does not produce three valid parts. Update `date.logic.test.ts` malformed-input assertions when fixed.
-
----
-
-## (frontend/bank-transfer) — `handleDeleteTransfer` inline routing violates F5
-
-`useBankTransferOperations.ts` lines 71–74 — the `transfer_type === "FUND_WIRE"` dispatch is business logic sitting directly in the hook body. Extract to a helper in `gateway.ts` (e.g. `deleteTransferByType(transfer)`) or a presenter, and call the single function from the hook.
-
----
-
-## (frontend/bank-transfer) — `deleteBankTransfer` in gateway.ts is dead code
-
-`src/features/bank-transfer/gateway.ts` — `deleteBankTransfer` is exported but has no consumers outside the file. Was superseded by the type-dispatched `deleteDirectTransfer`/`deleteFundTransfer` routing. Remove the export and verify `commands.deleteBankTransfer` is also unused on the backend side.
-
----
-
-## (frontend/bank-transfer) — `handleDeleteTransfer` missing `useCallback`
-
-`useBankTransferOperations.ts` line 65 — `handleDeleteTransfer` is recreated on every render and returned from the hook as `deleteTransfer`. Wrap with `useCallback` (no deps) to give downstream components a stable reference.
 
 ---
 
