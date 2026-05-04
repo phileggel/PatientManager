@@ -11,6 +11,14 @@ pub trait BankAccountRepository: Send + Sync {
     async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>>;
     async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>>;
     async fn find_by_iban(&self, iban: &str) -> anyhow::Result<Option<BankAccount>>;
+    /// R5 — uniqueness check that scans soft-deleted rows too.
+    /// `find_by_iban` excludes deletions and is used for resolution; this method
+    /// is reserved for the create/update guards so that a deleted account's
+    /// IBAN cannot be silently reused.
+    async fn find_by_iban_including_deleted(
+        &self,
+        iban: &str,
+    ) -> anyhow::Result<Option<BankAccount>>;
     async fn update_account(&self, account: BankAccount) -> anyhow::Result<BankAccount>;
     async fn delete_account(&self, id: &str) -> anyhow::Result<()>;
 }
@@ -91,6 +99,26 @@ impl BankAccountRepository for SqliteBankAccountRepository {
             SELECT id, name, iban
             FROM bank_account
             WHERE iban = $1 AND is_deleted = 0
+            "#,
+            iban,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| BankAccount::restore(r.id, r.name, r.iban)))
+    }
+
+    async fn find_by_iban_including_deleted(
+        &self,
+        iban: &str,
+    ) -> anyhow::Result<Option<BankAccount>> {
+        tracing::trace!(iban = %iban, "Finding bank account by IBAN (incl. soft-deleted)");
+
+        let row = sqlx::query!(
+            r#"
+            SELECT id, name, iban
+            FROM bank_account
+            WHERE iban = $1
             "#,
             iban,
         )
@@ -266,5 +294,39 @@ mod tests {
 
         let found = db.read_account(&new_account.id).await.unwrap();
         assert!(found.is_none());
+    }
+
+    // R5 — find_by_iban_including_deleted: soft-deleted rows must be invisible to
+    // find_by_iban but visible to find_by_iban_including_deleted.
+    #[tokio::test]
+    async fn test_find_by_iban_including_deleted_returns_soft_deleted_row() -> anyhow::Result<()> {
+        let db = setup_test_repo().await;
+        let iban = "FR7611111111111111111111111";
+        let account = BankAccount::new("Deleted Account".to_string(), Some(iban.to_string()))?;
+        db.create_account(account.clone()).await?;
+
+        // soft-delete the account
+        db.delete_account(&account.id).await?;
+
+        // find_by_iban must not return soft-deleted rows (existing contract)
+        let active_lookup = db.find_by_iban(iban).await?;
+        assert!(
+            active_lookup.is_none(),
+            "find_by_iban must not return a soft-deleted account"
+        );
+
+        // find_by_iban_including_deleted must return the soft-deleted row
+        let including_deleted = db.find_by_iban_including_deleted(iban).await?;
+        assert!(
+            including_deleted.is_some(),
+            "find_by_iban_including_deleted must return the soft-deleted account"
+        );
+        assert_eq!(
+            including_deleted.unwrap().id,
+            account.id,
+            "returned account id must match the soft-deleted one"
+        );
+
+        Ok(())
     }
 }

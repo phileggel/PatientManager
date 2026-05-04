@@ -646,6 +646,12 @@ mod tests {
         async fn find_by_iban(&self, _iban: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(self.0.clone())
         }
+        async fn find_by_iban_including_deleted(
+            &self,
+            _iban: &str,
+        ) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
         async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
             Ok(a)
         }

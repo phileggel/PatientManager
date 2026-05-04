@@ -646,6 +646,12 @@ mod tests {
         async fn find_by_iban(&self, _iban: &str) -> anyhow::Result<Option<BankAccount>> {
             unimplemented!()
         }
+        async fn find_by_iban_including_deleted(
+            &self,
+            _iban: &str,
+        ) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
         async fn update_account(&self, _account: BankAccount) -> anyhow::Result<BankAccount> {
             unimplemented!()
         }
@@ -934,6 +940,12 @@ mod tests {
             )))
         }
         async fn find_by_iban(&self, _iban: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
+        async fn find_by_iban_including_deleted(
+            &self,
+            _iban: &str,
+        ) -> anyhow::Result<Option<BankAccount>> {
             Ok(None)
         }
         async fn update_account(&self, account: BankAccount) -> anyhow::Result<BankAccount> {
