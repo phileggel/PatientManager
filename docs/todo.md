@@ -2,42 +2,6 @@
 
 ---
 
-## (frontend/ui) — Remove CardLegacy
-
-`src/ui/components/CardLegacy.tsx` — no consumers outside `ui/components/`. Verify with `grep -r "CardLegacy" src/` then delete the file and remove its export from `src/ui/components/index.ts`.
-
----
-
-## (frontend/ui) — Remove SelectLegacy
-
-`src/ui/components/SelectLegacy.tsx` — no consumers outside `ui/components/`. Verify with `grep -r "SelectLegacy" src/` then delete the file and remove its export from `src/ui/components/index.ts`.
-
----
-
-## (frontend/ui) — Remove DatePickerLegacy
-
-`src/ui/components/DatePickerLegacy.tsx` — no consumers outside `ui/components/`. Verify with `grep -r "DatePickerLegacy" src/` then delete the file and remove its export from `src/ui/components/index.ts`.
-
----
-
-## (frontend/ui) — Remove InputLegacy
-
-`src/ui/components/InputLegacy.tsx` — no consumers outside `ui/components/`. Verify with `grep -r "InputLegacy" src/` then delete the file and remove its export from `src/ui/components/index.ts`.
-
----
-
-## (frontend/ui) — Remove SelectFieldLegacy
-
-`src/ui/components/SelectFieldLegacy.tsx` — no consumers outside `ui/components/`. Verify with `grep -r "SelectFieldLegacy" src/` then delete the file and remove its export from `src/ui/components/index.ts`.
-
----
-
-## (frontend/ui) — Remove ErrorAlertLegacy
-
-`src/ui/components/ErrorAlertLegacy.tsx` — no consumers outside `ui/components/`. Verify with `grep -r "ErrorAlertLegacy" src/` then delete the file and remove its export from `src/ui/components/index.ts`.
-
----
-
 ## (frontend/bank-transfer) — `handleDeleteTransfer` does not cover `FUND_OUTGOING_WIRE`
 
 `useBankTransferOperations.ts` — `handleDeleteTransfer` branches on `transfer_type === "FUND_WIRE"` and routes everything else to `deleteDirectTransfer`. The `"FUND_OUTGOING_WIRE"` type (overpayment refund, created exclusively via the overpayment flow) falls into the direct-transfer branch, which may be incorrect. Clarify the right delete command for outgoing wire entries and update the dispatch accordingly. At minimum, add an exhaustive `switch` so the compiler surfaces any future unhandled variant.
@@ -49,12 +13,6 @@ Pre-existing (was in the original component before the hook refactor).
 ## (frontend/bank-transfer) — `loadData` in `useBankTransferOperations` missing isMounted guard (F20)
 
 `useBankTransferOperations.ts` lines 31–42 — the `loadData` async function inside the mount `useEffect` calls `useBankTransferStore.setState(...)` after `readAllBankTransfers()` resolves, without checking if the component is still mounted. Add `let isMounted = true` / `if (isMounted)` guard and return `() => { isMounted = false; }` from the effect.
-
----
-
-## (frontend) — Fix snake_case identifier in DatePickerLegacy.tsx
-
-`DatePickerLegacy.tsx` line 66: `locale_obj` uses snake_case, violating the TypeScript camelCase convention. Rename to `localeObj`.
 
 ---
 
