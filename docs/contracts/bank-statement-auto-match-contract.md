@@ -15,11 +15,11 @@ Step 1 of the workflow. Parses a PDF bank statement from raw bytes, extracts the
 
 ---
 
-### `resolve_bank_account_from_iban` — R1
+### `resolve_bank_account_from_iban` — BAS-010
 
-Resolves the practitioner's `BankAccount` from the IBAN extracted by `parse_bank_statement`. Returns `None` if no account matches — the workflow must stop and prompt the user to create the account manually (R1).
+Resolves the practitioner's `BankAccount` from the IBAN extracted by `parse_bank_statement`. Returns `None` if no account matches — the frontend then drives the inline create flow (BAS-011..017) by calling `create_bank_account` directly via the bank-account gateway, then proceeds to label-mapping with the new account.
 
-> `None` is intentional here, not a gap. An unregistered IBAN is a valid, expected workflow state (the user simply hasn't created the account yet). This is distinct from `read_bank_account` which raises `NotFound` because a missing ID would indicate a data integrity problem.
+> `None` is intentional here, not a gap. An unregistered IBAN is a valid, expected workflow state (the user is offered the inline create form). This is distinct from `read_bank_account` which raises `NotFound` because a missing ID would indicate a data integrity problem.
 
 - **Args:** `iban: String`
 - **Returns:** `Option<BankAccount>`
@@ -162,3 +162,4 @@ struct BankStatementReconciliationConfig {
 
 - 2026-04-29 — Added by `bank-statement-auto-match` spec: parse_bank_statement, resolve_bank_account_from_iban, resolve_bank_fund_labels, save_bank_fund_label_mappings, match_bank_statement_lines, create_bank_transfers_from_statement, get_bank_statement_reconciliation_config
 - 2026-04-29 — Deep review applied: added per-command intent and spec rule tracing, UL discrepancy note on create_bank_transfers_from_statement, GroupNotFound and InvalidDateFormat errors, ConfirmedMatch field origins, get_bank_statement_reconciliation_config frontend usage documented
+- 2026-05-04 — Inline create flow (BAS-011..017): resolve_bank_account_from_iban description updated — `None` now drives the frontend inline create form rather than a dead-end. Rule reference R1 → BAS-010. No new commands; uses existing `create_bank_account` (see bank-contract.md).

@@ -6,13 +6,13 @@
 
 ## Commands
 
-### `create_bank_account` — R1
+### `create_bank_account` — R1, R5
 
-Creates a new bank account with a name and an optional IBAN. The IBAN is stripped of spaces and stored normalised. If the name is empty or whitespace-only, the command fails immediately.
+Creates a new bank account with a name and an optional IBAN. The IBAN is stripped of spaces and stored normalised. If the name is empty or whitespace-only, the command fails immediately. R5 — IBAN uniqueness applies across all accounts including soft-deleted: creation is rejected if the supplied IBAN is already used by any existing or soft-deleted account.
 
 - **Args:** `name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
-- **Errors:** `NameEmpty`
+- **Errors:** `NameEmpty`, `IbanAlreadyUsed`
 
 ---
 
@@ -26,13 +26,13 @@ Returns all non-deleted bank accounts, including the default cash account (R4). 
 
 ---
 
-### `update_bank_account` — R2, R4
+### `update_bank_account` — R2, R4, R5
 
-Updates the name and/or IBAN of an existing account. The cash account (`cash-account-default`) must not be editable per R4.
+Updates the name and/or IBAN of an existing account. The cash account (`cash-account-default`) must not be editable per R4. R5 — IBAN uniqueness applies across all accounts including soft-deleted: edit is rejected if the new IBAN is already used by another existing or soft-deleted account.
 
 - **Args:** `id: String, name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
-- **Errors:** `NameEmpty`, `NotFound`, `CashAccountProtected`
+- **Errors:** `NameEmpty`, `NotFound`, `CashAccountProtected`, `IbanAlreadyUsed`
 
 ---
 
@@ -148,3 +148,4 @@ enum BankEntryType {
 - 2026-04-29 — Deep review applied: added per-command intent and spec rule tracing, soft-delete exclusion note on read_all, None-signal note on read_bank_account, get_cash_bank_account_id frontend usage, backend gaps noted on update and delete, event triggers documented
 - 2026-05-02 — Added retroactively from specta_builder.rs: create_bank_transfer, read_all_bank_transfers, read_bank_transfer, update_bank_transfer, delete_bank_transfer
 - 2026-05-02 — Backend gaps resolved: CashAccountProtected enforced on update/delete; file renamed from bank-account-contract.md to bank-contract.md; read_bank_account command removed (unused — service method kept for internal orchestrator use)
+- 2026-05-04 — Added by `bank-statement-auto-match` spec (BAS-013) and `bank-account` R5: IbanAlreadyUsed error variant on create_bank_account and update_bank_account; IBAN uniqueness now spans soft-deleted accounts.

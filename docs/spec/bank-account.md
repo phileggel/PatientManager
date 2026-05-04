@@ -16,6 +16,8 @@ Bank accounts represent the practitioner's accounts from which transfers are tra
 
 **R4 — Default cash account (backend)**: A cash account is pre-created by migration with the fixed id `cash-account-default`. It has no IBAN, cannot be edited, and cannot be deleted. It exists exclusively to record cash payments. Its display name comes from i18n, not from the database.
 
+**R5 — IBAN uniqueness (backend)**: Two accounts cannot share the same IBAN. The constraint applies across all accounts including soft-deleted ones, so that account resolution by IBAN (used by the bank-statement import flow, see BAS-010) stays unambiguous even after deletion. Attempting to create or edit an account with an IBAN already used by another account — active or soft-deleted — is rejected with an error.
+
 ---
 
 ## Workflow
