@@ -19,6 +19,7 @@ import type { Patient } from "@/bindings";
 import { PatientForm } from "@/features/patient/shared/PatientForm";
 import { PatientPresenter } from "@/features/patient/shared/presenter";
 import { useAppStore } from "@/lib/appStore";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { Button, Dialog } from "@/ui/components";
 import { useEditPatientModal } from "./useEditPatientModal";
@@ -32,6 +33,7 @@ interface EditPatientModalProps {
 export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalProps) {
   const { t } = useTranslation("patient");
   const { t: tc } = useTranslation("common");
+  const { formatCurrency, formatDate } = useFormatters();
 
   // Call hook unconditionally at top level (required by React)
   // Hook returns safe defaults if patient is null
@@ -112,7 +114,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
                 {t("modal.date")}
               </div>
               <div className="px-4 py-2 rounded-lg bg-m3-surface text-m3-on-surface text-sm">
-                {patient.latest_date || "—"}
+                {patient.latest_date ? formatDate(patient.latest_date) : "—"}
               </div>
             </div>
             <div className="flex flex-col gap-1">
@@ -120,8 +122,8 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
                 {t("modal.amount")}
               </div>
               <div className="px-4 py-2 rounded-lg bg-m3-surface text-m3-on-surface text-sm">
-                {patient.latest_procedure_amount
-                  ? `€${(patient.latest_procedure_amount / 1000).toFixed(2)}`
+                {patient.latest_procedure_amount != null
+                  ? formatCurrency(patient.latest_procedure_amount)
                   : "—"}
               </div>
             </div>
