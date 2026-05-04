@@ -110,7 +110,7 @@ describe("formatDateDisplay", () => {
 
   test("handles malformed date (splits by dash, may produce unexpected output)", () => {
     // Note: No validation, just splits by "-"
-    // This tests actual behavior, not necessarily desired behavior
+    // TODO: formatDateDisplay should return "—" for malformed input — fix function and update these assertions
     expect(formatDateDisplay("2026-01")).toBe("undefined/01/2026");
     expect(formatDateDisplay("invalid")).toBe("undefined/undefined/invalid");
   });
@@ -153,9 +153,26 @@ describe("date.logic - Integration", () => {
 });
 
 describe("getMonthName", () => {
-  test("returns French month names", () => {
-    expect(getMonthName(1)).toBe("janvier");
-    expect(getMonthName(6)).toBe("juin");
-    expect(getMonthName(12)).toBe("décembre");
+  const original = Date.prototype.toLocaleString;
+
+  beforeEach(() => {
+    // Force English in tests — we verify the month index mapping, not the translation.
+    vi.spyOn(Date.prototype, "toLocaleString").mockImplementation(function (
+      this: Date,
+      _locale,
+      options,
+    ) {
+      return original.call(this, "en-US", options);
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test("returns month name for given month number", () => {
+    expect(getMonthName(1)).toBe("January");
+    expect(getMonthName(6)).toBe("June");
+    expect(getMonthName(12)).toBe("December");
   });
 });

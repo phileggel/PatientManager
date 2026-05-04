@@ -4,11 +4,11 @@ import { toastService } from "@/core/snackbar";
 import { makeFund } from "@/tests/fund.factory";
 import { useEditFundModal } from "./useEditFundModal";
 
-vi.mock("@/features/fund/gateway", () => ({
+vi.mock("../gateway", () => ({
   updateFund: vi.fn(),
 }));
 
-import { updateFund } from "@/features/fund/gateway";
+import { updateFund } from "../gateway";
 
 const mockUpdate = vi.mocked(updateFund);
 const mockToast = vi.mocked(toastService.show);
@@ -130,6 +130,7 @@ describe("useEditFundModal", () => {
     rerender({ f: other });
 
     expect(result.current.formData.fund_identifier).toBe("MGEN-01");
+    // TODO: submit first to produce errors, then rerender — currently vacuous (errors never set)
     expect(result.current.errors).toEqual({});
   });
 });

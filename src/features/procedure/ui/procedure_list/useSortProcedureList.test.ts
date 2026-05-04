@@ -1,32 +1,9 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { ProcedureRow } from "../../model/procedure-row.types";
+import { makeProcedureRow } from "@/tests/procedure.factory";
 import { useSortProcedureList } from "./useSortProcedureList";
 
-function makeRow(overrides: Partial<ProcedureRow> = {}): ProcedureRow {
-  return {
-    rowId: "r-1",
-    isDraft: false,
-    draftPeriod: null,
-    patientId: null,
-    patientName: null,
-    ssn: null,
-    fundId: null,
-    fundIdentifier: null,
-    fundName: null,
-    procedureTypeId: null,
-    procedureName: null,
-    procedureDate: null,
-    procedureAmount: null,
-    effectiveAmount: null,
-    paymentMethod: null,
-    confirmedPaymentDate: null,
-    actualPaymentAmount: null,
-    awaitedAmount: null,
-    status: null,
-    ...overrides,
-  };
-}
+const makeRow = makeProcedureRow;
 
 describe("useSortProcedureList", () => {
   it("returns rows unchanged with no sort applied", () => {

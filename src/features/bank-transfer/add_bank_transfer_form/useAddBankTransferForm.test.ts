@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { makeBankAccount } from "@/tests/bank.factory";
 
@@ -180,7 +181,6 @@ describe("useAddBankTransferForm — form fields and validation", () => {
   });
 
   it("handleSubmit shows success toast and resets form on success", async () => {
-    const { toastService } = await import("@/core/snackbar");
     vi.mocked(gateway.createFundTransfer).mockResolvedValue({ success: true });
     const { result } = renderHook(() => useAddBankTransferForm());
 
@@ -198,7 +198,6 @@ describe("useAddBankTransferForm — form fields and validation", () => {
   });
 
   it("handleSubmit shows error toast on backend failure", async () => {
-    const { toastService } = await import("@/core/snackbar");
     vi.mocked(gateway.createFundTransfer).mockResolvedValue({
       success: false,
       error: "Server error",
