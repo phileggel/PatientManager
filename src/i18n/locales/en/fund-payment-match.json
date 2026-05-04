@@ -108,6 +108,9 @@
       "amount": "Amount"
     }
   },
+  "format": {
+    "datePeriod": "{{start}} to {{end}}"
+  },
   "results": {
     "ssn": "SSN",
     "allCorrect": "All correct — no anomalies detected.",

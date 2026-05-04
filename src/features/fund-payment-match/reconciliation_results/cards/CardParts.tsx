@@ -28,7 +28,7 @@ export function PdfSummary({ line }: { line: NormalizedPdfLine }) {
         </span>
         <span>
           <span className="text-m3-on-surface-variant text-xs">{t("results.pdf.date")} </span>
-          <span className="font-medium">{formatProcedureDateFromLine(line)}</span>
+          <span className="font-medium">{formatProcedureDateFromLine(line, t)}</span>
         </span>
         <span>
           <span className="text-m3-on-surface-variant text-xs">{t("results.pdf.amount")} </span>

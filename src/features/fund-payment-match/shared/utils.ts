@@ -3,6 +3,7 @@
  * Key builders, correction factories, formatting helpers, and issue sorting.
  */
 
+import type { TFunction } from "i18next";
 import type {
   AutoCorrection,
   DbMatch,
@@ -100,10 +101,16 @@ export function buildNotFoundCorrection(line: NormalizedPdfLine): AutoCorrection
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
-/** Format procedure date for display: "YYYY-MM-DD" or "YYYY-MM-DD au YYYY-MM-DD" for periods */
-export function formatProcedureDateFromLine(line: NormalizedPdfLine): string {
+/** Format procedure date for display: "YYYY-MM-DD" or localised date range for periods */
+export function formatProcedureDateFromLine(
+  line: NormalizedPdfLine,
+  t: TFunction<"fund-payment-match">,
+): string {
   if (line.is_period) {
-    return `${line.procedure_start_date} au ${line.procedure_end_date}`;
+    return t("format.datePeriod", {
+      start: line.procedure_start_date,
+      end: line.procedure_end_date,
+    });
   }
   return line.procedure_start_date;
 }
