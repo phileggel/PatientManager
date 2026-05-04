@@ -42,10 +42,17 @@
       "noIban": "No IBAN found in the bank statement.",
       "noTransfer": "No transfer has been selected.",
       "noVirSepaLines": "The statement contains no VIR SEPA lines. Please check that the file is a bank statement with SEPA transfers.",
-      "noAccount": {
-        "title": "Bank account not found",
-        "description": "The IBAN {{iban}} does not match any registered bank account.",
-        "hint": "First create a bank account with this IBAN in the \"Bank Accounts\" section."
+      "createAccount": {
+        "title": "Create the missing bank account",
+        "description": "The IBAN {{iban}} from the statement is unknown. Add a name and confirm to continue the import.",
+        "ibanLabel": "IBAN",
+        "nameLabel": "Account name *",
+        "namePlaceholder": "e.g., Cabinet — main account",
+        "nameRequired": "Account name is required",
+        "errorIbanAlreadyUsed": "This IBAN is already used by another bank account.",
+        "errorUnknown": "Could not create the bank account. Please try again.",
+        "submit": "Create and continue",
+        "submitting": "Creating..."
       },
       "done": "{{count}} transfer(s) created successfully",
       "doneDescription": "Transfers have been recorded and payment groups are now reconciled.",

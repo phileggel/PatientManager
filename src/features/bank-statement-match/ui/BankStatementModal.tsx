@@ -2,6 +2,7 @@ import { Loader, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/ui/components/button";
 import { IconButton } from "@/ui/components/button/IconButton";
+import { TextField } from "@/ui/components/field";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { FundLabelMappingStep } from "./FundLabelMappingStep";
 import { MatchResultsStep } from "./MatchResultsStep";
@@ -24,6 +25,11 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
     isProcessing,
     createdCount,
     maxDateOffsetDays,
+    createName,
+    createError,
+    isCreatingAccount,
+    handleCreateNameChange,
+    handleCreateAccountSubmit,
     handleLabelMappingConfirm,
     handleSelectionChange,
     handleCreateTransfers,
@@ -65,18 +71,45 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
           </div>
         )}
 
-        {step === "no-account" && parseResult && (
-          <div className="text-center py-12 space-y-4">
-            <p className="text-lg font-medium text-m3-on-surface">
-              {t("statement.modal.noAccount.title")}
-            </p>
-            <p className="text-m3-on-surface-variant">
-              {t("statement.modal.noAccount.description", { iban: parseResult.iban })}
-            </p>
-            <p className="text-sm text-m3-on-surface-variant">
-              {t("statement.modal.noAccount.hint")}
-            </p>
-          </div>
+        {step === "create-account" && parseResult && (
+          <form
+            id="create-account-form"
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleCreateAccountSubmit();
+            }}
+          >
+            <div className="space-y-1">
+              <p className="text-lg font-medium text-m3-on-surface">
+                {t("statement.modal.createAccount.title")}
+              </p>
+              <p className="text-sm text-m3-on-surface-variant">
+                {t("statement.modal.createAccount.description", { iban: parseResult.iban })}
+              </p>
+            </div>
+            <TextField
+              id="create-account-iban"
+              label={t("statement.modal.createAccount.ibanLabel")}
+              value={parseResult.iban ?? ""}
+              readOnly
+              disabled
+            />
+            <TextField
+              id="create-account-name"
+              label={t("statement.modal.createAccount.nameLabel")}
+              placeholder={t("statement.modal.createAccount.namePlaceholder")}
+              value={createName}
+              onChange={(e) => handleCreateNameChange(e.target.value)}
+              disabled={isCreatingAccount}
+              autoFocus
+            />
+            {createError && (
+              <p role="alert" className="text-sm text-m3-error">
+                {createError}
+              </p>
+            )}
+          </form>
         )}
 
         {step === "label-mapping" && (
@@ -129,14 +162,31 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
             </Button>
           )}
 
-          {(step === "done" || step === "error" || step === "no-account") && (
+          {step === "create-account" && (
+            <Button
+              type="submit"
+              form="create-account-form"
+              variant="primary"
+              disabled={isCreatingAccount}
+              loading={isCreatingAccount}
+            >
+              {isCreatingAccount
+                ? t("statement.modal.createAccount.submitting")
+                : t("statement.modal.createAccount.submit")}
+            </Button>
+          )}
+
+          {(step === "done" || step === "error") && (
             <Button onClick={onClose} variant="secondary">
               {t("statement.modal.close")}
             </Button>
           )}
 
-          {(step === "loading" || step === "matching" || step === "results") && (
-            <Button onClick={onClose} variant="secondary">
+          {(step === "loading" ||
+            step === "matching" ||
+            step === "results" ||
+            step === "create-account") && (
+            <Button onClick={onClose} variant="secondary" disabled={isCreatingAccount}>
               {t("statement.modal.cancel")}
             </Button>
           )}

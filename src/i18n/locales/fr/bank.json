@@ -42,10 +42,17 @@
       "noIban": "Aucun IBAN trouvé dans le relevé bancaire.",
       "noTransfer": "Aucun virement n'a été sélectionné.",
       "noVirSepaLines": "Le relevé ne contient aucune ligne VIR SEPA. Vérifiez que le fichier est bien un relevé de compte comportant des virements SEPA.",
-      "noAccount": {
-        "title": "Compte bancaire non trouvé",
-        "description": "L'IBAN {{iban}} ne correspond à aucun compte bancaire enregistré.",
-        "hint": "Créez d'abord un compte bancaire avec cet IBAN dans la section \"Comptes Bancaires\"."
+      "createAccount": {
+        "title": "Créer le compte bancaire manquant",
+        "description": "L'IBAN {{iban}} du relevé est inconnu. Ajoutez un nom et confirmez pour poursuivre l'import.",
+        "ibanLabel": "IBAN",
+        "nameLabel": "Nom du compte *",
+        "namePlaceholder": "ex. : Cabinet — compte principal",
+        "nameRequired": "Le nom du compte est requis",
+        "errorIbanAlreadyUsed": "Cet IBAN est déjà utilisé par un autre compte bancaire.",
+        "errorUnknown": "Impossible de créer le compte bancaire. Veuillez réessayer.",
+        "submit": "Créer et continuer",
+        "submitting": "Création..."
       },
       "done": "{{count}} virement(s) créé(s) avec succès",
       "doneDescription": "Les virements ont été enregistrés et les groupes de paiement sont maintenant rapprochés.",

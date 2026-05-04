@@ -12,6 +12,12 @@ import {
 } from "@/bindings";
 import { logger } from "@/lib/logger";
 
+// Re-export for the inline-create flow (BAS-013/014). The bank-account aggregate
+// owns the command; this re-export keeps the cross-context dependency explicit
+// and contained inside the feature gateway, so hooks/components stay within the
+// `bank-statement-match` import boundary.
+export { createBankAccount } from "@/features/bank-account/gateway";
+
 const TAG = "[BankStatementGateway]";
 
 export async function parseBankStatement(filePath: string): Promise<BankStatementParseResult> {
