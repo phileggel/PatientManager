@@ -2,13 +2,11 @@
 
 ---
 
-## (frontend/arch) — Route Tauri native dialog calls through feature gateways
+## (frontend/arch) — Add dialog titles to shell gateway pickers
 
-`@tauri-apps/plugin-dialog`'s `open()` is currently called directly from hook/component code (e.g. `useImportModal.handleBankReconciliation`, fund-reconciliation flow). This violates F3: gateway.ts must be the only file calling native/IPC APIs. It also blocks E2E — there's no programmatic seam to bypass the native OS file picker, which is what stopped the inline-create E2E test (see plan §2.6).
+`src/features/shell/gateway.ts` (`pickExcelFilePath`, `pickPdfFilePath`) does not pass a `title` to the OS file-picker dialog, so the native dialog shows a blank or OS-default title. The db-backup gateway already accepts a `title` parameter. Fix: add a `title: string` parameter to both shell gateway functions and pass translated strings from the hook.
 
-Fix: wrap `open()` in a gateway function per feature (e.g. `pickBankStatementFile(): Promise<string | null>` in `bank-statement-match/gateway.ts`). Hooks call the gateway function; tests mock it via the existing `vi.mock("../gateway")` pattern. E2E can override via a single window-level escape hatch on the gateway.
-
-Side benefit: makes the file-picker UX swappable (web `<input type="file">` if a browser build is ever needed). Audit all current `open()`/`save()` call sites and migrate them in one pass.
+Note: the F3 violation (direct `plugin-dialog` imports in hooks) was fixed in this branch — `db-backup/gateway.ts` and `shell/gateway.ts` are now the sole callers.
 
 ---
 
@@ -38,12 +36,6 @@ Fix: add a `parse_bank_statement_from_path(file_path: String)` Rust command (or 
 
 ---
 
-## (frontend/bank-statement-match) — Inline bank account creation when IBAN is not found
-
-When `resolveBankAccountFromIban` returns no account, the modal currently shows a dead-end "no account" screen. Instead, show an inline form with the IBAN pre-filled (read-only) and a name field the user must fill in. On submit, create the account and continue the import flow automatically (proceed to label-mapping step).
-
----
-
 ## (e2e) — Force English locale during E2E tests so aria-labels are invariant
 
 E2E tests rely on aria-labels for element selection. If the app locale is not fixed, labels may vary by system language and cause flaky test failures. Force the app to run in English during E2E runs so aria-labels are always predictable.
@@ -53,14 +45,6 @@ Options to explore:
 - Pass a `LANG=en` / `LC_ALL=en_US.UTF-8` env var when launching the Tauri app in WebDriver
 - Set a `test_locale` config flag in `tauri.conf.json` or a test-only config profile
 - Initialize the i18n layer with `en` unconditionally when a `TEST_LOCALE` env var is present
-
----
-
-## (frontend) — Add shared test data factories
-
-Tests construct domain objects inline (`{ id: "1", name: "...", ssn: "..." }`) in many places. Add factories with helpers like `makePatient()`, `makeProcedure()`, `makeFund()`, etc. with sensible defaults and optional overrides. Single place to update when the domain model changes.
-
-Note: `src/tests/patient.factory.ts` already exists (used in `useProcedureFormModal.test.ts`). Extend that pattern to the other domains rather than creating a new file.
 
 ---
 
