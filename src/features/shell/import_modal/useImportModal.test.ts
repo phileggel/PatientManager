@@ -7,14 +7,20 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-const mockOpen = vi.hoisted(() => vi.fn());
-vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mockOpen }));
+vi.mock("../gateway", () => ({
+  pickExcelFilePath: vi.fn(),
+  pickPdfFilePath: vi.fn(),
+}));
 
 import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { makeFund } from "@/tests/fund.factory";
+import * as gateway from "../gateway";
 import { useImportModal } from "./useImportModal";
+
+const mockPickExcel = vi.mocked(gateway.pickExcelFilePath);
+const mockPickPdf = vi.mocked(gateway.pickPdfFilePath);
 
 describe("useImportModal", () => {
   const onNavigate = vi.fn();
@@ -26,14 +32,15 @@ describe("useImportModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockOpen.mockResolvedValue(null);
+    mockPickExcel.mockResolvedValue(null);
+    mockPickPdf.mockResolvedValue(null);
   });
 
   // --- Excel import ---
 
   it("handleExcelImport: cancelled dialog — does nothing", async () => {
     useAppStore.setState({ funds: [], bankAccounts: [] });
-    mockOpen.mockResolvedValue(null);
+    mockPickExcel.mockResolvedValue(null);
     const { result } = renderModal();
 
     await act(async () => {
@@ -47,7 +54,7 @@ describe("useImportModal", () => {
 
   it("handleExcelImport: file selected — calls onFileSelected and closes", async () => {
     useAppStore.setState({ funds: [], bankAccounts: [] });
-    mockOpen.mockResolvedValue("/tmp/data.xlsx");
+    mockPickExcel.mockResolvedValue("/tmp/data.xlsx");
     const { result } = renderModal();
 
     await act(async () => {
@@ -72,12 +79,12 @@ describe("useImportModal", () => {
     expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.noFund");
     expect(onNavigate).toHaveBeenCalledWith("funds");
     expect(onClose).toHaveBeenCalledOnce();
-    expect(mockOpen).not.toHaveBeenCalled();
+    expect(mockPickPdf).not.toHaveBeenCalled();
   });
 
   it("handleFundReconciliation: funds exist, cancelled — does nothing", async () => {
     useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
-    mockOpen.mockResolvedValue(null);
+    mockPickPdf.mockResolvedValue(null);
     const { result } = renderModal();
 
     await act(async () => {
@@ -90,7 +97,7 @@ describe("useImportModal", () => {
 
   it("handleFundReconciliation: funds exist, file selected — calls onFileSelected and closes", async () => {
     useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
-    mockOpen.mockResolvedValue("/tmp/statement.pdf");
+    mockPickPdf.mockResolvedValue("/tmp/statement.pdf");
     const { result } = renderModal();
 
     await act(async () => {
@@ -114,12 +121,12 @@ describe("useImportModal", () => {
     expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.noBankAccount");
     expect(onNavigate).toHaveBeenCalledWith("bank-account");
     expect(onClose).toHaveBeenCalledOnce();
-    expect(mockOpen).not.toHaveBeenCalled();
+    expect(mockPickPdf).not.toHaveBeenCalled();
   });
 
   it("handleBankReconciliation: accounts exist, cancelled — does nothing", async () => {
     useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
-    mockOpen.mockResolvedValue(null);
+    mockPickPdf.mockResolvedValue(null);
     const { result } = renderModal();
 
     await act(async () => {
@@ -132,7 +139,7 @@ describe("useImportModal", () => {
 
   it("handleBankReconciliation: accounts exist, file selected — calls onFileSelected and closes", async () => {
     useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
-    mockOpen.mockResolvedValue("/tmp/bank.pdf");
+    mockPickPdf.mockResolvedValue("/tmp/bank.pdf");
     const { result } = renderModal();
 
     await act(async () => {

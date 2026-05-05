@@ -1,11 +1,10 @@
-import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
-import { exportDatabase, importDatabase } from "../gateway";
+import { exportDatabase, importDatabase, pickExportPath, pickImportPath } from "../gateway";
 
 const TAG = "[useDbBackupPanel]";
 
@@ -42,11 +41,7 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
     const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const defaultFilename = `backup_${timestamp}.db.gz`;
 
-    const destPath = await save({
-      title: t("export.dialogTitle"),
-      defaultPath: defaultFilename,
-      filters: [{ name: "Database backup", extensions: ["gz"] }],
-    });
+    const destPath = await pickExportPath(t("export.dialogTitle"), defaultFilename);
 
     if (!destPath) return; // user cancelled
 
@@ -67,13 +62,9 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
 
   /** Step 1: open file picker, store path, show confirmation dialog (R4, R5). */
   const handleImportRequest = async () => {
-    const sourcePath = await open({
-      title: t("import.dialogTitle"),
-      multiple: false,
-      filters: [{ name: "Database backup", extensions: ["gz"] }],
-    });
+    const sourcePath = await pickImportPath(t("import.dialogTitle"));
 
-    if (typeof sourcePath !== "string") return; // user cancelled or unexpected type (W4)
+    if (!sourcePath) return; // user cancelled (W4)
 
     setPendingSourcePath(sourcePath);
     setConfirmOpen(true);

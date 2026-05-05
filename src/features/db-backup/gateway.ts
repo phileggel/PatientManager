@@ -1,5 +1,26 @@
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { commands } from "@/bindings";
 import { logger } from "@/lib/logger";
+
+// ── Native file-picker dialogs ────────────────────────────────────────────────
+
+export async function pickExportPath(title: string, defaultPath: string): Promise<string | null> {
+  return save({
+    title,
+    defaultPath,
+    filters: [{ name: "Database backup", extensions: ["gz"] }],
+  });
+}
+
+export async function pickImportPath(title: string): Promise<string | null> {
+  const result = await open({
+    title,
+    multiple: false,
+    filters: [{ name: "Database backup", extensions: ["gz"] }],
+  });
+  if (typeof result !== "string") return null;
+  return result;
+}
 
 // ── Database Backup ──────────────────────────────────────────────────────────
 
