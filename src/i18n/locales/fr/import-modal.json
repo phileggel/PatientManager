@@ -6,14 +6,17 @@
   },
   "excel": {
     "title": "Comptabilité depuis un fichier Excel",
-    "description": "Importez un fichier Excel pour créer des patients, caisses et actes en base de données."
+    "description": "Importez un fichier Excel pour créer des patients, caisses et actes en base de données.",
+    "dialogTitle": "Sélectionner un fichier Excel"
   },
   "fundReconciliation": {
     "title": "Rapprochement Caisse depuis un PDF",
-    "description": "Téléchargez un relevé PDF de paiement pour rapprocher avec les actes en base de données."
+    "description": "Téléchargez un relevé PDF de paiement pour rapprocher avec les actes en base de données.",
+    "dialogTitle": "Sélectionner un relevé de caisse"
   },
   "bankReconciliation": {
     "title": "Rapprochement Bancaire depuis un relevé PDF",
-    "description": "Téléchargez un relevé bancaire PDF pour rapprocher les virements avec les groupes de paiement."
+    "description": "Téléchargez un relevé bancaire PDF pour rapprocher les virements avec les groupes de paiement.",
+    "dialogTitle": "Sélectionner un relevé bancaire"
   }
 }
