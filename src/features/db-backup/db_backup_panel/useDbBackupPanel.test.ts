@@ -1,16 +1,13 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
-  save: vi.fn(),
-  open: vi.fn(),
-}));
-
 vi.mock("@tauri-apps/plugin-process", () => ({
   relaunch: vi.fn(),
 }));
 
 vi.mock("../gateway", () => ({
+  pickExportPath: vi.fn(),
+  pickImportPath: vi.fn(),
   exportDatabase: vi.fn(),
   importDatabase: vi.fn(),
 }));
@@ -21,7 +18,6 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-import * as dialog from "@tauri-apps/plugin-dialog";
 import * as process from "@tauri-apps/plugin-process";
 import { toastService } from "@/core/snackbar";
 import * as gateway from "../gateway";
@@ -33,7 +29,7 @@ describe("useDbBackupPanel — export flow (R2, R3)", () => {
   });
 
   it("does not call exportDatabase when save dialog is cancelled", async () => {
-    vi.mocked(dialog.save).mockResolvedValue(null);
+    vi.mocked(gateway.pickExportPath).mockResolvedValue(null);
 
     const { result } = renderHook(() => useDbBackupPanel());
     await act(() => result.current.handleExport());
@@ -42,7 +38,7 @@ describe("useDbBackupPanel — export flow (R2, R3)", () => {
   });
 
   it("calls exportDatabase with the chosen path and shows success toast", async () => {
-    vi.mocked(dialog.save).mockResolvedValue("/backups/backup.db.gz");
+    vi.mocked(gateway.pickExportPath).mockResolvedValue("/backups/backup.db.gz");
     vi.mocked(gateway.exportDatabase).mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useDbBackupPanel());
@@ -53,7 +49,7 @@ describe("useDbBackupPanel — export flow (R2, R3)", () => {
   });
 
   it("shows error toast and resets isExporting when export fails", async () => {
-    vi.mocked(dialog.save).mockResolvedValue("/backups/backup.db.gz");
+    vi.mocked(gateway.pickExportPath).mockResolvedValue("/backups/backup.db.gz");
     vi.mocked(gateway.exportDatabase).mockRejectedValue(new Error("disk full"));
 
     const { result } = renderHook(() => useDbBackupPanel());
@@ -70,7 +66,7 @@ describe("useDbBackupPanel — import flow (R4, R5, R6)", () => {
   });
 
   it("does not open confirmation when open dialog is cancelled", async () => {
-    vi.mocked(dialog.open).mockResolvedValue(null);
+    vi.mocked(gateway.pickImportPath).mockResolvedValue(null);
 
     const { result } = renderHook(() => useDbBackupPanel());
     await act(() => result.current.handleImportRequest());
@@ -79,7 +75,7 @@ describe("useDbBackupPanel — import flow (R4, R5, R6)", () => {
   });
 
   it("opens confirmation dialog after file is selected", async () => {
-    vi.mocked(dialog.open).mockResolvedValue("/backups/backup.db.gz");
+    vi.mocked(gateway.pickImportPath).mockResolvedValue("/backups/backup.db.gz");
 
     const { result } = renderHook(() => useDbBackupPanel());
     await act(() => result.current.handleImportRequest());
@@ -88,7 +84,7 @@ describe("useDbBackupPanel — import flow (R4, R5, R6)", () => {
   });
 
   it("closes confirmation and clears path on cancel", async () => {
-    vi.mocked(dialog.open).mockResolvedValue("/backups/backup.db.gz");
+    vi.mocked(gateway.pickImportPath).mockResolvedValue("/backups/backup.db.gz");
 
     const { result } = renderHook(() => useDbBackupPanel());
     await act(() => result.current.handleImportRequest());
@@ -98,7 +94,7 @@ describe("useDbBackupPanel — import flow (R4, R5, R6)", () => {
   });
 
   it("calls importDatabase and relaunch on confirm success", async () => {
-    vi.mocked(dialog.open).mockResolvedValue("/backups/backup.db.gz");
+    vi.mocked(gateway.pickImportPath).mockResolvedValue("/backups/backup.db.gz");
     vi.mocked(gateway.importDatabase).mockResolvedValue(undefined);
     vi.mocked(process.relaunch).mockResolvedValue(undefined);
     vi.useFakeTimers();
@@ -117,7 +113,7 @@ describe("useDbBackupPanel — import flow (R4, R5, R6)", () => {
   });
 
   it("shows error toast and resets isImporting when import fails", async () => {
-    vi.mocked(dialog.open).mockResolvedValue("/backups/backup.db.gz");
+    vi.mocked(gateway.pickImportPath).mockResolvedValue("/backups/backup.db.gz");
     vi.mocked(gateway.importDatabase).mockRejectedValue(new Error("invalid backup"));
 
     const { result } = renderHook(() => useDbBackupPanel());

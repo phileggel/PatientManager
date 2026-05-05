@@ -1,9 +1,9 @@
-import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
+import { pickExcelFilePath, pickPdfFilePath } from "../gateway";
 import type { Page } from "../types";
 
 type ImportPage = "excel-import" | "fund-payment-match" | "bank-statement-match";
@@ -15,16 +15,10 @@ interface UseImportModalProps {
 }
 
 interface UseImportModalReturn {
-  handleExcelImport: () => void;
-  handleFundReconciliation: () => void;
-  handleBankReconciliation: () => void;
+  handleExcelImport: () => Promise<void>;
+  handleFundReconciliation: () => Promise<void>;
+  handleBankReconciliation: () => Promise<void>;
   isPicking: boolean;
-}
-
-function resolveFilePath(result: string | string[] | null): string | null {
-  if (!result) return null;
-  if (Array.isArray(result)) return result[0] ?? null;
-  return result;
 }
 
 /**
@@ -45,11 +39,7 @@ export function useImportModal({
   const handleExcelImport = useCallback(async () => {
     setIsPicking(true);
     try {
-      const result = await open({
-        multiple: false,
-        filters: [{ name: "Excel Files", extensions: ["xlsx", "xls", "csv"] }],
-      });
-      const path = resolveFilePath(result);
+      const path = await pickExcelFilePath();
       if (!path) return;
       onFileSelected("excel-import", path);
       onClose();
@@ -67,11 +57,7 @@ export function useImportModal({
     }
     setIsPicking(true);
     try {
-      const result = await open({
-        multiple: false,
-        filters: [{ name: "PDF", extensions: ["pdf"] }],
-      });
-      const path = resolveFilePath(result);
+      const path = await pickPdfFilePath();
       if (!path) return;
       onFileSelected("fund-payment-match", path);
       onClose();
@@ -89,11 +75,7 @@ export function useImportModal({
     }
     setIsPicking(true);
     try {
-      const result = await open({
-        multiple: false,
-        filters: [{ name: "PDF", extensions: ["pdf"] }],
-      });
-      const path = resolveFilePath(result);
+      const path = await pickPdfFilePath();
       if (!path) return;
       onFileSelected("bank-statement-match", path);
       onClose();
