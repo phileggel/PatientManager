@@ -2,7 +2,20 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Fund, Procedure } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
+import { makeProcedure } from "@/tests/procedure.factory";
 import { useAddFundPaymentPanel } from "./useAddFundPaymentPanel";
+
+vi.mock("../gateway", () => ({
+  getUnpaidProceduresByFund: vi.fn(),
+  createFundPayment: vi.fn(),
+  deleteFundPaymentGroup: vi.fn(),
+  updatePaymentGroupWithProcedures: vi.fn(),
+  getFundPaymentGroupEditData: vi.fn(),
+}));
+
+import { createFundPayment } from "../gateway";
+
+const mockCreate = vi.mocked(createFundPayment);
 
 const mockFunds: Fund[] = [
   {
@@ -27,7 +40,7 @@ const mockFunds: Fund[] = [
 
 describe("useAddFundPaymentPanel", () => {
   beforeEach(() => {
-    // Mock the app store to return our test funds
+    vi.clearAllMocks();
     useAppStore.setState({ funds: mockFunds });
   });
 
@@ -196,5 +209,111 @@ describe("useAddFundPaymentPanel", () => {
     expect(result.current.fundSelectorLabels[1]?.label).toBe("A-FUND (A Fund)");
     expect(result.current.fundSelectorLabels[2]?.label).toBe("M-FUND (M Fund)");
     expect(result.current.fundSelectorLabels[3]?.label).toBe("Z-FUND (Z Fund)");
+  });
+
+  it("setSelectedFundId clears fund error when a fund error is already set", async () => {
+    const { result } = renderHook(() => useAddFundPaymentPanel());
+
+    // Trigger validation to set the fund error
+    await act(async () => {
+      result.current.handleOpenSelection();
+    });
+    expect(result.current.errors.fund).toBeTruthy();
+
+    act(() => result.current.setSelectedFundId("f1"));
+
+    expect(result.current.errors.fund).toBeUndefined();
+  });
+
+  it("setPaymentDate clears paymentDate error when a date error is already set", async () => {
+    const { result } = renderHook(() => useAddFundPaymentPanel());
+
+    act(() => result.current.setSelectedFundId("f1"));
+    await act(async () => {
+      result.current.handleOpenSelection();
+    });
+    expect(result.current.errors.paymentDate).toBeTruthy();
+
+    act(() => result.current.setPaymentDate("2026-01-15"));
+
+    expect(result.current.errors.paymentDate).toBeUndefined();
+  });
+
+  it("handleOpenSelection opens modal when fund and date are both valid", async () => {
+    const { result } = renderHook(() => useAddFundPaymentPanel());
+
+    act(() => {
+      result.current.setSelectedFundId("f1");
+      result.current.setPaymentDate("2026-01-15");
+    });
+
+    act(() => result.current.handleOpenSelection());
+
+    expect(result.current.isModalOpen).toBe(true);
+  });
+
+  it("handleConfirmSelection clears procedures error when procedures are provided", async () => {
+    const proc = makeProcedure({ id: "p1" });
+    const { result } = renderHook(() => useAddFundPaymentPanel());
+
+    act(() => {
+      result.current.setSelectedFundId("f1");
+      result.current.setPaymentDate("2026-01-15");
+    });
+    // trigger procedures error via handleCreatePayment (no procedures selected)
+    await act(async () => {
+      await result.current.handleCreatePayment();
+    });
+    expect(result.current.errors.procedures).toBeTruthy();
+
+    act(() => result.current.handleConfirmSelection([proc]));
+
+    expect(result.current.errors.procedures).toBeUndefined();
+  });
+
+  it("handleCreatePayment returns success:false and sets errors when validation fails", async () => {
+    const { result } = renderHook(() => useAddFundPaymentPanel());
+
+    const outcome = await act(async () => result.current.handleCreatePayment());
+
+    expect(outcome).toEqual({ success: false });
+    expect(result.current.errors.fund).toBeTruthy();
+  });
+
+  it("handleCreatePayment resets state and returns success:true on gateway success", async () => {
+    mockCreate.mockResolvedValue({ success: true, data: undefined as never });
+
+    const proc = makeProcedure({ id: "p1" });
+    const { result } = renderHook(() => useAddFundPaymentPanel());
+
+    act(() => {
+      result.current.setSelectedFundId("f1");
+      result.current.setPaymentDate("2026-01-15");
+      result.current.handleConfirmSelection([proc]);
+    });
+
+    const outcome = await act(async () => result.current.handleCreatePayment());
+
+    expect(outcome).toEqual({ success: true });
+    expect(result.current.selectedFundId).toBe("");
+    expect(result.current.paymentDate).toBe("");
+  });
+
+  it("handleCreatePayment returns gateway error when gateway returns failure", async () => {
+    mockCreate.mockResolvedValue({ success: false, error: "Fund mismatch" });
+
+    const proc = makeProcedure({ id: "p1" });
+    const { result } = renderHook(() => useAddFundPaymentPanel());
+
+    act(() => {
+      result.current.setSelectedFundId("f1");
+      result.current.setPaymentDate("2026-01-15");
+      result.current.handleConfirmSelection([proc]);
+    });
+
+    const outcome = await act(async () => result.current.handleCreatePayment());
+
+    expect(outcome).toEqual({ success: false, error: "Fund mismatch" });
+    expect(result.current.isSubmitting).toBe(false);
   });
 });
