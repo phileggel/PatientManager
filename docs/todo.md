@@ -2,14 +2,6 @@
 
 ---
 
-## (frontend/arch) — Add dialog titles to shell gateway pickers
-
-`src/features/shell/gateway.ts` (`pickExcelFilePath`, `pickPdfFilePath`) does not pass a `title` to the OS file-picker dialog, so the native dialog shows a blank or OS-default title. The db-backup gateway already accepts a `title` parameter. Fix: add a `title: string` parameter to both shell gateway functions and pass translated strings from the hook.
-
-Note: the F3 violation (direct `plugin-dialog` imports in hooks) was fixed in this branch — `db-backup/gateway.ts` and `shell/gateway.ts` are now the sole callers.
-
----
-
 ## (frontend/ui) — Split BankStatementModal step components
 
 `BankStatementModal.tsx` contains 7 conditional `step === "..."` blocks (loading, matching, create-account, label-mapping, results, done, error). The create-account step now has form state, validation, error display — non-trivial. Extract step components (e.g. `CreateAccountStep`, `DoneStep`, `ErrorStep`) once another step gains comparable logic, or if the modal grows past ~200 lines. Pure refactor — defer until there's a second non-trivial step or the file becomes unwieldy.

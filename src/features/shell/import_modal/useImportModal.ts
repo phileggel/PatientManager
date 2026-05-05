@@ -39,14 +39,14 @@ export function useImportModal({
   const handleExcelImport = useCallback(async () => {
     setIsPicking(true);
     try {
-      const path = await pickExcelFilePath();
+      const path = await pickExcelFilePath(t("excel.dialogTitle"));
       if (!path) return;
       onFileSelected("excel-import", path);
       onClose();
     } finally {
       setIsPicking(false);
     }
-  }, [onFileSelected, onClose]);
+  }, [onFileSelected, onClose, t]);
 
   const handleFundReconciliation = useCallback(async () => {
     if (fundCount === 0) {
@@ -57,7 +57,7 @@ export function useImportModal({
     }
     setIsPicking(true);
     try {
-      const path = await pickPdfFilePath();
+      const path = await pickPdfFilePath(t("fundReconciliation.dialogTitle"));
       if (!path) return;
       onFileSelected("fund-payment-match", path);
       onClose();
@@ -75,7 +75,7 @@ export function useImportModal({
     }
     setIsPicking(true);
     try {
-      const path = await pickPdfFilePath();
+      const path = await pickPdfFilePath(t("bankReconciliation.dialogTitle"));
       if (!path) return;
       onFileSelected("bank-statement-match", path);
       onClose();
