@@ -21,6 +21,12 @@ export default defineConfig({
         "src/**/*.test.{ts,tsx}",
         "src/**/*.spec.{ts,tsx}",
       ],
+      thresholds: {
+        statements: 64,
+        branches: 56,
+        functions: 60,
+        lines: 65,
+      },
     },
   },
   resolve: {
