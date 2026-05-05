@@ -61,6 +61,7 @@ describe("useImportModal", () => {
       await result.current.handleExcelImport();
     });
 
+    expect(mockPickExcel).toHaveBeenCalledWith("excel.dialogTitle");
     expect(onFileSelected).toHaveBeenCalledWith("excel-import", "/tmp/data.xlsx");
     expect(onClose).toHaveBeenCalledOnce();
     expect(onNavigate).not.toHaveBeenCalled();
@@ -104,6 +105,7 @@ describe("useImportModal", () => {
       await result.current.handleFundReconciliation();
     });
 
+    expect(mockPickPdf).toHaveBeenCalledWith("fundReconciliation.dialogTitle");
     expect(onFileSelected).toHaveBeenCalledWith("fund-payment-match", "/tmp/statement.pdf");
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -146,6 +148,7 @@ describe("useImportModal", () => {
       await result.current.handleBankReconciliation();
     });
 
+    expect(mockPickPdf).toHaveBeenCalledWith("bankReconciliation.dialogTitle");
     expect(onFileSelected).toHaveBeenCalledWith("bank-statement-match", "/tmp/bank.pdf");
     expect(onClose).toHaveBeenCalledOnce();
   });

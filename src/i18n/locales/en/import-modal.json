@@ -6,14 +6,17 @@
   },
   "excel": {
     "title": "Accounting from an Excel file",
-    "description": "Upload an Excel file to import patients, funds, and procedures into the database."
+    "description": "Upload an Excel file to import patients, funds, and procedures into the database.",
+    "dialogTitle": "Select an Excel file"
   },
   "fundReconciliation": {
     "title": "Fund Reconciliation from a PDF",
-    "description": "Upload a PDF payment statement to reconcile with procedures in the database."
+    "description": "Upload a PDF payment statement to reconcile with procedures in the database.",
+    "dialogTitle": "Select a fund statement"
   },
   "bankReconciliation": {
     "title": "Bank Reconciliation from a bank statement PDF",
-    "description": "Upload a bank statement PDF to reconcile transfers with fund payment groups."
+    "description": "Upload a bank statement PDF to reconcile transfers with fund payment groups.",
+    "dialogTitle": "Select a bank statement"
   }
 }
