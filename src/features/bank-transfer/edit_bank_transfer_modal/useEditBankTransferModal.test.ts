@@ -264,4 +264,60 @@ describe("useEditBankTransferModal", () => {
     expect(gateway.updateFundTransfer).not.toHaveBeenCalled();
     expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
   });
+
+  it("keeps selectedGroupIds empty when getTransferFundGroupIds returns failure", async () => {
+    vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({
+      success: false,
+      error: "Not found",
+    });
+
+    const transfer = makeFundTransfer();
+    const { result } = renderHook(() => useEditBankTransferModal(transfer, vi.fn()));
+
+    await waitFor(() => expect(gateway.getTransferFundGroupIds).toHaveBeenCalled());
+
+    expect(result.current.selectedGroupIds).toEqual([]);
+    expect(gateway.getFundGroupsByIds).not.toHaveBeenCalled();
+  });
+
+  it("keeps currentProcedures empty when getProceduresByIds returns failure", async () => {
+    vi.mocked(gateway.getTransferProcedureIds).mockResolvedValue({
+      success: true,
+      data: ["proc-1"],
+    });
+    vi.mocked(gateway.getProceduresByIds).mockResolvedValue({
+      success: false,
+      error: "Not found",
+    });
+
+    const transfer = makeDirectTransfer();
+    const { result } = renderHook(() => useEditBankTransferModal(transfer, vi.fn()));
+
+    await waitFor(() => expect(gateway.getProceduresByIds).toHaveBeenCalled());
+
+    expect(result.current.currentProcedures).toEqual([]);
+  });
+
+  it("shows error toast when handleSubmit throws an exception", async () => {
+    vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({
+      success: true,
+      data: ["group-1"],
+    });
+    vi.mocked(gateway.getFundGroupsByIds).mockResolvedValue({ success: true, data: [mockGroup] });
+    vi.mocked(gateway.updateFundTransfer).mockRejectedValue(new Error("network error"));
+
+    const onClose = vi.fn();
+    const transfer = makeFundTransfer();
+    const { result } = renderHook(() => useEditBankTransferModal(transfer, onClose));
+
+    await waitFor(() => expect(result.current.selectedGroupIds).toEqual(["group-1"]));
+
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
+    expect(result.current.submitting).toBe(false);
+  });
 });
