@@ -84,13 +84,13 @@ it.
 
 ### In-scope
 
-| Tier | Pattern | Why testable |
-|------|---------|--------------|
-| Pure | `features/**/shared/validate*.ts` | One rule per `it`; pure functions |
-| Pure | `features/**/shared/presenter.ts` | Input-shape → output-shape mapping |
-| State-machine | `use*Modal.ts`, `use*Form.ts`, `use*Panel.ts`, `use*Page.ts` | Open/close, submit, errors, transitions |
-| State-machine | List/sort/search hooks (`useSort*`, `usePatientList`, `useFundList`, …) | Sorting, filtering, derived state |
-| Transforming gateway | gateway functions that **reshape args, map errors, call a presenter** | Real transformation logic |
+| Tier                 | Pattern                                                                 | Why testable                            |
+| -------------------- | ----------------------------------------------------------------------- | --------------------------------------- |
+| Pure                 | `features/**/shared/validate*.ts`                                       | One rule per `it`; pure functions       |
+| Pure                 | `features/**/shared/presenter.ts`                                       | Input-shape → output-shape mapping      |
+| State-machine        | `use*Modal.ts`, `use*Form.ts`, `use*Panel.ts`, `use*Page.ts`            | Open/close, submit, errors, transitions |
+| State-machine        | List/sort/search hooks (`useSort*`, `usePatientList`, `useFundList`, …) | Sorting, filtering, derived state       |
+| Transforming gateway | gateway functions that **reshape args, map errors, call a presenter**   | Real transformation logic               |
 
 ### Out-of-scope (do not test directly)
 
@@ -158,11 +158,11 @@ Smallest, easiest, no async. Establishes the testing pattern for the rest.
 
 **Scope (3 files):**
 
-| File | Cur | Gap |
-|---|---|---|
-| `src/features/fund-payment/shared/presenter.ts` | 64.3% | 5/14 lines |
-| `src/features/bank-account/shared/presenter.ts` | 66.7% | 1/3 lines |
-| `src/features/fund-payment/shared/validatePayment.ts` | 87.5% | 1/8 lines |
+| File                                                  | Cur   | Gap        |
+| ----------------------------------------------------- | ----- | ---------- |
+| `src/features/fund-payment/shared/presenter.ts`       | 64.3% | 5/14 lines |
+| `src/features/bank-account/shared/presenter.ts`       | 66.7% | 1/3 lines  |
+| `src/features/fund-payment/shared/validatePayment.ts` | 87.5% | 1/8 lines  |
 
 **For each presenter**: one `it` per shape transformation branch — happy case,
 boundary case (null/empty/missing optional field), and the i18n-routed branch
@@ -185,20 +185,20 @@ The state-light tier. Small, similar shape; good batch.
 
 **Scope (~10 files; inspect before testing):**
 
-| File | Cur | Notes |
-|---|---|---|
-| `useFundPaymentList.ts` | 0% | Inspect — may be thin pass-through |
-| `usePatientList.ts` | 0% | Inspect — may be thin pass-through |
-| `useBankAccountList.ts` | 0% | Sort/filter likely |
-| `useProcedureTypeList.ts` | 0% | Sort/filter likely |
-| `useFundList.ts` | 0% (9 lines) | Inspect — may be thin pass-through |
-| `useSortFundPaymentList.ts` | 29.6% | Sort comparator branches |
-| `useSortBankAccountList.ts` | 84% | Close gap |
-| `useSortPatientList.ts` | 85.2% | Close gap |
-| `useDoubleClickRow.ts` | 41.7% | Click timing / row-id state |
-| `useSelectFundModal.ts` | 0% (8 lines) | Selection state |
-| `useSelectPatientModal.ts` | 0% (13 lines) | Selection state |
-| `useFuzzySearch.ts` | 83.3% (6 lines) | Close gap |
+| File                        | Cur             | Notes                              |
+| --------------------------- | --------------- | ---------------------------------- |
+| `useFundPaymentList.ts`     | 0%              | Inspect — may be thin pass-through |
+| `usePatientList.ts`         | 0%              | Inspect — may be thin pass-through |
+| `useBankAccountList.ts`     | 0%              | Sort/filter likely                 |
+| `useProcedureTypeList.ts`   | 0%              | Sort/filter likely                 |
+| `useFundList.ts`            | 0% (9 lines)    | Inspect — may be thin pass-through |
+| `useSortFundPaymentList.ts` | 29.6%           | Sort comparator branches           |
+| `useSortBankAccountList.ts` | 84%             | Close gap                          |
+| `useSortPatientList.ts`     | 85.2%           | Close gap                          |
+| `useDoubleClickRow.ts`      | 41.7%           | Click timing / row-id state        |
+| `useSelectFundModal.ts`     | 0% (8 lines)    | Selection state                    |
+| `useSelectPatientModal.ts`  | 0% (13 lines)   | Selection state                    |
+| `useFuzzySearch.ts`         | 83.3% (6 lines) | Close gap                          |
 
 **For list/sort hooks**: one `it` per **comparator branch** (asc/desc, by-each-
 sortable-column, ties), plus one `it` for "empty list returns empty" only if
@@ -225,19 +225,20 @@ The bulk of the form-flow state. Uses `renderHook` + `vi.mock("../gateway")`.
 
 **Scope (~9 files):**
 
-| File | Cur | What to test |
-|---|---|---|
-| `useEditPatientModal.ts` | 0% (36) | Open with seed, edit field, errors-reset-on-input, submit success/error, cancel |
-| `useAddPatientPanel.ts` | 84.8% | Close gap (likely error branch) |
-| `useEditBankTransferModal.ts` | 82.4% | Close gap (likely a delete or status branch) |
-| `useAddBankAccountPanel.ts` | 86.5% | Close gap |
-| `useCreateEntityForm.ts` | 32.4% (34) | Validation orchestration, submit branches |
-| `useAddFundPaymentPanel.ts` | 63.6% | Close gap (likely payment-date validation) |
-| `useCancelRefundDialog.ts` | 5.6% (18) | Confirm/cancel/error |
-| `useUpdater.ts` | 29.2% (24) | Inspect — may be Tauri side-effect heavy; if so, test only the state-machine, mock the platform |
-| `useSelectProcedureModal.ts` | 37.3% (83) | Selection, filter, confirm |
+| File                          | Cur        | What to test                                                                                    |
+| ----------------------------- | ---------- | ----------------------------------------------------------------------------------------------- |
+| `useEditPatientModal.ts`      | 0% (36)    | Open with seed, edit field, errors-reset-on-input, submit success/error, cancel                 |
+| `useAddPatientPanel.ts`       | 84.8%      | Close gap (likely error branch)                                                                 |
+| `useEditBankTransferModal.ts` | 82.4%      | Close gap (likely a delete or status branch)                                                    |
+| `useAddBankAccountPanel.ts`   | 86.5%      | Close gap                                                                                       |
+| `useCreateEntityForm.ts`      | 32.4% (34) | Validation orchestration, submit branches                                                       |
+| `useAddFundPaymentPanel.ts`   | 63.6%      | Close gap (likely payment-date validation)                                                      |
+| `useCancelRefundDialog.ts`    | 5.6% (18)  | Confirm/cancel/error                                                                            |
+| `useUpdater.ts`               | 29.2% (24) | Inspect — may be Tauri side-effect heavy; if so, test only the state-machine, mock the platform |
+| `useSelectProcedureModal.ts`  | 37.3% (83) | Selection, filter, confirm                                                                      |
 
 **Test pattern per file**:
+
 1. `it("opens with seed data")` — render with initial values, assert form state
 2. `it("clears errors when input changes")` — set error, type into field, assert cleared
 3. `it("submits successfully and emits result")` — mock gateway resolves success, assert state + callback
@@ -260,28 +261,29 @@ The highest-value chunk. Long-lived modal flows + the user-visible UI states.
 
 **Hooks scope (~7 files):**
 
-| File | Cur | Notes |
-|---|---|---|
-| `useBankStatementModal.ts` | 42.8% (166) | Just-merged feature; cover all 7 step transitions (`loading`, `matching`, `create-account`, `label-mapping`, `results`, `done`, `error`) and the inline-create-account form within the modal |
-| `useRecordOverpaymentModal.ts` | 1.8% (56) | Multi-step state machine; cover each step + cancel |
-| `useReconciliationModal.ts` | 85.9% (85) | Close gap — likely an error branch or an auto-correction path |
-| `useProcedureFormModal.ts` | 87.4% (103) | Close gap |
-| `useBankTransferOperations.ts` | 0% (26) | Cover each operation branch |
-| `useSelectFundGroupsPanel.ts` | 0% (56) | Selection + confirm |
-| `useSelectProceduresPanel.ts` | 0% (56) | Selection + confirm |
-| `useDashboardPage.ts` | 61% | Close gap (likely a derived metric branch) |
+| File                           | Cur         | Notes                                                                                                                                                                                        |
+| ------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useBankStatementModal.ts`     | 42.8% (166) | Just-merged feature; cover all 7 step transitions (`loading`, `matching`, `create-account`, `label-mapping`, `results`, `done`, `error`) and the inline-create-account form within the modal |
+| `useRecordOverpaymentModal.ts` | 1.8% (56)   | Multi-step state machine; cover each step + cancel                                                                                                                                           |
+| `useReconciliationModal.ts`    | 85.9% (85)  | Close gap — likely an error branch or an auto-correction path                                                                                                                                |
+| `useProcedureFormModal.ts`     | 87.4% (103) | Close gap                                                                                                                                                                                    |
+| `useBankTransferOperations.ts` | 0% (26)     | Cover each operation branch                                                                                                                                                                  |
+| `useSelectFundGroupsPanel.ts`  | 0% (56)     | Selection + confirm                                                                                                                                                                          |
+| `useSelectProceduresPanel.ts`  | 0% (56)     | Selection + confirm                                                                                                                                                                          |
+| `useDashboardPage.ts`          | 61%         | Close gap (likely a derived metric branch)                                                                                                                                                   |
 
 **RTL integration scope** (one test file per component, **one `it` per state**):
 
-| Component | States to cover (per `frontend-rules.md`) |
-|---|---|
-| `BankStatementModal.tsx` | idle, loading, matching results, create-account form, label-mapping, success/done, error, empty (no entries matched) |
-| `RecordOverpaymentModal.tsx` | idle, loading, success, error |
-| `ReconciliationModal.tsx` | idle, loading, results, error |
-| `ProcedureFormModal.tsx` | idle, loading on submit, success, error |
-| Any bank-transfer / fund-payment list view that has all 5 states | idle, loading, results, empty, error |
+| Component                                                        | States to cover (per `frontend-rules.md`)                                                                            |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `BankStatementModal.tsx`                                         | idle, loading, matching results, create-account form, label-mapping, success/done, error, empty (no entries matched) |
+| `RecordOverpaymentModal.tsx`                                     | idle, loading, success, error                                                                                        |
+| `ReconciliationModal.tsx`                                        | idle, loading, results, error                                                                                        |
+| `ProcedureFormModal.tsx`                                         | idle, loading on submit, success, error                                                                              |
+| Any bank-transfer / fund-payment list view that has all 5 states | idle, loading, results, empty, error                                                                                 |
 
 **RTL test rules** (from `e2e-rules.md` / `frontend-rules.md`):
+
 - Mock the gateway with `vi.mock`, not `invoke`
 - Assert user-visible content: text, `role="alert"`, disabled/enabled buttons
 - One `it` per UI state — do not combine "loading then success" in one test;
