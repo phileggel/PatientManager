@@ -452,3 +452,62 @@ describe("edit mode — calls updateProcedure on submit", () => {
     );
   });
 });
+
+describe("create mode — validation errors set fieldErrors", () => {
+  it("sets fieldErrors for all missing required fields and shows toast", async () => {
+    const { toastService } = await import("@/core/snackbar");
+
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    // Submit with all fields empty
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as FormEvent);
+    });
+
+    expect(result.current.fieldErrors.patientId).toBeTruthy();
+    expect(result.current.fieldErrors.procedureTypeId).toBeTruthy();
+    expect(result.current.fieldErrors.procedureDate).toBeTruthy();
+    expect(toastService.show).toHaveBeenCalledWith("error", expect.any(String));
+  });
+});
+
+describe("create mode — handlePatientCreated", () => {
+  it("sets patientId and clears patientId error on success", async () => {
+    const { createNewPatient } = await import("@/features/procedure/api/gateway");
+    const createdPatient = makePatient({ id: "new-p" });
+    vi.mocked(createNewPatient).mockResolvedValue(createdPatient);
+
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    // Force a patientId error first
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as FormEvent);
+    });
+    expect(result.current.fieldErrors.patientId).toBeTruthy();
+
+    await act(async () => {
+      await result.current.handlePatientCreated({ name: "Alice" });
+    });
+
+    expect(result.current.patientId).toBe("new-p");
+    expect(result.current.fieldErrors.patientId).toBeUndefined();
+  });
+
+  it("shows error toast when createNewPatient throws", async () => {
+    const { createNewPatient } = await import("@/features/procedure/api/gateway");
+    const { toastService } = await import("@/core/snackbar");
+    vi.mocked(createNewPatient).mockRejectedValue(new Error("create failed"));
+
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    await act(async () => {
+      await result.current.handlePatientCreated({ name: "Alice" });
+    });
+
+    expect(toastService.show).toHaveBeenCalledWith("error", expect.any(String));
+  });
+});

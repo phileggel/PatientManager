@@ -287,3 +287,150 @@ describe("useBankStatementModal — BAS-010..017 (inline create-account flow)", 
     expect(result.current.createError).toBeNull();
   });
 });
+
+// -------------------------------------------------------------------
+// 6. Normal flow (account found) and error paths
+// -------------------------------------------------------------------
+const mockSaveMappings = vi.mocked(gateway.saveBankFundLabelMappings);
+const mockMatch = vi.mocked(gateway.matchBankStatementLines);
+const mockCreateTransfers = vi.mocked(gateway.createBankTransfersFromStatement);
+
+const LABEL_RESOLUTIONS_WITH_FUND = [
+  {
+    bank_label: "CPAM75",
+    fund_id: "fund-1",
+    suggested_fund_id: null,
+    suggested_fund_name: null,
+    is_confirmed: true,
+    is_rejected: false,
+  },
+];
+
+const MATCH_RESULT_WITH_MATCH = {
+  matched: [
+    {
+      credit_line: { date: "2026-04-10", label: "CPAM75", amount: 150000, fund_id: "fund-1" },
+      group_id: "group-1",
+      group_fund_id: "fund-1",
+      group_payment_date: "2026-04-08",
+      group_total_amount: 150000,
+    },
+  ],
+  unmatched_lines: [],
+};
+
+const MATCH_RESULT_EMPTY = { matched: [], unmatched_lines: [] };
+
+function stubNormalFlow() {
+  mockGetConfig.mockResolvedValue({ max_date_offset_days: 6 });
+  mockParse.mockResolvedValue(PARSE_RESULT);
+  mockResolveAccount.mockResolvedValue(NEW_ACCOUNT);
+  mockResolveLabels.mockResolvedValue(LABEL_RESOLUTIONS_WITH_FUND);
+}
+
+describe("useBankStatementModal — normal flow (account found) and error paths", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("transitions to label-mapping when account is found in IBAN lookup", async () => {
+    stubNormalFlow();
+
+    const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
+
+    await waitFor(() => expect(result.current.step).toBe("label-mapping"));
+    expect(mockResolveAccount).toHaveBeenCalledWith(PARSE_RESULT.iban);
+    expect(result.current.labelResolutions).toHaveLength(1);
+  });
+
+  it("getBankStatementReconciliationConfig updates maxDateOffsetDays", async () => {
+    mockGetConfig.mockResolvedValue({ max_date_offset_days: 14 });
+    // Short-circuit the parse flow to avoid waiting for full setup
+    mockParse.mockRejectedValue(new Error("stop-here"));
+
+    const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
+
+    await waitFor(() => expect(result.current.step).toBe("error"));
+    expect(result.current.maxDateOffsetDays).toBe(14);
+  });
+
+  it("sets error step with the specific message for NO_VIR_SEPA_LINES", async () => {
+    mockGetConfig.mockResolvedValue({ max_date_offset_days: 6 });
+    mockParse.mockRejectedValue(new Error("NO_VIR_SEPA_LINES"));
+
+    const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
+
+    await waitFor(() => expect(result.current.step).toBe("error"));
+    expect(result.current.error).toBeTruthy();
+  });
+
+  it("sets error step for a generic parseBankStatement exception", async () => {
+    mockGetConfig.mockResolvedValue({ max_date_offset_days: 6 });
+    mockParse.mockRejectedValue(new Error("unexpected parse error"));
+
+    const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
+
+    await waitFor(() => expect(result.current.step).toBe("error"));
+    expect(result.current.error).toBeTruthy();
+  });
+
+  it("handleLabelMappingConfirm saves mappings and proceeds through matching to results", async () => {
+    stubNormalFlow();
+    mockSaveMappings.mockResolvedValue(undefined);
+    mockMatch.mockResolvedValue(MATCH_RESULT_EMPTY);
+
+    const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
+    await waitFor(() => expect(result.current.step).toBe("label-mapping"));
+
+    await act(async () => {
+      await result.current.handleLabelMappingConfirm(new Map([["CPAM75", "fund-1"]]));
+    });
+
+    await waitFor(() => expect(result.current.step).toBe("results"));
+    expect(mockSaveMappings).toHaveBeenCalledWith(NEW_ACCOUNT.id, expect.any(Array));
+    expect(mockMatch).toHaveBeenCalled();
+  });
+
+  it("handleCreateTransfers transitions to done with confirmed matches", async () => {
+    stubNormalFlow();
+    mockSaveMappings.mockResolvedValue(undefined);
+    mockMatch.mockResolvedValue(MATCH_RESULT_WITH_MATCH);
+    mockCreateTransfers.mockResolvedValue(1);
+
+    const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
+    await waitFor(() => expect(result.current.step).toBe("label-mapping"));
+
+    await act(async () => {
+      await result.current.handleLabelMappingConfirm(new Map([["CPAM75", "fund-1"]]));
+    });
+    await waitFor(() => expect(result.current.step).toBe("results"));
+
+    await act(async () => {
+      await result.current.handleCreateTransfers();
+    });
+
+    await waitFor(() => expect(result.current.step).toBe("done"));
+    expect(result.current.createdCount).toBe(1);
+  });
+
+  it("handleCreateTransfers shows error toast and stays on results when no matches confirmed", async () => {
+    stubNormalFlow();
+    mockSaveMappings.mockResolvedValue(undefined);
+    mockMatch.mockResolvedValue(MATCH_RESULT_EMPTY);
+
+    const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
+    await waitFor(() => expect(result.current.step).toBe("label-mapping"));
+
+    await act(async () => {
+      await result.current.handleLabelMappingConfirm(new Map([["CPAM75", "fund-1"]]));
+    });
+    await waitFor(() => expect(result.current.step).toBe("results"));
+
+    await act(async () => {
+      await result.current.handleCreateTransfers();
+    });
+
+    expect(result.current.step).toBe("results");
+    expect(vi.mocked(gateway.createBankTransfersFromStatement)).not.toHaveBeenCalled();
+  });
+});
