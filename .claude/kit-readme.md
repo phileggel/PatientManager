@@ -121,7 +121,7 @@ _Use for: Bug fixes, dependency updates, minor maintenance (no new business rule
 2. **Direct Plan**: Propose a concise TODO plan with exact file paths in the chat. Ask user to validate.
 3. **Tracking**: Use `TaskCreate` / `TaskUpdate` tools to track workflow steps (`in_progress` when starting, `completed` when done).
 4. **Implementation**: Execute the code changes.
-5. **Review & Quality**: Run `python3 scripts/check.py` (or `just check-full`), write missing tests, and run relevant subagents (`reviewer-arch`, `reviewer-infra`, etc.) as in Phase 3 above.
+5. **Review & Quality**: Run `python3 scripts/check.py` (or `just check-full`), write missing tests, then run reviewers: `reviewer-backend` (if `.rs` modified) · `reviewer-frontend` (if `.ts`/`.tsx` modified) · `reviewer-arch` (always) · `reviewer-sql` (if migrations) · `reviewer-infra` (if scripts, hooks, config, or workflow files changed).
 6. **Closure**: Ask user if another task is needed before commit, otherwise use **`/smart-commit`** skill.
 7. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff fix/{name}`).
 

@@ -76,7 +76,6 @@ One-time setup: `npx playwright install chromium`
 
 Run `/visual-proof` after any frontend change — auto-discovers config on first run, generates previews for all component states in light + dark mode, captures with Playwright, and stages screenshots.
 
-> **WSL2**: add `args: ["--no-sandbox"]` to `chromium.launch()` in the generated `.visual-proof-capture.mjs` before running capture (pending kit fix).
 > **No visual change**: write `No visual impact — internal refactor / Rust-only change.` at the top of the PR/commit, then screenshot a screen that *consumes* the modified code as non-regression proof.
 
 ## ⚠️ Critical Patterns

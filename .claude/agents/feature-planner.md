@@ -34,7 +34,7 @@ Read the following to ensure compliance (skip silently if a file is absent):
 - `ARCHITECTURE.md`: Bounded contexts, module layout, data flow, naming conventions.
 - `docs/backend-rules.md`: Factory methods, service layer, repository traits.
 - `docs/frontend-rules.md`: Gateway, hook, component patterns, colocated tests.
-- `docs/testing.md`: Testing conventions (inline `#[cfg(test)]` for Rust, colocated `.test.ts` for React).
+- `docs/test_convention.md`: Testing conventions (inline `#[cfg(test)]` for Rust, colocated `.test.ts` for React).
 - `docs/contracts/{domain}-contract.md`: If present, mandatory — commands anchor the test-writer tasks
   in the plan. Derive the domain name from the spec's Context section.
 

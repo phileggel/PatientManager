@@ -39,18 +39,23 @@ Run `bash scripts/report-path.sh whats-next` and remember the output as `REPORT_
 
 Run each scan independently. Skip sources whose files do not exist (no error).
 
-**a) TODOs** — Check two places and merge results:
+**a) TODOs** — attempt both case variants; read whichever returns content (skip silently if neither exists):
 
-1. `docs/TODO.md` / `docs/todo.md` — run:
-   ```bash
-   cat docs/TODO.md 2>/dev/null || cat docs/todo.md 2>/dev/null
-   ```
-   If either file exists, extract every section heading and bullet as a candidate item.
-2. Inline code TODOs — always run:
-   ```bash
-   grep -rn "TODO\|FIXME" src/ src-tauri/src/ --include="*.ts" --include="*.tsx" --include="*.rs" 2>/dev/null
-   ```
-   Surface each hit (file:line + comment text) as a candidate item. Do not skip this scan even when `docs/TODO.md` exists.
+```bash
+cat docs/todo.md 2>/dev/null
+```
+
+```bash
+cat docs/TODO.md 2>/dev/null
+```
+
+Extract every section heading and bullet as a candidate item. Also scan inline code comments (always run, even when the file exists):
+
+```bash
+grep -rn -e "TODO" -e "FIXME" src/ src-tauri/src/ --include="*.ts" --include="*.tsx" --include="*.rs" 2>/dev/null
+```
+
+Surface each hit (file:line + comment text) as a candidate item.
 
 **b) Planning docs** — `docs/plan-*.md` at the docs/ root. Use `Glob("docs/plan-*.md")`; then `Read` each result to extract the title and any `## Open Questions` section.
 
