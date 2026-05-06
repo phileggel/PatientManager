@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use sha2::{Digest, Sha384};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use sqlx::ConnectOptions;
 use std::fs;
@@ -66,6 +67,13 @@ impl Database {
             db_path: db_path.clone(),
         };
 
+        // Heal CRLF→LF migration checksum drift from binaries built with
+        // git core.autocrlf=true (e.g. v0.14.0 built on Windows). Must run
+        // before sqlx::migrate! to prevent VersionMismatch panic at startup.
+        heal_crlf_checksum_drift(&db.pool)
+            .await
+            .with_context(|| "Failed to heal migration checksums")?;
+
         // Apply database migrations from ./migrations directory
         //
         // IMPORTANT: When creating a new migration:
@@ -86,5 +94,189 @@ impl Database {
 
     pub fn get_path(&self) -> &PathBuf {
         &self.db_path
+    }
+}
+
+/// Heal CRLF→LF migration checksum drift introduced by binaries built with
+/// `core.autocrlf=true` (e.g. v0.14.0 on Windows). SQLx hashes raw migration
+/// file bytes, so a CRLF build embeds different checksums than a later LF
+/// build, and `sqlx::migrate!` aborts with VersionMismatch on upgrade.
+///
+/// For each compiled-in migration whose stored checksum equals the SHA-384
+/// of the same SQL with CRLF endings, rewrite the stored checksum to the LF
+/// value. Other mismatches are left untouched so `sqlx::migrate!` can surface
+/// a real error.
+async fn heal_crlf_checksum_drift(pool: &SqlitePool) -> Result<()> {
+    let table_exists: Option<String> = sqlx::query_scalar(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '_sqlx_migrations'",
+    )
+    .fetch_optional(pool)
+    .await?;
+    if table_exists.is_none() {
+        return Ok(());
+    }
+
+    let migrator = sqlx::migrate!("./migrations");
+    for m in migrator.iter() {
+        let version = m.version;
+        let lf_checksum: &[u8] = &m.checksum;
+
+        let stored: Option<(Vec<u8>, i64)> =
+            sqlx::query_as("SELECT checksum, success FROM _sqlx_migrations WHERE version = ?")
+                .bind(version)
+                .fetch_optional(pool)
+                .await?;
+        let Some((stored_checksum, success)) = stored else {
+            continue;
+        };
+        if stored_checksum == lf_checksum || success == 0 {
+            continue;
+        }
+
+        let crlf_sql: String = m.sql.replace("\r\n", "\n").replace('\n', "\r\n");
+        let crlf_checksum = Sha384::digest(crlf_sql.as_bytes()).to_vec();
+        if stored_checksum == crlf_checksum {
+            tracing::warn!(
+                target: BACKEND,
+                version,
+                description = %m.description,
+                "Healing CRLF→LF migration checksum drift (legacy autocrlf build)"
+            );
+            sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = ?")
+                .bind(lf_checksum)
+                .bind(version)
+                .execute(pool)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    async fn fresh_pool() -> SqlitePool {
+        SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap()
+    }
+
+    async fn seed_migrations_table(pool: &SqlitePool) {
+        sqlx::query(
+            r#"CREATE TABLE _sqlx_migrations (
+                version INTEGER PRIMARY KEY,
+                description TEXT NOT NULL,
+                installed_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                success BOOLEAN NOT NULL,
+                checksum BLOB NOT NULL,
+                execution_time BIGINT NOT NULL
+            )"#,
+        )
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    fn crlf_checksum(sql: &str) -> Vec<u8> {
+        let crlf = sql.replace("\r\n", "\n").replace('\n', "\r\n");
+        Sha384::digest(crlf.as_bytes()).to_vec()
+    }
+
+    #[tokio::test]
+    async fn heal_rewrites_crlf_to_lf() {
+        let pool = fresh_pool().await;
+        seed_migrations_table(&pool).await;
+        let migrator = sqlx::migrate!("./migrations");
+        for m in migrator.iter() {
+            sqlx::query(
+                "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) VALUES (?, ?, 1, ?, 0)",
+            )
+            .bind(m.version)
+            .bind(&*m.description)
+            .bind(crlf_checksum(&m.sql))
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+
+        heal_crlf_checksum_drift(&pool).await.unwrap();
+
+        for m in migrator.iter() {
+            let stored: Vec<u8> =
+                sqlx::query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = ?")
+                    .bind(m.version)
+                    .fetch_one(&pool)
+                    .await
+                    .unwrap();
+            assert_eq!(stored, &m.checksum[..], "version {}", m.version);
+        }
+    }
+
+    #[tokio::test]
+    async fn heal_is_noop_when_checksums_already_lf() {
+        let pool = fresh_pool().await;
+        seed_migrations_table(&pool).await;
+        let migrator = sqlx::migrate!("./migrations");
+        for m in migrator.iter() {
+            sqlx::query(
+                "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) VALUES (?, ?, 1, ?, 0)",
+            )
+            .bind(m.version)
+            .bind(&*m.description)
+            .bind(&m.checksum[..])
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+
+        heal_crlf_checksum_drift(&pool).await.unwrap();
+
+        for m in migrator.iter() {
+            let stored: Vec<u8> =
+                sqlx::query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = ?")
+                    .bind(m.version)
+                    .fetch_one(&pool)
+                    .await
+                    .unwrap();
+            assert_eq!(stored, &m.checksum[..]);
+        }
+    }
+
+    #[tokio::test]
+    async fn heal_leaves_unrelated_drift_alone() {
+        let pool = fresh_pool().await;
+        seed_migrations_table(&pool).await;
+        let migrator = sqlx::migrate!("./migrations");
+        let m = migrator.iter().next().unwrap();
+        let bogus = vec![0xAAu8; 48];
+        sqlx::query(
+            "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) VALUES (?, ?, 1, ?, 0)",
+        )
+        .bind(m.version)
+        .bind(&*m.description)
+        .bind(&bogus)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        heal_crlf_checksum_drift(&pool).await.unwrap();
+
+        let stored: Vec<u8> =
+            sqlx::query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = ?")
+                .bind(m.version)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(stored, bogus);
+    }
+
+    #[tokio::test]
+    async fn heal_skips_when_table_missing() {
+        let pool = fresh_pool().await;
+        heal_crlf_checksum_drift(&pool).await.unwrap();
     }
 }
