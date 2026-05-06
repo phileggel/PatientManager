@@ -58,7 +58,12 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
 
     // Initialize tracing with file logging
     initialize_tracing(&dirs.log_dir)?;
-    tracing::info!(target: BACKEND, "Initializing application backend");
+    tracing::info!(
+        target: BACKEND,
+        version = env!("CARGO_PKG_VERSION"),
+        build_os = std::env::consts::OS,
+        "Initializing application backend"
+    );
     tracing::trace!(target: BACKEND, data_dir = ?dirs.local_data_dir, log_dir = ?dirs.log_dir, "Application directories");
 
     // Initialize database with proper path
