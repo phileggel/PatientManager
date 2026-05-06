@@ -6,6 +6,14 @@ use patient_manager_app::{core::specta_builder, initialize_app};
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
 fn main() {
+    // Capture panics to both stderr and the tracing log file. Critical on
+    // Windows release builds where windows_subsystem=windows hides default
+    // panic output, leaving silent crashes with no diagnostic trail.
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("PANIC: {info}");
+        tracing::error!(target: "backend", panic = %info, "Application panic");
+    }));
+
     // Create tauri-specta builder for type-safe bindings
     let builder = specta_builder::create_specta_builder();
 
