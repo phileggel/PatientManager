@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1] - 2026-05-06
+
+### Fixed
+- heal CRLF-LF migration checksum drift on startup
+v0.14.0 was built with git autocrlf=true on Windows, baking CRLF-based
+SHA-384 checksums into the binary. Subsequent LF-built binaries panicked
+at startup when sqlx::migrate! validated the stored checksums against
+its compiled-in LF hashes. Detect the CRLF pattern and rewrite stored
+checksums to LF before sqlx::migrate! runs.
+
 ## [0.16.0] - 2026-05-06
 
 ### Added
