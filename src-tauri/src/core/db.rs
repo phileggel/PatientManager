@@ -2,8 +2,9 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha384};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use sqlx::ConnectOptions;
+use std::collections::HashSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::BACKEND;
 
@@ -67,6 +68,13 @@ impl Database {
             db_path: db_path.clone(),
         };
 
+        // Snapshot the current database before mutating it, so a failed
+        // migration or heal can be rolled back by restoring the backup file.
+        // Skipped on fresh installs and when no migrations are pending.
+        backup_db_if_migrations_pending(&db.pool, &db.db_path)
+            .await
+            .with_context(|| "Failed to back up database before migration")?;
+
         // Heal CRLF→LF migration checksum drift from binaries built with
         // git core.autocrlf=true (e.g. v0.14.0 built on Windows). Must run
         // before sqlx::migrate! to prevent VersionMismatch panic at startup.
@@ -83,7 +91,12 @@ impl Database {
         //
         // The dev database is located at: src-tauri/patient_manager.db
         // Set DATABASE_URL="sqlite:patient_manager.db" when running cargo commands
-        sqlx::migrate!("./migrations").run(&db.pool).await?;
+        tracing::info!(target: BACKEND, "Running database migrations");
+        sqlx::migrate!("./migrations")
+            .run(&db.pool)
+            .await
+            .with_context(|| "sqlx::migrate! failed")?;
+        tracing::info!(target: BACKEND, "Database migrations applied");
 
         Ok(db)
     }
@@ -95,6 +108,75 @@ impl Database {
     pub fn get_path(&self) -> &PathBuf {
         &self.db_path
     }
+}
+
+/// Snapshot the database file as a sibling backup before any migration step
+/// mutates it, so the user can roll back to the prior version simply by
+/// restoring the file. The backup is skipped when:
+///   - the migration tracking table is missing (fresh install — nothing to lose)
+///   - no migrations are pending (binary is up-to-date with the on-disk schema)
+///
+/// Backups accumulate in the same directory as the live DB with the format
+/// `patient_manager.backup-pre-v{NEW_VERSION}-{YYYYMMDD-HHMMSS}.db`. Old
+/// backups are intentionally not auto-pruned — the user owns retention.
+///
+/// Uses SQLite's `VACUUM INTO` for an atomic, transactionally consistent
+/// snapshot that doesn't depend on journal mode (WAL/DELETE/etc.).
+async fn backup_db_if_migrations_pending(pool: &SqlitePool, db_path: &Path) -> Result<()> {
+    let table_exists: Option<String> = sqlx::query_scalar(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '_sqlx_migrations'",
+    )
+    .fetch_optional(pool)
+    .await?;
+    if table_exists.is_none() {
+        return Ok(());
+    }
+
+    let applied: Vec<i64> =
+        sqlx::query_scalar("SELECT version FROM _sqlx_migrations WHERE success = 1")
+            .fetch_all(pool)
+            .await?;
+    let applied: HashSet<i64> = applied.into_iter().collect();
+    let migrator = sqlx::migrate!("./migrations");
+    let pending: Vec<i64> = migrator
+        .iter()
+        .map(|m| m.version)
+        .filter(|v| !applied.contains(v))
+        .collect();
+    if pending.is_empty() {
+        return Ok(());
+    }
+
+    let target_version = env!("CARGO_PKG_VERSION");
+    let timestamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
+    let backup_path = db_path.with_file_name(format!(
+        "patient_manager.backup-pre-v{target_version}-{timestamp}.db"
+    ));
+
+    tracing::info!(
+        target: BACKEND,
+        pending_migrations = ?pending,
+        backup_path = %backup_path.display(),
+        "Backing up database before applying migrations"
+    );
+
+    let escaped = backup_path.to_string_lossy().replace('\'', "''");
+    sqlx::query(&format!("VACUUM INTO '{escaped}'"))
+        .execute(pool)
+        .await
+        .with_context(|| {
+            format!(
+                "VACUUM INTO failed for backup path {}",
+                backup_path.display()
+            )
+        })?;
+
+    tracing::info!(
+        target: BACKEND,
+        backup_path = %backup_path.display(),
+        "Database backup complete"
+    );
+    Ok(())
 }
 
 /// Heal CRLF→LF migration checksum drift introduced by binaries built with
@@ -278,5 +360,88 @@ mod tests {
     async fn heal_skips_when_table_missing() {
         let pool = fresh_pool().await;
         heal_crlf_checksum_drift(&pool).await.unwrap();
+    }
+
+    async fn pool_at(path: &Path) -> SqlitePool {
+        let opts = SqliteConnectOptions::new()
+            .filename(path)
+            .create_if_missing(true);
+        SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap()
+    }
+
+    fn count_backups(dir: &Path) -> usize {
+        std::fs::read_dir(dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with("patient_manager.backup-pre-v")
+            })
+            .count()
+    }
+
+    #[tokio::test]
+    async fn backup_skipped_when_no_tracking_table() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("patient_manager.db");
+        let pool = pool_at(&db_path).await;
+        backup_db_if_migrations_pending(&pool, &db_path)
+            .await
+            .unwrap();
+        assert_eq!(count_backups(dir.path()), 0);
+    }
+
+    #[tokio::test]
+    async fn backup_skipped_when_no_pending_migrations() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("patient_manager.db");
+        let pool = pool_at(&db_path).await;
+        seed_migrations_table(&pool).await;
+        let migrator = sqlx::migrate!("./migrations");
+        for m in migrator.iter() {
+            sqlx::query(
+                "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) VALUES (?, ?, 1, ?, 0)",
+            )
+            .bind(m.version)
+            .bind(&*m.description)
+            .bind(&m.checksum[..])
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        backup_db_if_migrations_pending(&pool, &db_path)
+            .await
+            .unwrap();
+        assert_eq!(count_backups(dir.path()), 0);
+    }
+
+    #[tokio::test]
+    async fn backup_created_when_migrations_pending() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("patient_manager.db");
+        let pool = pool_at(&db_path).await;
+        seed_migrations_table(&pool).await;
+        // Mark only the first migration as applied; the rest are pending.
+        let migrator = sqlx::migrate!("./migrations");
+        let first = migrator.iter().next().unwrap();
+        sqlx::query(
+            "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) VALUES (?, ?, 1, ?, 0)",
+        )
+        .bind(first.version)
+        .bind(&*first.description)
+        .bind(&first.checksum[..])
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        backup_db_if_migrations_pending(&pool, &db_path)
+            .await
+            .unwrap();
+        assert_eq!(count_backups(dir.path()), 1);
     }
 }
