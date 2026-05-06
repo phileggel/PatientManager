@@ -5,6 +5,88 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-05-06
+
+### Added
+- inline create-account on unknown IBAN
+Replaces the no-account dead-end with an inline create form (BAS-011..017):
+IBAN read-only pre-filled, name required (inline validation), on success
+continues to label-mapping; on backend error maps the IbanAlreadyUsed sentinel
+to a translated message; cancel closes modal entirely. Adds 8 unit tests, 8
+visual-proof screenshots (idle/loading/error-validation/error-backend × light+dark).
+- enforce IBAN uniqueness across soft-deleted accounts
+Introduces BAS-010..017 + R5: bank-statement-auto-match now offers an
+inline create form when the IBAN is unknown. Backend layer adds
+find_by_iban_including_deleted repo method and a service-layer guard
+on create + update (self-match allowed). Spec/contract/plan updated.
+No IPC surface change — errors flow as IbanAlreadyUsed string sentinel.
+- implement FPR print report
+- add bank-account smoke test and fix E2E testability gaps
+- procedure form modal amendments (R9 R18 R26 R28-R32)
+
+### Fixed
+- add translated titles to import file-picker dialogs
+- route native dialog calls through feature gateways
+Fixes F3 violation: open()/save() from @tauri-apps/plugin-dialog were called
+directly from useDbBackupPanel and useImportModal. Wrapped in gateway functions
+(pickExportPath, pickImportPath, pickExcelFilePath, pickPdfFilePath) so tests
+can mock at the gateway boundary.
+- return em dash from formatDateDisplay on malformed input
+- exhaustive switch for all BankEntryType variants
+- add isMounted guard to both useEffect calls
+- route date period conjunction through i18n
+- rename locale_obj to localeObj in DatePickerLegacy
+- resolve all OxLint warnings across frontend codebase
+- replace ! assertions with safe patterns
+- use locale-aware formatters in EditPatientModal
+- guard cash account row and translate backend errors
+- bank-account: disable edit/delete on cash row via getCashBankAccountId
+- bank-statement: replace raw backend error strings with unknownError i18n fallback
+- procedure: skip stale latest_procedure_type on patient select; resolve name in EditPatientModal
+- fix summary stats received/awaited totals
+- address FPR reviewer findings
+- commit package-lock.json to fix npm cache in CI
+- fix config effect using broken shared isMounted ref
+- fix spinner stuck and label list not scrolling
+- move file picker to ImportModal, fix double-dialog and stray nav
+React StrictMode double-invokes useEffect on mount, causing two dialogs to open
+simultaneously; for PDF pages the simulated unmount misfired onClose.
+
+Fix: selection moves to button click in ImportModal via Tauri open(). Pages
+receive filePath as a required prop and start processing immediately on mount.
+- use target: BACKEND in tracing and add B13 fund decision todo
+- propagate date errors and resolve B7/B32 violations
+- enforce NotFound and CashAccountProtected
+- use ephemeral DB to isolate test runs
+- exclude e2e/ from Vitest to prevent Mocha API bleed
+- address infra and frontend review findings
+- use real DB column names in seed_procedure helpers
+The UL rename in ca2be48 renamed the domain fields procedure_amount →
+billed_amount and actual_payment_amount → paid_amount, but the
+production repo INSERTs deliberately keep the original SQLite column
+names and bind the renamed domain field into them. Two test seed
+helpers (bank_manual_match::orchestrator and
+fund_payment_reconciliation::orchestrator) used raw INSERTs and got
+renamed too, producing 'no such column: billed_amount/paid_amount'
+panics in 18 tests. Restore the column names to procedure_amount and
+actual_payment_amount.
+- replace removed oxlint extends and fix array-index key
+Oxlint 1.42 rejects ESLint shared configs in 'extends', so the config
+fails to parse and the pre-push 'check.py' aborts. Replace
+'extends: ["oxc/recommended"]' with the equivalent 'categories' block
+(correctness/suspicious/perf), which is oxlint's native mechanism.
+
+Also drop the array index from the ProcedureGroupCard key in
+PdfDataTable; fund_label + payment_date already uniquely identify a
+group per the type's docstring, and Biome flags index-as-key.
+- drop redundant dispatchEvent, store handles refresh
+- remove redundant subtitle below page title
+- fix BankEntryType serde names and PartiallyReconciled date
+- use type default_amount for summary aggregations
+- replace full table scan with patient_id query on delete
+- fix patient tracking on create and delete
+- fix invalid confirmed_payment_date format on update
+
 ## [0.15.0] - 2026-04-18
 
 ### Added
