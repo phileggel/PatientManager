@@ -2,7 +2,7 @@
 
 > Domain: fund-payment-reconciliation
 > Backend module: use_cases/fund_payment_reconciliation
-> Last updated by: fund-payment-auto-match spec
+> Last updated by: fund-payment-report spec
 
 ## Commands
 
@@ -106,6 +106,18 @@ Returns both the procedures currently in the group (`Reconciliated` / `Partially
 
 ---
 
+### `generate_fund_reconciliation_report_pdf` — FPR-011, FPR-013, FPR-020, FPR-021, FPR-022, FPR-030 to FPR-042
+
+Renders the post-reconciliation report as a PDF document. The request payload carries everything needed for rendering — the unreconciled-procedures list and the pre-enriched corrections applied during the session — so the backend performs no database lookup during generation (FPR-013). The active application locale is captured at request time and embedded once in the resulting document (FPR-021). Same architectural role as `export_reconciliation_csv`: a rendering mode of the reconciliation session output.
+
+- **Args:** `request: ReportGenerationRequest`
+- **Returns:** `Vec<u8>` — PDF byte stream
+- **Errors:**
+  - `InvalidRequest` — payload is structurally invalid (empty `locale`, malformed ISO date in `period_start` / `period_end` / `generation_date`, or empty required fields)
+  - `PdfGenerationFailed` — rendering failed downstream of validation (e.g. font load, internal renderer error)
+
+---
+
 ## Shared Types
 
 ```rust
@@ -199,6 +211,65 @@ struct UnreconciledProcedure {
     amount: i64,
 }
 
+// FPR-011, FPR-021 — payload assembled by the frontend when the user clicks
+// Report and sent to the backend for PDF rendering. No additional fetch is
+// performed; every value the renderer needs is in this payload.
+struct ReportGenerationRequest {
+    locale: String,                                          // FPR-021 — "fr", "en"
+    source_pdf_filename: String,                             // FPR-020 — name only
+    period_start: String,                                    // ISO date YYYY-MM-DD
+    period_end: String,                                      // ISO date YYYY-MM-DD
+    generation_date: String,                                 // ISO 8601 datetime, e.g. 2026-05-06T16:42:00
+    unreconciled_procedures: Vec<UnreconciledProcedure>,     // FPR-030, FPR-031
+    enriched_corrections: Vec<EnrichedAutoCorrection>,       // FPR-040 to FPR-042
+}
+
+// FPR-013, FPR-042 — corrections pre-shaped column-for-column to the
+// FPR-042 display table. Each variant carries exactly the fields its row
+// renders, so the backend performs no per-row lookup. Frontend builds these
+// from the raw `AutoCorrection` plus session DbMatch data before sending.
+//
+// Currency amounts are in thousandths of a euro (i64 cents-of-cents);
+// rendering applies the locale-aware formatter (FPR-021).
+enum EnrichedAutoCorrection {
+    AmountMismatch {
+        patient_name: String,
+        procedure_date: String,        // ISO date YYYY-MM-DD
+        original_amount: i64,
+        corrected_amount: i64,
+    },
+    FundMismatch {
+        patient_name: String,
+        procedure_date: String,
+        original_fund: String,         // display label, not id
+        corrected_fund: String,
+    },
+    DateMismatch {
+        patient_name: String,
+        original_date: String,
+        corrected_date: String,
+    },
+    CreateProcedure {
+        patient_name: String,
+        ssn: String,
+        procedure_date: String,
+        fund: String,                  // display label
+        billed_amount: i64,
+    },
+    LinkProcedure {
+        patient_name: String,
+        ssn: String,
+        fund: String,                  // display label
+        payment_date: String,
+    },
+    ContestAmount {
+        patient_name: String,
+        procedure_date: String,
+        billed_amount: i64,
+        paid_amount: i64,
+    },
+}
+
 // FPM R1, R6 — data for the two-section edit picker
 struct FundPaymentGroupEditData {
     current_procedures: Vec<Procedure>,    // Reconciliated / PartiallyReconciled — removable
@@ -226,3 +297,4 @@ enum FundPaymentValidationStatus {
 ## Changelog
 
 - 2026-05-02 — Added by `fund-payment-auto-match` spec + retroactive from specta_builder.rs: extract_pdf_text, extract_pdf_text_from_bytes, parse_pdf_text, reconcile_pdf_procedures, reconcile_and_create_candidates, export_reconciliation_csv, create_fund_payment_from_candidates, create_fund_payment_with_auto_corrections, get_unreconciled_procedures_in_range, get_fund_payment_group_edit_data
+- 2026-05-06 — Added by `fund-payment-report` spec: generate_fund_reconciliation_report_pdf, EnrichedAutoCorrection
