@@ -3,8 +3,8 @@
  *
  * This file replaces the previous window.open-based test suite. The hook
  * now calls gateway.generateReportPdf to produce a PDF byte stream and
- * exposes previewBytes / isGenerating / reportError state as specified in
- * FPR-011 through FPR-019.
+ * exposes previewBytes / isGenerating state as specified in FPR-011
+ * through FPR-019. Generation failures surface as a toast (FPR-014).
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,6 +28,12 @@ vi.mock("../gateway", () => ({
   reconcileAndCreateCandidates: vi.fn(),
   createFundPaymentWithAutoCorrections: vi.fn(),
   getUnreconciledProceduresInRange: vi.fn(),
+}));
+
+const mockToastShow = vi.hoisted(() => vi.fn());
+
+vi.mock("@/core/snackbar", () => ({
+  toastService: { show: mockToastShow, subscribe: vi.fn(() => vi.fn()) },
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -343,9 +349,9 @@ describe("useReportGeneration", () => {
     expect(result.current.previewBytes).toEqual(fakePdfBytes);
   });
 
-  // ── FPR-014: error → reportError set, previewBytes stays null ────────────
+  // ── FPR-014: error → toast shown, previewBytes stays null ────────────────
 
-  it("error: gateway throws → reportError is non-null, previewBytes stays null (FPR-014)", async () => {
+  it("error: gateway throws → error toast is shown, previewBytes stays null (FPR-014)", async () => {
     mockGenerateReportPdf.mockRejectedValue(new Error("PdfGenerationFailed"));
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
@@ -354,8 +360,7 @@ describe("useReportGeneration", () => {
       await result.current.handleReport();
     });
 
-    expect(result.current.reportError).not.toBeNull();
-    expect(typeof result.current.reportError).toBe("string");
+    expect(mockToastShow).toHaveBeenCalledWith("error", expect.any(String));
     expect(result.current.previewBytes).toBeNull();
   });
 
@@ -369,6 +374,18 @@ describe("useReportGeneration", () => {
     });
 
     expect(vi.mocked(logger.error)).toHaveBeenCalledTimes(1);
+  });
+
+  it("error: isGenerating returns to false after a failure so the user can retry (FPR-014, FPR-019)", async () => {
+    mockGenerateReportPdf.mockRejectedValue(new Error("PdfGenerationFailed"));
+
+    const { result } = renderHook(() => useReportGeneration(baseArgs));
+
+    await act(async () => {
+      await result.current.handleReport();
+    });
+
+    expect(result.current.isGenerating).toBe(false);
   });
 
   // ── FPR-018: closePreview clears previewBytes ─────────────────────────────
@@ -389,26 +406,6 @@ describe("useReportGeneration", () => {
     });
 
     expect(result.current.previewBytes).toBeNull();
-  });
-
-  // ── clearReportError ──────────────────────────────────────────────────────
-
-  it("clearReportError sets reportError back to null after an error", async () => {
-    mockGenerateReportPdf.mockRejectedValue(new Error("fail"));
-
-    const { result } = renderHook(() => useReportGeneration(baseArgs));
-
-    await act(async () => {
-      await result.current.handleReport();
-    });
-
-    expect(result.current.reportError).not.toBeNull();
-
-    act(() => {
-      result.current.clearReportError();
-    });
-
-    expect(result.current.reportError).toBeNull();
   });
 
   // ── defaultFilename ──────────────────────────────────────────────────────
