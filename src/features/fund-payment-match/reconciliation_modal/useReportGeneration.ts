@@ -7,6 +7,7 @@ import type {
   ReportGenerationRequest,
   UnreconciledProcedure,
 } from "@/bindings";
+import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { generateReportPdf } from "../gateway";
 import { formatLongDateTime, formatShortDate } from "../shared/formatters";
@@ -27,8 +28,6 @@ interface UseReportGenerationReturn {
   previewBytes: Uint8Array | null;
   defaultFilename: string;
   closePreview: () => void;
-  reportError: string | null;
-  clearReportError: () => void;
 }
 
 const TAG = "[useReportGeneration]";
@@ -40,7 +39,9 @@ const TAG = "[useReportGeneration]";
  * Assembles the `ReportGenerationRequest` with every label and value
  * pre-resolved (per ADR-006: backend has no i18n) and dispatches it through
  * the gateway. Owns the preview-modal state machine (`previewBytes`,
- * `isGenerating`, `reportError`).
+ * `isGenerating`). Failures surface as an error toast (FPR-014); the modal
+ * stays unaffected and the Report button returns to its idle state so the
+ * user can retry.
  */
 export function useReportGeneration({
   filePath,
@@ -53,7 +54,6 @@ export function useReportGeneration({
   const { t } = useTranslation("fund-payment-match");
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
-  const [reportError, setReportError] = useState<string | null>(null);
 
   const defaultFilename = useMemo(() => {
     if (!reportDateRange) return "reconciliation.pdf";
@@ -65,7 +65,6 @@ export function useReportGeneration({
     if (!reportDateRange || !unreconciledReport) return;
 
     setIsGenerating(true);
-    setReportError(null);
 
     const locale = i18n.language;
     const now = new Date();
@@ -101,7 +100,7 @@ export function useReportGeneration({
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(TAG, "Failed to generate report PDF", message);
-      setReportError(tStr("modal.report.error.generationFailed"));
+      toastService.show("error", tStr("modal.report.error.generationFailed"));
     } finally {
       setIsGenerating(false);
     }
@@ -120,17 +119,11 @@ export function useReportGeneration({
     setPreviewBytes(null);
   }, []);
 
-  const clearReportError = useCallback(() => {
-    setReportError(null);
-  }, []);
-
   return {
     handleReport,
     isGenerating,
     previewBytes,
     defaultFilename,
     closePreview,
-    reportError,
-    clearReportError,
   };
 }

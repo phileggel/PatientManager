@@ -262,6 +262,26 @@ Key domain types:
 
 ---
 
+### Fund Payment Report PDF (`use_cases/fund_payment_report_pdf/`)
+
+**Entry point: `generate` orchestrator (pure function)**
+
+Renders a post-reconciliation summary report as a PDF byte stream from a session-only payload assembled by the frontend. The frontend pre-resolves every translated label, formatted date, and currency value before invoking; the backend only places strings (ADR-006). No database lookup or i18n on the backend side.
+
+Spec: [docs/spec/fund-payment-report.md](docs/spec/fund-payment-report.md). Architecture decision: [docs/adr/006-frontend-resolves-pdf-translations.md](docs/adr/006-frontend-resolves-pdf-translations.md).
+
+Key types:
+- `ReportGenerationRequest` — pre-resolved payload (title, header lines, unreconciled section, correction groups, page label)
+- `UnreconciledSection` — `Empty { heading, empty_message }` | `Rows { heading, columns, rows, total }`
+- `CorrectionGroup` — pre-translated title + pre-joined row strings (FPR-041, FPR-042)
+
+**Tauri command (`api.rs`)**
+- `generate_fund_reconciliation_report_pdf(request) -> Vec<u8>`
+
+Implementation: `printpdf 0.9` with embedded Roboto fonts (Apache-2.0). Renderer is a stateless A4 assembler with multi-page page-break logic and a footer page-number stamp.
+
+---
+
 ### Bank Statement Reconciliation (`use_cases/bank_statement_reconciliation/`)
 
 **Entry point: `BankStatementOrchestrator`**
@@ -430,7 +450,11 @@ Flat layout. Gateway: `add_fund`, `read_all_funds`, `update_fund`, `delete_fund`
 Flat layout. `FundPaymentManager` + gateway wrapping `create_fund_payment_group`, `update_fund_payment_group_with_procedures`, `delete_fund_payment_group`.
 
 #### Fund Payment Match (`features/fund-payment-match/`)
-Flat layout. `ReconciliationPage` + `useReconciliationPage`. Gateway wraps all `use_cases/fund_payment_reconciliation/` commands.
+Flat layout. `ReconciliationPage` + `useReconciliationPage`. Gateway wraps all `use_cases/fund_payment_reconciliation/` commands plus the new `generate_fund_reconciliation_report_pdf` and a `saveReportPdf` helper that wraps `tauri-plugin-dialog` + `tauri-plugin-fs`.
+
+Sub-features:
+- `reconciliation_modal/` — `ReconciliationModal` + `useReconciliationModal` (PDF extraction → reconciliation → auto-validation), `useReportGeneration` (assembles the pre-resolved `ReportGenerationRequest` and dispatches to the backend), `ReportPreviewModal` + `useReportPreviewModal` (blob-URL iframe preview with Save / Close per FPR-015 to FPR-018)
+- `shared/` — `reportPresenter.ts` (builds `correction_groups` + `unreconciled` section per FPR-031 to FPR-042), `formatters.ts` (locale-aware currency / date), `__fixtures__/reportFixtures.ts` (mock data shared by RTL tests and visual proof)
 
 #### Patient (`features/patient/`)
 Flat layout. Gateway: `add_patient`, `read_all_patients`, `update_patient`, `delete_patient`. Component: `PatientsManager`.
