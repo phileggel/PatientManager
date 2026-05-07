@@ -31,6 +31,14 @@ vi.mock("@/lib/appStore", () => ({
   useAppStore: (selector: (state: { funds: unknown[] }) => unknown) => selector({ funds: [] }),
 }));
 
+// Toast service — `useReportGeneration` calls `toastService.show("error", …)`
+// on PDF generation failure (FPR-014). `useReconciliationModal` also fires a
+// success toast on validation; we mock the singleton so all calls land in one place.
+const mockToastShow = vi.hoisted(() => vi.fn());
+vi.mock("@/core/snackbar", () => ({
+  toastService: { show: mockToastShow, subscribe: vi.fn(() => vi.fn()) },
+}));
+
 const mockParsedData = {
   groups: [
     {
@@ -283,8 +291,8 @@ describe("ReconciliationModal", () => {
     });
   });
 
-  // FPR-014 — generateReportPdf throws → error message in modal, modal stays open
-  it("shows error in modal when generateReportPdf throws", async () => {
+  // FPR-014 — generateReportPdf throws → error toast shown, modal stays open
+  it("shows error toast when generateReportPdf throws", async () => {
     const user = userEvent.setup();
 
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -303,9 +311,9 @@ describe("ReconciliationModal", () => {
     const reportButton = screen.getByRole("button", { name: /report/i });
     await user.click(reportButton);
 
-    // FPR-014: error feedback rendered inside the modal with role="alert"
+    // FPR-014: error toast surfaces the failure
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(mockToastShow).toHaveBeenCalledWith("error", expect.any(String));
     });
 
     // Modal remains open — onClose not called

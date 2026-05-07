@@ -58,22 +58,15 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
   const funds = useAppStore((state) => state.funds);
   const fundIdToLabel = useMemo(() => buildFundIdToLabel(funds), [funds]);
 
-  const {
-    handleReport,
-    isGenerating,
-    previewBytes,
-    defaultFilename,
-    closePreview,
-    reportError,
-    clearReportError,
-  } = useReportGeneration({
-    filePath,
-    reportDateRange,
-    unreconciledReport,
-    autoCorrections,
-    reconciliationData,
-    fundIdToLabel,
-  });
+  const { handleReport, isGenerating, previewBytes, defaultFilename, closePreview } =
+    useReportGeneration({
+      filePath,
+      reportDateRange,
+      unreconciledReport,
+      autoCorrections,
+      reconciliationData,
+      fundIdToLabel,
+    });
 
   return (
     <ModalContainer isOpen={true} onClose={onClose} maxWidth="max-w-4xl">
@@ -86,29 +79,13 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* FPR-010: Report button — only shown during report step */}
+          {/* FPR-010: Report button — only shown during report step.
+              FPR-014: errors surface as a toast from `useReportGeneration`. */}
           {isReportStep && (
-            <>
-              <Button variant="secondary" loading={isGenerating} onClick={handleReport}>
-                <FileText size={16} className="mr-1.5" />
-                {t("modal.header.report")}
-              </Button>
-              {/* FPR-014: inline error when PDF generation fails */}
-              {reportError && (
-                <div className="flex items-center gap-1">
-                  <p role="alert" className="text-xs text-m3-error">
-                    {reportError}
-                  </p>
-                  <IconButton
-                    icon={<X size={14} />}
-                    variant="ghost"
-                    shape="round"
-                    aria-label={t("modal.header.close")}
-                    onClick={clearReportError}
-                  />
-                </div>
-              )}
-            </>
+            <Button variant="secondary" loading={isGenerating} onClick={handleReport}>
+              <FileText size={16} className="mr-1.5" />
+              {t("modal.header.report")}
+            </Button>
           )}
           <IconButton
             icon={<X size={20} />}
