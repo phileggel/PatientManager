@@ -16,19 +16,19 @@ The report is not a persisted entity. Generation is driven by a transient reques
 
 ### ReportGenerationRequest
 
-The payload sent from the frontend to the backend when the practitioner clicks Report. It captures everything the backend needs to render the document; no per-row lookup is performed afterwards.
+The payload sent from the frontend to the backend when the practitioner clicks Report. It carries every pre-resolved string the renderer will place: translations, formatted dates, formatted currency values, and per-correction joined row strings. The backend performs no translation and no formatting (FPR-013, FPR-021).
 
-| Field                    | Business meaning                                                                                  |
-| ------------------------ | ------------------------------------------------------------------------------------------------- |
-| `locale`                 | Active application locale captured at request time (FPR-021), used to translate every label in the PDF. |
-| `source_pdf_filename`    | File name (not full path) of the source PDF the reconciliation session was started from.          |
-| `period_start`           | Start date of the period covered, derived from the source PDF.                                    |
-| `period_end`             | End date of the period covered, derived from the source PDF.                                      |
-| `generation_date`        | Date and time the practitioner clicked Report. Recorded in the document header for audit (FPR-020). |
-| `unreconciled_procedures` | The list rendered in Section 1: each row carries a procedure date, patient name, SSN, billed amount. |
-| `enriched_corrections`    | The list of corrections rendered in Section 2, pre-shaped column-for-column to FPR-042.            |
+| Field                        | Business meaning                                                                                                                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `title`                      | Pre-translated bold heading for the top of page 1 (FPR-020).                                                                                                                                     |
+| `continuation_title`         | Pre-translated breadcrumb shown at the top of every continuation page, e.g. "Reconciliation Report (continued)" (FPR-022).                                                                       |
+| `header_lines`               | Ordered list of pre-formatted lines below the title (period, generation date, source-PDF file name) (FPR-020).                                                                                   |
+| `unreconciled`               | Section 1 content. Either the empty-state branch (heading + reassurance message) or the populated branch (heading + column headers + rows + total).                                              |
+| `correction_section_heading` | Pre-translated heading for Section 2 (FPR-040). Rendered only when `correction_groups` is non-empty.                                                                                             |
+| `correction_groups`          | Section 2 — list of correction groups in priority order (FPR-041). Each group has a pre-translated title and a list of pre-joined row strings. An empty list omits Section 2 entirely (FPR-040). |
+| `page_label`                 | Pre-translated footer label, e.g. "Page" — rendered as `"{label} {n} / {total}"` on each page (FPR-022).                                                                                         |
 
-> Field names use Rust `snake_case`. Field shape for `unreconciled_procedures` re-uses the type already defined by the FPA reconciliation feature. The `enriched_corrections` field carries display-ready data so the backend never needs to look up procedure or patient details during rendering (FPR-013).
+> Field names use Rust `snake_case`. The frontend resolves every translation through its existing i18next pipeline and every date / currency value through the platform `Intl.*` formatters before assembling this payload — the backend has no language tables and no formatters (FPR-021).
 
 ---
 
@@ -44,8 +44,8 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 
 **FPR-013 — Session-only data flow (frontend + backend)**:
 
-- _(frontend)_: The `ReportGenerationRequest` payload is built exclusively from data already held in the active reconciliation session — the unreconciled-procedures list fetched after validation and the corrections applied during the session. No additional fetch is performed before sending the request.
-- _(backend)_: PDF generation reads only the fields supplied in the request. No additional per-row database lookup, foreign-key resolution, or external call is performed during rendering.
+- _(frontend)_: The `ReportGenerationRequest` payload is built exclusively from data already held in the active reconciliation session — the unreconciled-procedures list fetched after validation and the corrections applied during the session. The frontend resolves every label through its i18next pipeline and every numeric/date value through `Intl.*` formatters before sending; no additional fetch is performed.
+- _(backend)_: PDF generation reads the pre-resolved strings from the request and places them on the page. No translation, no formatting, no database lookup, and no external call is performed during rendering.
 
 **FPR-014 — Generation failure (frontend)**: If the backend returns an error for the generation request, an error toast is displayed, the Report button returns to its idle state, the preview modal does not open, and no further state changes occur. The user may click Report again to retry.
 
@@ -61,29 +61,29 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 
 ### Document Header (020–029)
 
-**FPR-020 — Header content (backend)**: The PDF header displays the report title, the source PDF file name, the period covered (start date and end date derived from the source PDF), and the document generation date.
+**FPR-020 — Header content (frontend + backend)**: The document header displays the report title, the source PDF file name, the period covered (start date and end date derived from the source PDF), and the document generation date. The frontend assembles each line as a pre-formatted string in the request payload (`title`, `header_lines`); the backend places them in order at the top of page 1.
 
-**FPR-021 — Document language (frontend + backend)**: The active application locale at the moment the user clicks Report is captured by the frontend, sent to the backend with the generation request, and used to translate every label, heading, and static text in the PDF. The locale is fixed once the PDF is generated; switching the application locale afterwards does not retranslate the document.
+**FPR-021 — Document language (frontend)**: The active application locale at the moment the user clicks Report determines every translated label, formatted date, and formatted currency value in the request payload. All resolution happens on the frontend (via i18next for labels and `Intl.*` for numbers and dates) before the request reaches the backend. The backend places strings as received and performs no language-aware processing. The chosen locale is fixed once the PDF is generated; switching the application locale afterwards does not retranslate the document.
 
-**FPR-022 — Page numbers (backend)**: Each page of the PDF displays a page number.
+**FPR-022 — Page numbers (frontend + backend)**: Each page of the PDF displays a page number. The frontend supplies the translated label (`page_label`, e.g. "Page"); the backend appends the current page index and total page count, rendered in the page footer.
 
 ### Section 1 — Unreconciled Procedures (030–039)
 
-**FPR-030 — Section 1 purpose (backend)**: Section 1 lists all procedures that remain unreconciled within the source PDF date range, as returned by the reconciliation backend after validation.
+**FPR-030 — Section 1 purpose (frontend)**: Section 1 lists all procedures that remain unreconciled within the source PDF date range, as returned by the reconciliation backend after validation. The frontend assembles this list into the `unreconciled` field of the request.
 
-**FPR-031 — Unreconciled procedure columns (backend)**: Each row in the unreconciled-procedures table displays: procedure date, patient name, SSN, and billed amount.
+**FPR-031 — Unreconciled procedure columns (frontend + backend)**: Each row in the unreconciled-procedures table displays four columns: procedure date, patient name, SSN, and billed amount. The frontend supplies pre-formatted column headers and pre-formatted row cells; the backend places them at fixed column anchors.
 
-**FPR-032 — Empty state (backend)**: If no unreconciled procedures exist for the period, Section 1 displays an explicit confirmation message in place of the table to indicate that all procedures in the range are reconciled. The total line (FPR-033) is omitted in this case.
+**FPR-032 — Empty state (frontend + backend)**: If no unreconciled procedures exist for the period, Section 1 displays an explicit confirmation message in place of the table. The frontend sends the `Empty` variant of `unreconciled` carrying both the section heading and the reassurance message; the backend renders the message and omits the table and total. The total line (FPR-033) is omitted in this case.
 
-**FPR-033 — Total billed amount (backend)**: When the unreconciled-procedures table is present, the sum of the billed amounts of all listed procedures is displayed below the table.
+**FPR-033 — Total billed amount (frontend + backend)**: When the unreconciled-procedures table is present, the sum of the billed amounts of all listed procedures is displayed below the table. The frontend computes the sum, formats it as a currency string, and supplies it as `total_value` (with the translated `total_label`) in the populated branch of `unreconciled`; the backend renders the line below the table.
 
 ### Section 2 — Corrections Applied (040–049)
 
-**FPR-040 — Section 2 omission (backend)**: If no corrections were applied during the session, Section 2 is omitted entirely from the document.
+**FPR-040 — Section 2 omission (frontend + backend)**: If no corrections were applied during the session, Section 2 is omitted entirely from the document. The frontend signals this by sending an empty `correction_groups` array; the backend skips the section heading and the section body when it sees an empty list.
 
-**FPR-041 — Correction grouping and priority order (backend)**: Corrections are presented in separate groups, one per correction type, in the following display priority order: (1) ContestAmount, (2) CreateProcedure, (3) LinkProcedure, (4) AmountMismatch, (5) FundMismatch, (6) DateMismatch. Groups with no corrections are omitted. Within each group, rows are sorted by date ascending.
+**FPR-041 — Correction grouping and priority order (frontend)**: Corrections are presented in separate groups, one per correction type, in the following display priority order: (1) ContestAmount, (2) CreateProcedure, (3) LinkProcedure, (4) AmountMismatch, (5) FundMismatch, (6) DateMismatch. Groups with no corrections are omitted. Within each group, rows are sorted by date ascending. The frontend enforces this ordering when building the `correction_groups` list and when sorting rows within each group; the backend renders groups and rows in the order received.
 
-**FPR-042 — Correction group columns (backend)**: Each group displays the columns relevant to its correction type:
+**FPR-042 — Correction group columns (frontend)**: Each group displays the columns relevant to its correction type. The frontend joins the variant-specific columns into a single pre-formatted line per row before sending; the backend renders each line as a single text run beneath its translated group title.
 
 | Correction type | Columns displayed                                                        |
 | --------------- | ------------------------------------------------------------------------ |

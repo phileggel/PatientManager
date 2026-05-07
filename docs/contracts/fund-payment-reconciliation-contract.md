@@ -108,12 +108,12 @@ Returns both the procedures currently in the group (`Reconciliated` / `Partially
 
 ### `generate_fund_reconciliation_report_pdf` — FPR-011, FPR-013, FPR-020, FPR-021, FPR-022, FPR-030 to FPR-042
 
-Renders the post-reconciliation report as a PDF document. The request payload carries everything needed for rendering — the unreconciled-procedures list and the pre-enriched corrections applied during the session — so the backend performs no database lookup during generation (FPR-013). The active application locale is captured at request time and embedded once in the resulting document (FPR-021). Same architectural role as `export_reconciliation_csv`: a rendering mode of the reconciliation session output.
+Renders the post-reconciliation report as a PDF document. The request payload carries every pre-resolved string the renderer will place — translated labels, formatted dates, formatted currency values, and per-correction joined row strings. The backend performs no translation, no formatting, and no database lookup (FPR-013, FPR-021). Same architectural role as `export_reconciliation_csv`: a rendering mode of the reconciliation session output.
 
 - **Args:** `request: ReportGenerationRequest`
 - **Returns:** `Vec<u8>` — PDF byte stream
 - **Errors:**
-  - `InvalidRequest` — payload is structurally invalid (empty `locale`, malformed ISO date in `period_start` / `period_end` / `generation_date`, or empty required fields)
+  - `InvalidRequest` — payload is structurally invalid: a required string is empty, exceeds the length cap, contains control characters, or a collection (header lines, unreconciled rows, correction groups, correction rows) exceeds its DoS-guard cap
   - `PdfGenerationFailed` — rendering failed downstream of validation (e.g. font load, internal renderer error)
 
 ---
@@ -211,63 +211,63 @@ struct UnreconciledProcedure {
     amount: i64,
 }
 
-// FPR-011, FPR-021 — payload assembled by the frontend when the user clicks
-// Report and sent to the backend for PDF rendering. No additional fetch is
-// performed; every value the renderer needs is in this payload.
+// FPR-011, FPR-013, FPR-021 — payload assembled by the frontend when the
+// user clicks Report. Every string is pre-resolved (translated, formatted)
+// before sending; the backend has no language tables and no formatters —
+// it is a pure data → PDF assembler.
 struct ReportGenerationRequest {
-    locale: String,                                          // FPR-021 — "fr", "en"
-    source_pdf_filename: String,                             // FPR-020 — name only
-    period_start: String,                                    // ISO date YYYY-MM-DD
-    period_end: String,                                      // ISO date YYYY-MM-DD
-    generation_date: String,                                 // ISO 8601 datetime, e.g. 2026-05-06T16:42:00
-    unreconciled_procedures: Vec<UnreconciledProcedure>,     // FPR-030, FPR-031
-    enriched_corrections: Vec<EnrichedAutoCorrection>,       // FPR-040 to FPR-042
+    title: String,                            // FPR-020 — pre-translated bold title
+    continuation_title: String,               // FPR-022 — breadcrumb on pages 2+
+    header_lines: Vec<String>,                // FPR-020 — pre-formatted info lines
+    unreconciled: UnreconciledSection,        // FPR-030 to FPR-033
+    correction_section_heading: String,       // FPR-040 — only used if groups non-empty
+    correction_groups: Vec<CorrectionGroup>,  // FPR-040 to FPR-042 — empty list omits the section
+    page_label: String,                       // FPR-022 — e.g. "Page"
 }
 
-// FPR-013, FPR-042 — corrections pre-shaped column-for-column to the
-// FPR-042 display table. Each variant carries exactly the fields its row
-// renders, so the backend performs no per-row lookup. Frontend builds these
-// from the raw `AutoCorrection` plus session DbMatch data before sending.
-//
-// Currency amounts are in thousandths of a euro (i64 cents-of-cents);
-// rendering applies the locale-aware formatter (FPR-021).
-enum EnrichedAutoCorrection {
-    AmountMismatch {
-        patient_name: String,
-        procedure_date: String,        // ISO date YYYY-MM-DD
-        original_amount: i64,
-        corrected_amount: i64,
+// FPR-030 to FPR-033 — Section 1 content branches. The frontend chooses
+// the variant based on whether any unreconciled procedures exist.
+enum UnreconciledSection {
+    // FPR-032 — empty-state confirmation; no table, no total
+    Empty {
+        heading: String,
+        empty_message: String,
     },
-    FundMismatch {
-        patient_name: String,
-        procedure_date: String,
-        original_fund: String,         // display label, not id
-        corrected_fund: String,
+    // FPR-031, FPR-033 — populated table with header row, data rows, total
+    Rows {
+        heading: String,
+        column_headers: UnreconciledColumns,
+        rows: Vec<UnreconciledRow>,
+        total_label: String,                  // FPR-033 — translated "Total"
+        total_value: String,                  // FPR-033 — pre-formatted currency
     },
-    DateMismatch {
-        patient_name: String,
-        original_date: String,
-        corrected_date: String,
-    },
-    CreateProcedure {
-        patient_name: String,
-        ssn: String,
-        procedure_date: String,
-        fund: String,                  // display label
-        billed_amount: i64,
-    },
-    LinkProcedure {
-        patient_name: String,
-        ssn: String,
-        fund: String,                  // display label
-        payment_date: String,
-    },
-    ContestAmount {
-        patient_name: String,
-        procedure_date: String,
-        billed_amount: i64,
-        paid_amount: i64,
-    },
+}
+
+// FPR-031 — column-header strings for the four-column unreconciled table.
+// Frontend supplies translations; backend places them at fixed anchors.
+struct UnreconciledColumns {
+    date: String,
+    patient: String,
+    ssn: String,
+    amount: String,
+}
+
+// FPR-031 — one data row of the unreconciled table. All four cells are
+// pre-formatted by the frontend (date string, patient name, SSN, currency).
+struct UnreconciledRow {
+    date: String,
+    patient: String,
+    ssn: String,
+    amount: String,
+}
+
+// FPR-041, FPR-042 — one correction group within Section 2.
+// Frontend joins each correction's variant-specific columns into a single
+// pre-formatted row string before sending; backend renders rows as opaque
+// text lines beneath the group title.
+struct CorrectionGroup {
+    title: String,        // pre-translated, e.g. "Corrections de montant"
+    rows: Vec<String>,    // each row is a pre-joined line
 }
 
 // FPM R1, R6 — data for the two-section edit picker
@@ -298,3 +298,5 @@ enum FundPaymentValidationStatus {
 
 - 2026-05-02 — Added by `fund-payment-auto-match` spec + retroactive from specta_builder.rs: extract_pdf_text, extract_pdf_text_from_bytes, parse_pdf_text, reconcile_pdf_procedures, reconcile_and_create_candidates, export_reconciliation_csv, create_fund_payment_from_candidates, create_fund_payment_with_auto_corrections, get_unreconciled_procedures_in_range, get_fund_payment_group_edit_data
 - 2026-05-06 — Added by `fund-payment-report` spec: generate_fund_reconciliation_report_pdf, EnrichedAutoCorrection
+- 2026-05-07 — PR 2 implementation: `unreconciled_procedures` field type changed from `Vec<UnreconciledProcedure>` to `Vec<UnreconciledProcedureRow>` to remove the cross-use-case dependency flagged by reviewer-arch (B18). Field shape is preserved 1:1 for serde compatibility.
+- 2026-05-07 — PR 2 i18n pivot: `ReportGenerationRequest` reshaped to carry pre-resolved strings only. Removed `locale`, `source_pdf_filename`, `period_start`, `period_end`, `generation_date`, `unreconciled_procedures`, `enriched_corrections`, `UnreconciledProcedureRow`, `EnrichedAutoCorrection`. Added `title`, `continuation_title`, `header_lines`, `unreconciled` (`UnreconciledSection` enum with `Empty` / `Rows` variants), `UnreconciledColumns`, `UnreconciledRow`, `correction_section_heading`, `correction_groups` (`CorrectionGroup` with pre-joined row strings), `page_label`. Backend is now a pure assembler with no translation or formatting logic; frontend resolves everything via i18next + `Intl.*` before invoking. Supersedes ADR-006.
