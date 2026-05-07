@@ -39,7 +39,9 @@
     },
     "error": {
       "windowOpenFailed": "Impossible d'ouvrir la fenêtre d'impression."
-    }
+    },
+    "continued": "suite",
+    "page": "Page"
   },
   "page": {
     "uploadAriaLabel": "Télécharger un fichier PDF"

@@ -39,7 +39,9 @@
     },
     "error": {
       "windowOpenFailed": "Failed to open print window."
-    }
+    },
+    "continued": "continued",
+    "page": "Page"
   },
   "page": {
     "uploadAriaLabel": "Upload PDF file"

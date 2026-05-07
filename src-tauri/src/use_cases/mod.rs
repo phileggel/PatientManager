@@ -3,5 +3,6 @@ pub mod bank_statement_reconciliation;
 pub mod db_backup;
 pub mod excel_import;
 pub mod fund_payment_reconciliation;
+pub mod fund_payment_report_pdf;
 pub mod overpayment;
 pub mod procedure_orchestration;

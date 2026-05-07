@@ -905,6 +905,24 @@ async getProcedureRefundByRefundProcedure(refundProcedureId: string) : Promise<R
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Generate the post-reconciliation report as a PDF byte stream.
+ * 
+ * FPR-011, FPR-013, FPR-020, FPR-021, FPR-022, FPR-030 to FPR-042.
+ * 
+ * The request must already carry every pre-resolved string the renderer
+ * will place: translated labels, formatted dates, formatted currency
+ * values, and the per-correction joined row strings. The backend performs
+ * no database lookup, no translation, and no formatting (FPR-013, FPR-021).
+ */
+async generateFundReconciliationReportPdf(request: ReportGenerationRequest) : Promise<Result<number[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("generate_fund_reconciliation_report_pdf", { request }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -1068,6 +1086,13 @@ export type CancelOverpaymentRequest = { source_procedure_id: string }
  * A confirmed match ready for bank transfer creation
  */
 export type ConfirmedMatch = { group_id: string; date: string; amount: number }
+/**
+ * One correction group within Section 2 (FPR-041, FPR-042).
+ * 
+ * Frontend joins each correction's columns into a single pre-formatted string
+ * before sending — the renderer treats `rows` as opaque text lines.
+ */
+export type CorrectionGroup = { title: string; rows: string[] }
 /**
  * Complex response: created funds + temp ID mapping for import tracking
  */
@@ -1615,6 +1640,44 @@ export type ReconciliationResult = {
  */
 matches: ReconciliationMatch[] }
 /**
+ * Payload assembled by the frontend when the practitioner clicks Report.
+ * 
+ * All strings are pre-resolved: labels are already translated, dates are
+ * already formatted, currency values are already grouped and suffixed.
+ * The renderer only places strings; it never inspects content (FPR-013, FPR-021).
+ */
+export type ReportGenerationRequest = { 
+/**
+ * Bold heading shown at the top of page 1 (FPR-020).
+ */
+title: string; 
+/**
+ * Breadcrumb shown at the top of pages 2+, e.g. "Reconciliation Report (continued)".
+ */
+continuation_title: string; 
+/**
+ * Lines rendered below the title on page 1 (period, generated-on, source-PDF, etc.).
+ * The frontend produces complete pre-formatted strings; the renderer prints them in order.
+ */
+header_lines: string[]; 
+/**
+ * Section 1 — unreconciled procedures (FPR-030 to FPR-033).
+ */
+unreconciled: UnreconciledSection; 
+/**
+ * Heading for Section 2. Rendered only when `correction_groups` is non-empty.
+ */
+correction_section_heading: string; 
+/**
+ * Section 2 — corrections grouped by type (FPR-040 to FPR-042).
+ * An empty list omits the entire section (FPR-040).
+ */
+correction_groups: CorrectionGroup[]; 
+/**
+ * Footer page-number label, e.g. "Page" — rendered as `"{label} {n} / {total}"` (FPR-022).
+ */
+page_label: string }
+/**
  * A credit line that has been resolved with a fund ID
  */
 export type ResolvedCreditLine = { date: string; label: string; amount: number; fund_id: string }
@@ -1631,9 +1694,29 @@ export type SaveLabelMappingRequest = { bank_label: string; fund_id: string }
  */
 export type SkippedRow = { sheet: string; row_number: number; reason: string }
 /**
+ * Column-header strings for the unreconciled table (FPR-031). Fixed 4 columns.
+ */
+export type UnreconciledColumns = { date: string; patient: string; ssn: string; amount: string }
+/**
  * An unreconciled procedure for the post-reconciliation report
  */
 export type UnreconciledProcedure = { procedure_id: string; patient_name: string; ssn: string; procedure_date: string; amount: number }
+/**
+ * One row of the unreconciled table (FPR-031). All four cells are pre-formatted.
+ */
+export type UnreconciledRow = { date: string; patient: string; ssn: string; amount: string }
+/**
+ * Section 1 content. Either an empty-state confirmation, or a table with rows + total.
+ */
+export type UnreconciledSection = 
+/**
+ * FPR-032 — empty-state branch. No table, no total.
+ */
+{ type: "Empty"; data: { heading: string; empty_message: string } } | 
+/**
+ * FPR-031, FPR-033 — populated table with header row, data rows, and total.
+ */
+{ type: "Rows"; data: { heading: string; column_headers: UnreconciledColumns; rows: UnreconciledRow[]; total_label: string; total_value: string } }
 /**
  * Complex response: validation results
  */
