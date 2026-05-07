@@ -12,16 +12,16 @@
 
 ## Pre-locked Decisions (do not re-explore)
 
-| Topic               | Decision                                                                                                                                                                                                          |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PDF library         | `printpdf = "0.9"` (verified by spike against real fund-reconciliation report shape; clean output, French accents, multi-page tables)                                                                             |
-| Fonts               | Bundle Roboto (Regular, Bold) — Apache 2.0, the canonical M3 typeface — as TTFs in `src-tauri/resources/fonts/`, loaded via `include_bytes!` (NOT from OS path). Italic is not needed for the report.             |
-| Backend module      | NEW `src-tauri/src/use_cases/fund_payment_report_pdf/` (sibling of `fund_payment_reconciliation/`). Register the command in `core/specta_builder.rs`                                                              |
-| Frontend gateway    | EXTEND `src/features/fund-payment-match/gateway.ts` with two functions: `generateReportPdf` and `saveReportPdf`. No print gateway — in-app printing is out of scope. Do NOT create a new gateway file             |
-| Frontend component  | NEW `src/features/fund-payment-match/reconciliation_modal/ReportPreviewModal.tsx`. Embeds the PDF via a blob URL in an iframe                                                                                     |
-| Hook rework         | `src/features/fund-payment-match/reconciliation_modal/usePrintReport.ts` is rewritten to call the new gateway and drive modal open/close + error state. The current `window.open`-based implementation is dropped |
-| Dead code to delete | `src/features/fund-payment-match/shared/printReport.ts`, `printReport.test.ts`, `printReportPresenter.ts`, `printReportPresenter.test.ts`                                                                         |
-| Test rework         | `usePrintReport.test.ts` and `ReconciliationModal.test.tsx` currently mock `window.open`; both need to be updated to mock the new gateway functions                                                               |
+| Topic               | Decision                                                                                                                                                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PDF library         | `printpdf = "0.9"` (verified by spike against real fund-reconciliation report shape; clean output, French accents, multi-page tables)                                                                                  |
+| Fonts               | Bundle Roboto (Regular, Bold) — Apache 2.0, the canonical M3 typeface — as TTFs in `src-tauri/resources/fonts/`, loaded via `include_bytes!` (NOT from OS path). Italic is not needed for the report.                  |
+| Backend module      | NEW `src-tauri/src/use_cases/fund_payment_report_pdf/` (sibling of `fund_payment_reconciliation/`). Register the command in `core/specta_builder.rs`                                                                   |
+| Frontend gateway    | EXTEND `src/features/fund-payment-match/gateway.ts` with two functions: `generateReportPdf` and `saveReportPdf`. No print gateway — in-app printing is out of scope. Do NOT create a new gateway file                  |
+| Frontend component  | NEW `src/features/fund-payment-match/reconciliation_modal/ReportPreviewModal.tsx`. Embeds the PDF via a blob URL in an iframe                                                                                          |
+| Hook rework         | `src/features/fund-payment-match/reconciliation_modal/useReportGeneration.ts` is rewritten to call the new gateway and drive modal open/close + error state. The current `window.open`-based implementation is dropped |
+| Dead code to delete | `src/features/fund-payment-match/shared/printReport.ts`, `printReport.test.ts`, `printReportPresenter.ts`, `printReportPresenter.test.ts`                                                                              |
+| Test rework         | `useReportGeneration.test.ts` and `ReconciliationModal.test.tsx` currently mock `window.open`; both need to be updated to mock the new gateway functions                                                               |
 
 ### Locked-vacant rules
 
@@ -185,15 +185,15 @@ Land the `generate_fund_reconciliation_report_pdf` Tauri command end-to-end on t
 
 ### Goal
 
-Wire the UI: gateway functions, `ReportPreviewModal`, reworked `usePrintReport` hook, deletion of obsolete HTML-template files, and updated tests.
+Wire the UI: gateway functions, `ReportPreviewModal`, reworked `useReportGeneration` hook, deletion of obsolete HTML-template files, and updated tests.
 
 ### Workflow TaskList
 
 - [ ] 📖 Re-read [`docs/frontend-rules.md`](../frontend-rules.md), [`docs/i18n-rules.md`](../i18n-rules.md), [`docs/test_convention.md`](../test_convention.md)
-- [ ] ✍️ `test-writer-frontend` writes failing tests — all stubs red, confirmed via `vitest`. **Modified-functions list** to pass: `[usePrintReport.ts, ReconciliationModal.test.tsx]` (both currently mock `window.open` and must be reworked to mock the gateway)
+- [ ] ✍️ `test-writer-frontend` writes failing tests — all stubs red, confirmed via `vitest`. **Modified-functions list** to pass: `[useReportGeneration.ts, ReconciliationModal.test.tsx]` (both currently mock `window.open` and must be reworked to mock the gateway)
   - Gateway unit tests (mocking Tauri `invoke` + `tauri-plugin-dialog` + `tauri-plugin-fs`)
   - RTL component tests for `ReportPreviewModal`
-  - RTL tests for `usePrintReport` (gateway mocked)
+  - RTL tests for `useReportGeneration` (gateway mocked)
   - Updated `ReconciliationModal.test.tsx` (gateway mocked instead of `window.open`)
 - [ ] 💻 Frontend implementation (minimal — make failing tests pass, green confirmed). Implement only what the failing tests demand. No defensive code, no extra hook surface
 - [ ] 🗑️ Delete obsolete files (see "Dead code to delete" table below). Verify no remaining imports via `Grep`
@@ -231,12 +231,12 @@ Add two functions to the existing file (do **not** create a new gateway):
 | Close action     | FPR-018 — calls `onClose` prop                                                                                                                                                                                 |
 | Default filename | FPR-016 — `reconciliation-{periodStart}-to-{periodEnd}.pdf` (dates in `YYYY-MM-DD` from session data; the hook holds these independently of the request payload, which now carries only pre-formatted strings) |
 
-#### Hook rework — `src/features/fund-payment-match/reconciliation_modal/usePrintReport.ts`
+#### Hook rework — `src/features/fund-payment-match/reconciliation_modal/useReportGeneration.ts`
 
 Drop the entire `window.open` flow. New surface:
 
 ```ts
-function usePrintReport(args: UsePrintReportArgs): {
+function useReportGeneration(args: UseReportGenerationArgs): {
   handleReport: () => Promise<void>; // FPR-011 — assemble request, call gateway, open modal
   isGenerating: boolean; // FPR-019 — drives Report button loading state
   previewBytes: Uint8Array | null; // FPR-015 — non-null while preview is open
@@ -257,7 +257,7 @@ Behavior:
 - On success → set `previewBytes`. On failure → set `reportError` and surface a toast.
 - The reconciliation modal stays open underneath (FPR-015) — that is the consumer's existing behavior; the hook does not touch it.
 
-#### Correction-row presenter — NEW `src/features/fund-payment-match/shared/correctionReportPresenter.ts`
+#### Correction-row presenter — NEW `src/features/fund-payment-match/shared/reportPresenter.ts`
 
 A pure function `correctionRowsForGroup(kind: AutoCorrectionKind, corrections: AutoCorrection[], dbMatches: DbMatch[], t, locale): string[]` that returns the pre-joined row strings for a given correction kind. One implementation per FPR-042 row layout, using `formatCurrency` and `formatDate` helpers. Inline test file covers each of the six variants.
 
@@ -278,10 +278,10 @@ Render `<ReportPreviewModal>` conditionally on `previewBytes !== null`. The butt
 
 #### Tests to update (modified_functions list for `test-writer-frontend`)
 
-| File                           | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `usePrintReport.test.ts`       | Replace `window.open` mock with mocks for `gateway.generateReportPdf`. Test FPR-014 (error path), FPR-015 (success path opens preview), FPR-019 (`isGenerating` toggles), FPR-018 (`closePreview` clears state). Assert request assembly: every string field is pre-resolved (no raw enums, no ISO dates, no raw `i64` amounts in the dispatched payload) and `correction_groups` are in FPR-041 priority order. Detailed per-variant row formatting is covered in `correctionReportPresenter.test.ts` |
-| `ReconciliationModal.test.tsx` | Replace `window.open` assertions with assertions on the gateway mock + on the conditional rendering of `ReportPreviewModal`. Update button label assertion from "Print" to "Report"                                                                                                                                                                                                                                                                                                                    |
+| File                           | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useReportGeneration.test.ts`  | Replace `window.open` mock with mocks for `gateway.generateReportPdf`. Test FPR-014 (error path), FPR-015 (success path opens preview), FPR-019 (`isGenerating` toggles), FPR-018 (`closePreview` clears state). Assert request assembly: every string field is pre-resolved (no raw enums, no ISO dates, no raw `i64` amounts in the dispatched payload) and `correction_groups` are in FPR-041 priority order. Detailed per-variant row formatting is covered in `reportPresenter.test.ts` |
+| `ReconciliationModal.test.tsx` | Replace `window.open` assertions with assertions on the gateway mock + on the conditional rendering of `ReportPreviewModal`. Update button label assertion from "Print" to "Report"                                                                                                                                                                                                                                                                                                          |
 
 #### Tests to add (new files)
 
@@ -306,19 +306,19 @@ Namespace `fund-payment-match` (already exists). Suggested keys (final names dec
 
 #### Rules Coverage — PR 3 (frontend)
 
-| Rule                    | Layer                                   | File                                                                           |
-| ----------------------- | --------------------------------------- | ------------------------------------------------------------------------------ |
-| FPR-010                 | component                               | `ReconciliationModal.tsx` (existing gate, verify still correct)                |
-| FPR-011 (frontend half) | hook + gateway                          | `usePrintReport.ts`, `gateway.ts`                                              |
+| Rule                    | Layer                                   | File                                                                                |
+| ----------------------- | --------------------------------------- | ----------------------------------------------------------------------------------- |
+| FPR-010                 | component                               | `ReconciliationModal.tsx` (existing gate, verify still correct)                     |
+| FPR-011 (frontend half) | hook + gateway                          | `useReportGeneration.ts`, `gateway.ts`                                              |
 | FPR-012                 | _vacant_ — see locked-vacant note above |
-| FPR-013 (frontend half) | hook                                    | `usePrintReport.ts` (request assembled from props only, no fetch)              |
-| FPR-014                 | hook + UI                               | `usePrintReport.ts` (`printError`), toast trigger in `ReconciliationModal.tsx` |
-| FPR-015                 | hook + component                        | `usePrintReport.ts` (`previewBytes`), `ReportPreviewModal.tsx`                 |
-| FPR-016                 | component + gateway                     | `ReportPreviewModal.tsx`, `gateway.saveReportPdf`                              |
+| FPR-013 (frontend half) | hook                                    | `useReportGeneration.ts` (request assembled from props only, no fetch)              |
+| FPR-014                 | hook + UI                               | `useReportGeneration.ts` (`printError`), toast trigger in `ReconciliationModal.tsx` |
+| FPR-015                 | hook + component                        | `useReportGeneration.ts` (`previewBytes`), `ReportPreviewModal.tsx`                 |
+| FPR-016                 | component + gateway                     | `ReportPreviewModal.tsx`, `gateway.saveReportPdf`                                   |
 | FPR-017                 | _vacant_ — see locked-vacant note above |
-| FPR-018                 | component + hook                        | `ReportPreviewModal.tsx`, `usePrintReport.closePreview`                        |
-| FPR-019                 | hook + UI                               | `usePrintReport.isGenerating`, button state in `ReconciliationModal.tsx`       |
-| FPR-021 (frontend half) | hook                                    | `usePrintReport.ts` (captures `i18n.language` at request time)                 |
+| FPR-018                 | component + hook                        | `ReportPreviewModal.tsx`, `useReportGeneration.closePreview`                        |
+| FPR-019                 | hook + UI                               | `useReportGeneration.isGenerating`, button state in `ReconciliationModal.tsx`       |
+| FPR-021 (frontend half) | hook                                    | `useReportGeneration.ts` (captures `i18n.language` at request time)                 |
 
 ### Review touchpoints — PR 3
 
@@ -372,7 +372,7 @@ The five questions surfaced during planning are still resolved; ownership of #1,
 1. **Currency formatting** — `fr`: `1 234,56 €` (NBSP thousands separator, comma decimal, trailing €). `en`: `€1,234.56` (leading €, comma thousands, dot decimal). **Owner: frontend** — produced by the existing `formatCurrency(thousandths, locale)` presenter (or `Intl.NumberFormat`), then passed in as a pre-formatted string in `ReportGenerationRequest`. No Rust formatter.
 2. **Generation-date rendering in the PDF header** — locale-aware long form. `fr`: `6 mai 2026, 16:42`. `en`: `May 6, 2026, 4:42 PM`. **Owner: frontend** — produced via `Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeStyle: "short" })` and passed in as a pre-formatted string in one of `header_lines`. The wire format used to be ISO 8601 in the request; the field no longer exists.
 3. **Font fallback for missing glyphs** — accept tofu (`□`) for v1. Roboto Regular/Bold cover Latin-1 + Extended (French, German, Spanish, Italian, Polish, Czech, Vietnamese, etc.), which is sufficient for the French clinic context. Revisit only if a real-world report surfaces a missing-glyph case.
-4. **Correction-row display data** — frontend pre-formats and pre-joins. The contract type `EnrichedAutoCorrection` was removed; `correction_groups[].rows` is `Vec<String>`, where each row is the variant-specific FPR-042 columns joined into a single line by the new `correctionReportPresenter`. Backend performs no DB lookup, no per-variant dispatch, and no formatting.
+4. **Correction-row display data** — frontend pre-formats and pre-joins. The contract type `EnrichedAutoCorrection` was removed; `correction_groups[].rows` is `Vec<String>`, where each row is the variant-specific FPR-042 columns joined into a single line by the new `reportPresenter`. Backend performs no DB lookup, no per-variant dispatch, and no formatting.
 5. **Locale typing** — the `locale` field was removed from the request entirely. The frontend implicitly owns the locale via `i18n.language`; the backend has no opinion on language. No server-side validation against `["fr", "en"]` because the BE no longer sees a locale.
 
 ---

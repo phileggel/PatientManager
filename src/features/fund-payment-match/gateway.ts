@@ -1,9 +1,12 @@
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
 import {
   type CreateFundPaymentWithAutoCorrectionsRequest,
   commands,
   type FundPaymentGroup,
   type PdfParseResult,
   type ReconcileAndCandidatesResponse,
+  type ReportGenerationRequest,
   type UnreconciledProcedure,
 } from "@/bindings";
 import { logger } from "@/lib/logger";
@@ -141,4 +144,62 @@ export async function getUnreconciledProceduresInRange(
 
   logger.info(TAG, `Found ${result.data.length} unreconciled procedures in range`);
   return result.data;
+}
+
+/**
+ * Generate the post-reconciliation report PDF (FPR-011, FPR-013).
+ *
+ * The request must already carry every pre-resolved string the renderer will
+ * place — translated labels, formatted dates, formatted currency values, and
+ * per-correction joined row strings (ADR-006).
+ *
+ * @param request - Pre-resolved report payload assembled by the hook
+ * @returns Generated PDF as a Uint8Array
+ * @throws Error if backend rendering or validation fails
+ */
+export async function generateReportPdf(request: ReportGenerationRequest): Promise<Uint8Array> {
+  logger.debug(TAG, "Generating fund reconciliation report PDF");
+
+  const result = await commands.generateFundReconciliationReportPdf(request);
+
+  if (result.status === "error") {
+    logger.error(TAG, "Failed to generate report PDF", result.error);
+    throw new Error(result.error);
+  }
+
+  logger.info(TAG, `Report PDF generated (${result.data.length} bytes)`);
+  return new Uint8Array(result.data);
+}
+
+/**
+ * Open a native save-file dialog and write `bytes` to the chosen path (FPR-016).
+ *
+ * If the user cancels the dialog, returns `{ saved: false }` and writes nothing.
+ * If the user picks a path, writes the bytes there and returns `{ saved: true }`.
+ * Filesystem errors propagate to the caller.
+ *
+ * @param bytes - PDF byte stream returned by `generateReportPdf`
+ * @param defaultFilename - Pre-built default filename for the dialog
+ * @returns `{ saved }` indicating whether a file was written
+ * @throws Error if the filesystem write fails
+ */
+export async function saveReportPdf(
+  bytes: Uint8Array,
+  defaultFilename: string,
+): Promise<{ saved: boolean }> {
+  logger.debug(TAG, "Opening save dialog for report PDF", { defaultFilename });
+
+  const path = await save({
+    defaultPath: defaultFilename,
+    filters: [{ name: "PDF document", extensions: ["pdf"] }],
+  });
+
+  if (path === null) {
+    logger.info(TAG, "User cancelled the save dialog");
+    return { saved: false };
+  }
+
+  await writeFile(path, bytes);
+  logger.info(TAG, "Report PDF saved", { path });
+  return { saved: true };
 }
