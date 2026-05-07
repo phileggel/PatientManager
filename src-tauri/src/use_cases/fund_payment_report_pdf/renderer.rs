@@ -49,6 +49,22 @@ const COL_AMOUNT: f32 = 165.0;
 /// - `ReportPdfError::PdfGenerationFailed` if the embedded font cannot be
 ///   parsed or the internal PDF renderer returns an error.
 pub fn render(req: &ReportGenerationRequest) -> Result<Vec<u8>, ReportPdfError> {
+    let (mut doc, pages) = build_document(req)?;
+    let bytes = doc
+        .with_pages(pages)
+        .save(&PdfSaveOptions::default(), &mut Vec::new());
+    Ok(bytes)
+}
+
+/// Build the `PdfDocument` (with fonts registered) and the assembled pages,
+/// stopping just short of serialisation. Production calls this through `render`
+/// to produce bytes; tests call it to walk the `Op` tree directly — printpdf's
+/// own deserializer decodes glyph IDs (not text) and `lopdf 0.39` cannot parse
+/// printpdf 0.9's ToUnicode CMaps, so the only reliable way to assert that a
+/// supplied string was emitted is to inspect the pre-serialisation `Op` list.
+fn build_document(
+    req: &ReportGenerationRequest,
+) -> Result<(PdfDocument, Vec<PdfPage>), ReportPdfError> {
     let regular = ParsedFont::from_bytes(FONT_REGULAR, 0, &mut Vec::new())
         .ok_or_else(|| ReportPdfError::PdfGenerationFailed("regular font load failed".into()))?;
     let bold = ParsedFont::from_bytes(FONT_BOLD, 0, &mut Vec::new())
@@ -64,11 +80,14 @@ pub fn render(req: &ReportGenerationRequest) -> Result<Vec<u8>, ReportPdfError> 
     renderer.render_section_corrections(&req.correction_section_heading, &req.correction_groups);
     let pages = renderer.finish_pages(&regular_id, &req.page_label);
 
-    let bytes = doc
-        .with_pages(pages)
-        .save(&PdfSaveOptions::default(), &mut Vec::new());
+    Ok((doc, pages))
+}
 
-    Ok(bytes)
+#[cfg(test)]
+pub(super) fn build_pages_for_test(
+    req: &ReportGenerationRequest,
+) -> Result<Vec<PdfPage>, ReportPdfError> {
+    build_document(req).map(|(_, pages)| pages)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -470,5 +489,173 @@ mod tests {
         assert!(req.correction_groups.is_empty());
         let bytes = render(&req).expect("render must succeed without corrections");
         assert!(bytes.len() > 1024);
+    }
+
+    // ── Content correctness — every supplied string is emitted ──────────────
+    //
+    // FPR-013, FPR-020, FPR-022, FPR-031, FPR-033, FPR-040, FPR-041, FPR-042
+    // — the backend echoes pre-resolved strings unchanged into the PDF text
+    // stream. Without this test, a refactor that silently drops a field (e.g.
+    // forgets to render `total_value` or `correction_section_heading`) would
+    // still pass the byte-count smoke tests.
+    //
+    // The assertion runs against the pre-serialisation `Op` tree because:
+    // - printpdf's own deserializer rebuilds `Op::ShowText` with glyph IDs,
+    //   not the original `String`s.
+    // - `lopdf 0.39` cannot parse printpdf 0.9's ToUnicode CMaps.
+    // The hairy CMap + glyph-ID encoding is delegated to printpdf; we verify
+    // only that our renderer pipeline emits the right strings into the right
+    // pages.
+
+    fn collect_text_ops(pages: &[PdfPage]) -> Vec<Vec<String>> {
+        pages
+            .iter()
+            .map(|p| {
+                let mut out = Vec::new();
+                for op in &p.ops {
+                    if let Op::ShowText { items } = op {
+                        for item in items {
+                            if let TextItem::Text(s) = item {
+                                out.push(s.clone());
+                            }
+                        }
+                    }
+                }
+                out
+            })
+            .collect()
+    }
+
+    #[test]
+    fn render_emits_every_supplied_string() {
+        let req = ReportGenerationRequest {
+            title: "TITLEMARK".into(),
+            continuation_title: "CONTMARK".into(),
+            header_lines: vec!["HDRONEMARK".into(), "HDRTWOMARK".into()],
+            unreconciled: UnreconciledSection::Rows {
+                heading: "UNRECHEADMARK".into(),
+                column_headers: UnreconciledColumns {
+                    date: "COLDATEMARK".into(),
+                    patient: "COLPATMARK".into(),
+                    ssn: "COLSSNMARK".into(),
+                    amount: "COLAMTMARK".into(),
+                },
+                rows: vec![UnreconciledRow {
+                    date: "ROWDATEMARK".into(),
+                    patient: "ROWPATMARK".into(),
+                    ssn: "ROWSSNMARK".into(),
+                    amount: "ROWAMTMARK".into(),
+                }],
+                total_label: "TOTLABELMARK".into(),
+                total_value: "TOTVALMARK".into(),
+            },
+            correction_section_heading: "CORRSECMARK".into(),
+            correction_groups: vec![CorrectionGroup {
+                title: "GROUPTITLEMARK".into(),
+                rows: vec!["GROUPROWMARK".into()],
+            }],
+            page_label: "PAGELABELMARK".into(),
+        };
+
+        let pages = build_pages_for_test(&req).expect("build must succeed");
+        let per_page_text = collect_text_ops(&pages);
+        let combined: Vec<&str> = per_page_text
+            .iter()
+            .flat_map(|p| p.iter().map(String::as_str))
+            .collect();
+        let combined_str = combined.join("\n");
+
+        for needle in [
+            "TITLEMARK",
+            "HDRONEMARK",
+            "HDRTWOMARK",
+            "UNRECHEADMARK",
+            "COLDATEMARK",
+            "COLPATMARK",
+            "COLSSNMARK",
+            "COLAMTMARK",
+            "ROWDATEMARK",
+            "ROWPATMARK",
+            "ROWSSNMARK",
+            "ROWAMTMARK",
+            "TOTLABELMARK",
+            "TOTVALMARK",
+            "CORRSECMARK",
+            "GROUPTITLEMARK",
+            "GROUPROWMARK",
+            // FPR-022 — page-number label + "{n} / {total}" assembled in finish_pages
+            "PAGELABELMARK 1 / 1",
+        ] {
+            assert!(
+                combined.iter().any(|s| s.contains(needle)),
+                "renderer must emit a text op containing '{needle}'\n\nemitted:\n{combined_str}"
+            );
+        }
+    }
+
+    // ── FPR-022 — continuation breadcrumb + page numbering on multi-page ─────
+
+    #[test]
+    fn render_multipage_emits_continuation_title_and_page_numbers() {
+        let rows: Vec<UnreconciledRow> = (0..30)
+            .map(|i| UnreconciledRow {
+                date: "01/01/2026".into(),
+                patient: format!("ROWPAT{i:02}"),
+                ssn: format!("{i:013}"),
+                amount: "1,00 €".into(),
+            })
+            .collect();
+        let req = ReportGenerationRequest {
+            title: "TITLEMARK".into(),
+            continuation_title: "CONTMARK".into(),
+            page_label: "PAGELABELMARK".into(),
+            unreconciled: UnreconciledSection::Rows {
+                heading: "UNRECHEADMARK".into(),
+                column_headers: UnreconciledColumns {
+                    date: "Date".into(),
+                    patient: "Patient".into(),
+                    ssn: "SSN".into(),
+                    amount: "Amount".into(),
+                },
+                rows,
+                total_label: "Total".into(),
+                total_value: "30,00 €".into(),
+            },
+            ..valid_request()
+        };
+        let pages = build_pages_for_test(&req).expect("build must succeed");
+        assert!(pages.len() >= 2, "expected ≥ 2 pages, got {}", pages.len());
+        let total = pages.len();
+        let per_page_text = collect_text_ops(&pages);
+        let page1 = &per_page_text[0];
+        let page2 = &per_page_text[1];
+
+        // Title appears on page 1 but not on subsequent pages; continuation
+        // breadcrumb is the inverse. 'CONTMARK' is not a substring of
+        // 'TITLEMARK', so the bidirectional check is unambiguous.
+        assert!(
+            page1.iter().any(|s| s.contains("TITLEMARK")),
+            "page 1 must emit the title marker, got: {page1:?}"
+        );
+        assert!(
+            !page1.iter().any(|s| s.contains("CONTMARK")),
+            "page 1 must NOT emit the continuation marker, got: {page1:?}"
+        );
+        assert!(
+            page2.iter().any(|s| s.contains("CONTMARK")),
+            "page 2 must emit the continuation marker, got: {page2:?}"
+        );
+
+        // FPR-022 — page-number footer renders as `"{page_label} {n} / {total}"`
+        let expected_page1 = format!("PAGELABELMARK 1 / {total}");
+        let expected_page2 = format!("PAGELABELMARK 2 / {total}");
+        assert!(
+            page1.iter().any(|s| s == &expected_page1),
+            "page 1 footer must equal '{expected_page1}', got: {page1:?}"
+        );
+        assert!(
+            page2.iter().any(|s| s == &expected_page2),
+            "page 2 footer must equal '{expected_page2}', got: {page2:?}"
+        );
     }
 }
