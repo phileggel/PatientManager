@@ -21,7 +21,7 @@ All business rules in feature specs use a consistent numbering scheme: **`TRIG-N
 | **EXI**   | Excel Import                | Bulk procedure import from Excel files                       |
 | **THM**   | Theme & Appearance          | UI theme management and styling                              |
 | **UPD**   | Updater                     | Application version updates and releases                     |
-| **FPR**   | Fund Payment Print Report   | Print document generated after fund-payment reconciliation   |
+| **FPR**   | Fund Payment Report         | PDF report generated after fund-payment reconciliation       |
 
 ---
 
