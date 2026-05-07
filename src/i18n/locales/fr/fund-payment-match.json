@@ -37,9 +37,6 @@
       "correctedDate": "Date corrigée",
       "paymentDate": "Date de paiement"
     },
-    "error": {
-      "windowOpenFailed": "Impossible d'ouvrir la fenêtre d'impression."
-    },
     "continued": "suite",
     "page": "Page"
   },
@@ -64,8 +61,20 @@
       "banner": "{{count}} anomalie(s) bloquante(s) — la validation est impossible tant qu'elles ne sont pas résolues manuellement."
     },
     "header": {
-      "print": "Imprimer",
+      "report": "Rapport",
       "close": "Fermer le modal"
+    },
+    "preview": {
+      "title": "Rapport de rapprochement",
+      "save": "Enregistrer",
+      "close": "Fermer",
+      "saveSuccess": "Rapport enregistré.",
+      "saveError": "Impossible d'enregistrer le rapport."
+    },
+    "report": {
+      "error": {
+        "generationFailed": "Impossible de générer le rapport."
+      }
     }
   },
   "table": {

@@ -4,13 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as gateway from "../gateway";
 import { ReconciliationModal } from "./ReconciliationModal";
 
-// Mock the gateway
+// Mock the gateway — includes the two new PDF functions added in PR 3
 vi.mock("../gateway", () => ({
   extractPdfText: vi.fn(),
   parsePdfText: vi.fn(),
   reconcileAndCreateCandidates: vi.fn(),
   createFundPaymentWithAutoCorrections: vi.fn(),
   getUnreconciledProceduresInRange: vi.fn(),
+  generateReportPdf: vi.fn(),
+  saveReportPdf: vi.fn(),
 }));
 
 // Mock logger
@@ -21,6 +23,12 @@ vi.mock("@/lib/logger", () => ({
     warn: vi.fn(),
     error: vi.fn(),
   },
+}));
+
+// Mock the funds slice of the app store — `ReconciliationModal` reads it to
+// build a `fundIdToLabel` Map for FundMismatch row formatting.
+vi.mock("@/lib/appStore", () => ({
+  useAppStore: (selector: (state: { funds: unknown[] }) => unknown) => selector({ funds: [] }),
 }));
 
 const mockParsedData = {
@@ -246,20 +254,16 @@ describe("ReconciliationModal", () => {
     });
   });
 
-  // FPR-011 — Print button visible in report step, opens a new window instead of window.print
-  it("shows Print button in report step and calls window.open on click", async () => {
+  // FPR-011 — Report button visible in report step, calls gateway.generateReportPdf on click
+  it("shows Report button in report step and calls gateway.generateReportPdf on click", async () => {
     const user = userEvent.setup();
-    const fakeDoc = { open: vi.fn(), write: vi.fn(), close: vi.fn() };
-    const fakeWindow = {
-      document: fakeDoc,
-      onload: null as null | (() => void),
-      onafterprint: null as null | (() => void),
-    };
-    const openMock = vi.fn().mockReturnValue(fakeWindow);
-    vi.stubGlobal("open", openMock);
 
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
       [],
+    );
+    // Simulate successful PDF generation (returns Uint8Array)
+    (gateway.generateReportPdf as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Uint8Array([37, 80, 68, 70]),
     );
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
@@ -268,22 +272,26 @@ describe("ReconciliationModal", () => {
       expect(screen.getByText(/Unreconciled procedures/)).toBeInTheDocument();
     });
 
-    const printButton = screen.getByRole("button", { name: /print/i });
-    expect(printButton).toBeInTheDocument();
+    const reportButton = screen.getByRole("button", { name: /report/i });
+    expect(reportButton).toBeInTheDocument();
 
-    await user.click(printButton);
+    await user.click(reportButton);
 
-    // FPR-011: new window opened, not the legacy window.print
-    expect(openMock).toHaveBeenCalled();
+    // FPR-011: gateway.generateReportPdf is called, not window.open
+    await waitFor(() => {
+      expect(gateway.generateReportPdf).toHaveBeenCalled();
+    });
   });
 
-  // FPR-014 — window.open returns null → error message in modal, modal stays open
-  it("shows error message in modal when window.open returns null", async () => {
+  // FPR-014 — generateReportPdf throws → error message in modal, modal stays open
+  it("shows error in modal when generateReportPdf throws", async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("open", vi.fn().mockReturnValue(null));
 
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
       [],
+    );
+    (gateway.generateReportPdf as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("PdfGenerationFailed"),
     );
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
@@ -292,10 +300,10 @@ describe("ReconciliationModal", () => {
       expect(screen.getByText(/Unreconciled procedures/)).toBeInTheDocument();
     });
 
-    const printButton = screen.getByRole("button", { name: /print/i });
-    await user.click(printButton);
+    const reportButton = screen.getByRole("button", { name: /report/i });
+    await user.click(reportButton);
 
-    // FPR-014: error message rendered inside the modal with role="alert"
+    // FPR-014: error feedback rendered inside the modal with role="alert"
     await waitFor(() => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
     });
@@ -304,7 +312,7 @@ describe("ReconciliationModal", () => {
     expect(mockOnClose).not.toHaveBeenCalled();
   });
 
-  it("does not show Print button during reconciliation workflow (non-report steps)", async () => {
+  it("does not show Report button during reconciliation workflow (non-report steps)", async () => {
     (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue(
       mockReconciliationWithAnomaly,
     );
@@ -315,7 +323,7 @@ describe("ReconciliationModal", () => {
       expect(screen.getByText(/Auto-correct all/)).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole("button", { name: /print/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /report/i })).not.toBeInTheDocument();
   });
 
   it("shows error message when auto-validation fails", async () => {
