@@ -37,9 +37,6 @@
       "correctedDate": "Corrected date",
       "paymentDate": "Payment date"
     },
-    "error": {
-      "windowOpenFailed": "Failed to open print window."
-    },
     "continued": "continued",
     "page": "Page"
   },
@@ -64,8 +61,20 @@
       "banner": "{{count}} blocking issue(s) — validation is impossible until they are resolved manually."
     },
     "header": {
-      "print": "Print",
+      "report": "Report",
       "close": "Close modal"
+    },
+    "preview": {
+      "title": "Reconciliation Report",
+      "save": "Save",
+      "close": "Close",
+      "saveSuccess": "Report saved.",
+      "saveError": "Failed to save report."
+    },
+    "report": {
+      "error": {
+        "generationFailed": "Failed to generate report."
+      }
     }
   },
   "table": {

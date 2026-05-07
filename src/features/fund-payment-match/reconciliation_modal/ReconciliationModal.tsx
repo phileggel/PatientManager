@@ -6,17 +6,20 @@
  * Logic: useReconciliationModal (PDF extraction, reconciliation, corrections, validate).
  */
 
-import { Loader2, Printer, X } from "lucide-react";
-import { useEffect } from "react";
+import { FileText, Loader2, X } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
 import { IconButton } from "@/ui/components/button/IconButton";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { ReconciliationResultsView } from "../reconciliation_results/ReconciliationResults";
+import { buildFundIdToLabel } from "../shared/reportPresenter";
 import { UnreconciledReportView } from "../unreconciled_report/UnreconciledReport";
-import { usePrintReport } from "./usePrintReport";
+import { ReportPreviewModal } from "./ReportPreviewModal";
 import { useReconciliationModal } from "./useReconciliationModal";
+import { useReportGeneration } from "./useReportGeneration";
 
 interface ReconciliationModalProps {
   filePath: string;
@@ -52,12 +55,24 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
 
   const isReportStep = unreconciledReport !== null && reportDateRange !== null;
 
-  const { handlePrint, printError, clearPrintError } = usePrintReport({
+  const funds = useAppStore((state) => state.funds);
+  const fundIdToLabel = useMemo(() => buildFundIdToLabel(funds), [funds]);
+
+  const {
+    handleReport,
+    isGenerating,
+    previewBytes,
+    defaultFilename,
+    closePreview,
+    reportError,
+    clearReportError,
+  } = useReportGeneration({
     filePath,
     reportDateRange,
     unreconciledReport,
     autoCorrections,
     reconciliationData,
+    fundIdToLabel,
   });
 
   return (
@@ -71,25 +86,25 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* FPR-010: Print button — only shown during report step */}
+          {/* FPR-010: Report button — only shown during report step */}
           {isReportStep && (
             <>
-              <Button variant="secondary" onClick={handlePrint}>
-                <Printer size={16} className="mr-1.5" />
-                {t("modal.header.print")}
+              <Button variant="secondary" loading={isGenerating} onClick={handleReport}>
+                <FileText size={16} className="mr-1.5" />
+                {t("modal.header.report")}
               </Button>
-              {/* FPR-014: inline error when print window cannot be opened */}
-              {printError && (
+              {/* FPR-014: inline error when PDF generation fails */}
+              {reportError && (
                 <div className="flex items-center gap-1">
                   <p role="alert" className="text-xs text-m3-error">
-                    {printError}
+                    {reportError}
                   </p>
                   <IconButton
                     icon={<X size={14} />}
                     variant="ghost"
                     shape="round"
                     aria-label={t("modal.header.close")}
-                    onClick={clearPrintError}
+                    onClick={clearReportError}
                   />
                 </div>
               )}
@@ -164,6 +179,13 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
             </div>
           )}
         </>
+      )}
+      {previewBytes && (
+        <ReportPreviewModal
+          bytes={previewBytes}
+          defaultFilename={defaultFilename}
+          onClose={closePreview}
+        />
       )}
     </ModalContainer>
   );
