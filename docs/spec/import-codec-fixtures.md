@@ -31,10 +31,14 @@ write-side dependency.
 
 ## Entity Definition
 
-This feature does not introduce a persisted entity. It works against the existing
-in-memory `ParsedExcelData` contract (`use_cases/excel_import/domain.rs`), which
-is the typed payload the Excel parser produces today. The generator consumes the
-same type. No database schema change is required.
+This feature does not introduce a persisted entity. It works against the
+in-memory `ParsedExcelData` contract that lives in
+`use_cases/excel_import/excel_codec.rs` — a module dedicated to the IFC codec
+for the Excel surface, holding the typed data structures and the
+data-mapping constants (sheet names, header labels, fixed column positions,
+content placeholders) that locate each field in the source document. Parser
+internals (validation thresholds, fallback offsets, emitted strings) stay
+inside the parser. No database schema change is required.
 
 ---
 
@@ -99,40 +103,50 @@ malformed row the parser is known to skip per EXI R2/R3). Without the
 declaration the round-trip test would be trivially true and provide no
 correctness guarantee.
 
-**IFC-022 — Generator-only on the Excel surface (backend)**: The work of
-introducing the codec on the Excel surface MUST NOT modify the public surface
-of `use_cases/excel_import/parser.rs` or `use_cases/excel_import/domain.rs`.
-The parser already depends on the contract; the generator depends on the same
-type. Subsequent maintenance of the Excel contract (adding, removing, or
-changing fields on `ParsedExcelData`) is governed by IFC-024: it is a
-production-code change after which the dev generator and its scenarios are
-updated to match. Other surfaces may require parser refactors when their
-codec is introduced — those decisions belong to the respective spec extensions.
+**IFC-022 — Parser semantics preserved (backend)**: Introducing the codec on
+the Excel surface MUST NOT change the production parser's behavior or alter
+the shape of `ParsedExcelData`. Literal-to-constant refactors that promote
+**data-mapping** strings (sheet names, header labels, fixed column
+positions, content placeholders) into the codec module are explicitly
+permitted, since they strengthen the codec's role as the single source of
+truth (per IFC-025) without altering parser output. Validation rules
+(SSN length), fallback offsets, parser-emitted strings (skip-reason
+prefixes, display-name patterns), and any other parser-internal heuristics
+stay inside the parser — they are not data mapping and do not belong in the
+codec. Subsequent maintenance of the codec (adding, removing, or changing
+data-mapping entries) is governed by IFC-024: a production-code change
+after which the dev generator and its scenarios are updated to match.
 
 **IFC-023 — Surface independence (backend)**: Each surface's generator,
 contract, and scenarios live next to that surface's parser. There is no
 shared cross-surface abstraction beyond convention; adding a new surface
 neither requires editing existing surfaces nor breaks them.
 
-**IFC-024 — Codec lives in production code (backend)**: The contract type for
-each surface MUST live in production source — alongside its parser, in the
-same crate module, with no Cargo feature gating. The dev generator depends on
-the production-side contract; the production parser MUST NOT depend on, or
-even compile differently because of, the dev-fixtures feature. Adding,
-removing, or changing fields on the contract is a production-code change
-reviewed under production rules; the dev generator and its fixtures are then
-updated to match.
+**IFC-024 — Codec lives in production code (backend)**: The codec for each
+surface — its contract types AND the data-mapping constants that locate
+each field in the document — MUST live in production source, alongside its
+parser, in the same crate module, with no Cargo feature gating. The dev
+generator depends on the production-side codec; the production parser MUST
+NOT depend on, or even compile differently because of, the dev-fixtures
+feature. Adding, removing, or changing entries in the codec is a
+production-code change reviewed under production rules; the dev generator
+and its fixtures are then updated to match.
 
-**IFC-025 — Codec is data-only (backend)**: The codec is a passive data
-declaration — the contract type, its sub-types, and the documentation of what
-each field represents in the source document. It contains no parsing logic, no
-generation logic, no validation, no I/O, and no heuristics. Each consumer owns
-its own pipeline: the production parser may apply arbitrarily complex
-multi-pass logic (e.g. dynamic column detection, multi-round line
-disambiguation) to produce a contract value from raw bytes, and the dev
-generator may apply its own layout / positioning logic to write a file from a
-contract value. The two pipelines are independent implementations validated
-as inverses by IFC-021, not by shared traversal code in the codec itself.
+**IFC-025 — Codec is data-mapping only (backend)**: The codec is a passive
+declaration of the source document's data mapping: the contract type and
+its sub-types, plus the constants that locate each field in the document
+(sheet names, header labels, fixed column positions, content placeholders).
+It contains no validation rules, no fallback offsets, no parser-emitted
+strings (skip-reason prefixes, display-name patterns), no parsing logic,
+no generation logic, no I/O, and no heuristics. Anything optional,
+rule-bound, or parser-internal lives inside the consumers' pipelines: the
+production parser may apply arbitrarily complex multi-pass logic (e.g.
+dynamic column detection, multi-round line disambiguation) to produce a
+contract value from raw bytes, and the dev generator may apply its own
+layout / positioning logic to write a file from a contract value. The
+two pipelines are independent implementations validated as inverses by
+IFC-021; the round-trip test catches drift on anything not centralised
+in the codec.
 
 ### Fixture Set and Output Layout (030–039)
 

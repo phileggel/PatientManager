@@ -16,17 +16,14 @@
 
 use anyhow::{Context, Result};
 use patient_manager_app::use_cases::excel_import::{
-    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData,
+    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, SkippedRow,
 };
+// The codec module owns every format string the production parser scans for.
+// Importing it as `codec` keeps call sites short and visible.
+use patient_manager_app::use_cases::excel_import::excel_codec as codec;
 use rust_xlsxwriter::{DocProperties, ExcelDateTime, Workbook};
 use std::collections::HashMap;
 use std::path::Path;
-
-/// Canonical monthly sheet names in fixed order (matches the parser's
-/// `monthly_sheet_variations` canonical entries).
-const CANONICAL_MONTHS: &[&str] = &[
-    "Jan", "Fév", "Mars", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc",
-];
 
 /// Write the workbook to `path` atomically (IFC-034). On any failure the
 /// partial temp file is removed so `tests/fixtures/` is never observed in a
@@ -116,13 +113,18 @@ fn temp_path_for(final_path: &Path) -> Result<std::path::PathBuf> {
 
 fn write_patiente_sheet(workbook: &mut Workbook, patients: &[ExcelPatient]) -> Result<()> {
     let sheet = workbook.add_worksheet();
-    sheet.set_name("Patiente").context("name Patiente sheet")?;
+    sheet
+        .set_name(codec::PATIENTE_SHEET)
+        .context("name Patiente sheet")?;
     for (idx, p) in patients.iter().enumerate() {
         let row = idx as u32;
         sheet.write_string(row, 0, &p.name)?;
         // col 1: unused by the parser
         sheet.write_string(row, 2, &p.ssn)?;
-        let fund_value = p.latest_fund.as_deref().unwrap_or("0");
+        let fund_value = p
+            .latest_fund
+            .as_deref()
+            .unwrap_or(codec::NO_FUND_PLACEHOLDER);
         sheet.write_string(row, 3, fund_value)?;
     }
     Ok(())
@@ -130,7 +132,9 @@ fn write_patiente_sheet(workbook: &mut Workbook, patients: &[ExcelPatient]) -> R
 
 fn write_secu_sheet(workbook: &mut Workbook, funds: &[ExcelFund]) -> Result<()> {
     let sheet = workbook.add_worksheet();
-    sheet.set_name("Secu").context("name Secu sheet")?;
+    sheet
+        .set_name(codec::SECU_SHEET)
+        .context("name Secu sheet")?;
     for (idx, f) in funds.iter().enumerate() {
         let row = idx as u32;
         sheet.write_string(row, 0, &f.fund_identifier)?;
@@ -151,17 +155,18 @@ fn write_all_monthly_sheets(workbook: &mut Workbook, data: &ParsedExcelData) -> 
     let fund_map: HashMap<&str, &ExcelFund> =
         data.funds.iter().map(|f| (f.temp_id.as_str(), f)).collect();
 
-    // Group procedures by their declared sheet_month (deterministic via
-    // CANONICAL_MONTHS iteration order).
+    // Group procedures by their declared sheet_month. Iteration order is
+    // fixed by codec::MONTHLY_SHEET_VARIATIONS (Jan..Déc) so the resulting
+    // workbook's central directory is deterministic.
     let mut by_month: HashMap<&str, Vec<&ExcelProcedure>> = HashMap::new();
     for p in &data.procedures {
         by_month.entry(p.sheet_month.as_str()).or_default().push(p);
     }
 
-    for month in CANONICAL_MONTHS {
+    for &(month, _variations) in codec::MONTHLY_SHEET_VARIATIONS {
         let sheet = workbook.add_worksheet();
         sheet
-            .set_name(*month)
+            .set_name(month)
             .with_context(|| format!("name {month} sheet"))?;
         write_monthly_header(sheet)?;
 
@@ -169,7 +174,7 @@ fn write_all_monthly_sheets(workbook: &mut Workbook, data: &ParsedExcelData) -> 
         // explicitly demands skipped rows for. Skipped-rows-by-design come
         // from the scenario's `parsing_issues.skipped_rows` entries that
         // target this sheet — see write_skipped_rows_for_month below.
-        let procedures = by_month.get(*month).cloned().unwrap_or_default();
+        let procedures = by_month.get(month).cloned().unwrap_or_default();
         let mut row_cursor: u32 = 1;
         for proc in procedures {
             write_procedure_row(sheet, row_cursor, proc, &patient_map, &fund_map)?;
@@ -185,20 +190,25 @@ fn write_all_monthly_sheets(workbook: &mut Workbook, data: &ParsedExcelData) -> 
     Ok(())
 }
 
+/// Write the header row at row 0 of a monthly sheet. Required labels (CAISSE,
+/// TARIF, DATE) and the optional labels are placed at the column positions
+/// the parser's offset defaults expect; the parser will then auto-detect them
+/// regardless of position via `ColIdx::from_header_row`.
 fn write_monthly_header(sheet: &mut rust_xlsxwriter::Worksheet) -> Result<()> {
-    let header = [
+    use codec::monthly_header as h;
+    let header: [&str; 12] = [
         "CODE",
         "NOM",
         "NOM SECU",
-        "CAISSE",
+        h::FUND,
         "ADRESSE",
-        "TARIF",
-        "DATE",
+        h::AMOUNT,
+        h::DATE,
         "ENVOI",
-        "T",
-        "REMBSE",
-        "Versé",
-        "En attente",
+        h::PAYMENT_METHOD,
+        h::CONFIRMED_PAYMENT_DATE,
+        h::PAID_AMOUNT,
+        h::AWAITED_AMOUNT,
     ];
     for (col, label) in header.iter().enumerate() {
         sheet.write_string(0, col as u16, *label)?;
@@ -223,7 +233,11 @@ fn write_procedure_row(
         })?;
 
     sheet.write_string(row, 0, &patient.ssn)?;
-    sheet.write_string(row, 1, &patient.name)?;
+    sheet.write_string(
+        row,
+        codec::monthly_header::PATIENT_COL as u16,
+        &patient.name,
+    )?;
     // col 2: NOM SECU (unused by parser)
     if let Some(fid) = &proc.fund_temp_id {
         let fund = funds
@@ -262,7 +276,7 @@ fn write_procedure_row(
 fn write_skipped_rows_for_month(
     sheet: &mut rust_xlsxwriter::Worksheet,
     month: &str,
-    skipped_rows: &[patient_manager_app::use_cases::excel_import::SkippedRow],
+    skipped_rows: &[SkippedRow],
     next_row_cursor: u32,
 ) -> Result<()> {
     for sr in skipped_rows.iter().filter(|sr| sr.sheet == month) {
@@ -285,12 +299,19 @@ fn write_skipped_rows_for_month(
         }
         match sr.reason.as_str() {
             // EXI R2 (date format): non-empty patient + amount, but the date
-            // cell is non-empty and unparseable.
+            // cell is non-empty and unparseable. The prefix is the parser's
+            // emitted output, not document data mapping — matched here as a
+            // local literal. Drift between parser and writer is caught by the
+            // round-trip test (IFC-021).
             r if r.starts_with("Unrecognized date format:") => {
                 let bad_date =
                     extract_quoted(r).with_context(|| format!("malformed reason: {r}"))?;
                 sheet.write_string(target_row_idx, 0, "1234567890123")?;
-                sheet.write_string(target_row_idx, 1, "Alice Martin")?;
+                sheet.write_string(
+                    target_row_idx,
+                    codec::monthly_header::PATIENT_COL as u16,
+                    "Alice Martin",
+                )?;
                 sheet.write_string(target_row_idx, 3, "FUND-A")?;
                 sheet.write_number(target_row_idx, 5, 50.0)?;
                 sheet.write_string(target_row_idx, 6, bad_date)?;
