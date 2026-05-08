@@ -1,7 +1,7 @@
 ---
 name: feature-planner
-description: Senior Architect Agent that translates a validated spec into a persistent, detailed implementation plan (docs/plan/{feature-name}-plan.md) mapping TRIGRAM-NNN rules to DDD layers and CLAUDE.md workflow. Use after spec-reviewer and contract-reviewer both approve.
-tools: Read, Write, Grep, Glob, Bash
+description: Senior Architect Agent that translates a validated spec into a persistent, detailed implementation plan (docs/plan/{feature-name}-plan.md) mapping TRIGRAM-NNN rules to DDD layers and CLAUDE.md workflow. Use after spec-reviewer and contract-reviewer both approve. Output is gated by plan-reviewer before any test-writer subagent runs.
+tools: Read, Write, Grep, Glob, Bash, AskUserQuestion
 model: opus
 ---
 
@@ -54,6 +54,18 @@ For each TRIGRAM-NNN rule, identify concrete tasks:
 - **Schema changes**: identify rules that imply a database schema change (new entity, new field, new status column, new FK). For each, note the expected migration filename (`{timestamp}_create_{table}.sql` or `{timestamp}_add_{column}_to_{table}.sql`) and infer the columns from the domain rules. Flag that `just prepare-sqlx` must be run after migrating.
 - **Modified-function coverage**: For each rule scoped to `frontend` or `frontend + backend` that **modifies an existing function** (not a new file/creation), mark it `[unit-test-needed]` in the Rules Coverage table. Collect these as a `modified_functions` list in the Phase 3 task description — e.g. `test-writer-frontend → {contract} + modified_functions: [useEditFoo.ts:recomputeUnitPrice]`. These rules have no contract entry and would otherwise receive no test coverage.
 
+### Step 4.5 — PR Plan
+
+From the tasks identified in Step 4, estimate the change size per layer (rough file count and LOC). Then ask the user how to slice the merge using `AskUserQuestion`:
+
+- **1 PR** — single merge covering all layers. Recommended for small or tightly-coupled features (rename, contract reshape, migration that demands both layers in lockstep).
+- **2 PRs** — backend (spec + migration + Rust + bindings) merges first; frontend + E2E + closure follow on a branch rebased off `main` after the BE PR merges.
+- **3 PRs** — backend; then frontend (gateway / hooks / components / i18n); then E2E + ARCHITECTURE/todo/spec-checker closure. Each PR branches off the prior one once merged.
+
+Pre-select based on the estimate: if **either layer exceeds ~20 files OR ~500 LOC**, recommend 2 PRs (or 3 if E2E adds significant volume); otherwise recommend 1 PR. The estimate is advisory — the user picks; coupling judgment trumps the threshold.
+
+Surface the estimate explicitly in the question (e.g. "BE: ~14 files / ~380 LOC; FE: ~9 files / ~210 LOC"). Capture the answer verbatim in the deliverable's **PR Plan** section.
+
 ---
 
 ## Deliverable Structure (`docs/plan/{feature}-plan.md`)
@@ -70,8 +82,8 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 🏗️ Backend Implementation (minimal — make failing tests pass, green confirmed)
 - [ ] 🧹 `just format` (rustfmt + clippy --fix)
 - [ ] 🔍 Backend Review (`reviewer-backend` → fix issues) — if .rs modified
-- [ ] 🔗 Type Synchronization (`just generate-types`) — Tauri profile only, if backend rules present
-- [ ] 🔧 Compilation fixup (TypeScript errors from new bindings only — no UI work) — Tauri profile only, if backend rules present
+- [ ] 🔗 Type Synchronization (`just generate-types`) — if backend rules present
+- [ ] 🔧 Compilation fixup (TypeScript errors from new bindings only — no UI work) — if backend rules present
 - [ ] ✅ `just check` — TypeScript clean
 - [ ] 💾 Commit: backend layer (suggested title from plan)
 - [ ] ✍️ Frontend test stubs (`test-writer-frontend` — all stubs written, red confirmed; pass `modified_functions` list if any `[unit-test-needed]` rules were identified in Step 4) — if frontend rules present
@@ -80,8 +92,8 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 📸 Visual proof (`/visual-proof` — capture final state; stage screenshots before commit) — if frontend rules present
 - [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues) — if .ts/.tsx modified
 - [ ] 💾 Commit: frontend layer (suggested title from plan)
-- [ ] ✍️ E2E tests (`test-writer-e2e` — run `/setup-e2e` first if not done; green confirmed) — Tauri profile only, if frontend rules present
-- [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues in E2E test files) — Tauri profile only, if frontend rules present
+- [ ] ✍️ E2E tests (`test-writer-e2e` — run `/setup-e2e` first if not done; green confirmed) — if frontend rules present
+- [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues in E2E test files) — if frontend rules present
 - [ ] 💾 Commit: E2E tests (suggested title from plan)
 - [ ] 🔍 Cross-cutting Review (`reviewer-arch` always + `reviewer-sql` if migrations + `reviewer-infra` if any config, script, hook, or workflow file changed)
 - [ ] 📚 Documentation Update (`ARCHITECTURE.md` + `docs/todo.md` — entries in English)
@@ -97,6 +109,20 @@ A granular breakdown by architectural layer:
 - **Frontend**: Exact file paths, gateway methods, custom hooks, and React components.
 - **Rules Coverage**: A table mapping every TRIGRAM-NNN rule to its corresponding implementation task.
 
+### 3. PR Plan
+
+Captures the answer from Step 4.5. Format:
+
+- **Strategy**: `1 PR` | `2 PRs` | `3 PRs`
+- **Estimate**: per-layer file count and LOC used to pre-select.
+- **PR list** — for each planned PR:
+  - **Title** (conventional commit format, e.g. `feat(asset): pricing backend`)
+  - **Scope**: which layer(s) and which Workflow TaskList checkpoints terminate it
+  - **Dependency**: what must be merged first (e.g. "rebase off main after PR #1 merges")
+  - **Branch suffix** (suggestion): `feat/{name}-be`, `feat/{name}-fe`, `feat/{name}-e2e` for multi-PR strategies; `feat/{name}` for single-PR
+
+`/start` reads this section to decide where to emit `/create-pr` checkpoints in the working context.
+
 ---
 
 ## Critical Rules
@@ -105,9 +131,10 @@ A granular breakdown by architectural layer:
 2. **Language**: All entries in `docs/todo.md` MUST be written in English.
 3. **Path Verification**: Every file path must be verified with `Glob` before being included—never invent paths.
 4. **Convention Adherence**: Use Rust `snake_case` and TypeScript `camelCase`.
-5. **Synchronization**: On Tauri projects, include `just generate-types` as a mandatory step between Backend and Frontend tasks. Skip on other profiles (no TypeScript bindings generated from Rust).
+5. **Synchronization**: Include `just generate-types` as a mandatory step between Backend and Frontend tasks — Specta regenerates `src/bindings.ts` from the Tauri command surface.
 6. **No Code Implementation**: Your output is a plan describing _what_ to do and _where_, not the actual code.
 7. **Task Tracking**: Ensure the main agent can progressively update the checkboxes in this file during the implementation phase.
 8. **Cross-Context**: If a use case spans multiple bounded contexts, use the cross-context module as defined in `ARCHITECTURE.md` — never cross-import between context modules directly.
 9. **Commit Checkpoints**: Every plan must include at least one commit checkpoint per thematic phase (backend, frontend, E2E tests, tests & docs). Each checkpoint provides only a suggested conventional commit title — the `/smart-commit` skill handles the rest.
 10. **Minimal implementation**: The backend and frontend implementation tasks must explicitly state "implement only what is required to make the failing tests pass — no additional methods, no defensive code, no anticipation of future rules." `test-writer-backend` and `test-writer-frontend` define the scope; the implementation must not exceed it.
+11. **Next gate**: After writing the plan, tell the user that `plan-reviewer` is the mandatory next step before any test-writer subagent runs. Do not invoke it yourself; the orchestrating agent runs it.

@@ -261,7 +261,7 @@ Show the user:
 - Trigram assigned: `{TRIGRAM}`
 - List of `{TRIGRAM}-NNN` rules extracted
 - **Architectural Alert**: If an `ADR-SUGGESTED` was flagged in Open Questions, explicitly tell the user:
-  > "A potential architectural decision was identified. Consider running `adr-manager` if you agree it warrants documentation — it is not required to proceed."
+  > "A potential architectural decision was identified. Consider running `adr-writer` if you agree it warrants documentation — it is not required to proceed."
 
 Then ask: **"Validate, refine, or write the ADR?"**
 

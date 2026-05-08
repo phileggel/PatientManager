@@ -1,12 +1,12 @@
 ---
-name: adr-manager
-description: Manage Architecture Decision Records (ADR). Use this to create, update (supersede), or index architectural decisions in docs/adr/.
+name: adr-writer
+description: Author Architecture Decision Records (ADR). Use this to create, update (supersede), or index architectural decisions in docs/adr/. After authoring or updating an ADR, run `adr-reviewer` to validate quality before locking the decision in.
 tools: Read, Grep, Glob, Write, AskUserQuestion
 ---
 
-# Skill — `adr-manager`
+# Skill — `adr-writer`
 
-Manages the lifecycle of the project's architectural decisions.
+Authors and maintains the project's architectural decision records.
 An ADR documents the "Why" behind a significant technical or business structural choice.
 
 ---
@@ -21,7 +21,7 @@ ADRs are rare. Write one only when **all three** conditions hold:
 
 If the decision is a minor preference, a standard pattern, or self-evident from the spec, do not create an ADR.
 
-**Always ask before writing.** If `adr-manager` is invoked from another agent or skill, confirm with the user that an ADR is truly warranted before proceeding — never create one automatically.
+**Always ask before writing.** If `adr-writer` is invoked from another agent or skill, confirm with the user that an ADR is truly warranted before proceeding — never create one automatically.
 
 ---
 

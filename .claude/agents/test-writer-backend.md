@@ -5,7 +5,7 @@ description:
   contract (docs/contracts/{domain}-contract.md). Writes real test bodies when the API is fully
   known; falls back to todo!() stubs only when the contract is too vague, after user
   confirmation. Verifies cargo test exits non-zero (red) before finishing. Does not
-  implement — implementation is a separate step. Run after contract-reviewer approves,
+  implement — implementation is a separate step. Run after plan-reviewer approves,
   before backend implementation.
 tools: Read, Grep, Glob, Write, Edit, Bash
 model: sonnet

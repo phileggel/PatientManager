@@ -8,7 +8,7 @@ tools: Bash, Read, Grep, Glob, Write
 
 Triage pending work across the project and recommend the next concrete action.
 
-This is the answer to "what should I do next?" when you're returning to a project after a gap and your in-context memory isn't loaded. It surveys multiple sources, verifies items aren't already shipped, and produces a value/effort-ranked shortlist.
+This is the answer to "what should I do next?" when you're returning to a project after a gap and your in-context memory isn't loaded. Deterministic data collection runs once via `scripts/whats-next.py`; this skill applies the judgment layer (verify-not-done, score, pick suggested action, save report).
 
 ---
 
@@ -35,65 +35,35 @@ Not needed when you already know what you're working on — use `/start` instead
 
 Run `bash scripts/report-path.sh whats-next` and remember the output as `REPORT_PATH`.
 
-### Step 2 — Survey the six sources
+### Step 2 — Collect data
 
-Run each scan independently. Skip sources whose files do not exist (no error).
-
-**a) TODOs** — attempt both case variants; read whichever returns content (skip silently if neither exists):
+Run the deterministic collector once:
 
 ```bash
-cat docs/todo.md 2>/dev/null
+python3 scripts/whats-next.py
 ```
 
-```bash
-cat docs/TODO.md 2>/dev/null
-```
+The script emits a single JSON document covering eight sources: `todo_file`, `inline_todos`, `planning_docs`, `feature_plans`, `spec_open_questions`, `in_flight`, `roadmap`, `techdebt`. Sections whose source is absent are emitted as `null` or empty arrays — skip those silently.
 
-Extract every section heading and bullet as a candidate item. Also scan inline code comments (always run, even when the file exists):
+Parse the JSON and translate every entry into a **candidate item** with `(type, source, text)` for scoring in Step 4. **Tech-debt entries are candidates too** — surface them in the same Pending items table, but always label the source as `docs/techdebt.md` (with the entry date) so the user can tell observations from explicit todos.
 
-```bash
-grep -rn -e "TODO" -e "FIXME" src/ src-tauri/src/ --include="*.ts" --include="*.tsx" --include="*.rs" 2>/dev/null
-```
-
-Surface each hit (file:line + comment text) as a candidate item.
-
-**b) Planning docs** — `docs/plan-*.md` at the docs/ root. Use `Glob("docs/plan-*.md")`; then `Read` each result to extract the title and any `## Open Questions` section.
-
-**c) Unfinished feature plans** — `docs/plan/*-plan.md`. Use `Glob("docs/plan/*-plan.md")`; then `Read` each result to locate the `Workflow TaskList` (or equivalent checklist) and extract every `[ ]` item. A plan with all `[x]` is finished and not a candidate.
-
-**d) Open spec questions** — `docs/spec/*.md`. Use `Glob("docs/spec/*.md")`; then for each file use `Grep` for `[ ]` to find unchecked items under `## Open Questions`.
-
-**e) In-flight git work** — run each as a separate Bash call:
-
-```bash
-bash scripts/changed-files.sh
-```
-
-```bash
-git branch --no-merged main 2>/dev/null | grep -v '^\*' | head -10
-```
-
-```bash
-git log --oneline -10
-```
-
-Surface uncommitted changes and unmerged branches as candidates ("finish branch X" / "commit/discard pending changes in Y").
-
-**f) Roadmap** — `docs/roadmap.md` or `roadmap.md` at the project root. Check both paths; read the first that exists (prefer `docs/roadmap.md`). Extract every section heading and any `[ ]` bullet as a candidate item. Skip silently if neither file exists.
+If the script fails or returns invalid JSON, fall back to a manual scan and tell the user to re-run after fixing the script. Do not silently downgrade.
 
 ### Step 3 — Verify each candidate isn't already done
 
-This step prevents stale TODOs from polluting the recommendation. For every candidate item, do a cheap existence/grep check:
+This step prevents stale TODOs from polluting the recommendation. For every candidate, do a cheap existence/grep check:
 
-- TODO mentions a file/script/skill name → `Glob` to check if it exists
+- TODO mentions a file/script/skill name → `Glob` to check it exists
 - TODO mentions a feature keyword → `git log --oneline --grep "{keyword}"` to find shipping commits
-- Plan task references a function/module → `Grep` for it
+- Feature-plan task references a function/module → `Grep` for it
 
-Mark items as `🟢 pending`, `⚠️ likely done` (evidence of shipping), or `❓ unclear` (ambiguous). Items marked `⚠️ likely done` should be reported as cleanup candidates, not work candidates.
+Mark items as `🟢 pending`, `⚠️ likely done` (evidence of shipping), or `❓ unclear`. Items marked `⚠️ likely done` are reported as cleanup candidates, not work candidates.
+
+For tech-debt entries, the script reports `where_exists: false` when the entry's `Where:` path no longer exists on disk. Treat those as `⚠️ likely done` (path probably renamed or removed; the observation may be obsolete) — let the user verify before scoring.
 
 ### Step 4 — Score each pending item
 
-For each `🟢 pending` item, assign:
+For each `🟢 pending` candidate, assign:
 
 - **Value** — High / Medium / Low. Considerations: frequency of use, blockers it removes, correctness/safety impact, dependencies on other items.
 - **Effort** — rough hours (≤1h, 1–3h, 3–6h, >6h, unknown).
@@ -134,6 +104,10 @@ If two items tie, prefer the one with explicit user signal (most recent edit, me
 | 1 | {short description} | docs/TODO.md:NN | High | 2h | do now |
 | 2 | {short description} | docs/plan/foo-plan.md:NN | Medium | 1h | do next |
 | 3 | {short description} | docs/spec/bar.md (Open Q) | Low | ≤1h | defer |
+| 4 | {observation} | docs/techdebt.md (2026-04-02) | Medium | 1–3h | do next |
+
+> Tech-debt entries appear in the same table with their source labelled
+> `docs/techdebt.md (DATE)` — the user can tell observations from explicit todos.
 
 ### Likely already done (cleanup candidates)
 - {item} — evidence: commit {sha} / file {path} exists
@@ -144,6 +118,8 @@ If two items tie, prefer the one with explicit user signal (most recent edit, me
 
 ### Suggested next action
 **#1 — {item title}**
+Source: {source — e.g. `docs/TODO.md:NN`, `docs/plan/foo-plan.md`, `docs/techdebt.md (DATE)`}
+Value/Effort: {value} / {effort}
 Why: {1–2 sentences explaining the value/effort win and any dependency context}
 First step: {concrete file or command to start with}
 ```
@@ -177,7 +153,7 @@ Pending items: N. Likely-done cleanup: N. In-flight: N.
 - {item} — {evidence}
 ```
 
-Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section whose count is zero.
+Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section whose count is zero. Tech-debt entries are included in the pending shortlist alongside other candidates; their source label (`docs/techdebt.md (DATE)`) carries the provenance.
 
 ---
 
@@ -186,8 +162,9 @@ Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section who
 1. **Verify before recommending** — a TODO that mentions a file or feature must be cross-checked against the actual repo state before being scored. Stale TODOs surface as `cleanup candidates`, not work candidates.
 2. **Estimates are model-judged, not authoritative** — the disclaimer at the top of the output is mandatory. Never present value/effort as decided priorities.
 3. **One suggestion, not three** — pick a single next action. A list of "you could do any of these" defeats the purpose; the user invoked this skill to avoid that exact decision.
-4. **Skip missing sources silently** — a project without `docs/spec/` or `docs/plan/` is a normal state, not an error. Report only on what was scanned.
+4. **Tech debt is work with provenance** — entries from `docs/techdebt.md` are scored like any other candidate, but their source must be labelled `docs/techdebt.md (DATE)` so the user can tell observations from explicit todos. Don't hide them in a separate bucket.
 5. **Save the report even when nothing is pending** — "no work" is itself a useful signal worth keeping for trend analysis.
+6. **Trust the script for collection, not for judgment** — `scripts/whats-next.py` only describes what's there. The skill decides what's worth doing.
 
 ---
 
