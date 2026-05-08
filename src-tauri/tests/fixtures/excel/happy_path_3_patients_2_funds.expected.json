@@ -1,0 +1,66 @@
+{
+  "patients": [
+    {
+      "temp_id": "patient-1",
+      "name": "Alice Martin",
+      "ssn": "1234567890123",
+      "latest_fund": null
+    },
+    {
+      "temp_id": "patient-2",
+      "name": "Bob Durand",
+      "ssn": "9876543210987",
+      "latest_fund": "FUND-A"
+    },
+    {
+      "temp_id": "patient-3",
+      "name": "Carol Bernard",
+      "ssn": "5555555555555",
+      "latest_fund": "FUND-B"
+    }
+  ],
+  "funds": [
+    {
+      "temp_id": "fund-1",
+      "fund_identifier": "FUND-A",
+      "fund_name": "Caisse Primaire",
+      "fund_address": null
+    },
+    {
+      "temp_id": "fund-2",
+      "fund_identifier": "FUND-B",
+      "fund_name": "MGEN",
+      "fund_address": null
+    }
+  ],
+  "procedures": [
+    {
+      "patient_temp_id": "patient-2",
+      "fund_temp_id": "fund-1",
+      "procedure_type_tmp_id": "ptype-75",
+      "amount": 75000,
+      "procedure_date": "2026-03-15",
+      "sheet_month": "Mars",
+      "payment_method": null,
+      "confirmed_payment_date": null,
+      "paid_amount": null,
+      "awaited_amount": null
+    },
+    {
+      "patient_temp_id": "patient-3",
+      "fund_temp_id": "fund-2",
+      "procedure_type_tmp_id": "ptype-125",
+      "amount": 125500,
+      "procedure_date": "2026-03-22",
+      "sheet_month": "Mars",
+      "payment_method": null,
+      "confirmed_payment_date": null,
+      "paid_amount": null,
+      "awaited_amount": null
+    }
+  ],
+  "parsing_issues": {
+    "skipped_rows": [],
+    "missing_sheets": []
+  }
+}

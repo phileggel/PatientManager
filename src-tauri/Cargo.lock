@@ -2254,7 +2254,7 @@ dependencies = [
  "portable-atomic",
  "portable-atomic-util",
  "serde_core",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3190,6 +3190,7 @@ dependencies = [
  "pdf-extract",
  "printpdf",
  "regex",
+ "rust_xlsxwriter",
  "serde",
  "serde_json",
  "sha2",
@@ -4071,6 +4072,15 @@ dependencies = [
  "base64 0.22.1",
  "mmapio",
  "xmlparser",
+]
+
+[[package]]
+name = "rust_xlsxwriter"
+version = "0.94.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b61e4bcbf5d8d3d2149ffa462e1cec5259108e59f03af9e4e4ddebe6cd7c67f7"
+dependencies = [
+ "zip 7.2.0",
 ]
 
 [[package]]
