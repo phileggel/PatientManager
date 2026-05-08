@@ -19,6 +19,11 @@ path = "src/main.rs"
 name = "generate_bindings"
 path = "src/bin/generate_bindings.rs"
 
+[[bin]]
+name = "generate_fixtures"
+path = "src/bin/generate_fixtures.rs"
+required-features = ["dev-fixtures"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -49,6 +54,7 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 sha2 = "0.10"
 printpdf = "0.9"
+rust_xlsxwriter = { version = "0.94", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
@@ -62,6 +68,9 @@ lopdf = "0.39"
 custom-protocol = ["tauri/custom-protocol"]
 # Enable only when regenerating TypeScript bindings (excluded from release builds)
 generate-bindings = []
+# Enable only for dev fixture generation and round-trip integration tests (IFC-011)
+# Production builds MUST NOT enable this feature.
+dev-fixtures = ["dep:rust_xlsxwriter"]
 
 [profile.release]
 strip = true

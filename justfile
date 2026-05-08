@@ -15,6 +15,12 @@ dev *ARGS:
 generate-types:
     cd src-tauri && cargo run --features generate-bindings --bin generate_bindings
 
+# Regenerate dev fixture files for the import codec (IFC-033)
+# Writes src-tauri/tests/fixtures/{surface}/{scenario}.{ext} + .expected.json.
+# Optional SCENARIO arg: regenerate only that scenario.
+regen-fixtures SURFACE='excel' SCENARIO='':
+    cd src-tauri && cargo run --features dev-fixtures --bin generate_fixtures -- {{SURFACE}} {{SCENARIO}}
+
 # Collect logs for debugging
 collect-logs:
     ./scripts/collect-logs.sh

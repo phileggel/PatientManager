@@ -1,0 +1,29 @@
+{
+  "patients": [
+    {
+      "temp_id": "patient-1",
+      "name": "Alice Martin",
+      "ssn": "1234567890123",
+      "latest_fund": null
+    }
+  ],
+  "funds": [
+    {
+      "temp_id": "fund-1",
+      "fund_identifier": "FUND-A",
+      "fund_name": "Caisse Primaire",
+      "fund_address": null
+    }
+  ],
+  "procedures": [],
+  "parsing_issues": {
+    "skipped_rows": [
+      {
+        "sheet": "Mars",
+        "row_number": 2,
+        "reason": "Unrecognized date format: 'not-a-date'"
+      }
+    ],
+    "missing_sheets": []
+  }
+}

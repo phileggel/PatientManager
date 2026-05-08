@@ -1,0 +1,63 @@
+name: Dev Fixtures
+
+# IFC-042 — Dedicated CI job for the import-codec dev tooling. Runs the
+# fixture regenerator with the `dev-fixtures` Cargo feature, asserts no
+# working-tree drift on tests/fixtures/ (IFC-041), and runs the round-trip
+# integration test suite (IFC-051). The standard `ci.yml` `backend` job runs
+# without this feature so contributors who do not work on the codec are not
+# slowed by fixture regeneration during normal development.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
+      - "src-tauri/src/bin/generate_fixtures.rs"
+      - "src-tauri/src/bin/fixtures_excel/**"
+      - "src-tauri/src/use_cases/excel_import/**"
+      - "src-tauri/tests/codec_round_trip.rs"
+      - "src-tauri/tests/common/**"
+      - "src-tauri/tests/fixtures/**"
+      - ".github/workflows/dev-fixtures.yml"
+      - "justfile"
+
+concurrency:
+  group: dev-fixtures-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  fixtures:
+    name: Codec — regen, drift, round-trip
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      SQLX_OFFLINE: "true"
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-C debuginfo=0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          prefix-key: ci-dev-fixtures
+      - name: Regenerate fixtures
+        working-directory: src-tauri
+        run: cargo run --features dev-fixtures --bin generate_fixtures -- excel
+      - name: Drift check (IFC-041)
+        run: git diff --exit-code src-tauri/tests/fixtures/
+      - name: Round-trip tests (IFC-051)
+        working-directory: src-tauri
+        run: cargo test --features dev-fixtures --test codec_round_trip
