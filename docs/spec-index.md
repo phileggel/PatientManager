@@ -22,6 +22,7 @@ All business rules in feature specs use a consistent numbering scheme: **`TRIG-N
 | **THM**   | Theme & Appearance          | UI theme management and styling                              |
 | **UPD**   | Updater                     | Application version updates and releases                     |
 | **FPR**   | Fund Payment Report         | PDF report generated after fund-payment reconciliation       |
+| **IFC**   | Import Fixture Codec        | Dev-only inverse of import parsers — generates fixtures (Excel pilot) |
 
 ---
 
