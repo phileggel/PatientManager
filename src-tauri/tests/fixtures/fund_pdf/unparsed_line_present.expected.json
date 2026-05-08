@@ -1,0 +1,30 @@
+{
+  "groups": [
+    {
+      "fund_label": "CPAM n° 931",
+      "fund_full_name": "la Caisse",
+      "payment_date": "2025-05-02",
+      "total_amount": 25000,
+      "is_total_valid": true,
+      "lines": [
+        {
+          "line_index": 2,
+          "payment_date": "2025-05-02",
+          "invoice_number": "001",
+          "fund_name": "CPAM n° 931",
+          "patient_name": "ALICE MARTIN",
+          "ssn": "1234567890123",
+          "nature": "SF",
+          "procedure_start_date": "2025-04-28",
+          "procedure_end_date": "2025-04-28",
+          "is_period": false,
+          "amount": 25000
+        }
+      ]
+    }
+  ],
+  "unparsed_line_count": 1,
+  "unparsed_lines": [
+    "Reference 99/2025-MAL ill-formed receipt entry not data nor total"
+  ]
+}

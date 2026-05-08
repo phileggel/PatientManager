@@ -404,7 +404,7 @@ Cargo-feature-gated binaries, never linked into the production app. Each entry h
 | Binary | Feature flag | Purpose | Spec |
 |---|---|---|---|
 | `generate_bindings` | `generate-bindings` | Regenerate `src/bindings.ts` from Specta | — |
-| `generate_fixtures` | `dev-fixtures` | Inverse of import parsers — writes fixture `.xlsx` (and future PDF) artifacts under `tests/fixtures/{surface}/` | [IFC](docs/spec/import-codec-fixtures.md) |
+| `generate_fixtures` | `dev-fixtures` | Inverse of import parsers — writes fixture `.xlsx` and `.pdf` artifacts under `tests/fixtures/{surface}/` | [IFC](docs/spec/import-codec-fixtures.md) |
 
 #### Import codec pattern (`generate_fixtures`)
 
@@ -415,11 +415,18 @@ For each import surface, a single typed contract lives in production code with t
 
 Round-trip property (IFC-021): `parse(generate(scenario)) == scenario` on every durable field, with session-scoped UUIDs (`*_tmp_id`) carved out per EXI R5.
 
-Currently covered: **Excel** — codec lives in `use_cases/excel_import/excel_codec.rs` and holds the typed `ParsedExcelData` contract plus data-mapping constants (sheet names, header labels, fixed column positions, content placeholders) that locate each field in the document. Parser internals (validation thresholds, fallback offsets, emitted strings) stay inside the parser. Future surfaces (fund-PDF, bank-PDF) extend the codec via spec extensions.
+Currently covered:
 
-The `dev-fixtures` Cargo feature gates the binary, every write-side dependency (`rust_xlsxwriter`), and the round-trip integration test (`tests/codec_round_trip.rs`). The standard `cargo test` and `tauri build` jobs run without the feature.
+| Surface  | Codec module                                                | Contract type      | Round-trip carve-outs                                   |
+| -------- | ----------------------------------------------------------- | ------------------ | ------------------------------------------------------- |
+| Excel    | `use_cases/excel_import/excel_codec.rs`                     | `ParsedExcelData`  | Session-scoped `*_tmp_id` UUIDs (EXI R5).               |
+| Fund-PDF | `use_cases/fund_payment_reconciliation/fund_pdf_codec.rs`   | `PdfParseResult`   | None — full structural equality (IFC-061).              |
 
-Regenerate fixtures: `just regen-fixtures` (or `just regen-fixtures excel <scenario>`). CI guard: `.github/workflows/dev-fixtures.yml` runs the regeneration command followed by `git diff --exit-code src-tauri/tests/fixtures/` to catch drift.
+Each codec module holds the typed contract plus data-mapping constants (sheet names, header labels, total-line markers, separators) that locate each field in the document. Parser internals (validation thresholds, fallback offsets, regex patterns, emitted strings) stay inside the parser per IFC-063. Bank-PDF (rules 100+) is reserved for a future spec extension.
+
+The `dev-fixtures` Cargo feature gates the binary, every Excel write-side dependency (`rust_xlsxwriter`), and the round-trip integration tests (`tests/codec_round_trip.rs`, `tests/codec_round_trip_fund_pdf.rs`). The fund-PDF writer reuses `printpdf`, already a prod dep for the fund-payment-report renderer (IFC-065 carve-out). The standard `cargo test` and `tauri build` jobs run without the feature.
+
+Regenerate fixtures: `just regen-fixtures excel` / `just regen-fixtures fund-pdf` (optional `<scenario>` arg). CI guard: `.github/workflows/dev-fixtures.yml` regenerates each surface and runs `git diff --exit-code -- src-tauri/tests/fixtures/ ':(exclude)*.pdf'` to catch drift on every deterministic file (`.expected.json`, Excel `.xlsx`); the round-trip tests are the correctness gate for the non-deterministic PDF surface.
 
 ---
 

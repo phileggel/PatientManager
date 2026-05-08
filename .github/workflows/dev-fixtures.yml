@@ -15,8 +15,11 @@ on:
       - "src-tauri/Cargo.lock"
       - "src-tauri/src/bin/generate_fixtures.rs"
       - "src-tauri/src/bin/fixtures_excel/**"
+      - "src-tauri/src/bin/fixtures_fund_pdf/**"
       - "src-tauri/src/use_cases/excel_import/**"
+      - "src-tauri/src/use_cases/fund_payment_reconciliation/**"
       - "src-tauri/tests/codec_round_trip.rs"
+      - "src-tauri/tests/codec_round_trip_fund_pdf.rs"
       - "src-tauri/tests/common/**"
       - "src-tauri/tests/fixtures/**"
       - ".github/workflows/dev-fixtures.yml"
@@ -28,8 +31,11 @@ on:
       - "src-tauri/Cargo.lock"
       - "src-tauri/src/bin/generate_fixtures.rs"
       - "src-tauri/src/bin/fixtures_excel/**"
+      - "src-tauri/src/bin/fixtures_fund_pdf/**"
       - "src-tauri/src/use_cases/excel_import/**"
+      - "src-tauri/src/use_cases/fund_payment_reconciliation/**"
       - "src-tauri/tests/codec_round_trip.rs"
+      - "src-tauri/tests/codec_round_trip_fund_pdf.rs"
       - "src-tauri/tests/common/**"
       - "src-tauri/tests/fixtures/**"
       - ".github/workflows/dev-fixtures.yml"
@@ -66,11 +72,22 @@ jobs:
         with:
           workspaces: src-tauri
           prefix-key: ci-dev-fixtures
-      - name: Regenerate fixtures
+      - name: Regenerate fixtures (excel)
         working-directory: src-tauri
         run: cargo run --features dev-fixtures --bin generate_fixtures -- excel
+      - name: Regenerate fixtures (fund-pdf)
+        working-directory: src-tauri
+        run: cargo run --features dev-fixtures --bin generate_fixtures -- fund-pdf
+      # IFC-041 — drift check.
+      # The exclude pathspec skips fund-PDF binaries: printpdf 0.9 emits a fresh
+      # `/ID` array on every save (random per-run), so byte-for-byte equality
+      # is impossible for the PDF surface. The round-trip test below is the
+      # real correctness gate; this drift check still catches drift on the
+      # `.expected.json` snapshots and any deterministic surface (excel).
+      # The pathspec is scoped to the fixture directory so a future
+      # deterministic `.pdf` committed elsewhere is still drift-checked.
       - name: Drift check (IFC-041)
-        run: git diff --exit-code src-tauri/tests/fixtures/
+        run: git diff --exit-code -- src-tauri/tests/fixtures/ ':(exclude)src-tauri/tests/fixtures/**/*.pdf'
       - name: Round-trip tests (IFC-051)
         working-directory: src-tauri
-        run: cargo test --features dev-fixtures --test codec_round_trip
+        run: cargo test --features dev-fixtures --test codec_round_trip --test codec_round_trip_fund_pdf
