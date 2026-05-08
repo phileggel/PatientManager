@@ -2,6 +2,89 @@ use chrono::{Duration, NaiveDate};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+// =============================================================================
+// IFC codec — data mapping
+// =============================================================================
+//
+// The constants below describe the source document's data mapping — which
+// sheet holds what, which header label corresponds to which field, where
+// each fixed-position field lives, and which cell value means "absence".
+// Both the production parser (which scans for these strings) and the dev
+// fixture generator (which writes these strings) reference this module.
+//
+// Validation rules, fallback offsets, parser-emitted strings, and any
+// optional/heuristic behavior stay inside the parser — the codec is
+// data-mapping only. The round-trip integration test (IFC-021) catches any
+// drift between parser and writer for things that are NOT centralised here.
+
+/// Sheet name carrying the patients list. Header-less; data rows from row 0.
+pub const PATIENTE_SHEET: &str = "Patiente";
+
+/// Sheet name carrying the funds list. Header-less; data rows from row 0.
+pub const SECU_SHEET: &str = "Secu";
+
+/// Canonical monthly sheet names paired with their accepted variations.
+/// The first element of each pair is the canonical name written by the
+/// generator and stored in `ExcelProcedure.sheet_month`. The variations
+/// are alternative names the parser also accepts when reading.
+pub const MONTHLY_SHEET_VARIATIONS: &[(&str, &[&str])] = &[
+    ("Jan", &["Jan", "Janvier"]),
+    ("Fév", &["Fév", "Février"]),
+    ("Mars", &["Mars"]),
+    ("Avr", &["Avr", "Avril"]),
+    ("Mai", &["Mai"]),
+    ("Juin", &["Juin"]),
+    ("Juil", &["Juil", "Juillet"]),
+    ("Août", &["Août", "Aout"]),
+    ("Sep", &["Sep", "Sept", "Septembre"]),
+    ("Oct", &["Oct", "Octobre"]),
+    ("Nov", &["Nov", "Novembre"]),
+    ("Déc", &["Déc", "Décembre"]),
+];
+
+/// Header labels of the monthly procedure sheets, plus the patient column's
+/// fixed position. Fallback offsets for absent optional labels are NOT here
+/// — they are parser fallback logic, not data mapping.
+pub mod monthly_header {
+    // --- Required labels (case-insensitive after `to_uppercase()`). ---
+
+    /// Header label for the fund-identifier column.
+    pub const FUND: &str = "CAISSE";
+    /// Header label for the procedure-amount column (in euros).
+    pub const AMOUNT: &str = "TARIF";
+    /// Header label for the procedure-date column.
+    pub const DATE: &str = "DATE";
+
+    // --- Optional labels (case-insensitive after `to_uppercase()`). ---
+
+    /// Header label for the payment-method column.
+    pub const PAYMENT_METHOD: &str = "T";
+    /// Header label for the confirmed-payment-date column.
+    pub const CONFIRMED_PAYMENT_DATE: &str = "REMBSE";
+
+    // --- Optional labels (case-sensitive — accented characters). ---
+
+    /// Header label for the paid-amount column (in euros).
+    pub const PAID_AMOUNT: &str = "Versé";
+    /// Header label for the awaited-amount column (in euros).
+    pub const AWAITED_AMOUNT: &str = "En attente";
+
+    // --- Fixed positions. ---
+
+    /// The parser always reads patient name from this column index,
+    /// regardless of the header layout. The writer emits the patient
+    /// name at the same column.
+    pub const PATIENT_COL: usize = 1;
+}
+
+/// Cell value the parser treats as "no fund" alongside `""`. The dev
+/// generator emits this value for `latest_fund: None` on Patiente rows.
+pub const NO_FUND_PLACEHOLDER: &str = "0";
+
+// =============================================================================
+// IFC codec — typed data structures
+// =============================================================================
+
 /// Parsed patient data from Excel Patiente sheet
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ExcelPatient {

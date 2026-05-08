@@ -1,4 +1,5 @@
-use crate::use_cases::excel_import::domain::{
+use crate::use_cases::excel_import::excel_codec as codec;
+use crate::use_cases::excel_import::excel_codec::{
     convert_excel_date_to_iso, parse_text_date_to_iso, ExcelFund, ExcelPatient, ExcelProcedure,
     ParsedExcelData, ParsingIssues, SkippedRow,
 };
@@ -31,6 +32,8 @@ impl ColIdx {
     /// Both formats share the same offsets relative to CAISSE:
     ///   T = CAISSE+5, REMBSE = CAISSE+6, Versé = CAISSE+7, En attente = CAISSE+8
     fn from_header_row(row: &[calamine::Data]) -> Option<Self> {
+        use codec::monthly_header as h;
+
         let mut fund = None;
         let mut amount = None;
         let mut date = None;
@@ -42,18 +45,19 @@ impl ColIdx {
         for (i, cell) in row.iter().enumerate() {
             let val = cell.to_string();
             let trimmed = val.trim();
-            match trimmed.to_uppercase().as_str() {
-                "CAISSE" => fund = Some(i),
-                "TARIF" => amount = Some(i),
-                "DATE" => date = Some(i),
-                "T" => payment_method = Some(i),
-                "REMBSE" => confirmed_payment_date = Some(i),
+            let upper = trimmed.to_uppercase();
+            match upper.as_str() {
+                s if s == h::FUND => fund = Some(i),
+                s if s == h::AMOUNT => amount = Some(i),
+                s if s == h::DATE => date = Some(i),
+                s if s == h::PAYMENT_METHOD => payment_method = Some(i),
+                s if s == h::CONFIRMED_PAYMENT_DATE => confirmed_payment_date = Some(i),
                 _ => {}
             }
-            // Case-sensitive matches for accented characters
+            // Case-sensitive matches for accented labels.
             match trimmed {
-                "Versé" => paid_amount = Some(i),
-                "En attente" => awaited_amount = Some(i),
+                s if s == h::PAID_AMOUNT => paid_amount = Some(i),
+                s if s == h::AWAITED_AMOUNT => awaited_amount = Some(i),
                 _ => {}
             }
         }
@@ -62,8 +66,12 @@ impl ColIdx {
         let amount = amount?;
         let date = date?;
 
+        // Default offsets relative to the fund column when optional labels
+        // are absent from the header row. These are parser fallback logic
+        // (heuristic), not document data mapping — they intentionally stay
+        // inline rather than being promoted to the codec.
         Some(ColIdx {
-            patient: 1,
+            patient: h::PATIENT_COL,
             fund,
             amount,
             date,
@@ -181,24 +189,6 @@ impl ExcelParserService {
         Ok(result)
     }
 
-    /// Months list shared between patient extraction and procedure parsing
-    fn monthly_sheet_variations() -> Vec<(&'static str, &'static [&'static str])> {
-        vec![
-            ("Jan", &["Jan", "Janvier"][..]),
-            ("Fév", &["Fév", "Février"][..]),
-            ("Mars", &["Mars"][..]),
-            ("Avr", &["Avr", "Avril"][..]),
-            ("Mai", &["Mai"][..]),
-            ("Juin", &["Juin"][..]),
-            ("Juil", &["Juil", "Juillet"][..]),
-            ("Août", &["Août", "Aout"][..]),
-            ("Sep", &["Sep", "Sept", "Septembre"][..]),
-            ("Oct", &["Oct", "Octobre"][..]),
-            ("Nov", &["Nov", "Novembre"][..]),
-            ("Déc", &["Déc", "Décembre"][..]),
-        ]
-    }
-
     /// Fallback: extract unique patients directly from monthly sheets.
     ///
     /// Used when the "Patiente" sheet is absent (old format).
@@ -210,8 +200,8 @@ impl ExcelParserService {
         let mut by_ssn: HashMap<String, ExcelPatient> = HashMap::new();
         let mut by_name: HashMap<String, ExcelPatient> = HashMap::new();
 
-        for (_, variations) in Self::monthly_sheet_variations() {
-            for variation in variations {
+        for &(_, variations) in codec::MONTHLY_SHEET_VARIATIONS {
+            for &variation in variations {
                 if let Ok(range) = workbook.worksheet_range(variation) {
                     let mut col_idx: Option<ColIdx> = None;
                     for row in range.rows() {
@@ -237,7 +227,7 @@ impl ExcelParserService {
                             continue;
                         }
 
-                        // Validate SSN: must be exactly 13 numeric digits
+                        // Validate SSN: must be exactly 13 numeric digits.
                         let is_valid_ssn = !ssn.is_empty()
                             && !Self::is_excel_error(&ssn)
                             && ssn.chars().all(|c| c.is_ascii_digit())
@@ -251,9 +241,9 @@ impl ExcelParserService {
                                 latest_fund: None,
                             });
                         } else {
-                            // Invalid or absent SSN: append code to name for traceability
+                            // Invalid or absent SSN: append code to name for traceability.
                             let display_name = if !ssn.is_empty() && !Self::is_excel_error(&ssn) {
-                                format!("{} (code: {})", name, ssn)
+                                format!("{name} (code: {ssn})")
                             } else {
                                 name.clone()
                             };
@@ -288,7 +278,7 @@ impl ExcelParserService {
         parsing_issues: &mut ParsingIssues,
     ) -> anyhow::Result<Vec<ExcelPatient>> {
         let mut patients = Vec::new();
-        let sheet_name = "Patiente";
+        let sheet_name = codec::PATIENTE_SHEET;
 
         let range = match workbook.worksheet_range(sheet_name) {
             Ok(r) => r,
@@ -324,9 +314,9 @@ impl ExcelParserService {
                 continue;
             }
 
-            // Treat "0" or empty as no fund
+            // Treat NO_FUND_PLACEHOLDER or empty as no fund.
             let latest_fund = match latest_fund_str.trim() {
-                "" | "0" => None,
+                s if s.is_empty() || s == codec::NO_FUND_PLACEHOLDER => None,
                 fund => Some(fund.to_string()),
             };
 
@@ -361,7 +351,7 @@ impl ExcelParserService {
         parsing_issues: &mut ParsingIssues,
     ) -> anyhow::Result<Vec<ExcelFund>> {
         let mut funds = Vec::new();
-        let sheet_name = "Secu";
+        let sheet_name = codec::SECU_SHEET;
 
         let range = match workbook.worksheet_range(sheet_name) {
             Ok(r) => r,
@@ -436,11 +426,10 @@ impl ExcelParserService {
         fund_identifier_to_temp_id: &HashMap<String, String>,
     ) -> anyhow::Result<Vec<ExcelProcedure>> {
         let mut procedures = Vec::new();
-        let months = Self::monthly_sheet_variations();
 
-        for (canonical_month, variations) in months {
+        for &(canonical_month, variations) in codec::MONTHLY_SHEET_VARIATIONS {
             let mut found = false;
-            for variation in variations {
+            for &variation in variations {
                 if let Ok(range) = workbook.worksheet_range(variation) {
                     found = true;
                     tracing::debug!(
@@ -489,9 +478,9 @@ impl ExcelParserService {
                             .unwrap_or_default();
                         let fund_identifier_raw =
                             row.get(idx.fund).map(|c| c.to_string()).unwrap_or_default();
-                        // Treat "0" as no fund (patient without fund)
+                        // Treat NO_FUND_PLACEHOLDER as no fund (patient without fund).
                         let fund_identifier = match fund_identifier_raw.trim() {
-                            "" | "0" => String::new(),
+                            s if s.is_empty() || s == codec::NO_FUND_PLACEHOLDER => String::new(),
                             id => id.to_string(),
                         };
                         let amount_str = row
@@ -597,9 +586,9 @@ impl ExcelParserService {
                                 .get(&patient_name.to_lowercase())
                                 .cloned()
                                 .or_else(|| {
-                                    // Patient stored with "(code: SSN)" suffix (invalid SSN)
+                                    // Patient stored with "(code: SSN)" suffix (invalid SSN).
                                     if !row_ssn.is_empty() && !Self::is_excel_error(row_ssn) {
-                                        let key = format!("{} (code: {})", patient_name, row_ssn)
+                                        let key = format!("{patient_name} (code: {row_ssn})")
                                             .to_lowercase();
                                         patient_name_to_temp_id.get(&key).cloned()
                                     } else {

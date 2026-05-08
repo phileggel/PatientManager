@@ -42,7 +42,7 @@ coverage-fe:
 # Generate backend coverage report (outputs coverage/backend/)
 # Requires: cargo install cargo-tarpaulin
 coverage-be:
-    mkdir -p coverage/backend && cd src-tauri && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir ../coverage/backend --lib --exclude-files "build.rs" --exclude-files "src/bin/generate_bindings.rs"
+    mkdir -p coverage/backend && cd src-tauri && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir ../coverage/backend --lib --exclude-files "build.rs" --exclude-files "src/bin/generate_bindings.rs" --exclude-files "src/bin/generate_fixtures.rs" --exclude-files "src/bin/fixtures_excel/*"
 
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be

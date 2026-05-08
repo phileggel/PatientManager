@@ -21,6 +21,19 @@ on:
       - "src-tauri/tests/fixtures/**"
       - ".github/workflows/dev-fixtures.yml"
       - "justfile"
+  push:
+    branches: [main]
+    paths:
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
+      - "src-tauri/src/bin/generate_fixtures.rs"
+      - "src-tauri/src/bin/fixtures_excel/**"
+      - "src-tauri/src/use_cases/excel_import/**"
+      - "src-tauri/tests/codec_round_trip.rs"
+      - "src-tauri/tests/common/**"
+      - "src-tauri/tests/fixtures/**"
+      - ".github/workflows/dev-fixtures.yml"
+      - "justfile"
 
 concurrency:
   group: dev-fixtures-${{ github.ref }}
