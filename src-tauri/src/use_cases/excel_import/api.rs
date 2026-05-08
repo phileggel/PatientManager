@@ -9,7 +9,7 @@ use crate::use_cases::excel_import::amount_mapping_repo::{
     ExcelAmountMapping, ExcelAmountMappingRepository, SaveExcelAmountMappingRequest,
     SqliteExcelAmountMappingRepository,
 };
-use crate::use_cases::excel_import::domain::{
+use crate::use_cases::excel_import::excel_codec::{
     ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues,
 };
 use crate::use_cases::excel_import::orchestrator::ExcelImportOrchestrator;

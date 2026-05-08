@@ -256,7 +256,7 @@ mod tests {
         ProcedureService,
     };
     use crate::core::event_bus::EventBus;
-    use crate::use_cases::excel_import::domain::{
+    use crate::use_cases::excel_import::excel_codec::{
         ExcelFund, ExcelPatient, ExcelProcedure, ParsingIssues,
     };
     use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
