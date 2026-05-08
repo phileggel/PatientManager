@@ -59,22 +59,25 @@ Use **AskUserQuestion** to get:
 1. Commit type (mandatory, default to suggested)
 2. Optional scope (e.g. `domain`, `feature`, `ci`) — leave blank for no scope
 3. Commit message (imperative, **English**, ≤72 characters) — pre-populate with the suggested title from step 4 (including its char count) so the user can accept or adjust inline without a back-and-forth correction loop
-4. Commit body (optional, **English**, max 5 lines; `BREAKING CHANGE:` footer lines don't count toward the limit)
+4. Commit body (optional, **English**, max 5 lines):
+   - **Body explains _why_, not _what_.** The diff is the _what_. The body captures intent, constraint, tradeoff, or non-obvious reasoning the diff cannot convey. Do not enumerate changes — that's the AI default and it produces noise; resist it.
+   - Footer rules: `BREAKING CHANGE:` is ignored toward the 5-line limit. `Co-Authored-By:` is **forbidden** (blocked by the commit-msg hook). `Refs:` (e.g. `Refs: #123`) is allowed and counts toward the 5 lines.
 
 ### 6. Validate message format
 
 - Commit type must be one of: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `ci`
+- For breaking changes, append `!` after the type (e.g. `refactor!: drop foo`); the release script will major-bump the version
 - Title ≤72 chars, body ≤5 lines (`BREAKING CHANGE:` footer lines excluded from count)
 - If non-compliant: return to step 5 and prompt the user to correct the message
 
 ### 7. Confirm before committing
 
-Display the full formatted commit title (and body if provided) and ask the user to confirm:
+Display the full formatted commit title (and body if provided) **as plain text in the chat**, then ask the user to confirm:
 
 > Ready to commit: `type(scope): message`
 > Proceed?
 
-Use **AskUserQuestion** with a Yes / Cancel option. If the user cancels, stop and do not commit.
+Use **AskUserQuestion** with a Yes / Cancel option. Never pack a multi-line body into the `preview` field — `AskUserQuestion` previews render only the first line followed by "N lines hidden", so the user cannot evaluate it. Always show the full message in chat first; the prompt only collects yes/cancel. If the user cancels, stop and do not commit.
 
 ### 8. Create commit
 
@@ -100,8 +103,8 @@ git log -1 --oneline
 
 1. Never commit sensitive files
 2. All linters must pass (`just check`) before committing
-3. All linters must pass
-4. Commit message must be in **English** and follow conventional format: `type: message` or `type(scope): message`
+3. Commit message must be in **English** and follow conventional format: `type: message` or `type(scope): message`
+4. Body explains _why_, not _what_ — the diff is the _what_; do not enumerate changes
 5. Never use `git add -A` — stage files explicitly by name
 6. User confirmation required before commit
 7. No bypassing rules in production
