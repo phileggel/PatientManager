@@ -10,68 +10,12 @@ use tauri::State;
 
 // ============ Domain Types ============
 
-/// A normalized PDF procedure line — the ONE domain object for reconciliation.
-///
-/// All dates are NaiveDate (serialized as ISO YYYY-MM-DD via serde/specta).
-/// Produced by the parser after normalization; used throughout the backend
-/// and sent to the frontend via Tauri/Specta.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
-pub struct NormalizedPdfLine {
-    /// Unique index of the line in the original PDF
-    pub line_index: u32,
-    /// Payment date
-    #[specta(type = String)]
-    pub payment_date: NaiveDate,
-    /// Invoice number
-    pub invoice_number: String,
-    /// Fund/organism name (e.g., "CPAM n° 931")
-    pub fund_name: String,
-    /// Patient name as registered with the fund
-    pub patient_name: String,
-    /// Social security number (13 digits)
-    pub ssn: String,
-    /// Nature of the act (e.g., "SF")
-    pub nature: String,
-    /// Start date of the act or period
-    #[specta(type = String)]
-    pub procedure_start_date: NaiveDate,
-    /// End date (same as start for single-date acts)
-    #[specta(type = String)]
-    pub procedure_end_date: NaiveDate,
-    /// True if this line covers a period (start ≠ end)
-    pub is_period: bool,
-    /// Amount in thousandths of a euro (e.g. 1234 = 1.234 €)
-    pub amount: i64,
-}
-
-/// A group of procedure lines paid by the same fund on the same date
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct PdfProcedureGroup {
-    /// Fund short label from data lines (e.g., "CPAM n° 931")
-    pub fund_label: String,
-    /// Full fund description from the total line
-    pub fund_full_name: String,
-    /// Payment date for this group
-    #[specta(type = String)]
-    pub payment_date: NaiveDate,
-    /// Total amount stated in the PDF (thousandths of a euro)
-    pub total_amount: i64,
-    /// Whether the sum of line amounts matches the stated total
-    pub is_total_valid: bool,
-    /// Individual procedure lines in this group
-    pub lines: Vec<NormalizedPdfLine>,
-}
-
-/// Complete parse result for a PDF statement
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct PdfParseResult {
-    /// All procedure groups found in the document
-    pub groups: Vec<PdfProcedureGroup>,
-    /// Number of lines that could not be parsed
-    pub unparsed_line_count: u32,
-    /// Sample unparsed lines for debugging (max 5)
-    pub unparsed_lines: Vec<String>,
-}
+// `NormalizedPdfLine`, `PdfProcedureGroup`, and `PdfParseResult` are the
+// fund-PDF codec contract — moved to `fund_pdf_codec.rs` per IFC-060. This
+// re-export preserves the existing import paths used by `service.rs`,
+// `output/`, `data/`, `reconciliation/`, `parsing/pdf_parser.rs`, and the
+// Specta-generated `parse_pdf_text` Tauri command.
+pub use super::fund_pdf_codec::{NormalizedPdfLine, PdfParseResult, PdfProcedureGroup};
 
 /// Type of detected anomaly
 #[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq)]

@@ -2,12 +2,6 @@
 
 ---
 
-## (codec/fund-pdf) — Extend import codec to fund-payment-reconciliation PDFs
-
-The IFC codec currently covers Excel only (`ParsedExcelData` ↔ `.xlsx`). The fund-payment-reconciliation surface is the next consumer: contract type would be the existing `PdfParseResult` in `use_cases/fund_payment_reconciliation/parsing/`, with the dev generator producing PDFs the existing `extract_pdf_text` + parser pipeline inverts. Allocate a fresh `IFC-NNN` block in `docs/spec/import-codec-fixtures.md` (starting at 060). Likely requires a write-side library choice (e.g. `printpdf` is already in the prod dep tree but is gated by the dev-fixtures feature only when used by the generator).
-
----
-
 ## (codec/bank-pdf) — Extend import codec to bank-statement PDFs
 
 Same pattern as fund-PDF above, but for the bank-statement reconciliation surface (`BankStatementParseResult`). Note: `parse_bank_statement` currently takes bytes; combine with `(backend+frontend/bank-statement) — Align PDF reading pattern with fund reconciliation` below before adding the codec to avoid building the generator against a shape that's about to change.

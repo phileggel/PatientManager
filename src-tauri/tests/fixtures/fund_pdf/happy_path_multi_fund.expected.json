@@ -1,0 +1,63 @@
+{
+  "groups": [
+    {
+      "fund_label": "CPAM n° 931",
+      "fund_full_name": "la Caisse",
+      "payment_date": "2025-05-02",
+      "total_amount": 75000,
+      "is_total_valid": true,
+      "lines": [
+        {
+          "line_index": 2,
+          "payment_date": "2025-05-02",
+          "invoice_number": "001",
+          "fund_name": "CPAM n° 931",
+          "patient_name": "ALICE MARTIN",
+          "ssn": "1234567890123",
+          "nature": "SF",
+          "procedure_start_date": "2025-04-28",
+          "procedure_end_date": "2025-04-28",
+          "is_period": false,
+          "amount": 25000
+        },
+        {
+          "line_index": 4,
+          "payment_date": "2025-05-02",
+          "invoice_number": "002",
+          "fund_name": "CPAM n° 931",
+          "patient_name": "BOB DURAND",
+          "ssn": "9876543210987",
+          "nature": "SF",
+          "procedure_start_date": "2025-04-28",
+          "procedure_end_date": "2025-04-30",
+          "is_period": true,
+          "amount": 50000
+        }
+      ]
+    },
+    {
+      "fund_label": "MGEN",
+      "fund_full_name": "MGEN",
+      "payment_date": "2025-05-03",
+      "total_amount": 30000,
+      "is_total_valid": true,
+      "lines": [
+        {
+          "line_index": 8,
+          "payment_date": "2025-05-03",
+          "invoice_number": "003",
+          "fund_name": "MGEN",
+          "patient_name": "CAROL BERNARD",
+          "ssn": "5555555555555",
+          "nature": "SF",
+          "procedure_start_date": "2025-04-28",
+          "procedure_end_date": "2025-04-28",
+          "is_period": false,
+          "amount": 30000
+        }
+      ]
+    }
+  ],
+  "unparsed_line_count": 0,
+  "unparsed_lines": []
+}
