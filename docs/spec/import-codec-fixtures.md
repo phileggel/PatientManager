@@ -18,10 +18,11 @@ a dev-only artifact; the dev generator depends on it, never the reverse.
 Only the generator and its supporting fixture tooling are gated behind a
 Cargo feature.
 
-The codec covers one surface today — Excel — through its existing contract
-(`ParsedExcelData`). Fund-payment-reconciliation PDFs and bank-statement PDFs
-are not in scope here; each is added later through its own spec extension to
-this document, allocating a fresh `IFC-NNN` block at the time of writing.
+The codec covers two surfaces today: **Excel** through its `ParsedExcelData`
+contract, and **fund-payment-reconciliation PDFs** through their
+`PdfParseResult` contract. Bank-statement PDFs remain a future surface,
+to be added later through a spec extension to this document allocating a
+fresh `IFC-NNN` block at the time of writing.
 
 The generator ships as a Cargo-feature-gated binary, isolated from the
 production application: the production build links neither the binary nor any
@@ -31,14 +32,18 @@ write-side dependency.
 
 ## Entity Definition
 
-This feature does not introduce a persisted entity. It works against the
-in-memory `ParsedExcelData` contract that lives in
-`use_cases/excel_import/excel_codec.rs` — a module dedicated to the IFC codec
-for the Excel surface, holding the typed data structures and the
-data-mapping constants (sheet names, header labels, fixed column positions,
-content placeholders) that locate each field in the source document. Parser
-internals (validation thresholds, fallback offsets, emitted strings) stay
-inside the parser. No database schema change is required.
+This feature does not introduce a persisted entity. Each codec is a
+per-surface in-memory module holding typed data structures plus
+data-mapping constants that locate each field in the source document.
+Parser internals (validation thresholds, regex patterns, fallback offsets,
+emitted strings) stay inside each surface's parser.
+
+| Surface  | Codec module                                              | Contract type     |
+| -------- | --------------------------------------------------------- | ----------------- |
+| Excel    | `use_cases/excel_import/excel_codec.rs`                   | `ParsedExcelData` |
+| Fund-PDF | `use_cases/fund_payment_reconciliation/fund_pdf_codec.rs` | `PdfParseResult`  |
+
+No database schema change is required.
 
 ---
 
@@ -63,10 +68,10 @@ without that feature; the dev tooling job runs with it. The binary's
 `required-features` declaration MUST list this feature.
 
 **IFC-012 — Stable CLI shape (backend)**: The binary accepts at minimum one
-argument identifying the **surface** to generate (initially only `excel`) and a
-second argument identifying the named **scenario**. Adding new surfaces
-(fund-pdf, bank-pdf) MUST extend the surface argument's accepted values without
-breaking the existing shape.
+argument identifying the **surface** to generate (currently `excel` and
+`fund-pdf`) and a second argument identifying the named **scenario**. Adding
+new surfaces (e.g. bank-pdf) MUST extend the surface argument's accepted
+values without breaking the existing shape.
 
 **IFC-013 — No prod artifact pollution (backend)**: Production-build
 dependencies (`[dependencies]` in `src-tauri/Cargo.toml`, unconditional) MUST
@@ -207,11 +212,15 @@ from byte-level determinism and rely solely on the round-trip property
 
 **IFC-041 — CI drift guard (backend)**: The dev-fixtures CI job (IFC-042)
 runs the regeneration command and then asserts no working-tree changes
-(`git diff --exit-code src-tauri/tests/fixtures/`). Any drift between
-scenario code and the committed fixtures fails the build, forcing the
-developer to either commit the new output or fix the scenario. This guard
-also catches hand-edits at the next CI run, since the regeneration overwrites
-any divergent committed bytes.
+under `src-tauri/tests/fixtures/`. Any drift between scenario code and the
+committed fixtures fails the build, forcing the developer to either commit
+the new output or fix the scenario. This guard also catches hand-edits at
+the next CI run, since the regeneration overwrites any divergent committed
+bytes. Surfaces whose output is declared non-deterministic (per IFC-040's
+fallback clause; see IFC-064 for fund-PDF) MAY exempt their non-deterministic
+file extension from this check via an explicit pathspec exclusion, provided
+the sibling `.expected.json` snapshots and every other surface's fixtures
+remain covered by the diff check.
 
 **IFC-042 — Dev-fixtures CI job (backend)**: A single CI job — distinct from
 the standard `cargo test` and `tauri build` jobs — enables the dev-fixtures
@@ -235,15 +244,110 @@ integration test under `src-tauri/tests/` asserts the round-trip property
 feature so the standard `cargo test` job (without features) skips it; the
 dev-fixtures CI job (IFC-042) runs it.
 
+### Fund-Payment-Reconciliation PDF Surface (060–099)
+
+> Rules in this section are surface-specific to fund-PDF. Surface-agnostic
+> rules (IFC-010..IFC-013, IFC-023..IFC-025, IFC-030..IFC-034, IFC-040..IFC-042,
+> IFC-050..IFC-051) apply to fund-PDF as written and are not restated.
+
+**IFC-060 — Fund-PDF codec location and contents (backend)**: For the
+fund-payment-reconciliation PDF surface, the codec lives in
+`use_cases/fund_payment_reconciliation/fund_pdf_codec.rs`. It contains the
+existing `PdfParseResult` contract type and its sub-types
+(`PdfProcedureGroup`, `NormalizedPdfLine`), plus the data-mapping constants
+(total-line markers, fund-number marker, date-range separator, currency
+symbol) the parser scans for and the dev generator emits. The Excel codec
+(`use_cases/excel_import/excel_codec.rs`) and the fund-PDF codec are
+independent sibling modules per IFC-023 — they share no traits, no helpers,
+no constants.
+
+**IFC-061 — Fund-PDF round-trip guarantee (backend)**: For every committed
+fund-PDF scenario, `parse(extract_text(generate(scenario))) == scenario`
+holds as **full structural equality** on the contract value, where
+`extract_text` is the same production text-extraction step the
+fund-payment-reconciliation orchestrator already runs before invoking the
+parser (the step exposed today as the `extract_pdf_text` family of Tauri
+commands). `PdfParseResult` carries no session-scoped fields — unlike the
+Excel surface's `*_tmp_id` UUIDs (IFC-021's carve-out) — so every field
+(every `PdfProcedureGroup` member including `is_total_valid`, every
+`NormalizedPdfLine` field including `line_index`, `unparsed_line_count`,
+and the full contents of `unparsed_lines`) is compared directly without
+exception. If a future change to `PdfParseResult` introduces a field
+whose value the parser regenerates per parse, this rule MUST be amended
+to add a corresponding carve-out — the absence of carve-outs is a
+property of the current contract, not a permanent guarantee. The
+scenario builder MUST declare every expected value up-front; the
+generator MUST emit text content in an order that, after PDF text
+extraction, yields matching `line_index` values.
+
+**IFC-062 — Fund-PDF minimum scenario coverage (backend)**: The committed
+fund-PDF scenario set MUST include at least:
+
+1. A multi-fund happy-path scenario covering two `Total réglé le` blocks
+   for two different funds, each with several `NormalizedPdfLine` entries;
+   at least one line uses a period date range
+   (`DD/MM/YYYY au DD/MM/YYYY`); both groups have `is_total_valid = true`;
+   `unparsed_line_count = 0` and `unparsed_lines` empty.
+2. An unparsed-line scenario whose extracted text contains at least one
+   line that the parser counts as unparsed: a line containing a `/`
+   character, at least one ASCII digit, and a length above the parser's
+   minimum-suspicious-length threshold, which fails to match either the
+   data-line or total-line patterns. `unparsed_line_count` MUST be at
+   least 1 after parsing, and the scenario builder MUST declare the exact
+   expected `unparsed_lines` content.
+
+Additional scenarios may be added without changing existing ones.
+
+**IFC-063 — Generator-only on the fund-PDF surface (backend)**: Introducing
+the codec on the fund-PDF surface MUST NOT change the production parser's
+behavior or alter the shape of `PdfParseResult` or its sub-types.
+Literal-to-constant refactors that promote **data-mapping** strings into
+the codec module are explicitly permitted (and encouraged) — these include
+the total-line opening marker (`Total réglé le `), the total-line " par "
+separator, the "(n° …)" fund-number markers, the " au " date-range
+separator, the " €" currency suffix, and any equivalent fixed text the
+parser locates. Such refactors strengthen the codec's role as the single
+source of truth (per IFC-025) without altering parser output. Validation
+patterns (the data-line and total-line regexes, the SSN-length and
+nature-code shape constraints), heuristic filters (the unparsed-line
+length threshold, the sample cap), and parser-emitted strings stay inside
+the parser — they are not data mapping and do not belong in the codec.
+
+**IFC-064 — Fund-PDF generator output is non-deterministic (backend)**: PDF
+byte-determinism is not feasible without significant investment (font
+subsetting, embedded metadata, and stream ordering in the chosen PDF
+write-side library are non-trivially deterministic). Per IFC-040's fallback
+clause, the dev generator MAY emit non-deterministic `.pdf` bytes. The
+committed `.pdf` files serve only as artifacts for manual inspection; they
+are NOT a byte-determinism contract. The drift guard (IFC-041) MUST be
+invoked with an explicit pathspec exclusion that drops `*.pdf` files from
+the diff check (e.g. via Git's `:(exclude)` pathspec), keeping the sibling
+`.expected.json` snapshots and every non-fund-PDF surface's fixtures under
+the check. The `.expected.json` snapshots remain deterministic and
+represent the codec contract for fund-PDF; the round-trip integration test
+(IFC-051) is the load-bearing correctness check for this surface.
+
+**IFC-065 — Write-side PDF library reuse (backend)**: The dev generator
+MAY reuse a PDF write-side library that is already a production
+dependency for another consumer — at the time of writing, the
+fund-payment-report PDF renderer (FPR spec, `use_cases/fund_payment_report_pdf/`)
+is the only such consumer. Doing so does NOT contaminate IFC-013, since
+that rule forbids write-side libraries used "solely by the generator" —
+a library with an existing production consumer is exempt. The dev
+generator MUST NOT introduce a second PDF write-side library when an
+existing one suffices. If the production consumer is ever removed, the
+exemption evaporates and the library either gains another production
+consumer or moves to the dev-fixtures-only feature gate to satisfy
+IFC-013.
+
 ---
 
-> **Note (non-rule) — Future surfaces and numbering**: Fund-payment-reconciliation
-> PDFs and bank-statement PDFs are added later through their own spec
-> extensions to this document. Each extension allocates a fresh `IFC-NNN`
-> block starting from the next available decade boundary at the time of
-> writing (currently 060). The block size is left to the extending spec —
-> there is no pre-allocated reservation, since reserving ranges before the
-> rules are known would be premature design.
+> **Note (non-rule) — Future surfaces and numbering**: Bank-statement PDFs
+> are the remaining future surface and will be added through their own
+> spec extension to this document. The extension will allocate a fresh
+> `IFC-NNN` block starting from the next available decade boundary at the
+> time of writing (currently 100, since fund-PDF used 060–065). Block sizes
+> are left to the extending spec — no pre-allocated reservation.
 
 ---
 
@@ -290,7 +394,7 @@ There is no in-app entry, no menu, and no Tauri command.
 
 The generator binary itself. It accepts:
 
-- A surface argument (initial value: `excel`).
+- A surface argument (currently `excel` or `fund-pdf`).
 - An optional scenario argument; if omitted, regenerates every scenario for
   the surface.
 

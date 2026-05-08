@@ -11,6 +11,7 @@
 //! (IFC-013).
 
 mod fixtures_excel;
+mod fixtures_fund_pdf;
 
 use anyhow::{Context, Result};
 use std::env;
@@ -39,13 +40,13 @@ fn run() -> Result<()> {
 
     let manifest_dir = env::var("CARGO_MANIFEST_DIR")
         .context("CARGO_MANIFEST_DIR not set; run via `cargo run`")?;
-    let out_root = PathBuf::from(manifest_dir)
-        .join("tests")
-        .join("fixtures")
-        .join(surface);
+    let fixtures_root = PathBuf::from(manifest_dir).join("tests").join("fixtures");
 
     match surface {
-        "excel" => fixtures_excel::regenerate(&out_root, scenario),
+        "excel" => fixtures_excel::regenerate(&fixtures_root.join("excel"), scenario),
+        // CLI surface arg is `fund-pdf` (kebab-case); output dir uses
+        // snake_case to match the test helper module name (`fund_pdf`).
+        "fund-pdf" => fixtures_fund_pdf::regenerate(&fixtures_root.join("fund_pdf"), scenario),
         other => {
             print_usage();
             anyhow::bail!("unknown surface: {other}")
@@ -57,7 +58,8 @@ fn print_usage() {
     eprintln!("Usage: generate_fixtures <surface> [scenario]");
     eprintln!();
     eprintln!("Surfaces:");
-    eprintln!("  excel    Excel xlsx fixtures");
+    eprintln!("  excel      Excel xlsx fixtures");
+    eprintln!("  fund-pdf   Fund-payment-reconciliation PDF fixtures");
     eprintln!();
     eprintln!("If <scenario> is omitted, regenerates every scenario for the surface.");
 }

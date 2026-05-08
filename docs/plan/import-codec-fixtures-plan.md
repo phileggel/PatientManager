@@ -79,25 +79,26 @@ None. This feature does not touch the database (spec § Entity Definition).
 
 #### Cargo manifest changes (`src-tauri/Cargo.toml`)
 
-| Change | Detail | Rules |
-|---|---|---|
-| `[features]` add `dev-fixtures = ["dep:rust_xlsxwriter", "dep:zip"]` (or just `["dep:rust_xlsxwriter"]` — see writer recommendation below) | Single feature gates the binary and every write-side dep. Co-existence with the existing `generate-bindings` feature is fine; both are dev-only. | IFC-011 |
-| `[dependencies]` keep clean — write-side libs declared with `optional = true` and pulled in by the feature only. Example: `rust_xlsxwriter = { version = "0.x", optional = true }`. | Production `cargo build` (no features) MUST NOT pull `rust_xlsxwriter`. Verify with `cargo tree --no-default-features`. | IFC-013, IFC-024 |
-| `[[bin]]` add new entry: `name = "generate_fixtures"`, `path = "src/bin/generate_fixtures.rs"`, `required-features = ["dev-fixtures"]`. | Mirrors the existing `generate_bindings` bin pattern. | IFC-010, IFC-011 |
+| Change                                                                                                                                                                              | Detail                                                                                                                                           | Rules            |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| `[features]` add `dev-fixtures = ["dep:rust_xlsxwriter", "dep:zip"]` (or just `["dep:rust_xlsxwriter"]` — see writer recommendation below)                                          | Single feature gates the binary and every write-side dep. Co-existence with the existing `generate-bindings` feature is fine; both are dev-only. | IFC-011          |
+| `[dependencies]` keep clean — write-side libs declared with `optional = true` and pulled in by the feature only. Example: `rust_xlsxwriter = { version = "0.x", optional = true }`. | Production `cargo build` (no features) MUST NOT pull `rust_xlsxwriter`. Verify with `cargo tree --no-default-features`.                          | IFC-013, IFC-024 |
+| `[[bin]]` add new entry: `name = "generate_fixtures"`, `path = "src/bin/generate_fixtures.rs"`, `required-features = ["dev-fixtures"]`.                                             | Mirrors the existing `generate_bindings` bin pattern.                                                                                            | IFC-010, IFC-011 |
 
 #### Excel xlsx writer — library decision
 
 **Recommendation: `rust_xlsxwriter`** (current crate name on crates.io for `rust_xlsxwriter`, by John McNamara — author of the established Python `xlsxwriter`).
 
-| Criterion | `rust_xlsxwriter` | `umya-spreadsheet` | Verdict |
-|---|---|---|---|
-| Cell-level layout control (string vs. number, formulas, dates) | First-class — `worksheet.write_string`, `write_number`, `write_datetime`. Header row by row, exact column placement. | Higher-level model (whole document tree), more indirection. | **`rust_xlsxwriter`** — the parser is sensitive to header text (`CAISSE`, `TARIF`, `DATE`, `Versé`, `En attente`) and column position; we need direct cell control. |
-| Excel serial date emission (matches `convert_excel_date_to_iso` in `domain.rs`) | Has `ExcelDateTime` and `worksheet.write_datetime` → produces native serial-date cells. | Has date support but relies on its OOXML model abstractions. | **`rust_xlsxwriter`** — closer alignment with what calamine reads back. |
-| Determinism knobs (zip mtime, sheet order) | Sheet order is insertion order — deterministic. Zip entries default to `1980-01-01` (the OOXML convention) or library-set fixed time; verify with a hex dump and post-process if needed (rezip with fixed mtimes). The library has a `set_creation_time` / properties API that lets us pin the workbook's `dcterms:created` / `dcterms:modified`. | Less documented determinism story. | **`rust_xlsxwriter`** — combine its document-property setters with a post-processing rezip step if any field still varies. |
-| Maintenance & maturity | Actively maintained, mirrors a battle-tested Python lib. | Active but smaller ecosystem. | **`rust_xlsxwriter`**. |
-| Minimum dependency surface | Brings `zip`, `serde`, etc. — all dev-fixtures gated. | Heavier. | **`rust_xlsxwriter`**. |
+| Criterion                                                                       | `rust_xlsxwriter`                                                                                                                                                                                                                                                                                                                                 | `umya-spreadsheet`                                           | Verdict                                                                                                                                                             |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cell-level layout control (string vs. number, formulas, dates)                  | First-class — `worksheet.write_string`, `write_number`, `write_datetime`. Header row by row, exact column placement.                                                                                                                                                                                                                              | Higher-level model (whole document tree), more indirection.  | **`rust_xlsxwriter`** — the parser is sensitive to header text (`CAISSE`, `TARIF`, `DATE`, `Versé`, `En attente`) and column position; we need direct cell control. |
+| Excel serial date emission (matches `convert_excel_date_to_iso` in `domain.rs`) | Has `ExcelDateTime` and `worksheet.write_datetime` → produces native serial-date cells.                                                                                                                                                                                                                                                           | Has date support but relies on its OOXML model abstractions. | **`rust_xlsxwriter`** — closer alignment with what calamine reads back.                                                                                             |
+| Determinism knobs (zip mtime, sheet order)                                      | Sheet order is insertion order — deterministic. Zip entries default to `1980-01-01` (the OOXML convention) or library-set fixed time; verify with a hex dump and post-process if needed (rezip with fixed mtimes). The library has a `set_creation_time` / properties API that lets us pin the workbook's `dcterms:created` / `dcterms:modified`. | Less documented determinism story.                           | **`rust_xlsxwriter`** — combine its document-property setters with a post-processing rezip step if any field still varies.                                          |
+| Maintenance & maturity                                                          | Actively maintained, mirrors a battle-tested Python lib.                                                                                                                                                                                                                                                                                          | Active but smaller ecosystem.                                | **`rust_xlsxwriter`**.                                                                                                                                              |
+| Minimum dependency surface                                                      | Brings `zip`, `serde`, etc. — all dev-fixtures gated.                                                                                                                                                                                                                                                                                             | Heavier.                                                     | **`rust_xlsxwriter`**.                                                                                                                                              |
 
 **Determinism plan (IFC-040)**:
+
 1. Pin workbook properties (`set_creation_time`, `set_author`) to fixed values.
 2. After write, if any zip-entry mtime is observed to vary across runs, rezip the file deterministically: read entries, rewrite with all `last_modified` set to a fixed epoch (e.g., `1980-01-01T00:00:00`), preserving entry order.
 3. If a non-suppressible field remains (e.g., random GUIDs in workbook XML), **accept** non-determinism per IFC-040 fallback: rely on IFC-021's structural-equality property, never on byte equality of committed files.
@@ -127,15 +128,15 @@ src-tauri/src/bin/fixtures_excel/atomic.rs    (temp + rename helper, partial cle
 
 > Cargo allows binaries to have a sibling module tree — `src/bin/generate_fixtures.rs` plus a sibling `src/bin/generate_fixtures/` folder — but having a separate `fixtures_excel/` tree keeps the surface namespace explicit. Verify the `[[bin]]` entry's `path` resolves modules from a sibling dir; if not, place the helpers under `src/bin/generate_fixtures/` (Cargo's default for `path = "src/bin/generate_fixtures.rs"` does support a sibling directory of the same stem).
 
-| Rule | Implementation site |
-|---|---|
-| IFC-010 | `[[bin]]` entry; default `cargo build` does not see this file because of `required-features`. |
-| IFC-012 | Two positional args: `surface` (required, exhaustive match on `"excel"` for now) + `scenario` (optional). Future surfaces extend the match without breaking existing callers. |
-| IFC-013 | `rust_xlsxwriter` import lives only in `fixtures_excel/writer.rs`, which compiles only when `dev-fixtures` is enabled. |
+| Rule             | Implementation site                                                                                                                                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| IFC-010          | `[[bin]]` entry; default `cargo build` does not see this file because of `required-features`.                                                                                                                                            |
+| IFC-012          | Two positional args: `surface` (required, exhaustive match on `"excel"` for now) + `scenario` (optional). Future surfaces extend the match without breaking existing callers.                                                            |
+| IFC-013          | `rust_xlsxwriter` import lives only in `fixtures_excel/writer.rs`, which compiles only when `dev-fixtures` is enabled.                                                                                                                   |
 | IFC-031, IFC-032 | `fixtures_excel/scenarios.rs`: `pub fn happy_path_3_patients_2_funds() -> ParsedExcelData` and `pub fn skipped_rows_invalid_dates() -> ParsedExcelData`. Plus a registry `pub fn all() -> Vec<(&'static str, fn() -> ParsedExcelData)>`. |
-| IFC-034 | `atomic.rs` exposes `write_atomically(target: &Path, bytes: &[u8])` — writes to `target.with_extension("xlsx.tmp")` (or sibling `.tmp`), `fsync`, then `rename`. On `Err`, `remove_file` the temp path before propagating. |
-| IFC-030 | Output paths computed as `src-tauri/tests/fixtures/excel/{scenario_name}.xlsx` and `.expected.json`. Both written atomically. JSON is `serde_json::to_string_pretty(&parsed_excel_data)` so reviewer audits stay readable. |
-| IFC-040 | Determinism config lives in `writer.rs` (workbook properties pinned) plus a final rezip pass in `atomic.rs` if needed. |
+| IFC-034          | `atomic.rs` exposes `write_atomically(target: &Path, bytes: &[u8])` — writes to `target.with_extension("xlsx.tmp")` (or sibling `.tmp`), `fsync`, then `rename`. On `Err`, `remove_file` the temp path before propagating.               |
+| IFC-030          | Output paths computed as `src-tauri/tests/fixtures/excel/{scenario_name}.xlsx` and `.expected.json`. Both written atomically. JSON is `serde_json::to_string_pretty(&parsed_excel_data)` so reviewer audits stay readable.               |
+| IFC-040          | Determinism config lives in `writer.rs` (workbook properties pinned) plus a final rezip pass in `atomic.rs` if needed.                                                                                                                   |
 
 #### Scenario expectations vs. what the writer emits (IFC-021 round-trip)
 
@@ -187,12 +188,14 @@ Argument forwarding via `*ARGS` lets `just regen-fixtures excel` and `just regen
 #### CI workflow — `.github/workflows/dev-fixtures.yml` (new)
 
 Decision: **separate workflow file**, not extending `ci.yml`. Reasons:
+
 1. Lets us scope the trigger to relevant paths only (the dev-fixtures suite is heavier than the `cargo test --lib` job).
 2. Keeps the standard `backend` job lean, per IFC-042 ("standard `cargo test` job MUST NOT enable the dev-fixtures feature").
 
 Trigger: `pull_request` on paths `src-tauri/src/bin/**`, `src-tauri/tests/**`, `src-tauri/Cargo.toml`, `.github/workflows/dev-fixtures.yml`, `justfile`. (Push to main optional — keep simple, PR-only matches the existing CI policy.)
 
 Job steps:
+
 1. Checkout, install Linux deps (mirroring `ci.yml`'s `backend` job), setup Rust, cache.
 2. `cd src-tauri && cargo run --features dev-fixtures --bin generate_fixtures -- excel` (regenerates all Excel scenarios).
 3. `git diff --exit-code src-tauri/tests/fixtures/` — drift guard (IFC-041). Non-zero diff fails the job.
@@ -227,28 +230,28 @@ If a future spec extension adds a fund-PDF or bank-PDF surface, that extension m
 
 ### Rules Coverage
 
-| Rule | Theme | Implementation site | Notes |
-|---|---|---|---|
-| IFC-010 | Tool surface | `src-tauri/Cargo.toml` `[[bin]]` + `required-features = ["dev-fixtures"]`; `src-tauri/src/bin/generate_fixtures.rs` | Default `cargo build` skips it. |
-| IFC-011 | Tool surface | `src-tauri/Cargo.toml` `[features]` `dev-fixtures = [...]` | Single feature gates bin + all write-side deps. |
-| IFC-012 | Tool surface | `src-tauri/src/bin/generate_fixtures.rs` arg parsing | Two positional args; surface arg uses an exhaustive match. |
-| IFC-013 | Tool surface | `src-tauri/Cargo.toml` `[dependencies]` keeps `optional = true` for write-side libs; verified via `cargo tree --no-default-features` | Reviewed by `reviewer-security`. |
-| IFC-020 | Codec contract | `src-tauri/src/use_cases/excel_import/domain.rs` (unchanged — `ParsedExcelData`) | Production-side contract; both consumers depend on it. |
-| IFC-021 | Codec contract | `src-tauri/tests/codec_round_trip.rs` | Structural equality on durable fields per IFC-021's carve-out (excludes session-scoped `*_tmp_id` UUIDs, includes `parsing_issues`). |
-| IFC-022 | Codec contract | **Verification only**: `git diff src-tauri/src/use_cases/excel_import/parser.rs domain.rs` must show no changes. Enforced by `reviewer-backend` if it runs. | Hard rule. |
-| IFC-023 | Codec contract | `src-tauri/src/bin/fixtures_excel/` is self-contained; future surfaces add sibling `fixtures_fund_pdf/`, etc. | No shared abstraction. |
-| IFC-024 | Codec contract | Contract type stays in `src/use_cases/excel_import/domain.rs` (no feature gate). Generator depends on it. | Production-code rule. |
-| IFC-025 | Codec contract | `domain.rs` remains data-only. Layout/positioning logic lives in `bin/fixtures_excel/writer.rs`. | Hard rule. |
-| IFC-030 | Fixture set | `src-tauri/tests/fixtures/excel/{scenario}.xlsx` + `{scenario}.expected.json`, both committed. | Output dir created on first run. |
-| IFC-031 | Fixture set | `src-tauri/src/bin/fixtures_excel/scenarios.rs` — Rust fns returning `ParsedExcelData`, `snake_case` names. | Registry function for enumeration. |
-| IFC-032 | Fixture set | Two scenarios: `happy_path_3_patients_2_funds`, `skipped_rows_invalid_dates`. | Non-empty parsing_issues for the second. |
-| IFC-033 | Fixture set | `justfile` recipe `regen-fixtures *ARGS`. | Argument forwarding. |
-| IFC-034 | Fixture set | `src-tauri/src/bin/fixtures_excel/atomic.rs` — temp + rename + cleanup-on-fail. | Both `.xlsx` and `.expected.json` go through it. |
-| IFC-040 | Determinism | `writer.rs` pins workbook properties; optional rezip pass with fixed mtimes; fallback documented. | Round-trip test is the load-bearing correctness check. |
-| IFC-041 | Determinism | `.github/workflows/dev-fixtures.yml` step 3: `git diff --exit-code src-tauri/tests/fixtures/`. | Catches drift and hand-edits. |
-| IFC-042 | Determinism | `.github/workflows/dev-fixtures.yml` runs regen+drift then round-trip in one job. `ci.yml` `backend` job unchanged. | Standard CI stays fast. |
-| IFC-050 | Test consumption | `src-tauri/tests/common/fixtures.rs` (new) — `pub fn happy_path() -> (PathBuf, ParsedExcelData)`, etc. | Imported via `mod common;`. |
-| IFC-051 | Test consumption | `src-tauri/tests/codec_round_trip.rs` — `#![cfg(feature = "dev-fixtures")]` at the top. | One `#[tokio::test]` per scenario. |
+| Rule    | Theme            | Implementation site                                                                                                                                         | Notes                                                                                                                                |
+| ------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| IFC-010 | Tool surface     | `src-tauri/Cargo.toml` `[[bin]]` + `required-features = ["dev-fixtures"]`; `src-tauri/src/bin/generate_fixtures.rs`                                         | Default `cargo build` skips it.                                                                                                      |
+| IFC-011 | Tool surface     | `src-tauri/Cargo.toml` `[features]` `dev-fixtures = [...]`                                                                                                  | Single feature gates bin + all write-side deps.                                                                                      |
+| IFC-012 | Tool surface     | `src-tauri/src/bin/generate_fixtures.rs` arg parsing                                                                                                        | Two positional args; surface arg uses an exhaustive match.                                                                           |
+| IFC-013 | Tool surface     | `src-tauri/Cargo.toml` `[dependencies]` keeps `optional = true` for write-side libs; verified via `cargo tree --no-default-features`                        | Reviewed by `reviewer-security`.                                                                                                     |
+| IFC-020 | Codec contract   | `src-tauri/src/use_cases/excel_import/domain.rs` (unchanged — `ParsedExcelData`)                                                                            | Production-side contract; both consumers depend on it.                                                                               |
+| IFC-021 | Codec contract   | `src-tauri/tests/codec_round_trip.rs`                                                                                                                       | Structural equality on durable fields per IFC-021's carve-out (excludes session-scoped `*_tmp_id` UUIDs, includes `parsing_issues`). |
+| IFC-022 | Codec contract   | **Verification only**: `git diff src-tauri/src/use_cases/excel_import/parser.rs domain.rs` must show no changes. Enforced by `reviewer-backend` if it runs. | Hard rule.                                                                                                                           |
+| IFC-023 | Codec contract   | `src-tauri/src/bin/fixtures_excel/` is self-contained; future surfaces add sibling `fixtures_fund_pdf/`, etc.                                               | No shared abstraction.                                                                                                               |
+| IFC-024 | Codec contract   | Contract type stays in `src/use_cases/excel_import/domain.rs` (no feature gate). Generator depends on it.                                                   | Production-code rule.                                                                                                                |
+| IFC-025 | Codec contract   | `domain.rs` remains data-only. Layout/positioning logic lives in `bin/fixtures_excel/writer.rs`.                                                            | Hard rule.                                                                                                                           |
+| IFC-030 | Fixture set      | `src-tauri/tests/fixtures/excel/{scenario}.xlsx` + `{scenario}.expected.json`, both committed.                                                              | Output dir created on first run.                                                                                                     |
+| IFC-031 | Fixture set      | `src-tauri/src/bin/fixtures_excel/scenarios.rs` — Rust fns returning `ParsedExcelData`, `snake_case` names.                                                 | Registry function for enumeration.                                                                                                   |
+| IFC-032 | Fixture set      | Two scenarios: `happy_path_3_patients_2_funds`, `skipped_rows_invalid_dates`.                                                                               | Non-empty parsing_issues for the second.                                                                                             |
+| IFC-033 | Fixture set      | `justfile` recipe `regen-fixtures *ARGS`.                                                                                                                   | Argument forwarding.                                                                                                                 |
+| IFC-034 | Fixture set      | `src-tauri/src/bin/fixtures_excel/atomic.rs` — temp + rename + cleanup-on-fail.                                                                             | Both `.xlsx` and `.expected.json` go through it.                                                                                     |
+| IFC-040 | Determinism      | `writer.rs` pins workbook properties; optional rezip pass with fixed mtimes; fallback documented.                                                           | Round-trip test is the load-bearing correctness check.                                                                               |
+| IFC-041 | Determinism      | `.github/workflows/dev-fixtures.yml` step 3: `git diff --exit-code src-tauri/tests/fixtures/`.                                                              | Catches drift and hand-edits.                                                                                                        |
+| IFC-042 | Determinism      | `.github/workflows/dev-fixtures.yml` runs regen+drift then round-trip in one job. `ci.yml` `backend` job unchanged.                                         | Standard CI stays fast.                                                                                                              |
+| IFC-050 | Test consumption | `src-tauri/tests/common/fixtures.rs` (new) — `pub fn happy_path() -> (PathBuf, ParsedExcelData)`, etc.                                                      | Imported via `mod common;`.                                                                                                          |
+| IFC-051 | Test consumption | `src-tauri/tests/codec_round_trip.rs` — `#![cfg(feature = "dev-fixtures")]` at the top.                                                                     | One `#[tokio::test]` per scenario.                                                                                                   |
 
 ---
 
