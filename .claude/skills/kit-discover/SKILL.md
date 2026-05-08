@@ -47,11 +47,11 @@ If `CLAUDE.md` is missing → reply: `No CLAUDE.md to reconcile — the project 
 
 Parse `.claude/kit-tools.md`. Extract from its tables:
 
-- **Agents** — `## Generic Agents` and `## <Profile> Profile Agents` sections; collect every backticked name in the first column
+- **Agents** — `## Spec & Planning Agents` and `## Code Review & Test Agents` sections; collect every backticked name in the first column
 - **Skills** — `## Skills (slash commands)` section; collect both the skill name and its slash command
-- **Scripts** — `## Generic Scripts` and `## Scripts (<profile>)` sections; collect script names and their commands
+- **Scripts** — `## Scripts` section (sub-sections: Shared helpers, Quality & release); collect script names and their commands
 - **Git hooks** — `## Git Hooks` section; collect hook names
-- **Justfile recipes** — `### Generic recipes` and `### <Profile> profile recipes` subsections; collect recipe names and `just …` commands
+- **Justfile recipes** — `## Justfile Recipes (\`common.just\`)`section; collect recipe names and`just …` commands
 
 Hold the result as a flat catalog of identifiers (names + commands) tagged by category.
 
@@ -151,6 +151,7 @@ Kit version: <…>
 4. **Separate sync gaps from CLAUDE.md gaps** — if `kit-tools.md` lists an item that isn't on disk, that's a sync problem (re-run `just sync-kit`), not a documentation problem. Surface it in its own section.
 5. **Quote, don't paraphrase** — when reporting drift, include the exact CLAUDE.md snippet and a concrete suggested replacement. Vague advice ("update this section") forces the user to redo the analysis.
 6. **Empty patch is a real result** — when nothing is wrong, say so. Don't manufacture findings.
+7. **Out-of-scope items are not findings** — only emit findings tied to catalog items from `kit-tools.md`. Do not commentate on Claude Code built-in slash commands (e.g. `/init`, `/review`, `/security-review`, `/help`, `/config`, `/clear`) when they appear in CLAUDE.md; they are not kit-managed and are outside this skill's reconciliation scope, even when their name overlaps a kit-shipped item (`/security-review` ≠ kit's `reviewer-security` agent).
 
 ---
 

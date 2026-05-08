@@ -1,7 +1,7 @@
 # Common recipes — synced from kit to downstream projects via sync-config.sh
 
-sync-kit:
-    ./scripts/sync-config.sh
+sync-kit *args:
+    ./scripts/sync-config.sh {{args}}
 
 # Run fast quality check (lint/format only, no tests)
 check:
@@ -36,8 +36,6 @@ merge:
     git merge --ff-only "$branch"
     git branch -d "$branch"
     echo "✅ $branch fast-forwarded into main and deleted."
-
-# Tauri profile recipes — appended to common.just by sync
 
 # Run pending database migrations
 # Prerequisites: sqlx must be on $PATH and DATABASE_URL must be set
