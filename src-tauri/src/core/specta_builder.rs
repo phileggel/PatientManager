@@ -103,7 +103,6 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             excel_import::get_excel_amount_mappings,
             excel_import::save_excel_amount_mappings,
             fund_payment_reconciliation::extract_pdf_text,
-            fund_payment_reconciliation::extract_pdf_text_from_bytes,
             fund_payment_reconciliation::parse_pdf_text,
             fund_payment_reconciliation::reconcile_pdf_procedures,
             fund_payment_reconciliation::reconcile_and_create_candidates,

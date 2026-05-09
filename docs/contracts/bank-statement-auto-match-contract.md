@@ -7,9 +7,9 @@
 
 ### `parse_bank_statement` — R2, R3, R26
 
-Step 1 of the workflow. Parses a PDF bank statement from raw bytes, extracts the IBAN, statement period, and VIR SEPA credit lines (R3 — other line types are ignored). Returns a structured `NoVirSepaLines` error if no VIR SEPA entries remain after filtering — the workflow must stop at this point (R26).
+Step 1 of the workflow. Reads the PDF bank statement from the given file path, extracts the IBAN, statement period, and VIR SEPA credit lines (R3 — other line types are ignored). Returns a structured `NoVirSepaLines` error if no VIR SEPA entries remain after filtering — the workflow must stop at this point (R26).
 
-- **Args:** `bytes: Vec<u8>`
+- **Args:** `file_path: String`
 - **Returns:** `BankStatementParseResult`
 - **Errors:** `PdfExtractionFailed`, `NoVirSepaLines`
 

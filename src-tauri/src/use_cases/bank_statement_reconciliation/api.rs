@@ -30,11 +30,11 @@ pub struct CreateTransfersFromStatementRequest {
 /// Parse a bank statement PDF and return structured data
 #[tauri::command]
 #[specta::specta]
-pub async fn parse_bank_statement(bytes: Vec<u8>) -> Result<BankStatementParseResult, String> {
-    tracing::info!("Starting bank statement parsing ({} bytes)", bytes.len());
+pub async fn parse_bank_statement(file_path: String) -> Result<BankStatementParseResult, String> {
+    tracing::info!("Starting bank statement parsing ({})", file_path);
 
     // Step 1: Extract text from PDF
-    let text = pdf_extractor::extract_pdf_text_from_bytes(&bytes)
+    let text = pdf_extractor::extract_pdf_text(&file_path)
         .map_err(|e| format!("Failed to extract PDF text: {}", e))?;
 
     tracing::info!("PDF text extracted: {} characters", text.len());

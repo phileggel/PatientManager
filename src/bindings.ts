@@ -334,17 +334,6 @@ async extractPdfText(filePath: string) : Promise<Result<string, string>> {
 }
 },
 /**
- * Handler for PDF text extraction from bytes
- */
-async extractPdfTextFromBytes(bytes: number[]) : Promise<Result<string, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("extract_pdf_text_from_bytes", { bytes }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
  * Handler for parsing extracted PDF text into structured procedure groups.
  * Normalization (French date parsing) happens here — lines with unparseable
  * dates are counted as unparsed rather than propagating errors.
@@ -606,9 +595,9 @@ async getCashBankAccountId() : Promise<string> {
 /**
  * Parse a bank statement PDF and return structured data
  */
-async parseBankStatement(bytes: number[]) : Promise<Result<BankStatementParseResult, string>> {
+async parseBankStatement(filePath: string) : Promise<Result<BankStatementParseResult, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("parse_bank_statement", { bytes }) };
+    return { status: "ok", data: await TAURI_INVOKE("parse_bank_statement", { filePath }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

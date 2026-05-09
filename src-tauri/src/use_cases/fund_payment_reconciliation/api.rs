@@ -265,22 +265,6 @@ pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
     Ok(result)
 }
 
-/// Handler for PDF text extraction from bytes
-#[tauri::command]
-#[specta::specta]
-pub async fn extract_pdf_text_from_bytes(bytes: Vec<u8>) -> Result<String, String> {
-    tracing::info!("Extracting text from PDF bytes ({} bytes)", bytes.len());
-
-    let result = pdf_extractor::extract_pdf_text_from_bytes(&bytes)?;
-
-    tracing::info!(
-        "Successfully extracted {} characters from PDF",
-        result.len()
-    );
-
-    Ok(result)
-}
-
 /// Handler for parsing extracted PDF text into structured procedure groups.
 /// Normalization (French date parsing) happens here — lines with unparseable
 /// dates are counted as unparsed rather than propagating errors.
