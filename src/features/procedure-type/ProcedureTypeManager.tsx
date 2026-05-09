@@ -41,7 +41,11 @@ export function ProcedureTypeManager() {
         <ProcedureTypeList searchTerm={searchTerm} />
       </div>
 
-      <FAB onClick={() => setIsCreateModalOpen(true)} label={t("action.fabAriaLabel")} />
+      <FAB
+        id="fab-create-procedure-type"
+        onClick={() => setIsCreateModalOpen(true)}
+        label={t("action.fabAriaLabel")}
+      />
 
       <CreateProcedureTypeModal
         isOpen={isCreateModalOpen}

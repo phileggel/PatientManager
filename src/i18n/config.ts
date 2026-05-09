@@ -29,8 +29,15 @@ import patientFr from "./locales/fr/patient.json";
 import procedureFr from "./locales/fr/procedure.json";
 import procedureTypeFr from "./locales/fr/procedure-type.json";
 
+// `VITE_LOCALE` is read from `.env.<mode>` files at build time:
+//   - `.env.test` (vitest)              → "en" — invariant for unit tests
+//   - `.env.e2e`  (vite build --mode e2e) → "en" — invariant for WebDriver E2E
+//   - prod / dev (no override)          → undefined → falls back to "fr"
+// See ADR-007 (mode-based gating) and `docs/e2e-rules.md`.
+const initialLng = import.meta.env.VITE_LOCALE ?? "fr";
+
 i18n.use(initReactI18next).init({
-  lng: "fr",
+  lng: initialLng,
   fallbackLng: "en",
   defaultNS: "common",
   ns: [

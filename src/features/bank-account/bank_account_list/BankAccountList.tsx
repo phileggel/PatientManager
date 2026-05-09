@@ -114,6 +114,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                   <td className="m3-td text-right">
                     <div className="flex items-center justify-end gap-1">
                       <IconButton
+                        id={account.id ? `bank-account-edit-${account.id}` : undefined}
                         variant="ghost"
                         size="sm"
                         shape="round"

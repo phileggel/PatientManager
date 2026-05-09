@@ -4,7 +4,10 @@
  * Each function creates one entity via the UI and waits for confirmation that it
  * persisted. Tests that need prerequisites call these in their `before()` hook.
  *
- * All navigation uses French aria-labels (app locale is fr).
+ * Selectors target stable `id` attributes (locale-invariant) per the project
+ * convention — see `docs/e2e-rules.md` and ADR-007. The E2E build runs in
+ * mode='e2e' which sets `VITE_LOCALE=en`, but `id` selectors don't depend
+ * on the active locale either way.
  */
 import { browser, $ } from "@wdio/globals";
 
@@ -58,6 +61,19 @@ export async function readPatientIdByName(name: string): Promise<string> {
   return patient.id;
 }
 
+export async function readBankAccountIdByName(name: string): Promise<string> {
+  const accounts = await browser.execute(async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: window.__TAURI_INTERNALS__ is not typed
+    const invoke = (window as any).__TAURI_INTERNALS__.invoke as (
+      cmd: string,
+    ) => Promise<unknown>;
+    return invoke("read_all_bank_accounts");
+  });
+  const account = (accounts as { id: string; name: string }[]).find((a) => a.name === name);
+  if (!account) throw new Error(`BankAccount not found: ${name}`);
+  return account.id;
+}
+
 export async function readProcedureTypeIdByName(name: string): Promise<string> {
   const types = await browser.execute(async () => {
     // biome-ignore lint/suspicious/noExplicitAny: window.__TAURI_INTERNALS__ is not typed
@@ -73,14 +89,14 @@ export async function readProcedureTypeIdByName(name: string): Promise<string> {
 
 async function openManagementModal(): Promise<void> {
   await browser.keys(["Escape"]);
-  const mgmtBtn = await $('button[aria-label="Gestion"]');
+  const mgmtBtn = await $("#nav-management");
   await mgmtBtn.waitForExist({ timeout: 10000 });
   await mgmtBtn.click();
 }
 
 export async function seedBankAccount(name: string): Promise<void> {
   await openManagementModal();
-  const card = await $('button[aria-label="Comptes Bancaires"]');
+  const card = await $("#mgmt-card-bank-accounts");
   await card.waitForExist({ timeout: 8000 });
   await card.click();
   await $("#bank-account-search").waitForExist({ timeout: 10000 });
@@ -94,12 +110,12 @@ export async function seedBankAccount(name: string): Promise<void> {
 
 export async function seedProcedureType(name: string, amount: string): Promise<void> {
   await openManagementModal();
-  const card = await $('button[aria-label="Types d\'actes"]');
+  const card = await $("#mgmt-card-procedure-types");
   await card.waitForExist({ timeout: 8000 });
   await card.click();
   await $("#procedure-type-search").waitForExist({ timeout: 10000 });
 
-  const fab = await $('button[aria-label="Créer un type d\'acte"]');
+  const fab = await $("#fab-create-procedure-type");
   await fab.waitForExist({ timeout: 5000 });
   await fab.click();
 
@@ -114,7 +130,7 @@ export async function seedProcedureType(name: string, amount: string): Promise<v
 
 export async function seedPatient(name: string): Promise<void> {
   await openManagementModal();
-  const card = await $('button[aria-label="Patients"]');
+  const card = await $("#mgmt-card-patients");
   await card.waitForExist({ timeout: 8000 });
   await card.click();
   await $("#patient-search").waitForExist({ timeout: 10000 });
