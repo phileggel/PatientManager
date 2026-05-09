@@ -26,6 +26,7 @@ interface UseReportGenerationReturn {
   handleReport: () => Promise<void>;
   isGenerating: boolean;
   previewBytes: Uint8Array | null;
+  previewRequest: ReportGenerationRequest | null;
   defaultFilename: string;
   closePreview: () => void;
 }
@@ -53,7 +54,14 @@ export function useReportGeneration({
 }: UseReportGenerationArgs): UseReportGenerationReturn {
   const { t } = useTranslation("fund-payment-match");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
+  // `bytes` and `request` are correlated — they must always travel together
+  // because the preview iframe shows the rendered bytes and Save (FPR-016)
+  // re-renders from the same request that produced them. Storing them as
+  // one state value enforces the invariant in the type system.
+  const [previewState, setPreviewState] = useState<{
+    bytes: Uint8Array;
+    request: ReportGenerationRequest;
+  } | null>(null);
 
   const defaultFilename = useMemo(() => {
     if (!reportDateRange) return "reconciliation.pdf";
@@ -96,7 +104,7 @@ export function useReportGeneration({
 
     try {
       const bytes = await generateReportPdf(request);
-      setPreviewBytes(bytes);
+      setPreviewState({ bytes, request });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(TAG, "Failed to generate report PDF", message);
@@ -116,13 +124,14 @@ export function useReportGeneration({
   ]);
 
   const closePreview = useCallback(() => {
-    setPreviewBytes(null);
+    setPreviewState(null);
   }, []);
 
   return {
     handleReport,
     isGenerating,
-    previewBytes,
+    previewBytes: previewState?.bytes ?? null,
+    previewRequest: previewState?.request ?? null,
     defaultFilename,
     closePreview,
   };

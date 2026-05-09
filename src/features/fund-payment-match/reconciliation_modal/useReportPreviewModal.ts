@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { ReportGenerationRequest } from "@/bindings";
 import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { saveReportPdf } from "../gateway";
@@ -8,6 +9,7 @@ const TAG = "[useReportPreviewModal]";
 
 interface UseReportPreviewModalArgs {
   bytes: Uint8Array;
+  request: ReportGenerationRequest;
   defaultFilename: string;
 }
 
@@ -26,6 +28,7 @@ interface UseReportPreviewModalReturn {
  */
 export function useReportPreviewModal({
   bytes,
+  request,
   defaultFilename,
 }: UseReportPreviewModalArgs): UseReportPreviewModalReturn {
   const { t } = useTranslation("fund-payment-match");
@@ -50,7 +53,7 @@ export function useReportPreviewModal({
     if (isSaving) return;
     setIsSaving(true);
     try {
-      const result = await saveReportPdf(bytes, defaultFilename);
+      const result = await saveReportPdf(request, defaultFilename);
       if (result.saved) {
         toastService.show("success", t("modal.preview.saveSuccess"));
       }
@@ -61,7 +64,7 @@ export function useReportPreviewModal({
     } finally {
       setIsSaving(false);
     }
-  }, [bytes, defaultFilename, isSaving, t]);
+  }, [request, defaultFilename, isSaving, t]);
 
   return { blobUrl, isSaving, handleSave };
 }

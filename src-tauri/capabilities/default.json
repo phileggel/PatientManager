@@ -1,7 +1,7 @@
 {
   "version": 1,
   "identifier": "default",
-  "description": "Default capability allowing access to dialog and file system",
+  "description": "Default capability allowing native dialogs, updater, and process control. The renderer no longer holds direct filesystem read/write capabilities — backend Tauri commands own all file I/O.",
   "windows": ["*"],
   "webviews": ["*"],
   "permissions": [
@@ -9,12 +9,6 @@
     "dialog:default",
     "dialog:allow-open",
     "dialog:allow-save",
-    "fs:default",
-    "fs:allow-read",
-    "fs:allow-write",
-    "fs:allow-read-file",
-    "fs:allow-write-file",
-    "fs:allow-write-text-file",
     "updater:default",
     "process:default"
   ]
