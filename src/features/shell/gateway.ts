@@ -1,4 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { e2eOverride } from "@/lib/e2e";
 
 // ── Native file-picker dialogs ────────────────────────────────────────────────
 
@@ -7,21 +8,25 @@ function toPathOrNull(result: string | string[] | null): string | null {
 }
 
 export async function pickExcelFilePath(title: string): Promise<string | null> {
-  return toPathOrNull(
-    await open({
-      title,
-      multiple: false,
-      filters: [{ name: "Excel Files", extensions: ["xlsx", "xls", "csv"] }],
-    }),
+  return e2eOverride("pickExcelFilePath", async () =>
+    toPathOrNull(
+      await open({
+        title,
+        multiple: false,
+        filters: [{ name: "Excel Files", extensions: ["xlsx", "xls", "csv"] }],
+      }),
+    ),
   );
 }
 
 export async function pickPdfFilePath(title: string): Promise<string | null> {
-  return toPathOrNull(
-    await open({
-      title,
-      multiple: false,
-      filters: [{ name: "PDF", extensions: ["pdf"] }],
-    }),
+  return e2eOverride("pickPdfFilePath", async () =>
+    toPathOrNull(
+      await open({
+        title,
+        multiple: false,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      }),
+    ),
   );
 }

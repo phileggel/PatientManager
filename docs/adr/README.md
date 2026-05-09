@@ -8,3 +8,4 @@
 | [ADR-004](004-e2e-rtl-test-boundary-combobox.md)      | E2E / RTL test boundary for HeadlessUI ComboboxField                               | Accepted                                             |
 | [ADR-005](005-combobox-feasibility-investigation.md)  | ComboboxField replacement feasibility investigation                                | Accepted — Option 1 (status quo + Tauri invoke seed) |
 | [ADR-006](006-frontend-resolves-pdf-translations.md)  | Frontend pre-resolves all translations and formatting for the backend PDF renderer | Accepted                                             |
+| [ADR-007](007-e2e-native-dialog-override.md)          | E2E native-dialog override pattern (`window.__e2e` + `e2eOverride()`)              | Accepted                                             |
