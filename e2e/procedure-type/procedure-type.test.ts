@@ -1,34 +1,17 @@
 import { browser, $ } from "@wdio/globals";
 import assert from "node:assert";
-
-async function setReactInputValue(elementId: string, value: string): Promise<void> {
-  await browser.execute(
-    (id, val) => {
-      const el = document.getElementById(id) as HTMLInputElement | null;
-      if (!el) return;
-      const nativeSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        "value",
-      )?.set;
-      nativeSetter?.call(el, val);
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    },
-    elementId,
-    value,
-  );
-}
+import { setReactInputValue } from "../helpers/seed";
 
 const PROCEDURE_TYPE_NAME = "E2E Smoke Acte";
 const PROCEDURE_TYPE_AMOUNT = "42.50";
 
 async function navigateToProcedureTypes(): Promise<void> {
-  // App runs in fr locale — aria-label values are French translations.
-  const mgmtBtn = await $('button[aria-label="Gestion"]');
+  // Selectors target stable `id` attributes — locale-invariant per ADR-007.
+  const mgmtBtn = await $("#nav-management");
   await mgmtBtn.waitForExist({ timeout: 10000 });
   await mgmtBtn.click();
 
-  const procedureTypeCard = await $('button[aria-label="Types d\'actes"]');
+  const procedureTypeCard = await $("#mgmt-card-procedure-types");
   await procedureTypeCard.waitForExist({ timeout: 8000 });
   await procedureTypeCard.click();
 
@@ -52,7 +35,7 @@ describe("procedure-type smoke", () => {
 
   it("create_procedure_type: new type appears in list after submit", async () => {
     // Open create modal via FAB
-    const fab = await $('button[aria-label="Créer un type d\'acte"]');
+    const fab = await $("#fab-create-procedure-type");
     await fab.waitForExist({ timeout: 5000 });
     await fab.click();
 

@@ -16,7 +16,7 @@ interface ManagementModalProps {
 
 /**
  * Management modal — presents the six list management entry points.
- * Opened from the single "Gestion" entry in the navigation drawer.
+ * Opened from the single "Management" entry in the navigation drawer.
  */
 export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModalProps) {
   const { t } = useTranslation("management-modal");
@@ -47,6 +47,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
       <div className="flex flex-col gap-3 pb-2">
         {/* Patients */}
         <button
+          id="mgmt-card-patients"
           type="button"
           className={cardClasses}
           onClick={handlePatient}
@@ -60,6 +61,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
 
         {/* Funds */}
         <button
+          id="mgmt-card-funds"
           type="button"
           className={cardClasses}
           onClick={handleFunds}
@@ -73,6 +75,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
 
         {/* Procedure Types */}
         <button
+          id="mgmt-card-procedure-types"
           type="button"
           className={cardClasses}
           onClick={handleProcedureTypes}
@@ -88,6 +91,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
 
         {/* Fund Payment */}
         <button
+          id="mgmt-card-fund-payment"
           type="button"
           className={cardClasses}
           onClick={handleFundPayment}
@@ -101,6 +105,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
 
         {/* Bank Transfer */}
         <button
+          id="mgmt-card-bank-transfers"
           type="button"
           className={cardClasses}
           onClick={handleBankTransfer}
@@ -114,6 +119,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
 
         {/* Bank Accounts */}
         <button
+          id="mgmt-card-bank-accounts"
           type="button"
           className={cardClasses}
           onClick={handleBankAccount}

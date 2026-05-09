@@ -43,6 +43,10 @@
     "clearSearch": "Effacer la recherche",
     "dismiss": "Fermer"
   },
+  "aria": {
+    "closeModal": "Fermer la fenêtre",
+    "dismissNotification": "Fermer la notification"
+  },
   "field": {
     "datePlaceholder": "JJ/MM/AAAA",
     "clearAriaLabel": "Effacer",

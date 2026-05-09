@@ -5,6 +5,8 @@ interface FABProps {
   onClick: () => void;
   label: string;
   icon?: ReactNode;
+  /** Stable `id` for E2E selectors (locale-invariant, unlike `label`). */
+  id?: string;
 }
 
 /**
@@ -13,9 +15,10 @@ interface FABProps {
  * Fixed bottom-right position for desktop layouts.
  * Generic: pass a custom icon or default to Plus.
  */
-export function FAB({ onClick, label, icon }: FABProps) {
+export function FAB({ onClick, label, icon, id }: FABProps) {
   return (
     <button
+      id={id}
       type="button"
       onClick={onClick}
       aria-label={label}

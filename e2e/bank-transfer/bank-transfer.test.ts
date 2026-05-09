@@ -23,11 +23,12 @@ const PROCEDURE_TYPE_NAME = "E2E-BT-Consultation";
 const BILLED_AMOUNT_MILLIS = 25000; // €25.00
 
 async function navigateToBankTransfer(): Promise<void> {
+  // Selectors target stable `id` attributes — locale-invariant per ADR-007.
   await browser.keys(["Escape"]);
-  const mgmtBtn = await $('button[aria-label="Gestion"]');
+  const mgmtBtn = await $("#nav-management");
   await mgmtBtn.waitForExist({ timeout: 10000 });
   await mgmtBtn.click();
-  const btCard = await $('button[aria-label="Virement Bancaire"]');
+  const btCard = await $("#mgmt-card-bank-transfers");
   await btCard.waitForExist({ timeout: 8000 });
   await btCard.click();
   await $(".m3-table-container").waitForExist({ timeout: 10000 });

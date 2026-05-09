@@ -139,6 +139,7 @@ export const Drawer = ({
           {onOpenManagement && (
             <li>
               <button
+                id="nav-management"
                 type="button"
                 className={navItemClasses}
                 onClick={onOpenManagement}

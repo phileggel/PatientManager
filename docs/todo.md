@@ -75,18 +75,6 @@ PDFs embedded in iframes do not render under WebKit2GTK on Linux. Developers run
 
 ---
 
-## (e2e) — Force English locale during E2E tests so aria-labels are invariant
-
-E2E tests rely on aria-labels for element selection. If the app locale is not fixed, labels may vary by system language and cause flaky test failures. Force the app to run in English during E2E runs so aria-labels are always predictable.
-
-Options to explore:
-
-- Pass a `LANG=en` / `LC_ALL=en_US.UTF-8` env var when launching the Tauri app in WebDriver
-- Set a `test_locale` config flag in `tauri.conf.json` or a test-only config profile
-- Initialize the i18n layer with `en` unconditionally when a `TEST_LOCALE` env var is present
-
----
-
 ## (backend/procedure) — Review procedure projections and read models
 
 `UnreconciledProcedure` is a domain projection introduced when moving `ProcedureRepository` to the domain layer. It sits alongside `Procedure` (the aggregate root) and other procedure-related structures. Before adding more projections, review whether these are genuinely distinct domain concepts or whether `Procedure` should be enriched to cover these cases. Key question: is `UnreconciledProcedure` a real ubiquitous-language concept, or just a query convenience that should be folded into `Procedure` with a different fetch strategy?

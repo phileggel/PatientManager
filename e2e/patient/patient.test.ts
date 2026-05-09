@@ -1,33 +1,16 @@
 import { browser, $ } from "@wdio/globals";
 import assert from "node:assert";
-
-async function setReactInputValue(elementId: string, value: string): Promise<void> {
-  await browser.execute(
-    (id, val) => {
-      const el = document.getElementById(id) as HTMLInputElement | null;
-      if (!el) return;
-      const nativeSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        "value",
-      )?.set;
-      nativeSetter?.call(el, val);
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    },
-    elementId,
-    value,
-  );
-}
+import { setReactInputValue } from "../helpers/seed";
 
 const PATIENT_NAME = "E2E Smoke Patient";
 
 async function navigateToPatients(): Promise<void> {
-  // App runs in fr locale — aria-label values are French translations.
-  const mgmtBtn = await $('button[aria-label="Gestion"]');
+  // Selectors target stable `id` attributes — locale-invariant per ADR-007.
+  const mgmtBtn = await $("#nav-management");
   await mgmtBtn.waitForExist({ timeout: 10000 });
   await mgmtBtn.click();
 
-  const patientCard = await $('button[aria-label="Patients"]');
+  const patientCard = await $("#mgmt-card-patients");
   await patientCard.waitForExist({ timeout: 8000 });
   await patientCard.click();
 
