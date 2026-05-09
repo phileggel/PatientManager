@@ -6,7 +6,10 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mockOpen }));
 import { pickExcelFilePath, pickPdfFilePath } from "./gateway";
 
 describe("shell/gateway — pickExcelFilePath", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete (window as Window).__e2e;
+  });
 
   it("calls open() with xlsx/xls/csv filters and the provided title", async () => {
     mockOpen.mockResolvedValue(null);
@@ -60,5 +63,47 @@ describe("shell/gateway — pickPdfFilePath", () => {
   it("returns null when open() resolves with a string array (defensive)", async () => {
     mockOpen.mockResolvedValue(["/tmp/a.pdf"]);
     expect(await pickPdfFilePath("t")).toBeNull();
+  });
+});
+
+// ADR-007: every native-API gateway must route through `e2eOverride`. These
+// tests assert the override branch fires (and the real `open()` is bypassed)
+// when `window.__e2e[<key>]` is set, and falls through otherwise.
+describe("shell/gateway — e2e override", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete (window as Window).__e2e;
+  });
+
+  it("pickExcelFilePath returns the override and skips open() when window.__e2e is set", async () => {
+    window.__e2e = { pickExcelFilePath: "/fixture/sample.xlsx" };
+    expect(await pickExcelFilePath("t")).toBe("/fixture/sample.xlsx");
+    expect(mockOpen).not.toHaveBeenCalled();
+  });
+
+  it("pickPdfFilePath returns the override and skips open() when window.__e2e is set", async () => {
+    window.__e2e = { pickPdfFilePath: "/fixture/sample.pdf" };
+    expect(await pickPdfFilePath("t")).toBe("/fixture/sample.pdf");
+    expect(mockOpen).not.toHaveBeenCalled();
+  });
+
+  it("override of null is honoured (simulates user cancel)", async () => {
+    window.__e2e = { pickPdfFilePath: null };
+    expect(await pickPdfFilePath("t")).toBeNull();
+    expect(mockOpen).not.toHaveBeenCalled();
+  });
+
+  it("falls through to open() when window.__e2e is undefined", async () => {
+    mockOpen.mockResolvedValue("/real/path.pdf");
+    expect(await pickPdfFilePath("t")).toBe("/real/path.pdf");
+    expect(mockOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls through to open() when the key is absent from window.__e2e", async () => {
+    // Override is set for a different key — pickPdfFilePath must still call open().
+    window.__e2e = { pickExcelFilePath: "/fixture/wrong.xlsx" };
+    mockOpen.mockResolvedValue("/real/path.pdf");
+    expect(await pickPdfFilePath("t")).toBe("/real/path.pdf");
+    expect(mockOpen).toHaveBeenCalledTimes(1);
   });
 });
