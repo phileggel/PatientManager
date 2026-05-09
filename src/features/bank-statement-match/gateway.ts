@@ -1,4 +1,3 @@
-import { readFile } from "@tauri-apps/plugin-fs";
 import {
   type BankAccount,
   type BankStatementMatchResult,
@@ -42,10 +41,7 @@ export async function createBankAccount(
 export async function parseBankStatement(filePath: string): Promise<BankStatementParseResult> {
   logger.info(TAG, "Parsing bank statement PDF", { filePath });
 
-  const fileBytes = await readFile(filePath);
-  const bytes = Array.from(fileBytes);
-
-  const result = await commands.parseBankStatement(bytes);
+  const result = await commands.parseBankStatement(filePath);
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to parse bank statement", result.error);

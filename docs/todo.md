@@ -2,9 +2,29 @@
 
 ---
 
+## (backend/security) — Harden file-path Tauri commands against path-traversal
+
+`fund_payment_reconciliation::extract_pdf_text` and `bank_statement_reconciliation::parse_bank_statement` both accept an arbitrary `file_path: String` from the WebView and pass it straight to `std::fs::read` via `pdf_extractor::extract_pdf_text`. There is no canonicalization, no directory allowlist, and the `.pdf` extension check is bypassable (rename / symlink). A compromised renderer can read any file the Tauri process has OS-level access to. The capability declarations in `src-tauri/capabilities/default.json` are unscoped and the backend bypasses the plugin layer entirely, so the capability file gives a false sense of restriction for these commands.
+
+Fix in lockstep across both surfaces:
+
+1. Canonicalize the incoming path and assert the canonical result falls under a permitted root before delegating to the extractor (likely the user's home dir or a configured app-data scope).
+2. Add a `scope` block to the `fs:allow-*` permissions in `default.json` for defense-in-depth even though backend reads bypass the plugin.
+3. Coordinate with the future "remember last path per feature" UX direction — the trusted-root policy needs to interact cleanly with whatever per-feature path persistence we introduce.
+
+> Pre-existing on `main` (fund-PDF surface); the bank-statement alignment refactor (PR #14) inherits the same exposure but does not introduce it. Treat as a single hardening sweep.
+
+---
+
+## (backend/logging) — Avoid logging full file paths in PDF parse commands
+
+`fund_payment_reconciliation::extract_pdf_text` (`api.rs:256`) and `bank_statement_reconciliation::parse_bank_statement` (`api.rs:34`) both log the full incoming `file_path` at INFO level. On macOS/Linux this routinely embeds the user's home directory in structured logs. The frontend gateway also logs the full path (`bank-statement-match/gateway.ts:42`, `fund-payment-match/gateway.ts:24`). Switch all four sites in lockstep to log only the filename component so the alignment between the two parse surfaces stays intact.
+
+---
+
 ## (codec/bank-pdf) — Extend import codec to bank-statement PDFs
 
-Same pattern as fund-PDF above, but for the bank-statement reconciliation surface (`BankStatementParseResult`). Note: `parse_bank_statement` currently takes bytes; combine with `(backend+frontend/bank-statement) — Align PDF reading pattern with fund reconciliation` below before adding the codec to avoid building the generator against a shape that's about to change.
+Same pattern as fund-PDF above, but for the bank-statement reconciliation surface (`BankStatementParseResult`). Allocate IFC-100..IFC-XXX in `docs/spec/import-codec-fixtures.md`.
 
 ---
 
@@ -23,14 +43,6 @@ Same pattern as fund-PDF above, but for the bank-statement reconciliation surfac
 ## (backend+frontend) — Add fund_reconciliation_date to Procedure
 
 `confirmed_payment_date` is the bank-transfer date (Stage 2). A separate `fund_reconciliation_date` column is needed to record the fund-document payment date set at Stage 1 (fund reconciliation). Scope: SQLite migration, Rust domain + repository, Specta bindings regeneration, frontend display in procedure list and dashboard.
-
----
-
-## (backend+frontend/bank-statement) — Align PDF reading pattern with fund reconciliation
-
-Fund reconciliation passes a file path to Rust (`extract_pdf_text(filePath)`) and lets the backend read the file. Bank statement does the opposite: frontend reads bytes via `@tauri-apps/plugin-fs` then sends them to `parse_bank_statement(bytes)`. Both should follow the same path-based pattern.
-
-Fix: add a `parse_bank_statement_from_path(file_path: String)` Rust command (or change the existing one), update `parseBankStatement` in `bank-statement/gateway.ts` to pass the path directly, and remove the `readFile` import.
 
 ---
 
