@@ -1,5 +1,7 @@
+use std::path::Path;
+
 use super::error::ReportPdfError;
-use super::orchestrator::generate;
+use super::orchestrator::{generate, save};
 use super::request::ReportGenerationRequest;
 use crate::BACKEND;
 
@@ -52,6 +54,64 @@ pub async fn generate_fund_reconciliation_report_pdf(
             // Log the detail server-side; return a fixed user-facing message.
             tracing::error!(target: BACKEND, %detail, "Report PDF rendering failed");
             Err("PDF rendering failed".into())
+        }
+        Err(ReportPdfError::WriteFailed(detail)) => {
+            // `generate()` performs no filesystem I/O, so this arm is
+            // unreachable in practice. Kept exhaustive for compile-time
+            // safety: a future orchestrator refactor that introduces a write
+            // surfaces a logged "internal error" rather than panicking.
+            tracing::error!(
+                target: BACKEND,
+                %detail,
+                "Unexpected WriteFailed from generate() — likely an orchestrator regression"
+            );
+            Err("Internal error".into())
+        }
+    }
+}
+
+/// Generate the post-reconciliation report and write it to `path`.
+///
+/// FPR-016. Combines `generate_fund_reconciliation_report_pdf`'s render
+/// step with a server-side filesystem write. The frontend opens the native
+/// save dialog and forwards the user-chosen path; bytes never leave the
+/// backend, eliminating the renderer's need for the `fs:allow-write*`
+/// capabilities.
+///
+/// `path` is trusted only as a destination — `validate()` covers the
+/// request payload as for the preview command. Path-traversal hardening
+/// for user-chosen paths is tracked separately in `docs/todo.md`.
+#[tauri::command]
+#[specta::specta]
+pub async fn save_fund_reconciliation_report_pdf(
+    request: ReportGenerationRequest,
+    path: String,
+) -> Result<(), String> {
+    tracing::info!(
+        target: BACKEND,
+        path_len = path.len(),
+        "Saving fund reconciliation report PDF"
+    );
+
+    match save(&request, Path::new(&path)) {
+        Ok(()) => {
+            tracing::info!(
+                target: BACKEND,
+                "Fund reconciliation report PDF saved"
+            );
+            Ok(())
+        }
+        Err(ReportPdfError::InvalidRequest(detail)) => {
+            tracing::warn!(target: BACKEND, %detail, "Save report PDF rejected");
+            Err(format!("Invalid request: {detail}"))
+        }
+        Err(ReportPdfError::PdfGenerationFailed(detail)) => {
+            tracing::error!(target: BACKEND, %detail, "Save report PDF rendering failed");
+            Err("PDF rendering failed".into())
+        }
+        Err(ReportPdfError::WriteFailed(detail)) => {
+            tracing::error!(target: BACKEND, %detail, "Failed to write report PDF");
+            Err(format!("Failed to save PDF: {detail}"))
         }
     }
 }

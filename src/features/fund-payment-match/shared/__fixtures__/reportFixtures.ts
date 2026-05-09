@@ -14,6 +14,7 @@ import type {
   AutoCorrection,
   ReconcileAndCandidatesResponse,
   ReconciliationMatch,
+  ReportGenerationRequest,
   UnreconciledProcedure,
 } from "@/bindings";
 
@@ -169,3 +170,21 @@ export const samplePdfBytes: Uint8Array = new Uint8Array([
   0x6f, 0x74, 0x20, 0x31, 0x20, 0x30, 0x20, 0x52, 0x3e, 0x3e, 0x0a, 0x25, 0x25, 0x45, 0x4f, 0x46,
   0x0a,
 ]);
+
+/**
+ * Minimal valid `ReportGenerationRequest` for tests that need a structurally
+ * complete request without exercising every optional field. Mirrors the
+ * shape produced by `useReportGeneration` but with placeholder strings.
+ */
+export const sampleReportRequest: ReportGenerationRequest = {
+  title: "Reconciliation Report",
+  continuation_title: "Reconciliation Report (continued)",
+  header_lines: ["Period: 2025-04-01 – 2025-04-30"],
+  unreconciled: {
+    type: "Empty",
+    data: { heading: "Unreconciled procedures", empty_message: "All reconciled." },
+  },
+  correction_section_heading: "Corrections applied",
+  correction_groups: [],
+  page_label: "Page",
+};

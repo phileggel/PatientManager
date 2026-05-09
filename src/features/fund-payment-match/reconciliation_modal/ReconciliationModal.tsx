@@ -58,15 +58,21 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
   const funds = useAppStore((state) => state.funds);
   const fundIdToLabel = useMemo(() => buildFundIdToLabel(funds), [funds]);
 
-  const { handleReport, isGenerating, previewBytes, defaultFilename, closePreview } =
-    useReportGeneration({
-      filePath,
-      reportDateRange,
-      unreconciledReport,
-      autoCorrections,
-      reconciliationData,
-      fundIdToLabel,
-    });
+  const {
+    handleReport,
+    isGenerating,
+    previewBytes,
+    previewRequest,
+    defaultFilename,
+    closePreview,
+  } = useReportGeneration({
+    filePath,
+    reportDateRange,
+    unreconciledReport,
+    autoCorrections,
+    reconciliationData,
+    fundIdToLabel,
+  });
 
   return (
     <ModalContainer isOpen={true} onClose={onClose} maxWidth="max-w-4xl">
@@ -157,9 +163,10 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
           )}
         </>
       )}
-      {previewBytes && (
+      {previewBytes && previewRequest && (
         <ReportPreviewModal
           bytes={previewBytes}
+          request={previewRequest}
           defaultFilename={defaultFilename}
           onClose={closePreview}
         />

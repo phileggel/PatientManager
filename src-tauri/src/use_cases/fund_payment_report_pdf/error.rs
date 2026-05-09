@@ -1,6 +1,7 @@
 use std::fmt;
 
-/// Errors produced by the `generate_fund_reconciliation_report_pdf` command.
+/// Errors produced by the `generate_fund_reconciliation_report_pdf` and
+/// `save_fund_reconciliation_report_pdf` commands.
 #[derive(Debug)]
 pub enum ReportPdfError {
     /// The `ReportGenerationRequest` payload is structurally invalid.
@@ -14,6 +15,10 @@ pub enum ReportPdfError {
     /// PDF rendering failed after validation passed — e.g. font load error,
     /// internal printpdf error, or I/O error.
     PdfGenerationFailed(String),
+
+    /// Writing the rendered PDF bytes to the user-chosen destination failed
+    /// (permission denied, disk full, missing parent directory, etc.).
+    WriteFailed(String),
 }
 
 impl fmt::Display for ReportPdfError {
@@ -23,6 +28,7 @@ impl fmt::Display for ReportPdfError {
             ReportPdfError::PdfGenerationFailed(msg) => {
                 write!(f, "PDF generation failed: {}", msg)
             }
+            ReportPdfError::WriteFailed(msg) => write!(f, "Failed to save PDF: {}", msg),
         }
     }
 }
@@ -43,5 +49,11 @@ mod tests {
     fn pdf_generation_failed_displays_message() {
         let err = ReportPdfError::PdfGenerationFailed("font load failed".into());
         assert!(err.to_string().contains("font load failed"));
+    }
+
+    #[test]
+    fn write_failed_displays_message() {
+        let err = ReportPdfError::WriteFailed("permission denied".into());
+        assert!(err.to_string().contains("permission denied"));
     }
 }

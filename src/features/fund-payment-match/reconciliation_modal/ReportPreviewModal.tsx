@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import type { ReportGenerationRequest } from "@/bindings";
 import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
 import { IconButton } from "@/ui/components/button/IconButton";
@@ -9,6 +10,7 @@ import { useReportPreviewModal } from "./useReportPreviewModal";
 
 interface ReportPreviewModalProps {
   bytes: Uint8Array;
+  request: ReportGenerationRequest;
   defaultFilename: string;
   onClose: () => void;
 }
@@ -21,9 +23,18 @@ interface ReportPreviewModalProps {
  * user accepts, cancels, or hits a write error. State + effects live in
  * `useReportPreviewModal` (per F10).
  */
-export function ReportPreviewModal({ bytes, defaultFilename, onClose }: ReportPreviewModalProps) {
+export function ReportPreviewModal({
+  bytes,
+  request,
+  defaultFilename,
+  onClose,
+}: ReportPreviewModalProps) {
   const { t } = useTranslation("fund-payment-match");
-  const { blobUrl, isSaving, handleSave } = useReportPreviewModal({ bytes, defaultFilename });
+  const { blobUrl, isSaving, handleSave } = useReportPreviewModal({
+    bytes,
+    request,
+    defaultFilename,
+  });
 
   useEffect(() => {
     logger.info("[ReportPreviewModal] Component mounted");

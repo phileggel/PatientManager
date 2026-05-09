@@ -1,5 +1,4 @@
 import { save } from "@tauri-apps/plugin-dialog";
-import { writeFile } from "@tauri-apps/plugin-fs";
 import {
   type CreateFundPaymentWithAutoCorrectionsRequest,
   commands,
@@ -172,19 +171,21 @@ export async function generateReportPdf(request: ReportGenerationRequest): Promi
 }
 
 /**
- * Open a native save-file dialog and write `bytes` to the chosen path (FPR-016).
+ * Open a native save-file dialog and ask the backend to write the report
+ * PDF to the chosen path (FPR-016).
  *
- * If the user cancels the dialog, returns `{ saved: false }` and writes nothing.
- * If the user picks a path, writes the bytes there and returns `{ saved: true }`.
- * Filesystem errors propagate to the caller.
+ * The renderer never holds the raw bytes for save: the backend re-renders
+ * from `request` and writes the result directly via `std::fs::write`. This
+ * keeps `@tauri-apps/plugin-fs` out of the production frontend and lets us
+ * drop the renderer's `fs:allow-write*` capabilities.
  *
- * @param bytes - PDF byte stream returned by `generateReportPdf`
+ * @param request - Same payload used to drive `generateReportPdf` for preview
  * @param defaultFilename - Pre-built default filename for the dialog
  * @returns `{ saved }` indicating whether a file was written
- * @throws Error if the filesystem write fails
+ * @throws Error if the backend save command fails
  */
 export async function saveReportPdf(
-  bytes: Uint8Array,
+  request: ReportGenerationRequest,
   defaultFilename: string,
 ): Promise<{ saved: boolean }> {
   logger.debug(TAG, "Opening save dialog for report PDF", { defaultFilename });
@@ -199,7 +200,13 @@ export async function saveReportPdf(
     return { saved: false };
   }
 
-  await writeFile(path, bytes);
+  const result = await commands.saveFundReconciliationReportPdf(request, path);
+
+  if (result.status === "error") {
+    logger.error(TAG, "Failed to save report PDF", result.error);
+    throw new Error(result.error);
+  }
+
   logger.info(TAG, "Report PDF saved", { path });
   return { saved: true };
 }
