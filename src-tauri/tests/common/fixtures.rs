@@ -119,6 +119,62 @@ pub mod fund_pdf {
     }
 }
 
+/// Bank-PDF surface scenarios.
+///
+/// Per IFC-050: each function returns `(PathBuf, BankStatementParseResult)` — the committed
+/// `.pdf` fixture path and the expected parse result loaded from the sibling
+/// `.expected.json` snapshot. Both files are produced by the dev binary
+/// (`just regen-fixtures bank-pdf`) from a single scenario builder, so they
+/// cannot drift.
+pub mod bank_pdf {
+    use patient_manager_app::use_cases::bank_statement_reconciliation::bank_pdf_codec::BankStatementParseResult;
+    use std::path::PathBuf;
+
+    /// Multi-label happy-path scenario per IFC-102 §1:
+    /// IBAN + period in header, multiple VIR SEPA credit lines, `unparsed_count = 0`.
+    pub fn happy_path_multi_label() -> (PathBuf, BankStatementParseResult) {
+        load("happy_path_multi_label")
+    }
+
+    /// IBAN + period only, no credit lines per IFC-102 §2:
+    /// IBAN + period present, `credit_lines` empty, `total_credits = 0`, `unparsed_count = 0`.
+    /// Produces the shape that would trigger R26 NoVirSepaLines at the command layer —
+    /// the round-trip verifies the parser result only.
+    pub fn iban_period_only_no_credits() -> (PathBuf, BankStatementParseResult) {
+        load("iban_period_only_no_credits")
+    }
+
+    fn load(scenario: &str) -> (PathBuf, BankStatementParseResult) {
+        let root = super::fixtures_root().join("bank_pdf");
+        let pdf_path = root.join(format!("{scenario}.pdf"));
+        let json_path = root.join(format!("{scenario}.expected.json"));
+
+        let json_bytes = std::fs::read(&json_path).unwrap_or_else(|e| {
+            panic!(
+                "failed to read expected.json for bank-pdf scenario '{scenario}' at {}: {e}\n\
+                 Did you forget to run `just regen-fixtures bank-pdf`?",
+                json_path.display()
+            )
+        });
+        let expected: BankStatementParseResult =
+            serde_json::from_slice(&json_bytes).unwrap_or_else(|e| {
+                panic!(
+                    "failed to deserialize expected.json for bank-pdf scenario '{scenario}' at {}: {e}",
+                    json_path.display()
+                )
+            });
+
+        assert!(
+            pdf_path.exists(),
+            "fixture pdf for bank-pdf scenario '{scenario}' is missing at {}; \
+             run `just regen-fixtures bank-pdf` to regenerate",
+            pdf_path.display()
+        );
+
+        (pdf_path, expected)
+    }
+}
+
 fn fixtures_root() -> PathBuf {
     // Integration tests run with CWD = the crate directory (src-tauri/),
     // so a relative path `tests/fixtures` resolves correctly. Falling back

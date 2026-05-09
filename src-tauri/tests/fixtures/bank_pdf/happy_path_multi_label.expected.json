@@ -1,0 +1,23 @@
+{
+  "iban": "FR7600000000000000000000000",
+  "period": "du 01/05/2025 au 30/05/2025",
+  "credit_lines": [
+    {
+      "date": "2025-05-02",
+      "label": "CPAM01",
+      "amount": 100000
+    },
+    {
+      "date": "2025-05-15",
+      "label": "MUTUELLEGENERALEEDUCATIONNAT",
+      "amount": 50000
+    },
+    {
+      "date": "2025-05-20",
+      "label": "CPAMHAUTSDESEINE",
+      "amount": 75000
+    }
+  ],
+  "total_credits": 225000,
+  "unparsed_count": 0
+}

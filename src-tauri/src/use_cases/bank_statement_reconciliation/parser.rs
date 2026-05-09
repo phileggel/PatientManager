@@ -1,34 +1,12 @@
-use regex::Regex;
-use serde::{Deserialize, Serialize};
-use specta::Type;
-
+use super::bank_pdf_codec::{self as codec, BankStatementCreditLine, BankStatementParseResult};
 use crate::core::logger::BACKEND;
+use regex::Regex;
 
-/// A single credit line from a bank statement (VIR SEPA only)
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct BankStatementCreditLine {
-    /// ISO date YYYY-MM-DD
-    pub date: String,
-    /// Fund label extracted from VIR SEPA, e.g. "CPAM93", "MUTUELLEGENERALEEDUCATIONNAT"
-    pub label: String,
-    /// Credit amount in thousandths of a euro (1 € = 1000)
-    pub amount: i64,
-}
-
-/// Result of parsing a bank statement PDF
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct BankStatementParseResult {
-    /// IBAN extracted from PDF header (normalized, no spaces)
-    pub iban: Option<String>,
-    /// Statement period, e.g. "du 01/05/2025 au 30/05/2025"
-    pub period: Option<String>,
-    /// Credit lines from VIR SEPA entries
-    pub credit_lines: Vec<BankStatementCreditLine>,
-    /// Sum of all credit amounts in thousandths of a euro
-    pub total_credits: i64,
-    /// Number of lines that couldn't be parsed
-    pub unparsed_count: u32,
-}
+// IFC-103: regexes are rebuilt per call from data-mapping constants. The
+// regex meta-char skeleton (I\.?B\.?A\.?N\.?, \d{2}/\d{2}/\d{4}, etc.) stays
+// inline — it is validation logic, not data mapping. Per-call compilation
+// matches the codebase pattern (see fund-PDF parser) and keeps the parser
+// fail-soft on a malformed regex (`.ok()?` propagates `None`).
 
 /// Parse a bank statement PDF text into structured data.
 ///
@@ -40,7 +18,7 @@ pub fn parse_bank_statement(text: &str) -> BankStatementParseResult {
     let credit_lines: Vec<BankStatementCreditLine> = extract_credit_lines(text);
     let total_credits: i64 = credit_lines
         .iter()
-        .inspect(|l| tracing::debug!(name: BACKEND, line = ?l))
+        .inspect(|l| tracing::debug!(target: BACKEND, line = ?l))
         .map(|l| l.amount)
         .sum();
 
@@ -56,7 +34,8 @@ pub fn parse_bank_statement(text: &str) -> BankStatementParseResult {
 /// Extract IBAN from PDF text.
 /// Expected format: `I.B.A.N. FR7600000000000000000000000`
 fn extract_iban(text: &str) -> Option<String> {
-    let re: Regex = Regex::new(r"I\.?B\.?A\.?N\.?\s*(FR\d[\d\s]*)").ok()?;
+    let prefix = codec::IBAN_COUNTRY_PREFIX;
+    let re = Regex::new(&format!(r"I\.?B\.?A\.?N\.?\s*({prefix}\d[\d\s]*)")).ok()?;
     let caps = re.captures(text)?;
     let raw = caps.get(1)?.as_str();
     let normalized = raw.replace(' ', "").trim().to_string();
@@ -70,34 +49,39 @@ fn extract_iban(text: &str) -> Option<String> {
 /// Extract statement period.
 /// Format: `du DD/MM/YYYY au DD/MM/YYYY`
 fn extract_period(text: &str) -> Option<String> {
-    // Note: spaces around "au" may be missing, e.g. "du 01/01/2025au 31/01/2025"
-    let re = Regex::new(r"du\s*(\d{2}/\d{2}/\d{4})\s*au\s*(\d{2}/\d{2}/\d{4})").ok()?;
+    let prefix = codec::PERIOD_PREFIX.trim_end();
+    let separator = codec::PERIOD_SEPARATOR.trim();
+    let re = Regex::new(&format!(
+        r"{prefix}\s*(\d{{2}}/\d{{2}}/\d{{4}})\s*{separator}\s*(\d{{2}}/\d{{2}}/\d{{4}})"
+    ))
+    .ok()?;
     let caps = re.captures(text)?;
     let start = caps.get(1)?.as_str();
     let end = caps.get(2)?.as_str();
-    Some(format!("du {} au {}", start, end))
+    Some(format!(
+        "{prefix}{start}{sep}{end}",
+        prefix = codec::PERIOD_PREFIX,
+        sep = codec::PERIOD_SEPARATOR,
+    ))
 }
 
 /// Extract credit lines from VIR SEPA entries.
 ///
 /// Pattern for a movement start line:
-/// `DD/MM/YYYY VIRSEPA<LABEL> DD/MM/YYYY AMOUNT`
+/// `DD/MM/YYYY VIR SEPA <LABEL> DD/MM/YYYY AMOUNT`
 ///
-/// Examples:
-/// - `01/01/2025 VIRSEPACPAM01 01/01/2025 100,00`
-/// - `01/01/2025 VIRSEPACPAM02 01/01/2025 50,00`
-/// - `05/01/2025 VIRSEPACPAM01PRESTATIONS 05/01/2025 30,00`
-///
-/// The label is everything between "VIRSEPA" and the second date, excluding trailing "SEPA".
+/// The label is everything between "VIR SEPA" and the second date, excluding
+/// any trailing `SEPA` suffix (which some bank export formats append).
 fn extract_credit_lines(text: &str) -> Vec<BankStatementCreditLine> {
     let mut results = Vec::new();
 
-    // Match: date + "VIR SEPA" + label + date + amount
-    // The label can contain spaces and ends when we hit the second date
-    let re = Regex::new(
-        r"^\d{2}/\d{2}/\d{4}\s+VIR\s+SEPA\s+(.+?)\s+(\d{2}/\d{2}/\d{4})\s+([\d\s]+,\d{2})",
-    );
-    let re = match re {
+    // VIR_SEPA_MARKER is `VIR SEPA` (single space); split and rejoin with \s+
+    // to preserve the parser's tolerance for arbitrary whitespace between
+    // VIR and SEPA. The emitter uses the canonical single-space form.
+    let marker = codec::VIR_SEPA_MARKER.replace(' ', r"\s+");
+    let re = match Regex::new(&format!(
+        r"^\d{{2}}/\d{{2}}/\d{{4}}\s+{marker}\s+(.+?)\s+(\d{{2}}/\d{{2}}/\d{{4}})\s+([\d\s]+,\d{{2}})"
+    )) {
         Ok(r) => r,
         Err(_) => return results,
     };
@@ -120,24 +104,24 @@ fn extract_credit_lines(text: &str) -> Vec<BankStatementCreditLine> {
             let date_str = caps.get(2).map(|m| m.as_str()).unwrap_or_default();
             let amount_str = caps.get(3).map(|m| m.as_str()).unwrap_or_default();
 
-            // Clean up label: remove trailing "SEPA" if present
+            // Clean up label: remove trailing suffix if present (IFC-103).
             let mut label = label_raw.to_string();
-            if label.ends_with("SEPA") {
-                label = label[..label.len() - 4].to_string();
+            if label.ends_with(codec::LABEL_TRAILING_SUFFIX) {
+                label = label[..label.len() - codec::LABEL_TRAILING_SUFFIX.len()].to_string();
             }
 
-            // Skip empty labels
+            // Skip empty labels.
             if label.is_empty() {
                 continue;
             }
 
-            // Parse date DD/MM/YYYY → YYYY-MM-DD
+            // Parse date DD/MM/YYYY → YYYY-MM-DD.
             let iso_date = match convert_date_to_iso(date_str) {
                 Some(d) => d,
                 None => continue,
             };
 
-            // Parse French-formatted amount: "148,80" or "1 234,56" → i64 thousandths of a euro
+            // Parse French-formatted amount: "148,80" or "1 234,56" → i64 thousandths.
             let amount = match parse_french_amount(amount_str) {
                 Some(euros) => (euros * 1000.0).round() as i64,
                 None => continue,
@@ -151,7 +135,7 @@ fn extract_credit_lines(text: &str) -> Vec<BankStatementCreditLine> {
         }
     }
 
-    // Log what we found
+    // Log what we found.
     tracing::debug!(
         virsepa_count = virsepa_lines.len(),
         matched_count = matched_lines.len(),
@@ -170,7 +154,7 @@ fn extract_credit_lines(text: &str) -> Vec<BankStatementCreditLine> {
     results
 }
 
-/// Convert DD/MM/YYYY to YYYY-MM-DD
+/// Convert DD/MM/YYYY to YYYY-MM-DD.
 fn convert_date_to_iso(date: &str) -> Option<String> {
     let parts: Vec<&str> = date.split('/').collect();
     if parts.len() != 3 {
@@ -184,9 +168,11 @@ fn convert_date_to_iso(date: &str) -> Option<String> {
     ))
 }
 
-/// Parse French formatted amount: "148,80" or "1 234,56" → f64
+/// Parse French formatted amount: "148,80" or "1 234,56" → f64.
 fn parse_french_amount(s: &str) -> Option<f64> {
-    let cleaned = s.replace(' ', "").replace(',', ".");
+    let cleaned = s
+        .replace(' ', "")
+        .replace(codec::FRENCH_AMOUNT_DECIMAL, ".");
     cleaned.parse::<f64>().ok()
 }
 
@@ -305,8 +291,8 @@ Ref000000000000000000
 02/01/2025 CARTE01/01/25COMMERCECB*0000 02/01/2025 75,00
 02/01/2025 VIRVirementinternedepuisPARTICULIER 02/01/2025 1 000,00"#;
         let lines = extract_credit_lines(text);
-        // PRLVSEPA and CARTE should be filtered out
-        // "VIRVirement" doesn't have "VIRSEPA" pattern (no "SEPA" after "VIR")
+        // PRLVSEPA and CARTE should be filtered out.
+        // "VIRVirement" doesn't have "VIRSEPA" pattern (no "SEPA" after "VIR").
         assert_eq!(lines.len(), 0);
     }
 

@@ -2,6 +2,12 @@
 
 ---
 
+## (docs/contract-drift) — Fix `BankStatementParseResult` Shared Types in bank-statement-auto-match-contract.md
+
+The Shared Types block of `docs/contracts/bank-statement-auto-match-contract.md` declares `iban: String` and `period: String` for `BankStatementParseResult`, with prose noting "optional; absent if not found". The actual parser at `src-tauri/src/use_cases/bank_statement_reconciliation/parser.rs:22-24` uses `Option<String>` for both. Update the contract's Rust type signature to `Option<String>` so the type and the prose agree. Pre-existing drift, surfaced by contract-reviewer during the IFC-100+ codec extension review (PR for `feat/codec-bank-pdf`); not blocking that PR per the defer-pre-existing-findings pattern.
+
+---
+
 ## (backend/security) — Harden file-path Tauri commands against path-traversal
 
 `fund_payment_reconciliation::extract_pdf_text` and `bank_statement_reconciliation::parse_bank_statement` both accept an arbitrary `file_path: String` from the WebView and pass it straight to `std::fs::read` via `pdf_extractor::extract_pdf_text`. There is no canonicalization, no directory allowlist, and the `.pdf` extension check is bypassable (rename / symlink). A compromised renderer can read any file the Tauri process has OS-level access to. The capability declarations in `src-tauri/capabilities/default.json` are unscoped and the backend bypasses the plugin layer entirely, so the capability file gives a false sense of restriction for these commands.
@@ -19,12 +25,6 @@ Fix in lockstep across both surfaces:
 ## (backend/logging) — Avoid logging full file paths in PDF parse commands
 
 `fund_payment_reconciliation::extract_pdf_text` (`api.rs:256`) and `bank_statement_reconciliation::parse_bank_statement` (`api.rs:34`) both log the full incoming `file_path` at INFO level. On macOS/Linux this routinely embeds the user's home directory in structured logs. The frontend gateway also logs the full path (`bank-statement-match/gateway.ts:42`, `fund-payment-match/gateway.ts:24`). Switch all four sites in lockstep to log only the filename component so the alignment between the two parse surfaces stays intact.
-
----
-
-## (codec/bank-pdf) — Extend import codec to bank-statement PDFs
-
-Same pattern as fund-PDF above, but for the bank-statement reconciliation surface (`BankStatementParseResult`). Allocate IFC-100..IFC-XXX in `docs/spec/import-codec-fixtures.md`.
 
 ---
 

@@ -10,6 +10,7 @@
 //! This binary is feature-gated and never linked into the prod app
 //! (IFC-013).
 
+mod fixtures_bank_pdf;
 mod fixtures_excel;
 mod fixtures_fund_pdf;
 
@@ -47,6 +48,7 @@ fn run() -> Result<()> {
         // CLI surface arg is `fund-pdf` (kebab-case); output dir uses
         // snake_case to match the test helper module name (`fund_pdf`).
         "fund-pdf" => fixtures_fund_pdf::regenerate(&fixtures_root.join("fund_pdf"), scenario),
+        "bank-pdf" => fixtures_bank_pdf::regenerate(&fixtures_root.join("bank_pdf"), scenario),
         other => {
             print_usage();
             anyhow::bail!("unknown surface: {other}")
@@ -60,6 +62,7 @@ fn print_usage() {
     eprintln!("Surfaces:");
     eprintln!("  excel      Excel xlsx fixtures");
     eprintln!("  fund-pdf   Fund-payment-reconciliation PDF fixtures");
+    eprintln!("  bank-pdf   Bank-statement-reconciliation PDF fixtures");
     eprintln!();
     eprintln!("If <scenario> is omitted, regenerates every scenario for the surface.");
 }

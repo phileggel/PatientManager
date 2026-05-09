@@ -417,16 +417,17 @@ Round-trip property (IFC-021): `parse(generate(scenario)) == scenario` on every 
 
 Currently covered:
 
-| Surface  | Codec module                                                | Contract type      | Round-trip carve-outs                                   |
-| -------- | ----------------------------------------------------------- | ------------------ | ------------------------------------------------------- |
-| Excel    | `use_cases/excel_import/excel_codec.rs`                     | `ParsedExcelData`  | Session-scoped `*_tmp_id` UUIDs (EXI R5).               |
-| Fund-PDF | `use_cases/fund_payment_reconciliation/fund_pdf_codec.rs`   | `PdfParseResult`   | None — full structural equality (IFC-061).              |
+| Surface  | Codec module                                                | Contract type                | Round-trip carve-outs                                   |
+| -------- | ----------------------------------------------------------- | ---------------------------- | ------------------------------------------------------- |
+| Excel    | `use_cases/excel_import/excel_codec.rs`                     | `ParsedExcelData`            | Session-scoped `*_tmp_id` UUIDs (EXI R5).               |
+| Fund-PDF | `use_cases/fund_payment_reconciliation/fund_pdf_codec.rs`   | `PdfParseResult`             | None — full structural equality (IFC-061).              |
+| Bank-PDF | `use_cases/bank_statement_reconciliation/bank_pdf_codec.rs` | `BankStatementParseResult`   | None — full structural equality (IFC-101).              |
 
-Each codec module holds the typed contract plus data-mapping constants (sheet names, header labels, total-line markers, separators) that locate each field in the document. Parser internals (validation thresholds, fallback offsets, regex patterns, emitted strings) stay inside the parser per IFC-063. Bank-PDF (rules 100+) is reserved for a future spec extension.
+Each codec module holds the typed contract plus data-mapping constants (sheet names, header labels, total-line markers, separators) that locate each field in the document. Parser internals (validation thresholds, fallback offsets, regex patterns, emitted strings) stay inside the parser per IFC-063 / IFC-103. All three IFC surfaces are covered.
 
-The `dev-fixtures` Cargo feature gates the binary, every Excel write-side dependency (`rust_xlsxwriter`), and the round-trip integration tests (`tests/codec_round_trip.rs`, `tests/codec_round_trip_fund_pdf.rs`). The fund-PDF writer reuses `printpdf`, already a prod dep for the fund-payment-report renderer (IFC-065 carve-out). The standard `cargo test` and `tauri build` jobs run without the feature.
+The `dev-fixtures` Cargo feature gates the binary, every Excel write-side dependency (`rust_xlsxwriter`), and the round-trip integration tests (`tests/codec_round_trip.rs`, `tests/codec_round_trip_fund_pdf.rs`, `tests/codec_round_trip_bank_pdf.rs`). The fund-PDF and bank-PDF writers reuse `printpdf`, already a prod dep for the fund-payment-report renderer (IFC-065 / IFC-105 carve-out). The standard `cargo test` and `tauri build` jobs run without the feature.
 
-Regenerate fixtures: `just regen-fixtures excel` / `just regen-fixtures fund-pdf` (optional `<scenario>` arg). CI guard: `.github/workflows/dev-fixtures.yml` regenerates each surface and runs `git diff --exit-code -- src-tauri/tests/fixtures/ ':(exclude)*.pdf'` to catch drift on every deterministic file (`.expected.json`, Excel `.xlsx`); the round-trip tests are the correctness gate for the non-deterministic PDF surface.
+Regenerate fixtures: `just regen-fixtures excel` / `just regen-fixtures fund-pdf` / `just regen-fixtures bank-pdf` (optional `<scenario>` arg). CI guard: `.github/workflows/dev-fixtures.yml` regenerates each surface and runs `git diff --exit-code -- src-tauri/tests/fixtures/ ':(exclude)*.pdf'` to catch drift on every deterministic file (`.expected.json`, Excel `.xlsx`); the round-trip tests are the correctness gate for the non-deterministic PDF surfaces.
 
 ---
 
