@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ModalContainerProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export function ModalContainer({
   maxHeight = "max-h-[90vh]",
   titleId,
 }: ModalContainerProps) {
+  const { t } = useTranslation("common");
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isOpen) {
@@ -55,7 +57,7 @@ export function ModalContainer({
       {/* Backdrop — interactive button so screen readers can dismiss */}
       <button
         type="button"
-        aria-label="Close modal"
+        aria-label={t("aria.closeModal")}
         className="absolute inset-0 bg-m3-scrim/50 backdrop-blur-[2px] cursor-default"
         onClick={onClose}
       />

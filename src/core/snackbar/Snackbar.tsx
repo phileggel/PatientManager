@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle, Info, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { SnackbarType } from "./useSnackbar";
 
 interface SnackbarProps {
@@ -39,6 +40,7 @@ const iconMap: Record<SnackbarType, React.ReactNode> = {
 
 export function Snackbar({ type, message, onDismiss }: SnackbarProps) {
   const colors = colorMap[type];
+  const { t } = useTranslation("common");
 
   return (
     <div
@@ -55,7 +57,7 @@ export function Snackbar({ type, message, onDismiss }: SnackbarProps) {
         type="button"
         onClick={onDismiss}
         className="hover:opacity-70 p-1 shrink-0 transition-opacity"
-        aria-label="Dismiss notification"
+        aria-label={t("aria.dismissNotification")}
       >
         <X size={18} />
       </button>
