@@ -24,7 +24,10 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 // plain cargo build produces a binary that connects to the Vite dev server (devUrl).
 // Only the Tauri CLI build embeds the frontend dist into the binary.
 const BINARY_NAME = "patient_manager_app";
-const BINARY_PATH = resolve(`./src-tauri/target/debug/${BINARY_NAME}`);
+// Anchor on `__dirname` (this file's location) rather than the Node process
+// cwd so the path stays correct if `npm run test:e2e` is invoked from a
+// non-default cwd (e.g. a CI step with `working-directory: src-tauri`).
+const BINARY_PATH = resolve(__dirname, "src-tauri", "target", "debug", BINARY_NAME);
 
 // Ephemeral database used exclusively by the E2E test suite.
 // The binary reads PATIENT_MANAGER_E2E_DB and, when set, uses that path instead
@@ -63,11 +66,27 @@ export const config: Options.Testrunner = {
   // --no-bundle: skip installer packaging, just produce the binary.
   // --debug: debug profile (faster compile, includes debug symbols).
   onPrepare: () => {
-    const result = spawnSync("npx", ["tauri", "build", "--debug", "--no-bundle"], {
-      cwd: resolve(__dirname),
-      stdio: "inherit",
-      shell: true,
-    });
+    // `--config tauri.e2e.conf.json` overrides `beforeBuildCommand` so
+    // the frontend builds with `vite --mode e2e` instead of the default
+    // `mode='production'`. That keeps the `e2eOverride` branch (gated
+    // by the dev/test/e2e mode allowlist) alive in the binary WebDriver
+    // drives. See ADR-007.
+    const tauriConfPath = resolve(__dirname, "src-tauri", "tauri.e2e.conf.json");
+    if (!existsSync(tauriConfPath)) {
+      throw new Error(
+        `tauri.e2e.conf.json not found at ${tauriConfPath}. ` +
+          `The E2E build needs this overlay to keep the e2eOverride branch alive — see ADR-007.`,
+      );
+    }
+    const result = spawnSync(
+      "npx",
+      ["tauri", "build", "--debug", "--no-bundle", "--config", "tauri.e2e.conf.json"],
+      {
+        cwd: resolve(__dirname, "src-tauri"),
+        stdio: "inherit",
+        shell: true,
+      },
+    );
     if (result.status !== 0) {
       throw new Error(`tauri build failed with exit code ${result.status}`);
     }
