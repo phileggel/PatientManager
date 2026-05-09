@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { samplePdfBytes } from "../shared/__fixtures__/reportFixtures";
+import { samplePdfBytes, sampleReportRequest } from "../shared/__fixtures__/reportFixtures";
 
 // ---------------------------------------------------------------------------
 // Mocks — must be declared before importing the component
@@ -46,6 +46,7 @@ import { ReportPreviewModal } from "./ReportPreviewModal";
 // ---------------------------------------------------------------------------
 
 const fakePdfBytes = samplePdfBytes;
+const fakeRequest = sampleReportRequest;
 const fakeBlobUrl = "blob:http://localhost/fake-pdf-url";
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,7 @@ const fakeBlobUrl = "blob:http://localhost/fake-pdf-url";
 describe("ReportPreviewModal", () => {
   const defaultProps = {
     bytes: fakePdfBytes,
+    request: fakeRequest,
     defaultFilename: "reconciliation-2025-04-01-to-2025-04-30.pdf",
     onClose: vi.fn(),
   };
@@ -108,10 +110,7 @@ describe("ReportPreviewModal", () => {
     await user.click(saveButton);
 
     await waitFor(() => {
-      expect(gateway.saveReportPdf).toHaveBeenCalledWith(
-        fakePdfBytes,
-        defaultProps.defaultFilename,
-      );
+      expect(gateway.saveReportPdf).toHaveBeenCalledWith(fakeRequest, defaultProps.defaultFilename);
     });
     await waitFor(() => {
       expect(mockToastShow).toHaveBeenCalledWith("success", expect.any(String));

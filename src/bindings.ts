@@ -912,6 +912,27 @@ async generateFundReconciliationReportPdf(request: ReportGenerationRequest) : Pr
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Generate the post-reconciliation report and write it to `path`.
+ * 
+ * FPR-016. Combines `generate_fund_reconciliation_report_pdf`'s render
+ * step with a server-side filesystem write. The frontend opens the native
+ * save dialog and forwards the user-chosen path; bytes never leave the
+ * backend, eliminating the renderer's need for the `fs:allow-write*`
+ * capabilities.
+ * 
+ * `path` is trusted only as a destination — `validate()` covers the
+ * request payload as for the preview command. Path-traversal hardening
+ * for user-chosen paths is tracked separately in `docs/todo.md`.
+ */
+async saveFundReconciliationReportPdf(request: ReportGenerationRequest, path: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_fund_reconciliation_report_pdf", { request, path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 

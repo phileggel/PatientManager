@@ -341,12 +341,17 @@ describe("useReportGeneration", () => {
     const { result } = renderHook(() => useReportGeneration(baseArgs));
 
     expect(result.current.previewBytes).toBeNull();
+    expect(result.current.previewRequest).toBeNull();
 
     await act(async () => {
       await result.current.handleReport();
     });
 
     expect(result.current.previewBytes).toEqual(fakePdfBytes);
+    // previewRequest is the same payload the gateway received — captured at
+    // generation time so the BE save command (FPR-016) re-renders from the
+    // exact request that produced the preview.
+    expect(result.current.previewRequest).toEqual(mockGenerateReportPdf.mock.calls[0]?.[0]);
   });
 
   // ── FPR-014: error → toast shown, previewBytes stays null ────────────────
@@ -390,7 +395,7 @@ describe("useReportGeneration", () => {
 
   // ── FPR-018: closePreview clears previewBytes ─────────────────────────────
 
-  it("closePreview sets previewBytes back to null (FPR-018)", async () => {
+  it("closePreview sets previewBytes and previewRequest back to null (FPR-018)", async () => {
     mockGenerateReportPdf.mockResolvedValue(fakePdfBytes);
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
@@ -400,12 +405,14 @@ describe("useReportGeneration", () => {
     });
 
     expect(result.current.previewBytes).not.toBeNull();
+    expect(result.current.previewRequest).not.toBeNull();
 
     act(() => {
       result.current.closePreview();
     });
 
     expect(result.current.previewBytes).toBeNull();
+    expect(result.current.previewRequest).toBeNull();
   });
 
   // ── defaultFilename ──────────────────────────────────────────────────────

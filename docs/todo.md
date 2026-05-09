@@ -10,7 +10,13 @@ The Shared Types block of `docs/contracts/bank-statement-auto-match-contract.md`
 
 ## (backend/security) — Harden file-path Tauri commands against path-traversal
 
-`fund_payment_reconciliation::extract_pdf_text` and `bank_statement_reconciliation::parse_bank_statement` both accept an arbitrary `file_path: String` from the WebView and pass it straight to `std::fs::read` via `pdf_extractor::extract_pdf_text`. There is no canonicalization, no directory allowlist, and the `.pdf` extension check is bypassable (rename / symlink). A compromised renderer can read any file the Tauri process has OS-level access to. The capability declarations in `src-tauri/capabilities/default.json` are unscoped and the backend bypasses the plugin layer entirely, so the capability file gives a false sense of restriction for these commands.
+Three commands accept an arbitrary user-controlled path from the WebView and pass it straight to filesystem APIs:
+
+- `fund_payment_reconciliation::extract_pdf_text` — read path
+- `bank_statement_reconciliation::parse_bank_statement` — read path
+- `fund_payment_report_pdf::save_fund_reconciliation_report_pdf` — write path (added 2026-05-09)
+
+There is no canonicalization, no directory allowlist, and any extension check is bypassable (rename / symlink). A compromised renderer can read any file the Tauri process has OS-level access to and overwrite any file in the writable scope. The write-path command is somewhat lower-severity than the read-path commands (overwrite arbitrary file vs. exfiltrate arbitrary file), but belongs in the same hardening sweep.
 
 Fix in lockstep across both surfaces:
 
