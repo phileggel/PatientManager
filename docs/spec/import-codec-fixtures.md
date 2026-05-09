@@ -18,11 +18,10 @@ a dev-only artifact; the dev generator depends on it, never the reverse.
 Only the generator and its supporting fixture tooling are gated behind a
 Cargo feature.
 
-The codec covers two surfaces today: **Excel** through its `ParsedExcelData`
-contract, and **fund-payment-reconciliation PDFs** through their
-`PdfParseResult` contract. Bank-statement PDFs remain a future surface,
-to be added later through a spec extension to this document allocating a
-fresh `IFC-NNN` block at the time of writing.
+The codec covers three surfaces: **Excel** through its `ParsedExcelData`
+contract, **fund-payment-reconciliation PDFs** through their `PdfParseResult`
+contract, and **bank-statement PDFs** through their `BankStatementParseResult`
+contract.
 
 The generator ships as a Cargo-feature-gated binary, isolated from the
 production application: the production build links neither the binary nor any
@@ -38,10 +37,11 @@ data-mapping constants that locate each field in the source document.
 Parser internals (validation thresholds, regex patterns, fallback offsets,
 emitted strings) stay inside each surface's parser.
 
-| Surface  | Codec module                                              | Contract type     |
-| -------- | --------------------------------------------------------- | ----------------- |
-| Excel    | `use_cases/excel_import/excel_codec.rs`                   | `ParsedExcelData` |
-| Fund-PDF | `use_cases/fund_payment_reconciliation/fund_pdf_codec.rs` | `PdfParseResult`  |
+| Surface  | Codec module                                                | Contract type              |
+| -------- | ----------------------------------------------------------- | -------------------------- |
+| Excel    | `use_cases/excel_import/excel_codec.rs`                     | `ParsedExcelData`          |
+| Fund-PDF | `use_cases/fund_payment_reconciliation/fund_pdf_codec.rs`   | `PdfParseResult`           |
+| Bank-PDF | `use_cases/bank_statement_reconciliation/bank_pdf_codec.rs` | `BankStatementParseResult` |
 
 No database schema change is required.
 
@@ -68,10 +68,10 @@ without that feature; the dev tooling job runs with it. The binary's
 `required-features` declaration MUST list this feature.
 
 **IFC-012 — Stable CLI shape (backend)**: The binary accepts at minimum one
-argument identifying the **surface** to generate (currently `excel` and
-`fund-pdf`) and a second argument identifying the named **scenario**. Adding
-new surfaces (e.g. bank-pdf) MUST extend the surface argument's accepted
-values without breaking the existing shape.
+argument identifying the **surface** to generate (currently `excel`,
+`fund-pdf`, and `bank-pdf`) and a second argument identifying the named
+**scenario**. Adding new surfaces MUST extend the surface argument's
+accepted values without breaking the existing shape.
 
 **IFC-013 — No prod artifact pollution (backend)**: Production-build
 dependencies (`[dependencies]` in `src-tauri/Cargo.toml`, unconditional) MUST
@@ -340,14 +340,111 @@ exemption evaporates and the library either gains another production
 consumer or moves to the dev-fixtures-only feature gate to satisfy
 IFC-013.
 
----
+### Bank-Statement-Reconciliation PDF Surface (100–139)
 
-> **Note (non-rule) — Future surfaces and numbering**: Bank-statement PDFs
-> are the remaining future surface and will be added through their own
-> spec extension to this document. The extension will allocate a fresh
-> `IFC-NNN` block starting from the next available decade boundary at the
-> time of writing (currently 100, since fund-PDF used 060–065). Block sizes
-> are left to the extending spec — no pre-allocated reservation.
+> Rules in this section are surface-specific to bank-PDF. Surface-agnostic
+> rules (IFC-010..IFC-013, IFC-023..IFC-025, IFC-030..IFC-034, IFC-040..IFC-042,
+> IFC-050..IFC-051) apply to bank-PDF as written and are not restated.
+
+**IFC-100 — Bank-PDF codec location and contents (backend)**: For the
+bank-statement-reconciliation PDF surface, the codec lives in
+`use_cases/bank_statement_reconciliation/bank_pdf_codec.rs`. It contains the
+existing `BankStatementParseResult` contract type and its sub-type
+(`BankStatementCreditLine`), plus the data-mapping constants (the IBAN
+header marker, the IBAN country prefix, the period prefix and date-range
+separator, the credit-line `VIR SEPA` marker, the label trailing-suffix
+cleanup token, and the French-amount decimal separator) the parser scans
+for and the dev generator emits. The Excel, fund-PDF, and bank-PDF codecs
+are independent sibling modules per IFC-023 — they share no traits, no
+helpers, no constants.
+
+**IFC-101 — Bank-PDF round-trip guarantee (backend)**: For every committed
+bank-PDF scenario, `parse(extract_text(generate(scenario))) == scenario`
+holds as **full structural equality** on the contract value, where
+`extract_text` is the same production text-extraction step the
+bank-statement-reconciliation pipeline already runs before invoking the
+parser. The codec round-trip target is the parser function
+(`parser::parse_bank_statement(text: &str) -> BankStatementParseResult`),
+NOT the Tauri command wrapper — see IFC-102 §2 for the consequence on the
+NoVirSepaLines (BAS R26) boundary check. `BankStatementParseResult`
+carries no session-scoped fields — every field (`iban`, `period`, every
+`BankStatementCreditLine` member including `date`, `label`, and `amount`,
+the derived `total_credits`, and `unparsed_count`) is compared directly
+without exception. If a future change to `BankStatementParseResult`
+introduces a field whose value the parser regenerates per parse, this rule
+MUST be amended to add a corresponding carve-out — the absence of carve-outs
+is a property of the current contract, not a permanent guarantee. The
+scenario builder MUST declare every expected value up-front; the
+generator MUST emit text in an order and format the parser inverts.
+
+**IFC-102 — Bank-PDF minimum scenario coverage (backend)**: The committed
+bank-PDF scenario set MUST include at least:
+
+1. A multi-label happy-path scenario whose extracted text contains: an IBAN
+   header line, a statement period range line, and several credit lines
+   formatted with the canonical single-space `VIR SEPA` marker (the parser's
+   regex tolerates one or more spaces between `VIR` and `SEPA`, but the
+   generator MUST emit the single-space form for fidelity with real bank
+   statements). At least two distinct fund labels MUST appear, and at least
+   one label MUST exercise the trailing-`SEPA` cleanup case (a label whose
+   raw form ends in `SEPA` and is shortened by the parser). `iban` and
+   `period` MUST be `Some(...)`; `credit_lines` MUST be non-empty;
+   `total_credits` MUST equal the sum of `credit_lines[*].amount`;
+   `unparsed_count` MUST be 0.
+2. A degenerate scenario whose extracted text contains an IBAN header line
+   and a period line but no `VIR SEPA` credit lines. `iban` and `period`
+   MUST be `Some(...)`; `credit_lines` MUST be empty; `total_credits` MUST
+   be 0; `unparsed_count` MUST be 0. This scenario produces the exact
+   `BankStatementParseResult` shape that triggers the `NoVirSepaLines`
+   boundary check (BAS R26) at the Tauri-command layer — but because that
+   check fires AFTER the parser returns, R26 is out of codec scope (the
+   codec round-trip target per IFC-101 is the parser function, not the
+   command). The R26 error path is exercised by command-layer tests, not
+   the codec round-trip suite.
+
+Additional scenarios may be added without changing existing ones.
+
+**IFC-103 — Generator-only on the bank-PDF surface (backend)**: Introducing
+the codec on the bank-PDF surface MUST NOT change the production parser's
+behavior or alter the shape of `BankStatementParseResult` or its sub-type.
+Literal-to-constant refactors that promote **data-mapping** strings into
+the codec module are explicitly permitted (and encouraged) — these include
+the IBAN header marker (`I.B.A.N.`), the IBAN country prefix (`FR`), the
+period prefix (`du `) and date-range separator (`au`), the credit-line
+marker (`VIR SEPA`), the label trailing-suffix cleanup token (`SEPA`), and
+the French-amount decimal separator (`,`). Such refactors strengthen the
+codec's role as the single source of truth (per IFC-025) without altering
+parser output. Validation patterns (the IBAN regex, the credit-line
+regex, the period regex), helper conversions (DD/MM/YYYY → ISO date,
+French-formatted amount → i64 thousandths of a euro), and any other
+parser-internal heuristics stay inside the parser — they are not data
+mapping and do not belong in the codec.
+
+**IFC-104 — Bank-PDF generator output is non-deterministic (backend)**: PDF
+byte-determinism is not feasible for bank-PDF for the same reasons
+identified in IFC-064 for fund-PDF (font subsetting, embedded metadata,
+and stream ordering in the chosen PDF write-side library are non-trivially
+deterministic). Per IFC-040's fallback clause, the bank-PDF generator MAY
+emit non-deterministic `.pdf` bytes. The committed `.pdf` files serve only
+as artifacts for manual inspection; they are NOT a byte-determinism
+contract. The drift guard (IFC-041) MUST already exclude `*.pdf` files
+from the diff check per IFC-064; bank-PDF inherits the same exclusion
+pathspec without further extension. The `.expected.json` snapshots
+remain deterministic and represent the codec contract for bank-PDF; the
+round-trip integration test (IFC-051) is the load-bearing correctness
+check for this surface.
+
+**IFC-105 — Bank-PDF write-side library reuse (backend)**: The bank-PDF
+generator MUST reuse the same PDF write-side library that the fund-PDF
+surface uses (currently `printpdf`), since (a) IFC-013 forbids write-side
+libraries used solely by the generator, (b) IFC-065 already exempts
+`printpdf` from that rule via its production consumer (the
+fund-payment-report PDF renderer), and (c) introducing a second PDF
+write-side library purely for bank-PDF generation would add a dev-only
+dependency that IFC-013 forbids and that no surface's needs justify.
+The bank-PDF generator therefore inherits the IFC-065 exemption
+transitively through this rule; the evaporation clause in IFC-065
+applies to bank-PDF without restatement.
 
 ---
 
@@ -394,7 +491,7 @@ There is no in-app entry, no menu, and no Tauri command.
 
 The generator binary itself. It accepts:
 
-- A surface argument (currently `excel` or `fund-pdf`).
+- A surface argument (currently `excel`, `fund-pdf`, or `bank-pdf`).
 - An optional scenario argument; if omitted, regenerates every scenario for
   the surface.
 

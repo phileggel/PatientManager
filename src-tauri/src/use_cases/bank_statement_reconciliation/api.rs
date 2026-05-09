@@ -7,11 +7,12 @@ use tauri::State;
 use crate::context::bank::BankAccount;
 use crate::use_cases::fund_payment_reconciliation::parsing::pdf_extractor;
 
+use super::bank_pdf_codec::BankStatementParseResult;
 use super::orchestrator::{
     BankStatementMatchResult, BankStatementOrchestrator, BankStatementReconciliationConfig,
     ConfirmedMatch, FundLabelResolution, ResolvedCreditLine,
 };
-use super::parser::{self, BankStatementParseResult};
+use super::parser;
 
 /// Request to save label mappings
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
