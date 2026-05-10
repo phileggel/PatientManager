@@ -143,19 +143,6 @@ Multiple F10 violations in the procedure feature: business logic (state, memos, 
 
 ---
 
-## (backend/test) — Remove or strengthen trivial B25-violating tests
-
-Several tests added in the coverage push assert nothing domain-meaningful:
-
-- `fund_new_success`, `fund_with_id_preserves_id`, `fund_payment_line_with_id_preserves_id` (fund/domain.rs) — getter-returns-what-was-passed-in
-- `create_batch_groups_empty_returns_empty` (fund/repository.rs) — empty-in empty-out
-- `publish_batch_events_does_not_panic` (bank_statement_reconciliation/orchestrator.rs) — does-not-panic
-- `procedure_service_read_all_returns_empty`, `procedure_service_read_procedure_not_found` (procedure/service.rs) — mock echo
-
-Delete or replace each with a test that exercises a real domain invariant or error-propagation path.
-
----
-
 ## (backend/arch) — Introduce a DI container for orchestrator wiring
 
 Production orchestrators are currently wired manually in `lib.rs` via explicit `Arc<dyn Trait>` constructor injection. This works but doesn't scale well as the number of dependencies grows: adding a dep means touching `lib.rs`, the orchestrator `new()`, and every integration test `Ctx`. A DI container (e.g. `shaku`) would centralize registration and resolve dependencies automatically, reducing wiring boilerplate and making the `new()` signature irrelevant to callers. Evaluate once the orchestrator count or dep count becomes a maintenance burden.
