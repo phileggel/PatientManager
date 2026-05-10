@@ -182,7 +182,4 @@ Within each block, sorting is strictly alphabetical on the label as it appears i
 
 ## Open questions
 
-- [x] **ADR-001 — `BankFundLabelMapping`**: Persistence decisions (composite key `(bank_account_id, bank_label)`, check-then-update upsert, reject = `fund_id NULL`, soft-delete + partial index) are documented in [docs/adr/001-bank-fund-label-mapping-persistence.md](../adr/001-bank-fund-label-mapping-persistence.md).
-- [x] **IBAN uniqueness scope on soft-deleted accounts** — Resolved: IBAN uniqueness applies across all accounts including soft-deleted ones, so account resolution by IBAN stays unambiguous. The constraint is declared in `bank-account.md` R5.
-
 None — all questions have been resolved.

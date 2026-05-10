@@ -172,8 +172,4 @@ Action applied per anomaly type:
 
 ## Open questions
 
-- [x] **FPA-120 — "All of the patient's procedures in the covered period" criterion**: Resolved — "covered period" = the PDF line's own date/period field: exact date for single-date lines, the `du…au` range for period lines. FPA-120 updated accordingly.
-
-- [x] **FPA-040 — Negative-amount handling and consistency with procedure-orchestration-spec**: Resolved — no conflict. `CreateProcedure` (both FPA-250 and FPA-040) creates procedures with status `None` via `create_procedures_batch_from_candidates`. They are added to the fund payment group and reach `Reconciliated` at group confirmation, following the normal lifecycle. FPA-040 describes the end state, not an at-creation exception. Positive and negative-amount procedures follow identical flows.
-
-- [x] **confirmed_payment_date at fund-reconciliation vs. bank-transfer time**: Resolved — `confirmed_payment_date` will remain the bank-transfer date (Stage 2). A new `fund_reconciliation_date` column will be added to `Procedure` to record the Stage 1 fund-document payment date separately. See docs/todo.md for the migration task.
+None — all questions have been resolved.
