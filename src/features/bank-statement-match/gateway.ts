@@ -39,7 +39,7 @@ export async function createBankAccount(
 }
 
 export async function parseBankStatement(filePath: string): Promise<BankStatementParseResult> {
-  logger.info(TAG, "Parsing bank statement PDF", { filePath });
+  logger.info(TAG, "Parsing bank statement PDF");
 
   const result = await commands.parseBankStatement(filePath);
 
@@ -58,7 +58,7 @@ export async function parseBankStatement(filePath: string): Promise<BankStatemen
 }
 
 export async function resolveBankAccountFromIban(iban: string): Promise<BankAccount | null> {
-  logger.info(TAG, "Resolving bank account from IBAN", { iban });
+  logger.info(TAG, "Resolving bank account from IBAN");
 
   const result = await commands.resolveBankAccountFromIban(iban);
 

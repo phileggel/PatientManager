@@ -34,7 +34,7 @@ export async function pickImportPath(title: string): Promise<string | null> {
  * The path is obtained from a native save-file dialog before calling this function.
  */
 export async function exportDatabase(destPath: string): Promise<void> {
-  logger.info("[db-backup] exportDatabase", { destPath });
+  logger.info("[db-backup] exportDatabase");
   const result = await commands.exportDatabase(destPath);
   if (result.status === "error") {
     throw new Error(result.error);
@@ -47,7 +47,7 @@ export async function exportDatabase(destPath: string): Promise<void> {
  * this resolves (R6).
  */
 export async function importDatabase(sourcePath: string): Promise<void> {
-  logger.info("[db-backup] importDatabase", { sourcePath });
+  logger.info("[db-backup] importDatabase");
   const result = await commands.importDatabase(sourcePath);
   if (result.status === "error") {
     throw new Error(result.error);

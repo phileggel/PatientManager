@@ -39,7 +39,7 @@ export interface ServiceResult<T> {
  * @returns Service result with ParseExcelResponse containing parsed data and issues
  */
 export async function parseExcelFile(filePath: string): Promise<ServiceResult<ParseExcelResponse>> {
-  logger.info("Parsing Excel file", { filePath });
+  logger.info("Parsing Excel file");
 
   try {
     const result = await commands.parseExcelFile(filePath);
