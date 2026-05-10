@@ -2,26 +2,6 @@
 
 ---
 
-## (backend/security) — Harden file-path Tauri commands against path-traversal
-
-Three commands accept an arbitrary user-controlled path from the WebView and pass it straight to filesystem APIs:
-
-- `fund_payment_reconciliation::extract_pdf_text` — read path
-- `bank_statement_reconciliation::parse_bank_statement` — read path
-- `fund_payment_report_pdf::save_fund_reconciliation_report_pdf` — write path (added 2026-05-09)
-
-There is no canonicalization, no directory allowlist, and any extension check is bypassable (rename / symlink). A compromised renderer can read any file the Tauri process has OS-level access to and overwrite any file in the writable scope. The write-path command is somewhat lower-severity than the read-path commands (overwrite arbitrary file vs. exfiltrate arbitrary file), but belongs in the same hardening sweep.
-
-Fix in lockstep across both surfaces:
-
-1. Canonicalize the incoming path and assert the canonical result falls under a permitted root before delegating to the extractor (likely the user's home dir or a configured app-data scope).
-2. Add a `scope` block to the `fs:allow-*` permissions in `default.json` for defense-in-depth even though backend reads bypass the plugin.
-3. Coordinate with the future "remember last path per feature" UX direction — the trusted-root policy needs to interact cleanly with whatever per-feature path persistence we introduce.
-
-> Pre-existing on `main` (fund-PDF surface); the bank-statement alignment refactor (PR #14) inherits the same exposure but does not introduce it. Treat as a single hardening sweep.
-
----
-
 ## (frontend/ui) — Split BankStatementModal step components
 
 `BankStatementModal.tsx` contains 7 conditional `step === "..."` blocks (loading, matching, create-account, label-mapping, results, done, error). The create-account step now has form state, validation, error display — non-trivial. Extract step components (e.g. `CreateAccountStep`, `DoneStep`, `ErrorStep`) once another step gains comparable logic, or if the modal grows past ~200 lines. Pure refactor — defer until there's a second non-trivial step or the file becomes unwieldy.

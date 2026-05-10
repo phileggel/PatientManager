@@ -3,6 +3,7 @@ use super::parsing::pdf_extractor;
 use super::parsing::pdf_parser;
 use super::service::ReconciliationService;
 use crate::core::logger::BACKEND;
+use crate::core::secure_path::{self, PathPolicy};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -256,7 +257,20 @@ pub async fn get_unreconciled_procedures_in_range_fn(
 pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
     tracing::info!(target: BACKEND, "Extracting text from PDF");
 
-    let result = pdf_extractor::extract_pdf_text(&file_path)?;
+    let allowed_root =
+        secure_path::user_home().ok_or_else(|| "Cannot resolve user home directory".to_string())?;
+    let canonical = secure_path::validate_user_path(
+        &file_path,
+        &allowed_root,
+        PathPolicy::ExistingFile {
+            extensions: &["pdf"],
+        },
+    )
+    .map_err(|e| {
+        tracing::warn!(target: BACKEND, error = %e, "PDF path rejected by validator");
+        format!("{e}")
+    })?;
+    let result = pdf_extractor::extract_pdf_text(&canonical)?;
 
     tracing::info!(
         target: BACKEND,
