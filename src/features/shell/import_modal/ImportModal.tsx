@@ -49,6 +49,7 @@ export function ImportModal({ isOpen, onClose, onNavigate, onFileSelected }: Imp
       <div className="flex flex-col gap-3 pb-2">
         {/* Excel import */}
         <button
+          id="import-card-excel"
           type="button"
           className={cardClasses}
           onClick={handleExcelImport}
@@ -62,6 +63,7 @@ export function ImportModal({ isOpen, onClose, onNavigate, onFileSelected }: Imp
 
         {/* Fund reconciliation */}
         <button
+          id="import-card-fund-reconciliation"
           type="button"
           className={cardClasses}
           onClick={handleFundReconciliation}
@@ -77,6 +79,7 @@ export function ImportModal({ isOpen, onClose, onNavigate, onFileSelected }: Imp
 
         {/* Bank reconciliation */}
         <button
+          id="import-card-bank-reconciliation"
           type="button"
           className={cardClasses}
           onClick={handleBankReconciliation}
