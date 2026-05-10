@@ -125,6 +125,7 @@ export const Drawer = ({
           {onOpenImport && (
             <li>
               <button
+                id="nav-import"
                 type="button"
                 className={navItemClasses}
                 onClick={onOpenImport}
