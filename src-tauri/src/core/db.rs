@@ -48,7 +48,7 @@ impl Database {
             }
         }
 
-        tracing::trace!(target: BACKEND, "Connecting to database: {}", db_path.to_string_lossy());
+        tracing::trace!(target: BACKEND, "Connecting to database");
 
         let connect_options = SqliteConnectOptions::new()
             .filename(&db_path)

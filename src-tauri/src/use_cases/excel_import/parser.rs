@@ -95,7 +95,7 @@ impl ExcelParserService {
 
     /// Parse an Excel file and extract patients, funds, and procedures
     pub async fn parse_excel(file_path: &str) -> anyhow::Result<ParsedExcelData> {
-        tracing::debug!("Starting Excel file parse: {}", file_path);
+        tracing::debug!("Starting Excel file parse");
 
         let path = Path::new(file_path);
         if !path.exists() {

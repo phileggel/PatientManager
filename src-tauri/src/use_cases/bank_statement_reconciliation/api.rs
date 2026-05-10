@@ -32,7 +32,7 @@ pub struct CreateTransfersFromStatementRequest {
 #[tauri::command]
 #[specta::specta]
 pub async fn parse_bank_statement(file_path: String) -> Result<BankStatementParseResult, String> {
-    tracing::info!("Starting bank statement parsing ({})", file_path);
+    tracing::info!("Starting bank statement parsing");
 
     // Step 1: Extract text from PDF
     let text = pdf_extractor::extract_pdf_text(&file_path)
