@@ -8,21 +8,27 @@ set -euo pipefail
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 CHECK_SCRIPT="$PROJECT_ROOT/scripts/check.py"
 
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-GREEN='\033[0;32m'
-NC='\033[0m'
+# Colors (respect NO_COLOR=1)
+if [ -n "${NO_COLOR:-}" ]; then
+    RED='' YELLOW='' GREEN='' BLUE='' NC=''
+else
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    GREEN='\033[0;32m'
+    BLUE='\033[0;34m'
+    NC='\033[0m'
+fi
 
 # Block direct commits to main
 CURRENT_BRANCH=$(git branch --show-current)
 if [ "$CURRENT_BRANCH" = "main" ]; then
     echo -e "${RED}❌ Direct commits to main are not allowed.${NC}"
-    echo -e "${YELLOW}   Create a feature branch: git checkout -b feat/your-feature${NC}"
-    echo -e "${YELLOW}   To bypass (emergencies only): git commit --no-verify${NC}"
+    echo -e "${BLUE}   Create a feature branch: git checkout -b feat/your-feature${NC}"
+    echo -e "${BLUE}   To bypass (emergencies only): git commit --no-verify${NC}"
     exit 1
 fi
 
-echo -e "${YELLOW}🔍 Pre-commit checks running (Fast Mode)...${NC}"
+echo -e "${BLUE}🔍 Pre-commit checks running (Fast Mode)...${NC}"
 
 if [ ! -f "$CHECK_SCRIPT" ]; then
     echo -e "${YELLOW}⚠  $CHECK_SCRIPT not found. Skipping full validation.${NC}"

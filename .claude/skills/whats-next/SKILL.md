@@ -1,6 +1,6 @@
 ---
 name: whats-next
-description: Surveys pending work across TODOs, planning docs, unfinished feature plans, open spec questions, and in-flight git work, then returns a value/effort table with a recommended next action. Use at session start to triage what to work on, especially after a gap when context has faded.
+description: Surveys pending work across TODOs, planning docs, unfinished feature plans, open spec questions, in-flight git work, and open GitHub issues, then returns a value/effort table with a recommended next action. Use at session start to triage what to work on, especially after a gap when context has faded.
 tools: Bash, Read, Grep, Glob, Write
 ---
 
@@ -43,9 +43,11 @@ Run the deterministic collector once:
 python3 scripts/whats-next.py
 ```
 
-The script emits a single JSON document covering eight sources: `todo_file`, `inline_todos`, `planning_docs`, `feature_plans`, `spec_open_questions`, `in_flight`, `roadmap`, `techdebt`. Sections whose source is absent are emitted as `null` or empty arrays — skip those silently.
+The script emits a single JSON document covering nine sources: `todo_file`, `inline_todos`, `planning_docs`, `feature_plans`, `spec_open_questions`, `in_flight`, `roadmap`, `techdebt`, `gh_issues`. Sections whose source is absent are emitted as `null` or empty arrays — skip those silently.
 
-Parse the JSON and translate every entry into a **candidate item** with `(type, source, text)` for scoring in Step 4. **Tech-debt entries are candidates too** — surface them in the same Pending items table, but always label the source as `docs/techdebt.md` (with the entry date) so the user can tell observations from explicit todos.
+`gh_issues` is empty (`[]`) when `gh` is not on PATH or the repo has no GitHub remote — skip silently. When populated, each entry has `number`, `title`, `url`, `updatedAt`.
+
+Parse the JSON and translate every entry into a **candidate item** with `(type, source, text)` for scoring in Step 4. **Tech-debt entries are candidates too** — surface them in the same Pending items table, but always label the source as `docs/techdebt.md` (with the entry date) so the user can tell observations from explicit todos. **GitHub issues are also candidates** — label the source as `gh#NNN` (e.g. `gh#42`) so the user sees the issue number at a glance.
 
 If the script fails or returns invalid JSON, fall back to a manual scan and tell the user to re-run after fixing the script. Do not silently downgrade.
 
@@ -56,6 +58,7 @@ This step prevents stale TODOs from polluting the recommendation. For every cand
 - TODO mentions a file/script/skill name → `Glob` to check it exists
 - TODO mentions a feature keyword → `git log --oneline --grep "{keyword}"` to find shipping commits
 - Feature-plan task references a function/module → `Grep` for it
+- GitHub issue (`gh#NNN`) — open issues frequently have a fix shipped without the issue closing. Run `git log --oneline --grep "#NNN"` to find a closing or referencing commit; if found, mark the candidate as `⚠️ likely done` and surface as a cleanup candidate suggesting the issue be closed.
 
 Mark items as `🟢 pending`, `⚠️ likely done` (evidence of shipping), or `❓ unclear`. Items marked `⚠️ likely done` are reported as cleanup candidates, not work candidates.
 
@@ -105,12 +108,15 @@ If two items tie, prefer the one with explicit user signal (most recent edit, me
 | 2 | {short description} | docs/plan/foo-plan.md:NN | Medium | 1h | do next |
 | 3 | {short description} | docs/spec/bar.md (Open Q) | Low | ≤1h | defer |
 | 4 | {observation} | docs/techdebt.md (2026-04-02) | Medium | 1–3h | do next |
+| 5 | {issue title} | gh#42 | Medium | 2h | do next |
 
 > Tech-debt entries appear in the same table with their source labelled
-> `docs/techdebt.md (DATE)` — the user can tell observations from explicit todos.
+> `docs/techdebt.md (DATE)`; GitHub issues are labelled `gh#NNN` — the user can
+> tell observations, todos, and tracked issues apart at a glance.
 
 ### Likely already done (cleanup candidates)
 - {item} — evidence: commit {sha} / file {path} exists
+- gh#42 — likely closed by commit abc123 (suggest closing the issue)
 
 ### In-flight git work
 - Uncommitted changes in: {N} files
@@ -162,9 +168,10 @@ Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section who
 1. **Verify before recommending** — a TODO that mentions a file or feature must be cross-checked against the actual repo state before being scored. Stale TODOs surface as `cleanup candidates`, not work candidates.
 2. **Estimates are model-judged, not authoritative** — the disclaimer at the top of the output is mandatory. Never present value/effort as decided priorities.
 3. **One suggestion, not three** — pick a single next action. A list of "you could do any of these" defeats the purpose; the user invoked this skill to avoid that exact decision.
-4. **Tech debt is work with provenance** — entries from `docs/techdebt.md` are scored like any other candidate, but their source must be labelled `docs/techdebt.md (DATE)` so the user can tell observations from explicit todos. Don't hide them in a separate bucket.
+4. **Tech debt and GitHub issues are work with provenance** — entries from `docs/techdebt.md` and open `gh_issues` are scored like any other candidate, but their source must be labelled (`docs/techdebt.md (DATE)` or `gh#NNN`) so the user can distinguish observations, explicit todos, and tracked issues. Don't hide them in separate buckets.
 5. **Save the report even when nothing is pending** — "no work" is itself a useful signal worth keeping for trend analysis.
 6. **Trust the script for collection, not for judgment** — `scripts/whats-next.py` only describes what's there. The skill decides what's worth doing.
+7. **Escape external content in tables** — GitHub issue titles are author-controlled and may contain pipe characters or backticks that break Markdown table rendering. When emitting a `gh#NNN` row in the Pending items table, replace `|` with `\|` and trim the title to the first 80 characters.
 
 ---
 

@@ -70,6 +70,8 @@ A record of something that happened. Raised by aggregates after a state change. 
 
 Orchestrates domain objects to fulfill use cases that belong entirely to one BC. Contains no business rules — it delegates all logic to the domain.
 
+> In the kit's Rust convention, the application layer lives in `context/{bc}/application/` per BC. See `backend-rules.md` § Project Structure (Rust) for the gold layout.
+
 ### Application Service (`service.rs`)
 
 - Orchestrates the aggregate: load via repository → call Aggregate Root method → save → emit event
@@ -107,8 +109,34 @@ Orchestrates multiple bounded contexts when no single BC owns the full operation
 A semantic boundary within which a single domain model applies consistently. Concepts from one BC must not leak into another.
 
 - Each BC has its own entities, repos, and language — the same word can mean different things in different BCs
-- BCs communicate through events or explicit use cases, never through shared domain objects
+- BCs communicate through events or explicit use cases. The documented exception is the **Shared Kernel** (see below) — a deliberately-shared subset of the domain that two or more BCs agree on
 - Exposed through `mod.rs` only — never import from `domain/` directly from outside the BC
+
+---
+
+## Shared Kernel
+
+A deliberately-shared subset of the domain between two or more BCs. The Shared Kernel is the EXCEPTION to the rule that BCs communicate only through events or use cases — it's a recognised DDD pattern for the small set of domain concepts that genuinely need a single, agreed-upon representation across BCs.
+
+**What lives there**
+
+- Cross-context constants (e.g. ID formats, currency codes, system-wide IDs)
+- Value objects whose identity must agree across BCs
+- Trait shapes that several BCs implement and several other BCs consume
+
+**What does NOT live there**
+
+- Anything one BC can own alone — move to that BC
+- Infrastructure concerns (HTTP clients, DB adapters) — those go in `shared/infrastructure/`
+- Cross-BC orchestration logic — that's a use case in `use_cases/`
+
+**Where in the layout**
+
+Per the kit's Rust convention (`backend-rules.md` § Project Structure (Rust)): `shared/domain/`. Files here are the only place outside an individual BC's `domain/` where domain code may live.
+
+**Discipline**
+
+Shared Kernel is a tightly-coupled relationship — every change requires agreement from every BC that uses it. Keep it small. Default to use cases or domain events for cross-BC interaction; only adopt Shared Kernel when those alternatives genuinely don't fit.
 
 ---
 
@@ -164,6 +192,23 @@ Infrastructure types (`sqlx::Pool`, concrete repos) must never appear in Applica
 - **Infrastructure error** — a purely technical failure with no business meaning. Examples: I/O failure, file not found, DB timeout, deserialization error, network failure.
 
 Test for classification: _would a domain expert recognize this concept?_ If yes → domain. If it's about running the use case → application. If it's plumbing → infrastructure.
+
+### Rejection-layer rule
+
+The classification test above can be ambiguous for variants like `NotFound` or uniqueness checks — they're raised by the service before any aggregate is loaded, so the "would a domain expert recognize this?" question is easy to answer either way. The rejection-layer rule resolves it:
+
+> An error is a **domain** error if and only if it is raised by an aggregate method (or value-object constructor) enforcing an invariant on its own loaded state or input.
+>
+> Anything raised by the service or use-case layer — `NotFound`, uniqueness checks, cross-BC preconditions, infrastructure failures — is **application** (or **infrastructure** for opaque catch-alls).
+
+Concretely:
+
+- **Aggregate-method rejection** → domain. `Asset::ensure_user_managed(&self) -> Result<(), AssetDomainError>` is enforcing an invariant on loaded state. Domain.
+- **Service-level pre-check** → application. `if repo.find(id).is_none() { return Err(AssetNotFound) }` runs before any aggregate is loaded. Application.
+- **Use-case orchestrator rejection** (cross-BC preconditions) → application. The orchestrator coordinates BCs; it doesn't own any single aggregate's invariants.
+- **Translated infrastructure failure** → application (e.g. `RepoError::NotFound` → `AssetNotFound`) or opaque `Infrastructure(hint)` catch-all.
+
+The rule has a useful side-effect: if a service-level pre-check could be moved into the aggregate, the rejection-layer rule says it _should_ be — see the anemic-domain rule in `backend-rules.md`.
 
 ### Scoping rule
 

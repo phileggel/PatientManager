@@ -20,11 +20,29 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path.cwd()
+
+def _project_root() -> Path:
+    """Resolve repo root via `git rev-parse --show-toplevel`, matching the
+    convention used by the kit's bash helpers. Fall back to `Path.cwd()` if
+    git is unavailable or the script is invoked outside a checkout."""
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        return Path(out)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return Path.cwd()
+
+
+ROOT = _project_root()
 SOURCE_DIRS = ["src", "src-tauri/src"]
 SOURCE_EXTS = (".ts", ".tsx", ".rs")
 
@@ -293,6 +311,43 @@ def collect_techdebt() -> dict | None:
     return {"path": str(path.relative_to(ROOT)), "entries": entries}
 
 
+def collect_gh_issues() -> list[dict]:
+    """Open GitHub issues via `gh issue list`.
+
+    Returns [] when gh is not on PATH, the repo has no GitHub remote, or the
+    call fails for any reason — the kit must stay portable to non-GitHub
+    downstream projects, so this collector skips silently rather than failing.
+    """
+    if not shutil.which("gh"):
+        return []
+    try:
+        result = subprocess.run(
+            [
+                "gh",
+                "issue",
+                "list",
+                "--state",
+                "open",
+                "--json",
+                "number,title,url,updatedAt",
+                "--limit",
+                "20",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        data = json.loads(result.stdout)
+        return data if isinstance(data, list) else []
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        json.JSONDecodeError,
+    ):
+        return []
+
+
 def _where_path_exists(where: str) -> bool | None:
     """If `where` looks like a path, check if it exists. Return None if non-path."""
     if not where:
@@ -321,6 +376,7 @@ def main() -> int:
         "in_flight": collect_in_flight(),
         "roadmap": collect_roadmap(),
         "techdebt": collect_techdebt(),
+        "gh_issues": collect_gh_issues(),
     }
     indent = 2 if args.pretty else None
     json.dump(out, sys.stdout, indent=indent, ensure_ascii=False)

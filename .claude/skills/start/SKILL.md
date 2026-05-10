@@ -1,6 +1,6 @@
 ---
 name: start
-description: Select the right workflow for the current task and output an actionable working context for the session. Optional scope argument (fix, chore, test, feature, refactor) pre-selects a workflow; user can always switch.
+description: Use at the start of a new task to lock in workflow (Full vs Simple), create a feature branch, and emit the session's working context. Invoked as `/start [fix|chore|test|feature|refactor]` where the scope argument pre-selects a workflow. Not for mid-session triage of in-flight work — use `whats-next` instead.
 tools: AskUserQuestion, Bash
 ---
 
@@ -10,7 +10,33 @@ Invocation: `/start [fix|chore|test|feature|refactor]`
 
 ---
 
-## Step 1 — Determine workflow suggestion from scope
+## Required tools
+
+`AskUserQuestion`, `Bash`.
+
+---
+
+## When to use
+
+- **At the start of a new task** — before any code is written, to lock in workflow + branch + working context
+- **When picking up a fresh feature or fix** — establishes the session contract the main agent will follow
+- **When the scope is known up front** — pass it as the argument (`/start fix`) to skip one prompt
+
+Not for mid-session triage of in-flight work — use `/whats-next` instead. Not for exploring what the kit ships — use `/kit-discover` instead.
+
+---
+
+## Critical Rules
+
+- **Never proceed on `main`.** Step 3 enforces a feature branch before the working context is emitted; the rest of the workflow assumes branch scope.
+- **The Working Context block is the session contract.** Once emitted, the main agent treats it as the authoritative checklist for the rest of the session — do not silently deviate.
+- **Workflow switching is always allowed.** The scope-suggested workflow in Step 1 is a default, not a lock; the user can override at Q2 or any later point.
+
+---
+
+## Execution Steps
+
+### Step 1 — Determine workflow suggestion from scope
 
 | Scope      | Suggestion                |
 | ---------- | ------------------------- |
@@ -21,7 +47,9 @@ Invocation: `/start [fix|chore|test|feature|refactor]`
 | `test`     | B — Simple Workflow       |
 | (none)     | ask                       |
 
-## Step 2 — Ask the user
+If the scope argument is not in the table above (e.g. `/start hotfix`), treat it as `(none)` and fall through to `ask`. Do not reject the invocation.
+
+### Step 2 — Ask the user
 
 Use **AskUserQuestion** to collect two things in one call:
 
@@ -32,22 +60,24 @@ Use **AskUserQuestion** to collect two things in one call:
 - `A — Full workflow` — new feature, business logic, contract changes, significant refactor
 - `B — Simple workflow` — bug fix, chore, tests, maintenance, no new business rules
 
-## Step 3 — Check branch before outputting context
+If the user cancels Q1 or Q2, abort the skill — do not emit a partial Working Context.
+
+### Step 3 — Check branch before outputting context
 
 Before outputting anything, run `git branch --show-current` to check the current branch.
 
-- If on `main`: use **AskUserQuestion** to ask for a branch name, then run `git checkout -b {branch}`. Do not proceed until the branch is created.
+- If on `main`: use **AskUserQuestion** to ask for a branch name, then validate it matches `^(feat|fix|chore|test|refactor|docs|ci)/[a-z0-9][a-z0-9-]*$` before running `git checkout -b {branch}`. If validation fails, ask again. Do not proceed until the branch is created.
 - If already on a feature branch: proceed.
 
-## Step 4 — Output working context
+### Step 4 — Output working context
 
-Output the block below immediately after the branch check. This block is the main agent's session context — it drives the rest of the work.
-
----
-
-Replace `{task}` with the user's description, `{type}` with the scope argument or "unspecified", and `{branch}` with the current branch name from `git branch --show-current`.
+Emit the working context per the **Output format** section below, immediately after the branch check. This block is the main agent's session context — it drives the rest of the work.
 
 ---
+
+## Output format
+
+Pick the template matching the chosen workflow. Replace `{task}` with the user's description, `{type}` with the scope argument or `unspecified`, and `{branch}` with the current branch name from `git branch --show-current`.
 
 ### If Workflow A:
 
@@ -60,16 +90,13 @@ Replace `{task}` with the user's description, `{type}` with the scope argument o
 **Workflow**: A — Full Feature Workflow
 
 ### Phase 1 — Spec & Contract & Plan _(main agent: opus)_
-- [ ] `/spec-writer` → `docs/spec/{domain}.md`
+- [ ] `/spec-writer` → `docs/spec/{feature}.md`
 - [ ] `spec-reviewer` → validate spec quality [soft gate — hard if 🔴]
 - [ ] `/contract` → `docs/contracts/{domain}-contract.md` [human approves shape]
 - [ ] `contract-reviewer` → validate contract vs spec [soft gate — hard if 🔴]
 - [ ] `feature-planner` → `docs/plan/{feature}-plan.md`
 - [ ] `plan-reviewer` → validate plan vs spec + contract [soft gate — hard if 🔴]
-
-> **🔀 Switch main agent to `sonnet`** once `plan-reviewer` returns green. Phases 2–3 are
-> mechanical execution against locked artifacts; sonnet is the right model for that. Switch back
-> to `opus` only if a reviewer surfaces a design-level finding that requires re-planning.
+- [ ] **🔀 Switch model** — use **AskUserQuestion** to pause and ask the user to run `/model sonnet` before Phase 2. Phases 2–3 are mechanical execution against locked artifacts; sonnet is the right model. Do NOT proceed until the user confirms the switch is done. Switch back to `opus` later only if a reviewer surfaces a design-level finding that requires re-planning.
 
 ### Phase 2 — Backend _(main agent: sonnet)_
 - [ ] Database migration (`just migrate` + `just prepare-sqlx`) _(if schema changes per plan)_

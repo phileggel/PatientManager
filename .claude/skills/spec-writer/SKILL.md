@@ -1,13 +1,47 @@
 ---
 name: spec-writer
-description: Interactive spec writer for new features. Interviews the user to understand the feature (even if vague), reads the existing domain, then produces docs/spec/{feature}.md with structured TRIGRAM-NNN business rules and an optional UX draft.
-tools: Read, Glob, Grep, Write, AskUserQuestion
+description: Interactive spec writer for new features. Interviews the user to understand the feature (even if vague), reads the existing domain, then produces docs/spec/{feature}.md with structured TRIGRAM-NNN business rules and an optional UX draft. Not for documenting existing code — use `retro-spec` instead.
+tools: Read, Glob, Write, AskUserQuestion
+model: opus
 ---
 
 # Skill — `spec-writer`
 
 Produce a structured feature spec through guided discovery.
-Works even if the feature is fuzzy — the interview phase exists precisely to clarify it.
+Works even if the feature is fuzzy — use the interview phase to clarify it.
+
+---
+
+## Required tools
+
+`Read`, `Glob`, `Write`, `AskUserQuestion`. Interactive — cannot complete in a non-interactive shell.
+
+---
+
+## When to use
+
+- **First step of Workflow A (Full Feature Workflow)** — new feature with unknown or partially-known business rules
+- **When you have an intent but no spec yet** — even if the intent is fuzzy; the interview phase clarifies it
+- **Before `/contract`** — the contract is derived from the spec, so the spec must exist first
+
+---
+
+## When NOT to use
+
+- **Documenting existing code** — use the `retro-spec` agent instead; it reverse-engineers a spec from the codebase
+- **Amending an existing spec** — edit `docs/spec/{feature}.md` directly; do not re-run this skill on a feature that already has a spec
+- **Deriving the contract from a spec** — that's `/contract`'s job; this skill only produces the spec
+
+---
+
+## Output format
+
+Produces:
+
+- `docs/spec/{feature}.md` — the feature spec, using the template defined in step 4
+- `docs/spec-index.md` — updated to register the new trigram (created if missing; see step 3)
+
+If the interview cannot complete (user aborts, or all Round 1 answers are blocked), do not write `docs/spec/{feature}.md`. Report `Aborted: {reason}` and exit.
 
 ---
 
@@ -17,13 +51,10 @@ Works even if the feature is fuzzy — the interview phase exists precisely to c
 
 Before asking anything, read:
 
-- `ARCHITECTURE.md` — bounded contexts, data flow, naming conventions
-  - If `ARCHITECTURE.md` does not exist, note it in the Open Questions section and proceed
-- List all files in `docs/spec/` with Glob to understand what spec documents already exist
-- Read the most recently modified spec in `docs/spec/` (excluding `todo.md`, `*-rules.md`) to internalize the exact format and writing style
-- Read docs/adr/ (if exists) to identify historical architectural decisions
-  (e.g., amount storage format, soft-delete strategy, state management)
-  that MUST be respected in the new TRIGRAM-NNN rules.
+- Read `ARCHITECTURE.md` to extract bounded contexts, data flow, and naming conventions. If it does not exist, note it in the Open Questions section and proceed.
+- List all files in `docs/spec/` with Glob to understand what spec documents already exist.
+- Read the most recently modified spec in `docs/spec/` (excluding `todo.md`, `*-rules.md`) to internalize the exact format and writing style.
+- Read `docs/adr/` (if it exists) to identify historical architectural decisions (e.g., amount storage format, soft-delete strategy, state management) that MUST be respected in the new TRIGRAM-NNN rules.
 
 This avoids asking the user what the codebase already answers.
 
@@ -34,7 +65,7 @@ This avoids asking the user what the codebase already answers.
 Use **AskUserQuestion** with up to 4 questions at once:
 
 1. **Feature name** — what short name will be used for the file and rules?
-2. **Trigram** — Assign a 3-letter identifier for this spec (e.g., `REF`, `PAY`, `INV`). Trigram must be unique per project. If your choice collides with an existing trigram in `docs/spec-index.md`, you'll be prompted to pick a different one (up to 2 collision attempts allowed; see Step 2.5).
+2. **Trigram** — Assign a 3-letter identifier for this spec (e.g., `REF`, `PAY`, `INV`). Trigram must be unique per project. If your choice collides with an existing trigram in `docs/spec-index.md`, you'll be prompted to pick a different one (up to 2 collision attempts allowed; see step 3).
 3. **Business need** — in one sentence: who does what, and why?
 4. **Domain** — which bounded context(s) are involved? (read ARCHITECTURE.md for the project's bounded contexts)
 
@@ -48,7 +79,7 @@ After round 3 (or earlier if all blocking uncertainties are resolved), draft the
 
 ---
 
-### 2.5. Register trigram in spec-index.md
+### 3. Register trigram in spec-index.md
 
 After Round 1, immediately:
 
@@ -58,27 +89,16 @@ After Round 1, immediately:
 2. **Register the trigram**: Add the assigned trigram, spec name, and description to the registry table
 3. **Check for collisions**: If the trigram already exists:
    - Ask the user to choose a different trigram
-   - Allow max 2 collision attempts; if collisions persist after 2 attempts, escalate: ask user to review the existing registration in spec-index.md and confirm they want to abandon this spec or use a different approach
+   - Allow max 2 collision attempts; if a third collision occurs, exit per the Output format contract with `Aborted: trigram collision unresolved` and do not write the spec file
 4. **Persist the change**: Ensure `docs/spec-index.md` is updated and saved. **Important**: This file must be committed to version control — it is the single source of truth for trigram registrations across all project specs.
 
 This step guarantees trigram uniqueness across all specs in the project.
 
 ---
 
-### 3. Retro-engineering mode (exception only)
-
-Only if the user explicitly asked to derive the spec from existing code (e.g., "retro-engineering", "document what already exists"):
-
-- Read `ARCHITECTURE.md` to discover backend and frontend module paths, then Grep for related entities in the backend module and frontend feature directory
-- Look for existing i18n keys in the project's i18n directory for the domain (inspect whatever locale directories are present)
-
-In all other cases, skip this step. The spec must express business intent, not describe current implementation.
-
----
-
 ### 4. Write the spec
 
-Create `docs/spec/{feature-name}.md` using **exactly this structure** (English):
+Create `docs/spec/{feature}.md` using **exactly this structure** (English):
 
 ```markdown
 # Business Rules — {Feature Title} ({TRIGRAM})
@@ -130,7 +150,7 @@ and the main entities involved.}
 > Rules cover: creation, validation, update, deletion, state transitions,
 > inter-entity dependencies, edge cases.
 >
-> **Trigram Registry**: Trigram must be registered in `docs/spec-index.md` (see step 2.5).
+> **Trigram Registry**: Trigram must be registered in `docs/spec-index.md` (see step 3).
 
 ---
 
@@ -176,7 +196,7 @@ and the main entities involved.}
 - Scope `(frontend + backend)`, `(frontend)`, or `(backend)` is mandatory on every rule
 - **Trigram declaration**: Header must include the trigram in parentheses (e.g., `# Business Rules — Feature Name (REF)`)
 - **Thematic numbering**: Group rules by operation type (010–019 initiation, 020–029 creation, 030–039 updates, 040–049 deletion, 050+ future).
-- **Registry entry**: Trigram MUST be registered in `docs/spec-index.md` before writing the spec file (done in step 2.5).
+- **Registry entry**: Trigram MUST be registered in `docs/spec-index.md` before writing the spec file (done in step 3).
 - Open Questions must list every assumption you made — do not silently decide
 - If a rule has a notable edge case, add it as a separate rule (not a sub-clause)
 - **What & why only** — never describe how something is implemented (no SQL, no component names, no library choices, no data structures); describe the observable behaviour and its business reason
@@ -228,28 +248,22 @@ Only proceed to step 6 once this condition is met.
 
 ---
 
-### 6. Coherence & completeness self-check
+### 6. Mechanical self-check
 
-Before presenting to the user, run the following checklist mentally against the spec. For each failing point, fix the spec directly (add/split/reword rules) without asking the user — unless a fix would require a new business decision, in which case add a `[ ]` and loop back to step 5.
+> This step is mechanical-only. Coherence and completeness checks (CRUD coverage, contradictions between rules, terminology consistency, alignment with bounded contexts) are `spec-reviewer`'s job — do not pre-empt them here.
 
-**Completeness — does the spec cover:**
+Before handoff, verify the following structural points and fix any that fail:
 
-- All applicable CRUD operations (create / read / update / delete) for each entity
-- Validation rules for every field defined in the field table
-- Loading state (frontend)
-- Empty state (frontend, if applicable)
-- All error states: validation errors, backend rejection errors, network/load errors
-- Success feedback after mutating operations
+- All required template sections are present: `## Context`, `## Entity Definition` (if entity exists), `## Business Rules`, `## Workflow` (if applicable), `## UX Draft`, `## Open Questions`
+- Spec header includes the trigram in parentheses (e.g., `# Business Rules — Refunds (REF)`)
+- Every rule ID matches `{TRIGRAM}-NNN` and the numbering is sequential within each theme block (010–019, 020–029, …) with no gaps
+- Every rule has a scope tag: `(frontend)`, `(backend)`, or `(frontend + backend)`
+- The trigram is registered in `docs/spec-index.md` (from step 3)
+- All `## Open Questions` items are either `[x]` or removed; the section ends with `None — all questions have been resolved.`
+- Every rule annotated with `<!-- AI-Decision -->` has a one-line rationale comment attached
+- File saved at `docs/spec/{feature}.md` (not `docs/{feature}.md`)
 
-**Coherence — are the rules internally consistent:**
-
-- No two `{TRIGRAM}-NNN` rules contradict each other
-- Every entity, field, or state referenced in a rule is defined somewhere (field table, context section, or ARCHITECTURE.md)
-- Backend rules and frontend rules are aligned — a backend guard has a corresponding frontend error display, and vice versa
-- Scope tags `(frontend)` / `(backend)` / `(frontend + backend)` are accurate — no rule tagged `(frontend)` describes server-side behaviour
-- Terminology is consistent throughout (same term for the same concept in every rule)
-
-After applying all fixes, rewrite the spec file once. Then proceed to step 7.
+If any of the above fail, fix and re-save. Then proceed to step 7.
 
 ---
 
@@ -257,7 +271,7 @@ After applying all fixes, rewrite the spec file once. Then proceed to step 7.
 
 Show the user:
 
-- Path of the spec: `docs/spec/{feature-name}.md`
+- Path of the spec: `docs/spec/{feature}.md`
 - Trigram assigned: `{TRIGRAM}`
 - List of `{TRIGRAM}-NNN` rules extracted
 - **Architectural Alert**: If an `ADR-SUGGESTED` was flagged in Open Questions, explicitly tell the user:
@@ -276,12 +290,12 @@ Next steps after validation:
 
 ## Critical Rules
 
-1. Read design docs BEFORE asking (`ARCHITECTURE.md`, `docs/`, ADRs) — never ask what the docs already answer. Do NOT read source code unless the user explicitly requested retro-engineering.
-2. **Trigram is mandatory** — assign it in Round 1. Create or update `docs/spec-index.md` in step 2.5 to register it (prevents collisions).
+1. Read design docs BEFORE asking (`ARCHITECTURE.md`, `docs/`, ADRs) — never ask what the docs already answer. Do NOT read source code: this skill is for new features only; for documenting existing code, redirect the user to `retro-spec`.
+2. **Trigram is mandatory** — assign it in Round 1. Create or update `docs/spec-index.md` in step 3 to register it (prevents collisions).
 3. Interview is capped at 3 rounds (Round 1: max 4 questions, Round 2: max 3, Round 3: max 2) — stop earlier if all blocking unknowns are resolved; remaining unknowns go into `## Open Questions` for step 5
-4. Open Questions section is mandatory — never decide silently; if the user has no preference, search the codebase for similar patterns, propose 2–3 options with a recommended default, and let the user pick
+4. Open Questions section is mandatory — never decide silently; if the user has no preference, search `docs/` specs and ADRs for similar patterns, propose 2–3 options with a recommended default, and let the user pick
 5. **Never leave `[ ]` items unresolved** — step 5 loops until all opens are closed
-6. **Run the coherence & completeness check (step 6) silently** — fix spec directly, only loop back to step 5 if a fix requires a new business decision
+6. **Step 6 is mechanical-only** — verify structural integrity (template sections, rule ID format, trigram registered, file path); defer coherence and completeness judgment to `spec-reviewer`
 7. **What & why, never how** — the spec describes observable behaviour and business intent only; no SQL, no file paths, no function names, no component names, no library choices, no data structures; implementation is `feature-planner`'s job
 8. **Entity section mandatory when an entity is involved** — names in English Rust convention, field descriptions in English, business meaning only
 9. Each `{TRIGRAM}-NNN` rule must be independently verifiable by a test
@@ -322,5 +336,5 @@ This registry:
 
 - **Created and maintained locally** — Lives in `docs/spec-index.md` in your project
 - **Prevents trigram collisions** across all specs
-- **Mandatory** — spec-writer creates it automatically if missing (see step 2.5)
+- **Mandatory** — spec-writer creates it automatically if missing (see step 3)
 - **Project-managed** — Updated when you write or archive specs
