@@ -382,76 +382,48 @@ impl FundPaymentService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::fund::MockFundRepository;
     use anyhow::anyhow;
 
-    /// Mock repository for testing
-    struct MockFundRepository {
-        should_fail: bool,
+    fn fund_repo_create_ok() -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_create_fund()
+            .returning(|fund_identifier, fund_name| {
+                Ok(Fund::restore(
+                    "test-fund-id-12345".to_string(),
+                    fund_identifier.to_string(),
+                    fund_name.to_string(),
+                ))
+            });
+        mock
     }
 
-    #[async_trait::async_trait]
-    impl FundRepository for MockFundRepository {
-        async fn create_fund(
-            &self,
-            fund_identifier: &str,
-            fund_name: &str,
-        ) -> anyhow::Result<Fund> {
-            if self.should_fail {
-                // Use anyhow! to build the error
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(Fund::restore(
-                "test-fund-id-12345".to_string(),
-                fund_identifier.to_string(),
-                fund_name.to_string(),
-            ))
-        }
+    fn fund_repo_read_all_ok() -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_all_funds().returning(|| Ok(vec![]));
+        mock
+    }
 
-        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<Fund>> {
-            Err(anyhow!("Not implemented in mock"))
-        }
+    fn fund_repo_delete_ok() -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_delete_fund().returning(|_| Ok(()));
+        mock
+    }
 
-        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(vec![])
-        }
-
-        async fn update_fund(&self, fund: Fund) -> anyhow::Result<Fund> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(fund)
-        }
-
-        async fn find_fund_by_identifier(&self, _identifier: &str) -> anyhow::Result<Option<Fund>> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(None)
-        }
-
-        async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(funds)
-        }
-
-        async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(())
-        }
+    fn fund_repo_failing() -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_create_fund()
+            .returning(|_, _| Err(anyhow!("Mock repository error")));
+        mock.expect_read_all_funds()
+            .returning(|| Err(anyhow!("Mock repository error")));
+        mock.expect_delete_fund()
+            .returning(|_| Err(anyhow!("Mock repository error")));
+        mock
     }
 
     #[tokio::test]
     async fn test_add_fund_success() {
-        let repo = Arc::new(MockFundRepository { should_fail: false });
-        let event_bus = Arc::new(EventBus::new());
-        let service = FundService::new(repo, event_bus);
+        let service = FundService::new(Arc::new(fund_repo_create_ok()), Arc::new(EventBus::new()));
 
         let result = service
             .create_fund("FUND-001".to_string(), "Healthcare Fund".to_string())
@@ -465,24 +437,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_fund_repository_error_propagates() {
-        let repo = Arc::new(MockFundRepository { should_fail: true });
-        let event_bus = Arc::new(EventBus::new());
-        let service = FundService::new(repo, event_bus);
+        let service = FundService::new(Arc::new(fund_repo_failing()), Arc::new(EventBus::new()));
 
         let result = service
             .create_fund("FUND-003".to_string(), "Fund".to_string())
             .await;
 
         assert!(result.is_err());
-        // To compare an anyhow error, compare its String representation
         assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
     }
 
     #[tokio::test]
     async fn test_get_all_funds_success() {
-        let repo = Arc::new(MockFundRepository { should_fail: false });
-        let event_bus = Arc::new(EventBus::new());
-        let service = FundService::new(repo, event_bus);
+        let service =
+            FundService::new(Arc::new(fund_repo_read_all_ok()), Arc::new(EventBus::new()));
 
         let result = service.read_all_funds().await;
 
@@ -492,9 +460,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_all_funds_repository_error_propagates() {
-        let repo = Arc::new(MockFundRepository { should_fail: true });
-        let event_bus = Arc::new(EventBus::new());
-        let service = FundService::new(repo, event_bus);
+        let service = FundService::new(Arc::new(fund_repo_failing()), Arc::new(EventBus::new()));
 
         let result = service.read_all_funds().await;
 
@@ -504,9 +470,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_fund_success() {
-        let repo = Arc::new(MockFundRepository { should_fail: false });
-        let event_bus = Arc::new(EventBus::new());
-        let service = FundService::new(repo, event_bus);
+        let service = FundService::new(Arc::new(fund_repo_delete_ok()), Arc::new(EventBus::new()));
 
         let result = service.delete_fund("test-id").await;
 
@@ -515,9 +479,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_fund_repository_error() {
-        let repo = Arc::new(MockFundRepository { should_fail: true });
-        let event_bus = Arc::new(EventBus::new());
-        let service = FundService::new(repo, event_bus);
+        let service = FundService::new(Arc::new(fund_repo_failing()), Arc::new(EventBus::new()));
 
         let result = service.delete_fund("test-id").await;
 
@@ -654,9 +616,7 @@ mod tests {
     }
 
     // --- FundService: uncovered paths ---
-    // Use the automocked repo, aliased to avoid conflict with local MockFundRepository struct above.
     use crate::context::fund::FundCandidate;
-    use crate::context::fund::MockFundRepository as AutoMockFundRepository;
 
     fn make_fund() -> Fund {
         Fund::restore("f1".into(), "93".into(), "CPAM 93".into())
@@ -672,7 +632,7 @@ mod tests {
 
     #[tokio::test]
     async fn fund_service_read_fund_delegates_to_repo() {
-        let mut mock = AutoMockFundRepository::new();
+        let mut mock = MockFundRepository::new();
         mock.expect_read_fund().returning(|_| {
             Ok(Some(Fund::restore(
                 "f1".into(),
@@ -687,7 +647,7 @@ mod tests {
 
     #[tokio::test]
     async fn fund_service_find_fund_by_identifier_delegates() {
-        let mut mock = AutoMockFundRepository::new();
+        let mut mock = MockFundRepository::new();
         mock.expect_find_fund_by_identifier()
             .returning(|_| Ok(None));
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
@@ -700,7 +660,7 @@ mod tests {
 
     #[tokio::test]
     async fn fund_service_update_fund_returns_updated() {
-        let mut mock = AutoMockFundRepository::new();
+        let mut mock = MockFundRepository::new();
         mock.expect_update_fund().returning(Ok);
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
         let result = service.update_fund(make_fund()).await.unwrap();
@@ -709,7 +669,7 @@ mod tests {
 
     #[tokio::test]
     async fn fund_service_create_batch_returns_funds() {
-        let mut mock = AutoMockFundRepository::new();
+        let mut mock = MockFundRepository::new();
         mock.expect_create_batch().returning(Ok);
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
         let result = service.create_batch(vec![make_candidate()]).await.unwrap();
@@ -718,7 +678,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_batch_valid_fund() {
-        let mut mock = AutoMockFundRepository::new();
+        let mut mock = MockFundRepository::new();
         mock.expect_find_fund_by_identifier()
             .returning(|_| Ok(None));
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
@@ -731,7 +691,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_batch_already_exists() {
-        let mut mock = AutoMockFundRepository::new();
+        let mut mock = MockFundRepository::new();
         mock.expect_find_fund_by_identifier().returning(|_| {
             Ok(Some(Fund::restore(
                 "f1".into(),
@@ -753,7 +713,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_batch_empty_identifier_is_invalid() {
-        let mock = AutoMockFundRepository::new();
+        let mock = MockFundRepository::new();
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
         let bad = FundCandidate {
             fund_identifier: "".into(),
@@ -767,7 +727,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_batch_db_error_marks_invalid() {
-        let mut mock = AutoMockFundRepository::new();
+        let mut mock = MockFundRepository::new();
         mock.expect_find_fund_by_identifier()
             .returning(|_| Err(anyhow!("DB error")));
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
