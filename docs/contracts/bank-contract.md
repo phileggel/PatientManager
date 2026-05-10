@@ -114,7 +114,7 @@ Hard-deletes a bank entry (bare deletion — does not cascade to linked groups/p
 struct BankAccount {
     id: String,
     name: String,
-    iban: String,   // nullable; null when no IBAN has been set
+    iban: Option<String>,   // null when no IBAN has been set
 }
 
 struct BankEntry {

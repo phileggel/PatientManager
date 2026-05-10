@@ -176,7 +176,7 @@ struct DirectPaymentProcedureCandidate {
     procedure_id: String,
     patient_id: String,
     procedure_date: String,  // ISO date YYYY-MM-DD
-    billed_amount: i64,      // optional; absent if not yet set
+    billed_amount: Option<i64>,  // absent if not yet set
 }
 
 // R7, R10, R11, R15, R18, R19 — result of a create/update operation with linked items

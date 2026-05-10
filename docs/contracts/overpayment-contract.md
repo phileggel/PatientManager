@@ -63,7 +63,7 @@ struct CreateOverpaymentRequest {
     refund_date: String,          // ISO date YYYY-MM-DD; validated per REF-030
     transfer_type: String,        // domain enum name: "CreditCard", "Check", or "OutgoingWire" (REF-060)
     bank_account_id: String,      // resolved per REF-070
-    reason: String,               // optional; max 255 chars (REF-040)
+    reason: Option<String>,       // max 255 chars (REF-040)
 }
 
 // REF-210 — request to cancel an overpayment; always by source_procedure_id
@@ -77,7 +77,7 @@ struct ProcedureRefundInfo {
     source_procedure_id: String,
     refund_procedure_id: String,
     refund_date: String,                      // ISO date YYYY-MM-DD
-    reason: String,                           // optional
+    reason: Option<String>,
     previous_payment_status: ProcedureStatus, // used by REF-210 to revert the source
 }
 ```

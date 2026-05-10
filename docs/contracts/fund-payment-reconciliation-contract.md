@@ -161,8 +161,8 @@ enum AnomalyType {
 struct DbMatch {
     procedure_id: String,
     procedure_date: String,
-    fund_id: String,        // optional
-    amount: i64,            // optional
+    fund_id: Option<String>,
+    amount: Option<i64>,
     anomalies: Vec<AnomalyType>,
 }
 
@@ -279,7 +279,7 @@ struct FundPaymentGroupEditData {
 struct FundPaymentCandidateValidation {
     candidate: FundPaymentGroupCandidate,
     status: FundPaymentValidationStatus,
-    error: String,   // optional
+    error: Option<String>,
 }
 
 enum FundPaymentValidationStatus {

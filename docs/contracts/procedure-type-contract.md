@@ -55,7 +55,7 @@ struct ProcedureType {
     id: String,
     name: String,
     default_amount: i64,  // in thousandths of a euro; ≥ 0 (R2)
-    category: String,     // optional; null if not set (R3)
+    category: Option<String>,   // null if not set (R3)
 }
 
 // R17 — raw update input from the frontend
@@ -63,7 +63,7 @@ struct RawProcedureType {
     id: String,
     name: String,
     default_amount: i64,
-    category: String,     // optional
+    category: Option<String>,
 }
 ```
 
