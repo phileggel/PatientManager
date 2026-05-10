@@ -60,7 +60,7 @@ pub struct ImportExecutionResult {
 #[tauri::command]
 #[specta::specta]
 pub async fn parse_excel_file(file_path: String) -> Result<ParseExcelResponse, String> {
-    tracing::debug!(path = %file_path, "Processing parse_excel_file request");
+    tracing::debug!("Processing parse_excel_file request");
 
     ExcelParserService::parse_excel(&file_path)
         .await

@@ -58,7 +58,7 @@ pub async fn add_patient(
     ssn: Option<String>,
     service: State<'_, Arc<PatientService>>,
 ) -> Result<Patient, String> {
-    tracing::info!(name = ?name, has_ssn = ssn.is_some(), "Processing add patient request");
+    tracing::info!(has_name = name.is_some(), has_ssn = ssn.is_some(), "Processing add patient request");
 
     service
         .create_patient(name, ssn)

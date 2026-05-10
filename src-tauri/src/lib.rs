@@ -321,6 +321,6 @@ fn initialize_tracing(log_dir: &std::path::Path) -> anyhow::Result<()> {
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug")))
         .init();
 
-    tracing::trace!(target: BACKEND, "Logging initialized. Log file: {}", log_file.display());
+    tracing::trace!(target: BACKEND, "Logging initialized");
     Ok(())
 }

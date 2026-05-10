@@ -26,7 +26,7 @@ impl DbBackupOrchestrator {
     /// interrupting active connections, then compresses the result with gzip.
     /// Temporary files are always cleaned up (R11).
     pub async fn export_database(&self, dest_path: String) -> Result<()> {
-        tracing::info!(name: BACKEND, dest = %dest_path, "Starting database export");
+        tracing::info!(name: BACKEND, "Starting database export");
 
         let db_dir = self
             .db
@@ -47,7 +47,7 @@ impl DbBackupOrchestrator {
         }
 
         result?;
-        tracing::info!(name: BACKEND, dest = %dest_path, "Database export completed");
+        tracing::info!(name: BACKEND, "Database export completed");
         Ok(())
     }
 
@@ -84,7 +84,7 @@ impl DbBackupOrchestrator {
     /// as a pending import (R9, R10). The active database is not modified — the
     /// replacement takes effect on next startup (R11 startup check in `Database::new`).
     pub async fn import_database(&self, source_path: String) -> Result<()> {
-        tracing::info!(name: BACKEND, source = %source_path, "Starting database import");
+        tracing::info!(name: BACKEND, "Starting database import");
 
         let db_dir = self
             .db

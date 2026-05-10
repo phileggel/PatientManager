@@ -253,7 +253,7 @@ pub async fn get_unreconciled_procedures_in_range_fn(
 #[tauri::command]
 #[specta::specta]
 pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
-    tracing::info!("Extracting text from PDF: {}", file_path);
+    tracing::info!("Extracting text from PDF");
 
     let result = pdf_extractor::extract_pdf_text(&file_path)?;
 
