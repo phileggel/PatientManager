@@ -144,4 +144,4 @@ A group becomes locked as soon as one of its procedures reaches Stage 2 (see FPM
 
 ## Open Questions
 
-- [x] **confirmed_payment_date at fund-reconciliation vs. bank-transfer time**: Resolved — `confirmed_payment_date` will remain the bank-transfer date (Stage 2). A new `fund_reconciliation_date` column will be added to `Procedure` to record the Stage 1 fund-document payment date separately. See docs/todo.md for the migration task. See also: fund-payment-auto-match spec (same resolution).
+None — all questions have been resolved.
