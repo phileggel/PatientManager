@@ -7,6 +7,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This project is governed by the `tauri-claude-kit` infrastructure.
 Before any technical task, consult `.claude/kit-tools.md` to discover available agents, skills, scripts, and recipes.
 
+## 🔧 First-time Setup
+
+After cloning, activate the kit-shipped git hooks:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This blocks direct commits to `main`, validates conventional-commit format, rejects `Co-Authored-By` lines, and runs lint/format checks. See `.claude/kit-tools.md` § Git Hooks.
+
 ## 🧭 Behavioral Principles
 
 Before coding:
@@ -31,7 +41,7 @@ Run `/whats-next` first to triage pending work, then `/start` to pick the right 
 See `.claude/kit-readme.md` for the full workflow guide and `.claude/kit-tools.md` for the agent/skill reference.
 
 Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-writer` (Architecture Decision Records), `/kit-discover` (post-sync reconcile), `/smart-commit` (commit), `/create-pr` (push + open PR), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry).
-Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (fast-forward into main + delete branch).
+Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (fast-forward into main + delete branch), `just sync-kit` (sync to latest kit version).
 Key agents: `reviewer-security` — run when modifying any Tauri command, capability file, or security-sensitive code, and before every release; `adr-reviewer` — run after `/adr-writer` creates or supersedes an ADR.
 
 ---
@@ -47,10 +57,12 @@ Key agents: `reviewer-security` — run when modifying any Tauri command, capabi
 ## 🏗 Architecture Summary
 Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
 
-**Backend (`src-tauri/src/`)**:
-- `core/specta_builder.rs` — Tauri command registry (DO NOT add commands elsewhere)
-- `context/{domain}/` — Bounded contexts (self-contained, no cross-context imports)
-- `use_cases/{name}/` — Cross-context orchestrators
+**Backend (`src-tauri/src/`)** _(per kit v4.4 layout — see `docs/backend-rules.md` § Folder Structure)_:
+- `shared/infrastructure/specta_builder.rs` — Tauri command registry (DO NOT add commands elsewhere)
+- `context/{bc}/{application,domain,infrastructure}/` — Bounded contexts with symmetric DDD layer folders (no cross-context imports)
+- `use_cases/{flow}/` — Cross-context orchestrators
+
+> ⚠️ The codebase still uses the pre-v4.4 layout (`core/`, flat `{aggregate}/repository.rs`). Migration is tracked in `docs/todo.md` "DDD Convergence" entry. Until that lands, follow the v4.4 layout for **new** modules and call out the drift in PRs.
 
 **Frontend (`src/`)**:
 - `bindings.ts` — Auto-generated from Rust via Specta (DO NOT EDIT)
@@ -93,4 +105,8 @@ All domain objects use factory methods (NEVER direct struct literals):
 - `with_id()` - From Tauri command: uses provided ID + validates (no ID generation)
 - `restore()` - From database: no validation (already validated at storage)
 - Repository ONLY uses these factory methods, never direct literals
+
+### Frontend Accessibility — i18n + stable ids
+- **F24** — All `aria-label`, `aria-labelledby`, `aria-describedby`, `title`, and `placeholder` strings MUST flow through `t()`. Hardcoded English a11y strings ship untranslated to non-default-locale users.
+- **F25** — Primary interactive elements (buttons, inputs, list items, dialogs) MUST render a stable `id` of the form `{feature}-{component}-{role}`. Stable ids serve both `aria-labelledby` and E2E selectors; `aria-label` co-exists for translated screen-reader text.
 
