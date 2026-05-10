@@ -111,6 +111,8 @@ Action applied per anomaly type:
 
 **FPA-460 (R26) — Auto-validation (frontend)**: As soon as all anomalies are resolved, validation is triggered automatically without user action. On failure, the cycle is not retried.
 
+**FPA-470 — Last-folder memory (frontend)**: When the user successfully picks a fund-payment PDF from the OS file dialog, the parent folder of the picked file is persisted in `localStorage` under the per-feature key `import-last-folder:fund-pdf`. On the next fund-payment import, that folder is passed to the dialog as `defaultPath`. Excel and bank-statement imports use independent slots (`import-last-folder:excel` / `import-last-folder:bank-pdf`) and do not share this default. Cancelling the dialog leaves the persisted folder untouched. If the persisted folder is no longer reachable, the native dialog opens at the OS's own fallback (home or last-used location depending on platform); no explicit fallback resolution happens in the app.
+
 ### Post-validation report (500–510)
 
 **FPA-500 (R27) — Unreconciled-procedures report (backend + frontend)**: After validation, a report of unreconciled procedures within the PDF date range is displayed, allowing the practitioner to detect forgotten or unreimbursed procedures.

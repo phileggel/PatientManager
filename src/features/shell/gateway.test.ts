@@ -17,8 +17,17 @@ describe("shell/gateway — pickExcelFilePath", () => {
     expect(mockOpen).toHaveBeenCalledWith({
       title: "Select an Excel file",
       multiple: false,
+      defaultPath: undefined,
       filters: [{ name: "Excel Files", extensions: ["xlsx", "xls", "csv"] }],
     });
+  });
+
+  it("forwards defaultPath to open() when provided", async () => {
+    mockOpen.mockResolvedValue(null);
+    await pickExcelFilePath("t", "/home/alice/imports");
+    expect(mockOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultPath: "/home/alice/imports" }),
+    );
   });
 
   it("returns the path when open() resolves with a string", async () => {
@@ -46,8 +55,17 @@ describe("shell/gateway — pickPdfFilePath", () => {
     expect(mockOpen).toHaveBeenCalledWith({
       title: "Select a PDF",
       multiple: false,
+      defaultPath: undefined,
       filters: [{ name: "PDF", extensions: ["pdf"] }],
     });
+  });
+
+  it("forwards defaultPath to open() when provided", async () => {
+    mockOpen.mockResolvedValue(null);
+    await pickPdfFilePath("t", "/home/alice/pdfs");
+    expect(mockOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultPath: "/home/alice/pdfs" }),
+    );
   });
 
   it("returns the path when open() resolves with a string", async () => {

@@ -112,6 +112,10 @@ Within each block, sorting is strictly alphabetical on the label as it appears i
 
 **BAS-073 (R22) — Group status update (backend)**: When the bank transfer is created, the associated fund-payment group moves to `BankPayed` status.
 
+### Last-folder memory (080–089)
+
+**BAS-080 — Last-folder memory (frontend)**: When the user successfully picks a bank-statement PDF from the OS file dialog, the parent folder of the picked file is persisted in `localStorage` under the per-feature key `import-last-folder:bank-pdf`. On the next bank-statement import, that folder is passed to the dialog as `defaultPath`. Excel and fund-PDF imports use independent slots (`import-last-folder:excel` / `import-last-folder:fund-pdf`) and do not share this default. Cancelling the dialog leaves the persisted folder untouched. If the persisted folder is no longer reachable, the native dialog opens at the OS's own fallback (home or last-used location depending on platform); no explicit fallback resolution happens in the app.
+
 **Affected fields — on transfer creation**
 
 | Entity    | Field                    | Value                                                                        |

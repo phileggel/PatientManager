@@ -122,6 +122,10 @@ This report is informative and non-blocking.
 
 **R24 — Filtering of deleted types (backend)**: Mapping preferences are filtered before being passed to the frontend: only mappings whose procedure type still exists (not deleted) or whose value is `imported-from-excel` are returned. If a type was deleted since the last import, its mapping is excluded — the UI then falls back to the default type (see R12).
 
+### Last-folder memory
+
+**R25 — Last-folder memory (frontend)**: When the user successfully picks an Excel file from the OS file dialog, the parent folder of the picked file is persisted in `localStorage` under the per-feature key `import-last-folder:excel`. On the next Excel import, that folder is passed to the dialog as `defaultPath` so the user starts where they left off. Each of the three import flows (Excel, fund PDF, bank PDF) has its own slot — picking a bank-statement PDF never moves the Excel default. Cancelling the dialog leaves the persisted folder untouched. If the persisted folder is no longer reachable, the native dialog opens at the OS's own fallback (home or last-used location depending on platform); no explicit fallback resolution happens in the app.
+
 ---
 
 ## Workflow

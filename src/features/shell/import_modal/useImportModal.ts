@@ -5,8 +5,16 @@ import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { pickExcelFilePath, pickPdfFilePath } from "../gateway";
 import type { Page } from "../types";
+import { getLastFolder, type ImportKind, parentDir, setLastFolder } from "./lastFolderStore";
 
 type ImportPage = "excel-import" | "fund-payment-match" | "bank-statement-match";
+
+function rememberParentFolder(kind: ImportKind, pickedPath: string): void {
+  const parent = parentDir(pickedPath);
+  if (parent !== undefined) {
+    setLastFolder(kind, parent);
+  }
+}
 
 interface UseImportModalProps {
   onNavigate: (page: Page) => void;
@@ -39,8 +47,9 @@ export function useImportModal({
   const handleExcelImport = useCallback(async () => {
     setIsPicking(true);
     try {
-      const path = await pickExcelFilePath(t("excel.dialogTitle"));
+      const path = await pickExcelFilePath(t("excel.dialogTitle"), getLastFolder("excel"));
       if (!path) return;
+      rememberParentFolder("excel", path);
       onFileSelected("excel-import", path);
       onClose();
     } finally {
@@ -57,8 +66,12 @@ export function useImportModal({
     }
     setIsPicking(true);
     try {
-      const path = await pickPdfFilePath(t("fundReconciliation.dialogTitle"));
+      const path = await pickPdfFilePath(
+        t("fundReconciliation.dialogTitle"),
+        getLastFolder("fund-pdf"),
+      );
       if (!path) return;
+      rememberParentFolder("fund-pdf", path);
       onFileSelected("fund-payment-match", path);
       onClose();
     } finally {
@@ -75,8 +88,12 @@ export function useImportModal({
     }
     setIsPicking(true);
     try {
-      const path = await pickPdfFilePath(t("bankReconciliation.dialogTitle"));
+      const path = await pickPdfFilePath(
+        t("bankReconciliation.dialogTitle"),
+        getLastFolder("bank-pdf"),
+      );
       if (!path) return;
+      rememberParentFolder("bank-pdf", path);
       onFileSelected("bank-statement-match", path);
       onClose();
     } finally {
