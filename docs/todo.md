@@ -22,12 +22,6 @@ Fix in lockstep across both surfaces:
 
 ---
 
-## (backend/logging) — Avoid logging full file paths in PDF parse commands
-
-`fund_payment_reconciliation::extract_pdf_text` (`api.rs:256`) and `bank_statement_reconciliation::parse_bank_statement` (`api.rs:34`) both log the full incoming `file_path` at INFO level. On macOS/Linux this routinely embeds the user's home directory in structured logs. The frontend gateway also logs the full path (`bank-statement-match/gateway.ts:42`, `fund-payment-match/gateway.ts:24`). Switch all four sites in lockstep to log only the filename component so the alignment between the two parse surfaces stays intact.
-
----
-
 ## (frontend/ui) — Split BankStatementModal step components
 
 `BankStatementModal.tsx` contains 7 conditional `step === "..."` blocks (loading, matching, create-account, label-mapping, results, done, error). The create-account step now has form state, validation, error display — non-trivial. Extract step components (e.g. `CreateAccountStep`, `DoneStep`, `ErrorStep`) once another step gains comparable logic, or if the modal grows past ~200 lines. Pure refactor — defer until there's a second non-trivial step or the file becomes unwieldy.
