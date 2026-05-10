@@ -10,12 +10,12 @@ export function readAllPatients(): ServiceResult<Patient[]> {
 }
 
 export async function addPatient(name: string, ssn?: string): Promise<ServiceResult<Patient>> {
-  logger.info("Adding patient", { name, hasSsn: !!ssn });
+  logger.info("Adding patient", { hasName: !!name, hasSsn: !!ssn });
 
   const result = await commands.addPatient(name || null, ssn || null);
 
   if (result.status === "ok") {
-    logger.info("Patient added successfully", { patientId: result.data.id, name });
+    logger.info("Patient added successfully", { patientId: result.data.id });
     return { success: true, data: result.data };
   } else {
     logger.error("Failed to add patient", { error: result.error });
@@ -24,7 +24,7 @@ export async function addPatient(name: string, ssn?: string): Promise<ServiceRes
 }
 
 export async function updatePatient(patient: Patient): Promise<ServiceResult<Patient>> {
-  logger.info("Updating patient", { patientId: patient.id, name: patient.name });
+  logger.info("Updating patient", { patientId: patient.id });
 
   const result = await commands.updatePatient(patient);
 

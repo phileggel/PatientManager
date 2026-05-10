@@ -20,7 +20,7 @@ const TAG = "[ReconciliationGateway]";
  * @throws Error if extraction fails
  */
 export async function extractPdfText(filePath: string): Promise<string> {
-  logger.debug(TAG, "Extracting text from PDF", filePath);
+  logger.debug(TAG, "Extracting text from PDF");
 
   const result = await commands.extractPdfText(filePath);
 
@@ -207,6 +207,6 @@ export async function saveReportPdf(
     throw new Error(result.error);
   }
 
-  logger.info(TAG, "Report PDF saved", { path });
+  logger.info(TAG, "Report PDF saved");
   return { saved: true };
 }
