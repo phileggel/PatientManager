@@ -8,13 +8,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-05-10 — make_mock_proc_repo() omnibus builder partial trait coverage
-- Found by: reviewer-backend
-- Where: src-tauri/src/context/procedure/service.rs:590-630
-- Context: branch `chore/migrate-handrolled-mocks-to-mockall` @ `24ef72d`
-- Severity: 🔵
-- Observation: the shared `make_mock_proc_repo()` helper configures expectations for only ~5 of the ~13 `ProcedureRepository` trait methods. Methods left unconfigured (`read_procedures_by_ids`, `read_procedures_by_patient_id`, `find_procedures_by_ssn_and_date_range`, `find_procedures_by_ssns_and_date_range`, `find_procedures_by_ssns_and_date_range_with_ssn`, `find_procedure_exact`, `update_batch`, `find_unreconciled_by_date_range`) trigger mockall's unexpected-call panic at runtime rather than at compile time, masking which test added an unrelated repo dependency.
-
 ## 2026-05-10 — ProcedureService test names diverge from project convention
 - Found by: reviewer-backend
 - Where: src-tauri/src/context/procedure/service.rs:633+
