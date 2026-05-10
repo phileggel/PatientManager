@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { Button } from "../button";
 
 interface DialogProps {
+  /** Stable id forwarded to the dialog root; F25 — `{feature}-{component}-dialog`. */
+  id: string;
   isOpen: boolean;
   onClose: () => void;
   title: React.ReactNode;
@@ -15,6 +17,7 @@ interface DialogProps {
 }
 
 export function Dialog({
+  id,
   isOpen,
   onClose,
   title,
@@ -37,6 +40,19 @@ export function Dialog({
     };
   }, [isOpen]);
 
+  // Escape closes the dialog (matches ModalContainer's behavior).
+  // Without this, when Dialog is rendered as a sibling overlay of a
+  // ModalContainer-based parent, Escape would fall through to the
+  // parent's document-level listener and close the wrong modal.
+  useEffect(() => {
+    if (!isOpen || disableClose) return;
+    const onKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeydown);
+    return () => document.removeEventListener("keydown", onKeydown);
+  }, [isOpen, disableClose, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -52,6 +68,7 @@ export function Dialog({
 
       {/* Dialog Surface */}
       <div
+        id={id}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -89,6 +106,8 @@ export function Dialog({
 }
 
 interface ConfirmationDialogProps {
+  /** Stable id forwarded to the dialog root; F25. */
+  id: string;
   isOpen: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -100,6 +119,7 @@ interface ConfirmationDialogProps {
 }
 
 export function ConfirmationDialog({
+  id,
   isOpen,
   onCancel,
   onConfirm,
@@ -127,7 +147,7 @@ export function ConfirmationDialog({
   );
 
   return (
-    <Dialog isOpen={isOpen} onClose={onCancel} title={title} actions={actions}>
+    <Dialog id={id} isOpen={isOpen} onClose={onCancel} title={title} actions={actions}>
       <p className="text-m3-on-surface-variant leading-relaxed">{message}</p>
     </Dialog>
   );

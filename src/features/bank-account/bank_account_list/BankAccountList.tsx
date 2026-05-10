@@ -153,6 +153,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
+        id="delete-bank-account-confirmation"
         isOpen={!!deleteData}
         onCancel={() => setDeleteData(null)}
         onConfirm={async () => {

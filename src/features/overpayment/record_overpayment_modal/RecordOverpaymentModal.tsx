@@ -86,6 +86,7 @@ export function RecordOverpaymentModal({
 
   return (
     <ModalContainer
+      id="record-overpayment-modal"
       isOpen={isOpen}
       onClose={onClose}
       maxWidth="max-w-2xl"

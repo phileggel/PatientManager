@@ -107,7 +107,12 @@ export function EditFundPaymentModal({
 
   return (
     <>
-      <Dialog isOpen={isOpen} onClose={onClose} title={t("edit.title")}>
+      <Dialog
+        id="edit-fund-payment-modal"
+        isOpen={isOpen}
+        onClose={onClose}
+        title={t("edit.title")}
+      >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* Locked badge */}
           {isReadOnly && (

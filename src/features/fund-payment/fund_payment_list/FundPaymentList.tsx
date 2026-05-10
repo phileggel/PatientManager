@@ -214,6 +214,7 @@ export function FundPaymentList() {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
+        id="delete-fund-payment-confirmation"
         isOpen={!!deleteData}
         onCancel={() => setDeleteData(null)}
         onConfirm={async () => {

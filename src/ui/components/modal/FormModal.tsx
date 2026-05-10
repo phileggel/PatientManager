@@ -1,7 +1,11 @@
 import { X } from "lucide-react";
+import { useId } from "react";
+import { useTranslation } from "react-i18next";
 import { ModalContainer } from "./ModalContainer";
 
 interface FormModalProps {
+  /** Stable id forwarded to the dialog root; F25. */
+  id: string;
   isOpen: boolean;
   onClose: () => void;
   title: string;
@@ -24,6 +28,7 @@ interface FormModalProps {
  * - Complex forms (7+ fields with sections) like ProcedureFormModal
  */
 export function FormModal({
+  id,
   isOpen,
   onClose,
   title,
@@ -32,14 +37,26 @@ export function FormModal({
   maxWidth = "max-w-md",
   maxHeight = "max-h-[90vh]",
 }: FormModalProps) {
+  const { t } = useTranslation("common");
+  const titleId = useId();
   return (
-    <ModalContainer isOpen={isOpen} onClose={onClose} maxWidth={maxWidth} maxHeight={maxHeight}>
+    <ModalContainer
+      id={id}
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth={maxWidth}
+      maxHeight={maxHeight}
+      titleId={titleId}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-neutral-30">
-        <h2 className="text-lg font-semibold text-neutral-90">{title}</h2>
+        <h2 id={titleId} className="text-lg font-semibold text-neutral-90">
+          {title}
+        </h2>
         <button
           type="button"
           onClick={onClose}
+          aria-label={t("action.close")}
           className="p-1 hover:bg-neutral-20 rounded transition-colors"
         >
           <X size={20} className="text-neutral-70" />

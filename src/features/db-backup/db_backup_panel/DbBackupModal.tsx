@@ -46,6 +46,7 @@ export function DbBackupModal({ isOpen, onClose }: DbBackupModalProps) {
   return (
     <>
       <Dialog
+        id="db-backup-modal"
         isOpen={isOpen}
         onClose={onClose}
         title={t("modalTitle")}
@@ -105,6 +106,7 @@ export function DbBackupModal({ isOpen, onClose }: DbBackupModalProps) {
 
       {/* Confirmation dialog rendered outside Dialog to avoid z-index nesting issues */}
       <ConfirmationDialog
+        id="db-backup-import-confirmation"
         isOpen={confirmOpen}
         onCancel={handleImportCancel}
         onConfirm={handleImportConfirm}

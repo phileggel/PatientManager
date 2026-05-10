@@ -1,3 +1,7 @@
+// Dev-only design system showcase. Excluded from production builds via
+// `import.meta.env.DEV` gate in App.tsx. F24 (a11y i18n) does not apply:
+// the page never renders for end users, locale is build-pinned, and adding
+// i18n machinery to inert dev fixtures yields no user-visible benefit.
 import { ArrowRight, Edit2, Mail, Plus, Share2, Star, Trash2 } from "lucide-react";
 import { Button, IconButton } from "@/ui/components";
 

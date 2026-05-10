@@ -66,6 +66,7 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
 
   return (
     <FormModal
+      id="edit-bank-transfer-modal"
       isOpen={!!transfer}
       onClose={onClose}
       title={t("transfer.edit.title")}

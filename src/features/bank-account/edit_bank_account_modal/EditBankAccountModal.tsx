@@ -61,7 +61,13 @@ export function EditBankAccountModal({ bankAccount, onClose }: EditBankAccountMo
   );
 
   return (
-    <Dialog isOpen={isOpen} onClose={handleClose} title={t("account.edit.title")} actions={actions}>
+    <Dialog
+      id="edit-bank-account-modal"
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={t("account.edit.title")}
+      actions={actions}
+    >
       <form id="edit-bank-account-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
         <fieldset disabled={loading} className="disabled:opacity-50">
           <BankAccountForm

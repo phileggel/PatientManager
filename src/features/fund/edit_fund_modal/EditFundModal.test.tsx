@@ -57,6 +57,7 @@ vi.mock("./useEditFundModal", () => ({
 }));
 
 interface DialogProps {
+  id?: string;
   isOpen: boolean;
   children: React.ReactNode;
   actions: React.ReactNode;
@@ -74,9 +75,9 @@ interface ButtonProps {
 }
 
 vi.mock("@/ui/components", () => ({
-  Dialog: ({ isOpen, children, actions }: DialogProps) =>
+  Dialog: ({ id, isOpen, children, actions }: DialogProps) =>
     isOpen ? (
-      <div role="dialog">
+      <div id={id} role="dialog">
         <div>{children}</div>
         <div>{actions}</div>
       </div>

@@ -48,6 +48,7 @@ export function CancelRefundDialog({
 
   return (
     <Dialog
+      id="cancel-refund-dialog"
       isOpen={isOpen}
       onClose={onClose}
       title={t("modal.cancelTitle")}

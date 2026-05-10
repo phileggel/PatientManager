@@ -168,6 +168,7 @@ export function PatientList({ searchTerm }: PatientListProps) {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
+        id="delete-patient-confirmation"
         isOpen={!!deleteData}
         onCancel={() => setDeleteData(null)}
         onConfirm={async () => {
