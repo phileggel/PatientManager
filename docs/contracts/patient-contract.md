@@ -71,8 +71,8 @@ Creates a batch of validated patient candidates in a single transaction. Returns
 ```rust
 struct Patient {
     id: String,
-    name: String,        // optional
-    ssn: String,         // optional; 13 ASCII digits when present
+    name: Option<String>,
+    ssn: Option<String>,         // 13 ASCII digits when present
     is_anonymous: bool,
     // tracking fields (updated by procedure_orchestration use case):
     // latest_date, latest_procedure_type, latest_fund, latest_procedure_amount
@@ -81,15 +81,15 @@ struct Patient {
 // batch import candidate — lacks a real ID
 struct PatientCandidate {
     temp_id: String,     // UUID assigned at parse time; used to build temp → real map
-    name: String,        // optional
-    ssn: String,         // optional
+    name: Option<String>,
+    ssn: Option<String>,
 }
 
 struct PatientValidationResult {
     candidate: PatientCandidate,
     status: PatientValidationStatus,
-    existing_id: String,   // optional; populated when status = AlreadyExists
-    error: String,         // optional; populated when status = Invalid
+    existing_id: Option<String>,   // populated when status = AlreadyExists
+    error: Option<String>,         // populated when status = Invalid
 }
 
 enum PatientValidationStatus {

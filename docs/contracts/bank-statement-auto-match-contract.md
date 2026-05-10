@@ -83,8 +83,8 @@ Returns the backend matching configuration. Used by the frontend for two purpose
 
 ```rust
 struct BankStatementParseResult {
-    iban: String,                              // optional; absent if not found in PDF header
-    period: String,                            // optional; statement period label e.g. "du 01/05/2025 au 30/05/2025"
+    iban: Option<String>,                      // absent if not found in PDF header
+    period: Option<String>,                    // statement period label e.g. "du 01/05/2025 au 30/05/2025"
     credit_lines: Vec<BankStatementCreditLine>,
     total_credits: i64,                        // sum of all VIR SEPA credit amounts in thousandths of a euro
     unparsed_count: u32,                       // R4: lines the parser could not recognise; shown as a warning to the user
@@ -99,9 +99,9 @@ struct BankStatementCreditLine {
 // R5, R6, R8: resolution of a single bank label against the saved mapping table
 struct FundLabelResolution {
     bank_label: String,
-    fund_id: String,              // optional; confirmed fund ID from the mapping table; absent = no saved mapping
-    suggested_fund_id: String,    // optional; heuristic candidate (R6); informational only, never pre-selected (R28)
-    suggested_fund_name: String,  // optional; display name for the heuristic suggestion
+    fund_id: Option<String>,              // confirmed fund ID from the mapping table; absent = no saved mapping
+    suggested_fund_id: Option<String>,    // heuristic candidate (R6); informational only, never pre-selected (R28)
+    suggested_fund_name: Option<String>,  // display name for the heuristic suggestion
     is_confirmed: bool,           // true = value comes from the saved mapping table (R5)
     is_rejected: bool,            // true = label is explicitly marked as not a fund payment (R8)
 }

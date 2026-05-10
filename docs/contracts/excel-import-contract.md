@@ -63,33 +63,33 @@ struct ExcelPatient {
     temp_id: String,          // R5 — UUID assigned at parse time
     name: String,
     ssn: String,              // may be empty or invalid; see R3
-    latest_fund: String,      // optional; col D, read-only — not persisted at import
+    latest_fund: Option<String>,  // col D, read-only — not persisted at import
 }
 
 struct ExcelFund {
     temp_id: String,
     fund_identifier: String,
     fund_name: String,
-    fund_address: String,     // optional; not persisted
+    fund_address: Option<String>,  // not persisted
 }
 
 // R6 — one procedure row from a monthly sheet
 struct ExcelProcedure {
     patient_temp_id: String,
-    fund_temp_id: String,             // optional
+    fund_temp_id: Option<String>,
     procedure_type_tmp_id: String,    // UUID shared across all procedures with the same amount
     amount: i64,                      // in thousandths of a euro
     procedure_date: String,           // ISO date YYYY-MM-DD
     sheet_month: String,              // sheet name e.g. "Jan"
-    payment_method: String,           // optional; raw column T value
-    confirmed_payment_date: String,   // optional
-    paid_amount: i64,                 // optional
-    awaited_amount: i64,              // optional; ignored at execution (R17)
+    payment_method: Option<String>,   // raw column T value
+    confirmed_payment_date: Option<String>,
+    paid_amount: Option<i64>,
+    awaited_amount: Option<i64>,      // ignored at execution (R17)
 }
 
 struct ParsingIssues {
     skipped_rows: Vec<SkippedRow>,   // R2 — lines rejected during parsing
-    missing_sheets: String,          // optional; R21 — expected monthly sheets not found
+    missing_sheets: Vec<String>,     // R21 — expected monthly sheets not found
 }
 
 struct SkippedRow {

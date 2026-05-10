@@ -129,8 +129,8 @@ struct FundCandidate {
 struct FundValidationResult {
     candidate: FundCandidate,
     status: FundValidationStatus,
-    existing_id: String,   // optional; populated when status = AlreadyExists
-    error: String,         // optional; populated when status = Invalid
+    existing_id: Option<String>,   // populated when status = AlreadyExists
+    error: Option<String>,         // populated when status = Invalid
 }
 
 enum FundValidationStatus {

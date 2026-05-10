@@ -2,12 +2,6 @@
 
 ---
 
-## (docs/contract-drift) — Fix `BankStatementParseResult` Shared Types in bank-statement-auto-match-contract.md
-
-The Shared Types block of `docs/contracts/bank-statement-auto-match-contract.md` declares `iban: String` and `period: String` for `BankStatementParseResult`, with prose noting "optional; absent if not found". The actual parser at `src-tauri/src/use_cases/bank_statement_reconciliation/parser.rs:22-24` uses `Option<String>` for both. Update the contract's Rust type signature to `Option<String>` so the type and the prose agree. Pre-existing drift, surfaced by contract-reviewer during the IFC-100+ codec extension review (PR for `feat/codec-bank-pdf`); not blocking that PR per the defer-pre-existing-findings pattern.
-
----
-
 ## (backend/security) — Harden file-path Tauri commands against path-traversal
 
 Three commands accept an arbitrary user-controlled path from the WebView and pass it straight to filesystem APIs:

@@ -92,13 +92,13 @@ Creates a batch of procedures in a single transaction, emitting exactly one `Pro
 struct Procedure {
     id: String,
     patient_id: String,
-    fund_id: String,                     // optional
+    fund_id: Option<String>,
     procedure_type_id: String,
     procedure_date: String,              // ISO date YYYY-MM-DD
-    billed_amount: i64,                  // optional; in thousandths of a euro
+    billed_amount: Option<i64>,          // in thousandths of a euro
     payment_method: PaymentMethod,
-    confirmed_payment_date: String,      // optional
-    paid_amount: i64,                    // optional
+    confirmed_payment_date: Option<String>,
+    paid_amount: Option<i64>,
     payment_status: ProcedureStatus,
 }
 
@@ -106,27 +106,27 @@ struct Procedure {
 struct RawProcedure {
     id: String,
     patient_id: String,
-    fund_id: String,                     // optional
+    fund_id: Option<String>,
     procedure_type_id: String,
     procedure_date: String,
-    billed_amount: i64,                  // optional
-    payment_method: String,              // optional; raw string
-    confirmed_payment_date: String,      // optional
-    paid_amount: i64,                    // optional
+    billed_amount: Option<i64>,
+    payment_method: Option<String>,      // raw string
+    confirmed_payment_date: Option<String>,
+    paid_amount: Option<i64>,
     payment_status: String,              // raw string
 }
 
 // batch import candidate
 struct ProcedureCandidate {
     patient_id: String,
-    fund_id: String,                     // optional
+    fund_id: Option<String>,
     procedure_type_id: String,
     procedure_date: String,
-    billed_amount: i64,                  // optional
-    payment_method: String,              // optional
-    confirmed_payment_date: String,      // optional
-    paid_amount: i64,                    // optional
-    awaited_amount: i64,                 // optional; ignored at persistence (R17)
+    billed_amount: Option<i64>,
+    payment_method: Option<String>,
+    confirmed_payment_date: Option<String>,
+    paid_amount: Option<i64>,
+    awaited_amount: Option<i64>,         // ignored at persistence (R17)
 }
 
 enum ProcedureStatus {
@@ -154,7 +154,7 @@ enum PaymentMethod {
 struct ProcedureValidationResult {
     candidate: ProcedureCandidate,
     status: ProcedureValidationStatus,
-    error: String,   // optional
+    error: Option<String>,
 }
 
 enum ProcedureValidationStatus {
