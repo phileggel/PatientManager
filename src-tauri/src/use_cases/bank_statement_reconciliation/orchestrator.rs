@@ -1182,9 +1182,12 @@ mod tests {
 
     // --- publish_batch_events ---
 
-    #[test]
-    fn publish_batch_events_does_not_panic() {
+    #[tokio::test]
+    async fn publish_batch_events_emits_procedure_and_bank_entry_updates() {
         let event_bus = Arc::new(EventBus::new());
+        let mut proc_rx = event_bus.subscribe::<ProcedureUpdated>().unwrap();
+        let mut bank_rx = event_bus.subscribe::<BankEntryUpdated>().unwrap();
+
         let bank_account_repo: Arc<dyn BankAccountRepository> =
             Arc::new(BankAccountRepoReturns(None));
         let orchestrator = BankStatementOrchestrator::new(
@@ -1213,7 +1216,28 @@ mod tests {
             Arc::new(LabelMappingRepoReturns(vec![])),
             event_bus,
         );
+
         orchestrator.publish_batch_events();
+
+        proc_rx
+            .recv()
+            .await
+            .expect("ProcedureUpdated must be published");
+        bank_rx
+            .recv()
+            .await
+            .expect("BankEntryUpdated must be published");
+
+        // Each topic must receive exactly one event — guard against future
+        // accidental double-publishes silently passing the at-least-one check.
+        assert!(
+            proc_rx.try_recv().is_err(),
+            "no second ProcedureUpdated expected"
+        );
+        assert!(
+            bank_rx.try_recv().is_err(),
+            "no second BankEntryUpdated expected"
+        );
     }
 
     // --- create_transfers ---

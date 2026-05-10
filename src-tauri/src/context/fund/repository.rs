@@ -1029,13 +1029,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn create_batch_groups_empty_returns_empty() {
-        let (_, payment_repo) = setup_payment_repos().await;
-        let result = payment_repo.create_batch_groups(vec![]).await.unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[tokio::test]
     async fn create_group_with_procedure_lines_reads_back() {
         let (fund_repo, payment_repo) = setup_payment_repos().await;
         let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();

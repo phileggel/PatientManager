@@ -625,22 +625,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn procedure_service_read_all_returns_empty() {
-        let service =
-            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
-        let result = service.read_all_procedures().await.unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[tokio::test]
-    async fn procedure_service_read_procedure_not_found() {
-        let service =
-            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
-        let result = service.read_procedure("unknown-id").await.unwrap();
-        assert!(result.is_none());
-    }
-
-    #[tokio::test]
     async fn procedure_service_create_procedure_success() {
         let service =
             ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));

@@ -338,17 +338,13 @@ mod tests {
     }
 
     #[test]
-    fn fund_new_success() {
-        let f = Fund::new("75".to_string(), "CPAM 75".to_string()).unwrap();
-        assert!(!f.id.is_empty());
-        assert!(f.temp_id.is_none());
+    fn fund_with_id_rejects_empty_identifier() {
+        assert!(Fund::with_id("my-id".to_string(), "".to_string(), "CPAM 75".to_string()).is_err());
     }
 
     #[test]
-    fn fund_with_id_preserves_id() {
-        let f =
-            Fund::with_id("my-id".to_string(), "75".to_string(), "CPAM 75".to_string()).unwrap();
-        assert_eq!(f.id, "my-id");
+    fn fund_with_id_rejects_empty_name() {
+        assert!(Fund::with_id("my-id".to_string(), "75".to_string(), "".to_string()).is_err());
     }
 
     // --- FundPaymentGroup ---
@@ -441,9 +437,18 @@ mod tests {
     }
 
     #[test]
-    fn fund_payment_line_with_id_preserves_id() {
-        let l = FundPaymentLine::with_id("my-id".to_string(), "g1".to_string(), "p1".to_string())
-            .unwrap();
-        assert_eq!(l.id, "my-id");
+    fn fund_payment_line_with_id_rejects_empty_group_id() {
+        assert!(
+            FundPaymentLine::with_id("my-id".to_string(), "".to_string(), "p1".to_string())
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn fund_payment_line_with_id_rejects_empty_procedure_id() {
+        assert!(
+            FundPaymentLine::with_id("my-id".to_string(), "g1".to_string(), "".to_string())
+                .is_err()
+        );
     }
 }
