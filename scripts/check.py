@@ -6,13 +6,16 @@ import re
 from pathlib import Path
 from typing import List, Optional
 
-# ANSI Colors
-BLUE = "\033[0;34m"
-GREEN = "\033[0;32m"
-RED = "\033[0;31m"
-ORANGE = "\033[0;33m"
-YELLOW = "\033[1;33m"
-NC = "\033[0m"
+# ANSI Colors (respect NO_COLOR=1)
+if os.environ.get("NO_COLOR"):
+    BLUE = GREEN = RED = ORANGE = YELLOW = NC = ""
+else:
+    BLUE = "\033[0;34m"
+    GREEN = "\033[0;32m"
+    RED = "\033[0;31m"
+    ORANGE = "\033[0;33m"
+    YELLOW = "\033[0;33m"
+    NC = "\033[0m"
 
 
 class QualityChecker:
@@ -93,7 +96,7 @@ class QualityChecker:
         sqlx_dir = self.repo_root / "src-tauri" / ".sqlx"
 
         if not sqlx_dir.exists():
-            self._vprint(f"{YELLOW}ℹ SQLx directory not found, skipping.{NC}")
+            self._vprint(f"{BLUE}ℹ SQLx directory not found, skipping.{NC}")
             self.metrics["sqlx"] = "N/A"
             return True
 
@@ -149,7 +152,7 @@ class QualityChecker:
             if self.run_step("Application Build", ["npm", "run", "build"]):
                 self.metrics["build"] = "Pass"
         else:
-            self._vprint(f"{YELLOW}⏩ Fast mode: skipping tests and build.{NC}")
+            self._vprint(f"{BLUE}⏩ Fast mode: skipping tests and build.{NC}")
 
         self.check_sqlx()
 
@@ -204,7 +207,7 @@ class QualityChecker:
             if value == "Pass":
                 status_str = f"{GREEN}✅ Pass{NC}"
             elif value == "SKIPPED":
-                status_str = f"{YELLOW}⏩ Skipped{NC}"
+                status_str = f"{BLUE}⏩ Skipped{NC}"
             elif value == "Pending":
                 status_str = f"{RED}❌ Fail{NC}"
             elif (

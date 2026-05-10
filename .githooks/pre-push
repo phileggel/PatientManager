@@ -8,11 +8,16 @@ set -euo pipefail
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 CHECK_SCRIPT="$PROJECT_ROOT/scripts/check.py"
 
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Colors (respect NO_COLOR=1)
+if [ -n "${NO_COLOR:-}" ]; then
+    RED='' YELLOW='' GREEN='' BLUE='' NC=''
+else
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    GREEN='\033[0;32m'
+    BLUE='\033[0;34m'
+    NC='\033[0m'
+fi
 
 echo -e "${BLUE}🚀 Preparing to push... Running full quality check${NC}"
 

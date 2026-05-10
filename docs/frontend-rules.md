@@ -1,7 +1,8 @@
 # Frontend Rules
 
 ⚠️ **AI AGENT MUST NEVER UPDATE THIS DOCUMENT**
-**Rules numbering are indicative and not stable from version to version**
+
+> Rule numbers (F1, F2, …) are stable IDs — once assigned, they never change. New rules are appended; deprecated rules keep their number with a note.
 
 ## Feature Structure
 
@@ -58,6 +59,20 @@ feature/
 
 **F12** — MUST NOT update a generic component for its own usage. Create a specific component if generic components are not appropriate.
 
+**F25** — Primary interactive elements MUST render a stable `id` attribute. Stable ids serve two purposes: (a) screen-reader and `aria-labelledby` references rely on stable anchors, (b) E2E tests (WebdriverIO / Playwright) keyed off ids stay stable across UI refactors, while selectors based on class names or text content break.
+
+Scope (mandatory):
+
+- Buttons, inputs, selects, textareas, switches, checkboxes
+- Dialogs and modal containers
+- List items in a navigable list (e.g. account row, transaction row)
+
+Convention: `{feature}-{component}-{role}` in kebab-case — e.g. `account-list-item-edit`, `add-transaction-dialog`, `search-input`. The `{role}` segment disambiguates multiple interactive elements within a component (e.g. `account-list-item-edit` vs `account-list-item-delete`).
+
+Page-level / shell-level containers (single instance per route) MAY skip the rule — there's no ambiguity for a singleton. The mandate kicks in once a component is instantiated more than once or has multiple interactive children.
+
+The reviewer-frontend lane flags primary interactive elements without an `id` prop.
+
 ## Logging
 
 **F13** — MUST log `info` when mounted.
@@ -69,6 +84,20 @@ feature/
 ## i18n
 
 **F16** — MUST use i18n translation (`useTranslation`) for all user-visible text. No hardcoded strings.
+
+**F24** — Accessibility labels MUST flow through i18n. Hard-coded a11y strings are silent translation holes — they pass visual review and TypeScript checks, but ship untranslated to non-default-locale users. The rule covers any string passed to: `aria-label`, `aria-labelledby`, `aria-describedby`, `title`, and `placeholder` props.
+
+```tsx
+// ✅ correct
+<button aria-label={t("account.delete")} onClick={onDelete} />
+<input placeholder={t("search.placeholder")} />
+
+// ❌ wrong — literal strings won't translate
+<button aria-label="Delete account" onClick={onDelete} />
+<input placeholder="Search..." />
+```
+
+The reviewer-frontend lane flags any literal string passed to those props.
 
 ## Error Handling
 

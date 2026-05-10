@@ -1,14 +1,12 @@
 ---
 name: kit-discover
-description: Cross-references CLAUDE.md against kit-tools.md and kit-version.md to surface drift (CLAUDE.md describes a workflow the kit now replaces), gaps (kit ships an item CLAUDE.md does not reference), and redundancies (CLAUDE.md duplicates content owned by kit-tools.md). Proposes a CLAUDE.md patch in the conversation — never modifies the file. Use after a kit sync, especially when the version delta is non-trivial, or when CLAUDE.md feels out of sync with what the kit ships.
+description: After a kit sync, verifies every entry in `.claude/kit-manifest.txt` is on disk and reconciles `CLAUDE.md` against `.claude/kit-tools.md` — surfacing sync gaps, drift, gaps, and redundancies. Proposes a CLAUDE.md patch the user reviews and applies manually.
 tools: Bash, Read, Grep, Glob
 ---
 
 # Skill — `kit-discover`
 
-Reconcile `CLAUDE.md` with what the kit actually ships, and propose the edits.
-
-The downstream `CLAUDE.md` is user-owned — sync never touches it. Over time, it can drift away from the kit: a workflow described there gets replaced by a new skill, a new agent ships without a mention, or a section duplicates the inventory in `kit-tools.md`. This skill diffs the three artifacts and proposes a patch the user reviews and applies manually.
+Reconcile `CLAUDE.md` with what the kit actually ships, and confirm the last sync landed cleanly. The downstream `CLAUDE.md` is user-owned (sync never touches it); over time it drifts. This skill diffs the relevant artifacts and proposes a patch the user reviews and applies manually.
 
 ---
 
@@ -20,12 +18,17 @@ The downstream `CLAUDE.md` is user-owned — sync never touches it. Over time, i
 
 ## When to use
 
-- **After a kit sync** with a non-trivial version delta — verify CLAUDE.md still reflects the kit's surface area
+- **After a kit sync** with a non-trivial version delta — verify CLAUDE.md still reflects the kit's surface area and that every manifest entry landed
 - **When CLAUDE.md feels stale** — workflow descriptions don't match how you actually work today
 - **Before a release** that changes how the project consumes the kit — catch outdated guidance before it ships
-- **Onboarding a new project to the kit** — spot what CLAUDE.md should reference but doesn't
 
-Not a continuous-integration tool. CLAUDE.md drift moves slowly; running this once per kit sync is enough.
+---
+
+## When NOT to use
+
+- **As a CI check** — CLAUDE.md drift moves slowly; running once per sync is enough
+- **For CLAUDE.md authoring or editing** — this skill is read-only on CLAUDE.md; if you need to write a fresh CLAUDE.md, use Claude Code's built-in `/init`
+- **Before the first sync** — without `.claude/kit-tools.md` and `.claude/kit-manifest.txt` the skill has no source of truth; run `just sync-kit` first
 
 ---
 
@@ -37,56 +40,52 @@ Required reads:
 
 - `.claude/kit-tools.md` — canonical inventory of what the kit ships
 - `.claude/kit-version.md` — current kit version + delta since previous sync
+- `.claude/kit-manifest.txt` — sorted list of every kit-owned file written by the last sync
 - `CLAUDE.md` — the file under review
 
-If `.claude/kit-tools.md` is missing → reply: ``Run `just sync-kit` first — kit-discover needs the discovery files written by sync.`` and stop. Do not attempt to operate without it.
+If `.claude/kit-tools.md` or `.claude/kit-manifest.txt` is missing → reply: ``Run `just sync-kit` first — kit-discover needs the discovery files written by sync.`` and stop.
 
 If `CLAUDE.md` is missing → reply: `No CLAUDE.md to reconcile — the project has not yet adopted one. Skipping.` and stop.
 
-### Step 2 — Inventory what the kit ships
+### Step 2 — Build the CLAUDE.md cross-reference catalog
 
-Parse `.claude/kit-tools.md`. Extract from its tables:
+Parse `.claude/kit-tools.md` to build the catalog of identifiers Step 4 will look for in CLAUDE.md. Extract from these tables:
 
-- **Agents** — `## Spec & Planning Agents` and `## Code Review & Test Agents` sections; collect every backticked name in the first column
-- **Skills** — `## Skills (slash commands)` section; collect both the skill name and its slash command
-- **Scripts** — `## Scripts` section (sub-sections: Shared helpers, Quality & release); collect script names and their commands
-- **Git hooks** — `## Git Hooks` section; collect hook names
-- **Justfile recipes** — `## Justfile Recipes (\`common.just\`)`section; collect recipe names and`just …` commands
+- **Agents** — `## Spec & Planning Agents` and `## Code Review & Test Agents`; collect every backticked name in the first column
+- **Skills** — `## Skills (slash commands)`; collect both the skill name and its slash command
+- **Scripts** — `## Scripts` (sub-sections: Shared helpers, Quality & release); collect script names and their commands
+- **Git hooks** — `## Git Hooks`; collect hook names
+- **Justfile recipes** — ``## Justfile Recipes (`common.just`)``; collect recipe names and `just …` commands
 
-Hold the result as a flat catalog of identifiers (names + commands) tagged by category.
+Hold the result as a flat catalog of identifiers tagged by category. This catalog is **only used in Step 4**; sync-gap detection in Step 3 uses the manifest, not this catalog.
 
-### Step 3 — Inventory what the project actually contains
+### Step 3 — Verify the sync is complete
 
-Verify the catalog against the filesystem — `kit-tools.md` describes what _should_ be present, but a partial sync may leave gaps:
-
-```bash
-ls .claude/agents/ 2>/dev/null
-ls .claude/skills/ 2>/dev/null
-ls scripts/ 2>/dev/null
-ls .githooks/ 2>/dev/null
-```
-
-For justfile recipes, list recipe names from the local justfiles:
+Run the post-sync validator — it reads `.claude/kit-manifest.txt` and reports any kit-owned file that did not land:
 
 ```bash
-just --list 2>/dev/null
+bash scripts/validate-sync.sh
 ```
 
-If the above returns no output (i.e. `just` is not installed or no justfile is present), fall back:
+Exit codes:
 
-```bash
-grep -hE '^[a-zA-Z_][a-zA-Z0-9_-]*:' justfile common.just *.just 2>/dev/null
-```
-
-Flag any catalog item not actually present on disk as `missing — kit-tools.md lists it but it isn't synced`. This is a sync problem, not a CLAUDE.md problem — surface it separately and continue.
+- `0` → all manifest entries present; no sync gaps to report
+- `1` → **expected when the sync regressed**; capture each `✗` line as a `Sync gaps` finding for Step 5 and **continue to Step 4**
+- `2` → manifest itself missing (the project's last sync predates the manifest feature); reply: ``Run `just sync-kit` to refresh the manifest, then re-run /kit-discover.`` and stop
 
 ### Step 4 — Cross-reference against CLAUDE.md
 
-Read `CLAUDE.md` once. For each catalog item, classify into one of:
+Read `CLAUDE.md` once. For each catalog item from Step 2, run a substring check:
+
+```bash
+grep -F "{identifier}" CLAUDE.md
+```
+
+Classify each item into one of:
 
 - **Mentioned** — name or command appears in CLAUDE.md, no contradicting workflow nearby
 - **Gap** — kit ships a _user-facing_ item (skill, recipe, script command) that CLAUDE.md does not reference. Agents are not gaps by default — they auto-discover by file presence; only flag an agent if CLAUDE.md describes a workflow that _should_ invoke it but doesn't (e.g. "before commit, run X manually" when an agent already does X automatically)
-- **Drift** — CLAUDE.md describes a manual workflow that a kit-shipped skill/recipe/script now automates, OR references a path/command that has been renamed or replaced. Examples: CLAUDE.md says "run `cargo test`" but `just check-full` exists; CLAUDE.md says "run `python3 scripts/release.py`" but `just release` is the documented kit recipe
+- **Drift** — CLAUDE.md describes a manual workflow that a kit-shipped skill/recipe/script now automates, OR references a path/command that has been renamed or replaced. **A command-mismatch beats a name-match**: if CLAUDE.md says `python3 scripts/release.py` and `kit-tools.md` documents `just release`, classify as Drift, not Mentioned
 - **Redundancy** — CLAUDE.md contains a list, table, or paragraph that re-documents content already in `kit-tools.md` (e.g. an inline table of agents, a duplicated recipe list)
 
 For each finding, capture the CLAUDE.md line number and the catalog item it relates to.
@@ -102,13 +101,13 @@ If no findings → reply with the empty-patch confirmation under `## Output form
 ## Output format
 
 ```
-## Kit Discovery — CLAUDE.md vs kit-tools.md
+## Kit Discovery
 
 Kit version: <from .claude/kit-version.md>
-Scanned: .claude/kit-tools.md, CLAUDE.md, scripts/, .githooks/, justfiles
+Scanned: .claude/kit-tools.md, .claude/kit-manifest.txt, CLAUDE.md
 
-### Sync gaps (catalog item missing on disk)
-- <item> — listed in kit-tools.md but not present at <expected path>
+### Sync gaps (manifest entry missing on disk)
+- <path> — recorded in .claude/kit-manifest.txt but not present in the project
 (omit section if none — these are sync issues, not CLAUDE.md issues)
 
 ### Drift — CLAUDE.md describes outdated workflow
@@ -127,7 +126,7 @@ Scanned: .claude/kit-tools.md, CLAUDE.md, scripts/, .githooks/, justfiles
   Suggested: replace with `> See .claude/kit-tools.md for <topic>.`
 
 ### Summary
-Drift: N. Gaps: N. Redundancies: N. Sync gaps: N.
+Sync gaps: N. Drift: N. Gaps: N. Redundancies: N.
 
 > Review the patch above. CLAUDE.md is user-owned — apply edits manually.
 > This skill never modifies the file.
@@ -136,9 +135,12 @@ Drift: N. Gaps: N. Redundancies: N. Sync gaps: N.
 If nothing to reconcile:
 
 ```
-## Kit Discovery — CLAUDE.md vs kit-tools.md
-Kit version: <…>
-✅ CLAUDE.md is in sync with the kit. No drift, gaps, or redundancies found.
+## Kit Discovery
+
+Kit version: <from .claude/kit-version.md>
+Scanned: .claude/kit-tools.md, .claude/kit-manifest.txt, CLAUDE.md
+
+✅ Sync valid and CLAUDE.md is in sync with the kit. No gaps, drift, or redundancies found.
 ```
 
 ---
@@ -146,23 +148,19 @@ Kit version: <…>
 ## Critical Rules
 
 1. **Never modify CLAUDE.md** — output is advisory only. The user reviews and applies edits by hand.
-2. **Stop early if discovery files are missing** — without `.claude/kit-tools.md`, the skill has no source of truth. Tell the user to run `just sync-kit` and exit.
+2. **Stop early if discovery files are missing** — without `.claude/kit-tools.md` or `.claude/kit-manifest.txt`, the skill has no source of truth. Tell the user to run `just sync-kit` and exit.
 3. **Don't flag agents as gaps by default** — agents auto-discover by presence in `.claude/agents/`. Only flag an agent when CLAUDE.md actively describes a workflow that should call it but doesn't.
-4. **Separate sync gaps from CLAUDE.md gaps** — if `kit-tools.md` lists an item that isn't on disk, that's a sync problem (re-run `just sync-kit`), not a documentation problem. Surface it in its own section.
+4. **Separate sync gaps from CLAUDE.md gaps** — if the manifest lists a path that isn't on disk, that's a sync problem (re-run `just sync-kit`), not a documentation problem. Surface it in its own section.
 5. **Quote, don't paraphrase** — when reporting drift, include the exact CLAUDE.md snippet and a concrete suggested replacement. Vague advice ("update this section") forces the user to redo the analysis.
 6. **Empty patch is a real result** — when nothing is wrong, say so. Don't manufacture findings.
-7. **Out-of-scope items are not findings** — only emit findings tied to catalog items from `kit-tools.md`. Do not commentate on Claude Code built-in slash commands (e.g. `/init`, `/review`, `/security-review`, `/help`, `/config`, `/clear`) when they appear in CLAUDE.md; they are not kit-managed and are outside this skill's reconciliation scope, even when their name overlaps a kit-shipped item (`/security-review` ≠ kit's `reviewer-security` agent).
+7. **Built-in slash commands are out of scope** — only emit findings tied to catalog items from `kit-tools.md`. Do not commentate on Claude Code built-in slash commands (`/init`, `/review`, `/security-review`, `/help`, `/config`, `/clear`) when they appear in CLAUDE.md, even when a name overlaps a kit-shipped item (`/security-review` ≠ kit's `reviewer-security` agent).
 
 ---
 
 ## Notes
 
-The catalog in `kit-tools.md` is the kit's self-description; `kit-version.md` provides the temporal context (what changed since the project's previous sync). Read both before forming any judgment about CLAUDE.md drift — a section that looks stale may simply have been updated by the most recent kit version.
+`kit-tools.md` is the kit's self-description; `kit-version.md` provides the temporal context (what changed since the project's previous sync); `kit-manifest.txt` is the authoritative record of what the last sync wrote. The three serve different roles — Step 2 uses the catalog (kit-tools), Step 3 uses the manifest, Step 4 uses CLAUDE.md against the catalog. Conflating them produces miscategorised findings, which is why the v4.3 refactor split them.
+
+A CLAUDE.md section that looks stale may simply post-date a kit-tools.md update — read the version delta in `kit-version.md` before forming any drift judgment.
 
 This skill complements `/whats-next` (which surveys _project_ backlog). Both are revisit-time tools for catching what edit-time memory has forgotten.
-
----
-
-## Migration note — tauri-conventions → kit (v3.18+)
-
-Convention docs previously distributed by the `tauri-conventions` repo are now synced directly by the kit into `docs/`. If your project has a `sync-conventions.sh` at the project root and a `sync-conventions` recipe in its justfile, remove both — they are superseded by the kit sync.

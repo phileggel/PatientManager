@@ -3,48 +3,64 @@
 > For DDD concept definitions, see [docs/ddd-reference.md](ddd-reference.md).
 
 **AI AGENT SHOULD NEVER UPDATE THIS DOCUMENT**
-**Rules numbering are indicative and not stable from version to version**
+
+> Rule numbers (B0, B1, …) are stable IDs — once assigned, they never change. New rules are appended; deprecated rules keep their number with a note.
 
 ## Folder Structure
 
-**B0** — The backend source tree MUST follow this layout:
+**B0** — The backend source tree MUST follow this layout. Three layer-named folders (`application/`, `domain/`, `infrastructure/`) appear symmetrically inside `shared/` and every `context/{bc}/` — the DDD canonical trio is visible everywhere DDD layering applies.
 
 ```
 src-tauri/src/
-├── core/             # Shared infrastructure (db, logger, event_bus, specta)
-│   ├── db.rs
-│   ├── logger.rs
-│   ├── specta_types.rs
-│   ├── specta_builder.rs
-│   ├── uow.rs            # TransactionManager trait + SqlxTransactionManager
-│   └── event_bus/
-│       ├── bus.rs
-│       ├── event.rs
-│       └── mod.rs
-├── context/          # DDD bounded contexts — no cross-context imports
-│   └── {domain}/
-│       ├── {aggregate}/  # One sub-folder per aggregate root in the BC
-│       │   ├── domain.rs     # Entity, value objects, repository trait
-│       │   ├── repository.rs # SQLite implementation of the repository trait
-│       │   └── service.rs    # BC Application Service — optional (see B21)
-│       ├── api.rs        # Single Tauri adapter for the whole BC (thin — no business logic)
-│       └── mod.rs        # Public re-exports only — the only import surface for the BC
-├── use_cases/        # Cross-context orchestrators (if needed)
-│   └── {name}/
-│       ├── api.rs          # Tauri adapter — same framework boundary role as BC api.rs
-│       ├── mod.rs          # Public re-exports
-│       ├── orchestrator.rs # Main entry point — coordination logic only, no domain rules
-│       └── uow.rs          # AppUnitOfWork super-trait for this use case (if cross-aggregate)
-└── lib.rs            # App wiring: state construction + Tauri setup
+├── shared/                                 ← cross-cutting (was: core/ pre-v4.4)
+│   ├── application/                        ← shared application types
+│   │   └── error.rs                        ← shared InfrastructureError
+│   ├── domain/                             ← shared kernel (cross-BC domain — see ddd-reference.md § Shared Kernel)
+│   │   └── *.rs                            ← cross-BC constants, IDs, value objects
+│   └── infrastructure/                     ← shared concrete infra
+│       ├── db.rs
+│       ├── event_bus/
+│       ├── logger.rs
+│       ├── specta_builder.rs
+│       └── uow.rs
+│
+├── context/{bc}/                           ← bounded contexts
+│   ├── api.rs                              ← boundary (Tauri commands, single-BC scope)
+│   ├── application/                        ← Application layer
+│   │   ├── error.rs                        ← *ApplicationError, *ServiceError composites
+│   │   └── service.rs                      ← *Service (orchestrates aggregate)
+│   ├── domain/                             ← Domain layer (pure, no infra deps)
+│   │   ├── {aggregate_root}.rs
+│   │   ├── {entity_or_vo}.rs
+│   │   └── error.rs                        ← *DomainError, *OperationError
+│   └── infrastructure/                     ← Infrastructure layer (was: repository/ pre-v4.4)
+│       └── {aggregate}.rs                  ← repo impls today; future external/cache adapters as siblings
+│
+└── use_cases/{flow}/                       ← cross-BC orchestrators
+    ├── api.rs                              ← cross-BC Tauri commands
+    ├── orchestrator.rs
+    └── error.rs                            ← *UseCaseError (if introduces own variants)
 ```
 
-**B1** — `core/` MUST only contain infrastructure utilities with no domain knowledge.
+**B1** — `shared/` MUST only contain cross-cutting code (infrastructure utilities, shared application types, shared kernel domain) with no BC-specific knowledge.
 
-**B2** — `context/{domain}/{aggregate}/repository.rs` MUST only contain the database implementation of the trait declared in the same aggregate's `domain.rs`. No business logic.
+**B2** — `context/{bc}/infrastructure/{aggregate}.rs` MUST only contain the database implementation of the repository trait declared in the same BC's `domain/{aggregate_root}.rs`. No business logic.
 
-**B3** — `core/specta_builder.rs` is the ONLY place where Tauri commands are registered.
+**B3** — `shared/infrastructure/specta_builder.rs` is the ONLY place where Tauri commands are registered.
 
-**B4** — A bounded context MAY contain multiple aggregate roots. Each aggregate MUST have its own sub-folder. Aggregates within the same BC reference each other by ID only — never by direct object reference.
+**B4** — A bounded context MAY contain multiple aggregate roots. Each aggregate root lives as a file in `context/{bc}/domain/{aggregate_root}.rs`. Aggregates within the same BC reference each other by ID only — never by direct object reference.
+
+**B38** — Layer folders symmetric. The three layer-named folders (`application/`, `domain/`, `infrastructure/`) MUST appear everywhere DDD layering applies — both inside each BC and inside `shared/`. The DDD canonical trio is visible at every level.
+
+**B39** — `api.rs` MUST be a single file at the boundary (BC root, use-case root). Don't fold into a `presentation/` folder — the boundary surface (Tauri commands + DTOs + error mapping) is small enough that one file at the root is more discoverable than a folder.
+
+**B40** — Infrastructure folder MUST be named `infrastructure/`, not `repository/`. `repository/` overpromises — it names one _type_ of infrastructure (repo impls) and forces awkward sibling folders the day a BC adds an external API client, cache adapter, or message-queue subscriber. `infrastructure/` is the layer name and accommodates all of those as flat siblings.
+
+**B41** — Flat-first inside `infrastructure/`. Until a BC's infrastructure has 5+ files of distinct concerns, all files MUST sit flat at the root of `infrastructure/` (e.g. `infrastructure/{aggregate}.rs` for repo impls, `infrastructure/openfigi_client.rs` for an external client). Don't pre-create a `repository/` sub-folder for one repo impl. Nest only when the count grows.
+
+**B42** — Top-level cross-cutting folder MUST be named `shared/`, not `core/`. `core/` overpromises (it implies "central business logic" but BCs ARE the business). `shared/` is direct, accurate, and DDD-agnostic for newcomers.
+
+**B43** — Keep layer folders even when small. `shared/application/` may have only one file today (the shared `InfrastructureError`); keep the folder anyway. It documents the layering and reserves the spot for growth — the alternative is a deceptively flat `shared/` that hides the layer structure.
 
 ## Ubiquitous Language
 
@@ -91,6 +107,15 @@ directly, extract an Aggregate Root method for that mutation first, then call th
 Never add a new direct field mutation to an aggregate from outside its own type.
 Existing direct mutations are tracked in `docs/ubiquitous-language.md` as code discrepancies
 and MUST be refactored incrementally.
+
+**B37** — Aggregates own their state-dependent invariants. Before adding a `if loaded.state == X { return Err(...) }` check inside an application service, ask: "could this be enforced inside the aggregate or value-object that owns the state?" If yes, move it.
+
+Service-layer state-dependent pre-checks are an "anemic domain" anti-pattern: the service ends up encoding rules about the aggregate's lifecycle, leaving the aggregate as a pure data carrier. Concrete forms that respect this rule:
+
+- **State-mutating actions:** `aggregate.action_from(self, ...) -> Result<Self, *DomainError>` consuming `self`, returning the new state for the caller to persist. The aggregate enforces its own invariants in the constructor of the result.
+- **Pre-conditions for non-constructive ops** (e.g. delete): `aggregate.ensure_<predicate>(&self) -> Result<(), *DomainError>`. The service calls it just before invoking the destructive action.
+
+Service-layer checks are appropriate ONLY for cross-aggregate invariants (uniqueness across the BC) or application-layer concerns (`NotFound`, cross-BC preconditions). See the rejection-layer rule in `ddd-reference.md` § Errors for the disambiguation.
 
 ## Bounded Context (`/context`)
 

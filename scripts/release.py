@@ -23,6 +23,7 @@ Options:
 """
 
 import argparse
+import os
 import subprocess
 import json
 import re
@@ -32,12 +33,15 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, List
 
-# ANSI colors
-GREEN = "\033[0;32m"
-YELLOW = "\033[1;33m"
-RED = "\033[0;31m"
-BLUE = "\033[0;34m"
-NC = "\033[0m"
+# ANSI colors (respect NO_COLOR=1)
+if os.environ.get("NO_COLOR"):
+    GREEN = YELLOW = RED = BLUE = NC = ""
+else:
+    GREEN = "\033[0;32m"
+    YELLOW = "\033[0;33m"
+    RED = "\033[0;31m"
+    BLUE = "\033[0;34m"
+    NC = "\033[0m"
 
 # Changelog constants
 CHANGELOG_INTRO = (
@@ -152,15 +156,15 @@ class ReleaseManager:
 
     def _format_mode_prefix(self) -> str:
         """Return dry-run prefix if applicable."""
-        return f"{YELLOW}[DRY-RUN]{NC} " if self.dry_run else ""
+        return f"{BLUE}[DRY-RUN]{NC} " if self.dry_run else ""
 
     def show_analysis(self) -> None:
         """Display release analysis."""
         print(f"\n{BLUE}=== Release Analysis ==={NC}")
-        print(f"Current version: {YELLOW}{self.current_version}{NC}")
-        print(f"Latest tag: {YELLOW}{self.get_latest_tag() or 'none'}{NC}")
+        print(f"Current version: {BLUE}{self.current_version}{NC}")
+        print(f"Latest tag: {BLUE}{self.get_latest_tag() or 'none'}{NC}")
         print("\nCommits since last release:")
-        print(f"  {YELLOW}Breaking changes: {self.breaking_changes}{NC}")
+        print(f"  {BLUE}Breaking changes: {self.breaking_changes}{NC}")
         print(f"  {GREEN}Features: {self.features}{NC}")
         print(f"  {BLUE}Fixes: {self.fixes}{NC}")
         print(f"\nSuggested version: {GREEN}{self.new_version}{NC}\n")
@@ -169,7 +173,7 @@ class ReleaseManager:
         """Ask user to confirm release. 'v' allows version override."""
         while True:
             response = (
-                input(f"{YELLOW}Confirm release v{self.new_version}? (y/n/v): {NC}")
+                input(f"{BLUE}Confirm release v{self.new_version}? (y/n/v): {NC}")
                 .lower()
                 .strip()
             )
@@ -187,7 +191,7 @@ class ReleaseManager:
     def ask_version_override(self) -> None:
         """Prompt user to manually set version."""
         while True:
-            version = input(f"{YELLOW}Enter version (e.g., 0.2.0): {NC}").strip()
+            version = input(f"{BLUE}Enter version (e.g., 0.2.0): {NC}").strip()
             if re.match(r"^\d+\.\d+\.\d+$", version):
                 self.new_version = version
                 break
@@ -389,7 +393,7 @@ class ReleaseManager:
         print(f"{BLUE}🚀 Running full quality validation...{NC}")
 
         if self.dry_run:
-            print(f"{YELLOW}[DRY-RUN] Simulating test suite (check.py){NC}")
+            print(f"{BLUE}[DRY-RUN] Simulating test suite (check.py){NC}")
             return True
 
         checker = QualityChecker(fast_mode=False)
@@ -407,7 +411,7 @@ class ReleaseManager:
 
     def run(self) -> bool:
         """Execute the release workflow."""
-        dry_run_banner = f" {YELLOW}[DRY-RUN MODE]{NC}" if self.dry_run else ""
+        dry_run_banner = f" {BLUE}[DRY-RUN MODE]{NC}" if self.dry_run else ""
         print(f"\n{BLUE}🚀 Release Manager{dry_run_banner}{NC}\n")
 
         if not self.run_tests():
@@ -435,27 +439,27 @@ class ReleaseManager:
                         f"{RED}❌ No releasable commits (no feat/fix/breaking change since last tag).{NC}"
                     )
                     print(
-                        f"{YELLOW}   Use --version X.Y.Z to force a version, or remove --yes to confirm interactively.{NC}"
+                        f"{BLUE}   Use --version X.Y.Z to force a version, or remove --yes to confirm interactively.{NC}"
                     )
                     return False
                 print(
                     f"{YELLOW}⚠ No releasable commits found (no feat/fix/breaking change since last tag).{NC}"
                 )
                 print(
-                    f'{YELLOW}  Use "v" at the confirmation prompt or --version X.Y.Z to override, or cancel.{NC}'
+                    f'{BLUE}  Use "v" at the confirmation prompt or --version X.Y.Z to override, or cancel.{NC}'
                 )
 
         self.show_analysis()
 
         if self.dry_run and self.yes:
             print(
-                f"{YELLOW}Note: --yes is redundant with --dry-run (no changes are made regardless).{NC}"
+                f"{BLUE}Note: --yes is redundant with --dry-run (no changes are made regardless).{NC}"
             )
 
         if self.yes:
-            print(f"{YELLOW}--yes flag set: auto-confirming v{self.new_version}{NC}")
+            print(f"{BLUE}--yes flag set: auto-confirming v{self.new_version}{NC}")
         elif not self.ask_confirmation():
-            print(f"{YELLOW}Release cancelled.{NC}")
+            print(f"{BLUE}Release cancelled.{NC}")
             return False
 
         self.update_version_files()
@@ -472,7 +476,7 @@ class ReleaseManager:
             print(
                 f"\n{GREEN}✨ Dry-run completed! Release would be v{self.new_version}{NC}"
             )
-            print(f"Run without {YELLOW}--dry-run{NC} to apply changes\n")
+            print(f"Run without {BLUE}--dry-run{NC} to apply changes\n")
         else:
             if not self.push_release():
                 return False

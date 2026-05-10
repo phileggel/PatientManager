@@ -21,7 +21,7 @@ release *ARGS:
 # ⚠️  Destructive: removes stale remote-tracking branches
 clean-branches:
     git fetch --prune
-    git branch -vv | grep ': gone]' | awk '{print $1}' | xargs git branch -D || true
+    git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -r git branch -D
 
 stat:
     cloc . --vcs=git
