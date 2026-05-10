@@ -271,14 +271,14 @@ pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn parse_pdf_text(text: String) -> Result<PdfParseResult, String> {
-    tracing::info!("Parsing PDF text ({} characters)", text.len());
+    tracing::info!(chars = text.len(), "Parsing PDF text");
 
     let result = pdf_parser::parse_pdf_text(&text);
 
     tracing::info!(
-        "Parsed {} groups with {} total lines",
-        result.groups.len(),
-        result.groups.iter().map(|g| g.lines.len()).sum::<usize>()
+        groups = result.groups.len(),
+        total_lines = result.groups.iter().map(|g| g.lines.len()).sum::<usize>(),
+        "PDF text parsed"
     );
 
     Ok(result)
@@ -315,7 +315,7 @@ pub async fn reconcile_pdf_procedures(
             );
         })
         .map_err(|e| {
-            tracing::error!("Reconciliation failed: {:#}", e);
+            tracing::error!(error = %e, operation = "reconcile_pdf_procedures", "Reconciliation failed");
             format!("{:#}", e)
         })
 }
@@ -353,7 +353,7 @@ pub async fn reconcile_and_create_candidates(
             );
         })
         .map_err(|e| {
-            tracing::error!("Reconciliation workflow failed: {:#}", e);
+            tracing::error!(error = %e, operation = "reconcile_and_create_candidates", "Reconciliation workflow failed");
             format!("{:#}", e)
         })
 }
@@ -365,7 +365,7 @@ pub async fn export_reconciliation_csv(result: ReconciliationResult) -> Result<S
     tracing::info!("Exporting reconciliation results to CSV");
 
     csv_exporter::export_to_csv(&result).inspect(|csv_data| {
-        tracing::info!("CSV export successful ({} bytes)", csv_data.len());
+        tracing::info!(bytes = csv_data.len(), "CSV export successful");
     })
 }
 

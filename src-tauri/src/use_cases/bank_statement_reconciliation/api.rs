@@ -38,7 +38,7 @@ pub async fn parse_bank_statement(file_path: String) -> Result<BankStatementPars
     let text = pdf_extractor::extract_pdf_text(&file_path)
         .map_err(|e| format!("Failed to extract PDF text: {}", e))?;
 
-    tracing::info!("PDF text extracted: {} characters", text.len());
+    tracing::info!(chars = text.len(), "PDF text extracted");
 
     // Step 2: Parse the extracted text
     let result = parser::parse_bank_statement(&text);
