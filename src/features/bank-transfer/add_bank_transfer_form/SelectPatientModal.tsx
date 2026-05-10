@@ -24,6 +24,7 @@ export function SelectPatientModal({ isOpen, onSelect, onCancel }: SelectPatient
 
   return (
     <SelectionModal
+      id="select-patient-modal"
       isOpen={isOpen}
       onClose={onCancel}
       title={t("transfer.selectPatientModal.title")}

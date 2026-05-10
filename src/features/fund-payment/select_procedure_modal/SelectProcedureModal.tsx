@@ -1,4 +1,5 @@
 import { Calendar, Check, ChevronDown, Plus, RotateCcw, X } from "lucide-react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
 import { Button } from "@/ui/components";
@@ -50,10 +51,20 @@ export function ProcedureSelectionModal({
     preloadedProcedures,
   });
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKeydown);
+    return () => document.removeEventListener("keydown", onKeydown);
+  }, [isOpen, onCancel]);
+
   if (!isOpen) return null;
 
   return (
     <div
+      id="select-procedure-modal"
       role="dialog"
       aria-modal="true"
       aria-labelledby="select-modal-title"

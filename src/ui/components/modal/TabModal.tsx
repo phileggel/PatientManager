@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ModalContainer } from "./ModalContainer";
 
 export interface TabDef {
@@ -9,6 +10,8 @@ export interface TabDef {
 }
 
 interface TabModalProps {
+  /** Stable id forwarded to the dialog root; F25. */
+  id: string;
   isOpen: boolean;
   onClose: () => void;
   title: string;
@@ -37,6 +40,7 @@ interface TabModalProps {
  * - ParsingReportModal (multiple tab views)
  */
 export function TabModal({
+  id,
   isOpen,
   onClose,
   title,
@@ -45,6 +49,8 @@ export function TabModal({
   footer,
   maxWidth = "max-w-4xl",
 }: TabModalProps) {
+  const { t } = useTranslation("common");
+  const titleId = useId();
   const [activeTabId, setActiveTabId] = useState(tabs.length > 0 ? tabs[0]?.id || "" : "");
 
   // Reset active tab when tabs change (e.g., loading → content tabs)
@@ -57,16 +63,26 @@ export function TabModal({
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
 
   return (
-    <ModalContainer isOpen={isOpen} onClose={onClose} maxWidth={maxWidth} maxHeight="max-h-[80vh]">
+    <ModalContainer
+      id={id}
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth={maxWidth}
+      maxHeight="max-h-[80vh]"
+      titleId={titleId}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-neutral-30">
         <div className="flex-1">
-          <h2 className="text-lg font-semibold text-neutral-90">{title}</h2>
+          <h2 id={titleId} className="text-lg font-semibold text-neutral-90">
+            {title}
+          </h2>
           {subtitle && <p className="text-sm text-neutral-60 mt-1">{subtitle}</p>}
         </div>
         <button
           type="button"
           onClick={onClose}
+          aria-label={t("action.close")}
           className="p-1 hover:bg-neutral-20 rounded transition-colors flex-shrink-0 ml-4"
         >
           <X size={20} className="text-neutral-70" />

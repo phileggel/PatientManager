@@ -284,6 +284,7 @@ export default function ProcedurePage() {
 
       {/* Delete confirmation (R5) */}
       <ConfirmationDialog
+        id="delete-procedure-confirmation"
         isOpen={pendingDeleteId !== null}
         onCancel={handleCancelDelete}
         onConfirm={handleConfirmDelete}

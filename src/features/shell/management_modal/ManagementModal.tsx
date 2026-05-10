@@ -43,7 +43,13 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
     "w-full text-left flex flex-col gap-1.5 p-4 rounded-xl border border-m3-outline-variant/40 bg-m3-surface-container-high hover:bg-m3-surface-container-highest active:bg-m3-surface-container-highest transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary focus-visible:-outline-offset-2";
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title={t("modalTitle")} maxWidth="max-w-lg">
+    <Dialog
+      id="management-modal"
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("modalTitle")}
+      maxWidth="max-w-lg"
+    >
       <div className="flex flex-col gap-3 pb-2">
         {/* Patients */}
         <button

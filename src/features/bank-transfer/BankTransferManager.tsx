@@ -99,6 +99,7 @@ export default function BankTransferManager() {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
+        id="delete-bank-transfer-confirmation"
         isOpen={deleteConfirmationOpen}
         title={t("transfer.manager.delete.title")}
         message={t("transfer.manager.delete.message")}

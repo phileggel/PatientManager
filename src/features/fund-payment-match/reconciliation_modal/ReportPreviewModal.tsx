@@ -41,9 +41,17 @@ export function ReportPreviewModal({
   }, []);
 
   return (
-    <ModalContainer isOpen={true} onClose={onClose} maxWidth="max-w-4xl">
+    <ModalContainer
+      id="report-preview-modal"
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="max-w-4xl"
+      titleId="report-preview-modal-title"
+    >
       <div className="flex items-center justify-between px-6 py-4 border-b border-m3-outline/20 shrink-0">
-        <h2 className="text-base font-semibold text-m3-on-surface">{t("modal.preview.title")}</h2>
+        <h2 id="report-preview-modal-title" className="text-base font-semibold text-m3-on-surface">
+          {t("modal.preview.title")}
+        </h2>
         <IconButton
           icon={<X size={20} />}
           variant="ghost"

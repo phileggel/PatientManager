@@ -23,6 +23,7 @@ export function SelectFundModal({ isOpen, onSelect, onCancel }: SelectFundModalP
 
   return (
     <SelectionModal
+      id="select-fund-modal"
       isOpen={isOpen}
       onClose={onCancel}
       title={t("transfer.selectFundModal.title")}

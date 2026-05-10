@@ -167,6 +167,7 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
+        id="delete-procedure-type-confirmation"
         isOpen={!!deleteData}
         onCancel={() => setDeleteData(null)}
         onConfirm={async () => {
