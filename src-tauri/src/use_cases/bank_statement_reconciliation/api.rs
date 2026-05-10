@@ -1,4 +1,5 @@
 use crate::core::logger::BACKEND;
+use crate::core::secure_path::{self, PathPolicy};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -35,8 +36,21 @@ pub struct CreateTransfersFromStatementRequest {
 pub async fn parse_bank_statement(file_path: String) -> Result<BankStatementParseResult, String> {
     tracing::info!(target: BACKEND, "Starting bank statement parsing");
 
+    let allowed_root =
+        secure_path::user_home().ok_or_else(|| "Cannot resolve user home directory".to_string())?;
+    let canonical = secure_path::validate_user_path(
+        &file_path,
+        &allowed_root,
+        PathPolicy::ExistingFile {
+            extensions: &["pdf"],
+        },
+    )
+    .map_err(|e| {
+        tracing::warn!(target: BACKEND, error = %e, "Bank statement path rejected by validator");
+        format!("{e}")
+    })?;
     // Step 1: Extract text from PDF
-    let text = pdf_extractor::extract_pdf_text(&file_path)
+    let text = pdf_extractor::extract_pdf_text(&canonical)
         .map_err(|e| format!("Failed to extract PDF text: {}", e))?;
 
     tracing::info!(target: BACKEND, chars = text.len(), "PDF text extracted");

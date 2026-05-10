@@ -1,8 +1,7 @@
-use std::path::Path;
-
 use super::error::ReportPdfError;
 use super::orchestrator::{generate, save};
 use super::request::ReportGenerationRequest;
+use crate::core::secure_path::{self, PathPolicy};
 use crate::BACKEND;
 
 /// Generate the post-reconciliation report as a PDF byte stream.
@@ -79,8 +78,9 @@ pub async fn generate_fund_reconciliation_report_pdf(
 /// capabilities.
 ///
 /// `path` is trusted only as a destination — `validate()` covers the
-/// request payload as for the preview command. Path-traversal hardening
-/// for user-chosen paths is tracked separately in `docs/todo.md`.
+/// request payload as for the preview command. The user-chosen path is
+/// canonicalized and asserted to fall under `$HOME` with a `.pdf`
+/// extension via `core::secure_path` before any write.
 #[tauri::command]
 #[specta::specta]
 pub async fn save_fund_reconciliation_report_pdf(
@@ -93,7 +93,21 @@ pub async fn save_fund_reconciliation_report_pdf(
         "Saving fund reconciliation report PDF"
     );
 
-    match save(&request, Path::new(&path)) {
+    let allowed_root =
+        secure_path::user_home().ok_or_else(|| "Cannot resolve user home directory".to_string())?;
+    let canonical = secure_path::validate_user_path(
+        &path,
+        &allowed_root,
+        PathPolicy::NewFileInExistingDir {
+            extensions: &["pdf"],
+        },
+    )
+    .map_err(|e| {
+        tracing::warn!(target: BACKEND, error = %e, "Save path rejected by validator");
+        format!("{e}")
+    })?;
+
+    match save(&request, &canonical) {
         Ok(()) => {
             tracing::info!(
                 target: BACKEND,
