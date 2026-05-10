@@ -86,6 +86,7 @@ export function CreateProcedureTypeModal({
 
   return (
     <FormModal
+      id="excel-create-procedure-type-modal"
       isOpen={isOpen}
       onClose={handleClose}
       title={t("createTypeModal.title")}

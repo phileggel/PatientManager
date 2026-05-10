@@ -75,11 +75,22 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
   });
 
   return (
-    <ModalContainer isOpen={true} onClose={onClose} maxWidth="max-w-4xl">
+    <ModalContainer
+      id="reconciliation-modal"
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="max-w-4xl"
+      titleId="reconciliation-modal-title"
+    >
       {/* Header — hidden when printing (R31) */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-m3-outline/20 shrink-0 print:hidden">
         <div>
-          <h2 className="text-base font-semibold text-m3-on-surface">{t("modal.title")}</h2>
+          <h2
+            id="reconciliation-modal-title"
+            className="text-base font-semibold text-m3-on-surface"
+          >
+            {t("modal.title")}
+          </h2>
           <p className="text-xs text-m3-on-surface-variant mt-0.5">
             {t("modal.subtitle", { name: filePath.split(/[\\/]/).pop() ?? filePath })}
           </p>

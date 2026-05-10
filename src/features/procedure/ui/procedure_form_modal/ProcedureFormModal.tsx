@@ -177,6 +177,7 @@ export function ProcedureFormModal({
   return (
     <>
       <ModalContainer
+        id="procedure-form-modal"
         isOpen={isOpen}
         onClose={onClose}
         maxWidth="max-w-2xl"

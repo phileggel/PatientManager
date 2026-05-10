@@ -50,7 +50,13 @@ export function CreateProcedureTypeModal({ isOpen, onClose }: CreateProcedureTyp
   );
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title={t("action.addTitle")} actions={actions}>
+    <Dialog
+      id="create-procedure-type-modal"
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("action.addTitle")}
+      actions={actions}
+    >
       <form id="create-procedure-type-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
         <fieldset disabled={loading} className="disabled:opacity-50">
           <ProcedureTypeForm

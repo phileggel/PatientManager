@@ -76,7 +76,13 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
   );
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title={t("action.editTitle")} actions={actions}>
+    <Dialog
+      id="edit-patient-modal"
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("action.editTitle")}
+      actions={actions}
+    >
       <form id="edit-patient-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
         <fieldset disabled={loading} className="disabled:opacity-50">
           <PatientForm

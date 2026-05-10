@@ -70,6 +70,7 @@ export function ParsingReportModal({
 
   return (
     <Dialog
+      id="excel-parsing-report-modal"
       isOpen={isOpen}
       onClose={onClose}
       title={t("parsingReport.title")}

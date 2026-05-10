@@ -219,6 +219,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
 
         {/* Procedure Type Mapping Modal */}
         <FormModal
+          id="excel-mapping-procedure-types-modal"
           isOpen={currentStep === "mapping_procedure_types" && parsed !== null}
           title={t("mapping.modalTitle")}
           onClose={handleMappingModalClose}

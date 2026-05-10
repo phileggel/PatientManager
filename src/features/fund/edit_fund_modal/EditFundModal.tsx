@@ -60,7 +60,13 @@ export function EditFundModal({ fund, isOpen, onClose }: EditFundModalProps) {
   );
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title={t("action.editTitle")} actions={actions}>
+    <Dialog
+      id="edit-fund-modal"
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("action.editTitle")}
+      actions={actions}
+    >
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <fieldset disabled={loading} className="disabled:opacity-50">
           <FundForm

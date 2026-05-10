@@ -147,6 +147,7 @@ export function FundList({ searchTerm }: FundListProps) {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
+        id="delete-fund-confirmation"
         isOpen={!!deleteData}
         onCancel={() => setDeleteData(null)}
         onConfirm={async () => {

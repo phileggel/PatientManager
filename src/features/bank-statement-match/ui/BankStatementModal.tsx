@@ -36,11 +36,19 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
   } = useBankStatementModal(filePath);
 
   return (
-    <ModalContainer isOpen={true} onClose={onClose} maxWidth="max-w-2xl">
+    <ModalContainer
+      id="bank-statement-modal"
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      titleId="bank-statement-modal-title"
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 bg-m3-surface-container-low shrink-0 rounded-t-[28px]">
         <div>
-          <h2 className="text-lg font-semibold text-m3-on-surface">{t("statement.title")}</h2>
+          <h2 id="bank-statement-modal-title" className="text-lg font-semibold text-m3-on-surface">
+            {t("statement.title")}
+          </h2>
           <p className="text-sm text-m3-on-surface-variant">{filePath.split(/[\\/]/).pop()}</p>
           {parseResult?.period && (
             <p className="text-xs text-m3-on-surface-variant">{parseResult.period}</p>

@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { TextField } from "../field";
 
 interface SelectionModalProps {
+  /** Stable id forwarded to the dialog root; F25. */
+  id: string;
   isOpen: boolean;
   onClose: () => void;
   title: string;
@@ -16,12 +18,13 @@ interface SelectionModalProps {
 }
 
 export function SelectionModal({
+  id,
   isOpen,
   onClose,
   title,
   searchValue,
   onSearchChange,
-  searchPlaceholder = "Search...",
+  searchPlaceholder,
   children,
   maxWidth = "max-w-2xl",
 }: SelectionModalProps) {
@@ -53,6 +56,7 @@ export function SelectionModal({
 
       {/* Modal Surface */}
       <div
+        id={id}
         role="dialog"
         aria-modal="true"
         className={`relative w-full ${maxWidth} max-h-[80vh] bg-m3-surface-container rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200`}
@@ -65,6 +69,7 @@ export function SelectionModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label={t("action.close")}
             className="p-2 hover:bg-m3-on-surface/5 rounded-full text-m3-on-surface-variant transition-colors"
           >
             <X size={20} />
@@ -74,12 +79,12 @@ export function SelectionModal({
         {/* Search Field - Fixed */}
         <div className="px-6 py-3 border-b border-m3-outline/10 flex-shrink-0">
           <TextField
-            id="selection-search"
+            id={`${id}-search`}
             label={t("action.search")}
             type="text"
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={searchPlaceholder}
+            placeholder={searchPlaceholder ?? t("action.search")}
           />
         </div>
 

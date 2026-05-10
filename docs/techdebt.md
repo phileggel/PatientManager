@@ -6,8 +6,4 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-05-09 — Aria-labels not consistently localized
-- Found by: manual
-- Where: across `src/` (notably `src/features/shell/DesignSystemPage.tsx` with 10+ hardcoded English aria-labels; full sweep pending)
-- Context: branch `chore/e2e-infra-hardening` @ `938ef70`
-- Observation: Hardcoded `aria-label="..."` literal strings exist in `src/` outside the i18n layer. Screen readers announce these in their hardcoded language regardless of the user's runtime locale, producing inconsistent a11y output (a French-locale user hears English announcements for some buttons, and vice versa). The current PR translates the two hardcoded cases its scope touches (`ModalContainer`, `Snackbar`); a project-wide sweep is needed, and there is no automated guard preventing future hardcoded values from landing.
+<!-- entries removed when resolved; this file is otherwise the running observation log -->
