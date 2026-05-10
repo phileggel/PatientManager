@@ -38,7 +38,7 @@ impl ReconciliationService {
         parse_result: PdfParseResult,
     ) -> anyhow::Result<ReconcileAndCandidatesResponse> {
         tracing::info!(
-            name: BACKEND,
+            target: BACKEND,
             groups = parse_result.groups.len(),
             lines = parse_result.groups.iter().map(|g| g.lines.len()).sum::<usize>(),
             "Starting full reconciliation workflow"
@@ -64,7 +64,7 @@ impl ReconciliationService {
         let all_lines: Vec<&NormalizedPdfLine> =
             groups.iter().flat_map(|g| g.lines.iter()).collect();
 
-        tracing::info!(name: BACKEND, "Starting reconciliation for {} PDF lines", all_lines.len());
+        tracing::info!(target: BACKEND, "Starting reconciliation for {} PDF lines", all_lines.len());
 
         if all_lines.is_empty() {
             return Ok(ReconciliationResult {
@@ -82,7 +82,7 @@ impl ReconciliationService {
             .await?;
 
         let pool_size: usize = pool.values().map(|v| v.len()).sum();
-        tracing::info!(name: BACKEND, pool_ssn_groups = pool.len(), total_procedures = pool_size, "Procedure pool loaded");
+        tracing::info!(target: BACKEND, pool_ssn_groups = pool.len(), total_procedures = pool_size, "Procedure pool loaded");
 
         // Owned lines for the pass (clone is cheap — NormalizedPdfLine contains only primitives + Strings)
         let owned_lines: Vec<NormalizedPdfLine> = groups
@@ -93,14 +93,14 @@ impl ReconciliationService {
         // Run 8 reconciliation passes
         let mut pass = ReconciliationPass::new(pool);
         for pass_num in 1..=8u8 {
-            tracing::debug!(name: BACKEND, pass = pass_num, "Running reconciliation pass");
+            tracing::debug!(target: BACKEND, pass = pass_num, "Running reconciliation pass");
             pass.run(pass_num, &owned_lines, &fund_cache).await?;
         }
 
         // Build result
         let pass_result = pass.into_result();
         let matched_lines = pass_result.raw_matches.len();
-        tracing::info!(name: BACKEND, matched_lines = matched_lines, unmatched = pdf_lines_count - matched_lines, "After 8 reconciliation passes");
+        tracing::info!(target: BACKEND, matched_lines = matched_lines, unmatched = pdf_lines_count - matched_lines, "After 8 reconciliation passes");
 
         let mut matches = Vec::new();
         let mut perfect_single_count = 0;
@@ -133,7 +133,7 @@ impl ReconciliationService {
             match db_matches {
                 None => {
                     tracing::warn!(
-                        name: BACKEND,
+                        target: BACKEND,
                         line_index = line_index,
                         ssn = %normalized_line.ssn,
                         pdf_fund = %normalized_line.fund_name,
@@ -151,7 +151,7 @@ impl ReconciliationService {
                             &end.format("%Y-%m-%d").to_string(),
                         )
                         .await
-                        .inspect_err(|e| tracing::warn!(name: BACKEND, error = %e, "Failed to fetch nearby candidates for NotFound line"))
+                        .inspect_err(|e| tracing::warn!(target: BACKEND, error = %e, "Failed to fetch nearby candidates for NotFound line"))
                         .unwrap_or_default();
 
                     let nearby_candidates: Vec<super::api::NotFoundCandidate> = candidate_rows
@@ -217,7 +217,7 @@ impl ReconciliationService {
             single_issue_count + group_issue_count + too_many_count + not_found_count;
 
         tracing::info!(
-            name: BACKEND,
+            target: BACKEND,
             perfect_single = perfect_single_count,
             perfect_group = perfect_group_count,
             single_issue = single_issue_count,

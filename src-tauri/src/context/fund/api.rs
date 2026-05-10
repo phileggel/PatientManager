@@ -1,3 +1,4 @@
+use crate::core::logger::BACKEND;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -77,16 +78,16 @@ pub async fn add_fund(
     fund_name: String,
     service: State<'_, Arc<FundService>>,
 ) -> Result<Fund, String> {
-    tracing::info!(fund_identifier = %fund_identifier, fund_name = %fund_name, "Processing add fund request");
+    tracing::info!(target: BACKEND, fund_identifier = %fund_identifier, fund_name = %fund_name, "Processing add fund request");
 
     service
         .create_fund(fund_identifier, fund_name)
         .await
         .inspect(|fund| {
-            tracing::info!(fund_id = ?fund.id, "Fund added successfully");
+            tracing::info!(target: BACKEND, fund_id = ?fund.id, "Fund added successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to add fund");
+            tracing::error!(target: BACKEND, error = %e, "Failed to add fund");
             format!("{:#}", e)
         })
 }
@@ -95,16 +96,16 @@ pub async fn add_fund(
 #[tauri::command]
 #[specta::specta]
 pub async fn read_all_funds(service: State<'_, Arc<FundService>>) -> Result<Vec<Fund>, String> {
-    tracing::info!("Processing read all funds request");
+    tracing::info!(target: BACKEND, "Processing read all funds request");
 
     service
         .read_all_funds()
         .await
         .inspect(|funds| {
-            tracing::info!(count = funds.len(), "Retrieved funds successfully");
+            tracing::info!(target: BACKEND, count = funds.len(), "Retrieved funds successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to retrieve funds");
+            tracing::error!(target: BACKEND, error = %e, "Failed to retrieve funds");
             format!("{:#}", e)
         })
 }
@@ -113,16 +114,16 @@ pub async fn read_all_funds(service: State<'_, Arc<FundService>>) -> Result<Vec<
 #[tauri::command]
 #[specta::specta]
 pub async fn update_fund(fund: Fund, service: State<'_, Arc<FundService>>) -> Result<Fund, String> {
-    tracing::info!(fund_id = ?fund.id, "Processing update fund request");
+    tracing::info!(target: BACKEND, fund_id = ?fund.id, "Processing update fund request");
 
     service
         .update_fund(fund)
         .await
         .inspect(|fund| {
-            tracing::info!(fund_id = ?fund.id, "Fund updated successfully");
+            tracing::info!(target: BACKEND, fund_id = ?fund.id, "Fund updated successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to update fund");
+            tracing::error!(target: BACKEND, error = %e, "Failed to update fund");
             format!("{:#}", e)
         })
 }
@@ -131,16 +132,16 @@ pub async fn update_fund(fund: Fund, service: State<'_, Arc<FundService>>) -> Re
 #[tauri::command]
 #[specta::specta]
 pub async fn delete_fund(id: String, service: State<'_, Arc<FundService>>) -> Result<(), String> {
-    tracing::info!(fund_id = %id, "Processing delete fund request");
+    tracing::info!(target: BACKEND, fund_id = %id, "Processing delete fund request");
 
     service
         .delete_fund(&id)
         .await
         .inspect(|_| {
-            tracing::info!(fund_id = %id, "Fund deleted successfully");
+            tracing::info!(target: BACKEND, fund_id = %id, "Fund deleted successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to delete fund");
+            tracing::error!(target: BACKEND, error = %e, "Failed to delete fund");
             format!("{:#}", e)
         })
 }
@@ -153,16 +154,17 @@ pub async fn validate_batch_funds(
     service: State<'_, Arc<FundService>>,
 ) -> Result<ValidateBatchFundsResponse, String> {
     tracing::info!(
+        target: BACKEND,
         count = funds.len(),
         "Processing validate batch funds request"
     );
 
     let results = service.validate_batch(funds).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to validate batch funds");
+        tracing::error!(target: BACKEND, error = %e, "Failed to validate batch funds");
         format!("{:#}", e)
     })?;
 
-    tracing::info!(count = results.len(), "Batch funds validated successfully");
+    tracing::info!(target: BACKEND, count = results.len(), "Batch funds validated successfully");
     Ok(ValidateBatchFundsResponse { results })
 }
 
@@ -173,10 +175,10 @@ pub async fn create_batch_funds(
     funds: Vec<FundCandidate>,
     service: State<'_, Arc<FundService>>,
 ) -> Result<CreateBatchFundsResponse, String> {
-    tracing::info!(count = funds.len(), "Processing create batch funds request");
+    tracing::info!(target: BACKEND, count = funds.len(), "Processing create batch funds request");
 
     let created_funds = service.create_batch(funds.clone()).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to create batch funds");
+        tracing::error!(target: BACKEND, error = %e, "Failed to create batch funds");
         format!("{:#}", e)
     })?;
 
@@ -188,6 +190,7 @@ pub async fn create_batch_funds(
     }
 
     tracing::info!(
+        target: BACKEND,
         count = created_funds.len(),
         "Batch funds created successfully"
     );
@@ -209,10 +212,10 @@ pub async fn read_all_fund_payment_groups(
     fund_payment_service: State<'_, Arc<FundPaymentService>>,
     procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>,
 ) -> Result<Vec<FundPaymentGroup>, String> {
-    tracing::info!("Processing read all fund payment groups request");
+    tracing::info!(target: BACKEND, "Processing read all fund payment groups request");
 
     let mut groups = fund_payment_service.read_all_groups().await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to retrieve fund payment groups");
+        tracing::error!(target: BACKEND, error = %e, "Failed to retrieve fund payment groups");
         format!("{:#}", e)
     })?;
 
@@ -232,6 +235,7 @@ pub async fn read_all_fund_payment_groups(
     }
 
     tracing::info!(
+        target: BACKEND,
         count = groups.len(),
         "Retrieved fund payment groups successfully"
     );
@@ -286,7 +290,7 @@ pub async fn delete_fund_payment_group(
         Arc<crate::use_cases::overpayment::OverpaymentOrchestrator>,
     >,
 ) -> Result<(), String> {
-    tracing::info!(group_id = %group_id, "Processing delete fund payment group request");
+    tracing::info!(target: BACKEND, group_id = %group_id, "Processing delete fund payment group request");
 
     // REF-240: block direct deletion of refund fund payment groups
     let is_refund = overpayment_orchestrator
@@ -312,10 +316,10 @@ pub async fn delete_fund_payment_group(
         .delete_fund_payment_group_with_cleanup(&group_id)
         .await
         .inspect(|_| {
-            tracing::info!(group_id = %group_id, "Fund payment group deleted with cleanup");
+            tracing::info!(target: BACKEND, group_id = %group_id, "Fund payment group deleted with cleanup");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to delete fund payment group");
+            tracing::error!(target: BACKEND, error = %e, "Failed to delete fund payment group");
             format!("{:#}", e)
         })
 }
@@ -335,6 +339,7 @@ pub async fn create_fund_payment_group(
     event_bus: State<'_, Arc<crate::core::event_bus::EventBus>>,
 ) -> Result<FundPaymentGroup, String> {
     tracing::info!(
+        target: BACKEND,
         fund_id = %fund_id,
         payment_date = %payment_date,
         procedure_count = procedure_ids.len(),
@@ -353,10 +358,10 @@ pub async fn create_fund_payment_group(
         .create_manual_fund_payment_group(fund_id, payment_date, procedure_ids)
         .await
         .inspect(|group| {
-            tracing::info!(group_id = %group.id, "Fund payment group created successfully");
+            tracing::info!(target: BACKEND, group_id = %group.id, "Fund payment group created successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to create fund payment group");
+            tracing::error!(target: BACKEND, error = %e, "Failed to create fund payment group");
             format!("{:#}", e)
         })
 }
@@ -380,6 +385,7 @@ pub async fn update_fund_payment_group_with_procedures(
     event_bus: State<'_, Arc<crate::core::event_bus::EventBus>>,
 ) -> Result<FundPaymentGroup, String> {
     tracing::info!(
+        target: BACKEND,
         group_id = %group_id,
         payment_date = %payment_date,
         procedure_count = procedure_ids.len(),
@@ -398,10 +404,10 @@ pub async fn update_fund_payment_group_with_procedures(
         .update_manual_fund_payment_group(group_id, payment_date, procedure_ids)
         .await
         .inspect(|group| {
-            tracing::info!(group_id = %group.id, "Fund payment group updated successfully");
+            tracing::info!(target: BACKEND, group_id = %group.id, "Fund payment group updated successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to update fund payment group");
+            tracing::error!(target: BACKEND, error = %e, "Failed to update fund payment group");
             format!("{:#}", e)
         })
 }

@@ -65,7 +65,7 @@ impl ProcedurePoolBuilder {
         let extended_end = add_one_day(max)?;
 
         tracing::info!(
-            name: BACKEND,
+            target: BACKEND,
             ssn_count = unique_ssns.len(),
             date_range = format!("{} to {}", extended_start, extended_end),
             "Fetching procedures with batch query"
@@ -81,7 +81,7 @@ impl ProcedurePoolBuilder {
             .await?;
 
         tracing::info!(
-            name: BACKEND,
+            target: BACKEND,
             total_fetched = all_procedures.len(),
             "Fetched procedures from database"
         );
@@ -104,7 +104,7 @@ impl ProcedurePoolBuilder {
         }
 
         tracing::info!(
-            name: BACKEND,
+            target: BACKEND,
             ssn_count = unique_ssns.len(),
             pool_count = pool.len(),
             procedures_total = pool.values().map(|v| v.len()).sum::<usize>(),

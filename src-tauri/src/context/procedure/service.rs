@@ -40,7 +40,7 @@ impl ProcedureTypeService {
         default_amount: i64,
         category: Option<String>,
     ) -> anyhow::Result<ProcedureType> {
-        tracing::info!(name: BACKEND, procedure_name = %name, default_amount, "Adding procedure type");
+        tracing::info!(target: BACKEND, procedure_name = %name, default_amount, "Adding procedure type");
         if name.trim().is_empty() {
             anyhow::bail!("Procedure type name cannot be empty");
         }
@@ -69,7 +69,7 @@ impl ProcedureTypeService {
         &self,
         procedure_type: ProcedureType,
     ) -> anyhow::Result<ProcedureType> {
-        tracing::info!(name: BACKEND, id = %procedure_type.id, procedure_name = %procedure_type.name, "Updating procedure type");
+        tracing::info!(target: BACKEND, id = %procedure_type.id, procedure_name = %procedure_type.name, "Updating procedure type");
         if procedure_type.id == "import-pdf" {
             anyhow::bail!("The reserved import-pdf type cannot be updated");
         }
@@ -94,7 +94,7 @@ impl ProcedureTypeService {
 
     /// Soft-delete a procedure type
     pub async fn delete_procedure_type(&self, id: &str) -> anyhow::Result<()> {
-        tracing::info!(name: BACKEND, id = %id, "Deleting procedure type");
+        tracing::info!(target: BACKEND, id = %id, "Deleting procedure type");
         if id == "import-pdf" {
             anyhow::bail!("The reserved import-pdf type cannot be deleted");
         }

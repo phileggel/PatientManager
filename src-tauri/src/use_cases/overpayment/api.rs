@@ -15,13 +15,13 @@ pub async fn create_overpayment(
     orchestrator: State<'_, Arc<OverpaymentOrchestrator>>,
 ) -> Result<(), String> {
     tracing::info!(
-        name: BACKEND,
+        target: BACKEND,
         source_procedure_id = %request.source_procedure_id,
         "Processing create_overpayment command"
     );
 
     orchestrator.create_overpayment(request).await.map_err(|e| {
-        tracing::error!(name: BACKEND, error = %e, "Failed to create overpayment");
+        tracing::error!(target: BACKEND, error = %e, "Failed to create overpayment");
         format!("{:#}", e)
     })
 }
@@ -34,7 +34,7 @@ pub async fn cancel_overpayment(
     orchestrator: State<'_, Arc<OverpaymentOrchestrator>>,
 ) -> Result<(), String> {
     tracing::info!(
-        name: BACKEND,
+        target: BACKEND,
         source_procedure_id = %request.source_procedure_id,
         "Processing cancel_overpayment command"
     );
@@ -43,7 +43,7 @@ pub async fn cancel_overpayment(
         .cancel_overpayment(&request.source_procedure_id)
         .await
         .map_err(|e| {
-            tracing::error!(name: BACKEND, error = %e, "Failed to cancel overpayment");
+            tracing::error!(target: BACKEND, error = %e, "Failed to cancel overpayment");
             format!("{:#}", e)
         })
 }
@@ -58,7 +58,7 @@ pub async fn get_procedure_refund_by_refund_procedure(
     orchestrator: State<'_, Arc<OverpaymentOrchestrator>>,
 ) -> Result<Option<ProcedureRefundInfo>, String> {
     tracing::info!(
-        name: BACKEND,
+        target: BACKEND,
         refund_procedure_id = %refund_procedure_id,
         "Processing get_procedure_refund_by_refund_procedure command"
     );
@@ -67,7 +67,7 @@ pub async fn get_procedure_refund_by_refund_procedure(
         .get_procedure_refund_by_refund_procedure(&refund_procedure_id)
         .await
         .map_err(|e| {
-            tracing::error!(name: BACKEND, error = %e, "Failed to get procedure refund by refund procedure");
+            tracing::error!(target: BACKEND, error = %e, "Failed to get procedure refund by refund procedure");
             format!("{:#}", e)
         })
 }
@@ -81,7 +81,7 @@ pub async fn get_procedure_refund_by_source(
     orchestrator: State<'_, Arc<OverpaymentOrchestrator>>,
 ) -> Result<Option<ProcedureRefundInfo>, String> {
     tracing::info!(
-        name: BACKEND,
+        target: BACKEND,
         source_procedure_id = %source_procedure_id,
         "Processing get_procedure_refund_by_source command"
     );
@@ -90,7 +90,7 @@ pub async fn get_procedure_refund_by_source(
         .get_procedure_refund_by_source(&source_procedure_id)
         .await
         .map_err(|e| {
-            tracing::error!(name: BACKEND, error = %e, "Failed to get procedure refund");
+            tracing::error!(target: BACKEND, error = %e, "Failed to get procedure refund");
             format!("{:#}", e)
         })
 }

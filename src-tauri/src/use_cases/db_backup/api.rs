@@ -14,7 +14,7 @@ pub async fn export_database(
     dest_path: String,
     orchestrator: State<'_, Arc<DbBackupOrchestrator>>,
 ) -> Result<(), String> {
-    tracing::info!(name: BACKEND, "export_database command");
+    tracing::info!(target: BACKEND, "export_database command");
     orchestrator
         .export_database(dest_path)
         .await
@@ -30,7 +30,7 @@ pub async fn import_database(
     source_path: String,
     orchestrator: State<'_, Arc<DbBackupOrchestrator>>,
 ) -> Result<(), String> {
-    tracing::info!(name: BACKEND, "import_database command");
+    tracing::info!(target: BACKEND, "import_database command");
     orchestrator
         .import_database(source_path)
         .await

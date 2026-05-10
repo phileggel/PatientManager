@@ -2,6 +2,7 @@ use super::output::csv_exporter;
 use super::parsing::pdf_extractor;
 use super::parsing::pdf_parser;
 use super::service::ReconciliationService;
+use crate::core::logger::BACKEND;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -253,11 +254,12 @@ pub async fn get_unreconciled_procedures_in_range_fn(
 #[tauri::command]
 #[specta::specta]
 pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
-    tracing::info!("Extracting text from PDF");
+    tracing::info!(target: BACKEND, "Extracting text from PDF");
 
     let result = pdf_extractor::extract_pdf_text(&file_path)?;
 
     tracing::info!(
+        target: BACKEND,
         "Successfully extracted {} characters from PDF",
         result.len()
     );
@@ -271,11 +273,12 @@ pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn parse_pdf_text(text: String) -> Result<PdfParseResult, String> {
-    tracing::info!(chars = text.len(), "Parsing PDF text");
+    tracing::info!(target: BACKEND, chars = text.len(), "Parsing PDF text");
 
     let result = pdf_parser::parse_pdf_text(&text);
 
     tracing::info!(
+        target: BACKEND,
         groups = result.groups.len(),
         total_lines = result.groups.iter().map(|g| g.lines.len()).sum::<usize>(),
         "PDF text parsed"
@@ -291,7 +294,7 @@ pub async fn reconcile_pdf_procedures(
     parse_result: PdfParseResult,
     service: State<'_, Arc<ReconciliationService>>,
 ) -> Result<ReconciliationResult, String> {
-    tracing::info!("Starting PDF reconciliation");
+    tracing::info!(target: BACKEND, "Starting PDF reconciliation");
     reconcile_pdf_procedures_fn(parse_result, service.inner().clone())
         .await
         .inspect(|result| {
@@ -309,13 +312,14 @@ pub async fn reconcile_pdf_procedures(
                 })
                 .count();
             tracing::info!(
+                target: BACKEND,
                 "Reconciliation complete: {} perfect matches, {} issues",
                 result.matches.len() - issue_count,
                 issue_count
             );
         })
         .map_err(|e| {
-            tracing::error!(error = %e, operation = "reconcile_pdf_procedures", "Reconciliation failed");
+            tracing::error!(target: BACKEND, error = %e, operation = "reconcile_pdf_procedures", "Reconciliation failed");
             format!("{:#}", e)
         })
 }
@@ -327,7 +331,7 @@ pub async fn reconcile_and_create_candidates(
     parse_result: PdfParseResult,
     service: State<'_, Arc<ReconciliationService>>,
 ) -> Result<ReconcileAndCandidatesResponse, String> {
-    tracing::info!("Starting complete reconciliation workflow");
+    tracing::info!(target: BACKEND, "Starting complete reconciliation workflow");
     reconcile_and_create_candidates_fn(parse_result, service.inner().clone())
         .await
         .inspect(|resp| {
@@ -346,6 +350,7 @@ pub async fn reconcile_and_create_candidates(
                 })
                 .count();
             tracing::info!(
+                target: BACKEND,
                 "Workflow complete: {} candidates, {} perfect matches, {} issues",
                 resp.candidates.len(),
                 resp.reconciliation.matches.len() - issue_count,
@@ -353,7 +358,7 @@ pub async fn reconcile_and_create_candidates(
             );
         })
         .map_err(|e| {
-            tracing::error!(error = %e, operation = "reconcile_and_create_candidates", "Reconciliation workflow failed");
+            tracing::error!(target: BACKEND, error = %e, operation = "reconcile_and_create_candidates", "Reconciliation workflow failed");
             format!("{:#}", e)
         })
 }
@@ -362,10 +367,10 @@ pub async fn reconcile_and_create_candidates(
 #[tauri::command]
 #[specta::specta]
 pub async fn export_reconciliation_csv(result: ReconciliationResult) -> Result<String, String> {
-    tracing::info!("Exporting reconciliation results to CSV");
+    tracing::info!(target: BACKEND, "Exporting reconciliation results to CSV");
 
     csv_exporter::export_to_csv(&result).inspect(|csv_data| {
-        tracing::info!(bytes = csv_data.len(), "CSV export successful");
+        tracing::info!(target: BACKEND, bytes = csv_data.len(), "CSV export successful");
     })
 }
 
@@ -407,6 +412,7 @@ pub async fn get_unreconciled_procedures_in_range(
     service: State<'_, Arc<ReconciliationService>>,
 ) -> Result<Vec<UnreconciledProcedure>, String> {
     tracing::info!(
+        target: BACKEND,
         "Getting unreconciled procedures from {} to {}",
         start_date,
         end_date
@@ -441,6 +447,7 @@ pub async fn get_fund_payment_group_edit_data(
     event_bus: State<'_, Arc<crate::core::event_bus::EventBus>>,
 ) -> Result<FundPaymentGroupEditData, String> {
     tracing::info!(
+        target: BACKEND,
         group_id = %group_id,
         fund_id = %fund_id,
         "Processing get fund payment group edit data request"
@@ -457,11 +464,12 @@ pub async fn get_fund_payment_group_edit_data(
         .get_group_edit_data(&group_id, &fund_id)
         .await
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to get fund payment group edit data");
+            tracing::error!(target: BACKEND, error = %e, "Failed to get fund payment group edit data");
             format!("{:#}", e)
         })?;
 
     tracing::info!(
+        target: BACKEND,
         group_id = %group_id,
         current_count = current_procedures.len(),
         available_count = available_procedures.len(),
