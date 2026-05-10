@@ -326,118 +326,65 @@ impl ProcedureService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::procedure::{PaymentMethod, ProcedureStatus};
+    use crate::context::procedure::{MockProcedureTypeRepository, PaymentMethod, ProcedureStatus};
     use anyhow::anyhow;
 
-    struct MockProcedureTypeRepository {
-        should_fail: bool,
-        existing_name: Option<String>,
-        existing_id: Option<String>,
+    /// Mock that fails on every repository call exercised by the service-error tests.
+    fn proc_type_repo_failing() -> MockProcedureTypeRepository {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_find_by_name()
+            .returning(|_| Err(anyhow!("Mock repository error")));
+        mock.expect_delete_procedure_type()
+            .returning(|_| Err(anyhow!("Mock repository error")));
+        mock
     }
 
-    impl MockProcedureTypeRepository {
-        fn new() -> Self {
-            Self {
-                should_fail: false,
-                existing_name: None,
-                existing_id: None,
-            }
-        }
-        fn failing() -> Self {
-            Self {
-                should_fail: true,
-                existing_name: None,
-                existing_id: None,
-            }
-        }
-        fn with_existing(name: &str, id: &str) -> Self {
-            Self {
-                should_fail: false,
-                existing_name: Some(name.to_string()),
-                existing_id: Some(id.to_string()),
-            }
-        }
+    /// Mock with no existing types: `find_by_name` returns None, mutating
+    /// methods return their input.
+    fn proc_type_repo_no_existing() -> MockProcedureTypeRepository {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_find_by_name().returning(|_| Ok(None));
+        mock.expect_create_procedure_type()
+            .returning(|name, default_amount, category| {
+                Ok(ProcedureType::restore(
+                    "test-type-id-12345".to_string(),
+                    name,
+                    default_amount,
+                    category,
+                ))
+            });
+        mock.expect_update_procedure_type().returning(Ok);
+        mock
     }
 
-    #[async_trait::async_trait]
-    impl ProcedureTypeRepository for MockProcedureTypeRepository {
-        async fn create_procedure_type(
-            &self,
-            name: String,
-            default_amount: i64,
-            category: Option<String>,
-        ) -> anyhow::Result<ProcedureType> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
+    /// Mock with one existing type identifiable by case-insensitive name match.
+    fn proc_type_repo_with_existing(
+        existing_name: &str,
+        existing_id: &str,
+    ) -> MockProcedureTypeRepository {
+        let mut mock = MockProcedureTypeRepository::new();
+        let existing_name = existing_name.to_string();
+        let existing_id = existing_id.to_string();
+        mock.expect_find_by_name().returning(move |query| {
+            if query.to_lowercase() == existing_name.to_lowercase() {
+                Ok(Some(ProcedureType::restore(
+                    existing_id.clone(),
+                    existing_name.clone(),
+                    100000,
+                    None,
+                )))
+            } else {
+                Ok(None)
             }
-            Ok(ProcedureType::restore(
-                "test-type-id-12345".to_string(),
-                name,
-                default_amount,
-                category,
-            ))
-        }
-
-        async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(vec![])
-        }
-
-        async fn read_procedure_type(&self, _id: &str) -> anyhow::Result<Option<ProcedureType>> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(Some(ProcedureType::restore(
-                "test-type-id".to_string(),
-                "Consultation".to_string(),
-                100000,
-                Some("Medical".to_string()),
-            )))
-        }
-
-        async fn update_procedure_type(
-            &self,
-            procedure_type: ProcedureType,
-        ) -> anyhow::Result<ProcedureType> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(procedure_type)
-        }
-
-        async fn delete_procedure_type(&self, _id: &str) -> anyhow::Result<()> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(())
-        }
-
-        async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            if let (Some(existing_name), Some(existing_id)) =
-                (&self.existing_name, &self.existing_id)
-            {
-                if existing_name.to_lowercase() == name.to_lowercase() {
-                    return Ok(Some(ProcedureType::restore(
-                        existing_id.clone(),
-                        existing_name.clone(),
-                        100000,
-                        None,
-                    )));
-                }
-            }
-            Ok(None)
-        }
+        });
+        mock.expect_update_procedure_type().returning(Ok);
+        mock
     }
 
     #[tokio::test]
     async fn test_add_procedure_type_error_propagates() {
         let service = ProcedureTypeService::new(
-            Arc::new(MockProcedureTypeRepository::failing()),
+            Arc::new(proc_type_repo_failing()),
             Arc::new(EventBus::new()),
         );
         let result = service
@@ -450,7 +397,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_procedure_type_error_propagates() {
         let service = ProcedureTypeService::new(
-            Arc::new(MockProcedureTypeRepository::failing()),
+            Arc::new(proc_type_repo_failing()),
             Arc::new(EventBus::new()),
         );
         let result = service.delete_procedure_type("test-id").await;
@@ -495,11 +442,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_procedure_type_rejects_duplicate_name() {
-        let repo = Arc::new(MockProcedureTypeRepository::with_existing(
-            "Consultation",
-            "existing-id",
-        ));
-        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
+        let service = ProcedureTypeService::new(
+            Arc::new(proc_type_repo_with_existing("Consultation", "existing-id")),
+            Arc::new(EventBus::new()),
+        );
         let result = service
             .add_procedure_type("consultation".to_string(), 100000, None)
             .await;
@@ -510,7 +456,7 @@ mod tests {
     #[tokio::test]
     async fn test_add_procedure_type_normalizes_empty_category() {
         let service = ProcedureTypeService::new(
-            Arc::new(MockProcedureTypeRepository::new()),
+            Arc::new(proc_type_repo_no_existing()),
             Arc::new(EventBus::new()),
         );
         let result = service
@@ -545,11 +491,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_procedure_type_rejects_duplicate_name() {
-        let repo = Arc::new(MockProcedureTypeRepository::with_existing(
-            "Consultation",
-            "other-id",
-        ));
-        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
+        let service = ProcedureTypeService::new(
+            Arc::new(proc_type_repo_with_existing("Consultation", "other-id")),
+            Arc::new(EventBus::new()),
+        );
         let pt = ProcedureType::restore(
             "my-id".to_string(),
             "CONSULTATION".to_string(),
@@ -563,11 +508,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_procedure_type_allows_same_name_same_id() {
-        let repo = Arc::new(MockProcedureTypeRepository::with_existing(
-            "Consultation",
-            "my-id",
-        ));
-        let service = ProcedureTypeService::new(repo, Arc::new(EventBus::new()));
+        let service = ProcedureTypeService::new(
+            Arc::new(proc_type_repo_with_existing("Consultation", "my-id")),
+            Arc::new(EventBus::new()),
+        );
         let pt = ProcedureType::restore(
             "my-id".to_string(),
             "Consultation".to_string(),
@@ -576,6 +520,62 @@ mod tests {
         );
         let result = service.update_procedure_type(pt).await;
         assert!(result.is_ok());
+    }
+
+    /// `read_procedure_type` translates a `None` from the repository into a
+    /// not-found error whose message references the requested id. Without this
+    /// translation the API would silently return success on a missing id.
+    #[tokio::test]
+    async fn test_read_procedure_type_bails_when_not_found() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type().returning(|_| Ok(None));
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let err = service
+            .read_procedure_type("missing-id")
+            .await
+            .expect_err("missing id must surface as error");
+        assert!(
+            err.to_string().contains("not found") && err.to_string().contains("missing-id"),
+            "expected not-found error referencing the id, got: {err}"
+        );
+    }
+
+    /// `read_procedure_type` returns the repository's type unchanged when found.
+    #[tokio::test]
+    async fn test_read_procedure_type_returns_type_when_found() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type().returning(|id| {
+            Ok(Some(ProcedureType::restore(
+                id.to_string(),
+                "Consultation".to_string(),
+                100000,
+                Some("Medical".to_string()),
+            )))
+        });
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service
+            .read_procedure_type("type-1")
+            .await
+            .expect("read_procedure_type should succeed for a known id");
+        assert_eq!(result.id, "type-1");
+        assert_eq!(result.name, "Consultation");
+        assert_eq!(result.default_amount, 100000);
+    }
+
+    /// `add_procedure_type` calls `find_by_name` BEFORE `create_procedure_type`.
+    /// A `find_by_name` failure must short-circuit and never call `create`.
+    #[tokio::test]
+    async fn test_add_procedure_type_does_not_create_when_find_by_name_fails() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_find_by_name()
+            .returning(|_| Err(anyhow!("Mock repository error")));
+        // mockall enforces .times(0) at drop; no .returning() needed.
+        mock.expect_create_procedure_type().times(0);
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service
+            .add_procedure_type("Test".to_string(), 100000, None)
+            .await;
+        assert!(result.is_err());
     }
 
     // --- ProcedureService ---
