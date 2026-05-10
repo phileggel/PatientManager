@@ -1,3 +1,4 @@
+use crate::core::logger::BACKEND;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -43,16 +44,16 @@ pub async fn add_procedure_type(
     category: Option<String>,
     service: State<'_, Arc<ProcedureTypeService>>,
 ) -> Result<ProcedureType, String> {
-    tracing::info!(name = %name, default_amount = %default_amount, "Processing add procedure type request");
+    tracing::info!(target: BACKEND, name = %name, default_amount = %default_amount, "Processing add procedure type request");
 
     service
         .add_procedure_type(name, default_amount, category)
         .await
         .inspect(|pt| {
-            tracing::info!(procedure_type_id = ?pt.id, "Procedure type added successfully");
+            tracing::info!(target: BACKEND, procedure_type_id = ?pt.id, "Procedure type added successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to add procedure type");
+            tracing::error!(target: BACKEND, error = %e, "Failed to add procedure type");
             format!("{:#}", e)
         })
 }
@@ -63,16 +64,16 @@ pub async fn add_procedure_type(
 pub async fn read_all_procedure_types(
     service: State<'_, Arc<ProcedureTypeService>>,
 ) -> Result<Vec<ProcedureType>, String> {
-    tracing::info!("Processing read all procedure types request");
+    tracing::info!(target: BACKEND, "Processing read all procedure types request");
 
     service
         .read_all_procedure_types()
         .await
         .inspect(|pts| {
-            tracing::info!(count = pts.len(), "Retrieved procedure types successfully");
+            tracing::info!(target: BACKEND, count = pts.len(), "Retrieved procedure types successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to retrieve procedure types");
+            tracing::error!(target: BACKEND, error = %e, "Failed to retrieve procedure types");
             format!("{:#}", e)
         })
 }
@@ -84,12 +85,12 @@ pub async fn update_procedure_type(
     raw: RawProcedureType,
     service: State<'_, Arc<ProcedureTypeService>>,
 ) -> Result<ProcedureType, String> {
-    tracing::info!(procedure_type_id = %raw.id, "Processing update procedure type request");
+    tracing::info!(target: BACKEND, procedure_type_id = %raw.id, "Processing update procedure type request");
 
     // Construct valid domain object from raw data
     let procedure_type = ProcedureType::with_id(raw.id, raw.name, raw.default_amount, raw.category)
         .map_err(|e| {
-            tracing::error!(error = %e, "Invalid procedure type data");
+            tracing::error!(target: BACKEND, error = %e, "Invalid procedure type data");
             format!("{:#}", e)
         })?;
 
@@ -97,10 +98,10 @@ pub async fn update_procedure_type(
         .update_procedure_type(procedure_type)
         .await
         .inspect(|pt| {
-            tracing::info!(procedure_type_id = ?pt.id, "Procedure type updated successfully");
+            tracing::info!(target: BACKEND, procedure_type_id = ?pt.id, "Procedure type updated successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to update procedure type");
+            tracing::error!(target: BACKEND, error = %e, "Failed to update procedure type");
             format!("{:#}", e)
         })
 }
@@ -112,16 +113,16 @@ pub async fn delete_procedure_type(
     id: String,
     service: State<'_, Arc<ProcedureTypeService>>,
 ) -> Result<(), String> {
-    tracing::info!(procedure_type_id = %id, "Processing delete procedure type request");
+    tracing::info!(target: BACKEND, procedure_type_id = %id, "Processing delete procedure type request");
 
     service
         .delete_procedure_type(&id)
         .await
         .inspect(|_| {
-            tracing::info!(procedure_type_id = %id, "Procedure type deleted successfully");
+            tracing::info!(target: BACKEND, procedure_type_id = %id, "Procedure type deleted successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to delete procedure type");
+            tracing::error!(target: BACKEND, error = %e, "Failed to delete procedure type");
             format!("{:#}", e)
         })
 }

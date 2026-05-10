@@ -30,12 +30,12 @@ impl Database {
         let pending_path = app_data_dir.join(format!("{DATABASE_FILENAME}.pending"));
         if pending_path.exists() {
             tracing::info!(
-                name: BACKEND,
+                target: BACKEND,
                 "Pending database import found — replacing active database before opening"
             );
             fs::rename(&pending_path, &db_path)
                 .with_context(|| "Failed to apply pending database import")?;
-            tracing::info!(name: BACKEND, "Pending database import applied successfully");
+            tracing::info!(target: BACKEND, "Pending database import applied successfully");
         }
 
         if is_db_reset {

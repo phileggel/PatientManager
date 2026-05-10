@@ -26,7 +26,7 @@ impl DbBackupOrchestrator {
     /// interrupting active connections, then compresses the result with gzip.
     /// Temporary files are always cleaned up (R11).
     pub async fn export_database(&self, dest_path: String) -> Result<()> {
-        tracing::info!(name: BACKEND, "Starting database export");
+        tracing::info!(target: BACKEND, "Starting database export");
 
         let db_dir = self
             .db
@@ -42,12 +42,12 @@ impl DbBackupOrchestrator {
 
         if temp_path.exists() {
             if let Err(e) = fs::remove_file(&temp_path) {
-                tracing::warn!(name: BACKEND, "Failed to remove temp export file: {e}");
+                tracing::warn!(target: BACKEND, "Failed to remove temp export file: {e}");
             }
         }
 
         result?;
-        tracing::info!(name: BACKEND, "Database export completed");
+        tracing::info!(target: BACKEND, "Database export completed");
         Ok(())
     }
 
@@ -84,7 +84,7 @@ impl DbBackupOrchestrator {
     /// as a pending import (R9, R10). The active database is not modified — the
     /// replacement takes effect on next startup (R11 startup check in `Database::new`).
     pub async fn import_database(&self, source_path: String) -> Result<()> {
-        tracing::info!(name: BACKEND, "Starting database import");
+        tracing::info!(target: BACKEND, "Starting database import");
 
         let db_dir = self
             .db
@@ -103,13 +103,13 @@ impl DbBackupOrchestrator {
 
         if result.is_err() && temp_path.exists() {
             if let Err(e) = fs::remove_file(&temp_path) {
-                tracing::warn!(name: BACKEND, "Failed to remove temp import file: {e}");
+                tracing::warn!(target: BACKEND, "Failed to remove temp import file: {e}");
             }
         }
 
         result?;
         tracing::info!(
-            name: BACKEND,
+            target: BACKEND,
             "Database import staged — will take effect on next startup"
         );
         Ok(())

@@ -107,7 +107,7 @@ pub async fn add_procedure(
     billed_amount: Option<i64>,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<Procedure, String> {
-    tracing::info!(patient_id = %patient_id, "Processing add procedure");
+    tracing::info!(target: BACKEND, patient_id = %patient_id, "Processing add procedure");
 
     service
         .create_procedure(CreateProcedureRequest {
@@ -122,10 +122,10 @@ pub async fn add_procedure(
         })
         .await
         .inspect(|procedure| {
-            tracing::info!(procedure_id = ?procedure.id, "Procedure created successfully");
+            tracing::info!(target: BACKEND, procedure_id = ?procedure.id, "Procedure created successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to create procedure");
+            tracing::error!(target: BACKEND, error = %e, "Failed to create procedure");
             format!("{:#}", e)
         })
 }
@@ -136,19 +136,20 @@ pub async fn add_procedure(
 pub async fn read_all_procedures(
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<Vec<Procedure>, String> {
-    tracing::info!("Processing read all procedures request");
+    tracing::info!(target: BACKEND, "Processing read all procedures request");
 
     service
         .get_all_procedures()
         .await
         .inspect(|procedures| {
             tracing::info!(
+                target: BACKEND,
                 count = procedures.len(),
                 "Retrieved procedures successfully"
             );
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to retrieve procedures");
+            tracing::error!(target: BACKEND, error = %e, "Failed to retrieve procedures");
             format!("{:#}", e)
         })
 }
@@ -176,13 +177,13 @@ pub async fn update_procedure(
     raw: RawProcedure,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<Procedure, String> {
-    tracing::info!(procedure_id = %raw.id, "Processing update procedure");
+    tracing::info!(target: BACKEND, procedure_id = %raw.id, "Processing update procedure");
 
     // R18/R26: frontend restricts edits on blocking-status procedures to procedure_type_id only.
     // Log a warning if this invariant is violated (e.g. by a bug or direct API call).
     if is_blocking_status(&raw.payment_status) {
         tracing::warn!(
-            name: BACKEND,
+            target: BACKEND,
             procedure_id = %raw.id,
             payment_status = %raw.payment_status,
             "update_procedure called on blocking-status procedure - only procedure_type_id should change (R18/R26)"
@@ -191,7 +192,7 @@ pub async fn update_procedure(
 
     // Convert raw data to validated domain object
     let procedure = raw.into_procedure().map_err(|e| {
-        tracing::error!(error = %e, "Invalid procedure data");
+        tracing::error!(target: BACKEND, error = %e, "Invalid procedure data");
         format!("{:#}", e)
     })?;
 
@@ -199,10 +200,10 @@ pub async fn update_procedure(
         .update_procedure(procedure)
         .await
         .inspect(|updated| {
-            tracing::info!(procedure_id = ?updated.id, "Procedure updated successfully");
+            tracing::info!(target: BACKEND, procedure_id = ?updated.id, "Procedure updated successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to update procedure");
+            tracing::error!(target: BACKEND, error = %e, "Failed to update procedure");
             format!("{:#}", e)
         })
 }
@@ -214,16 +215,16 @@ pub async fn delete_procedure(
     id: String,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<(), String> {
-    tracing::info!(procedure_id = %id, "Processing delete procedure");
+    tracing::info!(target: BACKEND, procedure_id = %id, "Processing delete procedure");
 
     service
         .delete_procedure(&id)
         .await
         .map(|_| {
-            tracing::info!(procedure_id = %id, "Procedure deleted successfully");
+            tracing::info!(target: BACKEND, procedure_id = %id, "Procedure deleted successfully");
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to delete procedure");
+            tracing::error!(target: BACKEND, error = %e, "Failed to delete procedure");
             format!("{:#}", e)
         })
 }
@@ -236,6 +237,7 @@ pub async fn validate_batch_procedures(
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<ValidateBatchProceduresResponse, String> {
     tracing::info!(
+        target: BACKEND,
         count = procedures.len(),
         "Processing batch procedure validation"
     );
@@ -245,6 +247,7 @@ pub async fn validate_batch_procedures(
         .await
         .map(|results| {
             tracing::info!(
+                target: BACKEND,
                 valid_count = results
                     .iter()
                     .filter(|r| matches!(r.status, ProcedureValidationStatus::Valid))
@@ -258,7 +261,7 @@ pub async fn validate_batch_procedures(
             ValidateBatchProceduresResponse { results }
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to validate batch procedures");
+            tracing::error!(target: BACKEND, error = %e, "Failed to validate batch procedures");
             format!("{:#}", e)
         })
 }
@@ -271,6 +274,7 @@ pub async fn create_batch_procedures(
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<CreateBatchProceduresResponse, String> {
     tracing::info!(
+        target: BACKEND,
         count = procedures.len(),
         "Processing batch procedure creation"
     );
@@ -280,13 +284,14 @@ pub async fn create_batch_procedures(
         .await
         .map(|procedures| {
             tracing::info!(
+                target: BACKEND,
                 count = procedures.len(),
                 "Batch procedures created successfully"
             );
             CreateBatchProceduresResponse { procedures }
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to create batch procedures");
+            tracing::error!(target: BACKEND, error = %e, "Failed to create batch procedures");
             format!("{:#}", e)
         })
 }
@@ -298,20 +303,21 @@ pub async fn get_unpaid_procedures_by_fund(
     fund_id: String,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<Vec<Procedure>, String> {
-    tracing::debug!(fund_id = %fund_id, "Processing get unpaid procedures by fund");
+    tracing::debug!(target: BACKEND, fund_id = %fund_id, "Processing get unpaid procedures by fund");
 
     service
         .get_unpaid_by_fund(&fund_id)
         .await
         .inspect(|procedures| {
             tracing::info!(
+                target: BACKEND,
                 fund_id = %fund_id,
                 count = procedures.len(),
                 "Retrieved unpaid procedures successfully"
             );
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to retrieve unpaid procedures");
+            tracing::error!(target: BACKEND, error = %e, "Failed to retrieve unpaid procedures");
             format!("{:#}", e)
         })
 }
@@ -323,19 +329,20 @@ pub async fn read_procedures_by_ids(
     ids: Vec<String>,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<Vec<Procedure>, String> {
-    tracing::debug!(count = ids.len(), "Processing read procedures by IDs");
+    tracing::debug!(target: BACKEND, count = ids.len(), "Processing read procedures by IDs");
 
     service
         .read_procedures_by_ids(ids)
         .await
         .inspect(|procedures| {
             tracing::info!(
+                target: BACKEND,
                 count = procedures.len(),
                 "Retrieved procedures by IDs successfully"
             );
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to read procedures by IDs");
+            tracing::error!(target: BACKEND, error = %e, "Failed to read procedures by IDs");
             format!("{:#}", e)
         })
 }

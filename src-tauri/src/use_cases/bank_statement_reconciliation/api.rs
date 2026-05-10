@@ -1,3 +1,4 @@
+use crate::core::logger::BACKEND;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -32,24 +33,25 @@ pub struct CreateTransfersFromStatementRequest {
 #[tauri::command]
 #[specta::specta]
 pub async fn parse_bank_statement(file_path: String) -> Result<BankStatementParseResult, String> {
-    tracing::info!("Starting bank statement parsing");
+    tracing::info!(target: BACKEND, "Starting bank statement parsing");
 
     // Step 1: Extract text from PDF
     let text = pdf_extractor::extract_pdf_text(&file_path)
         .map_err(|e| format!("Failed to extract PDF text: {}", e))?;
 
-    tracing::info!(chars = text.len(), "PDF text extracted");
+    tracing::info!(target: BACKEND, chars = text.len(), "PDF text extracted");
 
     // Step 2: Parse the extracted text
     let result = parser::parse_bank_statement(&text);
 
     // R26: Stop workflow if no VIR SEPA lines found after filtering
     if result.credit_lines.is_empty() {
-        tracing::warn!("Bank statement parsed but contains no VIR SEPA credit lines");
+        tracing::warn!(target: BACKEND, "Bank statement parsed but contains no VIR SEPA credit lines");
         return Err("NO_VIR_SEPA_LINES".to_string());
     }
 
     tracing::info!(
+        target: BACKEND,
         iban = ?result.iban,
         credit_lines = result.credit_lines.len(),
         total_credits = result.total_credits,

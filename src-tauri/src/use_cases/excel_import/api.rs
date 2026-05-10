@@ -1,3 +1,4 @@
+use crate::core::logger::BACKEND;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -60,13 +61,14 @@ pub struct ImportExecutionResult {
 #[tauri::command]
 #[specta::specta]
 pub async fn parse_excel_file(file_path: String) -> Result<ParseExcelResponse, String> {
-    tracing::debug!("Processing parse_excel_file request");
+    tracing::debug!(target: BACKEND, "Processing parse_excel_file request");
 
     ExcelParserService::parse_excel(&file_path)
         .await
         .map(|data| {
             let response = ParseExcelResponse::from(data);
             tracing::info!(
+                target: BACKEND,
                 patients = response.patients.len(),
                 funds = response.funds.len(),
                 procedures = response.procedures.len(),
@@ -75,7 +77,7 @@ pub async fn parse_excel_file(file_path: String) -> Result<ParseExcelResponse, S
             response
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to parse Excel file");
+            tracing::error!(target: BACKEND, error = %e, "Failed to parse Excel file");
             format!("{:#}", e)
         })
 }
@@ -96,6 +98,7 @@ pub async fn execute_excel_import(
     service: State<'_, Arc<ExcelImportOrchestrator>>,
 ) -> Result<ImportExecutionResult, String> {
     tracing::debug!(
+        target: BACKEND,
         patients = parsed_data.patients.len(),
         funds = parsed_data.funds.len(),
         procedures = parsed_data.procedures.len(),
@@ -108,6 +111,7 @@ pub async fn execute_excel_import(
         .await
         .inspect(|result| {
             tracing::info!(
+                target: BACKEND,
                 patients_created = result.patients_created,
                 patients_reused = result.patients_reused,
                 funds_created = result.funds_created,
@@ -118,7 +122,7 @@ pub async fn execute_excel_import(
             );
         })
         .map_err(|e| {
-            tracing::error!(error = %e, "Failed to execute Excel import");
+            tracing::error!(target: BACKEND, error = %e, "Failed to execute Excel import");
             format!("{:#}", e)
         })
 }
@@ -129,9 +133,9 @@ pub async fn execute_excel_import(
 pub async fn get_excel_amount_mappings(
     repo: State<'_, Arc<SqliteExcelAmountMappingRepository>>,
 ) -> Result<Vec<ExcelAmountMapping>, String> {
-    tracing::debug!("Processing get_excel_amount_mappings request");
+    tracing::debug!(target: BACKEND, "Processing get_excel_amount_mappings request");
     repo.find_all().await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to get excel amount mappings");
+        tracing::error!(target: BACKEND, error = %e, "Failed to get excel amount mappings");
         format!("{:#}", e)
     })
 }
@@ -144,11 +148,12 @@ pub async fn save_excel_amount_mappings(
     repo: State<'_, Arc<SqliteExcelAmountMappingRepository>>,
 ) -> Result<(), String> {
     tracing::debug!(
+        target: BACKEND,
         count = mappings.len(),
         "Processing save_excel_amount_mappings request"
     );
     repo.save_mappings(mappings).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to save excel amount mappings");
+        tracing::error!(target: BACKEND, error = %e, "Failed to save excel amount mappings");
         format!("{:#}", e)
     })
 }
