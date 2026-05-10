@@ -52,23 +52,6 @@ Fix in lockstep across both surfaces:
 
 ---
 
-## (e2e/fund-payment-report) — E2E coverage for FPR (deferred from PR 4)
-
-The post-reconciliation report (FPR) feature shipped in PRs 1–4 with full unit + integration + visual-proof coverage but no Tauri WebDriver E2E. Deferred because the test infrastructure investment is substantial and reusable across reconciliation features.
-
-What it needs:
-
-- **Gateway override hook** in `src/features/shell/gateway.ts` — `pickPdfFilePath` reads `window.__e2eOverridePickPdfFilePath` when set, so E2E can bypass the OS file dialog without driving a native picker.
-- **Sample remise PDF fixture** retro-engineered from `src-tauri/.../parsing/pdf_parser.rs` regex (lines `{paymentDate} {invoice} {fund} {patient} {ssn} {nature} {procedureDate} {amount} €` + total line). Generate programmatically via a one-off Node script (e.g. pdf-lib), commit the output as `e2e/fixtures/sample-remise.pdf`. Same fixture should be exposed as raw line-text constants for RTL consumption.
-- **`seedReportScenario()` helper** in `e2e/helpers/seed.ts` — patients + procedures matching the fixture's lines so reconciliation produces real anomalies + corrections + the unreconciled row needed to reach the report step.
-- **Tests**: happy path (Report click → preview iframe with non-empty `src` → Close → reconciliation modal stays at report step) + error path (gateway throws → toast).
-
-Caveat: WebKit2GTK does not render PDFs inside iframes, so the iframe-content assertion only verifies `src` is a `blob:` URL on Linux CI. Production target is Windows NSIS where the iframe renders correctly.
-
-Also unlocks: bank-statement-match E2E (same file-dialog + parser-fixture pattern).
-
----
-
 ## (frontend/dev) — WebKit2GTK iframe-PDF caveat (Linux dev only)
 
 PDFs embedded in iframes do not render under WebKit2GTK on Linux. Developers running the Tauri dev build on Linux will see a blank iframe in `ReportPreviewModal` even when the backend successfully generated valid PDF bytes. Production target is **NSIS / Windows** (verified in `tauri.conf.json` `"targets": "nsis"`), where Edge WebView2 renders the PDF natively. Document this in the dev README on next touch.
