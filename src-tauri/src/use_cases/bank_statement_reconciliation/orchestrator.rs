@@ -552,6 +552,8 @@ mod tests {
             .returning(move || Ok(funds_for_read.clone()));
         mock.expect_read_fund().returning(|_| Ok(None));
         mock.expect_update_fund().returning(Ok);
+        // `funds` is moved into this closure and iterated in-place each call —
+        // no per-call clone needed because we only read.
         mock.expect_find_fund_by_identifier()
             .returning(move |id| Ok(funds.iter().find(|f| f.fund_identifier == id).cloned()));
         mock.expect_create_batch().returning(Ok);
