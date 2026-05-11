@@ -58,18 +58,27 @@ impl ExcelImportOrchestrator {
         let mut new_patient_candidates: Vec<PatientCandidate> = Vec::new();
 
         for excel_patient in &parsed_data.patients {
-            if !excel_patient.ssn.is_empty() {
-                if let Some(existing) = self
-                    .patient_service
+            // EXI-080: prefer SSN-based lookup when an SSN is present;
+            // otherwise fall back to a case-insensitive name lookup so a
+            // repeated import does not stack a fresh blank-SSN row.
+            let existing = if !excel_patient.ssn.is_empty() {
+                self.patient_service
                     .find_patient_by_ssn(&excel_patient.ssn)
                     .await?
-                {
-                    patients_reused += 1;
-                    patients_map.insert(excel_patient.temp_id.clone(), existing.id);
-                    continue;
-                }
+            } else if !excel_patient.name.is_empty() {
+                self.patient_service
+                    .find_patient_by_name(&excel_patient.name)
+                    .await?
+            } else {
+                None
+            };
+
+            if let Some(existing) = existing {
+                patients_reused += 1;
+                patients_map.insert(excel_patient.temp_id.clone(), existing.id);
+                continue;
             }
-            // New patient — add to batch
+
             new_patient_candidates.push(PatientCandidate {
                 temp_id: excel_patient.temp_id.clone(),
                 name: if excel_patient.name.is_empty() {
@@ -380,6 +389,81 @@ mod tests {
         assert_eq!(result.patients_created, 0);
     }
 
+    /// EXI-080 — when the excel row has no SSN, the orchestrator falls back
+    /// to a case-insensitive name lookup and reuses the match instead of
+    /// creating a duplicate. Regression guard for the "re-import stacks
+    /// blank-SSN patients month after month" bug.
+    #[tokio::test]
+    async fn execute_import_with_empty_ssn_reuses_patient_by_name() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().times(0); // never called: row has no SSN
+        patient_repo.expect_find_patient_by_name().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "existing-id".to_string(),
+                false,
+                Some("Marie Dupont".to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+        patient_repo.expect_create_batch().times(0); // never called: reuse
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Marie Dupont".to_string(),
+            ssn: String::new(),
+            latest_fund: None,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(result.patients_reused, 1);
+        assert_eq!(result.patients_created, 0);
+    }
+
+    /// EXI-080 — when the excel row has no SSN and no name match exists in
+    /// the DB, a new blank-SSN patient is created.
+    #[tokio::test]
+    async fn execute_import_with_empty_ssn_creates_new_when_name_not_in_db() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().times(0);
+        patient_repo
+            .expect_find_patient_by_name()
+            .returning(|_| Ok(None));
+        patient_repo.expect_create_batch().returning(Ok);
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Brand New".to_string(),
+            ssn: String::new(),
+            latest_fund: None,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap();
+
+        assert_eq!(result.patients_created, 1);
+        assert_eq!(result.patients_reused, 0);
+    }
+
     #[tokio::test]
     async fn execute_import_creates_new_patient_when_not_found() {
         let mut patient_repo = MockPatientRepository::new();
@@ -502,32 +586,6 @@ mod tests {
 
         assert_eq!(result.procedures_skipped, 1);
         assert_eq!(result.procedures_created, 0);
-    }
-
-    #[tokio::test]
-    async fn execute_import_patient_with_empty_ssn_creates_new() {
-        let mut patient_repo = MockPatientRepository::new();
-        patient_repo.expect_create_batch().returning(Ok);
-
-        let mut parse_result = empty_parse_result();
-        parse_result.patients = vec![ExcelPatient {
-            temp_id: "tmp-anon".to_string(),
-            name: "Anonymous".to_string(),
-            ssn: "".to_string(),
-            latest_fund: None,
-        }];
-
-        let orchestrator = make_orchestrator(OrchestratorMocks {
-            patient_repo,
-            ..Default::default()
-        });
-        let result = orchestrator
-            .execute_import(parse_result, HashMap::new(), vec![])
-            .await
-            .unwrap();
-
-        assert_eq!(result.patients_created, 1);
-        assert_eq!(result.patients_reused, 0);
     }
 
     #[tokio::test]
