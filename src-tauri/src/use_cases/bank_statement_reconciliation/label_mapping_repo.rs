@@ -14,6 +14,7 @@ pub struct BankFundLabelMapping {
 }
 
 /// Repository trait for bank fund label mappings
+#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait BankFundLabelMappingRepository: Send + Sync {
     /// Find all active mappings for a bank account
