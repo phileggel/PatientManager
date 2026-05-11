@@ -101,12 +101,6 @@ Tauri commands currently return `Result<T, String>` (via `anyhow` formatted with
 
 ---
 
-## (frontend/fund-payment-match) — Reconciliation page: verify 10 MB file size limit
-
-Verify why the displayed limit is 10 MB.
-
----
-
 ## (frontend/fund-payment-match) — Back-then-forward shortcut
 
 When the user goes back to the previous step, advance directly to the next one (reconciliation flow).
