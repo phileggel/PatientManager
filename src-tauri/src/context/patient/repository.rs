@@ -173,7 +173,7 @@ impl PatientRepository for SqlitePatientRepository {
     }
 
     async fn find_patient_by_ssn(&self, ssn: &str) -> anyhow::Result<Option<Patient>> {
-        tracing::trace!(ssn = %ssn, "Fetching patient by SSN from database");
+        tracing::trace!("Fetching patient by SSN from database");
 
         let row = sqlx::query_as!(
             PatientRow,
@@ -191,7 +191,7 @@ impl PatientRepository for SqlitePatientRepository {
     }
 
     async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>> {
-        tracing::trace!(name = %name, "Fetching patient by name from database");
+        tracing::trace!("Fetching patient by name from database");
 
         let row = sqlx::query_as!(
             PatientRow,
