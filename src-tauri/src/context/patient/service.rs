@@ -47,6 +47,12 @@ impl PatientService {
         self.repository.find_patient_by_ssn(ssn).await
     }
 
+    /// Look up a patient by name (case-insensitive). SSN-bearing rows win
+    /// over blank-SSN rows when multiple names match. See EXI-080.
+    pub async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>> {
+        self.repository.find_patient_by_name(name).await
+    }
+
     /// Get all patients
     pub async fn get_all_patients(&self) -> anyhow::Result<Vec<Patient>> {
         self.repository.read_all_patients().await

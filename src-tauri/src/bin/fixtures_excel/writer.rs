@@ -298,7 +298,7 @@ fn write_skipped_rows_for_month(
             );
         }
         match sr.reason.as_str() {
-            // EXI R2 (date format): non-empty patient + amount, but the date
+            // EXI-020 (date format): non-empty patient + amount, but the date
             // cell is non-empty and unparseable. The prefix is the parser's
             // emitted output, not document data mapping — matched here as a
             // local literal. Drift between parser and writer is caught by the

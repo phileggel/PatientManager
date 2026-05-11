@@ -47,6 +47,11 @@ pub trait PatientRepository: Send + Sync {
     async fn read_patient(&self, id: &str) -> anyhow::Result<Option<Patient>>;
     async fn update_patient(&self, patient: Patient) -> anyhow::Result<Patient>;
     async fn find_patient_by_ssn(&self, ssn: &str) -> anyhow::Result<Option<Patient>>;
+    /// Look up a non-deleted patient whose name matches case-insensitively.
+    /// When multiple rows match, a row with a non-empty SSN wins over a row
+    /// without one; remaining ties resolve via DB iteration order. Used by
+    /// excel-import (EXI-080) to dedup rows that arrive without an SSN.
+    async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>>;
     async fn create_batch(&self, patients: Vec<Patient>) -> anyhow::Result<Vec<Patient>>;
     async fn delete_patient(&self, id: &str) -> anyhow::Result<()>;
 }
@@ -178,6 +183,26 @@ impl PatientRepository for SqlitePatientRepository {
             WHERE ssn = $1 AND is_deleted = 0
             "#,
             ssn,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(Patient::from))
+    }
+
+    async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>> {
+        tracing::trace!(name = %name, "Fetching patient by name from database");
+
+        let row = sqlx::query_as!(
+            PatientRow,
+            r#"
+            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted
+            FROM patient
+            WHERE LOWER(name) = LOWER($1) AND is_deleted = 0
+            ORDER BY (ssn IS NULL OR ssn = '') ASC
+            LIMIT 1
+            "#,
+            name,
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -347,6 +372,126 @@ mod tests {
         let db = setup_test_repo().await;
         let found = db.find_patient_by_ssn("9876543210987").await.unwrap();
         assert!(found.is_none());
+    }
+
+    /// EXI-080 — name lookup returns the SSN-bearing row when both an
+    /// SSN-bearing and a blank-SSN row match the name (case-insensitive).
+    #[tokio::test]
+    async fn test_find_patient_by_name_prefers_ssn_bearing() {
+        let db = setup_test_repo().await;
+
+        let blank = Patient::new(false, Some("Alice Dupont".to_string()), None).unwrap();
+        let blank_id = blank.id.clone();
+        db.create_patient(blank).await.unwrap();
+
+        let with_ssn = Patient::new(
+            false,
+            Some("Alice Dupont".to_string()),
+            Some("1234567890123".to_string()),
+        )
+        .unwrap();
+        let with_ssn_id = with_ssn.id.clone();
+        db.create_patient(with_ssn).await.unwrap();
+
+        let found = db
+            .find_patient_by_name("alice dupont")
+            .await
+            .unwrap()
+            .expect("a patient should match");
+        assert_eq!(found.id, with_ssn_id, "SSN-bearing row should win");
+        assert_ne!(found.id, blank_id);
+    }
+
+    /// EXI-080 — when only blank-SSN rows match, one of them is returned.
+    #[tokio::test]
+    async fn test_find_patient_by_name_returns_blank_when_no_ssn_match() {
+        let db = setup_test_repo().await;
+        let blank = Patient::new(false, Some("Alice Dupont".to_string()), None).unwrap();
+        let blank_id = blank.id.clone();
+        db.create_patient(blank).await.unwrap();
+
+        let found = db.find_patient_by_name("Alice Dupont").await.unwrap();
+        assert_eq!(found.map(|p| p.id), Some(blank_id));
+    }
+
+    /// EXI-080 — no match returns None.
+    #[tokio::test]
+    async fn test_find_patient_by_name_no_match() {
+        let db = setup_test_repo().await;
+        let found = db.find_patient_by_name("Nobody Here").await.unwrap();
+        assert!(found.is_none());
+    }
+
+    /// EXI-080 — soft-deleted rows do not match name lookups.
+    #[tokio::test]
+    async fn test_find_patient_by_name_excludes_deleted() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("Failed to connect to in-memory database");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("Failed to run migrations");
+        let db = SqlitePatientRepository { pool: pool.clone() };
+
+        let patient = Patient::new(false, Some("Alice Dupont".to_string()), None).unwrap();
+        let created = db.create_patient(patient).await.unwrap();
+
+        sqlx::query!("UPDATE patient SET is_deleted = 1 WHERE id = ?", created.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let found = db.find_patient_by_name("Alice Dupont").await.unwrap();
+        assert!(found.is_none());
+    }
+
+    /// EXI-080 — empty-string SSN is treated as "no SSN" by the priority
+    /// clause, not as a distinct SSN value (covers DB rows persisted with
+    /// `""` instead of `NULL`).
+    #[tokio::test]
+    async fn test_find_patient_by_name_empty_ssn_string_treated_as_missing() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("Failed to connect to in-memory database");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("Failed to run migrations");
+        let db = SqlitePatientRepository { pool: pool.clone() };
+
+        // Two rows: one with empty-string SSN, one with a real SSN.
+        let empty_id = uuid::Uuid::new_v4().to_string();
+        sqlx::query!(
+            "INSERT INTO patient (id, is_anonymous, name, ssn, is_deleted) VALUES (?, 0, 'Alice Dupont', '', 0)",
+            empty_id,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let with_ssn = Patient::new(
+            false,
+            Some("Alice Dupont".to_string()),
+            Some("1234567890123".to_string()),
+        )
+        .unwrap();
+        let with_ssn_id = with_ssn.id.clone();
+        db.create_patient(with_ssn).await.unwrap();
+
+        let found = db
+            .find_patient_by_name("Alice Dupont")
+            .await
+            .unwrap()
+            .expect("a patient should match");
+        assert_eq!(
+            found.id, with_ssn_id,
+            "row with real SSN should win over row with empty-string SSN"
+        );
     }
 
     #[tokio::test]
