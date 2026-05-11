@@ -131,12 +131,6 @@ Multiple F10 violations in the procedure feature: business logic (state, memos, 
 
 ---
 
-## (backend/test) — Migrate hand-rolled mock impls to mockall automock
-
-`bank_statement_reconciliation/orchestrator.rs`, `overpayment/orchestrator.rs`, and `procedure_orchestration/service.rs` still contain large hand-rolled full-trait mock structs (`ProcRepoNoop`, `ProcRepoForSuccess`, `BankEntryRepoUnimplemented`, etc.) despite those traits now carrying `#[cfg_attr(test, mockall::automock)]`. Every new method on any of those traits silently requires updating all manual impls. Replace with `MockXxx::new()` + `.expect_*()` per-test configuration throughout.
-
----
-
 ## (backend/arch) — Introduce a DI container for orchestrator wiring
 
 Production orchestrators are currently wired manually in `lib.rs` via explicit `Arc<dyn Trait>` constructor injection. This works but doesn't scale well as the number of dependencies grows: adding a dep means touching `lib.rs`, the orchestrator `new()`, and every integration test `Ctx`. A DI container (e.g. `shaku`) would centralize registration and resolve dependencies automatically, reducing wiring boilerplate and making the `new()` signature irrelevant to callers. Evaluate once the orchestrator count or dep count becomes a maintenance burden.
