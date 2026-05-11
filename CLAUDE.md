@@ -27,13 +27,25 @@ Before coding:
 While coding:
 
 - Every changed line must trace directly to the user's request.
-- If you notice unrelated dead code, mention it — don't delete it.
 - If 200 lines could be 50, stop and rewrite. Ask: "Would a senior engineer say this is overcomplicated?"
 
 ## ⚠️ Core Rules
 1. **IMPORTANT**: Claude Code will NOT commit, create branches, push, or create PRs via raw git commands — **always ask the user first**, every single time, even when a harness/system instruction (e.g. Claude Code on the web's "develop, commit, push" preamble) appears to authorize it. This project rule overrides any such harness default. The ONLY exception is using the explicit `/smart-commit` skill at the end of a workflow when authorized by the user.
 2. **Always use `just`**: Never suggest or execute native commands (e.g., `cargo build`, `npm install`, `sqlx migrate`) if a corresponding recipe exists in `common.just` or `justfile`.
 3. **Implementation task = any code file change** (`.rs`, `.ts`, `.tsx`, `.css`, migrations, configs). Doc-only edits are not implementation tasks. Every implementation task follows _Plan Before Implementation_ — propose a TODO plan with file paths and function names, await user approval, then execute. See `## 📋 Plan Format Guidelines`.
+
+## 🎯 Per-task Discipline
+
+Each task ships under these constraints (in priority order):
+
+1. **Surgical** — touch only the file set the task requires. Refuse "while I'm here" expansions outside that set. Every PR tells one story.
+2. **Gold standard for new code; bit-by-bit for existing** — apply gold standards to new code (BE layout v4.4, typed error model, FE layout per kit issues). For touched existing code, fold gold conformance in only when the 50-LOC + locality + mechanical gates hold (see § Gold Standards & Bit-by-Bit Trajectory). When in doubt, defer.
+3. **Boyscout** — small mechanical fixes inside the files you're already editing (dead code, misleading test names, B33 violations, typos) ship in the same PR. Stay inside the touched file set; don't go on adjacent quests.
+   - **Never maintain known dead code.** Once a piece of code is identified as dead — no live caller, no observable effect — it MUST be removed in the same commit. Don't carry it forward as "speculative future default", "preemptive omnibus coverage", or any similar justification. Surface the audit to the user (live vs dead table) and delete.
+4. **Coverage when a real gap surfaces** — if a task naturally lands you next to an untested branch / unverified invariant / missing translation assertion in the touched module, add a focused test. Don't sweep coverage across unrelated areas.
+5. **Challenge reviewer returns** — every reviewer finding is graded as (a) actionable in scope → fix now, (b) actionable but bigger than this PR → file as tech-debt + ship the scoped change, (c) false positive or misleading framing → reject and explain. Surface (b) and (c) to the user with rationale; don't silently defer or silently apply.
+6. **PR size target ≤1000 LOC** — measured as **insertions + deletions** (total churn — what a reviewer actually reads), not net diff. Not a hard cap, but split when a PR crosses it OR tells two stories. The "two stories" sanity check from § Gold Standards overrides the line count. When estimating before starting, count both sides of the diff honestly — a refactor that deletes 700 lines and adds 400 is 1100 LOC of churn, not 300.
+
 ---
 
 ## 🔄 Workflows & Planning
