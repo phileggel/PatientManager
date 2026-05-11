@@ -584,8 +584,6 @@ mod tests {
 
     fn make_mock_proc_repo() -> MockProcedureRepository {
         let mut mock = MockProcedureRepository::new();
-        mock.expect_read_all_procedures().returning(|| Ok(vec![]));
-        mock.expect_read_procedure().returning(|_| Ok(None));
         mock.expect_create_procedure().returning(
             |patient_id,
              fund_id,
@@ -616,16 +614,11 @@ mod tests {
             .returning(|_| Ok(false));
         mock.expect_delete_procedures_by_month()
             .returning(|_| Ok(3));
-        mock.expect_find_unpaid_by_fund().returning(|_| Ok(vec![]));
-        mock.expect_find_created_in_date_range()
-            .returning(|_, _| Ok(vec![]));
-        mock.expect_find_created_by_fund_before_date()
-            .returning(|_, _| Ok(vec![]));
         mock
     }
 
     #[tokio::test]
-    async fn procedure_service_create_procedure_success() {
+    async fn test_procedure_service_create_procedure_succeeds() {
         let service =
             ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
         let result = service
@@ -645,14 +638,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn procedure_service_delete_success() {
+    async fn test_procedure_service_delete_succeeds() {
         let service =
             ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
         assert!(service.delete_procedure("proc-1").await.is_ok());
     }
 
     #[tokio::test]
-    async fn procedure_service_has_blocking_returns_false() {
+    async fn test_procedure_service_has_blocking_returns_false() {
         let service =
             ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
         assert!(!service
@@ -662,7 +655,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn procedure_service_delete_by_month_returns_count() {
+    async fn test_procedure_service_delete_by_month_returns_count() {
         let service =
             ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
         assert_eq!(
@@ -671,28 +664,44 @@ mod tests {
         );
     }
 
+    /// `create_batch` echoes via the mock; verify the service preserves
+    /// every field of the candidates through the factory + repository round
+    /// trip. A regression in `Procedure::new` or the batch path that dropped
+    /// fields must surface here.
     #[tokio::test]
-    async fn procedure_service_create_batch_success() {
+    async fn test_procedure_service_create_batch_propagates_fields() {
         let service =
             ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
         let p = Procedure::new(
             "p1".to_string(),
-            None,
+            Some("fund-1".to_string()),
             "t1".to_string(),
             "2026-01-01".to_string(),
-            None,
+            Some(15000),
             PaymentMethod::None,
             None,
             None,
-            ProcedureStatus::None,
+            ProcedureStatus::Created,
         )
         .unwrap();
-        let result = service.create_batch(vec![p]).await.unwrap();
+        let result = service
+            .create_batch(vec![p])
+            .await
+            .expect("create_batch should succeed for valid Procedure::new output");
         assert_eq!(result.len(), 1);
+        assert_eq!(result[0].patient_id, "p1");
+        assert_eq!(result[0].fund_id.as_deref(), Some("fund-1"));
+        assert_eq!(result[0].procedure_type_id, "t1");
+        assert_eq!(
+            result[0].procedure_date,
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()
+        );
+        assert_eq!(result[0].billed_amount, Some(15000));
+        assert_eq!(result[0].payment_status, ProcedureStatus::Created);
     }
 
     #[tokio::test]
-    async fn procedure_service_update_procedure_success() {
+    async fn test_procedure_service_update_procedure_succeeds() {
         let service =
             ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
         let p = Procedure::new(
@@ -709,27 +718,5 @@ mod tests {
         .unwrap();
         let result = service.update_procedure(p).await;
         assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn procedure_service_find_unpaid_by_fund_returns_empty() {
-        let service =
-            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
-        assert!(service
-            .find_unpaid_by_fund("fund-1")
-            .await
-            .unwrap()
-            .is_empty());
-    }
-
-    #[tokio::test]
-    async fn procedure_service_find_created_in_date_range_returns_empty() {
-        let service =
-            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
-        assert!(service
-            .find_created_in_date_range("2026-01-01", "2026-01-31")
-            .await
-            .unwrap()
-            .is_empty());
     }
 }

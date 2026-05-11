@@ -400,7 +400,12 @@ mod tests {
 
     fn fund_repo_read_all_ok() -> MockFundRepository {
         let mut mock = MockFundRepository::new();
-        mock.expect_read_all_funds().returning(|| Ok(vec![]));
+        mock.expect_read_all_funds().returning(|| {
+            Ok(vec![
+                Fund::restore("f1".into(), "75".into(), "CPAM 75".into()),
+                Fund::restore("f2".into(), "93".into(), "CPAM 93".into()),
+            ])
+        });
         mock
     }
 
@@ -448,14 +453,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_all_funds_success() {
+    async fn test_get_all_funds_propagates_repository_results() {
         let service =
             FundService::new(Arc::new(fund_repo_read_all_ok()), Arc::new(EventBus::new()));
 
-        let result = service.read_all_funds().await;
+        let result = service.read_all_funds().await.expect("read_all_funds");
 
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 0);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].fund_identifier, "75");
+        assert_eq!(result[0].name, "CPAM 75");
+        assert_eq!(result[1].fund_identifier, "93");
+        assert_eq!(result[1].name, "CPAM 93");
     }
 
     #[tokio::test]
@@ -667,13 +675,32 @@ mod tests {
         assert_eq!(result.id, "f1");
     }
 
+    /// The service constructs `Fund` objects from candidates via
+    /// `Fund::new_with_temp_id` BEFORE handing them to the repository. The
+    /// echoing mock lets us verify field propagation end-to-end: a regression
+    /// in the factory (dropped `fund_identifier`, `name`, or `temp_id`) must
+    /// surface here.
     #[tokio::test]
-    async fn fund_service_create_batch_returns_funds() {
+    async fn fund_service_create_batch_propagates_candidate_fields() {
         let mut mock = MockFundRepository::new();
         mock.expect_create_batch().returning(Ok);
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
-        let result = service.create_batch(vec![make_candidate()]).await.unwrap();
+
+        let candidate = FundCandidate {
+            fund_identifier: "93".to_string(),
+            fund_name: "CPAM 93".to_string(),
+            temp_id: "tmp-93".to_string(),
+        };
+        let result = service
+            .create_batch(vec![candidate])
+            .await
+            .expect("create_batch should succeed for valid candidate");
+
         assert_eq!(result.len(), 1);
+        assert_eq!(result[0].fund_identifier, "93");
+        assert_eq!(result[0].name, "CPAM 93");
+        assert_eq!(result[0].temp_id.as_deref(), Some("tmp-93"));
+        assert!(!result[0].id.is_empty(), "factory must generate an id");
     }
 
     #[tokio::test]
@@ -788,11 +815,17 @@ mod tests {
         assert!(result.is_some());
     }
 
+    /// The `is_silent = true` branch of `create_group` must succeed without
+    /// emitting a `FundPaymentGroupUpdated` event — that suppression IS the
+    /// invariant the silent flag exists for. A regression that drops the
+    /// `if !is_silent` guard would still pass an "is_ok()" smoke check.
     #[tokio::test]
-    async fn fund_payment_service_create_group_silent_does_not_panic() {
-        let service =
-            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
-        let result = service
+    async fn fund_payment_service_create_group_silent_suppresses_event() {
+        let event_bus = Arc::new(EventBus::new());
+        let mut rx = event_bus.subscribe::<FundPaymentGroupUpdated>().unwrap();
+        let service = FundPaymentService::new(Arc::new(make_payment_repo_ok()), event_bus);
+
+        service
             .create_group(
                 "fund-1".to_string(),
                 "2026-01-15".to_string(),
@@ -800,7 +833,12 @@ mod tests {
                 vec![],
                 true,
             )
-            .await;
-        assert!(result.is_ok());
+            .await
+            .expect("silent create_group should succeed");
+
+        assert!(
+            rx.try_recv().is_err(),
+            "is_silent=true must NOT publish FundPaymentGroupUpdated"
+        );
     }
 }
