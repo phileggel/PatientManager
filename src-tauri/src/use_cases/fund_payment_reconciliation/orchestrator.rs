@@ -1160,11 +1160,7 @@ impl FundPaymentReconciliationOrchestrator {
                 let patient = match patient_service.find_patient_by_ssn(&ssn).await? {
                     Some(p) => p,
                     None => {
-                        tracing::info!(
-                            ssn = %ssn,
-                            patient_name = %patient_name,
-                            "Patient not found by SSN, creating new patient"
-                        );
+                        tracing::info!("Patient not found by SSN, creating new patient");
                         patient_service
                             .create_patient(Some(patient_name), Some(ssn.clone()))
                             .await?

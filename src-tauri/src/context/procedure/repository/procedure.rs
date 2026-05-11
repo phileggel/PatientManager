@@ -352,7 +352,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         start_date: &str,
         end_date: &str,
     ) -> anyhow::Result<Vec<Procedure>> {
-        tracing::trace!(ssn = %ssn, start = %start_date, end = %end_date,
+        tracing::trace!(start = %start_date, end = %end_date,
                         "Querying procedures by SSN and date range");
 
         let rows = sqlx::query_as!(

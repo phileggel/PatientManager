@@ -113,7 +113,6 @@ impl ReconciliationPass {
                     candidates_cloned.iter().map(|p| p.id.clone()).collect();
                 tracing::warn!(
                     line_index = normalized.line_index,
-                    ssn = %ssn_cloned,
                     candidate_count = candidates_cloned.len(),
                     max_allowed = MAX_GROUP_CANDIDATES,
                     "Too many procedure candidates - unable to auto-resolve"
@@ -208,7 +207,6 @@ impl ReconciliationPass {
             anomalies.push(AnomalyType::AmountMismatch);
             tracing::warn!(
                 line_index = normalized.line_index,
-                ssn = %normalized.ssn,
                 pdf_amount = InternalAmount(normalized.amount).to_f64(),
                 db_sum = sum.to_f64(),
                 "Amount mismatch detected in period match"
@@ -220,7 +218,6 @@ impl ReconciliationPass {
 
         tracing::debug!(
             line_index = normalized.line_index,
-            ssn = %normalized.ssn,
             procedure_count = matched_procs.len(),
             anomaly_count = db_matches.iter().map(|m| m.anomalies.len()).sum::<usize>(),
             "Period match found"
@@ -269,7 +266,6 @@ impl ReconciliationPass {
                 anomalies.push(AnomalyType::AmountMismatch);
                 tracing::warn!(
                     line_index = normalized.line_index,
-                    ssn = %normalized.ssn,
                     procedure_id = %proc.id,
                     pdf_amount = InternalAmount(normalized.amount).to_f64(),
                     db_amount = db_amount,
@@ -282,7 +278,6 @@ impl ReconciliationPass {
             anomalies.push(fa);
             tracing::warn!(
                 line_index = normalized.line_index,
-                ssn = %normalized.ssn,
                 procedure_id = %proc.id,
                 pdf_fund = %normalized.fund_name,
                 anomaly_type = "FundMismatch",
@@ -293,7 +288,6 @@ impl ReconciliationPass {
         if use_date_minus_one {
             tracing::debug!(
                 line_index = normalized.line_index,
-                ssn = %normalized.ssn,
                 procedure_id = %proc.id,
                 pdf_date = %normalized.procedure_start_date,
                 db_date = %proc.procedure_date,
@@ -303,7 +297,6 @@ impl ReconciliationPass {
 
         tracing::debug!(
             line_index = normalized.line_index,
-            ssn = %normalized.ssn,
             procedure_id = %proc.id,
             anomaly_count = anomalies.len(),
             "Single match found"
@@ -342,7 +335,6 @@ impl ReconciliationPass {
                 proc_anomalies.push(fa);
                 tracing::warn!(
                     line_index = normalized.line_index,
-                    ssn = %normalized.ssn,
                     procedure_id = %proc.id,
                     pdf_fund = %normalized.fund_name,
                     anomaly_type = "FundMismatch",

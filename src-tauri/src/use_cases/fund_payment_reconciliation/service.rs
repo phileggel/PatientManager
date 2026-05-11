@@ -135,7 +135,6 @@ impl ReconciliationService {
                     tracing::warn!(
                         target: BACKEND,
                         line_index = line_index,
-                        ssn = %normalized_line.ssn,
                         pdf_fund = %normalized_line.fund_name,
                         pdf_amount = InternalAmount(normalized_line.amount).to_f64(),
                         "Procedure not found in database"

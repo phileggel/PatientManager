@@ -158,6 +158,7 @@ mod tests {
             .returning(|_| Err(anyhow::anyhow!("Not implemented in mock")));
         mock.expect_update_patient().returning(Ok);
         mock.expect_find_patient_by_ssn().returning(|_| Ok(None));
+        mock.expect_find_patient_by_name().returning(|_| Ok(None));
         mock.expect_create_batch().returning(|mut patients| {
             for p in &mut patients {
                 p.id = "test-uuid-batch".to_string();
@@ -179,6 +180,8 @@ mod tests {
         mock.expect_update_patient()
             .returning(|_| Err(anyhow::anyhow!("Update failed")));
         mock.expect_find_patient_by_ssn()
+            .returning(|_| Err(anyhow::anyhow!("Mock repository error")));
+        mock.expect_find_patient_by_name()
             .returning(|_| Err(anyhow::anyhow!("Mock repository error")));
         mock.expect_create_batch()
             .returning(|_| Err(anyhow::anyhow!("Mock repository error")));
@@ -293,6 +296,28 @@ mod tests {
         assert!(result.is_none());
     }
 
+    // --- find_patient_by_name ---
+
+    #[tokio::test]
+    async fn find_patient_by_name_returns_none_when_not_found() {
+        let repo = make_repo_ok();
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(repo, event_bus);
+        let result = service.find_patient_by_name("Marie Dupont").await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn find_patient_by_name_propagates_repository_match() {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_find_patient_by_name()
+            .returning(|_| Ok(Some(make_patient_with_id("patient-77"))));
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(Arc::new(mock), event_bus);
+        let result = service.find_patient_by_name("Marie Dupont").await.unwrap();
+        assert_eq!(result.map(|p| p.id), Some("patient-77".to_string()));
+    }
+
     // --- update_patient ---
 
     #[tokio::test]
@@ -329,6 +354,33 @@ mod tests {
         let results = service.validate_batch(vec![candidate]).await.unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].status, PatientValidationStatus::Invalid);
+    }
+
+    /// Coverage for the `Err(e)` arm of `validate_batch`'s SSN lookup:
+    /// repository failures land on the candidate as `Invalid` with the
+    /// underlying error formatted into `result.error`. The error string
+    /// must not leak the SSN value (caller-supplied PII).
+    #[tokio::test]
+    async fn validate_batch_db_error_returns_invalid_without_ssn_in_message() {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_find_patient_by_ssn()
+            .returning(|_| Err(anyhow::anyhow!("connection refused")));
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(Arc::new(mock), event_bus);
+        let candidate = PatientCandidate {
+            temp_id: "tmp-1".to_string(),
+            name: Some("Marie Dupont".to_string()),
+            ssn: Some("1234567890123".to_string()),
+        };
+        let results = service.validate_batch(vec![candidate]).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].status, PatientValidationStatus::Invalid);
+        let err_msg = results[0].error.as_deref().expect("error must be set");
+        assert!(err_msg.contains("connection refused"));
+        assert!(
+            !err_msg.contains("1234567890123"),
+            "SSN value must not appear in error string"
+        );
     }
 
     #[tokio::test]
