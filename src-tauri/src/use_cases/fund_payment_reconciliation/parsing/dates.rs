@@ -1,4 +1,5 @@
 /// Date parsing utilities for French-formatted dates
+use crate::core::logger::BACKEND;
 use chrono::NaiveDate;
 
 /// Parse a French-formatted date (DD/MM/YYYY) into a NaiveDate
@@ -18,14 +19,26 @@ pub fn parse_iso_date_to_naive_date(date_str: &str) -> anyhow::Result<NaiveDate>
 }
 
 /// Parse a date range string (single date or "DD/MM/YYYY au DD/MM/YYYY")
+///
+/// FPA-025: when a PDF period line has start > end (e.g. "du 16/04 au 13/04"),
+/// the parser swaps the two dates and logs a warning. Treated as a PDF typo —
+/// fund payments cover past procedures, so the chronologically-forward range
+/// is the only meaningful interpretation.
 pub fn parse_date_range(date_str: &str) -> anyhow::Result<(NaiveDate, NaiveDate)> {
     if date_str.contains(" au ") {
         let parts: Vec<&str> = date_str.split(" au ").collect();
-        if let [start, end] = &parts[..] {
-            return Ok((
-                convert_french_date_to_naive_date(start)?,
-                convert_french_date_to_naive_date(end)?,
-            ));
+        if let [start_raw, end_raw] = &parts[..] {
+            let start = convert_french_date_to_naive_date(start_raw)?;
+            let end = convert_french_date_to_naive_date(end_raw)?;
+            if end < start {
+                tracing::warn!(
+                    target: BACKEND,
+                    raw = %date_str,
+                    "Inverted PDF period range — swapping start/end (FPA-025)"
+                );
+                return Ok((end, start));
+            }
+            return Ok((start, end));
         }
     }
     let date = convert_french_date_to_naive_date(date_str)?;
@@ -65,5 +78,23 @@ mod tests {
         let (start, end) = parse_date_range("01/12/2025 au 31/12/2025").unwrap();
         assert_eq!(start.to_string(), "2025-12-01");
         assert_eq!(end.to_string(), "2025-12-31");
+    }
+
+    /// FPA-025: inverted PDF period (`du <late> au <early>`) must be swapped
+    /// so the downstream period-pass query sees a valid forward range.
+    #[test]
+    fn test_parse_date_range_inverted_period_is_swapped() {
+        let (start, end) = parse_date_range("31/12/2025 au 01/12/2025").unwrap();
+        assert_eq!(start.to_string(), "2025-12-01");
+        assert_eq!(end.to_string(), "2025-12-31");
+    }
+
+    /// Equal-date periods pass through unchanged (the swap guard is strict `<`,
+    /// not `<=`; equal dates aren't an inversion).
+    #[test]
+    fn test_parse_date_range_equal_dates_unchanged() {
+        let (start, end) = parse_date_range("15/04/2025 au 15/04/2025").unwrap();
+        assert_eq!(start.to_string(), "2025-04-15");
+        assert_eq!(end.to_string(), "2025-04-15");
     }
 }
