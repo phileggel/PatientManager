@@ -137,12 +137,6 @@ Multiple F10 violations in the procedure feature: business logic (state, memos, 
 
 ---
 
-## (backend/test) — Remove dead hand-rolled MockProcedureTypeRepository and MockFundRepository
-
-`procedure/service.rs` has a hand-rolled `MockProcedureTypeRepository` struct (lines ~332–435) that shadows the automock-generated `MockProcedureTypeRepository` from `crate::context::procedure`. The pre-existing tests still use the manual one. `fund/service.rs` has the same problem with `MockFundRepository` (an `as AutoMockFundRepository` alias workaround exists). Migrate both to the generated mocks and remove the hand-rolled structs.
-
----
-
 ## (backend/arch) — Introduce a DI container for orchestrator wiring
 
 Production orchestrators are currently wired manually in `lib.rs` via explicit `Arc<dyn Trait>` constructor injection. This works but doesn't scale well as the number of dependencies grows: adding a dep means touching `lib.rs`, the orchestrator `new()`, and every integration test `Ctx`. A DI container (e.g. `shaku`) would centralize registration and resolve dependencies automatically, reducing wiring boilerplate and making the `new()` signature irrelevant to callers. Evaluate once the orchestrator count or dep count becomes a maintenance burden.
