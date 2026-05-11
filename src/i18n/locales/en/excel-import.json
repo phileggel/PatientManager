@@ -8,8 +8,7 @@
     "or": "or",
     "select": "Select File",
     "processing": "Processing...",
-    "formats": "Supported formats: .xlsx, .xls, .csv",
-    "maxSize": "Maximum file size: 10 MB"
+    "formats": "Supported formats: .xlsx, .xls, .csv"
   },
   "validation": {
     "patients": "Patients",
