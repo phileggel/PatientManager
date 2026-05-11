@@ -620,43 +620,29 @@ mod tests {
     use crate::context::fund::{Fund, MockFundRepository};
     use crate::context::patient::{MockPatientRepository, Patient};
     use crate::context::procedure::{
-        MockProcedureRepository, MockProcedureTypeRepository, Procedure,
-        ProcedureService as ContextProcedureService, ProcedureStatus, ProcedureType,
+        MockProcedureRefundRepository, MockProcedureRepository, MockProcedureTypeRepository,
+        Procedure, ProcedureRefund, ProcedureService as ContextProcedureService, ProcedureStatus,
+        ProcedureType,
     };
     use crate::core::event_bus::EventBus;
     use crate::use_cases::procedure_orchestration::ProcedureValidationStatus;
     use chrono::NaiveDate;
     use std::sync::{Arc, Mutex};
 
-    // Manual mock kept for ProcedureRefundRepository (small, behavior varies)
-    struct MockProcedureRefundRepository;
-
-    #[async_trait::async_trait]
-    impl crate::context::procedure::ProcedureRefundRepository for MockProcedureRefundRepository {
-        async fn create_procedure_refund(
-            &self,
-            _refund: &crate::context::procedure::ProcedureRefund,
-        ) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn find_by_source_procedure_id(
-            &self,
-            _source_id: &str,
-        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
-            Ok(None)
-        }
-        async fn find_by_refund_procedure_id(
-            &self,
-            _refund_procedure_id: &str,
-        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
-            Ok(None)
-        }
-        async fn delete_procedure_refund(&self, _id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn is_refund_fund_payment_group(&self, _group_id: &str) -> anyhow::Result<bool> {
-            Ok(false)
-        }
+    /// Refund-repo mock with all methods returning their no-op default
+    /// (no refund record present, no-op writes). Used when the test exercises
+    /// a code path that doesn't depend on the refund repo's state.
+    fn noop_refund_repo() -> MockProcedureRefundRepository {
+        let mut mock = MockProcedureRefundRepository::new();
+        mock.expect_create_procedure_refund().returning(|_| Ok(()));
+        mock.expect_find_by_source_procedure_id()
+            .returning(|_| Ok(None));
+        mock.expect_find_by_refund_procedure_id()
+            .returning(|_| Ok(None));
+        mock.expect_delete_procedure_refund().returning(|_| Ok(()));
+        mock.expect_is_refund_fund_payment_group()
+            .returning(|_| Ok(false));
+        mock
     }
 
     /// Build a MockProcedureRepository that stubs all methods as unimplemented
@@ -903,7 +889,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         )
     }
 
@@ -922,7 +908,7 @@ mod tests {
             patient_repo,
             type_repo,
             fund_repo,
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         )
     }
 
@@ -971,7 +957,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
 
         let candidate = ProcedureCandidate {
@@ -1037,7 +1023,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
 
         // Older procedure date (2024-06-15 < 2024-12-01)
@@ -1190,7 +1176,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
 
         orchestrator.delete_procedure("proc-newer").await.unwrap();
@@ -1249,7 +1235,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
 
         orchestrator.delete_procedure("proc-only").await.unwrap();
@@ -1290,7 +1276,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_with_type()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
 
         orchestrator
@@ -1352,7 +1338,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
 
         let candidate = ProcedureCandidate {
@@ -1703,7 +1689,7 @@ mod tests {
     async fn update_procedure_overpaid_no_refund_record_succeeds() {
         let proc = make_procedure_with_status(ProcedureStatus::Overpaid);
         let orchestrator = make_orchestrator_with_procedure(proc.clone());
-        // MockProcedureRefundRepository returns None → no propagation path taken
+        // noop_refund_repo returns None → no propagation path taken
         let updated = orchestrator.update_procedure(proc).await.unwrap();
         assert_eq!(updated.payment_status, ProcedureStatus::Overpaid);
     }
@@ -1734,7 +1720,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
 
         orchestrator
@@ -1847,7 +1833,7 @@ mod tests {
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
         let result = orchestrator.delete_procedure("non-existent").await;
         assert!(result.is_err());
@@ -1987,7 +1973,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
         let candidate = ProcedureCandidate {
             patient_id: "p1".to_string(),
@@ -2022,36 +2008,20 @@ mod tests {
         )
     }
 
-    struct ProcedureRefundRepoReturningRecord {
-        record: crate::context::procedure::ProcedureRefund,
-    }
-
-    #[async_trait::async_trait]
-    impl crate::context::procedure::ProcedureRefundRepository for ProcedureRefundRepoReturningRecord {
-        async fn create_procedure_refund(
-            &self,
-            _: &crate::context::procedure::ProcedureRefund,
-        ) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn find_by_source_procedure_id(
-            &self,
-            _: &str,
-        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
-            Ok(Some(self.record.clone()))
-        }
-        async fn find_by_refund_procedure_id(
-            &self,
-            _: &str,
-        ) -> anyhow::Result<Option<crate::context::procedure::ProcedureRefund>> {
-            Ok(None)
-        }
-        async fn delete_procedure_refund(&self, _: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn is_refund_fund_payment_group(&self, _: &str) -> anyhow::Result<bool> {
-            Ok(false)
-        }
+    /// Refund-repo mock that surfaces `record` via `find_by_source_procedure_id`.
+    /// Used by tests exercising the "refund record exists" branch of
+    /// `update_procedure` overpaid handling.
+    fn refund_repo_returning(record: ProcedureRefund) -> MockProcedureRefundRepository {
+        let mut mock = MockProcedureRefundRepository::new();
+        mock.expect_create_procedure_refund().returning(|_| Ok(()));
+        mock.expect_find_by_source_procedure_id()
+            .returning(move |_| Ok(Some(record.clone())));
+        mock.expect_find_by_refund_procedure_id()
+            .returning(|_| Ok(None));
+        mock.expect_delete_procedure_refund().returning(|_| Ok(()));
+        mock.expect_is_refund_fund_payment_group()
+            .returning(|_| Ok(false));
+        mock
     }
 
     #[tokio::test]
@@ -2068,9 +2038,7 @@ mod tests {
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(ProcedureRefundRepoReturningRecord {
-                record: refund_record,
-            }),
+            Arc::new(refund_repo_returning(refund_record)),
         );
         let result = orchestrator.update_procedure(source_proc).await;
         assert!(result.is_ok());
@@ -2103,9 +2071,7 @@ mod tests {
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(ProcedureRefundRepoReturningRecord {
-                record: refund_record,
-            }),
+            Arc::new(refund_repo_returning(refund_record)),
         );
         let result = orchestrator.update_procedure(source_proc).await;
         assert!(result.is_ok());
@@ -2138,9 +2104,7 @@ mod tests {
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(ProcedureRefundRepoReturningRecord {
-                record: refund_record,
-            }),
+            Arc::new(refund_repo_returning(refund_record)),
         );
         let result = orchestrator.update_procedure(source_proc).await;
         assert!(result.is_ok());
@@ -2172,7 +2136,7 @@ mod tests {
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
-            Arc::new(MockProcedureRefundRepository),
+            Arc::new(noop_refund_repo()),
         );
 
         orchestrator
