@@ -477,26 +477,28 @@ mod tests {
 
     // --- Full-success mock builders (for steps 7-12) ---
 
-    /// Procedure repo for the success-path tests: `create_procedure` returns
-    /// the constructed procedure with a fixed id `refund-proc-1`; `read_procedure`
-    /// returns the canonical fund-paid source procedure; other queries return
-    /// empty/None defaults.
-    fn proc_repo_for_success() -> MockProcedureRepository {
+    /// Procedure repo for the success-path tests: `create_procedure` mints a
+    /// procedure with the given `refund_id`; `read_procedure` returns the
+    /// captured `source_procedure`; other queries return empty/None defaults.
+    fn proc_repo_for_success_with(
+        source_procedure: Procedure,
+        refund_id: &'static str,
+    ) -> MockProcedureRepository {
         let mut mock = MockProcedureRepository::new();
         mock.expect_create_procedure().returning(
-            |patient_id,
-             fund_id,
-             procedure_type_id,
-             procedure_date,
-             billed_amount,
-             payment_method,
-             confirmed_payment_date,
-             paid_amount,
-             payment_status| {
+            move |patient_id,
+                  fund_id,
+                  procedure_type_id,
+                  procedure_date,
+                  billed_amount,
+                  payment_method,
+                  confirmed_payment_date,
+                  paid_amount,
+                  payment_status| {
                 let date = chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
                     .unwrap_or_default();
                 Ok(Procedure::restore(
-                    "refund-proc-1".to_string(),
+                    refund_id.to_string(),
                     patient_id,
                     fund_id,
                     procedure_type_id,
@@ -513,7 +515,7 @@ mod tests {
         );
         mock.expect_read_all_procedures().returning(|| Ok(vec![]));
         mock.expect_read_procedure()
-            .returning(|_| Ok(Some(fund_paid_procedure())));
+            .returning(move |_| Ok(Some(source_procedure.clone())));
         mock.expect_read_procedures_by_ids()
             .returning(|_| Ok(vec![]));
         mock.expect_read_procedures_by_patient_id()
@@ -542,6 +544,12 @@ mod tests {
         mock.expect_find_created_by_fund_before_date()
             .returning(|_, _| Ok(vec![]));
         mock
+    }
+
+    /// Default success-path procedure repo: source is `fund_paid_procedure()`
+    /// (status `FundPaid`) and refund id is `refund-proc-1`.
+    fn proc_repo_for_success() -> MockProcedureRepository {
+        proc_repo_for_success_with(fund_paid_procedure(), "refund-proc-1")
     }
 
     /// Fund-payment repo that echoes all writes and returns empty for reads.
@@ -998,97 +1006,22 @@ mod tests {
     #[tokio::test]
     async fn create_overpayment_with_partially_fund_paid_source_succeeds() {
         let event_bus = Arc::new(EventBus::new());
-        // Inline mockall: source procedure is in PartiallyFundPaid status;
-        // create_procedure mints `refund-proc-2`.
-        let mut proc_repo = MockProcedureRepository::new();
-        proc_repo.expect_create_procedure().returning(
-            |patient_id,
-             fund_id,
-             procedure_type_id,
-             procedure_date,
-             billed_amount,
-             payment_method,
-             confirmed_payment_date,
-             paid_amount,
-             payment_status| {
-                let date = chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
-                    .unwrap_or_default();
-                Ok(Procedure::restore(
-                    "refund-proc-2".to_string(),
-                    patient_id,
-                    fund_id,
-                    procedure_type_id,
-                    date,
-                    billed_amount,
-                    payment_method,
-                    confirmed_payment_date
-                        .as_deref()
-                        .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
-                    paid_amount,
-                    payment_status,
-                ))
-            },
+        // Same success-path mock as the default helper, but the source is a
+        // PartiallyFundPaid procedure and `create_procedure` mints refund-proc-2.
+        let source = Procedure::restore(
+            "source-proc-1".to_string(),
+            "patient-1".to_string(),
+            Some("fund-1".to_string()),
+            "type-1".to_string(),
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            Some(50_000),
+            PaymentMethod::None,
+            Some(NaiveDate::from_ymd_opt(2024, 1, 10).unwrap()),
+            Some(50_000),
+            ProcedureStatus::PartiallyFundPaid,
         );
-        proc_repo
-            .expect_read_all_procedures()
-            .returning(|| Ok(vec![]));
-        proc_repo.expect_read_procedure().returning(|_| {
-            Ok(Some(Procedure::restore(
-                "source-proc-1".to_string(),
-                "patient-1".to_string(),
-                Some("fund-1".to_string()),
-                "type-1".to_string(),
-                NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
-                Some(50_000),
-                PaymentMethod::None,
-                Some(NaiveDate::from_ymd_opt(2024, 1, 10).unwrap()),
-                Some(50_000),
-                ProcedureStatus::PartiallyFundPaid,
-            )))
-        });
-        proc_repo
-            .expect_read_procedures_by_ids()
-            .returning(|_| Ok(vec![]));
-        proc_repo
-            .expect_read_procedures_by_patient_id()
-            .returning(|_| Ok(vec![]));
-        proc_repo.expect_update_procedure().returning(Ok);
-        proc_repo.expect_delete_procedure().returning(|_| Ok(()));
-        proc_repo
-            .expect_find_procedures_by_ssn_and_date_range()
-            .returning(|_, _, _| Ok(vec![]));
-        proc_repo
-            .expect_find_procedures_by_ssns_and_date_range()
-            .returning(|_, _, _| Ok(vec![]));
-        proc_repo
-            .expect_find_procedures_by_ssns_and_date_range_with_ssn()
-            .returning(|_, _, _| Ok(vec![]));
-        proc_repo
-            .expect_find_procedure_exact()
-            .returning(|_, _, _, _| Ok(None));
-        proc_repo.expect_create_batch().returning(Ok);
-        proc_repo.expect_update_batch().returning(Ok);
-        proc_repo
-            .expect_find_unpaid_by_fund()
-            .returning(|_| Ok(vec![]));
-        proc_repo
-            .expect_has_blocking_procedures_in_month()
-            .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
-        proc_repo
-            .expect_find_unreconciled_by_date_range()
-            .returning(|_, _| Ok(vec![]));
-        proc_repo
-            .expect_find_created_in_date_range()
-            .returning(|_, _| Ok(vec![]));
-        proc_repo
-            .expect_find_created_by_fund_before_date()
-            .returning(|_, _| Ok(vec![]));
-
         let procedure_service = Arc::new(ProcedureService::new(
-            Arc::new(proc_repo),
+            Arc::new(proc_repo_for_success_with(source, "refund-proc-2")),
             event_bus.clone(),
         ));
         let fund_payment_service = Arc::new(FundPaymentService::new(
