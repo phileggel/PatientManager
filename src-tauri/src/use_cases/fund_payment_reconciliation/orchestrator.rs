@@ -1267,136 +1267,139 @@ impl FundPaymentReconciliationOrchestrator {
     }
 }
 
-// TODO: These tests are integration tests using real SQLite. They should be refactored
-// to unit tests using mock repositories (consistent with the unit test = mock rule).
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::Arc;
 
-    use sqlx::sqlite::SqlitePoolOptions;
-    use sqlx::SqlitePool;
-    use uuid::Uuid;
-
-    use crate::context::fund::{FundPaymentService, SqliteFundPaymentRepository};
-    use crate::context::procedure::{ProcedureService, SqliteProcedureRepository};
+    use crate::context::fund::{
+        Fund, FundPaymentGroupStatus, FundPaymentLine, FundRepository, FundService,
+        MockFundPaymentRepository, MockFundRepository,
+    };
+    use crate::context::procedure::{
+        MockProcedureRepository, PaymentMethod, Procedure, ProcedureRepository,
+    };
     use crate::core::event_bus::EventBus;
 
-    async fn setup_db() -> SqlitePool {
-        let pool = SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect("sqlite::memory:")
-            .await
-            .expect("Failed to connect");
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .expect("Migrations failed");
-        pool
-    }
-
-    fn make_orchestrator(pool: &SqlitePool) -> FundPaymentReconciliationOrchestrator {
-        let event_bus = Arc::new(EventBus::new());
-        let fund_svc = Arc::new(FundPaymentService::new(
-            Arc::new(SqliteFundPaymentRepository::new(pool.clone())),
-            event_bus.clone(),
+    /// Build an orchestrator wired with the three repository mocks. Each test
+    /// configures only the methods it expects to hit — mockall panics on any
+    /// unconfigured call, which keeps the contract between orchestrator and
+    /// repositories explicit.
+    fn make_orchestrator(
+        fund_repo: MockFundRepository,
+        fund_payment_repo: MockFundPaymentRepository,
+        procedure_repo: MockProcedureRepository,
+    ) -> FundPaymentReconciliationOrchestrator {
+        let bus = Arc::new(EventBus::new());
+        let fund_repo_arc: Arc<dyn FundRepository> = Arc::new(fund_repo);
+        let fund_service = Arc::new(FundService::new(fund_repo_arc, bus.clone()));
+        let fund_payment_service = Arc::new(FundPaymentService::new(
+            Arc::new(fund_payment_repo),
+            bus.clone(),
         ));
-        let proc_svc = Arc::new(ProcedureService::new(
-            Arc::new(SqliteProcedureRepository::new(pool.clone())),
-            event_bus.clone(),
-        ));
+        let procedure_repo_arc: Arc<dyn ProcedureRepository> = Arc::new(procedure_repo);
+        let procedure_service = Arc::new(ProcedureService::new(procedure_repo_arc, bus.clone()));
         FundPaymentReconciliationOrchestrator::new(
-            Arc::new(crate::context::fund::FundService::new(
-                Arc::new(crate::context::fund::SqliteFundRepository::new(
-                    pool.clone(),
-                )),
-                event_bus.clone(),
-            )),
-            proc_svc,
-            fund_svc,
-            event_bus,
+            fund_service,
+            procedure_service,
+            fund_payment_service,
+            bus,
         )
     }
 
-    async fn seed_base(pool: &SqlitePool) -> (String, String, String) {
-        let patient_id = Uuid::new_v4().to_string();
-        let fund_id = Uuid::new_v4().to_string();
-        let proc_type_id = Uuid::new_v4().to_string();
-
-        sqlx::query("INSERT INTO patient (id, is_anonymous, is_deleted) VALUES (?, 0, 0)")
-            .bind(&patient_id)
-            .execute(pool)
-            .await
-            .expect("seed_base: insert patient");
-        sqlx::query(
-            "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES (?, 'CPAM93', 'CPAM 93', 0)",
-        )
-        .bind(&fund_id)
-        .execute(pool)
-        .await
-        .expect("seed_base: insert fund");
-        sqlx::query(
-            "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES (?, 'Consultation', 100000, 0)",
-        )
-        .bind(&proc_type_id)
-        .execute(pool)
-        .await
-        .expect("seed_base: insert procedure_type");
-
-        (patient_id, fund_id, proc_type_id)
-    }
-
-    async fn seed_procedure(
-        pool: &SqlitePool,
-        patient_id: &str,
-        proc_type_id: &str,
-        status: &str,
-        amount: i64,
-    ) -> String {
-        let proc_id = Uuid::new_v4().to_string();
-        sqlx::query(
-            r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
-               procedure_amount, payment_status, is_deleted) VALUES (?, ?, ?, '2026-01-15', ?, ?, 0)"#,
-        )
-        .bind(&proc_id)
-        .bind(patient_id)
-        .bind(proc_type_id)
-        .bind(amount)
-        .bind(status)
-        .execute(pool)
-        .await
-        .expect("seed_procedure: insert procedure");
-        proc_id
-    }
-
+    /// FPA-260 (R17) — when `fund_label` resolves to an already-existing fund
+    /// (no `n°` extraction needed, exact identifier match), the orchestrator
+    /// reuses the fund and persists the group + reconciliation update.
     #[tokio::test]
     async fn create_fund_payment_from_candidate_resolves_existing_fund() -> anyhow::Result<()> {
-        let pool = setup_db().await;
-        let (patient_id, fund_id, proc_type_id) = seed_base(&pool).await;
-        let proc_id = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 50_000).await;
-        let _ = fund_id; // fund with identifier "CPAM93" is seeded
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|identifier| {
+                Ok(Some(Fund::restore(
+                    "fund-1".to_string(),
+                    identifier.to_string(),
+                    "CPAM 93".to_string(),
+                )))
+            });
 
-        let orchestrator = make_orchestrator(&pool);
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        fund_payment_repo.expect_create_group().returning(
+            |fund_id, payment_date, total_amount, procedure_ids| {
+                let lines: Vec<FundPaymentLine> = procedure_ids
+                    .into_iter()
+                    .map(|pid| {
+                        FundPaymentLine::restore("line-1".to_string(), "group-1".to_string(), pid)
+                    })
+                    .collect();
+                Ok(FundPaymentGroup::restore(
+                    "group-1".to_string(),
+                    fund_id,
+                    NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").unwrap(),
+                    total_amount,
+                    lines,
+                    FundPaymentGroupStatus::Active,
+                ))
+            },
+        );
 
-        // "CPAM93" matches fund_identifier "CPAM93" seeded by seed_base
+        let mut procedure_repo = MockProcedureRepository::new();
+        procedure_repo
+            .expect_read_procedures_by_ids()
+            .returning(|_| {
+                Ok(vec![Procedure::restore(
+                    "proc-1".to_string(),
+                    "patient-1".to_string(),
+                    Some("fund-1".to_string()),
+                    "type-1".to_string(),
+                    NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
+                    Some(50_000),
+                    PaymentMethod::None,
+                    None,
+                    None,
+                    ProcedureStatus::Created,
+                )])
+            });
+        procedure_repo
+            .expect_update_batch()
+            .withf(|procs| {
+                procs
+                    .iter()
+                    .all(|p| matches!(p.payment_status, ProcedureStatus::Reconciled))
+            })
+            .returning(Ok);
+
+        let orchestrator = make_orchestrator(fund_repo, fund_payment_repo, procedure_repo);
         let group = orchestrator
             .create_fund_payment_from_candidate(
                 "CPAM93".to_string(),
                 NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
                 50_000,
-                vec![proc_id.clone()],
+                vec!["proc-1".to_string()],
                 None,
             )
             .await?;
 
         assert_eq!(group.total_amount, 50_000);
+        assert_eq!(group.fund_id, "fund-1");
         Ok(())
     }
 
+    /// FPA-050 (R3) edge — `is_duplicate_candidate` returns false (not Err)
+    /// when the fund label cannot be resolved to an existing fund. Avoids a
+    /// false-positive duplicate flag for a brand-new PDF.
     #[tokio::test]
     async fn is_duplicate_candidate_returns_false_when_fund_not_found() -> anyhow::Result<()> {
-        let pool = setup_db().await;
-        let orchestrator = make_orchestrator(&pool);
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+
+        let orchestrator = make_orchestrator(
+            fund_repo,
+            MockFundPaymentRepository::new(),
+            MockProcedureRepository::new(),
+        );
 
         let result = orchestrator
             .is_duplicate_candidate(
@@ -1410,19 +1413,82 @@ mod tests {
         Ok(())
     }
 
+    /// Batch happy path — `create_multiple_from_candidates` with one
+    /// non-duplicate candidate creates a group, sets the procedure to
+    /// `Reconciled`, and returns the persisted group.
     #[tokio::test]
     async fn create_multiple_from_candidates_creates_groups() -> anyhow::Result<()> {
-        let pool = setup_db().await;
-        let (patient_id, _fund_id, proc_type_id) = seed_base(&pool).await;
-        let proc_id = seed_procedure(&pool, &patient_id, &proc_type_id, "CREATED", 75_000).await;
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        fund_repo
+            .expect_create_fund()
+            .returning(|identifier, name| {
+                Ok(Fund::restore(
+                    "fund-1".to_string(),
+                    identifier.to_string(),
+                    name.to_string(),
+                ))
+            });
 
-        let orchestrator = make_orchestrator(&pool);
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        fund_payment_repo
+            .expect_create_batch_groups()
+            .withf(|groups| groups.len() == 1 && groups[0].fund_id == "fund-1")
+            .returning(Ok);
+
+        let mut procedure_repo = MockProcedureRepository::new();
+        procedure_repo
+            .expect_read_procedures_by_ids()
+            .returning(|_| {
+                Ok(vec![Procedure::restore(
+                    "proc-1".to_string(),
+                    "patient-1".to_string(),
+                    Some("fund-1".to_string()),
+                    "type-1".to_string(),
+                    NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                    Some(75_000),
+                    PaymentMethod::None,
+                    None,
+                    None,
+                    ProcedureStatus::Created,
+                )])
+            });
+        // The orchestrator captures the updated batch via update_procedures_batch
+        // and returns it from verify_group_integrity's per-line read_procedure.
+        // Returning a Reconciled procedure here lets the integrity check pass
+        // (paid_amount sum equals group total).
+        procedure_repo
+            .expect_update_batch()
+            .withf(|procs| {
+                procs
+                    .iter()
+                    .all(|p| matches!(p.payment_status, ProcedureStatus::Reconciled))
+            })
+            .returning(Ok);
+        procedure_repo.expect_read_procedure().returning(|_| {
+            Ok(Some(Procedure::restore(
+                "proc-1".to_string(),
+                "patient-1".to_string(),
+                Some("fund-1".to_string()),
+                "type-1".to_string(),
+                NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                Some(75_000),
+                PaymentMethod::None,
+                Some(NaiveDate::from_ymd_opt(2026, 1, 15).unwrap()),
+                Some(75_000),
+                ProcedureStatus::Reconciled,
+            )))
+        });
+
+        let orchestrator = make_orchestrator(fund_repo, fund_payment_repo, procedure_repo);
         let groups = orchestrator
             .create_multiple_from_candidates(vec![FundPaymentGroupCandidate {
                 fund_label: "CPAM n° 75".to_string(),
                 payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                 total_amount: 75_000,
-                procedure_ids: vec![proc_id.clone()],
+                procedure_ids: vec!["proc-1".to_string()],
                 matched_amount: 75_000,
                 is_fully_covered: true,
             }])
@@ -1430,40 +1496,61 @@ mod tests {
 
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].total_amount, 75_000);
-
-        let procs = orchestrator
-            .procedure_service
-            .read_procedures_by_ids(vec![proc_id])
-            .await?;
-        assert!(matches!(
-            procs[0].payment_status,
-            ProcedureStatus::Reconciled
-        ));
+        assert_eq!(groups[0].fund_id, "fund-1");
         Ok(())
     }
 
+    /// `verify_created_groups` short-circuits on an empty slice without
+    /// touching any repository — important because the orchestrator emits
+    /// the integrity check unconditionally at the end of the batch flow.
     #[tokio::test]
     async fn verify_created_groups_empty_list_is_noop() {
-        let pool = setup_db().await;
-        let orchestrator = make_orchestrator(&pool);
+        let orchestrator = make_orchestrator(
+            MockFundRepository::new(),
+            MockFundPaymentRepository::new(),
+            MockProcedureRepository::new(),
+        );
         orchestrator.verify_created_groups(&[]).await;
     }
 
+    /// `get_group_edit_data` surfaces a domain error (not a panic) when the
+    /// group does not exist.
     #[tokio::test]
-    async fn get_group_edit_data_not_found_returns_error() -> anyhow::Result<()> {
-        let pool = setup_db().await;
-        let orchestrator = make_orchestrator(&pool);
+    async fn get_group_edit_data_not_found_returns_error() {
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        fund_payment_repo
+            .expect_read_group()
+            .returning(|_| Ok(None));
+
+        let orchestrator = make_orchestrator(
+            MockFundRepository::new(),
+            fund_payment_repo,
+            MockProcedureRepository::new(),
+        );
         let result = orchestrator
             .get_group_edit_data("nonexistent-group", "nonexistent-fund")
             .await;
-        assert!(result.is_err());
-        Ok(())
+        assert!(
+            result.is_err(),
+            "expected Err for nonexistent group, got: {:?}",
+            result.as_ref().ok()
+        );
     }
 
+    /// `update_manual_fund_payment_group` surfaces a domain error (not a
+    /// panic) when the group does not exist.
     #[tokio::test]
-    async fn update_manual_fund_payment_group_not_found_returns_error() -> anyhow::Result<()> {
-        let pool = setup_db().await;
-        let orchestrator = make_orchestrator(&pool);
+    async fn update_manual_fund_payment_group_not_found_returns_error() {
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        fund_payment_repo
+            .expect_read_group()
+            .returning(|_| Ok(None));
+
+        let orchestrator = make_orchestrator(
+            MockFundRepository::new(),
+            fund_payment_repo,
+            MockProcedureRepository::new(),
+        );
         let result = orchestrator
             .update_manual_fund_payment_group(
                 "nonexistent-group".to_string(),
@@ -1471,7 +1558,10 @@ mod tests {
                 vec![],
             )
             .await;
-        assert!(result.is_err());
-        Ok(())
+        assert!(
+            result.is_err(),
+            "expected Err for nonexistent group, got: {:?}",
+            result.as_ref().ok()
+        );
     }
 }
