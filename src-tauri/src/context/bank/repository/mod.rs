@@ -5,3 +5,10 @@ mod transfer_link;
 pub use bank_account::{BankAccountRepository, SqliteBankAccountRepository};
 pub use bank_entry::{BankEntryRepository, SqliteBankEntryRepository};
 pub use transfer_link::{BankEntryLinkRepository, SqliteBankEntryLinkRepository};
+
+#[cfg(test)]
+pub use bank_account::MockBankAccountRepository;
+#[cfg(test)]
+pub use bank_entry::MockBankEntryRepository;
+#[cfg(test)]
+pub use transfer_link::MockBankEntryLinkRepository;

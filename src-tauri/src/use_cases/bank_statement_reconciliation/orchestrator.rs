@@ -518,376 +518,198 @@ fn is_exact_date_offset(
 mod tests {
     use super::*;
     use crate::context::bank::{
-        BankAccount, BankAccountRepository, BankEntryRepository, BankEntryType,
+        BankAccount, BankAccountRepository, MockBankAccountRepository, MockBankEntryLinkRepository,
+        MockBankEntryRepository,
     };
     use crate::context::fund::{
-        FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine, FundPaymentRepository,
-        FundRepository,
+        FundPaymentGroup, FundPaymentGroupStatus, MockFundPaymentRepository, MockFundRepository,
     };
-    use crate::context::procedure::{
-        PaymentMethod, Procedure, ProcedureRepository, ProcedureStatus, UnreconciledProcedure,
-    };
+    use crate::context::procedure::{MockProcedureRepository, Procedure};
     use crate::core::event_bus::EventBus;
     use crate::use_cases::bank_statement_reconciliation::label_mapping_repo::{
-        BankFundLabelMapping, BankFundLabelMappingRepository,
+        BankFundLabelMapping, MockBankFundLabelMappingRepository,
     };
     use chrono::NaiveDate;
     use std::sync::Arc;
 
-    // --- Minimal mock repositories ---
+    // --- Mock repository builders ---
+    //
+    // Each helper returns a mockall-configured trait mock with the same default
+    // behavior the previous hand-rolled impls provided. Stateful builders take
+    // their dataset by value and clone into the closures.
 
-    struct FundRepoReturns(Vec<Fund>);
-    #[async_trait::async_trait]
-    impl FundRepository for FundRepoReturns {
-        async fn create_fund(&self, id: &str, name: &str) -> anyhow::Result<Fund> {
+    fn fund_repo_returning(funds: Vec<Fund>) -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_create_fund().returning(|id, name| {
             Ok(Fund::restore(
                 uuid::Uuid::new_v4().to_string(),
                 id.to_string(),
                 name.to_string(),
             ))
-        }
-        async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
-            Ok(self.0.clone())
-        }
-        async fn read_fund(&self, _id: &str) -> anyhow::Result<Option<Fund>> {
-            Ok(None)
-        }
-        async fn update_fund(&self, f: Fund) -> anyhow::Result<Fund> {
-            Ok(f)
-        }
-        async fn find_fund_by_identifier(&self, id: &str) -> anyhow::Result<Option<Fund>> {
-            Ok(self.0.iter().find(|f| f.fund_identifier == id).cloned())
-        }
-        async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
-            Ok(funds)
-        }
-        async fn delete_fund(&self, _id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
+        });
+        let funds_for_read = funds.clone();
+        mock.expect_read_all_funds()
+            .returning(move || Ok(funds_for_read.clone()));
+        mock.expect_read_fund().returning(|_| Ok(None));
+        mock.expect_update_fund().returning(Ok);
+        mock.expect_find_fund_by_identifier()
+            .returning(move |id| Ok(funds.iter().find(|f| f.fund_identifier == id).cloned()));
+        mock.expect_create_batch().returning(Ok);
+        mock.expect_delete_fund().returning(|_| Ok(()));
+        mock
     }
 
-    struct FundPaymentRepoReturnsGroups(Vec<FundPaymentGroup>);
-    #[async_trait::async_trait]
-    impl FundPaymentRepository for FundPaymentRepoReturnsGroups {
-        async fn create_group(
-            &self,
-            _fund_id: String,
-            _payment_date: String,
-            _total_amount: i64,
-            _procedure_ids: Vec<String>,
-        ) -> anyhow::Result<FundPaymentGroup> {
-            unimplemented!()
-        }
-        async fn create_batch_groups(
-            &self,
-            _groups: Vec<FundPaymentGroup>,
-        ) -> anyhow::Result<Vec<FundPaymentGroup>> {
-            unimplemented!()
-        }
-        async fn create_lines(
-            &self,
-            lines: Vec<FundPaymentLine>,
-        ) -> anyhow::Result<Vec<FundPaymentLine>> {
-            Ok(lines)
-        }
-        async fn read_group(&self, id: &str) -> anyhow::Result<Option<FundPaymentGroup>> {
-            Ok(self.0.iter().find(|g| g.id == id).cloned())
-        }
-        async fn read_lines_by_group(
-            &self,
-            _group_id: &str,
-        ) -> anyhow::Result<Vec<FundPaymentLine>> {
-            Ok(vec![])
-        }
-        async fn read_all_groups(&self) -> anyhow::Result<Vec<FundPaymentGroup>> {
-            Ok(self.0.clone())
-        }
-        async fn update_group(&self, g: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
-            Ok(g)
-        }
-        async fn update_group_status(
-            &self,
-            _group_id: &str,
-            _status: FundPaymentGroupStatus,
-        ) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn delete_lines_by_group(&self, _group_id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn delete_group(&self, _group_id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn exists_group(
-            &self,
-            _fund_id: &str,
-            _payment_date: &str,
-            _total_amount: i64,
-        ) -> anyhow::Result<bool> {
-            Ok(false)
-        }
-        async fn persist_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
-            Ok(group)
-        }
+    fn fund_payment_repo_returning_groups(
+        groups: Vec<FundPaymentGroup>,
+    ) -> MockFundPaymentRepository {
+        let mut mock = MockFundPaymentRepository::new();
+        // create_group and create_batch_groups deliberately left unconfigured —
+        // mockall panics on unexpected call, matching the previous unimplemented!().
+        mock.expect_create_lines().returning(Ok);
+        let groups_for_read_one = groups.clone();
+        mock.expect_read_group()
+            .returning(move |id| Ok(groups_for_read_one.iter().find(|g| g.id == id).cloned()));
+        mock.expect_read_lines_by_group().returning(|_| Ok(vec![]));
+        mock.expect_read_all_groups()
+            .returning(move || Ok(groups.clone()));
+        mock.expect_update_group().returning(Ok);
+        mock.expect_update_group_status().returning(|_, _| Ok(()));
+        mock.expect_delete_lines_by_group().returning(|_| Ok(()));
+        mock.expect_delete_group().returning(|_| Ok(()));
+        mock.expect_exists_group().returning(|_, _, _| Ok(false));
+        mock.expect_persist_group().returning(Ok);
+        mock
     }
 
-    struct BankAccountRepoReturns(Option<BankAccount>);
-    #[async_trait::async_trait]
-    impl BankAccountRepository for BankAccountRepoReturns {
-        async fn create_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
-            Ok(a)
-        }
-        async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
-            Ok(vec![])
-        }
-        async fn read_account(&self, _id: &str) -> anyhow::Result<Option<BankAccount>> {
-            Ok(self.0.clone())
-        }
-        async fn find_by_iban(&self, _iban: &str) -> anyhow::Result<Option<BankAccount>> {
-            Ok(self.0.clone())
-        }
-        async fn find_by_iban_including_deleted(
-            &self,
-            _iban: &str,
-        ) -> anyhow::Result<Option<BankAccount>> {
-            Ok(None)
-        }
-        async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
-            Ok(a)
-        }
-        async fn delete_account(&self, _id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
+    fn bank_account_repo_returning(account: Option<BankAccount>) -> MockBankAccountRepository {
+        let mut mock = MockBankAccountRepository::new();
+        mock.expect_create_account().returning(Ok);
+        mock.expect_read_all_accounts().returning(|| Ok(vec![]));
+        let account_for_read = account.clone();
+        mock.expect_read_account()
+            .returning(move |_| Ok(account_for_read.clone()));
+        mock.expect_find_by_iban()
+            .returning(move |_| Ok(account.clone()));
+        mock.expect_find_by_iban_including_deleted()
+            .returning(|_| Ok(None));
+        mock.expect_update_account().returning(Ok);
+        mock.expect_delete_account().returning(|_| Ok(()));
+        mock
     }
 
-    struct BankEntryRepoNoop;
-    #[async_trait::async_trait]
-    impl BankEntryRepository for BankEntryRepoNoop {
-        async fn create_transfer(
-            &self,
-            transfer_date: String,
-            amount: i64,
-            transfer_type: BankEntryType,
-            bank_account: BankAccount,
-        ) -> anyhow::Result<crate::context::bank::BankEntry> {
-            use crate::context::bank::BankEntry;
-            Ok(BankEntry::restore(
-                uuid::Uuid::new_v4().to_string(),
-                transfer_date,
-                amount,
-                transfer_type,
-                bank_account,
-            ))
-        }
-        async fn read_transfer(
-            &self,
-            _id: &str,
-        ) -> anyhow::Result<Option<crate::context::bank::BankEntry>> {
-            Ok(None)
-        }
-        async fn read_all_transfers(&self) -> anyhow::Result<Vec<crate::context::bank::BankEntry>> {
-            Ok(vec![])
-        }
-        async fn update_transfer(
-            &self,
-            t: crate::context::bank::BankEntry,
-        ) -> anyhow::Result<crate::context::bank::BankEntry> {
-            Ok(t)
-        }
-        async fn delete_transfer(&self, _id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn persist_transfer(
-            &self,
-            t: crate::context::bank::BankEntry,
-        ) -> anyhow::Result<crate::context::bank::BankEntry> {
-            Ok(t)
-        }
+    fn bank_entry_repo_noop() -> MockBankEntryRepository {
+        let mut mock = MockBankEntryRepository::new();
+        mock.expect_create_transfer().returning(
+            |transfer_date, amount, transfer_type, bank_account| {
+                use crate::context::bank::BankEntry;
+                Ok(BankEntry::restore(
+                    uuid::Uuid::new_v4().to_string(),
+                    transfer_date,
+                    amount,
+                    transfer_type,
+                    bank_account,
+                ))
+            },
+        );
+        mock.expect_read_transfer().returning(|_| Ok(None));
+        mock.expect_read_all_transfers().returning(|| Ok(vec![]));
+        mock.expect_update_transfer().returning(Ok);
+        mock.expect_delete_transfer().returning(|_| Ok(()));
+        mock.expect_persist_transfer().returning(Ok);
+        mock
     }
 
-    struct BankLinkRepoNoop;
-    #[async_trait::async_trait]
-    impl crate::context::bank::BankEntryLinkRepository for BankLinkRepoNoop {
-        async fn link_fund_groups(
-            &self,
-            _bank_transfer_id: &str,
-            _fund_group_ids: &[String],
-        ) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn get_fund_group_ids(&self, _bank_transfer_id: &str) -> anyhow::Result<Vec<String>> {
-            Ok(vec![])
-        }
-        async fn unlink_all_fund_groups(&self, _bank_transfer_id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn get_transfer_for_fund_group(
-            &self,
-            _fund_group_id: &str,
-        ) -> anyhow::Result<Option<String>> {
-            Ok(None)
-        }
-        async fn link_procedures(
-            &self,
-            _bank_transfer_id: &str,
-            _procedure_ids: &[String],
-        ) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn get_procedure_ids(&self, _bank_transfer_id: &str) -> anyhow::Result<Vec<String>> {
-            Ok(vec![])
-        }
-        async fn unlink_all_procedures(&self, _bank_transfer_id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
+    fn bank_link_repo_noop() -> MockBankEntryLinkRepository {
+        let mut mock = MockBankEntryLinkRepository::new();
+        mock.expect_link_fund_groups().returning(|_, _| Ok(()));
+        mock.expect_get_fund_group_ids().returning(|_| Ok(vec![]));
+        mock.expect_unlink_all_fund_groups().returning(|_| Ok(()));
+        mock.expect_get_transfer_for_fund_group()
+            .returning(|_| Ok(None));
+        mock.expect_link_procedures().returning(|_, _| Ok(()));
+        mock.expect_get_procedure_ids().returning(|_| Ok(vec![]));
+        mock.expect_unlink_all_procedures().returning(|_| Ok(()));
+        mock
     }
 
-    struct ProcRepoNoop;
-    #[async_trait::async_trait]
-    impl ProcedureRepository for ProcRepoNoop {
-        #[allow(clippy::too_many_arguments)]
-        async fn create_procedure(
-            &self,
-            patient_id: String,
-            fund_id: Option<String>,
-            procedure_type_id: String,
-            procedure_date: String,
-            billed_amount: Option<i64>,
-            payment_method: PaymentMethod,
-            confirmed_payment_date: Option<String>,
-            paid_amount: Option<i64>,
-            payment_status: ProcedureStatus,
-        ) -> anyhow::Result<Procedure> {
-            let date = NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d").unwrap_or_default();
-            Ok(Procedure::restore(
-                uuid::Uuid::new_v4().to_string(),
-                patient_id,
-                fund_id,
-                procedure_type_id,
-                date,
-                billed_amount,
-                payment_method,
-                confirmed_payment_date
-                    .as_deref()
-                    .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
-                paid_amount,
-                payment_status,
-            ))
-        }
-        async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn read_procedure(&self, _id: &str) -> anyhow::Result<Option<Procedure>> {
-            Ok(None)
-        }
-        async fn read_procedures_by_ids(&self, _ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn read_procedures_by_patient_id(
-            &self,
-            _patient_id: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn update_procedure(&self, p: Procedure) -> anyhow::Result<Procedure> {
-            Ok(p)
-        }
-        async fn delete_procedure(&self, _id: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn find_procedures_by_ssn_and_date_range(
-            &self,
-            _ssn: &str,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn find_procedures_by_ssns_and_date_range(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn find_procedures_by_ssns_and_date_range_with_ssn(
-            &self,
-            _ssns: &[String],
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<(String, Procedure)>> {
-            Ok(vec![])
-        }
-        async fn find_procedure_exact(
-            &self,
-            _patient_id: &str,
-            _fund_id: Option<&str>,
-            _procedure_date: &str,
-            _procedure_amount: i64,
-        ) -> anyhow::Result<Option<Procedure>> {
-            Ok(None)
-        }
-        async fn create_batch(&self, p: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
-            Ok(p)
-        }
-        async fn update_batch(&self, p: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
-            Ok(p)
-        }
-        async fn find_unpaid_by_fund(&self, _fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn has_blocking_procedures_in_month(&self, _month: &str) -> anyhow::Result<bool> {
-            Ok(false)
-        }
-        async fn delete_procedures_by_month(&self, _month: &str) -> anyhow::Result<u64> {
-            Ok(0)
-        }
-        async fn find_unreconciled_by_date_range(
-            &self,
-            _start_date: &str,
-            _end_date: &str,
-        ) -> anyhow::Result<Vec<UnreconciledProcedure>> {
-            Ok(vec![])
-        }
-        async fn find_created_in_date_range(
-            &self,
-            _date_min: &str,
-            _date_max: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
-        async fn find_created_by_fund_before_date(
-            &self,
-            _fund_id: &str,
-            _date: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            Ok(vec![])
-        }
+    fn proc_repo_noop() -> MockProcedureRepository {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_create_procedure().returning(
+            |patient_id,
+             fund_id,
+             procedure_type_id,
+             procedure_date,
+             billed_amount,
+             payment_method,
+             confirmed_payment_date,
+             paid_amount,
+             payment_status| {
+                let date =
+                    NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d").unwrap_or_default();
+                Ok(Procedure::restore(
+                    uuid::Uuid::new_v4().to_string(),
+                    patient_id,
+                    fund_id,
+                    procedure_type_id,
+                    date,
+                    billed_amount,
+                    payment_method,
+                    confirmed_payment_date
+                        .as_deref()
+                        .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
+                    paid_amount,
+                    payment_status,
+                ))
+            },
+        );
+        mock.expect_read_all_procedures().returning(|| Ok(vec![]));
+        mock.expect_read_procedure().returning(|_| Ok(None));
+        mock.expect_read_procedures_by_ids()
+            .returning(|_| Ok(vec![]));
+        mock.expect_read_procedures_by_patient_id()
+            .returning(|_| Ok(vec![]));
+        mock.expect_update_procedure().returning(Ok);
+        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_find_procedures_by_ssn_and_date_range()
+            .returning(|_, _, _| Ok(vec![]));
+        mock.expect_find_procedures_by_ssns_and_date_range()
+            .returning(|_, _, _| Ok(vec![]));
+        mock.expect_find_procedures_by_ssns_and_date_range_with_ssn()
+            .returning(|_, _, _| Ok(vec![]));
+        mock.expect_find_procedure_exact()
+            .returning(|_, _, _, _| Ok(None));
+        mock.expect_create_batch().returning(Ok);
+        mock.expect_update_batch().returning(Ok);
+        mock.expect_find_unpaid_by_fund().returning(|_| Ok(vec![]));
+        mock.expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        mock.expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+        mock.expect_find_unreconciled_by_date_range()
+            .returning(|_, _| Ok(vec![]));
+        mock.expect_find_created_in_date_range()
+            .returning(|_, _| Ok(vec![]));
+        mock.expect_find_created_by_fund_before_date()
+            .returning(|_, _| Ok(vec![]));
+        mock
     }
 
-    struct LabelMappingRepoReturns(Vec<BankFundLabelMapping>);
-    #[async_trait::async_trait]
-    impl BankFundLabelMappingRepository for LabelMappingRepoReturns {
-        async fn find_mappings_for_account(
-            &self,
-            _bank_account_id: &str,
-        ) -> anyhow::Result<Vec<BankFundLabelMapping>> {
-            Ok(self.0.clone())
-        }
-        async fn save_mapping(
-            &self,
-            bank_account_id: &str,
-            bank_label: &str,
-            fund_id: &str,
-        ) -> anyhow::Result<BankFundLabelMapping> {
-            Ok(BankFundLabelMapping {
-                id: uuid::Uuid::new_v4().to_string(),
-                bank_account_id: bank_account_id.to_string(),
-                bank_label: bank_label.to_string(),
-                fund_id: Some(fund_id.to_string()),
-            })
-        }
+    fn label_mapping_repo_returning(
+        mappings: Vec<BankFundLabelMapping>,
+    ) -> MockBankFundLabelMappingRepository {
+        let mut mock = MockBankFundLabelMappingRepository::new();
+        mock.expect_find_mappings_for_account()
+            .returning(move |_| Ok(mappings.clone()));
+        mock.expect_save_mapping()
+            .returning(|bank_account_id, bank_label, fund_id| {
+                Ok(BankFundLabelMapping {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    bank_account_id: bank_account_id.to_string(),
+                    bank_label: bank_label.to_string(),
+                    fund_id: Some(fund_id.to_string()),
+                })
+            });
+        mock
     }
 
     fn make_orchestrator_with(
@@ -898,31 +720,31 @@ mod tests {
     ) -> BankStatementOrchestrator {
         let event_bus = Arc::new(EventBus::new());
         let bank_account_repo: Arc<dyn BankAccountRepository> =
-            Arc::new(BankAccountRepoReturns(account));
+            Arc::new(bank_account_repo_returning(account));
         BankStatementOrchestrator::new(
             Arc::new(BankAccountService::new(
                 bank_account_repo.clone(),
                 event_bus.clone(),
             )),
             Arc::new(FundService::new(
-                Arc::new(FundRepoReturns(funds)),
+                Arc::new(fund_repo_returning(funds)),
                 event_bus.clone(),
             )),
             Arc::new(FundPaymentService::new(
-                Arc::new(FundPaymentRepoReturnsGroups(groups)),
+                Arc::new(fund_payment_repo_returning_groups(groups)),
                 event_bus.clone(),
             )),
             Arc::new(BankEntryService::new(
-                Arc::new(BankEntryRepoNoop),
+                Arc::new(bank_entry_repo_noop()),
                 bank_account_repo,
                 event_bus.clone(),
             )),
-            Arc::new(BankLinkRepoNoop),
+            Arc::new(bank_link_repo_noop()),
             Arc::new(ProcedureService::new(
-                Arc::new(ProcRepoNoop),
+                Arc::new(proc_repo_noop()),
                 event_bus.clone(),
             )),
-            Arc::new(LabelMappingRepoReturns(mappings)),
+            Arc::new(label_mapping_repo_returning(mappings)),
             event_bus,
         )
     }
@@ -1189,31 +1011,31 @@ mod tests {
         let mut bank_rx = event_bus.subscribe::<BankEntryUpdated>().unwrap();
 
         let bank_account_repo: Arc<dyn BankAccountRepository> =
-            Arc::new(BankAccountRepoReturns(None));
+            Arc::new(bank_account_repo_returning(None));
         let orchestrator = BankStatementOrchestrator::new(
             Arc::new(BankAccountService::new(
                 bank_account_repo.clone(),
                 event_bus.clone(),
             )),
             Arc::new(FundService::new(
-                Arc::new(FundRepoReturns(vec![])),
+                Arc::new(fund_repo_returning(vec![])),
                 event_bus.clone(),
             )),
             Arc::new(FundPaymentService::new(
-                Arc::new(FundPaymentRepoReturnsGroups(vec![])),
+                Arc::new(fund_payment_repo_returning_groups(vec![])),
                 event_bus.clone(),
             )),
             Arc::new(BankEntryService::new(
-                Arc::new(BankEntryRepoNoop),
+                Arc::new(bank_entry_repo_noop()),
                 bank_account_repo,
                 event_bus.clone(),
             )),
-            Arc::new(BankLinkRepoNoop),
+            Arc::new(bank_link_repo_noop()),
             Arc::new(ProcedureService::new(
-                Arc::new(ProcRepoNoop),
+                Arc::new(proc_repo_noop()),
                 event_bus.clone(),
             )),
-            Arc::new(LabelMappingRepoReturns(vec![])),
+            Arc::new(label_mapping_repo_returning(vec![])),
             event_bus,
         );
 
