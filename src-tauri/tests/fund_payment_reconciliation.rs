@@ -539,3 +539,172 @@ async fn test_full_chain_via_reconciliation_service() {
         "p3 amount should be corrected from 25 000 to 28 500"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Scenario 3 — FPA-260 (R17) fund auto-creation branch
+//
+// The label `CPAM n° 75` extracts identifier `75`, which is not seeded.
+// The orchestrator must auto-create the fund and then reconcile the
+// candidate. The other Scenarios pre-seed every fund and therefore only
+// cover the "existing fund found" branch of FPA-260.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn create_fund_payment_from_candidate_auto_creates_unknown_fund() {
+    let pool = setup_pool().await;
+    let ctx = build_ctx(&pool);
+
+    let pt = ctx
+        .procedure_type_service
+        .add_procedure_type("SF".to_string(), 0, None)
+        .await
+        .unwrap();
+    let patient = ctx
+        .patient_service
+        .create_patient(
+            Some("Alice DUPONT".to_string()),
+            Some("3333333333333".to_string()),
+        )
+        .await
+        .unwrap();
+    let proc = ctx
+        .procedure_service
+        .create_procedure(
+            patient.id.clone(),
+            None,
+            pt.id.clone(),
+            "2026-01-15".to_string(),
+            Some(100_000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+
+    let group = ctx
+        .orchestrator
+        .create_fund_payment_from_candidate(
+            "CPAM n° 75".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            100_000,
+            vec![proc.id.clone()],
+            Some(100_000),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(group.total_amount, 100_000);
+    assert_eq!(group.lines.len(), 1);
+    assert_eq!(group.lines[0].procedure_id, proc.id);
+
+    let created_fund = ctx
+        .fund_service
+        .find_fund_by_identifier("75")
+        .await
+        .unwrap();
+    assert!(
+        created_fund.is_some(),
+        "fund with identifier `75` should have been auto-created"
+    );
+
+    let procs = ctx
+        .procedure_service
+        .read_procedures_by_ids(vec![proc.id])
+        .await
+        .unwrap();
+    assert!(matches!(
+        procs[0].payment_status,
+        ProcedureStatus::Reconciled
+    ));
+    assert_eq!(procs[0].paid_amount, Some(100_000));
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 4 — FPA-050 (R3) all-duplicates rejection
+//
+// Re-submitting the same fund/date/amount triple — even with a different
+// procedure list — must be rejected with an "already exist" error.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn create_multiple_from_candidates_all_duplicates_returns_error() {
+    let pool = setup_pool().await;
+    let ctx = build_ctx(&pool);
+
+    let pt = ctx
+        .procedure_type_service
+        .add_procedure_type("SF".to_string(), 0, None)
+        .await
+        .unwrap();
+    let patient = ctx
+        .patient_service
+        .create_patient(
+            Some("Alice DUPONT".to_string()),
+            Some("4444444444444".to_string()),
+        )
+        .await
+        .unwrap();
+    let fund = ctx
+        .fund_service
+        .create_fund("DUP".to_string(), "Duplicate Fund".to_string())
+        .await
+        .unwrap();
+
+    let seed = |amount: i64| {
+        let svc = ctx.procedure_service.clone();
+        let pt_id = pt.id.clone();
+        let patient_id = patient.id.clone();
+        let fund_id = fund.id.clone();
+        async move {
+            svc.create_procedure(
+                patient_id,
+                Some(fund_id),
+                pt_id,
+                "2026-01-15".to_string(),
+                Some(amount),
+                PaymentMethod::None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap()
+        }
+    };
+    let proc_first = seed(100_000).await;
+    let proc_second = seed(100_000).await;
+
+    let payment_date = chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+    ctx.orchestrator
+        .create_multiple_from_candidates(vec![
+            patient_manager_app::context::fund::FundPaymentGroupCandidate {
+                fund_label: "DUP".to_string(),
+                payment_date,
+                total_amount: 100_000,
+                procedure_ids: vec![proc_first.id],
+                matched_amount: 100_000,
+                is_fully_covered: true,
+            },
+        ])
+        .await
+        .expect("first creation should succeed");
+
+    let result = ctx
+        .orchestrator
+        .create_multiple_from_candidates(vec![
+            patient_manager_app::context::fund::FundPaymentGroupCandidate {
+                fund_label: "DUP".to_string(),
+                payment_date,
+                total_amount: 100_000,
+                procedure_ids: vec![proc_second.id],
+                matched_amount: 100_000,
+                is_fully_covered: true,
+            },
+        ])
+        .await;
+
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("already exist"));
+}
