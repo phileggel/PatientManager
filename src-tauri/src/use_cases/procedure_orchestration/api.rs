@@ -320,3 +320,85 @@ pub async fn read_procedures_by_ids(
             format!("{:#}", e)
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn raw_with(payment_method: Option<&str>, payment_status: &str) -> RawProcedure {
+        RawProcedure {
+            id: "proc-1".to_string(),
+            patient_id: "pat-1".to_string(),
+            fund_id: None,
+            procedure_type_id: "type-1".to_string(),
+            procedure_date: "2026-01-15".to_string(),
+            billed_amount: Some(1000),
+            payment_method: payment_method.map(|s| s.to_string()),
+            confirmed_payment_date: None,
+            paid_amount: None,
+            payment_status: payment_status.to_string(),
+        }
+    }
+
+    #[test]
+    fn into_procedure_maps_known_payment_method_strings_to_enum() {
+        for (raw, expected) in [
+            ("CASH", PaymentMethod::Cash),
+            ("CHECK", PaymentMethod::Check),
+            ("BANK_CARD", PaymentMethod::BankCard),
+            ("BANK_TRANSFER", PaymentMethod::BankTransfer),
+        ] {
+            let procedure = raw_with(Some(raw), "CREATED").into_procedure().unwrap();
+            assert_eq!(
+                procedure.payment_method, expected,
+                "payment_method {raw} must map to {expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn into_procedure_falls_back_to_payment_method_none_on_unknown_or_missing() {
+        let none_when_missing = raw_with(None, "CREATED").into_procedure().unwrap();
+        assert_eq!(none_when_missing.payment_method, PaymentMethod::None);
+
+        let none_when_unknown = raw_with(Some("WAT"), "CREATED").into_procedure().unwrap();
+        assert_eq!(none_when_unknown.payment_method, PaymentMethod::None);
+    }
+
+    #[test]
+    fn into_procedure_maps_known_payment_status_strings_to_enum() {
+        for (raw, expected) in [
+            ("CREATED", ProcedureStatus::Created),
+            ("RECONCILIATED", ProcedureStatus::Reconciled),
+            ("FUND_PAYED", ProcedureStatus::FundPaid),
+            ("DIRECTLY_PAYED", ProcedureStatus::DirectlyPaid),
+            ("OVERPAID", ProcedureStatus::Overpaid),
+            ("OVERPAYMENT_REFUND", ProcedureStatus::OverpaymentRefund),
+        ] {
+            let procedure = raw_with(Some("CASH"), raw).into_procedure().unwrap();
+            assert_eq!(
+                procedure.payment_status, expected,
+                "payment_status {raw} must map to {expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn into_procedure_falls_back_to_payment_status_none_on_unknown() {
+        let procedure = raw_with(Some("CASH"), "WAT").into_procedure().unwrap();
+        assert_eq!(procedure.payment_status, ProcedureStatus::None);
+    }
+
+    #[test]
+    fn into_procedure_propagates_with_id_validation_error_on_bad_date() {
+        let mut raw = raw_with(Some("CASH"), "CREATED");
+        raw.procedure_date = "not-a-date".to_string();
+        let err = raw
+            .into_procedure()
+            .expect_err("malformed date must surface from Procedure::with_id");
+        assert!(
+            err.to_string().to_ascii_lowercase().contains("date"),
+            "error must mention the bad field: {err}"
+        );
+    }
+}
