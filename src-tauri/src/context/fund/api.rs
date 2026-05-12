@@ -292,17 +292,10 @@ pub async fn delete_fund_payment_group(
 ) -> Result<(), String> {
     tracing::info!(target: BACKEND, group_id = %group_id, "Processing delete fund payment group request");
 
-    // REF-240: block direct deletion of refund fund payment groups
-    let is_refund = overpayment_orchestrator
-        .is_refund_fund_payment_group(&group_id)
+    overpayment_orchestrator
+        .ensure_not_refund_fund_payment_group(&group_id)
         .await
         .map_err(|e| format!("{:#}", e))?;
-
-    if is_refund {
-        return Err(
-            "This fund payment group belongs to an overpayment refund and can only be removed by cancelling the refund.".to_string()
-        );
-    }
 
     let orchestrator =
         crate::use_cases::fund_payment_reconciliation::FundPaymentReconciliationOrchestrator::new(
