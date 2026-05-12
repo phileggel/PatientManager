@@ -111,7 +111,6 @@ pub async fn get_all_eligible_procedures_for_direct_payment(
 }
 
 /// R15 — Create a direct payment transfer linked to the given procedure IDs.
-/// REF-080: OutgoingWire is reserved for the overpayment flow and is rejected here.
 #[tauri::command]
 #[specta::specta]
 pub async fn create_direct_transfer(
@@ -121,14 +120,6 @@ pub async fn create_direct_transfer(
     procedure_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
 ) -> Result<BankManualMatchResult, String> {
-    // REF-080: OutgoingWire is exclusively created via the overpayment flow
-    if transfer_type == BankEntryType::FundOutgoingWire {
-        return Err(
-            "REF-080: OutgoingWire transfers can only be created via the overpayment refund flow."
-                .to_string(),
-        );
-    }
-
     orchestrator
         .create_direct_transfer(bank_account_id, transfer_date, transfer_type, procedure_ids)
         .await

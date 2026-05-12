@@ -274,6 +274,9 @@ impl BankManualMatchOrchestrator {
 
     /// R15 — Create a direct payment transfer, link it to selected procedures,
     /// update procedure statuses to DirectlyPaid.
+    ///
+    /// Rejects `FundOutgoingWire` (REF-080) — that variant is reserved for the
+    /// overpayment refund flow.
     pub async fn create_direct_transfer(
         &self,
         bank_account_id: String,
@@ -281,6 +284,8 @@ impl BankManualMatchOrchestrator {
         transfer_type: BankEntryType,
         procedure_ids: Vec<String>,
     ) -> anyhow::Result<BankManualMatchResult> {
+        transfer_type.ensure_direct_payment_eligible()?;
+
         let total_amount = self.compute_procedures_amount(&procedure_ids).await?;
 
         let transfer = self
@@ -1365,6 +1370,32 @@ mod tests {
         assert!(
             candidates.is_empty(),
             "Unknown procedure IDs should return empty list"
+        );
+
+        Ok(())
+    }
+
+    /// REF-080 — create_direct_transfer rejects FundOutgoingWire (refund-only variant).
+    #[tokio::test]
+    async fn test_ref_080_create_direct_transfer_rejects_fund_outgoing_wire() -> anyhow::Result<()>
+    {
+        let pool = setup_db().await;
+        let (orchestrator, _, _) = make_components(&pool);
+
+        let err = orchestrator
+            .create_direct_transfer(
+                "cash-account-default".to_string(),
+                "2026-03-10".to_string(),
+                BankEntryType::FundOutgoingWire,
+                vec![],
+            )
+            .await
+            .expect_err("FundOutgoingWire must be rejected by create_direct_transfer");
+
+        let msg = err.to_string();
+        assert!(
+            msg.contains("REF-080"),
+            "rejection must cite REF-080: {msg}"
         );
 
         Ok(())
