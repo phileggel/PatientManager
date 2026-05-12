@@ -24,10 +24,10 @@ pub enum BankEntryType {
 }
 
 impl BankEntryType {
-    /// REF-080 — Reject transfer types that are not creatable as a direct
-    /// (non-fund) patient payment. Only `FundOutgoingWire` is rejected: it is
-    /// reserved for the overpayment refund flow.
-    pub fn ensure_direct_payment_eligible(self) -> Result<()> {
+    /// REF-080 — Reject `FundOutgoingWire`: it is exclusively created via the
+    /// overpayment refund flow and must not be created through any other code
+    /// path. All other variants (including `FundWire`) are accepted.
+    pub fn ensure_not_refund_only_variant(self) -> Result<()> {
         if self == BankEntryType::FundOutgoingWire {
             anyhow::bail!(
                 "REF-080: OutgoingWire transfers can only be created via the overpayment refund flow."
@@ -213,9 +213,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ensure_direct_payment_eligible_accepts_patient_methods_and_fund_wire() {
-        // FundWire is eligible — the rule guards the manual-match UI surface,
-        // not the direct/fund distinction. Only the refund variant is reserved.
+    fn test_ensure_not_refund_only_variant_accepts_every_non_refund_variant() {
         for ty in [
             BankEntryType::FundWire,
             BankEntryType::PatientCheck,
@@ -223,17 +221,17 @@ mod tests {
             BankEntryType::PatientCash,
         ] {
             assert!(
-                ty.ensure_direct_payment_eligible().is_ok(),
-                "{:?} must be accepted as direct-payment eligible",
+                ty.ensure_not_refund_only_variant().is_ok(),
+                "{:?} must be accepted (non-refund variant)",
                 ty
             );
         }
     }
 
     #[test]
-    fn test_ensure_direct_payment_eligible_rejects_fund_outgoing_wire_with_ref_080() {
+    fn test_ensure_not_refund_only_variant_rejects_fund_outgoing_wire_with_ref_080() {
         let err = BankEntryType::FundOutgoingWire
-            .ensure_direct_payment_eligible()
+            .ensure_not_refund_only_variant()
             .expect_err("FundOutgoingWire must be rejected");
         assert!(
             err.to_string().contains("REF-080"),
