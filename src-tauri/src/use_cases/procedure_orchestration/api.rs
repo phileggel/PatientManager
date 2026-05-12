@@ -27,29 +27,19 @@ pub struct RawProcedure {
 }
 
 impl RawProcedure {
-    /// Converts raw procedure data into a validated domain Procedure
+    /// Converts raw procedure data into a validated domain Procedure.
+    /// Unknown `payment_method` / `payment_status` strings fall back to the
+    /// `None` variant of each enum (matching legacy behaviour).
     pub fn into_procedure(self) -> anyhow::Result<Procedure> {
-        let payment_method = match self.payment_method.as_deref() {
-            Some("CASH") => PaymentMethod::Cash,
-            Some("CHECK") => PaymentMethod::Check,
-            Some("BANK_CARD") => PaymentMethod::BankCard,
-            Some("BANK_TRANSFER") => PaymentMethod::BankTransfer,
-            _ => PaymentMethod::None,
-        };
-
-        let payment_status = match self.payment_status.as_str() {
-            "CREATED" => ProcedureStatus::Created,
-            "RECONCILIATED" => ProcedureStatus::Reconciled,
-            "PARTIALLY_RECONCILED" => ProcedureStatus::PartiallyReconciled,
-            "DIRECTLY_PAYED" => ProcedureStatus::DirectlyPaid,
-            "FUND_PAYED" => ProcedureStatus::FundPaid,
-            "PARTIALLY_FUND_PAYED" => ProcedureStatus::PartiallyFundPaid,
-            "IMPORT_DIRECTLY_PAYED" => ProcedureStatus::ImportDirectlyPaid,
-            "IMPORT_FUND_PAYED" => ProcedureStatus::ImportFundPaid,
-            "OVERPAID" => ProcedureStatus::Overpaid,
-            "OVERPAYMENT_REFUND" => ProcedureStatus::OverpaymentRefund,
-            _ => ProcedureStatus::None,
-        };
+        let payment_method = self
+            .payment_method
+            .as_deref()
+            .and_then(|s| s.parse::<PaymentMethod>().ok())
+            .unwrap_or_default();
+        let payment_status = self
+            .payment_status
+            .parse::<ProcedureStatus>()
+            .unwrap_or_default();
 
         Procedure::with_id(
             self.id,
