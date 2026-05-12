@@ -92,7 +92,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
     }
 
     async fn find_by_iban(&self, iban: &str) -> anyhow::Result<Option<BankAccount>> {
-        tracing::trace!(iban = %iban, "Finding bank account by IBAN");
+        tracing::trace!("Finding bank account by IBAN");
 
         let row = sqlx::query!(
             r#"
@@ -112,7 +112,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
         &self,
         iban: &str,
     ) -> anyhow::Result<Option<BankAccount>> {
-        tracing::trace!(iban = %iban, "Finding bank account by IBAN (incl. soft-deleted)");
+        tracing::trace!("Finding bank account by IBAN (incl. soft-deleted)");
 
         let row = sqlx::query!(
             r#"
