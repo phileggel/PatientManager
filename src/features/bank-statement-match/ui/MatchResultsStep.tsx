@@ -2,6 +2,7 @@ import { AlertCircle, Check, Search } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/lib/appStore";
+import { useFormatters } from "@/lib/formatters";
 import type { IdentifiableCreditLine } from "./types";
 
 interface MatchResultsStepProps {
@@ -28,6 +29,7 @@ export function MatchResultsStep({
   maxDateOffsetDays,
 }: MatchResultsStepProps) {
   const { t } = useTranslation("bank");
+  const { formatDate } = useFormatters();
   const funds = useAppStore((state) => state.funds);
   const allGroups = useAppStore((state) => state.fundPaymentGroups);
 
@@ -156,7 +158,8 @@ export function MatchResultsStep({
 
                             return (
                               <option key={cand.id} value={cand.id} disabled={isUsedByOther}>
-                                {cand.payment_date} - {(cand.total_amount / 1000).toFixed(2)}€
+                                {formatDate(cand.payment_date)} -{" "}
+                                {(cand.total_amount / 1000).toFixed(2)}€
                                 {isExpanded ? ` [${candFund?.fund_identifier || "?"}]` : ""}
                                 {isExactAmount
                                   ? t("statement.matchResults.option.exactAmount")
@@ -189,7 +192,9 @@ export function MatchResultsStep({
                           <Check className="w-4 h-4 text-success-60 shrink-0 mt-0.5" />
                           <div className="text-xs text-neutral-70">
                             {t("statement.matchResults.match.confirmed", {
-                              date: allGroups.find((g) => g.id === selectedGroupId)?.payment_date,
+                              date: formatDate(
+                                allGroups.find((g) => g.id === selectedGroupId)?.payment_date ?? "",
+                              ),
                             })}
                           </div>
                         </div>

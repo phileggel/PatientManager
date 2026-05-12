@@ -8,6 +8,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { UnreconciledProcedure } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
 
@@ -25,6 +26,7 @@ export function UnreconciledReportView({
   onClose,
 }: UnreconciledReportProps) {
   const { t } = useTranslation("fund-payment-match");
+  const { formatDate } = useFormatters();
 
   useEffect(() => {
     logger.info("[UnreconciledReport] Component mounted");
@@ -35,7 +37,7 @@ export function UnreconciledReportView({
       <div>
         <h3 className="text-base font-semibold text-m3-on-surface">{t("report.title")}</h3>
         <p className="text-sm text-m3-on-surface-variant">
-          {t("report.period", { start: startDate, end: endDate })}
+          {t("report.period", { start: formatDate(startDate), end: formatDate(endDate) })}
         </p>
       </div>
 
@@ -57,7 +59,7 @@ export function UnreconciledReportView({
               <tbody>
                 {procedures.map((proc) => (
                   <tr key={proc.procedure_id} className="m3-tr">
-                    <td className="m3-td">{proc.procedure_date}</td>
+                    <td className="m3-td">{formatDate(proc.procedure_date)}</td>
                     <td className="m3-td">{proc.patient_name}</td>
                     <td className="m3-td font-mono text-xs">{proc.ssn}</td>
                     <td className="m3-td text-right">{(proc.amount / 1000).toFixed(2)} €</td>
