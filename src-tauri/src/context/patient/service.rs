@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::{
@@ -119,12 +120,15 @@ impl PatientService {
         Ok(results)
     }
 
-    /// Create batch of valid patients
-    /// Candidates should have been validated first
+    /// Create batch of valid patients.
+    /// Candidates should have been validated first.
+    /// Returns the created patients alongside a `temp_id → created_id` map
+    /// derived from each entity's preserved `temp_id`, so callers never have
+    /// to assume positional alignment with the input list.
     pub async fn create_batch(
         &self,
         candidates: Vec<PatientCandidate>,
-    ) -> anyhow::Result<Vec<Patient>> {
+    ) -> anyhow::Result<(Vec<Patient>, HashMap<String, String>)> {
         let mut patients: Vec<Patient> = Vec::new();
 
         for candidate in candidates {
@@ -135,8 +139,14 @@ impl PatientService {
         }
 
         let created_patients = self.repository.create_batch(patients).await?;
+
+        let temp_id_map: HashMap<String, String> = created_patients
+            .iter()
+            .filter_map(|p| p.temp_id.clone().map(|tmp| (tmp, p.id.clone())))
+            .collect();
+
         let _ = self.event_bus.publish::<PatientUpdated>(PatientUpdated);
-        Ok(created_patients)
+        Ok((created_patients, temp_id_map))
     }
 }
 
@@ -435,7 +445,30 @@ mod tests {
                 ssn: Some("9876543210987".to_string()),
             },
         ];
-        let result = service.create_batch(candidates).await.unwrap();
-        assert_eq!(result.len(), 2);
+        let (created, _) = service.create_batch(candidates).await.unwrap();
+        assert_eq!(created.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn create_batch_returns_temp_id_map_keyed_by_each_input_temp_id() {
+        let repo = make_repo_ok();
+        let event_bus = Arc::new(EventBus::new());
+        let service = PatientService::new(repo, event_bus);
+        let candidates = vec![
+            PatientCandidate {
+                temp_id: "tmp-1".to_string(),
+                name: Some("Alice".to_string()),
+                ssn: None,
+            },
+            PatientCandidate {
+                temp_id: "tmp-2".to_string(),
+                name: Some("Bob".to_string()),
+                ssn: Some("9876543210987".to_string()),
+            },
+        ];
+        let (_, map) = service.create_batch(candidates).await.unwrap();
+        assert_eq!(map.len(), 2, "every input temp_id must appear in the map");
+        assert!(map.contains_key("tmp-1"));
+        assert!(map.contains_key("tmp-2"));
     }
 }

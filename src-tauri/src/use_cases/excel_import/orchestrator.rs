@@ -96,15 +96,11 @@ impl ExcelImportOrchestrator {
 
         let patients_created = new_patient_candidates.len() as u32;
         if !new_patient_candidates.is_empty() {
-            let created = self
+            let (_, created_map) = self
                 .patient_service
                 .create_batch(new_patient_candidates)
                 .await?;
-            for patient in &created {
-                if let Some(temp_id) = &patient.temp_id {
-                    patients_map.insert(temp_id.clone(), patient.id.clone());
-                }
-            }
+            patients_map.extend(created_map);
         }
 
         tracing::info!(
@@ -137,12 +133,8 @@ impl ExcelImportOrchestrator {
 
         let funds_created = new_fund_candidates.len() as u32;
         if !new_fund_candidates.is_empty() {
-            let created = self.fund_service.create_batch(new_fund_candidates).await?;
-            for fund in &created {
-                if let Some(temp_id) = &fund.temp_id {
-                    funds_map.insert(temp_id.clone(), fund.id.clone());
-                }
-            }
+            let (_, created_map) = self.fund_service.create_batch(new_fund_candidates).await?;
+            funds_map.extend(created_map);
         }
 
         tracing::info!(

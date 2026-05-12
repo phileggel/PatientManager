@@ -174,17 +174,10 @@ pub async fn create_batch_patients(
         "Processing create batch patients request"
     );
 
-    let created_patients = service.create_batch(patients.clone()).await.map_err(|e| {
+    let (created_patients, temp_id_map) = service.create_batch(patients).await.map_err(|e| {
         tracing::error!(target: BACKEND, error = %e, "Failed to create batch patients");
         format!("{:#}", e)
     })?;
-
-    let mut temp_id_map = HashMap::new();
-    for (i, candidate) in patients.iter().enumerate() {
-        if let Some(created_patient) = created_patients.get(i) {
-            temp_id_map.insert(candidate.temp_id.clone(), created_patient.id.clone());
-        }
-    }
 
     tracing::info!(
         target: BACKEND,

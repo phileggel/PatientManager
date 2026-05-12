@@ -177,17 +177,10 @@ pub async fn create_batch_funds(
 ) -> Result<CreateBatchFundsResponse, String> {
     tracing::info!(target: BACKEND, count = funds.len(), "Processing create batch funds request");
 
-    let created_funds = service.create_batch(funds.clone()).await.map_err(|e| {
+    let (created_funds, temp_id_map) = service.create_batch(funds).await.map_err(|e| {
         tracing::error!(target: BACKEND, error = %e, "Failed to create batch funds");
         format!("{:#}", e)
     })?;
-
-    let mut temp_id_map = HashMap::new();
-    for (i, candidate) in funds.iter().enumerate() {
-        if let Some(created_fund) = created_funds.get(i) {
-            temp_id_map.insert(candidate.temp_id.clone(), created_fund.id.clone());
-        }
-    }
 
     tracing::info!(
         target: BACKEND,
