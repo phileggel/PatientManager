@@ -56,6 +56,26 @@ pub enum ProcedureStatus {
     OverpaymentRefund,
 }
 
+impl ProcedureStatus {
+    /// True for statuses that block deletion and restrict editing
+    /// (R5, R26, REF-220, REF-230).
+    ///
+    /// NOTE: must stay in sync with `isBlockingStatus` in the frontend
+    /// (`src/features/procedure/model/procedure-row.types.ts`).
+    pub fn is_blocking(self) -> bool {
+        matches!(
+            self,
+            ProcedureStatus::Reconciled
+                | ProcedureStatus::PartiallyReconciled
+                | ProcedureStatus::FundPaid
+                | ProcedureStatus::PartiallyFundPaid
+                | ProcedureStatus::DirectlyPaid
+                | ProcedureStatus::Overpaid
+                | ProcedureStatus::OverpaymentRefund
+        )
+    }
+}
+
 /// Healthcare Procedure aggregate root
 ///
 /// Represents a healthcare procedure (service/procedure) record with foreign key references
@@ -415,4 +435,44 @@ pub trait ProcedureRepository: Send + Sync {
         fund_id: &str,
         date: &str,
     ) -> anyhow::Result<Vec<Procedure>>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_blocking_matches_the_seven_blocking_lifecycle_statuses() {
+        let blocking = [
+            ProcedureStatus::Reconciled,
+            ProcedureStatus::PartiallyReconciled,
+            ProcedureStatus::FundPaid,
+            ProcedureStatus::PartiallyFundPaid,
+            ProcedureStatus::DirectlyPaid,
+            ProcedureStatus::Overpaid,
+            ProcedureStatus::OverpaymentRefund,
+        ];
+        for status in blocking {
+            assert!(
+                status.is_blocking(),
+                "{status:?} must be classified as blocking"
+            );
+        }
+    }
+
+    #[test]
+    fn is_blocking_excludes_initial_created_and_import_statuses() {
+        let non_blocking = [
+            ProcedureStatus::None,
+            ProcedureStatus::Created,
+            ProcedureStatus::ImportDirectlyPaid,
+            ProcedureStatus::ImportFundPaid,
+        ];
+        for status in non_blocking {
+            assert!(
+                !status.is_blocking(),
+                "{status:?} must NOT be classified as blocking"
+            );
+        }
+    }
 }

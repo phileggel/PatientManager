@@ -154,22 +154,6 @@ pub async fn read_all_procedures(
         })
 }
 
-/// Returns true for statuses that block deletion and restrict editing (R5, R26, REF-220, REF-230).
-/// NOTE: Must stay in sync with `isBlockingStatus` in the frontend
-/// (`src/features/procedure/model/procedure-row.types.ts`).
-fn is_blocking_status(status: &str) -> bool {
-    matches!(
-        status,
-        "RECONCILIATED"
-            | "PARTIALLY_RECONCILED"
-            | "FUND_PAYED"
-            | "PARTIALLY_FUND_PAYED"
-            | "DIRECTLY_PAYED"
-            | "OVERPAID"           // REF-220: must cancel overpayment first
-            | "OVERPAYMENT_REFUND" // REF-230: must cancel via procedure detail modal
-    )
-}
-
 /// Tauri command: Update an existing procedure
 #[tauri::command]
 #[specta::specta]
@@ -179,22 +163,22 @@ pub async fn update_procedure(
 ) -> Result<Procedure, String> {
     tracing::info!(target: BACKEND, procedure_id = %raw.id, "Processing update procedure");
 
-    // R18/R26: frontend restricts edits on blocking-status procedures to procedure_type_id only.
-    // Log a warning if this invariant is violated (e.g. by a bug or direct API call).
-    if is_blocking_status(&raw.payment_status) {
-        tracing::warn!(
-            target: BACKEND,
-            procedure_id = %raw.id,
-            payment_status = %raw.payment_status,
-            "update_procedure called on blocking-status procedure - only procedure_type_id should change (R18/R26)"
-        );
-    }
-
     // Convert raw data to validated domain object
     let procedure = raw.into_procedure().map_err(|e| {
         tracing::error!(target: BACKEND, error = %e, "Invalid procedure data");
         format!("{:#}", e)
     })?;
+
+    // R18/R26: frontend restricts edits on blocking-status procedures to procedure_type_id only.
+    // Log a warning if this invariant is violated (e.g. by a bug or direct API call).
+    if procedure.payment_status.is_blocking() {
+        tracing::warn!(
+            target: BACKEND,
+            procedure_id = %procedure.id,
+            payment_status = ?procedure.payment_status,
+            "update_procedure called on blocking-status procedure - only procedure_type_id should change (R18/R26)"
+        );
+    }
 
     service
         .update_procedure(procedure)
