@@ -2,7 +2,7 @@ import { Edit, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@/lib/formatters";
 import { IconButton, SortIcon } from "@/ui/components";
-import { formatDateDisplay, isBlockingStatus, type ProcedureRow } from "../../model";
+import { isBlockingStatus, type ProcedureRow } from "../../model";
 import { COL_WIDTHS } from "../ui.styles";
 import { StatusBadge } from "./StatusBadge";
 import { useSortProcedureList } from "./useSortProcedureList";
@@ -17,7 +17,7 @@ interface ProcedureListProps {
 export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureListProps) {
   const { t } = useTranslation("procedure");
   const { t: tc } = useTranslation("common");
-  const { formatCurrency } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
   const { sortedRows, sortConfig, handleSort } = useSortProcedureList(rows);
 
   return (
@@ -90,7 +90,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                 <td className={`m3-td ${COL_WIDTHS.fundName}`}>{row.fundName ?? "—"}</td>
                 <td className={`m3-td ${COL_WIDTHS.procedureType}`}>{row.procedureName ?? "—"}</td>
                 <td className={`m3-td ${COL_WIDTHS.date}`}>
-                  {row.procedureDate ? formatDateDisplay(row.procedureDate) : "—"}
+                  {row.procedureDate ? formatDate(row.procedureDate) : "—"}
                 </td>
                 <td className={`m3-td ${COL_WIDTHS.amount}`}>
                   {row.procedureAmount != null
@@ -101,7 +101,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                   {row.paymentMethod ? formatPaymentMethod(row.paymentMethod, t) : "—"}
                 </td>
                 <td className="m3-td w-28">
-                  {row.confirmedPaymentDate ? formatDateDisplay(row.confirmedPaymentDate) : "—"}
+                  {row.confirmedPaymentDate ? formatDate(row.confirmedPaymentDate) : "—"}
                 </td>
                 <td className="m3-td w-28">
                   <StatusBadge status={row.status} />

@@ -12,21 +12,12 @@ import type { FundDisplayData, FundPaymentRow } from "./types";
  * across different parts of the application.
  */
 /**
- * Format an ISO date string (YYYY-MM-DD) as a French locale date string (fr-FR).
- * Forces UTC midnight to avoid timezone-related day shift.
- */
-/**
  * Format an amount stored in thousandths (i64) as a Euro string (e.g. "€12.50").
  */
 export function formatAmountEUR(thousandths: number): string {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
     (thousandths ?? 0) / 1000,
   );
-}
-
-export function formatDateFR(isoDate: string): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  return new Intl.DateTimeFormat("fr-FR").format(date);
 }
 
 export const FundPaymentPresenter = {

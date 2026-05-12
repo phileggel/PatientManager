@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { DirectPaymentProcedureCandidate } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components";
 import { useSelectProceduresPanel } from "./useSelectProceduresPanel";
 
@@ -15,6 +16,7 @@ interface SelectProceduresPanelProps {
 export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
   const { transferDate, selectedProcedureIds, currentProcedures } = props;
   const { t } = useTranslation("bank");
+  const { formatDate } = useFormatters();
   const {
     loading,
     isExpanded,
@@ -55,7 +57,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
                     {getPatientName(proc.patient_id)}
                   </span>
                   <span className="text-neutral-60 text-xs whitespace-nowrap">
-                    {new Date(proc.procedure_date).toLocaleDateString("fr-FR")}
+                    {formatDate(proc.procedure_date)}
                   </span>
                   <span className="font-semibold whitespace-nowrap">
                     €{((proc.billed_amount ?? 0) / 1000).toFixed(2)}
@@ -104,7 +106,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
                   {getPatientName(proc.patient_id)}
                 </span>
                 <span className="text-neutral-60 text-xs whitespace-nowrap">
-                  {new Date(proc.procedure_date).toLocaleDateString("fr-FR")}
+                  {formatDate(proc.procedure_date)}
                 </span>
                 <span className="font-semibold whitespace-nowrap">
                   €{((proc.billed_amount ?? 0) / 1000).toFixed(2)}

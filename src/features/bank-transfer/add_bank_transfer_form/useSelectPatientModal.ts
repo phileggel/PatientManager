@@ -1,19 +1,11 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useAppStore } from "@/lib/appStore";
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "N/A";
-  try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("fr-FR");
-  } catch {
-    return "N/A";
-  }
-}
+import { useFormatters } from "@/lib/formatters";
 
 export function useSelectPatientModal() {
   const patients = useAppStore((state) => state.patients);
   const [searchTerm, setSearchTerm] = useState("");
+  const { formatDate } = useFormatters();
 
   const filteredPatients = useMemo(() => {
     if (!searchTerm.trim()) return patients;
@@ -25,11 +17,16 @@ export function useSelectPatientModal() {
     );
   }, [patients, searchTerm]);
 
+  const formatDateOrNA = useCallback(
+    (dateStr: string | null) => (dateStr ? formatDate(dateStr) : "N/A"),
+    [formatDate],
+  );
+
   return {
     patients,
     filteredPatients,
     searchTerm,
     setSearchTerm,
-    formatDate,
+    formatDate: formatDateOrNA,
   };
 }

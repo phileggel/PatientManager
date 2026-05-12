@@ -57,14 +57,3 @@ export function useFormatters() {
 
   return { formatCurrency, formatDate, formatNumber, locale: intlLocale };
 }
-
-/**
- * Standalone currency formatter (no hook, uses fr-FR by default).
- * Use this in non-component contexts or where the locale is always French.
- */
-export function formatCurrencyFR(amount: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount / 1000);
-}
