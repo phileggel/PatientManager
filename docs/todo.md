@@ -69,11 +69,25 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 ---
 
-## (backend) — Tech Debt: Audit api.rs files for logic leakage
+## (backend) — API boundary cleanup — concrete findings (audit 2026-05-12)
 
-All `api.rs` files (Tauri command handlers) should be thin adapters only: receive input, call service/orchestrator, return result. No business logic, validation, or branching beyond error mapping.
+All `api.rs` files should be thin adapters: receive input, call service/orchestrator, return result. No business logic, validation, or branching beyond error mapping. The 2026-05-12 audit categorized all 11 `api.rs` files and surfaced six concrete fixes, plus two cross-file patterns. Ordered smallest impact first:
 
-Files to audit: `context/bank/api.rs`, `context/fund/api.rs`, `context/patient/api.rs`, `context/procedure/api.rs`, `use_cases/bank_manual_match/api.rs`, `use_cases/bank_statement_reconciliation/api.rs`, `use_cases/excel_import/api.rs`, `use_cases/fund_payment_reconciliation/api.rs`, `use_cases/overpayment/api.rs`, `use_cases/procedure_orchestration/api.rs`, `use_cases/db_backup/api.rs`.
+1. **`use_cases/bank_manual_match/api.rs:117–136`** — `create_direct_transfer` rejects `BankEntryType::FundOutgoingWire` inline with hard-coded `"REF-080: …"` string. Move the guard into `BankManualMatchOrchestrator::create_direct_transfer` (or onto a `BankEntryType::ensure_direct_payment_eligible()` predicate on the domain enum). ~10 LOC.
+2. **`use_cases/procedure_orchestration/api.rs:160–171, 184–191`** — `is_blocking_status` enumerates status strings inline and only emits a `tracing::warn!`; a comment institutionalizes the FE↔BE drift risk. Move to `ProcedureStatus::is_blocking(&self) -> bool` on the domain enum; consider enforcing the invariant in `ProcedureOrchestrationService::update_procedure` rather than warning. ~15 LOC.
+3. **`use_cases/procedure_orchestration/api.rs:29–67`** — `RawProcedure::into_procedure` hand-rolls string→enum mappings for `PaymentMethod` and `ProcedureStatus`. Extract to `FromStr` impls on the domain enums (or a `Procedure::with_id_from_raw(...)` factory). ~30 LOC, optional.
+4. **`use_cases/bank_statement_reconciliation/api.rs:36–75`** — `parse_bank_statement` chains `secure_path::validate_user_path → pdf_extractor::extract_pdf_text → parser::parse_bank_statement` then branches on `result.credit_lines.is_empty()` returning the magic `"NO_VIR_SEPA_LINES"` (R26 business rule decided in api). Fold into `BankStatementOrchestrator::parse_bank_statement(file_path)` mirroring the shape of the use-case's other commands. ~25 LOC.
+5. **`use_cases/fund_payment_reconciliation/api.rs:318–326, 356–363`** — `reconcile_pdf_procedures` and `reconcile_and_create_candidates` each filter on `ReconciliationMatch::{SingleMatchIssue, GroupMatchIssue, TooManyMatchIssue, NotFoundIssue}` inside `.inspect(...)` purely for a log line. Extract `impl ReconciliationResult { pub fn issue_count(&self) -> usize }`, or move the log into the service. ~10 LOC, dedup.
+6. **`context/patient/api.rs:182–187` + `context/fund/api.rs:185–190`** — both `create_batch_*` commands build a `temp_id_map` by zipping the incoming candidates against the service output **by positional index**. The ordering contract is encoded at the wire layer. Return `(Vec<Entity>, HashMap<String, String>)` from the service `create_batch` methods so the map is constructed where the iteration already lives. ~20 LOC across 2 BCs.
+
+**Cross-file patterns observed:**
+
+- Inline orchestrator construction (`Orchestrator::new(...)` in command bodies, vs `tauri::State<Arc<…>>` injection) — three known sites in `context/fund/api.rs` (tracked separately under § DECISION B13 entry below) plus one in `use_cases/fund_payment_reconciliation/api.rs:470–475` (`get_fund_payment_group_edit_data`). The latter should ride along when the fund/api.rs sites get the State-injection treatment.
+- State-dependent rejection strings emitted from api bodies (criterion #6 of the audit): REF-080 in `bank_manual_match/api.rs:125–130` and REF-240 in `context/fund/api.rs:301–304`. Both belong in orchestrator or aggregate-root layers per B37.
+
+**Clean files** (already thin adapters — skip when re-auditing): `context/bank/api.rs`, `context/procedure/api.rs`, `use_cases/excel_import/api.rs`, `use_cases/overpayment/api.rs`, `use_cases/db_backup/api.rs`.
+
+Each numbered fix is a small dedicated PR. The cross-context-import dimension of `context/fund/api.rs read_all_fund_payment_groups + delete_fund_payment_group` is already tracked under the next entry below ("DECISION: Move cross-context `is_locked` recomputation out of `context/fund/api.rs`") and should be picked up there.
 
 ---
 
