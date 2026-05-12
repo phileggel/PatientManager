@@ -27,7 +27,7 @@ use patient_manager_app::{
             SqliteProcedureRepository, SqliteProcedureTypeRepository,
         },
     },
-    core::event_bus::EventBus,
+    shared::event_bus::EventBus,
     use_cases::fund_payment_reconciliation::FundPaymentReconciliationOrchestrator,
 };
 use sqlx::sqlite::SqlitePoolOptions;

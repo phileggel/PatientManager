@@ -424,7 +424,7 @@ mod tests {
     use crate::context::procedure::{
         MockProcedureRefundRepository, MockProcedureRepository, ProcedureRefund,
     };
-    use crate::core::event_bus::EventBus;
+    use crate::shared::event_bus::EventBus;
     use chrono::NaiveDate;
     use std::sync::Arc;
 

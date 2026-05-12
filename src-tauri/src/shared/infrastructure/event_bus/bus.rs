@@ -83,7 +83,7 @@ impl Default for EventBus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::event_bus::event::{FundUpdated, PatientUpdated, ProcedureUpdated};
+    use crate::shared::event_bus::event::{FundUpdated, PatientUpdated, ProcedureUpdated};
 
     #[tokio::test]
     async fn test_publish_subscribe_patients() {

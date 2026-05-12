@@ -2,8 +2,8 @@ use super::output::csv_exporter;
 use super::parsing::pdf_extractor;
 use super::parsing::pdf_parser;
 use super::service::ReconciliationService;
-use crate::core::logger::BACKEND;
-use crate::core::secure_path::{self, PathPolicy};
+use crate::shared::logger::BACKEND;
+use crate::shared::secure_path::{self, PathPolicy};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -454,7 +454,7 @@ pub async fn get_fund_payment_group_edit_data(
     fund_service: State<'_, Arc<crate::context::fund::FundService>>,
     fund_payment_service: State<'_, Arc<crate::context::fund::FundPaymentService>>,
     procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>,
-    event_bus: State<'_, Arc<crate::core::event_bus::EventBus>>,
+    event_bus: State<'_, Arc<crate::shared::event_bus::EventBus>>,
 ) -> Result<FundPaymentGroupEditData, String> {
     tracing::info!(
         target: BACKEND,

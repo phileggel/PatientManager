@@ -1,5 +1,5 @@
 use super::bank_pdf_codec::{self as codec, BankStatementCreditLine, BankStatementParseResult};
-use crate::core::logger::BACKEND;
+use crate::shared::logger::BACKEND;
 use regex::Regex;
 
 // IFC-103: regexes are rebuilt per call from data-mapping constants. The

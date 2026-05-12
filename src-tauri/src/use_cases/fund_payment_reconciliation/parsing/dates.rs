@@ -1,5 +1,5 @@
 /// Date parsing utilities for French-formatted dates
-use crate::core::logger::BACKEND;
+use crate::shared::logger::BACKEND;
 use chrono::NaiveDate;
 
 /// Parse a French-formatted date (DD/MM/YYYY) into a NaiveDate

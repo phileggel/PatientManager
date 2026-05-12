@@ -6,7 +6,7 @@ use crate::context::procedure::{
     PaymentMethod, Procedure, ProcedureCandidate, ProcedureRefundRepository,
     ProcedureService as ContextProcedureService, ProcedureStatus, ProcedureTypeRepository,
 };
-use crate::core::logger::BACKEND;
+use crate::shared::logger::BACKEND;
 
 /// Orchestration service for healthcare procedures
 ///
@@ -624,7 +624,7 @@ mod tests {
         Procedure, ProcedureRefund, ProcedureService as ContextProcedureService, ProcedureStatus,
         ProcedureType,
     };
-    use crate::core::event_bus::EventBus;
+    use crate::shared::event_bus::EventBus;
     use crate::use_cases::procedure_orchestration::ProcedureValidationStatus;
     use chrono::NaiveDate;
     use std::sync::{Arc, Mutex};

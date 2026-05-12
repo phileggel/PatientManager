@@ -1,7 +1,8 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use patient_manager_app::{core::specta_builder, initialize_app};
+use patient_manager_app::initialize_app;
+use patient_manager_app::shared::create_specta_builder;
 #[cfg(debug_assertions)]
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
@@ -15,7 +16,7 @@ fn main() {
     }));
 
     // Create tauri-specta builder for type-safe bindings
-    let builder = specta_builder::create_specta_builder();
+    let builder = create_specta_builder();
 
     // Export TypeScript bindings in debug mode
     #[cfg(debug_assertions)]

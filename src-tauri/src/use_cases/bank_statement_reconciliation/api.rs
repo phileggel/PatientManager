@@ -1,4 +1,4 @@
-use crate::core::logger::BACKEND;
+use crate::shared::logger::BACKEND;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};

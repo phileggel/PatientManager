@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use super::domain::{BankAccount, BankEntry, BankEntryType, CASH_ACCOUNT_ID};
 use super::repository::{BankAccountRepository, BankEntryRepository};
-use crate::core::event_bus::event::{BankAccountUpdated, BankEntryUpdated};
-use crate::core::event_bus::EventBus;
+use crate::shared::event_bus::event::{BankAccountUpdated, BankEntryUpdated};
+use crate::shared::event_bus::EventBus;
 
 // ============ BankEntryService ============
 

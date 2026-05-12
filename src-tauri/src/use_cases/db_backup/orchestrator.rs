@@ -7,8 +7,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::core::logger::BACKEND;
-use crate::core::Database;
+use crate::shared::logger::BACKEND;
+use crate::shared::Database;
 
 /// Orchestrates database export and import operations (R8–R11).
 pub struct DbBackupOrchestrator {

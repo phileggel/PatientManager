@@ -256,7 +256,7 @@ mod tests {
         MockProcedureRefundRepository, MockProcedureRepository, MockProcedureTypeRepository,
         ProcedureService,
     };
-    use crate::core::event_bus::EventBus;
+    use crate::shared::event_bus::EventBus;
     use crate::use_cases::excel_import::excel_codec::{
         ExcelFund, ExcelPatient, ExcelProcedure, ParsingIssues,
     };

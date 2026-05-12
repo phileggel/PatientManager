@@ -6,7 +6,7 @@
 #![cfg_attr(not(test), deny(clippy::unimplemented))]
 /// AI AGENT SHOULD NEVER UPDATE THIS CLIPPY BLOCK
 pub mod context;
-pub mod core;
+pub mod shared;
 pub mod use_cases;
 
 // Re-export repositories for use_cases modules
@@ -34,8 +34,8 @@ use crate::context::procedure::{
 };
 
 use crate::context::fund::{FundPaymentService, SqliteFundPaymentRepository};
-use crate::core::event_bus::*;
-use crate::core::logger::*;
+use crate::shared::event_bus::*;
+use crate::shared::logger::*;
 use crate::use_cases::bank_manual_match::BankManualMatchOrchestrator;
 use crate::use_cases::bank_statement_reconciliation::{
     BankStatementOrchestrator, SqliteBankFundLabelMappingRepository,
@@ -75,7 +75,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         .unwrap_or(false);
 
     let db = Arc::new(
-        core::Database::new(dirs.local_data_dir.clone(), is_db_reset)
+        shared::Database::new(dirs.local_data_dir.clone(), is_db_reset)
             .await
             .with_context(|| "Failed to initialize database")?,
     );
