@@ -1,5 +1,4 @@
 use crate::core::logger::BACKEND;
-use crate::core::secure_path::{self, PathPolicy};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -7,14 +6,12 @@ use specta::Type;
 use tauri::State;
 
 use crate::context::bank::BankAccount;
-use crate::use_cases::fund_payment_reconciliation::parsing::pdf_extractor;
 
 use super::bank_pdf_codec::BankStatementParseResult;
 use super::orchestrator::{
     BankStatementMatchResult, BankStatementOrchestrator, BankStatementReconciliationConfig,
     ConfirmedMatch, FundLabelResolution, ResolvedCreditLine,
 };
-use super::parser;
 
 /// Request to save label mappings
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -33,45 +30,15 @@ pub struct CreateTransfersFromStatementRequest {
 /// Parse a bank statement PDF and return structured data
 #[tauri::command]
 #[specta::specta]
-pub async fn parse_bank_statement(file_path: String) -> Result<BankStatementParseResult, String> {
+pub async fn parse_bank_statement(
+    file_path: String,
+    orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
+) -> Result<BankStatementParseResult, String> {
     tracing::info!(target: BACKEND, "Starting bank statement parsing");
-
-    let allowed_root =
-        secure_path::user_home().ok_or_else(|| "Cannot resolve user home directory".to_string())?;
-    let canonical = secure_path::validate_user_path(
-        &file_path,
-        &allowed_root,
-        PathPolicy::ExistingFile {
-            extensions: &["pdf"],
-        },
-    )
-    .map_err(|e| {
-        tracing::warn!(target: BACKEND, error = %e, "Bank statement path rejected by validator");
-        format!("{e}")
-    })?;
-    // Step 1: Extract text from PDF
-    let text = pdf_extractor::extract_pdf_text(&canonical)
-        .map_err(|e| format!("Failed to extract PDF text: {}", e))?;
-
-    tracing::info!(target: BACKEND, chars = text.len(), "PDF text extracted");
-
-    // Step 2: Parse the extracted text
-    let result = parser::parse_bank_statement(&text);
-
-    // R26: Stop workflow if no VIR SEPA lines found after filtering
-    if result.credit_lines.is_empty() {
-        tracing::warn!(target: BACKEND, "Bank statement parsed but contains no VIR SEPA credit lines");
-        return Err("NO_VIR_SEPA_LINES".to_string());
-    }
-
-    tracing::info!(
-        target: BACKEND,
-        credit_lines = result.credit_lines.len(),
-        total_credits = result.total_credits,
-        "Bank statement parsed successfully"
-    );
-
-    Ok(result)
+    orchestrator
+        .parse_bank_statement(&file_path)
+        .await
+        .map_err(|e| format!("{:#}", e))
 }
 
 /// Resolve a bank account from IBAN
