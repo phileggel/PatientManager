@@ -208,6 +208,10 @@ Full rules: `docs/frontend-rules.md`. Project-wide essentials:
 - **F27** — Typed backend errors MUST flow through the 4-layer FE pipeline; each layer has one job, silently dropping the error branch is forbidden at every layer. Paired with the backend rejection-layer rule in `ddd-reference.md`.
 - **F28** — The frontend source tree MUST follow the top-level bucket layout; each bucket has both an inclusion rule (what lives there) and an exclusion rule (what does NOT).
 
+### Logging hygiene — no PII values in `tracing!` calls
+
+PII MUST NOT appear as field values in `tracing::*!` calls — in scope for this codebase: SSN (French numéro de sécurité sociale), IBAN, patient full name. The literal field name in the message string (`"Fetching patient by SSN"`) is fine; only the VALUE interpolation leaks. Replace with a presence boolean (`has_ssn = ssn.is_some()`), a trailing token (`iban_tail = &iban[iban.len().saturating_sub(4)..]`), or omit the field. Intentional exceptions belong in spec — e.g. EXI-030 stores invalid SSNs in the `name` field for traceability, which is a data-model exception, not a log.
+
 ---
 
 ## 📋 Plan Format Guidelines
