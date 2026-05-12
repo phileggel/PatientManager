@@ -12,6 +12,7 @@ import type {
   PdfParseResult,
   ReconciliationMatch,
 } from "@/bindings";
+import { formatShortDate } from "@/lib/formatters";
 
 // ─── Key builders ────────────────────────────────────────────────────────────
 
@@ -101,18 +102,21 @@ export function buildNotFoundCorrection(line: NormalizedPdfLine): AutoCorrection
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
-/** Format procedure date for display: "YYYY-MM-DD" or localised date range for periods */
+/** Format procedure date for display. Single dates render via the locale-aware
+ * short-date helper; period dates render both endpoints localized and joined
+ * through the `format.datePeriod` i18n key. */
 export function formatProcedureDateFromLine(
   line: NormalizedPdfLine,
   t: TFunction<"fund-payment-match">,
+  locale: string,
 ): string {
   if (line.is_period) {
     return t("format.datePeriod", {
-      start: line.procedure_start_date,
-      end: line.procedure_end_date,
+      start: formatShortDate(line.procedure_start_date, locale),
+      end: formatShortDate(line.procedure_end_date, locale),
     });
   }
-  return line.procedure_start_date;
+  return formatShortDate(line.procedure_start_date, locale);
 }
 
 /** Compute ISO date range (YYYY-MM-DD) from all procedure dates in a PDF parse result */

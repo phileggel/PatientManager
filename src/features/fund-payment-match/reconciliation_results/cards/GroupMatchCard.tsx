@@ -9,6 +9,7 @@
 
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, DbMatch, NormalizedPdfLine } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components/button";
 import { AmountField } from "@/ui/components/field";
 import {
@@ -36,6 +37,7 @@ export function GroupMatchCard({
   onAcceptCorrection,
 }: GroupMatchCardProps) {
   const { t } = useTranslation("fund-payment-match");
+  const { formatDate } = useFormatters();
 
   const getAmount = (m: DbMatch): number => {
     const key = buildCorrectionKey("AmountMismatch", m.procedure_id);
@@ -79,7 +81,7 @@ export function GroupMatchCard({
             <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-m3-on-surface truncate">
-                  {m.procedure_date}
+                  {formatDate(m.procedure_date)}
                 </p>
               </div>
               <div className="w-36 shrink-0">

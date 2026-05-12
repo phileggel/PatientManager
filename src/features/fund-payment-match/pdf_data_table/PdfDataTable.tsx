@@ -2,6 +2,7 @@ import type { TFunction } from "i18next";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { NormalizedPdfLine, PdfParseResult, PdfProcedureGroup } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { formatProcedureDateFromLine } from "../shared/utils";
 
@@ -16,16 +17,18 @@ function formatAmount(amount: number): string {
 function ProcedureLineRow({
   line,
   t,
+  locale,
 }: {
   line: NormalizedPdfLine;
   t: TFunction<"fund-payment-match">;
+  locale: string;
 }) {
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50">
       <td className="px-4 py-2 text-slate-900">{line.patient_name}</td>
       <td className="px-4 py-2 text-slate-600 font-mono text-xs">{line.ssn}</td>
       <td className="px-4 py-2 text-slate-600">{line.nature}</td>
-      <td className="px-4 py-2 text-slate-600">{formatProcedureDateFromLine(line, t)}</td>
+      <td className="px-4 py-2 text-slate-600">{formatProcedureDateFromLine(line, t, locale)}</td>
       <td className="px-4 py-2 text-slate-900 text-right font-medium">
         {formatAmount(line.amount)}
       </td>
@@ -35,6 +38,7 @@ function ProcedureLineRow({
 
 function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
   const { t } = useTranslation("fund-payment-match");
+  const { locale } = useFormatters();
   return (
     <div className="rounded-lg border border-slate-200 overflow-hidden">
       <div className="bg-slate-100 px-4 py-3 flex items-center justify-between">
@@ -71,7 +75,7 @@ function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
         </thead>
         <tbody>
           {group.lines.map((line) => (
-            <ProcedureLineRow key={line.invoice_number} line={line} t={t} />
+            <ProcedureLineRow key={line.invoice_number} line={line} t={t} locale={locale} />
           ))}
         </tbody>
       </table>
