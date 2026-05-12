@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::{
@@ -104,9 +105,15 @@ impl FundService {
         Ok(results)
     }
 
-    /// Create batch of valid funds
-    /// Candidates should have been validated first
-    pub async fn create_batch(&self, candidates: Vec<FundCandidate>) -> anyhow::Result<Vec<Fund>> {
+    /// Create batch of valid funds.
+    /// Candidates should have been validated first.
+    /// Returns the created funds alongside a `temp_id → created_id` map
+    /// derived from each entity's preserved `temp_id`, so callers never have
+    /// to assume positional alignment with the input list.
+    pub async fn create_batch(
+        &self,
+        candidates: Vec<FundCandidate>,
+    ) -> anyhow::Result<(Vec<Fund>, HashMap<String, String>)> {
         let mut funds: Vec<Fund> = Vec::new();
 
         for candidate in candidates {
@@ -120,8 +127,14 @@ impl FundService {
         }
 
         let created_funds = self.repository.create_batch(funds).await?;
+
+        let temp_id_map: HashMap<String, String> = created_funds
+            .iter()
+            .filter_map(|f| f.temp_id.clone().map(|tmp| (tmp, f.id.clone())))
+            .collect();
+
         let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
-        Ok(created_funds)
+        Ok((created_funds, temp_id_map))
     }
 }
 
@@ -691,16 +704,21 @@ mod tests {
             fund_name: "CPAM 93".to_string(),
             temp_id: "tmp-93".to_string(),
         };
-        let result = service
+        let (funds, map) = service
             .create_batch(vec![candidate])
             .await
             .expect("create_batch should succeed for valid candidate");
 
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].fund_identifier, "93");
-        assert_eq!(result[0].name, "CPAM 93");
-        assert_eq!(result[0].temp_id.as_deref(), Some("tmp-93"));
-        assert!(!result[0].id.is_empty(), "factory must generate an id");
+        assert_eq!(funds.len(), 1);
+        assert_eq!(funds[0].fund_identifier, "93");
+        assert_eq!(funds[0].name, "CPAM 93");
+        assert_eq!(funds[0].temp_id.as_deref(), Some("tmp-93"));
+        assert!(!funds[0].id.is_empty(), "factory must generate an id");
+        assert_eq!(
+            map.get("tmp-93"),
+            Some(&funds[0].id),
+            "temp_id_map must map the candidate temp_id to the created fund id"
+        );
     }
 
     #[tokio::test]
