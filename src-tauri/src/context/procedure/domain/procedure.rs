@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anyhow::Result;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -21,6 +23,33 @@ pub enum PaymentMethod {
     Check,
     BankCard,
     BankTransfer,
+}
+
+impl PaymentMethod {
+    /// SQLite-stored representation. `None` is encoded as SQL NULL
+    /// (caller decides via `Option`).
+    pub fn as_db_str(self) -> Option<&'static str> {
+        match self {
+            PaymentMethod::None => None,
+            PaymentMethod::Cash => Some("CASH"),
+            PaymentMethod::Check => Some("CHECK"),
+            PaymentMethod::BankCard => Some("BANK_CARD"),
+            PaymentMethod::BankTransfer => Some("BANK_TRANSFER"),
+        }
+    }
+}
+
+impl FromStr for PaymentMethod {
+    type Err = String;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "CASH" => Ok(PaymentMethod::Cash),
+            "CHECK" => Ok(PaymentMethod::Check),
+            "BANK_CARD" => Ok(PaymentMethod::BankCard),
+            "BANK_TRANSFER" => Ok(PaymentMethod::BankTransfer),
+            _ => Err(s.to_string()),
+        }
+    }
 }
 
 /// Procedure status lifecycle
@@ -73,6 +102,44 @@ impl ProcedureStatus {
                 | ProcedureStatus::Overpaid
                 | ProcedureStatus::OverpaymentRefund
         )
+    }
+
+    /// SQLite-stored representation (legacy column values, e.g.
+    /// `Reconciled` → `"RECONCILIATED"`).
+    pub fn as_db_str(self) -> &'static str {
+        match self {
+            ProcedureStatus::None => "NONE",
+            ProcedureStatus::Created => "CREATED",
+            ProcedureStatus::Reconciled => "RECONCILIATED",
+            ProcedureStatus::PartiallyReconciled => "PARTIALLY_RECONCILED",
+            ProcedureStatus::DirectlyPaid => "DIRECTLY_PAYED",
+            ProcedureStatus::FundPaid => "FUND_PAYED",
+            ProcedureStatus::PartiallyFundPaid => "PARTIALLY_FUND_PAYED",
+            ProcedureStatus::ImportDirectlyPaid => "IMPORT_DIRECTLY_PAYED",
+            ProcedureStatus::ImportFundPaid => "IMPORT_FUND_PAYED",
+            ProcedureStatus::Overpaid => "OVERPAID",
+            ProcedureStatus::OverpaymentRefund => "OVERPAYMENT_REFUND",
+        }
+    }
+}
+
+impl FromStr for ProcedureStatus {
+    type Err = String;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "NONE" => Ok(ProcedureStatus::None),
+            "CREATED" => Ok(ProcedureStatus::Created),
+            "RECONCILIATED" => Ok(ProcedureStatus::Reconciled),
+            "PARTIALLY_RECONCILED" => Ok(ProcedureStatus::PartiallyReconciled),
+            "DIRECTLY_PAYED" => Ok(ProcedureStatus::DirectlyPaid),
+            "FUND_PAYED" => Ok(ProcedureStatus::FundPaid),
+            "PARTIALLY_FUND_PAYED" => Ok(ProcedureStatus::PartiallyFundPaid),
+            "IMPORT_DIRECTLY_PAYED" => Ok(ProcedureStatus::ImportDirectlyPaid),
+            "IMPORT_FUND_PAYED" => Ok(ProcedureStatus::ImportFundPaid),
+            "OVERPAID" => Ok(ProcedureStatus::Overpaid),
+            "OVERPAYMENT_REFUND" => Ok(ProcedureStatus::OverpaymentRefund),
+            _ => Err(s.to_string()),
+        }
     }
 }
 
@@ -474,5 +541,64 @@ mod tests {
                 "{status:?} must NOT be classified as blocking"
             );
         }
+    }
+
+    #[test]
+    fn procedure_status_db_codec_round_trips_every_variant() {
+        // Listing every variant explicitly so a future `ProcedureStatus`
+        // addition fails to compile here until the codec is extended.
+        let variants = [
+            ProcedureStatus::None,
+            ProcedureStatus::Created,
+            ProcedureStatus::Reconciled,
+            ProcedureStatus::PartiallyReconciled,
+            ProcedureStatus::DirectlyPaid,
+            ProcedureStatus::FundPaid,
+            ProcedureStatus::PartiallyFundPaid,
+            ProcedureStatus::ImportDirectlyPaid,
+            ProcedureStatus::ImportFundPaid,
+            ProcedureStatus::Overpaid,
+            ProcedureStatus::OverpaymentRefund,
+        ];
+        for v in variants {
+            let s = v.as_db_str();
+            let parsed: ProcedureStatus = s
+                .parse()
+                .unwrap_or_else(|e| panic!("round-trip failed for {v:?}: {e}"));
+            assert_eq!(v, parsed, "{v:?} did not round-trip via {s:?}");
+        }
+    }
+
+    #[test]
+    fn procedure_status_from_str_unknown_returns_err_with_input() {
+        let err = "WAT".parse::<ProcedureStatus>().unwrap_err();
+        assert_eq!(err, "WAT");
+    }
+
+    #[test]
+    fn payment_method_db_codec_round_trips_non_none_variants() {
+        // None ↔ SQL NULL, not a string — covered by the as_db_str = None
+        // assertion below.
+        for v in [
+            PaymentMethod::Cash,
+            PaymentMethod::Check,
+            PaymentMethod::BankCard,
+            PaymentMethod::BankTransfer,
+        ] {
+            let s = v
+                .as_db_str()
+                .unwrap_or_else(|| panic!("non-None variant {v:?} must serialize"));
+            let parsed: PaymentMethod = s
+                .parse()
+                .unwrap_or_else(|e| panic!("round-trip failed for {v:?}: {e}"));
+            assert_eq!(v, parsed);
+        }
+        assert_eq!(PaymentMethod::None.as_db_str(), None);
+    }
+
+    #[test]
+    fn payment_method_from_str_unknown_returns_err_with_input() {
+        let err = "WAT".parse::<PaymentMethod>().unwrap_err();
+        assert_eq!(err, "WAT");
     }
 }
