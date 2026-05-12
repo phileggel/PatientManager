@@ -127,8 +127,8 @@ impl BankStatementOrchestrator {
     /// Parse a bank statement PDF: validate the path, extract text, parse it
     /// into a structured `BankStatementParseResult`, then enforce R26 (the
     /// workflow halts with the `NO_VIR_SEPA_LINES` sentinel when no VIR SEPA
-    /// credit lines remain).
-    pub async fn parse_bank_statement(
+    /// credit lines remain). Synchronous — all underlying calls block.
+    pub fn parse_bank_statement(
         &self,
         file_path: &str,
     ) -> anyhow::Result<BankStatementParseResult> {
