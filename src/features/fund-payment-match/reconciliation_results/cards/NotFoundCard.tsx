@@ -11,6 +11,7 @@
 import { Link, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, NormalizedPdfLine, NotFoundCandidate } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components/button";
 import {
   buildLinkProcedureCorrection,
@@ -35,6 +36,7 @@ export function NotFoundCard({
   onAcceptCorrection,
 }: NotFoundCardProps) {
   const { t } = useTranslation("fund-payment-match");
+  const { formatDate } = useFormatters();
 
   const createKey = buildNotFoundKey(line);
   const isCreateAccepted = acceptedKeys.has(createKey);
@@ -91,7 +93,7 @@ export function NotFoundCard({
                         · {candidate.ssn}
                       </span>
                       <div className="text-xs text-m3-on-surface-variant mt-0.5">
-                        {candidate.procedure_date} · {formatAmount(candidate.amount)} €
+                        {formatDate(candidate.procedure_date)} · {formatAmount(candidate.amount)} €
                       </div>
                     </div>
                     <Button
