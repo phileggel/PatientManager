@@ -20,7 +20,7 @@ impl SqliteProcedureRefundRepository {
 impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
     async fn create_procedure_refund(&self, refund: &ProcedureRefund) -> anyhow::Result<()> {
         let refund_date_str = refund.refund_date.format("%Y-%m-%d").to_string();
-        let status_str = procedure_status_to_str(refund.previous_payment_status);
+        let status_str = refund.previous_payment_status.as_db_str();
 
         sqlx::query!(
             r#"
@@ -79,7 +79,10 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
         row.map(|r| -> anyhow::Result<ProcedureRefund> {
             let date = NaiveDate::parse_from_str(&r.refund_date, "%Y-%m-%d")
                 .with_context(|| format!("Invalid refund_date in DB: {}", r.refund_date))?;
-            let status = parse_procedure_status(&r.previous_payment_status);
+            let status = r
+                .previous_payment_status
+                .parse::<ProcedureStatus>()
+                .unwrap_or_default();
             Ok(ProcedureRefund::restore(
                 r.id,
                 r.source_procedure_id,
@@ -122,7 +125,10 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
         row.map(|r| -> anyhow::Result<ProcedureRefund> {
             let date = NaiveDate::parse_from_str(&r.refund_date, "%Y-%m-%d")
                 .with_context(|| format!("Invalid refund_date in DB: {}", r.refund_date))?;
-            let status = parse_procedure_status(&r.previous_payment_status);
+            let status = r
+                .previous_payment_status
+                .parse::<ProcedureStatus>()
+                .unwrap_or_default();
             Ok(ProcedureRefund::restore(
                 r.id,
                 r.source_procedure_id,
@@ -160,38 +166,6 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
         .context("Failed to check refund fund payment group")?;
 
         Ok(row.is_some())
-    }
-}
-
-fn procedure_status_to_str(status: ProcedureStatus) -> &'static str {
-    match status {
-        ProcedureStatus::None => "NONE",
-        ProcedureStatus::Created => "CREATED",
-        ProcedureStatus::Reconciled => "RECONCILIATED",
-        ProcedureStatus::PartiallyReconciled => "PARTIALLY_RECONCILED",
-        ProcedureStatus::DirectlyPaid => "DIRECTLY_PAYED",
-        ProcedureStatus::FundPaid => "FUND_PAYED",
-        ProcedureStatus::PartiallyFundPaid => "PARTIALLY_FUND_PAYED",
-        ProcedureStatus::ImportDirectlyPaid => "IMPORT_DIRECTLY_PAYED",
-        ProcedureStatus::ImportFundPaid => "IMPORT_FUND_PAYED",
-        ProcedureStatus::Overpaid => "OVERPAID",
-        ProcedureStatus::OverpaymentRefund => "OVERPAYMENT_REFUND",
-    }
-}
-
-fn parse_procedure_status(s: &str) -> ProcedureStatus {
-    match s {
-        "CREATED" => ProcedureStatus::Created,
-        "RECONCILIATED" => ProcedureStatus::Reconciled,
-        "PARTIALLY_RECONCILED" => ProcedureStatus::PartiallyReconciled,
-        "DIRECTLY_PAYED" => ProcedureStatus::DirectlyPaid,
-        "FUND_PAYED" => ProcedureStatus::FundPaid,
-        "PARTIALLY_FUND_PAYED" => ProcedureStatus::PartiallyFundPaid,
-        "IMPORT_DIRECTLY_PAYED" => ProcedureStatus::ImportDirectlyPaid,
-        "IMPORT_FUND_PAYED" => ProcedureStatus::ImportFundPaid,
-        "OVERPAID" => ProcedureStatus::Overpaid,
-        "OVERPAYMENT_REFUND" => ProcedureStatus::OverpaymentRefund,
-        _ => ProcedureStatus::None,
     }
 }
 

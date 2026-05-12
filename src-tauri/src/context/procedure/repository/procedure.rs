@@ -66,27 +66,17 @@ impl From<UnreconciledProcedureRow> for UnreconciledProcedure {
 // Conversion function from row type to domain object
 impl From<ProcedureRow> for Procedure {
     fn from(row: ProcedureRow) -> Self {
-        let payment_method = match row.payment_method.as_deref() {
-            Some("CASH") => PaymentMethod::Cash,
-            Some("CHECK") => PaymentMethod::Check,
-            Some("BANK_CARD") => PaymentMethod::BankCard,
-            Some("BANK_TRANSFER") => PaymentMethod::BankTransfer,
-            _ => PaymentMethod::None,
-        };
+        let payment_method = row
+            .payment_method
+            .as_deref()
+            .and_then(|s| s.parse::<PaymentMethod>().ok())
+            .unwrap_or_default();
 
-        let payment_status = match row.payment_status.as_deref() {
-            Some("CREATED") => ProcedureStatus::Created,
-            Some("RECONCILIATED") => ProcedureStatus::Reconciled,
-            Some("PARTIALLY_RECONCILED") => ProcedureStatus::PartiallyReconciled,
-            Some("DIRECTLY_PAYED") => ProcedureStatus::DirectlyPaid,
-            Some("FUND_PAYED") => ProcedureStatus::FundPaid,
-            Some("PARTIALLY_FUND_PAYED") => ProcedureStatus::PartiallyFundPaid,
-            Some("IMPORT_DIRECTLY_PAYED") => ProcedureStatus::ImportDirectlyPaid,
-            Some("IMPORT_FUND_PAYED") => ProcedureStatus::ImportFundPaid,
-            Some("OVERPAID") => ProcedureStatus::Overpaid,
-            Some("OVERPAYMENT_REFUND") => ProcedureStatus::OverpaymentRefund,
-            _ => ProcedureStatus::None,
-        };
+        let payment_status = row
+            .payment_status
+            .as_deref()
+            .and_then(|s| s.parse::<ProcedureStatus>().ok())
+            .unwrap_or_default();
 
         let procedure_date_parsed = match NaiveDate::parse_from_str(&row.procedure_date, "%Y-%m-%d")
         {
@@ -123,32 +113,6 @@ impl SqliteProcedureRepository {
     }
 }
 
-fn payment_method_to_str(method: PaymentMethod) -> Option<&'static str> {
-    match method {
-        PaymentMethod::None => None,
-        PaymentMethod::Cash => Some("CASH"),
-        PaymentMethod::Check => Some("CHECK"),
-        PaymentMethod::BankCard => Some("BANK_CARD"),
-        PaymentMethod::BankTransfer => Some("BANK_TRANSFER"),
-    }
-}
-
-fn payment_status_to_str(status: ProcedureStatus) -> &'static str {
-    match status {
-        ProcedureStatus::None => "NONE",
-        ProcedureStatus::Created => "CREATED",
-        ProcedureStatus::Reconciled => "RECONCILIATED",
-        ProcedureStatus::PartiallyReconciled => "PARTIALLY_RECONCILED",
-        ProcedureStatus::DirectlyPaid => "DIRECTLY_PAYED",
-        ProcedureStatus::FundPaid => "FUND_PAYED",
-        ProcedureStatus::PartiallyFundPaid => "PARTIALLY_FUND_PAYED",
-        ProcedureStatus::ImportDirectlyPaid => "IMPORT_DIRECTLY_PAYED",
-        ProcedureStatus::ImportFundPaid => "IMPORT_FUND_PAYED",
-        ProcedureStatus::Overpaid => "OVERPAID",
-        ProcedureStatus::OverpaymentRefund => "OVERPAYMENT_REFUND",
-    }
-}
-
 #[async_trait::async_trait]
 impl ProcedureRepository for SqliteProcedureRepository {
     #[allow(clippy::too_many_arguments)]
@@ -176,8 +140,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
             payment_status,
         )?;
 
-        let payment_method_str = payment_method_to_str(procedure.payment_method);
-        let payment_status_str = payment_status_to_str(procedure.payment_status);
+        let payment_method_str = procedure.payment_method.as_db_str();
+        let payment_status_str = procedure.payment_status.as_db_str();
         let procedure_date_str = procedure.procedure_date.format("%Y-%m-%d").to_string();
         let confirmed_payment_date_str = procedure
             .confirmed_payment_date
@@ -304,8 +268,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
     async fn update_procedure(&self, procedure: Procedure) -> anyhow::Result<Procedure> {
         tracing::trace!(procedure_id = %procedure.id, "Updating procedure in database");
 
-        let payment_method_str = payment_method_to_str(procedure.payment_method);
-        let payment_status_str = payment_status_to_str(procedure.payment_status);
+        let payment_method_str = procedure.payment_method.as_db_str();
+        let payment_status_str = procedure.payment_status.as_db_str();
         let procedure_date_str = procedure.procedure_date.format("%Y-%m-%d").to_string();
         let confirmed_payment_date_str = procedure
             .confirmed_payment_date
@@ -555,8 +519,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let mut created_procedures = Vec::new();
 
         for procedure in procedures {
-            let payment_method_str = payment_method_to_str(procedure.payment_method);
-            let payment_status_str = payment_status_to_str(procedure.payment_status);
+            let payment_method_str = procedure.payment_method.as_db_str();
+            let payment_status_str = procedure.payment_status.as_db_str();
             let procedure_date_str = procedure.procedure_date.format("%Y-%m-%d").to_string();
             let confirmed_payment_date_str = procedure
                 .confirmed_payment_date
@@ -604,8 +568,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let mut updated_procedures = Vec::new();
 
         for procedure in procedures {
-            let payment_method_str = payment_method_to_str(procedure.payment_method);
-            let payment_status_str = payment_status_to_str(procedure.payment_status);
+            let payment_method_str = procedure.payment_method.as_db_str();
+            let payment_status_str = procedure.payment_status.as_db_str();
             let procedure_date_str = procedure.procedure_date.format("%Y-%m-%d").to_string();
             let confirmed_payment_date_str = procedure
                 .confirmed_payment_date
