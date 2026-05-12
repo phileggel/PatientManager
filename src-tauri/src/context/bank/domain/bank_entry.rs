@@ -23,6 +23,20 @@ pub enum BankEntryType {
     FundOutgoingWire,
 }
 
+impl BankEntryType {
+    /// REF-080 — Reject transfer types that are not creatable as a direct
+    /// (non-fund) patient payment. Only `FundOutgoingWire` is rejected: it is
+    /// reserved for the overpayment refund flow.
+    pub fn ensure_direct_payment_eligible(self) -> Result<()> {
+        if self == BankEntryType::FundOutgoingWire {
+            anyhow::bail!(
+                "REF-080: OutgoingWire transfers can only be created via the overpayment refund flow."
+            );
+        }
+        Ok(())
+    }
+}
+
 /// BankEntry aggregate root
 /// Represents a bank transfer (FUND) or direct payment (CHECK/CREDIT_CARD/CASH).
 /// Links to fund payment groups or procedures are stored in junction tables.
@@ -195,6 +209,35 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&BankEntryType::FundWire).unwrap(),
             r#""FUND_WIRE""#
+        );
+    }
+
+    #[test]
+    fn test_ensure_direct_payment_eligible_accepts_patient_methods_and_fund_wire() {
+        // FundWire is eligible — the rule guards the manual-match UI surface,
+        // not the direct/fund distinction. Only the refund variant is reserved.
+        for ty in [
+            BankEntryType::FundWire,
+            BankEntryType::PatientCheck,
+            BankEntryType::PatientCreditCard,
+            BankEntryType::PatientCash,
+        ] {
+            assert!(
+                ty.ensure_direct_payment_eligible().is_ok(),
+                "{:?} must be accepted as direct-payment eligible",
+                ty
+            );
+        }
+    }
+
+    #[test]
+    fn test_ensure_direct_payment_eligible_rejects_fund_outgoing_wire_with_ref_080() {
+        let err = BankEntryType::FundOutgoingWire
+            .ensure_direct_payment_eligible()
+            .expect_err("FundOutgoingWire must be rejected");
+        assert!(
+            err.to_string().contains("REF-080"),
+            "rejection must cite REF-080: {err}"
         );
     }
 
