@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { formatDateDisplay, formatDayToIso, getDayFromIso, getMonthName } from "./date.logic";
+import { formatDayToIso, getDayFromIso, getMonthName } from "./date.logic";
 
 // ============================================================================
 // getDayFromIso Tests
@@ -86,40 +86,6 @@ describe("formatDayToIso", () => {
 });
 
 // ============================================================================
-// formatDateDisplay Tests
-// ============================================================================
-
-describe("formatDateDisplay", () => {
-  test("formats valid ISO date to DD/MM/YYYY", () => {
-    expect(formatDateDisplay("2026-01-15")).toBe("15/01/2026");
-    expect(formatDateDisplay("2026-12-31")).toBe("31/12/2026");
-    expect(formatDateDisplay("2025-06-05")).toBe("05/06/2025");
-  });
-
-  test("returns em dash for null input", () => {
-    expect(formatDateDisplay(null)).toBe("—");
-  });
-
-  test("returns em dash for undefined input", () => {
-    expect(formatDateDisplay(undefined)).toBe("—");
-  });
-
-  test("returns em dash for empty string", () => {
-    expect(formatDateDisplay("")).toBe("—");
-  });
-
-  test("returns em dash for malformed date (not 3 parts)", () => {
-    expect(formatDateDisplay("2026-01")).toBe("—");
-    expect(formatDateDisplay("invalid")).toBe("—");
-  });
-
-  test("handles dates with single-digit components", () => {
-    // If input doesn't have leading zeros (technically invalid ISO but tests robustness)
-    expect(formatDateDisplay("2026-1-5")).toBe("5/1/2026");
-  });
-});
-
-// ============================================================================
 // Integration Tests - Round-trip conversions
 // ============================================================================
 
@@ -141,36 +107,17 @@ describe("date.logic - Integration", () => {
       expect(extracted).toBe(day);
     }
   });
-
-  test("formatDateDisplay handles output from formatDayToIso", () => {
-    const isoDate = formatDayToIso(15, "2026-03-");
-    const display = formatDateDisplay(isoDate);
-
-    expect(display).toBe("15/03/2026");
-  });
 });
 
 describe("getMonthName", () => {
-  const original = Date.prototype.toLocaleString;
-
-  beforeEach(() => {
-    // Force English in tests — we verify the month index mapping, not the translation.
-    vi.spyOn(Date.prototype, "toLocaleString").mockImplementation(function (
-      this: Date,
-      _locale,
-      options,
-    ) {
-      return original.call(this, "en-US", options);
-    });
+  test("returns localized month name for the given month number and locale", () => {
+    expect(getMonthName(1, "en-US")).toBe("January");
+    expect(getMonthName(6, "en-US")).toBe("June");
+    expect(getMonthName(12, "en-US")).toBe("December");
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  test("returns month name for given month number", () => {
-    expect(getMonthName(1)).toBe("January");
-    expect(getMonthName(6)).toBe("June");
-    expect(getMonthName(12)).toBe("December");
+  test("uses the locale tag, e.g. fr-FR yields French", () => {
+    expect(getMonthName(1, "fr-FR")).toBe("janvier");
+    expect(getMonthName(8, "fr-FR")).toBe("août");
   });
 });

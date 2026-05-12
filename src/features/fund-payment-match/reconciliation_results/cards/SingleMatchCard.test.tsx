@@ -36,8 +36,9 @@ describe("SingleMatchCard — DateMismatch comparison row", () => {
   it("renders both PDF and DB dates as locale-aware short dates, never raw ISO", () => {
     render(<SingleMatchCard {...baseProps} dbMatch={dbMatchDateMismatch} />);
 
-    // Locale-aware output (en-GB at test setup → dd/mm/yyyy)
-    expect(screen.getByText("15/01/2026")).toBeInTheDocument();
+    // Locale-aware output (en-GB at test setup → dd/mm/yyyy). The PDF date
+    // also appears in the PdfSummary header, so it can show up twice.
+    expect(screen.getAllByText("15/01/2026").length).toBeGreaterThan(0);
     expect(screen.getByText("14/01/2026")).toBeInTheDocument();
 
     // No raw ISO leaks

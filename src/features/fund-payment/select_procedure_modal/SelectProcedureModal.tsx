@@ -2,8 +2,9 @@ import { Calendar, Check, ChevronDown, Plus, RotateCcw, X } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components";
-import { formatAmountEUR, formatDateFR } from "../shared/presenter";
+import { formatAmountEUR } from "../shared/presenter";
 import { useProcedureSelectionModal } from "./useSelectProcedureModal";
 
 interface ProcedureSelectionModalProps {
@@ -30,6 +31,7 @@ export function ProcedureSelectionModal({
   preloadedProcedures,
 }: ProcedureSelectionModalProps) {
   const { t, i18n } = useTranslation("fund-payment");
+  const { formatDate } = useFormatters();
 
   const {
     loading,
@@ -163,7 +165,7 @@ export function ProcedureSelectionModal({
                       <div className="flex justify-between items-center gap-4">
                         <span className="flex items-center gap-1 text-xs text-m3-on-surface-variant whitespace-nowrap">
                           <Calendar size={12} />
-                          {formatDateFR(proc.procedure_date)}
+                          {formatDate(proc.procedure_date)}
                         </span>
                         <p className="text-sm font-medium text-m3-on-surface">
                           {getPatientName(proc.patient_id)}

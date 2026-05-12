@@ -2,6 +2,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntry } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { IconButton } from "@/ui/components";
 
@@ -17,6 +18,7 @@ interface BankTransferListProps {
 export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankTransferListProps) {
   const { t } = useTranslation("bank");
   const { t: tCommon } = useTranslation("common");
+  const { formatDate } = useFormatters();
 
   useEffect(() => {
     logger.info(TAG, "Component mounted");
@@ -52,9 +54,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
           ) : (
             transfers.map((transfer) => (
               <tr key={transfer.id} className="m3-tr">
-                <td className="m3-td text-m3-on-surface">
-                  {new Date(transfer.transfer_date).toLocaleDateString("fr-FR")}
-                </td>
+                <td className="m3-td text-m3-on-surface">{formatDate(transfer.transfer_date)}</td>
                 <td className="m3-td text-m3-on-surface font-semibold text-right">
                   €{(transfer.amount / 1000).toFixed(2)}
                 </td>
@@ -80,7 +80,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                       size="sm"
                       shape="round"
                       aria-label={t("transfer.list.editAriaLabel", {
-                        date: new Date(transfer.transfer_date).toLocaleDateString("fr-FR"),
+                        date: formatDate(transfer.transfer_date),
                         amount: `€${(transfer.amount / 1000).toFixed(2)}`,
                       })}
                       icon={<Edit2 size={16} />}
@@ -91,7 +91,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                       size="sm"
                       shape="round"
                       aria-label={t("transfer.list.deleteAriaLabel", {
-                        date: new Date(transfer.transfer_date).toLocaleDateString("fr-FR"),
+                        date: formatDate(transfer.transfer_date),
                         amount: `€${(transfer.amount / 1000).toFixed(2)}`,
                       })}
                       icon={<Trash2 size={16} />}
