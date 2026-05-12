@@ -6,7 +6,7 @@ use crate::{
         Fund, FundCandidate, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine,
         FundPaymentRepository, FundRepository, FundValidationResult, FundValidationStatus,
     },
-    core::event_bus::{EventBus, FundPaymentGroupUpdated, FundUpdated},
+    shared::event_bus::{EventBus, FundPaymentGroupUpdated, FundUpdated},
 };
 
 /// Application service for affiliated fund operations
@@ -200,8 +200,8 @@ impl FundPaymentService {
         if !is_silent {
             let _ = self
                 .event_bus
-                .publish::<crate::core::event_bus::FundPaymentGroupUpdated>(
-                    crate::core::event_bus::FundPaymentGroupUpdated,
+                .publish::<crate::shared::event_bus::FundPaymentGroupUpdated>(
+                    crate::shared::event_bus::FundPaymentGroupUpdated,
                 );
         }
 
@@ -273,8 +273,8 @@ impl FundPaymentService {
 
         let _ = self
             .event_bus
-            .publish::<crate::core::event_bus::FundPaymentGroupUpdated>(
-                crate::core::event_bus::FundPaymentGroupUpdated,
+            .publish::<crate::shared::event_bus::FundPaymentGroupUpdated>(
+                crate::shared::event_bus::FundPaymentGroupUpdated,
             );
 
         Ok(updated_group)
@@ -335,8 +335,8 @@ impl FundPaymentService {
         if !is_silent {
             let _ = self
                 .event_bus
-                .publish::<crate::core::event_bus::FundPaymentGroupUpdated>(
-                    crate::core::event_bus::FundPaymentGroupUpdated,
+                .publish::<crate::shared::event_bus::FundPaymentGroupUpdated>(
+                    crate::shared::event_bus::FundPaymentGroupUpdated,
                 );
         }
 
@@ -369,8 +369,8 @@ impl FundPaymentService {
 
         let _ = self
             .event_bus
-            .publish::<crate::core::event_bus::FundPaymentGroupUpdated>(
-                crate::core::event_bus::FundPaymentGroupUpdated,
+            .publish::<crate::shared::event_bus::FundPaymentGroupUpdated>(
+                crate::shared::event_bus::FundPaymentGroupUpdated,
             );
 
         Ok(result)
@@ -384,8 +384,8 @@ impl FundPaymentService {
 
         let _ = self
             .event_bus
-            .publish::<crate::core::event_bus::FundPaymentGroupUpdated>(
-                crate::core::event_bus::FundPaymentGroupUpdated,
+            .publish::<crate::shared::event_bus::FundPaymentGroupUpdated>(
+                crate::shared::event_bus::FundPaymentGroupUpdated,
             );
 
         Ok(())

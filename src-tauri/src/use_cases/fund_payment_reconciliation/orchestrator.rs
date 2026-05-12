@@ -9,7 +9,7 @@ use crate::context::fund::{
 };
 use crate::context::patient::PatientService;
 use crate::context::procedure::{Procedure, ProcedureService, ProcedureStatus};
-use crate::core::event_bus::{EventBus, FundPaymentGroupUpdated, ProcedureUpdated};
+use crate::shared::event_bus::{EventBus, FundPaymentGroupUpdated, ProcedureUpdated};
 
 /// Statistics from correction processing
 #[derive(Default, Debug)]
@@ -1275,7 +1275,7 @@ mod tests {
     use crate::context::procedure::{
         MockProcedureRepository, PaymentMethod, Procedure, ProcedureRepository,
     };
-    use crate::core::event_bus::EventBus;
+    use crate::shared::event_bus::EventBus;
 
     /// Build an orchestrator wired with the three repository mocks. Each test
     /// configures only the methods it expects to hit — mockall panics on any

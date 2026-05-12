@@ -9,9 +9,9 @@ use crate::context::bank::{
 };
 use crate::context::fund::{Fund, FundPaymentGroupStatus, FundPaymentService, FundService};
 use crate::context::procedure::{ProcedureService, ProcedureStatus};
-use crate::core::event_bus::{BankEntryUpdated, EventBus, ProcedureUpdated};
-use crate::core::logger::BACKEND;
-use crate::core::secure_path::{self, PathPolicy};
+use crate::shared::event_bus::{BankEntryUpdated, EventBus, ProcedureUpdated};
+use crate::shared::logger::BACKEND;
+use crate::shared::secure_path::{self, PathPolicy};
 use crate::use_cases::fund_payment_reconciliation::parsing::pdf_extractor;
 
 use super::bank_pdf_codec::BankStatementParseResult;
@@ -582,7 +582,7 @@ mod tests {
         FundPaymentGroup, FundPaymentGroupStatus, MockFundPaymentRepository, MockFundRepository,
     };
     use crate::context::procedure::{MockProcedureRepository, Procedure};
-    use crate::core::event_bus::EventBus;
+    use crate::shared::event_bus::EventBus;
     use crate::use_cases::bank_statement_reconciliation::label_mapping_repo::{
         BankFundLabelMapping, MockBankFundLabelMappingRepository,
     };

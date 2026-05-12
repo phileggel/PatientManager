@@ -1,4 +1,4 @@
-use crate::core::logger::BACKEND;
+use crate::shared::logger::BACKEND;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -277,7 +277,7 @@ pub async fn delete_fund_payment_group(
     fund_service: State<'_, Arc<FundService>>,
     fund_payment_service: State<'_, Arc<FundPaymentService>>,
     procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>,
-    event_bus: State<'_, Arc<crate::core::event_bus::EventBus>>,
+    event_bus: State<'_, Arc<crate::shared::event_bus::EventBus>>,
     overpayment_orchestrator: State<
         '_,
         Arc<crate::use_cases::overpayment::OverpaymentOrchestrator>,
@@ -322,7 +322,7 @@ pub async fn create_fund_payment_group(
     fund_service: State<'_, Arc<FundService>>,
     fund_payment_service: State<'_, Arc<FundPaymentService>>,
     procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>,
-    event_bus: State<'_, Arc<crate::core::event_bus::EventBus>>,
+    event_bus: State<'_, Arc<crate::shared::event_bus::EventBus>>,
 ) -> Result<FundPaymentGroup, String> {
     tracing::info!(
         target: BACKEND,
@@ -368,7 +368,7 @@ pub async fn update_fund_payment_group_with_procedures(
     fund_service: State<'_, Arc<FundService>>,
     fund_payment_service: State<'_, Arc<FundPaymentService>>,
     procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>,
-    event_bus: State<'_, Arc<crate::core::event_bus::EventBus>>,
+    event_bus: State<'_, Arc<crate::shared::event_bus::EventBus>>,
 ) -> Result<FundPaymentGroup, String> {
     tracing::info!(
         target: BACKEND,

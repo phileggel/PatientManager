@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tauri::State;
 
-use crate::core::logger::BACKEND;
+use crate::shared::logger::BACKEND;
 
 use super::domain::{CancelOverpaymentRequest, CreateOverpaymentRequest, ProcedureRefundInfo};
 use super::orchestrator::OverpaymentOrchestrator;

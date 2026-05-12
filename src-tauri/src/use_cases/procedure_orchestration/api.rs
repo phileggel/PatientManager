@@ -1,5 +1,5 @@
 use crate::context::procedure::{PaymentMethod, Procedure, ProcedureCandidate, ProcedureStatus};
-use crate::core::logger::BACKEND;
+use crate::shared::logger::BACKEND;
 use crate::use_cases::procedure_orchestration::{
     CreateProcedureRequest, ProcedureOrchestrationService,
 };

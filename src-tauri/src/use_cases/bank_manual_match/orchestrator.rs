@@ -696,7 +696,7 @@ mod tests {
         FundPaymentGroupStatus, FundPaymentService, SqliteFundPaymentRepository,
     };
     use crate::context::procedure::{ProcedureService, ProcedureStatus, SqliteProcedureRepository};
-    use crate::core::event_bus::EventBus;
+    use crate::shared::event_bus::EventBus;
 
     async fn setup_db() -> SqlitePool {
         let pool = SqlitePoolOptions::new()

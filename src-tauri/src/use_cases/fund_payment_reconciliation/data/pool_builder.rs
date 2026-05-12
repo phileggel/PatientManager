@@ -1,6 +1,6 @@
 /// Build a pool of unpaid procedures for reconciliation
 use crate::context::procedure::{Procedure, ProcedureRepository, ProcedureStatus};
-use crate::core::logger::BACKEND;
+use crate::shared::logger::BACKEND;
 use crate::use_cases::fund_payment_reconciliation::api::NormalizedPdfLine;
 use crate::use_cases::fund_payment_reconciliation::parsing::dates::{
     add_one_day, subtract_one_day,

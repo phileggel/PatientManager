@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::{
     context::patient::*,
-    core::event_bus::{EventBus, PatientUpdated},
+    shared::event_bus::{EventBus, PatientUpdated},
 };
 
 /// Application service for patient operations

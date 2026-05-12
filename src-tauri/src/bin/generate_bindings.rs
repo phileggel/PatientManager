@@ -1,4 +1,4 @@
-use patient_manager_app::core::specta_builder;
+use patient_manager_app::shared::create_specta_builder;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
 /// Generate TypeScript bindings for CI/release builds
@@ -17,7 +17,7 @@ fn main() {
     let output_path = workspace_root.join("src/bindings.ts");
 
     // Use the same builder configuration as main.rs
-    let builder = specta_builder::create_specta_builder();
+    let builder = create_specta_builder();
 
     // Export TypeScript bindings to src/bindings.ts
     let ts_config = Typescript::default()

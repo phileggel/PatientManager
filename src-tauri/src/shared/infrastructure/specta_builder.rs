@@ -1,6 +1,6 @@
 use crate::{
     context::{bank, fund, patient, procedure},
-    core::logger,
+    shared::logger,
     use_cases::{
         bank_manual_match, bank_statement_reconciliation, db_backup, excel_import,
         fund_payment_reconciliation, fund_payment_report_pdf, overpayment,

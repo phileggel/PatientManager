@@ -1,6 +1,6 @@
 use crate::context::fund::FundRepository;
 use crate::context::procedure::ProcedureRepository;
-use crate::core::logger::BACKEND;
+use crate::shared::logger::BACKEND;
 /// Main reconciliation service - orchestration layer
 use std::collections::HashSet;
 use std::sync::Arc;

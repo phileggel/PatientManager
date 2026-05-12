@@ -1,7 +1,7 @@
 use super::error::ReportPdfError;
 use super::orchestrator::{generate, save};
 use super::request::ReportGenerationRequest;
-use crate::core::secure_path::{self, PathPolicy};
+use crate::shared::secure_path::{self, PathPolicy};
 use crate::BACKEND;
 
 /// Generate the post-reconciliation report as a PDF byte stream.
