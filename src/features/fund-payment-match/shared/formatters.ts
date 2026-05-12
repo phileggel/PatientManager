@@ -4,6 +4,8 @@
 // `ReportGenerationRequest` to the backend.
 // ────────────────────────────────────────────────────────────────────────────
 
+export { formatShortDate } from "@/lib/formatters";
+
 /**
  * Format an amount in thousandths-of-a-euro as a locale-aware currency
  * string, e.g. `85,00 €` (fr) / `€85.00` (en).
@@ -15,26 +17,6 @@ export function formatCurrency(thousandths: number, locale: string): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(thousandths / 1000);
-}
-
-/**
- * Format an ISO `YYYY-MM-DD` date as a locale-aware short date.
- * Falls back to the raw ISO string if parsing fails.
- */
-export function formatShortDate(iso: string, locale: string): string {
-  const parts = iso.split("-");
-  if (parts.length !== 3) return iso;
-  const [y, m, d] = parts.map(Number);
-  if (!y || !m || !d) return iso;
-  try {
-    return new Intl.DateTimeFormat(locale, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(y, m - 1, d));
-  } catch {
-    return iso;
-  }
 }
 
 /**
