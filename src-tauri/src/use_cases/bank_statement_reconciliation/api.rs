@@ -37,7 +37,6 @@ pub async fn parse_bank_statement(
     tracing::info!(target: BACKEND, "Starting bank statement parsing");
     orchestrator
         .parse_bank_statement(&file_path)
-        .await
         .map_err(|e| format!("{:#}", e))
 }
 

@@ -284,7 +284,7 @@ impl BankManualMatchOrchestrator {
         transfer_type: BankEntryType,
         procedure_ids: Vec<String>,
     ) -> anyhow::Result<BankManualMatchResult> {
-        transfer_type.ensure_direct_payment_eligible()?;
+        transfer_type.ensure_not_refund_only_variant()?;
 
         let total_amount = self.compute_procedures_amount(&procedure_ids).await?;
 
