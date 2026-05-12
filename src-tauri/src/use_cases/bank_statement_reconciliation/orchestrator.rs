@@ -10,8 +10,13 @@ use crate::context::bank::{
 use crate::context::fund::{Fund, FundPaymentGroupStatus, FundPaymentService, FundService};
 use crate::context::procedure::{ProcedureService, ProcedureStatus};
 use crate::core::event_bus::{BankEntryUpdated, EventBus, ProcedureUpdated};
+use crate::core::logger::BACKEND;
+use crate::core::secure_path::{self, PathPolicy};
+use crate::use_cases::fund_payment_reconciliation::parsing::pdf_extractor;
 
+use super::bank_pdf_codec::BankStatementParseResult;
 use super::label_mapping_repo::BankFundLabelMappingRepository;
+use super::parser;
 
 /// Maximum number of days between a fund payment group date and the bank statement credit line date.
 /// A group dated on D may appear on the bank statement up to D+7 (R11).
@@ -117,6 +122,44 @@ impl BankStatementOrchestrator {
             label_mapping_repo,
             event_bus,
         }
+    }
+
+    /// Parse a bank statement PDF: validate the path, extract text, parse it
+    /// into a structured `BankStatementParseResult`, then enforce R26 (the
+    /// workflow halts with the `NO_VIR_SEPA_LINES` sentinel when no VIR SEPA
+    /// credit lines remain).
+    pub async fn parse_bank_statement(
+        &self,
+        file_path: &str,
+    ) -> anyhow::Result<BankStatementParseResult> {
+        let allowed_root = secure_path::user_home()
+            .ok_or_else(|| anyhow::anyhow!("Cannot resolve user home directory"))?;
+        let canonical = secure_path::validate_user_path(
+            file_path,
+            &allowed_root,
+            PathPolicy::ExistingFile {
+                extensions: &["pdf"],
+            },
+        )
+        .map_err(|e| {
+            tracing::warn!(target: BACKEND, error = %e, "Bank statement path rejected by validator");
+            anyhow::anyhow!("{e}")
+        })?;
+
+        let text = pdf_extractor::extract_pdf_text(&canonical)
+            .map_err(|e| anyhow::anyhow!("Failed to extract PDF text: {}", e))?;
+        tracing::info!(target: BACKEND, chars = text.len(), "PDF text extracted");
+
+        let result = parser::parse_bank_statement(&text);
+        let result = ensure_credit_lines(result)?;
+
+        tracing::info!(
+            target: BACKEND,
+            credit_lines = result.credit_lines.len(),
+            total_credits = result.total_credits,
+            "Bank statement parsed successfully"
+        );
+        Ok(result)
     }
 
     /// Resolve fund labels against the mapping table and suggest matches.
@@ -503,6 +546,20 @@ fn suggest_fund(label: &str, funds: &[Fund]) -> (Option<String>, Option<String>)
         Some(fund) => (Some(fund.id.clone()), Some(fund.name.clone())),
         None => (None, None),
     }
+}
+
+/// R26 — Halt the workflow with the `NO_VIR_SEPA_LINES` sentinel when the
+/// parsed statement contains no actionable VIR SEPA credit lines. The
+/// frontend matches on this exact error string to display a dedicated
+/// "no SEPA lines" guidance.
+fn ensure_credit_lines(
+    result: BankStatementParseResult,
+) -> anyhow::Result<BankStatementParseResult> {
+    if result.credit_lines.is_empty() {
+        tracing::warn!(target: BACKEND, "Bank statement parsed but contains no VIR SEPA credit lines");
+        anyhow::bail!("NO_VIR_SEPA_LINES");
+    }
+    Ok(result)
 }
 
 /// Check if bank_date is exactly 'offset' days after group_date
@@ -1165,6 +1222,46 @@ mod tests {
 
         let (id, _) = suggest_fund("MUTUELLEGENERALEEDUCATIONNAT", &funds);
         assert_eq!(id.as_deref(), Some("f1"));
+    }
+
+    // --- ensure_credit_lines (R26) ---
+
+    fn empty_parse_result() -> BankStatementParseResult {
+        BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![],
+            total_credits: 0,
+            unparsed_count: 0,
+        }
+    }
+
+    #[test]
+    fn ensure_credit_lines_rejects_empty_with_no_vir_sepa_lines_sentinel() {
+        let err = ensure_credit_lines(empty_parse_result())
+            .expect_err("R26: empty credit lines must be rejected");
+        assert_eq!(
+            err.to_string(),
+            "NO_VIR_SEPA_LINES",
+            "frontend matches on this exact sentinel"
+        );
+    }
+
+    #[test]
+    fn ensure_credit_lines_passes_through_when_lines_present() {
+        let result = BankStatementParseResult {
+            credit_lines: vec![
+                crate::use_cases::bank_statement_reconciliation::bank_pdf_codec::BankStatementCreditLine {
+                    date: "2026-01-15".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 100_000,
+                },
+            ],
+            total_credits: 100_000,
+            ..empty_parse_result()
+        };
+        let passed = ensure_credit_lines(result).expect("non-empty lines must pass through");
+        assert_eq!(passed.credit_lines.len(), 1);
     }
 
     #[test]
