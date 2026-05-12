@@ -38,7 +38,7 @@ function ProcedureLineRow({
 
 function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
   const { t } = useTranslation("fund-payment-match");
-  const { locale } = useFormatters();
+  const { formatDate, locale } = useFormatters();
   return (
     <div className="rounded-lg border border-slate-200 overflow-hidden">
       <div className="bg-slate-100 px-4 py-3 flex items-center justify-between">
@@ -48,7 +48,7 @@ function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-600">
-            {t("table.group.payment")} {group.payment_date}
+            {t("table.group.payment")} {formatDate(group.payment_date)}
           </span>
           <span
             className={`font-semibold ${group.is_total_valid ? "text-success-70" : "text-error-70"}`}

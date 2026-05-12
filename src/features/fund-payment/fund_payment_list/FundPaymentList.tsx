@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup } from "@/bindings";
 import { toastService } from "@/core/snackbar";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
 import { EditFundPaymentModal } from "../edit_fund_payment_modal/EditFundPaymentModal";
@@ -22,6 +23,7 @@ import { useSortFundPaymentList } from "./useSortFundPaymentList";
 export function FundPaymentList() {
   const { t } = useTranslation("fund-payment");
   const { t: tc } = useTranslation("common");
+  const { formatDate } = useFormatters();
   const { fundPaymentRows, groups, loading, deleteGroup } = useFundPaymentList();
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -159,7 +161,7 @@ export function FundPaymentList() {
                       </div>
                     </td>
                     <td className="m3-td text-m3-on-surface-variant font-mono text-sm">
-                      {group.paymentDate}
+                      {formatDate(group.paymentDate)}
                     </td>
                     <td className="m3-td text-m3-on-surface font-semibold text-right">
                       €{group.totalAmount.toFixed(2)}
