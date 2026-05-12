@@ -377,12 +377,20 @@ impl OverpaymentOrchestrator {
         }))
     }
 
-    /// Check whether a fund payment group belongs to a refund (REF-240 guard).
-    /// Used by `delete_fund_payment_group` to prevent direct deletion.
-    pub async fn is_refund_fund_payment_group(&self, group_id: &str) -> anyhow::Result<bool> {
-        self.procedure_refund_repo
+    /// REF-240 — Refund fund payment groups can only be removed by cancelling
+    /// the refund, not by direct deletion. Returns Err with a user-facing
+    /// message when `group_id` points to a refund group; Ok otherwise.
+    pub async fn ensure_not_refund_fund_payment_group(&self, group_id: &str) -> anyhow::Result<()> {
+        let is_refund = self
+            .procedure_refund_repo
             .is_refund_fund_payment_group(group_id)
-            .await
+            .await?;
+        if is_refund {
+            anyhow::bail!(
+                "This fund payment group belongs to an overpayment refund and can only be removed by cancelling the refund."
+            );
+        }
+        Ok(())
     }
 }
 
@@ -911,16 +919,15 @@ mod tests {
         assert!(result.is_none());
     }
 
-    // --- is_refund_fund_payment_group ---
+    // --- ensure_not_refund_fund_payment_group ---
 
     #[tokio::test]
-    async fn is_refund_fund_payment_group_delegates_to_repository() {
+    async fn ensure_not_refund_fund_payment_group_ok_when_repo_reports_false() {
         let orchestrator = make_orchestrator(None);
-        let result = orchestrator
-            .is_refund_fund_payment_group("some-group")
+        orchestrator
+            .ensure_not_refund_fund_payment_group("some-group")
             .await
-            .unwrap();
-        assert!(!result);
+            .expect("non-refund group must pass the guard");
     }
 
     #[test]
@@ -1091,15 +1098,19 @@ mod tests {
         assert_eq!(info.refund_date, "2024-03-01");
     }
 
-    // --- is_refund_fund_payment_group returns true ---
+    // --- ensure_not_refund_fund_payment_group rejects refund groups ---
 
     #[tokio::test]
-    async fn is_refund_fund_payment_group_returns_true_when_present() {
+    async fn ensure_not_refund_fund_payment_group_rejects_refund_group() {
         let orchestrator = make_cancel_orchestrator();
-        let result = orchestrator
-            .is_refund_fund_payment_group("group-1")
+        let err = orchestrator
+            .ensure_not_refund_fund_payment_group("group-1")
             .await
-            .unwrap();
-        assert!(result);
+            .expect_err("refund group must be rejected by REF-240 guard");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("overpayment refund") && msg.contains("cancelling the refund"),
+            "rejection must surface the cancel-refund guidance: {msg}"
+        );
     }
 }
