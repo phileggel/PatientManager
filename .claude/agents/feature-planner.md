@@ -60,7 +60,7 @@ Read the following to ensure compliance (skip silently if a file is absent):
 - `ARCHITECTURE.md`: Bounded contexts, module layout, data flow, naming conventions.
 - `docs/backend-rules.md`: Factory methods, service layer, repository traits.
 - `docs/frontend-rules.md`: Gateway, hook, component patterns, colocated tests.
-- `docs/test_convention.md`: Testing conventions (inline `#[cfg(test)]` for Rust, colocated `.test.ts` for React).
+- `docs/test_convention.md`: Testing conventions (inline `#[cfg(test)]` for Rust, colocated `.test.ts` for the frontend).
 - `docs/contracts/{domain}-contract.md`: skip silently if absent (frontend-only or backend-internal-only features have no contract per the `/contract` skill); if present, treat as mandatory — its commands anchor the `test-writer-*` tasks in the plan. Derive the domain name from the spec's Context section.
 
 ### Step 3 — Codebase Verification
@@ -144,7 +144,7 @@ A granular breakdown by architectural layer:
 
 - **Migrations** (if any): List each migration file with its suggested filename, inferred columns, and a reminder to run `just migrate` then `just prepare-sqlx` before writing backend code. Omit this section if no schema changes are required.
 - **Backend**: Exact file paths, struct names, factory methods (follow project conventions from `docs/backend-rules.md`), service methods, and command handlers.
-- **Frontend**: Exact file paths, gateway methods, custom hooks, and React components.
+- **Frontend**: Exact file paths, gateway methods, custom hooks, and frontend components.
 - **Rules Coverage**: A table mapping every TRIGRAM-NNN rule to its corresponding implementation task. Example row:
   | Rule | Layer | Task | Notes |
   | ------- | -------- | ----------------------------------------- | ---------------------- |
