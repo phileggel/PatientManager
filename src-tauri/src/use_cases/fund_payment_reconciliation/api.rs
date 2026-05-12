@@ -97,11 +97,32 @@ pub enum ReconciliationMatch {
     },
 }
 
+impl ReconciliationMatch {
+    /// True when this match represents an anomaly requiring user attention
+    /// (any `*Issue` variant). Perfect matches return `false`.
+    pub fn is_issue(&self) -> bool {
+        matches!(
+            self,
+            ReconciliationMatch::SingleMatchIssue { .. }
+                | ReconciliationMatch::GroupMatchIssue { .. }
+                | ReconciliationMatch::TooManyMatchIssue { .. }
+                | ReconciliationMatch::NotFoundIssue { .. }
+        )
+    }
+}
+
 /// Complete reconciliation result structured as unified matches
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ReconciliationResult {
     /// Unified array of all reconciliation matches (perfect + issues)
     pub matches: Vec<ReconciliationMatch>,
+}
+
+impl ReconciliationResult {
+    /// Count of matches that represent an anomaly (any `*Issue` variant).
+    pub fn issue_count(&self) -> usize {
+        self.matches.iter().filter(|m| m.is_issue()).count()
+    }
 }
 
 // ============ Fund Payment Reconciliation DTOs ============
@@ -312,19 +333,7 @@ pub async fn reconcile_pdf_procedures(
     reconcile_pdf_procedures_fn(parse_result, service.inner().clone())
         .await
         .inspect(|result| {
-            let issue_count = result
-                .matches
-                .iter()
-                .filter(|m| {
-                    matches!(
-                        m,
-                        ReconciliationMatch::SingleMatchIssue { .. }
-                            | ReconciliationMatch::GroupMatchIssue { .. }
-                            | ReconciliationMatch::TooManyMatchIssue { .. }
-                            | ReconciliationMatch::NotFoundIssue { .. }
-                    )
-                })
-                .count();
+            let issue_count = result.issue_count();
             tracing::info!(
                 target: BACKEND,
                 "Reconciliation complete: {} perfect matches, {} issues",
@@ -349,20 +358,7 @@ pub async fn reconcile_and_create_candidates(
     reconcile_and_create_candidates_fn(parse_result, service.inner().clone())
         .await
         .inspect(|resp| {
-            let issue_count = resp
-                .reconciliation
-                .matches
-                .iter()
-                .filter(|m| {
-                    matches!(
-                        m,
-                        ReconciliationMatch::SingleMatchIssue { .. }
-                            | ReconciliationMatch::GroupMatchIssue { .. }
-                            | ReconciliationMatch::TooManyMatchIssue { .. }
-                            | ReconciliationMatch::NotFoundIssue { .. }
-                    )
-                })
-                .count();
+            let issue_count = resp.reconciliation.issue_count();
             tracing::info!(
                 target: BACKEND,
                 "Workflow complete: {} candidates, {} perfect matches, {} issues",
@@ -494,4 +490,103 @@ pub async fn get_fund_payment_group_edit_data(
         current_procedures,
         available_procedures,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pdf_line(label: &str) -> NormalizedPdfLine {
+        let date = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
+        NormalizedPdfLine {
+            line_index: 0,
+            payment_date: date,
+            invoice_number: format!("{label}-inv"),
+            fund_name: label.to_string(),
+            patient_name: format!("{label}-patient"),
+            ssn: "1234567890123".to_string(),
+            nature: "SF".to_string(),
+            procedure_start_date: date,
+            procedure_end_date: date,
+            is_period: false,
+            amount: 100,
+        }
+    }
+
+    fn db_match(id: &str) -> DbMatch {
+        DbMatch {
+            procedure_id: id.to_string(),
+            procedure_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            fund_id: None,
+            amount: Some(100),
+            anomalies: vec![],
+        }
+    }
+
+    #[test]
+    fn is_issue_returns_true_only_for_issue_variants() {
+        let perfect_single = ReconciliationMatch::PerfectSingleMatch {
+            pdf_line: pdf_line("ok"),
+            db_match: db_match("p1"),
+        };
+        let perfect_group = ReconciliationMatch::PerfectGroupMatch {
+            pdf_line: pdf_line("ok"),
+            db_matches: vec![db_match("p1")],
+        };
+        let single_issue = ReconciliationMatch::SingleMatchIssue {
+            pdf_line: pdf_line("bad"),
+            db_match: db_match("p1"),
+        };
+        let group_issue = ReconciliationMatch::GroupMatchIssue {
+            pdf_line: pdf_line("bad"),
+            db_matches: vec![db_match("p1")],
+        };
+        let too_many = ReconciliationMatch::TooManyMatchIssue {
+            pdf_line: pdf_line("many"),
+            candidate_ids: vec!["a".into(), "b".into()],
+        };
+        let not_found = ReconciliationMatch::NotFoundIssue {
+            pdf_line: pdf_line("missing"),
+            nearby_candidates: vec![],
+        };
+
+        assert!(!perfect_single.is_issue());
+        assert!(!perfect_group.is_issue());
+        assert!(single_issue.is_issue());
+        assert!(group_issue.is_issue());
+        assert!(too_many.is_issue());
+        assert!(not_found.is_issue());
+    }
+
+    #[test]
+    fn issue_count_counts_only_issue_variants() {
+        let result = ReconciliationResult {
+            matches: vec![
+                ReconciliationMatch::PerfectSingleMatch {
+                    pdf_line: pdf_line("ok"),
+                    db_match: db_match("p1"),
+                },
+                ReconciliationMatch::SingleMatchIssue {
+                    pdf_line: pdf_line("bad"),
+                    db_match: db_match("p2"),
+                },
+                ReconciliationMatch::NotFoundIssue {
+                    pdf_line: pdf_line("missing"),
+                    nearby_candidates: vec![],
+                },
+            ],
+        };
+        assert_eq!(result.issue_count(), 2);
+        assert_eq!(
+            result.matches.len() - result.issue_count(),
+            1,
+            "perfect-match count derived correctly"
+        );
+    }
+
+    #[test]
+    fn issue_count_is_zero_for_empty_result() {
+        let result = ReconciliationResult { matches: vec![] };
+        assert_eq!(result.issue_count(), 0);
+    }
 }
