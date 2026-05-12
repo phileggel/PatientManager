@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { FundGroupCandidate } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components";
 import { useSelectFundGroupsPanel } from "./useSelectFundGroupsPanel";
 
@@ -15,6 +16,7 @@ interface SelectFundGroupsPanelProps {
 export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
   const { transferDate, selectedGroupIds, currentGroups } = props;
   const { t } = useTranslation("bank");
+  const { formatDate } = useFormatters();
   const {
     loading,
     isExpanded,
@@ -55,7 +57,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
                     {getFundName(group.fund_id)}
                   </span>
                   <span className="text-neutral-60 text-xs whitespace-nowrap">
-                    {new Date(group.payment_date).toLocaleDateString("fr-FR")}
+                    {formatDate(group.payment_date)}
                   </span>
                   <span className="font-semibold whitespace-nowrap">
                     €{(group.total_amount / 1000).toFixed(2)}
@@ -102,7 +104,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
                   {getFundName(group.fund_id)}
                 </span>
                 <span className="text-neutral-60 text-xs whitespace-nowrap">
-                  {new Date(group.payment_date).toLocaleDateString("fr-FR")}
+                  {formatDate(group.payment_date)}
                 </span>
                 <span className="font-semibold whitespace-nowrap">
                   €{(group.total_amount / 1000).toFixed(2)}

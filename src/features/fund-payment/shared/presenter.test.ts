@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeFund } from "@/tests/fund.factory";
 import { makeFundPaymentGroup } from "@/tests/fund-payment.factory";
 import { makeProcedure } from "@/tests/procedure.factory";
-import { FundPaymentPresenter, formatAmountEUR, formatDateFR } from "./presenter";
+import { FundPaymentPresenter, formatAmountEUR } from "./presenter";
 
 describe("formatAmountEUR", () => {
   it("converts thousandths to a formatted EUR string", () => {
@@ -15,17 +15,6 @@ describe("formatAmountEUR", () => {
     const result = formatAmountEUR(0);
     expect(result).toMatch(/0,00/);
     expect(result).toContain("€");
-  });
-});
-
-describe("formatDateFR", () => {
-  it("formats ISO date string as DD/MM/YYYY in French locale", () => {
-    expect(formatDateFR("2025-01-15")).toBe("15/01/2025");
-  });
-
-  it("pins UTC midnight so no timezone-related day shift occurs", () => {
-    // Dates at UTC midnight must not shift to the previous day
-    expect(formatDateFR("2025-12-31")).toBe("31/12/2025");
   });
 });
 

@@ -11,14 +11,6 @@ export const formatDayToIso = (day: number, isoPrefix: string): string => {
   return `${isoPrefix}${dayStr}`;
 };
 
-export const formatDateDisplay = (isoDate: string | null | undefined) => {
-  if (!isoDate) return "—";
-  const parts = isoDate.split("-");
-  if (parts.length !== 3) return "—";
-  const [y, m, d] = parts;
-  return `${d}/${m}/${y}`;
-};
-
-export const getMonthName = (month: number): string => {
-  return new Date(2026, month - 1).toLocaleString("fr-FR", { month: "long" });
+export const getMonthName = (month: number, locale: string): string => {
+  return new Date(2026, month - 1).toLocaleString(locale, { month: "long" });
 };
