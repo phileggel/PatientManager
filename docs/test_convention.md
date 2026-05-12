@@ -72,7 +72,7 @@ vi.mock("@/core/snackbar", () => ({
 Inject store state directly in `beforeEach`:
 
 ```ts
-import { useAppStore } from "@/lib/appStore";
+import { useAppStore } from "@/shell/appStore";
 
 beforeEach(() => {
   vi.clearAllMocks();

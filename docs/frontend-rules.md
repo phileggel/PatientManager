@@ -4,6 +4,45 @@
 
 > Rule numbers (F1, F2, …) are stable IDs — once assigned, they never change. New rules are appended; deprecated rules keep their number with a note.
 
+## Top-level `src/` structure
+
+**F28** — The frontend source tree MUST follow this top-level layout. Each bucket has both an inclusion rule (what lives there) AND an exclusion rule (what does NOT) — a folder with only an inclusion rule grows weeds, and the catch-all framing actively hides mislocated code.
+
+```
+src/
+├── features/   # UI surfaces, may own a gateway
+├── shell/      # router + global layout (one instance, not reusable)
+├── ui/         # reusable UI: widgets, formatters, hooks, widget runtime state
+│   ├── components/   # widgets (button, field, modal, snackbar, …)
+│   │                  # widget runtime state colocates with the widget
+│   ├── format/       # cross-feature formatters (currency, date, percent, …)
+│   └── hooks/        # generic UI hooks (useFuzzySearch, …)
+├── infra/      # platform adapters ONLY (logger, storage, i18n runtime, …)
+├── bindings.ts # generated — DO NOT EDIT
+└── main.tsx
+```
+
+Each bucket's mandate:
+
+- **`features/`** — User-facing surfaces, organised per F1. A feature MAY own a gateway. **REJECTS:** anything reusable across features (promote to `ui/`) or any cross-cutting platform adapter (promote to `infra/`). A feature folder appearing anywhere else in the tree (e.g. inside `infra/` or `ui/`) is a misclassification.
+- **`shell/`** — Router, global layout, header/sidebar — single instance per app, not reusable. **REJECTS:** anything reusable (`ui/`), anything feature-scoped (`features/`).
+- **`ui/`** — Reusable UI primitives: widgets in `ui/components/`, cross-feature formatters in `ui/format/`, generic React hooks in `ui/hooks/`. Widget runtime state colocates with the widget (e.g. `ui/components/snackbar/snackbarStore.ts`). **REJECTS:** any domain term, any Tauri call (no `commands.*` from `ui/`), any platform adapter (`infra/`).
+- **`infra/`** — Platform adapters ONLY: code that talks to a runtime outside our control (logger sink, browser storage, i18n runtime, native bridges). **REJECTS:** pure helpers and formatters (promote to `ui/format/`), generic UI hooks (promote to `ui/hooks/`), stateful UI runtime (colocate with the widget in `ui/components/`), anything feature-scoped (`features/`).
+
+The diagnostic value is the rejection half. When a file lands in the wrong bucket, the exclusion rule of the destination bucket is what flags it.
+
+**Framework-resource exception.** Static resources owned by the framework (not by application code) sit outside the 4-bucket discipline because the industry-standard Vite convention is well-established and tools (build, bundler, dev server) expect those paths:
+
+- `src/assets/` — images, fonts, SVGs imported by application code
+- `src/styles/` — global CSS, theme tokens, CSS variables
+- `public/` — static files served verbatim (favicon, robots.txt)
+
+These directories MAY exist alongside the 4 buckets and are not subject to the reject-each-other rules. They contain resources, not code.
+
+> **Rename note:** projects pre-v4.5 used `src/lib/` as a catch-all. `lib/` is a JS tradition with no semantic content; `infra/` carries a clear meaning (_talks to a platform we depend on_) that lets a reader decide at a glance whether a file belongs. Migration is a one-time rename per project — sort the existing `lib/` contents into the four buckets above, then delete `lib/`. The kit ships forward with `infra/`.
+
+This is the FE counterpart to the backend `B0` gold layout, adapted for FE realities: there is no per-feature `application/domain/infrastructure` layering and no Shared Kernel, because FE features are UI surfaces, not bounded contexts (see F23, F26).
+
 ## Feature Structure
 
 **F1** — SHOULD follow the gold layout:
@@ -79,7 +118,7 @@ The reviewer-frontend lane flags primary interactive elements without an `id` pr
 
 **F14** — MUST log `error` when a critical error happens (not a validation — a real, specific frontend error).
 
-**F15** — MUST NOT use `console.log`. Always use `logger` from `@/lib/logger`.
+**F15** — MUST NOT use `console.log`. Always use `logger` from `@/infra/logger` (per F28's `infra/` bucket — the logger sink talks to a platform we depend on).
 
 ## i18n
 
@@ -107,6 +146,55 @@ The reviewer-frontend lane flags any literal string passed to those props.
 - Show user-friendly feedback (snackbar)
 - Display inline validation errors in forms
 - Distinguish between user errors (validation) and system errors
+
+**F27** — Typed backend errors MUST flow through a 4-layer pipeline. Each layer has one job; silently dropping the error branch is forbidden at every layer. This is the FE consuming side of the backend rejection-layer rule (`ddd-reference.md` § Errors).
+
+1. **Gateway** returns `Result<T, *CommandError>` unchanged — no translation, no swallow. (Already enforced by Specta-generated bindings.)
+2. **Hook** branches on `result.status`. For `error`, it MUST either (a) return the typed error as state for the component to render, OR (b) dispatch to a snackbar/toast store. Silently dropping the error branch — or coercing it to a stringified message — is forbidden.
+3. **Presenter** owns the typed-error → i18n-key mapping. The presenter (`shared/presenter.ts`) is a pure function that returns a key string (e.g. `"record_price.error.duplicate_date"`) — no `useTranslation`, no React, no runtime concerns. Trivially unit-testable. Components never inspect `error.code` directly.
+4. **Component** owns the runtime translation. It calls `t(key)` via `useTranslation` to render the string, surfaced inline (form context) or via snackbar (action context). The component knows nothing about the error's domain shape.
+
+The presenter / component split mirrors the selector / view split in modern React: selectors return data, views handle runtime presentation. Mixing the two would couple the presenter to React's runtime and force tests to mock `useTranslation`.
+
+```ts
+// 1. Gateway — Specta-generated, unchanged
+commands.recordPrice(input); // Result<RecordPriceOk, RecordPriceError>
+
+// 2. Hook — branches, returns typed error as state
+function useRecordPrice() {
+  const [error, setError] = useState<RecordPriceError | null>(null);
+  const submit = async (input: RecordPriceInput) => {
+    const result = await gateway.recordPrice(input);
+    if (result.status === "error") {
+      setError(result.error); // typed, NOT stringified
+      return;
+    }
+    setError(null);
+    // ...
+  };
+  return { submit, error };
+}
+
+// 3. Presenter — pure mapping, lives in shared/presenter.ts
+export function presentRecordPriceError(e: RecordPriceError): string {
+  switch (e.code) {
+    case "DUPLICATE_DATE":
+      return "record_price.error.duplicate_date";
+    case "AMOUNT_NOT_POSITIVE":
+      return "record_price.error.amount_not_positive";
+  }
+}
+
+// 4. Component — renders the i18n key, knows nothing about error shape
+const { submit, error } = useRecordPrice();
+return (
+  <form onSubmit={submit}>
+    {error && <p role="alert">{t(presentRecordPriceError(error))}</p>}
+  </form>
+);
+```
+
+Client-side validation (no backend round-trip) follows the same pipeline: validation produces typed errors with `code` fields, presenter maps to i18n keys, component renders. The snackbar store interface is left to projects — F27 prescribes only the layering.
 
 ## Tests
 
@@ -160,12 +248,20 @@ useEffect(() => {
 
 ## Navigation
 
-**F23** — Inter-feature navigation MUST go through the router.
+**F23** — Inter-feature navigation MUST go through the router. Cross-feature navigation is handled exclusively via `useNavigate` / route paths — never by rendering another feature's page-level component directly from a sibling feature.
 
-Features are bounded contexts: a feature MUST NOT import components, hooks, or utilities directly from another
-feature. Cross-feature navigation is handled exclusively via useNavigate / route paths.
+The only authorised cross-feature navigation wiring points are:
 
-The only authorised cross-feature imports are:
+- `router.tsx` — registers page-level components (single wiring point)
+- Shell features (`shell/`) — may import modal components they own and host
 
-- router.tsx — registers page-level components (single wiring point)
-- Shell features (shell/) — may import modal components they own and host
+> Frontend "features" are UI surfaces organised for co-location of code edited together — they are NOT bounded contexts in the DDD sense. The structural BC enforcement lives server-side (Rust); on the FE, all features share `bindings.ts` and read/write through the same Tauri layer. See **F26** for the cross-feature import rule that replaces the old "feature = BC" framing.
+
+## Cross-feature imports
+
+**F26** — Cross-feature imports are evaluated by what is imported, not by the fact of crossing:
+
+- **Primitive imports are fine.** Types, pure functions, and presentational components MAY be imported across feature boundaries. They are not behaviour coupling — they are shared primitives. Example: `features/account_details/.../X.tsx` importing `TransactionFormData` (type), `validateTransactionForm` (pure), or `RecordPriceCheckbox` (presentational) from `features/transactions/shared/` is acceptable.
+- **Behaviour imports are a code smell.** A hook or store imported from another feature couples the two features behaviourally and typically signals one of: wrong feature boundary, missing shared layer, or a piece of behaviour that should be promoted to `ui/hooks/` or `shell/`. Treat the import as SHOULD-NOT and prefer promotion when it appears twice.
+
+Promotion destinations (see F28): generic UI hooks → `ui/hooks/`; app-wide stores → `shell/`; cross-cutting platform adapters → `infra/`.

@@ -76,7 +76,7 @@ Run `bash scripts/report-path.sh prune` and store the output as `REPORT_PATH`.
 
 ### Step 2 — Discover source files
 
-If a `[path]` argument was given, scan only that directory. Otherwise, locate source directories from `ARCHITECTURE.md` or by searching for common roots (`src/`, `lib/`). Exclude test files, generated files, `node_modules/`, `target/`, `.git/`.
+If a `[path]` argument was given, scan only that directory. Otherwise, locate source directories from `ARCHITECTURE.md` or by searching for common roots (`src/`, `infra/`, `lib/`). Exclude test files, generated files, `node_modules/`, `target/`, `.git/`.
 
 ```bash
 find [path_or_src] -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.rs" \) \

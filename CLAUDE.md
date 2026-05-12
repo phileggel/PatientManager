@@ -39,7 +39,7 @@ While coding:
 Each task ships under these constraints (in priority order):
 
 1. **Surgical** — touch only the file set the task requires. Refuse "while I'm here" expansions outside that set. Every PR tells one story.
-2. **Gold standard for new code; bit-by-bit for existing** — apply gold standards to new code (BE layout v4.4, typed error model, FE layout per kit issues). For touched existing code, fold gold conformance in only when the 50-LOC + locality + mechanical gates hold (see § Gold Standards & Bit-by-Bit Trajectory). When in doubt, defer.
+2. **Gold standard for new code; bit-by-bit for existing** — apply gold standards to new code (BE layout per `docs/backend-rules.md` B0/B37–B43, typed error model, FE layout per `docs/frontend-rules.md` F26–F28). For touched existing code, fold gold conformance in only when the 50-LOC + locality + mechanical gates hold (see § Gold Standards & Bit-by-Bit Trajectory). When in doubt, defer.
 3. **Boyscout** — small mechanical fixes inside the files you're already editing (dead code, misleading test names, B33 violations, typos) ship in the same PR. Stay inside the touched file set; don't go on adjacent quests.
    - **Never maintain known dead code.** Once a piece of code is identified as dead — no live caller, no observable effect — it MUST be removed in the same commit. Don't carry it forward as "speculative future default", "preemptive omnibus coverage", or any similar justification. Surface the audit to the user (live vs dead table) and delete.
 4. **Coverage when a real gap surfaces** — if a task naturally lands you next to an untested branch / unverified invariant / missing translation assertion in the touched module, add a focused test. Don't sweep coverage across unrelated areas.
@@ -125,7 +125,7 @@ The project has three evolving "gold" targets the codebase moves toward **bit by
 ### The three golds
 
 1. **Backend layout gold** — kit v4.4.0. Rules `B0`, `B37`–`B43` in `docs/backend-rules.md`. New code under `shared/` (not `core/`), `context/{bc}/{application,domain,infrastructure}/` symmetric trio, `infrastructure/` (not `repository/`). Migration of existing `core/` + flat `{aggregate}/repository.rs` is tracked in `docs/todo.md` "DDD Convergence" entry.
-2. **Frontend layout gold** — pending kit issues [#21](https://github.com/phileggel/claude-kit/issues/21), [#22](https://github.com/phileggel/claude-kit/issues/22), [#23](https://github.com/phileggel/claude-kit/issues/23) (FE cross-feature import reframe; canonical hook/presenter/component error-handling layering; `src/` folder mandates + `lib/` → `infra/` rename). Likely lands in kit v4.5+. Until then, follow the proposed shape from those issue bodies for new FE code.
+2. **Frontend layout gold** — codified in `docs/frontend-rules.md` v4.5 as **F26** (cross-feature imports evaluated by what's imported, not by the fact of crossing), **F27** (typed backend errors must flow through the 4-layer FE pipeline — paired with the backend rejection-layer rule in `ddd-reference.md`; no silent drops at any layer), and **F28** (top-level `src/` bucket layout with both inclusion and exclusion rules per bucket). Apply to new FE code; bit-by-bit for existing.
 3. **Error-model gold** — typed per-BC `*ApplicationError` enums on Tauri command boundaries (replace `Result<T, String>` formatted from `anyhow`); shared infrastructure errors must NOT appear on the FE wire surface; the application layer translates raw infra errors and logs server-side via `tracing::error!`. Migration is tracked in `docs/todo.md` "Structured errors: replace anyhow/String with typed error variants" entry. Upstream proposal: kit issue [#28](https://github.com/phileggel/claude-kit/issues/28).
 
 ### Bit-by-bit update rule
@@ -198,9 +198,15 @@ Rules for this family:
 
 > ⚠️ Most aggregates currently mutate fields directly in orchestrators rather than through these methods. Migration is tracked in `docs/todo.md` "DDD Convergence — Extract aggregate root methods on `Procedure` / `Patient` / `FundPaymentGroup`" entry. New domain methods MUST follow the gold convention; existing direct-mutation paths follow the bit-by-bit rule.
 
-### Frontend Accessibility — i18n + stable ids
+### Frontend Gold Rules (F24–F28)
+
+Full rules: `docs/frontend-rules.md`. Project-wide essentials:
+
 - **F24** — All `aria-label`, `aria-labelledby`, `aria-describedby`, `title`, and `placeholder` strings MUST flow through `t()`. Hardcoded English a11y strings ship untranslated to non-default-locale users.
 - **F25** — Primary interactive elements (buttons, inputs, list items, dialogs) MUST render a stable `id` of the form `{feature}-{component}-{role}`. Stable ids serve both `aria-labelledby` and E2E selectors; `aria-label` co-exists for translated screen-reader text.
+- **F26** — Cross-feature imports are evaluated by what is imported, not by the fact of crossing — see frontend-rules.md for the allowed/forbidden matrix.
+- **F27** — Typed backend errors MUST flow through the 4-layer FE pipeline; each layer has one job, silently dropping the error branch is forbidden at every layer. Paired with the backend rejection-layer rule in `ddd-reference.md`.
+- **F28** — The frontend source tree MUST follow the top-level bucket layout; each bucket has both an inclusion rule (what lives there) and an exclusion rule (what does NOT).
 
 ---
 

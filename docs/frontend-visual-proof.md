@@ -180,7 +180,7 @@ for (const scheme of ["light", "dark"]) {
 ```
 
 Use `domcontentloaded` + `waitForSelector` instead of `networkidle` — more reliable for
-React hydration, and `networkidle` is officially discouraged in Playwright.
+frontend hydration, and `networkidle` is officially discouraged in Playwright.
 
 For interaction clips, use video recording:
 

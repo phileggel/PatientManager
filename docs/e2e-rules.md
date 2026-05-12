@@ -4,7 +4,8 @@ Defines what makes a component reliably driveable from the Tauri WebDriver E2E s
 Read together with `docs/frontend-rules.md` and `docs/test_convention.md`.
 
 ⚠️ **AI AGENT MUST NEVER UPDATE THIS DOCUMENT**
-**Rules numbering are indicative and not stable from version to version**
+
+> Rule numbers (E1, E2, …) are stable IDs — once assigned, they never change. New rules are appended; deprecated rules keep their number with a note.
 
 ---
 
@@ -42,14 +43,20 @@ The `id` MUST be forwarded to the underlying DOM `<input>` — never stop at the
 E2E selector: `button[type="submit"][form="price-modal-form"]`.
 Never rely on an `onClick`-only submit path — there is no stable selector for it.
 
-## E4 — Navigation and action buttons MUST have a stable `aria-label` from i18n
+## E4 — Navigation and action buttons SHOULD have a stable `id` attribute
 
 ```tsx
-<IconButton aria-label={t("account_details.action_enter_price")} ... />
+<IconButton id="nav-management" aria-label={t("nav.management")} ... />
+<FAB id="fab-create-procedure-type" aria-label={t("procedure_type.create")} ... />
 ```
 
-E2E selector: `button[aria-label="Enter price"]`.
-Always use `t()` — never hardcode strings. Verify the exact English value in `en/common.json`.
+E2E selector: `#nav-management` / `#fab-create-procedure-type`.
+
+Convention: `{area}-{action}` — e.g. `nav-management`, `mgmt-card-patients`, `fab-create-procedure-type`, `bank-account-edit-{id}`. Components like `FAB`, `IconButton`, `Button` MUST accept an optional `id` prop and forward it to the DOM element.
+
+`id` is locale-invariant and refactor-safe. `aria-label` is not — relying on `[aria-label="Enter price"]` as the selector silently breaks when the app runs in a non-English locale (the rendered label is the translated value, not the English source) or when the i18n key is renamed.
+
+`aria-label` MUST still flow through `t()` for accessibility — see F24 in `frontend-rules.md` § i18n. The accessibility requirement and the selector strategy are now two separate concerns.
 
 ## E5 — Error messages MUST have `role="alert"`
 

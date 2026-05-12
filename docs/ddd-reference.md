@@ -1,6 +1,6 @@
 # DDD Reference
 
-A concise reference for Domain-Driven Design concepts as applied in a Tauri 2 / Rust / React stack.
+A concise reference for Domain-Driven Design concepts as applied in a Tauri 2 / Rust stack.
 
 ---
 
