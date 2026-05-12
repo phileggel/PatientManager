@@ -66,7 +66,6 @@ pub async fn parse_bank_statement(file_path: String) -> Result<BankStatementPars
 
     tracing::info!(
         target: BACKEND,
-        iban = ?result.iban,
         credit_lines = result.credit_lines.len(),
         total_credits = result.total_credits,
         "Bank statement parsed successfully"
