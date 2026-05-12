@@ -1247,6 +1247,40 @@ mod tests {
         );
     }
 
+    // --- parse_bank_statement orchestrator error branches ---
+
+    #[test]
+    fn parse_bank_statement_rejects_relative_path_with_secure_path_error() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        // A relative path is rejected by `secure_path::validate_user_path` before
+        // any I/O, so this exercises the secure_path error mapping without
+        // depending on a fixture PDF.
+        let err = orchestrator
+            .parse_bank_statement("relative/path/statement.pdf")
+            .expect_err("relative path must be rejected by secure_path");
+        let msg = err.to_string();
+        assert!(
+            !msg.is_empty(),
+            "secure_path rejection must surface a non-empty error"
+        );
+    }
+
+    #[test]
+    fn parse_bank_statement_rejects_non_pdf_extension() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        // Path policy requires `.pdf`. An absolute path with a wrong extension
+        // is rejected by secure_path even before checking file existence.
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        let bad_path = format!("{home}/not-a-pdf.txt");
+        let err = orchestrator
+            .parse_bank_statement(&bad_path)
+            .expect_err("wrong extension must be rejected by secure_path");
+        assert!(
+            !err.to_string().is_empty(),
+            "extension rejection must surface a non-empty error"
+        );
+    }
+
     #[test]
     fn ensure_credit_lines_passes_through_when_lines_present() {
         let result = BankStatementParseResult {

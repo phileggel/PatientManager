@@ -743,7 +743,6 @@ async getAllEligibleProceduresForDirectPayment() : Promise<Result<DirectPaymentP
 },
 /**
  * R15 — Create a direct payment transfer linked to the given procedure IDs.
- * REF-080: OutgoingWire is reserved for the overpayment flow and is rejected here.
  */
 async createDirectTransfer(bankAccountId: string, transferDate: string, transferType: BankEntryType, procedureIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
     try {
@@ -923,8 +922,9 @@ async generateFundReconciliationReportPdf(request: ReportGenerationRequest) : Pr
  * capabilities.
  * 
  * `path` is trusted only as a destination — `validate()` covers the
- * request payload as for the preview command. Path-traversal hardening
- * for user-chosen paths is tracked separately in `docs/todo.md`.
+ * request payload as for the preview command. The user-chosen path is
+ * canonicalized and asserted to fall under `$HOME` with a `.pdf`
+ * extension via `core::secure_path` before any write.
  */
 async saveFundReconciliationReportPdf(request: ReportGenerationRequest, path: string) : Promise<Result<null, string>> {
     try {
