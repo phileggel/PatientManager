@@ -51,6 +51,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-opener = "2"
 sha2 = "0.10"
 printpdf = "0.9"
 rust_xlsxwriter = { version = "0.94", optional = true }
