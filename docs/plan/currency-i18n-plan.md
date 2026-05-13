@@ -10,22 +10,24 @@ This plan promotes a pure helper to `src/lib/formatters.ts`, deletes the duplica
 
 ## Scope (audit results)
 
-| Category | Count | Pattern |
-|---|---|---|
-| A — `.toFixed(2)` + literal `€` in JSX | 14 | `{(amount / 1000).toFixed(2)} €` or `€{...}` |
-| B — `Intl.NumberFormat("fr-FR")` hardcoded | 4 (+1 test) | helpers, module-level consts |
-| C1 — Duplicate `formatAmount` / `formatAmountEUR` helpers | 3 | locale-blind output |
-| C2 — Callers of those helpers | ~17 | most also append literal `€` |
-| **Total** | **~37** | |
+| Category                                                  | Count       | Pattern                                      |
+| --------------------------------------------------------- | ----------- | -------------------------------------------- |
+| A — `.toFixed(2)` + literal `€` in JSX                    | 14          | `{(amount / 1000).toFixed(2)} €` or `€{...}` |
+| B — `Intl.NumberFormat("fr-FR")` hardcoded                | 4 (+1 test) | helpers, module-level consts                 |
+| C1 — Duplicate `formatAmount` / `formatAmountEUR` helpers | 3           | locale-blind output                          |
+| C2 — Callers of those helpers                             | ~17         | most also append literal `€`                 |
+| **Total**                                                 | **~37**     |                                              |
 
 ## Files to modify
 
 ### Foundation (Commit 1)
+
 - `src/lib/formatters.ts` — add pure `formatCurrency(amount, locale)`. Have `useFormatters().formatCurrency` delegate to it. Move the explicit `minimumFractionDigits: 2 / maximumFractionDigits: 2` options in (so output is always `X,XX €`, consistent with the existing `formatCurrency` in fund-payment-match).
 - `src/lib/formatters.test.ts` — round-trip tests: fr-FR `100,00 €`, en-GB `€100.00`, en-US `€100.00`, edge cases (0, negative, very large).
 - `src/features/fund-payment-match/shared/formatters.ts` — re-export `formatCurrency` from `@/lib/formatters` (back-compat for `reportPresenter.ts` which already calls it correctly).
 
 ### Reconciliation cards + delete shared `formatAmount` (Commit 2)
+
 - `src/features/fund-payment-match/shared/utils.ts:180` — **delete** `formatAmount` (returns bare `.toFixed(2)` string with no €).
 - `src/features/fund-payment-match/shared/utils.test.ts:351–358` — delete the corresponding tests.
 - `src/features/fund-payment-match/reconciliation_results/cards/NotFoundCard.tsx:96` — switch to `formatCurrency` via existing `useFormatters` hook; drop literal `€`.
@@ -36,6 +38,7 @@ This plan promotes a pure helper to `src/lib/formatters.ts`, deletes the duplica
 - Extend `src/features/fund-payment-match/reconciliation_results/cards/SingleMatchCard.test.tsx` — assert localized currency in the AmountMismatch comparison row (paired with the date assertion already in place).
 
 ### Other `.toFixed(2) + €` sites (Commit 3)
+
 - `src/features/bank-transfer/bank_transfer_list/BankTransferList.tsx:59,84,95` — 3 sites; hook already imported.
 - `src/features/bank-transfer/select_items_panel/SelectProceduresPanel.tsx:63,112` — 2 sites; hook already imported.
 - `src/features/bank-transfer/select_items_panel/SelectFundGroupsPanel.tsx:63,110` — 2 sites; hook already imported.
@@ -46,6 +49,7 @@ This plan promotes a pure helper to `src/lib/formatters.ts`, deletes the duplica
 - `src/features/fund-payment-match/unreconciled_report/UnreconciledReport.tsx:65` — 1 site; hook already imported.
 
 ### Hardcoded `fr-FR` Intl.NumberFormat + helper deletion (Commit 4)
+
 - `src/features/fund-payment/shared/presenter.ts:17–20` — **delete** `formatAmountEUR` (hardcoded fr-FR).
 - `src/features/fund-payment/shared/presenter.ts:75–90` — refactor `FundPaymentPresenter.toSelectionSummary` to **drop** `totalFormatted: string` and **expose `totalAmount: number`** instead (decided 2026-05-12: option B, mirrors `toRow` returning raw `paymentDate`). Callers format via hook.
 - `src/features/fund-payment/select_procedure_modal/SelectProcedureModal.tsx:174,193` — switch `formatAmountEUR(...)` → `formatCurrency(...)` (hook already imported from PR #26); consume the new `totalAmount` from the summary.
@@ -55,6 +59,7 @@ This plan promotes a pure helper to `src/lib/formatters.ts`, deletes the duplica
 - `src/features/procedure-type/procedure_type_list/ProcedureTypeList.test.tsx:132` — replace the hardcoded `Intl.NumberFormat("fr-FR", ...)` fixture with the locale-aware output (en-GB at test setup).
 
 ### Out of scope (file separately if needed)
+
 - `src/features/patient/edit_patient_modal/EditPatientModal.test.tsx:13` — mock returns `(amount/1000).toFixed(2)`. Test-internal, no production impact.
 - `src/lib/` → `src/ui/format/` migration per F28 — pre-existing tech debt; not surfaced by this PR.
 
@@ -67,6 +72,7 @@ PR #26 left 13 lines uncovered (62.85% patch coverage, mostly JSX render express
 - **Commit 4** — `src/features/procedure/ui/procedure_list/ProcedureList.test.tsx` (new — or extend if it exists): render with mock rows asserting both ternary branches of `procedureDate` / `confirmedPaymentDate` render as localized dates OR the "—" fallback (covers 3 PR#26 lines + locks down the currency render).
 
 **Intentionally skipped** (low-ROI render-coverage gaps without existing test scaffolding — adding ~30 LOC of prop/store/i18n setup just to hit 1 line each is scope creep):
+
 - `BankTransferList.tsx`, `SelectFundGroupsPanel.tsx`, `SelectProceduresPanel.tsx`, `EditFundPaymentModal.tsx`, `MatchResultsStep.tsx`, `PdfDataTable.tsx` (8 lines combined). The currency-side render assertions cover the same JSX shape implicitly when ANY future test touches these components.
 
 ## Existing helpers / patterns to reuse
