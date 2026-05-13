@@ -433,6 +433,10 @@ impl ProcedureRepository for SqliteProcedureRepository {
         for ssn in ssns {
             separated.push_bind(ssn);
         }
+        // `payment_status = 'CREATED'` confines the matcher to unreconciled
+        // procedures — `Reconciled` / `PartiallyReconciled` rows belong to an
+        // existing fund-payment group and re-matching them would surface
+        // ghost anomalies on a PDF re-import.
         separated
             .push_unseparated(")")
             .push_unseparated(" AND hp.procedure_date >= ")
@@ -440,7 +444,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             .push_unseparated(" AND hp.procedure_date <= ")
             .push_bind_unseparated(end_date)
             .push_unseparated(
-                " AND hp.is_deleted = 0 AND p.is_deleted = 0 ORDER BY p.ssn, hp.procedure_date ASC",
+                " AND hp.payment_status = 'CREATED' AND hp.is_deleted = 0 AND p.is_deleted = 0 ORDER BY p.ssn, hp.procedure_date ASC",
             );
 
         let rows = builder
@@ -1347,6 +1351,60 @@ mod tests {
             .await
             .unwrap();
         assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn find_procedures_by_ssns_and_date_range_with_ssn_excludes_already_reconciled() {
+        let repo = setup().await;
+        seed_patient(&repo.pool, "patient-1", "444444444444").await;
+        repo.create_procedure(
+            "patient-1".into(),
+            None,
+            "t1".into(),
+            "2026-04-10".into(),
+            Some(3000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+        repo.create_procedure(
+            "patient-1".into(),
+            None,
+            "t1".into(),
+            "2026-04-15".into(),
+            Some(5000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::Reconciled,
+        )
+        .await
+        .unwrap();
+        repo.create_procedure(
+            "patient-1".into(),
+            None,
+            "t1".into(),
+            "2026-04-20".into(),
+            Some(7000),
+            PaymentMethod::None,
+            None,
+            None,
+            ProcedureStatus::PartiallyReconciled,
+        )
+        .await
+        .unwrap();
+
+        let ssns = vec!["444444444444".to_string()];
+        let result = repo
+            .find_procedures_by_ssns_and_date_range_with_ssn(&ssns, "2026-04-01", "2026-04-30")
+            .await
+            .unwrap();
+
+        assert_eq!(result.len(), 1, "only the Created procedure should match");
+        assert_eq!(result[0].1.billed_amount, Some(3000));
     }
 
     #[tokio::test]

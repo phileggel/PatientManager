@@ -55,3 +55,11 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 **Where:** `src-tauri/src/use_cases/fund_payment_reconciliation/orchestrator.rs:345–392` — `create_multiple_with_auto_corrections` runs `apply_auto_corrections` (Step 1) before `is_duplicate_candidate` (Step 3). `apply_auto_corrections` invokes `apply_update_corrections`, `apply_create_corrections`, and `apply_link_corrections`, each of which commits its DB writes independently.
 
 **Observation:** When Step 3 bails (re-imported PDF), the procedure-row mutations from Step 1 are already committed — amount/fund/date edits, status flips (`ContestAmount` → `Reconciled`), and even freshly-created patients from `CreateProcedure` corrections persist with no matching `FundPaymentGroup` to justify them. Symptoms observed: reopening the same PDF after the failed run shows "nothing processable" because the matcher now finds clean state on the procedures it previously flagged. This is a silent partial-mutation on a failed validation — exactly the class of issue that quietly corrupts production data. Fixes range from wrapping Steps 1–4 in a single transaction (preferred) to hoisting the duplicate check above `apply_auto_corrections` so nothing writes until validation passes. Surfaced during the same manual testing run that uncovered the previous two entries.
+
+---
+
+## 2026-05-13 — Dead trait method `ProcedureRepository::find_procedures_by_ssns_and_date_range`
+
+**Where:** trait at `src-tauri/src/context/procedure/domain/procedure.rs:446`, impl at `src-tauri/src/context/procedure/repository/procedure.rs:346`, plus the inline tests around `procedure.rs:1269,1279` and four defensive mock stubs in `use_cases/{overpayment,bank_statement_reconciliation,procedure_orchestration}` test modules and `use_cases/fund_payment_reconciliation/data/pool_builder.rs`.
+
+**Observation:** The non-`_with_ssn` variant has no production callers — the matcher uses `find_procedures_by_ssns_and_date_range_with_ssn`, and every mention outside the impl is either the impl's own inline test or a `mock.expect_*().returning(...)` defensive stub copy-pasted from the trait surface. Removal is mechanical (trait + impl + 2 tests + 4 mock stubs, ~100 LOC across 6 files). Deferred from the bug-fix PR because the file fanout breaks the boyscout surgical rule.
