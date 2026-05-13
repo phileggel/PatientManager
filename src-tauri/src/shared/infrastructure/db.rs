@@ -10,6 +10,18 @@ use crate::BACKEND;
 
 const DATABASE_FILENAME: &str = "patient_manager.db";
 
+/// Resolve the pending-import file path that corresponds to a live database
+/// path. The pending file is staged in `db_path`'s parent (NOT in
+/// `app_data_dir`), so a `PATIENT_MANAGER_E2E_DB` redirect that moves the
+/// database also moves the pending lookup — keeping the import staging path
+/// (`db_backup::orchestrator::do_import`) and the startup lookup in sync.
+fn pending_path_for(db_path: &Path) -> PathBuf {
+    db_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(format!("{DATABASE_FILENAME}.pending"))
+}
+
 /// Database manager for patient operations
 pub struct Database {
     pool: SqlitePool,
@@ -26,8 +38,8 @@ impl Database {
             app_data_dir.join(DATABASE_FILENAME)
         };
 
-        // Apply pending import if one was staged by import_database (R10/R11)
-        let pending_path = app_data_dir.join(format!("{DATABASE_FILENAME}.pending"));
+        // Apply pending import if one was staged by import_database (R10/R11).
+        let pending_path = pending_path_for(&db_path);
         if pending_path.exists() {
             tracing::info!(
                 target: BACKEND,
@@ -418,6 +430,45 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(count_backups(dir.path()), 0);
+    }
+
+    /// Regression: in production mode (no env var) the pending-path lookup
+    /// must resolve under `app_data_dir`, identical to pre-fix behavior.
+    #[test]
+    fn pending_path_resolves_under_db_parent_in_production_mode() {
+        let app_data = PathBuf::from("/var/lib/PatientManager");
+        let db_path = app_data.join(DATABASE_FILENAME);
+
+        assert_eq!(
+            pending_path_for(&db_path),
+            PathBuf::from("/var/lib/PatientManager/patient_manager.db.pending"),
+        );
+    }
+
+    /// Regression: in E2E mode (`PATIENT_MANAGER_E2E_DB` set) the pending-path
+    /// lookup follows the redirected DB location — must match what
+    /// `db_backup::orchestrator::do_import` writes via
+    /// `self.db.get_path().parent().join("patient_manager.db.pending")`.
+    #[test]
+    fn pending_path_follows_db_redirect_in_e2e_mode() {
+        let e2e_db = PathBuf::from("/tmp/release-smoke.db");
+
+        assert_eq!(
+            pending_path_for(&e2e_db),
+            PathBuf::from("/tmp/patient_manager.db.pending"),
+        );
+    }
+
+    /// Edge: `db_path` without a parent (root-level) falls back to `.`,
+    /// preserving the function's total-function shape (never panics).
+    #[test]
+    fn pending_path_falls_back_to_cwd_when_db_has_no_parent() {
+        let db_path = PathBuf::from("patient_manager.db");
+
+        assert_eq!(
+            pending_path_for(&db_path),
+            PathBuf::from("patient_manager.db.pending"),
+        );
     }
 
     #[tokio::test]
