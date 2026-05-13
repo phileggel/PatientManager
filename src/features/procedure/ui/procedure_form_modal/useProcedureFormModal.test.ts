@@ -118,6 +118,28 @@ describe("create mode — auto-fill on patient select", () => {
   });
 });
 
+// --- Patient combobox items: SSN priority ---
+
+describe("patientItems — hasSsn flag", () => {
+  it("sets hasSsn=true for patients with a non-empty ssn and false otherwise", () => {
+    const withSsn = { ...makePatient(), id: "p-ssn", ssn: "1234567890123" };
+    const withoutSsn = { ...makePatient(), id: "p-no-ssn", ssn: null };
+    const emptyStringSsn = { ...makePatient(), id: "p-empty", ssn: "" };
+    useAppStore.setState({
+      patients: [withSsn, withoutSsn, emptyStringSsn],
+      funds: mockFunds,
+      procedureTypes: mockProcedureTypes,
+    });
+
+    const { result } = makeHook();
+
+    const items = result.current.patientItems;
+    expect(items.find((i) => i.id === "p-ssn")?.hasSsn).toBe(true);
+    expect(items.find((i) => i.id === "p-no-ssn")?.hasSsn).toBe(false);
+    expect(items.find((i) => i.id === "p-empty")?.hasSsn).toBe(false);
+  });
+});
+
 // --- Create mode: gateway args ---
 
 describe("create mode — gateway arguments on submit", () => {
