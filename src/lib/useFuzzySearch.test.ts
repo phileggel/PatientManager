@@ -48,7 +48,9 @@ describe("useFuzzySearch", () => {
     ];
 
     it("promotes items with truthy priority field above falsy ones", () => {
-      const { result } = renderHook(() => useFuzzySearch("dup", patients, ["name"], 0.3, "hasSsn"));
+      const { result } = renderHook(() =>
+        useFuzzySearch("dup", patients, ["name"], { priorityKey: "hasSsn" }),
+      );
 
       // All four match "dup"; the two with hasSsn=true must land first.
       const ssnTrueIndices = result.current
@@ -74,7 +76,7 @@ describe("useFuzzySearch", () => {
         .map((p) => p.name);
 
       const { result: prioritised } = renderHook(() =>
-        useFuzzySearch("dup", patients, ["name"], 0.3, "hasSsn"),
+        useFuzzySearch("dup", patients, ["name"], { priorityKey: "hasSsn" }),
       );
       const prioritisedTrueBucket = prioritised.current.filter((p) => p.hasSsn).map((p) => p.name);
       const prioritisedFalseBucket = prioritised.current
@@ -86,13 +88,15 @@ describe("useFuzzySearch", () => {
     });
 
     it("is a no-op when omitted (current callers are unaffected)", () => {
-      const { result: withoutKey } = renderHook(() => useFuzzySearch("dup", patients, ["name"]));
-      const { result: withUndefinedKey } = renderHook(() =>
-        useFuzzySearch("dup", patients, ["name"], 0.3, undefined),
+      const { result: withoutOptions } = renderHook(() =>
+        useFuzzySearch("dup", patients, ["name"]),
+      );
+      const { result: withEmptyOptions } = renderHook(() =>
+        useFuzzySearch("dup", patients, ["name"], {}),
       );
 
-      expect(withUndefinedKey.current.map((p) => p.name)).toEqual(
-        withoutKey.current.map((p) => p.name),
+      expect(withEmptyOptions.current.map((p) => p.name)).toEqual(
+        withoutOptions.current.map((p) => p.name),
       );
     });
   });
