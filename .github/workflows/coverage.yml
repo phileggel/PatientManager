@@ -75,7 +75,7 @@ jobs:
           tool: cargo-tarpaulin
       - name: Tests with coverage
         working-directory: src-tauri
-        run: cargo tarpaulin --out Lcov --output-dir ../coverage/backend --lib --exclude-files "build.rs" --exclude-files "src/bin/generate_bindings.rs"
+        run: cargo tarpaulin --out Lcov --output-dir ../coverage/backend --lib --exclude-files "build.rs" --exclude-files "dev/generate_bindings.rs"
       - name: Upload to Codecov
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe  # v5.5.4
         with:

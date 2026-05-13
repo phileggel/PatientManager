@@ -17,11 +17,11 @@ path = "src/main.rs"
 
 [[bin]]
 name = "generate_bindings"
-path = "src/bin/generate_bindings.rs"
+path = "dev/generate_bindings.rs"
 
 [[bin]]
 name = "generate_fixtures"
-path = "src/bin/generate_fixtures.rs"
+path = "dev/generate_fixtures.rs"
 required-features = ["dev-fixtures"]
 
 [build-dependencies]

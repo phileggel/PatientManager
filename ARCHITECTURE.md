@@ -397,7 +397,7 @@ Key domain types:
 
 ---
 
-### Dev Binaries (`src/bin/`)
+### Dev Binaries (`src-tauri/dev/`)
 
 Cargo-feature-gated binaries, never linked into the production app. Each entry has a matching `[[bin]]` stanza in `Cargo.toml` with `required-features = [...]` and a `#![cfg(feature = "...")]` at the top of its source.
 

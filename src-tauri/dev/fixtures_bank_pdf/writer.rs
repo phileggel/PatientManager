@@ -1,25 +1,25 @@
-//! Fund-PDF writer (IFC-060, IFC-064, IFC-065).
+//! Bank-PDF writer (IFC-100, IFC-104, IFC-105).
 //!
-//! Turns a `PdfParseResult` value plus its scenario emission order into a
-//! `.pdf` file whose `pdf_extract::extract_text` output, fed to
-//! `pdf_parser::parse_pdf_text`, yields the ORIGINAL `PdfParseResult` under
-//! full structural equality (IFC-061 — no carve-outs).
+//! Turns a `BankStatementParseResult` value plus its scenario emission order
+//! into a `.pdf` file whose `pdf_extract::extract_text` output, fed to
+//! `parser::parse_bank_statement`, yields the ORIGINAL
+//! `BankStatementParseResult` under full structural equality
+//! (IFC-101 — no carve-outs).
 //!
 //! The writer reuses `printpdf` (already a prod dep for the
-//! fund-payment-report renderer) per IFC-065 — the carve-out exempts
+//! fund-payment-report renderer) per IFC-105 — the carve-out exempts
 //! existing-prod-consumer libraries from IFC-013's "no prod inflation" rule.
 //!
-//! # Emission contract (spike-locked, 2026-05-08)
+//! # Emission contract
 //!
-//! `pdf-extract` emits two leading blank lines plus one blank separator
-//! between each `Op::ShowText` line. Content lines therefore land at
-//! indices 2, 4, 6, 8, … in the extracted text. The scenario builders'
-//! `line_index` values rely on this pattern; the writer MUST emit one
-//! `Op::ShowText` per logical line in `emission_order`, each in its own
-//! `StartTextSection`/`EndTextSection` block.
+//! Unlike fund-PDF, the bank parser does not depend on `line_index`; it
+//! filters lines by content (`contains("VIR")` / `contains("SEPA")`). The
+//! spike-locked `pdf-extract` blank-line stride is therefore round-trip-
+//! invariant for this surface. We still emit one `Op::ShowText` per logical
+//! line in `emission_order` for output consistency with the fund-PDF writer.
 
 use anyhow::{Context, Result};
-use patient_manager_app::use_cases::fund_payment_reconciliation::fund_pdf_codec::PdfParseResult;
+use patient_manager_app::use_cases::bank_statement_reconciliation::bank_pdf_codec::BankStatementParseResult;
 use printpdf::{
     Mm, Op, ParsedFont, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
 };
@@ -28,9 +28,7 @@ use std::path::{Path, PathBuf};
 use super::scenarios;
 
 // Reuse the same Roboto regular font shipped with the prod FPR renderer.
-// The path resolves from src/bin/fixtures_fund_pdf/ → src-tauri/resources/fonts/
-// (one extra `..` compared to use_cases/fund_payment_report_pdf/renderer.rs).
-const FONT_REGULAR: &[u8] = include_bytes!("../../../resources/fonts/Roboto-Regular.ttf");
+const FONT_REGULAR: &[u8] = include_bytes!("../../resources/fonts/Roboto-Regular.ttf");
 
 // A4 portrait — same geometry as the FPR renderer.
 const PAGE_W: Mm = Mm(210.0);
@@ -42,10 +40,10 @@ const FONT_SIZE_PT: f32 = 9.0;
 
 /// Render the scenario's PDF to `path` atomically.
 ///
-/// `scenario_name` selects the emission order; `data` is the `PdfParseResult`
-/// whose round-trip the PDF must satisfy. Both come from the same scenario
-/// builder so they cannot drift.
-pub fn write_pdf(scenario_name: &str, data: &PdfParseResult, path: &Path) -> Result<()> {
+/// `scenario_name` selects the emission order; `data` is the
+/// `BankStatementParseResult` whose round-trip the PDF must satisfy. Both
+/// come from the same scenario builder so they cannot drift.
+pub fn write_pdf(scenario_name: &str, data: &BankStatementParseResult, path: &Path) -> Result<()> {
     let lines = scenarios::emission_order(scenario_name, data);
     let bytes = render_pdf_bytes(scenario_name, &lines)?;
     atomic_write_bytes(path, &bytes)
@@ -53,8 +51,9 @@ pub fn write_pdf(scenario_name: &str, data: &PdfParseResult, path: &Path) -> Res
 
 /// Write the JSON snapshot of the contract value (IFC-030, "expected.json").
 /// Pretty-printed with a trailing newline for clean diffs.
-pub fn write_expected_json(data: &PdfParseResult, path: &Path) -> Result<()> {
-    let mut json = serde_json::to_string_pretty(data).context("serialize PdfParseResult")?;
+pub fn write_expected_json(data: &BankStatementParseResult, path: &Path) -> Result<()> {
+    let mut json =
+        serde_json::to_string_pretty(data).context("serialize BankStatementParseResult")?;
     json.push('\n');
     atomic_write_bytes(path, json.as_bytes())
 }
@@ -63,9 +62,9 @@ pub fn write_expected_json(data: &PdfParseResult, path: &Path) -> Result<()> {
 
 fn render_pdf_bytes(scenario_name: &str, lines: &[String]) -> Result<Vec<u8>> {
     let regular = ParsedFont::from_bytes(FONT_REGULAR, 0, &mut Vec::new())
-        .context("parse Roboto-Regular for fund-PDF writer")?;
+        .context("parse Roboto-Regular for bank-PDF writer")?;
 
-    let mut doc = PdfDocument::new(&format!("fund-pdf-fixture: {scenario_name}"));
+    let mut doc = PdfDocument::new(&format!("bank-pdf-fixture: {scenario_name}"));
     let regular_id = PdfFontHandle::External(doc.add_font(&regular));
 
     let mut ops: Vec<Op> = Vec::with_capacity(lines.len() * 6);
@@ -82,9 +81,9 @@ fn render_pdf_bytes(scenario_name: &str, lines: &[String]) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-/// Emit one logical text op per line — its own `StartTextSection`/`EndTextSection`
-/// envelope is what makes `pdf_extract::extract_text` insert the blank
-/// separator the spike-locked `line_index` values depend on.
+/// Emit one logical text op per line — its own `StartTextSection`/
+/// `EndTextSection` envelope keeps the line layout consistent with the
+/// fund-PDF surface, even though the bank parser does not require it.
 fn text_ops(font: &PdfFontHandle, size_pt: f32, x_mm: f32, y_mm: f32, s: &str) -> Vec<Op> {
     vec![
         Op::StartTextSection,
@@ -106,6 +105,9 @@ fn text_ops(font: &PdfFontHandle, size_pt: f32, x_mm: f32, y_mm: f32, s: &str) -
 }
 
 // --- atomic write helpers (IFC-034) -----------------------------------------
+//
+// IFC-023: the three surfaces share NO helpers. This atomic-write block is
+// duplicated inline from the fund-PDF writer's pattern by design.
 
 fn atomic_write_bytes(final_path: &Path, contents: &[u8]) -> Result<()> {
     let temp_path = temp_path_for(final_path)?;

@@ -13,7 +13,7 @@
 //!   the dev binary wrote at the same time as the `.xlsx` (IFC-030).
 //!
 //! Single source of truth: the scenario builder in
-//! `src-tauri/src/bin/fixtures_excel/scenarios.rs` produces both files. This
+//! `src-tauri/dev/fixtures_excel/scenarios.rs` produces both files. This
 //! helper deserializes the JSON snapshot — no scenario logic is duplicated
 //! here.
 

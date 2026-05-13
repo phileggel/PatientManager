@@ -57,7 +57,7 @@ No database schema change is required.
 ### Tool Surface and Isolation (010–019)
 
 **IFC-010 — Dev-only binary (backend)**: The generator is exposed as a single
-Cargo binary under `src-tauri/src/bin/`. The default `cargo build` (no features)
+Cargo binary under `src-tauri/dev/`. The default `cargo build` (no features)
 MUST NOT compile that binary. The frontend never has access to it; it is invoked
 only from a developer machine or CI job.
 
