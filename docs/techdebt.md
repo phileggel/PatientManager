@@ -39,3 +39,19 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 **Where:** trait at `src-tauri/src/context/procedure/domain/procedure.rs:446`, impl at `src-tauri/src/context/procedure/repository/procedure.rs:346`, plus the inline tests around `procedure.rs:1269,1279` and four defensive mock stubs in `use_cases/{overpayment,bank_statement_reconciliation,procedure_orchestration}` test modules and `use_cases/fund_payment_reconciliation/data/pool_builder.rs`.
 
 **Observation:** The non-`_with_ssn` variant has no production callers — the matcher uses `find_procedures_by_ssns_and_date_range_with_ssn`, and every mention outside the impl is either the impl's own inline test or a `mock.expect_*().returning(...)` defensive stub copy-pasted from the trait surface. Removal is mechanical (trait + impl + 2 tests + 4 mock stubs, ~100 LOC across 6 files). Deferred from the bug-fix PR because the file fanout breaks the boyscout surgical rule.
+
+---
+
+## 2026-05-13 — `rsa 0.9.10` (Marvin timing side-channel) compiled in via `sqlx-mysql` even though we use SQLite only
+
+**Where:** `Cargo.lock` — `rsa 0.9.10` pulled in by `sqlx-macros → sqlx-mysql 0.8.6`. `Cargo.toml` declares `sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }` — no `mysql` feature.
+
+**Observation:** [RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071) flags `rsa <= 0.9.x` as vulnerable to the Marvin attack (RSA key recovery via timing sidechannel). The crate ends up in our compiled binary because `sqlx-macros` resolves dependencies for every sqlx backend at proc-macro time, even features we don't enable at runtime. **No runtime path in this app calls MySQL or invokes `rsa`** — the code is dead in execution. Upstream advisory currently shows _"No fixed upgrade is available!"_; track via `sqlx` ≥ 0.9 (whenever it lands) or a `sqlx-mysql` feature exclusion. Pre-existing — surfaced by the pre-release `cargo audit` run.
+
+---
+
+## 2026-05-13 — `serialize-javascript` RCE/DoS in mocha via `@wdio/mocha-framework` (E2E dev dep only)
+
+**Where:** `package-lock.json` — `@wdio/mocha-framework@9.27.1 → mocha → serialize-javascript ≤ 7.0.4`. Two advisories: [GHSA-5c6j-r48x-rmvq](https://github.com/advisories/GHSA-5c6j-r48x-rmvq) (RCE via `RegExp.flags`) and [GHSA-qj8w-gfj5-8c6v](https://github.com/advisories/GHSA-qj8w-gfj5-8c6v) (DoS via crafted array-likes).
+
+**Observation:** `npm audit fix` cannot reach this without `--force`, which would downgrade `@wdio/mocha-framework` to 6.1.17 (major breaking change in our WebDriver E2E setup). Exposure is dev-only (test runner serialization), not in production. Track until `@wdio/mocha-framework` (or upstream mocha) ships a non-vulnerable `serialize-javascript`.
