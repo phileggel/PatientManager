@@ -31,3 +31,27 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 **Where:** `src-tauri/src/context/procedure/repository/procedure_refund.rs:82, 125` — `r.previous_payment_status.parse::<ProcedureStatus>().unwrap_or_default()`.
 
 **Observation:** The `procedure_refund.previous_payment_status` column is `NOT NULL`. Any value that fails to parse (e.g. a future variant rename, a manual DB edit, a schema drift) silently degrades to `ProcedureStatus::None` instead of surfacing as an error at the boundary. Pre-existing behaviour — the prior hand-rolled `parse_procedure_status` also had `_ => ProcedureStatus::None`. A hardening pass could swap to `.with_context(|| ...)?` and propagate, which would catch data corruption visibly instead of materialising a `None`-status `ProcedureRefund` to the caller.
+
+---
+
+## 2026-05-13 — Reconciliation matcher does not filter already-reconciled procedures
+
+**Where:** `src-tauri/src/context/procedure/repository/procedure.rs:403–449` — `find_procedures_by_ssns_and_date_range_with_ssn`. The `WHERE` clause filters on SSN, date range, and `is_deleted = 0` only; `payment_status` is not constrained.
+
+**Observation:** The 8-pass matcher fed by this query treats `Reconciled` / `PartiallyReconciled` procedures as live candidates against newly parsed PDF lines. When the same PDF is re-opened, every line still matches its previously-reconciled procedure; differences between the PDF's amount/fund/date and the stored values surface as `AmountMismatch` / `FundMismatch` / `DateMismatch` anomalies, sending the user into an auto-correction review that the duplicate-PDF guard will reject at validate time anyway (see the next entry). Tightening the SQL to `AND hp.payment_status = 'CREATED'` (or excluding `Reconciled` / `PartiallyReconciled` explicitly) would short-circuit the noise. Surfaced during manual testing of fund-payment reconciliation; reproduces by importing the same fund PDF twice.
+
+---
+
+## 2026-05-13 — Duplicate-PDF guard fires only at validation, not at reconciliation
+
+**Where:** `src-tauri/src/use_cases/fund_payment_reconciliation/orchestrator.rs:91–110` (`is_duplicate_candidate`) is only invoked inside `create_multiple_from_candidates` and `create_multiple_with_auto_corrections` (the Validate / Auto-correct-all paths), never inside `reconcile_and_create_candidates`.
+
+**Observation:** A PDF that has already been imported makes it all the way through anomaly review and the auto-correction UI before the backend rejects it with *"All N payment groups already exist. PDF was likely already processed."* The user can't tell, at modal-open time, that the work they're about to do will be discarded — the FE surfaces no upstream signal. The lift is mechanical: run the same `is_duplicate_candidate` pass at the end of `reconcile_and_create_candidates_fn` and either short-circuit with a typed `DuplicatePdf` response or flag every candidate so the FE renders an empty-state up front. Pairs with the entry below; together they explain the "couldn't go further → reopened → nothing processable" pattern seen during manual testing.
+
+---
+
+## 2026-05-13 — Auto-corrections persist even when duplicate-PDF check rejects the batch
+
+**Where:** `src-tauri/src/use_cases/fund_payment_reconciliation/orchestrator.rs:345–392` — `create_multiple_with_auto_corrections` runs `apply_auto_corrections` (Step 1) before `is_duplicate_candidate` (Step 3). `apply_auto_corrections` invokes `apply_update_corrections`, `apply_create_corrections`, and `apply_link_corrections`, each of which commits its DB writes independently.
+
+**Observation:** When Step 3 bails (re-imported PDF), the procedure-row mutations from Step 1 are already committed — amount/fund/date edits, status flips (`ContestAmount` → `Reconciled`), and even freshly-created patients from `CreateProcedure` corrections persist with no matching `FundPaymentGroup` to justify them. Symptoms observed: reopening the same PDF after the failed run shows "nothing processable" because the matcher now finds clean state on the procedures it previously flagged. This is a silent partial-mutation on a failed validation — exactly the class of issue that quietly corrupts production data. Fixes range from wrapping Steps 1–4 in a single transaction (preferred) to hoisting the duplicate check above `apply_auto_corrections` so nothing writes until validation passes. Surfaced during the same manual testing run that uncovered the previous two entries.
