@@ -822,6 +822,11 @@ async getProceduresByIds(procedureIds: string[]) : Promise<Result<DirectPaymentP
  * Exports the active database to the given destination path as a gzip-compressed
  * SQLite file (R7, R8). The path is obtained from a native save-file dialog on
  * the frontend.
+ * 
+ * The frontend-supplied `dest_path` is validated as a new file in an existing
+ * directory under the user's home, with a `.gz` extension — a crafted IPC
+ * call that bypasses the save dialog cannot reach the filesystem layer with
+ * an unrestricted path.
  */
 async exportDatabase(destPath: string) : Promise<Result<null, string>> {
     try {
@@ -835,6 +840,10 @@ async exportDatabase(destPath: string) : Promise<Result<null, string>> {
  * Decompresses, validates, and stages a backup file as a pending import (R9, R10).
  * The replacement takes effect on the next application startup.
  * The frontend is responsible for relaunching the app after this command succeeds (R6).
+ * 
+ * The frontend-supplied `source_path` is validated as an existing regular
+ * file under the user's home with a `.gz` extension — a crafted IPC call
+ * cannot trick the importer into reading arbitrary files.
  */
 async importDatabase(sourcePath: string) : Promise<Result<null, string>> {
     try {
