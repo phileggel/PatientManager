@@ -34,12 +34,6 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 ---
 
-## (frontend/dev) — WebKit2GTK iframe-PDF caveat (Linux dev only)
-
-PDFs embedded in iframes do not render under WebKit2GTK on Linux. Developers running the Tauri dev build on Linux will see a blank iframe in `ReportPreviewModal` even when the backend successfully generated valid PDF bytes. Production target is **NSIS / Windows** (verified in `tauri.conf.json` `"targets": "nsis"`), where Edge WebView2 renders the PDF natively. Document this in the dev README on next touch.
-
----
-
 ## (backend/procedure) — Review procedure projections and read models
 
 `UnreconciledProcedure` is a domain projection introduced when moving `ProcedureRepository` to the domain layer. It sits alongside `Procedure` (the aggregate root) and other procedure-related structures. Before adding more projections, review whether these are genuinely distinct domain concepts or whether `Procedure` should be enriched to cover these cases. Key question: is `UnreconciledProcedure` a real ubiquitous-language concept, or just a query convenience that should be folded into `Procedure` with a different fetch strategy?

@@ -4,7 +4,7 @@
 
 After validating a fund-payment reconciliation (FPA workflow), the practitioner may produce a summary report of the session. This feature defines the structure, content, and generation mechanism of that report. The report covers two concerns: procedures that remain unreconciled in the reconciliation period, and a log of all corrections that were applied during the session.
 
-The report is rendered as a PDF document by the backend from the session data, then displayed in a preview modal that lets the practitioner save the file to disk. The user retains the saved PDF for archival, sharing, or — if needed — printing through their preferred PDF viewer outside the application. In-app printing is intentionally out of scope.
+The report is rendered as a PDF document by the backend from the session data, written to the user's Downloads directory under a locale-aware filename, then opened in the system default PDF viewer for inspection. The user retains the saved PDF for archival, sharing, or — if needed — printing through their preferred PDF viewer outside the application. In-app preview and in-app printing are intentionally out of scope.
 
 This spec supersedes FPA-510 in the FPA spec (`fund-payment-auto-match.md`), which described only a minimal browser-print trigger.
 
@@ -38,7 +38,7 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 
 **FPR-010 — Report button availability (frontend)**: The Report button is shown only when the report step is active (after successful reconciliation validation). It is absent during all preceding workflow steps.
 
-**FPR-011 — Report action — trigger (frontend + backend)**: Clicking Report assembles a `ReportGenerationRequest` from the live reconciliation session and dispatches it to the backend. The backend renders a PDF document from the request payload alone and returns the resulting bytes. The reconciliation modal stays open and unaffected throughout.
+**FPR-011 — Report action — trigger (frontend + backend)**: Clicking Report assembles a `ReportGenerationRequest` from the live reconciliation session, builds a locale-aware leaf filename, and dispatches both to the single backend export command. The backend renders the PDF, writes it to the user's Downloads directory under the supplied filename, and launches the system default PDF viewer on the saved file (FPR-015, FPR-016). The reconciliation modal stays open and unaffected throughout.
 
 **FPR-012 — _(removed)_**: The previous rule covered closing a separate print window, which no longer exists. The number is intentionally left vacant — never reuse.
 
@@ -47,17 +47,20 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 - _(frontend)_: The `ReportGenerationRequest` payload is built exclusively from data already held in the active reconciliation session — the unreconciled-procedures list fetched after validation and the corrections applied during the session. The frontend resolves every label through its i18next pipeline and every numeric/date value through `Intl.*` formatters before sending; no additional fetch is performed.
 - _(backend)_: PDF generation reads the pre-resolved strings from the request and places them on the page. No translation, no formatting, no database lookup, and no external call is performed during rendering.
 
-**FPR-014 — Generation failure (frontend)**: If the backend returns an error for the generation request, an error toast is displayed, the Report button returns to its idle state, the preview modal does not open, and no further state changes occur. The user may click Report again to retry.
+**FPR-014 — Export failure (frontend)**: If the backend returns an error for the export command — rendering, write, or launcher failure — an error toast is displayed, the Report button returns to its idle state, and no further state changes occur. The user may click Report again to retry.
 
-**FPR-015 — Preview modal opens on success (frontend)**: As soon as the backend returns the PDF bytes, the preview modal opens, embedding the PDF for the practitioner to inspect. The reconciliation modal stays open behind it. The PDF is displayed immediately on modal open — there is no secondary loading state inside the modal. The preview modal exposes two actions: Save and Close.
+**FPR-015 — Export to Downloads + open in system viewer (frontend + backend)**: On Report click, the backend renders the PDF, writes it to the platform Downloads directory under the frontend-supplied filename, and launches the system default PDF viewer on the saved file. A success toast confirms the export and names the saved file. The reconciliation modal stays at the report step; the user can re-export by clicking Report again.
 
-**FPR-016 — Save action (frontend)**: The Save action opens a system file-save dialog. The default filename is `reconciliation-{period_start}-to-{period_end}.pdf` where each date is formatted `YYYY-MM-DD`. On success, the PDF bytes are written to the chosen path, a success toast is displayed, and the preview modal remains open. If the practitioner cancels the dialog, no file is written and no toast is shown. If the write fails, an error toast is displayed and the preview modal remains open with the Save button available for retry.
+- _(backend)_: The supplied filename is validated as a leaf name only — no path separators, no `..` segments, must end in `.pdf`, length-capped. The destination directory is fixed to the platform Downloads folder; no user-supplied path component reaches the filesystem. If a same-named file already exists, a ` (N)` suffix is appended before the extension (`name.pdf` → `name (1).pdf` → …) so a re-export never silently overwrites a prior file.
+- _(frontend)_: The success toast uses the path leaf returned by the backend, so the collision-suffixed name (if any) appears verbatim in the confirmation.
+
+**FPR-016 — Filename construction (frontend)**: The frontend builds the leaf filename `{stem}_{YYYY-MM}.pdf` where `stem` is translated through i18n (French: `rapport_rapprochement_caisse`; default: `fund_reconciliation_report`) and `YYYY-MM` is taken from the `YYYY-MM-DD` ISO slice of the period end date. The period end-month is the "majority month" by construction (reports typically cover most of one month with a few overflow days at the start).
 
 **FPR-017 — _(removed)_**: The previous rule covered an in-app Print action invoking the OS print dialog. In-app printing has been dropped from scope; users print externally from the saved PDF if needed. The number is intentionally left vacant — never reuse.
 
-**FPR-018 — Close action (frontend)**: The Close action dismisses the preview modal. The reconciliation modal remains open at the report step, allowing the practitioner to re-open the preview by clicking Report again.
+**FPR-018 — _(removed)_**: The previous rule covered closing the preview modal, which no longer exists — the system PDF viewer manages its own window. The number is intentionally left vacant — never reuse.
 
-**FPR-019 — Generation in progress (frontend)**: While the backend is producing the PDF, the Report button shows a loading state and is disabled to prevent duplicate generation requests. The button returns to its idle state once the preview modal opens (FPR-015) or once an error toast is surfaced (FPR-014).
+**FPR-019 — Export in progress (frontend)**: While the backend is producing and opening the PDF, the Report button shows a loading state and is disabled to prevent duplicate export requests. The button returns to its idle state once the success toast is shown (FPR-015) or an error toast is surfaced (FPR-014).
 
 ### Document Header (020–029)
 
@@ -107,28 +110,25 @@ The payload sent from the frontend to the backend when the practitioner clicks R
           ▼
 [Report button enters loading state]
 [Frontend assembles ReportGenerationRequest from session data]
-[Frontend dispatches the request to the backend]
+[Frontend builds locale-aware leaf filename "{stem}_{YYYY-MM}.pdf"]
+[Frontend dispatches request + filename to the export command]
           │
           ▼
-[Backend renders PDF from the request payload]
+[Backend renders PDF, writes to Downloads (with ` (N)` suffix on collision),
+ then launches the system default PDF viewer on the saved file]
           │
    ┌──────┴──────────────┐
    ▼                     ▼
-[PDF bytes returned]   [Backend error]
+[Success path]         [Backend error
+                        (render / write / launch)]
    │                     │
    ▼                     ▼
-[Preview modal opens]  [Error toast,
-[with embedded PDF]     Report button re-enabled]
-   │
-   ▼
-[User chooses an action]
-   │
-   ├── Save  → [File-save dialog opens]
-   │           [PDF bytes written to chosen path or cancelled]
-   │           [Preview modal remains open]
-   │
-   └── Close → [Preview modal closes]
-               [Reconciliation modal remains at the report step]
+[Success toast names    [Error toast,
+ the saved file;         Report button re-enabled]
+ system PDF viewer
+ opens the file in a
+ separate OS window]
+[Reconciliation modal stays at the report step]
 ```
 
 ---
@@ -141,28 +141,25 @@ Report button in the reconciliation modal header, visible only during the report
 
 ### Main Component
 
-Preview modal layered over the reconciliation modal. The preview modal embeds the generated PDF and exposes two actions in its header or footer: Save, Close.
+The export is in-app fire-and-forget: a single button click renders, saves, and hands the file to the OS. The PDF is then visible in the user's system PDF viewer (a separate OS window outside the application). The reconciliation modal remains the only in-app surface.
 
 ### States
 
-- **Idle**: Report button in the reconciliation modal is enabled, no preview shown
-- **Generating**: Report button shows a loading state and is disabled (FPR-019)
-- **Preview ready**: Preview modal open with the PDF embedded and Save / Close visible
+- **Idle**: Report button in the reconciliation modal is enabled
+- **Exporting**: Report button shows a loading state and is disabled (FPR-019)
 - **Section 1 empty**: PDF shows the "all reconciled" confirmation message and no total line; Section 2 may still be present if corrections exist
 - **Section 2 absent**: PDF omits the corrections section when no corrections were applied; Section 1 is always present
-- **Generation error**: Error toast displayed; preview modal does not open; Report button returns to idle (FPR-014)
-- **Save success**: Success toast displayed; preview modal remains open (FPR-016)
-- **Save error**: Error toast displayed; preview modal stays open; Save remains available for retry (FPR-016)
+- **Export success**: Success toast names the saved file; the system PDF viewer opens it in a separate OS window; reconciliation modal stays at the report step (FPR-015)
+- **Export error**: Error toast displayed; Report button returns to idle so the user can retry (FPR-014)
 
 ### User Flow
 
 1. User reaches the report step after successful validation
 2. User clicks the Report button in the reconciliation modal header
-3. Report button enters loading state while the backend generates the PDF
-4. Preview modal opens with the embedded PDF
-5. User chooses Save or Close
-   - Save: select a path; PDF is written; preview modal remains open
-   - Close: preview modal dismisses; reconciliation modal remains at the report step
+3. Report button enters the exporting state
+4. The PDF is saved to the user's Downloads folder and opens in the system default PDF viewer
+5. Success toast confirms the export and names the saved file
+6. Reconciliation modal remains at the report step; the user can re-export by clicking Report again
 
 ---
 

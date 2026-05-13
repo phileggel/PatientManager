@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::error::ReportPdfError;
 use super::renderer::render;
@@ -40,6 +40,38 @@ pub fn save(request: &ReportGenerationRequest, path: &Path) -> Result<(), Report
     std::fs::write(path, &bytes)
         .map_err(|e| ReportPdfError::WriteFailed(io_error_code(&e).to_string()))?;
     Ok(())
+}
+
+/// Return `base` if no file exists there, otherwise insert ` (N)` before the
+/// extension and probe `N = 1, 2, 3, …` until an unused path is found.
+///
+/// Mirrors the OS Downloads collision UX (`name.pdf`, `name (1).pdf`,
+/// `name (2).pdf`, …) so re-exporting the same report for the same period
+/// never silently overwrites a previous file.
+///
+/// The probe cap (1000) is defensive — a real Downloads directory is never
+/// expected to hold a thousand same-named exports. On overflow the original
+/// `base` is returned and the eventual `fs::write` overwrites it.
+pub fn next_available_path(base: &Path) -> PathBuf {
+    if !base.exists() {
+        return base.to_path_buf();
+    }
+    let stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let ext = base.extension().and_then(|s| s.to_str()).unwrap_or("");
+    let parent = base.parent().unwrap_or_else(|| Path::new(""));
+
+    for n in 1..=1000 {
+        let candidate_name = if ext.is_empty() {
+            format!("{stem} ({n})")
+        } else {
+            format!("{stem} ({n}).{ext}")
+        };
+        let candidate = parent.join(candidate_name);
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+    base.to_path_buf()
 }
 
 /// Map a `std::io::Error` to a fixed, platform-independent code.
@@ -115,25 +147,54 @@ mod tests {
     fn save_returns_write_failed_for_unwritable_path() {
         let req = valid_request();
         let dir = tempfile::tempdir().expect("create tempdir");
-        // A path under a non-existent parent directory is unwritable on every
-        // platform without `create_dir_all` — exercises the WriteFailed branch.
         let path = dir.path().join("missing-subdir").join("report.pdf");
         let err = save(&req, &path).expect_err("missing parent dir must fail write");
         match err {
             ReportPdfError::WriteFailed(code) => {
-                // The mapped code is stable across platforms.
                 assert_eq!(code, "no_such_directory");
             }
             other => panic!("expected WriteFailed, got {other:?}"),
         }
     }
 
-    // io_error_code — direct coverage for every branch.
-    //
-    // The save() integration test only exercises `NotFound`; provoking the
-    // other 7 specific kinds through real filesystem ops is platform-specific
-    // and flaky. Synthesizing `io::Error::from(ErrorKind::*)` is the standard
-    // way to verify the kind→code mapping without I/O.
+    #[test]
+    fn next_available_path_returns_base_when_unused() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let base = dir.path().join("report.pdf");
+        assert_eq!(next_available_path(&base), base);
+    }
+
+    #[test]
+    fn next_available_path_appends_suffix_on_first_collision() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let base = dir.path().join("report.pdf");
+        std::fs::write(&base, b"x").expect("seed first collision");
+
+        let next = next_available_path(&base);
+        assert_eq!(next, dir.path().join("report (1).pdf"));
+    }
+
+    #[test]
+    fn next_available_path_increments_suffix_on_repeated_collisions() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let base = dir.path().join("report.pdf");
+        std::fs::write(&base, b"x").expect("seed");
+        std::fs::write(dir.path().join("report (1).pdf"), b"x").expect("seed");
+        std::fs::write(dir.path().join("report (2).pdf"), b"x").expect("seed");
+
+        let next = next_available_path(&base);
+        assert_eq!(next, dir.path().join("report (3).pdf"));
+    }
+
+    #[test]
+    fn next_available_path_handles_extensionless_name() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let base = dir.path().join("report");
+        std::fs::write(&base, b"x").expect("seed");
+
+        let next = next_available_path(&base);
+        assert_eq!(next, dir.path().join("report (1)"));
+    }
 
     #[test]
     fn io_error_code_maps_every_known_kind_to_a_stable_string() {
@@ -176,10 +237,6 @@ mod tests {
     #[test]
     fn io_error_code_falls_back_to_io_error_for_unmapped_kinds() {
         use std::io::{Error, ErrorKind};
-        // `Other` is the canonical catch-all, but any kind not in the explicit
-        // match arms above must hit the fallback. Asserting on `Other` and on
-        // a less-common kind (`InvalidInput`) covers both intentional and
-        // accidental fallback paths.
         assert_eq!(io_error_code(&Error::from(ErrorKind::Other)), "io_error");
         assert_eq!(
             io_error_code(&Error::from(ErrorKind::InvalidInput)),

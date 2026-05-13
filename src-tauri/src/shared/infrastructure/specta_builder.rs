@@ -154,7 +154,7 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             overpayment::get_procedure_refund_by_source,
             overpayment::get_procedure_refund_by_refund_procedure,
             fund_payment_report_pdf::generate_fund_reconciliation_report_pdf,
-            fund_payment_report_pdf::save_fund_reconciliation_report_pdf,
+            fund_payment_report_pdf::export_and_open_fund_reconciliation_report_pdf,
         ])
     //.events(tauri_specta::collect_events![Event])
 }

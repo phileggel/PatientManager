@@ -1,14 +1,14 @@
 /**
- * E2E — ReportPreviewModal UI smoke
+ * E2E — fund-reconciliation import entry point smoke
  *
  * Verifies the reconciliation import entry point is reachable and that the
  * fund-reconciliation card is present in the import modal.
  *
- * Limitation (known, per ADR-004 pattern):
+ * Limitation (known, per ADR-007 pattern):
  *   The full flow from card click → file dialog → ReconciliationModal →
- *   report step → ReportPreviewModal cannot be automated in WebDriver because
- *   step 2 (native OS file-picker dialog) is outside WebDriver's reach.
- *   The IPC contract is covered in generate.test.ts via direct invoke.
+ *   report step cannot be automated in WebDriver because step 2 (native OS
+ *   file-picker dialog) is outside WebDriver's reach. The IPC contract is
+ *   covered in generate.test.ts via direct invoke.
  *
  * What this test covers:
  *   - The Import nav button is present and opens the import modal.

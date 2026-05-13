@@ -14,13 +14,11 @@ the project has four such call sites:
 - `src/features/shell/gateway.ts` — `pickExcelFilePath`, `pickPdfFilePath`
 - `src/features/db-backup/gateway.ts` — `pickExportPath`, `pickImportPath`
 
-A fifth gateway method, `src/features/fund-payment-match/gateway.ts::saveReportPdf`,
-also opens a native save dialog — but its filesystem write step moved to a
-backend Tauri command in PR #16, leaving the dialog-only step deliberately
-out of scope for this pattern. The downstream FPR E2E test mocks the backend
-save command via the existing IPC stubbing path; only the dialog return value
-would need overriding here, and that can be added in a follow-up if the FPR
-E2E test is later extended to cover the save click.
+The reconciliation-report export (`exportAndOpenReportPdf`) does not enter
+this pattern: it touches no renderer-side native dialog. The renderer calls
+a single backend command that writes to the platform Downloads directory
+and hands the file to the system PDF viewer; an E2E that drives the Report
+button can stub the backend command directly via the existing IPC path.
 
 A consistent pattern was needed before the FPR E2E test could be written,
 and before further native-API gateway methods are added (save dialogs,

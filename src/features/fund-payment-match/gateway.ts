@@ -1,4 +1,3 @@
-import { save } from "@tauri-apps/plugin-dialog";
 import {
   type CreateFundPaymentWithAutoCorrectionsRequest,
   commands,
@@ -171,42 +170,34 @@ export async function generateReportPdf(request: ReportGenerationRequest): Promi
 }
 
 /**
- * Open a native save-file dialog and ask the backend to write the report
- * PDF to the chosen path (FPR-016).
+ * Render the report, save it to the user's Downloads directory under
+ * `filename`, then launch the system default PDF viewer on the saved file
+ * (FPR-015, FPR-016).
  *
- * The renderer never holds the raw bytes for save: the backend re-renders
- * from `request` and writes the result directly via `std::fs::write`. This
- * keeps `@tauri-apps/plugin-fs` out of the production frontend and lets us
- * drop the renderer's `fs:allow-write*` capabilities.
+ * `filename` is a leaf name only — must end in `.pdf`, no path separators,
+ * no `..`. The backend rejects anything else and fixes the destination to
+ * the platform Downloads directory. On same-name collision a ` (N)` suffix
+ * is inserted before the extension, so the returned path may differ from
+ * `Downloads/{filename}`.
  *
- * @param request - Same payload used to drive `generateReportPdf` for preview
- * @param defaultFilename - Pre-built default filename for the dialog
- * @returns `{ saved }` indicating whether a file was written
- * @throws Error if the backend save command fails
+ * @param request - Pre-resolved payload, same shape as for `generateReportPdf`
+ * @param filename - Locale-aware leaf name, e.g. `rapport_rapprochement_caisse_2026-05.pdf`
+ * @returns Absolute path of the written file
+ * @throws Error if generation, write, or launch fails
  */
-export async function saveReportPdf(
+export async function exportAndOpenReportPdf(
   request: ReportGenerationRequest,
-  defaultFilename: string,
-): Promise<{ saved: boolean }> {
-  logger.debug(TAG, "Opening save dialog for report PDF", { defaultFilename });
+  filename: string,
+): Promise<string> {
+  logger.debug(TAG, "Exporting report PDF to Downloads", { filename });
 
-  const path = await save({
-    defaultPath: defaultFilename,
-    filters: [{ name: "PDF document", extensions: ["pdf"] }],
-  });
-
-  if (path === null) {
-    logger.info(TAG, "User cancelled the save dialog");
-    return { saved: false };
-  }
-
-  const result = await commands.saveFundReconciliationReportPdf(request, path);
+  const result = await commands.exportAndOpenFundReconciliationReportPdf(request, filename);
 
   if (result.status === "error") {
-    logger.error(TAG, "Failed to save report PDF", result.error);
+    logger.error(TAG, "Failed to export and open report PDF", result.error);
     throw new Error(result.error);
   }
 
-  logger.info(TAG, "Report PDF saved");
-  return { saved: true };
+  logger.info(TAG, "Report PDF exported and opened");
+  return result.data;
 }

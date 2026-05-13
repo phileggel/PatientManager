@@ -913,22 +913,25 @@ async generateFundReconciliationReportPdf(request: ReportGenerationRequest) : Pr
 }
 },
 /**
- * Generate the post-reconciliation report and write it to `path`.
+ * Generate the report, save it to the user's Downloads directory under the
+ * supplied filename, and launch it in the system default PDF viewer.
  * 
- * FPR-016. Combines `generate_fund_reconciliation_report_pdf`'s render
- * step with a server-side filesystem write. The frontend opens the native
- * save dialog and forwards the user-chosen path; bytes never leave the
- * backend, eliminating the renderer's need for the `fs:allow-write*`
- * capabilities.
+ * FPR-015, FPR-016. Returns the absolute path of the written file so the
+ * frontend can surface its name in a confirmation toast.
  * 
- * `path` is trusted only as a destination — `validate()` covers the
- * request payload as for the preview command. The user-chosen path is
- * canonicalized and asserted to fall under `$HOME` with a `.pdf`
- * extension via `core::secure_path` before any write.
+ * Filename safety: the caller-supplied `filename` is treated as a leaf name
+ * only — it MUST contain no path separators, no `..` segment, must end in
+ * `.pdf`, and must fit within [`FILENAME_MAX_LEN`]. The destination
+ * directory is fixed to the platform Downloads folder; no user-supplied
+ * path component reaches the filesystem.
+ * 
+ * Collision handling: if a same-named file already exists, a ` (N)` suffix
+ * is appended before the extension (`name.pdf` → `name (1).pdf` → …) so
+ * re-exporting the same report never silently overwrites a prior one.
  */
-async saveFundReconciliationReportPdf(request: ReportGenerationRequest, path: string) : Promise<Result<null, string>> {
+async exportAndOpenFundReconciliationReportPdf(request: ReportGenerationRequest, filename: string) : Promise<Result<string, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("save_fund_reconciliation_report_pdf", { request, path }) };
+    return { status: "ok", data: await TAURI_INVOKE("export_and_open_fund_reconciliation_report_pdf", { request, filename }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

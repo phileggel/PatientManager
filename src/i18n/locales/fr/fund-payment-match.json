@@ -64,16 +64,14 @@
       "report": "Rapport",
       "close": "Fermer le modal"
     },
-    "preview": {
-      "title": "Rapport de rapprochement",
-      "save": "Enregistrer",
-      "close": "Fermer",
-      "saveSuccess": "Rapport enregistré.",
-      "saveError": "Impossible d'enregistrer le rapport."
-    },
     "report": {
+      "filename": {
+        "stem": "rapport_rapprochement_caisse"
+      },
+      "exportSuccess": "Rapport enregistré dans Téléchargements : {{filename}}",
       "error": {
-        "generationFailed": "Impossible de générer le rapport."
+        "generationFailed": "Impossible de générer le rapport.",
+        "exportFailed": "Impossible d'exporter le rapport."
       }
     }
   },
