@@ -433,18 +433,21 @@ impl ProcedureRepository for SqliteProcedureRepository {
         for ssn in ssns {
             separated.push_bind(ssn);
         }
-        // `payment_status = 'CREATED'` confines the matcher to unreconciled
-        // procedures — `Reconciled` / `PartiallyReconciled` rows belong to an
-        // existing fund-payment group and re-matching them would surface
-        // ghost anomalies on a PDF re-import.
+        // Confining the matcher to `Created` procedures — `Reconciled` /
+        // `PartiallyReconciled` rows belong to an existing fund-payment
+        // group and re-matching them would surface ghost anomalies on a
+        // PDF re-import. The DB code is sourced from `as_db_str` to avoid
+        // diverging from the domain serializer.
         separated
             .push_unseparated(")")
             .push_unseparated(" AND hp.procedure_date >= ")
             .push_bind_unseparated(start_date)
             .push_unseparated(" AND hp.procedure_date <= ")
             .push_bind_unseparated(end_date)
+            .push_unseparated(" AND hp.payment_status = ")
+            .push_bind_unseparated(ProcedureStatus::Created.as_db_str())
             .push_unseparated(
-                " AND hp.payment_status = 'CREATED' AND hp.is_deleted = 0 AND p.is_deleted = 0 ORDER BY p.ssn, hp.procedure_date ASC",
+                " AND hp.is_deleted = 0 AND p.is_deleted = 0 ORDER BY p.ssn, hp.procedure_date ASC",
             );
 
         let rows = builder
