@@ -484,10 +484,10 @@ Flat layout. Gateway: `add_fund`, `read_all_funds`, `update_fund`, `delete_fund`
 Flat layout. `FundPaymentManager` + gateway wrapping `create_fund_payment_group`, `update_fund_payment_group_with_procedures`, `delete_fund_payment_group`.
 
 #### Fund Payment Match (`features/fund-payment-match/`)
-Flat layout. `ReconciliationPage` + `useReconciliationPage`. Gateway wraps all `use_cases/fund_payment_reconciliation/` commands plus the new `generate_fund_reconciliation_report_pdf` and a `saveReportPdf` helper that wraps `tauri-plugin-dialog` + `tauri-plugin-fs`.
+Flat layout. `ReconciliationPage` + `useReconciliationPage`. Gateway wraps all `use_cases/fund_payment_reconciliation/` commands plus `generate_fund_reconciliation_report_pdf` and `exportAndOpenReportPdf` (single command that renders, writes the PDF to the user's Downloads directory under a locale-aware filename, and launches the system default PDF viewer).
 
 Sub-features:
-- `reconciliation_modal/` — `ReconciliationModal` + `useReconciliationModal` (PDF extraction → reconciliation → auto-validation), `useReportGeneration` (assembles the pre-resolved `ReportGenerationRequest` and dispatches to the backend), `ReportPreviewModal` + `useReportPreviewModal` (blob-URL iframe preview with Save / Close per FPR-015 to FPR-018)
+- `reconciliation_modal/` — `ReconciliationModal` + `useReconciliationModal` (PDF extraction → reconciliation → auto-validation), `useReportGeneration` (assembles the pre-resolved `ReportGenerationRequest`, builds the locale-aware leaf filename `{stem}_{YYYY-MM}.pdf`, and dispatches a single export-and-open call per FPR-011 to FPR-019)
 - `shared/` — `reportPresenter.ts` (builds `correction_groups` + `unreconciled` section per FPR-031 to FPR-042), `formatters.ts` (locale-aware currency / date), `__fixtures__/reportFixtures.ts` (mock data shared by RTL tests and visual proof)
 
 #### Patient (`features/patient/`)

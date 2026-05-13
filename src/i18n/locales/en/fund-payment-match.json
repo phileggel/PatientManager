@@ -64,16 +64,14 @@
       "report": "Report",
       "close": "Close modal"
     },
-    "preview": {
-      "title": "Reconciliation Report",
-      "save": "Save",
-      "close": "Close",
-      "saveSuccess": "Report saved.",
-      "saveError": "Failed to save report."
-    },
     "report": {
+      "filename": {
+        "stem": "fund_reconciliation_report"
+      },
+      "exportSuccess": "Report saved to Downloads: {{filename}}",
       "error": {
-        "generationFailed": "Failed to generate report."
+        "generationFailed": "Failed to generate report.",
+        "exportFailed": "Failed to export report."
       }
     }
   },

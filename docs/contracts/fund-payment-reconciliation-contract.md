@@ -118,6 +118,22 @@ Renders the post-reconciliation report as a PDF document. The request payload ca
 
 ---
 
+### `export_and_open_fund_reconciliation_report_pdf` — FPR-015, FPR-016
+
+Renders the report, writes it to the platform Downloads directory under the caller-supplied leaf filename, then launches the system default PDF viewer on the saved file. Returns the absolute path the file was written to so the frontend can surface its final name in the confirmation toast.
+
+`filename` is treated as a leaf name only — no path separators, no `..` segments, must end in `.pdf`, length-capped (200 chars). The destination directory is fixed to the platform Downloads folder; no user-supplied path component reaches the filesystem. If a same-named file already exists, a ` (N)` suffix is appended before the extension (`name.pdf` → `name (1).pdf` → …) so a re-export never silently overwrites a prior file.
+
+- **Args:** `request: ReportGenerationRequest, filename: String`
+- **Returns:** `String` — absolute path of the saved file
+- **Errors:**
+  - `InvalidRequest` — payload validation, or filename rejected by the leaf-name validator
+  - `PdfGenerationFailed` — rendering failed downstream of validation
+  - `WriteFailed` — filesystem write failed (permission, disk full, missing Downloads dir, …)
+  - `OpenFailed` — saved file could not be handed to the system PDF launcher (no associated app, launcher refused)
+
+---
+
 ## Shared Types
 
 ```rust
@@ -300,3 +316,4 @@ enum FundPaymentValidationStatus {
 - 2026-05-06 — Added by `fund-payment-report` spec: generate_fund_reconciliation_report_pdf, EnrichedAutoCorrection
 - 2026-05-07 — PR 2 implementation: `unreconciled_procedures` field type changed from `Vec<UnreconciledProcedure>` to `Vec<UnreconciledProcedureRow>` to remove the cross-use-case dependency flagged by reviewer-arch (B18). Field shape is preserved 1:1 for serde compatibility.
 - 2026-05-07 — PR 2 i18n pivot: `ReportGenerationRequest` reshaped to carry pre-resolved strings only. Removed `locale`, `source_pdf_filename`, `period_start`, `period_end`, `generation_date`, `unreconciled_procedures`, `enriched_corrections`, `UnreconciledProcedureRow`, `EnrichedAutoCorrection`. Added `title`, `continuation_title`, `header_lines`, `unreconciled` (`UnreconciledSection` enum with `Empty` / `Rows` variants), `UnreconciledColumns`, `UnreconciledRow`, `correction_section_heading`, `correction_groups` (`CorrectionGroup` with pre-joined row strings), `page_label`. Backend is now a pure assembler with no translation or formatting logic; frontend resolves everything via i18next + `Intl.*` before invoking. Supersedes ADR-006.
+- 2026-05-13 — Removed `save_fund_reconciliation_report_pdf`. Added `export_and_open_fund_reconciliation_report_pdf`: single command that renders, writes to the platform Downloads directory under a frontend-built locale-aware filename, and launches the system PDF viewer. Filename is validated as a leaf name; collisions use ` (N)` suffixing. Returns the absolute saved path. New error variant: `OpenFailed`.

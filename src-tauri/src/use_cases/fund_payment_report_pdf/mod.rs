@@ -21,7 +21,7 @@ pub mod request;
 // `fund_payment_reconciliation`.
 pub use api::*;
 pub use error::ReportPdfError;
-pub use orchestrator::generate;
+pub use orchestrator::{generate, next_available_path, save};
 pub use renderer::render;
 pub use request::{
     CorrectionGroup, ReportGenerationRequest, UnreconciledColumns, UnreconciledRow,

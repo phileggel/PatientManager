@@ -12,7 +12,7 @@ vi.mock("../gateway", () => ({
   createFundPaymentWithAutoCorrections: vi.fn(),
   getUnreconciledProceduresInRange: vi.fn(),
   generateReportPdf: vi.fn(),
-  saveReportPdf: vi.fn(),
+  exportAndOpenReportPdf: vi.fn(),
 }));
 
 // Mock logger
@@ -262,16 +262,15 @@ describe("ReconciliationModal", () => {
     });
   });
 
-  // FPR-011 — Report button visible in report step, calls gateway.generateReportPdf on click
-  it("shows Report button in report step and calls gateway.generateReportPdf on click", async () => {
+  // FPR-011 — Report button visible in report step, calls gateway.exportAndOpenReportPdf on click
+  it("shows Report button in report step and calls gateway.exportAndOpenReportPdf on click", async () => {
     const user = userEvent.setup();
 
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
       [],
     );
-    // Simulate successful PDF generation (returns Uint8Array)
-    (gateway.generateReportPdf as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Uint8Array([37, 80, 68, 70]),
+    (gateway.exportAndOpenReportPdf as ReturnType<typeof vi.fn>).mockResolvedValue(
+      "/home/phil/Downloads/rapport.pdf",
     );
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
@@ -285,21 +284,20 @@ describe("ReconciliationModal", () => {
 
     await user.click(reportButton);
 
-    // FPR-011: gateway.generateReportPdf is called, not window.open
     await waitFor(() => {
-      expect(gateway.generateReportPdf).toHaveBeenCalled();
+      expect(gateway.exportAndOpenReportPdf).toHaveBeenCalled();
     });
   });
 
-  // FPR-014 — generateReportPdf throws → error toast shown, modal stays open
-  it("shows error toast when generateReportPdf throws", async () => {
+  // FPR-014 — exportAndOpenReportPdf throws → error toast shown, modal stays open
+  it("shows error toast when exportAndOpenReportPdf throws", async () => {
     const user = userEvent.setup();
 
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
       [],
     );
-    (gateway.generateReportPdf as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("PdfGenerationFailed"),
+    (gateway.exportAndOpenReportPdf as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("Failed to export PDF"),
     );
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);

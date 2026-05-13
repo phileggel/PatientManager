@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// Errors produced by the `generate_fund_reconciliation_report_pdf` and
-/// `save_fund_reconciliation_report_pdf` commands.
+/// `export_and_open_fund_reconciliation_report_pdf` commands.
 #[derive(Debug)]
 pub enum ReportPdfError {
     /// The `ReportGenerationRequest` payload is structurally invalid.
@@ -16,9 +16,14 @@ pub enum ReportPdfError {
     /// internal printpdf error, or I/O error.
     PdfGenerationFailed(String),
 
-    /// Writing the rendered PDF bytes to the user-chosen destination failed
-    /// (permission denied, disk full, missing parent directory, etc.).
+    /// Writing the rendered PDF bytes to the destination failed (permission
+    /// denied, disk full, missing parent directory, etc.).
     WriteFailed(String),
+
+    /// Launching the system default application for the saved file failed
+    /// (no associated app, platform launcher refused, etc.). The file has
+    /// already been written when this error is returned.
+    OpenFailed(String),
 }
 
 impl fmt::Display for ReportPdfError {
@@ -29,6 +34,7 @@ impl fmt::Display for ReportPdfError {
                 write!(f, "PDF generation failed: {}", msg)
             }
             ReportPdfError::WriteFailed(msg) => write!(f, "Failed to save PDF: {}", msg),
+            ReportPdfError::OpenFailed(msg) => write!(f, "Failed to open PDF: {}", msg),
         }
     }
 }
@@ -55,5 +61,11 @@ mod tests {
     fn write_failed_displays_message() {
         let err = ReportPdfError::WriteFailed("permission denied".into());
         assert!(err.to_string().contains("permission denied"));
+    }
+
+    #[test]
+    fn open_failed_displays_message() {
+        let err = ReportPdfError::OpenFailed("no_associated_app".into());
+        assert!(err.to_string().contains("no_associated_app"));
     }
 }

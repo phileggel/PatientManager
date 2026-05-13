@@ -17,7 +17,6 @@ import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { ReconciliationResultsView } from "../reconciliation_results/ReconciliationResults";
 import { buildFundIdToLabel } from "../shared/reportPresenter";
 import { UnreconciledReportView } from "../unreconciled_report/UnreconciledReport";
-import { ReportPreviewModal } from "./ReportPreviewModal";
 import { useReconciliationModal } from "./useReconciliationModal";
 import { useReportGeneration } from "./useReportGeneration";
 
@@ -58,14 +57,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
   const funds = useAppStore((state) => state.funds);
   const fundIdToLabel = useMemo(() => buildFundIdToLabel(funds), [funds]);
 
-  const {
-    handleReport,
-    isGenerating,
-    previewBytes,
-    previewRequest,
-    defaultFilename,
-    closePreview,
-  } = useReportGeneration({
+  const { handleReport, isGenerating } = useReportGeneration({
     filePath,
     reportDateRange,
     unreconciledReport,
@@ -173,14 +165,6 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
             </div>
           )}
         </>
-      )}
-      {previewBytes && previewRequest && (
-        <ReportPreviewModal
-          bytes={previewBytes}
-          request={previewRequest}
-          defaultFilename={defaultFilename}
-          onClose={closePreview}
-        />
       )}
     </ModalContainer>
   );
