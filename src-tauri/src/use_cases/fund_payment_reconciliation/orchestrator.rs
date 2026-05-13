@@ -375,10 +375,9 @@ impl FundPaymentReconciliationOrchestrator {
     /// 5. Updates procedures with reconciliation status (single batch)
     /// 6. Publishes events once at the end
     ///
-    /// Long-term, steps 2–5 should be wrapped in a single SQLx transaction
-    /// to make the auto-correction step atomic with group creation; see the
-    /// "Auto-corrections persist…" entry that previously lived in
-    /// `docs/techdebt.md` for the full rationale.
+    /// Long-term, steps 2–5 should commit or roll back as a single Unit of
+    /// Work (per ADR-003 / the UoW item in `docs/todo.md` DDD Convergence),
+    /// closing the mixed-case + step-3-to-5 partial-failure surface.
     pub async fn create_multiple_with_auto_corrections(
         &self,
         candidates: Vec<FundPaymentGroupCandidate>,

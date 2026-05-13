@@ -34,14 +34,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-05-13 — Auto-correction atomicity: wrap steps in a SQLx transaction
-
-**Where:** `src-tauri/src/use_cases/fund_payment_reconciliation/orchestrator.rs::create_multiple_with_auto_corrections` (steps 2–5: `apply_auto_corrections` → integrate created procs → `create_groups_batch` → `update_procedures_batch`).
-
-**Observation:** The duplicate-PDF guard now runs first, so the headline silent-partial-mutation case (full-duplicate re-import that used to persist corrections) is closed. The deeper invariant — every write in steps 2–5 should commit or roll back as one unit — is not yet enforced. Two remaining gaps survive: (a) MIXED case (one duplicate + one new candidate) still applies corrections to procedures referenced by the duplicate candidate's `auto_corrections`, and (b) any failure inside steps 3–5 leaves the corrections from step 2 persisted with no matching group. Long-term fix: pass a `&mut Transaction` through `apply_auto_corrections`, `create_groups_batch`, and `update_procedures_batch`; commit at the end. Estimated lift: 100–150 LOC across 3–4 services + their repository methods.
-
----
-
 ## 2026-05-13 — Dead trait method `ProcedureRepository::find_procedures_by_ssns_and_date_range`
 
 **Where:** trait at `src-tauri/src/context/procedure/domain/procedure.rs:446`, impl at `src-tauri/src/context/procedure/repository/procedure.rs:346`, plus the inline tests around `procedure.rs:1269,1279` and four defensive mock stubs in `use_cases/{overpayment,bank_statement_reconciliation,procedure_orchestration}` test modules and `use_cases/fund_payment_reconciliation/data/pool_builder.rs`.
