@@ -215,6 +215,24 @@ describe("ReconciliationModal", () => {
     });
   });
 
+  it("shows the already-imported empty state and never dispatches downstream commands when the backend flags the PDF as already imported", async () => {
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...mockReconciliationNoAnomalies,
+      already_imported: true,
+    });
+
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/PDF already imported/i)).toBeInTheDocument();
+    });
+
+    // Downstream commands must NOT fire — the bug-#1 regression depends on
+    // never calling create_fund_payment_with_auto_corrections on a duplicate.
+    expect(gateway.createFundPaymentWithAutoCorrections).not.toHaveBeenCalled();
+    expect(gateway.getUnreconciledProceduresInRange).not.toHaveBeenCalled();
+  });
+
   it("calls getUnreconciledProceduresInRange with date range derived from PDF after auto-validation", async () => {
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
       [],

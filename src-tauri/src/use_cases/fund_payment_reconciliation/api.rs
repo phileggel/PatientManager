@@ -154,6 +154,13 @@ pub struct ReconcileAndCandidatesResponse {
     pub candidates: Vec<FundPaymentCandidateFromPdf>,
     /// Raw reconciliation details for reference
     pub reconciliation: ReconciliationResult,
+    /// `true` when every candidate maps to an existing `FundPaymentGroup`
+    /// (same `fund_label` + `payment_date` + `total_amount`). The frontend
+    /// renders an "already imported" empty-state instead of the anomaly UI
+    /// and refuses to dispatch downstream commands — guarding against the
+    /// silent partial mutation that would otherwise occur if the user
+    /// reached the auto-correction step.
+    pub already_imported: bool,
 }
 
 /// Request to create fund payment groups from validated candidates
@@ -233,8 +240,13 @@ pub async fn reconcile_pdf_procedures_fn(
 pub async fn reconcile_and_create_candidates_fn(
     parse_result: PdfParseResult,
     service: Arc<ReconciliationService>,
+    orchestrator: Arc<super::FundPaymentReconciliationOrchestrator>,
 ) -> anyhow::Result<ReconcileAndCandidatesResponse> {
-    service.reconcile(parse_result).await
+    let mut response = service.reconcile(parse_result).await?;
+    response.already_imported = orchestrator
+        .all_candidates_are_duplicates(&response.candidates)
+        .await?;
+    Ok(response)
 }
 
 pub async fn create_fund_payment_from_candidates_fn(
@@ -353,10 +365,15 @@ pub async fn reconcile_pdf_procedures(
 pub async fn reconcile_and_create_candidates(
     parse_result: PdfParseResult,
     service: State<'_, Arc<ReconciliationService>>,
+    orchestrator: State<'_, Arc<super::FundPaymentReconciliationOrchestrator>>,
 ) -> Result<ReconcileAndCandidatesResponse, String> {
     tracing::info!(target: BACKEND, "Starting complete reconciliation workflow");
-    reconcile_and_create_candidates_fn(parse_result, service.inner().clone())
-        .await
+    reconcile_and_create_candidates_fn(
+        parse_result,
+        service.inner().clone(),
+        orchestrator.inner().clone(),
+    )
+    .await
         .inspect(|resp| {
             let issue_count = resp.reconciliation.issue_count();
             tracing::info!(

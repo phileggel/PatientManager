@@ -53,6 +53,7 @@ impl ReconciliationService {
         Ok(ReconcileAndCandidatesResponse {
             candidates,
             reconciliation,
+            already_imported: false,
         })
     }
 

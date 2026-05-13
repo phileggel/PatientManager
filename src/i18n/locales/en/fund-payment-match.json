@@ -60,6 +60,10 @@
     "blocking": {
       "banner": "{{count}} blocking issue(s) — validation is impossible until they are resolved manually."
     },
+    "alreadyImported": {
+      "title": "PDF already imported",
+      "body": "Every payment in this PDF matches an existing reconciliation. No action is needed."
+    },
     "header": {
       "report": "Report",
       "close": "Close modal"

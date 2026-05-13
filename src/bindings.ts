@@ -1615,7 +1615,16 @@ candidates: FundPaymentGroupCandidate[];
 /**
  * Raw reconciliation details for reference
  */
-reconciliation: ReconciliationResult }
+reconciliation: ReconciliationResult; 
+/**
+ * `true` when every candidate maps to an existing `FundPaymentGroup`
+ * (same `fund_label` + `payment_date` + `total_amount`). The frontend
+ * renders an "already imported" empty-state instead of the anomaly UI
+ * and refuses to dispatch downstream commands — guarding against the
+ * silent partial mutation that would otherwise occur if the user
+ * reached the auto-correction step.
+ */
+already_imported: boolean }
 /**
  * A reconciliation match result (unified discriminated union for all scenarios)
  */

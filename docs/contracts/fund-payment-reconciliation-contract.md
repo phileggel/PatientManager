@@ -48,10 +48,10 @@ Runs the 8-pass matching algorithm (R4) and classifies each PDF line into a `Rec
 
 ### `reconcile_and_create_candidates` — R1, R3, R4, R5, R6, R7, R8, R9, R10, R29
 
-Runs the 8-pass matching algorithm and groups results into `FundPaymentGroupCandidate`s for user review. Combines reconciliation and candidate creation in a single call. Negative-amount lines are classified as `NotFoundIssue` (R29).
+Runs the 8-pass matching algorithm and groups results into `FundPaymentGroupCandidate`s for user review. Combines reconciliation and candidate creation in a single call. Negative-amount lines are classified as `NotFoundIssue` (R29). Sets the response flag `already_imported = true` when every candidate corresponds to an existing fund-payment group (same `fund_label` + `payment_date` + `total_amount`), so the frontend can short-circuit a re-import before showing the anomaly UI or dispatching any downstream command (R3, defensive).
 
 - **Args:** `parse_result: PdfParseResult`
-- **Returns:** `ReconcileAndCandidatesResponse`
+- **Returns:** `ReconcileAndCandidatesResponse` — includes `already_imported: bool`
 - **Errors:** —
 
 ---
@@ -213,6 +213,7 @@ struct FundPaymentGroupCandidate {
 struct ReconcileAndCandidatesResponse {
     candidates: Vec<FundPaymentGroupCandidate>,
     reconciliation: ReconciliationResult,
+    already_imported: bool,        // R3 — every candidate maps to an existing group
 }
 
 struct ReconciliationResult {
