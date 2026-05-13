@@ -6,6 +6,10 @@ import { useFuzzySearch } from "@/lib/useFuzzySearch";
  *
  * Manages the text query, fuzzy-filtered suggestions, and resolves the
  * display label from the currently selected id.
+ *
+ * `priorityKey` is an optional opt-in: when set, items whose
+ * `item[priorityKey]` field is truthy are surfaced before items where it
+ * is falsy, preserving Fuse's intra-bucket match-score order.
  */
 export function useComboboxField<T extends object>(
   items: T[],
@@ -13,11 +17,18 @@ export function useComboboxField<T extends object>(
   idKey: keyof T,
   selectedId: string,
   searchKeys?: (keyof T)[],
+  priorityKey?: keyof T,
 ) {
   const [query, setQuery] = useState("");
 
   const keys = searchKeys ? searchKeys.map(String) : [String(displayKey)];
-  const filteredItems = useFuzzySearch(query, items, keys);
+  const filteredItems = useFuzzySearch(
+    query,
+    items,
+    keys,
+    undefined,
+    priorityKey ? String(priorityKey) : undefined,
+  );
 
   const displayValue = useMemo(() => {
     if (!selectedId) return "";

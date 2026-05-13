@@ -12,6 +12,13 @@ interface ComboboxFieldProps<T extends object> {
   onChange: (id: string) => void;
   placeholder?: string;
   searchKeys?: (keyof T)[];
+  /**
+   * Optional opt-in: items whose `item[priorityKey]` field is truthy are
+   * surfaced above items where it is falsy, preserving fuzzy match-score
+   * order within each bucket. Use to promote complete items (e.g. patients
+   * with an SSN, funds with an identifier) over incomplete ones.
+   */
+  priorityKey?: keyof T;
   error?: string;
   disabled?: boolean;
   onCreateNew?: (query: string) => void;
@@ -49,6 +56,7 @@ export function ComboboxField<T extends object>({
   value,
   onChange,
   searchKeys,
+  priorityKey,
   placeholder,
   error,
   disabled,
@@ -61,6 +69,7 @@ export function ComboboxField<T extends object>({
     idKey,
     value,
     searchKeys,
+    priorityKey,
   );
 
   const selectedItem = useMemo(
