@@ -22,13 +22,7 @@ export function useComboboxField<T extends object>(
   const [query, setQuery] = useState("");
 
   const keys = searchKeys ? searchKeys.map(String) : [String(displayKey)];
-  const filteredItems = useFuzzySearch(
-    query,
-    items,
-    keys,
-    undefined,
-    priorityKey ? String(priorityKey) : undefined,
-  );
+  const filteredItems = useFuzzySearch(query, items, keys, { priorityKey });
 
   const displayValue = useMemo(() => {
     if (!selectedId) return "";
