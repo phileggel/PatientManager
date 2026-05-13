@@ -1,5 +1,4 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as excelImportService from "../api/gateway";
 import { ImportExcelPage } from "./ImportExcelPage";
@@ -146,19 +145,5 @@ describe("ImportExcelPage", () => {
     render(<ImportExcelPage {...defaultProps} />);
     expect(screen.queryByText("Patients processed")).not.toBeInTheDocument();
     expect(screen.queryByText("Procedures created")).not.toBeInTheDocument();
-  });
-
-  it("Import Another calls onClose after a successful import", async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    mockParseExcelFile.mockResolvedValue({ success: true, data: parsedDataNoProcedures });
-
-    render(<ImportExcelPage filePath="/tmp/empty.xlsx" onClose={onClose} />);
-    await waitFor(() => expect(mockExecuteExcelImport).toHaveBeenCalledOnce());
-
-    const importAnotherButton = await screen.findByRole("button", { name: /import another/i });
-    await user.click(importAnotherButton);
-
-    expect(onClose).toHaveBeenCalledOnce();
   });
 });

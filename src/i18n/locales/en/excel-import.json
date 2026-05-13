@@ -91,7 +91,6 @@
     "skipped_one": "{{count}} skipped",
     "skipped_other": "{{count}} skipped",
     "blockedMonthsTitle": "Months not imported (reconciled procedures)",
-    "importAnother": "Import another file",
     "viewReport": "View parsing report"
   },
   "status": {

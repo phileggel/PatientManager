@@ -301,14 +301,13 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Button onClick={onClose}>{t("result.importAnother")}</Button>
-              {parsed && (
+            {parsed && (
+              <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => setShowParsingReport(true)}>
                   {t("result.viewReport")}
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
