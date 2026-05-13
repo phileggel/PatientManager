@@ -87,6 +87,34 @@ impl FundPaymentReconciliationOrchestrator {
         Ok(fund.id)
     }
 
+    /// Return `true` iff every supplied candidate corresponds to an existing
+    /// fund-payment group (same `fund_label` + `payment_date` + `total_amount`).
+    /// An empty input returns `false` — there's nothing to be a duplicate of.
+    ///
+    /// Used by `reconcile_and_create_candidates_fn` to short-circuit a PDF
+    /// re-import before the user is shown the anomaly UI.
+    pub async fn all_candidates_are_duplicates(
+        &self,
+        candidates: &[super::api::FundPaymentCandidateFromPdf],
+    ) -> anyhow::Result<bool> {
+        if candidates.is_empty() {
+            return Ok(false);
+        }
+        for candidate in candidates {
+            if !self
+                .is_duplicate_candidate(
+                    &candidate.fund_label,
+                    candidate.payment_date,
+                    candidate.total_amount,
+                )
+                .await?
+            {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     /// Check if a candidate would create a duplicate fund payment group
     pub async fn is_duplicate_candidate(
         &self,
@@ -1406,6 +1434,132 @@ mod tests {
             .await?;
 
         assert!(!result);
+        Ok(())
+    }
+
+    fn make_candidate(
+        fund_label: &str,
+        payment_date: NaiveDate,
+        total_amount: i64,
+    ) -> super::super::api::FundPaymentCandidateFromPdf {
+        super::super::api::FundPaymentCandidateFromPdf {
+            fund_label: fund_label.to_string(),
+            payment_date,
+            total_amount,
+            procedure_ids: vec![],
+            matched_amount: total_amount,
+            is_fully_covered: true,
+        }
+    }
+
+    /// Empty candidate list is treated as "nothing to be a duplicate of" —
+    /// the helper returns `false` so the frontend never enters the
+    /// already-imported empty-state for a parse that yielded no groups.
+    #[tokio::test]
+    async fn all_candidates_are_duplicates_empty_returns_false() -> anyhow::Result<()> {
+        let orchestrator = make_orchestrator(
+            MockFundRepository::new(),
+            MockFundPaymentRepository::new(),
+            MockProcedureRepository::new(),
+        );
+
+        let result = orchestrator.all_candidates_are_duplicates(&[]).await?;
+
+        assert!(!result);
+        Ok(())
+    }
+
+    /// A single non-duplicate candidate short-circuits the helper to `false`,
+    /// even when the rest of the list is duplicate — the frontend keeps the
+    /// anomaly UI open so the new candidate can still be validated.
+    #[tokio::test]
+    async fn all_candidates_are_duplicates_mixed_returns_false() -> anyhow::Result<()> {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|identifier| {
+                if identifier == "EXISTING" {
+                    Ok(Some(Fund::restore(
+                        "fund-1".to_string(),
+                        "EXISTING".to_string(),
+                        "Existing".to_string(),
+                    )))
+                } else {
+                    Ok(None)
+                }
+            });
+
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        fund_payment_repo
+            .expect_exists_group()
+            .returning(|_, _, _| Ok(true));
+
+        let orchestrator =
+            make_orchestrator(fund_repo, fund_payment_repo, MockProcedureRepository::new());
+
+        let candidates = vec![
+            make_candidate(
+                "EXISTING",
+                NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                50_000,
+            ),
+            make_candidate(
+                "BRAND NEW FUND",
+                NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                30_000,
+            ),
+        ];
+
+        let result = orchestrator
+            .all_candidates_are_duplicates(&candidates)
+            .await?;
+
+        assert!(!result);
+        Ok(())
+    }
+
+    /// Every candidate maps to an existing fund-payment group → the helper
+    /// returns `true` so the frontend renders the already-imported empty
+    /// state without dispatching any downstream command.
+    #[tokio::test]
+    async fn all_candidates_are_duplicates_all_match_returns_true() -> anyhow::Result<()> {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|identifier| {
+                Ok(Some(Fund::restore(
+                    "fund-1".to_string(),
+                    identifier.to_string(),
+                    identifier.to_string(),
+                )))
+            });
+
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        fund_payment_repo
+            .expect_exists_group()
+            .returning(|_, _, _| Ok(true));
+
+        let orchestrator =
+            make_orchestrator(fund_repo, fund_payment_repo, MockProcedureRepository::new());
+
+        let candidates = vec![
+            make_candidate(
+                "FUND A",
+                NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                50_000,
+            ),
+            make_candidate(
+                "FUND B",
+                NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                30_000,
+            ),
+        ];
+
+        let result = orchestrator
+            .all_candidates_are_duplicates(&candidates)
+            .await?;
+
+        assert!(result);
         Ok(())
     }
 

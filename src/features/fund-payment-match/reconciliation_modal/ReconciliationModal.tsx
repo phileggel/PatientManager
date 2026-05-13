@@ -6,7 +6,7 @@
  * Logic: useReconciliationModal (PDF extraction, reconciliation, corrections, validate).
  */
 
-import { FileText, Loader2, X } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, X } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/lib/appStore";
@@ -34,6 +34,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
 
   const {
     reconciliationData,
+    alreadyImported,
     isLoading,
     error,
     acceptedKeys,
@@ -130,6 +131,17 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
                   {error}
                 </p>
               </div>
+            ) : alreadyImported ? (
+              <output
+                id="reconciliation-modal-already-imported"
+                className="flex flex-col items-center justify-center gap-3 py-20 text-m3-on-surface-variant"
+              >
+                <CheckCircle2 size={40} className="text-m3-primary" />
+                <h3 className="text-base font-semibold text-m3-on-surface">
+                  {t("modal.alreadyImported.title")}
+                </h3>
+                <p className="text-sm text-center max-w-md">{t("modal.alreadyImported.body")}</p>
+              </output>
             ) : reconciliationData ? (
               <ReconciliationResultsView
                 result={reconciliationData.reconciliation}
@@ -143,6 +155,16 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
           </div>
 
           {/* Footer */}
+          {!isLoading && !error && alreadyImported && (
+            <div className="shrink-0 border-t border-m3-outline/20 bg-m3-surface-container-low px-6 py-4">
+              <div className="flex items-center justify-end">
+                <Button variant="primary" onClick={onClose}>
+                  {t("modal.footer.cancel")}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {!isLoading && !error && reconciliationData && (
             <div className="shrink-0 border-t border-m3-outline/20 bg-m3-surface-container-low px-6 py-4">
               {validationError && (

@@ -462,10 +462,13 @@ async fn test_full_chain_via_reconciliation_service() {
     };
 
     // ---- Step 1: reconcile (same call as frontend) --------------------
-    let reconcile_response =
-        reconcile_and_create_candidates_fn(parse_result, ctx.reconciliation_service.clone())
-            .await
-            .unwrap();
+    let reconcile_response = reconcile_and_create_candidates_fn(
+        parse_result,
+        ctx.reconciliation_service.clone(),
+        ctx.orchestrator.clone(),
+    )
+    .await
+    .unwrap();
 
     // Assert reconciliation result: 2 perfect + 1 issue
     assert_eq!(reconcile_response.reconciliation.matches.len(), 3);

@@ -88,6 +88,7 @@ const mockExportAndOpen = vi.mocked(gateway.exportAndOpenReportPdf);
 const mockReconciliationData: ReconcileAndCandidatesResponse = {
   candidates: [],
   reconciliation: { matches: [] },
+  already_imported: false,
 };
 
 const baseArgs = {

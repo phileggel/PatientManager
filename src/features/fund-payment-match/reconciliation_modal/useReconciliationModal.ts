@@ -42,6 +42,7 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
   const [parsedData, setParsedData] = useState<PdfParseResult | null>(null);
   const [reconciliationData, setReconciliationData] =
     useState<ReconcileAndCandidatesResponse | null>(null);
+  const [alreadyImported, setAlreadyImported] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +70,11 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
         const parsed = await parsePdfText(text);
         setParsedData(parsed);
         const result = await reconcileAndCreateCandidates(parsed);
-        setReconciliationData(result);
+        if (result.already_imported) {
+          setAlreadyImported(true);
+        } else {
+          setReconciliationData(result);
+        }
       } catch (err) {
         logger.error("[useReconciliationModal] Failed to load or reconcile PDF", { err });
         setError(err instanceof Error ? err.message : t("modal.error.unknown"));
@@ -197,6 +202,7 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
 
   return {
     reconciliationData,
+    alreadyImported,
     isLoading,
     error,
     acceptedKeys,
