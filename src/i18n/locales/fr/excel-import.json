@@ -91,7 +91,6 @@
     "skipped_one": "{{count}} ignoré",
     "skipped_other": "{{count}} ignorés",
     "blockedMonthsTitle": "Mois non importés (actes rapprochés)",
-    "importAnother": "Importer un autre fichier",
     "viewReport": "Voir le rapport d'analyse"
   },
   "status": {
