@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.1] - 2026-05-13
+
+### Added
+- remember last folder for export and import
+Extends lastFolderStore with a shared "db-backup" key — users
+typically save and restore backups from the same folder, so a
+single memory slot matches the natural workflow. Mirrors the
+existing Excel / fund-PDF / bank-PDF folder-memory pattern.
+
+### Fixed
+- move dev binaries out of src/bin/
+The Tauri NSIS bundler walks src/bin/ for binary candidates and
+expects each entry to produce a bundled .exe. Moving generate_*
+binaries and the fixtures_* submodules to src-tauri/dev/ stops
+the bundler from looking for phantom artifacts. autobins=false
+is no longer needed; tarpaulin / dev-fixtures workflows updated.
+- pending-import lookup follows db_path under E2E redirect
+Startup checked app_data_dir/patient_manager.db.pending while the
+import side staged at db_path.parent()/patient_manager.db.pending —
+paths diverged only when PATIENT_MANAGER_E2E_DB redirected the live
+DB. Production mode is byte-identical. Adds pending_path_for helper +
+three regression tests.
+
 ## [0.17.0] - 2026-05-13
 
 ### Added
