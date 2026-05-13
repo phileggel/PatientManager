@@ -219,6 +219,7 @@ export function ProcedureFormModal({
               items={patientItems}
               displayKey="label"
               idKey="id"
+              priorityKey="hasSsn"
               value={patientId}
               onChange={handlePatientChange}
               placeholder={t("form.selectPatient")}
@@ -233,6 +234,7 @@ export function ProcedureFormModal({
               items={patientItems}
               displayKey="label"
               idKey="id"
+              priorityKey="hasSsn"
               value={patientId}
               onChange={handlePatientChange}
               placeholder={t("form.selectPatient")}

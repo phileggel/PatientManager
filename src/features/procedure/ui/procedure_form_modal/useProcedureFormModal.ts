@@ -243,9 +243,16 @@ export function useProcedureFormModal({
     [funds],
   );
 
-  // Patient items formatted with INS for ComboboxField (R28, R31)
+  // Patient items formatted with INS for ComboboxField (R28, R31).
+  // `hasSsn` flag opts the combobox into surfacing SSN-bearing patients first
+  // (matches the priorityKey contract on ComboboxField).
   const patientItems = useMemo(
-    () => patients.map((p) => ({ id: p.id, label: formatPatientLabel(p) })),
+    () =>
+      patients.map((p) => ({
+        id: p.id,
+        label: formatPatientLabel(p),
+        hasSsn: !!p.ssn,
+      })),
     [patients],
   );
 
