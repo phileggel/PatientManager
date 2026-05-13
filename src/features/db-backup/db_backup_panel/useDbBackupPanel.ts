@@ -3,6 +3,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { toastService } from "@/core/snackbar";
+import {
+  getLastFolder,
+  parentDir,
+  setLastFolder,
+} from "@/features/shell/import_modal/lastFolderStore";
 import { logger } from "@/lib/logger";
 import { exportDatabase, importDatabase, pickExportPath, pickImportPath } from "../gateway";
 
@@ -40,14 +45,18 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
     const now = new Date();
     const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const defaultFilename = `backup_${timestamp}.db.gz`;
+    const lastFolder = getLastFolder("db-backup");
+    const defaultPath = lastFolder ? `${lastFolder}/${defaultFilename}` : defaultFilename;
 
-    const destPath = await pickExportPath(t("export.dialogTitle"), defaultFilename);
+    const destPath = await pickExportPath(t("export.dialogTitle"), defaultPath);
 
     if (!destPath) return; // user cancelled
 
     setIsExporting(true);
     try {
       await exportDatabase(destPath);
+      const parent = parentDir(destPath);
+      if (parent) setLastFolder("db-backup", parent);
       toastService.show("success", t("export.success"));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -62,9 +71,12 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
 
   /** Step 1: open file picker, store path, show confirmation dialog (R4, R5). */
   const handleImportRequest = async () => {
-    const sourcePath = await pickImportPath(t("import.dialogTitle"));
+    const sourcePath = await pickImportPath(t("import.dialogTitle"), getLastFolder("db-backup"));
 
     if (!sourcePath) return; // user cancelled (W4)
+
+    const parent = parentDir(sourcePath);
+    if (parent) setLastFolder("db-backup", parent);
 
     setPendingSourcePath(sourcePath);
     setConfirmOpen(true);

@@ -15,11 +15,12 @@ export async function pickExportPath(title: string, defaultPath: string): Promis
   );
 }
 
-export async function pickImportPath(title: string): Promise<string | null> {
+export async function pickImportPath(title: string, defaultPath?: string): Promise<string | null> {
   return e2eOverride("pickImportPath", async () => {
     const result = await open({
       title,
       multiple: false,
+      defaultPath,
       filters: [{ name: "Database backup", extensions: ["gz"] }],
     });
     if (typeof result !== "string") return null;

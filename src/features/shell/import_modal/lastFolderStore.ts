@@ -1,13 +1,18 @@
 /**
- * Per-feature memory of the last folder a user picked an import file from.
- * Each kind is stored under its own localStorage key so the three import flows
- * (Excel, fund PDF, bank PDF) don't share a default path.
+ * Per-feature memory of the last folder a user picked a file from. Each
+ * kind is stored under its own localStorage key so the file-picker flows
+ * (Excel import, fund-PDF import, bank-PDF import, DB-backup) don't share
+ * a default path.
+ *
+ * `db-backup` covers both export and import — users typically save and
+ * restore backups from the same folder, so a single shared memory slot
+ * matches the natural workflow.
  *
  * Storage format mirrors `theme-mode` (see `useThemeToggle.ts`): a plain
  * string value per key, set only when the user successfully picks a file.
  */
 
-export type ImportKind = "excel" | "fund-pdf" | "bank-pdf";
+export type ImportKind = "excel" | "fund-pdf" | "bank-pdf" | "db-backup";
 
 const STORAGE_PREFIX = "import-last-folder:";
 

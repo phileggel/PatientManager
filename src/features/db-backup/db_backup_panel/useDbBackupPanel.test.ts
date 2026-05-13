@@ -20,12 +20,14 @@ vi.mock("react-i18next", () => ({
 
 import * as process from "@tauri-apps/plugin-process";
 import { toastService } from "@/core/snackbar";
+import { getLastFolder, setLastFolder } from "@/features/shell/import_modal/lastFolderStore";
 import * as gateway from "../gateway";
 import { useDbBackupPanel } from "./useDbBackupPanel";
 
 describe("useDbBackupPanel — export flow (R2, R3)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("does not call exportDatabase when save dialog is cancelled", async () => {
@@ -58,11 +60,43 @@ describe("useDbBackupPanel — export flow (R2, R3)", () => {
     expect(toastService.show).toHaveBeenCalledWith("error", "disk full");
     expect(result.current.isExporting).toBe(false);
   });
+
+  it("seeds pickExportPath with the remembered db-backup folder + timestamped filename", async () => {
+    setLastFolder("db-backup", "/saved/folder");
+    vi.mocked(gateway.pickExportPath).mockResolvedValue(null);
+
+    const { result } = renderHook(() => useDbBackupPanel());
+    await act(() => result.current.handleExport());
+
+    const [, defaultPath] = vi.mocked(gateway.pickExportPath).mock.calls[0]!;
+    expect(defaultPath).toMatch(/^\/saved\/folder\/backup_\d{8}_\d{6}\.db\.gz$/);
+  });
+
+  it("falls back to filename-only when no folder is remembered", async () => {
+    vi.mocked(gateway.pickExportPath).mockResolvedValue(null);
+
+    const { result } = renderHook(() => useDbBackupPanel());
+    await act(() => result.current.handleExport());
+
+    const [, defaultPath] = vi.mocked(gateway.pickExportPath).mock.calls[0]!;
+    expect(defaultPath).toMatch(/^backup_\d{8}_\d{6}\.db\.gz$/);
+  });
+
+  it("persists the parent of the chosen export path to db-backup memory", async () => {
+    vi.mocked(gateway.pickExportPath).mockResolvedValue("/new/folder/backup.db.gz");
+    vi.mocked(gateway.exportDatabase).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useDbBackupPanel());
+    await act(() => result.current.handleExport());
+
+    expect(getLastFolder("db-backup")).toBe("/new/folder");
+  });
 });
 
 describe("useDbBackupPanel — import flow (R4, R5, R6)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("does not open confirmation when open dialog is cancelled", async () => {
@@ -122,5 +156,24 @@ describe("useDbBackupPanel — import flow (R4, R5, R6)", () => {
 
     expect(toastService.show).toHaveBeenCalledWith("error", "invalid backup");
     expect(result.current.isImporting).toBe(false);
+  });
+
+  it("seeds pickImportPath with the remembered db-backup folder", async () => {
+    setLastFolder("db-backup", "/saved/folder");
+    vi.mocked(gateway.pickImportPath).mockResolvedValue(null);
+
+    const { result } = renderHook(() => useDbBackupPanel());
+    await act(() => result.current.handleImportRequest());
+
+    expect(gateway.pickImportPath).toHaveBeenCalledWith(expect.any(String), "/saved/folder");
+  });
+
+  it("persists the parent of the chosen import path to db-backup memory (shared with export)", async () => {
+    vi.mocked(gateway.pickImportPath).mockResolvedValue("/restored/from/backup.db.gz");
+
+    const { result } = renderHook(() => useDbBackupPanel());
+    await act(() => result.current.handleImportRequest());
+
+    expect(getLastFolder("db-backup")).toBe("/restored/from");
   });
 });
