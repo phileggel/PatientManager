@@ -170,7 +170,7 @@ async fn test_full_reconciliation_scenario_with_amount_correction() {
                 PaymentMethod::None,
                 None,
                 None,
-                ProcedureStatus::None,
+                ProcedureStatus::Created,
             )
             .await
             .unwrap()
@@ -354,7 +354,7 @@ async fn test_full_chain_via_reconciliation_service() {
             PaymentMethod::None,
             None,
             None,
-            ProcedureStatus::None,
+            ProcedureStatus::Created,
         )
         .await
         .unwrap();
@@ -371,7 +371,7 @@ async fn test_full_chain_via_reconciliation_service() {
             PaymentMethod::None,
             None,
             None,
-            ProcedureStatus::None,
+            ProcedureStatus::Created,
         )
         .await
         .unwrap();
@@ -388,7 +388,7 @@ async fn test_full_chain_via_reconciliation_service() {
             PaymentMethod::None,
             None,
             None,
-            ProcedureStatus::None,
+            ProcedureStatus::Created,
         )
         .await
         .unwrap();

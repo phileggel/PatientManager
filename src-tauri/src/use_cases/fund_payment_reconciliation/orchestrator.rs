@@ -364,41 +364,28 @@ impl FundPaymentReconciliationOrchestrator {
     /// Create multiple fund payment groups with auto-corrections (batch operation)
     ///
     /// This method handles the complete batch workflow with corrections:
-    /// 1. Applies auto-corrections to procedures
-    /// 2. Integrates newly created procedures into candidates
-    /// 3. Checks for duplicate groups
+    /// 1. Checks for duplicate groups — bails with no DB writes if every
+    ///    candidate is a duplicate. Order matters: this runs BEFORE
+    ///    `apply_auto_corrections` so a re-imported PDF cannot silently
+    ///    mutate procedure rows (or create new patients/procedures) on its
+    ///    way to a guaranteed rejection.
+    /// 2. Applies auto-corrections to procedures
+    /// 3. Integrates newly created procedures into candidates
     /// 4. Creates all fund payment groups atomically (single transaction)
     /// 5. Updates procedures with reconciliation status (single batch)
     /// 6. Publishes events once at the end
+    ///
+    /// Long-term, steps 2–5 should be wrapped in a single SQLx transaction
+    /// to make the auto-correction step atomic with group creation; see the
+    /// "Auto-corrections persist…" entry that previously lived in
+    /// `docs/techdebt.md` for the full rationale.
     pub async fn create_multiple_with_auto_corrections(
         &self,
         candidates: Vec<FundPaymentGroupCandidate>,
         auto_corrections: Vec<super::api::AutoCorrection>,
         patient_service: Arc<PatientService>,
     ) -> anyhow::Result<Vec<FundPaymentGroup>> {
-        // Step 1: Apply auto-corrections first
-        let created_procs = self
-            .apply_auto_corrections(auto_corrections, patient_service)
-            .await?;
-
-        // Step 2: Integrate newly created procedures into candidates
-        let mut candidates = candidates;
-        for (fund_label, payment_date, proc_id) in created_procs {
-            if let Some(candidate) = candidates
-                .iter_mut()
-                .find(|c| c.fund_label == fund_label && c.payment_date == payment_date)
-            {
-                candidate.procedure_ids.push(proc_id);
-            } else {
-                tracing::warn!(
-                    fund_label = %fund_label,
-                    payment_date = %payment_date,
-                    "Created procedure has no matching candidate group"
-                );
-            }
-        }
-
-        // Step 3: Check for duplicates (single pass — results reused in Step 4)
+        // Step 1: Check for duplicates BEFORE any DB writes
         let mut duplicate_flags = Vec::with_capacity(candidates.len());
         for candidate in &candidates {
             duplicate_flags.push(
@@ -417,6 +404,30 @@ impl FundPaymentReconciliationOrchestrator {
                 "All {} payment groups already exist. PDF was likely already processed.",
                 duplicate_count
             );
+        }
+
+        // Step 2: Apply auto-corrections (only reachable when at least one
+        // non-duplicate candidate exists, so no writes happen on a fully
+        // duplicate batch).
+        let created_procs = self
+            .apply_auto_corrections(auto_corrections, patient_service)
+            .await?;
+
+        // Step 3: Integrate newly created procedures into candidates
+        let mut candidates = candidates;
+        for (fund_label, payment_date, proc_id) in created_procs {
+            if let Some(candidate) = candidates
+                .iter_mut()
+                .find(|c| c.fund_label == fund_label && c.payment_date == payment_date)
+            {
+                candidate.procedure_ids.push(proc_id);
+            } else {
+                tracing::warn!(
+                    fund_label = %fund_label,
+                    payment_date = %payment_date,
+                    "Created procedure has no matching candidate group"
+                );
+            }
         }
 
         // Step 4: Filter non-duplicates and resolve fund IDs (build batch data)
@@ -1647,6 +1658,67 @@ mod tests {
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].total_amount, 75_000);
         assert_eq!(groups[0].fund_id, "fund-1");
+        Ok(())
+    }
+
+    /// Regression — `create_multiple_with_auto_corrections` MUST NOT mutate
+    /// procedure rows (or create new patients / procedures) when every
+    /// candidate is a duplicate of an existing fund-payment group. The
+    /// duplicate check runs FIRST; if it fires, `apply_auto_corrections`
+    /// never gets invoked. Mockall enforces the assertion via panic-on-
+    /// unexpected-call: the procedure-repo and patient-repo mocks have
+    /// zero expectations, so any DB-write attempt would crash the test.
+    #[tokio::test]
+    async fn create_multiple_with_auto_corrections_bails_before_writes_on_duplicates(
+    ) -> anyhow::Result<()> {
+        use crate::context::patient::{MockPatientRepository, PatientService};
+
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|identifier| {
+                Ok(Some(Fund::restore(
+                    "fund-1".to_string(),
+                    identifier.to_string(),
+                    identifier.to_string(),
+                )))
+            });
+
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        fund_payment_repo
+            .expect_exists_group()
+            .returning(|_, _, _| Ok(true));
+
+        let procedure_repo = MockProcedureRepository::new();
+        let patient_repo = MockPatientRepository::new();
+
+        let orchestrator = make_orchestrator(fund_repo, fund_payment_repo, procedure_repo);
+        let bus = Arc::new(EventBus::new());
+        let patient_service = Arc::new(PatientService::new(Arc::new(patient_repo), bus));
+
+        let result = orchestrator
+            .create_multiple_with_auto_corrections(
+                vec![FundPaymentGroupCandidate {
+                    fund_label: "CPAM n° 75".to_string(),
+                    payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                    total_amount: 75_000,
+                    procedure_ids: vec!["proc-1".to_string()],
+                    matched_amount: 75_000,
+                    is_fully_covered: true,
+                }],
+                vec![AutoCorrection::AmountMismatch {
+                    procedure_id: "proc-1".to_string(),
+                    pdf_amount: 12_345,
+                }],
+                patient_service,
+            )
+            .await;
+
+        assert!(
+            result.is_err(),
+            "all-duplicate batch must error, got: {:?}",
+            result.as_ref().ok()
+        );
         Ok(())
     }
 
