@@ -19,6 +19,25 @@ else
     NC='\033[0m'
 fi
 
+# Detect delete-only push. Git provides "<local-ref> <local-sha> <remote-ref>
+# <remote-sha>" on stdin for each ref. For deletions, local-sha is the zero
+# SHA. A push with no code content has nothing to validate.
+ZERO="0000000000000000000000000000000000000000"
+DELETE_ONLY=true
+HAS_REFS=false
+while read -r local_ref local_sha remote_ref remote_sha; do
+    HAS_REFS=true
+    if [ "$local_sha" != "$ZERO" ]; then
+        DELETE_ONLY=false
+        break
+    fi
+done
+
+if $HAS_REFS && $DELETE_ONLY; then
+    echo -e "${BLUE}ℹ  Delete-only push — skipping quality check.${NC}"
+    exit 0
+fi
+
 echo -e "${BLUE}🚀 Preparing to push... Running full quality check${NC}"
 
 if [ ! -f "$CHECK_SCRIPT" ]; then
