@@ -35,16 +35,49 @@ gh auth status 2>&1 | head -3
 - **No commits ahead of main**: stop — "No commits on this branch to open a PR for."
 - **`gh` not authenticated**: stop — "Run `gh auth login` first, then retry `/create-pr`."
 
-## Step 2 — Draft title
+## Step 2 — Detect branch-name drift, then draft title (conventional commit format)
 
-1. Take the current branch name (e.g. `feat/add-payment-gateway`).
-2. Strip the prefix (`feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `ci/`).
-3. Replace hyphens and underscores with spaces; capitalise the first letter.
-4. If there is exactly one commit ahead of main, prefer its message (strip the conventional-commit type prefix: `feat: `, `fix: `, etc.) as the title instead.
+The PR title MUST be a conventional commit (`type(scope?): subject`). When the project uses GitHub's "Squash and merge", the PR title becomes the squash commit message on `main` — the local `commit-msg` hook does NOT run server-side, so this is the only gate. Validate before showing.
 
-Display the candidate:
+### Step 2a — Drift detection (active, not just advisory)
 
-> Draft title: `Add payment gateway` (19 chars)
+Parse the branch name's conventional type from the prefix (`feat/` → `feat`, etc.; default `chore` if no recognised prefix).
+
+Parse each commit's conventional type from `git log --pretty=%s`. Group by type and pick the **dominant type** (most frequent).
+
+Compare:
+
+- **Match** — branch type == dominant commit type → continue silently.
+- **Mismatch** — branch type ≠ dominant commit type → **challenge the user via AskUserQuestion** before drafting:
+
+  > The branch is named `<branch>` (type: `<branch-type>`), but the dominant commit type is `<dominant-type>` (`<count>` of `<total>` commits).
+  >
+  > This usually means the work drifted during dev and the branch name no longer reflects what's in the PR.
+  >
+  > Options:
+  > - **Rename branch** (recommended) — abort, the user runs `git branch -m <new-type>/<short-description>` then re-runs `/create-pr`.
+  > - **Use dominant commit type for PR title** — proceed with `<dominant-type>` in the title; the branch name stays as-is (live with the inconsistency).
+  > - **Keep branch type for PR title** — proceed with `<branch-type>`; the title will be one type while most commits are another.
+
+- **Mixed types, no clear dominant** (e.g. 2 `feat:`, 2 `fix:`) — challenge the user: "Commits are mixed types (X `feat:`, Y `fix:`, …). A single PR should tell one story. Consider splitting, renaming the branch, or choosing the type that best describes the squash commit on `main`."
+
+### Step 2b — Drafting algorithm
+
+1. **Single commit ahead of main** — prefer the commit's message as the title (keep its conventional prefix intact; do NOT strip).
+2. **Multiple commits** — derive from the branch name (using the resolved type from Step 2a):
+   - The rest of the branch name (hyphens/underscores → spaces, lowercase) becomes the subject.
+   - Compose: `<resolved-type>: <subject>`.
+
+### Step 2c — Validation
+
+- Title must match `^(feat|fix|chore|docs|refactor|test|ci)(\(.+\))?!?: .+`.
+- Title length ≤ 72 chars.
+
+If validation fails, do NOT show a broken candidate. Tell the user: "Couldn't draft a valid conventional title from this branch + commits. Please supply one." and require an Other-input.
+
+Display the validated candidate:
+
+> Draft title: `feat: add payment gateway` (27 chars)
 
 ## Step 3 — Draft body
 
