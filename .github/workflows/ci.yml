@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   frontend:
-    name: Frontend — test, lint & coverage
+    name: Frontend — quality (check.py --frontend)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,14 +28,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: TypeScript check
-        run: npx tsc --noEmit
-      - name: Lint
-        run: npm run lint
-      - name: Biome check
-        run: npm run format
-      - name: Tests with coverage
-        run: npm run test:coverage
+      - name: Run frontend checks (with coverage)
+        run: python3 scripts/check.py --frontend --with-coverage
       - name: Upload to Codecov
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe  # v5.5.4
         with:
@@ -45,11 +39,10 @@ jobs:
           fail_ci_if_error: false
 
   backend:
-    name: Backend — test & clippy (+ coverage on merge)
+    name: Backend — quality (check.py --backend) + coverage on merge
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      SQLX_OFFLINE: "true"
       CARGO_INCREMENTAL: "0"
       RUSTFLAGS: "-C debuginfo=0"
     steps:
@@ -68,24 +61,14 @@ jobs:
         with:
           workspaces: src-tauri
           prefix-key: linux-rust
-      - name: Format check
-        working-directory: src-tauri
-        run: cargo fmt --check
-      - name: Tests
-        working-directory: src-tauri
-        run: cargo test --lib
-      - name: Clippy
-        working-directory: src-tauri
-        run: cargo clippy --all-targets -- -D warnings
       - name: Install cargo-tarpaulin
         if: github.event_name == 'push'
+        # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
         uses: taiki-e/install-action@db5fb34fa772531a3ece57ca434f579eb334e0fb
         with:
           tool: cargo-tarpaulin
-      - name: Coverage with tarpaulin
-        if: github.event_name == 'push'
-        working-directory: src-tauri
-        run: cargo tarpaulin --out Lcov --output-dir ../coverage/backend --lib --exclude-files "build.rs" --exclude-files "dev/generate_bindings.rs"
+      - name: Run backend checks (with coverage on merge)
+        run: python3 scripts/check.py --backend ${{ github.event_name == 'push' && '--with-coverage' || '' }}
       - name: Upload to Codecov
         if: github.event_name == 'push'
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe  # v5.5.4
