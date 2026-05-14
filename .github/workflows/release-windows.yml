@@ -34,7 +34,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          prefix-key: ${{ github.ref_name }}
+          prefix-key: windows-rust
 
       - name: Clear stale WiX artifacts
         shell: powershell
