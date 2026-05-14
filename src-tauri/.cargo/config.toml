@@ -1,2 +1,5 @@
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld"
+
+[env]
+SQLX_OFFLINE = "1"
