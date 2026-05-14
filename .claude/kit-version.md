@@ -1,9 +1,7 @@
 # Kit version
 
-claude-kit **v4.5.2** — synced 2026-05-12
+claude-kit **v4.6.0** — synced 2026-05-14
 
-## Changes since v4.4.0 (your previous sync)
+## Changes since v4.5.2 (your previous sync)
 
-- v4.5.2: tolerate import-only justfile in recipe scan
-- v4.5.1: kit-internal agent for convention docs discipline
-- v4.5.0: kit-internal agent + dogfood fixes; graceful skip on partial stack with summary (#15); fail-fast preflight script with recovery diagnostics (#14); v4.5 walk + F24/F25/F26/F27/F28 fold-in; v4.5 walk + extract capture script; v4.5 walk + F27 pipeline + script
+- v4.6.0: split out from reviewer-frontend; framework-aware bootstrap (convergence with svelte-main); auto-rebase + push with --target arg; scenario-writer role, SDD walk; table-driven manifest, add whats-next.py

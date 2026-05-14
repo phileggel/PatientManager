@@ -120,8 +120,9 @@ Pick the template matching the chosen workflow. Replace `{task}` with the user's
 - [ ] `/create-pr` if the **PR Plan** slices FE into its own PR; otherwise continue. After merge, branch the next phase off updated `main`.
 
 ### Phase 4 — Review & Closure _(main agent: sonnet — switch back to opus only if a reviewer surfaces a design-level finding)_
-- [ ] `test-writer-e2e` → E2E tests from contract, confirm green (run `/setup-e2e` first if not done)
-- [ ] `reviewer-frontend` _(reviews E2E test files)_
+- [ ] `test-writer-e2e` → produces pyramid-friendly E2E scenarios from contract (run `/setup-e2e` first if not done)
+- [ ] Run `npm run test:e2e` → green confirmed (main agent triages any failure)
+- [ ] `reviewer-e2e` _(reviews E2E test files)_
 - [ ] `/smart-commit`: E2E layer [HARD GATE]
 - [ ] `reviewer-arch` (always) + `reviewer-sql` (if migrations) + `reviewer-infra` (if any config, script, hook, or workflow file changed) + `reviewer-security` _(if Tauri command, capability, or security-sensitive file modified)_
 - [ ] Update `ARCHITECTURE.md` + `docs/todo.md`

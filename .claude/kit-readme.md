@@ -85,8 +85,8 @@ git checkout -b feat/{feature-name}
 
 **Phase 4: Review & Closure**
 
-1. Run **`test-writer-e2e`** agent → E2E tests from contract, confirms green. Run `/setup-e2e` first if not done.
-2. Run **`reviewer-frontend`** agent on E2E test files → fix issues.
+1. Run **`test-writer-e2e`** agent → produces pyramid-friendly E2E scenarios for critical-path commands. Run `/setup-e2e` first if not done. The main agent runs the suite and triages any failure with full implementation context.
+2. Run **`reviewer-e2e`** agent on E2E test files → fix issues.
 3. **`/smart-commit`**: E2E layer. [HARD GATE]
 4. Run **`reviewer-arch`** agent (always) + **`reviewer-sql`** (if migrations) + **`reviewer-infra`** (if scripts, hooks, workflow, or config files were modified) + **`reviewer-security`** (if Tauri command, capability, or security-sensitive file modified).
 5. Update documentation (`ARCHITECTURE.md`, `docs/todo.md`).

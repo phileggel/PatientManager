@@ -5,6 +5,7 @@
 .claude/agents/retro-spec.md
 .claude/agents/reviewer-arch.md
 .claude/agents/reviewer-backend.md
+.claude/agents/reviewer-e2e.md
 .claude/agents/reviewer-frontend.md
 .claude/agents/reviewer-infra.md
 .claude/agents/reviewer-security.md
@@ -14,6 +15,7 @@
 .claude/agents/test-writer-backend.md
 .claude/agents/test-writer-e2e.md
 .claude/agents/test-writer-frontend.md
+.claude/kit.config.json
 .claude/kit-readme.md
 .claude/kit-tools.md
 .claude/kit-version.md
