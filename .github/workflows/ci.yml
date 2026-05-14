@@ -3,6 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    types: [opened, edited, synchronize, reopened]
   push:
     branches: [main]
 
@@ -14,6 +15,28 @@ permissions:
   contents: read
 
 jobs:
+  pr-title:
+    name: PR title (conventional commits)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: read
+    steps:
+      # Pinned to full SHA for v6.1.1 — mutable tags are a supply-chain risk.
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            test
+            ci
+
   frontend:
     name: Frontend — quality (check.py --frontend)
     runs-on: ubuntu-latest
