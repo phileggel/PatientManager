@@ -43,23 +43,30 @@ The PR title MUST be a conventional commit (`type(scope?): subject`). When the p
 
 Parse the branch name's conventional type from the prefix (`feat/` → `feat`, etc.; default `chore` if no recognised prefix).
 
-Parse each commit's conventional type from `git log --pretty=%s`. Group by type and pick the **dominant type** (most frequent).
+Parse each commit's conventional type from `git log --pretty=%s` and collect the set of types present.
 
-Compare:
+**Compute the effective PR type via the priority hierarchy** (NOT by commit count — a 1-feat + 3-test PR is still a `feat`, not a `test`):
 
-- **Match** — branch type == dominant commit type → continue silently.
-- **Mismatch** — branch type ≠ dominant commit type → **challenge the user via AskUserQuestion** before drafting:
+1. **Tier 1 — user-visible**: if any `feat` AND any `fix` are present → **ask the user via AskUserQuestion** which type the PR is really about (count-based picking is unreliable here; the human knows which is the main story). If only one tier-1 type is present, use it.
+2. **Tier 2 — internal structural**: `refactor`. Only chosen if no tier-1 type appears.
+3. **Tier 3 — plumbing**: `chore`, `ci`. Pick by count if both appear (chore wins on tie).
+4. **Tier 4 — supporting**: `test`, `docs`. Pick by count if both appear (docs wins on tie).
 
-  > The branch is named `<branch>` (type: `<branch-type>`), but the dominant commit type is `<dominant-type>` (`<count>` of `<total>` commits).
+The effective type is the highest tier present in the commits. Lower-tier commits in the same PR are "supporting" the effective type and are fine to include.
+
+**Compare the effective type to the branch type:**
+
+- **Match** — branch type == effective type → continue silently.
+- **Mismatch** — branch type ≠ effective type → **challenge the user via AskUserQuestion**:
+
+  > The branch is named `<branch>` (type: `<branch-type>`), but the effective PR type (by tier priority) is `<effective-type>`. Commits by type: `<breakdown>`.
   >
   > This usually means the work drifted during dev and the branch name no longer reflects what's in the PR.
   >
   > Options:
-  > - **Rename branch** (recommended) — abort, the user runs `git branch -m <new-type>/<short-description>` then re-runs `/create-pr`.
-  > - **Use dominant commit type for PR title** — proceed with `<dominant-type>` in the title; the branch name stays as-is (live with the inconsistency).
-  > - **Keep branch type for PR title** — proceed with `<branch-type>`; the title will be one type while most commits are another.
-
-- **Mixed types, no clear dominant** (e.g. 2 `feat:`, 2 `fix:`) — challenge the user: "Commits are mixed types (X `feat:`, Y `fix:`, …). A single PR should tell one story. Consider splitting, renaming the branch, or choosing the type that best describes the squash commit on `main`."
+  > - **Rename branch** (recommended) — abort; user runs `git branch -m <effective-type>/<short-description>` then re-runs `/create-pr`.
+  > - **Use effective type for PR title** — proceed with `<effective-type>` in the title; branch name stays inconsistent.
+  > - **Keep branch type for PR title** — proceed with `<branch-type>`; the title's type will differ from what the PR actually does.
 
 ### Step 2b — Drafting algorithm
 
