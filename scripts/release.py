@@ -14,10 +14,11 @@ Process:
   7. Create commit and git tag
 
 Usage:
-  python3 release.py [--dry-run] [--version X.Y.Z] [-y]
+  python3 release.py [--dry-run] [--preview] [--version X.Y.Z] [-y]
 
 Options:
-  --dry-run           Preview release without making changes
+  --dry-run           Preview release without making changes (still updates files locally + creates local commit/tag)
+  --preview           Read-only: print the suggested version and exit. Skips tests, file edits, commits, pushes.
   --version X.Y.Z     Force a specific version instead of auto-calculating from commits
   -y, --yes           Skip confirmation prompt (auto-confirm suggested version)
 """
@@ -57,6 +58,7 @@ class ReleaseManager:
         dry_run: bool = False,
         forced_version: Optional[str] = None,
         yes: bool = False,
+        preview: bool = False,
     ):
         self.repo_root = Path(__file__).parent.parent
         self.current_version = self.get_current_version()
@@ -68,6 +70,7 @@ class ReleaseManager:
         self.dry_run = dry_run
         self.forced_version = forced_version
         self.yes = yes
+        self.preview = preview
 
     def get_current_version(self) -> str:
         """Get current version from package.json."""
@@ -411,10 +414,15 @@ class ReleaseManager:
 
     def run(self) -> bool:
         """Execute the release workflow."""
-        dry_run_banner = f" {BLUE}[DRY-RUN MODE]{NC}" if self.dry_run else ""
-        print(f"\n{BLUE}🚀 Release Manager{dry_run_banner}{NC}\n")
+        if self.preview:
+            banner = f" {BLUE}[PREVIEW MODE — read-only]{NC}"
+        elif self.dry_run:
+            banner = f" {BLUE}[DRY-RUN MODE]{NC}"
+        else:
+            banner = ""
+        print(f"\n{BLUE}🚀 Release Manager{banner}{NC}\n")
 
-        if not self.run_tests():
+        if not self.preview and not self.run_tests():
             return False
 
         latest_tag = self.get_latest_tag()
@@ -450,6 +458,15 @@ class ReleaseManager:
                 )
 
         self.show_analysis()
+
+        if self.preview:
+            print(
+                f"\n{GREEN}✨ Preview: next release would be v{self.new_version}{NC}"
+            )
+            print(
+                f"{BLUE}Run without {BLUE}--preview{NC}{BLUE} to actually release.{NC}\n"
+            )
+            return True
 
         if self.dry_run and self.yes:
             print(
@@ -541,6 +558,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Skip confirmation prompt (auto-confirm suggested version)",
     )
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="Read-only: print the suggested version and exit. Skips tests, file edits, commits, and pushes.",
+    )
     args = parser.parse_args()
 
     if args.version and not re.match(r"^\d+\.\d+\.\d+$", args.version):
@@ -548,7 +570,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     manager = ReleaseManager(
-        dry_run=args.dry_run, forced_version=args.version, yes=args.yes
+        dry_run=args.dry_run,
+        forced_version=args.version,
+        yes=args.yes,
+        preview=args.preview,
     )
     success = manager.run()
     sys.exit(0 if success else 1)

@@ -3,6 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    types: [opened, edited, synchronize, reopened]
   push:
     branches: [main]
 
@@ -14,8 +15,82 @@ permissions:
   contents: read
 
 jobs:
+  pr-title:
+    name: PR title (conventional commits)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: read
+    steps:
+      # Pinned to full SHA for v6.1.1 — mutable tags are a supply-chain risk.
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            test
+            ci
+
+  commits:
+    name: Commit messages (mirrors commit-msg hook)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate every commit in the PR
+        run: |
+          set -u
+          BASE=$(git merge-base HEAD origin/main)
+          FAIL=0
+          REGEX='^(feat|fix|docs|test|chore|refactor|ci)(\([^)]+\))?!?: .+'
+          # --no-merges skips the synthetic merge commit GitHub creates at
+          # HEAD for pull_request events (it represents "what main looks
+          # like if this PR merged" — not a real PR commit).
+          for sha in $(git rev-list --no-merges "$BASE..HEAD"); do
+            TITLE=$(git log -1 --pretty=%s "$sha")
+            BODY=$(git log -1 --pretty=%b "$sha")
+
+            if ! echo "$TITLE" | grep -E "$REGEX" >/dev/null; then
+              echo "::error::$sha — invalid conventional format: $TITLE"
+              FAIL=1
+            fi
+            if [ ${#TITLE} -gt 72 ]; then
+              echo "::error::$sha — title > 72 chars (${#TITLE}): $TITLE"
+              FAIL=1
+            fi
+            TRIMMED=$(echo "$TITLE" | sed 's/[[:space:]]*$//')
+            if [[ "$TRIMMED" == *. ]]; then
+              echo "::error::$sha — title ends with period: $TITLE"
+              FAIL=1
+            fi
+            BODY_LINES=$(echo "$BODY" | { grep -v '^$' || true; } | { grep -v '^BREAKING CHANGE:' || true; } | wc -l)
+            if [ "$BODY_LINES" -gt 5 ]; then
+              echo "::error::$sha — body > 5 lines ($BODY_LINES): $TITLE"
+              FAIL=1
+            fi
+            if echo "$BODY" | grep -i '^Co-Authored-By:' >/dev/null; then
+              echo "::error::$sha — contains Co-Authored-By trailer: $TITLE"
+              FAIL=1
+            fi
+          done
+          if [ "$FAIL" -eq 0 ]; then
+            echo "✅ All commits pass the commit-msg hook rules."
+          fi
+          exit "$FAIL"
+
   frontend:
-    name: Frontend — test, lint & coverage
+    name: Frontend — quality (check.py --frontend)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,13 +103,9 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: TypeScript check
-        run: npx tsc --noEmit
-      - name: Lint
-        run: npm run lint
-      - name: Biome check
-        run: npm run format
-      - name: Tests with coverage
+      - name: Quality checks
+        run: python3 scripts/check.py --frontend
+      - name: Tests with coverage (instrumented)
         run: npm run test:coverage
       - name: Upload to Codecov
         uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe  # v5.5.4
@@ -45,11 +116,10 @@ jobs:
           fail_ci_if_error: false
 
   backend:
-    name: Backend — test & clippy (+ coverage on merge)
+    name: Backend — quality (check.py --backend) + coverage on merge
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      SQLX_OFFLINE: "true"
       CARGO_INCREMENTAL: "0"
       RUSTFLAGS: "-C debuginfo=0"
     steps:
@@ -68,17 +138,16 @@ jobs:
         with:
           workspaces: src-tauri
           prefix-key: linux-rust
-      - name: Format check
-        working-directory: src-tauri
-        run: cargo fmt --check
-      - name: Tests
-        working-directory: src-tauri
-        run: cargo test --lib
-      - name: Clippy
-        working-directory: src-tauri
-        run: cargo clippy --all-targets -- -D warnings
+      - name: Install sqlx-cli
+        # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
+        uses: taiki-e/install-action@db5fb34fa772531a3ece57ca434f579eb334e0fb
+        with:
+          tool: sqlx-cli
+      - name: Quality checks
+        run: python3 scripts/check.py --backend
       - name: Install cargo-tarpaulin
         if: github.event_name == 'push'
+        # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
         uses: taiki-e/install-action@db5fb34fa772531a3ece57ca434f579eb334e0fb
         with:
           tool: cargo-tarpaulin

@@ -39,9 +39,12 @@ merge:
 migrate:
     cd src-tauri && sqlx migrate run
 
-# Regenerate SQLx offline query cache (run after schema or query changes)
+# Regenerate SQLx offline query cache (run after schema or query changes).
+# SQLX_OFFLINE=0 forces online mode — projects that set SQLX_OFFLINE=1
+# globally (in their .cargo/config.toml) still let `prepare` hit the live DB,
+# which is its whole purpose. No-op for projects that haven't set SQLX_OFFLINE.
 prepare-sqlx:
-    cd src-tauri && DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests
+    cd src-tauri && SQLX_OFFLINE=0 DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests
 
 # Auto-fix formatting and linting
 format:

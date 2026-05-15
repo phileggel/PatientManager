@@ -35,16 +35,56 @@ gh auth status 2>&1 | head -3
 - **No commits ahead of main**: stop — "No commits on this branch to open a PR for."
 - **`gh` not authenticated**: stop — "Run `gh auth login` first, then retry `/create-pr`."
 
-## Step 2 — Draft title
+## Step 2 — Detect branch-name drift, then draft title (conventional commit format)
 
-1. Take the current branch name (e.g. `feat/add-payment-gateway`).
-2. Strip the prefix (`feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `ci/`).
-3. Replace hyphens and underscores with spaces; capitalise the first letter.
-4. If there is exactly one commit ahead of main, prefer its message (strip the conventional-commit type prefix: `feat: `, `fix: `, etc.) as the title instead.
+The PR title MUST be a conventional commit (`type(scope?): subject`). When the project uses GitHub's "Squash and merge", the PR title becomes the squash commit message on `main` — the local `commit-msg` hook does NOT run server-side, so this is the only gate. Validate before showing.
 
-Display the candidate:
+### Step 2a — Drift detection (active, not just advisory)
 
-> Draft title: `Add payment gateway` (19 chars)
+Parse the branch name's conventional type from the prefix (`feat/` → `feat`, etc.; default `chore` if no recognised prefix).
+
+Parse each commit's conventional type from `git log --pretty=%s` and collect the set of types present.
+
+**Compute the effective PR type via the priority hierarchy** (NOT by commit count — a 1-feat + 3-test PR is still a `feat`, not a `test`):
+
+1. **Tier 1 — user-visible**: if any `feat` AND any `fix` are present → **ask the user via AskUserQuestion** which type the PR is really about (count-based picking is unreliable here; the human knows which is the main story). If only one tier-1 type is present, use it.
+2. **Tier 2 — internal structural**: `refactor`. Only chosen if no tier-1 type appears.
+3. **Tier 3 — plumbing**: `chore`, `ci`. Pick by count if both appear (chore wins on tie).
+4. **Tier 4 — supporting**: `test`, `docs`. Pick by count if both appear (docs wins on tie).
+
+The effective type is the highest tier present in the commits. Lower-tier commits in the same PR are "supporting" the effective type and are fine to include.
+
+**Compare the effective type to the branch type:**
+
+- **Match** — branch type == effective type → continue silently.
+- **Mismatch** — branch type ≠ effective type → **challenge the user via AskUserQuestion**:
+
+  > The branch is named `<branch>` (type: `<branch-type>`), but the effective PR type (by tier priority) is `<effective-type>`. Commits by type: `<breakdown>`.
+  >
+  > This usually means the work drifted during dev and the branch name no longer reflects what's in the PR.
+  >
+  > Options:
+  > - **Rename branch** (recommended) — abort; user runs `git branch -m <effective-type>/<short-description>` then re-runs `/create-pr`.
+  > - **Use effective type for PR title** — proceed with `<effective-type>` in the title; branch name stays inconsistent.
+  > - **Keep branch type for PR title** — proceed with `<branch-type>`; the title's type will differ from what the PR actually does.
+
+### Step 2b — Drafting algorithm
+
+1. **Single commit ahead of main** — prefer the commit's message as the title (keep its conventional prefix intact; do NOT strip).
+2. **Multiple commits** — derive from the branch name (using the resolved type from Step 2a):
+   - The rest of the branch name (hyphens/underscores → spaces, lowercase) becomes the subject.
+   - Compose: `<resolved-type>: <subject>`.
+
+### Step 2c — Validation
+
+- Title must match `^(feat|fix|chore|docs|refactor|test|ci)(\(.+\))?!?: .+`.
+- Title length ≤ 72 chars.
+
+If validation fails, do NOT show a broken candidate. Tell the user: "Couldn't draft a valid conventional title from this branch + commits. Please supply one." and require an Other-input.
+
+Display the validated candidate:
+
+> Draft title: `feat: add payment gateway` (27 chars)
 
 ## Step 3 — Draft body
 
