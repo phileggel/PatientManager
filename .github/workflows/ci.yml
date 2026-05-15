@@ -138,6 +138,11 @@ jobs:
         with:
           workspaces: src-tauri
           prefix-key: linux-rust
+      - name: Install sqlx-cli
+        # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
+        uses: taiki-e/install-action@db5fb34fa772531a3ece57ca434f579eb334e0fb
+        with:
+          tool: sqlx-cli
       - name: Quality checks
         run: python3 scripts/check.py --backend
       - name: Install cargo-tarpaulin
