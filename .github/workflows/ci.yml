@@ -54,7 +54,10 @@ jobs:
           BASE=$(git merge-base HEAD origin/main)
           FAIL=0
           REGEX='^(feat|fix|docs|test|chore|refactor|ci)(\([^)]+\))?!?: .+'
-          for sha in $(git rev-list "$BASE..HEAD"); do
+          # --no-merges skips the synthetic merge commit GitHub creates at
+          # HEAD for pull_request events (it represents "what main looks
+          # like if this PR merged" — not a real PR commit).
+          for sha in $(git rev-list --no-merges "$BASE..HEAD"); do
             TITLE=$(git log -1 --pretty=%s "$sha")
             BODY=$(git log -1 --pretty=%b "$sha")
 
