@@ -7,13 +7,13 @@ import { AlertTriangle, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { NormalizedPdfLine } from "@/bindings";
 import { useFormatters } from "@/lib/formatters";
-import { formatAmount, formatProcedureDateFromLine } from "../../shared/utils";
+import { formatProcedureDateFromLine } from "../../shared/utils";
 
 // ─── PDF summary row ──────────────────────────────────────────────────────────
 
 export function PdfSummary({ line }: { line: NormalizedPdfLine }) {
   const { t } = useTranslation("fund-payment-match");
-  const { locale } = useFormatters();
+  const { formatCurrency, locale } = useFormatters();
   return (
     <div className="rounded-lg bg-m3-surface-container-low px-4 py-3 space-y-1">
       <p className="text-[11px] font-semibold text-m3-primary uppercase tracking-wide">
@@ -34,7 +34,7 @@ export function PdfSummary({ line }: { line: NormalizedPdfLine }) {
         </span>
         <span>
           <span className="text-m3-on-surface-variant text-xs">{t("results.pdf.amount")} </span>
-          <span className="font-semibold text-m3-primary">{formatAmount(line.amount)} €</span>
+          <span className="font-semibold text-m3-primary">{formatCurrency(line.amount)}</span>
         </span>
         <span>
           <span className="text-m3-on-surface-variant text-xs">{t("results.pdf.fund")} </span>

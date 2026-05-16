@@ -18,7 +18,6 @@ import {
   buildContestCorrection,
   buildContestKey,
   buildCorrectionKey,
-  formatAmount,
   formatProcedureDateFromLine,
 } from "../../shared/utils";
 import { IssueChip, PdfSummary, ResolvedBadge } from "./CardParts";
@@ -45,7 +44,7 @@ export function SingleMatchCard({
   onAcceptCorrection,
 }: SingleMatchCardProps) {
   const { t } = useTranslation("fund-payment-match");
-  const { formatDate, locale } = useFormatters();
+  const { formatCurrency, formatDate, locale } = useFormatters();
   const funds = useAppStore((s) => s.funds);
 
   const formatFundLabel = (fundId: string | null): string => {
@@ -102,13 +101,13 @@ export function SingleMatchCard({
           const accepted = acceptedKeys.has(key);
           const pdfValue =
             anomaly === "AmountMismatch"
-              ? `${formatAmount(pdfLine.amount)} €`
+              ? formatCurrency(pdfLine.amount)
               : anomaly === "FundMismatch"
                 ? pdfLine.fund_name
                 : formatProcedureDateFromLine(pdfLine, t, locale);
           const dbValue =
             anomaly === "AmountMismatch"
-              ? `${formatAmount(dbMatch.amount || 0)} €`
+              ? formatCurrency(dbMatch.amount || 0)
               : anomaly === "FundMismatch"
                 ? formatFundLabel(dbMatch.fund_id)
                 : formatDate(dbMatch.procedure_date);
@@ -156,7 +155,9 @@ export function SingleMatchCard({
                         onAcceptCorrection(key, buildAutoCorrection(anomaly, pdfLine, dbMatch))
                       }
                     >
-                      {t("results.action.correctAmount", { amount: formatAmount(pdfLine.amount) })}
+                      {t("results.action.correctAmount", {
+                        amount: formatCurrency(pdfLine.amount),
+                      })}
                     </Button>
                     <Button
                       variant="secondary"
@@ -168,7 +169,7 @@ export function SingleMatchCard({
                       }
                     >
                       {t("results.action.contestAmount", {
-                        amount: formatAmount(pdfLine.amount),
+                        amount: formatCurrency(pdfLine.amount),
                       })}
                     </Button>
                   </div>

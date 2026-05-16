@@ -173,10 +173,3 @@ export function countTotalAnomalies(result: { matches: ReconciliationMatch[] }):
   }
   return count;
 }
-
-// ─── Formatting ───────────────────────────────────────────────────────────────
-
-/** Format a thousandths-of-euro amount as a euros string, e.g. 50000 → "50.00" */
-export function formatAmount(thousandths: number): string {
-  return (thousandths / 1000).toFixed(2);
-}

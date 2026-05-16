@@ -25,6 +25,14 @@ const dbMatchDateMismatch: DbMatch = {
   anomalies: ["DateMismatch"],
 };
 
+const dbMatchAmountMismatch: DbMatch = {
+  procedure_id: "proc-2",
+  procedure_date: "2026-01-15",
+  fund_id: "fund-1",
+  amount: 7500,
+  anomalies: ["AmountMismatch"],
+};
+
 const baseProps = {
   pdfLine,
   acceptedKeys: new Set<string>(),
@@ -44,5 +52,22 @@ describe("SingleMatchCard — DateMismatch comparison row", () => {
     // No raw ISO leaks
     expect(screen.queryByText("2026-01-15")).not.toBeInTheDocument();
     expect(screen.queryByText("2026-01-14")).not.toBeInTheDocument();
+  });
+});
+
+describe("SingleMatchCard — AmountMismatch comparison row", () => {
+  it("renders both PDF and DB amounts as locale-aware currency, never raw thousandths or bare numbers", () => {
+    render(<SingleMatchCard {...baseProps} dbMatch={dbMatchAmountMismatch} />);
+
+    // en-GB at test setup → "€5.00" / "€7.50". The PDF amount also appears
+    // in the PdfSummary header, so it can show up twice.
+    expect(screen.getAllByText("€5.00").length).toBeGreaterThan(0);
+    expect(screen.getByText("€7.50")).toBeInTheDocument();
+
+    // No raw thousandths or bare-number leaks
+    expect(screen.queryByText("5000")).not.toBeInTheDocument();
+    expect(screen.queryByText("7500")).not.toBeInTheDocument();
+    expect(screen.queryByText("5.00 €")).not.toBeInTheDocument();
+    expect(screen.queryByText("7.50 €")).not.toBeInTheDocument();
   });
 });

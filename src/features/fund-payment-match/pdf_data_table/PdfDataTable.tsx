@@ -2,16 +2,12 @@ import type { TFunction } from "i18next";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { NormalizedPdfLine, PdfParseResult, PdfProcedureGroup } from "@/bindings";
-import { useFormatters } from "@/lib/formatters";
+import { formatCurrency, useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { formatProcedureDateFromLine } from "../shared/utils";
 
 interface PdfDataTableProps {
   data: PdfParseResult;
-}
-
-function formatAmount(amount: number): string {
-  return `${(amount / 1000).toFixed(2).replace(".", ",")} \u20AC`;
 }
 
 function ProcedureLineRow({
@@ -30,7 +26,7 @@ function ProcedureLineRow({
       <td className="px-4 py-2 text-slate-600">{line.nature}</td>
       <td className="px-4 py-2 text-slate-600">{formatProcedureDateFromLine(line, t, locale)}</td>
       <td className="px-4 py-2 text-slate-900 text-right font-medium">
-        {formatAmount(line.amount)}
+        {formatCurrency(line.amount, locale)}
       </td>
     </tr>
   );
@@ -38,7 +34,7 @@ function ProcedureLineRow({
 
 function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
   const { t } = useTranslation("fund-payment-match");
-  const { formatDate, locale } = useFormatters();
+  const { formatCurrency: formatCurrencyHook, formatDate, locale } = useFormatters();
   return (
     <div className="rounded-lg border border-slate-200 overflow-hidden">
       <div className="bg-slate-100 px-4 py-3 flex items-center justify-between">
@@ -53,7 +49,7 @@ function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
           <span
             className={`font-semibold ${group.is_total_valid ? "text-success-70" : "text-error-70"}`}
           >
-            {formatAmount(group.total_amount)}
+            {formatCurrencyHook(group.total_amount)}
           </span>
           {!group.is_total_valid && (
             <span className="text-xs text-error-60 font-medium">
@@ -85,6 +81,7 @@ function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
 
 export function PdfDataTable({ data }: PdfDataTableProps) {
   const { t } = useTranslation("fund-payment-match");
+  const { formatCurrency } = useFormatters();
 
   useEffect(() => {
     logger.info("[PdfDataTable] Component mounted");
@@ -113,10 +110,10 @@ export function PdfDataTable({ data }: PdfDataTableProps) {
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-600 mb-1">{t("table.summary.totalAmount")}</p>
-            <p className="text-2xl font-bold text-primary-70">{formatAmount(actualTotal)}</p>
+            <p className="text-2xl font-bold text-primary-70">{formatCurrency(actualTotal)}</p>
             {hasDiscrepancy && (
               <p className="text-xs text-error-60 mt-1">
-                {t("table.summary.pdfStated")} {formatAmount(statedTotal)}
+                {t("table.summary.pdfStated")} {formatCurrency(statedTotal)}
               </p>
             )}
           </div>

@@ -16,7 +16,6 @@ import {
   buildNotFoundKey,
   computePdfDateRange,
   countTotalAnomalies,
-  formatAmount,
   sortIssuesByPriority,
 } from "./utils";
 
@@ -345,16 +344,5 @@ describe("buildNotFoundCorrection", () => {
         pdf_fund_label: "CPAM",
       },
     });
-  });
-});
-
-// ─── formatAmount ─────────────────────────────────────────────────────────────
-
-describe("formatAmount", () => {
-  it("converts thousandths to euros string with 2 decimal places", () => {
-    expect(formatAmount(50000)).toBe("50.00");
-    expect(formatAmount(25500)).toBe("25.50");
-    expect(formatAmount(100)).toBe("0.10");
-    expect(formatAmount(0)).toBe("0.00");
   });
 });

@@ -162,12 +162,12 @@
       "willCreate": "Sera créé",
       "link": "Lier cet acte",
       "linked": "Sera lié",
-      "correctAmount": "Appliquer le montant PDF : {{amount}} €",
+      "correctAmount": "Appliquer le montant PDF : {{amount}}",
       "correctFund": "Appliquer la caisse du PDF",
       "correctDate": "Appliquer la date du PDF",
       "accepted": "Accepté",
       "validateDistribution": "Valider cette distribution",
-      "contestAmount": "Contester (montant réel : {{amount}} €)"
+      "contestAmount": "Contester (montant réel : {{amount}})"
     },
     "nearby": {
       "title": "Actes proches (INS différent)"
@@ -175,7 +175,7 @@
     "distribution": {
       "total": "Total saisi",
       "expected": "Attendu",
-      "remaining": "Reste : {{diff}} €"
+      "remaining": "Reste : {{diff}}"
     },
     "tooMany": {
       "description": "{{count}} actes correspondent — rapprochement automatique impossible.",
