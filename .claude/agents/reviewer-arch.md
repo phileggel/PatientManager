@@ -51,9 +51,11 @@ If invoked with no in-scope files in the branch diff, halt with the refusal in `
 
 ### Step 1 — Discover changed files
 
-Run `bash scripts/branch-files.sh | grep -E '\.(rs|ts|tsx)$' | grep -v '^e2e/'`. If the result is empty, halt — output the no-files refusal and stop.
+Run `bash scripts/branch-files-ext.sh '\.(rs|ts|tsx)$' '^e2e/'`. If the result is empty, halt — output the no-files refusal and stop.
 
-The `grep -v '^e2e/'` is critical — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. Scenarios are imperative WebdriverIO calls, not feature-architecture surfaces.
+The `'^e2e/'` exclusion is critical — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. Scenarios are imperative WebdriverIO calls, not feature-architecture surfaces.
+
+The script wraps the pipe chain `bash scripts/branch-files.sh | grep -E ... | grep -v ...` so the Claude Code permission allowlist can match `Bash(bash scripts/branch-files-ext.sh *)` literally. The inline pipe form is not statically allowlistable — `grep` is a separate command from `bash scripts/branch-files.sh` and would prompt independently.
 
 Filter out deleted paths: for each candidate, confirm the file exists with `Glob` before adding it to the review set. Deletes are out of scope for this agent — a removed file cannot violate layering on lines that no longer exist; if a deletion broke a downstream contract (e.g. a removed gateway), that surfaces in the file that still exists.
 

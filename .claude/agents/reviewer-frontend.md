@@ -52,7 +52,9 @@ If no `.ts` / `.tsx` files under `src/` are in the branch diff, halt with the re
 
 ### Step 1 — Discover changed frontend files
 
-Run `bash scripts/branch-files.sh | grep -E '\.(ts|tsx)$' | grep -v '^e2e/'`. The `grep -v '^e2e/'` is critical — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
+Run `bash scripts/branch-files-ext.sh '\.(ts|tsx)$' '^e2e/'`. The `'^e2e/'` exclusion is critical — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
+
+The script wraps the pipe chain `bash scripts/branch-files.sh | grep -E ... | grep -v ...` so the Claude Code permission allowlist can match `Bash(bash scripts/branch-files-ext.sh *)` literally. The inline pipe form is not statically allowlistable — `grep` is a separate command from `bash scripts/branch-files.sh` and would prompt independently.
 
 Filter out deleted paths (their content can't be read): for each candidate, confirm the file exists with `Glob` before adding it to the review set.
 
