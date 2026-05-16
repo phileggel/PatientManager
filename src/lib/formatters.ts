@@ -37,6 +37,23 @@ export function formatShortDate(iso: string, locale: string): string {
 }
 
 /**
+ * Format an amount stored in thousandths-of-a-euro as a locale-aware
+ * currency string, e.g. `100,00 €` (fr) / `€100.00` (en). Always renders
+ * exactly two fraction digits so the output is stable for table alignment.
+ *
+ * `locale` is a BCP47 tag. Component callers generally use
+ * `useFormatters().formatCurrency(thousandths)` instead.
+ */
+export function formatCurrency(thousandths: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(thousandths / 1000);
+}
+
+/**
  * Hook providing locale-aware formatters for currency, dates and numbers.
  * Re-renders automatically when the i18n language changes.
  */
@@ -44,16 +61,10 @@ export function useFormatters() {
   const { i18n } = useTranslation();
   const intlLocale = getIntlLocale(i18n.language);
 
-  const formatCurrency = (amount: number): string =>
-    new Intl.NumberFormat(intlLocale, {
-      style: "currency",
-      currency: "EUR",
-    }).format(amount / 1000);
-
-  const formatDate = (isoDate: string): string =>
-    isoDate ? formatShortDate(isoDate, intlLocale) : "";
-
-  const formatNumber = (n: number): string => new Intl.NumberFormat(intlLocale).format(n);
-
-  return { formatCurrency, formatDate, formatNumber, locale: intlLocale };
+  return {
+    formatCurrency: (thousandths: number) => formatCurrency(thousandths, intlLocale),
+    formatDate: (isoDate: string) => (isoDate ? formatShortDate(isoDate, intlLocale) : ""),
+    formatNumber: (n: number) => new Intl.NumberFormat(intlLocale).format(n),
+    locale: intlLocale,
+  };
 }

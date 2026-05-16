@@ -4,20 +4,7 @@
 // `ReportGenerationRequest` to the backend.
 // ────────────────────────────────────────────────────────────────────────────
 
-export { formatShortDate } from "@/lib/formatters";
-
-/**
- * Format an amount in thousandths-of-a-euro as a locale-aware currency
- * string, e.g. `85,00 €` (fr) / `€85.00` (en).
- */
-export function formatCurrency(thousandths: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(thousandths / 1000);
-}
+export { formatCurrency, formatShortDate } from "@/lib/formatters";
 
 /**
  * Format a `Date` as a locale-aware long-form date-time, e.g.
