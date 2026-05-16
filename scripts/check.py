@@ -98,8 +98,6 @@ class QualityChecker:
         # Stack markers — presence-of-file gates each check.
         # Partial-stack projects (e.g. no-DB Tauri, FE-only, kit-only bootstrap)
         # skip the gated checks instead of failing.
-        # TODO(v4.7): strict mode should treat absent stack as failure.
-        # See `docs/TODO.md` § "Partial-stack & strict-mode audit (no-DB Tauri)".
         self.package_json = self.repo_root / "package.json"
         self.cargo_toml = self.repo_root / "src-tauri" / "Cargo.toml"
         self.sqlx_dir = self.repo_root / "src-tauri" / ".sqlx"
@@ -417,7 +415,7 @@ class QualityChecker:
                     "Rust Lib Tests",
                     ["cargo", "test", "--lib"],
                     cwd=self.repo_root / "src-tauri",
-                    env_update={"SQLX_OFFLINE": "1"},
+                    env_update={"SQLX_OFFLINE": "true"},
                 ):
                     self._set_metric("rust_lib", STATUS_PASS)
 
@@ -431,7 +429,7 @@ class QualityChecker:
                     "Rust Behavior Tests",
                     ["cargo", "test", "--tests"],
                     cwd=self.repo_root / "src-tauri",
-                    env_update={"SQLX_OFFLINE": "1"},
+                    env_update={"SQLX_OFFLINE": "true"},
                 ):
                     self._set_metric("rust_beh", STATUS_PASS)
 
@@ -444,7 +442,7 @@ class QualityChecker:
                 "Clippy",
                 ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"],
                 cwd=self.repo_root / "src-tauri",
-                env_update={"SQLX_OFFLINE": "1"},
+                env_update={"SQLX_OFFLINE": "true"},
             ):
                 self._set_metric("clippy", STATUS_PASS)
 

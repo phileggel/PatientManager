@@ -168,11 +168,11 @@ async fn test_get_{domain}_not_found_propagates() {
 ### Step 5 — Verify red
 
 ```bash
-cd src-tauri && cargo test {domain} 2>&1 | tail -20
+cargo test --manifest-path src-tauri/Cargo.toml {domain}
 ```
 
 ```bash
-cd src-tauri && cargo test --test {domain}_crud 2>&1 | tail -20
+cargo test --manifest-path src-tauri/Cargo.toml --test {domain}_crud
 ```
 
 Expected red signals:

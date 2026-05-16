@@ -13,7 +13,7 @@ Run checks before committing:
 
 ```bash
 npm run test                   # Frontend (Vitest)
-cd src-tauri && cargo test     # Backend (Rust)
+cargo test --manifest-path src-tauri/Cargo.toml   # Backend (Rust)
 <your-check-command>           # Full check: lint + type-check + tests
 ```
 

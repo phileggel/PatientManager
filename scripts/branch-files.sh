@@ -11,7 +11,7 @@ set -euo pipefail
 #
 # Output: one path per line, alphabetically sorted, deduplicated, no headers.
 
-BASE=$(git merge-base HEAD main 2>/dev/null || git rev-parse main 2>/dev/null || echo "HEAD")
+BASE=$(bash "$(dirname "$0")/branch.sh" base)
 
 {
     git diff --name-only "$BASE"..HEAD

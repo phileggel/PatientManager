@@ -52,9 +52,7 @@ If no `.ts` / `.tsx` files under `src/` are in the branch diff, halt with the re
 
 ### Step 1 — Discover changed frontend files
 
-Run `bash scripts/branch-files-ext.sh '\.(ts|tsx)$' '^e2e/'`. The `'^e2e/'` exclusion is critical — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
-
-The script wraps the pipe chain `bash scripts/branch-files.sh | grep -E ... | grep -v ...` so the Claude Code permission allowlist can match `Bash(bash scripts/branch-files-ext.sh *)` literally. The inline pipe form is not statically allowlistable — `grep` is a separate command from `bash scripts/branch-files.sh` and would prompt independently.
+Run `bash scripts/branch-files.sh | grep -E '\.(ts|tsx)$' | grep -v '^e2e/'`. The `grep -v '^e2e/'` is critical — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
 
 Filter out deleted paths (their content can't be read): for each candidate, confirm the file exists with `Glob` before adding it to the review set.
 
@@ -67,12 +65,10 @@ Read `docs/frontend-rules.md` and `docs/i18n-rules.md` if present. Apply project
 For each file in the review set, run:
 
 ```bash
-bash scripts/branch-diff.sh {filepath}
+bash scripts/branch.sh diff {filepath}
 ```
 
-The script wraps the merge-base fallback so reviewer and discovery use the same base as `branch-files.sh`. Note the added / changed line ranges (the `+`-prefixed lines).
-
-The wrapper is essential: the inline compound form (`BASE=$(...); git diff ...`) cannot be matched by the Claude Code permission allowlist because of the command substitution and `||` fallback chain, so every reviewer invocation would otherwise hit a permission prompt per file. The script is allowlistable as `Bash(bash scripts/branch-diff.sh *)`.
+Note the added / changed line ranges (the `+`-prefixed lines).
 
 ### Step 4 — Read full files for context
 

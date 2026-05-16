@@ -66,10 +66,10 @@ Read `docs/backend-rules.md` if present. The Rust DDD doc may include project-sp
 For each file in the review set, run:
 
 ```bash
-BASE=$(git merge-base HEAD main 2>/dev/null || git rev-parse main 2>/dev/null || echo HEAD); git diff "$BASE"..HEAD -- {filepath}
+bash scripts/branch.sh diff {filepath}
 ```
 
-The fallback chain matches `branch-files.sh` so reviewer and discovery use the same base. For new migrations, every line is in the changed set; for amended migrations (rare — usually a typo fix on an unmerged migration), only the actually-changed lines carry severity labels.
+For new migrations, every line is in the changed set; for amended migrations (rare — usually a typo fix on an unmerged migration), only the actually-changed lines carry severity labels.
 
 ### Step 4 — Read full files for context
 
@@ -120,7 +120,7 @@ The second case needs `BEGIN; ... COMMIT;` explicitly so the `UPDATE` never runs
 ### Destructive DDL Guards
 
 - `DROP COLUMN`, `RENAME COLUMN`, and `DROP TABLE` must be preceded — in this migration or a prior one — by a safeguard: a backup table, a data migration, or an explicit `-- IRREVERSIBLE: data intentionally discarded` comment (🔴 if unguarded)
-- Modifying a previously-committed migration (a migration whose file appears in `git diff "$BASE"..HEAD` and existed on `$BASE`) (🔴 [DECISION]) — this is a discipline violation; fix forward with a new migration. Detectable from the diff alone — no deployment-state inference required.
+- Modifying a previously-committed migration (a migration whose file appears in the Step 3 diff and already existed on the branch base) (🔴 [DECISION]) — this is a discipline violation; fix forward with a new migration. Detectable from the diff alone — no deployment-state inference required.
 
 ### Foreign Key Indexes
 

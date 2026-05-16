@@ -66,10 +66,10 @@ Read `docs/backend-rules.md` if it exists and apply any project-specific infra c
 For each file in the review set, run:
 
 ```bash
-BASE=$(git merge-base HEAD main 2>/dev/null || git rev-parse main 2>/dev/null || echo HEAD); git diff "$BASE"..HEAD -- {filepath}
+bash scripts/branch.sh diff {filepath}
 ```
 
-The fallback chain matches `branch-files.sh` so reviewer and discovery use the same base.
+Note the added / changed line ranges (the `+`-prefixed lines).
 
 ### Step 4 — Read full files for context
 
@@ -116,7 +116,7 @@ Skip silently any file or directory below that does not exist in the project (v4
 
 - 🔴 `GITHUB_TOKEN` with `contents: write` must not be combined with `pull_request` trigger from forks (injection risk)
 - 🔴 Secrets must never be echoed, logged, or passed to untrusted actions
-- 🔴 Third-party actions must be pinned to a commit SHA, not a mutable tag like `@v1` or `@latest` — **exception**: internal/trusted actions explicitly approved by the team (e.g. `tauri-apps/tauri-action@v0`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`, `actions/checkout@v4`, `actions/setup-node@v4`) are allowed with version tags
+- 🔴 Third-party actions must be pinned to a commit SHA, not a mutable tag like `@v1` or `@latest` — **exception**: internal/trusted actions explicitly approved by the team (e.g. `tauri-apps/tauri-action@v0`, `Swatinem/rust-cache@v2`, `dtolnay/rust-toolchain@stable`, `actions/checkout@v4`, `actions/setup-node@v4`, `actions/setup-python@v5`) are allowed with version tags
 - 🔴 `actions: write` permission is required when using `gh cache delete`
 - 🟡 `permissions` block should follow least-privilege: only grant what the job actually needs
 - 🟡 `workflow_dispatch` inputs of type `choice` should have a `default` value

@@ -23,7 +23,7 @@ git status --short
 ```
 
 ```bash
-git log --oneline $(git merge-base HEAD main 2>/dev/null || echo "HEAD")..HEAD
+bash scripts/branch.sh log
 ```
 
 ```bash
@@ -89,16 +89,13 @@ Display the validated candidate:
 
 ## Step 3 — Draft body
 
-1. Run `git log --oneline $(git merge-base HEAD main)..HEAD` and collect all commit messages.
+1. Run `bash scripts/branch.sh log` and collect all commit messages — used as **input** to summarise what changed; do NOT enumerate them in the PR body. GitHub's Commits tab already provides this view, and squash-merge configs (PR_TITLE + BLANK body) discard the PR body anyway, so an inline commit list is duplication + drift risk every time a new commit is pushed.
 2. Check for a plan doc: `Glob docs/plan/*-plan.md`. If one matches the branch domain, `Read` it and extract the feature description from the top section.
 3. Produce a body in this format — keep it concise:
 
 ```
 ## Summary
 {2–4 bullet points summarising what changed, derived from commits or plan}
-
-## Commits
-{one line per commit from git log, oldest first}
 
 ## Test plan
 - [ ] {inferred from commit messages, plan doc, or reviewer steps completed}
@@ -135,14 +132,22 @@ Use the result as `{base}` (fall back to `main` if the command fails or returns 
 git push -u origin HEAD
 ```
 
-Pass the body via `--body-file` (write to a temp file first to avoid shell quoting issues):
+Use the **Write** tool to put the body in a temp file (avoids shell-quoting issues with multi-line markdown), then call `gh pr create` with `--body-file`:
+
+1. Write `{body}` to `/tmp/pr-body.md` via the Write tool.
+2. Run:
 
 ```bash
-BODY_FILE=$(mktemp)
-printf '%s' '{body}' > "$BODY_FILE"
-gh pr create --title "{title}" --base {base} --body-file "$BODY_FILE"
-rm -f "$BODY_FILE"
+gh pr create --title "{title}" --base {base} --body-file /tmp/pr-body.md
 ```
+
+3. Run:
+
+```bash
+rm /tmp/pr-body.md
+```
+
+Each Bash call is a single literal command — allowlistable as `Bash(gh pr create *)` and `Bash(rm /tmp/pr-body.md)`.
 
 ## Step 7 — Show result
 

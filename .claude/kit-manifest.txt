@@ -39,6 +39,7 @@ common.just
 .githooks/pre-push
 .githooks/README.md
 scripts/branch-files.sh
+scripts/branch.sh
 scripts/changed-files.sh
 scripts/check.py
 scripts/list-fe-test-targets.py

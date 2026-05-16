@@ -62,10 +62,10 @@ Read `docs/backend-rules.md` if present. Apply any project-specific rules on top
 For each file in the review set, run:
 
 ```bash
-BASE=$(git merge-base HEAD main 2>/dev/null || git rev-parse main 2>/dev/null || echo HEAD); git diff "$BASE"..HEAD -- {filepath}
+bash scripts/branch.sh diff {filepath}
 ```
 
-The fallback chain matches `branch-files.sh` so reviewer and discovery use the same base. Note the added / changed line ranges (the `+`-prefixed lines).
+Note the added / changed line ranges (the `+`-prefixed lines).
 
 ### Step 4 — Read full files for context
 

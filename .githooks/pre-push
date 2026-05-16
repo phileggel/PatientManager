@@ -31,7 +31,10 @@ fi
 # not refactor to a pipe (the subshell + SIGPIPE interaction breaks this).
 DELETE_ONLY=true
 HAS_REFS=false
-while read -r local_ref local_sha remote_ref remote_sha; do
+# Only $local_sha is read — _local_ref / _remote_ref / _remote_sha are
+# placeholders for the rest of the stdin format. The underscore prefix
+# tells shellcheck the unused-ness is intentional (SC2034).
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
     HAS_REFS=true
     if [[ ! "$local_sha" =~ ^0+$ ]]; then
         DELETE_ONLY=false
