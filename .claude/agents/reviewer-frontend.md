@@ -65,10 +65,12 @@ Read `docs/frontend-rules.md` and `docs/i18n-rules.md` if present. Apply project
 For each file in the review set, run:
 
 ```bash
-BASE=$(git merge-base HEAD main 2>/dev/null || git rev-parse main 2>/dev/null || echo HEAD); git diff "$BASE"..HEAD -- {filepath}
+bash scripts/branch-diff.sh {filepath}
 ```
 
-The fallback chain matches `branch-files.sh` so reviewer and discovery use the same base. Note the added / changed line ranges (the `+`-prefixed lines).
+The script wraps the merge-base fallback so reviewer and discovery use the same base as `branch-files.sh`. Note the added / changed line ranges (the `+`-prefixed lines).
+
+The wrapper is essential: the inline compound form (`BASE=$(...); git diff ...`) cannot be matched by the Claude Code permission allowlist because of the command substitution and `||` fallback chain, so every reviewer invocation would otherwise hit a permission prompt per file. The script is allowlistable as `Bash(bash scripts/branch-diff.sh *)`.
 
 ### Step 4 — Read full files for context
 
