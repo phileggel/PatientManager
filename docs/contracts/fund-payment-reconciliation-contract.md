@@ -56,16 +56,6 @@ Runs the 8-pass matching algorithm and groups results into `FundPaymentGroupCand
 
 ---
 
-### `export_reconciliation_csv`
-
-Exports the reconciliation result as a CSV string. Used to download a report of the matched/unmatched lines.
-
-- **Args:** `result: ReconciliationResult`
-- **Returns:** `String`
-- **Errors:** `CsvExportFailed`
-
----
-
 ### `create_fund_payment_from_candidates` — R3, R18, R19
 
 Creates fund-payment groups from validated candidates with no auto-corrections. Performs the duplicate check (R3) and rejects the batch if the PDF was already imported. Updates procedure statuses to `Reconciliated` / `PartiallyReconciled` with `confirmed_payment_date` and `actual_payment_amount` (R18).
@@ -108,7 +98,7 @@ Returns both the procedures currently in the group (`Reconciliated` / `Partially
 
 ### `generate_fund_reconciliation_report_pdf` — FPR-011, FPR-013, FPR-020, FPR-021, FPR-022, FPR-030 to FPR-042
 
-Renders the post-reconciliation report as a PDF document. The request payload carries every pre-resolved string the renderer will place — translated labels, formatted dates, formatted currency values, and per-correction joined row strings. The backend performs no translation, no formatting, and no database lookup (FPR-013, FPR-021). Same architectural role as `export_reconciliation_csv`: a rendering mode of the reconciliation session output.
+Renders the post-reconciliation report as a PDF document. The request payload carries every pre-resolved string the renderer will place — translated labels, formatted dates, formatted currency values, and per-correction joined row strings. The backend performs no translation, no formatting, and no database lookup (FPR-013, FPR-021).
 
 - **Args:** `request: ReportGenerationRequest`
 - **Returns:** `Vec<u8>` — PDF byte stream
@@ -313,8 +303,9 @@ enum FundPaymentValidationStatus {
 
 ## Changelog
 
-- 2026-05-02 — Added by `fund-payment-auto-match` spec + retroactive from specta_builder.rs: extract_pdf_text, extract_pdf_text_from_bytes, parse_pdf_text, reconcile_pdf_procedures, reconcile_and_create_candidates, export_reconciliation_csv, create_fund_payment_from_candidates, create_fund_payment_with_auto_corrections, get_unreconciled_procedures_in_range, get_fund_payment_group_edit_data
+- 2026-05-02 — Added by `fund-payment-auto-match` spec + retroactive from specta_builder.rs: extract_pdf_text, extract_pdf_text_from_bytes, parse_pdf_text, reconcile_pdf_procedures, reconcile_and_create_candidates, create_fund_payment_from_candidates, create_fund_payment_with_auto_corrections, get_unreconciled_procedures_in_range, get_fund_payment_group_edit_data
 - 2026-05-06 — Added by `fund-payment-report` spec: generate_fund_reconciliation_report_pdf, EnrichedAutoCorrection
 - 2026-05-07 — PR 2 implementation: `unreconciled_procedures` field type changed from `Vec<UnreconciledProcedure>` to `Vec<UnreconciledProcedureRow>` to remove the cross-use-case dependency flagged by reviewer-arch (B18). Field shape is preserved 1:1 for serde compatibility.
 - 2026-05-07 — PR 2 i18n pivot: `ReportGenerationRequest` reshaped to carry pre-resolved strings only. Removed `locale`, `source_pdf_filename`, `period_start`, `period_end`, `generation_date`, `unreconciled_procedures`, `enriched_corrections`, `UnreconciledProcedureRow`, `EnrichedAutoCorrection`. Added `title`, `continuation_title`, `header_lines`, `unreconciled` (`UnreconciledSection` enum with `Empty` / `Rows` variants), `UnreconciledColumns`, `UnreconciledRow`, `correction_section_heading`, `correction_groups` (`CorrectionGroup` with pre-joined row strings), `page_label`. Backend is now a pure assembler with no translation or formatting logic; frontend resolves everything via i18next + `Intl.*` before invoking. Supersedes ADR-006.
 - 2026-05-13 — Removed `save_fund_reconciliation_report_pdf`. Added `export_and_open_fund_reconciliation_report_pdf`: single command that renders, writes to the platform Downloads directory under a frontend-built locale-aware filename, and launches the system PDF viewer. Filename is validated as a leaf name; collisions use ` (N)` suffixing. Returns the absolute saved path. New error variant: `OpenFailed`.
+- 2026-05-16 — Removed `export_reconciliation_csv` and its `CsvExportFailed` error. The CSV export was never wired to a frontend caller and was superseded by `generate_fund_reconciliation_report_pdf` / `export_and_open_fund_reconciliation_report_pdf` (PDF report, ADR-006). Dead code cleanup.

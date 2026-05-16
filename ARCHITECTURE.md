@@ -254,7 +254,6 @@ Key domain types:
 - `parse_pdf_text(text) -> PdfParseResult`
 - `reconcile_pdf_procedures(parseResult) -> ReconciliationResult`
 - `reconcile_and_create_candidates(parseResult) -> ReconcileAndCandidatesResponse`
-- `export_reconciliation_csv(result) -> String`
 - `create_fund_payment_from_candidates(request) -> FundPaymentGroup`
 - `create_fund_payment_with_auto_corrections(request) -> FundPaymentGroup`
 - `get_unreconciled_procedures_in_range(startDate, endDate) -> Vec<UnreconciledProcedure>`

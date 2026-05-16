@@ -1,4 +1,3 @@
-use super::output::csv_exporter;
 use super::parsing::pdf_extractor;
 use super::parsing::pdf_parser;
 use super::service::ReconciliationService;
@@ -388,17 +387,6 @@ pub async fn reconcile_and_create_candidates(
             tracing::error!(target: BACKEND, error = %e, operation = "reconcile_and_create_candidates", "Reconciliation workflow failed");
             format!("{:#}", e)
         })
-}
-
-/// Handler for exporting reconciliation results to CSV format
-#[tauri::command]
-#[specta::specta]
-pub async fn export_reconciliation_csv(result: ReconciliationResult) -> Result<String, String> {
-    tracing::info!(target: BACKEND, "Exporting reconciliation results to CSV");
-
-    csv_exporter::export_to_csv(&result).inspect(|csv_data| {
-        tracing::info!(target: BACKEND, bytes = csv_data.len(), "CSV export successful");
-    })
 }
 
 /// Handler for creating fund payment groups from validated reconciliation candidates

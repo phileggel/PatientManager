@@ -106,7 +106,6 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             fund_payment_reconciliation::parse_pdf_text,
             fund_payment_reconciliation::reconcile_pdf_procedures,
             fund_payment_reconciliation::reconcile_and_create_candidates,
-            fund_payment_reconciliation::export_reconciliation_csv,
             fund_payment_reconciliation::create_fund_payment_from_candidates,
             fund_payment_reconciliation::create_fund_payment_with_auto_corrections,
             fund_payment_reconciliation::get_unreconciled_procedures_in_range,

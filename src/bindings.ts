@@ -369,17 +369,6 @@ async reconcileAndCreateCandidates(parseResult: PdfParseResult) : Promise<Result
 }
 },
 /**
- * Handler for exporting reconciliation results to CSV format
- */
-async exportReconciliationCsv(result: ReconciliationResult) : Promise<Result<string, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("export_reconciliation_csv", { result }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
  * Handler for creating fund payment groups from validated reconciliation candidates
  */
 async createFundPaymentFromCandidates(request: CreateFundPaymentFromCandidatesRequest) : Promise<Result<FundPaymentGroup[], string>> {
