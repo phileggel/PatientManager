@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
 
 import { toastService } from "@/core/snackbar";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { Button, ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
 import { EditProcedureTypeModal } from "../edit_procedure_type_modal/EditProcedureTypeModal";
@@ -22,8 +23,6 @@ import { useDoubleClickRow } from "./useDoubleClickRow";
 import { useProcedureTypeList } from "./useProcedureTypeList";
 import { useSortProcedureTypeList } from "./useSortProcedureTypeList";
 
-const euroFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-
 interface ProcedureTypeListProps {
   searchTerm: string;
 }
@@ -31,6 +30,7 @@ interface ProcedureTypeListProps {
 export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
   const { t } = useTranslation("procedure-type");
   const { t: tc } = useTranslation("common");
+  const { formatCurrency } = useFormatters();
 
   useEffect(() => {
     logger.info("[ProcedureTypeList] Component mounted");
@@ -121,9 +121,7 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
                   title={tc("table.doubleClickToEdit")}
                 >
                   <td className="m3-td font-medium text-m3-on-surface">{row.name}</td>
-                  <td className="m3-td text-m3-on-surface">
-                    {euroFormatter.format(row.defaultAmount)}
-                  </td>
+                  <td className="m3-td text-m3-on-surface">{formatCurrency(row.defaultAmount)}</td>
                   <td className="m3-td text-m3-on-surface">{row.category || "-"}</td>
                   <td className="m3-td text-right">
                     <div className="flex items-center justify-end gap-1">

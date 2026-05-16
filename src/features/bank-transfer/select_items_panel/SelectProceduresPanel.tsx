@@ -109,7 +109,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
                   {formatDate(proc.procedure_date)}
                 </span>
                 <span className="font-semibold whitespace-nowrap">
-                  €{((proc.billed_amount ?? 0) / 1000).toFixed(2)}
+                  {formatCurrency(proc.billed_amount ?? 0)}
                 </span>
               </div>
             </label>

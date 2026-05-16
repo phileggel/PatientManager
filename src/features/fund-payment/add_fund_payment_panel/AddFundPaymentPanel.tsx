@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toastService } from "@/core/snackbar";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { Button, DateField, SelectField } from "@/ui/components";
 import { ProcedureSelectionModal } from "../select_procedure_modal/SelectProcedureModal";
@@ -23,6 +24,7 @@ import { useAddFundPaymentPanel } from "./useAddFundPaymentPanel";
 export function AddFundPaymentPanel() {
   const { t } = useTranslation("fund-payment");
   const { t: tc } = useTranslation("common");
+  const { formatCurrency } = useFormatters();
 
   useEffect(() => {
     logger.info("[AddFundPaymentPanel] Component mounted");
@@ -117,7 +119,7 @@ export function AddFundPaymentPanel() {
                   </span>
                   <span className="flex-1" />
                   <span className="text-sm font-medium text-m3-on-surface">
-                    {selectionSummary.totalFormatted}
+                    {formatCurrency(selectionSummary.totalAmount)}
                   </span>
                 </div>
               ) : (

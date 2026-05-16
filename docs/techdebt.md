@@ -8,6 +8,26 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-05-16 — RTL coverage gap on currency-display components
+
+**Where:** Components with `formatCurrency` calls but no RTL test:
+`SelectProceduresPanel`, `SelectFundGroupsPanel`, `BankTransferList`,
+`EditBankTransferModal`, `AddBankTransferForm`, `MatchResultsStep`,
+`ProcedureTypeMappingStep`, `EditFundPaymentModal`, `PdfDataTable`,
+`NotFoundCard`, `UnreconciledReport`, `GroupMatchCard`.
+
+**Observation:** Surfaced by PR #33's codecov flag (~16 of 18 missing lines on
+the currency-i18n sweep). None had RTL tests before the PR — the migration to
+`formatCurrency` routed existing display through a different helper, exposing
+the pre-existing gap. Functional regression risk is low (mechanical display
+swap; the formatter is unit-tested in `src/lib/formatters.test.ts` and the
+integration is covered by `SingleMatchCard.test.tsx` AmountMismatch and
+`FundPaymentList.test.tsx` locale-aware regressions). Add RTL coverage
+**bit-by-bit when these components are next touched for behavioral changes**,
+not as a sweep.
+
+---
+
 ## 2026-05-11 — SQLite `LOWER()` is ASCII-only in `find_patient_by_name`
 
 **Where:** `src-tauri/src/context/patient/repository.rs` — `find_patient_by_name` SQL uses `WHERE LOWER(name) = LOWER($1)`.

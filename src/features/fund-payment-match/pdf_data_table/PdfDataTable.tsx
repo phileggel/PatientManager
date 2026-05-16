@@ -2,7 +2,7 @@ import type { TFunction } from "i18next";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { NormalizedPdfLine, PdfParseResult, PdfProcedureGroup } from "@/bindings";
-import { formatCurrency, useFormatters } from "@/lib/formatters";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { formatProcedureDateFromLine } from "../shared/utils";
 
@@ -14,10 +14,12 @@ function ProcedureLineRow({
   line,
   t,
   locale,
+  formatCurrency,
 }: {
   line: NormalizedPdfLine;
   t: TFunction<"fund-payment-match">;
   locale: string;
+  formatCurrency: (thousandths: number) => string;
 }) {
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50">
@@ -26,7 +28,7 @@ function ProcedureLineRow({
       <td className="px-4 py-2 text-slate-600">{line.nature}</td>
       <td className="px-4 py-2 text-slate-600">{formatProcedureDateFromLine(line, t, locale)}</td>
       <td className="px-4 py-2 text-slate-900 text-right font-medium">
-        {formatCurrency(line.amount, locale)}
+        {formatCurrency(line.amount)}
       </td>
     </tr>
   );
@@ -34,7 +36,7 @@ function ProcedureLineRow({
 
 function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
   const { t } = useTranslation("fund-payment-match");
-  const { formatCurrency: formatCurrencyHook, formatDate, locale } = useFormatters();
+  const { formatCurrency, formatDate, locale } = useFormatters();
   return (
     <div className="rounded-lg border border-slate-200 overflow-hidden">
       <div className="bg-slate-100 px-4 py-3 flex items-center justify-between">
@@ -49,7 +51,7 @@ function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
           <span
             className={`font-semibold ${group.is_total_valid ? "text-success-70" : "text-error-70"}`}
           >
-            {formatCurrencyHook(group.total_amount)}
+            {formatCurrency(group.total_amount)}
           </span>
           {!group.is_total_valid && (
             <span className="text-xs text-error-60 font-medium">
@@ -71,7 +73,13 @@ function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
         </thead>
         <tbody>
           {group.lines.map((line) => (
-            <ProcedureLineRow key={line.invoice_number} line={line} t={t} locale={locale} />
+            <ProcedureLineRow
+              key={line.invoice_number}
+              line={line}
+              t={t}
+              locale={locale}
+              formatCurrency={formatCurrency}
+            />
           ))}
         </tbody>
       </table>

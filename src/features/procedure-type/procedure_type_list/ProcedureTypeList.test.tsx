@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { formatCurrency } from "@/lib/formatters";
 import { ProcedureTypeList } from "./ProcedureTypeList";
 
 // Mock child components
@@ -36,10 +37,10 @@ vi.mock("@/ui/components", async () => {
 });
 
 const mockProcedureTypeRows = [
-  // defaultAmount is in euros (presenter converts from thousandths)
-  { rowId: "1", id: "pt1", name: "Consultation", defaultAmount: 50, category: "Basic" },
-  { rowId: "2", id: "pt2", name: "Surgery", defaultAmount: 300, category: "Advanced" },
-  { rowId: "3", id: "pt3", name: "Check-up", defaultAmount: 30, category: "Basic" },
+  // defaultAmount is in thousandths (presenter passes through from backend)
+  { rowId: "1", id: "pt1", name: "Consultation", defaultAmount: 50000, category: "Basic" },
+  { rowId: "2", id: "pt2", name: "Surgery", defaultAmount: 300000, category: "Advanced" },
+  { rowId: "3", id: "pt3", name: "Check-up", defaultAmount: 30000, category: "Basic" },
 ];
 
 const mockProcedureTypes = [
@@ -126,16 +127,18 @@ describe("ProcedureTypeList", () => {
     expect(screen.getByText("Surgery")).toBeInTheDocument();
   });
 
-  it("displays default amounts with currency formatting", () => {
+  it("displays default amounts with locale-aware currency formatting", () => {
     render(<ProcedureTypeList searchTerm="" />);
 
-    const fmt = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+    // Test setup pins i18n locale to en-GB, so the helper renders `€50.00`,
+    // `€300.00`, `€30.00`. Comparing to the helper's own output keeps the
+    // assertion locale-aware and stable across ICU versions.
     const cells = screen.getAllByRole("cell");
     const textContents = cells.map((c) => normalize(c.textContent ?? ""));
 
-    expect(textContents).toContain(normalize(fmt.format(50)));
-    expect(textContents).toContain(normalize(fmt.format(300)));
-    expect(textContents).toContain(normalize(fmt.format(30)));
+    expect(textContents).toContain(normalize(formatCurrency(50000, "en-GB")));
+    expect(textContents).toContain(normalize(formatCurrency(300000, "en-GB")));
+    expect(textContents).toContain(normalize(formatCurrency(30000, "en-GB")));
   });
 
   it("displays category information", () => {

@@ -2,21 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeFund } from "@/tests/fund.factory";
 import { makeFundPaymentGroup } from "@/tests/fund-payment.factory";
 import { makeProcedure } from "@/tests/procedure.factory";
-import { FundPaymentPresenter, formatAmountEUR } from "./presenter";
-
-describe("formatAmountEUR", () => {
-  it("converts thousandths to a formatted EUR string", () => {
-    const result = formatAmountEUR(12500);
-    expect(result).toMatch(/12,50/);
-    expect(result).toContain("€");
-  });
-
-  it("formats zero thousandths as €0", () => {
-    const result = formatAmountEUR(0);
-    expect(result).toMatch(/0,00/);
-    expect(result).toContain("€");
-  });
-});
+import { FundPaymentPresenter } from "./presenter";
 
 describe("FundPaymentPresenter.toRow", () => {
   it("builds fundName from fund_identifier and name when fund is found", () => {
@@ -26,7 +12,7 @@ describe("FundPaymentPresenter.toRow", () => {
     const row = FundPaymentPresenter.toRow(group, [fund]);
 
     expect(row.fundName).toBe("440 - CPAM Loire");
-    expect(row.totalAmount).toBe(150);
+    expect(row.totalAmount).toBe(150000);
     expect(row.procedureCount).toBe(0);
     expect(row.isLocked).toBe(false);
   });
@@ -76,7 +62,7 @@ describe("FundPaymentPresenter.toSelectorOptions", () => {
 });
 
 describe("FundPaymentPresenter.toSelectionSummary", () => {
-  it("computes count, isEmpty=false, and totalFormatted for non-empty selection", () => {
+  it("computes count, isEmpty=false, and totalAmount in thousandths for non-empty selection", () => {
     const procedures = [
       makeProcedure({ billed_amount: 25000 }),
       makeProcedure({ billed_amount: 50000 }),
@@ -86,16 +72,14 @@ describe("FundPaymentPresenter.toSelectionSummary", () => {
 
     expect(summary.count).toBe(2);
     expect(summary.isEmpty).toBe(false);
-    expect(summary.totalFormatted).toMatch(/75,00/);
-    expect(summary.totalFormatted).toContain("€");
+    expect(summary.totalAmount).toBe(75000);
   });
 
-  it("returns isEmpty=true and formats zero total for an empty selection", () => {
+  it("returns isEmpty=true and zero totalAmount for an empty selection", () => {
     const summary = FundPaymentPresenter.toSelectionSummary([]);
 
     expect(summary.count).toBe(0);
     expect(summary.isEmpty).toBe(true);
-    expect(summary.totalFormatted).toMatch(/0,00/);
-    expect(summary.totalFormatted).toContain("€");
+    expect(summary.totalAmount).toBe(0);
   });
 });

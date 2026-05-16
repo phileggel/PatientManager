@@ -107,7 +107,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
                   {formatDate(group.payment_date)}
                 </span>
                 <span className="font-semibold whitespace-nowrap">
-                  €{(group.total_amount / 1000).toFixed(2)}
+                  {formatCurrency(group.total_amount)}
                 </span>
               </div>
             </label>
