@@ -2,9 +2,9 @@
 """Auto-rebase + fast-forward merge the current feature branch into a target branch.
 
 Atomic "task done" shortcut: pull the target, rebase the branch onto it,
-FF-merge into the target, push, and delete the local branch. Fails fast with
-a clear recovery hint at any step that can't proceed cleanly (rebase
-conflict, divergent push, dirty tree, etc.).
+FF-merge into the target, push, and delete the feature branch both locally
+and on origin. Fails fast with a clear recovery hint at any step that can't
+proceed cleanly (rebase conflict, divergent push, dirty tree, etc.).
 
 If your project needs a different merge policy (e.g. preserve merge commits,
 no rebase), override the `merge` recipe in the downstream justfile.
@@ -160,12 +160,71 @@ def main() -> int:
                 f"Pull and re-run: git pull --ff-only origin {target}",
             )
 
-    # Step 5 — delete the local branch.
-    git("branch", "-d", branch)
+    # Step 5 — delete the remote feature branch (if it exists).
+    # Restores the "atomic shortcut" property: one command cleans up both
+    # local and remote feature branches. Also removes the upstream reference
+    # so Step 6's `git branch -d` falls back to the "merged-in-HEAD" check
+    # (which passes after Step 3's FF-merge) instead of the stricter
+    # "merged-in-upstream" check that would refuse if the feature branch was
+    # ahead of its origin counterpart.
+    #
+    # Failure modes we distinguish:
+    #   - Remote ref doesn't exist (race: someone else deleted it). Benign,
+    #     fall through to local cleanup as if it had never been there.
+    #   - Protected branch / pre-receive hook declined. The user needs to
+    #     know — partial state on the remote, fix-forward required.
+    #   - Network / auth failure. Same surface as the protected case.
+    remote_state = "skipped"  # one of: skipped, deleted, gone, failed
+    if has_origin_target:
+        has_origin_branch = (
+            git(
+                "rev-parse", "--verify", "--quiet", f"origin/{branch}", check=False
+            ).returncode
+            == 0
+        )
+        if has_origin_branch:
+            result = git("push", "--delete", "origin", branch, check=False)
+            if result.returncode == 0:
+                remote_state = "deleted"
+            elif "remote ref does not exist" in (result.stderr or "").lower():
+                remote_state = "gone"  # race — already removed elsewhere
+            else:
+                remote_state = "failed"
+                stderr_excerpt = (result.stderr or "").strip().splitlines()
+                detail = stderr_excerpt[-1] if stderr_excerpt else "no stderr"
+                print(
+                    f"{RED}❌ Failed to delete origin/{branch}: {detail}{NC}",
+                    file=sys.stderr,
+                )
+                print(
+                    f"{BLUE}   Retry manually once unblocked: "
+                    f"git push --delete origin {branch}{NC}",
+                    file=sys.stderr,
+                )
 
+    # Step 6 — delete the local branch.
+    result = git("branch", "-d", branch, check=False)
+    if result.returncode != 0:
+        fail(
+            f"Could not delete local branch {branch}.",
+            "The branch is merged into target, but git refused the delete —",
+            f"most likely a stale upstream config. Inspect: git branch -vv | grep {branch}",
+            f"Confirm the merge: git log {target}..{branch}",
+            f"Force-delete if confirmed: git branch -D {branch}",
+        )
+
+    # Compose an accurate success summary. Each segment reflects observed state,
+    # not assumed state — important because Step 5's failure path leaves the
+    # remote branch behind and the user must see that in the success line.
+    parts = ["local"]
+    if remote_state == "deleted":
+        parts.append("remote")
+    elif remote_state == "failed":
+        parts.append("remote delete failed — see above")
     suffix = ", pushed" if has_origin_target else ""
     print(
-        f"{GREEN}✅ {branch} rebased + merged into {target}{suffix}, and deleted.{NC}",
+        f"{GREEN}✅ {branch} rebased + merged into {target}{suffix}, "
+        f"and deleted ({' + '.join(parts)}).{NC}",
         file=sys.stderr,
     )
     return 0

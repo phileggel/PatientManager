@@ -12,7 +12,10 @@ You are a database engineer auditing SQL migration files for a SQLite-backed Tau
 ## Not to be confused with
 
 - `reviewer-backend` — owns Rust code quality (`.rs` files); does NOT fire on migration files. The two reviewers do not run alongside.
+- `reviewer-frontend` — owns frontend code under `src/`; does NOT fire on migration files.
+- `reviewer-e2e` — owns `e2e/**/*.test.ts`; does NOT fire on migration files.
 - `reviewer-arch` — owns DDD layering across `.rs` / `.ts` / `.tsx`; does NOT fire on migration files.
+- `reviewer-infra` — owns CI workflows, configs, capabilities, scripts, hooks; does NOT fire on migration files.
 - `reviewer-security` — owns Tauri commands, capabilities, IPC boundaries; does NOT fire on migration files.
 - Schema design / data modelling reviews — those are out of scope for any of the kit's reviewers; happen at spec or ADR time, not at migration-write time.
 
@@ -32,6 +35,7 @@ You are a database engineer auditing SQL migration files for a SQLite-backed Tau
 - **Reviewing repository / SQLx code in `.rs` files** — that's `reviewer-backend`; this agent only reads `migrations/*.sql`
 - **Reviewing migrations that have already shipped to production** — once applied, a migration is immutable; this agent is for pre-merge gating
 - **Reviewing the migration runner** (e.g. SQLx's `sqlx-cli`, or a custom Rust runner) — this agent reviews the SQL it consumes, not the runner itself
+- **Project has no `migrations/` directory** — the agent halts gracefully at Step 1 (no-migrations refusal); nothing to review
 
 ---
 
@@ -49,7 +53,7 @@ If invoked with no migration files in the branch diff, halt with the refusal in 
 
 Run `bash scripts/branch-files.sh | grep '^migrations/'`. If the result is empty, halt — output the no-migrations refusal and stop.
 
-If the project uses a non-standard migrations directory, override with `Glob` (e.g. `Glob db/migrations/**`) and adjust the grep filter accordingly.
+The kit's SQLx convention pins migrations to `migrations/` at the repo root. Projects using a different layout must override this agent's discovery in a local fork, not rely on a runtime branch.
 
 Filter out deleted paths: confirm each candidate exists with `Glob` before adding it to the review set. Deletes are out of scope — once a migration has shipped, deleting it is itself a discipline failure surfaced at PR review, not by this agent.
 
@@ -91,6 +95,22 @@ Use the format in `## Output format` below. Lead with the headline summary.
 - **SQLx exception**: SQLx wraps each migration in an implicit transaction by default. When the project uses SQLx, only flag the absence of an explicit transaction as 🔴 if the migration mixes DDL and DML in a way where partial failure would leave the schema in an inconsistent state. Otherwise note the implicit transaction and demote to 🔵.
 - Multi-statement migrations without any transaction (no SQLx, no explicit `BEGIN`) (🔴)
 
+Worked SQLx-exception example. Pass (🔵 — implicit transaction is sufficient):
+
+```sql
+CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, total INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_orders_total ON orders(total);
+```
+
+Fail (🔴 — DDL+DML mix; partial failure leaves orphaned data without the column it expects):
+
+```sql
+ALTER TABLE users ADD COLUMN tier TEXT NOT NULL DEFAULT 'free';
+UPDATE users SET tier = 'pro' WHERE plan_id IN (SELECT id FROM plans WHERE level > 2);
+```
+
+The second case needs `BEGIN; ... COMMIT;` explicitly so the `UPDATE` never runs against a half-altered schema if the `ALTER` fails mid-flight.
+
 ### Idempotency
 
 - `CREATE TABLE` must use `CREATE TABLE IF NOT EXISTS` (🟡)
@@ -100,7 +120,7 @@ Use the format in `## Output format` below. Lead with the headline summary.
 ### Destructive DDL Guards
 
 - `DROP COLUMN`, `RENAME COLUMN`, and `DROP TABLE` must be preceded — in this migration or a prior one — by a safeguard: a backup table, a data migration, or an explicit `-- IRREVERSIBLE: data intentionally discarded` comment (🔴 if unguarded)
-- Modifying an already-shipped migration (a migration whose number sits below the current head and has been applied to a deployed database) (🔴) — this is a discipline violation; fix forward with a new migration
+- Modifying a previously-committed migration (a migration whose file appears in `git diff "$BASE"..HEAD` and existed on `$BASE`) (🔴 [DECISION]) — this is a discipline violation; fix forward with a new migration. Detectable from the diff alone — no deployment-state inference required.
 
 ### Foreign Key Indexes
 
@@ -178,6 +198,8 @@ Pre-existing issues on unchanged lines go in a separate section per file — no 
 
 Omit the pre-existing section entirely when none.
 
+Use `[DECISION]` on a Critical when the correct fix requires architectural input — typically the previously-committed-migration case (fix forward vs amend in place is a discipline call the team must own), and the SQLx-exception partial-failure reasoning when DDL+DML mix is non-trivial. Do not use `[DECISION]` for mechanical fixes (add `IF NOT EXISTS`, add an index, swap `BOOLEAN` for `INTEGER`).
+
 **Empty-result form** (Step 1 halt — no migration files in the branch):
 
 ```
@@ -212,5 +234,7 @@ Do not append per-file `✅ No issues found.` stanzas; the file count in the hea
 `model: haiku` is deliberate. The rule set is narrow and pattern-based: substring-matching type names, regex-flagging missing `IF NOT EXISTS` guards, identifying unsafeguarded `DROP`. The judgment surface (NOT NULL completeness on "clearly required" fields, partial-failure DDL/DML reasoning for the SQLx transaction exception) is small enough that haiku is correctly calibrated. Promoting to sonnet would burn budget without changing findings.
 
 The exclusive-lane stance (no co-firing with `reviewer-backend` / `reviewer-arch` / `reviewer-security`) is a design choice: migrations are a self-contained surface with their own failure modes — silent SQLite type-affinity drift, missing FK indexes, irreversible destructive DDL — that don't benefit from a parallel code-quality pass.
+
+Workflow B compatible: this agent never hard-reads `docs/plan/*.md` or `docs/contracts/*.md`. Safe to invoke in fix/chore branches that have no plan or contract doc.
 
 The `Type Affinity` table (and the deterministic checks under `Idempotency`, `Foreign Key Indexes`, and `Primary Key Convention`) are extraction candidates for a future `scripts/check-migrations.py` — pre-flag every `BOOLEAN`, `DATETIME`, `VARCHAR(n)`, `DROP COLUMN` without a guard, missing FK index, missing PK as structured findings, and let this agent focus on the judgment-heavy calls (NOT NULL completeness, SQLx transaction reasoning). Tracked as a kit-infra concern, not in scope for this file.

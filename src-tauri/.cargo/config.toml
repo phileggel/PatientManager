@@ -2,4 +2,4 @@
 linker = "rust-lld"
 
 [env]
-SQLX_OFFLINE = "1"
+SQLX_OFFLINE = "true"

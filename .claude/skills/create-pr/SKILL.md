@@ -64,6 +64,7 @@ The effective type is the highest tier present in the commits. Lower-tier commit
   > This usually means the work drifted during dev and the branch name no longer reflects what's in the PR.
   >
   > Options:
+  >
   > - **Rename branch** (recommended) — abort; user runs `git branch -m <effective-type>/<short-description>` then re-runs `/create-pr`.
   > - **Use effective type for PR title** — proceed with `<effective-type>` in the title; branch name stays inconsistent.
   > - **Keep branch type for PR title** — proceed with `<branch-type>`; the title's type will differ from what the PR actually does.

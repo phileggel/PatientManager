@@ -31,7 +31,7 @@ import re
 import sys
 from check import QualityChecker
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
 # ANSI colors (respect NO_COLOR=1)
@@ -50,6 +50,10 @@ CHANGELOG_INTRO = (
     "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),\n"
     "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)."
 )
+
+# Default branch this release script targets. Override in a downstream fork
+# if the project uses `master` / `trunk` / etc.
+MAIN_BRANCH = "main"
 
 
 class ReleaseManager:
@@ -243,17 +247,33 @@ class ReleaseManager:
 
         if not self.dry_run:
             print(f"{BLUE}  Updating src-tauri/Cargo.lock...{NC}")
-            subprocess.run(
-                ["cargo", "metadata", "--format-version", "1"],
-                cwd=self.repo_root / "src-tauri",
-                capture_output=True,
-                check=True,
-            )
+            try:
+                subprocess.run(
+                    ["cargo", "metadata", "--format-version", "1"],
+                    cwd=self.repo_root / "src-tauri",
+                    capture_output=True,
+                    check=True,
+                )
+            except subprocess.CalledProcessError as e:
+                # JSON files are already mutated above; if cargo crashes here
+                # the working tree is partial. Surface clearly so the user
+                # knows to inspect Cargo.toml (most likely a syntax issue
+                # introduced by the version edit) and revert if needed.
+                print(
+                    f"{RED}❌ cargo metadata failed — Cargo.lock not updated.{NC}",
+                    file=sys.stderr,
+                )
+                print(
+                    f"{BLUE}   Version files already edited; inspect Cargo.toml syntax or "
+                    f"`git checkout -- package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json` to revert.{NC}",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1) from e
             print("  ✓ src-tauri/Cargo.lock updated")
 
     def _build_changelog_entry(self) -> str:
         """Build new changelog entry from commits."""
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         entry = f"## [{self.new_version}] - {today}\n"
 
         if self.breaking_changes > 0:
@@ -359,6 +379,11 @@ class ReleaseManager:
                 check=True,
             )
 
+            # --no-verify intentionally skips the commit-msg + pre-commit hooks.
+            # Waiver: the commit message is fixed by this script (conventional
+            # "chore: release vX.Y.Z") so the commit-msg lint is a no-op, and
+            # run_tests() already passed the full quality suite so the pre-commit
+            # lint pass would be redundant.
             subprocess.run(
                 [
                     "git",
@@ -430,6 +455,15 @@ class ReleaseManager:
 
         if not commits:
             print(f"{YELLOW}No commits since last tag. Nothing to release.{NC}")
+            # Under --preview, "no work pending" is a successful analysis,
+            # not a failure. Returning False here would exit 1 and break
+            # any CI step doing `release.py --preview` to detect pending
+            # releases. Exit 0 with the current version as the answer.
+            if self.preview:
+                print(
+                    f"{GREEN}✨ Preview: no release pending — current version is v{self.current_version}.{NC}\n"
+                )
+                return True
             return False
 
         self.analyze_commits(commits)
@@ -442,7 +476,7 @@ class ReleaseManager:
         else:
             self.new_version = self.calculate_new_version(self.current_version)
             if self.new_version == self.current_version:
-                if self.yes:
+                if self.yes and not self.preview:
                     print(
                         f"{RED}❌ No releasable commits (no feat/fix/breaking change since last tag).{NC}"
                     )
@@ -453,19 +487,16 @@ class ReleaseManager:
                 print(
                     f"{YELLOW}⚠ No releasable commits found (no feat/fix/breaking change since last tag).{NC}"
                 )
-                print(
-                    f'{BLUE}  Use "v" at the confirmation prompt or --version X.Y.Z to override, or cancel.{NC}'
-                )
+                if not self.preview:
+                    print(
+                        f'{BLUE}  Use "v" at the confirmation prompt or --version X.Y.Z to override, or cancel.{NC}'
+                    )
 
         self.show_analysis()
 
         if self.preview:
-            print(
-                f"\n{GREEN}✨ Preview: next release would be v{self.new_version}{NC}"
-            )
-            print(
-                f"{BLUE}Run without {BLUE}--preview{NC}{BLUE} to actually release.{NC}\n"
-            )
+            print(f"\n{GREEN}✨ Preview: next release would be v{self.new_version}{NC}")
+            print(f"{BLUE}Run without --preview to actually release.{NC}\n")
             return True
 
         if self.dry_run and self.yes:
@@ -513,9 +544,9 @@ class ReleaseManager:
             text=True,
             check=True,
         ).stdout.strip()
-        if branch != "main":
+        if branch != MAIN_BRANCH:
             print(
-                f'{RED}❌ Current branch is "{branch}", not "main". Release must be run from main.{NC}'
+                f'{RED}❌ Current branch is "{branch}", not "{MAIN_BRANCH}". Release must be run from {MAIN_BRANCH}.{NC}'
             )
             return False
 
@@ -524,19 +555,27 @@ class ReleaseManager:
             # Waiver: run_tests() already executed the full quality suite (check.py,
             # tests, build) earlier in this release flow and would have aborted on
             # any failure. Re-running it in the hook would be redundant and slow.
+            #
+            # --atomic: push branch + tag in one atomic operation so we never end
+            # up with the release commit on the branch and no tag (or vice versa).
+            # Either both refs land on origin or neither does — the next release
+            # run sees a coherent state.
             subprocess.run(
-                ["git", "push", "origin", "main", "--no-verify"],
+                [
+                    "git",
+                    "push",
+                    "--atomic",
+                    "origin",
+                    MAIN_BRANCH,
+                    f"refs/tags/v{self.new_version}",
+                    "--no-verify",
+                ],
                 cwd=self.repo_root,
                 check=True,
             )
-            print("  ✓ main pushed")
-
-            subprocess.run(
-                ["git", "push", "origin", f"v{self.new_version}", "--no-verify"],
-                cwd=self.repo_root,
-                check=True,
+            print(
+                f"  ✓ {MAIN_BRANCH} + tag v{self.new_version} pushed atomically → GitHub Action triggered"
             )
-            print(f"  ✓ tag v{self.new_version} pushed → GitHub Action triggered")
 
             return True
         except subprocess.CalledProcessError as e:
@@ -547,7 +586,9 @@ class ReleaseManager:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Release manager for YourProject.")
     parser.add_argument(
-        "--dry-run", action="store_true", help="Preview release without making changes"
+        "--dry-run",
+        action="store_true",
+        help="Simulate release: update files, create local commit + tag, but skip the push. For a fully read-only check use --preview instead.",
     )
     parser.add_argument(
         "--version", metavar="X.Y.Z", help="Force a specific version (e.g. 0.12.1)"

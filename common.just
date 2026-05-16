@@ -20,8 +20,13 @@ release *ARGS:
 
 # ⚠️  Destructive: removes stale remote-tracking branches
 clean-branches:
+    #!/usr/bin/env bash
+    set -euo pipefail
     git fetch --prune
-    git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -r git branch -D
+    # Portable equivalent of `xargs -r` (which is GNU-only — BSD/macOS
+    # xargs runs the command once with no arguments instead of skipping).
+    stale=$(git branch -vv | grep ': gone]' | awk '{print $1}')
+    [ -n "$stale" ] && echo "$stale" | xargs git branch -D || true
 
 stat:
     cloc . --vcs=git
@@ -40,11 +45,12 @@ migrate:
     cd src-tauri && sqlx migrate run
 
 # Regenerate SQLx offline query cache (run after schema or query changes).
-# SQLX_OFFLINE=0 forces online mode — projects that set SQLX_OFFLINE=1
+# SQLX_OFFLINE=false forces online mode — projects that set SQLX_OFFLINE=true
 # globally (in their .cargo/config.toml) still let `prepare` hit the live DB,
 # which is its whole purpose. No-op for projects that haven't set SQLX_OFFLINE.
+# Override `DATABASE_URL` in your local justfile if your dev DB lives elsewhere.
 prepare-sqlx:
-    cd src-tauri && SQLX_OFFLINE=0 DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests
+    cd src-tauri && SQLX_OFFLINE=false DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests
 
 # Auto-fix formatting and linting
 format:
