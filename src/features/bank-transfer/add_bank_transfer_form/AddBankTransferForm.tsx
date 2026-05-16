@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntryType } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { Button, DateField, SelectField } from "@/ui/components";
 import { SelectFundGroupsPanel } from "../select_items_panel/SelectFundGroupsPanel";
@@ -20,6 +21,7 @@ import { useAddBankTransferForm } from "./useAddBankTransferForm";
  */
 export function AddBankTransferForm() {
   const { t } = useTranslation("bank");
+  const { formatCurrency } = useFormatters();
 
   useEffect(() => {
     logger.info("[AddBankTransferForm] Component mounted");
@@ -115,9 +117,7 @@ export function AddBankTransferForm() {
       {totalAmountMillis > 0 && (
         <div className="rounded-md bg-neutral-10 border border-neutral-20 px-4 py-3 text-sm">
           <span className="text-neutral-60">{t("transfer.computedAmount")}</span>{" "}
-          <span className="font-semibold text-neutral-90">
-            €{(totalAmountMillis / 1000).toFixed(2)}
-          </span>
+          <span className="font-semibold text-neutral-90">{formatCurrency(totalAmountMillis)}</span>
         </div>
       )}
 

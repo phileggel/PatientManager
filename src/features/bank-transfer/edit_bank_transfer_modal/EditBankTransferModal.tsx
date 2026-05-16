@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntry } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { Button, DateField, SelectField } from "@/ui/components";
 import { FormModal } from "@/ui/components/modal/FormModal";
@@ -29,6 +30,7 @@ interface EditBankTransferModalProps {
 export function EditBankTransferModal({ transfer, onClose }: EditBankTransferModalProps) {
   const { t } = useTranslation("bank");
   const { t: tCommon } = useTranslation("common");
+  const { formatCurrency } = useFormatters();
 
   const bankAccounts = useAppStore((state) => state.bankAccounts);
   const bankAccountOptions = bankAccounts.map((acc) => ({ value: acc.id, label: acc.name }));
@@ -141,9 +143,7 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
       {totalAmountMillis > 0 && (
         <div className="rounded-xl bg-m3-surface-container px-4 py-3 text-sm">
           <span className="text-neutral-60">{t("transfer.computedAmount")}</span>{" "}
-          <span className="font-semibold text-neutral-90">
-            €{(totalAmountMillis / 1000).toFixed(2)}
-          </span>
+          <span className="font-semibold text-neutral-90">{formatCurrency(totalAmountMillis)}</span>
         </div>
       )}
     </FormModal>

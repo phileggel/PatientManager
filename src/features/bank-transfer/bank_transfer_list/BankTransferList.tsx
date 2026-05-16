@@ -18,7 +18,7 @@ interface BankTransferListProps {
 export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankTransferListProps) {
   const { t } = useTranslation("bank");
   const { t: tCommon } = useTranslation("common");
-  const { formatDate } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
 
   useEffect(() => {
     logger.info(TAG, "Component mounted");
@@ -56,7 +56,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
               <tr key={transfer.id} className="m3-tr">
                 <td className="m3-td text-m3-on-surface">{formatDate(transfer.transfer_date)}</td>
                 <td className="m3-td text-m3-on-surface font-semibold text-right">
-                  €{(transfer.amount / 1000).toFixed(2)}
+                  {formatCurrency(transfer.amount)}
                 </td>
                 <td className="m3-td text-m3-on-surface capitalize">
                   {transfer.transfer_type === "FUND_WIRE"
@@ -81,7 +81,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                       shape="round"
                       aria-label={t("transfer.list.editAriaLabel", {
                         date: formatDate(transfer.transfer_date),
-                        amount: `€${(transfer.amount / 1000).toFixed(2)}`,
+                        amount: formatCurrency(transfer.amount),
                       })}
                       icon={<Edit2 size={16} />}
                       onClick={() => onEdit(transfer)}
@@ -92,7 +92,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                       shape="round"
                       aria-label={t("transfer.list.deleteAriaLabel", {
                         date: formatDate(transfer.transfer_date),
-                        amount: `€${(transfer.amount / 1000).toFixed(2)}`,
+                        amount: formatCurrency(transfer.amount),
                       })}
                       icon={<Trash2 size={16} />}
                       onClick={() => onDelete(transfer.id)}

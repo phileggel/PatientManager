@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
+import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
 import { getExcelAmountMappings, saveExcelAmountMappings } from "../../api/gateway";
@@ -38,6 +39,7 @@ export function ProcedureTypeMappingStep({
   isLoading = false,
 }: ProcedureTypeMappingStepProps) {
   const { t } = useTranslation("excel-import");
+  const { formatCurrency } = useFormatters();
   const [mapping, setMapping] = useState<MappingState>({});
   const [showNewTypeModal, setShowNewTypeModal] = useState<{
     tmpId: string;
@@ -154,7 +156,7 @@ export function ProcedureTypeMappingStep({
               return (
                 <tr key={procMapping.tmp_id} className="hover:bg-m3-surface-variant/20">
                   <td className="px-4 py-3 font-mono text-neutral-90">
-                    {(procMapping.amount / 1000).toFixed(2)} €
+                    {formatCurrency(procMapping.amount)}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -175,7 +177,7 @@ export function ProcedureTypeMappingStep({
                         </option>
                         {availableTypes.map((type) => (
                           <option key={type.id} value={type.id}>
-                            {type.name} ({(procMapping.amount / 1000).toFixed(2)} €)
+                            {type.name} ({formatCurrency(procMapping.amount)})
                           </option>
                         ))}
                         <option value="create-new">{t("mapping.createNew")}</option>
