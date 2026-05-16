@@ -16,7 +16,7 @@ interface SelectFundGroupsPanelProps {
 export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
   const { transferDate, selectedGroupIds, currentGroups } = props;
   const { t } = useTranslation("bank");
-  const { formatDate } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
   const {
     loading,
     isExpanded,
@@ -60,7 +60,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
                     {formatDate(group.payment_date)}
                   </span>
                   <span className="font-semibold whitespace-nowrap">
-                    €{(group.total_amount / 1000).toFixed(2)}
+                    {formatCurrency(group.total_amount)}
                   </span>
                 </div>
               </label>
@@ -107,7 +107,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
                   {formatDate(group.payment_date)}
                 </span>
                 <span className="font-semibold whitespace-nowrap">
-                  €{(group.total_amount / 1000).toFixed(2)}
+                  {formatCurrency(group.total_amount)}
                 </span>
               </div>
             </label>

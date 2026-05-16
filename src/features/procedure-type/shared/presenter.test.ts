@@ -165,7 +165,7 @@ describe("ProcedureTypePresenter", () => {
         rowId: expect.any(String),
         id: "proc-1",
         name: "X-Ray",
-        defaultAmount: 150.5, // 150500 thousandths → 150.50€
+        defaultAmount: 150500, // kept in thousandths
         category: "Radiology",
       });
       expect(result.rowId).toHaveLength(36); // UUID format

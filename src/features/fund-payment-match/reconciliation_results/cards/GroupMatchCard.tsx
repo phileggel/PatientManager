@@ -17,7 +17,6 @@ import {
   buildContestCorrection,
   buildContestKey,
   buildCorrectionKey,
-  formatAmount,
 } from "../../shared/utils";
 import { IssueChip, PdfSummary, ResolvedBadge } from "./CardParts";
 
@@ -37,7 +36,7 @@ export function GroupMatchCard({
   onAcceptCorrection,
 }: GroupMatchCardProps) {
   const { t } = useTranslation("fund-payment-match");
-  const { formatDate } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
 
   const getAmount = (m: DbMatch): number => {
     const key = buildCorrectionKey("AmountMismatch", m.procedure_id);
@@ -119,14 +118,14 @@ export function GroupMatchCard({
         <span className="text-m3-on-surface-variant">
           {t("results.distribution.total")} ·{" "}
           <span className="text-xs">
-            {t("results.distribution.expected")} {formatAmount(pdfLine.amount)} €
+            {t("results.distribution.expected")} {formatCurrency(pdfLine.amount)}
           </span>
         </span>
         <span className={`font-semibold ${amountOk ? "text-m3-success" : "text-m3-error"}`}>
-          {formatAmount(currentTotal)} €
+          {formatCurrency(currentTotal)}
           {!amountOk && (
             <span className="text-xs ml-1 font-normal">
-              ({t("results.distribution.remaining", { diff: formatAmount(Math.abs(diff)) })})
+              ({t("results.distribution.remaining", { diff: formatCurrency(Math.abs(diff)) })})
             </span>
           )}
         </span>
@@ -168,7 +167,7 @@ export function GroupMatchCard({
             }
           }}
         >
-          {t("results.action.contestAmount", { amount: formatAmount(currentTotal) })}
+          {t("results.action.contestAmount", { amount: formatCurrency(currentTotal) })}
         </Button>
       )}
     </div>

@@ -18,7 +18,6 @@ import {
   buildLinkProcedureKey,
   buildNotFoundCorrection,
   buildNotFoundKey,
-  formatAmount,
 } from "../../shared/utils";
 import { IssueChip, PdfSummary, ResolvedBadge } from "./CardParts";
 
@@ -36,7 +35,7 @@ export function NotFoundCard({
   onAcceptCorrection,
 }: NotFoundCardProps) {
   const { t } = useTranslation("fund-payment-match");
-  const { formatDate } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
 
   const createKey = buildNotFoundKey(line);
   const isCreateAccepted = acceptedKeys.has(createKey);
@@ -93,7 +92,7 @@ export function NotFoundCard({
                         · {candidate.ssn}
                       </span>
                       <div className="text-xs text-m3-on-surface-variant mt-0.5">
-                        {formatDate(candidate.procedure_date)} · {formatAmount(candidate.amount)} €
+                        {formatDate(candidate.procedure_date)} · {formatCurrency(candidate.amount)}
                       </div>
                     </div>
                     <Button

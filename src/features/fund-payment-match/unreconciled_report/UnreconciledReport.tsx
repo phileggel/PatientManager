@@ -26,7 +26,7 @@ export function UnreconciledReportView({
   onClose,
 }: UnreconciledReportProps) {
   const { t } = useTranslation("fund-payment-match");
-  const { formatDate } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
 
   useEffect(() => {
     logger.info("[UnreconciledReport] Component mounted");
@@ -62,7 +62,7 @@ export function UnreconciledReportView({
                     <td className="m3-td">{formatDate(proc.procedure_date)}</td>
                     <td className="m3-td">{proc.patient_name}</td>
                     <td className="m3-td font-mono text-xs">{proc.ssn}</td>
-                    <td className="m3-td text-right">{(proc.amount / 1000).toFixed(2)} €</td>
+                    <td className="m3-td text-right">{formatCurrency(proc.amount)}</td>
                   </tr>
                 ))}
               </tbody>

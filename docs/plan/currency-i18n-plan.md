@@ -103,3 +103,13 @@ Total estimate: ~170 LOC across ~25 files. Comparable to PR #26 (207/162 = 369 L
 ## Reviewer plan
 
 After commit 4, run `reviewer-frontend` + `reviewer-arch` in parallel. Apply graded findings (same discipline as PR #26: amend HEAD, no separate fix commit). Then `/create-pr`.
+
+## Drift addendum (2026-05-16)
+
+Drift check against current code before implementation surfaced two scope extensions, both folded into existing commits (no new commits):
+
+- **Commit 2 — `GroupMatchCard.tsx` undercount.** Plan listed 3 sites (122, 126, 129); a 4th site at line 171 (`formatAmount(currentTotal)` inside a `t("results.action.contestAmount", { amount: ... })` interpolation) must also migrate since commit 2 deletes the shared `formatAmount` helper.
+- **Commit 4 — `FundPaymentList.tsx:167` thousandths convention.** New site not in the original audit: `€{group.totalAmount.toFixed(2)}`. `FundPaymentRow.totalAmount` is currently pre-divided to euros in `presenter.ts:37` while sibling `useEditFundPaymentModal.totalAmount` keeps thousandths — inconsistent. Fix mirrors the `toSelectionSummary` Option B refactor: change `toRow` to keep `total_amount` as thousandths, route display through `formatCurrency`. Touches `presenter.ts:37`, `presenter.test.ts:29` (`toBe(150)` → `toBe(150000)`), `FundPaymentList.test.tsx:42` (mock `150` → `150000`), `FundPaymentList.tsx:167` (swap to `formatCurrency`). ~10-15 extra LOC.
+- **OOS confirmation**: `src/ui/components/field/useAmountField.ts:65` has its own `formatAmount(value, locale)` — already locale-aware, distinct purpose (form input formatting), no `€` symbol. Not touched.
+
+Revised total: ~180-185 LOC across ~26 files. 4 commits unchanged.

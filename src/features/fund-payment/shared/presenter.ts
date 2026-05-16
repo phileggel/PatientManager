@@ -11,19 +11,13 @@ import type { FundDisplayData, FundPaymentRow } from "./types";
  * This centralizes field extraction logic and makes transformations reusable
  * across different parts of the application.
  */
-/**
- * Format an amount stored in thousandths (i64) as a Euro string (e.g. "€12.50").
- */
-export function formatAmountEUR(thousandths: number): string {
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-    (thousandths ?? 0) / 1000,
-  );
-}
 
 export const FundPaymentPresenter = {
   /**
    * Transform domain FundPaymentGroup to UI row data for table display
-   * Extracts display fields and adds UI-specific properties
+   * Extracts display fields and adds UI-specific properties.
+   * totalAmount is kept in thousandths so callers can route through
+   * the locale-aware formatCurrency.
    */
   toRow(group: FundPaymentGroup, funds: Fund[]): FundPaymentRow {
     const fund = funds.find((f) => f.id === group.fund_id);
@@ -33,8 +27,7 @@ export const FundPaymentPresenter = {
       fundId: group.fund_id,
       fundName: fund ? `${fund.fund_identifier} - ${fund.name}` : group.fund_id,
       paymentDate: group.payment_date,
-      // Convert from thousandths (i64) to euros for display
-      totalAmount: group.total_amount / 1000,
+      totalAmount: group.total_amount,
       procedureCount: group.lines.length,
       isLocked: group.is_locked ?? false,
     };
@@ -73,7 +66,9 @@ export const FundPaymentPresenter = {
   },
 
   /**
-   * Transform selected procedures into a UI summary
+   * Transform selected procedures into a UI summary.
+   * `totalAmount` is in thousandths; consumers format it via the
+   * locale-aware `useFormatters().formatCurrency`.
    */
   toSelectionSummary(procedures: Procedure[]) {
     const count = procedures.length;
@@ -82,10 +77,7 @@ export const FundPaymentPresenter = {
     return {
       count,
       isEmpty: count === 0,
-      totalFormatted: new Intl.NumberFormat("fr-FR", {
-        style: "currency",
-        currency: "EUR",
-      }).format(totalAmount / 1000),
+      totalAmount,
     };
   },
 };

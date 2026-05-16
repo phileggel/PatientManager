@@ -29,7 +29,7 @@ export function MatchResultsStep({
   maxDateOffsetDays,
 }: MatchResultsStepProps) {
   const { t } = useTranslation("bank");
-  const { formatDate } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
   const funds = useAppStore((state) => state.funds);
   const allGroups = useAppStore((state) => state.fundPaymentGroups);
 
@@ -133,9 +133,7 @@ export function MatchResultsStep({
                       >
                         {line.label}
                       </p>
-                      <p className="font-semibold text-primary-60">
-                        {(line.amount / 1000).toFixed(2)} &euro;
-                      </p>
+                      <p className="font-semibold text-primary-60">{formatCurrency(line.amount)}</p>
                       <p className="text-xs text-neutral-50 italic">{getFundName(line.fund_id)}</p>
                     </div>
                   </td>
@@ -159,7 +157,7 @@ export function MatchResultsStep({
                             return (
                               <option key={cand.id} value={cand.id} disabled={isUsedByOther}>
                                 {formatDate(cand.payment_date)} -{" "}
-                                {(cand.total_amount / 1000).toFixed(2)}€
+                                {formatCurrency(cand.total_amount)}
                                 {isExpanded ? ` [${candFund?.fund_identifier || "?"}]` : ""}
                                 {isExactAmount
                                   ? t("statement.matchResults.option.exactAmount")

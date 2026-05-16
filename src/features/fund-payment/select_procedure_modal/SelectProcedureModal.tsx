@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
 import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components";
-import { formatAmountEUR } from "../shared/presenter";
 import { useProcedureSelectionModal } from "./useSelectProcedureModal";
 
 interface ProcedureSelectionModalProps {
@@ -31,7 +30,7 @@ export function ProcedureSelectionModal({
   preloadedProcedures,
 }: ProcedureSelectionModalProps) {
   const { t, i18n } = useTranslation("fund-payment");
-  const { formatDate } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
 
   const {
     loading,
@@ -171,7 +170,7 @@ export function ProcedureSelectionModal({
                           {getPatientName(proc.patient_id)}
                         </p>
                         <span className="font-semibold text-m3-on-surface whitespace-nowrap">
-                          {formatAmountEUR(proc.billed_amount ?? 0)}
+                          {formatCurrency(proc.billed_amount ?? 0)}
                         </span>
                       </div>
                     </div>
@@ -190,7 +189,7 @@ export function ProcedureSelectionModal({
                 {t("select.linesSelected", { count: stats.count })}
               </p>
               <p className="text-lg font-semibold text-m3-on-surface">
-                {formatAmountEUR(stats.total)}
+                {formatCurrency(stats.total)}
               </p>
             </div>
             <div className="flex gap-2">

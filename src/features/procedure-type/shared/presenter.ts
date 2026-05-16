@@ -21,8 +21,8 @@ export const ProcedureTypePresenter = {
       rowId: crypto.randomUUID(),
       id: procedureType.id,
       name: procedureType.name,
-      // Convert from thousandths (i64) to euros for display
-      defaultAmount: (procedureType.default_amount ?? 0) / 1000,
+      // Kept in thousandths; consumers format via useFormatters().formatCurrency.
+      defaultAmount: procedureType.default_amount ?? 0,
       category: procedureType.category ?? null,
     };
   },

@@ -162,12 +162,12 @@
       "willCreate": "Will be created",
       "link": "Link this procedure",
       "linked": "Will be linked",
-      "correctAmount": "Apply PDF amount: {{amount}} €",
+      "correctAmount": "Apply PDF amount: {{amount}}",
       "correctFund": "Apply PDF fund",
       "correctDate": "Apply PDF date",
       "accepted": "Accepted",
       "validateDistribution": "Validate this distribution",
-      "contestAmount": "Contest (actual amount: {{amount}} €)"
+      "contestAmount": "Contest (actual amount: {{amount}})"
     },
     "nearby": {
       "title": "Nearby procedures (different SSN)"
@@ -175,7 +175,7 @@
     "distribution": {
       "total": "Current total",
       "expected": "Expected",
-      "remaining": "Remaining: {{diff}} €"
+      "remaining": "Remaining: {{diff}}"
     },
     "tooMany": {
       "description": "{{count}} procedures match — automatic reconciliation impossible.",

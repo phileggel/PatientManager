@@ -23,7 +23,7 @@ import { useSortFundPaymentList } from "./useSortFundPaymentList";
 export function FundPaymentList() {
   const { t } = useTranslation("fund-payment");
   const { t: tc } = useTranslation("common");
-  const { formatDate } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
   const { fundPaymentRows, groups, loading, deleteGroup } = useFundPaymentList();
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -164,7 +164,7 @@ export function FundPaymentList() {
                       {formatDate(group.paymentDate)}
                     </td>
                     <td className="m3-td text-m3-on-surface font-semibold text-right">
-                      €{group.totalAmount.toFixed(2)}
+                      {formatCurrency(group.totalAmount)}
                     </td>
                     <td className="m3-td text-m3-on-surface text-right">{group.procedureCount}</td>
                     <td className="m3-td text-right">

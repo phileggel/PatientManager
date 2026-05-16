@@ -21,7 +21,6 @@ import { logger } from "@/lib/logger";
 import { Button, Dialog } from "@/ui/components";
 import { DateField } from "@/ui/components/field/DateField";
 import { ProcedureSelectionModal } from "../select_procedure_modal/SelectProcedureModal";
-import { formatAmountEUR } from "../shared/presenter";
 import { useEditFundPaymentModal } from "./useEditFundPaymentModal";
 
 const EMPTY_IDS: string[] = [];
@@ -40,7 +39,7 @@ export function EditFundPaymentModal({
   onClose,
 }: EditFundPaymentModalProps) {
   const { t } = useTranslation("fund-payment");
-  const { formatDate } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
 
   const {
     paymentDate,
@@ -101,7 +100,7 @@ export function EditFundPaymentModal({
           </div>
         </div>
         <span className="text-[13px] font-semibold text-m3-on-surface tabular-nums whitespace-nowrap">
-          {formatAmountEUR(proc.billed_amount ?? 0)}
+          {formatCurrency(proc.billed_amount ?? 0)}
         </span>
       </label>
     );
@@ -181,7 +180,7 @@ export function EditFundPaymentModal({
               {t("edit.proceduresSelected", { count: selectedIds.size })}
             </span>
             <span className="text-[14px] font-bold text-m3-primary tracking-tight">
-              {t("edit.total")} : {formatAmountEUR(totalAmount)}
+              {t("edit.total")} : {formatCurrency(totalAmount)}
             </span>
           </div>
 

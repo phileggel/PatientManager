@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { formatCurrency } from "@/lib/formatters";
 import { FundPaymentList } from "./FundPaymentList";
 
 vi.mock("./useFundPaymentList", () => ({
@@ -39,7 +40,7 @@ const makeRow = (id: string, isLocked: boolean) => ({
   fundId: "fund-1",
   fundName: "CPAM - Test",
   paymentDate: "2026-03-01",
-  totalAmount: 150,
+  totalAmount: 150000,
   procedureCount: 1,
   isLocked,
 });
@@ -73,6 +74,23 @@ describe("FundPaymentList", () => {
     render(<FundPaymentList />);
 
     expect(screen.getByText("CPAM - Test")).toBeInTheDocument();
+  });
+
+  it("renders totalAmount with locale-aware currency, never raw thousandths or bare numbers", () => {
+    vi.mocked(useFundPaymentList).mockReturnValue({
+      fundPaymentRows: [makeRow("g1", false)],
+      groups: [makeGroup("g1", false)],
+      loading: false,
+      deleteGroup: vi.fn(),
+    });
+
+    render(<FundPaymentList />);
+
+    // Test setup pins i18n locale to en-GB → `€150.00`. Comparing to the
+    // helper's own output keeps the assertion locale-aware.
+    expect(screen.getByText(formatCurrency(150000, "en-GB"))).toBeInTheDocument();
+    // No raw thousandths leak
+    expect(screen.queryByText("150000")).not.toBeInTheDocument();
   });
 
   describe("R18 — locked group visual feedback", () => {
