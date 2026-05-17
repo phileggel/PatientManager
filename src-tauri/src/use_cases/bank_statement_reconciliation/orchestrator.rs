@@ -11,8 +11,8 @@ use crate::context::fund::{Fund, FundPaymentGroupStatus, FundPaymentService, Fun
 use crate::context::procedure::{ProcedureService, ProcedureStatus};
 use crate::shared::event_bus::{BankEntryUpdated, EventBus, ProcedureUpdated};
 use crate::shared::logger::BACKEND;
+use crate::shared::pdf_extractor;
 use crate::shared::secure_path::{self, PathPolicy};
-use crate::use_cases::fund_payment_reconciliation::parsing::pdf_extractor;
 
 use super::bank_pdf_codec::BankStatementParseResult;
 use super::label_mapping_repo::BankFundLabelMappingRepository;
@@ -146,8 +146,7 @@ impl BankStatementOrchestrator {
             anyhow::anyhow!("{e}")
         })?;
 
-        let text = pdf_extractor::extract_pdf_text(&canonical)
-            .map_err(|e| anyhow::anyhow!("Failed to extract PDF text: {}", e))?;
+        let text = pdf_extractor::extract_pdf_text(&canonical)?;
         tracing::info!(target: BACKEND, chars = text.len(), "PDF text extracted");
 
         let result = parser::parse_bank_statement(&text);

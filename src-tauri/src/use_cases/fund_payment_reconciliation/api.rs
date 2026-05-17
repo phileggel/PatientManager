@@ -1,7 +1,7 @@
-use super::parsing::pdf_extractor;
 use super::parsing::pdf_parser;
 use super::service::ReconciliationService;
 use crate::shared::logger::BACKEND;
+use crate::shared::pdf_extractor;
 use crate::shared::secure_path::{self, PathPolicy};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -302,7 +302,7 @@ pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
         tracing::warn!(target: BACKEND, error = %e, "PDF path rejected by validator");
         format!("{e}")
     })?;
-    let result = pdf_extractor::extract_pdf_text(&canonical)?;
+    let result = pdf_extractor::extract_pdf_text(&canonical).map_err(|e| format!("{:#}", e))?;
 
     tracing::info!(
         target: BACKEND,

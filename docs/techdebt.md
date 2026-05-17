@@ -38,14 +38,6 @@ not as a sweep.
 
 ---
 
-## 2026-05-12 — `pdf_extractor` is a cross-use-case import
-
-**Where:** `src-tauri/src/use_cases/bank_statement_reconciliation/orchestrator.rs` and `…/api.rs` both import `crate::use_cases::fund_payment_reconciliation::parsing::pdf_extractor`.
-
-**Observation:** `pdf_extractor` is a pure PDF→text utility with no fund-payment-specific knowledge, yet it sits inside the `fund_payment_reconciliation` use case. Per B18 (use cases MUST NOT import from another use case), this is a violation. The natural fix is to move the module to `shared/infrastructure/` (or equivalent kit-v4.4 shared bucket) so both `bank_statement_reconciliation` and `fund_payment_reconciliation` consume it without crossing use-case boundaries. Pre-existing — the import already existed in `bank_statement_reconciliation/api.rs` before today's api-boundary cleanup.
-
----
-
 ## 2026-05-13 — `rsa 0.9.10` (Marvin timing side-channel) compiled in via `sqlx-mysql` even though we use SQLite only
 
 **Where:** `Cargo.lock` — `rsa 0.9.10` pulled in by `sqlx-macros → sqlx-mysql 0.8.6`. `Cargo.toml` declares `sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }` — no `mysql` feature.
