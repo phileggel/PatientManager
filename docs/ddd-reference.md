@@ -185,96 +185,104 @@ Infrastructure types (`sqlx::Pool`, concrete repos) must never appear in Applica
 
 ## Errors
 
-### Three categories of errors
+> Concepts and rules below — where errors come from, how they travel. For the how-to (where to add a variant, the flat-`{BC}Error` shape, use-case composites, wire format, Tauri boundary), see [`error-model.md`](error-model.md).
 
-- **Domain error** — a violation of a business rule or invariant. Belongs to the domain layer. Expressed in ubiquitous language. Examples: `OrderNotPaid`, `InsufficientStock`, `CannotCancelShippedOrder`.
-- **Application error** — a use-case / orchestration concern that is not itself a business rule. Examples: `OrderNotFound`, `Unauthorized`, precondition for running the use case not met.
-- **Infrastructure error** — a purely technical failure with no business meaning. Examples: I/O failure, file not found, DB timeout, deserialization error, network failure.
+### Three categories of errors (origin, not type)
 
-Test for classification: _would a domain expert recognize this concept?_ If yes → domain. If it's about running the use case → application. If it's plumbing → infrastructure.
+These categories describe **where an error originates** and what vocabulary it speaks. They do _not_ map to separate Rust types — in the flat-`{BC}Error` model, all three live as variants of a single per-BC enum (see [`error-model.md`](error-model.md) § The rule). The categories are still useful for reasoning about whether a variant belongs in `{BC}Error`, `{UseCase}Error`, or nowhere at all.
+
+- **Domain origin** — a violation of a business rule or invariant raised by aggregate code. Expressed in ubiquitous language. Examples: `OrderNotPaid`, `InsufficientStock`, `CannotCancelShippedOrder`.
+- **Application origin** — a use-case / service concern that is not itself a business rule. Examples: `OrderNotFound`, `Unauthorized`, precondition for running the use case not met.
+- **Infrastructure origin** — a purely technical failure with no business meaning. Examples: I/O failure, file not found, DB timeout, deserialization error, network failure.
+
+Test for classification: _would a domain expert recognize this concept?_ If yes → domain origin. If it's about running the use case → application origin. If it's plumbing → infrastructure origin.
 
 ### Rejection-layer rule
 
-The classification test above can be ambiguous for variants like `NotFound` or uniqueness checks — they're raised by the service before any aggregate is loaded, so the "would a domain expert recognize this?" question is easy to answer either way. The rejection-layer rule resolves it:
+The classification test above can be ambiguous for variants like `NotFound` or uniqueness checks — they're raised by the service before any aggregate is loaded, so the "would a domain expert recognize this?" question is easy to answer either way. The rejection-layer rule resolves where the variant lives:
 
-> An error is a **domain** error if and only if it is raised by an aggregate method (or value-object constructor) enforcing an invariant on its own loaded state or input.
+> A variant raised by an aggregate method (or value-object constructor) enforcing an invariant on its own loaded state or input has **domain origin**.
 >
-> Anything raised by the service or use-case layer — `NotFound`, uniqueness checks, cross-BC preconditions, infrastructure failures — is **application** (or **infrastructure** for opaque catch-alls).
+> A variant raised by the service or use-case layer — `NotFound`, uniqueness checks, cross-BC preconditions, translated infrastructure failures — has **application origin**.
+
+Both go into the same `{BC}Error` enum. The distinction matters for reasoning ("could this rule move into the aggregate?"), not for Rust typing.
 
 Concretely:
 
-- **Aggregate-method rejection** → domain. `Asset::ensure_user_managed(&self) -> Result<(), AssetDomainError>` is enforcing an invariant on loaded state. Domain.
-- **Service-level pre-check** → application. `if repo.find(id).is_none() { return Err(AssetNotFound) }` runs before any aggregate is loaded. Application.
-- **Use-case orchestrator rejection** (cross-BC preconditions) → application. The orchestrator coordinates BCs; it doesn't own any single aggregate's invariants.
-- **Translated infrastructure failure** → application (e.g. `RepoError::NotFound` → `AssetNotFound`) or opaque `Infrastructure(hint)` catch-all.
+- **Aggregate-method rejection** → domain origin. `Order::apply_payment(&mut self, payment) -> Result<Payment, OrderError>` enforcing `InsufficientFunds` on loaded state.
+- **Service-level pre-check** → application origin. `if repo.find(id).is_none() { return Err(OrderError::OrderNotFound { ... }) }` runs before any aggregate is loaded.
+- **Use-case orchestrator rejection** (cross-BC preconditions, in-flight guards) → use-case-specific. Flat variant in `{UseCase}Error` (not in any BC's enum), e.g. `ProcessOrderError::ProcessAlreadyRunning`.
+- **Translated infrastructure failure** → application origin. `repo.something().await.map_err(|e| { tracing::error!(...); OrderError::DatabaseError })?` at the service call site. Unit variant — no `hint` payload. The full diagnostic chain is preserved server-side via the `tracing::error!` call, not on the wire.
 
 The rule has a useful side-effect: if a service-level pre-check could be moved into the aggregate, the rejection-layer rule says it _should_ be — see the anemic-domain rule in `backend-rules.md`.
 
 ### Scoping rule
 
-Domain errors should be scoped per aggregate or operation (`OrderError`, `PaymentError`), not collected into a single mega-enum for the whole bounded context. This keeps the language tight and the variants meaningful.
+One flat enum per bounded context (`{BC}Error`). Aggregate-invariant variants and service-layer variants sit side by side — the reader sees the BC's full failure surface in one type. Do not split into per-aggregate (`OrderError` + `PaymentError`) or per-layer (`OrderDomainError` + `OrderApplicationError`) sub-enums; that fragmentation hides which variants the BC can actually raise.
+
+Use-case orchestrators compose multiple BCs and add their own guards. They get a `{UseCase}Error` composite that wraps each BC enum via `#[from]` + adds flat use-case-specific variants. See [`error-model.md`](error-model.md) § Use-case composite.
 
 ### Travel rule
 
 An error may move up a layer only if it is meaningful in that layer's vocabulary. Otherwise it must be translated at the boundary.
 
-- Domain errors are meaningful at every layer (they are business language).
-- Application errors are meaningful at the application and UI layers.
-- Infrastructure errors are meaningful only at the infrastructure layer.
+- Domain-origin and application-origin variants of `{BC}Error` are meaningful at every layer above — they speak the BC's language and reach the UI as-is.
+- Infrastructure-origin failures (raw `sqlx::Error`, `io::Error`, network errors) are meaningful only at the infrastructure layer. They must be translated at the service call site into `{BC}Error::DatabaseError` (or another named variant if the failure has a more specific meaning) before they cross into the application layer. The diagnostic chain is preserved via `tracing::error!`, not via a wire payload.
 
 ### Flow toward the UI
 
-- **Domain error** → reaches the UI essentially as-is. It may be structurally wrapped in the outer error enum so the application boundary returns a single `Result<T, E>`, but its meaning is not transformed.
-- **Application error** → goes straight to the UI. It was born at the application layer speaking the UI's language.
-- **Infrastructure error** → must be translated at the application boundary. Either into a meaningful application error (e.g. `RepoError::NotFound` → `OrderNotFound`), or into an opaque variant (e.g. `Io`, `Deserialize` → generic `Infrastructure` / 500). Raw infrastructure errors never cross into the UI.
+- **Domain-origin variant** → reaches the UI as-is, wrapped at the use-case layer by `#[from]` in `{UseCase}Error` (or directly returned if the command is BC-scoped). Wire shape: `{ code: "InsufficientFunds", ... }`.
+- **Application-origin variant** → same path. Born in the service or translated from infra at the service. Wire shape: `{ code: "OrderNotFound", order_id: "..." }` or `{ code: "DatabaseError" }`.
+- **Infrastructure-origin failure** → never crosses into the application layer in raw form. Translated at the service call site into a typed `{BC}Error` variant; diagnostic detail goes to logs only. The FE always sees a typed, named code — no opaque strings, no panic backtraces.
 
 ### Principles
 
-- Lower layers do not know about upper layers. Errors flow upward and become progressively more abstract and user-appropriate.
-- Infrastructure error _details_ are logged, not returned. The user-facing response stays generic ("something went wrong"); the diagnostic detail goes to the logs.
-- Structural wrapping (putting a domain error inside the outer enum) is not the same as semantic translation (changing what the error means). Domain errors are wrapped, not translated. Infrastructure errors are translated.
-- The dependency arrow points inward: the domain must not depend on infrastructure error types. If `FileNotFound` leaks into a domain `Result`, the domain has implicitly become coupled to a storage choice.
+- Lower layers do not know about upper layers. Raw infrastructure failures stay confined to the service call site that produces them; everything above sees typed `{BC}Error` variants.
+- Infrastructure error _details_ are logged, not returned. The user-facing response stays generic ("something went wrong"); the diagnostic detail goes to the logs via `tracing::error!` at the translation site.
+- `#[serde(untagged)]` on a `{UseCase}Error` composite flattens wrappers on the wire — two wrapper variants whose BC enums share a `code` discriminant will silently collide (first arm wins). Verify uniqueness when adding a wrapper.
+- The dependency arrow points inward: the domain must not depend on infrastructure error types. If `sqlx::Error` leaks into a domain `Result`, the domain has implicitly become coupled to a storage choice.
 
 ### Application boundary: use case vs application service
 
 The error contract is identical whether the UI calls:
 
-- a **use case / interactor / orchestrator** (one class per use case, Clean Architecture style), or
-- an **application service** (one class grouping related use cases as methods, classical DDD style).
+- a **use case / interactor / orchestrator** (one class per use case, Clean Architecture style) → returns `Result<T, {UseCase}Error>`, or
+- an **application service** (one class grouping related use cases as methods, classical DDD style) → returns `Result<T, {BC}Error>` directly when no cross-BC orchestration is needed.
 
-In both cases the application boundary:
+In both cases the boundary:
 
-1. Exposes `Result<T, AppError>` (or a per-operation error enum) to the UI.
+1. Returns a typed `Result<T, E>` to the UI (no `String`, no `anyhow`).
 2. Orchestrates domain and infrastructure.
-3. Translates infrastructure errors into application errors.
-4. Wraps domain errors structurally without altering their meaning.
+3. Translates infrastructure failures into `{BC}Error::DatabaseError` at the call site.
+4. Composes BC errors via `#[from]` in the `{UseCase}Error` composite when orchestrating across BCs.
 
 The choice between the two is about code organization (granularity, cohesion, testability), not about how errors are modeled or propagated.
 
 ### Rust shape (illustrative)
 
 ```rust
-// domain layer
+// Per-BC flat enum — at context/{bc}/error.rs
+#[serde(tag = "code")]
 pub enum OrderError {
-    NotPaid,
-    AlreadyShipped,
-    EmptyCart,
+    // Domain-origin (aggregate-invariant)
+    InsufficientFunds { available_micros: i64, required_micros: i64 },
+    ReferenceEmpty,
+    // Application-origin (service-layer)
+    OrderNotFound { order_id: String },
+    ReferenceAlreadyExists,
+    // Infrastructure-origin (translated at the service call site)
+    DatabaseError,
 }
 
-// infrastructure layer
-pub enum RepoError {
-    NotFound,
-    Io(std::io::Error),
-    Deserialize(serde_json::Error),
-}
-
-// application layer — per use case, or grouped in a service
-pub enum PlaceOrderError {
-    Domain(OrderError),         // wrapped, not translated
-    OrderNotFound,              // translated from RepoError::NotFound
-    Unauthorized,               // born at this layer
-    Infrastructure,             // opaque catch-all for plumbing failures
+// Use-case composite — at use_cases/{name}/error.rs
+#[serde(untagged)]
+pub enum ProcessOrderError {
+    Order(#[from] OrderError),              // wrapper — all OrderError variants reachable
+    Inventory(#[from] InventoryError),      // wrapper — all InventoryError variants reachable
+    ProcessAlreadyRunning,                  // flat use-case guard
+    NoLineItemsToProcess,                   // flat use-case guard
+    UnknownError,                           // flat catch-all
 }
 ```
 
-At the UI boundary, `PlaceOrderError` is mapped to the user-facing response (HTTP status, view model, CLI exit code, etc.). Domain and application variants get specific messages; the `Infrastructure` variant becomes a generic failure response, with details only in logs.
+At the wire, `ProcessOrderError` serializes as `{ code: "...", ...payload }` — wrappers disappear, every variant is reachable as a flat `code` discriminator. The UI narrows on `code` (see [`error-model.md`](error-model.md) § Frontend handling). Use-case composite types are an upper bound on per-command reachable codes; the contract narrows further to what's actually returnable.

@@ -42,7 +42,7 @@ merge:
 # Run pending database migrations
 # Prerequisites: sqlx must be on $PATH and DATABASE_URL must be set
 migrate:
-    cd src-tauri && sqlx migrate run
+    @if [ -d src-tauri ]; then cd src-tauri && sqlx migrate run; else echo "ℹ skipping migrate (no src-tauri/)"; fi
 
 # Regenerate SQLx offline query cache (run after schema or query changes).
 # SQLX_OFFLINE=false forces online mode — projects that set SQLX_OFFLINE=true
@@ -50,12 +50,12 @@ migrate:
 # which is its whole purpose. No-op for projects that haven't set SQLX_OFFLINE.
 # Override `DATABASE_URL` in your local justfile if your dev DB lives elsewhere.
 prepare-sqlx:
-    cd src-tauri && SQLX_OFFLINE=false DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests
+    @if [ -d src-tauri ]; then cd src-tauri && SQLX_OFFLINE=false DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests; else echo "ℹ skipping prepare-sqlx (no src-tauri/)"; fi
 
 # Auto-fix formatting and linting
 format:
-    @cd src-tauri && cargo fmt
-    @cd src-tauri && cargo clippy --fix --allow-dirty --quiet
+    @if [ -d src-tauri ]; then cd src-tauri && cargo fmt; else echo "ℹ skipping cargo fmt (no src-tauri/)"; fi
+    @if [ -d src-tauri ]; then cd src-tauri && cargo clippy --fix --allow-dirty --quiet; else echo "ℹ skipping clippy (no src-tauri/)"; fi
     @npm run format:fix
     @npm run format:docs
 
@@ -63,5 +63,9 @@ format:
 clean-db:
     #!/usr/bin/env bash
     set -euo pipefail
+    if [ ! -d src-tauri ]; then
+        echo "ℹ skipping clean-db (no src-tauri/)"
+        exit 0
+    fi
     rm -rf src-tauri/.local/*
     cd src-tauri && sqlx database setup

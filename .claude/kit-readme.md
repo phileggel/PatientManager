@@ -20,17 +20,18 @@ The script self-updates before syncing: if `sync-config.sh` itself changed in th
 
 ## Convention Docs
 
-The kit syncs 7 convention docs into `docs/` on first sync (copy-once — never overwrites project customizations). They are the authoritative reference for the stack's coding standards and are read directly by review and test agents:
+The kit syncs 8 convention docs into `docs/` on first sync (copy-once — never overwrites project customizations). They are the authoritative reference for the stack's coding standards and are read directly by review and test agents:
 
-| Doc                        | What it governs                          |
-| -------------------------- | ---------------------------------------- |
-| `backend-rules.md`         | Rust DDD structure and patterns          |
-| `frontend-rules.md`        | React feature layout, gateway pattern    |
-| `e2e-rules.md`             | WebdriverIO testability conventions      |
-| `test_convention.md`       | Testing strategy across all tiers        |
-| `ddd-reference.md`         | DDD concept glossary                     |
-| `i18n-rules.md`            | Translation structure and key naming     |
-| `frontend-visual-proof.md` | Screenshot/video workflow for UI changes |
+| Doc                        | What it governs                                      |
+| -------------------------- | ---------------------------------------------------- |
+| `backend-rules.md`         | Rust DDD structure and patterns                      |
+| `frontend-rules.md`        | React feature layout, gateway pattern                |
+| `e2e-rules.md`             | WebdriverIO testability conventions                  |
+| `test_convention.md`       | Testing strategy across all tiers                    |
+| `ddd-reference.md`         | DDD concept glossary                                 |
+| `error-model.md`           | Typed-error contract (flat `{BC}Error` + composites) |
+| `i18n-rules.md`            | Translation structure and key naming                 |
+| `frontend-visual-proof.md` | Screenshot/video workflow for UI changes             |
 
 **Do not edit these files directly.** Update them in the kit and re-sync. Rule numbers (B1, F3, etc.) are stable — never renumber.
 

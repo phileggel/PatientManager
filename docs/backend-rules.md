@@ -13,8 +13,7 @@
 ```
 src-tauri/src/
 ├── shared/                                 ← cross-cutting (was: core/ pre-v4.4)
-│   ├── application/                        ← shared application types
-│   │   └── error.rs                        ← shared InfrastructureError
+│   ├── application/                        ← shared application types (reserved; empty in projects with no cross-BC application concern)
 │   ├── domain/                             ← shared kernel (cross-BC domain — see ddd-reference.md § Shared Kernel)
 │   │   └── *.rs                            ← cross-BC constants, IDs, value objects
 │   └── infrastructure/                     ← shared concrete infra
@@ -26,20 +25,19 @@ src-tauri/src/
 │
 ├── context/{bc}/                           ← bounded contexts
 │   ├── api.rs                              ← boundary (Tauri commands, single-BC scope)
+│   ├── error.rs                            ← {BC}Error (one flat enum — every variant the BC can raise)
 │   ├── application/                        ← Application layer
-│   │   ├── error.rs                        ← *ApplicationError, *ServiceError composites
-│   │   └── service.rs                      ← *Service (orchestrates aggregate)
+│   │   └── service.rs                      ← {BC}Service (orchestrates aggregate)
 │   ├── domain/                             ← Domain layer (pure, no infra deps)
 │   │   ├── {aggregate_root}.rs
-│   │   ├── {entity_or_vo}.rs
-│   │   └── error.rs                        ← *DomainError, *OperationError
+│   │   └── {entity_or_vo}.rs
 │   └── infrastructure/                     ← Infrastructure layer (was: repository/ pre-v4.4)
 │       └── {aggregate}.rs                  ← repo impls today; future external/cache adapters as siblings
 │
 └── use_cases/{flow}/                       ← cross-BC orchestrators
     ├── api.rs                              ← cross-BC Tauri commands
     ├── orchestrator.rs
-    └── error.rs                            ← *UseCaseError (if introduces own variants)
+    └── error.rs                            ← {UseCase}Error composite (wraps BC enums + flat guards)
 ```
 
 **B1** — `shared/` MUST only contain cross-cutting code (infrastructure utilities, shared application types, shared kernel domain) with no BC-specific knowledge.
@@ -60,7 +58,7 @@ src-tauri/src/
 
 **B42** — Top-level cross-cutting folder MUST be named `shared/`, not `core/`. `core/` overpromises (it implies "central business logic" but BCs ARE the business). `shared/` is direct, accurate, and DDD-agnostic for newcomers.
 
-**B43** — Keep layer folders even when small. `shared/application/` may have only one file today (the shared `InfrastructureError`); keep the folder anyway. It documents the layering and reserves the spot for growth — the alternative is a deceptively flat `shared/` that hides the layer structure.
+**B43** — Keep layer folders even when small or empty. `shared/application/` is typically empty in projects following the flat-`{BC}Error` model (per-BC translation lives in each BC's own `error.rs` — see [`error-model.md`](error-model.md)); keep the folder anyway. It documents the layering and reserves the spot for cross-BC application-layer growth (e.g. a future cross-cutting orchestration helper). The alternative is a deceptively flat `shared/` that hides the layer structure.
 
 ## Ubiquitous Language
 
@@ -112,8 +110,8 @@ and MUST be refactored incrementally.
 
 Service-layer state-dependent pre-checks are an "anemic domain" anti-pattern: the service ends up encoding rules about the aggregate's lifecycle, leaving the aggregate as a pure data carrier. Concrete forms that respect this rule:
 
-- **State-mutating actions:** `aggregate.action_from(self, ...) -> Result<Self, *DomainError>` consuming `self`, returning the new state for the caller to persist. The aggregate enforces its own invariants in the constructor of the result.
-- **Pre-conditions for non-constructive ops** (e.g. delete): `aggregate.ensure_<predicate>(&self) -> Result<(), *DomainError>`. The service calls it just before invoking the destructive action.
+- **State-mutating actions:** `aggregate.action_from(self, ...) -> Result<Self, {BC}Error>` consuming `self`, returning the new state for the caller to persist. The aggregate enforces its own invariants in the constructor of the result.
+- **Pre-conditions for non-constructive ops** (e.g. delete): `aggregate.ensure_<predicate>(&self) -> Result<(), {BC}Error>`. The service calls it just before invoking the destructive action.
 
 Service-layer checks are appropriate ONLY for cross-aggregate invariants (uniqueness across the BC) or application-layer concerns (`NotFound`, cross-BC preconditions). See the rejection-layer rule in `ddd-reference.md` § Errors for the disambiguation.
 
@@ -132,7 +130,7 @@ Its sole responsibilities are:
 
 1. **Deserialize** — translate Tauri command arguments into domain types
 2. **Delegate** — make exactly one call to its own BC Application Service
-3. **Serialize** — map the result to `Result<T, String>` for Tauri
+3. **Return** — propagate the typed `Result<T, {BC}Error>` directly (the BC enum, or the `{UseCase}Error` composite for cross-BC orchestrators, IS the FE-facing contract — see [`error-model.md`](error-model.md)); no mapper, no boundary type
 
 It MUST only call the Application Service of its own bounded context.
 It MUST NOT call another BC's service, another BC's repository, or a use case.
@@ -152,7 +150,7 @@ method after commit — the service owns the event, not the use case.
 
 **B21** — MUST declare its Tauri commands in its own `api.rs` file. This `api.rs` follows
 the same framework boundary role as for Bounded Context: deserialize → delegate to the use case orchestrator
-→ serialize. It MUST NOT contain coordination logic — that belongs in the orchestrator.
+→ return the typed composite. It MUST NOT contain coordination logic — that belongs in the orchestrator.
 
 **B22** — SHOULD have an orchestrator as its main entry point (after api) that handles the global logic.
 
@@ -201,9 +199,7 @@ tracing::info!(target: BACKEND, field = value, "message");
 
 ## General
 
-**B31** — MUST use `anyhow::Result<T>` for error handling.
-
-- Exception: Tauri command responses use `Result<T, String>`.
+**B31** — Application services and use-case orchestrators MUST return typed `Result<T, {BC}Error>` (BC-scoped) or `Result<T, {UseCase}Error>` (cross-BC composite) per [`error-model.md`](error-model.md) — one flat enum per BC, plus use-case composites via `#[serde(untagged)]` + `#[from]`. Repositories MAY use `anyhow::Error` as their trait error type; the application layer translates infra failures to the BC's `{BC}Error::DatabaseError` variant at the call site, logging the diagnostic chain via `tracing::error!`. Tauri commands return the typed enum / composite directly — no `Result<T, String>` boundary translation, no `anyhow::Result<T>` on a wire-visible signature.
 
 **B32** — MAY use `#[allow(clippy::too_many_arguments)]` on domain factory methods and production constructors (e.g. orchestrator or service new() with many injected dependencies). MUST NOT use on test helpers — use a builder struct instead.
 

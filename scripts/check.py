@@ -8,7 +8,6 @@ import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import List, Optional
 
 # Semantic ANSI colors. Use these by *meaning* (INFO, SUCCESS, …), not by hue —
 # keeps call sites readable and makes the palette swappable. Respects NO_COLOR=1.
@@ -30,6 +29,19 @@ STATUS_STALE = "Stale"
 STATUS_UNCOMMITTED = "Uncommitted"
 # Variable-detail warning values use the suffix " errors" / " warnings"
 # (e.g. "3 errors") — recognised by `_format_status`.
+
+# Backend root directory. Default to the kit's `src-tauri/` convention;
+# downstream forks with a different layout (e.g. `app/`, `tauri/`,
+# multi-crate workspace at `crates/api/`) override this single constant
+# to point check.py at their Rust root.
+BACKEND_DIR = "src-tauri"
+
+# Skip reasons for partial-stack projects. Use these everywhere a check
+# is gated on a stack marker — single source of truth for the message
+# that appears in inline output and the stack summary.
+SKIP_FRONTEND_ABSENT = "package.json absent"
+SKIP_BACKEND_ABSENT = f"{BACKEND_DIR}/Cargo.toml absent"
+SKIP_SQLX_ABSENT = f"{BACKEND_DIR}/.sqlx/ absent"
 
 # Strip ANSI escape sequences when measuring visible cell width for the
 # report table. Needed because `f"{s:<30}"` pads by string length, which
@@ -99,8 +111,8 @@ class QualityChecker:
         # Partial-stack projects (e.g. no-DB Tauri, FE-only, kit-only bootstrap)
         # skip the gated checks instead of failing.
         self.package_json = self.repo_root / "package.json"
-        self.cargo_toml = self.repo_root / "src-tauri" / "Cargo.toml"
-        self.sqlx_dir = self.repo_root / "src-tauri" / ".sqlx"
+        self.cargo_toml = self.repo_root / BACKEND_DIR / "Cargo.toml"
+        self.sqlx_dir = self.repo_root / BACKEND_DIR / ".sqlx"
         self._skipped_for_stack: list[tuple[str, str]] = []  # (reason, check_name)
 
     # --- Thread-safe state mutators -----------------------------------------
@@ -112,7 +124,7 @@ class QualityChecker:
         with self._lock:
             self.metrics[key] = value
 
-    def _record_failure(self, step: str, output: Optional[str] = None) -> None:
+    def _record_failure(self, step: str, output: str | None = None) -> None:
         with self._lock:
             self.suite_failed = True
             if output:
@@ -156,9 +168,9 @@ class QualityChecker:
     def run_step(
         self,
         name: str,
-        cmd: List[str],
-        cwd: Optional[Path] = None,
-        env_update: Optional[dict] = None,
+        cmd: list[str],
+        cwd: Path | None = None,
+        env_update: dict | None = None,
     ) -> bool:
         self._safe_print(f"  {name}...", flush=True)
         self._vprint(f"\n{INFO}▶ Running {name}...{RESET}")
@@ -226,7 +238,7 @@ class QualityChecker:
 
     def check_sqlx(self) -> bool:
         if self._maybe_skip_for_stack(
-            "sqlx", "SQLx Integrity", self.sqlx_dir, "src-tauri/.sqlx/ absent"
+            "sqlx", "SQLx Integrity", self.sqlx_dir, SKIP_SQLX_ABSENT
         ):
             return True
 
@@ -259,7 +271,7 @@ class QualityChecker:
         success = self.run_step(
             "SQLx Prepare Check",
             ["cargo", "sqlx", "prepare", "--check"],
-            cwd=self.repo_root / "src-tauri",
+            cwd=self.repo_root / BACKEND_DIR,
         )
         self._set_metric("sqlx", STATUS_PASS if success else STATUS_STALE)
         return success
@@ -327,24 +339,24 @@ class QualityChecker:
         """Format-only: oxlint + biome + cargo fmt --check. Sub-second.
         Useful as a super-fast pre-flight before committing."""
         if not self._maybe_skip_for_stack(
-            "lint", "Oxlint", self.package_json, "package.json absent"
+            "lint", "Oxlint", self.package_json, SKIP_FRONTEND_ABSENT
         ):
             if self.run_step("Oxlint", ["npm", "run", "lint"]):
                 self._set_metric("lint", STATUS_PASS)
 
         if not self._maybe_skip_for_stack(
-            "biome", "Biome Check", self.package_json, "package.json absent"
+            "biome", "Biome Check", self.package_json, SKIP_FRONTEND_ABSENT
         ):
             if self.run_step("Biome Check", ["npm", "run", "format"]):
                 self._set_metric("biome", STATUS_PASS)
 
         if not self._maybe_skip_for_stack(
-            "rust_fmt", "Rust Fmt", self.cargo_toml, "src-tauri/Cargo.toml absent"
+            "rust_fmt", "Rust Fmt", self.cargo_toml, SKIP_BACKEND_ABSENT
         ):
             if self.run_step(
                 "Rust Fmt",
                 ["cargo", "fmt", "--check"],
-                cwd=self.repo_root / "src-tauri",
+                cwd=self.repo_root / BACKEND_DIR,
             ):
                 self._set_metric("rust_fmt", STATUS_PASS)
 
@@ -354,32 +366,39 @@ class QualityChecker:
 
         if run_tests:
             if not self._maybe_skip_for_stack(
-                "react_tests", "React Tests", self.package_json, "package.json absent"
+                "react_tests", "React Tests", self.package_json, SKIP_FRONTEND_ABSENT
             ):
-                if self.run_step("React Tests", ["npm", "test", "--", "--run"]):
+                # --passWithNoTests: a scaffolded React stack with no test files
+                # yet (mid-bootstrap, fresh feature start) would otherwise exit 1
+                # from vitest's "No test files found" path and fail the suite.
+                # The flag short-circuits to exit 0 in that case; harmless once
+                # tests exist. See gh#27.
+                if self.run_step(
+                    "React Tests", ["npm", "test", "--", "--run", "--passWithNoTests"]
+                ):
                     self._set_metric("react_tests", STATUS_PASS)
 
         if not self.fast_mode:
             if not self._maybe_skip_for_stack(
-                "build", "Application Build", self.package_json, "package.json absent"
+                "build", "Application Build", self.package_json, SKIP_FRONTEND_ABSENT
             ):
                 if self.run_step("Application Build", ["npm", "run", "build"]):
                     self._set_metric("build", STATUS_PASS)
 
         if not self._maybe_skip_for_stack(
-            "lint", "Oxlint", self.package_json, "package.json absent"
+            "lint", "Oxlint", self.package_json, SKIP_FRONTEND_ABSENT
         ):
             if self.run_step("Oxlint", ["npm", "run", "lint"]):
                 self._set_metric("lint", STATUS_PASS)
 
         if not self._maybe_skip_for_stack(
-            "biome", "Biome Check", self.package_json, "package.json absent"
+            "biome", "Biome Check", self.package_json, SKIP_FRONTEND_ABSENT
         ):
             if self.run_step("Biome Check", ["npm", "run", "format"]):
                 self._set_metric("biome", STATUS_PASS)
 
         if not self._maybe_skip_for_stack(
-            "tsc", "TSC", self.package_json, "package.json absent"
+            "tsc", "TSC", self.package_json, SKIP_FRONTEND_ABSENT
         ):
             self._safe_print("  TSC...", flush=True)
             self._vprint(f"\n{INFO}▶ Running TypeScript Check (TSC)...{RESET}")
@@ -409,12 +428,12 @@ class QualityChecker:
                 "rust_lib",
                 "Rust Lib Tests",
                 self.cargo_toml,
-                "src-tauri/Cargo.toml absent",
+                SKIP_BACKEND_ABSENT,
             ):
                 if self.run_step(
                     "Rust Lib Tests",
                     ["cargo", "test", "--lib"],
-                    cwd=self.repo_root / "src-tauri",
+                    cwd=self.repo_root / BACKEND_DIR,
                     env_update={"SQLX_OFFLINE": "true"},
                 ):
                     self._set_metric("rust_lib", STATUS_PASS)
@@ -423,12 +442,12 @@ class QualityChecker:
                 "rust_beh",
                 "Rust Behavior Tests",
                 self.cargo_toml,
-                "src-tauri/Cargo.toml absent",
+                SKIP_BACKEND_ABSENT,
             ):
                 if self.run_step(
                     "Rust Behavior Tests",
                     ["cargo", "test", "--tests"],
-                    cwd=self.repo_root / "src-tauri",
+                    cwd=self.repo_root / BACKEND_DIR,
                     env_update={"SQLX_OFFLINE": "true"},
                 ):
                     self._set_metric("rust_beh", STATUS_PASS)
@@ -436,23 +455,23 @@ class QualityChecker:
         self.check_sqlx()
 
         if not self._maybe_skip_for_stack(
-            "clippy", "Clippy", self.cargo_toml, "src-tauri/Cargo.toml absent"
+            "clippy", "Clippy", self.cargo_toml, SKIP_BACKEND_ABSENT
         ):
             if self.run_step(
                 "Clippy",
                 ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"],
-                cwd=self.repo_root / "src-tauri",
+                cwd=self.repo_root / BACKEND_DIR,
                 env_update={"SQLX_OFFLINE": "true"},
             ):
                 self._set_metric("clippy", STATUS_PASS)
 
         if not self._maybe_skip_for_stack(
-            "rust_fmt", "Rust Fmt", self.cargo_toml, "src-tauri/Cargo.toml absent"
+            "rust_fmt", "Rust Fmt", self.cargo_toml, SKIP_BACKEND_ABSENT
         ):
             if self.run_step(
                 "Rust Fmt",
                 ["cargo", "fmt", "--check"],
-                cwd=self.repo_root / "src-tauri",
+                cwd=self.repo_root / BACKEND_DIR,
             ):
                 self._set_metric("rust_fmt", STATUS_PASS)
 
@@ -528,7 +547,7 @@ class QualityChecker:
             print(f"\n{SUCCESS}✨ ALL CHECKS PASSED{RESET}\n")
 
 
-def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Kit quality check — runs lint, format, tests, and build.",
     )

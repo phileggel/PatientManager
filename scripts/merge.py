@@ -99,6 +99,49 @@ def main() -> int:
             f"Create or fetch it: git fetch origin {target}:{target}",
         )
 
+    # Pre-flight 5 — feature branch's origin is not ahead of local.
+    # merge.py deletes `origin/<branch>` at Step 5; if origin has commits we
+    # don't have locally (someone else force-pushed, or we never pulled), those
+    # commits vanish silently. Refuse and surface a clear recovery path. The
+    # check is skipped when origin/<branch> doesn't exist (branch never
+    # pushed) — there's nothing to lose in that case.
+    has_origin_branch = (
+        git(
+            "rev-parse", "--verify", "--quiet", f"origin/{branch}", check=False
+        ).returncode
+        == 0
+    )
+    if has_origin_branch:
+        # Fetch first so the ahead/behind count reflects the actual remote
+        # state, not the cached refs from the last fetch. Quiet on success.
+        fetch = git("fetch", "--quiet", "origin", branch, check=False)
+        if fetch.returncode != 0:
+            fail(
+                f"Could not fetch origin/{branch}.",
+                "Origin is unreachable or the branch was deleted server-side.",
+                f"Investigate: git fetch origin {branch}",
+            )
+        # Count commits on origin that are NOT in local. Non-zero means
+        # origin has unique commits we would discard. Fail closed if the
+        # count itself fails — silently passing here defeats Pre-flight 5's
+        # entire purpose (preventing silent data loss at Step 5).
+        ahead = git("rev-list", "--count", f"{branch}..origin/{branch}", check=False)
+        if ahead.returncode != 0:
+            fail(
+                f"Could not compare {branch} with origin/{branch}.",
+                f"Investigate: git rev-list --count {branch}..origin/{branch}",
+            )
+        count = ahead.stdout.strip()
+        if count != "0":
+            fail(
+                f"origin/{branch} has {count} commit(s) not in local {branch}.",
+                f"merge would delete origin/{branch} at Step 5 and lose those commits.",
+                f"  git pull --ff-only origin {branch}    # incorporate them",
+                f"  git pull --rebase origin {branch}     # if local has also diverged",
+                f"  git push --force-with-lease origin {branch}    # discard them (intentional)",
+                "Then re-run merge.",
+            )
+
     # Step 1 — sync local target with origin (skip if no GitHub remote).
     has_origin_target = (
         git(

@@ -64,7 +64,7 @@ Key agents: `reviewer-security` — run when modifying any Tauri command, capabi
 
 Before implementing, read the relevant convention docs:
 
-- **Backend changes** — `docs/backend-rules.md` + `docs/ddd-reference.md` (especially when touching the error model — see § Errors → rejection-layer rule).
+- **Backend changes** — `docs/backend-rules.md` + `docs/ddd-reference.md` (DDD concepts + error categories). When touching the error model, also read `docs/error-model.md` (typed-error how-to: BC enums, composites, anti-patterns).
 - **Frontend changes** — `docs/frontend-rules.md` + `docs/i18n-rules.md` + `docs/frontend-visual-proof.md`. Run `/visual-proof` after implementation to capture all states in light + dark mode.
 - **E2E changes** — `docs/e2e-rules.md`.
 - **Any test work** (unit / integration / E2E, BE or FE) — `docs/test_convention.md`.
@@ -129,7 +129,7 @@ The project has three evolving "gold" targets the codebase moves toward **bit by
 
 1. **Backend layout gold** — kit v4.4.0. Rules `B0`, `B37`–`B43` in `docs/backend-rules.md`. New code under `shared/` (not `core/`), `context/{bc}/{application,domain,infrastructure}/` symmetric trio, `infrastructure/` (not `repository/`). Migration of existing `core/` + flat `{aggregate}/repository.rs` is tracked in `docs/todo.md` "DDD Convergence" entry.
 2. **Frontend layout gold** — codified in `docs/frontend-rules.md` v4.5 as **F26** (cross-feature imports evaluated by what's imported, not by the fact of crossing), **F27** (typed backend errors must flow through the 4-layer FE pipeline — paired with the backend rejection-layer rule in `ddd-reference.md`; no silent drops at any layer), and **F28** (top-level `src/` bucket layout with both inclusion and exclusion rules per bucket). Apply to new FE code; bit-by-bit for existing.
-3. **Error-model gold** — typed per-BC `*ApplicationError` enums on Tauri command boundaries (replace `Result<T, String>` formatted from `anyhow`); shared infrastructure errors must NOT appear on the FE wire surface; the application layer translates raw infra errors and logs server-side via `tracing::error!`. Migration is tracked in `docs/todo.md` "Structured errors: replace anyhow/String with typed error variants" entry. Upstream proposal: kit issue [#28](https://github.com/phileggel/claude-kit/issues/28).
+3. **Error-model gold** — one flat `{BC}Error` per bounded context (`src-tauri/src/context/{bc}/error.rs`) holding every aggregate-invariant + service variant; one `{UseCase}Error` composite per use case with `#[serde(untagged)]` + `#[from]` wrappers; the composite (or BC enum directly) is the FE-facing type at the Tauri command boundary. Per-BC `*ApplicationError` / `*DomainError` splits are now an explicit anti-pattern. Full how-to: `docs/error-model.md`. Migration tracked in `docs/todo.md` "Structured errors: replace anyhow/String with typed error variants".
 
 ### Bit-by-bit update rule
 

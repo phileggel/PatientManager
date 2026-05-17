@@ -75,6 +75,7 @@ Read for comparison (skip silently if a file or directory is absent):
 - 🟡 Rule uses "should" or "may" instead of assertive language
 - 🟡 Frontend rule that reads or writes data has no corresponding backend rule
 - 🟡 Terminology drift — same entity, field, status, or concept referred to by different names across rules (e.g., "refund" in REF-010 but "reimbursement" in REF-030)
+- 🟡 Rule wording leaks contract or implementation vocabulary — `command`, `caller`, `request`, `DTO`, `payload`, `response`, `background job`, `thread`, `worker`, `frontend store`, etc. Reword in ubiquitous-language / behavior terms (e.g. "the action is acknowledged synchronously", not "the command returns immediately to the caller")
 
 #### C — Completeness
 
@@ -84,6 +85,7 @@ Read for comparison (skip silently if a file or directory is absent):
 - 🟡 Frontend rules present but no UX state coverage: missing empty / loading / error / success
 - 🟡 Prerequisite checks (e.g. "requires a fund to exist") not captured as a rule
 - 🔵 No workflow diagram for a multi-step user action
+- 🔵 "Wire shape rule" is redundant with `## Entity Definition` — the entity table IS the canonical wire shape. Do not require a separate rule that re-asserts a field appears in command responses
 
 #### D — DDD & Architecture alignment
 
@@ -110,9 +112,9 @@ Read for comparison (skip silently if a file or directory is absent):
 
 - 🔴 Backend rules are present but the `## Entity Definition` section is missing — payload types
   cannot be derived for the domain contract
-- 🔴 A backend rule describes a mutation (create / update / delete) but no error cases are
-  described — contract error variants cannot be derived
-- 🟡 A backend rule's return type cannot be inferred (entity shape too vague for Specta)
+- 🟡 Backend mutation rule (create / update / delete) has no behavioral failure-mode statement
+  (e.g. "the action is rejected with a specific error if the {entity} is unknown"). The error
+  variant _name_ is contract territory and stays out of the spec; the _failure mode_ is spec
 - 🟡 A state-transition rule implies an event but no event name is given
 
 ### Step 4 — Output
@@ -169,3 +171,4 @@ Ready for /contract: yes — 0 critical findings (incl. contractability). / no �
 3. Report findings against rule identifiers (e.g. "REF-020 — scope missing") not against lines
 4. Trigram must be registered in `docs/spec-index.md` before sign-off (handled by spec-writer's trigram-registration step)
 5. Do not rewrite the spec — report issues only, the user corrects via spec-writer
+6. **Errors as concepts are spec. Error variant names are contract. Return types are contract. Command names are contract.** Flagging a missing command name, return type, or error variant name as a spec gap is a category error. Spec asserts behavioral failure modes ("the action is rejected if X"); contract assigns the variant name. The `## Entity Definition` table IS the canonical wire shape — do not flag a missing "wire shape rule" that re-asserts what the table already says.

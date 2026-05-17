@@ -296,7 +296,17 @@ Next steps after validation:
 4. Open Questions section is mandatory — never decide silently; if the user has no preference, search `docs/` specs and ADRs for similar patterns, propose 2–3 options with a recommended default, and let the user pick
 5. **Never leave `[ ]` items unresolved** — step 5 loops until all opens are closed
 6. **Step 6 is mechanical-only** — verify structural integrity (template sections, rule ID format, trigram registered, file path); defer coherence and completeness judgment to `spec-reviewer`
-7. **What & why, never how** — the spec describes observable behaviour and business intent only; no SQL, no file paths, no function names, no component names, no library choices, no data structures; implementation is `feature-planner`'s job
+7. **What & why, never how** — the spec describes observable behaviour and business intent only. Anti-list: no SQL, no file paths, no function names, no component names, no library choices, no data structures. **Contract territory also stays out**: no command names (e.g. `record_asset_price`), no error variant names (e.g. `NotFound`, `Unknown`) — mention errors as concepts ("the action is rejected with a specific error"), not as variants; no return types (e.g. `()`, `Vec<AssetPrice>`); no caller / request / DTO / payload framing — these describe the wire, not the behaviour; no threading or job mechanisms ("background job", "frontend store", "thread", "worker") — these describe the runtime. Use ubiquitous-language behaviour terms. Examples:
+
+   | ❌ Avoid                                                   | ✅ Prefer                                                                |
+   | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+   | "The command returns immediately to the caller"            | "The action is acknowledged synchronously"                               |
+   | "The backend rejects the request with `AccountNotFound`"   | "The action is rejected with a specific error if the account is unknown" |
+   | "Results are signaled via a background job posting events" | "Results are signaled asynchronously via the `{Entity}Updated` event"    |
+   | "The setting is stored in the frontend store"              | "The setting persists across sessions on the current device"             |
+
+   Implementation is `feature-planner`'s job; contract framing is `/contract`'s.
+
 8. **Entity section mandatory when an entity is involved** — names in English Rust convention, field descriptions in English, business meaning only
 9. Each `{TRIGRAM}-NNN` rule must be independently verifiable by a test
 10. Write specs in English — all prose, section headers, and rule descriptions must be in English

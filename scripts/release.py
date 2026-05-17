@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Release script for YourProject.
+Release script.
 
-Automates version bumping, changelog generation, and git tagging.
+Automates version bumping, changelog generation, and git tagging for the
+current project.
 
 Process:
   1. Run all quality checks via check.py (tests, lint, SQLx, build)
@@ -24,15 +25,16 @@ Options:
 """
 
 import argparse
-import os
-import subprocess
 import json
+import os
 import re
+import subprocess
 import sys
-from check import QualityChecker
-from pathlib import Path
 from datetime import datetime, timezone
-from typing import Optional, List
+from enum import Enum
+from pathlib import Path
+
+from check import QualityChecker
 
 # ANSI colors (respect NO_COLOR=1)
 if os.environ.get("NO_COLOR"):
@@ -56,25 +58,46 @@ CHANGELOG_INTRO = (
 MAIN_BRANCH = "main"
 
 
+class Mode(Enum):
+    """Run mode for the release manager.
+
+    REAL: full release (tests, edits, commit, tag, push).
+    DRY_RUN: edits files locally + creates local commit/tag, skips push.
+    PREVIEW: read-only; prints suggested version and exits.
+    """
+
+    REAL = "real"
+    DRY_RUN = "dry_run"
+    PREVIEW = "preview"
+
+
+class _Resolution(Enum):
+    """Outcome of the version-resolution phase, dictating run()'s next move."""
+
+    READY = "ready"  # new_version is set; proceed to _apply_changes
+    EARLY_OK = "early_ok"  # exit 0 (preview, or preview+no-commits)
+    EARLY_FAIL = (
+        "early_fail"  # exit 1 (tests failed, no commits in non-preview, user cancelled)
+    )
+
+
 class ReleaseManager:
     def __init__(
         self,
-        dry_run: bool = False,
-        forced_version: Optional[str] = None,
+        mode: Mode = Mode.REAL,
+        forced_version: str | None = None,
         yes: bool = False,
-        preview: bool = False,
     ):
         self.repo_root = Path(__file__).parent.parent
         self.current_version = self.get_current_version()
-        self.commits: List[dict] = []
+        self.commits: list[dict] = []
         self.breaking_changes = 0
         self.features = 0
         self.fixes = 0
-        self.new_version: Optional[str] = None
-        self.dry_run = dry_run
+        self.new_version: str | None = None
+        self.mode = mode
         self.forced_version = forced_version
         self.yes = yes
-        self.preview = preview
 
     def get_current_version(self) -> str:
         """Get current version from package.json."""
@@ -83,7 +106,7 @@ class ReleaseManager:
             data = json.load(f)
         return data["version"]
 
-    def get_latest_tag(self) -> Optional[str]:
+    def get_latest_tag(self) -> str | None:
         """Get the latest git tag."""
         try:
             result = subprocess.run(
@@ -97,7 +120,7 @@ class ReleaseManager:
         except subprocess.CalledProcessError:
             return None
 
-    def get_commits_since_tag(self, tag: Optional[str]) -> List[dict]:
+    def get_commits_since_tag(self, tag: str | None) -> list[dict]:
         """Get commits since the last tag (subject + body to capture BREAKING CHANGE footers)."""
         commit_range = f"{tag}..HEAD" if tag else "HEAD"
 
@@ -134,7 +157,7 @@ class ReleaseManager:
             "original": message,
         }
 
-    def analyze_commits(self, commits: List[dict]) -> None:
+    def analyze_commits(self, commits: list[dict]) -> None:
         """Count breaking changes, features, and fixes."""
         self.commits = commits
 
@@ -163,7 +186,7 @@ class ReleaseManager:
 
     def _format_mode_prefix(self) -> str:
         """Return dry-run prefix if applicable."""
-        return f"{BLUE}[DRY-RUN]{NC} " if self.dry_run else ""
+        return f"{BLUE}[DRY-RUN]{NC} " if self.mode is Mode.DRY_RUN else ""
 
     def show_analysis(self) -> None:
         """Display release analysis."""
@@ -215,10 +238,10 @@ class ReleaseManager:
 
     def update_version_files(self) -> None:
         """Update version in package.json, Cargo.toml, and tauri.conf.json."""
-        mode = self._format_mode_prefix()
-        print(f"{BLUE}{mode}Updating version files...{NC}")
+        prefix = self._format_mode_prefix()
+        print(f"{BLUE}{prefix}Updating version files...{NC}")
 
-        if self.dry_run:
+        if self.mode is Mode.DRY_RUN:
             print("  → package.json")
             print("  → src-tauri/Cargo.toml")
             print("  → src-tauri/tauri.conf.json")
@@ -245,31 +268,30 @@ class ReleaseManager:
         )
         print("  ✓ src-tauri/tauri.conf.json")
 
-        if not self.dry_run:
-            print(f"{BLUE}  Updating src-tauri/Cargo.lock...{NC}")
-            try:
-                subprocess.run(
-                    ["cargo", "metadata", "--format-version", "1"],
-                    cwd=self.repo_root / "src-tauri",
-                    capture_output=True,
-                    check=True,
-                )
-            except subprocess.CalledProcessError as e:
-                # JSON files are already mutated above; if cargo crashes here
-                # the working tree is partial. Surface clearly so the user
-                # knows to inspect Cargo.toml (most likely a syntax issue
-                # introduced by the version edit) and revert if needed.
-                print(
-                    f"{RED}❌ cargo metadata failed — Cargo.lock not updated.{NC}",
-                    file=sys.stderr,
-                )
-                print(
-                    f"{BLUE}   Version files already edited; inspect Cargo.toml syntax or "
-                    f"`git checkout -- package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json` to revert.{NC}",
-                    file=sys.stderr,
-                )
-                raise SystemExit(1) from e
-            print("  ✓ src-tauri/Cargo.lock updated")
+        print(f"{BLUE}  Updating src-tauri/Cargo.lock...{NC}")
+        try:
+            subprocess.run(
+                ["cargo", "metadata", "--format-version", "1"],
+                cwd=self.repo_root / "src-tauri",
+                capture_output=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            # JSON files are already mutated above; if cargo crashes here
+            # the working tree is partial. Surface clearly so the user
+            # knows to inspect Cargo.toml (most likely a syntax issue
+            # introduced by the version edit) and revert if needed.
+            print(
+                f"{RED}❌ cargo metadata failed — Cargo.lock not updated.{NC}",
+                file=sys.stderr,
+            )
+            print(
+                f"{BLUE}   Version files already edited; inspect Cargo.toml syntax or "
+                f"`git checkout -- package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json` to revert.{NC}",
+                file=sys.stderr,
+            )
+            raise SystemExit(1) from e
+        print("  ✓ src-tauri/Cargo.lock updated")
 
     def _build_changelog_entry(self) -> str:
         """Build new changelog entry from commits."""
@@ -296,10 +318,10 @@ class ReleaseManager:
 
     def update_changelog(self) -> None:
         """Create or update CHANGELOG.md with new version entry."""
-        mode = self._format_mode_prefix()
-        print(f"{BLUE}{mode}Updating CHANGELOG.md...{NC}")
+        prefix = self._format_mode_prefix()
+        print(f"{BLUE}{prefix}Updating CHANGELOG.md...{NC}")
 
-        if self.dry_run:
+        if self.mode is Mode.DRY_RUN:
             print("  → CHANGELOG.md")
             return
 
@@ -330,10 +352,10 @@ class ReleaseManager:
 
     def format_files(self) -> bool:
         """Run 'just format' to ensure CHANGELOG and code are clean."""
-        mode = self._format_mode_prefix()
-        print(f"{BLUE}{mode}Running formatters via just...{NC}")
+        prefix = self._format_mode_prefix()
+        print(f"{BLUE}{prefix}Running formatters via just...{NC}")
 
-        if self.dry_run:
+        if self.mode is Mode.DRY_RUN:
             print("  → just format")
             return True
 
@@ -356,10 +378,10 @@ class ReleaseManager:
 
     def commit_and_tag(self) -> bool:
         """Commit version changes and create git tag."""
-        mode = self._format_mode_prefix()
-        print(f"{BLUE}{mode}Creating commit and tag...{NC}")
+        prefix = self._format_mode_prefix()
+        print(f"{BLUE}{prefix}Creating commit and tag...{NC}")
 
-        if self.dry_run:
+        if self.mode is Mode.DRY_RUN:
             print(f"  → Commit: chore: release v{self.new_version}")
             print(f"  → Tag: v{self.new_version}")
             return True
@@ -420,7 +442,7 @@ class ReleaseManager:
         """Run the full test suite via the QualityChecker from check.py."""
         print(f"{BLUE}🚀 Running full quality validation...{NC}")
 
-        if self.dry_run:
+        if self.mode is Mode.DRY_RUN:
             print(f"{BLUE}[DRY-RUN] Simulating test suite (check.py){NC}")
             return True
 
@@ -439,16 +461,33 @@ class ReleaseManager:
 
     def run(self) -> bool:
         """Execute the release workflow."""
-        if self.preview:
+        self._print_banner()
+
+        outcome = self._resolve_version()
+        if outcome is not _Resolution.READY:
+            return outcome is _Resolution.EARLY_OK
+
+        if not self._apply_changes():
+            return False
+
+        return self._finalize()
+
+    def _print_banner(self) -> None:
+        """Print the run-mode banner."""
+        if self.mode is Mode.PREVIEW:
             banner = f" {BLUE}[PREVIEW MODE — read-only]{NC}"
-        elif self.dry_run:
+        elif self.mode is Mode.DRY_RUN:
             banner = f" {BLUE}[DRY-RUN MODE]{NC}"
         else:
             banner = ""
         print(f"\n{BLUE}🚀 Release Manager{banner}{NC}\n")
 
-        if not self.preview and not self.run_tests():
-            return False
+    def _resolve_version(self) -> _Resolution:
+        """Run tests, fetch + analyze commits, compute or force ``new_version``,
+        show analysis, and confirm with the user. Returns the resolution that
+        ``run()`` should act on (see :class:`_Resolution`)."""
+        if self.mode is not Mode.PREVIEW and not self.run_tests():
+            return _Resolution.EARLY_FAIL
 
         latest_tag = self.get_latest_tag()
         commits = self.get_commits_since_tag(latest_tag)
@@ -456,15 +495,16 @@ class ReleaseManager:
         if not commits:
             print(f"{YELLOW}No commits since last tag. Nothing to release.{NC}")
             # Under --preview, "no work pending" is a successful analysis,
-            # not a failure. Returning False here would exit 1 and break
-            # any CI step doing `release.py --preview` to detect pending
-            # releases. Exit 0 with the current version as the answer.
-            if self.preview:
+            # not a failure. Returning EARLY_FAIL here would exit 1 and
+            # break any CI step doing `release.py --preview` to detect
+            # pending releases. Exit 0 with the current version as the
+            # answer.
+            if self.mode is Mode.PREVIEW:
                 print(
                     f"{GREEN}✨ Preview: no release pending — current version is v{self.current_version}.{NC}\n"
                 )
-                return True
-            return False
+                return _Resolution.EARLY_OK
+            return _Resolution.EARLY_FAIL
 
         self.analyze_commits(commits)
 
@@ -476,30 +516,30 @@ class ReleaseManager:
         else:
             self.new_version = self.calculate_new_version(self.current_version)
             if self.new_version == self.current_version:
-                if self.yes and not self.preview:
+                if self.yes and self.mode is not Mode.PREVIEW:
                     print(
                         f"{RED}❌ No releasable commits (no feat/fix/breaking change since last tag).{NC}"
                     )
                     print(
                         f"{BLUE}   Use --version X.Y.Z to force a version, or remove --yes to confirm interactively.{NC}"
                     )
-                    return False
+                    return _Resolution.EARLY_FAIL
                 print(
                     f"{YELLOW}⚠ No releasable commits found (no feat/fix/breaking change since last tag).{NC}"
                 )
-                if not self.preview:
+                if self.mode is not Mode.PREVIEW:
                     print(
                         f'{BLUE}  Use "v" at the confirmation prompt or --version X.Y.Z to override, or cancel.{NC}'
                     )
 
         self.show_analysis()
 
-        if self.preview:
+        if self.mode is Mode.PREVIEW:
             print(f"\n{GREEN}✨ Preview: next release would be v{self.new_version}{NC}")
             print(f"{BLUE}Run without --preview to actually release.{NC}\n")
-            return True
+            return _Resolution.EARLY_OK
 
-        if self.dry_run and self.yes:
+        if self.mode is Mode.DRY_RUN and self.yes:
             print(
                 f"{BLUE}Note: --yes is redundant with --dry-run (no changes are made regardless).{NC}"
             )
@@ -508,8 +548,12 @@ class ReleaseManager:
             print(f"{BLUE}--yes flag set: auto-confirming v{self.new_version}{NC}")
         elif not self.ask_confirmation():
             print(f"{BLUE}Release cancelled.{NC}")
-            return False
+            return _Resolution.EARLY_FAIL
 
+        return _Resolution.READY
+
+    def _apply_changes(self) -> bool:
+        """Update version files + changelog, run formatters, create commit + tag."""
         self.update_version_files()
         self.update_changelog()
 
@@ -517,19 +561,20 @@ class ReleaseManager:
             print(f"\n{RED}❌ Formatting failed. Release cancelled.{NC}\n")
             return False
 
-        if not self.commit_and_tag():
-            return False
+        return self.commit_and_tag()
 
-        if self.dry_run:
+    def _finalize(self) -> bool:
+        """Push (real mode only) and print the outcome message."""
+        if self.mode is Mode.DRY_RUN:
             print(
                 f"\n{GREEN}✨ Dry-run completed! Release would be v{self.new_version}{NC}"
             )
             print(f"Run without {BLUE}--dry-run{NC} to apply changes\n")
-        else:
-            if not self.push_release():
-                return False
-            print(f"\n{GREEN}✨ Release v{self.new_version} published!{NC}\n")
+            return True
 
+        if not self.push_release():
+            return False
+        print(f"\n{GREEN}✨ Release v{self.new_version} published!{NC}\n")
         return True
 
     def push_release(self) -> bool:
@@ -584,11 +629,21 @@ class ReleaseManager:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Release manager for YourProject.")
-    parser.add_argument(
+    parser = argparse.ArgumentParser(description="Release manager.")
+    # --dry-run and --preview are mutually exclusive: they're two distinct
+    # modes (DRY_RUN edits files locally but skips push; PREVIEW is fully
+    # read-only). Argparse enforces "at most one" so users get a clear
+    # error rather than confusing combined behavior.
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
         "--dry-run",
         action="store_true",
         help="Simulate release: update files, create local commit + tag, but skip the push. For a fully read-only check use --preview instead.",
+    )
+    mode_group.add_argument(
+        "--preview",
+        action="store_true",
+        help="Read-only: print the suggested version and exit. Skips tests, file edits, commits, and pushes.",
     )
     parser.add_argument(
         "--version", metavar="X.Y.Z", help="Force a specific version (e.g. 0.12.1)"
@@ -599,22 +654,23 @@ if __name__ == "__main__":
         action="store_true",
         help="Skip confirmation prompt (auto-confirm suggested version)",
     )
-    parser.add_argument(
-        "--preview",
-        action="store_true",
-        help="Read-only: print the suggested version and exit. Skips tests, file edits, commits, and pushes.",
-    )
     args = parser.parse_args()
 
     if args.version and not re.match(r"^\d+\.\d+\.\d+$", args.version):
         print(f"{RED}❌ Invalid version format: {args.version}. Expected X.Y.Z{NC}")
         sys.exit(1)
 
+    if args.preview:
+        mode = Mode.PREVIEW
+    elif args.dry_run:
+        mode = Mode.DRY_RUN
+    else:
+        mode = Mode.REAL
+
     manager = ReleaseManager(
-        dry_run=args.dry_run,
+        mode=mode,
         forced_version=args.version,
         yes=args.yes,
-        preview=args.preview,
     )
     success = manager.run()
     sys.exit(0 if success else 1)
