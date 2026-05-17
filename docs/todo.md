@@ -28,14 +28,6 @@ Cost: probably half a day of setup + ongoing maintenance burden. Defer until rel
 
 ---
 
-## (frontend/i18n) — Currency localization audit & fix
-
-Same class of bug as the date audit closed by PR #26: ~37 currency-display sites bypass `useFormatters().formatCurrency` via hand-rolled `(amount / 1000).toFixed(2) + " €"` or `new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" })`. Locale-blind: decimal separator and symbol position stay French regardless of `i18n.language`.
-
-Full inventory + 4-commit plan: [docs/plan/currency-i18n-plan.md](plan/currency-i18n-plan.md). Mirrors PR #26 shape (~170 LOC, ~25 files). Branch convention: `fix/currency-localization`.
-
----
-
 ## (frontend+backend/data-quality) — Patient deduplication assistant
 
 The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN row reuses a same-name DB patient (SSN-bearing first, blank-SSN otherwise) to avoid stacking duplicates on re-imports. Two real-world risks remain: (a) two genuinely different patients sharing the same name will be merged the first time, and (b) when SSN is added manually to an existing patient between two imports, a future blank-SSN row still merges instead of staying separate. A UI assistant should surface candidate duplicates (same name, overlapping procedure history, etc.), let the user confirm pair-by-pair, and merge — preserving procedure attachments under the surviving patient. Priority: low.
