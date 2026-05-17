@@ -731,8 +731,6 @@ mod tests {
         mock.expect_delete_procedure().returning(|_| Ok(()));
         mock.expect_find_procedures_by_ssn_and_date_range()
             .returning(|_, _, _| Ok(vec![]));
-        mock.expect_find_procedures_by_ssns_and_date_range()
-            .returning(|_, _, _| Ok(vec![]));
         mock.expect_find_procedures_by_ssns_and_date_range_with_ssn()
             .returning(|_, _, _| Ok(vec![]));
         mock.expect_find_procedure_exact()

@@ -183,14 +183,6 @@ mod tests {
         ) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
-        async fn find_procedures_by_ssns_and_date_range(
-            &self,
-            _: &[String],
-            _: &str,
-            _: &str,
-        ) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
         async fn find_procedure_exact(
             &self,
             _: &str,

@@ -443,13 +443,6 @@ pub trait ProcedureRepository: Send + Sync {
         end_date: &str,
     ) -> anyhow::Result<Vec<Procedure>>;
 
-    async fn find_procedures_by_ssns_and_date_range(
-        &self,
-        ssns: &[String],
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<Procedure>>;
-
     async fn find_procedures_by_ssns_and_date_range_with_ssn(
         &self,
         ssns: &[String],

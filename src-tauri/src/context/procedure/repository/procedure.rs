@@ -343,63 +343,6 @@ impl ProcedureRepository for SqliteProcedureRepository {
         Ok(rows.into_iter().map(Procedure::from).collect())
     }
 
-    async fn find_procedures_by_ssns_and_date_range(
-        &self,
-        ssns: &[String],
-        start_date: &str,
-        end_date: &str,
-    ) -> anyhow::Result<Vec<Procedure>> {
-        if ssns.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        tracing::trace!(
-            ssn_count = ssns.len(),
-            start = %start_date,
-            end = %end_date,
-            "Querying procedures by multiple SSNs and date range (batch)"
-        );
-
-        // sqlx::query_as! macros require static SQL; dynamic IN clauses with variable-length
-        // lists cannot be expressed as compile-time macros. QueryBuilder with push_bind is the
-        // recommended sqlx approach for this pattern.
-        let mut builder = sqlx::QueryBuilder::new(
-            "SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,
-                    hp.procedure_date, hp.procedure_amount, hp.payment_method,
-                    hp.confirmed_payment_date, hp.actual_payment_amount,
-                    hp.payment_status, hp.is_deleted
-             FROM procedure hp
-             JOIN patient p ON hp.patient_id = p.id
-             WHERE p.ssn IN (",
-        );
-        let mut separated = builder.separated(", ");
-        for ssn in ssns {
-            separated.push_bind(ssn);
-        }
-        separated
-            .push_unseparated(")")
-            .push_unseparated(" AND hp.procedure_date >= ")
-            .push_bind_unseparated(start_date)
-            .push_unseparated(" AND hp.procedure_date <= ")
-            .push_bind_unseparated(end_date)
-            .push_unseparated(
-                " AND hp.is_deleted = 0 AND p.is_deleted = 0 ORDER BY hp.procedure_date ASC",
-            );
-
-        let rows = builder
-            .build_query_as::<ProcedureRow>()
-            .fetch_all(&self.pool)
-            .await?;
-
-        tracing::trace!(
-            ssn_count = ssns.len(),
-            procedure_count = rows.len(),
-            "Batch procedure query completed"
-        );
-
-        Ok(rows.into_iter().map(Procedure::from).collect())
-    }
-
     async fn find_procedures_by_ssns_and_date_range_with_ssn(
         &self,
         ssns: &[String],
@@ -1266,56 +1209,6 @@ mod tests {
             .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].patient_id, "patient-1");
-    }
-
-    #[tokio::test]
-    async fn find_procedures_by_ssns_and_date_range_empty_returns_empty() {
-        let repo = setup().await;
-        let result = repo
-            .find_procedures_by_ssns_and_date_range(&[], "2026-01-01", "2026-12-31")
-            .await
-            .unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[tokio::test]
-    async fn find_procedures_by_ssns_and_date_range_returns_matching() {
-        let repo = setup().await;
-        seed_patient(&repo.pool, "patient-1", "111111111111").await;
-        seed_patient(&repo.pool, "patient-2", "222222222222").await;
-        repo.create_procedure(
-            "patient-1".into(),
-            None,
-            "t1".into(),
-            "2026-03-15".into(),
-            Some(1000),
-            PaymentMethod::None,
-            None,
-            None,
-            ProcedureStatus::Created,
-        )
-        .await
-        .unwrap();
-        repo.create_procedure(
-            "patient-2".into(),
-            None,
-            "t1".into(),
-            "2026-03-20".into(),
-            Some(2000),
-            PaymentMethod::None,
-            None,
-            None,
-            ProcedureStatus::Created,
-        )
-        .await
-        .unwrap();
-
-        let ssns = vec!["111111111111".to_string(), "222222222222".to_string()];
-        let result = repo
-            .find_procedures_by_ssns_and_date_range(&ssns, "2026-03-01", "2026-03-31")
-            .await
-            .unwrap();
-        assert_eq!(result.len(), 2);
     }
 
     #[tokio::test]

@@ -665,8 +665,6 @@ mod tests {
             .returning(|_| panic!("delete_procedure not expected in this test"));
         mock.expect_find_procedures_by_ssn_and_date_range()
             .returning(|_, _, _| panic!("not expected"));
-        mock.expect_find_procedures_by_ssns_and_date_range()
-            .returning(|_, _, _| panic!("not expected"));
         mock.expect_find_procedures_by_ssns_and_date_range_with_ssn()
             .returning(|_, _, _| panic!("not expected"));
         mock.expect_find_procedure_exact()

@@ -54,14 +54,6 @@ not as a sweep.
 
 ---
 
-## 2026-05-13 — Dead trait method `ProcedureRepository::find_procedures_by_ssns_and_date_range`
-
-**Where:** trait at `src-tauri/src/context/procedure/domain/procedure.rs:446`, impl at `src-tauri/src/context/procedure/repository/procedure.rs:346`, plus the inline tests around `procedure.rs:1269,1279` and four defensive mock stubs in `use_cases/{overpayment,bank_statement_reconciliation,procedure_orchestration}` test modules and `use_cases/fund_payment_reconciliation/data/pool_builder.rs`.
-
-**Observation:** The non-`_with_ssn` variant has no production callers — the matcher uses `find_procedures_by_ssns_and_date_range_with_ssn`, and every mention outside the impl is either the impl's own inline test or a `mock.expect_*().returning(...)` defensive stub copy-pasted from the trait surface. Removal is mechanical (trait + impl + 2 tests + 4 mock stubs, ~100 LOC across 6 files). Deferred from the bug-fix PR because the file fanout breaks the boyscout surgical rule.
-
----
-
 ## 2026-05-13 — `rsa 0.9.10` (Marvin timing side-channel) compiled in via `sqlx-mysql` even though we use SQLite only
 
 **Where:** `Cargo.lock` — `rsa 0.9.10` pulled in by `sqlx-macros → sqlx-mysql 0.8.6`. `Cargo.toml` declares `sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }` — no `mysql` feature.
