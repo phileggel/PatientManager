@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       - name: Install Linux dependencies
         # webkit2gtk-driver provides WebKitWebDriver (used by tauri-driver on Linux);
@@ -43,7 +43,7 @@ jobs:
             webkit2gtk-driver xvfb
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -52,14 +52,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2.9.1
         with:
           workspaces: src-tauri
           prefix-key: linux-e2e-rust-${{ hashFiles('src-tauri/Cargo.lock') }}
 
       - name: Cache tauri-driver binary
         id: cache-tauri-driver
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
         with:
           path: ~/.cargo/bin/tauri-driver
           key: tauri-driver-2.0.5-${{ runner.os }}
@@ -80,7 +80,7 @@ jobs:
 
       - name: Upload E2E failure screenshots
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: e2e-failure-screenshots
           path: screenshots/e2e-failures/

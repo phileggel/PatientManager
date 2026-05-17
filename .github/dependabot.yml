@@ -1,0 +1,14 @@
+# Dependabot keeps SHA-pinned GitHub Actions current. Without this config the
+# SHA pins in .github/workflows/*.yml would freeze at their landing version and
+# silently miss patches in the actions themselves — defeating the point of
+# pinning. Weekly + grouped keeps PR noise low (one PR/week max for all bumps).
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      all-actions:
+        patterns:
+          - "*"
