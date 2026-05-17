@@ -1,0 +1,88 @@
+name: E2E
+
+on:
+  # E2E runs on push to main only — same cadence as backend coverage.
+  # PRs skip the ~20-min Tauri build; regressions surface within minutes
+  # of merge (cleaner main vs faster PR cycles trade-off).
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: E2E — headless WebDriver
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    env:
+      # SQLX_OFFLINE also set in src-tauri/.cargo/config.toml [env]; declaring
+      # it explicitly here for defence-in-depth (cargo only reads config.toml
+      # under src-tauri/ cwd) and parity with other workflows.
+      SQLX_OFFLINE: "true"
+      CARGO_INCREMENTAL: 0
+      RUSTFLAGS: "-C debuginfo=0"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        # webkit2gtk-driver provides WebKitWebDriver (used by tauri-driver on Linux);
+        # xvfb provides the virtual framebuffer for headless rendering.
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
+            webkit2gtk-driver xvfb
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          prefix-key: linux-e2e-rust-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Cache tauri-driver binary
+        id: cache-tauri-driver
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/tauri-driver
+          key: tauri-driver-2.0.5-${{ runner.os }}
+
+      - name: Install tauri-driver
+        if: steps.cache-tauri-driver.outputs.cache-hit != 'true'
+        shell: bash
+        run: cargo install tauri-driver --version 2.0.5 --locked
+
+      - name: Install frontend dependencies
+        shell: bash
+        run: npm ci
+
+      - name: Run E2E (headless via Xvfb)
+        # `test:e2e:ci` is the project's xvfb wrapper around `test:e2e` (see package.json).
+        shell: bash
+        run: npm run test:e2e:ci
+
+      - name: Upload E2E failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-screenshots
+          path: screenshots/e2e-failures/
+          if-no-files-found: ignore
+          retention-days: 7
