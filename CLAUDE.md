@@ -150,7 +150,7 @@ If any of the three fails, **DO NOT refactor** — match the current project sta
 **When in doubt** about whether something crosses the 50-LOC threshold: estimate, mention it in the task plan, ask the user. Don't silently drift into a big refactor.
 
 ## 📏 Standards
-- **Commits**: Conventional commits (`feat:`, `fix:`, etc.).
+- **Commits**: Conventional commits (`feat:`, `fix:`, etc.). Type classification edges: dead-code removal in production code is `refactor:` (NOT `chore:`); test-only deletion (mock stubs, fixtures with no production surface in the same diff) is `test:`; techdebt entries get pre-classified by what type their resolution commit would carry — `fix:` items go to dedicated `fix/...` PRs, not refactor sweep branches.
 - **Style**: React functional components, Rust traits for repositories.
 - **Lints**: Oxlint & Biome (FE), Clippy (BE). All must pass.
 
