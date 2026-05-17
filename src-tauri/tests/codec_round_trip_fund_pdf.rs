@@ -30,9 +30,8 @@
 
 mod common;
 
-use patient_manager_app::use_cases::fund_payment_reconciliation::parsing::{
-    extract_pdf_text, pdf_parser,
-};
+use patient_manager_app::shared::pdf_extractor::extract_pdf_text;
+use patient_manager_app::use_cases::fund_payment_reconciliation::parsing::pdf_parser;
 
 // ---------------------------------------------------------------------------
 // Scenario 1 — multi-fund happy path (IFC-062 §1)

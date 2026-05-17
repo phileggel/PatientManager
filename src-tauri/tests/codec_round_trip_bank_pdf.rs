@@ -27,8 +27,8 @@
 
 mod common;
 
+use patient_manager_app::shared::pdf_extractor::extract_pdf_text;
 use patient_manager_app::use_cases::bank_statement_reconciliation::parser;
-use patient_manager_app::use_cases::fund_payment_reconciliation::parsing::extract_pdf_text;
 
 // ---------------------------------------------------------------------------
 // Scenario 1 — multi-label happy path (IFC-102 §1)
