@@ -11,7 +11,7 @@
 //   npm run test:e2e          # local (headed window)
 //   npm run test:e2e:ci       # Linux CI (xvfb virtual display)
 import os from "os";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "child_process";
 import { fileURLToPath } from "url";
@@ -34,6 +34,12 @@ const BINARY_PATH = resolve(__dirname, "src-tauri", "target", "debug", BINARY_NA
 // of the normal app-data-dir location. This keeps test data fully isolated from
 // the developer's real application data and guarantees a clean state each run.
 const E2E_DB_PATH = resolve(os.tmpdir(), "patient_manager_e2e.db");
+
+// Failure-screenshot output. The `afterTest` hook below writes a PNG for every
+// failed test so CI runs can be diagnosed without re-running locally. The
+// directory is git-ignored; the E2E workflow uploads it as an artifact on
+// failure (.github/workflows/e2e.yml).
+const SCREENSHOT_DIR = resolve(__dirname, "screenshots/e2e-failures");
 
 let tauriDriver: ChildProcess;
 let exit = false;
@@ -61,6 +67,24 @@ export const config: Options.Testrunner = {
   ],
   reporters: ["spec"],
   mochaOpts: { timeout: 60000 },
+
+  // Capture a screenshot on every failed test for post-mortem diagnosis.
+  // File: screenshots/e2e-failures/{suite}-{test}-{timestamp}.png
+  afterTest: async (test, _context, result) => {
+    if (result.passed) return;
+    try {
+      if (!existsSync(SCREENSHOT_DIR)) mkdirSync(SCREENSHOT_DIR, { recursive: true });
+      const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9-_]+/g, "_").slice(0, 80);
+      const suite = sanitize(test.parent ?? "unknown-suite");
+      const title = sanitize(test.title);
+      const ts = new Date().toISOString().replace(/[:.]/g, "-");
+      // @ts-expect-error browser is injected by @wdio/globals into the runner scope
+      await browser.saveScreenshot(resolve(SCREENSHOT_DIR, `${suite}-${title}-${ts}.png`));
+    } catch (err) {
+      // oxlint-disable-next-line no-console
+      console.error("[afterTest] screenshot capture failed:", err);
+    }
+  },
 
   // Build the binary once before any session starts.
   // --no-bundle: skip installer packaging, just produce the binary.

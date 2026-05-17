@@ -8,6 +8,17 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-05-17 — CI: SHA-pin first-party + low-risk actions across workflows
+
+**Where:** `.github/workflows/*.yml` — currently mixed pinning policy. Third-party actions on sensitive surfaces are SHA-pinned (`codecov/codecov-action`, `taiki-e/install-action`, `amannn/action-semantic-pull-request`). First-party `actions/*` and well-known low-risk actions are tag-pinned: `actions/checkout@v4`, `actions/cache@v4`, `actions/setup-node@v4`, `actions/upload-artifact@v4`, `dtolnay/rust-toolchain@stable`, `Swatinem/rust-cache@v2`, `tauri-apps/tauri-action@v0`.
+
+**Observation:** Industry best practice (SLSA, NIST SSDF) is SHA-pinning every action in CI — mutable tags can be repointed by maintainers (c.f. tj-actions/changed-files compromise, March 2025: every version tag re-pointed at memory-dumping commits; tag-pinned users hit, SHA-pinned users untouched). For a healthcare app shipping signed binaries, the stricter stance is defensible. Surfaced by reviewer-infra on the e2e.yml adoption (PR for branch `ci/adopt-e2e-workflow`): user opted to stay consistent with current mixed practice for that PR and track the shift here.
+
+**Scope to land:** retrofit ~15 invocations across 4 workflows + add `.github/dependabot.yml` to auto-bump SHAs (Dependabot otherwise leaves SHA-pinned actions stale and missing security patches). Estimated ~1–2 hours one-time, ~5 min/month Dependabot bump review ongoing. Net velocity impact per PR: zero.
+
+---
+
+
 ## 2026-05-16 — RTL coverage gap on currency-display components
 
 **Where:** Components with `formatCurrency` calls but no RTL test:
