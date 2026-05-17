@@ -66,7 +66,7 @@ jobs:
       RUSTFLAGS: "-C debuginfo=0"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
@@ -74,7 +74,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2.9.1
         with:
           workspaces: src-tauri
           prefix-key: ci-dev-fixtures
