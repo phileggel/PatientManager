@@ -46,14 +46,6 @@ not as a sweep.
 
 ---
 
-## 2026-05-12 — `previous_payment_status` parse silently falls back to `None`
-
-**Where:** `src-tauri/src/context/procedure/repository/procedure_refund.rs:82, 125` — `r.previous_payment_status.parse::<ProcedureStatus>().unwrap_or_default()`.
-
-**Observation:** The `procedure_refund.previous_payment_status` column is `NOT NULL`. Any value that fails to parse (e.g. a future variant rename, a manual DB edit, a schema drift) silently degrades to `ProcedureStatus::None` instead of surfacing as an error at the boundary. Pre-existing behaviour — the prior hand-rolled `parse_procedure_status` also had `_ => ProcedureStatus::None`. A hardening pass could swap to `.with_context(|| ...)?` and propagate, which would catch data corruption visibly instead of materialising a `None`-status `ProcedureRefund` to the caller.
-
----
-
 ## 2026-05-13 — `rsa 0.9.10` (Marvin timing side-channel) compiled in via `sqlx-mysql` even though we use SQLite only
 
 **Where:** `Cargo.lock` — `rsa 0.9.10` pulled in by `sqlx-macros → sqlx-mysql 0.8.6`. `Cargo.toml` declares `sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }` — no `mysql` feature.

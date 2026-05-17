@@ -82,7 +82,7 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
             let status = r
                 .previous_payment_status
                 .parse::<ProcedureStatus>()
-                .unwrap_or_default();
+                .map_err(|e| anyhow::anyhow!("Invalid previous_payment_status in DB: '{}'", e))?;
             Ok(ProcedureRefund::restore(
                 r.id,
                 r.source_procedure_id,
@@ -128,7 +128,7 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
             let status = r
                 .previous_payment_status
                 .parse::<ProcedureStatus>()
-                .unwrap_or_default();
+                .map_err(|e| anyhow::anyhow!("Invalid previous_payment_status in DB: '{}'", e))?;
             Ok(ProcedureRefund::restore(
                 r.id,
                 r.source_procedure_id,
@@ -286,5 +286,49 @@ mod tests {
             .unwrap();
         assert_eq!(found.reason.as_deref(), Some("Overpayment correction"));
         assert_eq!(found.previous_payment_status, ProcedureStatus::Overpaid);
+    }
+
+    #[tokio::test]
+    async fn find_by_source_procedure_id_propagates_invalid_status() {
+        let repo = setup().await;
+        // Raw runtime query (not the `query!` macro) to bypass SQLX_OFFLINE compile-time
+        // verification: seeding an INVALID variant is exactly what the test needs.
+        sqlx::query(
+            r#"INSERT INTO procedure_refund (
+                id, source_procedure_id, refund_procedure_id,
+                refund_fund_payment_group_id, refund_bank_transfer_id,
+                refund_date, reason, previous_payment_status
+            ) VALUES ('r-1', 's-1', 'rp-1', 'g-1', 't-1', '2026-01-01', NULL, 'BOGUS_VARIANT')"#,
+        )
+        .execute(&repo.pool)
+        .await
+        .unwrap();
+
+        let err = repo
+            .find_by_source_procedure_id("s-1")
+            .await
+            .expect_err("expected parse error to propagate");
+        assert!(err.to_string().contains("BOGUS_VARIANT"));
+    }
+
+    #[tokio::test]
+    async fn find_by_refund_procedure_id_propagates_invalid_status() {
+        let repo = setup().await;
+        sqlx::query(
+            r#"INSERT INTO procedure_refund (
+                id, source_procedure_id, refund_procedure_id,
+                refund_fund_payment_group_id, refund_bank_transfer_id,
+                refund_date, reason, previous_payment_status
+            ) VALUES ('r-2', 's-2', 'rp-2', 'g-2', 't-2', '2026-01-02', NULL, 'BOGUS_VARIANT')"#,
+        )
+        .execute(&repo.pool)
+        .await
+        .unwrap();
+
+        let err = repo
+            .find_by_refund_procedure_id("rp-2")
+            .await
+            .expect_err("expected parse error to propagate");
+        assert!(err.to_string().contains("BOGUS_VARIANT"));
     }
 }
