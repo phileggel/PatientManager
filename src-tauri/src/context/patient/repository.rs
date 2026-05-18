@@ -193,19 +193,26 @@ impl PatientRepository for SqlitePatientRepository {
     async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>> {
         tracing::trace!("Fetching patient by name from database");
 
-        let row = sqlx::query_as!(
+        // SQLite's built-in LOWER() folds only ASCII; Rust's to_lowercase()
+        // is Unicode-aware. Comparing in Rust keeps name dedup symmetric
+        // with the parsing-time fold in excel_import/parser.rs (EXI-080).
+        let needle = name.to_lowercase();
+
+        let rows = sqlx::query_as!(
             PatientRow,
             r#"
             SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted
             FROM patient
-            WHERE LOWER(name) = LOWER($1) AND is_deleted = 0
+            WHERE is_deleted = 0
             ORDER BY (ssn IS NULL OR ssn = '') ASC
-            LIMIT 1
             "#,
-            name,
         )
-        .fetch_optional(&self.pool)
+        .fetch_all(&self.pool)
         .await?;
+
+        let row = rows
+            .into_iter()
+            .find(|r| r.name.as_ref().is_some_and(|n| n.to_lowercase() == needle));
 
         Ok(row.map(Patient::from))
     }
@@ -446,6 +453,26 @@ mod tests {
 
         let found = db.find_patient_by_name("Alice Dupont").await.unwrap();
         assert!(found.is_none());
+    }
+
+    /// EXI-080 — accented-character case folding must match symmetrically.
+    /// SQLite's `LOWER()` folds only ASCII, so a DB row `"élodie dupont"`
+    /// looked up by an Excel row `"Élodie Dupont"` must still resolve as
+    /// a match (otherwise dedup creates a fresh row on every re-import).
+    #[tokio::test]
+    async fn test_find_patient_by_name_matches_unicode_case_folding() {
+        let db = setup_test_repo().await;
+
+        let patient = Patient::new(false, Some("élodie dupont".to_string()), None).unwrap();
+        let patient_id = patient.id.clone();
+        db.create_patient(patient).await.unwrap();
+
+        let found = db.find_patient_by_name("Élodie Dupont").await.unwrap();
+        assert_eq!(
+            found.map(|p| p.id),
+            Some(patient_id),
+            "Unicode case folding must match accented characters symmetrically"
+        );
     }
 
     /// EXI-080 — empty-string SSN is treated as "no SSN" by the priority

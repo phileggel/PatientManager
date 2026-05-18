@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted\n            FROM patient\n            WHERE LOWER(name) = LOWER($1) AND is_deleted = 0\n            ORDER BY (ssn IS NULL OR ssn = '') ASC\n            LIMIT 1\n            ",
+  "query": "\n            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted\n            FROM patient\n            WHERE is_deleted = 0\n            ORDER BY (ssn IS NULL OR ssn = '') ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -50,7 +50,7 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
@@ -64,5 +64,5 @@
       false
     ]
   },
-  "hash": "6c93640bac381c274e64a217ddbc5536f9ea4bd54551f8fe5300ab98c96ab6f6"
+  "hash": "6aa7a042a6767e40cfbe74580862fb16a17b14ebc2d17c253f22c847021aeb28"
 }
