@@ -1,547 +1,156 @@
 # ARCHITECTURE.md
 
-> **For Claude Code** — kept up to date after each implementation (workflow step 10).
-> Rules: [docs/backend-rules.md](docs/backend-rules.md) | [docs/frontend-rules.md](docs/frontend-rules.md)
-> Feature specs: [docs/](docs/)
-> **Ubiquitous Language** (authoritative domain vocabulary — read before naming or reviewing any domain concept): [docs/ubiquitous-language.md](docs/ubiquitous-language.md)
+> Project-specific architecture overview for **PatientManager**. Complements the kit-generic rule docs (`docs/backend-rules.md`, `docs/frontend-rules.md`, `docs/ddd-reference.md`, `docs/error-model.md`, `docs/test_convention.md`, `docs/i18n-rules.md`, `docs/e2e-rules.md`) and the tool inventory in `.claude/kit-tools.md`. This doc is the **conceptual map**; the rule docs cover the **conventions**.
+
+> **Read this when** you need to understand WHAT PatientManager does and HOW its pieces fit together.
+> **Read the rule docs when** you need to know HOW we structure code.
+
+> Domain vocabulary is authoritative in [`docs/ubiquitous-language.md`](docs/ubiquitous-language.md) — read before naming or reviewing any domain concept.
+
+---
+
+## What PatientManager is
+
+A **single-user desktop app for a French medical practice**. It tracks patients, procedures (medical acts), and three reconciliation flows that close the loop between what was billed, what was paid by health funds, and what landed in the practitioner's bank account.
+
+The three reconciliation flows in plain terms:
+
+- **Excel import** — monthly procedure data ingested from the practitioner's accounting spreadsheet.
+- **Fund payment reconciliation** — match PDF statements from French health funds (Sécurité sociale, mutuelles) against procedures in the database.
+- **Bank statement reconciliation** — match bank credit lines from the practitioner's bank statement against confirmed fund payments.
+
+Primary locale **fr-FR**; secondary **en-GB**. PDF parsing is French-format-specific (DD/MM/YYYY dates, comma decimals, accented patient names).
 
 ---
 
 ## Stack
 
-- **Desktop app**: Tauri 2 (single executable)
-- **Frontend**: React 19 + TypeScript, Zustand, i18n (fr/en)
-- **Backend**: Rust, SQLite via sqlx (compile-time query verification)
-- **IPC**: Specta-generated bindings (`src/bindings.ts`) — run `just generate-types` to sync
+- **Tauri 2** desktop app — Rust backend + React 19 + TypeScript frontend, single executable.
+- **SQLite** via `sqlx` (compile-time query verification). No other database.
+- **IPC via Specta** — `src/bindings.ts` is **auto-generated**, never edit. Run `just generate-types` after Tauri-command changes.
+- **FE state**: Zustand (`src/lib/appStore.ts`).
+- **i18n**: `react-i18next`, locales under `src/i18n/locales/{fr,en}/`.
 
 ---
 
-## Backend (`src-tauri/src/`)
+## The three core business flows
 
-### App Wiring (`lib.rs`)
+### 1. Excel import
 
-`initialize_app()` constructs and injects all services as Tauri state in this order:
+Source: practitioner's monthly accounting spreadsheet (`.xlsx`). Spec: [`docs/spec/excel-import.md`](docs/spec/excel-import.md).
 
-1. `Arc<Database>`, `Arc<EventBus>`
-2. Bounded context services: `PatientService`, `FundService`, `ProcedureTypeService`, `ProcedureService`, `BankAccountService`, `BankTransferService`, `FundPaymentService`
-3. Shared repositories: `SqliteExcelAmountMappingRepository`, `SqliteBankTransferLinkRepository`
-4. Use case orchestrators: `ProcedureOrchestrationService`, `ReconciliationService`, `BankStatementOrchestrator`, `FundPaymentReconciliationOrchestrator`, `ExcelImportOrchestrator`, `BankManualMatchOrchestrator`, `DbBackupOrchestrator`
+**Two-phase**: `parse_excel_file` → `execute_excel_import`. Parsing generates session-only `procedure_type_tmp_id` UUIDs; re-parsing would regenerate them and break the user's type-mapping choices, so the FE keeps the `ParseExcelResponse` in memory and `execute_excel_import` consumes it verbatim (EXI-070).
 
-### Command Registry (`core/specta_builder.rs`)
+**Patient dedup priority**: SSN if valid, else case-insensitive Unicode-aware name match (EXI-080).
 
-All Tauri commands are registered here via `tauri_specta::collect_commands![]`. **Never register commands elsewhere.**
+### 2. Fund payment reconciliation
 
-### Event Bus
+Source: PDF payment statement from a health fund. Specs: [`docs/spec/fund-payment-manual-match.md`](docs/spec/fund-payment-manual-match.md), [`docs/spec/fund-payment-auto-match.md`](docs/spec/fund-payment-auto-match.md).
 
-Published on every state change. Frontend listens via `useEffect` + window event listeners.
+Parses the PDF into `NormalizedPdfLine`s grouped by `(fund, payment_date)`, matches against unreconciled procedures via exact-amount + closest-amount heuristics (the matching algorithm skips procedures with `billed_amount = None`), and creates a `FundPaymentGroup` per matched batch. Anomalies (`FundMismatch` / `AmountMismatch` / `DateMismatch`) surface to the user for resolution via correction actions. A post-reconciliation summary PDF is rendered backend-side from a FE-pre-resolved payload (ADR-006).
 
-| Event | Published by |
-|-------|-------------|
-| `PatientUpdated` | `context/patient/` |
-| `FundUpdated` | `context/fund/` |
-| `ProcedureUpdated` | `context/procedure/` + `use_cases/procedure_orchestration/` |
-| `ProcedureTypeUpdated` | `context/procedure/` |
-| `FundPaymentGroupUpdated` | `context/fund/` |
-| `BankTransferUpdated` | `context/bank/` |
-| `BankAccountUpdated` | `context/bank/` |
+### 3. Bank statement reconciliation
+
+Source: PDF bank statement from the practitioner's bank. Specs: [`docs/spec/bank-statement-auto-match.md`](docs/spec/bank-statement-auto-match.md), [`docs/spec/bank-statement-manual-match.md`](docs/spec/bank-statement-manual-match.md).
+
+Parses bank credit lines, resolves fund labels via `BankFundLabelMapping` (user-trained per bank account; ADR-001), matches each line to a `FundPaymentGroup`. Confirmed matches create `BankTransfer`s and **lock** the fund payment group (`is_locked = true`). Direct payments (cash/check/card) follow a separate manual-match flow that links bank transfers directly to procedures.
 
 ---
 
-## Bounded Contexts (`context/`)
+## Bounded contexts
 
-No cross-context imports. Public API via `mod.rs` only.
+Each context owns a piece of the domain. **No cross-context imports**; cross-context coordination lives in `use_cases/`.
 
-### Patient (`context/patient/`)
+- **Patient** — `src-tauri/src/context/patient/`
+  Patient records. Entity: `Patient`.
+- **Fund** — `src-tauri/src/context/fund/`
+  Health funds and their payment groups. Entities: `AffiliatedFund`, `FundPaymentGroup`, `FundPaymentLine`.
+- **Procedure** — `src-tauri/src/context/procedure/`
+  Medical acts, type catalog, refund records. Entities: `Procedure`, `ProcedureType`, `ProcedureRefund`.
+- **Bank** — `src-tauri/src/context/bank/`
+  Bank accounts and transfers. Entities: `BankAccount`, `BankTransfer`.
 
-**Entity: `Patient`**
-- `id`, `name`, `ssn`, `is_anonymous`
-- Tracking fields (updated by `ProcedureOrchestrationService`): `latest_procedure_type`, `latest_fund`, `latest_date`, `latest_procedure_amount`
-- Batch import: `temp_id`
-- Factory methods: `new()`, `new_with_temp_id()`, `with_id()`, `restore()`
-
-**Repository trait: `PatientRepository`**
-- `create_patient`, `read_patient`, `read_all_patients`, `update_patient`, `delete_patient`
-- `find_patient_by_ssn`, `create_batch`
-
-**Service: `PatientService`**
-- CRUD + `find_patient_by_ssn`
-- Batch: `validate_batch(candidates) -> Vec<PatientValidationResult>`, `create_batch`
-
-**Tauri commands (`api.rs`)**
-- `add_patient(name?, ssn?) -> Patient`
-- `read_all_patients() -> Vec<Patient>`
-- `update_patient(patient) -> Patient`
-- `delete_patient(id)`
-- `validate_batch_patients(patients) -> ValidateBatchPatientsResponse`
-- `create_batch_patients(patients) -> CreateBatchPatientsResponse`
+Each context exposes its public surface via `api.rs` (B0). External callers (other BCs, use cases, Tauri commands) go through `api.rs` — never reach into `domain/` or `infrastructure/`.
 
 ---
 
-### Fund (`context/fund/`)
+## Use cases (cross-context orchestrators)
 
-**Entity: `AffiliatedFund`**
-- `id`, `fund_identifier`, `name`, `temp_id`
-- Factory methods: `new()`, `new_with_temp_id()`, `with_id()`, `restore()`
+Use cases may import from contexts; never from another use case. No domain events.
 
-**Entity: `FundPaymentGroup`**
-- `id`, `fund_id`, `payment_date` (NaiveDate), `total_amount`, `lines: Vec<FundPaymentLine>`, `is_locked`
-- Status: `Active` | `BankPayed` (locked once linked to a bank transfer)
-
-**Entity: `FundPaymentLine`**
-- `procedure_id`, `amount`
-
-**Repository traits: `FundRepository`, `FundPaymentRepository`**
-
-FundRepository: `create_fund`, `read_fund`, `read_all_funds`, `update_fund`, `delete_fund`, `find_fund_by_identifier`, `create_batch`
-
-FundPaymentRepository: `create_fund_payment_group`, `read_fund_payment_group`, `read_all_fund_payment_groups`, `update_fund_payment_group`, `delete_fund_payment_group`, `read_by_status`
-
-**Services: `FundService`, `FundPaymentService`**
-
-FundService: CRUD + `find_fund_by_identifier` + batch validate/create
-
-FundPaymentService: CRUD + `get_by_status`
-
-**Tauri commands (`api.rs`)**
-- `add_fund(fundIdentifier, fundName) -> AffiliatedFund`
-- `read_all_funds() -> Vec<AffiliatedFund>`
-- `update_fund(fund) -> AffiliatedFund`
-- `delete_fund(id)`
-- `validate_batch_funds(funds) -> ValidateBatchFundsResponse`
-- `create_batch_funds(funds) -> CreateBatchFundsResponse`
-- `read_all_fund_payment_groups() -> Vec<FundPaymentGroup>`
-- `create_fund_payment_group(fundId, paymentDate, procedureIds) -> FundPaymentGroup`
-- `update_fund_payment_group_with_procedures(groupId, paymentDate, procedureIds) -> FundPaymentGroup`
-- `delete_fund_payment_group(groupId)`
+- **`procedure_orchestration`** — Procedure CRUD + patient tracking + FK validation. ([spec](docs/spec/procedure-orchestration.md))
+- **`excel_import`** — Procedure + Patient + Fund + ProcedureType from `.xlsx`. ([spec](docs/spec/excel-import.md))
+- **`fund_payment_reconciliation`** — Procedure ↔ FundPaymentGroup from PDF. ([manual spec](docs/spec/fund-payment-manual-match.md), [auto spec](docs/spec/fund-payment-auto-match.md))
+- **`fund_payment_report_pdf`** — Post-reconciliation summary PDF; FE pre-resolves all strings (ADR-006). ([spec](docs/spec/fund-payment-report.md))
+- **`bank_statement_reconciliation`** — BankTransfer ← bank PDF ↔ FundPaymentGroup. ([spec](docs/spec/bank-statement-auto-match.md))
+- **`bank_manual_match`** — BankTransfer ↔ FundPaymentGroup (Fund flow) / Procedure (Direct flow). ([spec](docs/spec/bank-statement-manual-match.md))
+- **`overpayment`** — Refund cascade across Procedure + Fund + Bank. ([spec](docs/spec/overpayment.md))
+- **`db_backup`** — SQLite `VACUUM INTO` + gzip; pending-import for Windows file-locking. ([spec](docs/spec/db-backup.md))
 
 ---
 
-### Procedure (`context/procedure/`)
+## Key invariants
 
-**Entity: `Procedure`**
-- `id`, `patient_id`, `fund_id?`, `procedure_type_id`, `procedure_date` (NaiveDate), `procedure_amount?` (i64 cents)
-- `payment_method`: `None` | `Cash` | `Check` | `BankCard` | `BankTransfer`
-- `payment_status`: `None` | `Created` | `Reconciliated` | `PartiallyReconciled` | `DirectlyPayed` | `FundPayed` | `PartiallyFundPayed` | `ImportDirectlyPayed` | `ImportFundPayed`
-- `confirmed_payment_date?`, `actual_payment_amount?`
+The non-obvious facts that constrain future work — things you'd never guess from code alone.
 
-**Entity: `ProcedureType`**
-- `id`, `name`, `default_amount` (i64 thousandths of euro), `category?`
-- Reserved sentinel: id `import-pdf` (renamed "Import" in DB) — hidden from UI, protected from update/delete
-- Factory methods: `new()`, `with_id()`, `restore()`
+### Backend
 
-**Repository traits: `ProcedureRepository`, `ProcedureTypeRepository`**
+- **`src/bindings.ts` is auto-generated** from Rust types via Specta. Never edit by hand. Regenerate with `just generate-types`.
+- **`src-tauri/src/shared/infrastructure/specta_builder.rs` is the ONLY Tauri command registry.** A `#[tauri::command]` not collected here is invisible to the FE.
+- **`context/{bc}/api.rs` is the gateway for each BC** (B0). External callers go through `api.rs`; nothing reaches into `domain/` or `infrastructure/` from outside the BC.
+- **Procedure lifecycle**:
+  `None → Created → {Reconciled, PartiallyReconciled, DirectlyPaid} → {FundPaid, PartiallyFundPaid}`,
+  plus refund branches `Overpaid` / `OverpaymentRefund` (REF-160 / REF-090) and import variants `ImportDirectlyPaid` / `ImportFundPaid`.
+  A procedure with a "blocking status" (reconciled or paid) **cannot be deleted** without first un-reconciling (R5, REF-220, REF-230).
+- **`Procedure.billed_amount: Option<i64>`** is optional. When `None`, the procedure conceptually inherits its `ProcedureType.default_amount`. The auto-match algorithm filters `None`-billed procedures out, so this rarely surfaces — but two inline TODOs at `use_cases/fund_payment_reconciliation/orchestrator.rs:328,498` flag that `paid_amount` may be left `None` on edge-path reconciliation.
+- **Patient name dedup is Unicode-aware** (since 2026-05-18 fix `1a4a4d6`): comparison happens in Rust via `str::to_lowercase()`, not SQLite `LOWER()` which is ASCII-only. EXI-080 symmetry holds across accented characters.
+- **Reserved sentinel `procedure_type.id = "import-pdf"`** (displayed as "Import" in the UI). Hidden from the type-management UI, protected against add/update/delete. Used when the fund-PDF reconciliation flow has to create a procedure for an unmatched line.
+- **Default cash bank account**: `get_cash_bank_account_id()` returns a fixed sentinel id used as the default for cash/check direct payments (R13).
+- **Typed error model is the wire shape.** One flat `{BC}Error` per bounded context + one `{UseCase}Error` composite per use case with `#[serde(untagged)]` + `#[from]`. Per-BC `*ApplicationError` / `*DomainError` splits are an explicit anti-pattern. See [`docs/error-model.md`](docs/error-model.md).
+- **`sqlx-mysql` is compiled in** via `sqlx-macros` even though we use SQLite only. The dead-code `rsa` dep has a Marvin timing CVE (RUSTSEC-2023-0071) — tracked as techdebt; not invoked at runtime.
+- **No PII values in `tracing!` calls** — field NAMES (`"Fetching patient by SSN"`) are fine; field VALUE interpolation of SSN / IBAN / patient name is forbidden (logging hygiene rule in CLAUDE.md).
 
-ProcedureRepository: CRUD + `read_procedures_by_ids`, `read_by_fund`, `read_by_patient`, `create_batch`
+### Frontend
 
-ProcedureTypeRepository: CRUD + `find_by_name` (case-insensitive, soft-delete aware)
+- **Locale**: fr-primary, en-secondary. Every visible string flows through `t()` (F24 covers `aria-label`, `placeholder`, `title`, etc. too).
+- **Currency / date rendering**: canonical helpers in `src/lib/formatters.ts` (`useFormatters().formatCurrency` / `formatDate`). Hand-rolled `Intl.NumberFormat("fr-FR", …)` is forbidden.
+- **One `gateway.ts` per feature** is the ONLY place `commands.*` is called (F26). Sub-features import from it; never create their own.
+- **Three feature layout generations coexist** (Flat → Layer-first → Feature-first/gold). New features follow gold; existing features migrate bit-by-bit per CLAUDE.md § Gold Standards. See [Feature layout](#feature-layout) below.
+- **Event-driven state sync**: backend publishes `{Domain}Updated` events on every mutation; the FE listens via `useEffect` + the window event bus and updates `useAppStore` (Zustand). Grep `EventBus` (backend) or `useEffect.*addEventListener` (frontend) to find specific event names.
 
-**Services: `ProcedureService`, `ProcedureTypeService`**
+### Data & infra
 
-`ProcedureTypeService` business rules:
-- Duplicate name check (case-insensitive) on add and update (skips same-id on update)
-- `import-pdf` guard: add/update/delete on the reserved id is rejected
-- Category normalization: trims whitespace, stores `None` if blank
-
-> Note: `ProcedureService` in this context handles basic CRUD. Business logic (FK validation, patient tracking) lives in `use_cases/procedure_orchestration/`.
-
-**Tauri commands (`api.rs`)**
-- `add_procedure_type(name, defaultAmount, category?) -> ProcedureType`
-- `read_all_procedure_types() -> Vec<ProcedureType>`
-- `update_procedure_type(raw) -> ProcedureType`
-- `delete_procedure_type(id)`
-
-> `add_procedure`, `read_all_procedures`, `update_procedure`, `delete_procedure` are registered from `use_cases/procedure_orchestration/api.rs`, not here.
-
----
-
-### Bank (`context/bank/`)
-
-**Entity: `BankAccount`**
-- `id`, `name`, `iban?`
-- Factory methods: `new()`, `with_id()`, `restore()`
-
-**Entity: `BankTransfer`**
-- `id`, `transfer_date` (NaiveDate), `amount` (i64 cents), `bank_account: BankAccount`
-- `transfer_type`: `Fund` | `Check` | `CreditCard` | `Cash`
-
-**Repository traits: `BankAccountRepository`, `BankTransferRepository`, `BankTransferLinkRepository`**
-
-BankAccountRepository: CRUD + `find_by_iban`
-
-BankTransferRepository: CRUD
-
-BankTransferLinkRepository: junction table management (transfer ↔ fund groups / procedures)
-
-**Services: `BankAccountService`, `BankTransferService`**
-
-**Tauri commands (`api.rs`)**
-- `create_bank_account(name, iban?) -> BankAccount`
-- `read_all_bank_accounts() -> Vec<BankAccount>`
-- `read_bank_account(id) -> Option<BankAccount>`
-- `update_bank_account(id, name, iban?) -> BankAccount`
-- `delete_bank_account(id)`
-- `get_cash_bank_account_id() -> &str` — returns the fixed id of the default cash account (R13)
-- `create_bank_transfer(transferDate, amount, transferType, bankAccountId) -> BankTransfer`
-- `read_all_bank_transfers() -> Vec<BankTransfer>`
-- `read_bank_transfer(id) -> Option<BankTransfer>`
-- `update_bank_transfer(transfer) -> BankTransfer`
-- `delete_bank_transfer(id)`
+- **Migrations are sqlx-managed**: no `BEGIN`/`COMMIT` in `migrations/*.sql` (sqlx wraps each in a transaction). Apply with `just migrate`; regen the offline query cache with `just prepare-sqlx`; nuke + re-apply locally with `just clean-db`.
+- **Dev binaries are Cargo-feature-gated** and never linked into the production app:
+  - `generate_bindings` (feature `generate-bindings`) — regenerates `src/bindings.ts` from Specta types.
+  - `generate_fixtures` (feature `dev-fixtures`) — inverse of import parsers; writes fixture `.xlsx` / `.pdf` artifacts under `src-tauri/tests/fixtures/{surface}/`.
+- **Import codec pattern**: each import surface (Excel, fund-PDF, bank-PDF) has a single typed contract with two peer consumers — the production parser and the dev generator — wired for round-trip equality (`parse(generate(scenario)) == scenario`). See [`docs/spec/import-codec-fixtures.md`](docs/spec/import-codec-fixtures.md). The round-trip integration tests live under `src-tauri/tests/codec_round_trip*.rs` and only compile under `--features dev-fixtures` (CI workflow: `.github/workflows/dev-fixtures.yml`).
 
 ---
 
-## Use Cases (`use_cases/`)
+## Architecture decisions
 
-May import from contexts. Never from another use case. No domain events.
+Recorded in [`docs/adr/`](docs/adr/). Each ADR ratifies a non-obvious design choice that future sessions must respect (or supersede explicitly).
 
-### Procedure Orchestration (`use_cases/procedure_orchestration/`)
-
-Spec: [docs/procedure_orchestration.md](docs/procedure_orchestration.md)
-
-**Entry point: `ProcedureOrchestrationService`**
-
-Cross-context coordinator for procedure CRUD. Validates FK references, infers payment status, and updates patient tracking fields after every create/update.
-
-Key behaviors:
-- FK validation: patient, procedure type, fund (optional) must exist
-- Patient tracking: updates `latest_*` fields if new procedure date > current latest
-- Payment inference: sets `payment_method = BankTransfer` if `confirmed_payment_date` is present
-- Status determination: derives initial `ProcedureStatus` from payment info
-- Deletion guard (R5): rejects deletion for procedures with blocking statuses (`Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`) — linked to a payment group or bank transaction
-
-**Tauri commands (`api.rs`)**
-- `add_procedure(patientId, fundId?, procedureTypeId, procedureDate, procedureAmount?) -> Procedure`
-- `read_all_procedures() -> Vec<Procedure>`
-- `update_procedure(raw) -> Procedure`
-- `delete_procedure(id)`
-- `validate_batch_procedures(procedures) -> ValidateBatchProceduresResponse`
-- `create_batch_procedures(procedures) -> CreateBatchProceduresResponse`
-- `get_unpaid_procedures_by_fund(fundId) -> Vec<Procedure>`
-- `read_procedures_by_ids(ids) -> Vec<Procedure>`
+- [ADR-001](docs/adr/001-bank-fund-label-mapping-persistence.md) — Bank-fund-label mapping persistence (per-account learned mapping vs. global).
+- [ADR-002](docs/adr/002-overpayment-cascade-no-transaction.md) — Overpayment cascade — no DB transaction (split-step rollback design).
+- [ADR-003](docs/adr/003-unit-of-work.md) — Unit of Work — explicit pattern across multi-context writes.
+- [ADR-004](docs/adr/004-e2e-rtl-test-boundary-combobox.md) — E2E / RTL test boundary for HeadlessUI `ComboboxField`.
+- [ADR-005](docs/adr/005-combobox-feasibility-investigation.md) — Combobox feasibility — investigation result.
+- [ADR-006](docs/adr/006-frontend-resolves-pdf-translations.md) — Frontend resolves PDF translations (backend places strings, never i18n).
+- [ADR-007](docs/adr/007-e2e-native-dialog-override.md) — E2E native-dialog override (Tauri WebDriver friction workaround).
 
 ---
 
-### Excel Import (`use_cases/excel_import/`)
-
-**Entry point: `ExcelImportOrchestrator`**
-
-Two-phase flow: parse → execute. `procedure_type_tmp_id` UUIDs are generated at parse time — re-parsing creates different IDs incompatible with the user's type mapping, so `execute_excel_import` always receives the original `ParseExcelResponse`.
-
-Key domain types: `ParseExcelResponse`, `ImportExecutionResult` (patients_created, funds_created, procedures_created, blocked_months), `ExcelAmountMapping`
-
-**Tauri commands (`api.rs`)**
-- `parse_excel_file(filePath) -> ParseExcelResponse`
-- `execute_excel_import(parsedData, procedureTypeMapping, selectedMonths) -> ImportExecutionResult`
-- `get_excel_amount_mappings() -> Vec<ExcelAmountMapping>`
-- `save_excel_amount_mappings(mappings)`
-
----
-
-### Fund Payment Reconciliation (`use_cases/fund_payment_reconciliation/`)
-
-**Entry point: `FundPaymentReconciliationOrchestrator`**
-
-Parses PDF payment statements and matches lines to procedures. Spec: [docs/fund-payment-manual-match.md](docs/fund-payment-manual-match.md), [docs/fund-payment-auto-match.md](docs/fund-payment-auto-match.md)
-
-Key domain types:
-- `PdfParseResult` — groups of lines by (fund, payment_date) + unparsed lines
-- `NormalizedPdfLine` — parsed line: payment_date, invoice_number, fund_name, patient_name, ssn, amount, etc.
-- `ReconciliationResult` — matches (perfect, partial, not_found, too_many)
-- `AnomalyType` — `FundMismatch` | `AmountMismatch` | `DateMismatch`
-
-**Tauri commands (`api.rs`)**
-- `extract_pdf_text(filePath) -> String`
-- `extract_pdf_text_from_bytes(bytes) -> String`
-- `parse_pdf_text(text) -> PdfParseResult`
-- `reconcile_pdf_procedures(parseResult) -> ReconciliationResult`
-- `reconcile_and_create_candidates(parseResult) -> ReconcileAndCandidatesResponse`
-- `create_fund_payment_from_candidates(request) -> FundPaymentGroup`
-- `create_fund_payment_with_auto_corrections(request) -> FundPaymentGroup`
-- `get_unreconciled_procedures_in_range(startDate, endDate) -> Vec<UnreconciledProcedure>`
-- `get_fund_payment_group_edit_data(groupId, fundId) -> FundPaymentGroupEditData`
-
----
-
-### Fund Payment Report PDF (`use_cases/fund_payment_report_pdf/`)
-
-**Entry point: `generate` orchestrator (pure function)**
-
-Renders a post-reconciliation summary report as a PDF byte stream from a session-only payload assembled by the frontend. The frontend pre-resolves every translated label, formatted date, and currency value before invoking; the backend only places strings (ADR-006). No database lookup or i18n on the backend side.
-
-Spec: [docs/spec/fund-payment-report.md](docs/spec/fund-payment-report.md). Architecture decision: [docs/adr/006-frontend-resolves-pdf-translations.md](docs/adr/006-frontend-resolves-pdf-translations.md).
-
-Key types:
-- `ReportGenerationRequest` — pre-resolved payload (title, header lines, unreconciled section, correction groups, page label)
-- `UnreconciledSection` — `Empty { heading, empty_message }` | `Rows { heading, columns, rows, total }`
-- `CorrectionGroup` — pre-translated title + pre-joined row strings (FPR-041, FPR-042)
-
-**Tauri command (`api.rs`)**
-- `generate_fund_reconciliation_report_pdf(request) -> Vec<u8>`
-
-Implementation: `printpdf 0.9` with embedded Roboto fonts (Apache-2.0). Renderer is a stateless A4 assembler with multi-page page-break logic and a footer page-number stamp.
-
----
-
-### Bank Statement Reconciliation (`use_cases/bank_statement_reconciliation/`)
-
-**Entry point: `BankStatementOrchestrator`**
-
-Parses bank statements (PDF/bytes) and creates bank transfers linked to fund payment groups. Spec: [docs/spec/bank-statement-auto-match.md](docs/spec/bank-statement-auto-match.md)
-
-Key domain types:
-- `BankStatementParseResult` — iban, credit_lines, total_credits
-- `FundLabelResolution` — label → fund candidates (saved to `BankFundLabelMapping`)
-- `BankStatementMatchResult` — credit lines matched against fund groups
-- `ConfirmedMatch` — user-confirmed credit_line + fund_group_id
-
-**Tauri commands (`api.rs`)**
-- `parse_bank_statement(bytes) -> BankStatementParseResult`
-- `resolve_bank_account_from_iban(iban) -> Option<BankAccount>`
-- `resolve_bank_fund_labels(bankAccountId, labels) -> Vec<FundLabelResolution>`
-- `save_bank_fund_label_mappings(bankAccountId, mappings)`
-- `match_bank_statement_lines(resolvedLines) -> BankStatementMatchResult`
-- `create_bank_transfers_from_statement(bankAccountId, confirmedMatches)`
-- `get_bank_statement_reconciliation_config() -> BankStatementReconciliationConfig`
-
----
-
-### Database Backup (`use_cases/db_backup/`)
-
-Spec: [docs/db-backup.md](docs/db-backup.md)
-
-**Entry point: `DbBackupOrchestrator`**
-
-Export/import of the SQLite database with gzip compression. Uses a pending-import mechanism to avoid Windows file-locking issues on import.
-
-Key behaviors:
-- Export (R8): `VACUUM INTO` a temp file → gzip → write to user-chosen destination; temp file always cleaned up
-- Import (R10/R11): gunzip → `PRAGMA integrity_check` validation → rename to `{database}.pending`; applied at next startup by `core/db.rs` before the pool opens
-- SQL injection guard on temp path before `VACUUM INTO`
-
-**Tauri commands (`api.rs`)**
-- `export_database(destPath)`
-- `import_database(sourcePath)`
-
----
-
-### Bank Manual Match (`use_cases/bank_manual_match/`)
-
-**Entry point: `BankManualMatchOrchestrator`**
-
-Creates manual links between bank transfers and fund payment groups (Fund flow) or procedures (Direct payment flow). Spec: [docs/bank-statement-manual-match.md](docs/bank-statement-manual-match.md)
-
-Key domain types:
-- `FundGroupCandidate` — fund_id, fund_name, payment_date, total_amount
-- `DirectPaymentProcedureCandidate` — procedure_id, patient_name, amount
-- `BankManualMatchResult` — transfer + linked fund_group_ids + procedure_ids
-
-**Tauri commands (`api.rs`)**
-
-Fund flow:
-- `get_unsettled_fund_groups(transferDate) -> Vec<FundGroupCandidate>` (±7 days window)
-- `get_all_unsettled_fund_groups() -> Vec<FundGroupCandidate>` (all Active groups)
-- `create_fund_transfer(bankAccountId, transferDate, groupIds) -> BankManualMatchResult`
-- `update_fund_transfer(transferId, newTransferDate, newGroupIds) -> BankManualMatchResult`
-- `delete_fund_transfer(transferId)`
-
-Direct payment flow:
-- `get_eligible_procedures_for_direct_payment(paymentDate) -> Vec<DirectPaymentProcedureCandidate>` (±7 days, status Created)
-- `get_all_eligible_procedures_for_direct_payment() -> Vec<DirectPaymentProcedureCandidate>` (all Created)
-- `create_direct_transfer(bankAccountId, transferDate, transferType, procedureIds) -> BankManualMatchResult`
-- `update_direct_transfer(transferId, newTransferDate, newProcedureIds) -> BankManualMatchResult`
-- `delete_direct_transfer(transferId)`
-
-Queries:
-- `get_transfer_fund_group_ids(transferId) -> Vec<String>`
-- `get_transfer_procedure_ids(transferId) -> Vec<String>`
-
----
-
-### Overpayment (`use_cases/overpayment/`)
-
-**Entry point: `OverpaymentOrchestrator`**
-
-Records and cancels overpayment refunds. Cross-context: coordinates Procedure, Fund, and Bank bounded contexts. Spec: [docs/spec/overpayment.md](docs/spec/overpayment.md)
-
-Key domain types:
-- `ProcedureRefund` (`context/procedure/domain/procedure_refund.rs`) — links source procedure to refund procedure + fund group + bank transfer; stores `previous_payment_status` for cancel revert.
-- `CreateOverpaymentRequest` — source_procedure_id, refund_date, transfer_type (CreditCard/Check/OutgoingWire), bank_account_id, reason (optional, ≤255 chars).
-- `CancelOverpaymentRequest` — source_procedure_id.
-- `ProcedureRefundInfo` — surface DTO for the frontend.
-
-**Domain extensions added:**
-- `ProcedureStatus::Overpaid` — source procedure after overpayment recorded (blocks deletion, REF-220).
-- `ProcedureStatus::OverpaymentRefund` — mirror negative procedure (blocks deletion, REF-230).
-- `BankTransferType::OutgoingWire` — exclusive to the overpayment refund flow (REF-080/REF-110). Rejected in `create_direct_transfer`.
-
-**Tauri commands (`api.rs`)**
-- `create_overpayment(request: CreateOverpaymentRequest)` — full 12-step cascade: validate eligibility → create refund Procedure + FundPaymentGroup + BankTransfer + BankTransferLink + ProcedureRefund → update source status to Overpaid.
-- `cancel_overpayment(request: CancelOverpaymentRequest)` — reverse cascade: revert source status → delete ProcedureRefund → unlink + delete BankTransfer → delete FundPaymentGroup + lines → delete refund Procedure.
-- `get_procedure_refund_by_source(sourceProcedureId)` — resolves ProcedureRefundInfo for the frontend cancel flow.
-
-**Guards:**
-- `delete_fund_payment_group` (fund/api.rs): rejects deletion if group belongs to an overpayment refund (REF-240). Injected via `OverpaymentOrchestrator` Tauri state.
-- `delete_procedure` (procedure_orchestration/service.rs): `is_blocking_status` now includes `Overpaid` and `OverpaymentRefund`.
-- `procedure_orchestration/api.rs`: `is_blocking_status` (string-based) extended with `"OVERPAID"` and `"OVERPAYMENT_REFUND"`.
-
-**REF-170:** `ProcedureOrchestrationService::update_procedure` propagates `procedure_type_id` changes to the linked `OverpaymentRefund` procedure when the source is `Overpaid`.
-
----
-
-### Database
-
-- SQLite, migrations in `src-tauri/migrations/`
-- Latest: `20260414_overpayment.sql` (adds `procedure_refund` table)
-- After schema changes: `just clean-db` → `cargo sqlx prepare`
-- Never add `BEGIN`/`COMMIT` in migrations (sqlx wraps each in a transaction)
-
----
-
-### Dev Binaries (`src-tauri/dev/`)
-
-Cargo-feature-gated binaries, never linked into the production app. Each entry has a matching `[[bin]]` stanza in `Cargo.toml` with `required-features = [...]` and a `#![cfg(feature = "...")]` at the top of its source.
-
-| Binary | Feature flag | Purpose | Spec |
-|---|---|---|---|
-| `generate_bindings` | `generate-bindings` | Regenerate `src/bindings.ts` from Specta | — |
-| `generate_fixtures` | `dev-fixtures` | Inverse of import parsers — writes fixture `.xlsx` and `.pdf` artifacts under `tests/fixtures/{surface}/` | [IFC](docs/spec/import-codec-fixtures.md) |
-
-#### Import codec pattern (`generate_fixtures`)
-
-For each import surface, a single typed contract lives in production code with two peer consumers (IFC-020):
-
-- **Production parser** produces values of the contract type when reading a real document.
-- **Dev generator** consumes values of the same contract type and writes a file the parser inverts.
-
-Round-trip property (IFC-021): `parse(generate(scenario)) == scenario` on every durable field, with session-scoped UUIDs (`*_tmp_id`) carved out per EXI R5.
-
-Currently covered:
-
-| Surface  | Codec module                                                | Contract type                | Round-trip carve-outs                                   |
-| -------- | ----------------------------------------------------------- | ---------------------------- | ------------------------------------------------------- |
-| Excel    | `use_cases/excel_import/excel_codec.rs`                     | `ParsedExcelData`            | Session-scoped `*_tmp_id` UUIDs (EXI R5).               |
-| Fund-PDF | `use_cases/fund_payment_reconciliation/fund_pdf_codec.rs`   | `PdfParseResult`             | None — full structural equality (IFC-061).              |
-| Bank-PDF | `use_cases/bank_statement_reconciliation/bank_pdf_codec.rs` | `BankStatementParseResult`   | None — full structural equality (IFC-101).              |
-
-Each codec module holds the typed contract plus data-mapping constants (sheet names, header labels, total-line markers, separators) that locate each field in the document. Parser internals (validation thresholds, fallback offsets, regex patterns, emitted strings) stay inside the parser per IFC-063 / IFC-103. All three IFC surfaces are covered.
-
-The `dev-fixtures` Cargo feature gates the binary, every Excel write-side dependency (`rust_xlsxwriter`), and the round-trip integration tests (`tests/codec_round_trip.rs`, `tests/codec_round_trip_fund_pdf.rs`, `tests/codec_round_trip_bank_pdf.rs`). The fund-PDF and bank-PDF writers reuse `printpdf`, already a prod dep for the fund-payment-report renderer (IFC-065 / IFC-105 carve-out). The standard `cargo test` and `tauri build` jobs run without the feature.
-
-Regenerate fixtures: `just regen-fixtures excel` / `just regen-fixtures fund-pdf` / `just regen-fixtures bank-pdf` (optional `<scenario>` arg). CI guard: `.github/workflows/dev-fixtures.yml` regenerates each surface and runs `git diff --exit-code -- src-tauri/tests/fixtures/ ':(exclude)*.pdf'` to catch drift on every deterministic file (`.expected.json`, Excel `.xlsx`); the round-trip tests are the correctness gate for the non-deterministic PDF surfaces.
-
----
-
-## Frontend (`src/`)
-
-### Global Store (`lib/appStore.ts`)
-
-**`useAppStore`** (Zustand) — shared data across features:
-
-| Field | Type | Loaded by |
-|-------|------|-----------|
-| `patients` | `Patient[]` | `PatientUpdated` event |
-| `funds` | `AffiliatedFund[]` | `FundUpdated` event |
-| `procedureTypes` | `ProcedureType[]` | `ProcedureTypeUpdated` event |
-| `procedureTypesError` | `string \| null` | Set on load failure, cleared on success |
-| `bankAccounts` | `BankAccount[]` | `BankAccountUpdated` event |
-| `fundPaymentGroups` | `FundPaymentGroup[]` | `FundPaymentGroupUpdated` event |
-
-Actions: `setPatients`, `addPatients`, `setFunds`, `addFunds`, `setProcedureTypes`, `addProcedureTypes`, `setProcedureTypesError`, `setBankAccounts`, `addBankAccounts`, `setFundPaymentGroups`, `addFundPaymentGroups`, `setLoading`
-
-### Infrastructure
-
-| Path | Role |
-|------|------|
-| `bindings.ts` | Auto-generated Tauri bindings — **DO NOT EDIT** |
-| `lib/logger.ts` | Structured logging — always use instead of `console.log` |
-| `i18n/locales/fr/` + `en/` | Translation files — all visible text must go through `t(...)` |
-| `ui/components/` | Shared generic UI (Button, DateField, SelectField, CompactSelectField, FAB…) — never modify for a specific use case |
-| `core/snackbar/` | Toast notifications |
-| `core/events/` | Window event bus |
-
----
-
-### Features (`src/features/`)
-
-#### Bank Account (`features/bank-account/`)
-Flat layout. Gateway: `create_bank_account`, `read_all_bank_accounts`, `update_bank_account`, `delete_bank_account`. Single component: `BankAccountManager`.
-
-#### Bank Transfer + Manual Match (`features/bank-transfer/`)
-Mixed layout: root-level `gateway.ts`, `store.ts` (feature-scoped transfer list), and top-level hooks (`useBankTransferManager`, `useBankTransferController`, `useBankTransferOperations`), with subdirectories for each sub-feature. Gateway covers `context/bank/` (CRUD).
-- `add_bank_transfer_form/` — creation form with fund/patient selection modals
-- `bank_transfer_list/` — transfer list display
-- `edit_bank_transfer_modal/` — edit modal + `useEditBankTransferModal` hook (loads linked groups/procedures, handles update submit)
-- `select_items_panel/` — `SelectFundGroupsPanel` + `useSelectFundGroupsPanel`, `SelectProceduresPanel` + `useSelectProceduresPanel`; both panels call `use_cases/bank_manual_match/` commands through the root `gateway.ts`
-- `shared/` — `validateBankTransfer.ts`
-
-#### Bank Statement Auto-Match (`features/bank-statement-match/`)
-Flat layout. `BankStatementPage` + gateway wrapping all `use_cases/bank_statement_reconciliation/` commands. UI sub-components: `BankStatementModal` (step machine: loading → label-mapping → matching → results → done/error), `FundLabelMappingStep` + `useFundLabelMappingStep` (label→fund mapping with two-block display), `MatchResultsStep`.
-
-#### Fund (`features/fund/`)
-Flat layout. Gateway: `add_fund`, `read_all_funds`, `update_fund`, `delete_fund`. Component: `FundsManager`.
-
-#### Fund Payment (`features/fund-payment/`)
-Flat layout. `FundPaymentManager` + gateway wrapping `create_fund_payment_group`, `update_fund_payment_group_with_procedures`, `delete_fund_payment_group`.
-
-#### Fund Payment Match (`features/fund-payment-match/`)
-Flat layout. `ReconciliationPage` + `useReconciliationPage`. Gateway wraps all `use_cases/fund_payment_reconciliation/` commands plus `generate_fund_reconciliation_report_pdf` and `exportAndOpenReportPdf` (single command that renders, writes the PDF to the user's Downloads directory under a locale-aware filename, and launches the system default PDF viewer).
-
-Sub-features:
-- `reconciliation_modal/` — `ReconciliationModal` + `useReconciliationModal` (PDF extraction → reconciliation → auto-validation), `useReportGeneration` (assembles the pre-resolved `ReportGenerationRequest`, builds the locale-aware leaf filename `{stem}_{YYYY-MM}.pdf`, and dispatches a single export-and-open call per FPR-011 to FPR-019)
-- `shared/` — `reportPresenter.ts` (builds `correction_groups` + `unreconciled` section per FPR-031 to FPR-042), `formatters.ts` (locale-aware currency / date), `__fixtures__/reportFixtures.ts` (mock data shared by RTL tests and visual proof)
-
-#### Patient (`features/patient/`)
-Flat layout. Gateway: `add_patient`, `read_all_patients`, `update_patient`, `delete_patient`. Component: `PatientsManager`.
-
-#### Procedure (`features/procedure/`)
-**`api/` + `presentation/` split** (layer-first generation — see layout table below).
-- `api/gateway.ts` — wraps all procedure commands + inline entity creation (patient, fund)
-- `api/procedureService.ts` — higher-level service combining multiple gateway calls
-- `model/` — `procedure-row.types.ts`, `procedure-row.mapper.ts` (milliemes → euros), `date.logic.ts`
-- `hooks/` — `useProcedureData` (loads reference data, exposes `deleteRow`), `useProcedurePeriod` (period filter + yearRange), `useCreateEntityForm` (shared create-entity form logic)
-- `ui/` — `ProcedurePage` (period selector, search, stats, read-only list, FAB), `PeriodSelector` (month/year `CompactSelectField` + nav arrows), `SummaryStats` (billed / received / awaited from `actualPaymentAmount`), `procedure_list/ProcedureList` + `StatusBadge`, `procedure_form_modal/ProcedureFormModal` (unified create/edit modal), `form/CreatePatientForm` + `CreateFundForm` (nested entity creation modals)
-
-#### Procedure Type (`features/procedure-type/`)
-Flat layout. Gateway: `add_procedure_type`, `read_all_procedure_types`, `update_procedure_type`, `delete_procedure_type`.
-
-#### Excel Import (`features/excel-import/`)
-**`api/` + `presentation/` split**.
-- `api/gateway.ts` — `parse_excel_file`, `execute_excel_import`, `get_excel_amount_mappings`, `save_excel_amount_mappings`
-- `presentation/ImportExcelPage.tsx` — 5-step wizard: upload → parsing → mapping → importing → complete
-- Components: `FileUploadSection`, `ProcedureTypeMappingStep`, `MonthSelectionStep`, `ValidationSummaryCard`, `ParsingReportModal`, `CreateProcedureTypeModal`
-
-#### Database Backup (`features/db-backup/`)
-
-Gold layout (feature-first). Spec: [docs/db-backup.md](docs/db-backup.md)
-
-- `gateway.ts` — `exportDatabase(destPath)`, `importDatabase(sourcePath)`
-- `db_backup_panel/DbBackupModal.tsx` — modal with export card + import card + confirmation dialog + progress indicator
-- `db_backup_panel/useDbBackupPanel.ts` — manages export flow (R2/R3) and import flow (R4/R5/R6): file dialogs, loading states, toast notifications, relaunch after import
-- i18n namespaces: `en/db-backup.json`, `fr/db-backup.json`
-
-#### Notification (`features/notification/`)
-`BottomBar` + `useNotification`. Displays backend-emitted notifications.
-
-#### Shell (`features/shell/`)
-Layout: `Drawer`, `Header`, `Footer`, `PageContent`, `useDrawerController`.
-`Drawer` is a persistent M3 Navigation Rail sidebar with two states: expanded (`w-70`, icons + labels) and collapsed rail (`w-16`, icons only with tooltip). State is managed by `useDrawerController` (`isExpanded` / `toggle`). `DrawerToggle` has been removed — the toggle button is now embedded in the Drawer branding section.
-Theme: `theme_toggle/ThemeToggle` + `theme_toggle/useThemeToggle` — cycles day/night/auto, persists to `localStorage`, applies `.dark` class on `<html>`, listens to OS `prefers-color-scheme` in auto mode.
-Import modal: `import_modal/ImportModal` + `import_modal/useImportModal` — unified entry point for the three import flows (Excel, Fund reconciliation, Bank reconciliation). Opened from the single "Importer" drawer entry; checks prerequisites (funds, bank accounts) before navigating. i18n namespace: `import-modal`.
-Management modal: `management_modal/ManagementModal` + `management_modal/useManagementModal` — unified entry point for the six list management pages (Patients, Funds, Procedure Types, Fund Payment, Bank Transfer, Bank Accounts). Opened from the single "Gestion" drawer entry; checks prerequisites (funds, bank accounts) before navigating to fund-payment and bank-transfer. i18n namespace: `management-modal`.
-
-#### Updater (`features/updater/`)
-`UpdateBanner` + `useUpdater`. Tauri auto-updater integration.
-
----
-
-### Data Flow
+## Data flow
 
 ```
 Component
   └─ Hook (state, useMemo, callbacks)
        └─ Gateway (commands.* — positional args, matches bindings.ts exactly)
             └─ Tauri IPC
-                 └─ Rust api.rs handler (Result<T, String>)
-                      └─ Service / Orchestrator (anyhow::Result<T>)
+                 └─ Rust api.rs handler  → Result<T, {BC}Error | {UseCase}Error>
+                      └─ Service / Orchestrator
                            └─ Repository (sqlx, Arc<dyn Trait>)
                                 └─ SQLite
 
@@ -550,17 +159,20 @@ Backend publishes {Domain}Updated event
        └─ Store updated → UI re-renders
 ```
 
-### Feature Layout Convention
+---
 
-**Layout generations (oldest → newest):**
+## Feature layout
 
-| Generation | Features | Pattern |
-|---|---|---|
-| Flat (old) | fund, patient, bank-account, fund-payment, bank-statement-match, fund-payment-match, procedure-type | Everything at root — `gateway.ts`, component, hook, `shared/` |
-| Layer-first (middle) | excel-import, procedure | `api/` + `presentation/` split — do not replicate |
-| **Feature-first (gold)** | **bank-transfer** | `gateway.ts` at root + subdirectories by sub-feature, hooks colocated |
+Three generations coexist. The **bit-by-bit rule** applies (CLAUDE.md § Gold Standards): new features follow gold; existing features stay in their current generation unless a touched-file edit naturally folds the migration in under the 50-LOC / locality / mechanical gates.
 
-**New features must follow the bank-transfer (gold) layout:**
+- **Flat (old)** — everything at root (`gateway.ts`, component, hook, `shared/`).
+  Examples: `fund`, `patient`, `bank-account`, `fund-payment`, `bank-statement-match`, `fund-payment-match`, `procedure-type`.
+- **Layer-first (middle, do not replicate)** — `api/` + `presentation/` split.
+  Examples: `excel-import`, `procedure`.
+- **Feature-first (gold)** — `gateway.ts` at root + sub-feature directories with colocated component + hook + test.
+  Examples: `bank-transfer`, `db-backup`.
+
+Gold layout reference (`bank-transfer`):
 
 ```
 features/{domain}/
@@ -571,15 +183,31 @@ features/{domain}/
 │   ├── use{SubFeature}.ts         # Colocated hook
 │   └── use{SubFeature}.test.ts    # Colocated test
 ├── shared/
-│   ├── presenter.ts               # Domain → UI transformations (toRow, toFormData…)
+│   ├── presenter.ts               # Domain → UI transformations
 │   └── validate{Domain}.ts        # Pure validation logic
 └── index.ts                       # Public re-exports
 ```
 
-**Key rules:**
-- `gateway.ts` at the feature root — no `api/` wrapper folder
-- Sub-features are directories grouped by **feature concern**, not by layer (no `components/`, `hooks/` folders)
-- Hooks are colocated next to their component inside the sub-feature folder
-- One `gateway.ts` per feature at the root — sub-features import from it, never create their own
-- `shared/presenter.ts` — pure object with static-style methods (`toRow`, `toFormData`) that transform domain types into UI shapes; keeps components free of mapping logic
-- `shared/` for any logic used across multiple sub-features
+---
+
+## Where to find things
+
+| Need | Look at |
+|---|---|
+| Domain vocabulary | `docs/ubiquitous-language.md` |
+| Backend rules (DDD, layout) | `docs/backend-rules.md` |
+| DDD concepts + error categories | `docs/ddd-reference.md` |
+| Typed-error model how-to | `docs/error-model.md` |
+| Frontend rules (layout, F24–F28) | `docs/frontend-rules.md` |
+| i18n conventions | `docs/i18n-rules.md` |
+| Frontend visual proof | `docs/frontend-visual-proof.md` |
+| Test conventions (unit, RTL) | `docs/test_convention.md` |
+| E2E conventions | `docs/e2e-rules.md` |
+| Per-feature business rules | `docs/spec/*.md` |
+| Per-domain contracts | `docs/contracts/*.md` |
+| Architecture decisions | `docs/adr/*.md` |
+| Recorded code smells | `docs/techdebt.md` |
+| Backlog | `docs/todo.md` |
+| Kit tools / agents / skills | `.claude/kit-tools.md` |
+| Kit version | `.claude/kit-version.md` |
+| Kit sync manifest | `.claude/kit-manifest.txt` |

@@ -2,21 +2,9 @@
 
 ---
 
-## (ci) — Add Linux E2E to `just check-full` via `scripts/check.py`
-
-E2E tests run only locally today and only if the developer remembers `npm run test:e2e`. Folding them into `check.py` (which the pre-push hook already invokes) makes the gate impossible to skip silently.
-
-Caveats — needs design before coding:
-- E2E adds ~3–5 min to `check-full`; that path is already slow. Decide whether it belongs in `--full` only, behind an opt-in flag (`--e2e`), or gated by changed-paths heuristics.
-- The pre-push hook runs `check-full` — adding E2E there slows every push. Consider whether a separate `just check-e2e` recipe is a better fit, invoked manually before merges.
-- `npm run test:e2e:ci` needs `xvfb-run`. The developer machine (Xubuntu) has X11 already; running headless via xvfb avoids window pop-ups but adds a system dependency.
-- Failures need to surface clearly through `check.py`'s quality-report table.
-
----
-
 ## (ci) — Windows E2E at the release gate
 
-Linux E2E (local + future `check.py`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.
+Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.
 
 Scope:
 - Make `wdio.conf.ts` platform-aware (Linux WebKitGTK driver vs Windows WebView2/EdgeDriver).
