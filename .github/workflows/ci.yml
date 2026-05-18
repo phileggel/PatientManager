@@ -60,6 +60,7 @@ jobs:
           for sha in $(git rev-list --no-merges "$BASE..HEAD"); do
             TITLE=$(git log -1 --pretty=%s "$sha")
             BODY=$(git log -1 --pretty=%b "$sha")
+            AUTHOR_EMAIL=$(git log -1 --pretty=%ae "$sha")
 
             if ! echo "$TITLE" | grep -E "$REGEX" >/dev/null; then
               echo "::error::$sha — invalid conventional format: $TITLE"
@@ -74,10 +75,15 @@ jobs:
               echo "::error::$sha — title ends with period: $TITLE"
               FAIL=1
             fi
-            BODY_LINES=$(echo "$BODY" | { grep -v '^$' || true; } | { grep -v '^BREAKING CHANGE:' || true; } | wc -l)
-            if [ "$BODY_LINES" -gt 5 ]; then
-              echo "::error::$sha — body > 5 lines ($BODY_LINES): $TITLE"
-              FAIL=1
+            # Body-length is a human-writing-hygiene gate; bot-generated
+            # commits (Dependabot, Renovate) carry auto-populated release
+            # notes that legitimately exceed 5 lines.
+            if [[ "$AUTHOR_EMAIL" != *"[bot]@"* ]]; then
+              BODY_LINES=$(echo "$BODY" | { grep -v '^$' || true; } | { grep -v '^BREAKING CHANGE:' || true; } | wc -l)
+              if [ "$BODY_LINES" -gt 5 ]; then
+                echo "::error::$sha — body > 5 lines ($BODY_LINES): $TITLE"
+                FAIL=1
+              fi
             fi
             if echo "$BODY" | grep -i '^Co-Authored-By:' >/dev/null; then
               echo "::error::$sha — contains Co-Authored-By trailer: $TITLE"
