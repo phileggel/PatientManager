@@ -9,14 +9,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
 
-## 2026-05-18 — Kit `commits` CI check should skip body-length for bot-authored commits
-
-**Where:** `.github/workflows/ci.yml` `commits` job — patched locally in commit on branch `ci/skip-body-len-for-bots`. The same job ships in `claude-kit`'s upstream `ci.yml` template.
-
-**Observation:** The kit's body-length rule (max 5 lines) is a human-writing-hygiene guard; Dependabot's auto-generated commit bodies legitimately exceed it (PR #36 was 65 lines of release notes across 6 grouped action bumps). The local fix wraps the body-length check in `if [[ "$AUTHOR_EMAIL" != *"[bot]@"* ]]`. Should be propagated upstream so every downstream project inherits the fix and we don't re-add it on each `just sync-kit`. Without the upstream change, this file diverges from the kit and the next sync may prompt to overwrite.
-
----
-
 ## 2026-05-16 — RTL coverage gap on currency-display components
 
 **Where:** Components with `formatCurrency` calls but no RTL test:

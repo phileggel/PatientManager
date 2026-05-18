@@ -62,32 +62,38 @@ jobs:
             BODY=$(git log -1 --pretty=%b "$sha")
             AUTHOR_EMAIL=$(git log -1 --pretty=%ae "$sha")
 
+            # Conventional-commit format is load-bearing for release.py
+            # changelog parsing — enforced for every author, including bots.
             if ! echo "$TITLE" | grep -E "$REGEX" >/dev/null; then
               echo "::error::$sha — invalid conventional format: $TITLE"
               FAIL=1
             fi
-            if [ ${#TITLE} -gt 72 ]; then
-              echo "::error::$sha — title > 72 chars (${#TITLE}): $TITLE"
-              FAIL=1
-            fi
-            TRIMMED=$(echo "$TITLE" | sed 's/[[:space:]]*$//')
-            if [[ "$TRIMMED" == *. ]]; then
-              echo "::error::$sha — title ends with period: $TITLE"
-              FAIL=1
-            fi
-            # Body-length is a human-writing-hygiene gate; bot-generated
-            # commits (Dependabot, Renovate) carry auto-populated release
-            # notes that legitimately exceed 5 lines.
+
+            # The remaining checks (title length, trailing period, body
+            # length, no Co-Authored-By) are human-writing-hygiene rules.
+            # Bot commits (Dependabot, Renovate) carry auto-generated
+            # titles/bodies that legitimately bypass them — e.g. "across
+            # N directories with M updates" titles and multi-page release
+            # notes. Enforce only for human authors.
             if [[ "$AUTHOR_EMAIL" != *"[bot]@"* ]]; then
+              if [ ${#TITLE} -gt 72 ]; then
+                echo "::error::$sha — title > 72 chars (${#TITLE}): $TITLE"
+                FAIL=1
+              fi
+              TRIMMED=$(echo "$TITLE" | sed 's/[[:space:]]*$//')
+              if [[ "$TRIMMED" == *. ]]; then
+                echo "::error::$sha — title ends with period: $TITLE"
+                FAIL=1
+              fi
               BODY_LINES=$(echo "$BODY" | { grep -v '^$' || true; } | { grep -v '^BREAKING CHANGE:' || true; } | wc -l)
               if [ "$BODY_LINES" -gt 5 ]; then
                 echo "::error::$sha — body > 5 lines ($BODY_LINES): $TITLE"
                 FAIL=1
               fi
-            fi
-            if echo "$BODY" | grep -i '^Co-Authored-By:' >/dev/null; then
-              echo "::error::$sha — contains Co-Authored-By trailer: $TITLE"
-              FAIL=1
+              if echo "$BODY" | grep -i '^Co-Authored-By:' >/dev/null; then
+                echo "::error::$sha — contains Co-Authored-By trailer: $TITLE"
+                FAIL=1
+              fi
             fi
           done
           if [ "$FAIL" -eq 0 ]; then
