@@ -8,7 +8,7 @@ Reference for handling errors in this codebase. Directive, not historical. Conce
 
 **One flat enum per bounded context (`{BC}Error`).** Holds every variant the BC can raise — aggregate-invariant errors raised by domain methods AND lookup / state / infra errors raised by services. No Domain / Application split inside the BC.
 
-**One composite per use case (`{UseCase}Error`).** Wraps the BC enums the use case touches via `#[from]` + adds use-case-specific flat variants (cross-BC guards, in-flight checks, catch-alls). Serialized with `#[serde(untagged)]` so the wrappers disappear on the wire.
+**One composite per use case (`{UseCase}Error`).** Wraps the BC enums the use case touches via `#[from]`, plus a `{UseCase}Task` sub-enum (`#[serde(tag = "code")]`) carrying use-case-specific codes (cross-BC guards, in-flight checks, catch-alls) — wired in via `#[from]` too. The composite itself is `#[serde(untagged)]` so the wrappers disappear on the wire and every variant emits `{ "code": "..." }`.
 
 **Contracts describe the wire shape only.** `docs/contracts/{bc}-contract.md` lists per-command wire-visible variant codes; Rust-internal type names (BC enums, composite enums) are not exposed in contracts.
 
@@ -35,10 +35,10 @@ Reference for handling errors in this codebase. Directive, not historical. Conce
   ```
 
 - **Use-case-specific guard** (cross-BC verdict like `InventoryUnavailable`; orchestrator-level check like `ProcessAlreadyRunning`)
-  → flat variant in `{UseCase}Error`.
+  → variant in `{UseCase}Task` sub-enum (`#[serde(tag = "code")]`), wired into `{UseCase}Error` via `#[from]`. Bare unit variants directly on the `#[serde(untagged)]` composite serialize to `null` on the wire — the sub-enum carries the `code` discriminator.
 
 - **Unexpected catch-all in a use case** (panic-kind; sync infra failure not attributable to a specific BC's database)
-  → `{UseCase}Error::UnknownError`.
+  → variant in the same `{UseCase}Task` sub-enum (e.g. `UnknownError`).
 
 - **Need a payload on the wire?**
   → struct variants. Tuple variants don't survive `#[serde(tag = "code")]`.
@@ -79,15 +79,11 @@ A single enum holds every variant the BC can raise. Aggregate-invariant variants
 ### Use-case composite
 
 ```rust
-#[derive(Debug, thiserror::Error, serde::Serialize, specta::Type)]
-#[serde(untagged)]
-pub enum ProcessOrderError {
-    #[error(transparent)]
-    Order(#[from] OrderError),
-
-    #[error(transparent)]
-    Inventory(#[from] InventoryError),
-
+// Use-case-specific guard + catch-all variants — at use_cases/{name}/error.rs
+// Tagged with `code` so each variant emits `{ "code": "ProcessAlreadyRunning" }` on the wire.
+#[derive(Debug, thiserror::Error, serde::Serialize, specta::Type, Clone)]
+#[serde(tag = "code")]
+pub enum ProcessOrderTask {
     #[error("An order is already being processed")]
     ProcessAlreadyRunning,
 
@@ -97,9 +93,52 @@ pub enum ProcessOrderError {
     #[error("Unexpected error")]
     UnknownError,
 }
+
+// Composite — at use_cases/{name}/error.rs
+// Holds ONLY `#[from]` wrappers (BC enums + the task sub-enum). Every wrapped
+// type carries its own `#[serde(tag = "code")]`, so the untagged composite
+// flattens to a single `{ "code": "...", ... }` payload on the wire.
+#[derive(Debug, thiserror::Error, serde::Serialize, specta::Type)]
+#[serde(untagged)]
+pub enum ProcessOrderError {
+    #[error(transparent)]
+    Order(#[from] OrderError),
+
+    #[error(transparent)]
+    Inventory(#[from] InventoryError),
+
+    #[error(transparent)]
+    Task(#[from] ProcessOrderTask),
+}
 ```
 
-Wrapper variants propagate BC errors via `?` (thanks to `#[from]`). Use-case-specific variants are flat (no inner enum) and constructed explicitly. All variants serialize as `{ code: "..." }` on the wire via `untagged`.
+Wrapper variants propagate BC errors via `?` (thanks to `#[from]`). Use-case-specific guards and the catch-all live in a small tagged `{UseCase}Task` sub-enum that is itself wired in via `#[from]` — construct them with `ProcessOrderTask::ProcessAlreadyRunning.into()`. **Never put bare unit variants directly on a `#[serde(untagged)]` enum** — they have no content for serde to serialize, so they collapse to `null` and become indistinguishable on the wire (see § Anti-patterns).
+
+### Verifying the wire shape
+
+A small `serde_json` round-trip catches the `null`-collapse regression for every adopter. Run it as a `#[test]` next to the composite:
+
+```rust
+#[test]
+fn each_variant_emits_a_code() {
+    use serde_json::{json, to_value};
+
+    let order_not_found: ProcessOrderError =
+        OrderError::OrderNotFound { order_id: "ORD-1".into() }.into();
+    assert_eq!(
+        to_value(&order_not_found).unwrap(),
+        json!({ "code": "OrderNotFound", "order_id": "ORD-1" }),
+    );
+
+    let already_running: ProcessOrderError = ProcessOrderTask::ProcessAlreadyRunning.into();
+    assert_eq!(
+        to_value(&already_running).unwrap(),
+        json!({ "code": "ProcessAlreadyRunning" }),
+    );
+}
+```
+
+If any variant serializes to `null`, the recipe was misread — almost always a bare unit variant added directly to the composite instead of to the task sub-enum.
 
 ### Service method signature
 
@@ -119,11 +158,11 @@ pub async fn record_payment(...) -> Result<Payment, OrderError> {
 pub async fn run(&self, order_id: &str) -> Result<(), ProcessOrderError> {
     let _ = self.order_service.find_by_id(order_id).await?;
     if self.guard.is_running() {
-        return Err(ProcessOrderError::ProcessAlreadyRunning);
+        return Err(ProcessOrderTask::ProcessAlreadyRunning.into());
     }
     let scope = self.order_service.load_pending_line_items(order_id).await?;
     if scope.is_empty() {
-        return Err(ProcessOrderError::NoLineItemsToProcess);
+        return Err(ProcessOrderTask::NoLineItemsToProcess.into());
     }
     self.dispatch(scope);
     Ok(())
@@ -154,8 +193,8 @@ const result = await orderGateway.processOrder(orderId);
 if (result.status === "error") {
   switch (result.error.code) {
     case "OrderNotFound": // wrapped from OrderError
-    case "ProcessAlreadyRunning": // flat use-case variant
-    case "NoLineItemsToProcess": // flat use-case variant
+    case "ProcessAlreadyRunning": // from ProcessOrderTask
+    case "NoLineItemsToProcess": // from ProcessOrderTask
     case "DatabaseError": // wrapped from OrderError or InventoryError
     // ...
   }
@@ -178,7 +217,7 @@ if (result.status === "error") {
 ## Anti-patterns
 
 - ❌ Per-BC `*ApplicationError` / `*DomainError` split — collapse into a single `{BC}Error`.
-- ❌ Wrapping use-case-specific guards in their own leaf enum (`{UseCase}GuardError`) — keep them as flat variants in the composite.
+- ❌ **Bare unit variants directly on a `#[serde(untagged)]` composite** — they have no content for serde to serialize and all collapse to `null` on the wire, becoming indistinguishable. Put use-case-specific guards and the catch-all in a `#[serde(tag = "code")]`-tagged `{UseCase}Task` sub-enum and wire it into the composite via `#[from]` instead.
 - ❌ Documenting Rust-internal type names in the contract — wire shape only.
 - ❌ Returning `anyhow::Result<T>` from a service or use-case method that surfaces to a Tauri command.
 - ❌ Adding a `Database` / `Infrastructure` / `Unknown` variant carrying a `String` hint to the FE.
@@ -193,11 +232,14 @@ if (result.status === "error") {
 
 ## Where things live
 
-| What                                          | Where                                                |
-| --------------------------------------------- | ---------------------------------------------------- |
-| Per-BC flat enum (`{BC}Error`)                | `src-tauri/src/context/{bc}/error.rs`                |
-| Use-case composite + flat guards              | `src-tauri/src/use_cases/{name}/error.rs`            |
-| All composites + BC enums on the FE wire      | `src/bindings.ts` (auto-generated; do not edit)      |
-| Per-command wire variants                     | `docs/contracts/{bc}-contract.md`                    |
-| Layering rules within a BC (domain / service) | [`docs/ddd-reference.md`](ddd-reference.md) § Errors |
-| Backend coding rules (B31 in particular)      | [`docs/backend-rules.md`](backend-rules.md)          |
+| What                                     | Where                                           |
+| ---------------------------------------- | ----------------------------------------------- |
+| Per-BC flat enum (`{BC}Error`)           | `src-tauri/src/context/{bc}/error.rs`           |
+| Use-case composite + flat guards         | `src-tauri/src/use_cases/{name}/error.rs`       |
+| All composites + BC enums on the FE wire | `src/bindings.ts` (auto-generated; do not edit) |
+| Per-command wire variants                | `docs/contracts/{bc}-contract.md`               |
+
+Related convention docs:
+
+- [`ddd-reference.md`](ddd-reference.md) § Errors — layering rules within a BC (domain / service).
+- [`backend-rules.md`](backend-rules.md) — backend coding rules, especially B31.

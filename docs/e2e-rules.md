@@ -1,9 +1,7 @@
 # E2E Testability Rules
 
 Defines what makes a component reliably driveable from the Tauri WebDriver E2E suite.
-Read together with `docs/frontend-rules.md` and `docs/test_convention.md`.
-
-⚠️ **AI AGENT MUST NEVER UPDATE THIS DOCUMENT**
+Read together with `frontend-rules.md` and `test_convention.md`.
 
 > Rule numbers (E1, E2, …) are stable IDs — once assigned, they never change. New rules are appended; deprecated rules keep their number with a note.
 
@@ -56,7 +54,7 @@ Convention: `{area}-{action}` — e.g. `nav-management`, `mgmt-card-patients`, `
 
 `id` is locale-invariant and refactor-safe. `aria-label` is not — relying on `[aria-label="Enter price"]` as the selector silently breaks when the app runs in a non-English locale (the rendered label is the translated value, not the English source) or when the i18n key is renamed.
 
-`aria-label` MUST still flow through `t()` for accessibility — see F24 in `frontend-rules.md` § i18n. The accessibility requirement and the selector strategy are now two separate concerns.
+`aria-label` MUST still flow through `t()` for accessibility — see F24 in `frontend-rules.md` § i18n. The accessibility requirement and the selector strategy are now two separate concerns: F24 mandates `t()` for the user-facing label, this rule (E4) is why that same label cannot be the E2E selector.
 
 ## E5 — Error messages MUST have `role="alert"`
 

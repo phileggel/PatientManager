@@ -2,8 +2,6 @@
 
 > For DDD concept definitions, see [docs/ddd-reference.md](ddd-reference.md).
 
-**AI AGENT SHOULD NEVER UPDATE THIS DOCUMENT**
-
 > Rule numbers (B0, B1, …) are stable IDs — once assigned, they never change. New rules are appended; deprecated rules keep their number with a note.
 
 ## Folder Structure
@@ -174,7 +172,7 @@ implementations, `sqlx::Pool`, `sqlx::Transaction`, `sqlx::query!`, or any other
 
 **B26** — For cross-aggregate writes (operations that must write to more than one aggregate
 atomically), the use case orchestrator MUST use the UnitOfWork pattern (`TransactionManager`
-from `core/uow.rs`). Single-aggregate writes do NOT use UoW — the aggregate's own repository
+from `shared/infrastructure/uow.rs`). Single-aggregate writes do NOT use UoW — the aggregate's own repository
 handles atomicity internally via its `save()` method.
 
 ## Repository
@@ -187,10 +185,10 @@ handles atomicity internally via its `save()` method.
 
 **B29** — MUST use `target:` field when adding a new backend specific log.
 
-**B30** — When using the `target:` field in tracing calls, MUST use a named constant instead of a string literal. Define `BACKEND` / `FRONTEND` constants in a shared `core::logger` module and reference them:
+**B30** — When using the `target:` field in tracing calls, MUST use a named constant instead of a string literal. Define `BACKEND` / `FRONTEND` constants in a shared `shared::infrastructure::logger` module and reference them:
 
 ```rust
-// Define once in core/logger.rs:
+// Define once in shared/infrastructure/logger.rs:
 pub const BACKEND: &str = "backend";
 
 // Use everywhere:
@@ -199,7 +197,7 @@ tracing::info!(target: BACKEND, field = value, "message");
 
 ## General
 
-**B31** — Application services and use-case orchestrators MUST return typed `Result<T, {BC}Error>` (BC-scoped) or `Result<T, {UseCase}Error>` (cross-BC composite) per [`error-model.md`](error-model.md) — one flat enum per BC, plus use-case composites via `#[serde(untagged)]` + `#[from]`. Repositories MAY use `anyhow::Error` as their trait error type; the application layer translates infra failures to the BC's `{BC}Error::DatabaseError` variant at the call site, logging the diagnostic chain via `tracing::error!`. Tauri commands return the typed enum / composite directly — no `Result<T, String>` boundary translation, no `anyhow::Result<T>` on a wire-visible signature.
+**B31** — Application services and use-case orchestrators MUST return typed `Result<T, {BC}Error>` (BC-scoped) or `Result<T, {UseCase}Error>` (cross-BC composite) per [`error-model.md`](error-model.md) — one flat enum per BC, plus use-case composites via `#[serde(untagged)]` + `#[from]` wrapping each BC enum and a tagged `{UseCase}Task` sub-enum that carries any use-case-specific codes (bare unit variants directly on the untagged composite serialize to `null` and collapse on the wire). Repositories MAY use `anyhow::Error` as their trait error type; the application layer translates infra failures to the BC's `{BC}Error::DatabaseError` variant at the call site, logging the diagnostic chain via `tracing::error!`. Tauri commands return the typed enum / composite directly — no `Result<T, String>` boundary translation, no `anyhow::Result<T>` on a wire-visible signature.
 
 **B32** — MAY use `#[allow(clippy::too_many_arguments)]` on domain factory methods and production constructors (e.g. orchestrator or service new() with many injected dependencies). MUST NOT use on test helpers — use a builder struct instead.
 

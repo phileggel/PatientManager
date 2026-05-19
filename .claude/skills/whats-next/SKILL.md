@@ -43,9 +43,11 @@ Run the deterministic collector once:
 python3 scripts/whats-next.py
 ```
 
-The script emits a single JSON document covering nine sources: `todo_file`, `inline_todos`, `planning_docs`, `feature_plans`, `spec_open_questions`, `in_flight`, `roadmap`, `techdebt`, `gh_issues`. Sections whose source is absent are emitted as `null` or empty arrays — skip those silently.
+The script emits a single JSON document covering ten sources: `todo_file`, `inline_todos`, `planning_docs`, `feature_plans`, `spec_open_questions`, `in_flight`, `roadmap`, `techdebt`, `gh_issues`, `kit_update`. Sections whose source is absent are emitted as `null` or empty arrays — skip those silently.
 
 `gh_issues` is empty (`[]`) when `gh` is not on PATH or the repo has no GitHub remote — skip silently. When populated, each entry has `number`, `title`, `url`, `updatedAt`.
+
+`kit_update` is `null` when `.claude/kit-version.md` is absent (kit-internal use, or a project that has never synced), when `gh` is missing, or when the network call to the kit's GitHub release feed fails. When populated, the shape is `{"current": "v4.8.0", "latest": "v4.9.0", "behind": true}`; the latest tag is cached locally for 24h under `~/.cache/claude-kit/whats-next-latest.json` so subsequent invocations stay offline-fast. Treat a `behind: true` entry as a Pending candidate with source label `kit@{current} → {latest}` and recommend `do now` — every other candidate's value/effort scoring stays a model judgment, but a kit upgrade is a one-command operation that unblocks downstream alignment for every other source.
 
 Parse the JSON and translate every entry into a **candidate item** with `(type, source, text)` for scoring in Step 4. **Tech-debt entries are candidates too** — surface them in the same Pending items table, but always label the source as `docs/techdebt.md` (with the entry date) so the user can tell observations from explicit todos. **GitHub issues are also candidates** — label the source as `gh#NNN` (e.g. `gh#42`) so the user sees the issue number at a glance.
 
@@ -74,6 +76,8 @@ For each `🟢 pending` candidate, assign:
 
 **These estimates are model-judged.** Always include a disclaimer in the output that the user should sanity-check before acting on them — especially for items the model has no implementation context for.
 
+A `kit_update` candidate with `behind: true` is the one exception: it inherits `do now` and a `High / ≤1h` value/effort from Step 2 directly — a kit upgrade is a one-command operation that unblocks downstream alignment for every other source, so model judgment is bypassed.
+
 ### Step 5 — Pick the suggested next action
 
 From all `🟢 pending` items, pick **one** as the suggested next action based on:
@@ -86,7 +90,7 @@ If two items tie, prefer the one with explicit user signal (most recent edit, me
 
 ### Step 6 — Output, save, confirm
 
-1. Print the findings to the conversation using `## Output format` below.
+1. Print the findings to the conversation using `## Output format` below. The output ends with a mandatory Recap section — counts per source so the user sees the full backlog landscape behind the single suggested action.
 2. **Save** the compact summary to `REPORT_PATH` using the Write tool — mandatory final action. The skill is incomplete until Write succeeds. Format defined in `## Save report` below.
 3. Reply: `Report saved to {REPORT_PATH}`.
 
@@ -109,10 +113,12 @@ If two items tie, prefer the one with explicit user signal (most recent edit, me
 | 3 | {short description} | docs/spec/bar.md (Open Q) | Low | ≤1h | defer |
 | 4 | {observation} | docs/techdebt.md (2026-04-02) | Medium | 1–3h | do next |
 | 5 | {issue title} | gh#42 | Medium | 2h | do next |
+| 6 | Upgrade kit to v4.9.0 | kit@v4.8.0 → v4.9.0 | High | ≤1h | do now |
 
 > Tech-debt entries appear in the same table with their source labelled
-> `docs/techdebt.md (DATE)`; GitHub issues are labelled `gh#NNN` — the user can
-> tell observations, todos, and tracked issues apart at a glance.
+> `docs/techdebt.md (DATE)`; GitHub issues are labelled `gh#NNN`; a pending
+> kit upgrade is labelled `kit@{current} → {latest}` — the user can tell
+> observations, todos, tracked issues, and kit drift apart at a glance.
 
 ### Likely already done (cleanup candidates)
 - {item} — evidence: commit {sha} / file {path} exists
@@ -128,7 +134,20 @@ Source: {source — e.g. `docs/TODO.md:NN`, `docs/plan/foo-plan.md`, `docs/techd
 Value/Effort: {value} / {effort}
 Why: {1–2 sentences explaining the value/effort win and any dependency context}
 First step: {concrete file or command to start with}
+
+### Recap
+- TODOs (sections): N
+- Inline TODOs: N
+- Techdebt: N
+- GH issues: N
+- Planning docs: N
+- Feature plans: N
+- Open questions: N
+- Roadmap: n/a | present
+- Kit: v{current} (up to date) | v{current} → v{latest} (behind) | n/a
 ```
+
+`n/a` when the source file/feature doesn't exist in the project (e.g. no `docs/techdebt.md`, no `gh` CLI, no `.claude/kit-version.md`). `0` when the source exists but is currently empty. The Recap is mandatory — it grounds the suggested action in the full backlog size at a glance.
 
 If nothing is pending:
 
@@ -161,6 +180,8 @@ Pending items: N. Likely-done cleanup: N. In-flight: N.
 
 Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section whose count is zero. Tech-debt entries are included in the pending shortlist alongside other candidates; their source label (`docs/techdebt.md (DATE)`) carries the provenance.
 
+The per-source Recap (Output format § Recap) is **conversation-only by design** — it's a cheap landscape view to ground the suggested action; the save stays compact for trend analysis across reports. Do not duplicate the Recap counts into the saved summary.
+
 ---
 
 ## Critical Rules
@@ -168,10 +189,11 @@ Replace `{date}-{N}` with the values used in `REPORT_PATH`. Omit any section who
 1. **Verify before recommending** — a TODO that mentions a file or feature must be cross-checked against the actual repo state before being scored. Stale TODOs surface as `cleanup candidates`, not work candidates.
 2. **Estimates are model-judged, not authoritative** — the disclaimer at the top of the output is mandatory. Never present value/effort as decided priorities.
 3. **One suggestion, not three** — pick a single next action. A list of "you could do any of these" defeats the purpose; the user invoked this skill to avoid that exact decision.
-4. **Tech debt and GitHub issues are work with provenance** — entries from `docs/techdebt.md` and open `gh_issues` are scored like any other candidate, but their source must be labelled (`docs/techdebt.md (DATE)` or `gh#NNN`) so the user can distinguish observations, explicit todos, and tracked issues. Don't hide them in separate buckets.
+4. **Tech debt, GitHub issues, and kit-update are work with provenance** — entries from `docs/techdebt.md`, open `gh_issues`, and a `behind: true` `kit_update` are scored like any other candidate (with the kit-update do-now override noted in Step 2), but their source must be labelled (`docs/techdebt.md (DATE)`, `gh#NNN`, or `kit@{current} → {latest}`) so the user can distinguish observations, explicit todos, tracked issues, and kit drift. Don't hide them in separate buckets.
 5. **Save the report even when nothing is pending** — "no work" is itself a useful signal worth keeping for trend analysis.
 6. **Trust the script for collection, not for judgment** — `scripts/whats-next.py` only describes what's there. The skill decides what's worth doing.
 7. **Escape external content in tables** — GitHub issue titles are author-controlled and may contain pipe characters or backticks that break Markdown table rendering. When emitting a `gh#NNN` row in the Pending items table, replace `|` with `\|` and trim the title to the first 80 characters.
+8. **Recap is mandatory** — every `/whats-next` output ends with the Recap section (per-source counts), even when the suggested action is the only pending item. The Recap is the landscape behind the single recommendation.
 
 ---
 

@@ -41,7 +41,7 @@ Read `.claude/visual-proof.json`.
 1. Read `vite.config.ts` — extract `server.port` if set; default to `1422` (avoids collision with Tauri on 1420). If `vite.config.ts` is absent, default to `1422`.
 2. `vite_preview_host` → default `127.0.0.1` (user edits config manually for WSL2/VM if needed).
 3. `global_css_import` → Glob `src/index.css`, `src/main.css`, `src/styles/global.css`. Use the single match. If multiple candidates: ask via `AskUserQuestion`. If zero matches: ask the user to provide the path.
-4. `i18n_import` → Glob `src/infra/i18n.ts`, `src/i18n/i18n.ts`, `src/i18n/index.ts`, `src/lib/i18n.ts` (last two for pre-v4.5 projects). Use the single match. If multiple candidates: ask. If zero matches: ask the user to provide the path or confirm the project has no i18n setup (skip the i18n initializer call in Step 3).
+4. `i18n_import` → Glob `src/infra/i18n/index.ts` first (F0 gold layout), then `src/infra/i18n.ts`, `src/i18n/i18n.ts`, `src/i18n/index.ts`, `src/lib/i18n.ts` (last three are pre-F0 / pre-v4.5 fallbacks). Use the single match. If multiple candidates: ask. If zero matches: ask the user to provide the path or confirm the project has no i18n setup (skip the i18n initializer call in Step 3).
 
 Write `.claude/visual-proof.json`:
 
@@ -50,7 +50,7 @@ Write `.claude/visual-proof.json`:
   "vite_preview_port": 1422,
   "vite_preview_host": "127.0.0.1",
   "global_css_import": "src/index.css",
-  "i18n_import": "src/i18n/i18n.ts"
+  "i18n_import": "src/infra/i18n/index.ts"
 }
 ```
 
@@ -88,7 +88,7 @@ Ask the user via `AskUserQuestion`:
 
 Read the component file in full. Read `src/bindings.ts` for generated TypeScript types. If a domain contract exists (`docs/contracts/{domain}-contract.md`, inferred from the component path), read it for realistic data shapes. Read the `i18n_import` file (using the converted relative path) to discover the exported initializer function name.
 
-**Import path conversion**: config paths are relative to the project root (e.g. `src/i18n/i18n.ts`). When importing from `src/__preview__/main.tsx`, strip the leading `src/` and prefix with `../` (e.g. `src/i18n/i18n.ts` → `../i18n/i18n.ts`, `src/index.css` → `../index.css`).
+**Import path conversion**: config paths are relative to the project root (e.g. `src/infra/i18n/index.ts`). When importing from `src/__preview__/main.tsx`, strip the leading `src/` and prefix with `../` (e.g. `src/infra/i18n/index.ts` → `../infra/i18n`, `src/styles/index.css` → `../styles/index.css`).
 
 **Write `preview.html`** at the project root:
 
@@ -122,8 +122,8 @@ Example (adapt to the real component interface):
 ```tsx
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "../index.css";
-import { setupI18n } from "../i18n/i18n";
+import "../styles/index.css";
+import { setupI18n } from "../infra/i18n";
 import { LoginForm } from "../features/auth/LoginForm";
 
 if (new URLSearchParams(window.location.search).get("theme") === "dark") {

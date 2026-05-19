@@ -48,7 +48,7 @@ Optionally, the user may pass a `modified_functions` list — entries of the for
 
 1. Read `docs/contracts/{domain}-contract.md` — source of truth for commands, args, return types, errors.
 2. Read `src/bindings.ts` — use generated TypeScript types; never invent or infer types.
-3. Read `docs/frontend-rules.md` — for F3 (gateway), F5 (presenter), F24 (a11y i18n), F25 (stable ids), F27 (typed error pipeline), F28 (top-level `src/` buckets).
+3. Read `docs/frontend-rules.md` — for F3 (gateway), F5 (presenter), F24 (a11y i18n), F25 (stable ids), F27 (typed error pipeline), F0 (gold layout) + F28 (bucket discipline).
 4. Read `docs/test_convention.md` — for the gateway-mocking template in component tests (§ Mocking gateway modules) and `renderHook` discipline.
 5. Locate `src/features/{domain}/gateway.ts` via Glob; also check `src/features/{domain}/**/gateway.ts` for sub-feature gateways (per F3).
 6. Run `python3 scripts/list-fe-test-targets.py {domain}` to enumerate component candidates and their gateway-import status. The agent consumes this JSON in Step 4 instead of scanning `.tsx` files by hand. Output shape: list of `{file, component, imports_gateway, imports_presenter}` entries.
@@ -226,7 +226,7 @@ describe("UserList", () => {
 
 _Skip this step if no `modified_functions` were provided._
 
-For each `{file}:{behavior}` entry: read the file, grep for existing tests, then write a focused unit test in a colocated `.test.ts` next to the file under test (anywhere in `src/` per F28 — `features/`, `ui/hooks/`, `shell/`, `infra/`). No gateway mock unless the function calls the gateway; no RTL render unless it's a React hook (use `renderHook`); assert the specific output or side-effect.
+For each `{file}:{behavior}` entry: read the file, grep for existing tests, then write a focused unit test in a colocated `.test.ts` next to the file under test (anywhere in `src/` per F0 — `features/`, `ui/hooks/`, `shell/`, `infra/`). No gateway mock unless the function calls the gateway; no RTL render unless it's a React hook (use `renderHook`); assert the specific output or side-effect.
 
 ```typescript
 import { renderHook } from "@testing-library/react";
@@ -246,7 +246,7 @@ it("recomputes unit_price from total_cost and quantity for OpeningBalance", () =
 
 ### Step 6 — Verify red
 
-Pass the exact file paths just written to vitest — catches modified_functions tests wherever they land per F28:
+Pass the exact file paths just written to vitest — catches modified_functions tests wherever they land per F0:
 
 ```bash
 npx vitest run \
@@ -334,7 +334,7 @@ Next step: confirm whether this domain is intentionally event-only / read-only, 
 ### Mock & file mechanics
 
 5. **Mock at the layer-under-test boundary** — `vi.mock("../../bindings")` in gateway tests (gateway pass-through is under test); `vi.mock("./gateway")` in component tests (component shouldn't know `commands.*` exists per F3). See `docs/test_convention.md` § Mocking gateway modules.
-6. **Colocate test files** — `gateway.test.ts` next to `gateway.ts`; `{Component}.integration.test.tsx` next to `{Component}.tsx`; modified-function tests next to the file under test (per F28). Never create a `__tests__/` directory.
+6. **Colocate test files** — `gateway.test.ts` next to `gateway.ts`; `{Component}.integration.test.tsx` next to `{Component}.tsx`; modified-function tests next to the file under test (per F0). Never create a `__tests__/` directory.
 7. **Append, never duplicate `describe`** — if a test file exists, append inside the existing `describe` block using Edit (not Write).
 
 ### Test-shape discipline

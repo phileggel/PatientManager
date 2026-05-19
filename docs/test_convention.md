@@ -8,6 +8,7 @@
 | BE Tier 1 — Unit        | Service / orchestrator logic | inline `#[cfg(test)] mod tests` in the same `.rs` file       | All deps mocked (mockall)     |
 | BE Tier 2 — Repository  | SQL queries and persistence  | inline `#[cfg(test)] mod tests` in the repository `.rs` file | None — real in-memory SQLite  |
 | BE Tier 3 — Integration | Spec-driven end-to-end flows | `src-tauri/tests/` (separate binary)                         | None — real services + SQLite |
+| Tier 4 — E2E            | WebDriver UI flows           | `e2e-rules.md` (ephemeral DB, B36)                           | None                          |
 
 Run checks before committing:
 
@@ -48,7 +49,7 @@ vi.mock("../gateway", () => ({
   fetchItems: vi.fn(),
 }));
 
-vi.mock("@/core/snackbar", () => ({
+vi.mock("@/ui/components/snackbar/snackbarStore", () => ({
   useSnackbar: () => ({ showSnackbar: vi.fn() }),
 }));
 
@@ -62,7 +63,7 @@ For mocks that are referenced inside `beforeEach` or test bodies, use `vi.hoiste
 ```ts
 const mockToastShow = vi.hoisted(() => vi.fn());
 
-vi.mock("@/core/snackbar", () => ({
+vi.mock("@/ui/components/snackbar/snackbarStore", () => ({
   toastService: { show: mockToastShow, subscribe: vi.fn(() => vi.fn()) },
 }));
 ```
@@ -271,6 +272,16 @@ async fn build_ctx() -> Ctx {
 - Cross-context interactions that can't be exercised by a single unit test
 
 **Key constraint:** `tests/` can only access public API. Keep a separate `Arc<Service>` in the `Ctx` struct when you need to assert post-action state — do not access private fields.
+
+---
+
+### Tier 4 — E2E (WebDriver UI flows)
+
+**Location:** `e2e/` tests driving the full app through WebDriver.
+
+**Purpose:** Validate UI flows end-to-end against an ephemeral database (per B36).
+
+See [`e2e-rules.md`](e2e-rules.md) for the full rule set (E1–E10) — selector discipline, React controlled-input helpers, locale-formatted date pickers, deterministic test values.
 
 ---
 

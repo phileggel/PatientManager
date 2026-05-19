@@ -272,7 +272,7 @@ Pre-existing issues on unchanged lines go in a separate section per file — no 
 ```
 ### ℹ️ Pre-existing tech debt (not introduced by this branch)
 - Line 12: `aria-label="Save"` literal string
-- Line 27: `src/hooks/useFuzzy.ts` referenced — F28 layout uses `src/ui/hooks/`
+- Line 27: `src/hooks/useFuzzy.ts` referenced — F0 layout uses `src/ui/hooks/`
 
 > Add to `docs/todo.md` if not already tracked.
 ```

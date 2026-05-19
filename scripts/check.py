@@ -49,11 +49,37 @@ SKIP_SQLX_ABSENT = f"{BACKEND_DIR}/.sqlx/ absent"
 # NO_COLOR=1.
 _ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 
+# Emojis used in the quality report — Python `len()` counts each as 1, but
+# every modern terminal renders them as 2 columns. Without compensation, every
+# row carrying one of these is off by 1 column from the separator.
+# Explicit codepoints (not the literal glyphs) so the VS-16 trap below is
+# visible to the next maintainer. Add new report emojis here.
+_WIDE_CHARS = frozenset(
+    {
+        "✅",  # ✅
+        "⏩",  # ⏩
+        "❌",  # ❌
+        # ⚠ — Narrow per UAX#11; VS-16 below promotes to emoji-2col.
+        # Kept as \u escape so ruff/format can't auto-fix the bare codepoint
+        # into the VS-16 pair ⚠️ and silently re-introduce the over-pad.
+        "\u26a0",
+        "\U0001f680",  # 🚀
+        "✨",  # ✨
+    }
+)
+# Variation Selector-16 (U+FE0F) follows characters like ⚠ to force emoji
+# presentation. Terminals render the pair as 2 columns; Python `len()` counts
+# the VS as a separate char. Strip it before counting so width math stays
+# correct without per-glyph special cases.
+_VS16 = "️"
+
 
 def _pad_visible(s: str, width: int) -> str:
-    """Pad `s` to `width` visible columns, ignoring ANSI escape codes."""
-    visible_len = len(_ANSI_RE.sub("", s))
-    return s + " " * max(0, width - visible_len)
+    """Pad `s` to `width` visible columns, ignoring ANSI escape codes and
+    compensating for wide characters that render as 2 terminal columns."""
+    plain = _ANSI_RE.sub("", s).replace(_VS16, "")
+    visible_cols = len(plain) + sum(1 for c in plain if c in _WIDE_CHARS)
+    return s + " " * max(0, width - visible_cols)
 
 
 class QualityChecker:
@@ -414,7 +440,7 @@ class QualityChecker:
                 self._set_metric("tsc", STATUS_PASS)
             else:
                 err_count = len(re.findall(r"error TS", tsc_res.stdout))
-                self._vprint(f"{WARNING}⚠️  TSC: {err_count} errors found{RESET}")
+                self._vprint(f"{WARNING}⚠️ TSC: {err_count} errors found{RESET}")
                 self._set_metric("tsc", f"{err_count} errors")
                 err_output = tsc_res.stdout.strip() if not self.verbose else ""
                 self._record_failure("TSC", err_output)
@@ -516,7 +542,7 @@ class QualityChecker:
             or value.endswith(" errors")
             or value.endswith(" warnings")
         ):
-            return f"{WARNING}⚠️  {value}{RESET}"
+            return f"{WARNING}⚠️ {value}{RESET}"
         return f"{FAILURE}❌ {value}{RESET}"
 
     def print_report(self):

@@ -70,7 +70,7 @@ A record of something that happened. Raised by aggregates after a state change. 
 
 Orchestrates domain objects to fulfill use cases that belong entirely to one BC. Contains no business rules — it delegates all logic to the domain.
 
-> In the kit's Rust convention, the application layer lives in `context/{bc}/application/` per BC. See `backend-rules.md` § Project Structure (Rust) for the gold layout.
+> In the kit's Rust convention, the application layer lives in `context/{bc}/application/` per BC. See `backend-rules.md` § Folder Structure for the gold layout.
 
 ### Application Service (`service.rs`)
 
@@ -132,7 +132,7 @@ A deliberately-shared subset of the domain between two or more BCs. The Shared K
 
 **Where in the layout**
 
-Per the kit's Rust convention (`backend-rules.md` § Project Structure (Rust)): `shared/domain/`. Files here are the only place outside an individual BC's `domain/` where domain code may live.
+Per the kit's Rust convention (`backend-rules.md` § Folder Structure): `shared/domain/`. Files here are the only place outside an individual BC's `domain/` where domain code may live.
 
 **Discipline**
 
@@ -147,7 +147,7 @@ aggregates in one DB transaction.
 
 ### TransactionManager
 
-A shared application infrastructure trait (lives in `core/`). Wraps the DB pool and provides
+A shared application infrastructure trait (lives in `shared/infrastructure/`). Wraps the DB pool and provides
 a closure-based API: `run(|uow| { ... })` — begins a transaction, executes the closure, commits
 on success, rolls back on failure.
 
@@ -211,7 +211,7 @@ Concretely:
 
 - **Aggregate-method rejection** → domain origin. `Order::apply_payment(&mut self, payment) -> Result<Payment, OrderError>` enforcing `InsufficientFunds` on loaded state.
 - **Service-level pre-check** → application origin. `if repo.find(id).is_none() { return Err(OrderError::OrderNotFound { ... }) }` runs before any aggregate is loaded.
-- **Use-case orchestrator rejection** (cross-BC preconditions, in-flight guards) → use-case-specific. Flat variant in `{UseCase}Error` (not in any BC's enum), e.g. `ProcessOrderError::ProcessAlreadyRunning`.
+- **Use-case orchestrator rejection** (cross-BC preconditions, in-flight guards) → use-case-specific. Variant of `{UseCase}Task` (a tagged sub-enum wired into `{UseCase}Error` via `#[from]`), e.g. `ProcessOrderTask::ProcessAlreadyRunning.into()`. Not in any BC's enum.
 - **Translated infrastructure failure** → application origin. `repo.something().await.map_err(|e| { tracing::error!(...); OrderError::DatabaseError })?` at the service call site. Unit variant — no `hint` payload. The full diagnostic chain is preserved server-side via the `tracing::error!` call, not on the wire.
 
 The rule has a useful side-effect: if a service-level pre-check could be moved into the aggregate, the rejection-layer rule says it _should_ be — see the anemic-domain rule in `backend-rules.md`.
@@ -220,7 +220,7 @@ The rule has a useful side-effect: if a service-level pre-check could be moved i
 
 One flat enum per bounded context (`{BC}Error`). Aggregate-invariant variants and service-layer variants sit side by side — the reader sees the BC's full failure surface in one type. Do not split into per-aggregate (`OrderError` + `PaymentError`) or per-layer (`OrderDomainError` + `OrderApplicationError`) sub-enums; that fragmentation hides which variants the BC can actually raise.
 
-Use-case orchestrators compose multiple BCs and add their own guards. They get a `{UseCase}Error` composite that wraps each BC enum via `#[from]` + adds flat use-case-specific variants. See [`error-model.md`](error-model.md) § Use-case composite.
+Use-case orchestrators compose multiple BCs and add their own guards. They get a `{UseCase}Error` composite that wraps each BC enum via `#[from]`, plus a `{UseCase}Task` sub-enum (tagged with `code`) carrying the orchestrator's own codes — also wired in via `#[from]`. See [`error-model.md`](error-model.md) § Use-case composite.
 
 ### Travel rule
 
@@ -274,15 +274,25 @@ pub enum OrderError {
     DatabaseError,
 }
 
+// Use-case-specific guards + catch-all — tagged sub-enum at use_cases/{name}/error.rs
+#[serde(tag = "code")]
+pub enum ProcessOrderTask {
+    ProcessAlreadyRunning,                  // use-case guard
+    NoLineItemsToProcess,                   // use-case guard
+    UnknownError,                           // catch-all
+}
+
 // Use-case composite — at use_cases/{name}/error.rs
+// Holds ONLY `#[from]` wrappers; every wrapped type carries its own
+// `#[serde(tag = "code")]`, so the untagged composite flattens cleanly.
 #[serde(untagged)]
 pub enum ProcessOrderError {
     Order(#[from] OrderError),              // wrapper — all OrderError variants reachable
     Inventory(#[from] InventoryError),      // wrapper — all InventoryError variants reachable
-    ProcessAlreadyRunning,                  // flat use-case guard
-    NoLineItemsToProcess,                   // flat use-case guard
-    UnknownError,                           // flat catch-all
+    Task(#[from] ProcessOrderTask),         // wrapper — all use-case codes reachable
 }
 ```
 
 At the wire, `ProcessOrderError` serializes as `{ code: "...", ...payload }` — wrappers disappear, every variant is reachable as a flat `code` discriminator. The UI narrows on `code` (see [`error-model.md`](error-model.md) § Frontend handling). Use-case composite types are an upper bound on per-command reachable codes; the contract narrows further to what's actually returnable.
+
+Bare unit variants directly on the `untagged` composite would serialize to `null` (serde has no content to emit) and collapse together on the wire — that's why use-case guards live inside a `#[serde(tag = "code")]` sub-enum rather than as direct composite variants. See [`error-model.md`](error-model.md) § Anti-patterns.

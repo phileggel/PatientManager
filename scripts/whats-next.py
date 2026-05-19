@@ -19,10 +19,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -72,7 +74,16 @@ def _git(*args: str) -> str:
 
 
 def collect_todo_file() -> dict | None:
-    """Return TODO file content split into sections, or None if absent."""
+    """Return TODO file content split into sections, or None if absent.
+
+    Two bullet styles are captured per section:
+      - Checkbox bullets at any indent (`- [ ] foo`, `- [x] foo`) — surfaced
+        with `done: true|false` from the checkbox state.
+      - Plain top-level bullets (`- foo`, no checkbox) — surfaced with
+        `done: false`. The TODO candidates pool typically uses this style;
+        only top-level entries count (nested `  - sub-item` lines are
+        treated as continuation of the parent, not separate candidates).
+    """
     for name in ("docs/todo.md", "docs/TODO.md"):
         path = ROOT / name
         text = _read(path)
@@ -80,7 +91,7 @@ def collect_todo_file() -> dict | None:
             continue
         sections: list[dict] = []
         current_heading: str | None = None
-        current_items: list[str] = []
+        current_items: list[dict] = []
         for line in text.splitlines():
             heading = re.match(r"^##\s+(.+?)\s*$", line)
             if heading:
@@ -91,13 +102,21 @@ def collect_todo_file() -> dict | None:
                 current_heading = heading.group(1)
                 current_items = []
                 continue
-            item = re.match(r"^\s*-\s+\[(?P<state>[ xX])\]\s+(?P<text>.+)$", line)
-            if item and current_heading is not None:
+            checkbox = re.match(r"^\s*-\s+\[(?P<state>[ xX])\]\s+(?P<text>.+)$", line)
+            if checkbox and current_heading is not None:
                 current_items.append(
                     {
-                        "done": item.group("state").lower() == "x",
-                        "text": item.group("text").strip(),
+                        "done": checkbox.group("state").lower() == "x",
+                        "text": checkbox.group("text").strip(),
                     }
+                )
+                continue
+            # Lookahead excludes ONLY checkbox bullets (`- [ ]` / `- [x]`),
+            # not link bullets (`- [text](url)`) — link-bullet TODOs are valid.
+            plain = re.match(r"^-\s+(?!\[[ xX]\])(?P<text>.+)$", line)
+            if plain and current_heading is not None:
+                current_items.append(
+                    {"done": False, "text": plain.group("text").strip()}
                 )
         if current_heading is not None:
             sections.append({"heading": current_heading, "items": current_items})
@@ -359,6 +378,99 @@ def _where_path_exists(where: str) -> bool | None:
     return p.exists()
 
 
+KIT_REPO = "phileggel/claude-kit"
+KIT_TAG_CACHE_TTL_SECONDS = 24 * 3600
+
+
+def _kit_tag_cache_file() -> Path:
+    """Honor XDG_CACHE_HOME when set; fall back to ~/.cache otherwise."""
+    base = os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")
+    return Path(base) / "claude-kit" / "whats-next-latest.json"
+
+
+def _latest_kit_tag() -> str | None:
+    """Return the latest `vX.Y.Z` tag from the kit repo, cached for 24h.
+
+    Returns None when `gh` is missing, the network call fails, or the cache
+    file is unreadable — release cadence is days/weeks, so any single miss is
+    non-fatal and the next invocation retries.
+    """
+    cache_file = _kit_tag_cache_file()
+    if cache_file.exists():
+        try:
+            data = json.loads(cache_file.read_text(encoding="utf-8"))
+            age = time.time() - float(data.get("fetched_at", 0))
+            latest = data.get("latest")
+            # `0 <= age` defends against clock-skew (negative age → refetch),
+            # NOT redundant — do not simplify.
+            if 0 <= age < KIT_TAG_CACHE_TTL_SECONDS and isinstance(latest, str):
+                return latest
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            pass
+
+    if not shutil.which("gh"):
+        return None
+    try:
+        # stderr=DEVNULL: `gh` prints auth-required / rate-limit hints to
+        # stderr; we honor the "skips silently" contract in the docstring and
+        # the JSON stdout consumer must stay clean.
+        # OSError: covers the TOCTOU window between shutil.which() and execve
+        # (broken symlink, permission flip).
+        result = subprocess.run(
+            [
+                "gh",
+                "api",
+                f"repos/{KIT_REPO}/releases/latest",
+                "--jq",
+                ".tag_name",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=10,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+        return None
+    latest = result.stdout.strip()
+    if not latest:
+        return None
+    try:
+        # Two concurrent /whats-next invocations may interleave write_text —
+        # benign (last writer wins, content is idempotent), no os.replace needed.
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(
+            json.dumps({"latest": latest, "fetched_at": time.time()}),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass  # cache write failure is non-fatal
+    return latest
+
+
+def collect_kit_update() -> dict | None:
+    """Compare the project's synced kit version against the latest release.
+
+    Reads the `vX.Y.Z` tag from `.claude/kit-version.md` (written by
+    `sync-config.sh`) and compares against the latest release on the kit's
+    GitHub repo. Returns None when the version file is absent (the kit itself,
+    or a project that has never synced), when `gh` is missing, or when the
+    network call fails — kit-update is a courtesy signal, never load-bearing.
+    """
+    version_file = ROOT / ".claude" / "kit-version.md"
+    text = _read(version_file)
+    if text is None:
+        return None
+    m = re.search(r"v\d+\.\d+\.\d+", text)
+    if not m:
+        return None
+    current = m.group(0)
+    latest = _latest_kit_tag()
+    if latest is None:
+        return None
+    return {"current": current, "latest": latest, "behind": current != latest}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -367,7 +479,7 @@ def main() -> int:
     args = parser.parse_args()
 
     out = {
-        "version": 1,
+        "version": 2,
         "todo_file": collect_todo_file(),
         "inline_todos": collect_inline_todos(),
         "planning_docs": collect_planning_docs(),
@@ -377,6 +489,7 @@ def main() -> int:
         "roadmap": collect_roadmap(),
         "techdebt": collect_techdebt(),
         "gh_issues": collect_gh_issues(),
+        "kit_update": collect_kit_update(),
     }
     indent = 2 if args.pretty else None
     json.dump(out, sys.stdout, indent=indent, ensure_ascii=False)

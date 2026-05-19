@@ -39,7 +39,7 @@ While coding:
 Each task ships under these constraints (in priority order):
 
 1. **Surgical** — touch only the file set the task requires. Refuse "while I'm here" expansions outside that set. Every PR tells one story.
-2. **Gold standard for new code; bit-by-bit for existing** — apply gold standards to new code (BE layout per `docs/backend-rules.md` B0/B37–B43, typed error model, FE layout per `docs/frontend-rules.md` F26–F28). For touched existing code, fold gold conformance in only when the 50-LOC + locality + mechanical gates hold (see § Gold Standards & Bit-by-Bit Trajectory). When in doubt, defer.
+2. **Gold standard for new code; bit-by-bit for existing** — apply gold standards to new code (BE layout per `docs/backend-rules.md` B0/B37–B43, typed error model, FE layout per `docs/frontend-rules.md` F0/F26–F28). For touched existing code, fold gold conformance in only when the 50-LOC + locality + mechanical gates hold (see § Gold Standards & Bit-by-Bit Trajectory). When in doubt, defer.
 3. **Boyscout** — small mechanical fixes inside the files you're already editing (dead code, misleading test names, B33 violations, typos) ship in the same PR. Stay inside the touched file set; don't go on adjacent quests.
    - **Never maintain known dead code.** Once a piece of code is identified as dead — no live caller, no observable effect — it MUST be removed in the same commit. Don't carry it forward as "speculative future default", "preemptive omnibus coverage", or any similar justification. Surface the audit to the user (live vs dead table) and delete.
 4. **Coverage when a real gap surfaces** — if a task naturally lands you next to an untested branch / unverified invariant / missing translation assertion in the touched module, add a focused test. Don't sweep coverage across unrelated areas.
@@ -128,8 +128,8 @@ The project has three evolving "gold" targets the codebase moves toward **bit by
 ### The three golds
 
 1. **Backend layout gold** — kit v4.4.0. Rules `B0`, `B37`–`B43` in `docs/backend-rules.md`. New code under `shared/` (not `core/`), `context/{bc}/{application,domain,infrastructure}/` symmetric trio, `infrastructure/` (not `repository/`). Migration of existing `core/` + flat `{aggregate}/repository.rs` is tracked in `docs/todo.md` "DDD Convergence" entry.
-2. **Frontend layout gold** — codified in `docs/frontend-rules.md` v4.5 as **F26** (cross-feature imports evaluated by what's imported, not by the fact of crossing), **F27** (typed backend errors must flow through the 4-layer FE pipeline — paired with the backend rejection-layer rule in `ddd-reference.md`; no silent drops at any layer), and **F28** (top-level `src/` bucket layout with both inclusion and exclusion rules per bucket). Apply to new FE code; bit-by-bit for existing.
-3. **Error-model gold** — one flat `{BC}Error` per bounded context (`src-tauri/src/context/{bc}/error.rs`) holding every aggregate-invariant + service variant; one `{UseCase}Error` composite per use case with `#[serde(untagged)]` + `#[from]` wrappers; the composite (or BC enum directly) is the FE-facing type at the Tauri command boundary. Per-BC `*ApplicationError` / `*DomainError` splits are now an explicit anti-pattern. Full how-to: `docs/error-model.md`. Migration tracked in `docs/todo.md` "Structured errors: replace anyhow/String with typed error variants".
+2. **Frontend layout gold** — codified in `docs/frontend-rules.md` as **F0** (the canonical `src/` tree: `features/`, `shell/`, `ui/`, `infra/` buckets + root-level singletons `App.tsx` / `router.tsx` / `main.tsx` / `bindings.ts`), **F26** (cross-feature imports evaluated by what's imported, not by the fact of crossing), **F27** (typed backend errors must flow through the 4-layer FE pipeline — paired with the backend rejection-layer rule in `ddd-reference.md`; no silent drops at any layer), and **F28** (per-bucket inclusion + exclusion rules). Apply to new FE code; bit-by-bit for existing.
+3. **Error-model gold** — one flat `{BC}Error` per bounded context (`src-tauri/src/context/{bc}/error.rs`) holding every aggregate-invariant + service variant; one `{UseCase}Error` composite per use case (`#[serde(untagged)]`) wrapping BC enums via `#[from]`; use-case-specific guards and catch-alls live in a separate `{UseCase}Task` sub-enum (`#[serde(tag = "code")]`) wired into the composite via `#[from]`. The composite (or BC enum directly) is the FE-facing type at the Tauri command boundary. Per-BC `*ApplicationError` / `*DomainError` splits AND bare unit variants directly on the `#[serde(untagged)]` composite (they serialize to `null` on the wire) are explicit anti-patterns. Full how-to: `docs/error-model.md`. Migration tracked in `docs/todo.md` "Structured errors: replace anyhow/String with typed error variants".
 
 ### Bit-by-bit update rule
 
@@ -201,10 +201,11 @@ Rules for this family:
 
 > ⚠️ Most aggregates currently mutate fields directly in orchestrators rather than through these methods. Migration is tracked in `docs/todo.md` "DDD Convergence — Extract aggregate root methods on `Procedure` / `Patient` / `FundPaymentGroup`" entry. New domain methods MUST follow the gold convention; existing direct-mutation paths follow the bit-by-bit rule.
 
-### Frontend Gold Rules (F24–F28)
+### Frontend Gold Rules (F0, F24–F28)
 
 Full rules: `docs/frontend-rules.md`. Project-wide essentials:
 
+- **F0** — The frontend source tree MUST follow the canonical layout: four buckets (`features/`, `shell/`, `ui/`, `infra/`) carrying the per-bucket include/reject discipline (paired with F28), framework-resource folders (`assets/`, `styles/`, `public/`) outside the bucket discipline, and root-level singletons (`App.tsx`, `router.tsx`, `main.tsx`, `bindings.ts`) at `src/` root. `App.tsx` = provider tree; `shell/AppShell.tsx` = layout chrome.
 - **F24** — All `aria-label`, `aria-labelledby`, `aria-describedby`, `title`, and `placeholder` strings MUST flow through `t()`. Hardcoded English a11y strings ship untranslated to non-default-locale users.
 - **F25** — Primary interactive elements (buttons, inputs, list items, dialogs) MUST render a stable `id` of the form `{feature}-{component}-{role}`. Stable ids serve both `aria-labelledby` and E2E selectors; `aria-label` co-exists for translated screen-reader text.
 - **F26** — Cross-feature imports are evaluated by what is imported, not by the fact of crossing — see frontend-rules.md for the allowed/forbidden matrix.

@@ -100,11 +100,11 @@ Use the format in `## Output format` below. Lead with the headline summary.
 
 ### Error handling
 
-- Application services and Tauri command surfaces must return typed `Result<T, {BC}Error>` (BC-scoped) or `Result<T, {UseCase}Error>` (cross-BC composite) per [`docs/error-model.md`](../docs/error-model.md) — one flat enum per BC + use-case composites via `#[serde(untagged)]` + `#[from]`. Repositories MAY use `anyhow::Error` as trait error type; infra failures translate to the BC's `{BC}Error::DatabaseError` at the service call site. (🟡)
+- Application services and Tauri command surfaces must return typed `Result<T, {BC}Error>` (BC-scoped) or `Result<T, {UseCase}Error>` (cross-BC composite) per [`docs/error-model.md`](../docs/error-model.md) — one flat enum per BC + use-case composites via `#[serde(untagged)]` + `#[from]` (BC enums and a `{UseCase}Task` sub-enum carrying use-case-specific codes). Repositories MAY use `anyhow::Error` as trait error type; infra failures translate to the BC's `{BC}Error::DatabaseError` at the service call site. (🟡)
 - `Result<T, String>` on a wire-visible signature (Tauri command, or service method that composes into one) (🔴 — wire-contract violation; FE bindings lose typing)
 - `anyhow::Result<T>` returned from a service or use-case method that surfaces to a Tauri command (🔴 — `error-model.md` anti-pattern; breaks the Specta-derived FE union)
 - Per-BC `*ApplicationError` / `*DomainError` split — collapse into a single flat `{BC}Error` per `error-model.md` § The rule (🟡)
-- Wrapping use-case-specific guards in their own leaf enum (`{UseCase}GuardError` etc.) instead of declaring them as flat variants on the `{UseCase}Error` composite (🟡)
+- Bare unit variants declared directly on a `#[serde(untagged)]` `{UseCase}Error` composite — they collapse to `null` on the wire and become indistinguishable. Move them into a `{UseCase}Task` sub-enum (`#[serde(tag = "code")]`) wired in via `#[from]`, per `error-model.md` § Use-case composite (🔴 — wire-contract violation)
 - Translation of an infra failure to `{BC}Error::DatabaseError` (or any `{BC}Error` variant) without a `tracing::error!(target: BACKEND, …)` at the same call site — the diagnostic chain must be logged server-side per `error-model.md` § Decision tree (🟡)
 - No `unwrap()` or `expect()` in non-test code paths (🔴)
 - Errors must carry context: in repository / infra code (where `anyhow::Error` is permitted) use `.context("...")` or `.with_context(|| ...)`; in application code, translate at the call site with `.map_err(|e| { tracing::error!(target: BACKEND, err = ?e, "service_method: what failed"); {BC}Error::DatabaseError })?` per `docs/error-model.md` (🟡)
