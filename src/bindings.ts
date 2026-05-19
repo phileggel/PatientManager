@@ -404,8 +404,8 @@ async getUnreconciledProceduresInRange(startDate: string, endDate: string) : Pro
 /**
  * Tauri command: Read all fund payment groups
  * 
- * Computes is_locked for each group by checking if any associated procedure
- * is in a bank-reconciled status (FundPaid or PartiallyFundPaid).
+ * `is_locked` is derived at restore time from the persisted
+ * `FundPaymentGroupStatus` (BankPaid → locked).
  */
 async readAllFundPaymentGroups() : Promise<Result<FundPaymentGroup[], string>> {
     try {

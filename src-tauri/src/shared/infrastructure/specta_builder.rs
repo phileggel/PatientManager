@@ -3,8 +3,8 @@ use crate::{
     shared::logger,
     use_cases::{
         bank_manual_match, bank_statement_reconciliation, db_backup, excel_import,
-        fund_payment_reconciliation, fund_payment_report_pdf, overpayment,
-        procedure_orchestration as use_cases_procedure,
+        fund_payment_manual_management, fund_payment_reconciliation, fund_payment_report_pdf,
+        overpayment, procedure_orchestration as use_cases_procedure,
     },
 };
 
@@ -42,7 +42,7 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<fund_payment_reconciliation::PdfParseResult>()
         .typ::<fund_payment_reconciliation::ReconciliationResult>()
         .typ::<fund_payment_reconciliation::AnomalyType>()
-        .typ::<fund_payment_reconciliation::FundPaymentGroupEditData>()
+        .typ::<fund_payment_manual_management::api::FundPaymentGroupEditData>()
         .typ::<fund::FundPaymentGroupCandidate>()
         .typ::<fund_payment_reconciliation::FundPaymentValidationStatus>()
         .typ::<fund_payment_reconciliation::FundPaymentCandidateValidation>()
@@ -110,10 +110,10 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             fund_payment_reconciliation::create_fund_payment_with_auto_corrections,
             fund_payment_reconciliation::get_unreconciled_procedures_in_range,
             fund::read_all_fund_payment_groups,
-            fund::delete_fund_payment_group,
-            fund::create_fund_payment_group,
-            fund::update_fund_payment_group_with_procedures,
-            fund_payment_reconciliation::get_fund_payment_group_edit_data,
+            fund_payment_manual_management::api::delete_fund_payment_group,
+            fund_payment_manual_management::api::create_fund_payment_group,
+            fund_payment_manual_management::api::update_fund_payment_group_with_procedures,
+            fund_payment_manual_management::api::get_fund_payment_group_edit_data,
             bank::create_bank_transfer,
             bank::read_all_bank_transfers,
             bank::read_bank_transfer,

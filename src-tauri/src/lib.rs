@@ -42,6 +42,7 @@ use crate::use_cases::bank_statement_reconciliation::{
 };
 use crate::use_cases::db_backup::DbBackupOrchestrator;
 use crate::use_cases::excel_import::{ExcelImportOrchestrator, SqliteExcelAmountMappingRepository};
+use crate::use_cases::fund_payment_manual_management::FundPaymentManualManagementOrchestrator;
 use crate::use_cases::fund_payment_reconciliation::{
     FundPaymentReconciliationOrchestrator, ReconciliationService,
 };
@@ -220,6 +221,15 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         ));
     tracing::info!(target: BACKEND, "Fund payment reconciliation orchestrator created");
 
+    // Create fund payment manual-management orchestrator (CRUD from FundPaymentManager page)
+    let fund_payment_manual_management_orchestrator =
+        Arc::new(FundPaymentManualManagementOrchestrator::new(
+            context_procedure_service.clone(),
+            fund_payment_service.clone(),
+            event_bus.clone(),
+        ));
+    tracing::info!(target: BACKEND, "Fund payment manual-management orchestrator created");
+
     // Create Excel import orchestrator
     let excel_import_orchestrator = Arc::new(ExcelImportOrchestrator::new(
         patient_service.clone(),
@@ -271,6 +281,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     app.manage(bank_account_service);
     app.manage(bank_statement_orchestrator);
     app.manage(fund_payment_reconciliation_orchestrator);
+    app.manage(fund_payment_manual_management_orchestrator);
     app.manage(excel_import_orchestrator);
     app.manage(excel_amount_mapping_repo);
     app.manage(bank_manual_match_orchestrator);
