@@ -78,28 +78,6 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 ---
 
-## (backend) — API boundary cleanup — residual items (audit 2026-05-12)
-
-The 2026-05-12 audit of all 11 `api.rs` files identified six fixes plus two cross-file patterns. All six numbered fixes and the REF-240 state-dependent rejection pattern shipped in `chore/api-boundary-cleanup` (2026-05-12).
-
-Still open:
-
-- **Inline orchestrator construction** in `use_cases/fund_payment_reconciliation/api.rs:470–475` (`get_fund_payment_group_edit_data`) — should ride along when the three `context/fund/api.rs` sites get the use-case-relocation treatment (see "Move cross-context procedure cascades out of `context/fund/api.rs`" below).
-
-**Clean files** (already thin adapters — skip when re-auditing): `context/bank/api.rs`, `context/procedure/api.rs`, `use_cases/excel_import/api.rs`, `use_cases/overpayment/api.rs`, `use_cases/db_backup/api.rs`.
-
----
-
-## (backend/fund) — Move cross-context procedure cascades out of `context/fund/api.rs`
-
-Three `context/fund/api.rs` commands still take `procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>` to perform cross-context cascades (delete/update fund-payment-group → reset linked procedure statuses). B13 violation; should relocate to a use case (`use_cases/fund_payment_reconciliation/` or a dedicated cleanup orchestrator).
-
-Related: `use_cases/fund_payment_reconciliation/api.rs:470–475` (`get_fund_payment_group_edit_data`) constructs `FundPaymentReconciliationOrchestrator::new(...)` inline — fix in the same pass (inject as Tauri state).
-
-The `is_locked` recompute that previously also lived in this file shipped a different fix on 2026-05-19 (`refactor/drop-is-locked-recompute`): the recompute was over-defensive coding against a non-atomic-write window that never manifests in normal single-user operation; the recompute was dropped, `is_locked` now derives purely from the persisted `FundPaymentGroupStatus`. The partial-crash regression is tracked in `docs/techdebt.md` (2026-05-19) pending UoW per ADR-003.
-
----
-
 ## (backend) — Tech Debt: Event emission reduction — Steps 3 & 4
 
 - Step 3: Batch patient/fund creation during reconciliation (instead of N individual creations)

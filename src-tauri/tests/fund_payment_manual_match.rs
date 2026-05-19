@@ -1,6 +1,6 @@
 //! Integration tests for the fund-payment manual-match flows.
 //!
-//! Covers the FPM-* rules wired through `FundPaymentReconciliationOrchestrator`:
+//! Covers the FPM-* rules wired through `FundPaymentManualManagementOrchestrator`:
 //!
 //! - FPM-200 (R3) — Required fields (fund + valid date)
 //! - FPM-310 (R7) — Removing a procedure resets it to Created
@@ -28,7 +28,7 @@ use patient_manager_app::{
         },
     },
     shared::event_bus::EventBus,
-    use_cases::fund_payment_reconciliation::FundPaymentReconciliationOrchestrator,
+    use_cases::fund_payment_manual_management::FundPaymentManualManagementOrchestrator,
 };
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
@@ -38,7 +38,7 @@ use sqlx::SqlitePool;
 // ---------------------------------------------------------------------------
 
 struct Ctx {
-    orchestrator: Arc<FundPaymentReconciliationOrchestrator>,
+    orchestrator: Arc<FundPaymentManualManagementOrchestrator>,
     procedure_service: Arc<ProcedureService>,
     fund_payment_service: Arc<FundPaymentService>,
     patient_id: String,
@@ -75,8 +75,7 @@ async fn build_ctx() -> Ctx {
     let pt_repo = Arc::new(SqliteProcedureTypeRepository::new(pool.clone()));
     let procedure_type_service = Arc::new(ProcedureTypeService::new(pt_repo, bus.clone()));
 
-    let orchestrator = Arc::new(FundPaymentReconciliationOrchestrator::new(
-        fund_service.clone(),
+    let orchestrator = Arc::new(FundPaymentManualManagementOrchestrator::new(
         procedure_service.clone(),
         fund_payment_service.clone(),
         bus,
@@ -154,7 +153,7 @@ async fn manual_create_with_valid_inputs_creates_group_and_reconciles() -> anyho
 
     let group = ctx
         .orchestrator
-        .create_manual_fund_payment_group(
+        .create_group(
             ctx.fund_id.clone(),
             "2026-01-20".to_string(),
             vec![proc_a.clone(), proc_b.clone()],
@@ -185,7 +184,7 @@ async fn manual_create_with_invalid_date_returns_error() -> anyhow::Result<()> {
 
     let result = ctx
         .orchestrator
-        .create_manual_fund_payment_group(ctx.fund_id.clone(), "not-a-date".to_string(), vec![])
+        .create_group(ctx.fund_id.clone(), "not-a-date".to_string(), vec![])
         .await;
 
     assert!(result.is_err());
@@ -211,7 +210,7 @@ async fn manual_update_remove_reverts_procedure_to_created() -> anyhow::Result<(
 
     let group = ctx
         .orchestrator
-        .create_manual_fund_payment_group(
+        .create_group(
             ctx.fund_id.clone(),
             "2026-01-15".to_string(),
             vec![proc_a.clone(), proc_b.clone()],
@@ -220,7 +219,7 @@ async fn manual_update_remove_reverts_procedure_to_created() -> anyhow::Result<(
 
     let updated = ctx
         .orchestrator
-        .update_manual_fund_payment_group(
+        .update_group(
             group.id.clone(),
             "2026-01-15".to_string(),
             vec![proc_a.clone()],
@@ -272,7 +271,7 @@ async fn manual_update_add_flips_procedure_to_reconciled() -> anyhow::Result<()>
 
     let group = ctx
         .orchestrator
-        .create_manual_fund_payment_group(
+        .create_group(
             ctx.fund_id.clone(),
             "2026-01-15".to_string(),
             vec![proc_existing.clone()],
@@ -281,7 +280,7 @@ async fn manual_update_add_flips_procedure_to_reconciled() -> anyhow::Result<()>
 
     let updated = ctx
         .orchestrator
-        .update_manual_fund_payment_group(
+        .update_group(
             group.id.clone(),
             "2026-01-20".to_string(),
             vec![proc_existing, proc_new.clone()],
@@ -325,7 +324,7 @@ async fn manual_update_locked_group_is_rejected() -> anyhow::Result<()> {
     let proc_id = create_procedure(&ctx, 100_000, ProcedureStatus::Created).await;
     let group = ctx
         .orchestrator
-        .create_manual_fund_payment_group(
+        .create_group(
             ctx.fund_id.clone(),
             "2026-01-15".to_string(),
             vec![proc_id.clone()],
@@ -336,7 +335,7 @@ async fn manual_update_locked_group_is_rejected() -> anyhow::Result<()> {
 
     let result = ctx
         .orchestrator
-        .update_manual_fund_payment_group(group.id, "2026-01-15".to_string(), vec![proc_id.clone()])
+        .update_group(group.id, "2026-01-15".to_string(), vec![proc_id.clone()])
         .await;
 
     assert!(result.is_err());
@@ -352,7 +351,7 @@ async fn manual_delete_locked_group_is_rejected() -> anyhow::Result<()> {
     let proc_id = create_procedure(&ctx, 100_000, ProcedureStatus::Created).await;
     let group = ctx
         .orchestrator
-        .create_manual_fund_payment_group(
+        .create_group(
             ctx.fund_id.clone(),
             "2026-01-15".to_string(),
             vec![proc_id.clone()],
@@ -361,10 +360,7 @@ async fn manual_delete_locked_group_is_rejected() -> anyhow::Result<()> {
 
     mark_procedure_fund_payed(&ctx.pool, &proc_id).await;
 
-    let result = ctx
-        .orchestrator
-        .delete_fund_payment_group_with_cleanup(&group.id)
-        .await;
+    let result = ctx.orchestrator.delete_group_with_cleanup(&group.id).await;
 
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("bank-reconciled"));
@@ -386,7 +382,7 @@ async fn manual_delete_unlocked_group_resets_all_procedures() -> anyhow::Result<
 
     let group = ctx
         .orchestrator
-        .create_manual_fund_payment_group(
+        .create_group(
             ctx.fund_id.clone(),
             "2026-01-15".to_string(),
             vec![proc_a.clone(), proc_b.clone()],
@@ -394,7 +390,7 @@ async fn manual_delete_unlocked_group_resets_all_procedures() -> anyhow::Result<
         .await?;
 
     ctx.orchestrator
-        .delete_fund_payment_group_with_cleanup(&group.id)
+        .delete_group_with_cleanup(&group.id)
         .await?;
 
     let procedures = ctx
@@ -432,7 +428,7 @@ async fn manual_edit_data_returns_current_and_available_for_fund() -> anyhow::Re
     let proc_available = create_procedure(&ctx, 30_000, ProcedureStatus::Created).await;
     let group = ctx
         .orchestrator
-        .create_manual_fund_payment_group(
+        .create_group(
             ctx.fund_id.clone(),
             "2026-01-15".to_string(),
             vec![proc_in_group.clone()],

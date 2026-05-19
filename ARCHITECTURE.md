@@ -80,7 +80,8 @@ Use cases may import from contexts; never from another use case. No domain event
 
 - **`procedure_orchestration`** — Procedure CRUD + patient tracking + FK validation. ([spec](docs/spec/procedure-orchestration.md))
 - **`excel_import`** — Procedure + Patient + Fund + ProcedureType from `.xlsx`. ([spec](docs/spec/excel-import.md))
-- **`fund_payment_reconciliation`** — Procedure ↔ FundPaymentGroup from PDF. ([manual spec](docs/spec/fund-payment-manual-match.md), [auto spec](docs/spec/fund-payment-auto-match.md))
+- **`fund_payment_reconciliation`** — PDF-driven auto-reconciliation: parse PDF → match procedures → create groups. ([spec](docs/spec/fund-payment-auto-match.md))
+- **`fund_payment_manual_management`** — Manual CRUD on fund payment groups from the FundPaymentManager page (list delete, Add panel create, Edit modal update). Coordinates group lifecycle + linked procedure statuses. ([spec](docs/spec/fund-payment-manual-match.md))
 - **`fund_payment_report_pdf`** — Post-reconciliation summary PDF; FE pre-resolves all strings (ADR-006). ([spec](docs/spec/fund-payment-report.md))
 - **`bank_statement_reconciliation`** — BankTransfer ← bank PDF ↔ FundPaymentGroup. ([spec](docs/spec/bank-statement-auto-match.md))
 - **`bank_manual_match`** — BankTransfer ↔ FundPaymentGroup (Fund flow) / Procedure (Direct flow). ([spec](docs/spec/bank-statement-manual-match.md))
