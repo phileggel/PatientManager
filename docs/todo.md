@@ -7,6 +7,7 @@
 Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.
 
 Scope:
+
 - Make `wdio.conf.ts` platform-aware (Linux WebKitGTK driver vs Windows WebView2/EdgeDriver).
 - Add a job (or pre-step) in `release-windows.yml` that builds the MSVC binary, then runs the WDIO suite against it.
 - Sequence: E2E gates the Windows bundle/draft-release step — no half-baked artifact on broken code.
@@ -83,20 +84,19 @@ The 2026-05-12 audit of all 11 `api.rs` files identified six fixes plus two cros
 
 Still open:
 
-- **Inline orchestrator construction** in `use_cases/fund_payment_reconciliation/api.rs:470–475` (`get_fund_payment_group_edit_data`) — should ride along when the three `context/fund/api.rs` sites get the State-injection treatment as part of the next entry below ("DECISION: Move cross-context `is_locked` recomputation out of `context/fund/api.rs`").
+- **Inline orchestrator construction** in `use_cases/fund_payment_reconciliation/api.rs:470–475` (`get_fund_payment_group_edit_data`) — should ride along when the three `context/fund/api.rs` sites get the use-case-relocation treatment (see "Move cross-context procedure cascades out of `context/fund/api.rs`" below).
 
 **Clean files** (already thin adapters — skip when re-auditing): `context/bank/api.rs`, `context/procedure/api.rs`, `use_cases/excel_import/api.rs`, `use_cases/overpayment/api.rs`, `use_cases/db_backup/api.rs`.
 
 ---
 
-## (backend/fund) — DECISION: Move cross-context `is_locked` recomputation out of `context/fund/api.rs`
+## (backend/fund) — Move cross-context procedure cascades out of `context/fund/api.rs`
 
-`context/fund/api.rs` imports `context/procedure` directly (`ProcedureService`, `Procedure`, `ProcedureStatus`) to recompute `is_locked` on fund payment groups. This violates B13 (no cross-context imports). The fix requires an architectural decision:
+Three `context/fund/api.rs` commands still take `procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>` to perform cross-context cascades (delete/update fund-payment-group → reset linked procedure statuses). B13 violation; should relocate to a use case (`use_cases/fund_payment_reconciliation/` or a dedicated cleanup orchestrator).
 
-- **Option A**: Move the `recompute_is_locked` logic into a new or existing use-case (e.g. `use_cases/fund_payment_reconciliation/`) and inject the use-case orchestrator as Tauri state instead of the raw procedure service.
-- **Option B**: Enrich `FundPaymentGroup` to carry enough state to derive `is_locked` without querying procedures (if the procedure data is already available at write time).
+Related: `use_cases/fund_payment_reconciliation/api.rs:470–475` (`get_fund_payment_group_edit_data`) constructs `FundPaymentReconciliationOrchestrator::new(...)` inline — fix in the same pass (inject as Tauri state).
 
-Related: `fund/api.rs` also constructs `FundPaymentReconciliationOrchestrator::new(...)` inline in three command handlers instead of injecting it as Tauri state — fix in the same pass.
+The `is_locked` recompute that previously also lived in this file shipped a different fix on 2026-05-19 (`refactor/drop-is-locked-recompute`): the recompute was over-defensive coding against a non-atomic-write window that never manifests in normal single-user operation; the recompute was dropped, `is_locked` now derives purely from the persisted `FundPaymentGroupStatus`. The partial-crash regression is tracked in `docs/techdebt.md` (2026-05-19) pending UoW per ADR-003.
 
 ---
 
@@ -140,4 +140,3 @@ Multiple F10 violations in the procedure feature: business logic (state, memos, 
 ## (backend/arch) — Introduce a DI container for orchestrator wiring
 
 Production orchestrators are currently wired manually in `lib.rs` via explicit `Arc<dyn Trait>` constructor injection. This works but doesn't scale well as the number of dependencies grows: adding a dep means touching `lib.rs`, the orchestrator `new()`, and every integration test `Ctx`. A DI container (e.g. `shaku`) would centralize registration and resolve dependencies automatically, reducing wiring boilerplate and making the `new()` signature irrelevant to callers. Evaluate once the orchestrator count or dep count becomes a maintenance burden.
-

@@ -197,35 +197,19 @@ pub async fn create_batch_funds(
 
 /// Tauri command: Read all fund payment groups
 ///
-/// Computes is_locked for each group by checking if any associated procedure
-/// is in a bank-reconciled status (FundPaid or PartiallyFundPaid).
+/// `is_locked` is derived at restore time from the persisted
+/// `FundPaymentGroupStatus` (BankPaid → locked).
 #[tauri::command]
 #[specta::specta]
 pub async fn read_all_fund_payment_groups(
     fund_payment_service: State<'_, Arc<FundPaymentService>>,
-    procedure_service: State<'_, Arc<crate::context::procedure::ProcedureService>>,
 ) -> Result<Vec<FundPaymentGroup>, String> {
     tracing::info!(target: BACKEND, "Processing read all fund payment groups request");
 
-    let mut groups = fund_payment_service.read_all_groups().await.map_err(|e| {
+    let groups = fund_payment_service.read_all_groups().await.map_err(|e| {
         tracing::error!(target: BACKEND, error = %e, "Failed to retrieve fund payment groups");
         format!("{:#}", e)
     })?;
-
-    // Collect all procedure IDs across all groups (single batch fetch)
-    let all_procedure_ids: Vec<String> = groups
-        .iter()
-        .flat_map(|g| g.lines.iter().map(|l| l.procedure_id.clone()))
-        .collect();
-
-    if !all_procedure_ids.is_empty() {
-        let procedures = procedure_service
-            .read_procedures_by_ids(all_procedure_ids)
-            .await
-            .map_err(|e| format!("{:#}", e))?;
-
-        recompute_is_locked(&mut groups, &procedures);
-    }
 
     tracing::info!(
         target: BACKEND,
@@ -233,36 +217,6 @@ pub async fn read_all_fund_payment_groups(
         "Retrieved fund payment groups successfully"
     );
     Ok(groups)
-}
-
-/// R10 — Recompute `is_locked` on each group from procedure statuses.
-///
-/// A group is considered locked as soon as any of its lines references a
-/// procedure currently in `FundPaid` or `PartiallyFundPaid`. This guarantees
-/// the read view stays consistent with the procedures' actual lifecycle, even
-/// if the group's own status hasn't been transitioned yet.
-pub(crate) fn recompute_is_locked(
-    groups: &mut [FundPaymentGroup],
-    procedures: &[crate::context::procedure::Procedure],
-) {
-    use crate::context::procedure::ProcedureStatus;
-    let locked_procedure_ids: std::collections::HashSet<&str> = procedures
-        .iter()
-        .filter(|p| {
-            matches!(
-                p.payment_status,
-                ProcedureStatus::FundPaid | ProcedureStatus::PartiallyFundPaid
-            )
-        })
-        .map(|p| p.id.as_str())
-        .collect();
-
-    for group in groups {
-        group.is_locked = group
-            .lines
-            .iter()
-            .any(|l| locked_procedure_ids.contains(l.procedure_id.as_str()));
-    }
 }
 
 /// Tauri command: Delete a fund payment group with procedure cleanup
@@ -396,111 +350,4 @@ pub async fn update_fund_payment_group_with_procedures(
             tracing::error!(target: BACKEND, error = %e, "Failed to update fund payment group");
             format!("{:#}", e)
         })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::NaiveDate;
-
-    use crate::context::fund::{FundPaymentGroupStatus, FundPaymentLine};
-    use crate::context::procedure::{PaymentMethod, Procedure, ProcedureStatus};
-
-    fn make_group(id: &str, procedure_ids: &[&str]) -> FundPaymentGroup {
-        let lines = procedure_ids
-            .iter()
-            .enumerate()
-            .map(|(i, pid)| {
-                FundPaymentLine::restore(
-                    format!("line-{id}-{i}"),
-                    id.to_string(),
-                    (*pid).to_string(),
-                )
-            })
-            .collect();
-        FundPaymentGroup::restore(
-            id.to_string(),
-            "fund-1".to_string(),
-            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-            100_000,
-            lines,
-            FundPaymentGroupStatus::Active,
-        )
-    }
-
-    fn make_procedure(id: &str, status: ProcedureStatus) -> Procedure {
-        Procedure::restore(
-            id.to_string(),
-            "patient-1".to_string(),
-            Some("fund-1".to_string()),
-            "proc-type-1".to_string(),
-            NaiveDate::from_ymd_opt(2026, 1, 15).expect("static date is always valid"),
-            Some(100_000),
-            PaymentMethod::None,
-            None,
-            None,
-            status,
-        )
-    }
-
-    /// R10 — `is_locked` is recomputed from procedure statuses, even when the
-    /// stored `is_locked` flag on the group is stale.
-    #[test]
-    fn test_recompute_is_locked_flips_when_procedure_is_bank_reconciled() {
-        let mut groups = vec![
-            make_group("group-locked", &["proc-fund-payed"]),
-            make_group("group-active", &["proc-created"]),
-        ];
-        // Both groups currently report is_locked = false (Active)
-        assert!(!groups[0].is_locked, "fixture starts unlocked");
-        assert!(!groups[1].is_locked, "fixture starts unlocked");
-
-        let procedures = vec![
-            make_procedure("proc-fund-payed", ProcedureStatus::FundPaid),
-            make_procedure("proc-created", ProcedureStatus::Created),
-        ];
-
-        recompute_is_locked(&mut groups, &procedures);
-
-        assert!(
-            groups[0].is_locked,
-            "group containing a FundPaid procedure must be locked"
-        );
-        assert!(
-            !groups[1].is_locked,
-            "group with only Created procedures must remain unlocked"
-        );
-    }
-
-    /// R10 — `PartiallyFundPaid` also locks the group.
-    #[test]
-    fn test_recompute_is_locked_locks_on_partially_fund_payed() {
-        let mut groups = vec![make_group("group-1", &["proc-1"])];
-        let procedures = vec![make_procedure("proc-1", ProcedureStatus::PartiallyFundPaid)];
-
-        recompute_is_locked(&mut groups, &procedures);
-
-        assert!(
-            groups[0].is_locked,
-            "PartiallyFundPaid must also lock the group"
-        );
-    }
-
-    /// R10 — Non-bank-reconciled statuses (Reconciled, PartiallyReconciled,
-    /// DirectlyPaid, …) must not lock the group.
-    #[test]
-    fn test_recompute_is_locked_ignores_non_bank_statuses() {
-        let mut groups = vec![make_group("group-1", &["proc-1", "proc-2"])];
-        let procedures = vec![
-            make_procedure("proc-1", ProcedureStatus::Reconciled),
-            make_procedure("proc-2", ProcedureStatus::PartiallyReconciled),
-        ];
-
-        recompute_is_locked(&mut groups, &procedures);
-
-        assert!(
-            !groups[0].is_locked,
-            "Reconciled/PartiallyReconciled must not lock the group"
-        );
-    }
 }
