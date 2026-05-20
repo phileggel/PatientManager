@@ -10,6 +10,8 @@ function makeRow(overrides: Partial<FundPaymentRow> = {}): FundPaymentRow {
     fundId: "fund-1",
     fundName: "CPAM",
     paymentDate: "2025-01-15",
+    procedureStartDate: undefined,
+    procedureEndDate: undefined,
     totalAmount: 100,
     procedureCount: 2,
     isLocked: false,

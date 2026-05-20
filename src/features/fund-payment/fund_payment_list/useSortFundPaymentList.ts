@@ -31,11 +31,16 @@ export function useSortFundPaymentList(groups: FundPaymentRow[], searchTerm: str
   const sortedAndFilteredGroups = useMemo(() => {
     let filtered = groups;
 
-    // Filter by search term
+    // Filter by search term (FPM-540): fund name, payment date,
+    // or any boundary of the displayed care period range (FPM-360).
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = groups.filter(
-        (group) => group.fundName.toLowerCase().includes(term) || group.paymentDate.includes(term),
+        (group) =>
+          group.fundName.toLowerCase().includes(term) ||
+          group.paymentDate.includes(term) ||
+          (group.procedureStartDate?.includes(term) ?? false) ||
+          (group.procedureEndDate?.includes(term) ?? false),
       );
     }
 

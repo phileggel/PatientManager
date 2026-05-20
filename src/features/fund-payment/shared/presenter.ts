@@ -18,15 +18,34 @@ export const FundPaymentPresenter = {
    * Extracts display fields and adds UI-specific properties.
    * totalAmount is kept in thousandths so callers can route through
    * the locale-aware formatCurrency.
+   *
+   * `proceduresById` resolves each line's procedure to derive the care-period
+   * range (FPM-360). Lines whose procedure is missing from the map are skipped;
+   * if no procedure resolves, both range fields are undefined.
    */
-  toRow(group: FundPaymentGroup, funds: Fund[]): FundPaymentRow {
+  toRow(
+    group: FundPaymentGroup,
+    funds: Fund[],
+    proceduresById: Map<string, Procedure> = new Map(),
+  ): FundPaymentRow {
     const fund = funds.find((f) => f.id === group.fund_id);
+    const procedureDates: string[] = [];
+    for (const line of group.lines) {
+      const procedure = proceduresById.get(line.procedure_id);
+      if (procedure) procedureDates.push(procedure.procedure_date);
+    }
+    const procedureStartDate =
+      procedureDates.length > 0 ? procedureDates.reduce((a, b) => (a < b ? a : b)) : undefined;
+    const procedureEndDate =
+      procedureDates.length > 0 ? procedureDates.reduce((a, b) => (a > b ? a : b)) : undefined;
     return {
       rowId: group.id,
       id: group.id,
       fundId: group.fund_id,
       fundName: fund ? `${fund.fund_identifier} - ${fund.name}` : group.fund_id,
       paymentDate: group.payment_date,
+      procedureStartDate,
+      procedureEndDate,
       totalAmount: group.total_amount,
       procedureCount: group.lines.length,
       isLocked: group.is_locked ?? false,

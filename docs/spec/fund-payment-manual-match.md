@@ -47,6 +47,8 @@ A group becomes locked as soon as one of its procedures reaches Stage 2 (see FPM
 
 **FPM-350 (R18) — Visual feedback for locked state (frontend)**: A locked group is signaled in the list by a 🔒 icon next to the fund name and a reduced opacity on the row. The edit and delete buttons are visually disabled (reduced opacity, forbidden cursor).
 
+**FPM-360 — Care period in list (frontend)**: In the fund-payment groups list, the date column displays the **care period range** computed from the linked procedures: `start = min(procedure_date)`, `end = max(procedure_date)` across the group's `FundPaymentLine`s. When start and end are equal (single-procedure group or all procedures on the same day), only one date is shown. The group's `payment_date` (the fund-document date) remains stored in the domain, editable in the modal, and the underlying sort key for the column — it is not rendered in the list cell.
+
 ### Group deletion (400–410)
 
 **FPM-400 (R11) — Deletion with reset (backend)**: Deleting a group resets all associated procedures to their initial state: their status reverts to `Created`, the `fund_reconciliation_date` and the actual payment amount are cleared. Deletion is blocked if the group is locked (see FPM-330).
@@ -63,7 +65,7 @@ A group becomes locked as soon as one of its procedures reaches Stage 2 (see FPM
 
 **FPM-530 (R16) — Double-click to edit (frontend)**: A double-click on a row in the groups list opens the edit form for the corresponding group.
 
-**FPM-540 (R17) — Search in the list (frontend)**: The fund-payment groups list can be filtered by fund name or by payment date.
+**FPM-540 (R17) — Search in the list (frontend)**: The fund-payment groups list can be filtered by fund name, by payment date (the stored fund-document date), or by any date inside the displayed care period range (FPM-360).
 
 **FPM-550 (R19) — Adding procedures during edit (frontend + backend)**: In the edit modal, an "Add procedures" button opens a modal picker showing all `Created` procedures from the same fund whose `procedure_date` is less than or equal to the group's payment date. Procedures already in the group are excluded. Selection has the same effects as at creation (see FPM-320): status `Reconciliated`, `fund_reconciliation_date` and `actual_payment_amount` populated, total recomputed.
 

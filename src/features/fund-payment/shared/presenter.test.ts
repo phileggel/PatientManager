@@ -24,6 +24,79 @@ describe("FundPaymentPresenter.toRow", () => {
 
     expect(row.fundName).toBe("unknown-fund");
   });
+
+  describe("FPM-360 — care-period range computation", () => {
+    it("computes min/max procedure_date across lines", () => {
+      const p1 = makeProcedure({ id: "p1", procedure_date: "2026-01-15" });
+      const p2 = makeProcedure({ id: "p2", procedure_date: "2026-02-28" });
+      const p3 = makeProcedure({ id: "p3", procedure_date: "2026-01-20" });
+      const group = makeFundPaymentGroup({
+        fund_id: "fund-1",
+        lines: [
+          { id: "l1", fund_payment_group_id: "g1", procedure_id: "p1" },
+          { id: "l2", fund_payment_group_id: "g1", procedure_id: "p2" },
+          { id: "l3", fund_payment_group_id: "g1", procedure_id: "p3" },
+        ],
+      });
+      const proceduresById = new Map([
+        ["p1", p1],
+        ["p2", p2],
+        ["p3", p3],
+      ]);
+
+      const row = FundPaymentPresenter.toRow(group, [], proceduresById);
+
+      expect(row.procedureStartDate).toBe("2026-01-15");
+      expect(row.procedureEndDate).toBe("2026-02-28");
+    });
+
+    it("collapses start === end when single procedure", () => {
+      const p1 = makeProcedure({ id: "p1", procedure_date: "2026-01-15" });
+      const group = makeFundPaymentGroup({
+        lines: [{ id: "l1", fund_payment_group_id: "g1", procedure_id: "p1" }],
+      });
+
+      const row = FundPaymentPresenter.toRow(group, [], new Map([["p1", p1]]));
+
+      expect(row.procedureStartDate).toBe("2026-01-15");
+      expect(row.procedureEndDate).toBe("2026-01-15");
+    });
+
+    it("skips lines whose procedure is missing from the map (still computes range over the rest)", () => {
+      const p1 = makeProcedure({ id: "p1", procedure_date: "2026-01-15" });
+      const group = makeFundPaymentGroup({
+        lines: [
+          { id: "l1", fund_payment_group_id: "g1", procedure_id: "p1" },
+          { id: "l2", fund_payment_group_id: "g1", procedure_id: "missing" },
+        ],
+      });
+
+      const row = FundPaymentPresenter.toRow(group, [], new Map([["p1", p1]]));
+
+      expect(row.procedureStartDate).toBe("2026-01-15");
+      expect(row.procedureEndDate).toBe("2026-01-15");
+    });
+
+    it("returns undefined range when no procedures resolve", () => {
+      const group = makeFundPaymentGroup({
+        lines: [{ id: "l1", fund_payment_group_id: "g1", procedure_id: "p1" }],
+      });
+
+      const row = FundPaymentPresenter.toRow(group, [], new Map());
+
+      expect(row.procedureStartDate).toBeUndefined();
+      expect(row.procedureEndDate).toBeUndefined();
+    });
+
+    it("returns undefined range when group has no lines", () => {
+      const group = makeFundPaymentGroup({ lines: [] });
+
+      const row = FundPaymentPresenter.toRow(group, []);
+
+      expect(row.procedureStartDate).toBeUndefined();
+      expect(row.procedureEndDate).toBeUndefined();
+    });
+  });
 });
 
 describe("FundPaymentPresenter.toDisplayData", () => {

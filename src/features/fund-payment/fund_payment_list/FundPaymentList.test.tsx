@@ -34,12 +34,18 @@ import { useFundPaymentList } from "./useFundPaymentList";
 const makeGroup = (id: string, isLocked: boolean) =>
   makeFundPaymentGroup({ id, payment_date: "2026-03-01", is_locked: isLocked });
 
-const makeRow = (id: string, isLocked: boolean) => ({
+const makeRow = (
+  id: string,
+  isLocked: boolean,
+  range?: { startDate: string | undefined; endDate: string | undefined },
+) => ({
   rowId: `row-${id}`,
   id,
   fundId: "fund-1",
   fundName: "CPAM - Test",
   paymentDate: "2026-03-01",
+  procedureStartDate: range?.startDate,
+  procedureEndDate: range?.endDate,
   totalAmount: 150000,
   procedureCount: 1,
   isLocked,
@@ -120,6 +126,50 @@ describe("FundPaymentList", () => {
       render(<FundPaymentList />);
       const deleteButton = screen.getByRole("button", { name: /delete payment for CPAM - Test/i });
       expect(deleteButton).toBeDisabled();
+    });
+  });
+
+  describe("FPM-360 — care-period range in date cell", () => {
+    it("renders 'start → end' when range spans multiple dates", () => {
+      vi.mocked(useFundPaymentList).mockReturnValue({
+        fundPaymentRows: [makeRow("g1", false, { startDate: "2026-01-15", endDate: "2026-02-28" })],
+        groups: [makeGroup("g1", false)],
+        loading: false,
+        deleteGroup: vi.fn(),
+      });
+
+      render(<FundPaymentList />);
+
+      // Test setup pins i18n locale to en-GB → DD/MM/YYYY format.
+      expect(screen.getByText(/15\/01\/2026.*→.*28\/02\/2026/)).toBeInTheDocument();
+    });
+
+    it("renders a single date when start equals end", () => {
+      vi.mocked(useFundPaymentList).mockReturnValue({
+        fundPaymentRows: [makeRow("g1", false, { startDate: "2026-01-15", endDate: "2026-01-15" })],
+        groups: [makeGroup("g1", false)],
+        loading: false,
+        deleteGroup: vi.fn(),
+      });
+
+      render(<FundPaymentList />);
+
+      expect(screen.getByText("15/01/2026")).toBeInTheDocument();
+      // No arrow when collapsed to a single date
+      expect(screen.queryByText(/→/)).not.toBeInTheDocument();
+    });
+
+    it("renders a dash when no procedure dates resolved", () => {
+      vi.mocked(useFundPaymentList).mockReturnValue({
+        fundPaymentRows: [makeRow("g1", false, { startDate: undefined, endDate: undefined })],
+        groups: [makeGroup("g1", false)],
+        loading: false,
+        deleteGroup: vi.fn(),
+      });
+
+      render(<FundPaymentList />);
+
+      expect(screen.getByText("—")).toBeInTheDocument();
     });
   });
 
