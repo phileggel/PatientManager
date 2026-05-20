@@ -7,6 +7,22 @@ import {
 import { logger } from "@/lib/logger";
 import type { ServiceResult } from "@/types";
 
+export async function readProceduresByIds(ids: string[]): Promise<ServiceResult<Procedure[]>> {
+  logger.debug("Fetching procedures by ids", { count: ids.length });
+  try {
+    const result = await commands.readProceduresByIds(ids);
+    if (result.status === "ok") {
+      return { success: true, data: result.data };
+    } else {
+      logger.error("Failed to fetch procedures by ids", { error: result.error });
+      return { success: false, error: result.error };
+    }
+  } catch (error) {
+    logger.error("Exception fetching procedures by ids", { error });
+    return { success: false, error: String(error) };
+  }
+}
+
 export async function getUnpaidProceduresByFund(
   fundId: string,
 ): Promise<ServiceResult<Procedure[]>> {

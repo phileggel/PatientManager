@@ -31,10 +31,15 @@
     "lockedHint": "Locked group — bank reconciliation completed",
     "columns": {
       "fund": "Fund",
-      "date": "Date",
+      "carePeriod": "Care period",
+      "carePeriodRange": "{{start}} → {{end}}",
+      "carePeriodUnavailable": "—",
       "amount": "Amount",
       "procedures": "Procedures",
       "actions": "Actions"
+    },
+    "errors": {
+      "proceduresFetchFailed": "Could not load procedure dates — care period unavailable"
     },
     "delete": {
       "title": "Delete Payment Group?",

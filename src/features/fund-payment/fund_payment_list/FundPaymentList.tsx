@@ -99,7 +99,7 @@ export function FundPaymentList() {
               </th>
               <th className="m3-th" onClick={() => handleSort("paymentDate")}>
                 <div className="flex items-center">
-                  {t("list.columns.date")}{" "}
+                  {t("list.columns.carePeriod")}{" "}
                   <SortIcon
                     active={sortConfig.key === "paymentDate"}
                     direction={sortConfig.direction}
@@ -161,7 +161,16 @@ export function FundPaymentList() {
                       </div>
                     </td>
                     <td className="m3-td text-m3-on-surface-variant font-mono text-sm">
-                      {formatDate(group.paymentDate)}
+                      {(() => {
+                        const start = group.procedureStartDate;
+                        const end = group.procedureEndDate;
+                        if (!start || !end) return t("list.columns.carePeriodUnavailable");
+                        if (start === end) return formatDate(start);
+                        return t("list.columns.carePeriodRange", {
+                          start: formatDate(start),
+                          end: formatDate(end),
+                        });
+                      })()}
                     </td>
                     <td className="m3-td text-m3-on-surface font-semibold text-right">
                       {formatCurrency(group.totalAmount)}

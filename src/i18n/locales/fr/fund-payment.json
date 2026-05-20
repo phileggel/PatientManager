@@ -31,10 +31,15 @@
     "lockedHint": "Groupe verrouillé — rapprochement bancaire effectué",
     "columns": {
       "fund": "Caisse",
-      "date": "Date",
+      "carePeriod": "Période de soins",
+      "carePeriodRange": "{{start}} → {{end}}",
+      "carePeriodUnavailable": "—",
       "amount": "Montant",
       "procedures": "Actes",
       "actions": "Actions"
+    },
+    "errors": {
+      "proceduresFetchFailed": "Impossible de charger les dates des actes — période de soins indisponible"
     },
     "delete": {
       "title": "Supprimer le groupe de paiement ?",
