@@ -241,6 +241,19 @@ Next step: confirm whether this domain is intentionally event-only / read-only,
 or add commands to the contract before re-running.
 ```
 
+On halt (test requires unplanned abstraction):
+
+```
+## test-writer-backend — halted
+
+Reason: test would require a source-code abstraction not in the plan.
+Missing: {helper name + shape — e.g. `mock_user_state_with_role` constructor}
+Where it would be used: {test name + file}
+
+Next step: ask main agent to extend the plan's "Detailed Implementation Plan"
+with {helper}, then re-run this agent.
+```
+
 ---
 
 ## Critical Rules
@@ -254,6 +267,7 @@ or add commands to the contract before re-running.
 7. **Verify red before reporting** — both `cargo test` and `cargo test --test` must exit non-zero. Never report done on a green run.
 8. **Public-API discipline for integration tests** — import via `use {crate_name}::…` only; never `crate::`. Call service or command handler, never the repository directly.
 9. **Test pyramid** — Step 4 is the canonical home; everything not stated there belongs in Step 3.
+10. **No abstractions not named in plan or contract** — do NOT introduce helpers, traits, builders, or types beyond what the plan's "Detailed Implementation Plan" / "Locked decisions" or the contract's commands / errors specify. If a test would be cleaner with a helper, write inline scaffolding instead (duplicate setup across tests if needed). Halt only when the test cannot be expressed without a new source-code abstraction the plan didn't mandate, then request the main agent to amend the plan. Test-writer-generated abstractions become dead code when the implementation pipeline doesn't call them — surface the gap, don't invent.
 
 ---
 

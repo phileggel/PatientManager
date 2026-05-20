@@ -72,7 +72,7 @@ git checkout -b feat/{feature-name}
 3. Run **`test-writer-backend`** agent → writes all Rust stubs from contract, confirms red.
 4. Implement backend — minimal: make failing tests pass, confirm green.
 5. Run `just format` (rustfmt + clippy --fix).
-6. Run **`reviewer-backend`** agent → fix issues.
+6. Run **`reviewer-backend`** + **`reviewer-arch`** _(if `.rs` modified)_ agents → run **`/review-triage`** → apply each Follow-up.
 7. Run `just generate-types` → updates `src/bindings.ts`. Fix TypeScript compilation errors from new bindings only (no UI work). Run `just check` → TypeScript clean.
 8. **`/smart-commit`**: backend layer. [HARD GATE]
 
@@ -81,16 +81,16 @@ git checkout -b feat/{feature-name}
 1. Run **`test-writer-frontend`** agent → writes all Vitest stubs from contract (reads fresh bindings), confirms red.
 2. Implement frontend — minimal: make failing tests pass, confirm green.
 3. Run `just format`.
-4. Run **`reviewer-frontend`** agent → fix issues.
+4. Run **`reviewer-frontend`** agent → run **`/review-triage`** → apply each Follow-up.
 5. **`/smart-commit`**: frontend layer. [HARD GATE]
 
 **Phase 4: Review & Closure**
 
 1. Run **`test-writer-e2e`** agent → produces pyramid-friendly E2E scenarios for critical-path commands. Run `/setup-e2e` first if not done. The main agent runs the suite and triages any failure with full implementation context.
-2. Run **`reviewer-e2e`** agent on E2E test files → fix issues.
+2. Run **`reviewer-e2e`** agent on E2E test files → run **`/review-triage`** → apply each Follow-up.
 3. **`/smart-commit`**: E2E layer. [HARD GATE]
-4. Run **`reviewer-arch`** agent (always) + **`reviewer-sql`** (if migrations) + **`reviewer-infra`** (if scripts, hooks, workflow, or config files were modified) + **`reviewer-security`** (if Tauri command, capability, or security-sensitive file modified).
-5. Update documentation (`ARCHITECTURE.md`, `docs/todo.md`).
+4. Run **`reviewer-arch`** _(if `.rs` modified in this branch)_ + **`reviewer-sql`** (if migrations) + **`reviewer-infra`** (if scripts, hooks, workflow, or config files were modified) + **`reviewer-security`** (if Tauri command, capability, or security-sensitive file modified) → run **`/review-triage`** → apply each Follow-up.
+5. Update `docs/todo.md` (always — close shipped entries); update `ARCHITECTURE.md` only if a new module/path or layer pattern was introduced.
 6. Run **`spec-checker`** agent → confirm all spec rules and contract commands are covered.
 7. **`/smart-commit`**: tests & docs. [HARD GATE]
 8. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff feat/{name}`).
@@ -107,7 +107,7 @@ _Use for: Bug fixes, dependency updates, minor maintenance (no new business rule
 2. **Direct Plan**: Propose a concise TODO plan with exact file paths in the chat. Ask user to validate.
 3. **Tracking**: Use `TaskCreate` / `TaskUpdate` tools to track workflow steps (`in_progress` when starting, `completed` when done).
 4. **Implementation**: Execute the code changes.
-5. **Review & Quality**: Run `just check` (or `just check-full`), write missing tests, then run reviewers: `reviewer-backend` (if `.rs` modified) · `reviewer-frontend` (if `.ts`/`.tsx` modified) · `reviewer-arch` (always) · `reviewer-sql` (if migrations) · `reviewer-infra` (if scripts, hooks, config, or workflow files changed) · `reviewer-security` (if Tauri command, capability, or security-sensitive file modified).
+5. **Review & Quality**: Run `just check` (or `just check-full`), write missing tests, then run reviewers: `reviewer-backend` (if `.rs` modified) · `reviewer-frontend` (if `.ts`/`.tsx` modified) · `reviewer-arch` (if `.rs` modified) · `reviewer-sql` (if migrations) · `reviewer-infra` (if scripts, hooks, config, or workflow files changed) · `reviewer-security` (if Tauri command, capability, or security-sensitive file modified). Then **`/review-triage`** → apply each Follow-up.
 6. **Closure**: Ask user if another task is needed before commit, otherwise use **`/smart-commit`** skill.
 7. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff fix/{name}`).
 
@@ -156,6 +156,19 @@ If you need to extend a kit agent's behaviour:
 1. Create a new local agent that invokes or wraps the kit agent's logic.
 2. Add project-context or domain-specific validation.
 3. Document it in your project's local `.claude/` directory.
+
+### Reviewer reports — `.review/` convention
+
+The kit's reviewer-\* agents save their full output to `.review/{slug}-{date}-{NN}.md` via `bash scripts/review-path.sh {slug}` before emitting their terminal message. The `/review-triage` skill then reads these files to triage findings against the (a)/(b)/(c) per-task discipline before any are applied.
+
+**Add `.review/` to your project's `.gitignore`** — reviewer reports are local triage artifacts, not deliverables. Suggested entry:
+
+```
+# Reviewer reports (local triage artifacts, consumed by /review-triage)
+.review/
+```
+
+`.review/` is created automatically the first time any reviewer runs; the folder name is fixed (the scripts hard-code the path so the skill can find them). If you need to wipe accumulated reports, `rm -rf .review/` is safe — the next reviewer run rebuilds the directory.
 
 ### Authoring rule — no compound shell in agent / skill prompts
 

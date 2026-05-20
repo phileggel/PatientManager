@@ -116,7 +116,7 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] ✍️ Backend test stubs (`test-writer-backend` — all stubs written, red confirmed) — if backend rules present
 - [ ] 🏗️ Backend Implementation (minimal — make failing tests pass, green confirmed)
 - [ ] 🧹 `just format` (rustfmt + clippy --fix)
-- [ ] 🔍 Backend Review (`reviewer-backend` → fix issues) — if .rs modified
+- [ ] 🔍 Backend Review (`reviewer-backend` + `reviewer-arch` if .rs modified → save reports to .review/ → `/review-triage` → apply Follow-ups) — if .rs modified
 - [ ] 🔗 Type Synchronization (`just generate-types`) — if backend rules present
 - [ ] 🔧 Compilation fixup (TypeScript errors from new bindings only — no UI work) — if backend rules present
 - [ ] ✅ `just check` — TypeScript clean
@@ -126,15 +126,15 @@ A synthetic checklist for mandatory quality and process steps:
 - [ ] 💻 Frontend Implementation (minimal — make failing tests pass, green confirmed)
 - [ ] 🧹 `just format`
 - [ ] 📸 Visual proof (`/visual-proof` — capture final state; stage screenshots before commit) — if frontend rules present
-- [ ] 🔍 Frontend Review (`reviewer-frontend` → fix issues) — if .ts/.tsx modified
+- [ ] 🔍 Frontend Review (`reviewer-frontend` → save report to .review/ → `/review-triage` → apply Follow-ups) — if .ts/.tsx modified
 - [ ] 💾 Commit: frontend layer via `/smart-commit` (suggested title from plan)
 - [ ] 🔀 `/create-pr` — if the PR Plan slices FE into its own PR; otherwise continue. After merge, branch the next phase off updated `main`.
 - [ ] ✍️ E2E scenarios (`test-writer-e2e` — produces pyramid-friendly scenarios; run `/setup-e2e` first if not done) — if E2E coverage applies to this feature
 - [ ] ▶️ Run E2E suite (`npm run test:e2e` → green confirmed; main agent triages any failure) — if E2E coverage applies to this feature
-- [ ] 🔍 E2E Review (`reviewer-e2e` → fix issues in E2E test files) — if E2E coverage applies to this feature
+- [ ] 🔍 E2E Review (`reviewer-e2e` → save report to .review/ → `/review-triage` → apply Follow-ups) — if E2E coverage applies to this feature
 - [ ] 💾 Commit: E2E tests via `/smart-commit` (suggested title from plan)
-- [ ] 🔍 Cross-cutting Review (`reviewer-arch` always + `reviewer-sql` if migrations + `reviewer-infra` if any config, script, hook, or workflow file changed + `reviewer-security` if Tauri command, capability, or security-sensitive file modified)
-- [ ] 📚 Documentation Update (`ARCHITECTURE.md` + `docs/todo.md` — entries in English)
+- [ ] 🔍 Cross-cutting Review (`reviewer-arch` if `.rs` modified in this branch + `reviewer-sql` if migrations + `reviewer-infra` if any config, script, hook, or workflow file changed + `reviewer-security` if Tauri command, capability, or security-sensitive file modified → save reports to .review/ → `/review-triage` → apply Follow-ups)
+- [ ] 📚 Documentation Update (`docs/todo.md` — close shipped entries; `ARCHITECTURE.md` only if a new module/path or layer pattern was introduced)
 - [ ] ✅ Spec check (`spec-checker`)
 - [ ] 💾 Commit: tests & docs via `/smart-commit` (suggested title from plan)
 - [ ] 🔀 `/create-pr` — final PR per the PR Plan (or merge directly: `git checkout main && git merge --no-ff feat/{name}`)

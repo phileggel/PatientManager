@@ -320,6 +320,19 @@ Reason: contract has no commands.
 Next step: confirm whether this domain is intentionally event-only / read-only, or add commands to the contract before re-running.
 ```
 
+On halt (test requires unplanned abstraction):
+
+```
+## test-writer-frontend — halted
+
+Reason: test would require a source-code abstraction not in the plan.
+Missing: {helper name + shape — e.g. `presentUserError` presenter function}
+Where it would be used: {test name + file}
+
+Next step: ask main agent to extend the plan's "Detailed Implementation Plan"
+with {helper}, then re-run this agent.
+```
+
 ---
 
 ## Critical Rules
@@ -343,6 +356,7 @@ Next step: confirm whether this domain is intentionally event-only / read-only, 
 9. **Respect F24, F25, F27 in component tests** — i18n keys not literal labels (F24); stable ids as selectors (F25); typed Results not throws (F27).
 10. **Fix compile errors, not logic** — wrong import, missing type reference are fair game; gateway / presenter / component logic is not.
 11. **Verify red before reporting** — vitest must exit non-zero on the file paths written. Never report done on a green run.
+12. **No abstractions not named in plan or contract** — do NOT introduce presenter functions, helpers, hooks, or types beyond what the plan's "Detailed Implementation Plan" / "Locked decisions" or the contract's commands / shared types / events specify. If a test would be cleaner with a helper, write inline scaffolding instead (duplicate setup across tests if needed). Halt only when the test cannot be expressed without a new source-code abstraction the plan didn't mandate, then request the main agent to amend the plan. Test-writer-generated abstractions become dead code when the implementation pipeline doesn't call them — surface the gap, don't invent.
 
 ---
 

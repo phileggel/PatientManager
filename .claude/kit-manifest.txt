@@ -25,6 +25,7 @@
 .claude/skills/dep-audit/SKILL.md
 .claude/skills/kit-discover/SKILL.md
 .claude/skills/prune/SKILL.md
+.claude/skills/review-triage/SKILL.md
 .claude/skills/setup-e2e/SKILL.md
 .claude/skills/smart-commit/SKILL.md
 .claude/skills/spec-writer/SKILL.md
@@ -43,9 +44,11 @@ scripts/branch.sh
 scripts/changed-files.sh
 scripts/check.py
 scripts/list-fe-test-targets.py
+scripts/list-fresh-reviews.sh
 scripts/merge.py
 scripts/release.py
 scripts/report-path.sh
+scripts/review-path.sh
 scripts/validate-sync.sh
 scripts/visual-proof-capture.mjs
 scripts/whats-next.py

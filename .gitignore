@@ -75,3 +75,7 @@ screenshots/.console-errors.json
 # E2E failure screenshots — written by wdio.conf.ts afterTest hook, uploaded as
 # CI artifacts on failure (see .github/workflows/e2e.yml). Never committed.
 screenshots/e2e-failures/
+
+# Reviewer agent reports — kit-managed local outputs from reviewer-* agents,
+# consumed by /review-triage (see .claude/kit-tools.md § Skills). Never committed.
+.review/

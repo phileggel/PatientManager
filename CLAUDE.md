@@ -47,6 +47,8 @@ Each task ships under these constraints (in priority order):
    - **(a) Accepted** — the commit IS the record. Add `Addresses <source>: <gist>` (≤1 line) to the commit body ONLY when the source isn't visible on the PR page (e.g. a local reviewer-agent fixup before merge). No separate ledger.
    - **(b) Out-of-scope** — file via `/techdebt` in the same PR.
    - **(c) Rejected** — split by recurrence. **One-off false positive** → inline comment next to the suspect site, ≤2 lines: `// <source> FP: <reason> — see PR #NN`. **Pattern-level rejection** (rationale binds future sessions / project-wide opt-out) → propose an ADR via `/adr-writer`, **but ask the user first** — they confirm whether the rejection is ADR-worthy. Never write the ADR silently.
+
+   > Use `/review-triage` to automate the per-finding (a)/(b)/(c) grading and halt for confirmation on (b)/(c) rows. Reviewer agents save their full reports to `.review/` (gitignored).
 6. **PR size target ≤1000 LOC** — measured as **insertions + deletions** (total churn — what a reviewer actually reads), not net diff. Not a hard cap, but split when a PR crosses it OR tells two stories. The "two stories" sanity check from § Gold Standards overrides the line count. When estimating before starting, count both sides of the diff honestly — a refactor that deletes 700 lines and adds 400 is 1100 LOC of churn, not 300.
 
 ---
@@ -56,7 +58,7 @@ Each task ships under these constraints (in priority order):
 Run `/whats-next` first to triage pending work, then `/start` to pick the right workflow for the task at hand.
 See `.claude/kit-readme.md` for the full workflow guide and `.claude/kit-tools.md` for the agent/skill reference.
 
-Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-writer` (Architecture Decision Records), `/kit-discover` (post-sync reconcile), `/smart-commit` (commit), `/create-pr` (push + open PR), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
+Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-writer` (Architecture Decision Records), `/kit-discover` (post-sync reconcile), `/smart-commit` (commit), `/create-pr` (push + open PR), `/review-triage` (triage reviewer findings against (a)/(b)/(c)), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
 Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (auto-rebase onto target, fast-forward, push, delete branch), `just sync-kit` (sync to latest kit version), `just release` (full quality validation → conventional-commit semver bump → version-file sync across `package.json` + `Cargo.toml` + `tauri.conf.json` + `Cargo.lock` → CHANGELOG regen → commit + tag + push, all in one shot; use `--dry-run` to preview the version bump, `-y` for non-TTY contexts).
 Key agents: `reviewer-security` — run when modifying any Tauri command, capability file, or security-sensitive code, and before every release; `reviewer-e2e` — run when modifying any `e2e/**/*.test.ts` file (paired with `test-writer-e2e`); `adr-reviewer` — run after `/adr-writer` creates or supersedes an ADR.
 

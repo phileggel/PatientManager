@@ -81,16 +81,17 @@ Synced to `docs/` in downstream projects on first sync (copy-once — never over
 
 Skills that directly drive or support the spec → contract → plan → test-first → verify pipeline.
 
-| Skill          | Command          | Description                                                                                                                                                    |
-| -------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `start`        | `/start [scope]` | Select workflow A (full) or B (simple) for the current task; outputs actionable checklist. Optional scope: `fix`, `chore`, `test`, `feature`, `refactor`       |
-| `spec-writer`  | `/spec-writer`   | Interactive spec writer: interviews user, reads domain, produces `docs/spec/{feature}.md` with TRIGRAM-NNN rules                                               |
-| `contract`     | `/contract`      | Derives or updates `docs/contracts/{domain}-contract.md` from a validated spec; upsert-aware, human-approved                                                   |
-| `adr-writer`   | `/adr-writer`    | Author Architecture Decision Records in `docs/adr/`: create, supersede, or index. Run `adr-reviewer` after to validate                                         |
-| `whats-next`   | `/whats-next`    | Triage pending work across TODOs, plans, specs, and in-flight git; returns value/effort table and one suggested next action                                    |
-| `smart-commit` | `/smart-commit`  | Conventional commit with sensitive-file check, linter run, suggested title with char count, and user confirmation                                              |
-| `create-pr`    | `/create-pr`     | Push the current feature branch and open a GitHub PR; drafts title + body from commits and plan doc; requires `gh` CLI                                         |
-| `setup-e2e`    | `/setup-e2e`     | One-time Tauri WebDriver E2E setup: installs npm packages, generates `wdio.conf.ts` from the binary name, adds `test:e2e` / `test:e2e:ci` scripts. Idempotent. |
+| Skill           | Command          | Description                                                                                                                                                    |
+| --------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start`         | `/start [scope]` | Select workflow A (full) or B (simple) for the current task; outputs actionable checklist. Optional scope: `fix`, `chore`, `test`, `feature`, `refactor`       |
+| `spec-writer`   | `/spec-writer`   | Interactive spec writer: interviews user, reads domain, produces `docs/spec/{feature}.md` with TRIGRAM-NNN rules                                               |
+| `contract`      | `/contract`      | Derives or updates `docs/contracts/{domain}-contract.md` from a validated spec; upsert-aware, human-approved                                                   |
+| `adr-writer`    | `/adr-writer`    | Author Architecture Decision Records in `docs/adr/`: create, supersede, or index. Run `adr-reviewer` after to validate                                         |
+| `whats-next`    | `/whats-next`    | Triage pending work across TODOs, plans, specs, and in-flight git; returns value/effort table and one suggested next action                                    |
+| `smart-commit`  | `/smart-commit`  | Conventional commit with sensitive-file check, linter run, suggested title with char count, and user confirmation                                              |
+| `create-pr`     | `/create-pr`     | Push the current feature branch and open a GitHub PR; drafts title + body from commits and plan doc; requires `gh` CLI                                         |
+| `review-triage` | `/review-triage` | Triage reviewer-\* findings against the (a)/(b)/(c) per-task discipline before applying; reads `.review/` reports; halts for user confirmation on (b)/(c) rows |
+| `setup-e2e`     | `/setup-e2e`     | One-time Tauri WebDriver E2E setup: installs npm packages, generates `wdio.conf.ts` from the binary name, adds `test:e2e` / `test:e2e:ci` scripts. Idempotent. |
 
 ### Sanity skills
 
