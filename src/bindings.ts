@@ -1519,9 +1519,21 @@ payment_method: PaymentMethod;
  */
 payment_status: ProcedureStatus; 
 /**
- * Date when payment was confirmed (ISO format: YYYY-MM-DD)
- * Source: Excel import column J or PDF reconciliation data
- * Presence of this date triggers BankTransfer inference if payment_method not explicit
+ * Stage 1 — fund-declared payment date from the fund document
+ * (ISO format: YYYY-MM-DD). Set by fund-payment-* reconciliation
+ * flows when the procedure enters a `FundPaymentGroup` (PRO-250,
+ * FPM-320, FPA-300); cleared on removal (FPM-310, FPM-400).
+ * Distinct from `confirmed_payment_date` which is Stage 2 only.
+ */
+fund_reconciliation_date: string; 
+/**
+ * Stage 2 — bank-side confirmed payment date (ISO format:
+ * YYYY-MM-DD). Set by bank-statement-* reconciliation flows when
+ * the procedure's group is matched to a bank transfer, or
+ * directly at Excel import (column J) for procedures arriving
+ * with payment data already present.
+ * Presence of this date triggers BankTransfer inference if
+ * payment_method not explicit.
  */
 confirmed_payment_date: string; 
 /**
@@ -1597,7 +1609,7 @@ export type ProcedureValidationStatus = "VALID" | "INVALID"
  * Raw healthcare procedure data from frontend (unvalidated)
  * Used for updating an existing procedure with data from an external source
  */
-export type RawProcedure = { id: string; patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number | null; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; payment_status: string }
+export type RawProcedure = { id: string; patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number | null; payment_method: string | null; fund_reconciliation_date: string | null; confirmed_payment_date: string | null; paid_amount: number | null; payment_status: string }
 /**
  * Raw procedure type data from frontend (unvalidated)
  */

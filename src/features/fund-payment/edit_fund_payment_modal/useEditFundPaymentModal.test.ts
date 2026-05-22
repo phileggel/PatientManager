@@ -41,6 +41,8 @@ const mockCurrentProcedure: Procedure = {
   procedure_date: "2025-02-01",
   billed_amount: 75000,
   payment_method: "NONE" as const,
+  fund_reconciliation_date: "",
+
   confirmed_payment_date: "",
   paid_amount: null,
   payment_status: "RECONCILED" as const,
@@ -54,6 +56,8 @@ const mockAvailableProcedure: Procedure = {
   procedure_date: "2025-02-10",
   billed_amount: 50000,
   payment_method: "NONE" as const,
+  fund_reconciliation_date: "",
+
   confirmed_payment_date: "",
   paid_amount: null,
   payment_status: "CREATED" as const,

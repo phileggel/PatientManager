@@ -136,6 +136,7 @@ export function useProcedureFormModal({
             procedure_date: procedure.procedure_date,
             billed_amount: procedure.billed_amount,
             payment_method: procedure.payment_method,
+            fund_reconciliation_date: procedure.fund_reconciliation_date || null,
             confirmed_payment_date: procedure.confirmed_payment_date || null,
             paid_amount: procedure.paid_amount,
             payment_status: procedure.payment_status,
@@ -177,7 +178,7 @@ export function useProcedureFormModal({
           onSuccess?.();
           onClose();
         } else {
-          // Edit mode: payment fields passed through unchanged from original procedure (R30)
+          // Edit mode: payment fields passed through unchanged from original procedure (PRO-050)
           if (!procedure) return;
           await gateway.updateProcedure({
             id: procedure.id,
@@ -187,6 +188,7 @@ export function useProcedureFormModal({
             procedure_date: procedureDate,
             billed_amount: procedureAmount != null ? Math.round(procedureAmount * 1000) : null,
             payment_method: procedure.payment_method,
+            fund_reconciliation_date: procedure.fund_reconciliation_date || null,
             confirmed_payment_date: procedure.confirmed_payment_date || null,
             paid_amount: procedure.paid_amount,
             payment_status: procedure.payment_status,

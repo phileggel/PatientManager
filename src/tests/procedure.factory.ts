@@ -21,6 +21,7 @@ export function makeProcedure(overrides?: Partial<Procedure>): Procedure {
     billed_amount: 50000,
     payment_method: "NONE",
     payment_status: "CREATED",
+    fund_reconciliation_date: "", // backend uses "" (not null) for "no Stage 1 date yet"
     confirmed_payment_date: "", // backend uses "" (not null) to represent "no confirmed date"
     paid_amount: null,
     ...overrides,
@@ -44,6 +45,7 @@ export function makeProcedureRow(overrides?: Partial<ProcedureRow>): ProcedureRo
     procedureAmount: 50,
     effectiveAmount: 50,
     paymentMethod: "NONE",
+    fundReconciliationDate: null,
     confirmedPaymentDate: null,
     actualPaymentAmount: null,
     awaitedAmount: 50,

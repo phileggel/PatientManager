@@ -551,9 +551,9 @@ impl BankManualMatchOrchestrator {
                         ProcedureStatus::PartiallyFundPaid => ProcedureStatus::PartiallyReconciled,
                         other => other, // Unexpected — leave as-is
                     };
-                    // Restore confirmed_payment_date to group payment_date, clear payment_method (R8)
-                    // paid_amount is preserved (per R8 spec)
-                    p.revert_fund_payment(group.payment_date)
+                    // Clear Stage 2 — payment_method + confirmed_payment_date.
+                    // fund_reconciliation_date (Stage 1) and paid_amount stay (per R8).
+                    p.revert_fund_payment()
                 })
                 .collect();
 

@@ -16,6 +16,7 @@ pub struct ProcedureRow {
     pub procedure_date: String,
     pub procedure_amount: Option<i64>,
     pub payment_method: Option<String>,
+    pub fund_reconciliation_date: Option<String>,
     pub confirmed_payment_date: Option<String>,
     pub actual_payment_amount: Option<i64>,
     pub payment_status: Option<String>,
@@ -32,6 +33,7 @@ pub struct ProcedureWithSSNRow {
     pub procedure_date: String,
     pub procedure_amount: Option<i64>,
     pub payment_method: Option<String>,
+    pub fund_reconciliation_date: Option<String>,
     pub confirmed_payment_date: Option<String>,
     pub actual_payment_amount: Option<i64>,
     pub payment_status: Option<String>,
@@ -84,6 +86,10 @@ impl From<ProcedureRow> for Procedure {
             Err(_) => NaiveDate::MIN,
         };
 
+        let fund_reconciliation_date_parsed = row
+            .fund_reconciliation_date
+            .and_then(|date_str| NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").ok());
+
         let confirmed_payment_date_parsed = row
             .confirmed_payment_date
             .and_then(|date_str| NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").ok());
@@ -96,6 +102,7 @@ impl From<ProcedureRow> for Procedure {
             procedure_date_parsed,
             row.procedure_amount,
             payment_method,
+            fund_reconciliation_date_parsed,
             confirmed_payment_date_parsed,
             row.actual_payment_amount,
             payment_status,
@@ -143,6 +150,9 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let payment_method_str = procedure.payment_method.as_db_str();
         let payment_status_str = procedure.payment_status.as_db_str();
         let procedure_date_str = procedure.procedure_date.format("%Y-%m-%d").to_string();
+        let fund_reconciliation_date_str = procedure
+            .fund_reconciliation_date
+            .map(|d| d.format("%Y-%m-%d").to_string());
         let confirmed_payment_date_str = procedure
             .confirmed_payment_date
             .map(|d| d.format("%Y-%m-%d").to_string());
@@ -155,8 +165,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0)
+            INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 0)
             "#,
             procedure.id,
             procedure.patient_id,
@@ -165,6 +175,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             procedure_date_str,
             procedure.billed_amount,
             payment_method_str,
+            fund_reconciliation_date_str,
             confirmed_payment_date_str,
             procedure.paid_amount,
             payment_status_str,
@@ -183,7 +194,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let rows = sqlx::query_as!(
             ProcedureRow,
             r#"
-            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted
             FROM procedure
             WHERE is_deleted = 0
             "#,
@@ -200,7 +211,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let row = sqlx::query_as!(
             ProcedureRow,
             r#"
-            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted
             FROM procedure
             WHERE id = $1 AND is_deleted = 0
             "#,
@@ -224,7 +235,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         // recommended sqlx approach for this pattern.
         let mut builder = sqlx::QueryBuilder::new(
             "SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount,
-                    payment_method, confirmed_payment_date, actual_payment_amount,
+                    payment_method, fund_reconciliation_date, confirmed_payment_date, actual_payment_amount,
                     payment_status, is_deleted
              FROM procedure WHERE id IN (",
         );
@@ -252,7 +263,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let rows = sqlx::query_as!(
             ProcedureRow,
             r#"
-            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted
             FROM procedure
             WHERE patient_id = $1 AND is_deleted = 0
             "#,
@@ -271,6 +282,9 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let payment_method_str = procedure.payment_method.as_db_str();
         let payment_status_str = procedure.payment_status.as_db_str();
         let procedure_date_str = procedure.procedure_date.format("%Y-%m-%d").to_string();
+        let fund_reconciliation_date_str = procedure
+            .fund_reconciliation_date
+            .map(|d| d.format("%Y-%m-%d").to_string());
         let confirmed_payment_date_str = procedure
             .confirmed_payment_date
             .map(|d| d.format("%Y-%m-%d").to_string());
@@ -278,8 +292,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
         sqlx::query!(
             r#"
             UPDATE procedure
-            SET patient_id = $1, fund_id = $2, procedure_type_id = $3, procedure_date = $4, procedure_amount = $5, payment_method = $6, confirmed_payment_date = $7, actual_payment_amount = $8, payment_status = $9
-            WHERE id = $10
+            SET patient_id = $1, fund_id = $2, procedure_type_id = $3, procedure_date = $4, procedure_amount = $5, payment_method = $6, fund_reconciliation_date = $7, confirmed_payment_date = $8, actual_payment_amount = $9, payment_status = $10
+            WHERE id = $11
             "#,
             procedure.patient_id,
             procedure.fund_id,
@@ -287,6 +301,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             procedure_date_str,
             procedure.billed_amount,
             payment_method_str,
+            fund_reconciliation_date_str,
             confirmed_payment_date_str,
             procedure.paid_amount,
             payment_status_str,
@@ -323,7 +338,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             ProcedureRow,
             r#"
             SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,
-                   hp.procedure_date, hp.procedure_amount, hp.payment_method, hp.confirmed_payment_date, hp.actual_payment_amount, hp.payment_status, hp.is_deleted
+                   hp.procedure_date, hp.procedure_amount, hp.payment_method, hp.fund_reconciliation_date, hp.confirmed_payment_date, hp.actual_payment_amount, hp.payment_status, hp.is_deleted
             FROM procedure hp
             JOIN patient p ON hp.patient_id = p.id
             WHERE p.ssn = $1
@@ -366,7 +381,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let mut builder = sqlx::QueryBuilder::new(
             "SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,
                     hp.procedure_date, hp.procedure_amount, hp.payment_method,
-                    hp.confirmed_payment_date, hp.actual_payment_amount,
+                    hp.fund_reconciliation_date, hp.confirmed_payment_date, hp.actual_payment_amount,
                     hp.payment_status, hp.is_deleted, p.ssn
              FROM procedure hp
              JOIN patient p ON hp.patient_id = p.id
@@ -416,6 +431,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
                     procedure_date: row.procedure_date,
                     procedure_amount: row.procedure_amount,
                     payment_method: row.payment_method,
+                    fund_reconciliation_date: row.fund_reconciliation_date,
                     confirmed_payment_date: row.confirmed_payment_date,
                     actual_payment_amount: row.actual_payment_amount,
                     payment_status: row.payment_status,
@@ -444,7 +460,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let row = sqlx::query_as!(
             ProcedureRow,
             r#"
-            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted
             FROM procedure
             WHERE patient_id = $1
               AND fund_id IS $2
@@ -472,6 +488,9 @@ impl ProcedureRepository for SqliteProcedureRepository {
             let payment_method_str = procedure.payment_method.as_db_str();
             let payment_status_str = procedure.payment_status.as_db_str();
             let procedure_date_str = procedure.procedure_date.format("%Y-%m-%d").to_string();
+            let fund_reconciliation_date_str = procedure
+                .fund_reconciliation_date
+                .map(|d| d.format("%Y-%m-%d").to_string());
             let confirmed_payment_date_str = procedure
                 .confirmed_payment_date
                 .map(|d| d.format("%Y-%m-%d").to_string());
@@ -484,8 +503,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
 
             sqlx::query!(
                 r#"
-                INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0)
+                INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 0)
                 "#,
                 procedure.id,
                 procedure.patient_id,
@@ -494,6 +513,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
                 procedure_date_str,
                 procedure.billed_amount,
                 payment_method_str,
+                fund_reconciliation_date_str,
                 confirmed_payment_date_str,
                 procedure.paid_amount,
                 payment_status_str,
@@ -521,6 +541,9 @@ impl ProcedureRepository for SqliteProcedureRepository {
             let payment_method_str = procedure.payment_method.as_db_str();
             let payment_status_str = procedure.payment_status.as_db_str();
             let procedure_date_str = procedure.procedure_date.format("%Y-%m-%d").to_string();
+            let fund_reconciliation_date_str = procedure
+                .fund_reconciliation_date
+                .map(|d| d.format("%Y-%m-%d").to_string());
             let confirmed_payment_date_str = procedure
                 .confirmed_payment_date
                 .map(|d| d.format("%Y-%m-%d").to_string());
@@ -533,8 +556,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
             sqlx::query!(
                 r#"
                 UPDATE procedure
-                SET patient_id = $1, fund_id = $2, procedure_type_id = $3, procedure_date = $4, procedure_amount = $5, payment_method = $6, confirmed_payment_date = $7, actual_payment_amount = $8, payment_status = $9
-                WHERE id = $10
+                SET patient_id = $1, fund_id = $2, procedure_type_id = $3, procedure_date = $4, procedure_amount = $5, payment_method = $6, fund_reconciliation_date = $7, confirmed_payment_date = $8, actual_payment_amount = $9, payment_status = $10
+                WHERE id = $11
                 "#,
                 procedure.patient_id,
                 procedure.fund_id,
@@ -542,6 +565,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
                 procedure_date_str,
                 procedure.billed_amount,
                 payment_method_str,
+                fund_reconciliation_date_str,
                 confirmed_payment_date_str,
                 procedure.paid_amount,
                 payment_status_str,
@@ -569,7 +593,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             ProcedureRow,
             r#"
             SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id, hp.procedure_date,
-                   hp.procedure_amount, hp.payment_method, hp.confirmed_payment_date,
+                   hp.procedure_amount, hp.payment_method, hp.fund_reconciliation_date, hp.confirmed_payment_date,
                    hp.actual_payment_amount, hp.payment_status, hp.is_deleted
             FROM procedure hp
             WHERE hp.fund_id = $1
@@ -665,7 +689,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             ProcedureRow,
             r#"
             SELECT id, patient_id, fund_id, procedure_type_id, procedure_date,
-                   procedure_amount, payment_method, confirmed_payment_date,
+                   procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date,
                    actual_payment_amount, payment_status, is_deleted
             FROM "procedure"
             WHERE is_deleted = 0
@@ -698,7 +722,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             ProcedureRow,
             r#"
             SELECT id, patient_id, fund_id, procedure_type_id, procedure_date,
-                   procedure_amount, payment_method, confirmed_payment_date,
+                   procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date,
                    actual_payment_amount, payment_status, is_deleted
             FROM "procedure"
             WHERE fund_id = $1
@@ -870,6 +894,7 @@ mod tests {
             PaymentMethod::Cash,
             None,
             None,
+            None,
             ProcedureStatus::DirectlyPaid,
         );
         repo.update_procedure(updated).await.unwrap();
@@ -914,6 +939,7 @@ mod tests {
             created.procedure_date,
             None,
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Reconciled,
@@ -1146,6 +1172,7 @@ mod tests {
             PaymentMethod::Cash,
             None,
             None,
+            None,
             ProcedureStatus::DirectlyPaid,
         );
         let u2 = Procedure::restore(
@@ -1156,6 +1183,7 @@ mod tests {
             c2.procedure_date,
             Some(8888),
             PaymentMethod::Check,
+            None,
             None,
             None,
             ProcedureStatus::FundPaid,

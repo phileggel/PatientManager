@@ -42,6 +42,8 @@ describe("useProcedureData", () => {
         procedure_date: "2026-01-15",
         billed_amount: 50000,
         payment_method: "NONE",
+        fund_reconciliation_date: "",
+
         confirmed_payment_date: "",
         paid_amount: null,
         payment_status: "CREATED",

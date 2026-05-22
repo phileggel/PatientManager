@@ -48,6 +48,8 @@ const makeRow = (status: string): ProcedureRow => ({
   procedureAmount: 50,
   effectiveAmount: 50,
   paymentMethod: "NONE",
+  fundReconciliationDate: null,
+
   confirmedPaymentDate: null,
   actualPaymentAmount: null,
   awaitedAmount: null,

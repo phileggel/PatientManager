@@ -59,6 +59,7 @@ export const toProcedureRow = (
           : null,
     // Payment data (readonly from backend) — amounts converted from thousandths to euros
     paymentMethod: procedure.payment_method,
+    fundReconciliationDate: procedure.fund_reconciliation_date,
     confirmedPaymentDate: procedure.confirmed_payment_date,
     actualPaymentAmount: procedure.paid_amount != null ? procedure.paid_amount / 1000 : null,
     awaitedAmount: null, // Not available from backend Procedure type

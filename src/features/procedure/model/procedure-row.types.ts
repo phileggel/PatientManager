@@ -31,6 +31,9 @@ export interface ProcedureRow {
 
   // Payment data (readonly)
   paymentMethod: string | null; // NONE | CASH | CHECK | BANK_CARD | BANK_TRANSFER
+  // Stage 1 — fund-document payment date (set by fund-payment-* reconciliation flows).
+  fundReconciliationDate: string | null;
+  // Stage 2 — bank-side confirmed payment date.
   confirmedPaymentDate: string | null;
   actualPaymentAmount: number | null;
   awaitedAmount: number | null;

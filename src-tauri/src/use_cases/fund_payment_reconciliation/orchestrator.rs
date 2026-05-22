@@ -202,12 +202,13 @@ impl FundPaymentReconciliationOrchestrator {
             .read_procedures_by_ids(procedure_ids.clone())
             .await?;
 
+        // FPA-300 — auto-reconciliation sets Stage 1 fund_reconciliation_date.
         let updated_procedures: Vec<_> = procedures_to_update
             .into_iter()
             .map(|mut procedure| {
                 procedure.payment_status = ProcedureStatus::Reconciled;
                 procedure.paid_amount = paid_amount;
-                procedure.confirmed_payment_date = Some(payment_date);
+                procedure.fund_reconciliation_date = Some(payment_date);
                 procedure
             })
             .collect();
@@ -331,7 +332,9 @@ impl FundPaymentReconciliationOrchestrator {
                 // billed_amount.unwrap_or(default_amount) so paid_amount is never left null
                 // for reconciled procedures.
                 procedure.paid_amount = procedure.billed_amount;
-                procedure.confirmed_payment_date = procedure_date_map.get(&procedure.id).copied();
+                // FPA-300 — Stage 1 reconciliation sets fund_reconciliation_date
+                // (the group's payment_date), not the bank-side confirmed date.
+                procedure.fund_reconciliation_date = procedure_date_map.get(&procedure.id).copied();
                 procedure
             })
             .collect();
@@ -491,7 +494,8 @@ impl FundPaymentReconciliationOrchestrator {
         let updated_procedures: Vec<_> = procedures_to_update
             .into_iter()
             .map(|mut procedure| {
-                procedure.confirmed_payment_date = procedure_date_map.get(&procedure.id).copied();
+                // FPA-300 — Stage 1 reconciliation sets fund_reconciliation_date.
+                procedure.fund_reconciliation_date = procedure_date_map.get(&procedure.id).copied();
                 if procedure.payment_status != ProcedureStatus::PartiallyReconciled {
                     // Contest correction already set paid_amount and status — keep them
                     procedure.payment_status = ProcedureStatus::Reconciled;
@@ -1021,6 +1025,7 @@ mod tests {
                     PaymentMethod::None,
                     None,
                     None,
+                    None,
                     ProcedureStatus::Created,
                 )])
             });
@@ -1242,6 +1247,7 @@ mod tests {
                     PaymentMethod::None,
                     None,
                     None,
+                    None,
                     ProcedureStatus::Created,
                 )])
             });
@@ -1267,6 +1273,7 @@ mod tests {
                 Some(75_000),
                 PaymentMethod::None,
                 Some(NaiveDate::from_ymd_opt(2026, 1, 15).unwrap()),
+                None,
                 Some(75_000),
                 ProcedureStatus::Reconciled,
             )))
