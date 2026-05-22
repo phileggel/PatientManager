@@ -119,6 +119,7 @@ async fn create_procedure(ctx: &Ctx, amount: i64, status: ProcedureStatus) -> St
             PaymentMethod::None,
             None,
             None,
+            None,
             status,
         )
         .await

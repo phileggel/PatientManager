@@ -8,22 +8,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-05-22 — `Procedure::with_id` lacks `fund_reconciliation_date` parameter — silent None footgun
-
-**Found by:** reviewer-backend (`feat/procedure-fund-reconciliation-date`)
-
-**Where:** `src-tauri/src/context/procedure/domain/procedure.rs` (`Procedure::with_id`) and `src-tauri/src/use_cases/procedure_orchestration/api.rs:57-69` (`RawProcedure::into_procedure`).
-
-**Observation:** `Procedure::with_id(...)` always initializes `fund_reconciliation_date = None`. Callers that need to carry a Stage 1 date must chain `.with_fund_reconciliation_date(Some(...))` afterwards. The API-boundary path (`RawProcedure::into_procedure`) does this correctly, but the asymmetric design is a footgun: any future caller of `with_id` that forgets the chain silently drops Stage 1 data without compile-time error or runtime warning. The asymmetry is intentional in this PR (minimize signature churn across ~20 caller sites), but the longer-term shape is to thread `fund_reconciliation_date` as an explicit parameter into `with_id` so the construction surface is parameter-complete.
-
-## 2026-05-22 — Refund procedure's Stage 1 date set via post-create update — atomicity gap
-
-**Found by:** reviewer-backend (`feat/procedure-fund-reconciliation-date`)
-
-**Where:** `src-tauri/src/use_cases/overpayment/orchestrator.rs:170-173`. The refund creation flow calls `procedure_service.create_procedure(...)` (which initializes `fund_reconciliation_date = None`), then immediately calls `update_procedure(refund.with_fund_reconciliation_date(Some(refund_date)))` to fix up the Stage 1 field.
-
-**Observation:** Two database writes where one would suffice — and a partial-failure window between them (refund procedure persisted with `NULL` Stage 1 date while subsequent steps continue). The flow has no enclosing UoW. The cleanest fix is to thread `fund_reconciliation_date` through `ProcedureRepository::create_procedure` + `ProcedureService::create_procedure` so the refund creation is one atomic write. Requires repo-trait signature change across multiple callers; deferred to keep the current PR scoped. The non-atomic window is small (immediately-following same-function call) but real.
-
 ## 2026-05-19 — REF-240 enforced at command layer via dual-orchestrator injection
 
 **Found by:** manual (`refactor/fund-payment-manual-management`)

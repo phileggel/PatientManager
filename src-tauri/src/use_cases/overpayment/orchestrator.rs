@@ -135,13 +135,12 @@ impl OverpaymentOrchestrator {
 
         let previous_payment_status = source.payment_status;
 
-        // Step 7 — Create refund Procedure (REF-090)
-        // Direct assignment of OverpaymentRefund status — bypasses lifecycle transitions.
-        // Uses the ProcedureService.create_procedure which calls Procedure::new() internally.
-        // Negative billed_amount is allowed (no amount validation in Procedure).
-        // payment_method is mapped from the user-selected transfer_type so it appears in the
-        // procedure list column. confirmed_payment_date is set to refund_date because the
-        // refund is considered executed at that date.
+        // Step 7 — Create refund Procedure (REF-090 + REF-100).
+        // OverpaymentRefund status is assigned directly (bypasses lifecycle transitions).
+        // Negative billed_amount is allowed. payment_method maps from transfer_type so it
+        // appears in the procedure-list column. confirmed_payment_date = refund_date
+        // (refund is executed at that date). fund_reconciliation_date = refund_date because
+        // the refund procedure immediately enters a refund FundPaymentGroup (FPM-320 / PRO-250).
         let refund_payment_method = match transfer_type {
             BankEntryType::PatientCheck => PaymentMethod::Check,
             BankEntryType::PatientCreditCard => PaymentMethod::BankCard,
@@ -158,18 +157,10 @@ impl OverpaymentOrchestrator {
                 Some(-source_amount),
                 refund_payment_method,
                 Some(req.refund_date.clone()),
+                Some(req.refund_date.clone()),
                 Some(-source_amount),
                 ProcedureStatus::OverpaymentRefund,
             )
-            .await?;
-
-        // REF-090 + REF-100 — the refund procedure enters a refund
-        // FundPaymentGroup; per FPM-320 / PRO-250 the Stage 1
-        // fund_reconciliation_date must be set to the group's
-        // payment_date (= refund_date here).
-        let refund_procedure = self
-            .procedure_service
-            .update_procedure(refund_procedure.with_fund_reconciliation_date(Some(refund_date)))
             .await?;
 
         // Step 8 — Create refund FundPaymentGroup (REF-100)
@@ -511,6 +502,7 @@ mod tests {
                   procedure_date,
                   billed_amount,
                   payment_method,
+                  fund_reconciliation_date,
                   confirmed_payment_date,
                   paid_amount,
                   payment_status| {
@@ -524,7 +516,9 @@ mod tests {
                     date,
                     billed_amount,
                     payment_method,
-                    None,
+                    fund_reconciliation_date
+                        .as_deref()
+                        .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
                     confirmed_payment_date
                         .as_deref()
                         .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),

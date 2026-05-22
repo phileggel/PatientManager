@@ -162,6 +162,7 @@ impl ProcedureService {
         procedure_date: String,
         billed_amount: Option<i64>,
         payment_method: super::domain::PaymentMethod,
+        fund_reconciliation_date: Option<String>,
         confirmed_payment_date: Option<String>,
         paid_amount: Option<i64>,
         payment_status: super::domain::ProcedureStatus,
@@ -175,6 +176,7 @@ impl ProcedureService {
                 procedure_date,
                 billed_amount,
                 payment_method,
+                fund_reconciliation_date,
                 confirmed_payment_date,
                 paid_amount,
                 payment_status,
@@ -215,6 +217,7 @@ impl ProcedureService {
                 candidate.procedure_date,
                 candidate.billed_amount,
                 super::domain::PaymentMethod::None, // Default for batch creation
+                None, // fund_reconciliation_date — Stage 1 not carried by batch candidates
                 candidate.confirmed_payment_date,
                 candidate.paid_amount,
                 super::domain::ProcedureStatus::None,
@@ -591,6 +594,7 @@ mod tests {
              procedure_date,
              billed_amount,
              payment_method,
+             fund_reconciliation_date,
              confirmed_payment_date,
              paid_amount,
              payment_status| {
@@ -601,6 +605,7 @@ mod tests {
                     procedure_date,
                     billed_amount,
                     payment_method,
+                    fund_reconciliation_date,
                     confirmed_payment_date,
                     paid_amount,
                     payment_status,
@@ -629,6 +634,7 @@ mod tests {
                 "2026-01-15".to_string(),
                 Some(10000),
                 PaymentMethod::None,
+                None,
                 None,
                 None,
                 ProcedureStatus::Created,
@@ -681,6 +687,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .unwrap();
@@ -711,6 +718,7 @@ mod tests {
             "2026-01-01".to_string(),
             None,
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::None,

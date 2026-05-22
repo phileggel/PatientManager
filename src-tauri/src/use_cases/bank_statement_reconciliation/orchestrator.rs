@@ -699,6 +699,7 @@ mod tests {
              procedure_date,
              billed_amount,
              payment_method,
+             fund_reconciliation_date,
              confirmed_payment_date,
              paid_amount,
              payment_status| {
@@ -712,7 +713,9 @@ mod tests {
                     date,
                     billed_amount,
                     payment_method,
-                    None,
+                    fund_reconciliation_date
+                        .as_deref()
+                        .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
                     confirmed_payment_date
                         .as_deref()
                         .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),

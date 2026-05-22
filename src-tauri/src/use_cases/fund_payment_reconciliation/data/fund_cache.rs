@@ -126,6 +126,7 @@ mod tests {
             crate::context::procedure::PaymentMethod::None,
             None,
             None,
+            None,
             crate::context::procedure::ProcedureStatus::None,
         )
         .expect("Procedure creation failed")

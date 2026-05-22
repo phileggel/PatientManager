@@ -224,32 +224,18 @@ impl Procedure {
         procedure_date: String,
         billed_amount: Option<i64>,
         payment_method: PaymentMethod,
+        fund_reconciliation_date: Option<String>,
         confirmed_payment_date: Option<String>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> Result<Self> {
         Self::validate(&patient_id, &procedure_type_id, &procedure_date)?;
 
-        let parsed_procedure_date = NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
-            .map_err(|_| {
-                anyhow::anyhow!(
-                    "Invalid procedure date format: {} (expected YYYY-MM-DD)",
-                    procedure_date
-                )
-            })?;
-
-        let parsed_confirmed_payment_date = if let Some(date_str) = confirmed_payment_date {
-            Some(
-                NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|_| {
-                    anyhow::anyhow!(
-                        "Invalid confirmed payment date format: {} (expected YYYY-MM-DD)",
-                        date_str
-                    )
-                })?,
-            )
-        } else {
-            None
-        };
+        let parsed_procedure_date = Self::parse_date(&procedure_date, "procedure date")?;
+        let parsed_fund_reconciliation_date =
+            Self::parse_optional_date(fund_reconciliation_date, "fund reconciliation date")?;
+        let parsed_confirmed_payment_date =
+            Self::parse_optional_date(confirmed_payment_date, "confirmed payment date")?;
 
         Ok(Self {
             id: Uuid::new_v4().to_string(),
@@ -259,7 +245,7 @@ impl Procedure {
             procedure_date: parsed_procedure_date,
             billed_amount,
             payment_method,
-            fund_reconciliation_date: None,
+            fund_reconciliation_date: parsed_fund_reconciliation_date,
             confirmed_payment_date: parsed_confirmed_payment_date,
             paid_amount,
             payment_status,
@@ -278,32 +264,18 @@ impl Procedure {
         procedure_date: String,
         billed_amount: Option<i64>,
         payment_method: PaymentMethod,
+        fund_reconciliation_date: Option<String>,
         confirmed_payment_date: Option<String>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> Result<Self> {
         Self::validate(&patient_id, &procedure_type_id, &procedure_date)?;
 
-        let parsed_procedure_date = NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
-            .map_err(|_| {
-                anyhow::anyhow!(
-                    "Invalid procedure date format: {} (expected YYYY-MM-DD)",
-                    procedure_date
-                )
-            })?;
-
-        let parsed_confirmed_payment_date = if let Some(date_str) = confirmed_payment_date {
-            Some(
-                NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|_| {
-                    anyhow::anyhow!(
-                        "Invalid confirmed payment date format: {} (expected YYYY-MM-DD)",
-                        date_str
-                    )
-                })?,
-            )
-        } else {
-            None
-        };
+        let parsed_procedure_date = Self::parse_date(&procedure_date, "procedure date")?;
+        let parsed_fund_reconciliation_date =
+            Self::parse_optional_date(fund_reconciliation_date, "fund reconciliation date")?;
+        let parsed_confirmed_payment_date =
+            Self::parse_optional_date(confirmed_payment_date, "confirmed payment date")?;
 
         Ok(Self {
             id,
@@ -313,7 +285,7 @@ impl Procedure {
             procedure_date: parsed_procedure_date,
             billed_amount,
             payment_method,
-            fund_reconciliation_date: None,
+            fund_reconciliation_date: parsed_fund_reconciliation_date,
             confirmed_payment_date: parsed_confirmed_payment_date,
             paid_amount,
             payment_status,
@@ -391,9 +363,12 @@ impl Procedure {
         self
     }
 
-    /// Updates only the Stage 1 fund-reconciliation date.
-    /// Used by fund-payment-* reconciliation flows when a procedure
-    /// enters a FundPaymentGroup (FPM-320, FPA-300).
+    /// State transition: set or clear the Stage 1 fund-reconciliation date on
+    /// an already-loaded aggregate. Used by fund-payment-* reconciliation flows
+    /// when a procedure enters (FPM-320, FPA-300) or leaves (FPM-310, FPM-400)
+    /// a `FundPaymentGroup`. Not a constructor patch — `Procedure::new` /
+    /// `with_id` accept `fund_reconciliation_date` as a parameter; never chain
+    /// this onto a freshly-built aggregate to thread an initial value.
     pub fn with_fund_reconciliation_date(
         mut self,
         fund_reconciliation_date: Option<NaiveDate>,
@@ -427,6 +402,23 @@ impl Procedure {
         }
         Ok(())
     }
+
+    fn parse_date(date_str: &str, label: &str) -> Result<NaiveDate> {
+        NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|_| {
+            anyhow::anyhow!(
+                "Invalid {} format: {} (expected YYYY-MM-DD)",
+                label,
+                date_str
+            )
+        })
+    }
+
+    fn parse_optional_date(date_str: Option<String>, label: &str) -> Result<Option<NaiveDate>> {
+        match date_str {
+            Some(s) => Self::parse_date(&s, label).map(Some),
+            None => Ok(None),
+        }
+    }
 }
 
 /// Domain projection: a procedure pending reconciliation, enriched with patient identity data.
@@ -451,6 +443,7 @@ pub trait ProcedureRepository: Send + Sync {
         procedure_date: String,
         billed_amount: Option<i64>,
         payment_method: PaymentMethod,
+        fund_reconciliation_date: Option<String>,
         confirmed_payment_date: Option<String>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
