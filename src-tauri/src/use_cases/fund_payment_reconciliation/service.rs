@@ -445,6 +445,7 @@ mod tests {
             crate::context::procedure::PaymentMethod::None,
             None,
             None,
+            None,
             status,
         )
         .unwrap()

@@ -135,6 +135,7 @@ impl ProcedureOrchestrationService {
                 req.procedure_date.clone(),
                 req.billed_amount,
                 mapped_payment_method,
+                None,
                 req.confirmed_payment_date,
                 req.paid_amount,
                 status,
@@ -465,6 +466,7 @@ impl ProcedureOrchestrationService {
                 candidate.procedure_date,
                 candidate.billed_amount,
                 payment_method,
+                None,
                 candidate.confirmed_payment_date,
                 candidate.paid_amount,
                 status,
@@ -651,7 +653,7 @@ mod tests {
     fn mock_proc_repo_passthrough() -> MockProcedureRepository {
         let mut mock = MockProcedureRepository::new();
         mock.expect_create_procedure()
-            .returning(|_, _, _, _, _, _, _, _, _| {
+            .returning(|_, _, _, _, _, _, _, _, _, _| {
                 panic!("create_procedure not expected in this test")
             });
         mock.expect_read_all_procedures().returning(|| Ok(vec![]));
@@ -789,6 +791,7 @@ mod tests {
              procedure_date,
              billed_amount,
              payment_method,
+             fund_reconciliation_date,
              confirmed_payment_date,
              paid_amount,
              payment_status| {
@@ -800,6 +803,7 @@ mod tests {
                     procedure_date,
                     billed_amount,
                     payment_method,
+                    fund_reconciliation_date,
                     confirmed_payment_date,
                     paid_amount,
                     payment_status,
@@ -868,6 +872,7 @@ mod tests {
             "2024-06-15".to_string(),
             Some(100000),
             PaymentMethod::None,
+            None,
             None,
             None,
             status,
@@ -1132,6 +1137,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .unwrap();
@@ -1144,6 +1150,7 @@ mod tests {
             "2024-01-15".to_string(),
             Some(100000),
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -1203,6 +1210,7 @@ mod tests {
             "2024-06-15".to_string(),
             Some(100000),
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -2056,6 +2064,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::OverpaymentRefund,
         )
         .unwrap();
@@ -2087,6 +2096,7 @@ mod tests {
             "2024-06-15".to_string(),
             Some(-50000),
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::OverpaymentRefund,

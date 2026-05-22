@@ -392,6 +392,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::None,
         )
         .expect("Procedure creation failed in test")
@@ -774,6 +775,7 @@ mod tests {
             procedure_date.to_string(),
             amount,
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::None,

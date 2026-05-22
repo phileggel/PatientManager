@@ -47,6 +47,17 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 ---
 
+## (backend+frontend/naming) — Align `Procedure` amount field names with UL canonical
+
+`docs/ubiquitous-language.md:91-96` declares `billed_amount` and `paid_amount` as the canonical UL terms, and the middle of the stack (BE domain `Procedure`, contract, Specta bindings) already uses them. Both ends still carry the legacy names:
+
+- **SQL columns + repo row structs** — `procedure_amount` / `actual_payment_amount` in `migrations/20260308_init.sql:57,60` and the `ProcedureRow` / `ProcedureWithSSNRow` sqlx structs in `src-tauri/src/context/procedure/repository/procedure.rs`. The boundary rename happens today inside `restore()` (line 103) and on every INSERT/UPDATE (lines 176, 302).
+- **FE row view-model** — `procedureAmount` / `actualPaymentAmount` in `src/features/procedure/model/procedure-row.types.ts`. Mapper renames back from the wire at `procedure-row.mapper.ts:49,64`.
+
+Scope: SQLite migration renaming both columns (`ALTER COLUMN … RENAME TO …`) with backfill safety check; regenerate sqlx offline cache; rename the repo row structs and drop the in-`restore()` rename; rename `ProcedureRow` fields + every consumer (mapper, table cell, edit modal, aggregations, factory, RTL tests); update `docs/ubiquitous-language.md:95-96` to remove the discrepancy callout. Ship as one PR — splitting would leave the codebase half-renamed.
+
+---
+
 ## DDD Convergence — Major refactors (structural, plan carefully)
 
 - **Folder restructure**: migrate all bounded contexts to per-aggregate sub-folders per B0/B0d (`context/{domain}/{aggregate}/domain.rs`, `repository.rs`, `service.rs`)

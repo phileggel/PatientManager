@@ -131,6 +131,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         procedure_date: String,
         billed_amount: Option<i64>,
         payment_method: PaymentMethod,
+        fund_reconciliation_date: Option<String>,
         confirmed_payment_date: Option<String>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
@@ -142,6 +143,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             procedure_date,
             billed_amount,
             payment_method,
+            fund_reconciliation_date,
             confirmed_payment_date,
             paid_amount,
             payment_status,
@@ -775,6 +777,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
     }
@@ -791,6 +794,7 @@ mod tests {
                 "2026-01-15".to_string(),
                 p.billed_amount,
                 p.payment_method,
+                None,
                 None,
                 p.paid_amount,
                 p.payment_status,
@@ -822,6 +826,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -833,6 +838,7 @@ mod tests {
             "2026-01-02".to_string(),
             None,
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -854,6 +860,7 @@ mod tests {
                 "2026-01-01".to_string(),
                 None,
                 PaymentMethod::None,
+                None,
                 None,
                 None,
                 ProcedureStatus::Created,
@@ -878,6 +885,7 @@ mod tests {
                 "2026-01-01".to_string(),
                 Some(5000),
                 PaymentMethod::None,
+                None,
                 None,
                 None,
                 ProcedureStatus::Created,
@@ -926,6 +934,7 @@ mod tests {
                 PaymentMethod::None,
                 None,
                 None,
+                None,
                 ProcedureStatus::Reconciled,
             )
             .await
@@ -964,6 +973,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -975,6 +985,7 @@ mod tests {
             "2026-02-15".to_string(),
             None,
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -998,6 +1009,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -1009,6 +1021,7 @@ mod tests {
             "2026-04-01".to_string(),
             None,
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -1036,6 +1049,7 @@ mod tests {
                 PaymentMethod::None,
                 None,
                 None,
+                None,
                 ProcedureStatus::Created,
             )
             .await
@@ -1050,6 +1064,7 @@ mod tests {
                 PaymentMethod::None,
                 None,
                 None,
+                None,
                 ProcedureStatus::Created,
             )
             .await
@@ -1061,6 +1076,7 @@ mod tests {
             "2026-01-03".to_string(),
             None,
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -1097,6 +1113,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -1108,6 +1125,7 @@ mod tests {
             "2026-01-02".into(),
             None,
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -1143,6 +1161,7 @@ mod tests {
                 PaymentMethod::None,
                 None,
                 None,
+                None,
                 ProcedureStatus::Created,
             )
             .await
@@ -1155,6 +1174,7 @@ mod tests {
                 "2026-01-11".into(),
                 Some(2000),
                 PaymentMethod::None,
+                None,
                 None,
                 None,
                 ProcedureStatus::Created,
@@ -1213,6 +1233,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -1224,6 +1245,7 @@ mod tests {
             "2026-05-01".into(),
             Some(5000),
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -1250,6 +1272,7 @@ mod tests {
             "2026-04-10".into(),
             Some(3000),
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -1290,6 +1313,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -1303,6 +1327,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Reconciled,
         )
         .await
@@ -1314,6 +1339,7 @@ mod tests {
             "2026-04-20".into(),
             Some(7000),
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::PartiallyReconciled,
@@ -1342,6 +1368,7 @@ mod tests {
                 "2026-01-15".into(),
                 Some(7500),
                 PaymentMethod::None,
+                None,
                 None,
                 None,
                 ProcedureStatus::Created,
@@ -1380,6 +1407,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -1392,6 +1420,7 @@ mod tests {
             "2026-01-11".into(),
             Some(5000),
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -1416,6 +1445,7 @@ mod tests {
                 "2026-02-10".into(),
                 Some(1000),
                 PaymentMethod::None,
+                None,
                 None,
                 None,
                 ProcedureStatus::Created,
@@ -1445,6 +1475,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -1459,6 +1490,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -1471,6 +1503,7 @@ mod tests {
             "2026-01-15".into(),
             Some(3000),
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -1504,6 +1537,7 @@ mod tests {
                     "2026-01-15".into(),
                     Some(1000),
                     method,
+                    None,
                     None,
                     None,
                     ProcedureStatus::Created,

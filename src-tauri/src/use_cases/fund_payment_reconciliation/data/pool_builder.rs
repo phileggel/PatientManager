@@ -141,6 +141,7 @@ mod tests {
             _: Option<i64>,
             _: PaymentMethod,
             _: Option<String>,
+            _: Option<String>,
             _: Option<i64>,
             _: ProcedureStatus,
         ) -> anyhow::Result<Procedure> {
@@ -251,6 +252,7 @@ mod tests {
             "2025-05-10".to_string(),
             Some(50000),
             PaymentMethod::None,
+            None,
             None,
             None,
             status,

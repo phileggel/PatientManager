@@ -42,19 +42,7 @@ impl RawProcedure {
             .parse::<ProcedureStatus>()
             .unwrap_or_default();
 
-        let fund_reconciliation_date_parsed = self
-            .fund_reconciliation_date
-            .as_deref()
-            .map(|d| {
-                chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").map_err(|_| {
-                    anyhow::anyhow!(
-                        "Invalid fund reconciliation date format: {d} (expected YYYY-MM-DD)"
-                    )
-                })
-            })
-            .transpose()?;
-
-        let procedure = Procedure::with_id(
+        Procedure::with_id(
             self.id,
             self.patient_id,
             self.fund_id,
@@ -62,11 +50,11 @@ impl RawProcedure {
             self.procedure_date,
             self.billed_amount,
             payment_method,
+            self.fund_reconciliation_date,
             self.confirmed_payment_date,
             self.paid_amount,
             payment_status,
-        )?;
-        Ok(procedure.with_fund_reconciliation_date(fund_reconciliation_date_parsed))
+        )
     }
 }
 

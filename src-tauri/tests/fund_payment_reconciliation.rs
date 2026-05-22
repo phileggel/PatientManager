@@ -170,6 +170,7 @@ async fn test_full_reconciliation_scenario_with_amount_correction() {
                 PaymentMethod::None,
                 None,
                 None,
+                None,
                 ProcedureStatus::Created,
             )
             .await
@@ -354,6 +355,7 @@ async fn test_full_chain_via_reconciliation_service() {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -371,6 +373,7 @@ async fn test_full_chain_via_reconciliation_service() {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -386,6 +389,7 @@ async fn test_full_chain_via_reconciliation_service() {
             "2025-04-10".to_string(),
             Some(25_000),
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::Created,
@@ -581,6 +585,7 @@ async fn create_fund_payment_from_candidate_auto_creates_unknown_fund() {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
         .await
@@ -668,6 +673,7 @@ async fn create_multiple_from_candidates_all_duplicates_returns_error() {
                 "2026-01-15".to_string(),
                 Some(amount),
                 PaymentMethod::None,
+                None,
                 None,
                 None,
                 ProcedureStatus::Created,
