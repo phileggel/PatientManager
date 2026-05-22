@@ -97,12 +97,6 @@ When the user goes back to the previous step, advance directly to the next one (
 
 ---
 
-## (frontend/fund-payment) — Date range in list
-
-In the list, replace "date" with start date (oldest procedure) and end date (latest procedure).
-
----
-
 ## (frontend/fund-payment-match) — Create multiple procedures during auto-correction
 
 Currently, the auto-correction flow only allows creating a single procedure. It should support creating multiple procedures in the same operation.

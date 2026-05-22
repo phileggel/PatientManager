@@ -64,9 +64,9 @@ If invoked with no in-scope files in the branch diff, halt with the refusal in `
 
 ### Step 1 — Discover changed files
 
-Run `bash scripts/branch-files.sh | grep -E '\.(rs|ts|tsx)$' | grep -v '^e2e/'`. If the result is empty, halt — output the no-files refusal and stop.
+Run `bash scripts/branch-files.sh --arch`. If the result is empty, halt — output the no-files refusal and stop.
 
-The `grep -v '^e2e/'` is critical — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. Scenarios are imperative WebdriverIO calls, not feature-architecture surfaces.
+The `--arch` filter excludes `e2e/` paths — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. Scenarios are imperative WebdriverIO calls, not feature-architecture surfaces.
 
 Filter out deleted paths: for each candidate, confirm the file exists with `Glob` before adding it to the review set. Deletes are out of scope for this agent — a removed file cannot violate layering on lines that no longer exist; if a deletion broke a downstream contract (e.g. a removed gateway), that surfaces in the file that still exists.
 

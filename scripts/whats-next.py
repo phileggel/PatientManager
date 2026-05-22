@@ -416,13 +416,17 @@ def _latest_kit_tag() -> str | None:
         # the JSON stdout consumer must stay clean.
         # OSError: covers the TOCTOU window between shutil.which() and execve
         # (broken symlink, permission flip).
+        # /releases/latest 404s on this kit (we publish via git tags only, not
+        # GitHub Releases). Query /tags and filter to strict `vX.Y.Z` shape —
+        # excludes svelte-lineage tags (`svelte-vX.Y.Z+M.N.P`) and any future
+        # pre-release tags. GitHub returns tags in newest-first order.
         result = subprocess.run(
             [
                 "gh",
                 "api",
-                f"repos/{KIT_REPO}/releases/latest",
+                f"repos/{KIT_REPO}/tags",
                 "--jq",
-                ".tag_name",
+                r'map(.name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")))[0]',
             ],
             check=True,
             stdout=subprocess.PIPE,

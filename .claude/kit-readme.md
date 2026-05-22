@@ -170,6 +170,18 @@ The kit's reviewer-\* agents save their full output to `.review/{slug}-{date}-{N
 
 `.review/` is created automatically the first time any reviewer runs; the folder name is fixed (the scripts hard-code the path so the skill can find them). If you need to wipe accumulated reports, `rm -rf .review/` is safe — the next reviewer run rebuilds the directory.
 
+**Suggested `.claude/settings.local.json` allowlist** — silences a permission prompt on every reviewer save:
+
+```jsonc
+{
+  "permissions": {
+    "allow": ["Write(.review/**)"],
+  },
+}
+```
+
+Without this entry, each reviewer run prompts once per unique report path (3+ prompts on a multi-reviewer batch).
+
 ### Authoring rule — no compound shell in agent / skill prompts
 
 Bash blocks inside agents (`kit/agents/*.md`) and skills (`kit/skills/*/SKILL.md`) **must not** contain compound shell. Specifically, the following patterns are rejected by `scripts/check.py`'s `No compound shell in prompts` rule:

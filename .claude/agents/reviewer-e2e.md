@@ -60,7 +60,7 @@ If no E2E test files match, halt with the refusal in `## Output format`.
 
 ### Step 1 — Discover changed E2E test files
 
-Run `bash scripts/branch-files.sh | grep -E '^e2e/.*\.test\.ts$'`. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
+Run `bash scripts/branch-files.sh --e2e`. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
 
 Filter out deleted paths (their content can't be read): for each candidate, confirm the file exists with `Glob` before adding it to the review set.
 

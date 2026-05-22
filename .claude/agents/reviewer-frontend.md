@@ -65,7 +65,7 @@ If no `.ts` / `.tsx` files under `src/` are in the branch diff, halt with the re
 
 ### Step 1 — Discover changed frontend files
 
-Run `bash scripts/branch-files.sh | grep -E '\.(ts|tsx)$' | grep -v '^e2e/'`. The `grep -v '^e2e/'` is critical — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
+Run `bash scripts/branch-files.sh --frontend`. The `--frontend` filter excludes `e2e/` paths — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
 
 Filter out deleted paths (their content can't be read): for each candidate, confirm the file exists with `Glob` before adding it to the review set.
 

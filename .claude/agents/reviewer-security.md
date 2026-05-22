@@ -78,7 +78,7 @@ If invoked with no in-scope files in the branch diff, halt with the refusal in `
 
 ### Step 1 — Discover security-relevant files
 
-Run `bash scripts/branch-files.sh | grep -E '\.(rs|ts|tsx)$|capabilities/.*\.json$'`. If the result is empty, halt — output the no-files refusal and stop.
+Run `bash scripts/branch-files.sh --security`. If the result is empty, halt — output the no-files refusal and stop.
 
 Filter out deleted paths: confirm each candidate exists with `Glob` before adding it to the review set. Deletes are out of scope — a removed file cannot host security issues on lines that no longer exist.
 
