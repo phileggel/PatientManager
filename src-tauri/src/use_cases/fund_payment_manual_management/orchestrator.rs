@@ -91,14 +91,13 @@ impl FundPaymentManualManagementOrchestrator {
 
         tracing::info!(target: BACKEND, group_id = %group.id, total_amount, "Manual fund payment group created");
 
-        // Step 3: Update procedures — Reconciled + confirmed_payment_date + paid_amount (R8)
+        // Step 3: Update procedures — Reconciled + fund_reconciliation_date + paid_amount (FPM-320)
         let updated_procedures: Vec<_> = procedures
             .into_iter()
             .map(|mut p| {
                 p.payment_status = ProcedureStatus::Reconciled;
-                p.confirmed_payment_date = Some(parsed_payment_date);
                 p.paid_amount = p.billed_amount;
-                p
+                p.with_fund_reconciliation_date(Some(parsed_payment_date))
             })
             .collect();
 
@@ -184,13 +183,13 @@ impl FundPaymentManualManagementOrchestrator {
                 .read_procedures_by_ids(removed_ids.clone())
                 .await?;
 
+            // FPM-310 — removal clears Stage 1 reconciliation data.
             let reset: Vec<_> = removed_procedures
                 .into_iter()
                 .map(|mut p| {
                     p.payment_status = ProcedureStatus::Created;
-                    p.confirmed_payment_date = None;
                     p.paid_amount = None;
-                    p
+                    p.with_fund_reconciliation_date(None)
                 })
                 .collect();
 
@@ -220,13 +219,13 @@ impl FundPaymentManualManagementOrchestrator {
                 .read_procedures_by_ids(added_ids.clone())
                 .await?;
 
+            // FPM-320 — adding sets Stage 1 reconciliation data.
             let reconciled: Vec<_> = added_procedures
                 .into_iter()
                 .map(|mut p| {
                     p.payment_status = ProcedureStatus::Reconciled;
-                    p.confirmed_payment_date = Some(parsed_payment_date);
                     p.paid_amount = p.billed_amount;
-                    p
+                    p.with_fund_reconciliation_date(Some(parsed_payment_date))
                 })
                 .collect();
 
@@ -322,14 +321,13 @@ impl FundPaymentManualManagementOrchestrator {
             );
         }
 
-        // Step 3: Reset reconciliation data in a single batch transaction
+        // Step 3: Reset Stage 1 reconciliation data in a single batch transaction (FPM-400).
         let procedures_to_reset: Vec<_> = procedures
             .into_iter()
             .map(|mut p| {
                 p.payment_status = ProcedureStatus::Created;
-                p.confirmed_payment_date = None;
                 p.paid_amount = None;
-                p
+                p.with_fund_reconciliation_date(None)
             })
             .collect();
 

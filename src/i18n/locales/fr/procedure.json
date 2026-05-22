@@ -40,6 +40,8 @@
     "date": "DATE ACTE",
     "amount": "Montant",
     "paymentMethod": "Méthode Paiement",
+    "_comment_reconciledDate": "reviewer-frontend FP: feminine agreement matches \"Date Confirmée\" precedent in same file (implied subject = \"date\")",
+    "reconciledDate": "Rapprochée Le",
     "confirmedDate": "Date Confirmée",
     "status": "Statut",
     "empty": "Aucun acte pour cette période"

@@ -187,9 +187,21 @@ pub struct Procedure {
     /// - FundPaid: Bank payment matched via fund reconciliation
     pub payment_status: ProcedureStatus,
 
-    /// Date when payment was confirmed (ISO format: YYYY-MM-DD)
-    /// Source: Excel import column J or PDF reconciliation data
-    /// Presence of this date triggers BankTransfer inference if payment_method not explicit
+    /// Stage 1 — fund-declared payment date from the fund document
+    /// (ISO format: YYYY-MM-DD). Set by fund-payment-* reconciliation
+    /// flows when the procedure enters a `FundPaymentGroup` (PRO-250,
+    /// FPM-320, FPA-300); cleared on removal (FPM-310, FPM-400).
+    /// Distinct from `confirmed_payment_date` which is Stage 2 only.
+    #[specta(type = String)]
+    pub fund_reconciliation_date: Option<NaiveDate>,
+
+    /// Stage 2 — bank-side confirmed payment date (ISO format:
+    /// YYYY-MM-DD). Set by bank-statement-* reconciliation flows when
+    /// the procedure's group is matched to a bank transfer, or
+    /// directly at Excel import (column J) for procedures arriving
+    /// with payment data already present.
+    /// Presence of this date triggers BankTransfer inference if
+    /// payment_method not explicit.
     #[specta(type = String)]
     pub confirmed_payment_date: Option<NaiveDate>,
 
@@ -247,6 +259,7 @@ impl Procedure {
             procedure_date: parsed_procedure_date,
             billed_amount,
             payment_method,
+            fund_reconciliation_date: None,
             confirmed_payment_date: parsed_confirmed_payment_date,
             paid_amount,
             payment_status,
@@ -300,6 +313,7 @@ impl Procedure {
             procedure_date: parsed_procedure_date,
             billed_amount,
             payment_method,
+            fund_reconciliation_date: None,
             confirmed_payment_date: parsed_confirmed_payment_date,
             paid_amount,
             payment_status,
@@ -317,6 +331,7 @@ impl Procedure {
         procedure_date: NaiveDate,
         billed_amount: Option<i64>,
         payment_method: PaymentMethod,
+        fund_reconciliation_date: Option<NaiveDate>,
         confirmed_payment_date: Option<NaiveDate>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
@@ -329,6 +344,7 @@ impl Procedure {
             procedure_date,
             billed_amount,
             payment_method,
+            fund_reconciliation_date,
             confirmed_payment_date,
             paid_amount,
             payment_status,
@@ -351,28 +367,42 @@ impl Procedure {
         self
     }
 
-    /// Clears all payment-related fields (sets to default/None)
+    /// Clears all payment-related fields (sets to default/None).
     ///
-    /// Used when removing payment information (e.g., when a procedure is removed from a payment group).
-    /// Sets payment_method to None and clears dates/amounts.
+    /// Used when removing payment information (e.g., when a procedure
+    /// is removed from a payment group, FPM-310). Sets payment_method
+    /// to None and clears both stage dates and amounts.
     pub fn clear_payment_info(mut self) -> Self {
         self.payment_method = PaymentMethod::None;
+        self.fund_reconciliation_date = None;
         self.confirmed_payment_date = None;
         self.paid_amount = None;
         self
     }
 
-    /// Reverts fund payment info when a FUND bank transfer is deleted (R8).
-    ///
-    /// Clears payment_method and restores confirmed_payment_date to the group's payment date.
-    /// paid_amount is preserved (per R8 spec).
-    pub fn revert_fund_payment(mut self, group_payment_date: NaiveDate) -> Self {
+    /// Reverts the Stage 2 (bank-side) payment when a FUND bank
+    /// transfer is deleted. Clears `payment_method` and
+    /// `confirmed_payment_date`; preserves `fund_reconciliation_date`
+    /// (Stage 1 unchanged by Stage 2 rollback) and `paid_amount`
+    /// (per R8 spec).
+    pub fn revert_fund_payment(mut self) -> Self {
         self.payment_method = PaymentMethod::None;
-        self.confirmed_payment_date = Some(group_payment_date);
+        self.confirmed_payment_date = None;
         self
     }
 
-    /// Updates only the confirmed payment date
+    /// Updates only the Stage 1 fund-reconciliation date.
+    /// Used by fund-payment-* reconciliation flows when a procedure
+    /// enters a FundPaymentGroup (FPM-320, FPA-300).
+    pub fn with_fund_reconciliation_date(
+        mut self,
+        fund_reconciliation_date: Option<NaiveDate>,
+    ) -> Self {
+        self.fund_reconciliation_date = fund_reconciliation_date;
+        self
+    }
+
+    /// Updates only the Stage 2 confirmed payment date.
     ///
     /// Used when updating an existing payment date without changing payment method or amount.
     /// Leaves other payment fields unchanged.

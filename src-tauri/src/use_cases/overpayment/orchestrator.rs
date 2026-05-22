@@ -163,6 +163,15 @@ impl OverpaymentOrchestrator {
             )
             .await?;
 
+        // REF-090 + REF-100 — the refund procedure enters a refund
+        // FundPaymentGroup; per FPM-320 / PRO-250 the Stage 1
+        // fund_reconciliation_date must be set to the group's
+        // payment_date (= refund_date here).
+        let refund_procedure = self
+            .procedure_service
+            .update_procedure(refund_procedure.with_fund_reconciliation_date(Some(refund_date)))
+            .await?;
+
         // Step 8 — Create refund FundPaymentGroup (REF-100)
         // BankPaid status and negative total_amount bypass normal validation.
         // Build the group with a known ID so we can set the line's group_id.
@@ -235,6 +244,7 @@ impl OverpaymentOrchestrator {
             source.procedure_date,
             source.billed_amount,
             source.payment_method,
+            source.fund_reconciliation_date,
             source.confirmed_payment_date,
             source.paid_amount,
             ProcedureStatus::Overpaid,
@@ -290,6 +300,7 @@ impl OverpaymentOrchestrator {
             source.procedure_date,
             source.billed_amount,
             source.payment_method,
+            source.fund_reconciliation_date,
             source.confirmed_payment_date,
             source.paid_amount,
             refund_record.previous_payment_status,
@@ -513,6 +524,7 @@ mod tests {
                     date,
                     billed_amount,
                     payment_method,
+                    None,
                     confirmed_payment_date
                         .as_deref()
                         .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
@@ -757,6 +769,9 @@ mod tests {
             NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             Some(100_000),
             PaymentMethod::None,
+            // Stage 1 set first (FPM-320), then Stage 2 confirmed below.
+            // A FundPaid procedure always has both stages populated.
+            Some(NaiveDate::from_ymd_opt(2024, 1, 5).unwrap()),
             Some(NaiveDate::from_ymd_opt(2024, 1, 10).unwrap()),
             Some(100_000),
             ProcedureStatus::FundPaid,
@@ -795,6 +810,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         );
         let orchestrator = make_orchestrator(Some(created_proc));
@@ -813,6 +829,7 @@ mod tests {
             NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             None, // no billed_amount
             PaymentMethod::None,
+            None,
             None,
             None,
             ProcedureStatus::FundPaid,
@@ -1021,6 +1038,7 @@ mod tests {
             NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             Some(50_000),
             PaymentMethod::None,
+            None,
             Some(NaiveDate::from_ymd_opt(2024, 1, 10).unwrap()),
             Some(50_000),
             ProcedureStatus::PartiallyFundPaid,

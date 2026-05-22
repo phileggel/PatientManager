@@ -199,6 +199,7 @@ impl ProcedureOrchestrationService {
                             refund_proc.procedure_date,
                             refund_proc.billed_amount,
                             refund_proc.payment_method,
+                            refund_proc.fund_reconciliation_date,
                             refund_proc.confirmed_payment_date,
                             refund_proc.paid_amount,
                             refund_proc.payment_status,

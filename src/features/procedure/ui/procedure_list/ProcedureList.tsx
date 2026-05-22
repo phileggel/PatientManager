@@ -63,6 +63,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
               </div>
             </th>
             <th className="m3-th w-24">{t("table.paymentMethod")}</th>
+            <th className="m3-th w-28">{t("table.reconciledDate")}</th>
             <th className="m3-th w-28">{t("table.confirmedDate")}</th>
             <th className="m3-th w-28" onClick={() => handleSort("status")}>
               <div className="flex items-center gap-1">
@@ -77,7 +78,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
         <tbody>
           {sortedRows.length === 0 ? (
             <tr>
-              <td colSpan={11} className="m3-td text-center py-8">
+              <td colSpan={12} className="m3-td text-center py-8">
                 {isFiltered ? t("filter.emptySearch") : t("table.empty")}
               </td>
             </tr>
@@ -99,6 +100,9 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                 </td>
                 <td className="m3-td w-24">
                   {row.paymentMethod ? formatPaymentMethod(row.paymentMethod, t) : "—"}
+                </td>
+                <td className="m3-td w-28">
+                  {row.fundReconciliationDate ? formatDate(row.fundReconciliationDate) : "—"}
                 </td>
                 <td className="m3-td w-28">
                   {row.confirmedPaymentDate ? formatDate(row.confirmedPaymentDate) : "—"}

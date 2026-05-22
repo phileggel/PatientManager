@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,\n                   hp.procedure_date, hp.procedure_amount, hp.payment_method, hp.confirmed_payment_date, hp.actual_payment_amount, hp.payment_status, hp.is_deleted\n            FROM procedure hp\n            JOIN patient p ON hp.patient_id = p.id\n            WHERE p.ssn = $1\n              AND hp.procedure_date >= $2\n              AND hp.procedure_date <= $3\n              AND hp.is_deleted = 0\n              AND p.is_deleted = 0\n            ORDER BY hp.procedure_date ASC\n            ",
+  "query": "\n            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date,\n                   procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date,\n                   actual_payment_amount, payment_status, is_deleted\n            FROM \"procedure\"\n            WHERE fund_id = $1\n              AND payment_status = 'CREATED'\n              AND procedure_date <= $2\n              AND is_deleted = 0\n            ORDER BY procedure_date DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -39,28 +39,33 @@
         "type_info": "Text"
       },
       {
-        "name": "confirmed_payment_date",
+        "name": "fund_reconciliation_date",
         "ordinal": 7,
         "type_info": "Text"
       },
       {
-        "name": "actual_payment_amount",
+        "name": "confirmed_payment_date",
         "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "actual_payment_amount",
+        "ordinal": 9,
         "type_info": "Integer"
       },
       {
         "name": "payment_status",
-        "ordinal": 9,
+        "ordinal": 10,
         "type_info": "Text"
       },
       {
         "name": "is_deleted",
-        "ordinal": 10,
+        "ordinal": 11,
         "type_info": "Integer"
       }
     ],
     "parameters": {
-      "Right": 3
+      "Right": 2
     },
     "nullable": [
       false,
@@ -72,9 +77,10 @@
       true,
       true,
       true,
+      true,
       false,
       false
     ]
   },
-  "hash": "62f518a0b9742f2f3cbaf8ab993e7bb11fd8f5bc182f39b801ab04f6a4f4d4ec"
+  "hash": "a5228290577e402b9166b5e10cdd672f6e25795e1befadc30194010d49a7d6e1"
 }

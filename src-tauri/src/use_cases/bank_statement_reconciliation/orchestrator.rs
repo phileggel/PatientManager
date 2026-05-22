@@ -712,6 +712,7 @@ mod tests {
                     date,
                     billed_amount,
                     payment_method,
+                    None,
                     confirmed_payment_date
                         .as_deref()
                         .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),

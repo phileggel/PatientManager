@@ -156,6 +156,8 @@ describe("useAddFundPaymentPanel", () => {
         procedure_date: "2025-02-01",
         billed_amount: 50,
         payment_method: "NONE",
+        fund_reconciliation_date: "",
+
         confirmed_payment_date: "",
         paid_amount: null,
         payment_status: "CREATED",

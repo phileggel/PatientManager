@@ -96,6 +96,8 @@ const MOCK_PROCEDURE: Procedure = {
   procedure_date: "2026-05-01",
   billed_amount: null,
   payment_method: "NONE",
+  fund_reconciliation_date: "",
+
   confirmed_payment_date: "",
   payment_status: "CREATED",
   paid_amount: null,

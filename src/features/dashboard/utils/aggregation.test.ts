@@ -9,37 +9,71 @@ describe("getAvailableYears", () => {
 
   it("extracts year from procedure_date", () => {
     const procedures = [
-      makeProcedure({ procedure_date: "2025-03-15", confirmed_payment_date: "" }),
+      makeProcedure({
+        procedure_date: "2025-03-15",
+        fund_reconciliation_date: "",
+        confirmed_payment_date: "",
+      }),
     ];
     expect(getAvailableYears(procedures)).toEqual([2025]);
   });
 
   it("extracts year from confirmed_payment_date", () => {
     const procedures = [
-      makeProcedure({ procedure_date: "", confirmed_payment_date: "2024-06-01" }),
+      makeProcedure({
+        procedure_date: "",
+        fund_reconciliation_date: "",
+        confirmed_payment_date: "2024-06-01",
+      }),
     ];
     expect(getAvailableYears(procedures)).toEqual([2024]);
   });
 
   it("deduplicates years across procedures", () => {
     const procedures = [
-      makeProcedure({ procedure_date: "2025-01-01", confirmed_payment_date: "" }),
-      makeProcedure({ procedure_date: "2025-06-01", confirmed_payment_date: "" }),
+      makeProcedure({
+        procedure_date: "2025-01-01",
+        fund_reconciliation_date: "",
+        confirmed_payment_date: "",
+      }),
+      makeProcedure({
+        procedure_date: "2025-06-01",
+        fund_reconciliation_date: "",
+        confirmed_payment_date: "",
+      }),
     ];
     expect(getAvailableYears(procedures)).toEqual([2025]);
   });
 
   it("sorts years in descending order", () => {
     const procedures = [
-      makeProcedure({ procedure_date: "2023-01-01", confirmed_payment_date: "" }),
-      makeProcedure({ procedure_date: "2025-01-01", confirmed_payment_date: "" }),
-      makeProcedure({ procedure_date: "2024-01-01", confirmed_payment_date: "" }),
+      makeProcedure({
+        procedure_date: "2023-01-01",
+        fund_reconciliation_date: "",
+        confirmed_payment_date: "",
+      }),
+      makeProcedure({
+        procedure_date: "2025-01-01",
+        fund_reconciliation_date: "",
+        confirmed_payment_date: "",
+      }),
+      makeProcedure({
+        procedure_date: "2024-01-01",
+        fund_reconciliation_date: "",
+        confirmed_payment_date: "",
+      }),
     ];
     expect(getAvailableYears(procedures)).toEqual([2025, 2024, 2023]);
   });
 
   it("ignores empty/falsy dates", () => {
-    const procedures = [makeProcedure({ procedure_date: "", confirmed_payment_date: "" })];
+    const procedures = [
+      makeProcedure({
+        procedure_date: "",
+        fund_reconciliation_date: "",
+        confirmed_payment_date: "",
+      }),
+    ];
     expect(getAvailableYears(procedures)).toEqual([]);
   });
 });
@@ -60,6 +94,8 @@ describe("aggregateDashboardMetrics", () => {
     const proc = makeProcedure({
       procedure_date: "2025-03-10",
       procedure_type_id: "pt-1",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
     });
     const result = aggregateDashboardMetrics([proc], [pt], 2025, UNCATEGORIZED);
@@ -69,7 +105,11 @@ describe("aggregateDashboardMetrics", () => {
   });
 
   it("excludes procedures from other years", () => {
-    const proc = makeProcedure({ procedure_date: "2024-03-10", confirmed_payment_date: "" });
+    const proc = makeProcedure({
+      procedure_date: "2024-03-10",
+      fund_reconciliation_date: "",
+      confirmed_payment_date: "",
+    });
     const result = aggregateDashboardMetrics([proc], [], 2025, UNCATEGORIZED);
 
     expect(result.annualProcedureCount).toBe(0);
@@ -80,12 +120,16 @@ describe("aggregateDashboardMetrics", () => {
       procedure_date: "2025-01-05",
       procedure_type_id: "pt-1",
       billed_amount: 25000,
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
     });
     const proc2 = makeProcedure({
       procedure_date: "2025-01-20",
       procedure_type_id: "pt-1",
       billed_amount: 15000,
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
     });
     const result = aggregateDashboardMetrics([proc1, proc2], [pt], 2025, UNCATEGORIZED);
@@ -98,6 +142,8 @@ describe("aggregateDashboardMetrics", () => {
       procedure_date: "2025-05-01",
       procedure_type_id: "unknown",
       billed_amount: 10000,
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
     });
     const result = aggregateDashboardMetrics([proc], [], 2025, UNCATEGORIZED);
@@ -108,6 +154,8 @@ describe("aggregateDashboardMetrics", () => {
   it("counts payments by confirmed_payment_date", () => {
     const proc = makeProcedure({
       procedure_date: "2024-12-01",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "2025-02-15",
       paid_amount: 30000,
       procedure_type_id: "pt-1",
@@ -120,6 +168,8 @@ describe("aggregateDashboardMetrics", () => {
 
   it("skips payment when paid_amount is null", () => {
     const proc = makeProcedure({
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "2025-01-10",
       paid_amount: null,
     });
@@ -132,11 +182,15 @@ describe("aggregateDashboardMetrics", () => {
     const proc1 = makeProcedure({
       patient_id: "p-1",
       procedure_date: "2025-03-01",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
     });
     const proc2 = makeProcedure({
       patient_id: "p-1",
       procedure_date: "2025-03-15",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
     });
     const result = aggregateDashboardMetrics([proc1, proc2], [], 2025, UNCATEGORIZED);
@@ -148,16 +202,22 @@ describe("aggregateDashboardMetrics", () => {
     const proc1 = makeProcedure({
       patient_id: "p-1",
       procedure_date: "2025-01-01",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
     });
     const proc2 = makeProcedure({
       patient_id: "p-2",
       procedure_date: "2025-06-01",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
     });
     const proc3 = makeProcedure({
       patient_id: "p-1",
       procedure_date: "2025-09-01",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
     });
     const result = aggregateDashboardMetrics([proc1, proc2, proc3], [], 2025, UNCATEGORIZED);

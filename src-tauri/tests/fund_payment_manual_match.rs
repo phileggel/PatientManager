@@ -169,10 +169,13 @@ async fn manual_create_with_valid_inputs_creates_group_and_reconciles() -> anyho
         .await?;
     for p in &procs {
         assert!(matches!(p.payment_status, ProcedureStatus::Reconciled));
+        // FPM-320 — Stage 1 reconciliation date matches the group's payment_date.
         assert_eq!(
-            p.confirmed_payment_date,
+            p.fund_reconciliation_date,
             Some(NaiveDate::from_ymd_opt(2026, 1, 20).unwrap())
         );
+        // Stage 2 untouched — confirmed_payment_date stays None until a bank match.
+        assert_eq!(p.confirmed_payment_date, None);
     }
     Ok(())
 }
@@ -200,8 +203,8 @@ async fn manual_create_with_invalid_date_returns_error() -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 /// FPM-310 — Removing a procedure reverts it to `Created`, clears
-/// `confirmed_payment_date` + `actual_payment_amount`, and recomputes the
-/// group total. The retained procedure keeps its `Reconciled` state.
+/// `fund_reconciliation_date` + `actual_payment_amount`, and recomputes
+/// the group total. The retained procedure keeps its `Reconciled` state.
 #[tokio::test]
 async fn manual_update_remove_reverts_procedure_to_created() -> anyhow::Result<()> {
     let ctx = build_ctx().await;
@@ -244,7 +247,8 @@ async fn manual_update_remove_reverts_procedure_to_created() -> anyhow::Result<(
         removed[0].payment_status,
         ProcedureStatus::Created
     ));
-    assert_eq!(removed[0].confirmed_payment_date, None);
+    // FPM-310 clears Stage 1 reconciliation data on removal.
+    assert_eq!(removed[0].fund_reconciliation_date, None);
     assert_eq!(removed[0].paid_amount, None);
 
     let kept = ctx
@@ -255,7 +259,8 @@ async fn manual_update_remove_reverts_procedure_to_created() -> anyhow::Result<(
         kept[0].payment_status,
         ProcedureStatus::Reconciled
     ));
-    assert!(kept[0].confirmed_payment_date.is_some());
+    // Kept procedure still has Stage 1 reconciliation data.
+    assert!(kept[0].fund_reconciliation_date.is_some());
     assert!(kept[0].paid_amount.is_some());
     Ok(())
 }
@@ -304,10 +309,12 @@ async fn manual_update_add_flips_procedure_to_reconciled() -> anyhow::Result<()>
         added[0].payment_status,
         ProcedureStatus::Reconciled
     ));
+    // FPM-320 — added procedure picks up Stage 1 fund_reconciliation_date.
     assert_eq!(
-        added[0].confirmed_payment_date,
+        added[0].fund_reconciliation_date,
         Some(NaiveDate::from_ymd_opt(2026, 1, 20).unwrap())
     );
+    assert_eq!(added[0].confirmed_payment_date, None);
     assert_eq!(added[0].paid_amount, Some(25_000));
     Ok(())
 }
@@ -372,7 +379,7 @@ async fn manual_delete_locked_group_is_rejected() -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 /// FPM-400 — Deleting an unlocked group resets every associated procedure
-/// to `Created` and clears `confirmed_payment_date` + `actual_payment_amount`.
+/// to `Created` and clears `fund_reconciliation_date` + `actual_payment_amount`.
 /// The group itself is soft-deleted (no longer readable).
 #[tokio::test]
 async fn manual_delete_unlocked_group_resets_all_procedures() -> anyhow::Result<()> {
@@ -400,7 +407,8 @@ async fn manual_delete_unlocked_group_resets_all_procedures() -> anyhow::Result<
     assert_eq!(procedures.len(), 2);
     for p in &procedures {
         assert!(matches!(p.payment_status, ProcedureStatus::Created));
-        assert_eq!(p.confirmed_payment_date, None);
+        // FPM-400 — Stage 1 reconciliation data cleared.
+        assert_eq!(p.fund_reconciliation_date, None);
         assert_eq!(p.paid_amount, None);
     }
 

@@ -18,7 +18,11 @@ import * as gateway from "../gateway";
 const mockCreate = vi.mocked(gateway.createOverpayment);
 const mockToast = vi.mocked(toastService.show);
 
-const SOURCE_PROCEDURE = makeProcedure({ id: "proc-1", confirmed_payment_date: "" });
+const SOURCE_PROCEDURE = makeProcedure({
+  id: "proc-1",
+  fund_reconciliation_date: "",
+  confirmed_payment_date: "",
+});
 const MOCK_ACCOUNT: BankAccount = { id: "ba-1", name: "Main Account", iban: null };
 
 const makeHook = (sourceProcedure = SOURCE_PROCEDURE) => {

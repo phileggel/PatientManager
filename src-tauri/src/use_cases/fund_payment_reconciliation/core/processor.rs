@@ -199,6 +199,7 @@ mod tests {
             PaymentMethod::None,
             None,
             None,
+            None,
             ProcedureStatus::Created,
         )
     }

@@ -40,6 +40,8 @@
     "date": "DATE",
     "amount": "Amount",
     "paymentMethod": "Payment Method",
+    "_comment_reconciledDate": "reviewer-frontend FP: camelCase matches every adjacent table.* key — snake_case namespace cleanup is a separate PR",
+    "reconciledDate": "Reconciled On",
     "confirmedDate": "Confirmed Date",
     "status": "Status",
     "empty": "No procedures for this period"

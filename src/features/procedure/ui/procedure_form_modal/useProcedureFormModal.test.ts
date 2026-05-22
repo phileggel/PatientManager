@@ -154,6 +154,8 @@ describe("create mode — gateway arguments on submit", () => {
       procedure_date: "2026-03-01",
       billed_amount: 42500,
       payment_method: "NONE",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
       payment_status: "CREATED",
       paid_amount: null,
@@ -186,6 +188,8 @@ describe("create mode — gateway arguments on submit", () => {
       procedure_date: "2026-03-01",
       billed_amount: null,
       payment_method: "NONE",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
       payment_status: "CREATED",
       paid_amount: null,
@@ -222,6 +226,8 @@ describe("create mode — reset after successful submit", () => {
       procedure_date: "2026-03-01",
       billed_amount: 42500,
       payment_method: "NONE",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
       payment_status: "CREATED",
       paid_amount: null,
@@ -285,6 +291,8 @@ describe("edit mode — initializes from procedure", () => {
       procedure_date: "2026-02-10",
       billed_amount: 50000,
       payment_method: "CASH" as const,
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "2026-02-15",
       payment_status: "CREATED" as const,
       paid_amount: 50000,
@@ -311,6 +319,8 @@ describe("view mode — calls updateProcedure with only procedure_type_id change
       procedure_date: "2026-02-10",
       billed_amount: 50000,
       payment_method: "CASH",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "2026-02-15",
       payment_status: "RECONCILED",
       paid_amount: 50000,
@@ -324,6 +334,8 @@ describe("view mode — calls updateProcedure with only procedure_type_id change
       procedure_date: "2026-02-10",
       billed_amount: 50000,
       payment_method: "CASH" as const,
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "2026-02-15",
       payment_status: "RECONCILED" as const,
       paid_amount: 50000,
@@ -349,6 +361,8 @@ describe("view mode — calls updateProcedure with only procedure_type_id change
       procedure_date: "2026-02-10",
       billed_amount: 50000,
       payment_method: "CASH",
+      // Empty-string dates on the procedure are sent as null over the wire.
+      fund_reconciliation_date: null,
       confirmed_payment_date: "2026-02-15",
       paid_amount: 50000,
       payment_status: "RECONCILED",
@@ -367,6 +381,8 @@ describe("view mode — confirmed_payment_date empty string is sent as null", ()
       procedure_date: "2026-02-10",
       billed_amount: 50000,
       payment_method: "NONE",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
       payment_status: "CREATED",
       paid_amount: null,
@@ -380,6 +396,8 @@ describe("view mode — confirmed_payment_date empty string is sent as null", ()
       procedure_date: "2026-02-10",
       billed_amount: 50000,
       payment_method: "NONE" as const,
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
       payment_status: "CREATED" as const,
       paid_amount: null,
@@ -399,6 +417,7 @@ describe("view mode — confirmed_payment_date empty string is sent as null", ()
 
     expect(updateProcedure).toHaveBeenCalledWith(
       expect.objectContaining({
+        fund_reconciliation_date: null,
         confirmed_payment_date: null,
       }),
     );
@@ -431,6 +450,8 @@ describe("edit mode — calls updateProcedure on submit", () => {
       procedure_date: "2026-02-10",
       billed_amount: 25000,
       payment_method: "NONE",
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
       payment_status: "CREATED",
       paid_amount: null,
@@ -444,6 +465,8 @@ describe("edit mode — calls updateProcedure on submit", () => {
       procedure_date: "2026-02-10",
       billed_amount: 50000,
       payment_method: "NONE" as const,
+      fund_reconciliation_date: "",
+
       confirmed_payment_date: "",
       payment_status: "CREATED" as const,
       paid_amount: null,
@@ -465,8 +488,10 @@ describe("edit mode — calls updateProcedure on submit", () => {
         procedure_type_id: "pt2",
         procedure_date: "2026-02-10",
         billed_amount: 50000,
-        // Payment fields passed through unchanged from original procedure (PRO-050)
+        // Payment fields passed through unchanged from original procedure (PRO-050).
+        // Empty-string dates on the procedure are sent as null over the wire.
         payment_method: "NONE",
+        fund_reconciliation_date: null,
         confirmed_payment_date: null,
         paid_amount: null,
         payment_status: "CREATED",

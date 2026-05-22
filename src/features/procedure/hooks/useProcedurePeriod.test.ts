@@ -24,6 +24,8 @@ describe("useProcedurePeriod", () => {
         procedureAmount: null,
         effectiveAmount: null,
         paymentMethod: null,
+        fundReconciliationDate: null,
+
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
@@ -46,6 +48,8 @@ describe("useProcedurePeriod", () => {
         procedureAmount: null,
         effectiveAmount: null,
         paymentMethod: null,
+        fundReconciliationDate: null,
+
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
@@ -68,6 +72,8 @@ describe("useProcedurePeriod", () => {
         procedureAmount: null,
         effectiveAmount: null,
         paymentMethod: null,
+        fundReconciliationDate: null,
+
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
@@ -101,6 +107,8 @@ describe("useProcedurePeriod", () => {
         procedureAmount: null,
         effectiveAmount: null,
         paymentMethod: null,
+        fundReconciliationDate: null,
+
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
@@ -123,6 +131,8 @@ describe("useProcedurePeriod", () => {
         procedureAmount: null,
         effectiveAmount: null,
         paymentMethod: null,
+        fundReconciliationDate: null,
+
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
@@ -145,6 +155,8 @@ describe("useProcedurePeriod", () => {
         procedureAmount: null,
         effectiveAmount: null,
         paymentMethod: null,
+        fundReconciliationDate: null,
+
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
@@ -181,6 +193,8 @@ describe("useProcedurePeriod", () => {
         procedureAmount: null,
         effectiveAmount: null,
         paymentMethod: null,
+        fundReconciliationDate: null,
+
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
@@ -203,6 +217,8 @@ describe("useProcedurePeriod", () => {
         procedureAmount: null,
         effectiveAmount: null,
         paymentMethod: null,
+        fundReconciliationDate: null,
+
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
