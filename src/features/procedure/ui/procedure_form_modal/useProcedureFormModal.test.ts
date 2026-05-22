@@ -465,7 +465,7 @@ describe("edit mode — calls updateProcedure on submit", () => {
         procedure_type_id: "pt2",
         procedure_date: "2026-02-10",
         billed_amount: 50000,
-        // Payment fields passed through unchanged from original procedure (R30)
+        // Payment fields passed through unchanged from original procedure (PRO-050)
         payment_method: "NONE",
         confirmed_payment_date: null,
         paid_amount: null,

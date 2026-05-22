@@ -50,7 +50,7 @@ export default function ProcedurePage() {
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  // Persist selected month/year to session storage (R1)
+  // Persist selected month/year to session storage (PRO-010)
   useEffect(() => {
     sessionStorage.setItem("procedureSelectedMonth", selectedMonth.toString());
     sessionStorage.setItem("procedureSelectedYear", selectedYear.toString());
@@ -70,7 +70,7 @@ export default function ProcedurePage() {
     selectedYear,
   );
 
-  // Apply search + status filters on top of period filter (R11)
+  // Apply search + status filters on top of period filter (PRO-100)
   const filteredRows = useMemo(() => {
     let result = periodFilteredRows;
 
@@ -125,7 +125,7 @@ export default function ProcedurePage() {
     setPendingDeleteId(null);
   }, []);
 
-  // Reload all rows from backend — used after add, update, delete and backend events (R8)
+  // Reload all rows from backend — used after add, update, delete and backend events (PRO-070)
   const reloadRows = useCallback(async () => {
     try {
       const updated = await gateway.readAllProcedures();
@@ -153,7 +153,7 @@ export default function ProcedurePage() {
     }
   }, [pendingDeleteId, deleteRow, reloadRows, t]);
 
-  // Backend event: procedure updated externally (R8)
+  // Backend event: procedure updated externally (PRO-070)
   const handleProcedureUpdate = useCallback(async () => {
     logger.info(TAG, "Procedure update event received, refreshing list");
     await reloadRows();
@@ -213,7 +213,7 @@ export default function ProcedurePage() {
 
   return (
     <>
-      {/* Header with period selector, search and stats (R1, R7, R11) */}
+      {/* Header with period selector, search and stats (PRO-010, PRO-060, PRO-100) */}
       <div className="bg-m3-surface-container-low p-4 shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
@@ -260,7 +260,7 @@ export default function ProcedurePage() {
         </div>
       </div>
 
-      {/* Full-width procedure list (R12) */}
+      {/* Full-width procedure list (PRO-110) */}
       <PageContent>
         <ProcedureList
           rows={filteredRows}
@@ -270,10 +270,10 @@ export default function ProcedurePage() {
         />
       </PageContent>
 
-      {/* FAB — open create modal (R12) */}
+      {/* FAB — open create modal (PRO-110) */}
       <FAB onClick={openCreateModal} label={t("action.fabAriaLabel")} />
 
-      {/* Unified create/edit modal (R6, R12) */}
+      {/* Unified create/edit modal (PRO-040, PRO-110) */}
       <ProcedureFormModal
         mode={modalMode}
         procedure={modalMode !== "create" ? procedureForModal : null}
@@ -282,7 +282,7 @@ export default function ProcedurePage() {
         onSuccess={reloadRows}
       />
 
-      {/* Delete confirmation (R5) */}
+      {/* Delete confirmation (PRO-030) */}
       <ConfirmationDialog
         id="delete-procedure-confirmation"
         isOpen={pendingDeleteId !== null}
