@@ -1,6 +1,6 @@
 # Tauri Lessons
 
-> Cross-project lessons learned while building Tauri 2 + React 19 + Rust apps with this kit. Each entry distils a pattern that bit us in practice and the fix that's now the default. Project-local for now; promotion target is `tauri-claude-kit` (so `just sync-kit` ships it to every downstream project) once entries have proven themselves across more than one project.
+> Cross-project lessons learned while building Tauri 2 + React 19 + Rust apps with this kit. Each entry distils a pattern that bit us in practice and the fix that's now the default. Project-local for now; promotion target is `claude-kit` (so `just sync-kit` ships it to every downstream project) once entries have proven themselves across more than one project.
 >
 > Format per entry: **Problem** (when it bites), **Lesson** (the rule), **Reference** (where the pattern lives in code, when applicable). Numbered TL-NNN; numbers are stable once assigned.
 

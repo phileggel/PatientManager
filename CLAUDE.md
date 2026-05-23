@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Full architecture reference: [ARCHITECTURE.md](ARCHITECTURE.md)
 
-This project is governed by the `tauri-claude-kit` infrastructure.
+This project is governed by the `claude-kit` infrastructure.
 Before any technical task, consult `.claude/kit-tools.md` to discover available agents, skills, scripts, and recipes.
 
 ## 🔧 First-time Setup
