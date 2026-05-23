@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ImportExecutionResult, ParseExcelResponse } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import { FormModal } from "@/ui/components";
 import { Button } from "@/ui/components/button";
 import { executeExcelImport, parseExcelFile } from "../api/gateway";

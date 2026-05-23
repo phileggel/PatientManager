@@ -4,7 +4,7 @@
 
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../gateway";
 

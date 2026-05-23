@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FundLabelResolution } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 
 const TAG = "[FundLabelMappingStep]";
 

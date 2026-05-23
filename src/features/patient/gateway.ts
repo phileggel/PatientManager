@@ -1,6 +1,6 @@
 import { commands, type Patient } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import type { ServiceResult } from "@/types/api";
 
 export function readAllPatients(): ServiceResult<Patient[]> {

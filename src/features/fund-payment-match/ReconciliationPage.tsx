@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { ReconciliationModal } from "./reconciliation_modal/ReconciliationModal";
 
 const TAG = "[ReconciliationPage]";

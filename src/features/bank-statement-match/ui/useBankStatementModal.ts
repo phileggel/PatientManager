@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount, BankStatementParseResult, FundLabelResolution } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import {
   createBankAccount,

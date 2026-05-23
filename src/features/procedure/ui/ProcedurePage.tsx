@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure, ProcedureStatus } from "@/bindings";
 import { PageContent } from "@/features/shell";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { CompactSelectField, ConfirmationDialog, FAB, SearchField } from "@/ui/components";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../api/gateway";

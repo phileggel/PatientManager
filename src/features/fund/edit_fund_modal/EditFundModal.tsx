@@ -17,7 +17,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { Fund } from "@/bindings";
 import { FundForm } from "@/features/fund/shared/FundForm";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Button, Dialog } from "@/ui/components";
 import { useEditFundModal } from "./useEditFundModal";
 

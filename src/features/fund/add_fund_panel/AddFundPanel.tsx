@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { FundForm } from "@/features/fund/shared/FundForm";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Button } from "@/ui/components";
 import { useAddFundPanel } from "./useAddFundPanel";
 

@@ -7,7 +7,7 @@ import type {
   ReportGenerationRequest,
   UnreconciledProcedure,
 } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { exportAndOpenReportPdf } from "../gateway";
 import { formatLongDateTime, formatShortDate } from "../shared/formatters";

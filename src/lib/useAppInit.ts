@@ -1,8 +1,8 @@
 import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import { commands } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "./appStore";
-import { logger } from "./logger";
 
 /**
  * Hook to initialize app state and event listeners

@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import "./i18n/config"; // must be imported before any component that uses t()
 import App from "./App";
 

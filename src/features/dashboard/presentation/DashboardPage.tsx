@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { MonthCategoryTable } from "../components/MonthCategoryTable";
 import { useDashboardPage } from "./useDashboardPage";
 

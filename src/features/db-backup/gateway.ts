@@ -1,7 +1,7 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { commands } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { e2eOverride } from "@/lib/e2e";
-import { logger } from "@/lib/logger";
 
 // ── Native file-picker dialogs ────────────────────────────────────────────────
 

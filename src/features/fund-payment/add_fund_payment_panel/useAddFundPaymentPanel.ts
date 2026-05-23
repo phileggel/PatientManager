@@ -1,8 +1,8 @@
 import { type SyntheticEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import { createFundPayment } from "../gateway";
 import { FundPaymentPresenter } from "../shared/presenter";
 import { type PaymentFormErrors, validatePaymentForm } from "../shared/validatePayment";

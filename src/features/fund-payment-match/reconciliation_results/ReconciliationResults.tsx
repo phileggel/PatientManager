@@ -10,7 +10,7 @@ import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, ReconciliationResult } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import {
   buildAutoCorrection,
   buildContestKey,

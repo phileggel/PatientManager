@@ -1,5 +1,5 @@
 import * as procedureGateway from "@/features/procedure/api/gateway";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
 import type { DashboardData } from "../types";
 

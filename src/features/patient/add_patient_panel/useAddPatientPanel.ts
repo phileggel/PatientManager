@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addPatient } from "@/features/patient/gateway";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import type { PatientFormData } from "../shared/types";
 import { type FormErrors, validatePatient } from "../shared/validatePatient";

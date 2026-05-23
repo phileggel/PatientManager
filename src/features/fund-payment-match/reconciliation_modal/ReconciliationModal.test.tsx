@@ -16,7 +16,7 @@ vi.mock("../gateway", () => ({
 }));
 
 // Mock logger
-vi.mock("@/lib/logger", () => ({
+vi.mock("@/infra/logger", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),

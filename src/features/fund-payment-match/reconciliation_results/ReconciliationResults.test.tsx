@@ -11,7 +11,7 @@ import { countTotalAnomalies } from "../shared/utils";
 import { ReconciliationResultsView } from "./ReconciliationResults";
 
 // Mock logger
-vi.mock("@/lib/logger", () => ({
+vi.mock("@/infra/logger", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),

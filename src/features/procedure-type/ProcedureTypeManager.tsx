@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { FAB, ManagerHeader } from "@/ui/components";
 import { CreateProcedureTypeModal } from "./create_procedure_type_modal/CreateProcedureTypeModal";
 import { ProcedureTypeList } from "./procedure_type_list/ProcedureTypeList";

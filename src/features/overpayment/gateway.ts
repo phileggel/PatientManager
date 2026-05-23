@@ -4,7 +4,7 @@ import {
   commands,
   type ProcedureRefundInfo,
 } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types";
 
 export async function createOverpayment(

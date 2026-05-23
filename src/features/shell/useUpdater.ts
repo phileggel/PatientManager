@@ -1,7 +1,7 @@
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { useCallback, useEffect, useState } from "react";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 
 const TAG = "[Updater]";
 

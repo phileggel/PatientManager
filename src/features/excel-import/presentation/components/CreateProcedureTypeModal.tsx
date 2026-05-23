@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
 import * as procedureTypeGateway from "@/features/procedure-type/gateway";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { AmountField, Button, FormModal, TextField } from "@/ui/components";
 
 interface CreateProcedureTypeModalProps {

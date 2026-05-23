@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntry } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
 import { useFormatters } from "@/lib/formatters";
-import { logger } from "@/lib/logger";
 import { Button, DateField, SelectField } from "@/ui/components";
 import { FormModal } from "@/ui/components/modal/FormModal";
 import { SelectFundGroupsPanel } from "../select_items_panel/SelectFundGroupsPanel";

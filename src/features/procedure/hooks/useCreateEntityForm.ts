@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 
 /**
  * Validation function type

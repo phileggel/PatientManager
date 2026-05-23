@@ -7,7 +7,7 @@ import type { ReportGenerationRequest } from "@/bindings";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
-vi.mock("@/lib/logger", () => ({
+vi.mock("@/infra/logger", () => ({
   logger: { info: vi.fn(), error: vi.fn(), debug: vi.fn(), warn: vi.fn() },
 }));
 

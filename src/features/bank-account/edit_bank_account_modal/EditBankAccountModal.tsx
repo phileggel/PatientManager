@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount } from "@/bindings";
 import { BankAccountForm } from "@/features/bank-account/shared/BankAccountForm";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Button, Dialog } from "@/ui/components";
 import { useEditBankAccountModal } from "./useEditBankAccountModal";
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { type SnackbarType, toastService } from "./toastService";
 
 export type { SnackbarType };

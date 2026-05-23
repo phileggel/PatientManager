@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from "react";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 
 /**
  * PageContent - Reusable wrapper for page content that properly handles

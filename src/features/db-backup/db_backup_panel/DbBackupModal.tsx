@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Button, ConfirmationDialog, Dialog } from "@/ui/components";
 import { useDbBackupPanel } from "./useDbBackupPanel";
 

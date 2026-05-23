@@ -12,7 +12,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { ManagerLayout } from "@/ui/components";
 import { AddFundPanel } from "./add_fund_panel/AddFundPanel";
 import { FundList } from "./fund_list/FundList";

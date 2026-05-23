@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ParsingIssues } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Button, Dialog } from "@/ui/components";
 
 interface ParsingReportModalProps {

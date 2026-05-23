@@ -18,7 +18,7 @@ import { Landmark } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { ManagerLayout } from "@/ui/components";
 import { AddBankAccountPanel } from "./add_bank_account_panel/AddBankAccountPanel";
 import { BankAccountList } from "./bank_account_list/BankAccountList";

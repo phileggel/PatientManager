@@ -2,7 +2,7 @@ import { Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntry } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { ConfirmationDialog, ManagerLayout } from "@/ui/components";
 import { toastService } from "@/ui/components/snackbar";
 import { AddBankTransferForm } from "./add_bank_transfer_form/AddBankTransferForm";

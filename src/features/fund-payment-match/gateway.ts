@@ -7,7 +7,7 @@ import {
   type ReportGenerationRequest,
   type UnreconciledProcedure,
 } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 
 const TAG = "[ReconciliationGateway]";
 

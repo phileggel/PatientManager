@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DirectPaymentProcedureCandidate } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import {
   getAllEligibleProceduresForDirectPayment,
   getEligibleProceduresForDirectPayment,

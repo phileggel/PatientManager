@@ -16,7 +16,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Button, Dialog } from "@/ui/components";
 import { ProcedureTypeForm } from "../shared/ProcedureTypeForm";
 import { useEditProcedureTypeModal } from "./useEditProcedureTypeModal";

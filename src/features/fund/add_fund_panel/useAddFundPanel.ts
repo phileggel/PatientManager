@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addFund } from "@/features/fund/gateway";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import type { FundFormData } from "../shared/types";
 import { type FormErrors, validateFund } from "../shared/validateFund";

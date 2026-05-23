@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FundGroupCandidate } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import { getAllUnsettledFundGroups, getUnsettledFundGroups } from "../gateway";
 
 interface UseSelectFundGroupsPanelProps {

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { fetchDashboardData } from "../api/dashboardService";
 import type { DashboardMetrics } from "../types";

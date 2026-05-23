@@ -8,8 +8,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useFormatters } from "@/lib/formatters";
-import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
 import { getExcelAmountMappings, saveExcelAmountMappings } from "../../api/gateway";
 import { CreateProcedureTypeModal } from "./CreateProcedureTypeModal";

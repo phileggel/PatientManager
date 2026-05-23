@@ -1,7 +1,7 @@
 import type { ProcedureType } from "@/bindings";
 import { commands } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import type { ServiceResult } from "@/types/api";
 
 export function readAllProcedureTypes(): ServiceResult<ProcedureType[]> {

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { Patient } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { SelectionModal } from "@/ui/components";
 import { useSelectPatientModal } from "./useSelectPatientModal";
 

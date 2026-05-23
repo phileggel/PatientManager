@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Dialog } from "@/ui/components";
 import type { Page } from "../types";
 import { useManagementModal } from "./useManagementModal";

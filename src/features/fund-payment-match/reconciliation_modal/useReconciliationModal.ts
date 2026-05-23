@@ -18,7 +18,7 @@ import type {
   ReconcileAndCandidatesResponse,
   UnreconciledProcedure,
 } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import {
   createFundPaymentWithAutoCorrections,

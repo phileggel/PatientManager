@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useCreateEntityForm } from "@/features/procedure/hooks/useCreateEntityForm";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Button, Dialog, TextField } from "@/ui/components";
 
 export interface CreatePatientFormData {

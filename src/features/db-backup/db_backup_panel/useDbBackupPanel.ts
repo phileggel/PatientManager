@@ -6,7 +6,7 @@ import {
   parentDir,
   setLastFolder,
 } from "@/features/shell/import_modal/lastFolderStore";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { exportDatabase, importDatabase, pickExportPath, pickImportPath } from "../gateway";
 

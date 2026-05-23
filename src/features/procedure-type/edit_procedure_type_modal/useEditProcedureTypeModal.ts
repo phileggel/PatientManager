@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { updateProcedureType } from "../gateway";
 import { ProcedureTypePresenter } from "../shared/presenter";

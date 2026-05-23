@@ -8,13 +8,17 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-05-23 — `@/lib/*` imports pre-date the v4.5 bucket layout
+## 2026-05-23 — `@/lib/*` imports pre-date the v4.5 bucket layout (remaining: `appStore`, `formatters`)
 
 **Found by:** reviewer-frontend (`refactor/procedure-amount-ul-rename`)
 
-**Where:** `src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx:23-25` references `@/lib/appStore`, `@/lib/formatters`, `@/lib/logger`. The `@/lib/` directory is a pre-v4.5 catch-all and exists throughout the codebase — the procedure form is just one example consumer.
+**Where:** Two remaining catch-all consumers in `src/lib/`: `appStore.ts` (Zustand store + its `useAppStore` hook + `useAppInit.ts` bootstrap) and `formatters.ts` (date/currency `useFormatters` hook + tests). Both still imported as `@/lib/appStore` / `@/lib/formatters` across the codebase. `@/lib/logger` was resolved on 2026-05-23 (moved to `@/infra/logger`).
 
-**Observation:** Per F28 the targets are: `@/infra/` for cross-cutting infra (logger, store wiring), `@/ui/` for UI utilities (formatters). The migration is mechanical (rename directory, update every import) but project-wide in scope — not appropriate as boyscout cleanup inside a feature PR. Track until someone schedules an F0 migration sweep covering `@/core/`, `@/lib/`, and the framework-resource boundary together; the two entries (this one and the `@/core/snackbar` one above) share the same fix shape.
+**Observation:** Per F28 the targets are:
+- `formatters` → `@/ui/format/formatters` (cross-feature UI utility, no platform adapter)
+- `appStore` → `@/ui/state/appStore` OR `@/shell/state/appStore` (needs a design call — Zustand stores aren't pure UI primitives but also aren't platform adapters)
+
+The `appStore` destination needs a one-line decision before its slice can ship. The `formatters` slice is unambiguous and can run on its own.
 
 ---
 

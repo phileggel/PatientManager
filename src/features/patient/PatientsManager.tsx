@@ -12,7 +12,7 @@ import { UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { ManagerLayout } from "@/ui/components";
 import { AddPatientPanel } from "./add_patient_panel/AddPatientPanel";
 import { PatientList } from "./patient_list/PatientList";

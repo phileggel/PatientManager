@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { AddFundPaymentPanel } from "./add_fund_payment_panel/AddFundPaymentPanel";
 import { FundPaymentList } from "./fund_payment_list/FundPaymentList";
 

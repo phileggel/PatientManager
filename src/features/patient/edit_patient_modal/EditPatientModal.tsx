@@ -18,9 +18,9 @@ import { useTranslation } from "react-i18next";
 import type { Patient } from "@/bindings";
 import { PatientForm } from "@/features/patient/shared/PatientForm";
 import { PatientPresenter } from "@/features/patient/shared/presenter";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
 import { useFormatters } from "@/lib/formatters";
-import { logger } from "@/lib/logger";
 import { Button, Dialog } from "@/ui/components";
 import { useEditPatientModal } from "./useEditPatientModal";
 

@@ -10,8 +10,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../gateway";
 

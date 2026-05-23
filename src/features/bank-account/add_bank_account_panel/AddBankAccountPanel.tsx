@@ -1,7 +1,7 @@
 import { Landmark } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Button } from "@/ui/components";
 import { BankAccountForm } from "../shared/BankAccountForm";
 import { useAddBankAccountPanel } from "./useAddBankAccountPanel";

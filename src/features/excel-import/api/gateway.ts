@@ -20,7 +20,7 @@ import type {
   SaveExcelAmountMappingRequest,
 } from "@/bindings";
 import { commands } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 
 export interface ServiceResult<T> {
   success: boolean;

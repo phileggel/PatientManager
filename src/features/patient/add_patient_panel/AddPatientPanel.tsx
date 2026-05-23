@@ -2,7 +2,7 @@ import { UserPlus } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PatientForm } from "@/features/patient/shared/PatientForm";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { Button } from "@/ui/components";
 import { useAddPatientPanel } from "./useAddPatientPanel";
 

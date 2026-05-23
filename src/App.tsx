@@ -24,7 +24,7 @@ import {
 import { DesignSystemPage } from "@/features/shell/DesignSystemPage";
 import { UpdateBanner } from "@/features/shell/UpdateBanner";
 import { useUpdater } from "@/features/shell/useUpdater";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { useAppInit } from "@/lib/useAppInit";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
 import { Snackbar, useSnackbar } from "@/ui/components/snackbar";

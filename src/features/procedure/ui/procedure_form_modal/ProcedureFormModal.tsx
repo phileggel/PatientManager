@@ -19,9 +19,9 @@ import type { Procedure } from "@/bindings";
 import { CancelRefundDialog } from "@/features/overpayment/cancel_refund_dialog/CancelRefundDialog";
 import * as overpaymentGateway from "@/features/overpayment/gateway";
 import { RecordOverpaymentModal } from "@/features/overpayment/record_overpayment_modal/RecordOverpaymentModal";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
 import { useFormatters } from "@/lib/formatters";
-import { logger } from "@/lib/logger";
 import {
   AmountField,
   Button,

@@ -12,7 +12,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
 import { toastService } from "@/ui/components/snackbar";
 import { EditBankAccountModal } from "../edit_bank_account_modal/EditBankAccountModal";

@@ -11,7 +11,7 @@ import {
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
 import type { Page } from "./types";
 

@@ -35,7 +35,7 @@ vi.mock("@/ui/components/snackbar", () => ({
   toastService: { show: mockToastShow, subscribe: vi.fn(() => vi.fn()) },
 }));
 
-vi.mock("@/lib/logger", () => ({
+vi.mock("@/infra/logger", () => ({
   logger: { info: vi.fn(), error: vi.fn(), debug: vi.fn(), warn: vi.fn() },
 }));
 
@@ -75,7 +75,7 @@ vi.mock("i18next", () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import * as gateway from "../gateway";
 import { useReportGeneration } from "./useReportGeneration";
 

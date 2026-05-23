@@ -2,8 +2,8 @@ import { Edit2, Trash2 } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntry } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useFormatters } from "@/lib/formatters";
-import { logger } from "@/lib/logger";
 import { IconButton } from "@/ui/components";
 
 const TAG = "[BankTransferList]";

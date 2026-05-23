@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import { deleteBankAccount, getCashBankAccountId } from "../gateway";
 import { BankAccountPresenter } from "../shared/presenter";
 

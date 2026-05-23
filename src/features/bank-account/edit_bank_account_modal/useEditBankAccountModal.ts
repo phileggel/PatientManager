@@ -2,7 +2,7 @@ import { type SyntheticEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount } from "@/bindings";
 import { updateBankAccount } from "@/features/bank-account/gateway";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { BankAccountPresenter } from "../shared/presenter";
 import type { BankAccountFormData, FormErrors } from "../shared/types";

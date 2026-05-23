@@ -9,7 +9,7 @@ import {
   type ResolvedCreditLine,
   type SaveLabelMappingRequest,
 } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 
 import type { ServiceResult } from "@/types/api";
 

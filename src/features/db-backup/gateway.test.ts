@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockOpen = vi.hoisted(() => vi.fn());
 const mockSave = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mockOpen, save: mockSave }));
-vi.mock("@/lib/logger", () => ({
+vi.mock("@/infra/logger", () => ({
   logger: { info: vi.fn(), error: vi.fn(), debug: vi.fn(), warn: vi.fn() },
 }));
 

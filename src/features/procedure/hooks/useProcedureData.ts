@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-
+import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { logger } from "@/lib/logger";
 import * as gateway from "../api/gateway";
 import type { ProcedureRow } from "../model";
 import { toProcedureRow } from "../model/procedure-row.mapper";

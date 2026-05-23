@@ -4,7 +4,7 @@ import {
   type FundPaymentGroupEditData,
   type Procedure,
 } from "@/bindings";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types";
 
 export async function readProceduresByIds(ids: string[]): Promise<ServiceResult<Procedure[]>> {

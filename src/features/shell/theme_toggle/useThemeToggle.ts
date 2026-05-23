@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 
 // Theme mode: day = always light, night = always dark, auto = follows OS
 export type ThemeMode = "day" | "night" | "auto";

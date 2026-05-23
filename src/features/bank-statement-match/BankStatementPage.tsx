@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { logger } from "@/lib/logger";
+import { logger } from "@/infra/logger";
 import { BankStatementModal } from "./ui/BankStatementModal";
 
 const TAG = "[BankStatementPage]";

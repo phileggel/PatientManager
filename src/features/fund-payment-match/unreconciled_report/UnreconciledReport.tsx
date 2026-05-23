@@ -8,8 +8,8 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { UnreconciledProcedure } from "@/bindings";
+import { logger } from "@/infra/logger";
 import { useFormatters } from "@/lib/formatters";
-import { logger } from "@/lib/logger";
 import { Button } from "@/ui/components/button";
 
 interface UnreconciledReportProps {
