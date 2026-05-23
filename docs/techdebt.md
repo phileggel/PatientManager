@@ -8,6 +8,26 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-05-23 — `@/core/snackbar` import path is not an F0 bucket
+
+**Found by:** reviewer-frontend (`refactor/procedure-amount-ul-rename`)
+
+**Where:** `src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx:19` — `import { toastService } from "@/core/snackbar"`. Likely repeats across other features that consume the toast service.
+
+**Observation:** The F0 / F28 bucket layout (kit v4.5+) is `features/`, `shell/`, `ui/`, `infra/`. `@/core/` predates that layout and is not on the allow-list. The natural new home for `toastService` is `@/ui/components/snackbar/` (since it's a presentation primitive) or `@/infra/notifications/` (if framed as a cross-cutting infra service). The decision belongs in the broader F0 migration sweep, not in this PR's scope. Surfaced repeatedly by reviewer-frontend; one focused PR can move `@/core/snackbar/` to its F0-conforming home and update every consumer.
+
+---
+
+## 2026-05-23 — `@/lib/*` imports pre-date the v4.5 bucket layout
+
+**Found by:** reviewer-frontend (`refactor/procedure-amount-ul-rename`)
+
+**Where:** `src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx:23-25` references `@/lib/appStore`, `@/lib/formatters`, `@/lib/logger`. The `@/lib/` directory is a pre-v4.5 catch-all and exists throughout the codebase — the procedure form is just one example consumer.
+
+**Observation:** Per F28 the targets are: `@/infra/` for cross-cutting infra (logger, store wiring), `@/ui/` for UI utilities (formatters). The migration is mechanical (rename directory, update every import) but project-wide in scope — not appropriate as boyscout cleanup inside a feature PR. Track until someone schedules an F0 migration sweep covering `@/core/`, `@/lib/`, and the framework-resource boundary together; the two entries (this one and the `@/core/snackbar` one above) share the same fix shape.
+
+---
+
 ## 2026-05-19 — REF-240 enforced at command layer via dual-orchestrator injection
 
 **Found by:** manual (`refactor/fund-payment-manual-management`)
