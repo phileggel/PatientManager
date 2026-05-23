@@ -25,7 +25,7 @@ interface AmountFieldProps {
  *
  * @example
  * <AmountField
- *   id="procedureAmount"
+ *   id="procedure-form-amount"
  *   label="Amount"
  *   value={amount}
  *   onChange={setAmount}

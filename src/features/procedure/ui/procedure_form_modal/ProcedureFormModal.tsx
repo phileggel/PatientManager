@@ -207,14 +207,14 @@ export function ProcedureFormModal({
           {/* Patient — R28, R29, R32 */}
           {isReadOnlyMode ? (
             <TextField
-              id="viewPatient"
+              id="procedure-form-view-patient"
               label={t("form.patient")}
               value={selectedPatient ? formatPatientLabel(selectedPatient) : "—"}
               readOnly
             />
           ) : mode === "create" ? (
             <ComboboxField
-              id="procedurePatient"
+              id="procedure-form-patient"
               label={t("form.patient")}
               items={patientItems}
               displayKey="label"
@@ -229,7 +229,7 @@ export function ProcedureFormModal({
             />
           ) : (
             <ComboboxField
-              id="updatePatient"
+              id="procedure-form-update-patient"
               label={t("form.patient")}
               items={patientItems}
               displayKey="label"
@@ -245,14 +245,14 @@ export function ProcedureFormModal({
           {/* Fund */}
           {isReadOnlyMode ? (
             <TextField
-              id="viewFund"
+              id="procedure-form-view-fund"
               label={t("form.fund")}
               value={sortedFunds.find((f) => f.id === fundId)?.fund_identifier ?? "—"}
               readOnly
             />
           ) : mode === "create" ? (
             <ComboboxField
-              id="procedureFund"
+              id="procedure-form-fund"
               label={t("form.fund")}
               items={sortedFunds}
               displayKey="fund_identifier"
@@ -264,7 +264,7 @@ export function ProcedureFormModal({
             />
           ) : (
             <SelectField
-              id="updateFund"
+              id="procedure-form-update-fund"
               label={t("form.fund")}
               value={fundId}
               onChange={(e) => setFundId(e.target.value)}
@@ -282,7 +282,7 @@ export function ProcedureFormModal({
           {/* Procedure Type — editable except in refund mode (R26, REF-190, REF-200) */}
           {isProcedureTypeEditable ? (
             <SelectField
-              id="procedureType"
+              id="procedure-form-type"
               label={t("form.procedureType")}
               options={procedureTypeOptions}
               value={procedureTypeId}
@@ -292,7 +292,7 @@ export function ProcedureFormModal({
             />
           ) : (
             <TextField
-              id="viewProcedureType"
+              id="procedure-form-view-type"
               label={t("form.procedureType")}
               value={procedureTypes.find((pt) => pt.id === procedureTypeId)?.name ?? "—"}
               readOnly
@@ -302,14 +302,14 @@ export function ProcedureFormModal({
           {/* Date */}
           {isReadOnlyMode ? (
             <TextField
-              id="viewDate"
+              id="procedure-form-view-date"
               label={t("form.procedureDate")}
               value={procedureDate ? formatDate(procedureDate) : "—"}
               readOnly
             />
           ) : (
             <DateField
-              id="procedureDate"
+              id="procedure-form-date"
               label={t("form.procedureDate")}
               value={procedureDate}
               onChange={(e) => setProcedureDate(e.target.value)}
@@ -321,14 +321,14 @@ export function ProcedureFormModal({
           {/* Amount */}
           {isReadOnlyMode ? (
             <TextField
-              id="viewAmount"
+              id="procedure-form-view-amount"
               label={t("form.amount")}
               value={billedAmount != null ? formatCurrency(Math.round(billedAmount * 1000)) : "—"}
               readOnly
             />
           ) : (
             <AmountField
-              id="billedAmount"
+              id="procedure-form-amount"
               label={t("form.amount")}
               value={billedAmount}
               onChange={setBilledAmount}
