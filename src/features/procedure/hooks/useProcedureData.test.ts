@@ -33,22 +33,25 @@ vi.mock("@/lib/appStore", () => ({
 
 describe("useProcedureData", () => {
   test("loads and maps procedures, resolving patient name from store", async () => {
-    vi.mocked(gateway.readAllProcedures).mockResolvedValue([
-      {
-        id: "proc1",
-        patient_id: "p1",
-        fund_id: null,
-        procedure_type_id: "type1",
-        procedure_date: "2026-01-15",
-        billed_amount: 50000,
-        payment_method: "NONE",
-        fund_reconciliation_date: "",
+    vi.mocked(gateway.readAllProcedures).mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: "proc1",
+          patient_id: "p1",
+          fund_id: null,
+          procedure_type_id: "type1",
+          procedure_date: "2026-01-15",
+          billed_amount: 50000,
+          payment_method: "NONE",
+          fund_reconciliation_date: "",
 
-        confirmed_payment_date: "",
-        paid_amount: null,
-        payment_status: "CREATED",
-      } satisfies Procedure,
-    ]);
+          confirmed_payment_date: "",
+          paid_amount: null,
+          payment_status: "CREATED",
+        } satisfies Procedure,
+      ],
+    });
 
     const { result } = renderHook(() => useProcedureData());
 
@@ -60,8 +63,8 @@ describe("useProcedureData", () => {
   });
 
   test("deleteRow calls gateway.deleteProcedure with the given id", async () => {
-    vi.mocked(gateway.readAllProcedures).mockResolvedValue([]);
-    vi.mocked(gateway.deleteProcedure).mockResolvedValue(undefined);
+    vi.mocked(gateway.readAllProcedures).mockResolvedValue({ success: true, data: [] });
+    vi.mocked(gateway.deleteProcedure).mockResolvedValue({ success: true, data: undefined });
 
     const { result } = renderHook(() => useProcedureData());
     await waitFor(() => expect(result.current.isLoading).toBe(false), { timeout: 1000 });

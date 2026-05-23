@@ -19,24 +19,25 @@ export function useProcedureData() {
 
   useEffect(() => {
     const loadData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+      setIsLoading(true);
+      setError(null);
 
-        const rawProcedures = await gateway.readAllProcedures();
+      const result = await gateway.readAllProcedures();
 
-        const { patients: p, funds: f, procedureTypes: pt } = useAppStore.getState();
-        const mappedRows = rawProcedures.map((proc) =>
-          toProcedureRow(proc, { patients: p, funds: f, procedureTypes: pt }),
-        );
-
-        setInitialRows(mappedRows);
-      } catch (err) {
-        logger.error(TAG, "Failed to load data", { error: err });
-        setError(err instanceof Error ? err.message : "Failed to load data");
-      } finally {
+      if (!result.success) {
+        logger.error(TAG, "Failed to load data", { error: result.error });
+        setError(result.error);
         setIsLoading(false);
+        return;
       }
+
+      const { patients: p, funds: f, procedureTypes: pt } = useAppStore.getState();
+      const mappedRows = result.data.map((proc) =>
+        toProcedureRow(proc, { patients: p, funds: f, procedureTypes: pt }),
+      );
+
+      setInitialRows(mappedRows);
+      setIsLoading(false);
     };
 
     loadData();
@@ -44,7 +45,11 @@ export function useProcedureData() {
 
   const deleteRow = useCallback(async (id: string): Promise<void> => {
     logger.debug(TAG, `deleting row ${id}`);
-    await gateway.deleteProcedure(id);
+    const result = await gateway.deleteProcedure(id);
+    if (!result.success) {
+      logger.error(TAG, `delete failed for ${id}`, { error: result.error });
+      throw new Error(result.error);
+    }
   }, []);
 
   return {

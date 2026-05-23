@@ -127,16 +127,16 @@ export default function ProcedurePage() {
 
   // Reload all rows from backend — used after add, update, delete and backend events (PRO-070)
   const reloadRows = useCallback(async () => {
-    try {
-      const updated = await gateway.readAllProcedures();
-      const mappedRows = updated.map((proc) =>
-        toProcedureRow(proc, { patients, funds, procedureTypes }),
-      );
-      setRows(mappedRows);
-    } catch (err) {
-      logger.error(TAG, "Error refreshing procedures", { error: err });
+    const result = await gateway.readAllProcedures();
+    if (!result.success) {
+      logger.error(TAG, "Error refreshing procedures", { error: result.error });
       toastService.show("error", t("state.reloadFailed"));
+      return;
     }
+    const mappedRows = result.data.map((proc) =>
+      toProcedureRow(proc, { patients, funds, procedureTypes }),
+    );
+    setRows(mappedRows);
   }, [patients, funds, procedureTypes, t]);
 
   const handleConfirmDelete = useCallback(async () => {

@@ -115,8 +115,14 @@ beforeEach(() => {
     bankAccounts: [BANK_ACCOUNT],
   });
   vi.clearAllMocks();
-  vi.mocked(procedureGateway.addProcedure).mockResolvedValue(MOCK_PROCEDURE);
-  vi.mocked(procedureGateway.readAllProcedures).mockResolvedValue([MOCK_PROCEDURE]);
+  vi.mocked(procedureGateway.addProcedure).mockResolvedValue({
+    success: true,
+    data: MOCK_PROCEDURE,
+  });
+  vi.mocked(procedureGateway.readAllProcedures).mockResolvedValue({
+    success: true,
+    data: [MOCK_PROCEDURE],
+  });
 });
 
 function renderCreate(onClose = vi.fn()) {
