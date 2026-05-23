@@ -6,6 +6,10 @@ on:
     types: [opened, edited, synchronize, reopened]
   push:
     branches: [main]
+  # Manual trigger: `gh workflow run CI --ref <branch>` or via Actions tab.
+  # Useful when GH Actions silently drops a pull_request synchronize/reopen
+  # event (rare but happens on rebases).
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
