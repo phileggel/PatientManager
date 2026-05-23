@@ -12,7 +12,7 @@ import type {
   PdfParseResult,
   ReconciliationMatch,
 } from "@/bindings";
-import { formatShortDate } from "@/lib/formatters";
+import { formatShortDate } from "@/ui/format/formatters";
 
 // ─── Key builders ────────────────────────────────────────────────────────────
 

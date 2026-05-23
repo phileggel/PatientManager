@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { NormalizedPdfLine, PdfParseResult, PdfProcedureGroup } from "@/bindings";
 import { logger } from "@/infra/logger";
-import { useFormatters } from "@/lib/formatters";
+import { useFormatters } from "@/ui/format/formatters";
 import { formatProcedureDateFromLine } from "../shared/utils";
 
 interface PdfDataTableProps {

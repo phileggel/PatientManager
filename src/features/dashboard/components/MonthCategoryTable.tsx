@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useFormatters } from "@/lib/formatters";
+import { useFormatters } from "@/ui/format/formatters";
 import type { YearlyData } from "../types";
 
 interface MonthCategoryTableProps {

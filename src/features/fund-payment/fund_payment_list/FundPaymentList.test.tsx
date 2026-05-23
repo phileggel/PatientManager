@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency } from "@/ui/format/formatters";
 import { FundPaymentList } from "./FundPaymentList";
 
 vi.mock("./useFundPaymentList", () => ({

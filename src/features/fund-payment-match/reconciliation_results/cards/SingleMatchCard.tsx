@@ -11,8 +11,8 @@ import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, DbMatch, NormalizedPdfLine } from "@/bindings";
 import { useAppStore } from "@/lib/appStore";
-import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components/button";
+import { useFormatters } from "@/ui/format/formatters";
 import {
   buildAutoCorrection,
   buildContestCorrection,

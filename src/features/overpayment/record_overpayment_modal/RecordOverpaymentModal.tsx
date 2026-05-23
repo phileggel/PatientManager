@@ -18,7 +18,6 @@
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
-import { useFormatters } from "@/lib/formatters";
 import {
   Button,
   DateField,
@@ -27,6 +26,7 @@ import {
   SelectField,
   TextField,
 } from "@/ui/components";
+import { useFormatters } from "@/ui/format/formatters";
 import { useRecordOverpaymentModal } from "./useRecordOverpaymentModal";
 
 interface RecordOverpaymentModalProps {

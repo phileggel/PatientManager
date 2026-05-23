@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useAppStore } from "@/lib/appStore";
-import { useFormatters } from "@/lib/formatters";
+import { useFormatters } from "@/ui/format/formatters";
 
 export function useSelectPatientModal() {
   const patients = useAppStore((state) => state.patients);

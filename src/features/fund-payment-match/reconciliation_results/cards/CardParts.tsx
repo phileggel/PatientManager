@@ -6,7 +6,7 @@
 import { AlertTriangle, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { NormalizedPdfLine } from "@/bindings";
-import { useFormatters } from "@/lib/formatters";
+import { useFormatters } from "@/ui/format/formatters";
 import { formatProcedureDateFromLine } from "../../shared/utils";
 
 // ─── PDF summary row ──────────────────────────────────────────────────────────

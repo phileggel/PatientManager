@@ -21,7 +21,6 @@ import * as overpaymentGateway from "@/features/overpayment/gateway";
 import { RecordOverpaymentModal } from "@/features/overpayment/record_overpayment_modal/RecordOverpaymentModal";
 import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { useFormatters } from "@/lib/formatters";
 import {
   AmountField,
   Button,
@@ -33,6 +32,7 @@ import {
   TextField,
 } from "@/ui/components";
 import { toastService } from "@/ui/components/snackbar";
+import { useFormatters } from "@/ui/format/formatters";
 import { formatPatientLabel } from "../../model";
 import { CreatePatientForm } from "../form/CreatePatientForm";
 import { useProcedureFormModal } from "./useProcedureFormModal";

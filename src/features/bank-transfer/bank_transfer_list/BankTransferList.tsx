@@ -3,8 +3,8 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntry } from "@/bindings";
 import { logger } from "@/infra/logger";
-import { useFormatters } from "@/lib/formatters";
 import { IconButton } from "@/ui/components";
+import { useFormatters } from "@/ui/format/formatters";
 
 const TAG = "[BankTransferList]";
 

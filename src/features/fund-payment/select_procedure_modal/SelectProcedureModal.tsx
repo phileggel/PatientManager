@@ -2,8 +2,8 @@ import { Calendar, Check, ChevronDown, Plus, RotateCcw, X } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
-import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components";
+import { useFormatters } from "@/ui/format/formatters";
 import { useProcedureSelectionModal } from "./useSelectProcedureModal";
 
 interface ProcedureSelectionModalProps {

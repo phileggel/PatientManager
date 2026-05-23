@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useFormatters } from "@/lib/formatters";
 import { CompactSelectField, IconButton } from "@/ui/components";
+import { useFormatters } from "@/ui/format/formatters";
 import { getMonthName } from "../model/date.logic";
 
 interface PeriodSelectorProps {

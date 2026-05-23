@@ -8,7 +8,7 @@ import { EditPatientModal } from "./EditPatientModal";
 
 vi.mock("../gateway");
 
-vi.mock("@/lib/formatters", () => ({
+vi.mock("@/ui/format/formatters", () => ({
   useFormatters: () => ({
     formatCurrency: (amount: number) => `€${(amount / 1000).toFixed(2)}`,
     formatDate: (iso: string) => iso,

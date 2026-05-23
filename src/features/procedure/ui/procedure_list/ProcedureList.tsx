@@ -1,7 +1,7 @@
 import { Edit, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useFormatters } from "@/lib/formatters";
 import { IconButton, SortIcon } from "@/ui/components";
+import { useFormatters } from "@/ui/format/formatters";
 import { isBlockingStatus, type ProcedureRow } from "../../model";
 import { COL_WIDTHS } from "../ui.styles";
 import { StatusBadge } from "./StatusBadge";

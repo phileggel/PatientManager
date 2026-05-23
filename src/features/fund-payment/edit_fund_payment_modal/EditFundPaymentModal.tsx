@@ -17,9 +17,9 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup, Procedure } from "@/bindings";
 import { logger } from "@/infra/logger";
-import { useFormatters } from "@/lib/formatters";
 import { Button, Dialog } from "@/ui/components";
 import { DateField } from "@/ui/components/field/DateField";
+import { useFormatters } from "@/ui/format/formatters";
 import { ProcedureSelectionModal } from "../select_procedure_modal/SelectProcedureModal";
 import { useEditFundPaymentModal } from "./useEditFundPaymentModal";
 

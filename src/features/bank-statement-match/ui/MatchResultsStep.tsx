@@ -2,7 +2,7 @@ import { AlertCircle, Check, Search } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/lib/appStore";
-import { useFormatters } from "@/lib/formatters";
+import { useFormatters } from "@/ui/format/formatters";
 import type { IdentifiableCreditLine } from "./types";
 
 interface MatchResultsStepProps {

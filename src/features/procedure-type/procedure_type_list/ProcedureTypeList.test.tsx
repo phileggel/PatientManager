@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency } from "@/ui/format/formatters";
 import { ProcedureTypeList } from "./ProcedureTypeList";
 
 // Mock child components

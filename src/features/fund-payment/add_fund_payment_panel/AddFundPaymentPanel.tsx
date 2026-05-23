@@ -2,9 +2,9 @@ import { Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { logger } from "@/infra/logger";
-import { useFormatters } from "@/lib/formatters";
 import { Button, DateField, SelectField } from "@/ui/components";
 import { toastService } from "@/ui/components/snackbar";
+import { useFormatters } from "@/ui/format/formatters";
 import { ProcedureSelectionModal } from "../select_procedure_modal/SelectProcedureModal";
 import { useAddFundPaymentPanel } from "./useAddFundPaymentPanel";
 

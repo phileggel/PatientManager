@@ -4,7 +4,7 @@
 // `ReportGenerationRequest` to the backend.
 // ────────────────────────────────────────────────────────────────────────────
 
-export { formatCurrency, formatShortDate } from "@/lib/formatters";
+export { formatCurrency, formatShortDate } from "@/ui/format/formatters";
 
 /**
  * Format a `Date` as a locale-aware long-form date-time, e.g.

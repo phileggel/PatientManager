@@ -9,9 +9,9 @@
 
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, DbMatch, NormalizedPdfLine } from "@/bindings";
-import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components/button";
 import { AmountField } from "@/ui/components/field";
+import { useFormatters } from "@/ui/format/formatters";
 import {
   buildAutoCorrection,
   buildContestCorrection,

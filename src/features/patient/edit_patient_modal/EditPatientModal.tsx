@@ -20,8 +20,8 @@ import { PatientForm } from "@/features/patient/shared/PatientForm";
 import { PatientPresenter } from "@/features/patient/shared/presenter";
 import { logger } from "@/infra/logger";
 import { useAppStore } from "@/lib/appStore";
-import { useFormatters } from "@/lib/formatters";
 import { Button, Dialog } from "@/ui/components";
+import { useFormatters } from "@/ui/format/formatters";
 import { useEditPatientModal } from "./useEditPatientModal";
 
 interface EditPatientModalProps {

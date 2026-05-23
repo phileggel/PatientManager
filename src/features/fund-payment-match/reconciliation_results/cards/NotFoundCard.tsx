@@ -11,8 +11,8 @@
 import { Link, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, NormalizedPdfLine, NotFoundCandidate } from "@/bindings";
-import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components/button";
+import { useFormatters } from "@/ui/format/formatters";
 import {
   buildLinkProcedureCorrection,
   buildLinkProcedureKey,

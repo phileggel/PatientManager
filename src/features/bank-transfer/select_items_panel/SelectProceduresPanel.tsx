@@ -1,8 +1,8 @@
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { DirectPaymentProcedureCandidate } from "@/bindings";
-import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components";
+import { useFormatters } from "@/ui/format/formatters";
 import { useSelectProceduresPanel } from "./useSelectProceduresPanel";
 
 interface SelectProceduresPanelProps {

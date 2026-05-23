@@ -9,8 +9,8 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { UnreconciledProcedure } from "@/bindings";
 import { logger } from "@/infra/logger";
-import { useFormatters } from "@/lib/formatters";
 import { Button } from "@/ui/components/button";
+import { useFormatters } from "@/ui/format/formatters";
 
 interface UnreconciledReportProps {
   procedures: UnreconciledProcedure[];
