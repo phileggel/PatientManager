@@ -147,18 +147,21 @@ describe("create mode — gateway arguments on submit", () => {
     const { addProcedure } = await import("@/features/procedure/api/gateway");
     const mockAdd = vi.mocked(addProcedure);
     mockAdd.mockResolvedValueOnce({
-      id: "proc1",
-      patient_id: "p1",
-      fund_id: "f1",
-      procedure_type_id: "pt2",
-      procedure_date: "2026-03-01",
-      billed_amount: 42500,
-      payment_method: "NONE",
-      fund_reconciliation_date: "",
+      success: true,
+      data: {
+        id: "proc1",
+        patient_id: "p1",
+        fund_id: "f1",
+        procedure_type_id: "pt2",
+        procedure_date: "2026-03-01",
+        billed_amount: 42500,
+        payment_method: "NONE",
+        fund_reconciliation_date: "",
 
-      confirmed_payment_date: "",
-      payment_status: "CREATED",
-      paid_amount: null,
+        confirmed_payment_date: "",
+        payment_status: "CREATED",
+        paid_amount: null,
+      },
     });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
@@ -181,18 +184,21 @@ describe("create mode — gateway arguments on submit", () => {
     const { addProcedure } = await import("@/features/procedure/api/gateway");
     const mockAdd = vi.mocked(addProcedure);
     mockAdd.mockResolvedValueOnce({
-      id: "proc2",
-      patient_id: "p2",
-      fund_id: null,
-      procedure_type_id: "pt1",
-      procedure_date: "2026-03-01",
-      billed_amount: null,
-      payment_method: "NONE",
-      fund_reconciliation_date: "",
+      success: true,
+      data: {
+        id: "proc2",
+        patient_id: "p2",
+        fund_id: null,
+        procedure_type_id: "pt1",
+        procedure_date: "2026-03-01",
+        billed_amount: null,
+        payment_method: "NONE",
+        fund_reconciliation_date: "",
 
-      confirmed_payment_date: "",
-      payment_status: "CREATED",
-      paid_amount: null,
+        confirmed_payment_date: "",
+        payment_status: "CREATED",
+        paid_amount: null,
+      },
     });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
@@ -219,18 +225,21 @@ describe("create mode — reset after successful submit", () => {
   it("resets all fields to initial values", async () => {
     const { addProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(addProcedure).mockResolvedValueOnce({
-      id: "proc1",
-      patient_id: "p1",
-      fund_id: "f1",
-      procedure_type_id: "pt2",
-      procedure_date: "2026-03-01",
-      billed_amount: 42500,
-      payment_method: "NONE",
-      fund_reconciliation_date: "",
+      success: true,
+      data: {
+        id: "proc1",
+        patient_id: "p1",
+        fund_id: "f1",
+        procedure_type_id: "pt2",
+        procedure_date: "2026-03-01",
+        billed_amount: 42500,
+        payment_method: "NONE",
+        fund_reconciliation_date: "",
 
-      confirmed_payment_date: "",
-      payment_status: "CREATED",
-      paid_amount: null,
+        confirmed_payment_date: "",
+        payment_status: "CREATED",
+        paid_amount: null,
+      },
     });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
@@ -260,7 +269,7 @@ describe("create mode — error handling", () => {
   it("shows error toast on gateway failure", async () => {
     const { toastService } = await import("@/core/snackbar");
     const { addProcedure } = await import("@/features/procedure/api/gateway");
-    vi.mocked(addProcedure).mockRejectedValueOnce(new Error("Network error"));
+    vi.mocked(addProcedure).mockResolvedValueOnce({ success: false, error: "Network error" });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
@@ -312,18 +321,21 @@ describe("view mode — calls updateProcedure with only procedure_type_id change
   it("passes through all original fields except procedure_type_id", async () => {
     const { updateProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(updateProcedure).mockResolvedValueOnce({
-      id: "proc-view",
-      patient_id: "p1",
-      fund_id: "f1",
-      procedure_type_id: "pt1",
-      procedure_date: "2026-02-10",
-      billed_amount: 50000,
-      payment_method: "CASH",
-      fund_reconciliation_date: "",
+      success: true,
+      data: {
+        id: "proc-view",
+        patient_id: "p1",
+        fund_id: "f1",
+        procedure_type_id: "pt1",
+        procedure_date: "2026-02-10",
+        billed_amount: 50000,
+        payment_method: "CASH",
+        fund_reconciliation_date: "",
 
-      confirmed_payment_date: "2026-02-15",
-      payment_status: "RECONCILED",
-      paid_amount: 50000,
+        confirmed_payment_date: "2026-02-15",
+        payment_status: "RECONCILED",
+        paid_amount: 50000,
+      },
     });
 
     const procedure = {
@@ -374,18 +386,21 @@ describe("view mode — confirmed_payment_date empty string is sent as null", ()
   it("converts empty confirmed_payment_date to null in view mode", async () => {
     const { updateProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(updateProcedure).mockResolvedValueOnce({
-      id: "proc-view-nodate",
-      patient_id: "p1",
-      fund_id: null,
-      procedure_type_id: "pt1",
-      procedure_date: "2026-02-10",
-      billed_amount: 50000,
-      payment_method: "NONE",
-      fund_reconciliation_date: "",
+      success: true,
+      data: {
+        id: "proc-view-nodate",
+        patient_id: "p1",
+        fund_id: null,
+        procedure_type_id: "pt1",
+        procedure_date: "2026-02-10",
+        billed_amount: 50000,
+        payment_method: "NONE",
+        fund_reconciliation_date: "",
 
-      confirmed_payment_date: "",
-      payment_status: "CREATED",
-      paid_amount: null,
+        confirmed_payment_date: "",
+        payment_status: "CREATED",
+        paid_amount: null,
+      },
     });
 
     const procedure = {
@@ -443,18 +458,21 @@ describe("edit mode — calls updateProcedure on submit", () => {
   it("calls updateProcedure with correct fields", async () => {
     const { updateProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(updateProcedure).mockResolvedValueOnce({
-      id: "proc-edit",
-      patient_id: "p1",
-      fund_id: "f1",
-      procedure_type_id: "pt1",
-      procedure_date: "2026-02-10",
-      billed_amount: 25000,
-      payment_method: "NONE",
-      fund_reconciliation_date: "",
+      success: true,
+      data: {
+        id: "proc-edit",
+        patient_id: "p1",
+        fund_id: "f1",
+        procedure_type_id: "pt1",
+        procedure_date: "2026-02-10",
+        billed_amount: 25000,
+        payment_method: "NONE",
+        fund_reconciliation_date: "",
 
-      confirmed_payment_date: "",
-      payment_status: "CREATED",
-      paid_amount: null,
+        confirmed_payment_date: "",
+        payment_status: "CREATED",
+        paid_amount: null,
+      },
     });
 
     const procedure = {
@@ -524,7 +542,7 @@ describe("create mode — handlePatientCreated", () => {
   it("sets patientId and clears patientId error on success", async () => {
     const { createNewPatient } = await import("@/features/procedure/api/gateway");
     const createdPatient = makePatient({ id: "new-p" });
-    vi.mocked(createNewPatient).mockResolvedValue(createdPatient);
+    vi.mocked(createNewPatient).mockResolvedValue({ success: true, data: createdPatient });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
@@ -544,10 +562,10 @@ describe("create mode — handlePatientCreated", () => {
     expect(result.current.fieldErrors.patientId).toBeUndefined();
   });
 
-  it("shows error toast when createNewPatient throws", async () => {
+  it("shows error toast when createNewPatient returns a failure result", async () => {
     const { createNewPatient } = await import("@/features/procedure/api/gateway");
     const { toastService } = await import("@/core/snackbar");
-    vi.mocked(createNewPatient).mockRejectedValue(new Error("create failed"));
+    vi.mocked(createNewPatient).mockResolvedValue({ success: false, error: "create failed" });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 

@@ -127,29 +127,30 @@ export function useProcedureFormModal({
         // View mode: only procedure_type_id is editable (R26)
         if (!procedure || !procedureTypeId) return;
         setLoading(true);
-        try {
-          await gateway.updateProcedure({
-            id: procedure.id,
-            patient_id: procedure.patient_id,
-            fund_id: procedure.fund_id,
-            procedure_type_id: procedureTypeId,
-            procedure_date: procedure.procedure_date,
-            billed_amount: procedure.billed_amount,
-            payment_method: procedure.payment_method,
-            fund_reconciliation_date: procedure.fund_reconciliation_date || null,
-            confirmed_payment_date: procedure.confirmed_payment_date || null,
-            paid_amount: procedure.paid_amount,
-            payment_status: procedure.payment_status,
+        const result = await gateway.updateProcedure({
+          id: procedure.id,
+          patient_id: procedure.patient_id,
+          fund_id: procedure.fund_id,
+          procedure_type_id: procedureTypeId,
+          procedure_date: procedure.procedure_date,
+          billed_amount: procedure.billed_amount,
+          payment_method: procedure.payment_method,
+          fund_reconciliation_date: procedure.fund_reconciliation_date || null,
+          confirmed_payment_date: procedure.confirmed_payment_date || null,
+          paid_amount: procedure.paid_amount,
+          payment_status: procedure.payment_status,
+        });
+        setLoading(false);
+        if (!result.success) {
+          logger.error(`${TAG} Error updating procedure type in view mode`, {
+            error: result.error,
           });
-          toastService.show("success", t("state.updated"));
-          onSuccess?.();
-          onClose();
-        } catch (error) {
-          logger.error(`${TAG} Error updating procedure type in view mode`, { error });
-          toastService.show("error", error instanceof Error ? error.message : tc("error.unknown"));
-        } finally {
-          setLoading(false);
+          toastService.show("error", result.error || tc("error.unknown"));
+          return;
         }
+        toastService.show("success", t("state.updated"));
+        onSuccess?.();
+        onClose();
         return;
       }
 
@@ -163,45 +164,53 @@ export function useProcedureFormModal({
 
       setFieldErrors({});
       setLoading(true);
-      try {
-        if (mode === "create") {
-          const result = await gateway.addProcedure(
-            patientId,
-            fundId || null,
-            procedureTypeId,
-            procedureDate,
-            billedAmount !== null ? Math.round(billedAmount * 1000) : null,
-          );
-          logger.info(`${TAG} Procedure added`, { id: result.id });
-          reset();
-          toastService.show("success", t("state.added"));
-          onSuccess?.();
-          onClose();
-        } else {
-          // Edit mode: payment fields passed through unchanged from original procedure (PRO-050)
-          if (!procedure) return;
-          await gateway.updateProcedure({
-            id: procedure.id,
-            patient_id: patientId,
-            fund_id: fundId || null,
-            procedure_type_id: procedureTypeId,
-            procedure_date: procedureDate,
-            billed_amount: billedAmount != null ? Math.round(billedAmount * 1000) : null,
-            payment_method: procedure.payment_method,
-            fund_reconciliation_date: procedure.fund_reconciliation_date || null,
-            confirmed_payment_date: procedure.confirmed_payment_date || null,
-            paid_amount: procedure.paid_amount,
-            payment_status: procedure.payment_status,
-          });
-          toastService.show("success", t("state.updated"));
-          onSuccess?.();
-          onClose();
-        }
-      } catch (error) {
-        logger.error(`${TAG} Error submitting`, { error });
-        toastService.show("error", error instanceof Error ? error.message : tc("error.unknown"));
-      } finally {
+      if (mode === "create") {
+        const result = await gateway.addProcedure(
+          patientId,
+          fundId || null,
+          procedureTypeId,
+          procedureDate,
+          billedAmount !== null ? Math.round(billedAmount * 1000) : null,
+        );
         setLoading(false);
+        if (!result.success) {
+          logger.error(`${TAG} Error submitting`, { error: result.error });
+          toastService.show("error", result.error || tc("error.unknown"));
+          return;
+        }
+        logger.info(`${TAG} Procedure added`, { id: result.data.id });
+        reset();
+        toastService.show("success", t("state.added"));
+        onSuccess?.();
+        onClose();
+      } else {
+        // Edit mode: payment fields passed through unchanged from original procedure (PRO-050)
+        if (!procedure) {
+          setLoading(false);
+          return;
+        }
+        const result = await gateway.updateProcedure({
+          id: procedure.id,
+          patient_id: patientId,
+          fund_id: fundId || null,
+          procedure_type_id: procedureTypeId,
+          procedure_date: procedureDate,
+          billed_amount: billedAmount != null ? Math.round(billedAmount * 1000) : null,
+          payment_method: procedure.payment_method,
+          fund_reconciliation_date: procedure.fund_reconciliation_date || null,
+          confirmed_payment_date: procedure.confirmed_payment_date || null,
+          paid_amount: procedure.paid_amount,
+          payment_status: procedure.payment_status,
+        });
+        setLoading(false);
+        if (!result.success) {
+          logger.error(`${TAG} Error submitting`, { error: result.error });
+          toastService.show("error", result.error || tc("error.unknown"));
+          return;
+        }
+        toastService.show("success", t("state.updated"));
+        onSuccess?.();
+        onClose();
       }
     },
     [
@@ -223,15 +232,16 @@ export function useProcedureFormModal({
   // Patient inline creation handler (create mode only, R9)
   const handlePatientCreated = useCallback(
     async (data: { name: string; ssn?: string }) => {
-      try {
-        const patient: Patient = await gateway.createNewPatient(data.name, data.ssn ?? null);
-        setPatientId(patient.id);
-        setFieldErrors((prev) => ({ ...prev, patientId: undefined }));
-        setPatientModal({ open: false, query: "" });
-      } catch (error) {
-        logger.error(`${TAG} Error creating patient`, { error });
-        toastService.show("error", error instanceof Error ? error.message : tc("error.unknown"));
+      const result = await gateway.createNewPatient(data.name, data.ssn ?? null);
+      if (!result.success) {
+        logger.error(`${TAG} Error creating patient`, { error: result.error });
+        toastService.show("error", result.error || tc("error.unknown"));
+        return;
       }
+      const patient: Patient = result.data;
+      setPatientId(patient.id);
+      setFieldErrors((prev) => ({ ...prev, patientId: undefined }));
+      setPatientModal({ open: false, query: "" });
     },
     [tc],
   );

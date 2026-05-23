@@ -6,8 +6,9 @@
  * All domain types come from @/bindings.ts (Specta-generated from Rust).
  * All operations call Tauri commands directly via the commands object.
  *
- * Note: Tauri commands return Result<T, E>. This gateway unwraps them and throws
- * errors for failure cases, allowing clean async/await usage with try/catch.
+ * Per F27: gateway is a pass-through that converts the Specta `Result<T, string>`
+ * wire shape into the project-wide `ServiceResult<T>` envelope. No throwing —
+ * callers branch on `result.success` and present typed errors via i18n.
  */
 
 import {
@@ -19,15 +20,17 @@ import {
   type RawProcedure,
   type Result,
 } from "@/bindings";
+import type { ServiceResult } from "@/types/api";
 
 /**
- * Unwrap a Result type, throwing an error if it's an error result
+ * Convert a Specta `Result<T, string>` to a `ServiceResult<T>`.
+ * Preserves the error string; never throws.
  */
-function unwrapResult<T>(result: Result<T, string>): T {
+function toServiceResult<T>(result: Result<T, string>): ServiceResult<T> {
   if (result.status === "ok") {
-    return result.data;
+    return { success: true, data: result.data };
   }
-  throw new Error(result.error);
+  return { success: false, error: result.error };
 }
 
 // ============================================
@@ -37,9 +40,9 @@ function unwrapResult<T>(result: Result<T, string>): T {
 /**
  * Fetch all procedures
  */
-export async function readAllProcedures(): Promise<Procedure[]> {
+export async function readAllProcedures(): Promise<ServiceResult<Procedure[]>> {
   const result = await commands.readAllProcedures();
-  return unwrapResult(result);
+  return toServiceResult(result);
 }
 
 /**
@@ -51,7 +54,7 @@ export async function addProcedure(
   procedureTypeId: string,
   procedureDate: string,
   billedAmount: number | null,
-): Promise<Procedure> {
+): Promise<ServiceResult<Procedure>> {
   const result = await commands.addProcedure(
     patientId,
     fundId,
@@ -59,23 +62,26 @@ export async function addProcedure(
     procedureDate,
     billedAmount,
   );
-  return unwrapResult(result);
+  return toServiceResult(result);
 }
 
 /**
  * Update an existing procedure
  */
-export async function updateProcedure(procedure: RawProcedure): Promise<Procedure> {
+export async function updateProcedure(procedure: RawProcedure): Promise<ServiceResult<Procedure>> {
   const result = await commands.updateProcedure(procedure);
-  return unwrapResult(result);
+  return toServiceResult(result);
 }
 
 /**
  * Delete a procedure
  */
-export async function deleteProcedure(id: string): Promise<void> {
+export async function deleteProcedure(id: string): Promise<ServiceResult<void>> {
   const result = await commands.deleteProcedure(id);
-  unwrapResult(result);
+  if (result.status === "ok") {
+    return { success: true, data: undefined };
+  }
+  return { success: false, error: result.error };
 }
 
 // ============================================
@@ -85,41 +91,47 @@ export async function deleteProcedure(id: string): Promise<void> {
 /**
  * Fetch all patients for autocomplete
  */
-export async function fetchAllPatients(): Promise<Patient[]> {
+export async function fetchAllPatients(): Promise<ServiceResult<Patient[]>> {
   const result = await commands.readAllPatients();
-  return unwrapResult(result);
+  return toServiceResult(result);
 }
 
 /**
  * Fetch all funds for autocomplete
  */
-export async function fetchAllFunds(): Promise<Fund[]> {
+export async function fetchAllFunds(): Promise<ServiceResult<Fund[]>> {
   const result = await commands.readAllFunds();
-  return unwrapResult(result);
+  return toServiceResult(result);
 }
 
 /**
  * Fetch all procedure types for autocomplete
  */
-export async function fetchAllProcedureTypes(): Promise<ProcedureType[]> {
+export async function fetchAllProcedureTypes(): Promise<ServiceResult<ProcedureType[]>> {
   const result = await commands.readAllProcedureTypes();
-  return unwrapResult(result);
+  return toServiceResult(result);
 }
 
 /**
  * Create a new patient
  */
-export async function createNewPatient(name: string | null, ssn: string | null): Promise<Patient> {
+export async function createNewPatient(
+  name: string | null,
+  ssn: string | null,
+): Promise<ServiceResult<Patient>> {
   const result = await commands.addPatient(name, ssn);
-  return unwrapResult(result);
+  return toServiceResult(result);
 }
 
 /**
  * Create a new fund
  */
-export async function createNewFund(fundIdentifier: string, name: string): Promise<Fund> {
+export async function createNewFund(
+  fundIdentifier: string,
+  name: string,
+): Promise<ServiceResult<Fund>> {
   const result = await commands.addFund(fundIdentifier, name);
-  return unwrapResult(result);
+  return toServiceResult(result);
 }
 
 /**
@@ -129,7 +141,7 @@ export async function createNewProcedureType(
   name: string,
   defaultAmount: number | null,
   category: string | null,
-): Promise<ProcedureType> {
+): Promise<ServiceResult<ProcedureType>> {
   const result = await commands.addProcedureType(name, defaultAmount ?? 0, category);
-  return unwrapResult(result);
+  return toServiceResult(result);
 }
