@@ -174,8 +174,8 @@ export default function ProcedurePage() {
       procedure_type_id: editingProcedure.procedureTypeId || "",
       procedure_date: editingProcedure.procedureDate || "",
       billed_amount:
-        editingProcedure.procedureAmount != null
-          ? Math.round(editingProcedure.procedureAmount * 1000)
+        editingProcedure.billedAmount != null
+          ? Math.round(editingProcedure.billedAmount * 1000)
           : null,
       payment_method: (editingProcedure.paymentMethod ?? "NONE") as Procedure["payment_method"],
       // confirmed_payment_date is typed string (non-null) in Procedure bindings but is actually
@@ -184,9 +184,7 @@ export default function ProcedurePage() {
       confirmed_payment_date: editingProcedure.confirmedPaymentDate ?? "",
       payment_status: (editingProcedure.status || "NONE") as ProcedureStatus,
       paid_amount:
-        editingProcedure.actualPaymentAmount != null
-          ? Math.round(editingProcedure.actualPaymentAmount * 1000)
-          : null,
+        editingProcedure.paidAmount != null ? Math.round(editingProcedure.paidAmount * 1000) : null,
     };
   }, [editingProcedure]);
 

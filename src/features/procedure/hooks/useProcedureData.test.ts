@@ -56,7 +56,7 @@ describe("useProcedureData", () => {
 
     expect(result.current.initialRows).toHaveLength(1);
     expect(result.current.initialRows[0]?.patientName).toBe("John");
-    expect(result.current.initialRows[0]?.procedureAmount).toBe(50); // 50000 / 1000
+    expect(result.current.initialRows[0]?.billedAmount).toBe(50); // 50000 / 1000
   });
 
   test("deleteRow calls gateway.deleteProcedure with the given id", async () => {

@@ -92,8 +92,6 @@ The aggregate root of the procedure context. Represents a single healthcare proc
 - `paid_amount` — what was actually received (from fund or patient); may differ from `billed_amount`.
 - `payment_method`, `confirmed_payment_date`, `payment_status` — payment and reconciliation state.
   > Status: confirmed
-  > ⚠️ Code discrepancy: `billed_amount` is named `procedure_amount` in code;
-  > `paid_amount` is named `actual_payment_amount` — both to be renamed.
 
 ### ProcedureType
 

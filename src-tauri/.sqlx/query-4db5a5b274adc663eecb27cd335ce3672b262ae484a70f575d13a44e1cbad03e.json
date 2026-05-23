@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE procedure\n                SET patient_id = $1, fund_id = $2, procedure_type_id = $3, procedure_date = $4, billed_amount = $5, payment_method = $6, fund_reconciliation_date = $7, confirmed_payment_date = $8, paid_amount = $9, payment_status = $10\n                WHERE id = $11\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "4db5a5b274adc663eecb27cd335ce3672b262ae484a70f575d13a44e1cbad03e"
+}

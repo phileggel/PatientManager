@@ -67,30 +67,30 @@ describe("useSortProcedureList", () => {
     expect(result.current.sortConfig).toEqual({ key: "procedureDate", direction: "asc" });
   });
 
-  it("sorts procedureAmount numerically (asc)", () => {
+  it("sorts billedAmount numerically (asc)", () => {
     const rows = [
-      makeRow({ rowId: "r-1", procedureAmount: 300 }),
-      makeRow({ rowId: "r-2", procedureAmount: 100 }),
-      makeRow({ rowId: "r-3", procedureAmount: 200 }),
+      makeRow({ rowId: "r-1", billedAmount: 300 }),
+      makeRow({ rowId: "r-2", billedAmount: 100 }),
+      makeRow({ rowId: "r-3", billedAmount: 200 }),
     ];
     const { result } = renderHook(() => useSortProcedureList(rows));
 
-    act(() => result.current.handleSort("procedureAmount"));
+    act(() => result.current.handleSort("billedAmount"));
 
     expect(result.current.sortedRows[0]?.rowId).toBe("r-2");
     expect(result.current.sortedRows[1]?.rowId).toBe("r-3");
     expect(result.current.sortedRows[2]?.rowId).toBe("r-1");
   });
 
-  it("sorts procedureAmount numerically (desc)", () => {
+  it("sorts billedAmount numerically (desc)", () => {
     const rows = [
-      makeRow({ rowId: "r-1", procedureAmount: 100 }),
-      makeRow({ rowId: "r-2", procedureAmount: 300 }),
+      makeRow({ rowId: "r-1", billedAmount: 100 }),
+      makeRow({ rowId: "r-2", billedAmount: 300 }),
     ];
     const { result } = renderHook(() => useSortProcedureList(rows));
 
-    act(() => result.current.handleSort("procedureAmount"));
-    act(() => result.current.handleSort("procedureAmount"));
+    act(() => result.current.handleSort("billedAmount"));
+    act(() => result.current.handleSort("billedAmount"));
 
     expect(result.current.sortedRows[0]?.rowId).toBe("r-2");
   });

@@ -145,7 +145,7 @@ async fn mark_procedure_fund_payed(pool: &SqlitePool, proc_id: &str) {
 
 /// FPM-200 — Creation succeeds with a fund, a valid date, and at least one
 /// procedure; both procedures move to `Reconciled` and the group total
-/// equals Σ procedure_amount (FPM-210/R4).
+/// equals Σ billed_amount (FPM-210/R4).
 #[tokio::test]
 async fn manual_create_with_valid_inputs_creates_group_and_reconciles() -> anyhow::Result<()> {
     let ctx = build_ctx().await;
@@ -204,7 +204,7 @@ async fn manual_create_with_invalid_date_returns_error() -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 /// FPM-310 — Removing a procedure reverts it to `Created`, clears
-/// `fund_reconciliation_date` + `actual_payment_amount`, and recomputes
+/// `fund_reconciliation_date` + `paid_amount`, and recomputes
 /// the group total. The retained procedure keeps its `Reconciled` state.
 #[tokio::test]
 async fn manual_update_remove_reverts_procedure_to_created() -> anyhow::Result<()> {
@@ -268,7 +268,7 @@ async fn manual_update_remove_reverts_procedure_to_created() -> anyhow::Result<(
 
 /// FPM-320 — Adding a `Created` procedure flips it to `Reconciled`, sets
 /// `confirmed_payment_date` to the group's payment date, and sets
-/// `actual_payment_amount` to its `procedure_amount`.
+/// `paid_amount` to its `billed_amount`.
 #[tokio::test]
 async fn manual_update_add_flips_procedure_to_reconciled() -> anyhow::Result<()> {
     let ctx = build_ctx().await;
@@ -380,7 +380,7 @@ async fn manual_delete_locked_group_is_rejected() -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 /// FPM-400 — Deleting an unlocked group resets every associated procedure
-/// to `Created` and clears `fund_reconciliation_date` + `actual_payment_amount`.
+/// to `Created` and clears `fund_reconciliation_date` + `paid_amount`.
 /// The group itself is soft-deleted (no longer readable).
 #[tokio::test]
 async fn manual_delete_unlocked_group_resets_all_procedures() -> anyhow::Result<()> {

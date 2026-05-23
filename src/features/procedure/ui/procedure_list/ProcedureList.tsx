@@ -50,14 +50,11 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                 />
               </div>
             </th>
-            <th
-              className={`m3-th ${COL_WIDTHS.amount}`}
-              onClick={() => handleSort("procedureAmount")}
-            >
+            <th className={`m3-th ${COL_WIDTHS.amount}`} onClick={() => handleSort("billedAmount")}>
               <div className="flex items-center gap-1">
                 {t("table.amount")}
                 <SortIcon
-                  active={sortConfig.key === "procedureAmount"}
+                  active={sortConfig.key === "billedAmount"}
                   direction={sortConfig.direction}
                 />
               </div>
@@ -94,8 +91,8 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                   {row.procedureDate ? formatDate(row.procedureDate) : "—"}
                 </td>
                 <td className={`m3-td ${COL_WIDTHS.amount}`}>
-                  {row.procedureAmount != null
-                    ? formatCurrency(Math.round(row.procedureAmount * 1000))
+                  {row.billedAmount != null
+                    ? formatCurrency(Math.round(row.billedAmount * 1000))
                     : "—"}
                 </td>
                 <td className="m3-td w-24">

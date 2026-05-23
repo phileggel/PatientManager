@@ -96,7 +96,7 @@ async fn insert_fixtures_pre_migration_shape(pool: &SqlitePool) {
         .await
         .unwrap();
     sqlx::query(
-        "INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, fund_reconciliation_date)
+        "INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, confirmed_payment_date, paid_amount, payment_status, fund_reconciliation_date)
          VALUES ('proc-stage1', 'pat-1', 'fund-1', 'ptype-1', '2026-03-01', 50000, NULL, '2026-03-15', 50000, 'RECONCILIATED', NULL)"
     )
     .execute(pool)
@@ -114,7 +114,7 @@ async fn insert_fixtures_pre_migration_shape(pool: &SqlitePool) {
         .await
         .unwrap();
     sqlx::query(
-        "INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, fund_reconciliation_date)
+        "INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, confirmed_payment_date, paid_amount, payment_status, fund_reconciliation_date)
          VALUES ('proc-stage2', 'pat-1', 'fund-1', 'ptype-1', '2026-03-02', 50000, 'BANK_TRANSFER', '2026-04-01', 50000, 'FUND_PAYED', NULL)"
     )
     .execute(pool)
@@ -139,7 +139,7 @@ async fn insert_fixtures_pre_migration_shape(pool: &SqlitePool) {
 
     // No-group procedure: never reconciled. Direct-paid via import.
     sqlx::query(
-        "INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, confirmed_payment_date, actual_payment_amount, payment_status, fund_reconciliation_date)
+        "INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, confirmed_payment_date, paid_amount, payment_status, fund_reconciliation_date)
          VALUES ('proc-nogroup', 'pat-1', NULL, 'ptype-1', '2026-02-05', 30000, 'CASH', '2026-02-10', 30000, 'IMPORT_DIRECTLY_PAYED', NULL)"
     )
     .execute(pool)

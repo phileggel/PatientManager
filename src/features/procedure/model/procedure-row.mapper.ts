@@ -46,7 +46,7 @@ export const toProcedureRow = (
     procedureName: procedureType?.name ?? null,
     // Procedure data — amounts converted from thousandths (i64) to euros (number)
     procedureDate: procedure.procedure_date,
-    procedureAmount: procedure.billed_amount != null ? procedure.billed_amount / 1000 : null,
+    billedAmount: procedure.billed_amount != null ? procedure.billed_amount / 1000 : null,
     // Effective billed amount used by aggregations: falls back to the type's
     // default_amount when the procedure has no explicit override. Keeps
     // received / awaited totals meaningful for null-amount procedures without
@@ -61,7 +61,7 @@ export const toProcedureRow = (
     paymentMethod: procedure.payment_method,
     fundReconciliationDate: procedure.fund_reconciliation_date,
     confirmedPaymentDate: procedure.confirmed_payment_date,
-    actualPaymentAmount: procedure.paid_amount != null ? procedure.paid_amount / 1000 : null,
+    paidAmount: procedure.paid_amount != null ? procedure.paid_amount / 1000 : null,
     awaitedAmount: null, // Not available from backend Procedure type
     status: procedure.payment_status,
     id: procedure.id,

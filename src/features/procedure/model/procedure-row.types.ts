@@ -20,11 +20,11 @@ export interface ProcedureRow {
   procedureTypeId: string | null; // Database ID of the Procedure type
   procedureName: string | null;
   procedureDate: string | null;
-  procedureAmount: number | null;
+  billedAmount: number | null;
   /**
    * Billed amount actually used for aggregations (received / awaited totals).
-   * Falls back to the procedure type's `default_amount` when `procedureAmount`
-   * is null. Display sites (table cell, edit modal) keep using `procedureAmount`
+   * Falls back to the procedure type's `default_amount` when `billedAmount`
+   * is null. Display sites (table cell, edit modal) keep using `billedAmount`
    * so unset values stay visible as "—" / empty input.
    */
   effectiveAmount: number | null;
@@ -35,7 +35,7 @@ export interface ProcedureRow {
   fundReconciliationDate: string | null;
   // Stage 2 — bank-side confirmed payment date.
   confirmedPaymentDate: string | null;
-  actualPaymentAmount: number | null;
+  paidAmount: number | null;
   awaitedAmount: number | null;
   status: string | null;
 

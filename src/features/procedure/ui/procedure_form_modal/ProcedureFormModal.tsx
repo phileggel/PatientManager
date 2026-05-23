@@ -88,8 +88,8 @@ export function ProcedureFormModal({
     setProcedureTypeId,
     procedureDate,
     setProcedureDate,
-    procedureAmount,
-    setProcedureAmount,
+    billedAmount,
+    setBilledAmount,
     loading,
     fieldErrors,
     handleSubmit,
@@ -323,17 +323,15 @@ export function ProcedureFormModal({
             <TextField
               id="viewAmount"
               label={t("form.amount")}
-              value={
-                procedureAmount != null ? formatCurrency(Math.round(procedureAmount * 1000)) : "—"
-              }
+              value={billedAmount != null ? formatCurrency(Math.round(billedAmount * 1000)) : "—"}
               readOnly
             />
           ) : (
             <AmountField
-              id="procedureAmount"
+              id="billedAmount"
               label={t("form.amount")}
-              value={procedureAmount}
-              onChange={setProcedureAmount}
+              value={billedAmount}
+              onChange={setBilledAmount}
               disabled={loading}
             />
           )}
