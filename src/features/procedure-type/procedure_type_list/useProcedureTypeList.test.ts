@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeProcedureType } from "@/tests/procedure.factory";
 import { RESERVED_PROCEDURE_TYPE_ID } from "../shared/types";
 import { useProcedureTypeList } from "./useProcedureTypeList";
@@ -18,7 +18,7 @@ const mockReload = vi.mocked(reloadProcedureTypes);
 describe("useProcedureTypeList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({
+    useCacheStore.setState({
       procedureTypes: [],
       procedureTypesError: null,
       procedureTypesLoading: false,
@@ -28,7 +28,7 @@ describe("useProcedureTypeList", () => {
   it("excludes the reserved procedure type from visible rows", () => {
     const reserved = makeProcedureType({ id: RESERVED_PROCEDURE_TYPE_ID, name: "Import PDF" });
     const normal = makeProcedureType({ id: "pt-1", name: "Consultation" });
-    useAppStore.setState({ procedureTypes: [reserved, normal] });
+    useCacheStore.setState({ procedureTypes: [reserved, normal] });
 
     const { result } = renderHook(() => useProcedureTypeList());
 
@@ -39,7 +39,7 @@ describe("useProcedureTypeList", () => {
   it("retry updates store and clears error on success", async () => {
     const types = [makeProcedureType({ id: "pt-1", name: "Consultation" })];
     mockReload.mockResolvedValue({ success: true, data: types });
-    useAppStore.setState({ procedureTypesError: "previous error" });
+    useCacheStore.setState({ procedureTypesError: "previous error" });
 
     const { result } = renderHook(() => useProcedureTypeList());
 
@@ -47,8 +47,8 @@ describe("useProcedureTypeList", () => {
       await result.current.retry();
     });
 
-    expect(useAppStore.getState().procedureTypes).toEqual(types);
-    expect(useAppStore.getState().procedureTypesError).toBeNull();
+    expect(useCacheStore.getState().procedureTypes).toEqual(types);
+    expect(useCacheStore.getState().procedureTypesError).toBeNull();
   });
 
   it("retry sets error and keeps existing data on failure", async () => {
@@ -60,7 +60,7 @@ describe("useProcedureTypeList", () => {
       await result.current.retry();
     });
 
-    expect(useAppStore.getState().procedureTypesError).toBe("network error");
+    expect(useCacheStore.getState().procedureTypesError).toBe("network error");
   });
 
   it("deleteProcedureType resolves without throwing when gateway returns success=true", async () => {

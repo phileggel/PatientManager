@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Patient } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makePatient } from "@/tests/patient.factory";
 import { useSelectPatientModal } from "./useSelectPatientModal";
 
@@ -11,7 +11,7 @@ function makeTestPatient(id: string, name: string | null, ssn: string): Patient 
 
 describe("useSelectPatientModal — filter", () => {
   beforeEach(() => {
-    useAppStore.setState({
+    useCacheStore.setState({
       patients: [
         makeTestPatient("p-1", "Dupont Jean", "111456789"),
         makeTestPatient("p-2", "Martin Alice", "222789012"),
@@ -64,7 +64,7 @@ describe("useSelectPatientModal — filter", () => {
 
 describe("useSelectPatientModal — formatDate", () => {
   beforeEach(() => {
-    useAppStore.setState({ patients: [] });
+    useCacheStore.setState({ patients: [] });
   });
 
   it("returns N/A for null date", () => {

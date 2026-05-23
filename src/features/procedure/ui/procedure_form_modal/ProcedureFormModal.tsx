@@ -19,8 +19,8 @@ import type { Procedure } from "@/bindings";
 import { CancelRefundDialog } from "@/features/overpayment/cancel_refund_dialog/CancelRefundDialog";
 import * as overpaymentGateway from "@/features/overpayment/gateway";
 import { RecordOverpaymentModal } from "@/features/overpayment/record_overpayment_modal/RecordOverpaymentModal";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import {
   AmountField,
   Button,
@@ -56,7 +56,7 @@ export function ProcedureFormModal({
   const { t: tc } = useTranslation("common");
   const { t: tov } = useTranslation("overpayment");
   const { formatCurrency, formatDate } = useFormatters();
-  const bankAccounts = useAppStore((state) => state.bankAccounts);
+  const bankAccounts = useCacheStore((state) => state.bankAccounts);
 
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [showCancelRefundDialog, setShowCancelRefundDialog] = useState(false);

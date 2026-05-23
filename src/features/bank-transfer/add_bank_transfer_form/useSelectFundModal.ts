@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 
 export function useSelectFundModal() {
-  const funds = useAppStore((state) => state.funds);
+  const funds = useCacheStore((state) => state.funds);
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredFunds = useMemo(() => {

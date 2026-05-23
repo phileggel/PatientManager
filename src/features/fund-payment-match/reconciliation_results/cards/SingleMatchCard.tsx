@@ -10,7 +10,7 @@
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, DbMatch, NormalizedPdfLine } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { Button } from "@/ui/components/button";
 import { useFormatters } from "@/ui/format/formatters";
 import {
@@ -45,7 +45,7 @@ export function SingleMatchCard({
 }: SingleMatchCardProps) {
   const { t } = useTranslation("fund-payment-match");
   const { formatCurrency, formatDate, locale } = useFormatters();
-  const funds = useAppStore((s) => s.funds);
+  const funds = useCacheStore((s) => s.funds);
 
   const formatFundLabel = (fundId: string | null): string => {
     if (!fundId) return "—";

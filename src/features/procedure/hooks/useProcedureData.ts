@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import * as gateway from "../api/gateway";
 import type { ProcedureRow } from "../model";
 import { toProcedureRow } from "../model/procedure-row.mapper";
@@ -8,9 +8,9 @@ import { toProcedureRow } from "../model/procedure-row.mapper";
 const TAG = "[useProcedureData]";
 
 export function useProcedureData() {
-  const patients = useAppStore((state) => state.patients);
-  const funds = useAppStore((state) => state.funds);
-  const procedureTypes = useAppStore((state) => state.procedureTypes);
+  const patients = useCacheStore((state) => state.patients);
+  const funds = useCacheStore((state) => state.funds);
+  const procedureTypes = useCacheStore((state) => state.procedureTypes);
 
   const [initialRows, setInitialRows] = useState<ProcedureRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +30,7 @@ export function useProcedureData() {
         return;
       }
 
-      const { patients: p, funds: f, procedureTypes: pt } = useAppStore.getState();
+      const { patients: p, funds: f, procedureTypes: pt } = useCacheStore.getState();
       const mappedRows = result.data.map((proc) =>
         toProcedureRow(proc, { patients: p, funds: f, procedureTypes: pt }),
       );

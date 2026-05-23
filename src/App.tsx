@@ -24,8 +24,8 @@ import {
 import { DesignSystemPage } from "@/features/shell/DesignSystemPage";
 import { UpdateBanner } from "@/features/shell/UpdateBanner";
 import { useUpdater } from "@/features/shell/useUpdater";
+import { useCacheSync } from "@/infra/cache/sync";
 import { logger } from "@/infra/logger";
-import { useAppInit } from "@/lib/useAppInit";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
 import { Snackbar, useSnackbar } from "@/ui/components/snackbar";
 
@@ -42,7 +42,7 @@ function AppContent() {
   const [pendingFilePath, setPendingFilePath] = useState<string | null>(null);
 
   // Initialize app data and event listeners
-  useAppInit();
+  useCacheSync();
   const updater = useUpdater();
 
   useEffect(() => {

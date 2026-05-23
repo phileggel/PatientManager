@@ -4,7 +4,7 @@
  * ARCHITECTURE:
  * - useFundManager: reads fund count from store for display
  * - FundList: reads full fund data and renders table
- * - Event-driven updates via useAppInit (Tauri event listener)
+ * - Event-driven updates via useCacheSync (Tauri event listener)
  * - No manual refresh or polling needed
  */
 

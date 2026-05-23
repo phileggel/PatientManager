@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { useFormatters } from "@/ui/format/formatters";
 
 export function useSelectPatientModal() {
-  const patients = useAppStore((state) => state.patients);
+  const patients = useCacheStore((state) => state.patients);
   const [searchTerm, setSearchTerm] = useState("");
   const { formatDate } = useFormatters();
 

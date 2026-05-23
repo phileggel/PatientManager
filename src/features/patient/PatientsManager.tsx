@@ -4,7 +4,7 @@
  * ARCHITECTURE:
  * - usePatientManager: reads patient count from store for display
  * - PatientList: reads full patient data and renders table
- * - Event-driven updates via useAppInit (Tauri event listener)
+ * - Event-driven updates via useCacheSync (Tauri event listener)
  * - No manual refresh or polling needed
  */
 

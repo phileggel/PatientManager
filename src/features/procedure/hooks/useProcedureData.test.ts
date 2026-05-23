@@ -22,8 +22,8 @@ const mockPatient: Patient = {
 
 const mockState = { patients: [mockPatient], funds: [], procedureTypes: [] };
 
-vi.mock("@/lib/appStore", () => ({
-  useAppStore: Object.assign(
+vi.mock("@/infra/cache/store", () => ({
+  useCacheStore: Object.assign(
     (selector: (state: typeof mockState) => unknown) => selector(mockState),
     {
       getState: () => mockState,

@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { useBankAccountList } from "./useBankAccountList";
 
@@ -17,7 +17,7 @@ const mockDelete = vi.mocked(deleteBankAccount);
 describe("useBankAccountList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ bankAccounts: [], bankAccountsLoading: false });
+    useCacheStore.setState({ bankAccounts: [], bankAccountsLoading: false });
   });
 
   it("sets cashAccountId from gateway on mount when call succeeds", async () => {
@@ -42,7 +42,7 @@ describe("useBankAccountList", () => {
 
   it("maps store accounts to rows via BankAccountPresenter.toRow", async () => {
     mockGetCashId.mockResolvedValue({ success: true, data: "acc-1" });
-    useAppStore.setState({
+    useCacheStore.setState({
       bankAccounts: [makeBankAccount({ id: "acc-1", name: "Main", iban: "FR76" })],
     });
 

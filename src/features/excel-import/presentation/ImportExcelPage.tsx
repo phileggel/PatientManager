@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ImportExecutionResult, ParseExcelResponse } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { FormModal } from "@/ui/components";
 import { Button } from "@/ui/components/button";
 import { executeExcelImport, parseExcelFile } from "../api/gateway";
@@ -21,7 +21,7 @@ type Step = "parsing" | "month_selection" | "mapping_procedure_types" | "importi
 export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
   const { t } = useTranslation("excel-import");
 
-  const procedureTypes = useAppStore((state) => state.procedureTypes);
+  const procedureTypes = useCacheStore((state) => state.procedureTypes);
 
   useEffect(() => {
     logger.info("[ImportExcelPage] mounted");

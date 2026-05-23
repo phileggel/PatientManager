@@ -5,7 +5,7 @@
  * - Sorting/filtering: useSortBankAccountList
  * - Delete: confirmation dialog, calls deleteBankAccount service
  * - Edit: double-click or Edit button opens EditBankAccountModal
- * - Updates: event-driven from useAppInit
+ * - Updates: event-driven from useCacheSync
  */
 
 import { Edit2, Trash2 } from "lucide-react";

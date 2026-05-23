@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FundLabelResolution } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 
 const TAG = "[FundLabelMappingStep]";
 
@@ -11,7 +11,7 @@ interface UseFundLabelMappingStepProps {
 }
 
 export function useFundLabelMappingStep({ resolutions, onConfirm }: UseFundLabelMappingStepProps) {
-  const funds = useAppStore((state) => state.funds);
+  const funds = useCacheStore((state) => state.funds);
 
   // F13: log on mount
   useEffect(() => {

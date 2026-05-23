@@ -1,7 +1,7 @@
 import { AlertCircle, Check, Search } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { useFormatters } from "@/ui/format/formatters";
 import type { IdentifiableCreditLine } from "./types";
 
@@ -30,8 +30,8 @@ export function MatchResultsStep({
 }: MatchResultsStepProps) {
   const { t } = useTranslation("bank");
   const { formatCurrency, formatDate } = useFormatters();
-  const funds = useAppStore((state) => state.funds);
-  const allGroups = useAppStore((state) => state.fundPaymentGroups);
+  const funds = useCacheStore((state) => state.funds);
+  const allGroups = useCacheStore((state) => state.fundPaymentGroups);
 
   const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
 

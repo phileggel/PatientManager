@@ -13,7 +13,7 @@ import { useAddBankAccountPanel } from "./useAddBankAccountPanel";
  * - Manages form state, validation, and submission
  * - Uses snackbar for feedback (no callbacks)
  * - Backend publishes BankAccountUpdated event on create
- * - useAppInit listens for backend event, refetches data, updates store
+ * - useCacheSync listens for backend event, refetches data, updates store
  * - Components re-render automatically from store update
  * - No props needed - completely independent
  */

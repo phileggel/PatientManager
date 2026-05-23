@@ -5,7 +5,7 @@
  * - Sorting/filtering: useSortFundList
  * - Delete: confirmation dialog, calls deleteFund service
  * - Edit: double-click or Edit button opens EditFundModal
- * - Updates: event-driven from useAppInit
+ * - Updates: event-driven from useCacheSync
  */
 
 import { Edit2, Trash2 } from "lucide-react";

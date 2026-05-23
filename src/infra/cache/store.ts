@@ -38,7 +38,7 @@ interface AppState {
   ) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useCacheStore = create<AppState>((set) => ({
   // Initial state
   patients: [],
   funds: [],

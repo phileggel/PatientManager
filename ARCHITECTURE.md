@@ -117,7 +117,7 @@ The non-obvious facts that constrain future work — things you'd never guess fr
 - **Currency / date rendering**: canonical helpers in `src/lib/formatters.ts` (`useFormatters().formatCurrency` / `formatDate`). Hand-rolled `Intl.NumberFormat("fr-FR", …)` is forbidden.
 - **One `gateway.ts` per feature** is the ONLY place `commands.*` is called (F26). Sub-features import from it; never create their own.
 - **Three feature layout generations coexist** (Flat → Layer-first → Feature-first/gold). New features follow gold; existing features migrate bit-by-bit per CLAUDE.md § Gold Standards. See [Feature layout](#feature-layout) below.
-- **Event-driven state sync**: backend publishes `{Domain}Updated` events on every mutation; the FE listens via `useEffect` + the window event bus and updates `useAppStore` (Zustand). Grep `EventBus` (backend) or `useEffect.*addEventListener` (frontend) to find specific event names.
+- **Event-driven state sync**: backend publishes `{Domain}Updated` events on every mutation; the FE listens via `useEffect` + the window event bus and updates `useCacheStore` (Zustand singleton at `src/infra/cache/store.ts`, bootstrapped by `useCacheSync()` in `src/infra/cache/sync.ts`). Grep `EventBus` (backend) or `useEffect.*addEventListener` (frontend) to find specific event names.
 
 ### Data & infra
 

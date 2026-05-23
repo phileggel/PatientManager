@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { toastService } from "@/ui/components/snackbar";
 import { pickExcelFilePath, pickPdfFilePath } from "../gateway";
 import type { Page } from "../types";
@@ -39,8 +39,8 @@ export function useImportModal({
   onFileSelected,
 }: UseImportModalProps): UseImportModalReturn {
   const { t } = useTranslation("import-modal");
-  const fundCount = useAppStore((state) => state.funds.length);
-  const bankAccountCount = useAppStore((state) => state.bankAccounts.length);
+  const fundCount = useCacheStore((state) => state.funds.length);
+  const bankAccountCount = useCacheStore((state) => state.bankAccounts.length);
   const [isPicking, setIsPicking] = useState(false);
 
   const handleExcelImport = useCallback(async () => {

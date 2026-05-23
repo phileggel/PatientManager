@@ -1,11 +1,11 @@
 import { commands, type Patient } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import type { ServiceResult } from "@/types/api";
 
 export function readAllPatients(): ServiceResult<Patient[]> {
   logger.debug("Fetching all patients from store");
-  const patients = useAppStore.getState().patients;
+  const patients = useCacheStore.getState().patients;
   return { success: true, data: patients };
 }
 

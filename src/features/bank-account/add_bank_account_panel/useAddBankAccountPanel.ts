@@ -65,7 +65,7 @@ export function useAddBankAccountPanel(): UseAddBankAccountPanelReturn {
         logger.info("Bank account created", { name: formData.name });
         setFormData({ name: "", iban: "" });
         toastService.show("success", t("account.add.success"));
-        // Backend event will trigger useAppInit to refresh data
+        // Backend event will trigger useCacheSync to refresh data
       } else {
         logger.error("Failed to create bank account", { error: result.error });
         const message = result.error || t("account.add.error");

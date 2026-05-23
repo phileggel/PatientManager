@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { deleteBankAccount, getCashBankAccountId } from "../gateway";
 import { BankAccountPresenter } from "../shared/presenter";
 
@@ -13,8 +13,8 @@ import { BankAccountPresenter } from "../shared/presenter";
  * View-dependent: This mapper is specific to how BankAccountList displays data
  */
 export function useBankAccountList() {
-  const accounts = useAppStore((state) => state.bankAccounts);
-  const bankAccountsLoading = useAppStore((state) => state.bankAccountsLoading);
+  const accounts = useCacheStore((state) => state.bankAccounts);
+  const bankAccountsLoading = useCacheStore((state) => state.bankAccountsLoading);
   const [cashAccountId, setCashAccountId] = useState<string | null>(null);
 
   useEffect(() => {

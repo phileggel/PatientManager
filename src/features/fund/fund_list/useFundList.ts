@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { deleteFund } from "../gateway";
 import { FundPresenter } from "../shared/presenter";
 
@@ -14,8 +14,8 @@ import { FundPresenter } from "../shared/presenter";
  */
 export function useFundList() {
   const { t } = useTranslation("fund");
-  const funds = useAppStore((state) => state.funds);
-  const fundsLoading = useAppStore((state) => state.fundsLoading);
+  const funds = useCacheStore((state) => state.funds);
+  const fundsLoading = useCacheStore((state) => state.fundsLoading);
 
   const fundRows = useMemo(() => funds.map((f) => FundPresenter.toRow(f)), [funds]);
 

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeProcedure } from "@/tests/procedure.factory";
 import { toastService } from "@/ui/components/snackbar";
 import { useDashboardPage } from "./useDashboardPage";
@@ -32,7 +32,7 @@ const PROC = makeProcedure({ id: "p1", procedure_date: "2026-03-01" });
 describe("useDashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ procedureTypes: [] });
+    useCacheStore.setState({ procedureTypes: [] });
     mockGetYears.mockReturnValue([2026]);
     mockAggregate.mockReturnValue(MOCK_METRICS);
   });

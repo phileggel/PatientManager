@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makePatient } from "@/tests/patient.factory";
 import { makeProcedure } from "@/tests/procedure.factory";
 import { toastService } from "@/ui/components/snackbar";
@@ -91,7 +91,7 @@ describe("useProcedureSelectionModal — preloaded procedures", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ patients: [] });
+    useCacheStore.setState({ patients: [] });
   });
 
   it("sets availableProcedures and pre-selects those in initialSelectionIds", async () => {
@@ -139,7 +139,7 @@ describe("useProcedureSelectionModal — gateway fetch", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ patients: [] });
+    useCacheStore.setState({ patients: [] });
   });
 
   it("fetches procedures from gateway when isOpen=true and fundId is set", async () => {
@@ -253,7 +253,7 @@ describe("useProcedureSelectionModal — getPatientName", () => {
   });
 
   it("returns the patient name when patient is found in store", () => {
-    useAppStore.setState({
+    useCacheStore.setState({
       patients: [{ ...makePatient(), id: "p-1", name: "Jean Dupont" }],
     });
 
@@ -270,7 +270,7 @@ describe("useProcedureSelectionModal — getPatientName", () => {
   });
 
   it("returns the patientId when patient is not found in store", () => {
-    useAppStore.setState({ patients: [] });
+    useCacheStore.setState({ patients: [] });
 
     const { result } = renderHook(() =>
       useProcedureSelectionModal({

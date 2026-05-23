@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { toastService } from "@/ui/components/snackbar";
 
@@ -19,7 +19,7 @@ describe("useAddBankTransferForm — R13 (CASH auto-account)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(gateway.getCashBankAccountId).mockResolvedValue({ success: true, data: CASH_ID });
-    useAppStore.setState({
+    useCacheStore.setState({
       bankAccounts: [
         makeBankAccount({ id: CASH_ID, name: "Caisse" }),
         makeBankAccount({ id: "acc-1", name: "Compte principal" }),
@@ -99,7 +99,7 @@ describe("useAddBankTransferForm — form fields and validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(gateway.getCashBankAccountId).mockResolvedValue({ success: true, data: CASH_ID });
-    useAppStore.setState({ bankAccounts: [] });
+    useCacheStore.setState({ bankAccounts: [] });
   });
 
   it("setTransferDate updates date and clears selections", () => {

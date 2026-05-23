@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makePatient } from "@/tests/patient.factory";
 import { EditPatientModal } from "./EditPatientModal";
 
@@ -127,7 +127,7 @@ describe("EditPatientModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({
+    useCacheStore.setState({
       procedureTypes: [
         { id: "Consultation", name: "Consultation", default_amount: 0, category: null },
       ],
@@ -136,7 +136,7 @@ describe("EditPatientModal", () => {
   });
 
   afterEach(() => {
-    useAppStore.setState({ procedureTypes: [], funds: [] });
+    useCacheStore.setState({ procedureTypes: [], funds: [] });
   });
 
   it("renders modal when isOpen is true", () => {
@@ -176,7 +176,7 @@ describe("EditPatientModal", () => {
   });
 
   it("displays resolved fund label when fund is in store", () => {
-    useAppStore.setState({
+    useCacheStore.setState({
       procedureTypes: [
         { id: "Consultation", name: "Consultation", default_amount: 0, category: null },
       ],

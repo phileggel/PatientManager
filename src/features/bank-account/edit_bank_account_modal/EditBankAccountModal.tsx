@@ -6,7 +6,7 @@
  * - Manages modal state internally
  * - Uses snackbar for feedback (no error callbacks)
  * - Backend publishes BankAccountUpdated event on update
- * - useAppInit listens for backend event, refetches data, updates store
+ * - useCacheSync listens for backend event, refetches data, updates store
  * - Components re-render automatically from store update
  */
 

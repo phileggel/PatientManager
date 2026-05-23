@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount, BankEntryType } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { toastService } from "@/ui/components/snackbar";
 import { createDirectTransfer, createFundTransfer, getCashBankAccountId } from "../gateway";
 import { type BankTransferFormErrors, validateBankTransfer } from "../shared/validateBankTransfer";
@@ -10,7 +10,7 @@ import { type BankTransferFormErrors, validateBankTransfer } from "../shared/val
 export function useAddBankTransferForm() {
   const { t } = useTranslation("bank");
 
-  const bankAccounts = useAppStore((state) => state.bankAccounts);
+  const bankAccounts = useCacheStore((state) => state.bankAccounts);
 
   const [transferDate, setTransferDateState] = useState<string>("");
   const [transferType, setTransferType] = useState<BankEntryType>("FUND_WIRE");

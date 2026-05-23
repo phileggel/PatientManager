@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { toastService } from "@/ui/components/snackbar";
 import { deleteFundPaymentGroup, readProceduresByIds } from "../gateway";
 import { FundPaymentPresenter } from "../shared/presenter";
@@ -17,9 +17,9 @@ import { FundPaymentPresenter } from "../shared/presenter";
  */
 export function useFundPaymentList() {
   const { t } = useTranslation("fund-payment");
-  const funds = useAppStore((state) => state.funds);
-  const groups = useAppStore((state) => state.fundPaymentGroups);
-  const loading = useAppStore((state) => state.fundPaymentGroupsLoading);
+  const funds = useCacheStore((state) => state.funds);
+  const groups = useCacheStore((state) => state.fundPaymentGroups);
+  const loading = useCacheStore((state) => state.fundPaymentGroupsLoading);
 
   const [procedures, setProcedures] = useState<Procedure[]>([]);
 

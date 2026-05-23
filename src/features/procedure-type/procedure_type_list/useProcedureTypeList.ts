@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { deleteProcedureType, reloadProcedureTypes } from "../gateway";
 import { ProcedureTypePresenter } from "../shared/presenter";
 import { RESERVED_PROCEDURE_TYPE_ID } from "../shared/types";
@@ -13,12 +13,12 @@ import { RESERVED_PROCEDURE_TYPE_ID } from "../shared/types";
  */
 export function useProcedureTypeList() {
   const { t } = useTranslation("procedure-type");
-  const procedureTypes = useAppStore((state) => state.procedureTypes);
-  const procedureTypesLoading = useAppStore((state) => state.procedureTypesLoading);
-  const procedureTypesError = useAppStore((state) => state.procedureTypesError);
-  const setProcedureTypes = useAppStore((state) => state.setProcedureTypes);
-  const setProcedureTypesError = useAppStore((state) => state.setProcedureTypesError);
-  const setLoading = useAppStore((state) => state.setLoading);
+  const procedureTypes = useCacheStore((state) => state.procedureTypes);
+  const procedureTypesLoading = useCacheStore((state) => state.procedureTypesLoading);
+  const procedureTypesError = useCacheStore((state) => state.procedureTypesError);
+  const setProcedureTypes = useCacheStore((state) => state.setProcedureTypes);
+  const setProcedureTypesError = useCacheStore((state) => state.setProcedureTypesError);
+  const setLoading = useCacheStore((state) => state.setLoading);
 
   const visibleProcedureTypes = useMemo(
     () => procedureTypes.filter((pt) => pt.id !== RESERVED_PROCEDURE_TYPE_ID),

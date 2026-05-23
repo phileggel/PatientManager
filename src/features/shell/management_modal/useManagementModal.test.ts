@@ -7,7 +7,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { makeFund } from "@/tests/fund.factory";
 import { toastService } from "@/ui/components/snackbar";
@@ -22,7 +22,7 @@ describe("useManagementModal", () => {
   });
 
   it("handlePatient navigates to patient and closes", () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handlePatient();
@@ -32,7 +32,7 @@ describe("useManagementModal", () => {
   });
 
   it("handleFunds navigates to funds and closes", () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleFunds();
@@ -42,7 +42,7 @@ describe("useManagementModal", () => {
   });
 
   it("handleProcedureTypes navigates to procedure-types and closes", () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleProcedureTypes();
@@ -52,7 +52,7 @@ describe("useManagementModal", () => {
   });
 
   it("handleFundPayment navigates to fund-payment when funds exist", () => {
-    useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
+    useCacheStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleFundPayment();
@@ -63,7 +63,7 @@ describe("useManagementModal", () => {
   });
 
   it("handleFundPayment shows info toast and redirects to funds when no fund exists", () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleFundPayment();
@@ -74,7 +74,7 @@ describe("useManagementModal", () => {
   });
 
   it("handleBankTransfer navigates to bank-transfer when bank accounts exist", () => {
-    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
+    useCacheStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleBankTransfer();
@@ -85,7 +85,7 @@ describe("useManagementModal", () => {
   });
 
   it("handleBankTransfer shows info toast and redirects to bank-account when no account exists", () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleBankTransfer();
@@ -96,7 +96,7 @@ describe("useManagementModal", () => {
   });
 
   it("handleBankAccount navigates to bank-account and closes", () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleBankAccount();

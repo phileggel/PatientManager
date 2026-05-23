@@ -9,8 +9,8 @@
 import { CheckCircle2, FileText, Loader2, X } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { Button } from "@/ui/components/button";
 import { IconButton } from "@/ui/components/button/IconButton";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
@@ -55,7 +55,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
 
   const isReportStep = unreconciledReport !== null && reportDateRange !== null;
 
-  const funds = useAppStore((state) => state.funds);
+  const funds = useCacheStore((state) => state.funds);
   const fundIdToLabel = useMemo(() => buildFundIdToLabel(funds), [funds]);
 
   const { handleReport, isGenerating } = useReportGeneration({

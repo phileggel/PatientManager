@@ -12,7 +12,7 @@ vi.mock("../gateway", () => ({
   pickPdfFilePath: vi.fn(),
 }));
 
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { makeFund } from "@/tests/fund.factory";
 import { toastService } from "@/ui/components/snackbar";
@@ -41,7 +41,7 @@ describe("useImportModal", () => {
   // --- Excel import ---
 
   it("handleExcelImport: cancelled dialog — does nothing", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     mockPickExcel.mockResolvedValue(null);
     const { result } = renderModal();
 
@@ -55,7 +55,7 @@ describe("useImportModal", () => {
   });
 
   it("handleExcelImport: file selected — calls onFileSelected and closes", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     mockPickExcel.mockResolvedValue("/tmp/data.xlsx");
     const { result } = renderModal();
 
@@ -72,7 +72,7 @@ describe("useImportModal", () => {
   // --- Fund reconciliation ---
 
   it("handleFundReconciliation: no funds — shows toast, navigates to funds, closes", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderModal();
 
     await act(async () => {
@@ -86,7 +86,7 @@ describe("useImportModal", () => {
   });
 
   it("handleFundReconciliation: funds exist, cancelled — does nothing", async () => {
-    useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
+    useCacheStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
     mockPickPdf.mockResolvedValue(null);
     const { result } = renderModal();
 
@@ -99,7 +99,7 @@ describe("useImportModal", () => {
   });
 
   it("handleFundReconciliation: funds exist, file selected — calls onFileSelected and closes", async () => {
-    useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
+    useCacheStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
     mockPickPdf.mockResolvedValue("/tmp/statement.pdf");
     const { result } = renderModal();
 
@@ -115,7 +115,7 @@ describe("useImportModal", () => {
   // --- Bank reconciliation ---
 
   it("handleBankReconciliation: no accounts — shows toast, navigates to bank-account, closes", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderModal();
 
     await act(async () => {
@@ -129,7 +129,7 @@ describe("useImportModal", () => {
   });
 
   it("handleBankReconciliation: accounts exist, cancelled — does nothing", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
+    useCacheStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
     mockPickPdf.mockResolvedValue(null);
     const { result } = renderModal();
 
@@ -142,7 +142,7 @@ describe("useImportModal", () => {
   });
 
   it("handleBankReconciliation: accounts exist, file selected — calls onFileSelected and closes", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
+    useCacheStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
     mockPickPdf.mockResolvedValue("/tmp/bank.pdf");
     const { result } = renderModal();
 
@@ -159,7 +159,7 @@ describe("useImportModal", () => {
 
   it("handleExcelImport: passes the stored Excel folder as defaultPath", async () => {
     setLastFolder("excel", "/saved/excel/folder");
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderModal();
 
     await act(async () => {
@@ -170,7 +170,7 @@ describe("useImportModal", () => {
   });
 
   it("handleExcelImport: stores the parent folder of the picked file on success", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     mockPickExcel.mockResolvedValue("/imports/january/2026/data.xlsx");
     const { result } = renderModal();
 
@@ -183,7 +183,7 @@ describe("useImportModal", () => {
 
   it("handleExcelImport: does not touch the store when the dialog is cancelled", async () => {
     setLastFolder("excel", "/previous/folder");
-    useAppStore.setState({ funds: [], bankAccounts: [] });
+    useCacheStore.setState({ funds: [], bankAccounts: [] });
     mockPickExcel.mockResolvedValue(null);
     const { result } = renderModal();
 
@@ -197,7 +197,7 @@ describe("useImportModal", () => {
   it("handleFundReconciliation: passes the stored fund-pdf folder, not the excel one", async () => {
     setLastFolder("excel", "/wrong/excel/folder");
     setLastFolder("fund-pdf", "/saved/fund/folder");
-    useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
+    useCacheStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
     const { result } = renderModal();
 
     await act(async () => {
@@ -211,7 +211,7 @@ describe("useImportModal", () => {
   });
 
   it("handleFundReconciliation: stores the parent folder of the picked PDF on success", async () => {
-    useAppStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
+    useCacheStore.setState({ funds: [makeFund({ id: "f1" })], bankAccounts: [] });
     mockPickPdf.mockResolvedValue("/cpam/april/statement.pdf");
     const { result } = renderModal();
 
@@ -225,7 +225,7 @@ describe("useImportModal", () => {
   it("handleBankReconciliation: passes the stored bank-pdf folder, not the fund-pdf one", async () => {
     setLastFolder("fund-pdf", "/wrong/fund/folder");
     setLastFolder("bank-pdf", "/saved/bank/folder");
-    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
+    useCacheStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
     const { result } = renderModal();
 
     await act(async () => {
@@ -239,7 +239,7 @@ describe("useImportModal", () => {
   });
 
   it("handleBankReconciliation: stores the parent folder of the picked PDF on success", async () => {
-    useAppStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
+    useCacheStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
     mockPickPdf.mockResolvedValue("/bank/statements/march.pdf");
     const { result } = renderModal();
 

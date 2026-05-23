@@ -1,12 +1,12 @@
 import type { ProcedureType } from "@/bindings";
 import { commands } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import type { ServiceResult } from "@/types/api";
 
 export function readAllProcedureTypes(): ServiceResult<ProcedureType[]> {
   logger.debug("Fetching all procedure types from store");
-  const procedureTypes = useAppStore.getState().procedureTypes;
+  const procedureTypes = useCacheStore.getState().procedureTypes;
   return { success: true, data: procedureTypes };
 }
 

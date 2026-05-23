@@ -5,7 +5,7 @@
  * On successful update:
  * 1. Calls updatePatient service (sends request to Tauri backend)
  * 2. Backend publishes PatientUpdated event
- * 3. useAppInit (root) listens for event and refetches patients
+ * 3. useCacheSync (root) listens for event and refetches patients
  * 4. Zustand store updates
  * 5. Modal closes automatically, PatientList re-renders with fresh data
  * 6. Parent receives onSuccess callback to show confirmation toast
@@ -18,8 +18,8 @@ import { useTranslation } from "react-i18next";
 import type { Patient } from "@/bindings";
 import { PatientForm } from "@/features/patient/shared/PatientForm";
 import { PatientPresenter } from "@/features/patient/shared/presenter";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { Button, Dialog } from "@/ui/components";
 import { useFormatters } from "@/ui/format/formatters";
 import { useEditPatientModal } from "./useEditPatientModal";
@@ -37,8 +37,8 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
 
   // Call hook unconditionally at top level (required by React)
   // Hook returns safe defaults if patient is null
-  const funds = useAppStore((state) => state.funds);
-  const procedureTypes = useAppStore((state) => state.procedureTypes);
+  const funds = useCacheStore((state) => state.funds);
+  const procedureTypes = useCacheStore((state) => state.procedureTypes);
   const hookResult = useEditPatientModal(patient, onClose);
 
   const latestFundLabel = (() => {

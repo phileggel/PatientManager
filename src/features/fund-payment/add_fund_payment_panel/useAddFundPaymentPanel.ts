@@ -1,8 +1,8 @@
 import { type SyntheticEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { createFundPayment } from "../gateway";
 import { FundPaymentPresenter } from "../shared/presenter";
 import { type PaymentFormErrors, validatePaymentForm } from "../shared/validatePayment";
@@ -11,7 +11,7 @@ export function useAddFundPaymentPanel() {
   const { t } = useTranslation("fund-payment");
 
   // get the existing funds
-  const funds = useAppStore((state) => state.funds);
+  const funds = useCacheStore((state) => state.funds);
 
   // form states
   const [selectedFundId, setSelectedFundId] = useState("");

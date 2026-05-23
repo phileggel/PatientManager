@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FundPaymentGroup, Patient, Procedure } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import * as gateway from "../gateway";
 
 vi.mock("../gateway");
@@ -66,7 +66,7 @@ const mockAvailableProcedure: Procedure = {
 describe("useEditFundPaymentModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ patients: mockPatients, funds: [] });
+    useCacheStore.setState({ patients: mockPatients, funds: [] });
   });
 
   it("initializes with payment date from group", () => {

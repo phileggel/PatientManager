@@ -10,8 +10,8 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup, Procedure } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { toastService } from "@/ui/components/snackbar";
 import { getFundPaymentGroupEditData, updatePaymentGroupWithProcedures } from "../gateway";
 import { FundPaymentPresenter } from "../shared/presenter";
@@ -19,8 +19,8 @@ import { FundPaymentPresenter } from "../shared/presenter";
 export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClose: () => void) {
   const { t } = useTranslation("fund-payment");
 
-  const funds = useAppStore((state) => state.funds);
-  const patients = useAppStore((state) => state.patients);
+  const funds = useCacheStore((state) => state.funds);
+  const patients = useCacheStore((state) => state.patients);
 
   // Extract primitives to use as stable deps (avoids infinite loops with object identity)
   const paymentId = payment?.id ?? null;

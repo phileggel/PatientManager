@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankAccount, Fund, Procedure, ProcedureType } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makePatient } from "@/tests/patient.factory";
 import { ProcedureFormModal } from "./ProcedureFormModal";
 
@@ -108,7 +108,7 @@ import * as procedureGateway from "@/features/procedure/api/gateway";
 // --- Setup ---
 
 beforeEach(() => {
-  useAppStore.setState({
+  useCacheStore.setState({
     patients: [PATIENT],
     funds: [FUND],
     procedureTypes: [PROCEDURE_TYPE],

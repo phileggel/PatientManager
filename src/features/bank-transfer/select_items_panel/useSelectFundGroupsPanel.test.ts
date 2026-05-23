@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FundGroupCandidate } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { useSelectFundGroupsPanel } from "./useSelectFundGroupsPanel";
 
 vi.mock("../gateway", () => ({
@@ -43,7 +43,7 @@ const ON_CHANGE = vi.fn();
 describe("useSelectFundGroupsPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({
+    useCacheStore.setState({
       funds: [
         { id: "f1", fund_identifier: "CPAM", name: "CPAM France", temp_id: null },
         { id: "f2", fund_identifier: "MGEN", name: "MGEN Santé", temp_id: null },

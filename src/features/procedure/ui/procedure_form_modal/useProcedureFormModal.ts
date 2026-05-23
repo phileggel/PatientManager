@@ -12,8 +12,8 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Patient, Procedure } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../../api/gateway";
 import { formatPatientLabel } from "../../model";
@@ -55,9 +55,9 @@ export function useProcedureFormModal({
   const { t } = useTranslation("procedure");
   const { t: tc } = useTranslation("common");
 
-  const patients = useAppStore((state) => state.patients);
-  const funds = useAppStore((state) => state.funds);
-  const procedureTypes = useAppStore((state) => state.procedureTypes);
+  const patients = useCacheStore((state) => state.patients);
+  const funds = useCacheStore((state) => state.funds);
+  const procedureTypes = useCacheStore((state) => state.procedureTypes);
 
   // Form state
   const [patientId, setPatientId] = useState(procedure?.patient_id ?? "");

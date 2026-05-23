@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Fund, FundLabelResolution } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { FundLabelMappingStep } from "./FundLabelMappingStep";
 
 vi.mock("react-i18next", () => ({
@@ -59,7 +59,7 @@ const rejectedResolution: FundLabelResolution = {
 };
 
 beforeEach(() => {
-  useAppStore.setState({ funds: mockFunds });
+  useCacheStore.setState({ funds: mockFunds });
 });
 
 afterEach(() => {

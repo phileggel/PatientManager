@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DirectPaymentProcedureCandidate } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import {
   getAllEligibleProceduresForDirectPayment,
   getEligibleProceduresForDirectPayment,
@@ -20,7 +20,7 @@ export function useSelectProceduresPanel({
   onSelectionChange,
   currentProcedures,
 }: UseSelectProceduresPanelProps) {
-  const patients = useAppStore((state) => state.patients);
+  const patients = useCacheStore((state) => state.patients);
 
   const [candidates, setCandidates] = useState<DirectPaymentProcedureCandidate[]>([]);
   const candidateMapRef = useRef<Map<string, DirectPaymentProcedureCandidate>>(new Map());

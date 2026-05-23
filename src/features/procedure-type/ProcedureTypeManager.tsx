@@ -5,7 +5,7 @@
  * - useProcedureTypeManager: reads filtered procedure type count from store for display
  * - ProcedureTypeList: reads full procedure type data and renders table
  * - CreateProcedureTypeModal: FAB-triggered modal for creating a new type
- * - Event-driven updates via useAppInit (Tauri event listener)
+ * - Event-driven updates via useCacheSync (Tauri event listener)
  * - No manual refresh or polling needed
  */
 

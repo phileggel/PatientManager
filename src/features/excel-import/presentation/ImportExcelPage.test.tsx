@@ -9,8 +9,8 @@ interface MockAppState {
   procedureTypes: Array<{ id: string; name: string; default_amount: number; category: string }>;
 }
 
-vi.mock("@/lib/appStore", () => ({
-  useAppStore: (selector: (state: MockAppState) => MockAppState["procedureTypes"]) =>
+vi.mock("@/infra/cache/store", () => ({
+  useCacheStore: (selector: (state: MockAppState) => MockAppState["procedureTypes"]) =>
     selector({
       procedureTypes: [
         { id: "type-1", name: "Consultation", default_amount: 100.5, category: "medical" },

@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeFund } from "@/tests/fund.factory";
 import { makeFundPaymentGroup } from "@/tests/fund-payment.factory";
 import { makeProcedure } from "@/tests/procedure.factory";
@@ -25,7 +25,7 @@ const mockToast = vi.mocked(toastService.show);
 const FUND = makeFund({ id: "fund-1", fund_identifier: "440", name: "CPAM" });
 
 function seedStore(groups = [makeFundPaymentGroup({ id: "g-1", fund_id: "fund-1" })]) {
-  useAppStore.setState({
+  useCacheStore.setState({
     funds: [FUND],
     fundPaymentGroups: groups,
     fundPaymentGroupsLoading: false,
@@ -35,7 +35,7 @@ function seedStore(groups = [makeFundPaymentGroup({ id: "g-1", fund_id: "fund-1"
 describe("useFundPaymentList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ funds: [], fundPaymentGroups: [], fundPaymentGroupsLoading: false });
+    useCacheStore.setState({ funds: [], fundPaymentGroups: [], fundPaymentGroupsLoading: false });
   });
 
   it("fetches procedures referenced by group lines and exposes them through rows (FPM-360)", async () => {

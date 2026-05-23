@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Fund } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { AddFundPaymentPanel } from "./AddFundPaymentPanel";
 
 const mockFunds: Fund[] = [
@@ -23,7 +23,7 @@ const mockFunds: Fund[] = [
 describe("AddFundPaymentPanel", () => {
   beforeEach(() => {
     // Setup store with mock funds
-    useAppStore.setState({ funds: mockFunds });
+    useCacheStore.setState({ funds: mockFunds });
   });
 
   it("renders form with fund selector and date picker", () => {
@@ -94,7 +94,7 @@ describe("AddFundPaymentPanel", () => {
   });
 
   it("renders with empty fund list", () => {
-    useAppStore.setState({ funds: [] });
+    useCacheStore.setState({ funds: [] });
     render(<AddFundPaymentPanel />);
 
     const fundSelect = screen.getByLabelText("Fund *") as HTMLSelectElement;

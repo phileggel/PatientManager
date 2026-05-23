@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeFund } from "@/tests/fund.factory";
 import { useSelectFundModal } from "./useSelectFundModal";
 
@@ -12,7 +12,7 @@ const funds = [
 
 describe("useSelectFundModal", () => {
   beforeEach(() => {
-    useAppStore.setState({ funds });
+    useCacheStore.setState({ funds });
   });
 
   it("returns all funds when search term is empty", () => {

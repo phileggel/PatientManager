@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DirectPaymentProcedureCandidate } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makePatient } from "@/tests/patient.factory";
 import { useSelectProceduresPanel } from "./useSelectProceduresPanel";
 
@@ -46,7 +46,7 @@ const ON_CHANGE = vi.fn();
 describe("useSelectProceduresPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({
+    useCacheStore.setState({
       patients: [makePatient({ id: "pat-1" })],
     });
   });
@@ -158,7 +158,7 @@ describe("useSelectProceduresPanel", () => {
   });
 
   it("filteredCandidates in expanded mode filters by patient name", async () => {
-    useAppStore.setState({
+    useCacheStore.setState({
       patients: [
         makePatient({ id: "pat-1" }), // name: "Marie Dupont"
         { ...makePatient(), id: "pat-2", name: "Jean Martin" },

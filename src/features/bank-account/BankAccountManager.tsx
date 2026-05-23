@@ -5,7 +5,7 @@
  * - useBankAccountManager: reads account count from store for display
  * - BankAccountList: reads full account data and renders table with sorting/filtering
  * - AddBankAccountPanel: smart component for adding new accounts
- * - Event-driven updates via useAppInit (Tauri event listener)
+ * - Event-driven updates via useCacheSync (Tauri event listener)
  * - No manual refresh or polling needed
  *
  * FEEDBACK STRATEGY:

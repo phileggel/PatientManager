@@ -27,8 +27,8 @@ vi.mock("@/infra/logger", () => ({
 
 // Mock the funds slice of the app store — `ReconciliationModal` reads it to
 // build a `fundIdToLabel` Map for FundMismatch row formatting.
-vi.mock("@/lib/appStore", () => ({
-  useAppStore: (selector: (state: { funds: unknown[] }) => unknown) => selector({ funds: [] }),
+vi.mock("@/infra/cache/store", () => ({
+  useCacheStore: (selector: (state: { funds: unknown[] }) => unknown) => selector({ funds: [] }),
 }));
 
 // Toast service — `useReportGeneration` calls `toastService.show("error", …)`

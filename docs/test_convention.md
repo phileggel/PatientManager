@@ -73,11 +73,11 @@ vi.mock("@/ui/components/snackbar/snackbarStore", () => ({
 Inject store state directly in `beforeEach`:
 
 ```ts
-import { useAppStore } from "@/shell/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useAppStore.setState({
+  useCacheStore.setState({
     items: [{ id: "item-1", name: "Example item" }],
   });
 });

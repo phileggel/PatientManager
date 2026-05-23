@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { deletePatient } from "../gateway";
 import { PatientPresenter } from "../shared/presenter";
 
@@ -14,9 +14,9 @@ import { PatientPresenter } from "../shared/presenter";
  */
 export function usePatientList() {
   const { t } = useTranslation("patient");
-  const patients = useAppStore((state) => state.patients);
-  const patientsLoading = useAppStore((state) => state.patientsLoading);
-  const funds = useAppStore((state) => state.funds);
+  const patients = useCacheStore((state) => state.patients);
+  const patientsLoading = useCacheStore((state) => state.patientsLoading);
+  const funds = useCacheStore((state) => state.funds);
 
   const patientRows = useMemo(
     () => patients.map((p) => PatientPresenter.toRow(p, funds)),

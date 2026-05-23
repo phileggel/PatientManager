@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Fund, Procedure } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeProcedure } from "@/tests/procedure.factory";
 import { useAddFundPaymentPanel } from "./useAddFundPaymentPanel";
 
@@ -41,7 +41,7 @@ const mockFunds: Fund[] = [
 describe("useAddFundPaymentPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ funds: mockFunds });
+    useCacheStore.setState({ funds: mockFunds });
   });
 
   it("initializes with empty fund selection and payment date", () => {
@@ -174,7 +174,7 @@ describe("useAddFundPaymentPanel", () => {
   });
 
   it("handles empty fund array gracefully", () => {
-    useAppStore.setState({ funds: [] });
+    useCacheStore.setState({ funds: [] });
     const { result } = renderHook(() => useAddFundPaymentPanel());
 
     expect(result.current.fundSelectorLabels).toEqual([{ label: "Select a fund", value: "" }]);
@@ -203,7 +203,7 @@ describe("useAddFundPaymentPanel", () => {
       },
     ];
 
-    useAppStore.setState({ funds: fundsWithSpecialChars });
+    useCacheStore.setState({ funds: fundsWithSpecialChars });
     const { result } = renderHook(() => useAddFundPaymentPanel());
 
     // Should be sorted: A-FUND, M-FUND, Z-FUND

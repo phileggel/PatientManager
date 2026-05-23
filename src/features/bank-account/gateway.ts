@@ -1,6 +1,6 @@
 import { type BankAccount, commands } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import type { ServiceResult } from "@/types/api";
 
 export async function getCashBankAccountId(): Promise<ServiceResult<string>> {
@@ -17,7 +17,7 @@ export async function getCashBankAccountId(): Promise<ServiceResult<string>> {
 
 export function readAllBankAccounts(): ServiceResult<BankAccount[]> {
   logger.debug("Fetching all bank accounts from store");
-  const bankAccounts = useAppStore.getState().bankAccounts;
+  const bankAccounts = useCacheStore.getState().bankAccounts;
   return { success: true, data: bankAccounts };
 }
 

@@ -1,11 +1,11 @@
 import { commands, type Fund } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import type { ServiceResult } from "@/types/api";
 
 export function readAllFunds(): ServiceResult<Fund[]> {
   logger.debug("Fetching all funds from store");
-  const funds = useAppStore.getState().funds;
+  const funds = useCacheStore.getState().funds;
   return { success: true, data: funds };
 }
 

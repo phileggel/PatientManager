@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { toastService } from "@/ui/components/snackbar";
 import { fetchDashboardData } from "../api/dashboardService";
 import type { DashboardMetrics } from "../types";
@@ -20,7 +20,7 @@ export interface DashboardPageState {
 
 export function useDashboardPage(): DashboardPageState {
   const { t } = useTranslation("dashboard");
-  const procedureTypes = useAppStore((state) => state.procedureTypes);
+  const procedureTypes = useCacheStore((state) => state.procedureTypes);
   const [allProcedures, setAllProcedures] = useState<Procedure[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);

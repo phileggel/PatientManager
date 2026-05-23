@@ -33,7 +33,7 @@ Today's date is also pre-filled if no date has been entered yet.
 **PRO-060 (R7) — Aggregate statistics**: The header bar displays aggregate statistics for the filtered rows (period + search): unique patient count, procedure count, billed total (`procedureAmount`), received total (`actualPaymentAmount`), and awaited total (`max(0, procedureAmount − actualPaymentAmount)` per row). Draft rows (procedures with `isDraft` true, i.e. procedures being entered for the active period) are excluded from all statistics.
 
 **PRO-070 (R8) — Refresh on event**: When the backend emits a `procedure_updated` event (relayed by
-`useAppInit`), the procedure list is refreshed automatically. Reload failures must be
+`useCacheSync`), the procedure list is refreshed automatically. Reload failures must be
 logged and surfaced to the user via a toast.
 
 **PRO-080 (R9) — Inline patient creation (frontend)**: From the patient field **in creation mode only**, the practitioner can create a new patient without closing the modal. The creation form appears in a nested modal; on validation, the new patient is automatically selected. This feature is not available in edit mode.

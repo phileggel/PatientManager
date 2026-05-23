@@ -73,7 +73,7 @@ export function useEditBankAccountModal(bankAccount: BankAccount | null, onClose
         logger.info("Bank account updated successfully");
         toastService.show("success", t("account.edit.success", { name: result.data?.name }));
         onClose();
-        // Backend event will trigger useAppInit to refresh data
+        // Backend event will trigger useCacheSync to refresh data
       } else {
         logger.error("Failed to update bank account", { error: result.error });
         toastService.show("error", t("account.edit.error", { error: result.error }));

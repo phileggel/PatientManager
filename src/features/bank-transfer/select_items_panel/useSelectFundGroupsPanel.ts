@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FundGroupCandidate } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { getAllUnsettledFundGroups, getUnsettledFundGroups } from "../gateway";
 
 interface UseSelectFundGroupsPanelProps {
@@ -17,7 +17,7 @@ export function useSelectFundGroupsPanel({
   onSelectionChange,
   currentGroups,
 }: UseSelectFundGroupsPanelProps) {
-  const funds = useAppStore((state) => state.funds);
+  const funds = useCacheStore((state) => state.funds);
 
   const [candidates, setCandidates] = useState<FundGroupCandidate[]>([]);
   // Accumulates all ever-fetched candidates to compute totals for any selected id

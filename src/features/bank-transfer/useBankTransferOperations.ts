@@ -13,7 +13,7 @@ import { useBankTransferController } from "./useBankTransferController";
  *
  * Event flow:
  * 1. Backend publishes banktransfer_updated event
- * 2. useAppInit listens and emits window event
+ * 2. useCacheSync listens and emits window event
  * 3. useEffect listener catches window event
  * 4. Refetch data from API and update store
  */

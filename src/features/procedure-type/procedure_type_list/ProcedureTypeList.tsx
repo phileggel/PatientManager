@@ -5,7 +5,7 @@
  * - Sorting/filtering: useSortProcedureTypeList
  * - Delete: confirmation dialog, calls deleteProcedureType service
  * - Edit: double-click or Edit button opens EditProcedureTypeModal
- * - Updates: event-driven from useAppInit
+ * - Updates: event-driven from useCacheSync
  */
 
 import { Edit2, Trash2 } from "lucide-react";

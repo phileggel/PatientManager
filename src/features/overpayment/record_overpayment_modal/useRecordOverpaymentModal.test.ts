@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankAccount } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeProcedure } from "@/tests/procedure.factory";
 import { toastService } from "@/ui/components/snackbar";
 import { useRecordOverpaymentModal } from "./useRecordOverpaymentModal";
@@ -37,19 +37,19 @@ const makeHook = (sourceProcedure = SOURCE_PROCEDURE) => {
 describe("useRecordOverpaymentModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAppStore.setState({ bankAccounts: [] });
+    useCacheStore.setState({ bankAccounts: [] });
   });
 
   // REF-070
   it("pre-fills bankAccountId when exactly one bank account exists", () => {
-    useAppStore.setState({ bankAccounts: [MOCK_ACCOUNT] });
+    useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT] });
     const { result } = makeHook();
     expect(result.current.bankAccountId).toBe("ba-1");
   });
 
   it("does not pre-fill bankAccountId when multiple accounts exist", () => {
     const second: BankAccount = { id: "ba-2", name: "Second", iban: null };
-    useAppStore.setState({ bankAccounts: [MOCK_ACCOUNT, second] });
+    useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT, second] });
     const { result } = makeHook();
     expect(result.current.bankAccountId).toBe("");
   });

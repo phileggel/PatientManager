@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { toastService } from "@/ui/components/snackbar";
 import { getUnpaidProceduresByFund } from "../gateway";
 
@@ -85,7 +85,7 @@ export function useProcedureSelectionModal({
   preloadedProcedures,
 }: UseProcedureSelectionModalParams) {
   const { t } = useTranslation("fund-payment");
-  const patients = useAppStore((state) => state.patients);
+  const patients = useCacheStore((state) => state.patients);
 
   const [availableProcedures, setAvailableProcedures] = useState<Procedure[]>([]);
   const [loading, setLoading] = useState(false);

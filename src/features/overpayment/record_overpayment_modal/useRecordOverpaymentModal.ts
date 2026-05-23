@@ -10,8 +10,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../gateway";
 
@@ -38,7 +38,7 @@ export function useRecordOverpaymentModal({
   const { t } = useTranslation("overpayment");
   const { t: tc } = useTranslation("common");
 
-  const bankAccounts = useAppStore((state) => state.bankAccounts);
+  const bankAccounts = useCacheStore((state) => state.bankAccounts);
 
   const today = new Date().toISOString().split("T")[0] ?? "";
 

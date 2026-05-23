@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntry } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "@/lib/appStore";
 import { Button, DateField, SelectField } from "@/ui/components";
 import { FormModal } from "@/ui/components/modal/FormModal";
 import { useFormatters } from "@/ui/format/formatters";
@@ -32,7 +32,7 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
   const { t: tCommon } = useTranslation("common");
   const { formatCurrency } = useFormatters();
 
-  const bankAccounts = useAppStore((state) => state.bankAccounts);
+  const bankAccounts = useCacheStore((state) => state.bankAccounts);
   const bankAccountOptions = bankAccounts.map((acc) => ({ value: acc.id, label: acc.name }));
 
   useEffect(() => {

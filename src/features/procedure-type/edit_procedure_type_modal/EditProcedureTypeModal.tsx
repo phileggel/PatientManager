@@ -5,7 +5,7 @@
  * On successful update:
  * 1. Calls updateProcedureType service (sends request to Tauri backend)
  * 2. Backend publishes ProcedureTypeUpdated event
- * 3. useAppInit (root) listens for event and refetches procedure types
+ * 3. useCacheSync (root) listens for event and refetches procedure types
  * 4. Zustand store updates
  * 5. Modal closes automatically, ProcedureTypeList re-renders with fresh data
  * 6. Parent receives onSuccess callback to show confirmation toast

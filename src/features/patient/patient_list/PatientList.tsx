@@ -5,7 +5,7 @@
  * - Sorting/filtering: useSortPatientList
  * - Delete: confirmation dialog, calls deletePatient service
  * - Edit: double-click or Edit button opens EditPatientModal
- * - Updates: event-driven from useAppInit
+ * - Updates: event-driven from useCacheSync
  */
 
 import { Edit2, Trash2 } from "lucide-react";

@@ -5,7 +5,7 @@
  * On successful update:
  * 1. Calls updateFund service (sends request to Tauri backend)
  * 2. Backend publishes FundUpdated event
- * 3. useAppInit (root) listens for event and refetches funds
+ * 3. useCacheSync (root) listens for event and refetches funds
  * 4. Zustand store updates
  * 5. Modal closes automatically, FundList re-renders with fresh data
  * 6. Parent receives onSuccess callback to show confirmation toast

@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { FormEvent } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Fund, ProcedureType } from "@/bindings";
-import { useAppStore } from "@/lib/appStore";
+import { useCacheStore } from "@/infra/cache/store";
 import { makePatient } from "@/tests/patient.factory";
 import { useProcedureFormModal } from "./useProcedureFormModal";
 
@@ -41,7 +41,7 @@ const makeHook = (
 // --- Setup ---
 
 beforeEach(() => {
-  useAppStore.setState({
+  useCacheStore.setState({
     patients: [mockPatientFull, mockPatientEmpty],
     funds: mockFunds,
     procedureTypes: mockProcedureTypes,
@@ -125,7 +125,7 @@ describe("patientItems — hasSsn flag", () => {
     const withSsn = { ...makePatient(), id: "p-ssn", ssn: "1234567890123" };
     const withoutSsn = { ...makePatient(), id: "p-no-ssn", ssn: null };
     const emptyStringSsn = { ...makePatient(), id: "p-empty", ssn: "" };
-    useAppStore.setState({
+    useCacheStore.setState({
       patients: [withSsn, withoutSsn, emptyStringSsn],
       funds: mockFunds,
       procedureTypes: mockProcedureTypes,

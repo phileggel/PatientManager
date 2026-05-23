@@ -2,29 +2,23 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import { commands } from "@/bindings";
 import { logger } from "@/infra/logger";
-import { useAppStore } from "./appStore";
+import { useCacheStore } from "./store";
 
 /**
- * Hook to initialize app state and event listeners
+ * Bootstrap the BE/FE shared data cache: initial fetches + Tauri event listeners.
  *
- * EXCEPTION: This hook directly calls Tauri commands to bootstrap the store on first load.
- * All other code must use gateways which read from the store.
- *
- * Flow:
- * 1. useAppInit loads initial data via DIRECT Tauri commands (exception)
- * 2. Data is stored in Zustand store
- * 3. Event listeners listen for backend updates
- * 4. Event listeners trigger store updates via gateway setters
- * 5. All other code reads from store via gateway readAll functions
+ * Called once from App.tsx. Other code must use feature gateways which read
+ * selectors from the cache; only this file (and the gateways' own mutation
+ * wrappers) issue `commands.*` calls.
  */
-export function useAppInit() {
-  const setPatients = useAppStore((state) => state.setPatients);
-  const setFunds = useAppStore((state) => state.setFunds);
-  const setProcedureTypes = useAppStore((state) => state.setProcedureTypes);
-  const setProcedureTypesError = useAppStore((state) => state.setProcedureTypesError);
-  const setBankAccounts = useAppStore((state) => state.setBankAccounts);
-  const setFundPaymentGroups = useAppStore((state) => state.setFundPaymentGroups);
-  const setLoading = useAppStore((state) => state.setLoading);
+export function useCacheSync() {
+  const setPatients = useCacheStore((state) => state.setPatients);
+  const setFunds = useCacheStore((state) => state.setFunds);
+  const setProcedureTypes = useCacheStore((state) => state.setProcedureTypes);
+  const setProcedureTypesError = useCacheStore((state) => state.setProcedureTypesError);
+  const setBankAccounts = useCacheStore((state) => state.setBankAccounts);
+  const setFundPaymentGroups = useCacheStore((state) => state.setFundPaymentGroups);
+  const setLoading = useCacheStore((state) => state.setLoading);
 
   useEffect(() => {
     // Load initial data

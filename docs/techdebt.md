@@ -8,22 +8,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-05-23 — `@/lib/appStore` import path pre-dates the v4.5 bucket layout
-
-**Found by:** reviewer-frontend (`refactor/procedure-amount-ul-rename`)
-
-**Where:** `src/lib/appStore.ts` (Zustand store + `useAppStore` hook) and its bootstrap companion `src/lib/useAppInit.ts`. Both still imported as `@/lib/appStore` / `@/lib/useAppInit` across the codebase. The other two `@/lib/*` consumers were resolved on 2026-05-23 (logger → `@/infra/logger`, formatters → `@/ui/format/formatters`).
-
-**Observation:** Per F28 the destination needs a design call — Zustand stores aren't pure UI primitives (which would route to `@/ui/state/`) but also aren't platform adapters (`@/infra/` rejects them). Candidate destinations:
-
-- `@/ui/state/appStore` — frames as cross-feature UI state primitive
-- `@/shell/state/appStore` — frames as app-shell state owned by the provider tree (lives next to `AppShell.tsx`)
-- Keep `@/lib/appStore` with an explicit ADR rationale that this catch-all is acceptable for cross-cutting state that doesn't fit either bucket
-
-The decision is one design call; once made, the mechanical move + import rewrite is the same shape as the snackbar/logger/formatters slices that already shipped.
-
----
-
 ## 2026-05-19 — REF-240 enforced at command layer via dual-orchestrator injection
 
 **Found by:** manual (`refactor/fund-payment-manual-management`)

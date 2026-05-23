@@ -61,7 +61,7 @@ Same as A except: no `onCreateNew`, no `createLabel`.
 
 ### 2.2 Items list size and loading
 
-- **Patients**: loaded upfront from SQLite into `useAppStore.patients` via `setPatients` /
+- **Patients**: loaded upfront from SQLite into `useCacheStore.patients` via `setPatients` /
   `addPatients`. The store holds the full list with no pagination. The ADR 004 context
   and task description indicate >1000 patients in production. The list is synchronous
   (already in memory when the modal opens).
