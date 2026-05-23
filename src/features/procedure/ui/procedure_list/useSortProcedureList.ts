@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ProcedureRow } from "../../model/procedure-row.types";
 
-type SortKey = "patientName" | "procedureDate" | "procedureAmount" | "status";
+type SortKey = "patientName" | "procedureDate" | "billedAmount" | "status";
 
 export interface SortConfig {
   key: SortKey | null;
@@ -25,7 +25,7 @@ export function useSortProcedureList(rows: ProcedureRow[]) {
     if (!sortConfig.key || !sortConfig.direction) return rows;
     const key = sortConfig.key;
     return rows.toSorted((a, b) => {
-      if (key === "procedureAmount") {
+      if (key === "billedAmount") {
         const numA = a[key] ?? -Infinity;
         const numB = b[key] ?? -Infinity;
         return sortConfig.direction === "asc" ? numA - numB : numB - numA;

@@ -35,26 +35,9 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 ---
 
-## (backend+frontend) — Add fund_reconciliation_date to Procedure
-
-`confirmed_payment_date` is the bank-transfer date (Stage 2). A separate `fund_reconciliation_date` column is needed to record the fund-document payment date set at Stage 1 (fund reconciliation). Scope: SQLite migration, Rust domain + repository, Specta bindings regeneration, frontend display in procedure list and dashboard.
-
----
-
 ## (backend/procedure) — Review procedure projections and read models
 
 `UnreconciledProcedure` is a domain projection introduced when moving `ProcedureRepository` to the domain layer. It sits alongside `Procedure` (the aggregate root) and other procedure-related structures. Before adding more projections, review whether these are genuinely distinct domain concepts or whether `Procedure` should be enriched to cover these cases. Key question: is `UnreconciledProcedure` a real ubiquitous-language concept, or just a query convenience that should be folded into `Procedure` with a different fetch strategy?
-
----
-
-## (backend+frontend/naming) — Align `Procedure` amount field names with UL canonical
-
-`docs/ubiquitous-language.md:91-96` declares `billed_amount` and `paid_amount` as the canonical UL terms, and the middle of the stack (BE domain `Procedure`, contract, Specta bindings) already uses them. Both ends still carry the legacy names:
-
-- **SQL columns + repo row structs** — `procedure_amount` / `actual_payment_amount` in `migrations/20260308_init.sql:57,60` and the `ProcedureRow` / `ProcedureWithSSNRow` sqlx structs in `src-tauri/src/context/procedure/repository/procedure.rs`. The boundary rename happens today inside `restore()` (line 103) and on every INSERT/UPDATE (lines 176, 302).
-- **FE row view-model** — `procedureAmount` / `actualPaymentAmount` in `src/features/procedure/model/procedure-row.types.ts`. Mapper renames back from the wire at `procedure-row.mapper.ts:49,64`.
-
-Scope: SQLite migration renaming both columns (`ALTER COLUMN … RENAME TO …`) with backfill safety check; regenerate sqlx offline cache; rename the repo row structs and drop the in-`restore()` rename; rename `ProcedureRow` fields + every consumer (mapper, table cell, edit modal, aggregations, factory, RTL tests); update `docs/ubiquitous-language.md:95-96` to remove the discrepancy callout. Ship as one PR — splitting would leave the codebase half-renamed.
 
 ---
 

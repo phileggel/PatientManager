@@ -64,7 +64,7 @@ export function useProcedureFormModal({
   const [fundId, setFundId] = useState(procedure?.fund_id ?? "");
   const [procedureTypeId, setProcedureTypeId] = useState(procedure?.procedure_type_id ?? "");
   const [procedureDate, setProcedureDate] = useState(procedure?.procedure_date ?? "");
-  const [procedureAmount, setProcedureAmount] = useState<number | null>(
+  const [billedAmount, setBilledAmount] = useState<number | null>(
     procedure?.billed_amount != null ? procedure.billed_amount / 1000 : null,
   );
   const [loading, setLoading] = useState(false);
@@ -78,7 +78,7 @@ export function useProcedureFormModal({
   const initFundId = procedure?.fund_id ?? "";
   const initProcedureTypeId = procedure?.procedure_type_id ?? "";
   const initProcedureDate = procedure?.procedure_date ?? "";
-  const initProcedureAmount = procedure?.billed_amount ?? null;
+  const initBilledAmount = procedure?.billed_amount ?? null;
 
   // Reset form when procedure changes (edit/view modal re-opened with different row)
   useEffect(() => {
@@ -86,9 +86,9 @@ export function useProcedureFormModal({
     setFundId(initFundId);
     setProcedureTypeId(initProcedureTypeId);
     setProcedureDate(initProcedureDate);
-    setProcedureAmount(initProcedureAmount != null ? initProcedureAmount / 1000 : null);
+    setBilledAmount(initBilledAmount != null ? initBilledAmount / 1000 : null);
     setFieldErrors({});
-  }, [initPatientId, initFundId, initProcedureTypeId, initProcedureDate, initProcedureAmount]);
+  }, [initPatientId, initFundId, initProcedureTypeId, initProcedureDate, initBilledAmount]);
 
   // Auto-fill on patient selection (create mode only, R4)
   const handlePatientChange = useCallback(
@@ -104,10 +104,10 @@ export function useProcedureFormModal({
       )
         setProcedureTypeId(patient.latest_procedure_type);
       if (!procedureDate) setProcedureDate(new Date().toISOString().split("T")[0] ?? "");
-      if (procedureAmount == null && patient.latest_procedure_amount != null)
-        setProcedureAmount(patient.latest_procedure_amount / 1000);
+      if (billedAmount == null && patient.latest_procedure_amount != null)
+        setBilledAmount(patient.latest_procedure_amount / 1000);
     },
-    [patients, procedureTypes, fundId, procedureDate, procedureAmount, mode],
+    [patients, procedureTypes, fundId, procedureDate, billedAmount, mode],
   );
 
   const reset = useCallback(() => {
@@ -115,7 +115,7 @@ export function useProcedureFormModal({
     setFundId("");
     setProcedureTypeId("");
     setProcedureDate("");
-    setProcedureAmount(null);
+    setBilledAmount(null);
     setFieldErrors({});
   }, []);
 
@@ -170,7 +170,7 @@ export function useProcedureFormModal({
             fundId || null,
             procedureTypeId,
             procedureDate,
-            procedureAmount !== null ? Math.round(procedureAmount * 1000) : null,
+            billedAmount !== null ? Math.round(billedAmount * 1000) : null,
           );
           logger.info(`${TAG} Procedure added`, { id: result.id });
           reset();
@@ -186,7 +186,7 @@ export function useProcedureFormModal({
             fund_id: fundId || null,
             procedure_type_id: procedureTypeId,
             procedure_date: procedureDate,
-            billed_amount: procedureAmount != null ? Math.round(procedureAmount * 1000) : null,
+            billed_amount: billedAmount != null ? Math.round(billedAmount * 1000) : null,
             payment_method: procedure.payment_method,
             fund_reconciliation_date: procedure.fund_reconciliation_date || null,
             confirmed_payment_date: procedure.confirmed_payment_date || null,
@@ -211,7 +211,7 @@ export function useProcedureFormModal({
       patientId,
       fundId,
       procedureDate,
-      procedureAmount,
+      billedAmount,
       t,
       tc,
       onSuccess,
@@ -274,8 +274,8 @@ export function useProcedureFormModal({
     setProcedureTypeId,
     procedureDate,
     setProcedureDate,
-    procedureAmount,
-    setProcedureAmount,
+    billedAmount,
+    setBilledAmount,
     loading,
     fieldErrors,
     handleSubmit,

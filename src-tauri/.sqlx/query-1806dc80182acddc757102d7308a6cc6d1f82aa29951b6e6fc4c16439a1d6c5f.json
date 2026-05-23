@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, procedure_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, actual_payment_amount, payment_status, is_deleted\n            FROM procedure\n            WHERE id = $1 AND is_deleted = 0\n            ",
+  "query": "\n            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount, payment_status, is_deleted\n            FROM procedure\n            WHERE id = $1 AND is_deleted = 0\n            ",
   "describe": {
     "columns": [
       {
@@ -29,7 +29,7 @@
         "type_info": "Text"
       },
       {
-        "name": "procedure_amount",
+        "name": "billed_amount",
         "ordinal": 5,
         "type_info": "Integer"
       },
@@ -49,7 +49,7 @@
         "type_info": "Text"
       },
       {
-        "name": "actual_payment_amount",
+        "name": "paid_amount",
         "ordinal": 9,
         "type_info": "Integer"
       },
@@ -82,5 +82,5 @@
       false
     ]
   },
-  "hash": "fa48e03a7c7ebe58294f5020d4646f2cefc25bc4499f0f166c50ea202e82c7ae"
+  "hash": "1806dc80182acddc757102d7308a6cc6d1f82aa29951b6e6fc4c16439a1d6c5f"
 }

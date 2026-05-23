@@ -51,7 +51,7 @@ describe("toProcedureRow - Complete Conversions", () => {
 
     // Procedure data — amounts are in euros (converted from thousandths in the mapper)
     expect(result.procedureDate).toBe("2026-01-15");
-    expect(result.procedureAmount).toBe(50.0); // 50000 thousandths → 50.00€
+    expect(result.billedAmount).toBe(50.0); // 50000 thousandths → 50.00€
   });
 
   test("generates unique rowId for each conversion", () => {
@@ -172,7 +172,7 @@ describe("toProcedureRow - Null Foreign Keys", () => {
     expect(result.rowId).toBeDefined();
     expect(result.isDraft).toBe(false);
     expect(result.procedureDate).toBe("2026-01-15");
-    expect(result.procedureAmount).toBe(50.0); // 50000 thousandths → 50.00€
+    expect(result.billedAmount).toBe(50.0); // 50000 thousandths → 50.00€
 
     // Fund fields should be null
     expect(result.fundId).toBeNull();
@@ -248,7 +248,7 @@ describe("toProcedureRow - Edge Cases", () => {
 
     const result = toProcedureRow(procedure, referenceData);
 
-    expect(result.procedureAmount).toBe(0);
+    expect(result.billedAmount).toBe(0);
   });
 
   test("handles procedure with negative amount (edge case)", () => {
@@ -257,7 +257,7 @@ describe("toProcedureRow - Edge Cases", () => {
 
     const result = toProcedureRow(procedure, referenceData);
 
-    expect(result.procedureAmount).toBe(-50.0);
+    expect(result.billedAmount).toBe(-50.0);
   });
 
   test("handles procedure with very large amount", () => {
@@ -266,7 +266,7 @@ describe("toProcedureRow - Edge Cases", () => {
 
     const result = toProcedureRow(procedure, referenceData);
 
-    expect(result.procedureAmount).toBe(1000000);
+    expect(result.billedAmount).toBe(1000000);
   });
 
   test("preserves date string exactly as provided", () => {
@@ -282,13 +282,13 @@ describe("toProcedureRow - Edge Cases", () => {
 // ============================================================================
 // toProcedureRow Tests - effectiveAmount fallback to procedure type default
 // ============================================================================
-// `procedureAmount` reflects the raw backend value (null stays null so the
+// `billedAmount` reflects the raw backend value (null stays null so the
 // table cell shows "—" and the edit modal opens with an empty input).
 // `effectiveAmount` is the value used by aggregates and falls back to the
 // procedure type's default_amount when the user did not set an explicit amount.
 
 describe("toProcedureRow - effectiveAmount fallback", () => {
-  test("procedureAmount stays null when billed_amount is null", () => {
+  test("billedAmount stays null when billed_amount is null", () => {
     const procedure = makeProcedure({ billed_amount: null });
     const referenceData = createMockReferenceData({
       procedureTypes: [makeProcedureType({ default_amount: 30000 })], // 30€
@@ -296,7 +296,7 @@ describe("toProcedureRow - effectiveAmount fallback", () => {
 
     const result = toProcedureRow(procedure, referenceData);
 
-    expect(result.procedureAmount).toBeNull();
+    expect(result.billedAmount).toBeNull();
   });
 
   test("effectiveAmount falls back to procedure type default_amount when billed_amount is null", () => {
@@ -318,7 +318,7 @@ describe("toProcedureRow - effectiveAmount fallback", () => {
 
     const result = toProcedureRow(procedure, referenceData);
 
-    expect(result.procedureAmount).toBe(75.0);
+    expect(result.billedAmount).toBe(75.0);
     expect(result.effectiveAmount).toBe(75.0);
   });
 
@@ -331,7 +331,7 @@ describe("toProcedureRow - effectiveAmount fallback", () => {
 
     const result = toProcedureRow(procedure, referenceData);
 
-    expect(result.procedureAmount).toBeNull();
+    expect(result.billedAmount).toBeNull();
     expect(result.effectiveAmount).toBeNull();
   });
 

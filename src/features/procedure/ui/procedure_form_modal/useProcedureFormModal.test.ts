@@ -63,7 +63,7 @@ describe("create mode — auto-fill on patient select", () => {
     expect(result.current.fundId).toBe("f1");
     expect(result.current.procedureTypeId).toBe("pt2");
     expect(result.current.procedureDate).toBe(today);
-    expect(result.current.procedureAmount).toBe(42.5);
+    expect(result.current.billedAmount).toBe(42.5);
   });
 
   it("does not overwrite fund if already set", () => {
@@ -96,13 +96,13 @@ describe("create mode — auto-fill on patient select", () => {
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
     act(() => {
-      result.current.setProcedureAmount(99.0);
+      result.current.setBilledAmount(99.0);
     });
     act(() => {
       result.current.handlePatientChange("p1");
     });
 
-    expect(result.current.procedureAmount).toBe(99.0);
+    expect(result.current.billedAmount).toBe(99.0);
   });
 
   it("leaves fields empty when patient has no latest data", () => {
@@ -114,7 +114,7 @@ describe("create mode — auto-fill on patient select", () => {
 
     expect(result.current.fundId).toBe("");
     expect(result.current.procedureTypeId).toBe("");
-    expect(result.current.procedureAmount).toBeNull();
+    expect(result.current.billedAmount).toBeNull();
   });
 });
 
@@ -250,7 +250,7 @@ describe("create mode — reset after successful submit", () => {
     expect(result.current.fundId).toBe("");
     expect(result.current.procedureTypeId).toBe("");
     expect(result.current.procedureDate).toBe("");
-    expect(result.current.procedureAmount).toBeNull();
+    expect(result.current.billedAmount).toBeNull();
   });
 });
 
@@ -304,7 +304,7 @@ describe("edit mode — initializes from procedure", () => {
     expect(result.current.fundId).toBe("f1");
     expect(result.current.procedureTypeId).toBe("pt2");
     expect(result.current.procedureDate).toBe("2026-02-10");
-    expect(result.current.procedureAmount).toBe(50);
+    expect(result.current.billedAmount).toBe(50);
   });
 });
 
