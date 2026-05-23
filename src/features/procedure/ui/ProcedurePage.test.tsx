@@ -1,23 +1,32 @@
 /// <reference types="vitest/globals" />
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { act } from "react";
 import { vi } from "vitest";
+import * as gateway from "../api/gateway";
 import * as useProcedureDataModule from "../hooks/useProcedureData";
 import type { ProcedureRow } from "../model/procedure-row.types";
 import ProcedurePage from "./ProcedurePage";
 
+vi.mock("../api/gateway");
+vi.mock("@/core/snackbar", () => ({
+  toastService: { show: vi.fn() },
+}));
+
 type ProcedureListProps = {
   rows: Array<{ rowId: string }>;
   onEdit: (row: ProcedureRow) => void;
+  onDelete: (id: string) => void;
 };
 
 let capturedOnEdit: ((row: ProcedureRow) => void) | null = null;
+let capturedOnDelete: ((id: string) => void) | null = null;
 
 vi.mock("../hooks/useProcedureData");
 vi.mock("./procedure_list/ProcedureList", () => ({
-  ProcedureList: ({ rows, onEdit }: ProcedureListProps) => {
+  ProcedureList: ({ rows, onEdit, onDelete }: ProcedureListProps) => {
     capturedOnEdit = onEdit;
+    capturedOnDelete = onDelete;
     return (
       <div data-testid="procedure-list">
         <div data-testid="row-count">{rows.length}</div>
@@ -135,5 +144,115 @@ describe("ProcedurePage — R6: modal mode routing based on blocking status", ()
 
     // View mode title key is "modal.viewTitle" — modal should be open
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  test("opens modal in overpaid mode for OVERPAID status (REF-190)", async () => {
+    render(<ProcedurePage />);
+    await waitFor(() => expect(capturedOnEdit).not.toBeNull());
+    act(() => {
+      capturedOnEdit?.(makeRow("OVERPAID"));
+    });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  test("opens modal in refund mode for OVERPAYMENT_REFUND status (REF-200)", async () => {
+    render(<ProcedurePage />);
+    await waitFor(() => expect(capturedOnEdit).not.toBeNull());
+    act(() => {
+      capturedOnEdit?.(makeRow("OVERPAYMENT_REFUND"));
+    });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+// --- Reload + delete behavior ---
+
+describe("ProcedurePage — reloadRows + delete flow", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useProcedureDataModule.useProcedureData).mockReturnValue(defaultHookValue);
+  });
+
+  test("procedure_updated event triggers reloadRows; success applies returned rows", async () => {
+    vi.mocked(gateway.readAllProcedures).mockResolvedValue({ success: true, data: [] });
+
+    render(<ProcedurePage />);
+    await waitFor(() => expect(screen.getByTestId("procedure-list")).toBeInTheDocument());
+
+    await act(async () => {
+      window.dispatchEvent(new Event("procedure_updated"));
+    });
+
+    await waitFor(() => expect(gateway.readAllProcedures).toHaveBeenCalled());
+  });
+
+  test("procedure_updated event surfaces an error toast when readAllProcedures fails", async () => {
+    vi.mocked(gateway.readAllProcedures).mockResolvedValue({
+      success: false,
+      error: "db unavailable",
+    });
+    const { toastService } = await import("@/core/snackbar");
+
+    render(<ProcedurePage />);
+    await waitFor(() => expect(screen.getByTestId("procedure-list")).toBeInTheDocument());
+
+    await act(async () => {
+      window.dispatchEvent(new Event("procedure_updated"));
+    });
+
+    await waitFor(() =>
+      expect(toastService.show).toHaveBeenCalledWith("error", "Failed to reload procedures"),
+    );
+  });
+
+  test("delete confirmation: confirm calls deleteRow then reloadRows", async () => {
+    const deleteRow = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useProcedureDataModule.useProcedureData).mockReturnValue({
+      ...defaultHookValue,
+      deleteRow,
+    });
+    vi.mocked(gateway.readAllProcedures).mockResolvedValue({ success: true, data: [] });
+
+    render(<ProcedurePage />);
+    await waitFor(() => expect(screen.getByTestId("procedure-list")).toBeInTheDocument());
+
+    // Trigger delete via captured onDelete handler from mocked ProcedureList.
+    act(() => {
+      capturedOnDelete?.("proc1");
+    });
+
+    // Dialog opens — click Confirm.
+    const confirmBtn = await screen.findByRole("button", { name: "Delete" });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    await waitFor(() => expect(deleteRow).toHaveBeenCalledWith("proc1"));
+    await waitFor(() => expect(gateway.readAllProcedures).toHaveBeenCalled());
+  });
+
+  test("delete confirmation: failure surfaces an error toast", async () => {
+    const deleteRow = vi.fn().mockRejectedValue(new Error("blocked"));
+    vi.mocked(useProcedureDataModule.useProcedureData).mockReturnValue({
+      ...defaultHookValue,
+      deleteRow,
+    });
+    const { toastService } = await import("@/core/snackbar");
+
+    render(<ProcedurePage />);
+    await waitFor(() => expect(screen.getByTestId("procedure-list")).toBeInTheDocument());
+
+    act(() => {
+      capturedOnDelete?.("proc1");
+    });
+
+    const confirmBtn = await screen.findByRole("button", { name: "Delete" });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    await waitFor(() =>
+      expect(toastService.show).toHaveBeenCalledWith("error", "Failed to delete procedure"),
+    );
   });
 });
