@@ -73,4 +73,30 @@ describe("useProcedureData", () => {
 
     expect(gateway.deleteProcedure).toHaveBeenCalledWith("proc1");
   });
+
+  test("surfaces error state when readAllProcedures fails", async () => {
+    vi.mocked(gateway.readAllProcedures).mockResolvedValue({
+      success: false,
+      error: "boom",
+    });
+
+    const { result } = renderHook(() => useProcedureData());
+    await waitFor(() => expect(result.current.isLoading).toBe(false), { timeout: 1000 });
+
+    expect(result.current.error).toBe("boom");
+    expect(result.current.initialRows).toHaveLength(0);
+  });
+
+  test("deleteRow throws when gateway.deleteProcedure fails", async () => {
+    vi.mocked(gateway.readAllProcedures).mockResolvedValue({ success: true, data: [] });
+    vi.mocked(gateway.deleteProcedure).mockResolvedValue({
+      success: false,
+      error: "blocked by status",
+    });
+
+    const { result } = renderHook(() => useProcedureData());
+    await waitFor(() => expect(result.current.isLoading).toBe(false), { timeout: 1000 });
+
+    await expect(result.current.deleteRow("proc1")).rejects.toThrow("blocked by status");
+  });
 });

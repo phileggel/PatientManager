@@ -288,6 +288,82 @@ describe("create mode — error handling", () => {
   });
 });
 
+// --- View mode + Edit mode: error handling on gateway failure ---
+
+describe("view mode — error handling", () => {
+  it("shows error toast and clears loading when updateProcedure fails", async () => {
+    const { toastService } = await import("@/core/snackbar");
+    const { updateProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(updateProcedure).mockResolvedValueOnce({
+      success: false,
+      error: "update conflict",
+    });
+
+    const procedure = {
+      id: "proc-view",
+      patient_id: "p1",
+      fund_id: "f1",
+      procedure_type_id: "pt2",
+      procedure_date: "2026-02-10",
+      billed_amount: 50000,
+      payment_method: "CASH" as const,
+      fund_reconciliation_date: "",
+
+      confirmed_payment_date: "2026-02-15",
+      payment_status: "RECONCILED" as const,
+      paid_amount: 50000,
+    };
+
+    const { result } = makeHook({ mode: "view", procedure, onClose: vi.fn() });
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as FormEvent);
+    });
+
+    expect(toastService.show).toHaveBeenCalledWith("error", "update conflict");
+    expect(result.current.loading).toBe(false);
+  });
+});
+
+describe("edit mode — error handling", () => {
+  it("shows error toast and clears loading when updateProcedure fails", async () => {
+    const { toastService } = await import("@/core/snackbar");
+    const { updateProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(updateProcedure).mockResolvedValueOnce({
+      success: false,
+      error: "update conflict",
+    });
+
+    const procedure = {
+      id: "proc-edit",
+      patient_id: "p1",
+      fund_id: "f1",
+      procedure_type_id: "pt2",
+      procedure_date: "2026-02-10",
+      billed_amount: 50000,
+      payment_method: "NONE" as const,
+      fund_reconciliation_date: "",
+
+      confirmed_payment_date: "",
+      payment_status: "CREATED" as const,
+      paid_amount: null,
+    };
+
+    const { result } = makeHook({ mode: "edit", procedure, onClose: vi.fn() });
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as FormEvent);
+    });
+
+    expect(toastService.show).toHaveBeenCalledWith("error", "update conflict");
+    expect(result.current.loading).toBe(false);
+  });
+});
+
 // --- Edit mode ---
 
 describe("edit mode — initializes from procedure", () => {

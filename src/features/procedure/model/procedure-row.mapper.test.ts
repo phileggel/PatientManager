@@ -357,4 +357,23 @@ describe("toProcedureRow - effectiveAmount fallback", () => {
 
     expect(result.effectiveAmount).toBe(0);
   });
+
+  test("paidAmount converts thousandths to euros when not null", () => {
+    const procedure = makeProcedure({ paid_amount: 42500 });
+    const referenceData = createMockReferenceData();
+
+    const result = toProcedureRow(procedure, referenceData);
+
+    expect(result.paidAmount).toBe(42.5);
+  });
+
+  test("returns null patient data when procedure.patient_id is empty string", () => {
+    const procedure = makeProcedure({ patient_id: "" });
+    const referenceData = createMockReferenceData();
+
+    const result = toProcedureRow(procedure, referenceData);
+
+    expect(result.patientName).toBeNull();
+    expect(result.ssn).toBeNull();
+  });
 });
