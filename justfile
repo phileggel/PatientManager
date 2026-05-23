@@ -11,9 +11,11 @@ default:
 dev *ARGS:
     ./scripts/start-app.sh {{ARGS}}
 
-# Override kit default: project uses a dedicated binary with generate-bindings feature
+# Override kit default: project uses a dedicated binary for binding generation.
+# The binary lives at `src-tauri/dev/generate_bindings.rs` (out of src/bin/ per
+# gh#41 — Tauri's NSIS bundler walks src/bin/ and fails on phantom .exe entries).
 generate-types:
-    cd src-tauri && cargo run --features generate-bindings --bin generate_bindings
+    cd src-tauri && cargo run --bin generate_bindings
 
 # Regenerate dev fixture files for the import codec (IFC-033)
 # Writes src-tauri/tests/fixtures/{surface}/{scenario}.{ext} + .expected.json.

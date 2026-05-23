@@ -66,8 +66,6 @@ lopdf = "0.39"
 # this flag allows you to build the project without this whitelist for debugging purposes
 # DO NOT use this flag in production
 custom-protocol = ["tauri/custom-protocol"]
-# Enable only when regenerating TypeScript bindings (excluded from release builds)
-generate-bindings = []
 # Enable only for dev fixture generation and round-trip integration tests (IFC-011)
 # Production builds MUST NOT enable this feature.
 dev-fixtures = ["dep:rust_xlsxwriter"]
