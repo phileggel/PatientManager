@@ -377,5 +377,3 @@ Severity-labels-only-on-changed-lines matters extra here. Security findings are 
 Cross-layer findings have their own section because compound risks fail single-layer review by construction. A `PathBuf` parameter that is _individually_ fine (canonicalized in the function) can be unsafe when combined with a `fs:allow-write` capability whose scope is broader than the function's intent. This section is the only place that interaction surfaces.
 
 CVE / dependency-vulnerability scanning is delegated to `/dep-audit` because the work shape is different — `/dep-audit` reads lockfiles and registries, this agent reads source. Folding them produces an agent that does both poorly.
-
-Workflow B compatible: all convention-doc reads are guarded (`if exists`), and the agent never hard-reads `docs/plan/*.md` or `docs/contracts/*.md`. Safe to invoke in fix/chore branches that have no plan or contract doc.

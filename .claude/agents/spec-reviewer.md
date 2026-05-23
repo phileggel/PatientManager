@@ -166,8 +166,8 @@ Ready for /contract: yes — 0 critical findings (incl. contractability). / no �
 
 ## Critical Rules
 
-1. Never suggest implementation details (file names, functions) — that's feature-planner's job
-2. Every 🔴 finding must block the spec from going to feature-planner
+1. Never suggest implementation details (file names, functions) — that's /feature-planner's job
+2. Every 🔴 finding must block the spec from going to /feature-planner
 3. Report findings against rule identifiers (e.g. "REF-020 — scope missing") not against lines
 4. Trigram must be registered in `docs/spec-index.md` before sign-off (handled by spec-writer's trigram-registration step)
 5. Do not rewrite the spec — report issues only, the user corrects via spec-writer

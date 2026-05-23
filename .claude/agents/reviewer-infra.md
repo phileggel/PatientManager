@@ -487,5 +487,3 @@ The maintained-tag exception list in `## GitHub Actions Workflow Rules → Secur
 The `## CI Improvement Opportunities` section (Step 7) is gated to release sweeps because on a 1-file PR the brainstorm output is noise. On a release sweep it's exactly the moment to surface "could this be parallelised? does the cache key invalidate correctly? is `latest.json` validated after publish?" — proactive suggestions that pay off when the build is already under scrutiny.
 
 The `Cross-file consistency checks` section is canonical for version-sync (`package.json` = `Cargo.toml` = `tauri.conf.json`). Per-manifest sections reference back to this site rather than duplicating the rule — keeps the rule in one place and lets the agent emit a single cross-file finding when versions drift, not three per-file findings.
-
-Workflow B compatible: all convention-doc reads are guarded (`if exists`), and the agent never hard-reads `docs/plan/*.md` or `docs/contracts/*.md`. Safe to invoke in fix/chore branches that have no plan or contract doc.

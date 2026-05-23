@@ -23,7 +23,7 @@ Given an ADR file (or all ADRs in `docs/adr/`), surface findings against the kit
 
 ## When to use
 
-- **After `adr-writer` creates or supersedes an ADR** — green-light is required before downstream agents (`feature-planner`, `reviewer-arch`) cite the ADR as a constraint
+- **After `adr-writer` creates or supersedes an ADR** — green-light is required before downstream consumers (`/feature-planner`, `reviewer-arch`) cite the ADR as a constraint
 - **Before a release sweep** — pass with no argument to review every ADR in `docs/adr/` and the index in one pass
 - **After importing or hand-editing an ADR** — manual edits skip `adr-writer`'s gate; this agent catches the drift
 

@@ -74,7 +74,7 @@ If the user's answers reveal new unknowns, continue with additional rounds — u
 After round 3 (or earlier if all blocking uncertainties are resolved), draft the spec with what you have and move any remaining unknowns into `## Open Questions` for step 5.
 
 - Only ask what you genuinely cannot infer from the codebase
-- Never ask about file names, function names, or implementation choices (that's `feature-planner`'s job)
+- Never ask about file names, function names, or implementation choices (that's `/feature-planner`'s job)
 - For a simple feature, a single round is sufficient — never ask more than the feature's complexity warrants
 
 ---
@@ -284,7 +284,7 @@ Next steps after validation:
 1. Run `spec-reviewer` agent to quality-check the spec
 2. Run `/contract` skill to derive the domain contract
 3. Run `contract-reviewer` agent to validate the contract
-4. Run `feature-planner` agent to generate the implementation plan
+4. Run `/feature-planner` skill to generate the implementation plan
 
 ---
 
@@ -305,7 +305,7 @@ Next steps after validation:
    | "Results are signaled via a background job posting events" | "Results are signaled asynchronously via the `{Entity}Updated` event"    |
    | "The setting is stored in the frontend store"              | "The setting persists across sessions on the current device"             |
 
-   Implementation is `feature-planner`'s job; contract framing is `/contract`'s.
+   Implementation is `/feature-planner`'s job; contract framing is `/contract`'s.
 
 8. **Entity section mandatory when an entity is involved** — names in English Rust convention, field descriptions in English, business meaning only
 9. Each `{TRIGRAM}-NNN` rule must be independently verifiable by a test

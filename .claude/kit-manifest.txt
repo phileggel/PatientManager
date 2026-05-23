@@ -1,6 +1,5 @@
 .claude/agents/adr-reviewer.md
 .claude/agents/contract-reviewer.md
-.claude/agents/feature-planner.md
 .claude/agents/plan-reviewer.md
 .claude/agents/retro-spec.md
 .claude/agents/reviewer-arch.md
@@ -23,6 +22,7 @@
 .claude/skills/contract/SKILL.md
 .claude/skills/create-pr/SKILL.md
 .claude/skills/dep-audit/SKILL.md
+.claude/skills/feature-planner/SKILL.md
 .claude/skills/kit-discover/SKILL.md
 .claude/skills/prune/SKILL.md
 .claude/skills/review-triage/SKILL.md
@@ -46,6 +46,7 @@ scripts/check.py
 scripts/list-fe-test-targets.py
 scripts/list-fresh-reviews.sh
 scripts/merge.py
+scripts/plan-context.py
 scripts/release.py
 scripts/report-path.sh
 scripts/review-path.sh

@@ -38,7 +38,7 @@ You are a test engineer for a React 19 / TypeScript frontend of a Tauri 2 projec
 
 The user passes a domain name or contract path (e.g. `docs/contracts/user-contract.md`). If not provided, list files in `docs/contracts/` and ask which to use.
 
-Optionally, the user may pass a `modified_functions` list — entries of the form `{file}:{behavior}` identifying existing functions whose behavior changed in this feature but that have no contract entry (e.g. `useEditTransactionModal.ts:recomputeUnitPrice`). These come from `[unit-test-needed]` markers set by `feature-planner`. If provided, handle them in Step 5.
+Optionally, the user may pass a `modified_functions` list — entries of the form `{file}:{behavior}` identifying existing functions whose behavior changed in this feature but that have no contract entry (e.g. `useEditTransactionModal.ts:recomputeUnitPrice`). These come from `[unit-test-needed]` markers set by `/feature-planner`. If provided, handle them in Step 5.
 
 ---
 

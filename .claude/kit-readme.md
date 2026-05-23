@@ -57,13 +57,11 @@ git checkout -b feat/{feature-name}
 **Phase 1: Pre-implementation (Spec & Contract & Plan)**
 
 1. Run **`/spec-writer`** skill → produces `docs/spec/{feature}.md`. [soft gate]
-2. _(Optional)_ Run **`/adr-writer`** skill → produces `docs/adr/{ref}.md`. Then run **`adr-reviewer`** agent → quality gate before the decision is locked in.
-3. Run **`spec-reviewer`** agent → validate spec quality + contractability. [soft gate — hard if 🔴]
-4. Run **`/contract`** skill → produces or updates `docs/contracts/{domain}-contract.md`. [soft gate: human approves shape]
-5. Run **`contract-reviewer`** agent → validate contract vs spec. [soft gate — hard if 🔴]
-6. Run **`feature-planner`** agent → produces `docs/plan/{feature}-plan.md`. [auto]
-7. Run **`plan-reviewer`** agent → validate plan vs spec + contract. [soft gate — hard if 🔴]
-8. Switch the main agent to **`sonnet`** before Phase 2 — execution against locked artifacts is mechanical work; opus is reserved for design (Phase 1) or design-level rework triggered by reviewer findings.
+2. Run **`/contract`** skill → produces or updates `docs/contracts/{domain}-contract.md`. [soft gate: human approves shape]
+3. Run **`spec-reviewer`** + **`contract-reviewer`** agents in parallel (one Agent batch) → validate spec quality + contract vs spec. [soft gate — hard if 🔴]
+4. Run **`/feature-planner`** skill → produces `docs/plan/{feature}-plan.md`. [auto]
+5. Run **`plan-reviewer`** agent → validate plan vs spec + contract. [soft gate — hard if 🔴]
+6. Switch the main agent to **`sonnet`** before Phase 2 — execution against locked artifacts is mechanical work; opus is reserved for design (Phase 1) or design-level rework triggered by reviewer findings.
 
 **Phase 2: Backend layer**
 
@@ -71,29 +69,28 @@ git checkout -b feat/{feature-name}
 2. _(If schema changes per plan)_ Write migration → `just migrate` → `just prepare-sqlx`.
 3. Run **`test-writer-backend`** agent → writes all Rust stubs from contract, confirms red.
 4. Implement backend — minimal: make failing tests pass, confirm green.
-5. Run `just format` (rustfmt + clippy --fix).
-6. Run **`reviewer-backend`** + **`reviewer-arch`** _(if `.rs` modified)_ agents → run **`/review-triage`** → apply each Follow-up.
-7. Run `just generate-types` → updates `src/bindings.ts`. Fix TypeScript compilation errors from new bindings only (no UI work). Run `just check` → TypeScript clean.
-8. **`/smart-commit`**: backend layer. [HARD GATE]
+5. Run **`reviewer-backend`** + **`reviewer-arch`** _(if `.rs` modified)_ + **`reviewer-sql`** _(if migrations)_ in parallel (one Agent batch) → run **`/review-triage`** → apply each Follow-up.
+6. Run `just generate-types` → updates `src/bindings.ts`. Then `npx tsc --noEmit` → fix TS errors from new bindings only (no UI work).
+7. `just format` → **`/smart-commit`**: backend layer. [HARD GATE]
+8. **`/create-pr`** — if the **PR Plan** slices BE into its own PR; otherwise continue. After merge, branch the next phase off updated `main`.
 
 **Phase 3: Frontend layer**
 
 1. Run **`test-writer-frontend`** agent → writes all Vitest stubs from contract (reads fresh bindings), confirms red.
 2. Implement frontend — minimal: make failing tests pass, confirm green.
-3. Run `just format`.
+3. Run **`/visual-proof`** _(if .tsx/.css changed)_ → capture final state; stage screenshots before commit.
 4. Run **`reviewer-frontend`** agent → run **`/review-triage`** → apply each Follow-up.
-5. **`/smart-commit`**: frontend layer. [HARD GATE]
+5. `just format` → **`/smart-commit`**: frontend layer. [HARD GATE]
+6. **`/create-pr`** — if the **PR Plan** slices FE into its own PR; otherwise continue. After merge, branch the next phase off updated `main`.
 
 **Phase 4: Review & Closure**
 
 1. Run **`test-writer-e2e`** agent → produces pyramid-friendly E2E scenarios for critical-path commands. Run `/setup-e2e` first if not done. The main agent runs the suite and triages any failure with full implementation context.
-2. Run **`reviewer-e2e`** agent on E2E test files → run **`/review-triage`** → apply each Follow-up.
-3. **`/smart-commit`**: E2E layer. [HARD GATE]
-4. Run **`reviewer-arch`** _(if `.rs` modified in this branch)_ + **`reviewer-sql`** (if migrations) + **`reviewer-infra`** (if scripts, hooks, workflow, or config files were modified) + **`reviewer-security`** (if Tauri command, capability, or security-sensitive file modified) → run **`/review-triage`** → apply each Follow-up.
-5. Update `docs/todo.md` (always — close shipped entries); update `ARCHITECTURE.md` only if a new module/path or layer pattern was introduced.
-6. Run **`spec-checker`** agent → confirm all spec rules and contract commands are covered.
-7. **`/smart-commit`**: tests & docs. [HARD GATE]
-8. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff feat/{name}`).
+2. Run all applicable reviewers in parallel (one Agent batch): **`reviewer-e2e`** + **`reviewer-infra`** (if scripts, hooks, workflow, or config files were modified) + **`reviewer-security`** (if Tauri command, capability, or security-sensitive file modified) → run **`/review-triage`** → apply each Follow-up.
+3. Documentation Update — `docs/todo.md` (always: close shipped entries); `ARCHITECTURE.md` only if a new module/path or layer pattern was introduced.
+4. Run **`spec-checker`** agent → confirm all spec rules and contract commands are covered. **[HARD GATE — halt and surface any uncovered items to the user before proceeding.]**
+5. `just format` → **`/smart-commit`**: closure. [HARD GATE]
+6. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff feat/{name}`).
 
 ---
 
@@ -101,15 +98,16 @@ git checkout -b feat/{feature-name}
 
 _Use for: Bug fixes, dependency updates, minor maintenance (no new business rules or features)._
 
-**Before starting:** create a feature branch if on `main`: `git checkout -b fix/{description}` (or `chore/`, `test/`, etc.)
+**Before starting:** create a feature branch if on `main`: `git checkout -b fix/{description}` (or `chore/`, `test/`, etc.). Use `TaskCreate` / `TaskUpdate` throughout to track progress.
 
 1. **Analysis**: Read relevant documentation and analyze the codebase.
 2. **Direct Plan**: Propose a concise TODO plan with exact file paths in the chat. Ask user to validate.
-3. **Tracking**: Use `TaskCreate` / `TaskUpdate` tools to track workflow steps (`in_progress` when starting, `completed` when done).
-4. **Implementation**: Execute the code changes.
-5. **Review & Quality**: Run `just check` (or `just check-full`), write missing tests, then run reviewers: `reviewer-backend` (if `.rs` modified) · `reviewer-frontend` (if `.ts`/`.tsx` modified) · `reviewer-arch` (if `.rs` modified) · `reviewer-sql` (if migrations) · `reviewer-infra` (if scripts, hooks, config, or workflow files changed) · `reviewer-security` (if Tauri command, capability, or security-sensitive file modified). Then **`/review-triage`** → apply each Follow-up.
-6. **Closure**: Ask user if another task is needed before commit, otherwise use **`/smart-commit`** skill.
-7. **`/create-pr`** → push branch and open PR (or merge directly: `git checkout main && git merge --no-ff fix/{name}`).
+3. **Implementation**: Execute the code changes; write missing regression tests for any modified behavior.
+4. **Reviewers (parallel)**: Run all applicable reviewers in one Agent batch — `reviewer-backend` (if `.rs` modified) · `reviewer-frontend` (if `.ts`/`.tsx` modified) · `reviewer-arch` (if `.rs` — skip on docs/config-only) · `reviewer-sql` (if migrations) · `reviewer-infra` (if scripts, hooks, config, or workflow files changed) · `reviewer-security` (if Tauri command, capability, or security-sensitive file modified).
+5. **`/review-triage`** → triage findings; halt on (b)/(c) rows. Apply Follow-ups for (a) rows (skip if no findings).
+6. Update `docs/todo.md` if a TODO entry was resolved.
+7. **`just format`** → **`/smart-commit`** [HARD GATE].
+8. Ask user: merge directly (`git checkout main && git merge --ff-only fix/{name} && git push`) or **`/create-pr`**.
 
 ---
 
@@ -140,6 +138,8 @@ Some reviewer criticals are tagged `[DECISION]`. These indicate that the correct
 > **Reviewer `[DECISION]` criticals must not be fixed unilaterally.** When a reviewer flags a Critical with `[DECISION]`, stop and present the finding to the user before writing any code. The reviewer's guidance describes the direction, not the final answer — the architectural boundary must be agreed upon first.
 
 **Why this matters:** a cross-boundary import can be "fixed" in several structurally valid ways (new use-case, shared port, merged context). Choosing the wrong one silently encodes an architectural assumption that is hard to undo. The `[DECISION]` tag is the reviewer's signal that human judgment is required.
+
+**Record the resolution as an ADR.** Once the architectural choice is agreed with the user, invoke **`/adr-writer`** → **`adr-reviewer`** to capture it in `docs/adr/{ref}.md` before applying the fix. `/adr-writer` is also the right trigger any other time an architectural decision needs to be locked in — an Open Question in a spec, a cross-cutting refactor mid-implementation, or a one-way-door choice surfacing in any phase.
 
 ---
 

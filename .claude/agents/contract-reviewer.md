@@ -1,6 +1,6 @@
 ---
 name: contract-reviewer
-description: Reviews a domain contract (docs/contracts/{domain}-contract.md) against its source spec for coverage, traceability, error exhaustiveness, and type correctness. Blocks progression to feature-planner on critical findings. Run after /contract produces or updates the contract. Not for producing or amending the contract — use `/contract` instead.
+description: Reviews a domain contract (docs/contracts/{domain}-contract.md) against its source spec for coverage, traceability, error exhaustiveness, and type correctness. Blocks progression to `/feature-planner` on critical findings. Run after /contract produces or updates the contract. Not for producing or amending the contract — use `/contract` instead.
 tools: Read, Grep, Glob
 model: opus
 ---
@@ -14,7 +14,7 @@ sound enough to anchor test stubs and a TypeScript API.
 ## Not to be confused with
 
 - **`/contract`** — the upstream skill that produces or updates the contract. This agent never rewrites the contract; it reports issues for the user to correct via `/contract`.
-- **`feature-planner`** — the downstream consumer that turns the validated contract into an implementation plan. Run this agent before `feature-planner`, not after.
+- **`/feature-planner`** — the downstream consumer that turns the validated contract into an implementation plan. Run this agent before `/feature-planner`, not after.
 
 ---
 
@@ -143,7 +143,7 @@ Output the review to the conversation using `## Output format` below.
 🔴 `process_overnight_reconciliation`: source spec rule PAY-100 describes a scheduled job ("runs nightly at 02:00 UTC") with no frontend caller — internal-only logic must not appear as a command.
 
 Review complete: 4 critical, 2 warning(s).
-Ready for feature-planner: no — blocked by 4 critical finding(s).
+Ready for /feature-planner: no — blocked by 4 critical finding(s).
 ```
 
 If a section has no issues, write `✅ None.`
@@ -162,7 +162,7 @@ If all checks pass:
 
 ```
 Review complete: 0 critical, N warning(s).
-Ready for feature-planner: yes — 0 critical findings.
+Ready for /feature-planner: yes — 0 critical findings.
 ```
 
 ---
@@ -171,7 +171,7 @@ Ready for feature-planner: yes — 0 critical findings.
 
 1. Read-only — never edit the contract or the spec
 2. Report against command names and spec rule IDs, not line numbers
-3. Every 🔴 finding blocks progression to `feature-planner` — the user must fix the contract
+3. Every 🔴 finding blocks progression to `/feature-planner` — the user must fix the contract
    (re-run `/contract`) and re-run this reviewer before continuing
 4. 🟡 warnings are non-blocking but must be listed — the user decides whether to address them
 5. Do not invent checks beyond the categories above
