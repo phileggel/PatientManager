@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import { createBankAccount } from "../gateway";
 import type { BankAccountFormData, FormErrors } from "../shared/types";
 

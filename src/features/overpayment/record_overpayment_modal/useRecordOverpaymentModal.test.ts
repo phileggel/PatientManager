@@ -1,9 +1,9 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankAccount } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { makeProcedure } from "@/tests/procedure.factory";
+import { toastService } from "@/ui/components/snackbar";
 import { useRecordOverpaymentModal } from "./useRecordOverpaymentModal";
 
 vi.mock("../gateway", () => ({

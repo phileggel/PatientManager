@@ -18,8 +18,8 @@ import type {
   ReconcileAndCandidatesResponse,
   UnreconciledProcedure,
 } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import {
   createFundPaymentWithAutoCorrections,
   extractPdfText,

@@ -19,8 +19,8 @@ vi.mock("react-i18next", () => ({
 }));
 
 import * as process from "@tauri-apps/plugin-process";
-import { toastService } from "@/core/snackbar";
 import { getLastFolder, setLastFolder } from "@/features/shell/import_modal/lastFolderStore";
+import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../gateway";
 import { useDbBackupPanel } from "./useDbBackupPanel";
 

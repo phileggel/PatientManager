@@ -12,11 +12,10 @@ import { Edit2, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
-
-import { toastService } from "@/core/snackbar";
 import { useFormatters } from "@/lib/formatters";
 import { logger } from "@/lib/logger";
 import { Button, ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
+import { toastService } from "@/ui/components/snackbar";
 import { EditProcedureTypeModal } from "../edit_procedure_type_modal/EditProcedureTypeModal";
 import type { ProcedureTypeRow } from "../shared/types";
 import { useDoubleClickRow } from "./useDoubleClickRow";

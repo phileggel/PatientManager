@@ -1,8 +1,7 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
+import { toastService } from "@/ui/components/snackbar";
 import type { Page } from "../types";
 
 interface UseManagementModalProps {

@@ -9,7 +9,7 @@ import type { ProcedureRow } from "../model/procedure-row.types";
 import ProcedurePage from "./ProcedurePage";
 
 vi.mock("../api/gateway");
-vi.mock("@/core/snackbar", () => ({
+vi.mock("@/ui/components/snackbar", () => ({
   toastService: { show: vi.fn() },
 }));
 
@@ -191,7 +191,7 @@ describe("ProcedurePage — reloadRows + delete flow", () => {
       success: false,
       error: "db unavailable",
     });
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
 
     render(<ProcedurePage />);
     await waitFor(() => expect(screen.getByTestId("procedure-list")).toBeInTheDocument());
@@ -237,7 +237,7 @@ describe("ProcedurePage — reloadRows + delete flow", () => {
       ...defaultHookValue,
       deleteRow,
     });
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
 
     render(<ProcedurePage />);
     await waitFor(() => expect(screen.getByTestId("procedure-list")).toBeInTheDocument());

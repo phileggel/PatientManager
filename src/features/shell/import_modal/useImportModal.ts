@@ -1,8 +1,7 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
+import { toastService } from "@/ui/components/snackbar";
 import { pickExcelFilePath, pickPdfFilePath } from "../gateway";
 import type { Page } from "../types";
 import { getLastFolder, type ImportKind, parentDir, setLastFolder } from "./lastFolderStore";

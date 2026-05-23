@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntry, DirectPaymentProcedureCandidate, FundGroupCandidate } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import {
   getFundGroupsByIds,
   getProceduresByIds,

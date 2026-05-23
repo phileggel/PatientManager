@@ -16,7 +16,6 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { CancelRefundDialog } from "@/features/overpayment/cancel_refund_dialog/CancelRefundDialog";
 import * as overpaymentGateway from "@/features/overpayment/gateway";
 import { RecordOverpaymentModal } from "@/features/overpayment/record_overpayment_modal/RecordOverpaymentModal";
@@ -33,6 +32,7 @@ import {
   SelectField,
   TextField,
 } from "@/ui/components";
+import { toastService } from "@/ui/components/snackbar";
 import { formatPatientLabel } from "../../model";
 import { CreatePatientForm } from "../form/CreatePatientForm";
 import { useProcedureFormModal } from "./useProcedureFormModal";

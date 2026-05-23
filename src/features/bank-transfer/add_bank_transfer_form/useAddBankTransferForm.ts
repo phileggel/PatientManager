@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount, BankEntryType } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import { createDirectTransfer, createFundTransfer, getCashBankAccountId } from "../gateway";
 import { type BankTransferFormErrors, validateBankTransfer } from "../shared/validateBankTransfer";
 

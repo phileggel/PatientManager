@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { toastService } from "@/core/snackbar";
 import { makePatient } from "@/tests/patient.factory";
+import { toastService } from "@/ui/components/snackbar";
 import { useAddPatientPanel } from "./useAddPatientPanel";
 
 vi.mock("../gateway", () => ({

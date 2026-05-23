@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { makeProcedure } from "@/tests/procedure.factory";
+import { toastService } from "@/ui/components/snackbar";
 import { useDashboardPage } from "./useDashboardPage";
 
 vi.mock("../api/dashboardService", () => ({

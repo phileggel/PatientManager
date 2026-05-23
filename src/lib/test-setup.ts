@@ -22,7 +22,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-vi.mock("@/core/snackbar", () => ({
+vi.mock("@/ui/components/snackbar", () => ({
   toastService: { show: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
   useSnackbar: () => ({ snackbars: [], dismissSnackbar: vi.fn() }),
 }));

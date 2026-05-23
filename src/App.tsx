@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Snackbar, useSnackbar } from "@/core/snackbar";
 import { BankAccountManager } from "@/features/bank-account";
 import { BankStatementPage } from "@/features/bank-statement-match";
 import { BankTransferManager } from "@/features/bank-transfer";
@@ -28,6 +27,7 @@ import { useUpdater } from "@/features/shell/useUpdater";
 import { logger } from "@/lib/logger";
 import { useAppInit } from "@/lib/useAppInit";
 import { APP_NAME, APP_VERSION } from "@/lib/version";
+import { Snackbar, useSnackbar } from "@/ui/components/snackbar";
 
 const TAG = "[App]";
 

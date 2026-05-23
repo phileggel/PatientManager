@@ -31,7 +31,7 @@ vi.mock("../gateway", () => ({
 
 const mockToastShow = vi.hoisted(() => vi.fn());
 
-vi.mock("@/core/snackbar", () => ({
+vi.mock("@/ui/components/snackbar", () => ({
   toastService: { show: mockToastShow, subscribe: vi.fn(() => vi.fn()) },
 }));
 

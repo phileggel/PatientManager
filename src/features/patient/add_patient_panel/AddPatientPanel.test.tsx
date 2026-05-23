@@ -38,7 +38,7 @@ describe("AddPatientPanel", () => {
   });
 
   it("submits form with name only", async () => {
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
     const user = userEvent.setup();
 
     vi.mocked(gateway.addPatient).mockResolvedValue({

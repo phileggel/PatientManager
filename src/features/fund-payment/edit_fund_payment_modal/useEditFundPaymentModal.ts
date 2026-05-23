@@ -10,9 +10,9 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup, Procedure } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import { getFundPaymentGroupEditData, updatePaymentGroupWithProcedures } from "../gateway";
 import { FundPaymentPresenter } from "../shared/presenter";
 

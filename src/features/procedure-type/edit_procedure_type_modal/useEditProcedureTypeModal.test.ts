@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { toastService } from "@/core/snackbar";
 import { makeProcedureType } from "@/tests/procedure.factory";
+import { toastService } from "@/ui/components/snackbar";
 import { useEditProcedureTypeModal } from "./useEditProcedureTypeModal";
 
 vi.mock("../gateway", () => ({

@@ -4,8 +4,8 @@
 
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../gateway";
 
 const TAG = "[useCancelRefundDialog]";

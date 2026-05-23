@@ -1,9 +1,9 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Patient } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { updatePatient } from "@/features/patient/gateway";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import { PatientPresenter } from "../shared/presenter";
 import type { PatientFormData } from "../shared/types";
 import { type FormErrors, validatePatient } from "../shared/validatePatient";

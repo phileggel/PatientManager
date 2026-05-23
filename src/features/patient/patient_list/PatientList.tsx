@@ -12,10 +12,9 @@ import { Edit2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Patient } from "@/bindings";
-import { toastService } from "@/core/snackbar";
-
 import { logger } from "@/lib/logger";
 import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
+import { toastService } from "@/ui/components/snackbar";
 import { EditPatientModal } from "../edit_patient_modal/EditPatientModal";
 import type { PatientRow } from "../shared/types";
 import { usePatientList } from "./usePatientList";

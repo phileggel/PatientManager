@@ -12,10 +12,9 @@ import { Edit2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Fund } from "@/bindings";
-
-import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
 import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
+import { toastService } from "@/ui/components/snackbar";
 import { EditFundModal } from "../edit_fund_modal/EditFundModal";
 import type { FundRow } from "../shared/types";
 import { useFundList } from "./useFundList";

@@ -271,7 +271,7 @@ describe("useEditFundPaymentModal", () => {
   });
 
   it("handleSubmit shows error toast and does not call onClose on API failure", async () => {
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
 
     vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
       success: true,
@@ -301,7 +301,7 @@ describe("useEditFundPaymentModal", () => {
   });
 
   it("handleSubmit shows validation error when no procedures selected", async () => {
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
 
     vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
       success: true,
@@ -323,7 +323,7 @@ describe("useEditFundPaymentModal", () => {
   });
 
   it("shows error toast on load failure", async () => {
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
 
     vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
       success: false,

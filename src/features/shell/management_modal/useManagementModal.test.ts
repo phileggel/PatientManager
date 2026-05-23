@@ -7,10 +7,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { makeFund } from "@/tests/fund.factory";
+import { toastService } from "@/ui/components/snackbar";
 import { useManagementModal } from "./useManagementModal";
 
 describe("useManagementModal", () => {

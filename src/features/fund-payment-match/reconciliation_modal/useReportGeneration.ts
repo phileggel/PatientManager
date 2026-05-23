@@ -7,8 +7,8 @@ import type {
   ReportGenerationRequest,
   UnreconciledProcedure,
 } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import { exportAndOpenReportPdf } from "../gateway";
 import { formatLongDateTime, formatShortDate } from "../shared/formatters";
 import { buildCorrectionGroups, buildUnreconciledSection } from "../shared/reportPresenter";

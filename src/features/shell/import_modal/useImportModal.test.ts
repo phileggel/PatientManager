@@ -12,10 +12,10 @@ vi.mock("../gateway", () => ({
   pickPdfFilePath: vi.fn(),
 }));
 
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { makeFund } from "@/tests/fund.factory";
+import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../gateway";
 import { getLastFolder, setLastFolder } from "./lastFolderStore";
 import { useImportModal } from "./useImportModal";

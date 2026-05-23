@@ -8,16 +8,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-05-23 — `@/core/snackbar` import path is not an F0 bucket
-
-**Found by:** reviewer-frontend (`refactor/procedure-amount-ul-rename`)
-
-**Where:** `src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx:19` — `import { toastService } from "@/core/snackbar"`. Likely repeats across other features that consume the toast service.
-
-**Observation:** The F0 / F28 bucket layout (kit v4.5+) is `features/`, `shell/`, `ui/`, `infra/`. `@/core/` predates that layout and is not on the allow-list. The natural new home for `toastService` is `@/ui/components/snackbar/` (since it's a presentation primitive) or `@/infra/notifications/` (if framed as a cross-cutting infra service). The decision belongs in the broader F0 migration sweep, not in this PR's scope. Surfaced repeatedly by reviewer-frontend; one focused PR can move `@/core/snackbar/` to its F0-conforming home and update every consumer.
-
----
-
 ## 2026-05-23 — `@/lib/*` imports pre-date the v4.5 bucket layout
 
 **Found by:** reviewer-frontend (`refactor/procedure-amount-ul-rename`)

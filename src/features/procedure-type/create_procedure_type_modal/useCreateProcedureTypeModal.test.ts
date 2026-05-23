@@ -6,7 +6,7 @@ vi.mock("../gateway", () => ({
   addProcedureType: vi.fn(),
 }));
 
-import { toastService } from "@/core/snackbar";
+import { toastService } from "@/ui/components/snackbar";
 import { addProcedureType } from "../gateway";
 
 const mockAddProcedureType = vi.mocked(addProcedureType);

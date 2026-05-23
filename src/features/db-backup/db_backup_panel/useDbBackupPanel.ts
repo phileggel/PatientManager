@@ -1,14 +1,13 @@
 import { relaunch } from "@tauri-apps/plugin-process";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import { toastService } from "@/core/snackbar";
 import {
   getLastFolder,
   parentDir,
   setLastFolder,
 } from "@/features/shell/import_modal/lastFolderStore";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import { exportDatabase, importDatabase, pickExportPath, pickImportPath } from "../gateway";
 
 const TAG = "[useDbBackupPanel]";

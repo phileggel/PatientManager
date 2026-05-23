@@ -267,7 +267,7 @@ describe("create mode — reset after successful submit", () => {
 
 describe("create mode — error handling", () => {
   it("shows error toast on gateway failure", async () => {
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
     const { addProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(addProcedure).mockResolvedValueOnce({ success: false, error: "Network error" });
 
@@ -292,7 +292,7 @@ describe("create mode — error handling", () => {
 
 describe("view mode — error handling", () => {
   it("shows error toast and clears loading when updateProcedure fails", async () => {
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
     const { updateProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(updateProcedure).mockResolvedValueOnce({
       success: false,
@@ -329,7 +329,7 @@ describe("view mode — error handling", () => {
 
 describe("edit mode — error handling", () => {
   it("shows error toast and clears loading when updateProcedure fails", async () => {
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
     const { updateProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(updateProcedure).mockResolvedValueOnce({
       success: false,
@@ -596,7 +596,7 @@ describe("edit mode — calls updateProcedure on submit", () => {
 
 describe("create mode — validation errors set fieldErrors", () => {
   it("sets fieldErrors for all missing required fields and shows toast", async () => {
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
@@ -640,7 +640,7 @@ describe("create mode — handlePatientCreated", () => {
 
   it("shows error toast when createNewPatient returns a failure result", async () => {
     const { createNewPatient } = await import("@/features/procedure/api/gateway");
-    const { toastService } = await import("@/core/snackbar");
+    const { toastService } = await import("@/ui/components/snackbar");
     vi.mocked(createNewPatient).mockResolvedValue({ success: false, error: "create failed" });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });

@@ -12,9 +12,9 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Patient, Procedure } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../../api/gateway";
 import { formatPatientLabel } from "../../model";
 

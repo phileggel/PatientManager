@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { toastService } from "@/core/snackbar";
 import { makeBankAccount } from "@/tests/bank.factory";
+import { toastService } from "@/ui/components/snackbar";
 import { useEditBankAccountModal } from "./useEditBankAccountModal";
 
 vi.mock("../gateway", () => ({

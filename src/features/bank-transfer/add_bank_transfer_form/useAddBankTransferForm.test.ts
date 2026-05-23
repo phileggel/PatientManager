@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { makeBankAccount } from "@/tests/bank.factory";
+import { toastService } from "@/ui/components/snackbar";
 
 vi.mock("../gateway", () => ({
   getCashBankAccountId: vi.fn(),

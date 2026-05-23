@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Procedure } from "@/bindings";
-import { toastService } from "@/core/snackbar";
 import { useAppStore } from "@/lib/appStore";
 import { logger } from "@/lib/logger";
+import { toastService } from "@/ui/components/snackbar";
 import { getUnpaidProceduresByFund } from "../gateway";
 
 export interface SelectedProcedure {

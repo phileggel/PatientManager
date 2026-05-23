@@ -10,11 +10,11 @@ vi.mock("../gateway", () => ({
   deleteFundPaymentGroup: vi.fn(),
 }));
 
-vi.mock("@/core/snackbar", () => ({
+vi.mock("@/ui/components/snackbar", () => ({
   toastService: { show: vi.fn() },
 }));
 
-import { toastService } from "@/core/snackbar";
+import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../gateway";
 import { useFundPaymentList } from "./useFundPaymentList";
 

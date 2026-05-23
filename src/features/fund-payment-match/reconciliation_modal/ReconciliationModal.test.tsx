@@ -35,7 +35,7 @@ vi.mock("@/lib/appStore", () => ({
 // on PDF generation failure (FPR-014). `useReconciliationModal` also fires a
 // success toast on validation; we mock the singleton so all calls land in one place.
 const mockToastShow = vi.hoisted(() => vi.fn());
-vi.mock("@/core/snackbar", () => ({
+vi.mock("@/ui/components/snackbar", () => ({
   toastService: { show: mockToastShow, subscribe: vi.fn(() => vi.fn()) },
 }));
 
