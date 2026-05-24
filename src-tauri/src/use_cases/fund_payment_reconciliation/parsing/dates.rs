@@ -9,15 +9,6 @@ pub fn convert_french_date_to_naive_date(date_str: &str) -> anyhow::Result<Naive
         .map_err(|e| anyhow::anyhow!("Invalid French date '{}': {}", date_str, e))
 }
 
-/// Parse an ISO-formatted date (YYYY-MM-DD) into a NaiveDate
-/// TEMPORARY: Used for database procedures until dates are fully migrated to NaiveDate
-/// TODO: Remove this function when Procedure domain stores NaiveDate instead of String
-pub fn parse_iso_date_to_naive_date(date_str: &str) -> anyhow::Result<NaiveDate> {
-    let date_str = date_str.trim();
-    NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-        .map_err(|e| anyhow::anyhow!("Invalid ISO date '{}': {}", date_str, e))
-}
-
 /// Parse a date range string (single date or "DD/MM/YYYY au DD/MM/YYYY")
 ///
 /// FPA-025: when a PDF period line has start > end (e.g. "du 16/04 au 13/04"),
