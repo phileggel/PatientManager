@@ -13,7 +13,7 @@ pub struct PatientRow {
     pub ssn: Option<String>,
     pub latest_procedure_type: Option<String>,
     pub latest_fund: Option<String>,
-    pub latest_date: Option<String>,
+    pub latest_date: Option<NaiveDate>,
     pub latest_procedure_amount: Option<i64>,
     pub is_deleted: i64,
 }
@@ -21,10 +21,6 @@ pub struct PatientRow {
 // Conversion function from row type to domain object
 impl From<PatientRow> for Patient {
     fn from(row: PatientRow) -> Self {
-        let latest_date_parsed = row
-            .latest_date
-            .and_then(|date_str| NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").ok());
-
         Patient::restore(
             row.id,
             row.is_anonymous != 0,
@@ -32,7 +28,7 @@ impl From<PatientRow> for Patient {
             row.ssn,
             row.latest_procedure_type,
             row.latest_fund,
-            latest_date_parsed,
+            row.latest_date,
             row.latest_procedure_amount,
         )
     }
@@ -104,7 +100,7 @@ impl PatientRepository for SqlitePatientRepository {
         let rows = sqlx::query_as!(
             PatientRow,
             r#"
-            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted
+            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount, is_deleted
             FROM patient
             WHERE is_deleted = 0
             "#,
@@ -121,7 +117,7 @@ impl PatientRepository for SqlitePatientRepository {
         let row = sqlx::query_as!(
             PatientRow,
             r#"
-            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted
+            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount, is_deleted
             FROM patient
             WHERE id = $1 AND is_deleted = 0
             "#,
@@ -135,10 +131,6 @@ impl PatientRepository for SqlitePatientRepository {
 
     async fn update_patient(&self, patient: Patient) -> anyhow::Result<Patient> {
         let patient_id = &patient.id;
-
-        let latest_date_str = patient
-            .latest_date
-            .map(|d| d.format("%Y-%m-%d").to_string());
 
         tracing::trace!(patient_id = %patient_id, name = ?patient.name, "Updating patient in database");
 
@@ -161,7 +153,7 @@ impl PatientRepository for SqlitePatientRepository {
             patient.ssn,
             patient.latest_procedure_type,
             patient.latest_fund,
-            latest_date_str,
+            patient.latest_date,
             patient.latest_procedure_amount,
         )
         .execute(&self.pool)
@@ -178,7 +170,7 @@ impl PatientRepository for SqlitePatientRepository {
         let row = sqlx::query_as!(
             PatientRow,
             r#"
-            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted
+            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount, is_deleted
             FROM patient
             WHERE ssn = $1 AND is_deleted = 0
             "#,
@@ -201,7 +193,7 @@ impl PatientRepository for SqlitePatientRepository {
         let rows = sqlx::query_as!(
             PatientRow,
             r#"
-            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted
+            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount, is_deleted
             FROM patient
             WHERE is_deleted = 0
             ORDER BY (ssn IS NULL OR ssn = '') ASC
