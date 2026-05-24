@@ -95,7 +95,7 @@ struct Procedure {
     fund_id: Option<String>,
     procedure_type_id: String,
     procedure_date: String,              // ISO date YYYY-MM-DD
-    billed_amount: Option<i64>,          // in thousandths of a euro
+    billed_amount: i64,                  // in thousandths of a euro
     payment_method: PaymentMethod,
     // Stage 1 — fund-declared payment date from the fund document;
     // set by fund-payment-* reconciliation flows when the procedure
@@ -118,7 +118,7 @@ struct RawProcedure {
     fund_id: Option<String>,
     procedure_type_id: String,
     procedure_date: String,
-    billed_amount: Option<i64>,
+    billed_amount: i64,
     payment_method: Option<String>,      // raw string
     fund_reconciliation_date: Option<String>,
     confirmed_payment_date: Option<String>,
@@ -132,7 +132,7 @@ struct ProcedureCandidate {
     fund_id: Option<String>,
     procedure_type_id: String,
     procedure_date: String,
-    billed_amount: Option<i64>,
+    billed_amount: i64,
     payment_method: Option<String>,
     confirmed_payment_date: Option<String>,
     paid_amount: Option<i64>,
