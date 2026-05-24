@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted\n            FROM patient\n            WHERE ssn = $1 AND is_deleted = 0\n            ",
+  "query": "\n            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS \"latest_date?: NaiveDate\", latest_procedure_amount, is_deleted\n            FROM patient\n            WHERE id = $1 AND is_deleted = 0\n            ",
   "describe": {
     "columns": [
       {
@@ -34,7 +34,7 @@
         "type_info": "Text"
       },
       {
-        "name": "latest_date",
+        "name": "latest_date?: NaiveDate",
         "ordinal": 6,
         "type_info": "Text"
       },
@@ -64,5 +64,5 @@
       false
     ]
   },
-  "hash": "9f430fc43128fbc5320354bf05eba686b062f8f830db2169dba75abd2550f645"
+  "hash": "89f6f2036c05d0be763bbd86e231f6b61e3453fba854796dbcb4530654caa933"
 }
