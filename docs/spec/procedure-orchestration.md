@@ -19,10 +19,9 @@ status inference, and patient tracking-field updates as side effects.
 
 > _R2 and R3 have been removed._
 
-**PRO-020 (R4) — Pre-fill on patient selection**: In creation mode, when a patient is selected in
-the modal, the fund, procedure type, and amount are pre-filled from the patient's most
-recent procedure (`latest_fund`, `latest_procedure_type`, `latest_procedure_amount`).
-Today's date is also pre-filled if no date has been entered yet.
+**PRO-020 (R4) — Pre-fill on patient selection**: In creation mode, when a patient is selected in the modal, the fund, procedure type, and amount are pre-filled from the patient's most recent procedure (`latest_fund`, `latest_procedure_type`, `latest_procedure_amount`) only when the corresponding form field is in its not-initialized state. Today's date is also pre-filled if no date has been entered yet.
+
+**PRO-025 — Pre-fill on procedure type selection**: In creation mode, when a procedure type is selected or changed, the amount field (`billed_amount`) is pre-filled from that type's `default_amount` only when the amount field is in its not-initialized state. Once the user has entered a value, subsequent procedure-type changes do not overwrite it. Clearing the amount field returns it to its not-initialized state, re-enabling propagation.
 
 **PRO-030 (R5) — Confirmation before deletion**: Deleting a procedure always requires a `ConfirmationDialog`. No row can be deleted without explicit confirmation. Deletion is blocked (frontend + backend) for procedures in `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`, `Overpaid` (see REF-220), or `OverpaymentRefund` (see REF-230) status — these procedures are tied to a fund-payment group or a direct bank transaction; deleting them would leave those records inconsistent. To delete them, you must first delete the associated transfer, fund-payment group, or direct payment. On the frontend, the delete button is `disabled` (`isBlockingStatus`) for these statuses. On the backend, `delete_procedure` checks the status before deletion and returns an explicit error.
 
@@ -55,7 +54,7 @@ M3 token mapping:
 `rounded-full`) opens `ProcedureFormModal` in creation mode. The table occupies the full
 content width.
 
-**PRO-120 (R27) — Form validation (frontend)**: Three fields are required in the create and edit form: the patient (`patient_id`), the procedure type (`procedure_type_id`), and the execution date (`procedure_date`). An error message is shown for each missing field and a global error toast is triggered. The amount (`procedure_amount`) and the fund (`fund_id`) are optional — a procedure can be saved without an amount or a fund.
+**PRO-120 (R27) — Form validation (frontend)**: Three fields are required to submit the create or edit form: the patient (`patient_id`), the procedure type (`procedure_type_id`), and the execution date (`procedure_date`). An error message is shown for each missing field and a global error toast is triggered. The fund (`fund_id`) is optional. The amount (`billed_amount`) is a mandatory domain field stored as a non-null integer in thousandths of a euro; the form displays an empty input box when the field has not been initialized by the user nor by propagation (PRO-020, PRO-025), in which case the submitted value is `0`.
 
 **PRO-130 (R28) — SSN display format (frontend)**: When the patient's social-security number (SSN — `ssn` field) is set, it is displayed in parentheses immediately after the patient's name. Example: `DUPOND Floriane (1234567890123)`. If the patient has no SSN, the parentheses and their content are omitted.
 
