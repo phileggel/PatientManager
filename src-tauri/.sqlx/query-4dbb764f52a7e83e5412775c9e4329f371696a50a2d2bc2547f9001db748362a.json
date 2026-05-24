@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,\n                   hp.procedure_date, hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date, hp.confirmed_payment_date, hp.paid_amount, hp.payment_status, hp.is_deleted\n            FROM procedure hp\n            JOIN patient p ON hp.patient_id = p.id\n            WHERE p.ssn = $1\n              AND hp.procedure_date >= $2\n              AND hp.procedure_date <= $3\n              AND hp.is_deleted = 0\n              AND p.is_deleted = 0\n            ORDER BY hp.procedure_date ASC\n            ",
+  "query": "\n            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS \"procedure_date: NaiveDate\", billed_amount, payment_method, fund_reconciliation_date AS \"fund_reconciliation_date?: NaiveDate\", confirmed_payment_date AS \"confirmed_payment_date?: NaiveDate\", paid_amount, payment_status, is_deleted\n            FROM procedure\n            WHERE patient_id = $1\n              AND fund_id IS $2\n              AND procedure_date = $3\n              AND billed_amount = $4\n              AND is_deleted = 0\n            LIMIT 1\n            ",
   "describe": {
     "columns": [
       {
@@ -24,7 +24,7 @@
         "type_info": "Text"
       },
       {
-        "name": "procedure_date",
+        "name": "procedure_date: NaiveDate",
         "ordinal": 4,
         "type_info": "Text"
       },
@@ -39,12 +39,12 @@
         "type_info": "Text"
       },
       {
-        "name": "fund_reconciliation_date",
+        "name": "fund_reconciliation_date?: NaiveDate",
         "ordinal": 7,
         "type_info": "Text"
       },
       {
-        "name": "confirmed_payment_date",
+        "name": "confirmed_payment_date?: NaiveDate",
         "ordinal": 8,
         "type_info": "Text"
       },
@@ -65,7 +65,7 @@
       }
     ],
     "parameters": {
-      "Right": 3
+      "Right": 4
     },
     "nullable": [
       false,
@@ -82,5 +82,5 @@
       false
     ]
   },
-  "hash": "84f37441805d08115e19dde364be45a5e0844fc8d97adb7b11d42907453f7a44"
+  "hash": "4dbb764f52a7e83e5412775c9e4329f371696a50a2d2bc2547f9001db748362a"
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount, payment_status, is_deleted\n            FROM procedure\n            WHERE patient_id = $1\n              AND fund_id IS $2\n              AND procedure_date = $3\n              AND billed_amount = $4\n              AND is_deleted = 0\n            LIMIT 1\n            ",
+  "query": "\n            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS \"procedure_date: NaiveDate\", billed_amount, payment_method, fund_reconciliation_date AS \"fund_reconciliation_date?: NaiveDate\", confirmed_payment_date AS \"confirmed_payment_date?: NaiveDate\", paid_amount, payment_status, is_deleted\n            FROM procedure\n            WHERE id = $1 AND is_deleted = 0\n            ",
   "describe": {
     "columns": [
       {
@@ -24,7 +24,7 @@
         "type_info": "Text"
       },
       {
-        "name": "procedure_date",
+        "name": "procedure_date: NaiveDate",
         "ordinal": 4,
         "type_info": "Text"
       },
@@ -39,12 +39,12 @@
         "type_info": "Text"
       },
       {
-        "name": "fund_reconciliation_date",
+        "name": "fund_reconciliation_date?: NaiveDate",
         "ordinal": 7,
         "type_info": "Text"
       },
       {
-        "name": "confirmed_payment_date",
+        "name": "confirmed_payment_date?: NaiveDate",
         "ordinal": 8,
         "type_info": "Text"
       },
@@ -65,7 +65,7 @@
       }
     ],
     "parameters": {
-      "Right": 4
+      "Right": 1
     },
     "nullable": [
       false,
@@ -82,5 +82,5 @@
       false
     ]
   },
-  "hash": "bfabb168cd97cd5f13a9a500ed8d8050eec93178898d6c690ef76e2ae42805e9"
+  "hash": "6914f640c9fdd2116b4b1813e8912f0f9521065c55c10e64d4710f7e6fbd5dee"
 }
