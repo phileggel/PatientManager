@@ -249,7 +249,7 @@ mod tests {
             "patient-1".to_string(),
             Some("fund-1".to_string()),
             "proc-type-1".to_string(),
-            "2025-05-10".to_string(),
+            NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
             Some(50000),
             PaymentMethod::None,
             None,

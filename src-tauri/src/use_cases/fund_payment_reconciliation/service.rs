@@ -441,7 +441,7 @@ mod tests {
             "patient-1".into(),
             None,
             "type-1".into(),
-            date_str.into(),
+            NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap(),
             Some(amount),
             crate::context::procedure::PaymentMethod::None,
             None,

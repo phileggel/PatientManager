@@ -598,6 +598,14 @@ mod tests {
              confirmed_payment_date,
              paid_amount,
              payment_status| {
+                let procedure_date =
+                    chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")?;
+                let fund_reconciliation_date = fund_reconciliation_date
+                    .map(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
+                    .transpose()?;
+                let confirmed_payment_date = confirmed_payment_date
+                    .map(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
+                    .transpose()?;
                 Procedure::new(
                     patient_id,
                     fund_id,
@@ -682,7 +690,7 @@ mod tests {
             "p1".to_string(),
             Some("fund-1".to_string()),
             "t1".to_string(),
-            "2026-01-01".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
             Some(15000),
             PaymentMethod::None,
             None,
@@ -715,7 +723,7 @@ mod tests {
             "p1".to_string(),
             None,
             "t1".to_string(),
-            "2026-01-01".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
             None,
             PaymentMethod::None,
             None,

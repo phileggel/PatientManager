@@ -221,32 +221,26 @@ impl Procedure {
         patient_id: String,
         fund_id: Option<String>,
         procedure_type_id: String,
-        procedure_date: String,
+        procedure_date: NaiveDate,
         billed_amount: Option<i64>,
         payment_method: PaymentMethod,
-        fund_reconciliation_date: Option<String>,
-        confirmed_payment_date: Option<String>,
+        fund_reconciliation_date: Option<NaiveDate>,
+        confirmed_payment_date: Option<NaiveDate>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> Result<Self> {
-        Self::validate(&patient_id, &procedure_type_id, &procedure_date)?;
-
-        let parsed_procedure_date = Self::parse_date(&procedure_date, "procedure date")?;
-        let parsed_fund_reconciliation_date =
-            Self::parse_optional_date(fund_reconciliation_date, "fund reconciliation date")?;
-        let parsed_confirmed_payment_date =
-            Self::parse_optional_date(confirmed_payment_date, "confirmed payment date")?;
+        Self::validate(&patient_id, &procedure_type_id)?;
 
         Ok(Self {
             id: Uuid::new_v4().to_string(),
             patient_id,
             fund_id,
             procedure_type_id,
-            procedure_date: parsed_procedure_date,
+            procedure_date,
             billed_amount,
             payment_method,
-            fund_reconciliation_date: parsed_fund_reconciliation_date,
-            confirmed_payment_date: parsed_confirmed_payment_date,
+            fund_reconciliation_date,
+            confirmed_payment_date,
             paid_amount,
             payment_status,
         })
@@ -261,32 +255,26 @@ impl Procedure {
         patient_id: String,
         fund_id: Option<String>,
         procedure_type_id: String,
-        procedure_date: String,
+        procedure_date: NaiveDate,
         billed_amount: Option<i64>,
         payment_method: PaymentMethod,
-        fund_reconciliation_date: Option<String>,
-        confirmed_payment_date: Option<String>,
+        fund_reconciliation_date: Option<NaiveDate>,
+        confirmed_payment_date: Option<NaiveDate>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> Result<Self> {
-        Self::validate(&patient_id, &procedure_type_id, &procedure_date)?;
-
-        let parsed_procedure_date = Self::parse_date(&procedure_date, "procedure date")?;
-        let parsed_fund_reconciliation_date =
-            Self::parse_optional_date(fund_reconciliation_date, "fund reconciliation date")?;
-        let parsed_confirmed_payment_date =
-            Self::parse_optional_date(confirmed_payment_date, "confirmed payment date")?;
+        Self::validate(&patient_id, &procedure_type_id)?;
 
         Ok(Self {
             id,
             patient_id,
             fund_id,
             procedure_type_id,
-            procedure_date: parsed_procedure_date,
+            procedure_date,
             billed_amount,
             payment_method,
-            fund_reconciliation_date: parsed_fund_reconciliation_date,
-            confirmed_payment_date: parsed_confirmed_payment_date,
+            fund_reconciliation_date,
+            confirmed_payment_date,
             paid_amount,
             payment_status,
         })
@@ -390,34 +378,14 @@ impl Procedure {
     }
 
     /// Validates healthcare procedure fields.
-    fn validate(patient_id: &str, procedure_type_id: &str, procedure_date: &str) -> Result<()> {
+    fn validate(patient_id: &str, procedure_type_id: &str) -> Result<()> {
         if patient_id.trim().is_empty() {
             anyhow::bail!("Patient ID cannot be empty");
         }
         if procedure_type_id.trim().is_empty() {
             anyhow::bail!("Procedure type ID cannot be empty");
         }
-        if procedure_date.trim().is_empty() {
-            anyhow::bail!("Procedure date cannot be empty");
-        }
         Ok(())
-    }
-
-    fn parse_date(date_str: &str, label: &str) -> Result<NaiveDate> {
-        NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|_| {
-            anyhow::anyhow!(
-                "Invalid {} format: {} (expected YYYY-MM-DD)",
-                label,
-                date_str
-            )
-        })
-    }
-
-    fn parse_optional_date(date_str: Option<String>, label: &str) -> Result<Option<NaiveDate>> {
-        match date_str {
-            Some(s) => Self::parse_date(&s, label).map(Some),
-            None => Ok(None),
-        }
     }
 }
 

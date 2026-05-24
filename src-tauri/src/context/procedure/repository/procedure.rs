@@ -122,15 +122,26 @@ impl ProcedureRepository for SqliteProcedureRepository {
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> anyhow::Result<Procedure> {
+        let procedure_date_parsed = NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
+            .map_err(|_| anyhow!("Invalid procedure_date '{procedure_date}'"))?;
+        let fund_reconciliation_date_parsed = fund_reconciliation_date
+            .map(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
+            .transpose()
+            .map_err(|_| anyhow!("Invalid fund_reconciliation_date"))?;
+        let confirmed_payment_date_parsed = confirmed_payment_date
+            .map(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
+            .transpose()
+            .map_err(|_| anyhow!("Invalid confirmed_payment_date"))?;
+
         let procedure = Procedure::new(
             patient_id,
             fund_id,
             procedure_type_id,
-            procedure_date,
+            procedure_date_parsed,
             billed_amount,
             payment_method,
-            fund_reconciliation_date,
-            confirmed_payment_date,
+            fund_reconciliation_date_parsed,
+            confirmed_payment_date_parsed,
             paid_amount,
             payment_status,
         )?;
@@ -730,7 +741,7 @@ mod tests {
             patient_id.to_string(),
             None,
             procedure_type_id.to_string(),
-            date.to_string(),
+            NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
             Some(10000),
             PaymentMethod::None,
             None,

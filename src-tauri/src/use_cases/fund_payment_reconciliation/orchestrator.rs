@@ -879,8 +879,6 @@ impl FundPaymentReconciliationOrchestrator {
                 pdf_fund_label,
             } = correction
             {
-                let procedure_date_iso = procedure_date.format("%Y-%m-%d").to_string();
-
                 // Find patient by SSN, or create if not found
                 let patient = match patient_service.find_patient_by_ssn(&ssn).await? {
                     Some(p) => p,
@@ -900,7 +898,7 @@ impl FundPaymentReconciliationOrchestrator {
                     patient_id: patient.id.clone(),
                     fund_id: Some(fund_id),
                     procedure_type_id: "import-pdf".to_string(),
-                    procedure_date: procedure_date_iso,
+                    procedure_date,
                     billed_amount: Some(billed_amount),
                     payment_method: None,
                     confirmed_payment_date: None,
