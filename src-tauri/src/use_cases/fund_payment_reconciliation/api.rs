@@ -46,7 +46,8 @@ pub struct NotFoundCandidate {
     pub procedure_id: String,
     pub patient_name: String,
     pub ssn: String,
-    pub procedure_date: String,
+    #[specta(type = String)]
+    pub procedure_date: NaiveDate,
     pub amount: i64,
 }
 
@@ -56,7 +57,8 @@ pub struct UnreconciledProcedure {
     pub procedure_id: String,
     pub patient_name: String,
     pub ssn: String,
-    pub procedure_date: String,
+    #[specta(type = String)]
+    pub procedure_date: NaiveDate,
     pub amount: i64,
 }
 

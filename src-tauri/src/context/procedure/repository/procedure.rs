@@ -48,7 +48,7 @@ struct UnreconciledProcedureRow {
     patient_id: String,
     patient_name: Option<String>,
     patient_ssn: Option<String>,
-    procedure_date: String,
+    procedure_date: NaiveDate,
     amount: Option<i64>,
 }
 
@@ -582,7 +582,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             r#"
             SELECT p.id AS procedure_id, p.patient_id,
                    pat.name AS patient_name, pat.ssn AS patient_ssn,
-                   p.procedure_date, p.billed_amount AS amount
+                   p.procedure_date AS "procedure_date: NaiveDate", p.billed_amount AS amount
             FROM "procedure" p
             JOIN patient pat ON p.patient_id = pat.id
             WHERE p.procedure_date BETWEEN $1 AND $2
