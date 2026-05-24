@@ -131,19 +131,17 @@ impl ProcedureOrchestrationService {
         );
 
         // Delegate to context service for state change (which publishes event).
-        // Repo trait still takes String date params; reformat at the boundary.
         let procedure = self
             .context_procedure_service
             .create_procedure(
                 req.patient_id.clone(),
                 req.fund_id.clone(),
                 req.procedure_type_id.clone(),
-                req.procedure_date.format("%Y-%m-%d").to_string(),
+                req.procedure_date,
                 req.billed_amount,
                 mapped_payment_method,
                 None,
-                req.confirmed_payment_date
-                    .map(|d| d.format("%Y-%m-%d").to_string()),
+                req.confirmed_payment_date,
                 req.paid_amount,
                 status,
             )
@@ -795,14 +793,6 @@ mod tests {
              confirmed_payment_date,
              paid_amount,
              payment_status| {
-                let procedure_date =
-                    chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")?;
-                let fund_reconciliation_date = fund_reconciliation_date
-                    .map(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
-                    .transpose()?;
-                let confirmed_payment_date = confirmed_payment_date
-                    .map(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
-                    .transpose()?;
                 Procedure::with_id(
                     "new-proc-id".to_string(),
                     patient_id,

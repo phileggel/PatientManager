@@ -114,7 +114,7 @@ async fn create_procedure(ctx: &Ctx, amount: i64, status: ProcedureStatus) -> St
             ctx.patient_id.clone(),
             Some(ctx.fund_id.clone()),
             ctx.proc_type_id.clone(),
-            "2026-01-15".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             Some(amount),
             PaymentMethod::None,
             None,

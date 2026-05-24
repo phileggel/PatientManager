@@ -703,22 +703,16 @@ mod tests {
              confirmed_payment_date,
              paid_amount,
              payment_status| {
-                let date =
-                    NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d").unwrap_or_default();
                 Ok(Procedure::restore(
                     uuid::Uuid::new_v4().to_string(),
                     patient_id,
                     fund_id,
                     procedure_type_id,
-                    date,
+                    procedure_date,
                     billed_amount,
                     payment_method,
-                    fund_reconciliation_date
-                        .as_deref()
-                        .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
-                    confirmed_payment_date
-                        .as_deref()
-                        .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
+                    fund_reconciliation_date,
+                    confirmed_payment_date,
                     paid_amount,
                     payment_status,
                 ))

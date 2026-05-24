@@ -8,16 +8,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-05-24 — `ProcedureRepository::create_procedure` trait + service still take `String` dates
-
-**Found by:** reviewer-backend + reviewer-arch (`refactor/dates-naive-be`)
-
-**Where:** `src-tauri/src/context/procedure/domain/procedure.rs:438+` (trait method) and `src-tauri/src/context/procedure/service.rs:157+` (service wrapper). Forces `src-tauri/src/use_cases/procedure_orchestration/service.rs:135-141` to format `NaiveDate → String` before the call, where the impl then re-parses `String → NaiveDate`. Layering inversion: a use-case orchestrator is adapting correctly-typed data to work around an under-typed BC boundary.
-
-**Observation:** All downstream layers (domain entity, repository row, API DTO, factory `Procedure::new`/`with_id`) carry `NaiveDate` after the `refactor/dates-naive-be` branch. The trait + its service wrapper are the last String boundary. Migrating them is mechanical but fans out to the mockall-generated `MockProcedureRepository`, ~3 production call sites, and ~20 inline test fixtures. Same shape applies to `find_procedures_by_ssn_and_date_range`, `find_procedure_exact`, `find_unreconciled_by_date_range`, `find_created_in_date_range`, `find_created_by_fund_before_date` — all accept `&str` / `String` date params.
-
----
-
 ## 2026-05-24 — `Result<T, String>` on use-case Tauri commands violates the wire-error contract
 
 **Found by:** reviewer-backend (`refactor/dates-naive-be`)

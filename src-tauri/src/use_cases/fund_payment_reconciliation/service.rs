@@ -1,6 +1,7 @@
 use crate::context::fund::FundRepository;
 use crate::context::procedure::ProcedureRepository;
 use crate::shared::logger::BACKEND;
+use chrono::NaiveDate;
 /// Main reconciliation service - orchestration layer
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -146,10 +147,7 @@ impl ReconciliationService {
                     let end = normalized_line.procedure_end_date + chrono::Duration::days(1);
                     let candidate_rows = self
                         .procedure_repository
-                        .find_unreconciled_by_date_range(
-                            &start.format("%Y-%m-%d").to_string(),
-                            &end.format("%Y-%m-%d").to_string(),
-                        )
+                        .find_unreconciled_by_date_range(start, end)
                         .await
                         .inspect_err(|e| tracing::warn!(target: BACKEND, error = %e, "Failed to fetch nearby candidates for NotFound line"))
                         .unwrap_or_default();
@@ -237,8 +235,8 @@ impl ReconciliationService {
     /// Find all unreconciled procedures in a date range (for post-reconciliation report)
     pub async fn find_unreconciled_in_range(
         &self,
-        start_date: &str,
-        end_date: &str,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
     ) -> anyhow::Result<Vec<super::api::UnreconciledProcedure>> {
         let rows = self
             .procedure_repository
@@ -318,7 +316,10 @@ mod tests {
 
         let service = make_service(proc_repo, fund_repo);
         let result = service
-            .find_unreconciled_in_range("2026-01-01", "2026-01-31")
+            .find_unreconciled_in_range(
+                NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                NaiveDate::from_ymd_opt(2026, 1, 31).unwrap(),
+            )
             .await
             .unwrap();
 
@@ -348,7 +349,10 @@ mod tests {
 
         let service = make_service(proc_repo, fund_repo);
         let result = service
-            .find_unreconciled_in_range("2026-02-01", "2026-02-28")
+            .find_unreconciled_in_range(
+                NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
+                NaiveDate::from_ymd_opt(2026, 2, 28).unwrap(),
+            )
             .await
             .unwrap();
 
@@ -368,7 +372,10 @@ mod tests {
 
         let service = make_service(proc_repo, fund_repo);
         let result = service
-            .find_unreconciled_in_range("2026-01-01", "2026-01-31")
+            .find_unreconciled_in_range(
+                NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                NaiveDate::from_ymd_opt(2026, 1, 31).unwrap(),
+            )
             .await;
 
         assert!(result.is_err());
