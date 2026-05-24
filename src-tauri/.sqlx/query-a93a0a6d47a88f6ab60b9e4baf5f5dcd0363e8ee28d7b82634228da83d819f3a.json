@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, fund_id, payment_date, total_amount, status\n            FROM fund_payment_group\n            WHERE is_deleted = 0\n            ",
+  "query": "\n            SELECT id, fund_id, payment_date AS \"payment_date: chrono::NaiveDate\", total_amount, status\n            FROM fund_payment_group\n            WHERE id = $1 AND is_deleted = 0\n            ",
   "describe": {
     "columns": [
       {
@@ -14,7 +14,7 @@
         "type_info": "Text"
       },
       {
-        "name": "payment_date",
+        "name": "payment_date: chrono::NaiveDate",
         "ordinal": 2,
         "type_info": "Text"
       },
@@ -30,7 +30,7 @@
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       false,
@@ -40,5 +40,5 @@
       false
     ]
   },
-  "hash": "6f9561f039493cfc1417e81007fe2bee8113762fd0da1ad677580bab00606bc1"
+  "hash": "a93a0a6d47a88f6ab60b9e4baf5f5dcd0363e8ee28d7b82634228da83d819f3a"
 }
