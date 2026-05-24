@@ -123,15 +123,21 @@ impl ProcedureRepository for SqliteProcedureRepository {
         payment_status: ProcedureStatus,
     ) -> anyhow::Result<Procedure> {
         let procedure_date_parsed = NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
-            .map_err(|_| anyhow!("Invalid procedure_date '{procedure_date}'"))?;
+            .map_err(|e| anyhow!("Invalid procedure_date '{procedure_date}': {e}"))?;
         let fund_reconciliation_date_parsed = fund_reconciliation_date
-            .map(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
-            .transpose()
-            .map_err(|_| anyhow!("Invalid fund_reconciliation_date"))?;
+            .as_deref()
+            .map(|s| {
+                NaiveDate::parse_from_str(s, "%Y-%m-%d")
+                    .map_err(|e| anyhow!("Invalid fund_reconciliation_date '{s}': {e}"))
+            })
+            .transpose()?;
         let confirmed_payment_date_parsed = confirmed_payment_date
-            .map(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
-            .transpose()
-            .map_err(|_| anyhow!("Invalid confirmed_payment_date"))?;
+            .as_deref()
+            .map(|s| {
+                NaiveDate::parse_from_str(s, "%Y-%m-%d")
+                    .map_err(|e| anyhow!("Invalid confirmed_payment_date '{s}': {e}"))
+            })
+            .transpose()?;
 
         let procedure = Procedure::new(
             patient_id,

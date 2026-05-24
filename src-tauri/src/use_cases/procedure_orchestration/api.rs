@@ -104,6 +104,9 @@ pub async fn add_procedure(
 ) -> Result<Procedure, String> {
     tracing::info!(target: BACKEND, patient_id = %patient_id, "Processing add procedure");
 
+    // reviewer-arch FP: malformed-date case is now compile-time-checked via
+    // NaiveDate + #[specta(type = String)] on the wire; Serde deserialization
+    // isn't our test surface — see PR #44.
     let procedure_date = chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
         .map_err(|e| format!("Invalid procedure_date: {e}"))?;
 

@@ -8,6 +8,36 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-05-24 — `ProcedureRepository::create_procedure` trait + service still take `String` dates
+
+**Found by:** reviewer-backend + reviewer-arch (`refactor/dates-naive-be`)
+
+**Where:** `src-tauri/src/context/procedure/domain/procedure.rs:438+` (trait method) and `src-tauri/src/context/procedure/service.rs:157+` (service wrapper). Forces `src-tauri/src/use_cases/procedure_orchestration/service.rs:135-141` to format `NaiveDate → String` before the call, where the impl then re-parses `String → NaiveDate`. Layering inversion: a use-case orchestrator is adapting correctly-typed data to work around an under-typed BC boundary.
+
+**Observation:** All downstream layers (domain entity, repository row, API DTO, factory `Procedure::new`/`with_id`) carry `NaiveDate` after the `refactor/dates-naive-be` branch. The trait + its service wrapper are the last String boundary. Migrating them is mechanical but fans out to the mockall-generated `MockProcedureRepository`, ~3 production call sites, and ~20 inline test fixtures. Same shape applies to `find_procedures_by_ssn_and_date_range`, `find_procedure_exact`, `find_unreconciled_by_date_range`, `find_created_in_date_range`, `find_created_by_fund_before_date` — all accept `&str` / `String` date params.
+
+---
+
+## 2026-05-24 — `Result<T, String>` on use-case Tauri commands violates the wire-error contract
+
+**Found by:** reviewer-backend (`refactor/dates-naive-be`)
+
+**Where:** `src-tauri/src/use_cases/procedure_orchestration/api.rs:104,136,161,199` (`add_procedure`, `read_all_procedures`, `update_procedure`, `delete_procedure`). Same pattern across `src-tauri/src/use_cases/{excel_import,fund_payment_reconciliation}/api.rs`.
+
+**Observation:** Per `docs/error-model.md` § Tauri command boundary, commands should return a typed `{UseCase}Error` composite (`#[serde(untagged)]` wrapping per-BC error enums + a `{UseCase}Task` sub-enum for use-case-specific guards). The current `Result<T, String>` collapses every error into an opaque string on the wire — the FE loses the discriminated-union type for errors and Specta generates `string` instead of the typed error union. Pre-existing across all use-case command surfaces; surfaced by reviewer when `refactor/dates-naive-be` added a new parse-error path inside the already-String-mapped `add_procedure` command.
+
+---
+
+## 2026-05-24 — Silent month-prefix fallback in Excel import skips malformed-date rows without logging
+
+**Found by:** reviewer-backend (`refactor/dates-naive-be`)
+
+**Where:** `src-tauri/src/use_cases/excel_import/orchestrator.rs:176` — `excel_proc.procedure_date.get(..7).unwrap_or("")` maps a malformed date string to an empty 7-char prefix that won't match any `allowed_months` entry, so the procedure is silently skipped. The downstream parse at line 209 would catch the same bad value and surface a hard error, but only for rows whose month-prefix happens to be in `allowed_months`.
+
+**Observation:** Two reasonable shapes: (a) emit `tracing::warn!` on the `None` branch before skipping; (b) drop the silent fallback and let line 209 be the single validation gate. Design call on warn-and-skip vs hard-fail-and-bubble. Pre-existing.
+
+---
+
 ## 2026-05-19 — REF-240 enforced at command layer via dual-orchestrator injection
 
 **Found by:** manual (`refactor/fund-payment-manual-management`)
