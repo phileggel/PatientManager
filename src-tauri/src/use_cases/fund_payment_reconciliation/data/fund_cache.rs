@@ -121,7 +121,7 @@ mod tests {
             "patient-1".to_string(),
             fund_id.map(|s| s.to_string()),
             "proc-type-1".to_string(),
-            "2025-05-10".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2025, 5, 10).unwrap(),
             Some(50000),
             crate::context::procedure::PaymentMethod::None,
             None,

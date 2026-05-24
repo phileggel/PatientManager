@@ -18,11 +18,14 @@ pub struct RawProcedure {
     pub patient_id: String,
     pub fund_id: Option<String>,
     pub procedure_type_id: String,
-    pub procedure_date: String,
+    #[specta(type = String)]
+    pub procedure_date: chrono::NaiveDate,
     pub billed_amount: Option<i64>,
     pub payment_method: Option<String>,
-    pub fund_reconciliation_date: Option<String>,
-    pub confirmed_payment_date: Option<String>,
+    #[specta(type = Option<String>)]
+    pub fund_reconciliation_date: Option<chrono::NaiveDate>,
+    #[specta(type = Option<String>)]
+    pub confirmed_payment_date: Option<chrono::NaiveDate>,
     pub paid_amount: Option<i64>,
     pub payment_status: String,
 }
@@ -100,6 +103,9 @@ pub async fn add_procedure(
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<Procedure, String> {
     tracing::info!(target: BACKEND, patient_id = %patient_id, "Processing add procedure");
+
+    let procedure_date = chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
+        .map_err(|e| format!("Invalid procedure_date: {e}"))?;
 
     service
         .create_procedure(CreateProcedureRequest {
@@ -333,7 +339,7 @@ mod tests {
             patient_id: "pat-1".to_string(),
             fund_id: None,
             procedure_type_id: "type-1".to_string(),
-            procedure_date: "2026-01-15".to_string(),
+            procedure_date: chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             billed_amount: Some(1000),
             payment_method: payment_method.map(|s| s.to_string()),
             fund_reconciliation_date: None,
@@ -390,18 +396,5 @@ mod tests {
     fn into_procedure_falls_back_to_payment_status_none_on_unknown() {
         let procedure = raw_with(Some("CASH"), "WAT").into_procedure().unwrap();
         assert_eq!(procedure.payment_status, ProcedureStatus::None);
-    }
-
-    #[test]
-    fn into_procedure_propagates_with_id_validation_error_on_bad_date() {
-        let mut raw = raw_with(Some("CASH"), "CREATED");
-        raw.procedure_date = "not-a-date".to_string();
-        let err = raw
-            .into_procedure()
-            .expect_err("malformed date must surface from Procedure::with_id");
-        assert!(
-            err.to_string().to_ascii_lowercase().contains("date"),
-            "error must mention the bad field: {err}"
-        );
     }
 }

@@ -205,14 +205,22 @@ impl ExcelImportOrchestrator {
                 .as_ref()
                 .and_then(|temp_id| funds_map.get(temp_id).cloned());
 
+            let procedure_date =
+                chrono::NaiveDate::parse_from_str(&excel_proc.procedure_date, "%Y-%m-%d")?;
+            let confirmed_payment_date = excel_proc
+                .confirmed_payment_date
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .map(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d"))
+                .transpose()?;
             candidates.push(ProcedureCandidate {
                 patient_id,
                 fund_id,
                 procedure_type_id,
-                procedure_date: excel_proc.procedure_date.clone(),
+                procedure_date,
                 billed_amount: Some(excel_proc.amount),
                 payment_method: excel_proc.payment_method.clone(),
-                confirmed_payment_date: excel_proc.confirmed_payment_date.clone(),
+                confirmed_payment_date,
                 paid_amount: excel_proc.paid_amount,
                 awaited_amount: excel_proc.awaited_amount,
             });

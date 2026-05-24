@@ -93,7 +93,7 @@ mod tests {
             "patient-1".to_string(),
             Some("fund-1".to_string()),
             "proc-type-1".to_string(),
-            procedure_date.to_string(),
+            chrono::NaiveDate::parse_from_str(procedure_date, "%Y-%m-%d").unwrap(),
             Some(amount),
             PaymentMethod::None,
             None,
