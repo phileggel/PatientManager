@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use anyhow::Context;
+
 use crate::context::fund::FundRepository;
 use crate::context::patient::PatientRepository;
 use crate::context::procedure::{
@@ -88,14 +90,16 @@ impl ProcedureOrchestrationService {
         let patient = self
             .patient_repository
             .read_patient(&req.patient_id)
-            .await?
+            .await
+            .with_context(|| format!("reading patient '{}'", req.patient_id))?
             .ok_or_else(|| anyhow::anyhow!("Patient not found or deleted"))?;
 
         // Validate: Does procedure type exist?
         let _ = self
             .procedure_type_repository
             .read_procedure_type(&req.procedure_type_id)
-            .await?
+            .await
+            .with_context(|| format!("reading procedure type '{}'", req.procedure_type_id))?
             .ok_or_else(|| anyhow::anyhow!("Procedure type not found or deleted"))?;
 
         // Validate: Does fund exist if provided?
@@ -103,7 +107,8 @@ impl ProcedureOrchestrationService {
             Some(
                 self.fund_repository
                     .read_fund(id)
-                    .await?
+                    .await
+                    .with_context(|| format!("reading fund '{id}'"))?
                     .ok_or_else(|| anyhow::anyhow!("Fund {} not found or deleted", id))?,
             )
         } else {

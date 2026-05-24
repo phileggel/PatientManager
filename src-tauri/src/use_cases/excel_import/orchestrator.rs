@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use anyhow::Context;
+
 use crate::context::fund::FundService;
 use crate::context::patient::{PatientCandidate, PatientService};
 use crate::context::procedure::{ProcedureCandidate, ProcedureService};
@@ -206,12 +208,22 @@ impl ExcelImportOrchestrator {
                 .and_then(|temp_id| funds_map.get(temp_id).cloned());
 
             let procedure_date =
-                chrono::NaiveDate::parse_from_str(&excel_proc.procedure_date, "%Y-%m-%d")?;
+                chrono::NaiveDate::parse_from_str(&excel_proc.procedure_date, "%Y-%m-%d")
+                    .with_context(|| {
+                        format!(
+                            "parsing procedure_date '{}' in excel import",
+                            excel_proc.procedure_date
+                        )
+                    })?;
             let confirmed_payment_date = excel_proc
                 .confirmed_payment_date
                 .as_deref()
                 .filter(|s| !s.is_empty())
-                .map(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d"))
+                .map(|s| {
+                    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").with_context(|| {
+                        format!("parsing confirmed_payment_date '{s}' in excel import")
+                    })
+                })
                 .transpose()?;
             candidates.push(ProcedureCandidate {
                 patient_id,
