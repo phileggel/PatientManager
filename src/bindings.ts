@@ -143,7 +143,7 @@ async createBatchFunds(funds: FundCandidate[]) : Promise<Result<CreateBatchFunds
 /**
  * Tauri command: Add a new healthcare procedure
  */
-async addProcedure(patientId: string, fundId: string | null, procedureTypeId: string, procedureDate: string, billedAmount: number | null) : Promise<Result<Procedure, string>> {
+async addProcedure(patientId: string, fundId: string | null, procedureTypeId: string, procedureDate: string, billedAmount: number) : Promise<Result<Procedure, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_procedure", { patientId, fundId, procedureTypeId, procedureDate, billedAmount }) };
 } catch (e) {
@@ -1163,7 +1163,7 @@ export type DbMatch = { procedure_id: string; procedure_date: string; fund_id: s
 /**
  * A procedure candidate for a direct payment (R14)
  */
-export type DirectPaymentProcedureCandidate = { procedure_id: string; patient_id: string; procedure_date: string; billed_amount: number | null }
+export type DirectPaymentProcedureCandidate = { procedure_id: string; patient_id: string; procedure_date: string; billed_amount: number }
 /**
  * A saved mapping between a procedure amount (thousandths of a euro) and a procedure type id
  */
@@ -1493,11 +1493,13 @@ procedure_type_id: string;
  */
 procedure_date: string; 
 /**
- * Total amount charged/invoiced for this procedure, in thousandths of a euro (e.g. 1234 = 1.234 €)
- * Optional - uses procedure type default amount if not specified
- * Source: Excel import column F or manual entry
+ * Total amount charged/invoiced for this procedure, in thousandths of a euro (e.g. 1234 = 1.234 €).
+ * Mandatory: PRO-120 requires a non-null value at the domain level. When no value is
+ * propagated from the patient's history (PRO-020) or the procedure type's
+ * `default_amount` (PRO-025), the form submits `0`.
+ * Source: Excel import column F or manual entry.
  */
-billed_amount: number | null; 
+billed_amount: number; 
 /**
  * Payment method used for this procedure
  * Determines how payment was made: Cash/Check/BankCard/BankTransfer/None
@@ -1549,7 +1551,7 @@ id: string }
 /**
  * Candidate procedure for batch creation and validation for orchestrators
  */
-export type ProcedureCandidate = { patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number | null; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; awaited_amount: number | null }
+export type ProcedureCandidate = { patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; awaited_amount: number | null }
 /**
  * DTO for surfacing ProcedureRefund data to the frontend.
  * Used when the OverpaymentRefund modal needs to resolve source_procedure_id (REF-200).
@@ -1609,7 +1611,7 @@ export type ProcedureValidationStatus = "VALID" | "INVALID"
  * Raw healthcare procedure data from frontend (unvalidated)
  * Used for updating an existing procedure with data from an external source
  */
-export type RawProcedure = { id: string; patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number | null; payment_method: string | null; fund_reconciliation_date: string | null; confirmed_payment_date: string | null; paid_amount: number | null; payment_status: string }
+export type RawProcedure = { id: string; patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number; payment_method: string | null; fund_reconciliation_date: string | null; confirmed_payment_date: string | null; paid_amount: number | null; payment_status: string }
 /**
  * Raw procedure type data from frontend (unvalidated)
  */

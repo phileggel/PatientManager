@@ -94,7 +94,7 @@ const MOCK_PROCEDURE: Procedure = {
   fund_id: null,
   procedure_type_id: "pt1",
   procedure_date: "2026-05-01",
-  billed_amount: null,
+  billed_amount: 5000,
   payment_method: "NONE",
   fund_reconciliation_date: "",
 
@@ -187,7 +187,7 @@ describe("ProcedureFormModal — create mode (ComboboxField wiring)", () => {
         null,
         "pt1",
         "2026-05-01",
-        null,
+        25000,
       );
     });
   });
@@ -211,7 +211,7 @@ describe("ProcedureFormModal — create mode (ComboboxField wiring)", () => {
         "f1",
         "pt1",
         "2026-05-01",
-        null,
+        25000,
       );
     });
   });

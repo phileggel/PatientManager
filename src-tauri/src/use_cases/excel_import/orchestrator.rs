@@ -230,7 +230,7 @@ impl ExcelImportOrchestrator {
                 fund_id,
                 procedure_type_id,
                 procedure_date,
-                billed_amount: Some(excel_proc.amount),
+                billed_amount: excel_proc.amount,
                 payment_method: excel_proc.payment_method.clone(),
                 confirmed_payment_date,
                 paid_amount: excel_proc.paid_amount,

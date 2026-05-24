@@ -81,9 +81,7 @@ impl OverpaymentOrchestrator {
         );
 
         // Step 2 — Full refund only: amount must equal source amount (REF-020)
-        let source_amount = source
-            .billed_amount
-            .ok_or_else(|| anyhow::anyhow!("Source procedure {} has no amount set", source.id))?;
+        let source_amount = source.billed_amount;
 
         // Step 3 — Validate refund_date (REF-030)
         let refund_date =
@@ -154,7 +152,7 @@ impl OverpaymentOrchestrator {
                 source.fund_id.clone(),
                 source.procedure_type_id.clone(),
                 refund_date,
-                Some(-source_amount),
+                -source_amount,
                 refund_payment_method,
                 Some(refund_date),
                 Some(refund_date),
@@ -755,7 +753,7 @@ mod tests {
             Some("fund-1".to_string()),
             "type-1".to_string(),
             NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
-            Some(100_000),
+            100_000,
             PaymentMethod::None,
             // Stage 1 set first (FPM-320), then Stage 2 confirmed below.
             // A FundPaid procedure always has both stages populated.
@@ -794,7 +792,7 @@ mod tests {
             None,
             "type-1".to_string(),
             NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
-            Some(100_000),
+            100_000,
             PaymentMethod::None,
             None,
             None,
@@ -805,27 +803,6 @@ mod tests {
         let result = orchestrator.create_overpayment(base_request()).await;
         let err = result.unwrap_err().to_string();
         assert!(err.contains("REF-010"));
-    }
-
-    #[tokio::test]
-    async fn create_overpayment_no_billed_amount_returns_error() {
-        let proc = Procedure::restore(
-            "source-proc-1".to_string(),
-            "patient-1".to_string(),
-            Some("fund-1".to_string()),
-            "type-1".to_string(),
-            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
-            None, // no billed_amount
-            PaymentMethod::None,
-            None,
-            None,
-            None,
-            ProcedureStatus::FundPaid,
-        );
-        let orchestrator = make_orchestrator(Some(proc));
-        let result = orchestrator.create_overpayment(base_request()).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("no amount set"));
     }
 
     #[tokio::test]
@@ -1024,7 +1001,7 @@ mod tests {
             Some("fund-1".to_string()),
             "type-1".to_string(),
             NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
-            Some(50_000),
+            50_000,
             PaymentMethod::None,
             None,
             Some(NaiveDate::from_ymd_opt(2024, 1, 10).unwrap()),

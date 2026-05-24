@@ -326,12 +326,7 @@ impl FundPaymentReconciliationOrchestrator {
             .into_iter()
             .map(|mut procedure| {
                 procedure.payment_status = ProcedureStatus::Reconciled;
-                // TODO: when billed_amount is None the procedure relies on its procedure type's
-                // default_amount, but we have no ProcedureTypeService here to resolve it.
-                // Add ProcedureTypeService to this orchestrator and use
-                // billed_amount.unwrap_or(default_amount) so paid_amount is never left null
-                // for reconciled procedures.
-                procedure.paid_amount = procedure.billed_amount;
+                procedure.paid_amount = Some(procedure.billed_amount);
                 // FPA-300 — Stage 1 reconciliation sets fund_reconciliation_date
                 // (the group's payment_date), not the bank-side confirmed date.
                 procedure.fund_reconciliation_date = procedure_date_map.get(&procedure.id).copied();
@@ -499,9 +494,7 @@ impl FundPaymentReconciliationOrchestrator {
                 if procedure.payment_status != ProcedureStatus::PartiallyReconciled {
                     // Contest correction already set paid_amount and status — keep them
                     procedure.payment_status = ProcedureStatus::Reconciled;
-                    // TODO: same as above — billed_amount may be None for procedures using
-                    // procedure type default_amount; add ProcedureTypeService to resolve it.
-                    procedure.paid_amount = procedure.billed_amount;
+                    procedure.paid_amount = Some(procedure.billed_amount);
                 }
                 procedure
             })
@@ -743,7 +736,7 @@ impl FundPaymentReconciliationOrchestrator {
                     pdf_amount,
                 } => {
                     if let Some(procedure) = procedures_to_update.get_mut(&procedure_id) {
-                        procedure.billed_amount = Some(pdf_amount);
+                        procedure.billed_amount = pdf_amount;
                         stats.amount_corrections += 1;
                     }
                 }
@@ -899,7 +892,7 @@ impl FundPaymentReconciliationOrchestrator {
                     fund_id: Some(fund_id),
                     procedure_type_id: "import-pdf".to_string(),
                     procedure_date,
-                    billed_amount: Some(billed_amount),
+                    billed_amount,
                     payment_method: None,
                     confirmed_payment_date: None,
                     paid_amount: None,
@@ -1019,7 +1012,7 @@ mod tests {
                     Some("fund-1".to_string()),
                     "type-1".to_string(),
                     NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
-                    Some(50_000),
+                    50_000,
                     PaymentMethod::None,
                     None,
                     None,
@@ -1241,7 +1234,7 @@ mod tests {
                     Some("fund-1".to_string()),
                     "type-1".to_string(),
                     NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-                    Some(75_000),
+                    75_000,
                     PaymentMethod::None,
                     None,
                     None,
@@ -1268,7 +1261,7 @@ mod tests {
                 Some("fund-1".to_string()),
                 "type-1".to_string(),
                 NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-                Some(75_000),
+                75_000,
                 PaymentMethod::None,
                 Some(NaiveDate::from_ymd_opt(2026, 1, 15).unwrap()),
                 None,

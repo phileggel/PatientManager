@@ -28,7 +28,7 @@ pub struct ProcedureCandidate {
     pub procedure_type_id: String,
     #[specta(type = String)]
     pub procedure_date: NaiveDate,
-    pub billed_amount: Option<i64>,
+    pub billed_amount: i64,
     pub payment_method: Option<String>,
     #[specta(type = Option<String>)]
     pub confirmed_payment_date: Option<NaiveDate>,

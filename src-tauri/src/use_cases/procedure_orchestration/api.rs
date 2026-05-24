@@ -20,7 +20,7 @@ pub struct RawProcedure {
     pub procedure_type_id: String,
     #[specta(type = String)]
     pub procedure_date: chrono::NaiveDate,
-    pub billed_amount: Option<i64>,
+    pub billed_amount: i64,
     pub payment_method: Option<String>,
     #[specta(type = Option<String>)]
     pub fund_reconciliation_date: Option<chrono::NaiveDate>,
@@ -99,7 +99,7 @@ pub async fn add_procedure(
     fund_id: Option<String>,
     procedure_type_id: String,
     procedure_date: String,
-    billed_amount: Option<i64>,
+    billed_amount: i64,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
 ) -> Result<Procedure, String> {
     tracing::info!(target: BACKEND, patient_id = %patient_id, "Processing add procedure");
@@ -343,7 +343,7 @@ mod tests {
             fund_id: None,
             procedure_type_id: "type-1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-            billed_amount: Some(1000),
+            billed_amount: 1000,
             payment_method: payment_method.map(|s| s.to_string()),
             fund_reconciliation_date: None,
             confirmed_payment_date: None,

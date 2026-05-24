@@ -64,10 +64,7 @@ impl FundPaymentManualManagementOrchestrator {
             .read_procedures_by_ids(procedure_ids.clone())
             .await?;
 
-        let total_amount: i64 = procedures
-            .iter()
-            .map(|p| p.billed_amount.unwrap_or(0))
-            .sum();
+        let total_amount: i64 = procedures.iter().map(|p| p.billed_amount).sum();
 
         let parsed_payment_date =
             NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").map_err(|_| {
@@ -96,7 +93,7 @@ impl FundPaymentManualManagementOrchestrator {
             .into_iter()
             .map(|mut p| {
                 p.payment_status = ProcedureStatus::Reconciled;
-                p.paid_amount = p.billed_amount;
+                p.paid_amount = Some(p.billed_amount);
                 p.with_fund_reconciliation_date(Some(parsed_payment_date))
             })
             .collect();
@@ -224,7 +221,7 @@ impl FundPaymentManualManagementOrchestrator {
                 .into_iter()
                 .map(|mut p| {
                     p.payment_status = ProcedureStatus::Reconciled;
-                    p.paid_amount = p.billed_amount;
+                    p.paid_amount = Some(p.billed_amount);
                     p.with_fund_reconciliation_date(Some(parsed_payment_date))
                 })
                 .collect();
@@ -246,10 +243,7 @@ impl FundPaymentManualManagementOrchestrator {
             .read_procedures_by_ids(new_procedure_ids.clone())
             .await?;
 
-        let total_amount: i64 = final_procedures
-            .iter()
-            .map(|p| p.billed_amount.unwrap_or(0))
-            .sum();
+        let total_amount: i64 = final_procedures.iter().map(|p| p.billed_amount).sum();
 
         // Step 6: Update the group
         let updated_group = self

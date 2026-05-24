@@ -116,6 +116,100 @@ describe("create mode — auto-fill on patient select", () => {
     expect(result.current.procedureTypeId).toBe("");
     expect(result.current.billedAmount).toBeNull();
   });
+
+  it("does not overwrite procedure type if already set (PRO-020)", () => {
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    act(() => {
+      result.current.handleProcedureTypeChange("pt1");
+    });
+    act(() => {
+      result.current.handlePatientChange("p1");
+    });
+
+    expect(result.current.procedureTypeId).toBe("pt1");
+  });
+});
+
+// --- Create mode: PRO-025 amount propagation on type change ---
+
+describe("create mode — PRO-025 amount propagation on type change", () => {
+  it("pre-fills amount from type default_amount when amount is not initialized", () => {
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    act(() => {
+      result.current.handleProcedureTypeChange("pt1");
+    });
+
+    expect(result.current.procedureTypeId).toBe("pt1");
+    expect(result.current.billedAmount).toBe(25);
+  });
+
+  it("does not overwrite amount once the user has entered a value", () => {
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    act(() => {
+      result.current.handleProcedureTypeChange("pt1");
+    });
+    act(() => {
+      result.current.setBilledAmount(99);
+    });
+    act(() => {
+      result.current.handleProcedureTypeChange("pt2");
+    });
+
+    expect(result.current.procedureTypeId).toBe("pt2");
+    expect(result.current.billedAmount).toBe(99);
+  });
+
+  it("clearing the amount returns it to not-initialized state and re-enables propagation", () => {
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    act(() => {
+      result.current.handleProcedureTypeChange("pt1");
+    });
+    act(() => {
+      result.current.setBilledAmount(null);
+    });
+    act(() => {
+      result.current.handleProcedureTypeChange("pt2");
+    });
+
+    expect(result.current.billedAmount).toBe(50);
+  });
+
+  it("does not propagate in edit mode", () => {
+    const { result } = makeHook({ mode: "edit", procedure: null, onClose: vi.fn() });
+
+    act(() => {
+      result.current.handleProcedureTypeChange("pt1");
+    });
+
+    expect(result.current.procedureTypeId).toBe("pt1");
+    expect(result.current.billedAmount).toBeNull();
+  });
+
+  it("does nothing when the id is empty (clearing the type field)", () => {
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    act(() => {
+      result.current.handleProcedureTypeChange("");
+    });
+
+    expect(result.current.procedureTypeId).toBe("");
+    expect(result.current.billedAmount).toBeNull();
+  });
+
+  it("leaves amount untouched when the id matches no known procedure type", () => {
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    act(() => {
+      result.current.handleProcedureTypeChange("pt-unknown");
+    });
+
+    expect(result.current.procedureTypeId).toBe("pt-unknown");
+    expect(result.current.billedAmount).toBeNull();
+  });
 });
 
 // --- Patient combobox items: SSN priority ---
@@ -191,7 +285,7 @@ describe("create mode — gateway arguments on submit", () => {
         fund_id: null,
         procedure_type_id: "pt1",
         procedure_date: "2026-03-01",
-        billed_amount: null,
+        billed_amount: 0,
         payment_method: "NONE",
         fund_reconciliation_date: "",
 
@@ -215,7 +309,45 @@ describe("create mode — gateway arguments on submit", () => {
       } as unknown as FormEvent);
     });
 
-    expect(mockAdd).toHaveBeenCalledWith("p2", null, "pt1", "2026-03-01", null);
+    expect(mockAdd).toHaveBeenCalledWith("p2", null, "pt1", "2026-03-01", 0);
+  });
+
+  it("sends 0 for billed_amount when the form was never touched (PRO-120)", async () => {
+    const { addProcedure } = await import("@/features/procedure/api/gateway");
+    const mockAdd = vi.mocked(addProcedure);
+    mockAdd.mockResolvedValueOnce({
+      success: true,
+      data: {
+        id: "proc3",
+        patient_id: "p2",
+        fund_id: null,
+        procedure_type_id: "pt1",
+        procedure_date: "2026-03-01",
+        billed_amount: 0,
+        payment_method: "NONE",
+        fund_reconciliation_date: "",
+        confirmed_payment_date: "",
+        payment_status: "CREATED",
+        paid_amount: null,
+      },
+    });
+
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    act(() => {
+      result.current.handlePatientChange("p2");
+      result.current.setProcedureTypeId("pt1");
+      result.current.setProcedureDate("2026-03-01");
+      result.current.setBilledAmount(null);
+    });
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as FormEvent);
+    });
+
+    expect(mockAdd).toHaveBeenCalledWith("p2", null, "pt1", "2026-03-01", 0);
   });
 });
 

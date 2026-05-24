@@ -66,7 +66,7 @@ pub struct CreateProcedureRequest {
     pub fund_id: Option<String>,
     pub procedure_type_id: String,
     pub procedure_date: chrono::NaiveDate,
-    pub billed_amount: Option<i64>,
+    pub billed_amount: i64,
     pub payment_method: Option<String>,
     pub confirmed_payment_date: Option<chrono::NaiveDate>,
     pub paid_amount: Option<i64>,
@@ -158,7 +158,7 @@ impl ProcedureOrchestrationService {
         if should_update_tracking {
             updated_patient.latest_date = Some(procedure.procedure_date);
             updated_patient.latest_procedure_type = Some(req.procedure_type_id.clone());
-            updated_patient.latest_procedure_amount = req.billed_amount;
+            updated_patient.latest_procedure_amount = Some(req.billed_amount);
             updated_patient.latest_fund = req.fund_id.clone();
 
             self.patient_repository
@@ -285,7 +285,7 @@ impl ProcedureOrchestrationService {
                 updated.latest_date = Some(new_latest.procedure_date);
                 updated.latest_procedure_type = Some(new_latest.procedure_type_id.clone());
                 updated.latest_fund = new_latest.fund_id.clone();
-                updated.latest_procedure_amount = new_latest.billed_amount;
+                updated.latest_procedure_amount = Some(new_latest.billed_amount);
             }
             self.patient_repository.update_patient(updated).await?;
         }
@@ -509,7 +509,7 @@ impl ProcedureOrchestrationService {
                     let mut updated_patient = patient.clone();
                     updated_patient.latest_date = Some(latest.procedure_date);
                     updated_patient.latest_procedure_type = Some(latest.procedure_type_id.clone());
-                    updated_patient.latest_procedure_amount = latest.billed_amount;
+                    updated_patient.latest_procedure_amount = Some(latest.billed_amount);
                     updated_patient.latest_fund = latest.fund_id.clone();
                     self.patient_repository
                         .update_patient(updated_patient)
@@ -559,7 +559,7 @@ impl ProcedureOrchestrationService {
     /// - ImportDirectlyPaid: payment confirmed (date + amount) AND (method is ES/CH OR no fund)
     /// - ImportFundPaid: payment confirmed AND method is not ES/CH AND fund is present
     fn determine_procedure_status(
-        billed_amount: Option<i64>,
+        billed_amount: i64,
         paid_amount: Option<i64>,
         confirmed_payment_date: Option<chrono::NaiveDate>,
         payment_method: Option<&str>,
@@ -581,12 +581,12 @@ impl ProcedureOrchestrationService {
         }
     }
 
-    /// Check if a procedure is fully paid (amount >= required)
-    fn is_fully_paid(required: Option<i64>, paid: Option<i64>) -> bool {
-        match (required, paid) {
-            (Some(req), Some(p)) => p >= req,
-            _ => false,
-        }
+    /// Check if a procedure is fully paid (amount >= required).
+    /// A required amount of `0` is treated as "no amount expected" and never
+    /// triggers the paid classification — pairing it with `paid_amount = Some(0)`
+    /// would otherwise misclassify a procedure with no billed value as paid.
+    fn is_fully_paid(required: i64, paid: Option<i64>) -> bool {
+        required > 0 && paid.is_some_and(|p| p >= required)
     }
 
     /// Determine payment method from Excel import data
@@ -868,7 +868,7 @@ mod tests {
             None,
             "type-id-1".to_string(),
             chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-            Some(100000),
+            100000,
             PaymentMethod::None,
             None,
             None,
@@ -967,7 +967,7 @@ mod tests {
             fund_id: Some("fund-id-1".to_string()),
             procedure_type_id: "type-id-1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-            billed_amount: Some(100000),
+            billed_amount: 100000,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1034,7 +1034,7 @@ mod tests {
             fund_id: Some("fund-id-1".to_string()),
             procedure_type_id: "type-id-1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-            billed_amount: Some(100000),
+            billed_amount: 100000,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1131,7 +1131,7 @@ mod tests {
             Some("fund-newer".to_string()),
             "type-newer".to_string(),
             chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-            Some(200000),
+            200000,
             PaymentMethod::None,
             None,
             None,
@@ -1146,7 +1146,7 @@ mod tests {
             Some("fund-older".to_string()),
             "type-older".to_string(),
             chrono::NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
-            Some(100000),
+            100000,
             PaymentMethod::None,
             None,
             None,
@@ -1206,7 +1206,7 @@ mod tests {
             Some("fund-1".to_string()),
             "type-1".to_string(),
             chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-            Some(100000),
+            100000,
             PaymentMethod::None,
             None,
             None,
@@ -1290,7 +1290,7 @@ mod tests {
                 fund_id: None,
                 procedure_type_id: "new-type-id".to_string(),
                 procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-                billed_amount: Some(100000),
+                billed_amount: 100000,
                 payment_method: None,
                 confirmed_payment_date: None,
                 paid_amount: None,
@@ -1351,7 +1351,7 @@ mod tests {
             fund_id: None, // no fund on this new procedure
             procedure_type_id: "new-type-id".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-            billed_amount: Some(100000),
+            billed_amount: 100000,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1425,11 +1425,7 @@ mod tests {
     fn determine_procedure_status_no_payment_returns_created() {
         assert_eq!(
             ProcedureOrchestrationService::determine_procedure_status(
-                Some(100_000),
-                None,
-                None,
-                None,
-                None
+                100_000, None, None, None, None
             ),
             ProcedureStatus::Created
         );
@@ -1439,7 +1435,7 @@ mod tests {
     fn determine_procedure_status_paid_es_no_fund_returns_import_directly_paid() {
         assert_eq!(
             ProcedureOrchestrationService::determine_procedure_status(
-                Some(100_000),
+                100_000,
                 Some(100_000),
                 Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
                 Some("ES"),
@@ -1453,7 +1449,7 @@ mod tests {
     fn determine_procedure_status_paid_no_fund_returns_import_directly_paid() {
         assert_eq!(
             ProcedureOrchestrationService::determine_procedure_status(
-                Some(100_000),
+                100_000,
                 Some(100_000),
                 Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
                 Some("VIR"),
@@ -1467,7 +1463,7 @@ mod tests {
     fn determine_procedure_status_paid_with_fund_returns_import_fund_paid() {
         assert_eq!(
             ProcedureOrchestrationService::determine_procedure_status(
-                Some(100_000),
+                100_000,
                 Some(100_000),
                 Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
                 Some("VIR"),
@@ -1481,7 +1477,7 @@ mod tests {
     fn determine_procedure_status_date_present_zero_paid_returns_created() {
         assert_eq!(
             ProcedureOrchestrationService::determine_procedure_status(
-                Some(100_000),
+                100_000,
                 Some(0),
                 Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
                 Some("VIR"),
@@ -1496,7 +1492,7 @@ mod tests {
     #[test]
     fn is_fully_paid_true_when_paid_equals_required() {
         assert!(ProcedureOrchestrationService::is_fully_paid(
-            Some(100_000),
+            100_000,
             Some(100_000)
         ));
     }
@@ -1504,7 +1500,7 @@ mod tests {
     #[test]
     fn is_fully_paid_true_when_paid_exceeds_required() {
         assert!(ProcedureOrchestrationService::is_fully_paid(
-            Some(100_000),
+            100_000,
             Some(110_000)
         ));
     }
@@ -1512,21 +1508,23 @@ mod tests {
     #[test]
     fn is_fully_paid_false_when_paid_less_than_required() {
         assert!(!ProcedureOrchestrationService::is_fully_paid(
-            Some(100_000),
+            100_000,
             Some(50_000)
         ));
     }
 
     #[test]
-    fn is_fully_paid_false_when_amounts_are_none() {
+    fn is_fully_paid_false_when_required_is_zero() {
+        assert!(!ProcedureOrchestrationService::is_fully_paid(0, Some(0)));
         assert!(!ProcedureOrchestrationService::is_fully_paid(
-            None,
+            0,
             Some(100_000)
         ));
-        assert!(!ProcedureOrchestrationService::is_fully_paid(
-            Some(100_000),
-            None
-        ));
+    }
+
+    #[test]
+    fn is_fully_paid_false_when_paid_is_none() {
+        assert!(!ProcedureOrchestrationService::is_fully_paid(100_000, None));
     }
 
     // --- validate_batch ---
@@ -1554,7 +1552,7 @@ mod tests {
             fund_id: None,
             procedure_type_id: "type-1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: None,
+            billed_amount: 0,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1580,7 +1578,7 @@ mod tests {
             fund_id: None,
             procedure_type_id: "type-1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: None,
+            billed_amount: 0,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1607,7 +1605,7 @@ mod tests {
             fund_id: None,
             procedure_type_id: "missing-type".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: None,
+            billed_amount: 0,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1637,7 +1635,7 @@ mod tests {
             fund_id: Some("missing-fund".to_string()),
             procedure_type_id: "type-1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: None,
+            billed_amount: 0,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1664,7 +1662,7 @@ mod tests {
             fund_id: Some("fund-1".to_string()),
             procedure_type_id: "type-1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: Some(100_000),
+            billed_amount: 100_000,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1751,7 +1749,7 @@ mod tests {
                 fund_id: None,
                 procedure_type_id: "t1".into(),
                 procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                billed_amount: None,
+                billed_amount: 0,
                 payment_method: None,
                 confirmed_payment_date: None,
                 paid_amount: None,
@@ -1777,7 +1775,7 @@ mod tests {
                 fund_id: None,
                 procedure_type_id: "missing-type".into(),
                 procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                billed_amount: None,
+                billed_amount: 0,
                 payment_method: None,
                 confirmed_payment_date: None,
                 paid_amount: None,
@@ -1803,7 +1801,7 @@ mod tests {
                 fund_id: Some("missing-fund".into()),
                 procedure_type_id: "t1".into(),
                 procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-                billed_amount: None,
+                billed_amount: 0,
                 payment_method: None,
                 confirmed_payment_date: None,
                 paid_amount: None,
@@ -1878,7 +1876,7 @@ mod tests {
             fund_id: None,
             procedure_type_id: "t1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: None,
+            billed_amount: 0,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1909,7 +1907,7 @@ mod tests {
             fund_id: None,
             procedure_type_id: "t1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: None,
+            billed_amount: 0,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -1940,7 +1938,7 @@ mod tests {
             fund_id: Some("fund-1".to_string()),
             procedure_type_id: "type-1".to_string(),
             procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: None,
+            billed_amount: 0,
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
@@ -2022,7 +2020,7 @@ mod tests {
             None,
             source_proc.procedure_type_id.clone(),
             chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-            Some(-50000),
+            -50000,
             PaymentMethod::None,
             None,
             None,
@@ -2056,7 +2054,7 @@ mod tests {
             None,
             "type-DIFFERENT".to_string(),
             chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-            Some(-50000),
+            -50000,
             PaymentMethod::None,
             None,
             None,

@@ -172,10 +172,7 @@ export default function ProcedurePage() {
       fund_id: editingProcedure.fundId || null,
       procedure_type_id: editingProcedure.procedureTypeId || "",
       procedure_date: editingProcedure.procedureDate || "",
-      billed_amount:
-        editingProcedure.billedAmount != null
-          ? Math.round(editingProcedure.billedAmount * 1000)
-          : null,
+      billed_amount: Math.round(editingProcedure.billedAmount * 1000),
       payment_method: (editingProcedure.paymentMethod ?? "NONE") as Procedure["payment_method"],
       // confirmed_payment_date is typed string (non-null) in Procedure bindings but is actually
       // optional — send empty string here; the hook converts "" || null before the gateway call.

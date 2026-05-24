@@ -449,7 +449,7 @@ mod tests {
             None,
             "type-1".into(),
             NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap(),
-            Some(amount),
+            amount,
             crate::context::procedure::PaymentMethod::None,
             None,
             None,

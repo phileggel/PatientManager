@@ -65,11 +65,7 @@ impl ReconciliationProcessor {
     ) -> Option<&'a Procedure> {
         candidates
             .iter()
-            .find(|p| {
-                p.billed_amount
-                    .map(|a| InternalAmount(a) == amount)
-                    .unwrap_or(false)
-            })
+            .find(|p| InternalAmount(p.billed_amount) == amount)
             .copied()
     }
 
@@ -80,10 +76,7 @@ impl ReconciliationProcessor {
     ) -> Option<&'a Procedure> {
         candidates
             .iter()
-            .filter_map(|p| {
-                p.billed_amount
-                    .map(|proc_amt| (p, InternalAmount(proc_amt)))
-            })
+            .map(|p| (p, InternalAmount(p.billed_amount)))
             .min_by_key(|(_, proc_amount)| (proc_amount.0 - amount.0).abs())
             .map(|(p, _)| *p)
     }
@@ -145,12 +138,7 @@ impl ReconciliationProcessor {
     fn sum_procedures_from_indices(candidates: &[&Procedure], indices: &[usize]) -> InternalAmount {
         let sum: i64 = indices
             .iter()
-            .filter_map(|&i| {
-                candidates
-                    .get(i)
-                    .and_then(|proc| proc.billed_amount.map(InternalAmount))
-            })
-            .map(|a| a.0)
+            .filter_map(|&i| candidates.get(i).map(|proc| proc.billed_amount))
             .sum();
         InternalAmount(sum)
     }
@@ -188,7 +176,7 @@ mod tests {
     use crate::context::procedure::{PaymentMethod, ProcedureStatus};
     use chrono::NaiveDate;
 
-    fn make_proc(billed_amount: Option<i64>) -> crate::context::procedure::Procedure {
+    fn make_proc(billed_amount: i64) -> crate::context::procedure::Procedure {
         crate::context::procedure::Procedure::restore(
             uuid::Uuid::new_v4().to_string(),
             "patient-1".to_string(),
@@ -231,7 +219,7 @@ mod tests {
 
     #[test]
     fn exact_combination_single_procedure_matches_target() {
-        let p = make_proc(Some(100_000));
+        let p = make_proc(100_000);
         let (procs, sum) =
             ReconciliationProcessor::find_exact_combination(&[&p], InternalAmount(100_000))
                 .unwrap();
@@ -241,8 +229,8 @@ mod tests {
 
     #[test]
     fn exact_combination_two_procedures_sum_to_target() {
-        let p1 = make_proc(Some(30_000));
-        let p2 = make_proc(Some(70_000));
+        let p1 = make_proc(30_000);
+        let p2 = make_proc(70_000);
         let (procs, sum) =
             ReconciliationProcessor::find_exact_combination(&[&p1, &p2], InternalAmount(100_000))
                 .unwrap();
@@ -252,25 +240,13 @@ mod tests {
 
     #[test]
     fn exact_combination_no_subset_sums_to_target_returns_none() {
-        let p1 = make_proc(Some(50_000));
-        let p2 = make_proc(Some(60_000));
+        let p1 = make_proc(50_000);
+        let p2 = make_proc(60_000);
         assert!(ReconciliationProcessor::find_exact_combination(
             &[&p1, &p2],
             InternalAmount(100_000)
         )
         .is_none());
-    }
-
-    #[test]
-    fn exact_combination_skips_none_billed_amount_in_sum() {
-        let p_none = make_proc(None);
-        let p_match = make_proc(Some(100_000));
-        // None contributes 0; p_match alone satisfies target
-        assert!(ReconciliationProcessor::find_exact_combination(
-            &[&p_none, &p_match],
-            InternalAmount(100_000)
-        )
-        .is_some());
     }
 
     // --- find_best_combination ---
@@ -284,8 +260,8 @@ mod tests {
 
     #[test]
     fn best_combination_prefers_exact_over_closest() {
-        let p_exact = make_proc(Some(100_000));
-        let p_close = make_proc(Some(99_000));
+        let p_exact = make_proc(100_000);
+        let p_close = make_proc(99_000);
         let (_, sum) = ReconciliationProcessor::find_best_combination(
             &[&p_close, &p_exact],
             InternalAmount(100_000),
@@ -296,8 +272,8 @@ mod tests {
 
     #[test]
     fn best_combination_returns_closest_when_no_exact_match() {
-        let p_far = make_proc(Some(50_000));
-        let p_close = make_proc(Some(95_000));
+        let p_far = make_proc(50_000);
+        let p_close = make_proc(95_000);
         let (_, sum) = ReconciliationProcessor::find_best_combination(
             &[&p_far, &p_close],
             InternalAmount(100_000),
@@ -311,7 +287,7 @@ mod tests {
     fn best_combination_with_more_than_max_candidates_no_exact_returns_none() {
         // MAX_SUBSET_CANDIDATES = 15; 16 candidates, no subset sums to 100_000
         // All are 7_000: 7 does not divide 100, so no k*7_000 == 100_000
-        let procs: Vec<_> = (0..16).map(|_| make_proc(Some(7_000))).collect();
+        let procs: Vec<_> = (0..16).map(|_| make_proc(7_000)).collect();
         let refs: Vec<&_> = procs.iter().collect();
         assert!(
             ReconciliationProcessor::find_best_combination(&refs, InternalAmount(100_000))
@@ -323,18 +299,18 @@ mod tests {
 
     #[test]
     fn single_exact_match_finds_matching_procedure() {
-        let p1 = make_proc(Some(50_000));
-        let p2 = make_proc(Some(100_000));
+        let p1 = make_proc(50_000);
+        let p2 = make_proc(100_000);
         let found =
             ReconciliationProcessor::find_single_exact_match(&[&p1, &p2], InternalAmount(100_000))
                 .unwrap();
-        assert_eq!(found.billed_amount, Some(100_000));
+        assert_eq!(found.billed_amount, 100_000);
     }
 
     #[test]
     fn single_exact_match_returns_none_when_absent() {
-        let p1 = make_proc(Some(50_000));
-        let p2 = make_proc(Some(75_000));
+        let p1 = make_proc(50_000);
+        let p2 = make_proc(75_000);
         assert!(ReconciliationProcessor::find_single_exact_match(
             &[&p1, &p2],
             InternalAmount(100_000)
@@ -342,29 +318,20 @@ mod tests {
         .is_none());
     }
 
-    #[test]
-    fn single_exact_match_skips_procedure_with_none_billed_amount() {
-        let p = make_proc(None);
-        // None.map(...).unwrap_or(false) → never matches any amount
-        assert!(
-            ReconciliationProcessor::find_single_exact_match(&[&p], InternalAmount(0)).is_none()
-        );
-    }
-
     // --- find_single_closest_match ---
 
     #[test]
     fn single_closest_match_returns_nearest_by_absolute_difference() {
-        let p_far = make_proc(Some(50_000));
-        let p_close = make_proc(Some(95_000));
-        let p_over = make_proc(Some(200_000));
+        let p_far = make_proc(50_000);
+        let p_close = make_proc(95_000);
+        let p_over = make_proc(200_000);
         let found = ReconciliationProcessor::find_single_closest_match(
             &[&p_far, &p_close, &p_over],
             InternalAmount(100_000),
         )
         .unwrap();
         // |50-100|=50, |95-100|=5, |200-100|=100 → 95_000 wins
-        assert_eq!(found.billed_amount, Some(95_000));
+        assert_eq!(found.billed_amount, 95_000);
     }
 
     #[test]
@@ -373,18 +340,6 @@ mod tests {
             ReconciliationProcessor::find_single_closest_match(&[], InternalAmount(100_000))
                 .is_none()
         );
-    }
-
-    #[test]
-    fn single_closest_match_skips_procedure_with_none_billed_amount() {
-        let p_none = make_proc(None);
-        let p_valid = make_proc(Some(100_000));
-        let found = ReconciliationProcessor::find_single_closest_match(
-            &[&p_none, &p_valid],
-            InternalAmount(100_000),
-        )
-        .unwrap();
-        assert_eq!(found.billed_amount, Some(100_000));
     }
 
     // --- next_combination ---

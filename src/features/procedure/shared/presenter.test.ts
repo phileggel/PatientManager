@@ -13,7 +13,7 @@ describe("summarizeProcedureRows", () => {
   });
 
   it("excludes draft rows from all aggregations", () => {
-    const rows = [makeProcedureRow({ isDraft: true, patientId: "p-1", effectiveAmount: 100 })];
+    const rows = [makeProcedureRow({ isDraft: true, patientId: "p-1", billedAmount: 100 })];
     const vm = summarizeProcedureRows(rows);
     expect(vm.uniquePatients).toBe(0);
     expect(vm.procedureCount).toBe(0);
@@ -34,19 +34,13 @@ describe("summarizeProcedureRows", () => {
     expect(summarizeProcedureRows(rows).uniquePatients).toBe(1);
   });
 
-  it("sums effectiveAmount into totalAmountThousandths (converted to thousandths)", () => {
-    const rows = [
-      makeProcedureRow({ effectiveAmount: 25 }),
-      makeProcedureRow({ effectiveAmount: 75 }),
-    ];
+  it("sums billedAmount into totalAmountThousandths (converted to thousandths)", () => {
+    const rows = [makeProcedureRow({ billedAmount: 25 }), makeProcedureRow({ billedAmount: 75 })];
     expect(summarizeProcedureRows(rows).totalAmountThousandths).toBe(100_000);
   });
 
-  it("rows with null effectiveAmount contribute 0 to totalAmount", () => {
-    const rows = [
-      makeProcedureRow({ effectiveAmount: null }),
-      makeProcedureRow({ effectiveAmount: 50 }),
-    ];
+  it("rows with null billedAmount contribute 0 to totalAmount", () => {
+    const rows = [makeProcedureRow({ billedAmount: 0 }), makeProcedureRow({ billedAmount: 50 })];
     expect(summarizeProcedureRows(rows).totalAmountThousandths).toBe(50_000);
   });
 
@@ -58,22 +52,20 @@ describe("summarizeProcedureRows", () => {
     expect(summarizeProcedureRows(rows).totalReceivedThousandths).toBe(50_000);
   });
 
-  it("falls back to effectiveAmount for paid-status rows with null paidAmount", () => {
-    const rows = [
-      makeProcedureRow({ paidAmount: null, effectiveAmount: 50, status: "RECONCILED" }),
-    ];
+  it("falls back to billedAmount for paid-status rows with null paidAmount", () => {
+    const rows = [makeProcedureRow({ paidAmount: null, billedAmount: 50, status: "RECONCILED" })];
     expect(summarizeProcedureRows(rows).totalReceivedThousandths).toBe(50_000);
   });
 
-  it("does not count effectiveAmount as received for non-paid status", () => {
-    const rows = [makeProcedureRow({ paidAmount: null, effectiveAmount: 50, status: "CREATED" })];
+  it("does not count billedAmount as received for non-paid status", () => {
+    const rows = [makeProcedureRow({ paidAmount: null, billedAmount: 50, status: "CREATED" })];
     expect(summarizeProcedureRows(rows).totalReceivedThousandths).toBe(0);
   });
 
   it("totalAwaited = billed − received, floored at 0", () => {
     const rows = [
       makeProcedureRow({
-        effectiveAmount: 100,
+        billedAmount: 100,
         paidAmount: 30,
         status: "PARTIALLY_RECONCILED",
       }),
@@ -82,41 +74,39 @@ describe("summarizeProcedureRows", () => {
   });
 
   it("totalAwaited never goes below zero (overpaid case)", () => {
-    const rows = [makeProcedureRow({ effectiveAmount: 50, paidAmount: 80, status: "OVERPAID" })];
+    const rows = [makeProcedureRow({ billedAmount: 50, paidAmount: 80, status: "OVERPAID" })];
     expect(summarizeProcedureRows(rows).totalAwaitedThousandths).toBe(0);
   });
 
   it("totalAwaited uses paid-status fallback when paidAmount is null", () => {
-    const rows = [makeProcedureRow({ effectiveAmount: 60, paidAmount: null, status: "FUND_PAID" })];
+    const rows = [makeProcedureRow({ billedAmount: 60, paidAmount: null, status: "FUND_PAID" })];
     expect(summarizeProcedureRows(rows).totalAwaitedThousandths).toBe(0);
   });
 
-  it("totalAwaited treats null effectiveAmount as 0 (no overpayment implied)", () => {
-    const rows = [
-      makeProcedureRow({ effectiveAmount: null, paidAmount: 30, status: "RECONCILED" }),
-    ];
+  it("totalAwaited treats null billedAmount as 0 (no overpayment implied)", () => {
+    const rows = [makeProcedureRow({ billedAmount: 0, paidAmount: 30, status: "RECONCILED" })];
     expect(summarizeProcedureRows(rows).totalAwaitedThousandths).toBe(0);
   });
 
   it("all five aggregates across a mixed-status set", () => {
     const rows = [
-      makeProcedureRow({ isDraft: true, patientId: "p-draft", effectiveAmount: 999 }),
-      makeProcedureRow({ patientId: null, effectiveAmount: 40, status: "CREATED" }),
+      makeProcedureRow({ isDraft: true, patientId: "p-draft", billedAmount: 999 }),
+      makeProcedureRow({ patientId: null, billedAmount: 40, status: "CREATED" }),
       makeProcedureRow({
         patientId: "p-1",
-        effectiveAmount: 50,
+        billedAmount: 50,
         paidAmount: 50,
         status: "RECONCILED",
       }),
       makeProcedureRow({
         patientId: "p-1",
-        effectiveAmount: 100,
+        billedAmount: 100,
         paidAmount: 30,
         status: "PARTIALLY_RECONCILED",
       }),
       makeProcedureRow({
         patientId: "p-2",
-        effectiveAmount: 60,
+        billedAmount: 60,
         paidAmount: null,
         status: "FUND_PAID",
       }),

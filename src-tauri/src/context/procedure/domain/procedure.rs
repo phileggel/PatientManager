@@ -164,10 +164,12 @@ pub struct Procedure {
     /// Procedure date (required, ISO format: YYYY-MM-DD)
     #[specta(type = String)]
     pub procedure_date: NaiveDate,
-    /// Total amount charged/invoiced for this procedure, in thousandths of a euro (e.g. 1234 = 1.234 €)
-    /// Optional - uses procedure type default amount if not specified
-    /// Source: Excel import column F or manual entry
-    pub billed_amount: Option<i64>,
+    /// Total amount charged/invoiced for this procedure, in thousandths of a euro (e.g. 1234 = 1.234 €).
+    /// Mandatory: PRO-120 requires a non-null value at the domain level. When no value is
+    /// propagated from the patient's history (PRO-020) or the procedure type's
+    /// `default_amount` (PRO-025), the form submits `0`.
+    /// Source: Excel import column F or manual entry.
+    pub billed_amount: i64,
 
     /// Payment method used for this procedure
     /// Determines how payment was made: Cash/Check/BankCard/BankTransfer/None
@@ -222,7 +224,7 @@ impl Procedure {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: NaiveDate,
-        billed_amount: Option<i64>,
+        billed_amount: i64,
         payment_method: PaymentMethod,
         fund_reconciliation_date: Option<NaiveDate>,
         confirmed_payment_date: Option<NaiveDate>,
@@ -256,7 +258,7 @@ impl Procedure {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: NaiveDate,
-        billed_amount: Option<i64>,
+        billed_amount: i64,
         payment_method: PaymentMethod,
         fund_reconciliation_date: Option<NaiveDate>,
         confirmed_payment_date: Option<NaiveDate>,
@@ -289,7 +291,7 @@ impl Procedure {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: NaiveDate,
-        billed_amount: Option<i64>,
+        billed_amount: i64,
         payment_method: PaymentMethod,
         fund_reconciliation_date: Option<NaiveDate>,
         confirmed_payment_date: Option<NaiveDate>,
@@ -409,7 +411,7 @@ pub trait ProcedureRepository: Send + Sync {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: NaiveDate,
-        billed_amount: Option<i64>,
+        billed_amount: i64,
         payment_method: PaymentMethod,
         fund_reconciliation_date: Option<NaiveDate>,
         confirmed_payment_date: Option<NaiveDate>,

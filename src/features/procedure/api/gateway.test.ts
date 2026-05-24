@@ -147,7 +147,7 @@ describe("addProcedure", () => {
       status: "error",
       error: "validation failed",
     });
-    const result = await addProcedure("p-1", null, "pt-1", "2026-05-01", null);
+    const result = await addProcedure("p-1", null, "pt-1", "2026-05-01", 0);
     expect(result).toEqual({ success: false, error: "validation failed" });
   });
 });

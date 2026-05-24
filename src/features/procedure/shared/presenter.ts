@@ -16,21 +16,20 @@ export function summarizeProcedureRows(rows: ProcedureRow[]): SummaryStatsViewMo
 
   const procedureCount = nonDraft.length;
 
-  const totalAmount = nonDraft.reduce((sum, r) => sum + (r.effectiveAmount ?? 0), 0);
+  const totalAmount = nonDraft.reduce((sum, r) => sum + r.billedAmount, 0);
 
-  // Falls back to effectiveAmount for paid-status procedures whose paid_amount is null
-  // (backend bug: paid_amount = billed_amount = null when procedure uses default_amount).
+  // Falls back to billedAmount for paid-status procedures whose paid_amount is null.
   const totalReceived = nonDraft.reduce((sum, r) => {
     if (r.paidAmount != null) return sum + r.paidAmount;
-    if (isPaidStatus(r.status) && r.effectiveAmount != null) return sum + r.effectiveAmount;
+    if (isPaidStatus(r.status)) return sum + r.billedAmount;
     return sum;
   }, 0);
 
   // Outstanding balance = billed − received, floored at 0.
   // Uses the same paid-status fallback so reconciled procedures don't appear as still awaited.
   const totalAwaited = nonDraft.reduce((sum, r) => {
-    const received = r.paidAmount ?? (isPaidStatus(r.status) ? r.effectiveAmount : null);
-    const diff = (r.effectiveAmount ?? 0) - (received ?? 0);
+    const received = r.paidAmount ?? (isPaidStatus(r.status) ? r.billedAmount : null);
+    const diff = r.billedAmount - (received ?? 0);
     return sum + (diff > 0 ? diff : 0);
   }, 0);
 
