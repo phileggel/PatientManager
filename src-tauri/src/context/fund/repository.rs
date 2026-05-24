@@ -219,7 +219,7 @@ fn is_unique_constraint_violation(error: &sqlx::Error, column: &str) -> bool {
 pub struct FundPaymentGroupRow {
     pub id: String,
     pub fund_id: String,
-    pub payment_date: String,
+    pub payment_date: chrono::NaiveDate,
     pub total_amount: i64,
     pub status: String,
 }
@@ -238,21 +238,17 @@ fn group_status_to_str(s: FundPaymentGroupStatus) -> &'static str {
     }
 }
 
-impl TryFrom<FundPaymentGroupRow> for FundPaymentGroup {
-    type Error = anyhow::Error;
-
-    fn try_from(row: FundPaymentGroupRow) -> anyhow::Result<Self> {
+impl From<FundPaymentGroupRow> for FundPaymentGroup {
+    fn from(row: FundPaymentGroupRow) -> Self {
         let status = parse_group_status(&row.status);
-        let payment_date = chrono::NaiveDate::parse_from_str(&row.payment_date, "%Y-%m-%d")
-            .with_context(|| format!("Invalid payment_date in DB: {}", row.payment_date))?;
-        Ok(FundPaymentGroup::restore(
+        FundPaymentGroup::restore(
             row.id,
             row.fund_id,
-            payment_date,
+            row.payment_date,
             row.total_amount,
             Vec::new(), // Lines are fetched separately in repository
             status,
-        ))
+        )
     }
 }
 
@@ -323,8 +319,6 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             .context("Failed to begin transaction")?;
 
         // Insert group
-        let payment_date_str = group.payment_date.format("%Y-%m-%d").to_string();
-
         sqlx::query!(
             r#"
             INSERT INTO fund_payment_group (
@@ -334,7 +328,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             "#,
             group.id,
             group.fund_id,
-            payment_date_str,
+            group.payment_date,
             group.total_amount,
         )
         .execute(&mut *tx)
@@ -424,8 +418,6 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
 
         // Insert all groups and their lines
         for group in &groups {
-            let payment_date_str = group.payment_date.format("%Y-%m-%d").to_string();
-
             // Insert group
             sqlx::query!(
                 r#"
@@ -436,7 +428,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
                 "#,
                 group.id,
                 group.fund_id,
-                payment_date_str,
+                group.payment_date,
                 group.total_amount,
             )
             .execute(&mut *tx)
@@ -480,7 +472,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         let group_row = sqlx::query_as!(
             FundPaymentGroupRow,
             r#"
-            SELECT id, fund_id, payment_date, total_amount, status
+            SELECT id, fund_id, payment_date AS "payment_date: chrono::NaiveDate", total_amount, status
             FROM fund_payment_group
             WHERE id = $1 AND is_deleted = 0
             "#,
@@ -502,7 +494,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             .fetch_all(&self.pool)
             .await?;
 
-            let mut group = FundPaymentGroup::try_from(row)?;
+            let mut group = FundPaymentGroup::from(row);
             group.lines = lines.into_iter().map(FundPaymentLine::from).collect();
 
             Ok(Some(group))
@@ -535,7 +527,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         let group_rows = sqlx::query_as!(
             FundPaymentGroupRow,
             r#"
-            SELECT id, fund_id, payment_date, total_amount, status
+            SELECT id, fund_id, payment_date AS "payment_date: chrono::NaiveDate", total_amount, status
             FROM fund_payment_group
             WHERE is_deleted = 0
             "#,
@@ -558,7 +550,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             .fetch_all(&self.pool)
             .await?;
 
-            let mut group = FundPaymentGroup::try_from(row)?;
+            let mut group = FundPaymentGroup::from(row);
             group.lines = lines.into_iter().map(FundPaymentLine::from).collect();
 
             groups.push(group);
