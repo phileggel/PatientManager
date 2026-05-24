@@ -137,7 +137,7 @@ jobs:
       - name: Tests with coverage (instrumented)
         run: npm run test:coverage
       - name: Upload to Codecov
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/frontend/lcov.info
@@ -173,7 +173,7 @@ jobs:
           prefix-key: linux-rust
       - name: Install sqlx-cli
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
-        uses: taiki-e/install-action@b550161ef8a7bc4f2a671c0b03a18ac9ccedea1e
+        uses: taiki-e/install-action@f48d2f8ba2b452934c948b7be1a768079c3632ff
         with:
           tool: sqlx-cli
       - name: Setup sqlx-check DB
@@ -186,7 +186,7 @@ jobs:
       - name: Install cargo-tarpaulin
         if: github.event_name == 'push'
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
-        uses: taiki-e/install-action@b550161ef8a7bc4f2a671c0b03a18ac9ccedea1e
+        uses: taiki-e/install-action@f48d2f8ba2b452934c948b7be1a768079c3632ff
         with:
           tool: cargo-tarpaulin
       - name: Coverage with tarpaulin
@@ -195,7 +195,7 @@ jobs:
         run: cargo tarpaulin --out Lcov --output-dir ../coverage/backend --lib --exclude-files "build.rs" --exclude-files "dev/generate_bindings.rs"
       - name: Upload to Codecov
         if: github.event_name == 'push'
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/backend/lcov.info
