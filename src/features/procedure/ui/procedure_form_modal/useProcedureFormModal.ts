@@ -90,7 +90,9 @@ export function useProcedureFormModal({
     setFieldErrors({});
   }, [initPatientId, initFundId, initProcedureTypeId, initProcedureDate, initBilledAmount]);
 
-  // Auto-fill on patient selection (create mode only, R4)
+  // Auto-fill on patient selection (create mode only, PRO-020).
+  // Each field is propagated only when it is still in its not-initialized state
+  // (the user has not entered a value).
   const handlePatientChange = useCallback(
     (id: string) => {
       setPatientId(id);
@@ -99,6 +101,7 @@ export function useProcedureFormModal({
       if (!patient) return;
       if (!fundId && patient.latest_fund) setFundId(patient.latest_fund);
       if (
+        !procedureTypeId &&
         patient.latest_procedure_type &&
         procedureTypes.some((pt) => pt.id === patient.latest_procedure_type)
       )
@@ -107,7 +110,20 @@ export function useProcedureFormModal({
       if (billedAmount == null && patient.latest_procedure_amount != null)
         setBilledAmount(patient.latest_procedure_amount / 1000);
     },
-    [patients, procedureTypes, fundId, procedureDate, billedAmount, mode],
+    [patients, procedureTypes, procedureTypeId, fundId, procedureDate, billedAmount, mode],
+  );
+
+  // Auto-fill amount on procedure type selection (create mode only, PRO-025).
+  // Amount is propagated only when it is still in its not-initialized state.
+  const handleProcedureTypeChange = useCallback(
+    (id: string) => {
+      setProcedureTypeId(id);
+      if (!id || mode !== "create") return;
+      if (billedAmount != null) return;
+      const procedureType = procedureTypes.find((pt) => pt.id === id);
+      if (procedureType) setBilledAmount(procedureType.default_amount / 1000);
+    },
+    [procedureTypes, billedAmount, mode],
   );
 
   const reset = useCallback(() => {
@@ -170,7 +186,7 @@ export function useProcedureFormModal({
           fundId || null,
           procedureTypeId,
           procedureDate,
-          billedAmount !== null ? Math.round(billedAmount * 1000) : null,
+          Math.round((billedAmount ?? 0) * 1000),
         );
         setLoading(false);
         if (!result.success) {
@@ -195,7 +211,7 @@ export function useProcedureFormModal({
           fund_id: fundId || null,
           procedure_type_id: procedureTypeId,
           procedure_date: procedureDate,
-          billed_amount: billedAmount != null ? Math.round(billedAmount * 1000) : null,
+          billed_amount: Math.round((billedAmount ?? 0) * 1000),
           payment_method: procedure.payment_method,
           fund_reconciliation_date: procedure.fund_reconciliation_date || null,
           confirmed_payment_date: procedure.confirmed_payment_date || null,
@@ -282,6 +298,7 @@ export function useProcedureFormModal({
     setFundId,
     procedureTypeId,
     setProcedureTypeId,
+    handleProcedureTypeChange,
     procedureDate,
     setProcedureDate,
     billedAmount,

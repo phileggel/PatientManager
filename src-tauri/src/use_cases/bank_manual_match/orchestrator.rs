@@ -38,7 +38,7 @@ pub struct DirectPaymentProcedureCandidate {
     pub procedure_id: String,
     pub patient_id: String,
     pub procedure_date: String,
-    pub billed_amount: Option<i64>,
+    pub billed_amount: i64,
 }
 
 /// Result of creating a bank transfer with links
@@ -485,10 +485,7 @@ impl BankManualMatchOrchestrator {
             .procedure_service
             .read_procedures_by_ids(procedure_ids.to_vec())
             .await?;
-        let total: i64 = procedures
-            .iter()
-            .map(|p| p.billed_amount.unwrap_or(0))
-            .sum();
+        let total: i64 = procedures.iter().map(|p| p.billed_amount).sum();
         anyhow::ensure!(total > 0, "Total amount must be greater than 0");
         Ok(total)
     }
@@ -591,7 +588,7 @@ impl BankManualMatchOrchestrator {
             .map(|mut p| {
                 p.payment_status = ProcedureStatus::DirectlyPaid;
                 let amount = p.billed_amount;
-                p.with_payment_info(payment_method, Some(confirmed_date), amount)
+                p.with_payment_info(payment_method, Some(confirmed_date), Some(amount))
             })
             .collect();
 
@@ -1357,7 +1354,7 @@ mod tests {
         assert_eq!(candidate.procedure_id, proc_id);
         assert_eq!(candidate.patient_id, patient_id);
         assert_eq!(candidate.procedure_date, "2026-03-10");
-        assert_eq!(candidate.billed_amount, Some(120_000));
+        assert_eq!(candidate.billed_amount, 120_000);
 
         Ok(())
     }

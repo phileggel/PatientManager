@@ -41,7 +41,7 @@ describe("ProcedureList", () => {
         fundName: null,
         procedureName: null,
         procedureDate: null,
-        billedAmount: null,
+        billedAmount: 0,
         paymentMethod: null,
         fundReconciliationDate: null,
         confirmedPaymentDate: null,

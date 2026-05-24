@@ -423,7 +423,7 @@ impl BankStatementOrchestrator {
                             {
                                 (ProcedureStatus::PartiallyFundPaid, procedure.paid_amount)
                             } else {
-                                (ProcedureStatus::FundPaid, procedure.billed_amount)
+                                (ProcedureStatus::FundPaid, Some(procedure.billed_amount))
                             };
                             procedure.payment_status = new_status;
                             procedure = procedure.with_payment_info(

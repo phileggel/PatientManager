@@ -53,7 +53,7 @@ export async function addProcedure(
   fundId: string | null,
   procedureTypeId: string,
   procedureDate: string,
-  billedAmount: number | null,
+  billedAmount: number,
 ): Promise<ServiceResult<Procedure>> {
   const result = await commands.addProcedure(
     patientId,

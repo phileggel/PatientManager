@@ -260,18 +260,17 @@ impl ReconciliationPass {
 
         let mut anomalies = base_anomalies.clone();
 
-        if let Some(db_amount) = proc.billed_amount {
-            let db_internal = InternalAmount(db_amount);
-            if db_internal != InternalAmount(normalized.amount) {
-                anomalies.push(AnomalyType::AmountMismatch);
-                tracing::warn!(
-                    line_index = normalized.line_index,
-                    procedure_id = %proc.id,
-                    pdf_amount = InternalAmount(normalized.amount).to_f64(),
-                    db_amount = db_amount,
-                    "Amount mismatch detected in single match"
-                );
-            }
+        let db_amount = proc.billed_amount;
+        let db_internal = InternalAmount(db_amount);
+        if db_internal != InternalAmount(normalized.amount) {
+            anomalies.push(AnomalyType::AmountMismatch);
+            tracing::warn!(
+                line_index = normalized.line_index,
+                procedure_id = %proc.id,
+                pdf_amount = InternalAmount(normalized.amount).to_f64(),
+                db_amount = db_amount,
+                "Amount mismatch detected in single match"
+            );
         }
 
         if let Some(fa) = detector.fund_cache.check_fund_anomaly(normalized, proc) {
@@ -308,7 +307,7 @@ impl ReconciliationPass {
                 procedure_id: proc.id.clone(),
                 procedure_date: proc.procedure_date,
                 fund_id: proc.fund_id.clone(),
-                amount: proc.billed_amount,
+                amount: Some(proc.billed_amount),
                 anomalies,
             }],
         );
@@ -346,7 +345,7 @@ impl ReconciliationPass {
                 procedure_id: proc.id.clone(),
                 procedure_date: proc.procedure_date,
                 fund_id: proc.fund_id.clone(),
-                amount: proc.billed_amount,
+                amount: Some(proc.billed_amount),
                 anomalies: proc_anomalies,
             });
         }
@@ -380,7 +379,7 @@ mod tests {
         _id: &str,
         _ssn: &str,
         procedure_date: &str,
-        amount: Option<i64>,
+        amount: i64,
         fund_id: Option<&str>,
     ) -> Procedure {
         Procedure::new(
@@ -445,13 +444,7 @@ mod tests {
     #[test]
     fn test_new_preserves_pool() {
         let mut pool = HashMap::new();
-        let proc = create_procedure(
-            "proc-1",
-            "123456789",
-            "2025-05-10",
-            Some(50000),
-            Some("fund-931"),
-        );
+        let proc = create_procedure("proc-1", "123456789", "2025-05-10", 50000, Some("fund-931"));
         pool.insert("123456789".to_string(), vec![proc.clone()]);
 
         let pass = ReconciliationPass::new(pool.clone());
@@ -468,13 +461,7 @@ mod tests {
     #[test]
     fn test_into_result_extracts_all_fields() {
         let mut pool = HashMap::new();
-        let proc = create_procedure(
-            "proc-1",
-            "123456789",
-            "2025-05-10",
-            Some(50000),
-            Some("fund-931"),
-        );
+        let proc = create_procedure("proc-1", "123456789", "2025-05-10", 50000, Some("fund-931"));
         pool.insert("123456789".to_string(), vec![proc]);
 
         let pass = ReconciliationPass::new(pool.clone());
@@ -672,7 +659,7 @@ mod tests {
                 &format!("proc-{}", i),
                 "123456789",
                 "2025-05-10",
-                Some(50000),
+                50000,
                 Some("fund-931"),
             ));
         }
@@ -707,20 +694,8 @@ mod tests {
     #[tokio::test]
     async fn test_pool_cleanup_after_match() {
         let mut pool = HashMap::new();
-        let proc1 = create_procedure(
-            "proc-1",
-            "123456789",
-            "2025-05-10",
-            Some(50000),
-            Some("fund-931"),
-        );
-        let proc2 = create_procedure(
-            "proc-2",
-            "123456789",
-            "2025-05-11",
-            Some(50000),
-            Some("fund-931"),
-        );
+        let proc1 = create_procedure("proc-1", "123456789", "2025-05-10", 50000, Some("fund-931"));
+        let proc2 = create_procedure("proc-2", "123456789", "2025-05-11", 50000, Some("fund-931"));
         pool.insert("123456789".to_string(), vec![proc1, proc2]);
 
         let mut pass = ReconciliationPass::new(pool);
@@ -766,7 +741,7 @@ mod tests {
     fn create_procedure_with_id(
         fund_id: Option<&str>,
         procedure_date: &str,
-        amount: Option<i64>,
+        amount: i64,
     ) -> Procedure {
         Procedure::new(
             "patient-1".to_string(),
@@ -786,8 +761,8 @@ mod tests {
     #[tokio::test]
     async fn test_period_match_exact_amount_produces_match() {
         let mut pool = HashMap::new();
-        let proc1 = create_procedure_with_id(None, "2025-05-12", Some(50000));
-        let proc2 = create_procedure_with_id(None, "2025-05-13", Some(30000));
+        let proc1 = create_procedure_with_id(None, "2025-05-12", 50000);
+        let proc2 = create_procedure_with_id(None, "2025-05-13", 30000);
         pool.insert("123456789".to_string(), vec![proc1, proc2]);
 
         let mut pass = ReconciliationPass::new(pool);
@@ -826,8 +801,8 @@ mod tests {
     async fn test_period_match_amount_mismatch() {
         let mut pool = HashMap::new();
         // proc total = 80000, PDF = 90000 → amount mismatch
-        let proc1 = create_procedure_with_id(None, "2025-05-12", Some(50000));
-        let proc2 = create_procedure_with_id(None, "2025-05-13", Some(30000));
+        let proc1 = create_procedure_with_id(None, "2025-05-12", 50000);
+        let proc2 = create_procedure_with_id(None, "2025-05-13", 30000);
         pool.insert("123456789".to_string(), vec![proc1, proc2]);
 
         let mut pass = ReconciliationPass::new(pool);
@@ -865,7 +840,7 @@ mod tests {
         let (fund_cache, _) = (create_fund_cache_with_id(known_fund_id), known_fund_id);
 
         let mut pool = HashMap::new();
-        let proc = create_procedure_with_id(Some(known_fund_id), "2025-05-12", Some(50000));
+        let proc = create_procedure_with_id(Some(known_fund_id), "2025-05-12", 50000);
         pool.insert("123456789".to_string(), vec![proc]);
 
         let mut pass = ReconciliationPass::new(pool);
@@ -907,7 +882,7 @@ mod tests {
     async fn test_single_match_non_exact_closest_amount() {
         let mut pool = HashMap::new();
         // procedure at 40000, PDF at 50000 — non-exact pass uses closest
-        let proc = create_procedure_with_id(None, "2025-05-10", Some(40000));
+        let proc = create_procedure_with_id(None, "2025-05-10", 40000);
         pool.insert("123456789".to_string(), vec![proc]);
 
         let mut pass = ReconciliationPass::new(pool);
@@ -941,7 +916,7 @@ mod tests {
         let fund_cache = create_fund_cache_with_id(known_fund_id);
 
         let mut pool = HashMap::new();
-        let proc = create_procedure_with_id(Some(known_fund_id), "2025-05-10", Some(50000));
+        let proc = create_procedure_with_id(Some(known_fund_id), "2025-05-10", 50000);
         pool.insert("123456789".to_string(), vec![proc]);
 
         let mut pass = ReconciliationPass::new(pool);
@@ -977,7 +952,7 @@ mod tests {
         let mut pool = HashMap::new();
         // Procedure date: 2025-05-10; PDF line date: 2025-05-11
         // With date-1 applied: filter range = 2025-05-10 to 2025-05-11 → matches
-        let proc = create_procedure_with_id(None, "2025-05-10", Some(50000));
+        let proc = create_procedure_with_id(None, "2025-05-10", 50000);
         pool.insert("123456789".to_string(), vec![proc]);
 
         let mut pass = ReconciliationPass::new(pool);

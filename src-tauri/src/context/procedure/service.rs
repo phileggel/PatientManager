@@ -160,7 +160,7 @@ impl ProcedureService {
         fund_id: Option<String>,
         procedure_type_id: String,
         procedure_date: chrono::NaiveDate,
-        billed_amount: Option<i64>,
+        billed_amount: i64,
         payment_method: super::domain::PaymentMethod,
         fund_reconciliation_date: Option<chrono::NaiveDate>,
         confirmed_payment_date: Option<chrono::NaiveDate>,
@@ -632,7 +632,7 @@ mod tests {
                 None,
                 "type-1".to_string(),
                 chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-                Some(10000),
+                10000,
                 PaymentMethod::None,
                 None,
                 None,
@@ -683,7 +683,7 @@ mod tests {
             Some("fund-1".to_string()),
             "t1".to_string(),
             chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-            Some(15000),
+            15000,
             PaymentMethod::None,
             None,
             None,
@@ -703,7 +703,7 @@ mod tests {
             result[0].procedure_date,
             chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()
         );
-        assert_eq!(result[0].billed_amount, Some(15000));
+        assert_eq!(result[0].billed_amount, 15000);
         assert_eq!(result[0].payment_status, ProcedureStatus::Created);
     }
 
@@ -716,7 +716,7 @@ mod tests {
             None,
             "t1".to_string(),
             chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-            None,
+            0,
             PaymentMethod::None,
             None,
             None,

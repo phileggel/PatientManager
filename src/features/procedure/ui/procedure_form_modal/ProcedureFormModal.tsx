@@ -85,7 +85,7 @@ export function ProcedureFormModal({
     fundId,
     setFundId,
     procedureTypeId,
-    setProcedureTypeId,
+    handleProcedureTypeChange,
     procedureDate,
     setProcedureDate,
     billedAmount,
@@ -286,7 +286,7 @@ export function ProcedureFormModal({
               label={t("form.procedureType")}
               options={procedureTypeOptions}
               value={procedureTypeId}
-              onChange={(e) => setProcedureTypeId(e.target.value)}
+              onChange={(e) => handleProcedureTypeChange(e.target.value)}
               disabled={loading}
               error={fieldErrors.procedureTypeId}
             />

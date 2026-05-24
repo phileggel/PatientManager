@@ -43,7 +43,6 @@ export function makeProcedureRow(overrides?: Partial<ProcedureRow>): ProcedureRo
     procedureName: "Consultation",
     procedureDate: "2026-01-15",
     billedAmount: 50,
-    effectiveAmount: 50,
     paymentMethod: "NONE",
     fundReconciliationDate: null,
     confirmedPaymentDate: null,

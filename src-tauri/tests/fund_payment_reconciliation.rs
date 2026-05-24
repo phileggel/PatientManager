@@ -166,7 +166,7 @@ async fn test_full_reconciliation_scenario_with_amount_correction() {
                 Some(fund_id),
                 pt_id,
                 date,
-                Some(amount),
+                amount,
                 PaymentMethod::None,
                 None,
                 None,
@@ -249,7 +249,7 @@ async fn test_full_reconciliation_scenario_with_amount_correction() {
 
     // ---- Assert: p5 amount corrected in DB ---------------------------
     let p5_db = procedures.iter().find(|p| p.id == p5.id).unwrap();
-    assert_eq!(p5_db.billed_amount, Some(28_500));
+    assert_eq!(p5_db.billed_amount, 28_500);
 
     // ---- Assert: duplicate guard -------------------------------------
     let dup = create_fund_payment_with_auto_corrections_fn(
@@ -351,7 +351,7 @@ async fn test_full_chain_via_reconciliation_service() {
             Some(cpam.id.clone()),
             pt.id.clone(),
             chrono::NaiveDate::from_ymd_opt(2025, 4, 1).unwrap(),
-            Some(38_400),
+            38_400,
             PaymentMethod::None,
             None,
             None,
@@ -369,7 +369,7 @@ async fn test_full_chain_via_reconciliation_service() {
             Some(cpam.id.clone()),
             pt.id.clone(),
             chrono::NaiveDate::from_ymd_opt(2025, 4, 15).unwrap(),
-            Some(52_000),
+            52_000,
             PaymentMethod::None,
             None,
             None,
@@ -387,7 +387,7 @@ async fn test_full_chain_via_reconciliation_service() {
             Some(mgen.id.clone()),
             pt.id.clone(),
             chrono::NaiveDate::from_ymd_opt(2025, 4, 10).unwrap(),
-            Some(25_000),
+            25_000,
             PaymentMethod::None,
             None,
             None,
@@ -541,8 +541,7 @@ async fn test_full_chain_via_reconciliation_service() {
     // ---- Assert: p3 amount corrected in DB ---------------------------
     let p3_db = procedures.iter().find(|p| p.id == p3.id).unwrap();
     assert_eq!(
-        p3_db.billed_amount,
-        Some(28_500),
+        p3_db.billed_amount, 28_500,
         "p3 amount should be corrected from 25 000 to 28 500"
     );
 }
@@ -581,7 +580,7 @@ async fn create_fund_payment_from_candidate_auto_creates_unknown_fund() {
             None,
             pt.id.clone(),
             chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-            Some(100_000),
+            100_000,
             PaymentMethod::None,
             None,
             None,
@@ -671,7 +670,7 @@ async fn create_multiple_from_candidates_all_duplicates_returns_error() {
                 Some(fund_id),
                 pt_id,
                 chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-                Some(amount),
+                amount,
                 PaymentMethod::None,
                 None,
                 None,

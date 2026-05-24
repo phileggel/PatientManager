@@ -55,7 +55,6 @@ const makeRow = (status: string): ProcedureRow => ({
   procedureName: "Consultation",
   procedureDate: TODAY,
   billedAmount: 50,
-  effectiveAmount: 50,
   paymentMethod: "NONE",
   fundReconciliationDate: null,
 

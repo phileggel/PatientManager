@@ -21,8 +21,7 @@ describe("useProcedurePeriod", () => {
         fundName: null,
         procedureTypeId: null,
         procedureName: null,
-        billedAmount: null,
-        effectiveAmount: null,
+        billedAmount: 0,
         paymentMethod: null,
         fundReconciliationDate: null,
 
@@ -45,8 +44,7 @@ describe("useProcedurePeriod", () => {
         fundName: null,
         procedureTypeId: null,
         procedureName: null,
-        billedAmount: null,
-        effectiveAmount: null,
+        billedAmount: 0,
         paymentMethod: null,
         fundReconciliationDate: null,
 
@@ -69,8 +67,7 @@ describe("useProcedurePeriod", () => {
         fundName: null,
         procedureTypeId: null,
         procedureName: null,
-        billedAmount: null,
-        effectiveAmount: null,
+        billedAmount: 0,
         paymentMethod: null,
         fundReconciliationDate: null,
 
@@ -104,8 +101,7 @@ describe("useProcedurePeriod", () => {
         fundName: null,
         procedureTypeId: null,
         procedureName: null,
-        billedAmount: null,
-        effectiveAmount: null,
+        billedAmount: 0,
         paymentMethod: null,
         fundReconciliationDate: null,
 
@@ -128,8 +124,7 @@ describe("useProcedurePeriod", () => {
         fundName: null,
         procedureTypeId: null,
         procedureName: null,
-        billedAmount: null,
-        effectiveAmount: null,
+        billedAmount: 0,
         paymentMethod: null,
         fundReconciliationDate: null,
 
@@ -152,8 +147,7 @@ describe("useProcedurePeriod", () => {
         fundName: null,
         procedureTypeId: null,
         procedureName: null,
-        billedAmount: null,
-        effectiveAmount: null,
+        billedAmount: 0,
         paymentMethod: null,
         fundReconciliationDate: null,
 
@@ -190,8 +184,7 @@ describe("useProcedurePeriod", () => {
         fundName: null,
         procedureTypeId: null,
         procedureName: null,
-        billedAmount: null,
-        effectiveAmount: null,
+        billedAmount: 0,
         paymentMethod: null,
         fundReconciliationDate: null,
 
@@ -214,8 +207,7 @@ describe("useProcedurePeriod", () => {
         fundName: null,
         procedureTypeId: null,
         procedureName: null,
-        billedAmount: null,
-        effectiveAmount: null,
+        billedAmount: 0,
         paymentMethod: null,
         fundReconciliationDate: null,
 
