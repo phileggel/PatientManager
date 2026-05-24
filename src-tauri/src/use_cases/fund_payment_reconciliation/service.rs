@@ -268,6 +268,7 @@ mod tests {
     use crate::use_cases::fund_payment_reconciliation::api::{
         NormalizedPdfLine, PdfParseResult, PdfProcedureGroup, ReconciliationMatch,
     };
+    use chrono::NaiveDate;
 
     fn make_service(
         proc_repo: MockProcedureRepository,
@@ -309,7 +310,7 @@ mod tests {
                     patient_id: "patient-1".to_string(),
                     patient_name: Some("Marie Dupont".to_string()),
                     patient_ssn: Some("1234567890123".to_string()),
-                    procedure_date: "2026-01-15".to_string(),
+                    procedure_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                     amount: Some(10000),
                 }])
             });
@@ -339,7 +340,7 @@ mod tests {
                     patient_id: "patient-2".to_string(),
                     patient_name: None,
                     patient_ssn: None,
-                    procedure_date: "2026-02-01".to_string(),
+                    procedure_date: NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
                     amount: None,
                 }])
             });

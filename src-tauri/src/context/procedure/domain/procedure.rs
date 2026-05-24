@@ -427,7 +427,7 @@ pub struct UnreconciledProcedure {
     pub patient_id: String,
     pub patient_name: Option<String>,
     pub patient_ssn: Option<String>,
-    pub procedure_date: String,
+    pub procedure_date: NaiveDate,
     pub amount: Option<i64>,
 }
 
