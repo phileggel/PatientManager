@@ -66,12 +66,6 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 ---
 
-## (backend/procedure) — Migrate Procedure date fields from String to NaiveDate
-
-`parse_iso_date_to_naive_date` in `fund_payment_reconciliation/parsing/dates.rs` is explicitly marked temporary (line 13): it exists only because `Procedure` stores dates as `String` instead of `NaiveDate`. Once the domain model is migrated, this helper and all call sites should be removed.
-
----
-
 ## (backend) — Tech Debt: Event emission reduction — Steps 3 & 4
 
 - Step 3: Batch patient/fund creation during reconciliation (instead of N individual creations)
