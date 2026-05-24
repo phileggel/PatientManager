@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id, hp.procedure_date,\n                   hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date, hp.confirmed_payment_date,\n                   hp.paid_amount, hp.payment_status, hp.is_deleted\n            FROM procedure hp\n            WHERE hp.fund_id = $1\n              AND hp.is_deleted = 0\n              AND hp.payment_status = 'CREATED'\n            ORDER BY hp.procedure_date DESC\n            ",
+  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,\n                   hp.procedure_date AS \"procedure_date: NaiveDate\", hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date AS \"fund_reconciliation_date?: NaiveDate\", hp.confirmed_payment_date AS \"confirmed_payment_date?: NaiveDate\", hp.paid_amount, hp.payment_status, hp.is_deleted\n            FROM procedure hp\n            JOIN patient p ON hp.patient_id = p.id\n            WHERE p.ssn = $1\n              AND hp.procedure_date >= $2\n              AND hp.procedure_date <= $3\n              AND hp.is_deleted = 0\n              AND p.is_deleted = 0\n            ORDER BY hp.procedure_date ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -24,7 +24,7 @@
         "type_info": "Text"
       },
       {
-        "name": "procedure_date",
+        "name": "procedure_date: NaiveDate",
         "ordinal": 4,
         "type_info": "Text"
       },
@@ -39,12 +39,12 @@
         "type_info": "Text"
       },
       {
-        "name": "fund_reconciliation_date",
+        "name": "fund_reconciliation_date?: NaiveDate",
         "ordinal": 7,
         "type_info": "Text"
       },
       {
-        "name": "confirmed_payment_date",
+        "name": "confirmed_payment_date?: NaiveDate",
         "ordinal": 8,
         "type_info": "Text"
       },
@@ -65,7 +65,7 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 3
     },
     "nullable": [
       false,
@@ -82,5 +82,5 @@
       false
     ]
   },
-  "hash": "db699020924fb4c65f7b4169ccb26caca9b42c0b4dc312dab51d75bb52c92380"
+  "hash": "bbb2e11f2b54ee82be9edff7413389448608c10bb27b019443bca5e4cd3b3004"
 }
