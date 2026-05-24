@@ -278,9 +278,11 @@ pub async fn get_unreconciled_procedures_in_range_fn(
     end_date: String,
     service: Arc<ReconciliationService>,
 ) -> anyhow::Result<Vec<UnreconciledProcedure>> {
-    service
-        .find_unreconciled_in_range(&start_date, &end_date)
-        .await
+    let start = NaiveDate::parse_from_str(&start_date, "%Y-%m-%d")
+        .map_err(|e| anyhow::anyhow!("Invalid start_date '{start_date}': {e}"))?;
+    let end = NaiveDate::parse_from_str(&end_date, "%Y-%m-%d")
+        .map_err(|e| anyhow::anyhow!("Invalid end_date '{end_date}': {e}"))?;
+    service.find_unreconciled_in_range(start, end).await
 }
 
 // ============ Handlers ============

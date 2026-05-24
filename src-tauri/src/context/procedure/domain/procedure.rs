@@ -408,11 +408,11 @@ pub trait ProcedureRepository: Send + Sync {
         patient_id: String,
         fund_id: Option<String>,
         procedure_type_id: String,
-        procedure_date: String,
+        procedure_date: NaiveDate,
         billed_amount: Option<i64>,
         payment_method: PaymentMethod,
-        fund_reconciliation_date: Option<String>,
-        confirmed_payment_date: Option<String>,
+        fund_reconciliation_date: Option<NaiveDate>,
+        confirmed_payment_date: Option<NaiveDate>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> anyhow::Result<Procedure>;
@@ -430,15 +430,15 @@ pub trait ProcedureRepository: Send + Sync {
     async fn find_procedures_by_ssn_and_date_range(
         &self,
         ssn: &str,
-        start_date: &str,
-        end_date: &str,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>>;
 
     async fn find_procedures_by_ssns_and_date_range_with_ssn(
         &self,
         ssns: &[String],
-        start_date: &str,
-        end_date: &str,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
     ) -> anyhow::Result<Vec<(String, Procedure)>>;
 
     /// Find exact procedure match for import deduplication.
@@ -448,7 +448,7 @@ pub trait ProcedureRepository: Send + Sync {
         &self,
         patient_id: &str,
         fund_id: Option<&str>,
-        procedure_date: &str,
+        procedure_date: NaiveDate,
         billed_amount: i64,
     ) -> anyhow::Result<Option<Procedure>>;
 
@@ -458,8 +458,8 @@ pub trait ProcedureRepository: Send + Sync {
 
     async fn find_unreconciled_by_date_range(
         &self,
-        start_date: &str,
-        end_date: &str,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
     ) -> anyhow::Result<Vec<UnreconciledProcedure>>;
 
     /// Returns true if any non-deleted procedure in the given month (YYYY-MM) has a
@@ -475,8 +475,8 @@ pub trait ProcedureRepository: Send + Sync {
     /// Used for the 7-day window selection (R14) and expanded search (R20).
     async fn find_created_in_date_range(
         &self,
-        date_min: &str,
-        date_max: &str,
+        date_min: NaiveDate,
+        date_max: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>>;
 
     /// Find Created procedures for a given fund with procedure_date <= date (R19).
@@ -484,7 +484,7 @@ pub trait ProcedureRepository: Send + Sync {
     async fn find_created_by_fund_before_date(
         &self,
         fund_id: &str,
-        date: &str,
+        date: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>>;
 }
 

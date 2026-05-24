@@ -159,11 +159,11 @@ impl ProcedureService {
         patient_id: String,
         fund_id: Option<String>,
         procedure_type_id: String,
-        procedure_date: String,
+        procedure_date: chrono::NaiveDate,
         billed_amount: Option<i64>,
         payment_method: super::domain::PaymentMethod,
-        fund_reconciliation_date: Option<String>,
-        confirmed_payment_date: Option<String>,
+        fund_reconciliation_date: Option<chrono::NaiveDate>,
+        confirmed_payment_date: Option<chrono::NaiveDate>,
         paid_amount: Option<i64>,
         payment_status: super::domain::ProcedureStatus,
     ) -> anyhow::Result<Procedure> {
@@ -278,8 +278,8 @@ impl ProcedureService {
     /// Used by bank_manual_match use_case for R14 (7-day window) and R20 (expanded search).
     pub async fn find_created_in_date_range(
         &self,
-        date_min: &str,
-        date_max: &str,
+        date_min: chrono::NaiveDate,
+        date_max: chrono::NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>> {
         self.repository
             .find_created_in_date_range(date_min, date_max)
@@ -291,7 +291,7 @@ impl ProcedureService {
     pub async fn find_created_by_fund_before_date(
         &self,
         fund_id: &str,
-        date: &str,
+        date: chrono::NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>> {
         self.repository
             .find_created_by_fund_before_date(fund_id, date)
@@ -317,8 +317,8 @@ impl ProcedureService {
     pub async fn find_procedures_by_ssn_and_date_range(
         &self,
         ssn: &str,
-        start_date: &str,
-        end_date: &str,
+        start_date: chrono::NaiveDate,
+        end_date: chrono::NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>> {
         self.repository
             .find_procedures_by_ssn_and_date_range(ssn, start_date, end_date)
@@ -598,14 +598,6 @@ mod tests {
              confirmed_payment_date,
              paid_amount,
              payment_status| {
-                let procedure_date =
-                    chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")?;
-                let fund_reconciliation_date = fund_reconciliation_date
-                    .map(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
-                    .transpose()?;
-                let confirmed_payment_date = confirmed_payment_date
-                    .map(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d"))
-                    .transpose()?;
                 Procedure::new(
                     patient_id,
                     fund_id,
@@ -639,7 +631,7 @@ mod tests {
                 "patient-1".to_string(),
                 None,
                 "type-1".to_string(),
-                "2026-01-15".to_string(),
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                 Some(10000),
                 PaymentMethod::None,
                 None,

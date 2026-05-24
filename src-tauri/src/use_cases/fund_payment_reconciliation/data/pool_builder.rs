@@ -75,8 +75,8 @@ impl ProcedurePoolBuilder {
             .procedure_repository
             .find_procedures_by_ssns_and_date_range_with_ssn(
                 &unique_ssns,
-                &extended_start.to_string(),
-                &extended_end.to_string(),
+                extended_start,
+                extended_end,
             )
             .await?;
 
@@ -137,11 +137,11 @@ mod tests {
             _: String,
             _: Option<String>,
             _: String,
-            _: String,
+            _: NaiveDate,
             _: Option<i64>,
             _: PaymentMethod,
-            _: Option<String>,
-            _: Option<String>,
+            _: Option<NaiveDate>,
+            _: Option<NaiveDate>,
             _: Option<i64>,
             _: ProcedureStatus,
         ) -> anyhow::Result<Procedure> {
@@ -156,8 +156,8 @@ mod tests {
         async fn find_procedures_by_ssns_and_date_range_with_ssn(
             &self,
             _: &[String],
-            _: &str,
-            _: &str,
+            _: NaiveDate,
+            _: NaiveDate,
         ) -> anyhow::Result<Vec<(String, Procedure)>> {
             Ok(self.procedures.clone())
         }
@@ -179,8 +179,8 @@ mod tests {
         async fn find_procedures_by_ssn_and_date_range(
             &self,
             _: &str,
-            _: &str,
-            _: &str,
+            _: NaiveDate,
+            _: NaiveDate,
         ) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
@@ -188,7 +188,7 @@ mod tests {
             &self,
             _: &str,
             _: Option<&str>,
-            _: &str,
+            _: NaiveDate,
             _: i64,
         ) -> anyhow::Result<Option<Procedure>> {
             unimplemented!()
@@ -207,22 +207,22 @@ mod tests {
         }
         async fn find_unreconciled_by_date_range(
             &self,
-            _: &str,
-            _: &str,
+            _: NaiveDate,
+            _: NaiveDate,
         ) -> anyhow::Result<Vec<crate::context::procedure::UnreconciledProcedure>> {
             unimplemented!()
         }
         async fn find_created_in_date_range(
             &self,
-            _: &str,
-            _: &str,
+            _: NaiveDate,
+            _: NaiveDate,
         ) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
         async fn find_created_by_fund_before_date(
             &self,
             _: &str,
-            _: &str,
+            _: NaiveDate,
         ) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }

@@ -159,7 +159,7 @@ async fn test_full_reconciliation_scenario_with_amount_correction() {
     let seed = |patient_id: String, fund_id: String, date: &str, amount: i64| {
         let svc = ctx.procedure_service.clone();
         let pt_id = pt.id.clone();
-        let date = date.to_string();
+        let date = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap();
         async move {
             svc.create_procedure(
                 patient_id,
@@ -350,7 +350,7 @@ async fn test_full_chain_via_reconciliation_service() {
             alice.id.clone(),
             Some(cpam.id.clone()),
             pt.id.clone(),
-            "2025-04-01".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2025, 4, 1).unwrap(),
             Some(38_400),
             PaymentMethod::None,
             None,
@@ -368,7 +368,7 @@ async fn test_full_chain_via_reconciliation_service() {
             bob.id.clone(),
             Some(cpam.id.clone()),
             pt.id.clone(),
-            "2025-04-15".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2025, 4, 15).unwrap(),
             Some(52_000),
             PaymentMethod::None,
             None,
@@ -386,7 +386,7 @@ async fn test_full_chain_via_reconciliation_service() {
             alice.id.clone(),
             Some(mgen.id.clone()),
             pt.id.clone(),
-            "2025-04-10".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2025, 4, 10).unwrap(),
             Some(25_000),
             PaymentMethod::None,
             None,
@@ -580,7 +580,7 @@ async fn create_fund_payment_from_candidate_auto_creates_unknown_fund() {
             patient.id.clone(),
             None,
             pt.id.clone(),
-            "2026-01-15".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             Some(100_000),
             PaymentMethod::None,
             None,
@@ -670,7 +670,7 @@ async fn create_multiple_from_candidates_all_duplicates_returns_error() {
                 patient_id,
                 Some(fund_id),
                 pt_id,
-                "2026-01-15".to_string(),
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                 Some(amount),
                 PaymentMethod::None,
                 None,

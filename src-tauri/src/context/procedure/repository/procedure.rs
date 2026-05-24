@@ -114,40 +114,23 @@ impl ProcedureRepository for SqliteProcedureRepository {
         patient_id: String,
         fund_id: Option<String>,
         procedure_type_id: String,
-        procedure_date: String,
+        procedure_date: NaiveDate,
         billed_amount: Option<i64>,
         payment_method: PaymentMethod,
-        fund_reconciliation_date: Option<String>,
-        confirmed_payment_date: Option<String>,
+        fund_reconciliation_date: Option<NaiveDate>,
+        confirmed_payment_date: Option<NaiveDate>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
     ) -> anyhow::Result<Procedure> {
-        let procedure_date_parsed = NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
-            .map_err(|e| anyhow!("Invalid procedure_date '{procedure_date}': {e}"))?;
-        let fund_reconciliation_date_parsed = fund_reconciliation_date
-            .as_deref()
-            .map(|s| {
-                NaiveDate::parse_from_str(s, "%Y-%m-%d")
-                    .map_err(|e| anyhow!("Invalid fund_reconciliation_date '{s}': {e}"))
-            })
-            .transpose()?;
-        let confirmed_payment_date_parsed = confirmed_payment_date
-            .as_deref()
-            .map(|s| {
-                NaiveDate::parse_from_str(s, "%Y-%m-%d")
-                    .map_err(|e| anyhow!("Invalid confirmed_payment_date '{s}': {e}"))
-            })
-            .transpose()?;
-
         let procedure = Procedure::new(
             patient_id,
             fund_id,
             procedure_type_id,
-            procedure_date_parsed,
+            procedure_date,
             billed_amount,
             payment_method,
-            fund_reconciliation_date_parsed,
-            confirmed_payment_date_parsed,
+            fund_reconciliation_date,
+            confirmed_payment_date,
             paid_amount,
             payment_status,
         )?;
@@ -319,8 +302,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
     async fn find_procedures_by_ssn_and_date_range(
         &self,
         ssn: &str,
-        start_date: &str,
-        end_date: &str,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>> {
         tracing::trace!(start = %start_date, end = %end_date,
                         "Querying procedures by SSN and date range");
@@ -352,8 +335,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
     async fn find_procedures_by_ssns_and_date_range_with_ssn(
         &self,
         ssns: &[String],
-        start_date: &str,
-        end_date: &str,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
     ) -> anyhow::Result<Vec<(String, Procedure)>> {
         if ssns.is_empty() {
             return Ok(Vec::new());
@@ -437,7 +420,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         &self,
         patient_id: &str,
         fund_id: Option<&str>,
-        procedure_date: &str,
+        procedure_date: NaiveDate,
         billed_amount: i64,
     ) -> anyhow::Result<Option<Procedure>> {
         tracing::trace!(
@@ -589,8 +572,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
 
     async fn find_unreconciled_by_date_range(
         &self,
-        start_date: &str,
-        end_date: &str,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
     ) -> anyhow::Result<Vec<UnreconciledProcedure>> {
         tracing::debug!(start_date = %start_date, end_date = %end_date, "Finding unreconciled procedures by date range");
 
@@ -653,8 +636,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
 
     async fn find_created_in_date_range(
         &self,
-        date_min: &str,
-        date_max: &str,
+        date_min: NaiveDate,
+        date_max: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>> {
         tracing::debug!(
             date_min = %date_min,
@@ -687,7 +670,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
     async fn find_created_by_fund_before_date(
         &self,
         fund_id: &str,
-        date: &str,
+        date: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>> {
         tracing::debug!(
             fund_id = %fund_id,
@@ -738,6 +721,12 @@ mod tests {
         SqliteProcedureRepository { pool }
     }
 
+    /// Parse an ISO `YYYY-MM-DD` literal into `NaiveDate`. Test-only helper to keep
+    /// inline fixtures readable now that the repo trait takes `NaiveDate`.
+    fn d(s: &str) -> NaiveDate {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
+    }
+
     fn make_procedure(
         patient_id: &str,
         procedure_type_id: &str,
@@ -747,7 +736,7 @@ mod tests {
             patient_id.to_string(),
             None,
             procedure_type_id.to_string(),
-            NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
+            d(date),
             Some(10000),
             PaymentMethod::None,
             None,
@@ -766,7 +755,7 @@ mod tests {
                 p.patient_id.clone(),
                 p.fund_id.clone(),
                 p.procedure_type_id.clone(),
-                "2026-01-15".to_string(),
+                d("2026-01-15"),
                 p.billed_amount,
                 p.payment_method,
                 None,
@@ -796,7 +785,7 @@ mod tests {
             "p1".to_string(),
             None,
             "t1".to_string(),
-            "2026-01-01".to_string(),
+            d("2026-01-01"),
             None,
             PaymentMethod::None,
             None,
@@ -810,7 +799,7 @@ mod tests {
             "p2".to_string(),
             None,
             "t1".to_string(),
-            "2026-01-02".to_string(),
+            d("2026-01-02"),
             None,
             PaymentMethod::None,
             None,
@@ -832,7 +821,7 @@ mod tests {
                 "p1".to_string(),
                 None,
                 "t1".to_string(),
-                "2026-01-01".to_string(),
+                d("2026-01-01"),
                 None,
                 PaymentMethod::None,
                 None,
@@ -857,7 +846,7 @@ mod tests {
                 "p1".to_string(),
                 None,
                 "t1".to_string(),
-                "2026-01-01".to_string(),
+                d("2026-01-01"),
                 Some(5000),
                 PaymentMethod::None,
                 None,
@@ -904,7 +893,7 @@ mod tests {
                 "p1".to_string(),
                 None,
                 "t1".to_string(),
-                "2026-01-10".to_string(),
+                d("2026-01-10"),
                 None,
                 PaymentMethod::None,
                 None,
@@ -943,7 +932,7 @@ mod tests {
             "p1".to_string(),
             None,
             "t1".to_string(),
-            "2026-02-05".to_string(),
+            d("2026-02-05"),
             None,
             PaymentMethod::None,
             None,
@@ -957,7 +946,7 @@ mod tests {
             "p2".to_string(),
             None,
             "t1".to_string(),
-            "2026-02-15".to_string(),
+            d("2026-02-15"),
             None,
             PaymentMethod::None,
             None,
@@ -979,7 +968,7 @@ mod tests {
             "p1".to_string(),
             None,
             "t1".to_string(),
-            "2026-03-05".to_string(),
+            d("2026-03-05"),
             None,
             PaymentMethod::None,
             None,
@@ -993,7 +982,7 @@ mod tests {
             "p2".to_string(),
             None,
             "t1".to_string(),
-            "2026-04-01".to_string(),
+            d("2026-04-01"),
             None,
             PaymentMethod::None,
             None,
@@ -1004,7 +993,7 @@ mod tests {
         .await
         .unwrap();
         let result = repo
-            .find_created_in_date_range("2026-03-01", "2026-03-31")
+            .find_created_in_date_range(d("2026-03-01"), d("2026-03-31"))
             .await
             .unwrap();
         assert_eq!(result.len(), 1);
@@ -1019,7 +1008,7 @@ mod tests {
                 "p1".to_string(),
                 None,
                 "t1".to_string(),
-                "2026-01-01".to_string(),
+                d("2026-01-01"),
                 None,
                 PaymentMethod::None,
                 None,
@@ -1034,7 +1023,7 @@ mod tests {
                 "p2".to_string(),
                 None,
                 "t1".to_string(),
-                "2026-01-02".to_string(),
+                d("2026-01-02"),
                 None,
                 PaymentMethod::None,
                 None,
@@ -1048,7 +1037,7 @@ mod tests {
             "p3".to_string(),
             None,
             "t1".to_string(),
-            "2026-01-03".to_string(),
+            d("2026-01-03"),
             None,
             PaymentMethod::None,
             None,
@@ -1083,7 +1072,7 @@ mod tests {
             "p1".into(),
             None,
             "t1".into(),
-            "2026-01-01".into(),
+            d("2026-01-01"),
             None,
             PaymentMethod::None,
             None,
@@ -1097,7 +1086,7 @@ mod tests {
             "p2".into(),
             None,
             "t1".into(),
-            "2026-01-02".into(),
+            d("2026-01-02"),
             None,
             PaymentMethod::None,
             None,
@@ -1131,7 +1120,7 @@ mod tests {
                 "p1".into(),
                 None,
                 "t1".into(),
-                "2026-01-10".into(),
+                d("2026-01-10"),
                 Some(1000),
                 PaymentMethod::None,
                 None,
@@ -1146,7 +1135,7 @@ mod tests {
                 "p2".into(),
                 None,
                 "t1".into(),
-                "2026-01-11".into(),
+                d("2026-01-11"),
                 Some(2000),
                 PaymentMethod::None,
                 None,
@@ -1203,7 +1192,7 @@ mod tests {
             "patient-1".into(),
             None,
             "t1".into(),
-            "2026-03-10".into(),
+            d("2026-03-10"),
             Some(5000),
             PaymentMethod::None,
             None,
@@ -1217,7 +1206,7 @@ mod tests {
             "patient-1".into(),
             None,
             "t1".into(),
-            "2026-05-01".into(),
+            d("2026-05-01"),
             Some(5000),
             PaymentMethod::None,
             None,
@@ -1229,7 +1218,7 @@ mod tests {
         .unwrap();
 
         let result = repo
-            .find_procedures_by_ssn_and_date_range("123456789012", "2026-03-01", "2026-03-31")
+            .find_procedures_by_ssn_and_date_range("123456789012", d("2026-03-01"), d("2026-03-31"))
             .await
             .unwrap();
         assert_eq!(result.len(), 1);
@@ -1244,7 +1233,7 @@ mod tests {
             "patient-1".into(),
             None,
             "t1".into(),
-            "2026-04-10".into(),
+            d("2026-04-10"),
             Some(3000),
             PaymentMethod::None,
             None,
@@ -1257,7 +1246,11 @@ mod tests {
 
         let ssns = vec!["333333333333".to_string()];
         let result = repo
-            .find_procedures_by_ssns_and_date_range_with_ssn(&ssns, "2026-04-01", "2026-04-30")
+            .find_procedures_by_ssns_and_date_range_with_ssn(
+                &ssns,
+                d("2026-04-01"),
+                d("2026-04-30"),
+            )
             .await
             .unwrap();
         assert_eq!(result.len(), 1);
@@ -1269,7 +1262,7 @@ mod tests {
     async fn find_procedures_by_ssns_and_date_range_with_ssn_empty_returns_empty() {
         let repo = setup().await;
         let result = repo
-            .find_procedures_by_ssns_and_date_range_with_ssn(&[], "2026-01-01", "2026-12-31")
+            .find_procedures_by_ssns_and_date_range_with_ssn(&[], d("2026-01-01"), d("2026-12-31"))
             .await
             .unwrap();
         assert!(result.is_empty());
@@ -1283,7 +1276,7 @@ mod tests {
             "patient-1".into(),
             None,
             "t1".into(),
-            "2026-04-10".into(),
+            d("2026-04-10"),
             Some(3000),
             PaymentMethod::None,
             None,
@@ -1297,7 +1290,7 @@ mod tests {
             "patient-1".into(),
             None,
             "t1".into(),
-            "2026-04-15".into(),
+            d("2026-04-15"),
             Some(5000),
             PaymentMethod::None,
             None,
@@ -1311,7 +1304,7 @@ mod tests {
             "patient-1".into(),
             None,
             "t1".into(),
-            "2026-04-20".into(),
+            d("2026-04-20"),
             Some(7000),
             PaymentMethod::None,
             None,
@@ -1324,7 +1317,11 @@ mod tests {
 
         let ssns = vec!["444444444444".to_string()];
         let result = repo
-            .find_procedures_by_ssns_and_date_range_with_ssn(&ssns, "2026-04-01", "2026-04-30")
+            .find_procedures_by_ssns_and_date_range_with_ssn(
+                &ssns,
+                d("2026-04-01"),
+                d("2026-04-30"),
+            )
             .await
             .unwrap();
 
@@ -1340,7 +1337,7 @@ mod tests {
                 "p1".into(),
                 Some("fund-1".into()),
                 "t1".into(),
-                "2026-01-15".into(),
+                d("2026-01-15"),
                 Some(7500),
                 PaymentMethod::None,
                 None,
@@ -1352,7 +1349,7 @@ mod tests {
             .unwrap();
 
         let result = repo
-            .find_procedure_exact("p1", Some("fund-1"), "2026-01-15", 7500)
+            .find_procedure_exact("p1", Some("fund-1"), d("2026-01-15"), 7500)
             .await
             .unwrap();
         assert!(result.is_some());
@@ -1363,7 +1360,7 @@ mod tests {
     async fn find_procedure_exact_returns_none_when_no_match() {
         let repo = setup().await;
         let result = repo
-            .find_procedure_exact("p1", None, "2026-01-15", 9999)
+            .find_procedure_exact("p1", None, d("2026-01-15"), 9999)
             .await
             .unwrap();
         assert!(result.is_none());
@@ -1377,7 +1374,7 @@ mod tests {
             "p1".into(),
             Some("fund-1".into()),
             "t1".into(),
-            "2026-01-10".into(),
+            d("2026-01-10"),
             Some(5000),
             PaymentMethod::None,
             None,
@@ -1392,7 +1389,7 @@ mod tests {
             "p2".into(),
             None,
             "t1".into(),
-            "2026-01-11".into(),
+            d("2026-01-11"),
             Some(5000),
             PaymentMethod::None,
             None,
@@ -1417,7 +1414,7 @@ mod tests {
                 "patient-1".into(),
                 None,
                 "t1".into(),
-                "2026-02-10".into(),
+                d("2026-02-10"),
                 Some(1000),
                 PaymentMethod::None,
                 None,
@@ -1429,7 +1426,7 @@ mod tests {
             .unwrap();
 
         let result = repo
-            .find_unreconciled_by_date_range("2026-02-01", "2026-02-28")
+            .find_unreconciled_by_date_range(d("2026-02-01"), d("2026-02-28"))
             .await
             .unwrap();
         assert_eq!(result.len(), 1);
@@ -1445,7 +1442,7 @@ mod tests {
             "p1".into(),
             Some("fund-1".into()),
             "t1".into(),
-            "2026-01-10".into(),
+            d("2026-01-10"),
             Some(1000),
             PaymentMethod::None,
             None,
@@ -1460,7 +1457,7 @@ mod tests {
             "p2".into(),
             Some("fund-1".into()),
             "t1".into(),
-            "2026-03-01".into(),
+            d("2026-03-01"),
             Some(2000),
             PaymentMethod::None,
             None,
@@ -1475,7 +1472,7 @@ mod tests {
             "p3".into(),
             Some("fund-2".into()),
             "t1".into(),
-            "2026-01-15".into(),
+            d("2026-01-15"),
             Some(3000),
             PaymentMethod::None,
             None,
@@ -1487,7 +1484,7 @@ mod tests {
         .unwrap();
 
         let result = repo
-            .find_created_by_fund_before_date("fund-1", "2026-02-01")
+            .find_created_by_fund_before_date("fund-1", d("2026-02-01"))
             .await
             .unwrap();
         assert_eq!(result.len(), 1);
@@ -1509,7 +1506,7 @@ mod tests {
                     "p1".into(),
                     None,
                     "t1".into(),
-                    "2026-01-15".into(),
+                    d("2026-01-15"),
                     Some(1000),
                     method,
                     None,

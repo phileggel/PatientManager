@@ -389,11 +389,10 @@ impl FundPaymentManualManagementOrchestrator {
 
         // Step 2: Fetch Created procedures for this fund with date <= group payment_date (R19)
         let current_ids: std::collections::HashSet<String> = procedure_ids.into_iter().collect();
-        let payment_date_str = group.payment_date.format("%Y-%m-%d").to_string();
 
         let available_procedures: Vec<Procedure> = self
             .procedure_service
-            .find_created_by_fund_before_date(fund_id, &payment_date_str)
+            .find_created_by_fund_before_date(fund_id, group.payment_date)
             .await?
             .into_iter()
             .filter(|p| !current_ids.contains(&p.id))

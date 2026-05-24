@@ -153,11 +153,11 @@ impl OverpaymentOrchestrator {
                 source.patient_id.clone(),
                 source.fund_id.clone(),
                 source.procedure_type_id.clone(),
-                req.refund_date.clone(),
+                refund_date,
                 Some(-source_amount),
                 refund_payment_method,
-                Some(req.refund_date.clone()),
-                Some(req.refund_date.clone()),
+                Some(refund_date),
+                Some(refund_date),
                 Some(-source_amount),
                 ProcedureStatus::OverpaymentRefund,
             )
@@ -506,22 +506,16 @@ mod tests {
                   confirmed_payment_date,
                   paid_amount,
                   payment_status| {
-                let date = chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
-                    .unwrap_or_default();
                 Ok(Procedure::restore(
                     refund_id.to_string(),
                     patient_id,
                     fund_id,
                     procedure_type_id,
-                    date,
+                    procedure_date,
                     billed_amount,
                     payment_method,
-                    fund_reconciliation_date
-                        .as_deref()
-                        .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
-                    confirmed_payment_date
-                        .as_deref()
-                        .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
+                    fund_reconciliation_date,
+                    confirmed_payment_date,
                     paid_amount,
                     payment_status,
                 ))

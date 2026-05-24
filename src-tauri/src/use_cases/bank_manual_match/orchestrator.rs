@@ -12,8 +12,16 @@ use crate::context::procedure::{PaymentMethod, Procedure, ProcedureService, Proc
 const WINDOW_DAYS: i64 = 7;
 
 /// Sentinel dates for "all dates" range (used by the expanded search, R12/R20).
-const ALL_DATES_MIN: &str = "0001-01-01";
-const ALL_DATES_MAX: &str = "9999-12-31";
+/// `from_ymd_opt` returns `Option`; the `expect` calls below are compile-time
+/// invariants (year 1/year 9999 are always valid Gregorian dates).
+#[allow(clippy::expect_used)]
+fn all_dates_min() -> NaiveDate {
+    NaiveDate::from_ymd_opt(1, 1, 1).expect("sentinel date is valid")
+}
+#[allow(clippy::expect_used)]
+fn all_dates_max() -> NaiveDate {
+    NaiveDate::from_ymd_opt(9999, 12, 31).expect("sentinel date is valid")
+}
 
 /// A fund payment group candidate for a FUND transfer (R6)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -246,14 +254,11 @@ impl BankManualMatchOrchestrator {
         payment_date: &str,
     ) -> anyhow::Result<Vec<DirectPaymentProcedureCandidate>> {
         let date = parse_date(payment_date)?;
-        let date_min = (date - chrono::Duration::days(WINDOW_DAYS))
-            .format("%Y-%m-%d")
-            .to_string();
-        let date_max = date.format("%Y-%m-%d").to_string();
+        let date_min = date - chrono::Duration::days(WINDOW_DAYS);
 
         let procedures = self
             .procedure_service
-            .find_created_in_date_range(&date_min, &date_max)
+            .find_created_in_date_range(date_min, date)
             .await?;
 
         Ok(procedures.into_iter().map(procedure_to_candidate).collect())
@@ -266,7 +271,7 @@ impl BankManualMatchOrchestrator {
     ) -> anyhow::Result<Vec<DirectPaymentProcedureCandidate>> {
         let procedures = self
             .procedure_service
-            .find_created_in_date_range(ALL_DATES_MIN, ALL_DATES_MAX)
+            .find_created_in_date_range(all_dates_min(), all_dates_max())
             .await?;
 
         Ok(procedures.into_iter().map(procedure_to_candidate).collect())
