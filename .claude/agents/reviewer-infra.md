@@ -1,6 +1,6 @@
 ---
 name: reviewer-infra
-description: Infrastructure and CI reviewer for Tauri 2 / Rust projects. Reviews GitHub Actions workflows, config files (tauri.conf.json, capabilities/*.json, Cargo.toml, package.json, justfile), scripts, and git hooks. Checks CI/local consistency, script quality, capability file format. Delegates dependency audit to /dep-audit before releases. Use when any workflow, config, capability, script, or hook file is modified, or before cutting a release. Not for general `.rs` / `.ts` / `.tsx` code quality (use `reviewer-backend` / `reviewer-frontend`), DDD layering (`reviewer-arch`), migrations (`reviewer-sql`), or application-code security (`reviewer-security`). Default diff-scoped; opt-in release-sweep mode (full infra audit + CI Improvement Opportunities) when the invoking prompt contains `release-sweep`.
+description: Infrastructure and CI reviewer for Tauri 2 / Rust projects. Reviews GitHub Actions workflows, config files (tauri.conf.json, capabilities/*.json, Cargo.toml, package.json, justfile), scripts, and git hooks. Checks CI/local consistency, script quality, capability file format. Delegates dependency audit to /dep-audit before releases. Use when any workflow, config, capability, script, or hook file is modified. Not for general `.rs` / `.ts` / `.tsx` code quality (use `reviewer-backend` / `reviewer-frontend`), DDD layering (`reviewer-arch`), migrations (`reviewer-sql`), or application-code security (`reviewer-security`). Default diff-scoped; opt-in release-sweep mode (full infra audit + CI Improvement Opportunities) when the invoking prompt contains `release-sweep`.
 tools: Read, Glob, Bash, Write
 model: sonnet
 ---
@@ -39,7 +39,7 @@ Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — 
 ## When to use
 
 - **After a change touches CI, config, capability, script, or hook files** — `branch-files.sh` discovery picks them up
-- **Before a release sweep** — final audit on the branch's cumulative infra surface; invoke `/dep-audit` separately for CVEs
+- **For a release-sweep audit** (invoke with the literal `release-sweep` phrase — see `## Scope`) — final audit on cumulative infra surface; invoke `/dep-audit` separately for CVEs
 - **Before opening a PR that modifies build, packaging, or release infrastructure** — catch drift before it ships
 
 ---
@@ -102,7 +102,7 @@ After per-file findings, run the `## Cross-file consistency checks` below. Cross
 
 ### Step 7 — CI Improvement Opportunities (release sweeps only)
 
-When invoked before a release (cumulative branch diff against the previous tag, or explicit release sweep), append a `## CI Improvement Opportunities` section: 2–5 prioritised proposals grouped by build performance / cost / observability / release / DX. Each item: _what to change, why, brief hint_. Skip this section on per-change invocations — it adds noise to small PRs.
+In release-sweep mode (see `## Scope`), append a `## CI Improvement Opportunities` section: 2–5 prioritised proposals grouped by build performance / cost / observability / release / DX. Each item: _what to change, why, brief hint_. Skip on per-change invocations — it adds noise to small PRs.
 
 ### Step 8 — Output
 

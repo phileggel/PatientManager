@@ -73,6 +73,18 @@ Exit codes:
 - `1` → **expected when the sync regressed**; capture each `✗` line as a `Sync gaps` finding for Step 5 and **continue to Step 4**
 - `2` → manifest itself missing (the project's last sync predates the manifest feature); reply: ``Run `just sync-kit` to refresh the manifest, then re-run /kit-discover.`` and stop
 
+### Step 3.5 — Check the bootstrap is fresh
+
+The local `scripts/sync-config.sh` self-updates on every successful sync, but only **after** `git clone` succeeds. If parsing or cloning fails first, the bootstrap is permanently stuck — every subsequent `just sync-kit` repeats the same failure. Detect the known-stuck signal:
+
+```bash
+grep -q "tauri-claude-kit" scripts/sync-config.sh
+```
+
+Exit 0 means the bootstrap predates the v4.0 repo rename (`tauri-claude-kit` → `claude-kit`) and cannot successfully clone. Record a `Stale bootstrap` finding for Step 5 and point to the recovery recipe in `.claude/kit-readme.md` § Recovery — stuck bootstrap. Exit 1 means the bootstrap is fresh enough; continue.
+
+This check only flags the proven-stuck case. Bootstraps that are merely behind on flags (e.g. missing `-y`) still self-heal on the next successful sync — do not flag them.
+
 ### Step 4 — Cross-reference against CLAUDE.md
 
 Read `CLAUDE.md` once. For each catalog item from Step 2, run a substring check:
@@ -110,6 +122,11 @@ Scanned: .claude/kit-tools.md, .claude/kit-manifest.txt, CLAUDE.md
 - <path> — recorded in .claude/kit-manifest.txt but not present in the project
 (omit section if none — these are sync issues, not CLAUDE.md issues)
 
+### Stale bootstrap (sync-config.sh cannot self-update)
+- scripts/sync-config.sh — REPO URL references deprecated `tauri-claude-kit`
+  Recovery: see `.claude/kit-readme.md` § Recovery — stuck bootstrap
+(omit section if bootstrap is fresh)
+
 ### Drift — CLAUDE.md describes outdated workflow
 - CLAUDE.md:<line>
   Current: "<quoted snippet>"
@@ -126,7 +143,7 @@ Scanned: .claude/kit-tools.md, .claude/kit-manifest.txt, CLAUDE.md
   Suggested: replace with `> See .claude/kit-tools.md for <topic>.`
 
 ### Summary
-Sync gaps: N. Drift: N. Gaps: N. Redundancies: N.
+Sync gaps: N. Stale bootstrap: yes/no. Drift: N. Gaps: N. Redundancies: N.
 
 > Review the patch above. CLAUDE.md is user-owned — apply edits manually.
 > This skill never modifies the file.
@@ -150,7 +167,7 @@ Scanned: .claude/kit-tools.md, .claude/kit-manifest.txt, CLAUDE.md
 1. **Never modify CLAUDE.md** — output is advisory only. The user reviews and applies edits by hand.
 2. **Stop early if discovery files are missing** — without `.claude/kit-tools.md` or `.claude/kit-manifest.txt`, the skill has no source of truth. Tell the user to run `just sync-kit` and exit.
 3. **Don't flag agents as gaps by default** — agents auto-discover by presence in `.claude/agents/`. Only flag an agent when CLAUDE.md actively describes a workflow that should call it but doesn't.
-4. **Separate sync gaps from CLAUDE.md gaps** — if the manifest lists a path that isn't on disk, that's a sync problem (re-run `just sync-kit`), not a documentation problem. Surface it in its own section.
+4. **Separate sync gaps from CLAUDE.md gaps** — if the manifest lists a path that isn't on disk, that's a sync problem (re-run `just sync-kit`), not a documentation problem. Surface it in its own section. The same separation applies to a stale bootstrap: it is a project-state recovery, not a CLAUDE.md issue.
 5. **Quote, don't paraphrase** — when reporting drift, include the exact CLAUDE.md snippet and a concrete suggested replacement. Vague advice ("update this section") forces the user to redo the analysis.
 6. **Empty patch is a real result** — when nothing is wrong, say so. Don't manufacture findings.
 7. **Built-in slash commands are out of scope** — only emit findings tied to catalog items from `kit-tools.md`. Do not commentate on Claude Code built-in slash commands (`/init`, `/review`, `/security-review`, `/help`, `/config`, `/clear`) when they appear in CLAUDE.md, even when a name overlaps a kit-shipped item (`/security-review` ≠ kit's `reviewer-security` agent).

@@ -11,10 +11,24 @@ Onboarding guide for claude-kit: an opinionated Claude-assisted factory for Taur
 ```bash
 ./scripts/sync-config.sh            # latest release tag
 ./scripts/sync-config.sh v4.0.0     # specific tag
-./scripts/sync-config.sh -f         # overwrite drifted docs without prompting
+./scripts/sync-config.sh -y         # overwrite drifted docs without prompting
+./scripts/sync-config.sh -h         # show help and exit
 ```
 
 The script self-updates before syncing: if `sync-config.sh` itself changed in the kit, it re-executes the new version automatically. Review `git diff` after syncing.
+
+### Recovery — stuck bootstrap
+
+If `just sync-kit` fails **before reaching the self-update step** (errors like `Cloning tauri-claude-kit@…` from the old pre-v4.0 repo name, or `Unknown flag` for a flag the current bootstrap should know about), the local `scripts/sync-config.sh` is too old to refresh itself. The self-update logic runs after `git clone`, so any failure before that point leaves the bootstrap permanently stuck. Refresh it manually:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/phileggel/claude-kit/main/kit/sync-config.sh \
+  > scripts/sync-config.sh
+chmod +x scripts/sync-config.sh
+just sync-kit   # normal self-update takes over from here
+```
+
+One successful sync after this restores normal operation. `/kit-discover` will flag this state automatically.
 
 ---
 

@@ -1,7 +1,5 @@
 # Kit version
 
-claude-kit **v4.12.0** — synced 2026-05-23
+claude-kit **v4.13.0** — synced 2026-05-24
 
-## Changes since v4.11.1 (your previous sync)
-
-- v4.12.0: consume plan-context.py for deterministic input; feature-planner agent → skill
+_No changes since previous sync._

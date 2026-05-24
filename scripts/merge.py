@@ -149,7 +149,14 @@ def main() -> int:
         ).returncode
         == 0
     )
-    git("checkout", target)
+    result = git("checkout", target, check=False)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "(no stderr captured)"
+        fail(
+            f"Could not checkout `{target}`.",
+            f"detail: {detail}",
+            "Common causes: untracked files conflict, uncommitted changes. Inspect: git status",
+        )
     if has_origin_target:
         result = git("pull", "--ff-only", "--quiet", "origin", target, check=False)
         if result.returncode != 0:
@@ -169,28 +176,55 @@ def main() -> int:
     # state — `just merge` must stay "soft": never leave the user's branch in
     # a half-rewritten state. Conflict resolution is the user's job; we just
     # report cleanly and let them rebase manually.
-    git("checkout", branch)
+    result = git("checkout", branch, check=False)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "(no stderr captured)"
+        fail(
+            f"Could not checkout `{branch}`.",
+            f"detail: {detail}",
+            "Inspect: git status",
+        )
     result = git("rebase", target, check=False)
     if result.returncode != 0:
-        git("rebase", "--abort", check=False)
-        fail(
-            f"Cannot merge `{branch}` into `{target}`: rebase has conflicts.",
-            "Branch was restored to its original state (no rewrite).",
-            "Resolve manually and re-run:",
-            f"  git rebase {target}    # walk through the conflicts",
-            "  # ...fix conflicting files, then git add + git rebase --continue",
-            "  just merge              # finishes the merge",
-        )
+        abort_result = git("rebase", "--abort", check=False)
+        if abort_result.returncode != 0:
+            # Abort itself failed — branch is in a mid-rebase state, we can't
+            # promise restoration. Override the standard recovery message.
+            abort_detail = abort_result.stderr.strip() or "(no stderr captured)"
+            fail(
+                f"Cannot merge `{branch}` into `{target}`: rebase has conflicts AND `git rebase --abort` failed.",
+                f"abort stderr: {abort_detail}",
+                "Branch is mid-rebase. Inspect `git status`, then `git rebase --abort` or `--continue` manually.",
+            )
+        else:
+            fail(
+                f"Cannot merge `{branch}` into `{target}`: rebase has conflicts.",
+                "Branch was restored to its original state (no rewrite).",
+                "Resolve manually and re-run:",
+                f"  git rebase {target}    # walk through the conflicts",
+                "  # ...fix conflicting files, then git add + git rebase --continue",
+                "  just merge              # finishes the merge",
+            )
 
     # Step 3 — fast-forward merge target onto the rebased branch.
     # After step 2 this is guaranteed to FF; we still pass --ff-only for safety.
-    git("checkout", target)
+    result = git("checkout", target, check=False)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "(no stderr captured)"
+        fail(
+            f"Could not checkout `{target}` after rebase.",
+            f"detail: {detail}",
+            f"Rebase of `{branch}` onto `{target}` succeeded locally — only the checkout failed.",
+            f"Manually: git checkout {target} && git merge --ff-only {branch}",
+        )
     result = git("merge", "--ff-only", branch, check=False)
     if result.returncode != 0:
         # Defensive — should be unreachable after a successful rebase.
         fail(
             f"Unexpected: FF-merge of `{branch}` into `{target}` failed after rebase.",
-            "Investigate manually.",
+            f"This should be unreachable after a successful rebase — `{target}` likely moved.",
+            f"Inspect: git log {target}..{branch} && git status",
+            "If target moved, re-run `just merge` — the second pass catches the new state.",
         )
 
     # Step 4 — push target to origin (skip if no GitHub remote).
@@ -199,8 +233,11 @@ def main() -> int:
         if result.returncode != 0:
             fail(
                 f"Could not push {target} to origin/{target}.",
-                "Origin probably moved while merging.",
-                f"Pull and re-run: git pull --ff-only origin {target}",
+                f"Local `{target}` already contains the FF-merged feature branch — only the push failed.",
+                "Origin probably moved while merging. Reconcile and retry:",
+                f"  git fetch origin {target}",
+                f"  git rebase origin/{target}",
+                f"  git push origin {target}",
             )
 
     # Step 5 — delete the remote feature branch (if it exists).

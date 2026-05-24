@@ -51,5 +51,5 @@ echo -e "${RED}❌ Sync incomplete: ${#missing[@]} of ${total} manifest entries 
 for m in "${missing[@]}"; do
     echo -e "  ${RED}✗${NC} $m" >&2
 done
-echo -e "${BLUE}→ Re-run \`just sync-kit\` (or \`just sync-kit -f\` to overwrite drifted docs).${NC}" >&2
+echo -e "${BLUE}→ Re-run \`just sync-kit\` (or \`just sync-kit -y\` to overwrite drifted docs).${NC}" >&2
 exit 1

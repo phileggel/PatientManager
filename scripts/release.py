@@ -237,7 +237,13 @@ class ReleaseManager:
             f.write("\n")
 
     def update_version_files(self) -> None:
-        """Update version in package.json, Cargo.toml, and tauri.conf.json."""
+        """Update version in package.json, Cargo.toml, and tauri.conf.json.
+
+        Raises:
+            RuntimeError: if the Cargo.toml [package].version regex matches != 1 site
+                (refuses to write a corrupted file). package.json is already mutated
+                at this point; the user must `git checkout --` to revert.
+        """
         prefix = self._format_mode_prefix()
         print(f"{BLUE}{prefix}Updating version files...{NC}")
 
@@ -252,14 +258,31 @@ class ReleaseManager:
 
         cargo_toml = self.repo_root / "src-tauri" / "Cargo.toml"
         content = cargo_toml.read_text(encoding="utf-8")
-        # Anchor replacement to the [package] section to avoid patching dependency versions
-        content = re.sub(
+        # Anchor replacement to the [package] section to avoid patching dependency
+        # versions. Bail loud if the regex matches anything other than exactly one
+        # site — silent multi-replace would corrupt downstream dependency pins.
+        content, n_replaced = re.subn(
             r'(\[package\].*?version\s*=\s*")[^"]+(")',
             rf"\g<1>{self.new_version}\2",
             content,
-            count=1,
             flags=re.DOTALL,
         )
+        if n_replaced != 1:
+            # package.json is already mutated; surface the recovery hint before
+            # raising so the user sees it before the Python traceback.
+            print(
+                f"{RED}❌ Cargo.toml [package].version replace matched {n_replaced} "
+                f"sites (expected exactly 1) — refusing to write a corrupted file.{NC}",
+                file=sys.stderr,
+            )
+            print(
+                f"{BLUE}   package.json already edited; "
+                f"`git checkout -- package.json` to revert.{NC}",
+                file=sys.stderr,
+            )
+            raise RuntimeError(
+                f"Cargo.toml [package].version replace matched {n_replaced} sites"
+            )
         cargo_toml.write_text(content, encoding="utf-8")
         print("  ✓ src-tauri/Cargo.toml")
 
@@ -285,6 +308,9 @@ class ReleaseManager:
                 f"{RED}❌ cargo metadata failed — Cargo.lock not updated.{NC}",
                 file=sys.stderr,
             )
+            detail = (e.stderr or e.stdout or "").strip()
+            if detail:
+                print(f"{RED}{detail}{NC}", file=sys.stderr)
             print(
                 f"{BLUE}   Version files already edited; inspect Cargo.toml syntax or "
                 f"`git checkout -- package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json` to revert.{NC}",
@@ -370,7 +396,11 @@ class ReleaseManager:
             print("  ✓ Files formatted")
             return True
         except subprocess.CalledProcessError as e:
-            print(f"{RED}❌ Error during format: {e.stderr or e.stdout}{NC}")
+            detail = (e.stderr or e.stdout or "").strip()
+            print(
+                f"{RED}❌ Error during format: {detail or e}{NC}",
+                file=sys.stderr,
+            )
             return False
         except FileNotFoundError:
             print(f'{YELLOW}⚠ "just" command not found. Skipping format.{NC}')
@@ -435,7 +465,10 @@ class ReleaseManager:
 
             return True
         except subprocess.CalledProcessError as e:
-            print(f"{RED}Error: {e}{NC}")
+            print(f"{RED}Error: {e}{NC}", file=sys.stderr)
+            detail = (e.stderr or e.stdout or "").strip()
+            if detail:
+                print(f"{RED}{detail}{NC}", file=sys.stderr)
             return False
 
     def run_tests(self) -> bool:
@@ -624,8 +657,18 @@ class ReleaseManager:
 
             return True
         except subprocess.CalledProcessError as e:
-            print(f"{RED}Error: {e}{NC}")
+            print(f"{RED}Error: {e}{NC}", file=sys.stderr)
+            detail = (e.stderr or e.stdout or "").strip()
+            if detail:
+                print(f"{RED}{detail}{NC}", file=sys.stderr)
             return False
+
+
+def _semver_str(value: str) -> str:
+    """argparse type for --version. Exits 2 via ArgumentTypeError on mismatch."""
+    if not re.match(r"^\d+\.\d+\.\d+$", value):
+        raise argparse.ArgumentTypeError(f"expected semver X.Y.Z, got '{value}'")
+    return value
 
 
 if __name__ == "__main__":
@@ -646,7 +689,10 @@ if __name__ == "__main__":
         help="Read-only: print the suggested version and exit. Skips tests, file edits, commits, and pushes.",
     )
     parser.add_argument(
-        "--version", metavar="X.Y.Z", help="Force a specific version (e.g. 0.12.1)"
+        "--version",
+        metavar="X.Y.Z",
+        type=_semver_str,
+        help="Force a specific version (e.g. 0.12.1)",
     )
     parser.add_argument(
         "-y",
@@ -655,10 +701,6 @@ if __name__ == "__main__":
         help="Skip confirmation prompt (auto-confirm suggested version)",
     )
     args = parser.parse_args()
-
-    if args.version and not re.match(r"^\d+\.\d+\.\d+$", args.version):
-        print(f"{RED}❌ Invalid version format: {args.version}. Expected X.Y.Z{NC}")
-        sys.exit(1)
 
     if args.preview:
         mode = Mode.PREVIEW

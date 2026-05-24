@@ -382,20 +382,53 @@ KIT_REPO = "phileggel/claude-kit"
 KIT_TAG_CACHE_TTL_SECONDS = 24 * 3600
 
 
-def _kit_tag_cache_file() -> Path:
-    """Honor XDG_CACHE_HOME when set; fall back to ~/.cache otherwise."""
+def _kit_tag_cache_file(stream: str) -> Path:
+    """Honor XDG_CACHE_HOME when set; fall back to ~/.cache otherwise.
+
+    Cache is per-stream so React and Svelte lookups never collide.
+    """
     base = os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")
-    return Path(base) / "claude-kit" / "whats-next-latest.json"
+    return Path(base) / "claude-kit" / f"whats-next-latest-{stream}.json"
 
 
-def _latest_kit_tag() -> str | None:
-    """Return the latest `vX.Y.Z` tag from the kit repo, cached for 24h.
+# Per-stream tag-shape filters consumed by `gh api … --jq`. React tags are
+# strict `vX.Y.Z`; Svelte tags are `svelte-vX.Y.Z+M.N.P` (the `+M.N.P` suffix
+# encodes the React-lineage version that svelte-main was cherry-picked from).
+# GitHub returns tags newest-first, so `[0]` is the latest in each stream.
+_STREAM_TAG_JQ = {
+    "react": r'map(.name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")))[0]',
+    "svelte": r'map(.name | select(test("^svelte-v[0-9]+\\.[0-9]+\\.[0-9]+\\+[0-9]+\\.[0-9]+\\.[0-9]+$")))[0]',
+}
 
+_STREAM_VERSION_PAT = {
+    "react": re.compile(r"v\d+\.\d+\.\d+"),
+    "svelte": re.compile(r"svelte-v\d+\.\d+\.\d+\+\d+\.\d+\.\d+"),
+}
+
+
+def _detect_stream(version_text: str) -> str | None:
+    """Identify which release stream the synced kit version belongs to.
+
+    Returns "svelte" when the text matches `svelte-vX.Y.Z+M.N.P`, "react" when
+    it matches `vX.Y.Z`, else None. Svelte is checked first because its tag
+    embeds a `vX.Y.Z` substring that would otherwise misroute to React.
+    """
+    if _STREAM_VERSION_PAT["svelte"].search(version_text):
+        return "svelte"
+    if _STREAM_VERSION_PAT["react"].search(version_text):
+        return "react"
+    return None
+
+
+def _latest_kit_tag(stream: str) -> str | None:
+    """Return the latest tag for `stream` from the kit repo, cached for 24h.
+
+    `stream` selects the release lineage to query (see `_STREAM_TAG_JQ`).
     Returns None when `gh` is missing, the network call fails, or the cache
     file is unreadable — release cadence is days/weeks, so any single miss is
     non-fatal and the next invocation retries.
     """
-    cache_file = _kit_tag_cache_file()
+    cache_file = _kit_tag_cache_file(stream)
     if cache_file.exists():
         try:
             data = json.loads(cache_file.read_text(encoding="utf-8"))
@@ -417,16 +450,14 @@ def _latest_kit_tag() -> str | None:
         # OSError: covers the TOCTOU window between shutil.which() and execve
         # (broken symlink, permission flip).
         # /releases/latest 404s on this kit (we publish via git tags only, not
-        # GitHub Releases). Query /tags and filter to strict `vX.Y.Z` shape —
-        # excludes svelte-lineage tags (`svelte-vX.Y.Z+M.N.P`) and any future
-        # pre-release tags. GitHub returns tags in newest-first order.
+        # GitHub Releases). Query /tags and filter per stream.
         result = subprocess.run(
             [
                 "gh",
                 "api",
                 f"repos/{KIT_REPO}/tags",
                 "--jq",
-                r'map(.name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")))[0]',
+                _STREAM_TAG_JQ[stream],
             ],
             check=True,
             stdout=subprocess.PIPE,
@@ -455,21 +486,26 @@ def _latest_kit_tag() -> str | None:
 def collect_kit_update() -> dict | None:
     """Compare the project's synced kit version against the latest release.
 
-    Reads the `vX.Y.Z` tag from `.claude/kit-version.md` (written by
-    `sync-config.sh`) and compares against the latest release on the kit's
-    GitHub repo. Returns None when the version file is absent (the kit itself,
-    or a project that has never synced), when `gh` is missing, or when the
-    network call fails — kit-update is a courtesy signal, never load-bearing.
+    Reads the version tag from `.claude/kit-version.md` (written by
+    `sync-config.sh`), detects whether the project tracks the React or Svelte
+    release stream, and compares against the latest tag in that stream on the
+    kit's GitHub repo. Returns None when the version file is absent (the kit
+    itself, or a project that has never synced), when the stream cannot be
+    identified, when `gh` is missing, or when the network call fails —
+    kit-update is a courtesy signal, never load-bearing.
     """
     version_file = ROOT / ".claude" / "kit-version.md"
     text = _read(version_file)
     if text is None:
         return None
-    m = re.search(r"v\d+\.\d+\.\d+", text)
+    stream = _detect_stream(text)
+    if stream is None:
+        return None
+    m = _STREAM_VERSION_PAT[stream].search(text)
     if not m:
         return None
     current = m.group(0)
-    latest = _latest_kit_tag()
+    latest = _latest_kit_tag(stream)
     if latest is None:
         return None
     return {"current": current, "latest": latest, "behind": current != latest}
