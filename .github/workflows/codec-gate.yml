@@ -1,9 +1,9 @@
-name: Dev Fixtures
+name: Codec Gate
 
 # IFC-042 — Dedicated CI job for the import-codec dev tooling. Runs the
 # fixture regenerator with the `dev-fixtures` Cargo feature, asserts no
 # working-tree drift on tests/fixtures/ (IFC-041), and runs the round-trip
-# integration test suite (IFC-051). The standard `ci.yml` `backend` job runs
+# integration test suite (IFC-051). The standard `quality.yml` `backend` job runs
 # without this feature so contributors who do not work on the codec are not
 # slowed by fixture regeneration during normal development.
 
@@ -25,7 +25,7 @@ on:
       - "src-tauri/tests/codec_round_trip_bank_pdf.rs"
       - "src-tauri/tests/common/**"
       - "src-tauri/tests/fixtures/**"
-      - ".github/workflows/dev-fixtures.yml"
+      - ".github/workflows/codec-gate.yml"
       - "justfile"
   push:
     branches: [main]
@@ -44,11 +44,11 @@ on:
       - "src-tauri/tests/codec_round_trip_bank_pdf.rs"
       - "src-tauri/tests/common/**"
       - "src-tauri/tests/fixtures/**"
-      - ".github/workflows/dev-fixtures.yml"
+      - ".github/workflows/codec-gate.yml"
       - "justfile"
 
 concurrency:
-  group: dev-fixtures-${{ github.ref }}
+  group: codec-gate-${{ github.ref }}
   cancel-in-progress: true
 
 permissions: {}
@@ -77,7 +77,7 @@ jobs:
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2.9.1
         with:
           workspaces: src-tauri
-          prefix-key: ci-dev-fixtures
+          prefix-key: ci-codec-gate
       - name: Regenerate fixtures (excel)
         working-directory: src-tauri
         run: cargo run --features dev-fixtures --bin generate_fixtures -- excel

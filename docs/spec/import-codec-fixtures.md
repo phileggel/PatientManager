@@ -210,7 +210,7 @@ to canonicalize that field, or — if neither is feasible — exclude the field
 from byte-level determinism and rely solely on the round-trip property
 (IFC-021) for correctness, never on byte equality of committed files.
 
-**IFC-041 — CI drift guard (backend)**: The dev-fixtures CI job (IFC-042)
+**IFC-041 — CI drift guard (backend)**: The Codec Gate CI job (IFC-042)
 runs the regeneration command and then asserts no working-tree changes
 under `src-tauri/tests/fixtures/`. Any drift between scenario code and the
 committed fixtures fails the build, forcing the developer to either commit
@@ -242,7 +242,7 @@ never hard-code raw paths or duplicate expected values inline.
 integration test under `src-tauri/tests/` asserts the round-trip property
 (IFC-021) for every named scenario. This test is gated by the dev-fixtures
 feature so the standard `cargo test` job (without features) skips it; the
-dev-fixtures CI job (IFC-042) runs it.
+Codec Gate CI job (IFC-042) runs it.
 
 ### Fund-Payment-Reconciliation PDF Surface (060–099)
 
