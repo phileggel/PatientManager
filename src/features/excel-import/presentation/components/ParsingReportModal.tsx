@@ -1,21 +1,40 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import type { ParsingIssues } from "@/bindings";
+import type { ParsingIssues, SkippedRow } from "@/bindings";
 import { logger } from "@/infra/logger";
 import { Button, Dialog } from "@/ui/components";
+import { SHEET_ORDER } from "../../shared/sheets";
 
 interface ParsingReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   parsingIssues: ParsingIssues;
   skippedRowsCount: number;
+  /**
+   * EXI-290 — execute-time skipped procedures. Merged into the same flat
+   * table as parse-time skips (EXI-220) — the pipeline origin is not
+   * surfaced separately in the UI.
+   */
+  executeSkippedRows?: SkippedRow[];
+}
+
+function isNoiseReason(reason: string): boolean {
+  // EXI-220 — `#N/A` and empty-row skips are too numerous and uninformative.
+  return reason.includes("patient name is #N/A") || reason.includes("empty row");
+}
+
+function compareRows(a: SkippedRow, b: SkippedRow): number {
+  const sheetDelta = (SHEET_ORDER[a.sheet] ?? 99) - (SHEET_ORDER[b.sheet] ?? 99);
+  if (sheetDelta !== 0) return sheetDelta;
+  return a.row_number - b.row_number;
 }
 
 export function ParsingReportModal({
   isOpen,
   onClose,
   parsingIssues,
-  skippedRowsCount,
+  skippedRowsCount: _skippedRowsCount,
+  executeSkippedRows,
 }: ParsingReportModalProps) {
   const { t } = useTranslation("excel-import");
 
@@ -23,57 +42,24 @@ export function ParsingReportModal({
     logger.info("[ParsingReportModal] Component mounted");
   }, []);
 
-  // Group skipped rows by sheet (excluding rows with #N/A patient names)
-  const sheetGroups = useMemo(() => {
-    const groups = new Map<string, typeof parsingIssues.skipped_rows>();
+  // Merge parse-time + execute-time into a single sorted list.
+  // EXI-220 + EXI-290 — pipeline origin is internal, not user-visible.
+  const skippedRows = useMemo(() => {
+    const parseFiltered = parsingIssues.skipped_rows.filter((row) => !isNoiseReason(row.reason));
+    const execute = executeSkippedRows ?? [];
+    return [...parseFiltered, ...execute].toSorted(compareRows);
+  }, [parsingIssues.skipped_rows, executeSkippedRows]);
 
-    // Month order for proper sorting
-    const monthOrder: Record<string, number> = {
-      Jan: 0,
-      Fév: 1,
-      Mars: 2,
-      Avr: 3,
-      Mai: 4,
-      Juin: 5,
-      Juil: 6,
-      Août: 7,
-      Sep: 8,
-      Oct: 9,
-      Nov: 10,
-      Déc: 11,
-    };
-
-    for (const row of parsingIssues.skipped_rows) {
-      // Skip rows where patient name was #N/A or empty rows
-      if (row.reason.includes("patient name is #N/A") || row.reason.includes("empty row")) {
-        continue;
-      }
-
-      if (!groups.has(row.sheet)) {
-        groups.set(row.sheet, []);
-      }
-      groups.get(row.sheet)?.push(row);
-    }
-
-    // Sort by month order
-    const sortedEntries = [...groups.entries()].toSorted((a, b) => {
-      const orderA = monthOrder[a[0]] ?? 999;
-      const orderB = monthOrder[b[0]] ?? 999;
-      return orderA - orderB;
-    });
-
-    return new Map(sortedEntries);
-  }, [parsingIssues.skipped_rows]);
-
-  const sheets = Array.from(sheetGroups.keys());
-  const [activeTab, setActiveTab] = useState<string>(sheets[0] || "");
+  const hasSkippedRows = skippedRows.length > 0;
+  const hasMissingSheets = parsingIssues.missing_sheets.length > 0;
+  const hasAnyIssue = hasSkippedRows || hasMissingSheets;
 
   return (
     <Dialog
       id="excel-parsing-report-modal"
       isOpen={isOpen}
       onClose={onClose}
-      title={t("parsingReport.title")}
+      title={t("parsingReport.unifiedTitle")}
       maxWidth="max-w-2xl"
       actions={
         <Button variant="primary" onClick={onClose}>
@@ -88,7 +74,7 @@ export function ParsingReportModal({
           <div className="space-y-1 text-sm text-m3-on-surface-variant">
             <p>
               <span className="font-medium">{t("parsingReport.skippedRows")}</span>{" "}
-              {skippedRowsCount}
+              {skippedRows.length}
             </p>
             <p>
               <span className="font-medium">{t("parsingReport.missingSheets")}</span>{" "}
@@ -98,7 +84,7 @@ export function ParsingReportModal({
         </div>
 
         {/* Missing Sheets */}
-        {parsingIssues.missing_sheets.length > 0 && (
+        {hasMissingSheets && (
           <div>
             <h3 className="font-semibold text-m3-on-surface mb-3">
               {t("parsingReport.missingSheetsTitle")}
@@ -110,15 +96,12 @@ export function ParsingReportModal({
                 })}
               </p>
               <div className="grid grid-cols-2 gap-3">
-                {parsingIssues.missing_sheets.map((month) => (
+                {parsingIssues.missing_sheets.map((sheet) => (
                   <div
-                    key={month}
-                    className="bg-m3-primary/10 rounded-xl px-3 py-2 flex items-center gap-2"
+                    key={sheet}
+                    className="bg-m3-primary/10 rounded-xl px-3 py-2 text-m3-primary font-semibold text-sm"
                   >
-                    <span className="text-m3-primary font-semibold text-sm w-8">{month}</span>
-                    <span className="text-m3-on-surface-variant text-xs">
-                      {t(`parsingReport.months.${month}`, { defaultValue: month })}
-                    </span>
+                    {t(`sheetSelection.sheets.${sheet}`, { defaultValue: sheet })}
                   </div>
                 ))}
               </div>
@@ -126,73 +109,52 @@ export function ParsingReportModal({
           </div>
         )}
 
-        {/* Skipped Rows with Tabs */}
-        {parsingIssues.skipped_rows.length > 0 && (
+        {/* Skipped Rows — single flat table, sheet column inline */}
+        {hasSkippedRows && (
           <div>
             <h3 className="font-semibold text-m3-on-surface mb-3">
-              {t("parsingReport.skippedRowsTitle", { count: parsingIssues.skipped_rows.length })}
+              {t("parsingReport.skippedRowsTitle", { count: skippedRows.length })}
             </h3>
-
-            {/* Tabs */}
-            <div className="mb-4">
-              <div className="flex gap-1 overflow-x-auto">
-                {sheets.map((sheet) => (
-                  <button
-                    key={sheet}
-                    onClick={() => setActiveTab(sheet)}
-                    type="button"
-                    className={`px-4 py-2 font-medium text-sm whitespace-nowrap rounded-xl transition-colors ${
-                      activeTab === sheet
-                        ? "bg-m3-primary/10 text-m3-primary"
-                        : "text-m3-on-surface-variant hover:bg-m3-surface-variant/30"
-                    }`}
-                  >
-                    {sheet} ({sheetGroups.get(sheet)?.length || 0})
-                  </button>
-                ))}
-              </div>
+            <div className="overflow-x-auto rounded-xl bg-m3-surface-container">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-m3-surface-container-high">
+                    <th className="px-4 py-3 text-left font-semibold text-m3-on-surface">
+                      {t("parsingReport.colSheet")}
+                    </th>
+                    <th className="px-4 py-3 text-center font-semibold text-m3-on-surface">
+                      {t("parsingReport.colRow")}
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-m3-on-surface">
+                      {t("parsingReport.colReason")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {skippedRows.map((skipped, idx) => (
+                    <tr
+                      key={`${skipped.sheet}-${skipped.row_number}-${idx}`}
+                      className="hover:bg-m3-surface-variant/20 transition-colors"
+                    >
+                      <td className="px-4 py-3 text-left font-medium text-m3-on-surface">
+                        {skipped.sheet}
+                      </td>
+                      <td className="px-4 py-3 text-center text-m3-on-surface-variant">
+                        {skipped.row_number}
+                      </td>
+                      <td className="px-4 py-3 text-left text-m3-on-surface-variant">
+                        {skipped.reason}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            {/* Tab Content */}
-            {sheets.map((sheet) => {
-              if (activeTab !== sheet) return null;
-              return (
-                <div key={sheet} className="overflow-x-auto rounded-xl bg-m3-surface-container">
-                  <table className="min-w-full text-sm">
-                    <thead>
-                      <tr className="bg-m3-surface-container-high">
-                        <th className="px-4 py-3 text-center font-semibold text-m3-on-surface">
-                          {t("parsingReport.colRow")}
-                        </th>
-                        <th className="px-4 py-3 text-center font-semibold text-m3-on-surface">
-                          {t("parsingReport.colReason")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sheetGroups.get(sheet)?.map((skipped) => (
-                        <tr
-                          key={`${skipped.sheet}-${skipped.row_number}`}
-                          className="hover:bg-m3-surface-variant/20 transition-colors"
-                        >
-                          <td className="px-4 py-3 text-center text-m3-on-surface-variant">
-                            {skipped.row_number}
-                          </td>
-                          <td className="px-4 py-3 text-center text-m3-on-surface-variant">
-                            {skipped.reason}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
           </div>
         )}
 
         {/* No Issues */}
-        {parsingIssues.skipped_rows.length === 0 && parsingIssues.missing_sheets.length === 0 && (
+        {!hasAnyIssue && (
           <div className="bg-m3-tertiary-container/30 rounded-xl p-4">
             <p className="text-sm text-m3-on-tertiary-container font-medium">
               ✓ {t("parsingReport.noIssues")}

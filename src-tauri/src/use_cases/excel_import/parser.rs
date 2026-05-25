@@ -678,6 +678,7 @@ impl ExcelParserService {
                                 confirmed_payment_date,
                                 paid_amount,
                                 awaited_amount,
+                                source_row: row_number, // IFC-026 — 1-based row index in the source sheet
                             });
                         }
                     }

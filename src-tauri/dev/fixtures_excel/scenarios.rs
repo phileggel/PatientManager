@@ -70,6 +70,10 @@ pub fn happy_path_3_patients_2_funds() -> ParsedExcelData {
                 confirmed_payment_date: None,
                 paid_amount: None,
                 awaited_amount: None,
+                // IFC-026 — scenarios MUST NOT specify source_row; the writer
+                // assigns from output position. Sentinel value; ignored by writer
+                // and stripped from round-trip equality by `to_comparable_json`.
+                source_row: 0,
             },
             ExcelProcedure {
                 patient_temp_id: "patient-3".into(),
@@ -82,6 +86,7 @@ pub fn happy_path_3_patients_2_funds() -> ParsedExcelData {
                 confirmed_payment_date: None,
                 paid_amount: None,
                 awaited_amount: None,
+                source_row: 0,
             },
         ],
         parsing_issues: ParsingIssues {

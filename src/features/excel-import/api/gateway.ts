@@ -114,18 +114,18 @@ export async function saveExcelAmountMappings(
 export async function executeExcelImport(
   parsedData: ParseExcelResponse,
   typeMapping: Record<string, string>,
-  selectedMonths: string[],
+  selectedSheets: string[],
 ): Promise<ServiceResult<ImportExecutionResult>> {
   logger.info("Executing Excel import", {
     patients: parsedData.patients.length,
     funds: parsedData.funds.length,
     procedures: parsedData.procedures.length,
     mappedTypes: Object.keys(typeMapping).length,
-    selectedMonths,
+    selectedSheets,
   });
 
   try {
-    const result = await commands.executeExcelImport(parsedData, typeMapping, selectedMonths);
+    const result = await commands.executeExcelImport(parsedData, typeMapping, selectedSheets);
 
     if (result.status === "ok") {
       logger.info("Excel import completed", {

@@ -42,6 +42,37 @@ pub const MONTHLY_SHEET_VARIATIONS: &[(&str, &[&str])] = &[
     ("Déc", &["Déc", "Décembre"]),
 ];
 
+/// Canonical sheet name → 1-based month ordinal. Matches the canonical
+/// entries in `MONTHLY_SHEET_VARIATIONS`. EXI-281 uses this to validate
+/// that `procedure_date.month()` equals the source sheet's nominal month.
+///
+/// Cross-language mirror: the frontend keeps the same 12 entries at
+/// `src/features/excel-import/shared/sheetOrder.ts`. Keep both aligned.
+pub const CANONICAL_SHEET_MONTH: &[(&str, u32)] = &[
+    ("Jan", 1),
+    ("Fév", 2),
+    ("Mars", 3),
+    ("Avr", 4),
+    ("Mai", 5),
+    ("Juin", 6),
+    ("Juil", 7),
+    ("Août", 8),
+    ("Sep", 9),
+    ("Oct", 10),
+    ("Nov", 11),
+    ("Déc", 12),
+];
+
+/// Look up the 1-based month ordinal for a canonical sheet name.
+/// Returns `None` if the name is not a canonical monthly sheet — callers
+/// MUST handle this case (typically a soft skip; never a panic).
+pub fn sheet_nominal_month(sheet: &str) -> Option<u32> {
+    CANONICAL_SHEET_MONTH
+        .iter()
+        .find(|(canonical, _)| *canonical == sheet)
+        .map(|(_, month)| *month)
+}
+
 /// Header labels of the monthly procedure sheets, plus the patient column's
 /// fixed position. Fallback offsets for absent optional labels are NOT here
 /// — they are parser fallback logic, not data mapping.
@@ -116,6 +147,10 @@ pub struct ExcelProcedure {
     pub confirmed_payment_date: Option<String>,
     pub paid_amount: Option<i64>,
     pub awaited_amount: Option<i64>,
+    /// 1-based row index in the source sheet. Transport metadata — excluded
+    /// from codec round-trip equality per IFC-026. Populated by the parser
+    /// when reading; the dev generator assigns from output position.
+    pub source_row: u32,
 }
 
 /// Information about a skipped row during parsing

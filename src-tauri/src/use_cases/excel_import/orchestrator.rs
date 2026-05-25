@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use anyhow::Context;
+use chrono::{Datelike, NaiveDate};
 
 use crate::context::fund::FundService;
 use crate::context::patient::{PatientCandidate, PatientService};
 use crate::context::procedure::{ProcedureCandidate, ProcedureService};
 use crate::use_cases::excel_import::api::{ImportExecutionResult, ParseExcelResponse};
+use crate::use_cases::excel_import::excel_codec::{sheet_nominal_month, SkippedRow};
 use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 
 /// Orchestrates the full Excel import workflow on the backend.
@@ -38,14 +39,19 @@ impl ExcelImportOrchestrator {
     /// Execute the full import: resolve patients, funds, then create procedures.
     ///
     /// `procedure_type_mapping` maps `procedure_type_tmp_id → procedure_type_id`.
-    /// `selected_months` is the list of YYYY-MM months the user chose to import.
-    /// For each selected month: if blocking procedures exist, the month is skipped;
-    /// otherwise, existing procedures for that month are deleted before re-import.
+    /// `selected_sheets` is the list of canonical sheet names (`"Jan"`, `"Fév"`, …)
+    /// the user chose to import (EXI-270 — sheet-based selection).
+    /// For each selected sheet: derive its nominal month, check blocking; if blocking
+    /// procedures exist for that month the sheet is skipped, otherwise existing
+    /// procedures for that month are deleted before re-import.
+    /// The year of each (year, month) DB key is derived once from the first valid
+    /// `procedure_date` in the parsed payload. If no valid date exists, block + delete
+    /// are skipped entirely.
     pub async fn execute_import(
         &self,
         parsed_data: ParseExcelResponse,
         procedure_type_mapping: HashMap<String, String>,
-        selected_months: Vec<String>,
+        selected_sheets: Vec<String>,
     ) -> anyhow::Result<ImportExecutionResult> {
         tracing::debug!(
             patients = parsed_data.patients.len(),
@@ -145,42 +151,88 @@ impl ExcelImportOrchestrator {
             "Funds resolved"
         );
 
-        // ── Step 3: Month validation & cleanup ───────────────────────────────
+        // ── Step 3: Sheet validation & cleanup ───────────────────────────────
+        //
+        // Block/delete is per-month at the DB level (procedure_service keys on
+        // "YYYY-MM"), but selection is per-sheet (EXI-270). Derive the workbook
+        // year once from the first valid procedure_date; if none exists, skip
+        // block/delete entirely — every row will fail EXI-280 in step 4 and
+        // surface in skipped_procedures, so DB state is left untouched.
+        let workbook_year: Option<i32> = parsed_data
+            .procedures
+            .iter()
+            .find_map(|p| NaiveDate::parse_from_str(&p.procedure_date, "%Y-%m-%d").ok())
+            .map(|d| d.year());
+
         let mut blocked_months: Vec<String> = Vec::new();
-        let mut allowed_months: HashSet<String> = HashSet::new();
+        let mut allowed_sheets: HashSet<String> = HashSet::new();
         let mut procedures_deleted = 0u32;
 
-        for month in &selected_months {
-            if self
-                .procedure_service
-                .has_blocking_procedures_in_month(month)
-                .await?
-            {
-                tracing::warn!(month = %month, "Month blocked: contains reconciliated/fund-payed procedures");
-                blocked_months.push(month.clone());
-            } else {
-                let deleted = self
+        if let Some(year) = workbook_year {
+            for sheet in &selected_sheets {
+                let Some(month) = sheet_nominal_month(sheet) else {
+                    // Unknown sheet name — still mark allowed so rows reach step 4
+                    // and EXI-281 surfaces them in the skip report. Block/delete
+                    // not possible without a canonical month.
+                    tracing::warn!(sheet = %sheet, "Unknown sheet name in selection — no block/delete possible");
+                    allowed_sheets.insert(sheet.clone());
+                    continue;
+                };
+                let month_key = format!("{:04}-{:02}", year, month);
+                if self
                     .procedure_service
-                    .delete_procedures_by_month(month)
-                    .await?;
-                procedures_deleted += deleted as u32;
-                tracing::debug!(month = %month, deleted = deleted, "Cleared procedures for month before re-import");
-                allowed_months.insert(month.clone());
+                    .has_blocking_procedures_in_month(&month_key)
+                    .await?
+                {
+                    tracing::warn!(month = %month_key, sheet = %sheet, "Month blocked: contains reconciliated/fund-payed procedures");
+                    blocked_months.push(month_key);
+                } else {
+                    let deleted = self
+                        .procedure_service
+                        .delete_procedures_by_month(&month_key)
+                        .await?;
+                    procedures_deleted += deleted as u32;
+                    tracing::debug!(month = %month_key, sheet = %sheet, deleted = deleted, "Cleared procedures for month before re-import");
+                    allowed_sheets.insert(sheet.clone());
+                }
             }
+        } else {
+            // No valid procedure_date in the workbook — cannot derive year for
+            // DB month keys. Skip block/delete entirely but still mark every
+            // selected sheet as allowed so each row reaches step 4 and surfaces
+            // in skipped_procedures via EXI-280 (every row will fail the date
+            // gate by definition).
+            allowed_sheets.extend(selected_sheets.iter().cloned());
         }
 
         // ── Step 4: Procedures ────────────────────────────────────────────────
+        //
+        // Gate ordering (EXI-180):
+        //   (1) sheet filter           — EXI-270 (allowed_sheets membership)
+        //   (2) patient resolution     — EXI-080 / EXI-110 implicit
+        //   (3) type mapping check     — EXI-150 (R25)
+        //   (4) date format gate       — EXI-280 (procedure_date + confirmed_payment_date)
+        //   (5) month-match gate       — EXI-281 (procedure_date.month == sheet.month)
+        //   (6) ProcedureCandidate built
+        //
+        // Soft-skip taxonomy: gates (1)-(3) bump `procedures_skipped` only;
+        // gates (4)-(5) ALSO append to `skipped_procedures` (EXI-290) so the
+        // user sees what went wrong.
         let mut candidates: Vec<ProcedureCandidate> = Vec::new();
         let mut procedures_skipped = 0u32;
+        let mut skipped_procedures: Vec<SkippedRow> = Vec::new();
 
         for excel_proc in &parsed_data.procedures {
-            // Skip procedures from months not selected or blocked
-            let proc_month = excel_proc.procedure_date.get(..7).unwrap_or("");
-            if !allowed_months.contains(proc_month) {
+            // (1) EXI-270 — sheet filter.
+            // sheet_month equality vs the canonicalized allowed_sheets set
+            // (parser writes canonical names; FE selection passes them
+            // through verbatim).
+            if !allowed_sheets.contains(&excel_proc.sheet_month) {
                 procedures_skipped += 1;
                 continue;
             }
 
+            // (2) Patient resolution.
             let Some(patient_id) = patients_map.get(&excel_proc.patient_temp_id).cloned() else {
                 tracing::debug!(
                     patient_temp_id = %excel_proc.patient_temp_id,
@@ -190,6 +242,7 @@ impl ExcelImportOrchestrator {
                 continue;
             };
 
+            // (3) EXI-150 — type mapping check.
             let Some(procedure_type_id) = procedure_type_mapping
                 .get(&excel_proc.procedure_type_tmp_id)
                 .cloned()
@@ -207,24 +260,97 @@ impl ExcelImportOrchestrator {
                 .as_ref()
                 .and_then(|temp_id| funds_map.get(temp_id).cloned());
 
+            // (4) EXI-280 — procedure_date format gate.
             let procedure_date =
-                chrono::NaiveDate::parse_from_str(&excel_proc.procedure_date, "%Y-%m-%d")
-                    .with_context(|| {
-                        format!(
-                            "parsing procedure_date '{}' in excel import",
-                            excel_proc.procedure_date
-                        )
-                    })?;
-            let confirmed_payment_date = excel_proc
+                match NaiveDate::parse_from_str(&excel_proc.procedure_date, "%Y-%m-%d") {
+                    Ok(d) => d,
+                    Err(_) => {
+                        let reason =
+                            format!("Date d'acte invalide : « {} »", excel_proc.procedure_date);
+                        tracing::warn!(
+                            sheet = %excel_proc.sheet_month,
+                            row = excel_proc.source_row,
+                            reason = %reason,
+                            "EXI-280 procedure_date format gate failed"
+                        );
+                        skipped_procedures.push(SkippedRow {
+                            sheet: excel_proc.sheet_month.clone(),
+                            row_number: excel_proc.source_row,
+                            reason,
+                        });
+                        procedures_skipped += 1;
+                        continue;
+                    }
+                };
+
+            // (4b) EXI-280 — confirmed_payment_date format gate (when present and non-empty).
+            let confirmed_payment_date = match excel_proc
                 .confirmed_payment_date
                 .as_deref()
                 .filter(|s| !s.is_empty())
-                .map(|s| {
-                    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").with_context(|| {
-                        format!("parsing confirmed_payment_date '{s}' in excel import")
-                    })
-                })
-                .transpose()?;
+            {
+                None => None,
+                Some(raw) => match NaiveDate::parse_from_str(raw, "%Y-%m-%d") {
+                    Ok(d) => Some(d),
+                    Err(_) => {
+                        let reason = format!("Date de paiement confirmée invalide : « {} »", raw);
+                        tracing::warn!(
+                            sheet = %excel_proc.sheet_month,
+                            row = excel_proc.source_row,
+                            reason = %reason,
+                            "EXI-280 confirmed_payment_date format gate failed"
+                        );
+                        skipped_procedures.push(SkippedRow {
+                            sheet: excel_proc.sheet_month.clone(),
+                            row_number: excel_proc.source_row,
+                            reason,
+                        });
+                        procedures_skipped += 1;
+                        continue;
+                    }
+                },
+            };
+
+            // (5) EXI-281 — procedure_date month must equal sheet's nominal month.
+            // Soft-skip on unknown sheet name (defensive — should not occur given
+            // upstream canonicalization, but never panic).
+            let Some(expected_month) = sheet_nominal_month(&excel_proc.sheet_month) else {
+                let reason = format!("Nom de feuille inconnu : « {} »", excel_proc.sheet_month);
+                tracing::warn!(
+                    sheet = %excel_proc.sheet_month,
+                    row = excel_proc.source_row,
+                    "EXI-281 unknown sheet name (defensive soft-skip)"
+                );
+                skipped_procedures.push(SkippedRow {
+                    sheet: excel_proc.sheet_month.clone(),
+                    row_number: excel_proc.source_row,
+                    reason,
+                });
+                procedures_skipped += 1;
+                continue;
+            };
+            if procedure_date.month() != expected_month {
+                let reason = format!(
+                    "La date d'acte {} ne correspond pas au mois de la feuille « {} »",
+                    procedure_date.format("%Y-%m-%d"),
+                    excel_proc.sheet_month,
+                );
+                tracing::warn!(
+                    sheet = %excel_proc.sheet_month,
+                    row = excel_proc.source_row,
+                    reason = %reason,
+                    "EXI-281 procedure_date month does not match sheet"
+                );
+                skipped_procedures.push(SkippedRow {
+                    sheet: excel_proc.sheet_month.clone(),
+                    row_number: excel_proc.source_row,
+                    reason,
+                });
+                procedures_skipped += 1;
+                continue;
+            }
+
+            // (6) Build the candidate.
             candidates.push(ProcedureCandidate {
                 patient_id,
                 fund_id,
@@ -251,6 +377,7 @@ impl ExcelImportOrchestrator {
         tracing::info!(
             created = procedures_created,
             skipped = procedures_skipped,
+            skip_report_entries = skipped_procedures.len(),
             "Procedures created"
         );
 
@@ -263,6 +390,7 @@ impl ExcelImportOrchestrator {
             procedures_skipped,
             procedures_deleted,
             blocked_months,
+            skipped_procedures,
         })
     }
 }
@@ -544,16 +672,30 @@ mod tests {
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(true));
 
+        // A well-formed procedure anchors workbook_year so block-check runs.
+        // The procedure itself gets filtered at step 1 (Jan not in allowed_sheets
+        // because blocked) — only blocked_months is asserted here.
+        let mut parse_result = empty_parse_result();
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-anchor".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-anchor".to_string(),
+            amount: 0,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+
         let orchestrator = make_orchestrator(OrchestratorMocks {
             proc_repo,
             ..Default::default()
         });
         let result = orchestrator
-            .execute_import(
-                empty_parse_result(),
-                HashMap::new(),
-                vec!["2026-01".to_string()],
-            )
+            .execute_import(parse_result, HashMap::new(), vec!["Jan".to_string()])
             .await
             .unwrap();
 
@@ -577,11 +719,12 @@ mod tests {
             procedure_type_tmp_id: "type-1".to_string(),
             amount: 10000,
             procedure_date: "2026-01-15".to_string(),
-            sheet_month: "2026-01".to_string(),
+            sheet_month: "Jan".to_string(),
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
             awaited_amount: None,
+            source_row: 2,
         }];
 
         let mut type_mapping = HashMap::new();
@@ -592,7 +735,7 @@ mod tests {
             ..Default::default()
         });
         let result = orchestrator
-            .execute_import(parse_result, type_mapping, vec!["2026-01".to_string()])
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
             .await
             .unwrap();
 
@@ -639,16 +782,30 @@ mod tests {
             .expect_delete_procedures_by_month()
             .returning(|_| Ok(3));
 
+        // A well-formed procedure anchors workbook_year so block + delete runs.
+        // The procedure gets filtered at step 4 (no matching patient in map) —
+        // only blocked_months + procedures_deleted are asserted here.
+        let mut parse_result = empty_parse_result();
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-anchor".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-anchor".to_string(),
+            amount: 0,
+            procedure_date: "2026-02-15".to_string(),
+            sheet_month: "Fév".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+
         let orchestrator = make_orchestrator(OrchestratorMocks {
             proc_repo,
             ..Default::default()
         });
         let result = orchestrator
-            .execute_import(
-                empty_parse_result(),
-                HashMap::new(),
-                vec!["2026-02".to_string()],
-            )
+            .execute_import(parse_result, HashMap::new(), vec!["Fév".to_string()])
             .await
             .unwrap();
 
@@ -693,11 +850,12 @@ mod tests {
             procedure_type_tmp_id: "unmapped-type".to_string(),
             amount: 5000,
             procedure_date: "2026-02-15".to_string(),
-            sheet_month: "2026-02".to_string(),
+            sheet_month: "Fév".to_string(),
             payment_method: None,
             confirmed_payment_date: None,
             paid_amount: None,
             awaited_amount: None,
+            source_row: 3,
         }];
 
         let orchestrator = make_orchestrator(OrchestratorMocks {
@@ -706,11 +864,888 @@ mod tests {
             ..Default::default()
         });
         let result = orchestrator
-            .execute_import(parse_result, HashMap::new(), vec!["2026-02".to_string()])
+            .execute_import(parse_result, HashMap::new(), vec!["Fév".to_string()])
             .await
             .unwrap();
 
         assert_eq!(result.procedures_skipped, 1);
         assert_eq!(result.procedures_created, 0);
+    }
+
+    // ── EXI-270 — Sheet-based filter ──────────────────────────────────────────
+
+    /// EXI-270: a procedure row whose `sheet_month` is NOT in `selected_sheets`
+    /// is silently skipped — it never reaches the validation gates.
+    #[tokio::test]
+    async fn exi_270_row_excluded_when_sheet_not_selected() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut parse_result = empty_parse_result();
+        // Row is from "Fév" but only "Jan" is selected — must be skipped.
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-02-15".to_string(),
+            sheet_month: "Fév".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(result.procedures_created, 0);
+        assert_eq!(result.procedures_skipped, 1);
+        // Sheet-filter skips are NOT execute-time gate failures — skipped_procedures
+        // must remain empty (only EXI-280/281 failures populate it).
+        assert!(result.skipped_procedures.is_empty());
+    }
+
+    /// EXI-270: a procedure row whose `sheet_month` IS in `selected_sheets`
+    /// continues past the sheet filter to the validation gates. With a valid
+    /// date and correct month it should not be silently swallowed.
+    /// (The test uses a patient that doesn't resolve, so the row reaches the
+    /// patient-resolution step — enough to confirm the sheet filter passed.)
+    #[tokio::test]
+    async fn exi_270_row_included_when_sheet_selected_continues_to_gates() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut parse_result = empty_parse_result();
+        // Row is from "Jan" and "Jan" is selected — must pass the sheet filter.
+        // No patient in map → procedures_skipped bumped by patient-resolution,
+        // but the row was NOT skipped by EXI-270 (skipped_procedures stays empty).
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "unknown-tmp".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        // Row passed the sheet filter; patient resolution skipped it — that is
+        // a procedures_skipped increment, not a skipped_procedures entry.
+        assert_eq!(result.procedures_skipped, 1);
+        assert!(result.skipped_procedures.is_empty());
+    }
+
+    // ── EXI-280 — Execute-time date format validation ─────────────────────────
+
+    /// EXI-280: a malformed `procedure_date` (DD/MM/YYYY instead of YYYY-MM-DD)
+    /// causes the row to be skipped; a `SkippedRow` entry is pushed with the
+    /// raw cell text in the reason.
+    #[tokio::test]
+    async fn exi_280_malformed_procedure_date_skips_row_with_raw_text_in_reason() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        // Malformed: DD/MM/YYYY is not the expected YYYY-MM-DD codec format.
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "31/12/2026".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 5,
+        }];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(result.procedures_created, 0);
+        assert_eq!(result.skipped_procedures.len(), 1);
+        let entry = &result.skipped_procedures[0];
+        assert_eq!(entry.sheet, "Jan");
+        assert_eq!(entry.row_number, 5);
+        // EXI-290: raw cell text must appear verbatim in the reason.
+        assert!(
+            entry.reason.contains("31/12/2026"),
+            "reason '{}' must contain the raw cell text '31/12/2026'",
+            entry.reason
+        );
+    }
+
+    /// EXI-280: a malformed `confirmed_payment_date` on an otherwise-valid row
+    /// also causes the row to be skipped and reported.
+    #[tokio::test]
+    async fn exi_280_malformed_confirmed_payment_date_skips_row_with_raw_text_in_reason() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            // Valid procedure_date but garbage confirmed_payment_date.
+            confirmed_payment_date: Some("garbage".to_string()),
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 7,
+        }];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(result.procedures_created, 0);
+        assert_eq!(result.skipped_procedures.len(), 1);
+        let entry = &result.skipped_procedures[0];
+        assert_eq!(entry.sheet, "Jan");
+        assert_eq!(entry.row_number, 7);
+        // EXI-290: raw cell text "garbage" must appear verbatim in the reason.
+        assert!(
+            entry.reason.contains("garbage"),
+            "reason '{}' must contain the raw cell text 'garbage'",
+            entry.reason
+        );
+    }
+
+    /// EXI-280: `confirmed_payment_date = None` is NOT a gate failure — the
+    /// row must be accepted normally (no entry in skipped_procedures).
+    #[tokio::test]
+    async fn exi_280_absent_confirmed_payment_date_is_not_a_failure() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut orch_proc_repo = MockProcedureRepository::new();
+        orch_proc_repo.expect_create_batch().returning(Ok);
+
+        let mut orch_patient_repo = MockPatientRepository::new();
+        orch_patient_repo.expect_read_patient().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+        orch_patient_repo.expect_update_patient().returning(Ok);
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            orch_proc_repo,
+            orch_patient_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert!(
+            result.skipped_procedures.is_empty(),
+            "confirmed_payment_date=None must not produce a skipped_procedures entry"
+        );
+    }
+
+    // ── EXI-281 — Procedure date must match sheet's nominal month ─────────────
+
+    /// EXI-281: `procedure_date` in a different month from the sheet's nominal
+    /// month causes the row to be skipped; the parsed date appears in the reason.
+    #[tokio::test]
+    async fn exi_281_procedure_date_in_wrong_month_skips_row_with_parsed_date_in_reason() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        // February date in a January sheet → EXI-281 mismatch.
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-02-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 4,
+        }];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(result.procedures_created, 0);
+        assert_eq!(result.skipped_procedures.len(), 1);
+        let entry = &result.skipped_procedures[0];
+        assert_eq!(entry.sheet, "Jan");
+        assert_eq!(entry.row_number, 4);
+        // EXI-290: parsed date in YYYY-MM-DD form must appear verbatim in the reason.
+        assert!(
+            entry.reason.contains("2026-02-15"),
+            "reason '{}' must contain the parsed date '2026-02-15'",
+            entry.reason
+        );
+    }
+
+    /// EXI-281: `procedure_date` in the CORRECT month for the sheet is accepted
+    /// (no entry in skipped_procedures).
+    #[tokio::test]
+    async fn exi_281_procedure_date_in_correct_month_is_accepted() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut orch_proc_repo = MockProcedureRepository::new();
+        orch_proc_repo.expect_create_batch().returning(Ok);
+
+        let mut orch_patient_repo = MockPatientRepository::new();
+        orch_patient_repo.expect_read_patient().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+        orch_patient_repo.expect_update_patient().returning(Ok);
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        // January date in a January sheet → EXI-281 passes.
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            orch_proc_repo,
+            orch_patient_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert!(
+            result.skipped_procedures.is_empty(),
+            "correctly-dated row must not produce a skipped_procedures entry"
+        );
+        assert_eq!(result.procedures_created, 1);
+    }
+
+    /// EXI-281: `confirmed_payment_date` in a different month from the sheet is
+    /// NOT subject to the month-match constraint — the row must be accepted.
+    #[tokio::test]
+    async fn exi_281_confirmed_payment_date_different_month_is_still_accepted() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut orch_proc_repo = MockProcedureRepository::new();
+        orch_proc_repo.expect_create_batch().returning(Ok);
+
+        let mut orch_patient_repo = MockPatientRepository::new();
+        orch_patient_repo.expect_read_patient().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+        orch_patient_repo.expect_update_patient().returning(Ok);
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        // procedure_date is January (matches "Jan" sheet), confirmed_payment_date
+        // is March — different month, but EXI-281 must NOT apply to it.
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: Some("2026-03-20".to_string()),
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            orch_proc_repo,
+            orch_patient_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert!(
+            result.skipped_procedures.is_empty(),
+            "confirmed_payment_date in a different month must not trigger EXI-281"
+        );
+        assert_eq!(result.procedures_created, 1);
+    }
+
+    /// EXI-281 edge case: unknown sheet name (not in the canonical mapping)
+    /// must produce a soft skip — not a panic — with the sheet name in the reason.
+    #[tokio::test]
+    async fn exi_281_unknown_sheet_name_soft_skips_row_without_panic() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        // Sheet name not in CANONICAL_SHEET_MONTH — must soft-skip, never panic.
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "UnknownSheet".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 3,
+        }];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        // selected_sheets must include the unknown sheet name so the sheet-filter
+        // (EXI-270) passes and the row reaches the EXI-281 gate.
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["UnknownSheet".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(result.procedures_created, 0);
+        assert_eq!(result.skipped_procedures.len(), 1);
+        let entry = &result.skipped_procedures[0];
+        assert_eq!(entry.sheet, "UnknownSheet");
+        assert_eq!(entry.row_number, 3);
+        assert!(
+            entry.reason.contains("UnknownSheet"),
+            "reason '{}' must mention the unknown sheet name",
+            entry.reason
+        );
+    }
+
+    // ── EXI-290 — Skip report shape ───────────────────────────────────────────
+
+    /// EXI-290: `skipped_procedures` is empty when every row passes all gates.
+    #[tokio::test]
+    async fn exi_290_skipped_procedures_empty_when_all_rows_pass() {
+        let orchestrator = make_orchestrator(OrchestratorMocks::default());
+
+        let result = orchestrator
+            .execute_import(empty_parse_result(), HashMap::new(), vec![])
+            .await
+            .unwrap();
+
+        assert!(
+            result.skipped_procedures.is_empty(),
+            "skipped_procedures must be empty when no rows fail any gate"
+        );
+    }
+
+    /// EXI-290: `skipped_procedures` count equals the total number of execute-time
+    /// gate failures — each failing row contributes exactly one entry, and the
+    /// count covers ALL EXI-280/281 failures in a single import.
+    #[tokio::test]
+    async fn exi_290_skipped_procedures_count_covers_all_gate_failures() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Ok(0));
+
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        // Two rows that both fail: one EXI-280 (bad date), one EXI-281 (wrong month).
+        parse_result.procedures = vec![
+            ExcelProcedure {
+                patient_temp_id: "tmp-1".to_string(),
+                fund_temp_id: None,
+                procedure_type_tmp_id: "type-1".to_string(),
+                amount: 10000,
+                procedure_date: "31/12/2026".to_string(), // EXI-280 failure
+                sheet_month: "Jan".to_string(),
+                payment_method: None,
+                confirmed_payment_date: None,
+                paid_amount: None,
+                awaited_amount: None,
+                source_row: 2,
+            },
+            ExcelProcedure {
+                patient_temp_id: "tmp-1".to_string(),
+                fund_temp_id: None,
+                procedure_type_tmp_id: "type-1".to_string(),
+                amount: 10000,
+                procedure_date: "2026-02-15".to_string(), // EXI-281 failure (Feb in Jan sheet)
+                sheet_month: "Jan".to_string(),
+                payment_method: None,
+                confirmed_payment_date: None,
+                paid_amount: None,
+                awaited_amount: None,
+                source_row: 3,
+            },
+        ];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.skipped_procedures.len(),
+            2,
+            "skipped_procedures must contain one entry per execute-time gate failure"
+        );
+        assert_eq!(result.procedures_created, 0);
+        // procedures_skipped counter must also reflect the two gate failures.
+        assert_eq!(result.procedures_skipped, 2);
+    }
+
+    // ── Empty-workbook year-derivation edge case (plan §5 step 3) ────────────
+
+    /// When every row's `procedure_date` is malformed the orchestrator cannot
+    /// derive a workbook year. Block + delete steps must be entirely skipped
+    /// (no calls to `has_blocking_procedures_in_month` / `delete_procedures_by_month`),
+    /// the import must return successfully with `procedures_created = 0` and
+    /// `blocked_months = []`, and every row must appear in `skipped_procedures`.
+    #[tokio::test]
+    async fn empty_workbook_all_dates_malformed_skips_block_delete_returns_skip_report() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        // Strict mock: has_blocking_procedures_in_month and delete_procedures_by_month
+        // must NEVER be called when workbook_year cannot be derived.
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo.expect_has_blocking_procedures_in_month().times(0);
+        proc_repo.expect_delete_procedures_by_month().times(0);
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        // Every procedure has a malformed date — workbook_year cannot be derived.
+        parse_result.procedures = vec![
+            ExcelProcedure {
+                patient_temp_id: "tmp-1".to_string(),
+                fund_temp_id: None,
+                procedure_type_tmp_id: "type-1".to_string(),
+                amount: 10000,
+                procedure_date: "not-a-date".to_string(),
+                sheet_month: "Jan".to_string(),
+                payment_method: None,
+                confirmed_payment_date: None,
+                paid_amount: None,
+                awaited_amount: None,
+                source_row: 2,
+            },
+            ExcelProcedure {
+                patient_temp_id: "tmp-1".to_string(),
+                fund_temp_id: None,
+                procedure_type_tmp_id: "type-1".to_string(),
+                amount: 20000,
+                procedure_date: "also-bad".to_string(),
+                sheet_month: "Jan".to_string(),
+                payment_method: None,
+                confirmed_payment_date: None,
+                paid_amount: None,
+                awaited_amount: None,
+                source_row: 3,
+            },
+        ];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(result.procedures_created, 0);
+        assert!(result.blocked_months.is_empty());
+        // All rows must be in skipped_procedures (EXI-280 date parse failures).
+        assert_eq!(result.skipped_procedures.len(), 2);
+    }
+
+    /// Edge case: empty `parsed_data.procedures` (no procedures at all) — the
+    /// block + delete steps must be skipped and the import returns with all-zero
+    /// procedure counters and an empty `skipped_procedures`.
+    #[tokio::test]
+    async fn empty_workbook_no_procedures_skips_block_delete_returns_zeros() {
+        // Strict mock: block/delete must never be called on an empty procedures list.
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo.expect_has_blocking_procedures_in_month().times(0);
+        proc_repo.expect_delete_procedures_by_month().times(0);
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(
+                empty_parse_result(),
+                HashMap::new(),
+                vec!["Jan".to_string()],
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(result.procedures_created, 0);
+        assert!(result.blocked_months.is_empty());
+        assert!(result.skipped_procedures.is_empty());
     }
 }
