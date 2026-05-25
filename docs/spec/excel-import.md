@@ -59,9 +59,9 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-100 (R10) — Procedure deduplication by month (backend)**: Procedures are not deduplicated individually. Duplicate handling is done at the whole-month level (see EXI-170 and EXI-180).
 
-### Month selection
+### Sheet selection
 
-**EXI-110 (R11) — Selecting which months to import (frontend)**: After parsing, the user selects which months to import via a checkbox list. All months detected in the parsed procedures are offered. By default, all are selected. Only selected months are passed to the execution command. The "Continue" button is disabled if no month is selected. **Special case**: if no procedure was parsed (file with no monthly sheets, or all lines skipped), the month-selection and type-mapping steps are skipped — the import runs without further steps.
+**EXI-110 (R11) — Selecting which sheets to import (frontend)**: After parsing, the user selects which monthly sheets to import via a checkbox list. All sheets detected in the parsed procedures are offered, identified by their canonical sheet name (`Jan`, `Fév`, `Mars`, …). By default, all are selected. Only selected sheets are passed to the execution command. The "Continue" button is disabled if no sheet is selected. **Special case**: if no procedure was parsed (file with no monthly sheets, or all lines skipped), the sheet-selection and type-mapping steps are skipped — the import runs without further steps.
 
 ### Procedure-type mapping
 
@@ -75,9 +75,9 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 ### Reconciled-data protection
 
-**EXI-160 (R15) — Blocked month (backend)**: Before importing a selected month, the system checks whether procedures exist with an advanced reconciliation status (`RECONCILIATED` or `FUND_PAYED`) for that month. If so, the entire month is **blocked**: no procedure for that month is deleted or recreated. Blocked months are reported in the result.
+**EXI-160 (R15) — Blocked month (backend)**: Before importing a selected sheet, the system checks the sheet's nominal month — whether procedures exist in the database with an advanced reconciliation status (`RECONCILIATED` or `FUND_PAYED`) for that month. If so, the entire month is **blocked**: no procedure for that month is deleted or recreated. Blocked months are reported in the result. EXI-281 guarantees that every accepted row's `procedure_date` falls in the sheet's nominal month, so per-month blocking remains consistent with per-sheet selection.
 
-**EXI-170 (R16) — Pre-import deletion (backend)**: If a month is not blocked (see EXI-160), **all** existing procedures for that month are permanently deleted before the new data is imported. This mechanism allows a corrected month to be re-imported without accumulating duplicates.
+**EXI-170 (R16) — Pre-import deletion (backend)**: If a sheet's nominal month is not blocked (see EXI-160), **all** existing procedures for that month are permanently deleted before the new data is imported. This mechanism allows a corrected sheet to be re-imported without accumulating duplicates.
 
 ### Import orchestration
 
@@ -85,8 +85,8 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 1. Resolve and create patients (existing reused, new ones created)
 2. Resolve and create funds (existing reused, new ones created)
-3. Validate months: identify blocked months and delete procedures of allowed months
-4. Create procedures: for each procedure whose month is allowed, with the resolved patient and the mapped type
+3. Validate selected sheets: identify blocked months (per EXI-160) and delete procedures of non-blocked months (per EXI-170)
+4. For each procedure row in a selected sheet: first drop rows whose amount has no mapping (per EXI-150), then apply the execute-time validation gates (EXI-280 format, EXI-281 month-match) before creating the procedure; rows that fail any gate are reported per EXI-290
 
 **EXI-190 (R18) — Patient tracking-field update (backend)**: After procedures are created, the patient's tracking fields (`latest_date`, `latest_procedure_type`, `latest_fund`, `latest_procedure_amount`) are updated to reflect the most recent imported procedure (see R19 of procedure-orchestration.md).
 
@@ -107,10 +107,10 @@ Procedures in `Created` are then eligible for fund reconciliation (see R1 of fun
 - Procedures created / skipped / deleted
 - List of blocked months (if any)
 
-**EXI-220 (R21) — Parsing report (backend + frontend)**: At the end of parsing, a detailed report is reachable from the result screen. It contains two sections:
+**EXI-220 (R21) — Import report (backend + frontend)**: At the end of import, a single detailed report is reachable from the result screen. It contains two sections:
 
-- **Missing sheets**: list of monthly sheets expected but not found in the Excel file.
-- **Skipped lines**: lines rejected (see EXI-020), organized by monthly sheet as tabs. Lines skipped because of an `#N/A` name or empty row are hidden in the display (too numerous and not informative).
+- **Missing sheets**: list of monthly sheets expected but not found in the Excel file, displayed by the same name the user sees on the sheet-selection step (EXI-110).
+- **Skipped lines**: a single flat table with columns sheet, row, reason. Lines may come from either parse-time skips (see EXI-020) or execute-time skips (see EXI-290) — the two origins are merged because the user-facing concept ("rows that didn't make it into the database") is identical regardless of pipeline stage. Lines skipped because of an `#N/A` name or empty row are hidden in the display (too numerous and not informative). Rows are sorted by sheet (canonical month order) then row number.
 
 This report is informative and non-blocking.
 
@@ -125,6 +125,22 @@ This report is informative and non-blocking.
 ### Last-folder memory
 
 **EXI-260 (R25) — Last-folder memory (frontend)**: When the user successfully picks an Excel file from the OS file dialog, the parent folder of the picked file is persisted in `localStorage` under the per-feature key `import-last-folder:excel`. On the next Excel import, that folder is passed to the dialog as `defaultPath` so the user starts where they left off. Each of the three import flows (Excel, fund PDF, bank PDF) has its own slot — picking a bank-statement PDF never moves the Excel default. Cancelling the dialog leaves the persisted folder untouched. If the persisted folder is no longer reachable, the native dialog opens at the OS's own fallback (home or last-used location depending on platform); no explicit fallback resolution happens in the app.
+
+### Open Questions
+
+- [x] **Year-drift acceptance (Stance A, accepted)**: EXI-281 only checks that `procedure_date.month` equals the sheet's nominal month; it does not check the year. A 2025-dated row in a 2026 workbook's `Jan` sheet is accepted. Convention violation is the user's responsibility, and downstream consumers filter by full `procedure_date` anyway. **This is a recorded non-goal, not a latent gap** — surfacing year drift via EXI-290 is out of scope for this feature.
+
+None — all questions have been resolved.
+
+### Execute-time validation and reporting
+
+**EXI-270 — Sheet-based selection (backend + frontend)**: Import selection is by sheet, not by month-derived-from-date. The frontend offers the user the list of detected sheets (identified by their canonical sheet name, e.g. `Jan`, `Fév`) and passes the user's choice to the backend. The backend filters procedure rows by source-sheet identity (matching each row to its parser-assigned canonical sheet name). The previous derived-month substring filter on the date cell is replaced — date validation moves to EXI-280 and EXI-281.
+
+**EXI-280 — Execute-time date format validation (backend)**: For each procedure row in a selected sheet, `procedure_date` (required) MUST parse as a calendar date in `YYYY-MM-DD` format. `confirmed_payment_date` (when present and non-empty) MUST also parse. A row whose `procedure_date` or `confirmed_payment_date` is malformed is skipped and recorded in the execute-time skip report defined by EXI-290 (which is the rule that owns user-visible reporting). The other procedures in the import proceed normally; the import as a whole does not abort because of a single malformed row.
+
+**EXI-281 — Procedure date must match sheet's nominal month (backend)**: For each procedure row in a selected sheet, after `procedure_date` parses successfully (per EXI-280), the parsed date's month MUST equal the source sheet's nominal month — a row in the `Jan` sheet must have a January `procedure_date`, `Fév` → February, etc. The sheet-name → nominal-month mapping covers both abbreviated and full canonical forms per EXI-010 (e.g. both `Jan` and `Janvier` map to January). A row whose parsed `procedure_date.month` differs from its sheet's nominal month is skipped and recorded in the execute-time skip report defined by EXI-290. The year is not checked — the workbook is single-year by convention and the year is not part of sheet identity (see the Open Question on year-drift acceptance). `confirmed_payment_date` is NOT subject to this constraint: a procedure performed in January can be confirmed-paid in February (or any other month), and that is legitimate data.
+
+**EXI-290 — Execute-time skip rows (backend + frontend)**: The import-execution result carries per-row skip entries covering every procedure skipped during execution (format failures per EXI-280; month mismatches per EXI-281; future execute-time skip reasons fall under this rule). Each entry uses the same `SkippedRow` shape as EXI-220 (sheet + row + reason), reused without modification. The `reason` is authored on the backend in the user's runtime locale; it identifies which field failed and carries the cause-specific evidence inline — the raw cell text for format failures, the parsed date for month mismatches. The cause-specific evidence is verbatim (the raw cell text as it appears in the file, or the parsed date in `YYYY-MM-DD` form); only the surrounding reason text is localized. These entries are merged with the parse-time skip rows in the EXI-220 import report; the two pipeline origins are not surfaced separately in the UI.
 
 ---
 
@@ -141,9 +157,9 @@ This report is informative and non-blocking.
   → Collect skipped lines
           │
           ▼
-[Month selection] (frontend)
-  → List of detected months, all checked by default
-  → User unchecks months to exclude
+[Sheet selection] (frontend)
+  → List of detected sheets (canonical names: Jan, Fév, …), all checked by default
+  → User unchecks sheets to exclude
           │
           ▼
 [Procedure-type mapping] (frontend)
@@ -157,16 +173,19 @@ This report is informative and non-blocking.
 [Run the import] (backend)
   → Resolve patients (reuse or create)
   → Resolve funds (reuse or create)
-  → Validate months: blocked (RECONCILIATED/FUND_PAYED) vs allowed
-  → Permanently delete procedures for allowed months
-  → Create procedures (status Created / ImportDirectlyPayed / ImportFundPayed depending on payment data)
+  → For each selected sheet: check blocking (EXI-160); delete non-blocked months (EXI-170)
+  → For each procedure row in a selected sheet:
+       → Validate date formats (EXI-280); skip + report on failure
+       → Validate procedure_date.month == sheet.month (EXI-281); skip + report on mismatch
+       → Create with the mapped type (status Created / ImportDirectlyPayed / ImportFundPayed per EXI-200)
   → Update patient tracking fields
           │
           ▼
 [Result report] (frontend)
-  → Counters: patients / funds / procedures (created / reused / skipped / deleted)
+  → Counters: patients / funds / procedures (created / skipped / deleted)
   → Warning: blocked months
-  → Access to the parsing report (skipped lines)
+  → Access to the parsing report (parse-time skipped lines, EXI-220)
+  → Access to the execute-time skip report (EXI-290)
           │
           ▼
 [End — back to home or new import]

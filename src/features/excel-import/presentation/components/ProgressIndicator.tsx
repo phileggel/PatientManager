@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 type Step =
   | "upload"
   | "parsing"
-  | "month_selection"
+  | "sheet_selection"
   | "mapping_procedure_types"
   | "importing"
   | "complete";
@@ -16,7 +16,7 @@ interface ProgressIndicatorProps {
 const STEP_I18N_KEYS: Record<Step, string> = {
   upload: "progress.upload",
   parsing: "progress.parsing",
-  month_selection: "progress.monthSelection",
+  sheet_selection: "progress.sheetSelection",
   mapping_procedure_types: "progress.mapping",
   importing: "progress.importing",
   complete: "progress.complete",
@@ -27,7 +27,7 @@ export function ProgressIndicator({ currentStep, steps: customSteps }: ProgressI
   const stepOrder: Step[] = [
     "upload",
     "parsing",
-    "month_selection",
+    "sheet_selection",
     "mapping_procedure_types",
     "importing",
     "complete",

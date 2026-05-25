@@ -25,6 +25,15 @@
 //! These three fields are explicitly excluded from the round-trip equality by
 //! IFC-021.
 //!
+//! # Transport-metadata carve-out (IFC-026)
+//!
+//! `ExcelProcedure.source_row` is 1-based row index assigned by the parser at
+//! read time. Scenarios do not specify it; the generator assigns it from its own
+//! layout strategy when writing the fixture file, and the parser re-derives it
+//! independently from the row position in the emitted `.xlsx`. The round-trip
+//! equality (IFC-021) does NOT apply to this field — it is excluded from
+//! `to_comparable_json` alongside the UUID carve-outs.
+//!
 //! # Foreign-key UUID decision (extended carve-out)
 //!
 //! `ExcelProcedure.patient_temp_id` and `ExcelProcedure.fund_temp_id` are
@@ -106,12 +115,14 @@ fn to_comparable_json(data: &ParsedExcelData) -> Value {
     }
 
     // Strip procedure session-scoped UUID fields (named carve-out + extended FK carve-out)
+    // and transport-metadata fields (IFC-026 carve-out).
     if let Some(procedures) = v.get_mut("procedures").and_then(Value::as_array_mut) {
         for procedure in procedures.iter_mut() {
             if let Some(obj) = procedure.as_object_mut() {
                 obj.remove("procedure_type_tmp_id");
                 obj.remove("patient_temp_id"); // extended carve-out — FK to patient.temp_id
                 obj.remove("fund_temp_id"); // extended carve-out — FK to fund.temp_id
+                obj.remove("source_row"); // IFC-026 — transport metadata excluded from round-trip equality
             }
         }
     }
@@ -278,5 +289,69 @@ async fn excel_skipped_rows_invalid_dates_round_trips() {
         "round-trip failed for skipped_rows_invalid_dates: \
          parse(generate(scenario)) must equal scenario on all durable fields \
          including parsing_issues"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// IFC-026 — source_row carve-out does not break round-trip equality
+// ---------------------------------------------------------------------------
+
+/// IFC-026: `ExcelProcedure.source_row` is transport metadata — the scenario
+/// may specify an arbitrary value (here `source_row: 99`) that differs from
+/// what the parser would assign (1-based row index from the actual file).
+/// `to_comparable_json` strips `source_row` from both sides, so the round-trip
+/// equality still holds even though the field values differ.
+///
+/// This test does NOT call the real parser; it verifies the stripping
+/// behaviour of `to_comparable_json` in isolation by constructing two
+/// `ParsedExcelData` instances that are identical on all durable fields but
+/// carry different `source_row` values, then asserting they compare equal
+/// after the carve-out is applied.
+#[cfg(feature = "dev-fixtures")]
+#[test]
+fn ifc_026_source_row_difference_does_not_break_round_trip_equality() {
+    use patient_manager_app::use_cases::excel_import::excel_codec::{
+        ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues,
+    };
+
+    let make_data = |source_row: u32| ParsedExcelData {
+        patients: vec![ExcelPatient {
+            temp_id: "patient-tmp".to_string(),
+            name: "Test Patient".to_string(),
+            ssn: "1234567890123".to_string(),
+            latest_fund: None,
+        }],
+        funds: vec![],
+        procedures: vec![ExcelProcedure {
+            patient_temp_id: "patient-tmp".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-uuid".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row,
+        }],
+        parsing_issues: ParsingIssues {
+            skipped_rows: vec![],
+            missing_sheets: vec![],
+        },
+    };
+
+    // scenario says source_row: 99; parser would assign source_row: 1 (first data row)
+    let scenario_data = make_data(99);
+    let parser_data = make_data(1);
+
+    let mut scenario_json = to_comparable_json(&scenario_data);
+    let mut parser_json = to_comparable_json(&parser_data);
+    sort_for_comparison(&mut scenario_json);
+    sort_for_comparison(&mut parser_json);
+
+    assert_eq!(
+        scenario_json, parser_json,
+        "IFC-026: source_row difference must not break round-trip equality after carve-out"
     );
 }

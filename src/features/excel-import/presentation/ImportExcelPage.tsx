@@ -6,17 +6,17 @@ import { logger } from "@/infra/logger";
 import { FormModal } from "@/ui/components";
 import { Button } from "@/ui/components/button";
 import { executeExcelImport, parseExcelFile } from "../api/gateway";
-import { MonthSelectionStep } from "./components/MonthSelectionStep";
 import { ParsingReportModal } from "./components/ParsingReportModal";
 import { ProcedureTypeMappingStep } from "./components/ProcedureTypeMappingStep";
 import { ProgressIndicator } from "./components/ProgressIndicator";
+import { SheetSelectionStep } from "./components/SheetSelectionStep";
 
 interface ImportExcelPageProps {
   filePath: string;
   onClose: () => void;
 }
 
-type Step = "parsing" | "month_selection" | "mapping_procedure_types" | "importing" | "complete";
+type Step = "parsing" | "sheet_selection" | "mapping_procedure_types" | "importing" | "complete";
 
 export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
   const { t } = useTranslation("excel-import");
@@ -36,8 +36,8 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
   // Parsed data from Excel (held in state so the mapping step can use it)
   const [parsed, setParsed] = useState<ParseExcelResponse | null>(null);
 
-  // Months selected by the user for import
-  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+  // Sheets selected by the user for import (canonical names: "Jan", "Fév", ...)
+  const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
 
   // Final import result
   const [importResult, setImportResult] = useState<ImportExecutionResult | null>(null);
@@ -67,10 +67,10 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
           procedures: parseResult.data.procedures.length,
         });
 
-        // If no procedures, skip month selection and mapping steps
+        // If no procedures, skip sheet selection and mapping steps
         if (parseResult.data.procedures.length === 0) {
           logger.info(
-            "[ImportExcelPage] No procedures to import, skipping month selection and mapping steps",
+            "[ImportExcelPage] No procedures to import, skipping sheet selection and mapping steps",
           );
           setIsLoading(false);
           setLoadingStatus("");
@@ -87,8 +87,8 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
           return;
         }
 
-        // Show month selection UI
-        setCurrentStep("month_selection");
+        // Show sheet selection UI
+        setCurrentStep("sheet_selection");
         setIsLoading(false);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -112,8 +112,8 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
     void handleFileSelect({ name, path: filePath });
   }, [filePath, handleFileSelect]);
 
-  const handleMonthSelectionConfirm = useCallback((months: string[]) => {
-    setSelectedMonths(months);
+  const handleSheetSelectionConfirm = useCallback((sheets: string[]) => {
+    setSelectedSheets(sheets);
     setCurrentStep("mapping_procedure_types");
   }, []);
 
@@ -123,15 +123,15 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
 
       setIsLoading(true);
       setCurrentStep("importing");
-      setLoadingStatus(t("status.parsing")); // reuse "processing" label
+      setLoadingStatus(t("progress.importing"));
 
       logger.info("[ImportExcelPage] Procedure mapping completed, executing import", {
         mappedTypes: Object.keys(mapping).length,
-        selectedMonths,
+        selectedSheets,
       });
 
       try {
-        const result = await executeExcelImport(parsed, mapping, selectedMonths);
+        const result = await executeExcelImport(parsed, mapping, selectedSheets);
 
         if (!result.success || !result.data) {
           throw new Error(result.error || t("error.failedCreateProcedures"));
@@ -150,7 +150,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
         setLoadingStatus("");
       }
     },
-    [parsed, t, selectedMonths],
+    [parsed, t, selectedSheets],
   );
 
   const handleRetry = useCallback(() => {
@@ -170,7 +170,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
       <div className="sticky top-0 z-10 bg-m3-surface">
         <ProgressIndicator
           currentStep={currentStep}
-          steps={["parsing", "month_selection", "mapping_procedure_types", "importing", "complete"]}
+          steps={["parsing", "sheet_selection", "mapping_procedure_types", "importing", "complete"]}
         />
       </div>
 
@@ -203,16 +203,17 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
           <ParsingReportModal
             isOpen={showParsingReport}
             parsingIssues={parsed.parsing_issues}
+            executeSkippedRows={importResult?.skipped_procedures}
             onClose={() => setShowParsingReport(false)}
             skippedRowsCount={parsed.parsing_issues.skipped_rows.length}
           />
         )}
 
-        {/* Month Selection Step */}
-        {currentStep === "month_selection" && parsed !== null && (
-          <MonthSelectionStep
+        {/* Sheet Selection Step */}
+        {currentStep === "sheet_selection" && parsed !== null && (
+          <SheetSelectionStep
             parsedData={parsed}
-            onConfirm={handleMonthSelectionConfirm}
+            onConfirm={handleSheetSelectionConfirm}
             isLoading={isLoading}
           />
         )}

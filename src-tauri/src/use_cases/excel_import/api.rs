@@ -11,7 +11,7 @@ use crate::use_cases::excel_import::amount_mapping_repo::{
     SqliteExcelAmountMappingRepository,
 };
 use crate::use_cases::excel_import::excel_codec::{
-    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues,
+    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues, SkippedRow,
 };
 use crate::use_cases::excel_import::orchestrator::ExcelImportOrchestrator;
 use crate::use_cases::excel_import::parser::ExcelParserService;
@@ -49,10 +49,17 @@ pub struct ImportExecutionResult {
     pub funds_created: u32,
     pub funds_reused: u32,
     pub procedures_created: u32,
+    /// Counter of skipped procedures. Covers parse-time mapping skips (R25)
+    /// AND execute-time row skips (EXI-280/281); only the latter are
+    /// itemised in `skipped_procedures` below.
     pub procedures_skipped: u32,
     pub procedures_deleted: u32,
     /// Months (YYYY-MM) that were blocked because they contain reconciliated/fund-payed procedures.
     pub blocked_months: Vec<String>,
+    /// EXI-290 — per-row execute-time skip report (reuses the EXI-220 `SkippedRow` shape).
+    /// Each entry: source sheet name + 1-based row number + human-readable reason
+    /// authored on the backend in the user's runtime locale.
+    pub skipped_procedures: Vec<SkippedRow>,
 }
 
 // ============ Tauri Commands ============
@@ -94,7 +101,7 @@ pub async fn parse_excel_file(file_path: String) -> Result<ParseExcelResponse, S
 pub async fn execute_excel_import(
     parsed_data: ParseExcelResponse,
     procedure_type_mapping: HashMap<String, String>,
-    selected_months: Vec<String>,
+    selected_sheets: Vec<String>,
     service: State<'_, Arc<ExcelImportOrchestrator>>,
 ) -> Result<ImportExecutionResult, String> {
     tracing::debug!(
@@ -102,12 +109,12 @@ pub async fn execute_excel_import(
         patients = parsed_data.patients.len(),
         funds = parsed_data.funds.len(),
         procedures = parsed_data.procedures.len(),
-        selected_months = ?selected_months,
+        selected_sheets = ?selected_sheets,
         "Processing execute_excel_import request"
     );
 
     service
-        .execute_import(parsed_data, procedure_type_mapping, selected_months)
+        .execute_import(parsed_data, procedure_type_mapping, selected_sheets)
         .await
         .inspect(|result| {
             tracing::info!(
@@ -118,6 +125,7 @@ pub async fn execute_excel_import(
                 funds_reused = result.funds_reused,
                 procedures_created = result.procedures_created,
                 procedures_skipped = result.procedures_skipped,
+                skipped_procedures_count = result.skipped_procedures.len(),
                 "Excel import completed successfully"
             );
         })

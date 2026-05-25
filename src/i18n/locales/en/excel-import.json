@@ -49,7 +49,7 @@
   "progress": {
     "upload": "Upload",
     "parsing": "Parse",
-    "monthSelection": "Select months",
+    "sheetSelection": "Select sheets",
     "patients": "Process Patients",
     "funds": "Process Funds",
     "mapping": "Map Types",
@@ -58,26 +58,26 @@
     "complete": "Complete",
     "stepCompleted": "Step completed"
   },
-  "monthSelection": {
-    "title": "Select months to import",
-    "description": "Choose which months to import. Existing procedures for selected months will be deleted and replaced. Months with reconciled procedures cannot be re-imported.",
+  "sheetSelection": {
+    "title": "Select sheets to import",
+    "description": "Choose which sheets to import. Existing procedures for the corresponding months will be deleted and replaced. Months with reconciled procedures cannot be re-imported.",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
-    "monthsSelected": "months selected",
+    "sheetsSelected": "sheets selected",
     "continue": "Continue",
-    "months": {
-      "01": "January",
-      "02": "February",
-      "03": "March",
-      "04": "April",
-      "05": "May",
-      "06": "June",
-      "07": "July",
-      "08": "August",
-      "09": "September",
-      "10": "October",
-      "11": "November",
-      "12": "December"
+    "sheets": {
+      "Jan": "January",
+      "Fév": "February",
+      "Mars": "March",
+      "Avr": "April",
+      "Mai": "May",
+      "Juin": "June",
+      "Juil": "July",
+      "Août": "August",
+      "Sep": "September",
+      "Oct": "October",
+      "Nov": "November",
+      "Déc": "December"
     }
   },
   "result": {
@@ -91,7 +91,7 @@
     "skipped_one": "{{count}} skipped",
     "skipped_other": "{{count}} skipped",
     "blockedMonthsTitle": "Months not imported (reconciled procedures)",
-    "viewReport": "View parsing report"
+    "viewReport": "View import report"
   },
   "status": {
     "validating": "Validating {{type}}...",
@@ -115,7 +115,7 @@
     "missingWorkflowState": "Missing workflow state"
   },
   "parsingReport": {
-    "title": "Parsing Report",
+    "unifiedTitle": "Import report",
     "summary": "Summary",
     "skippedRows": "Skipped rows:",
     "missingSheets": "Missing sheets:",
@@ -123,23 +123,10 @@
     "missingSheetsDesc_one": "The following {{count}} month sheet was not found:",
     "missingSheetsDesc_other": "The following {{count}} month sheets were not found:",
     "skippedRowsTitle": "Skipped Rows ({{count}})",
+    "colSheet": "Sheet",
     "colRow": "Row",
     "colReason": "Reason",
     "noIssues": "No parsing issues detected",
-    "close": "Close",
-    "months": {
-      "Jan": "January",
-      "Fév": "February",
-      "Mars": "March",
-      "Avr": "April",
-      "Mai": "May",
-      "Juin": "June",
-      "Juil": "July",
-      "Août": "August",
-      "Sep": "September",
-      "Oct": "October",
-      "Nov": "November",
-      "Déc": "December"
-    }
+    "close": "Close"
   }
 }

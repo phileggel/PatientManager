@@ -49,7 +49,7 @@
   "progress": {
     "upload": "Chargement",
     "parsing": "Analyse",
-    "monthSelection": "Sélection mois",
+    "sheetSelection": "Sélection feuilles",
     "patients": "Traitement patients",
     "funds": "Traitement caisses",
     "mapping": "Association types",
@@ -58,26 +58,26 @@
     "complete": "Terminé",
     "stepCompleted": "Étape terminée"
   },
-  "monthSelection": {
-    "title": "Sélectionner les mois à importer",
-    "description": "Choisissez les mois à importer. Les actes existants pour les mois sélectionnés seront supprimés et remplacés. Les mois contenant des actes rapprochés ne peuvent pas être réimportés.",
+  "sheetSelection": {
+    "title": "Sélectionner les feuilles à importer",
+    "description": "Choisissez les feuilles à importer. Les actes existants pour les mois correspondants seront supprimés et remplacés. Les mois contenant des actes rapprochés ne peuvent pas être réimportés.",
     "selectAll": "Tout sélectionner",
     "deselectAll": "Tout désélectionner",
-    "monthsSelected": "mois sélectionnés",
+    "sheetsSelected": "feuilles sélectionnées",
     "continue": "Continuer",
-    "months": {
-      "01": "Janvier",
-      "02": "Février",
-      "03": "Mars",
-      "04": "Avril",
-      "05": "Mai",
-      "06": "Juin",
-      "07": "Juillet",
-      "08": "Août",
-      "09": "Septembre",
-      "10": "Octobre",
-      "11": "Novembre",
-      "12": "Décembre"
+    "sheets": {
+      "Jan": "Janvier",
+      "Fév": "Février",
+      "Mars": "Mars",
+      "Avr": "Avril",
+      "Mai": "Mai",
+      "Juin": "Juin",
+      "Juil": "Juillet",
+      "Août": "Août",
+      "Sep": "Septembre",
+      "Oct": "Octobre",
+      "Nov": "Novembre",
+      "Déc": "Décembre"
     }
   },
   "result": {
@@ -91,7 +91,7 @@
     "skipped_one": "{{count}} ignoré",
     "skipped_other": "{{count}} ignorés",
     "blockedMonthsTitle": "Mois non importés (actes rapprochés)",
-    "viewReport": "Voir le rapport d'analyse"
+    "viewReport": "Voir le rapport d'import"
   },
   "status": {
     "validating": "Validation de {{type}}...",
@@ -115,7 +115,7 @@
     "missingWorkflowState": "État du workflow manquant"
   },
   "parsingReport": {
-    "title": "Rapport d'analyse",
+    "unifiedTitle": "Rapport d'import",
     "summary": "Résumé",
     "skippedRows": "Lignes ignorées :",
     "missingSheets": "Feuilles manquantes :",
@@ -123,23 +123,10 @@
     "missingSheetsDesc_one": "La feuille de mois suivante est introuvable :",
     "missingSheetsDesc_other": "Les {{count}} feuilles de mois suivantes sont introuvables :",
     "skippedRowsTitle": "Lignes ignorées ({{count}})",
+    "colSheet": "Feuille",
     "colRow": "Ligne",
     "colReason": "Raison",
     "noIssues": "Aucun problème d'analyse détecté",
-    "close": "Fermer",
-    "months": {
-      "Jan": "Janvier",
-      "Fév": "Février",
-      "Mars": "Mars",
-      "Avr": "Avril",
-      "Mai": "Mai",
-      "Juin": "Juin",
-      "Juil": "Juillet",
-      "Août": "Août",
-      "Sep": "Septembre",
-      "Oct": "Octobre",
-      "Nov": "Novembre",
-      "Déc": "Décembre"
-    }
+    "close": "Fermer"
   }
 }

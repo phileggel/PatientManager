@@ -292,9 +292,9 @@ async parseExcelFile(filePath: string) : Promise<Result<ParseExcelResponse, stri
  * `procedure_type_mapping` maps `procedure_type_tmp_id → procedure_type_id` as selected
  * by the user in the type-mapping UI step.
  */
-async executeExcelImport(parsedData: ParseExcelResponse, procedureTypeMapping: Partial<{ [key in string]: string }>, selectedMonths: string[]) : Promise<Result<ImportExecutionResult, string>> {
+async executeExcelImport(parsedData: ParseExcelResponse, procedureTypeMapping: Partial<{ [key in string]: string }>, selectedSheets: string[]) : Promise<Result<ImportExecutionResult, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("execute_excel_import", { parsedData, procedureTypeMapping, selectedMonths }) };
+    return { status: "ok", data: await TAURI_INVOKE("execute_excel_import", { parsedData, procedureTypeMapping, selectedSheets }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1179,7 +1179,13 @@ export type ExcelPatient = { temp_id: string; name: string; ssn: string; latest_
 /**
  * Parsed procedure data from Excel monthly sheets
  */
-export type ExcelProcedure = { patient_temp_id: string; fund_temp_id: string | null; procedure_type_tmp_id: string; amount: number; procedure_date: string; sheet_month: string; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; awaited_amount: number | null }
+export type ExcelProcedure = { patient_temp_id: string; fund_temp_id: string | null; procedure_type_tmp_id: string; amount: number; procedure_date: string; sheet_month: string; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; awaited_amount: number | null; 
+/**
+ * 1-based row index in the source sheet. Transport metadata — excluded
+ * from codec round-trip equality per IFC-026. Populated by the parser
+ * when reading; the dev generator assigns from output position.
+ */
+source_row: number }
 /**
  * Fund aggregate root
  */
@@ -1312,11 +1318,23 @@ export type FundValidationStatus = "VALID" | "ALREADY_EXISTS" | "INVALID"
 /**
  * Result of a completed Excel import execution
  */
-export type ImportExecutionResult = { patients_created: number; patients_reused: number; funds_created: number; funds_reused: number; procedures_created: number; procedures_skipped: number; procedures_deleted: number; 
+export type ImportExecutionResult = { patients_created: number; patients_reused: number; funds_created: number; funds_reused: number; procedures_created: number; 
+/**
+ * Counter of skipped procedures. Covers parse-time mapping skips (R25)
+ * AND execute-time row skips (EXI-280/281); only the latter are
+ * itemised in `skipped_procedures` below.
+ */
+procedures_skipped: number; procedures_deleted: number; 
 /**
  * Months (YYYY-MM) that were blocked because they contain reconciliated/fund-payed procedures.
  */
-blocked_months: string[] }
+blocked_months: string[]; 
+/**
+ * EXI-290 — per-row execute-time skip report (reuses the EXI-220 `SkippedRow` shape).
+ * Each entry: source sheet name + 1-based row number + human-readable reason
+ * authored on the backend in the user's runtime locale.
+ */
+skipped_procedures: SkippedRow[] }
 /**
  * A normalized PDF procedure line — the ONE domain object for reconciliation.
  * 

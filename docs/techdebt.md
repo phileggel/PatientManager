@@ -8,6 +8,16 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-05-25 — Backend i18n gap: skip-report `reason` strings hardcoded in French
+
+**Found by:** spec-checker (`feat/excel-import-skipped-procedures`)
+
+**Where:** `src-tauri/src/use_cases/excel_import/orchestrator.rs:276–280,303–307,324–328,344–348` — execute-time skip `reason` strings for EXI-280 / EXI-281 / EXI-290 (`"Date d'acte invalide"`, `"Date de paiement confirmée invalide"`, `"La date d'acte … ne correspond pas …"`, `"Nom de feuille inconnu"`). Same pattern in `parser.rs` for EXI-020/220 reasons.
+
+**Observation:** EXI-280 / EXI-290 say the `reason` is "authored on the backend in the user's runtime locale", but no backend i18n infrastructure exists. The orchestrator hardcodes French (the primary locale per `ARCHITECTURE.md`). Secondary en-GB users see French strings. Same pre-existing limitation as EXI-220's parse-time `reason`. Resolving requires either (a) a backend i18n layer reading the runtime locale, or (b) emit stable codes from the backend and translate on the frontend (per F24). Track until the project commits to one of the two; in the meantime EXI-280/290's "runtime locale" wording should be read as "primary locale (fr-FR)".
+
+---
+
 ## 2026-05-24 — `Result<T, String>` on use-case Tauri commands violates the wire-error contract
 
 **Found by:** reviewer-backend (`refactor/dates-naive-be`)
@@ -15,16 +25,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 **Where:** `src-tauri/src/use_cases/procedure_orchestration/api.rs:104,136,161,199` (`add_procedure`, `read_all_procedures`, `update_procedure`, `delete_procedure`). Same pattern across `src-tauri/src/use_cases/{excel_import,fund_payment_reconciliation}/api.rs`.
 
 **Observation:** Per `docs/error-model.md` § Tauri command boundary, commands should return a typed `{UseCase}Error` composite (`#[serde(untagged)]` wrapping per-BC error enums + a `{UseCase}Task` sub-enum for use-case-specific guards). The current `Result<T, String>` collapses every error into an opaque string on the wire — the FE loses the discriminated-union type for errors and Specta generates `string` instead of the typed error union. Pre-existing across all use-case command surfaces; surfaced by reviewer when `refactor/dates-naive-be` added a new parse-error path inside the already-String-mapped `add_procedure` command.
-
----
-
-## 2026-05-24 — Silent month-prefix fallback in Excel import skips malformed-date rows without logging
-
-**Found by:** reviewer-backend (`refactor/dates-naive-be`)
-
-**Where:** `src-tauri/src/use_cases/excel_import/orchestrator.rs:176` — `excel_proc.procedure_date.get(..7).unwrap_or("")` maps a malformed date string to an empty 7-char prefix that won't match any `allowed_months` entry, so the procedure is silently skipped. The downstream parse at line 209 would catch the same bad value and surface a hard error, but only for rows whose month-prefix happens to be in `allowed_months`.
-
-**Observation:** Two reasonable shapes: (a) emit `tracing::warn!` on the `None` branch before skipping; (b) drop the silent fallback and let line 209 be the single validation gate. Design call on warn-and-skip vs hard-fail-and-bubble. Pre-existing.
 
 ---
 
