@@ -125,7 +125,7 @@ The non-obvious facts that constrain future work — things you'd never guess fr
 - **Dev binaries live under `src-tauri/dev/`** and never ship in production. They are NOT placed in `src-tauri/src/bin/` — Tauri's NSIS bundler walks that directory on disk and fails on phantom `.exe` candidates (CI guards this; see gh#41).
   - `generate_bindings` — regenerates `src/bindings.ts` from Specta types. Run via `just generate-types`.
   - `generate_fixtures` (feature `dev-fixtures`) — inverse of import parsers; writes fixture `.xlsx` / `.pdf` artifacts under `src-tauri/tests/fixtures/{surface}/`.
-- **Import codec pattern**: each import surface (Excel, fund-PDF, bank-PDF) has a single typed contract with two peer consumers — the production parser and the dev generator — wired for round-trip equality (`parse(generate(scenario)) == scenario`). See [`docs/spec/import-codec-fixtures.md`](docs/spec/import-codec-fixtures.md). The round-trip integration tests live under `src-tauri/tests/codec_round_trip*.rs` and only compile under `--features dev-fixtures` (CI workflow: `.github/workflows/dev-fixtures.yml`).
+- **Import codec pattern**: each import surface (Excel, fund-PDF, bank-PDF) has a single typed contract with two peer consumers — the production parser and the dev generator — wired for round-trip equality (`parse(generate(scenario)) == scenario`). See [`docs/spec/import-codec-fixtures.md`](docs/spec/import-codec-fixtures.md). The round-trip integration tests live under `src-tauri/tests/codec_round_trip*.rs` and only compile under `--features dev-fixtures` (CI workflow: `.github/workflows/codec-gate.yml`).
 
 ---
 

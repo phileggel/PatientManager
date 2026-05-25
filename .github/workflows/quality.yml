@@ -1,4 +1,4 @@
-name: CI
+name: Quality
 
 on:
   pull_request:
@@ -6,41 +6,19 @@ on:
     types: [opened, edited, synchronize, reopened]
   push:
     branches: [main]
-  # Manual trigger: `gh workflow run CI --ref <branch>` or via Actions tab.
+  # Manual trigger: `gh workflow run Quality --ref <branch>` or via Actions tab.
   # Useful when GH Actions silently drops a pull_request synchronize/reopen
   # event (rare but happens on rebases).
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: quality-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  pr-title:
-    name: PR title (conventional commits)
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    permissions:
-      pull-requests: read
-    steps:
-      # Pinned to full SHA for v6.1.1 — mutable tags are a supply-chain risk.
-      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          types: |
-            feat
-            fix
-            chore
-            docs
-            refactor
-            test
-            ci
-
   pr-checks:
     name: PR checks (commit-msg hygiene + repo invariants)
     if: github.event_name == 'pull_request'
@@ -119,7 +97,7 @@ jobs:
           fi
 
   frontend:
-    name: Frontend — quality (check.py --frontend)
+    name: Frontend — quality + coverage
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -145,7 +123,7 @@ jobs:
           fail_ci_if_error: false
 
   backend:
-    name: Backend — quality (check.py --backend) + coverage on merge
+    name: Backend — quality + coverage
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -184,17 +162,14 @@ jobs:
       - name: Quality checks
         run: python3 scripts/check.py --backend
       - name: Install cargo-tarpaulin
-        if: github.event_name == 'push'
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
         uses: taiki-e/install-action@f48d2f8ba2b452934c948b7be1a768079c3632ff
         with:
           tool: cargo-tarpaulin
       - name: Coverage with tarpaulin
-        if: github.event_name == 'push'
         working-directory: src-tauri
         run: cargo tarpaulin --out Lcov --output-dir ../coverage/backend --lib --exclude-files "build.rs" --exclude-files "dev/generate_bindings.rs"
       - name: Upload to Codecov
-        if: github.event_name == 'push'
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -1,6 +1,6 @@
 # PatientManager
 
-![CI](https://github.com/phileggel/PatientManager/actions/workflows/ci.yml/badge.svg)
+![Quality](https://github.com/phileggel/PatientManager/actions/workflows/quality.yml/badge.svg)
 [![coverage](https://img.shields.io/codecov/c/github/phileggel/PatientManager?label=coverage)](https://codecov.io/gh/phileggel/PatientManager)
 [![frontend](https://img.shields.io/codecov/c/github/phileggel/PatientManager?flag=frontend&label=frontend)](https://codecov.io/gh/phileggel/PatientManager?flags=frontend)
 [![backend](https://img.shields.io/codecov/c/github/phileggel/PatientManager?flag=backend&label=backend)](https://codecov.io/gh/phileggel/PatientManager?flags=backend)
