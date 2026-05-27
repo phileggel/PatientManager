@@ -8,6 +8,9 @@ import type {
 } from "@/bindings";
 import { commands } from "@/bindings";
 import { logger } from "@/infra/logger";
+// TODO(typed-errors PR3-4): remove this alias once the use-case commands in
+// this file (createFundTransfer, deleteTransferByType, fund-group helpers, …)
+// are typed and the local untyped `ServiceResult<T>` below can be deleted.
 import type { ServiceResult as TypedServiceResult } from "@/types/api";
 
 export type ServiceResult<T> = {

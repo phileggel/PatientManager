@@ -897,4 +897,72 @@ mod tests {
             "is_silent=true must NOT publish FundPaymentGroupUpdated"
         );
     }
+
+    // --- DatabaseError translation arms ---
+    // Each service method translates a repository failure into
+    // `FundError::DatabaseError` via `.map_err(…)`. These tests exercise the
+    // `Err` branch of every such closure not already covered above.
+
+    #[tokio::test]
+    async fn fund_service_read_fund_repository_error_translates_to_database_error() {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_fund()
+            .returning(|_| Err(anyhow!("Mock repository error")));
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.read_fund("f1").await;
+
+        assert!(matches!(result, Err(FundError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn fund_service_find_fund_by_identifier_repository_error_translates() {
+        let mut mock = MockFundRepository::new();
+        mock.expect_find_fund_by_identifier()
+            .returning(|_| Err(anyhow!("Mock repository error")));
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.find_fund_by_identifier("93").await;
+
+        assert!(matches!(result, Err(FundError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn fund_service_update_fund_repository_error_translates() {
+        let mut mock = MockFundRepository::new();
+        mock.expect_update_fund()
+            .returning(|_| Err(anyhow!("Mock repository error")));
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.update_fund(make_fund()).await;
+
+        assert!(matches!(result, Err(FundError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn fund_service_create_batch_repository_error_translates() {
+        // Candidate is valid so the `Fund::new_with_temp_id` factory succeeds;
+        // the failure must come from the repository `create_batch` call so the
+        // `.map_err(… DatabaseError)` arm is the one under test.
+        let mut mock = MockFundRepository::new();
+        mock.expect_create_batch()
+            .returning(|_| Err(anyhow!("Mock repository error")));
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.create_batch(vec![make_candidate()]).await;
+
+        assert!(matches!(result, Err(FundError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_read_all_groups_repository_error_translates() {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_read_all_groups()
+            .returning(|| Err(anyhow!("Mock repository error")));
+        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.read_all_groups().await;
+
+        assert!(matches!(result, Err(FundError::DatabaseError)));
+    }
 }

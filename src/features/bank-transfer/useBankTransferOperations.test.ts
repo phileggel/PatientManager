@@ -63,4 +63,19 @@ describe("useBankTransferOperations", () => {
     await waitFor(() => expect(result.current.transfers).toHaveLength(1));
     expect(result.current.transfers[0]?.id).toBe("t2");
   });
+
+  it("leaves existing transfers untouched when a re-fetch from the event fails", async () => {
+    mockRead.mockResolvedValue({ success: true, data: [TRANSFER_1] });
+    const { result } = renderHook(() => useBankTransferOperations());
+    await waitFor(() => expect(result.current.transfers).toHaveLength(1));
+
+    // The event handler only commits on success; a failed re-fetch is ignored
+    // (no error surfaced, the prior list stays) — exercises the guard's false branch.
+    mockRead.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
+    act(() => window.dispatchEvent(new Event("banktransfer_updated")));
+
+    await waitFor(() => expect(mockRead).toHaveBeenCalledTimes(2));
+    expect(result.current.transfers).toHaveLength(1);
+    expect(result.current.transfers[0]?.id).toBe("t1");
+  });
 });

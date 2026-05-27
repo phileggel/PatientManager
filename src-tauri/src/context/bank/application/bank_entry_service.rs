@@ -52,18 +52,13 @@ impl BankEntryService {
                 bank_account_id: bank_account_id.clone(),
             })?;
 
-        let transfer = self
-            .repository
-            .create_transfer(transfer_date, amount, transfer_type, bank_account)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "create_transfer: repository failed");
-                // The repo wraps `BankEntry::new` which can raise typed domain
-                // errors (e.g. `AmountNotPositive`). Recover the typed variant if
-                // present; otherwise treat as infra.
-                e.downcast::<BankError>()
-                    .unwrap_or(BankError::DatabaseError)
-            })?;
+        // Domain construction happens in the service so typed domain errors
+        // (e.g. `AmountNotPositive`) surface directly — the repo just persists.
+        let entry = BankEntry::new(transfer_date, amount, transfer_type, bank_account)?;
+        let transfer = self.repository.create_transfer(entry).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "create_transfer: repository failed");
+            BankError::DatabaseError
+        })?;
 
         // Publish event
         if !is_silent {
@@ -254,22 +249,11 @@ mod tests {
 
     #[async_trait::async_trait]
     impl BankEntryRepository for MockBankEntryRepository {
-        async fn create_transfer(
-            &self,
-            transfer_date: String,
-            amount: i64,
-            transfer_type: BankEntryType,
-            bank_account: BankAccount,
-        ) -> anyhow::Result<BankEntry> {
+        async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
-            Ok(BankEntry::new(
-                transfer_date,
-                amount,
-                transfer_type,
-                bank_account,
-            )?)
+            Ok(transfer)
         }
 
         async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
@@ -404,19 +388,8 @@ mod tests {
 
     #[async_trait::async_trait]
     impl BankEntryRepository for MockBankEntryRepositoryReturnsNone {
-        async fn create_transfer(
-            &self,
-            transfer_date: String,
-            amount: i64,
-            transfer_type: BankEntryType,
-            bank_account: BankAccount,
-        ) -> anyhow::Result<BankEntry> {
-            Ok(BankEntry::new(
-                transfer_date,
-                amount,
-                transfer_type,
-                bank_account,
-            )?)
+        async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+            Ok(transfer)
         }
         async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
             Ok(None)
@@ -573,5 +546,215 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(BankError::BankAccountNotFound { .. })));
+    }
+
+    // ============ DatabaseError translation arms ============
+    // Each method translates a repository failure into `BankError::DatabaseError`
+    // via `.map_err(…)`. These tests drive each `Err` branch that the
+    // happy-path / not-found tests above do not reach.
+
+    /// Entry repo whose `read_transfer` returns a row but `delete_transfer`
+    /// fails — isolates the delete path's *second* `.map_err` arm (the first,
+    /// on `read_transfer`, is covered by the `should_fail` mock).
+    struct MockBankEntryRepoReadOkDeleteFails;
+
+    #[async_trait::async_trait]
+    impl BankEntryRepository for MockBankEntryRepoReadOkDeleteFails {
+        async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+            Ok(transfer)
+        }
+        async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
+            let account =
+                BankAccount::restore("acc-123".to_string(), "Main Account".to_string(), None);
+            Ok(Some(BankEntry::with_id(
+                "test-id".to_string(),
+                "2026-02-15".to_string(),
+                1000000,
+                BankEntryType::FundWire,
+                account,
+            )?))
+        }
+        async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>> {
+            Ok(vec![])
+        }
+        async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+            Ok(transfer)
+        }
+        async fn delete_transfer(&self, _id: &str) -> anyhow::Result<()> {
+            Err(anyhow!("Mock repository error"))
+        }
+        async fn persist_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+            Ok(transfer)
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_transfer_read_account_repository_error_translates() {
+        // account_repo fails → the `read_account` `.map_err` arm.
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service
+            .create_transfer(
+                "2026-02-15".to_string(),
+                1000000,
+                BankEntryType::FundWire,
+                "acc-123".to_string(),
+                false,
+            )
+            .await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_create_transfer_persist_repository_error_translates() {
+        // account_repo ok (account found, valid amount) → failure comes from the
+        // entry repo's `create_transfer` `.map_err` arm.
+        let repo = Arc::new(MockBankEntryRepository { should_fail: true });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service
+            .create_transfer(
+                "2026-02-15".to_string(),
+                1000000,
+                BankEntryType::FundWire,
+                "acc-123".to_string(),
+                false,
+            )
+            .await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_read_transfer_repository_error_translates() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: true });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service.read_transfer("test-id").await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_read_all_transfers_repository_error_translates() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: true });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service.read_all_transfers().await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_update_transfer_read_account_repository_error_translates() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let account = BankAccount::restore("acc-123".to_string(), "Main".to_string(), None);
+        let transfer = BankEntry::with_id(
+            "entry-1".to_string(),
+            "2026-03-01".to_string(),
+            200000,
+            BankEntryType::FundWire,
+            account,
+        )
+        .unwrap();
+
+        let result = service.update_transfer(transfer).await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_update_transfer_persist_repository_error_translates() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: true });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let account = BankAccount::restore("acc-123".to_string(), "Main".to_string(), None);
+        let transfer = BankEntry::with_id(
+            "entry-1".to_string(),
+            "2026-03-01".to_string(),
+            200000,
+            BankEntryType::FundWire,
+            account,
+        )
+        .unwrap();
+
+        let result = service.update_transfer(transfer).await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_persist_refund_transfer_read_account_repository_error_translates() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let account = BankAccount::restore("acc-123".to_string(), "Main".to_string(), None);
+        let transfer = BankEntry::restore(
+            "refund-1".to_string(),
+            "2026-03-01".to_string(),
+            -50000,
+            BankEntryType::FundOutgoingWire,
+            account,
+        );
+
+        let result = service.persist_refund_transfer(transfer, false).await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_persist_refund_transfer_persist_repository_error_translates() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: true });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let account = BankAccount::restore("acc-123".to_string(), "Main".to_string(), None);
+        let transfer = BankEntry::restore(
+            "refund-1".to_string(),
+            "2026-03-01".to_string(),
+            -50000,
+            BankEntryType::FundOutgoingWire,
+            account,
+        );
+
+        let result = service.persist_refund_transfer(transfer, false).await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_delete_transfer_read_repository_error_translates() {
+        // Entry repo fails on the existence-check `read_transfer` call.
+        let repo = Arc::new(MockBankEntryRepository { should_fail: true });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service.delete_transfer("test-id").await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_delete_transfer_delete_repository_error_translates() {
+        // Row exists (read_transfer Ok) but the `delete_transfer` call fails,
+        // isolating the delete path's second `.map_err` arm.
+        let repo = Arc::new(MockBankEntryRepoReadOkDeleteFails);
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let result = service.delete_transfer("test-id").await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
     }
 }

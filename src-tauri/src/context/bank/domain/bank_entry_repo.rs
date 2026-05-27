@@ -1,17 +1,14 @@
-use crate::context::bank::{BankAccount, BankEntry, BankEntryType};
+use crate::context::bank::BankEntry;
 
 /// BankEntryRepository trait defines the contract for bank transfer data access
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait BankEntryRepository: Send + Sync {
-    /// Create a new bank transfer
-    async fn create_transfer(
-        &self,
-        transfer_date: String,
-        amount: i64,
-        transfer_type: BankEntryType,
-        bank_account: BankAccount,
-    ) -> anyhow::Result<BankEntry>;
+    /// Persist a validated BankEntry. The service is responsible for calling
+    /// `BankEntry::new` first so typed domain errors (e.g. `AmountNotPositive`)
+    /// surface directly from the service, not through an `anyhow`-wrapped
+    /// downcast.
+    async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry>;
 
     /// Read a single transfer by ID with bank account info
     async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankEntry>>;

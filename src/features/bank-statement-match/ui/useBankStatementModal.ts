@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount, BankStatementParseResult, FundLabelResolution } from "@/bindings";
+import { formatBankError } from "@/features/bank-account/shared/presenter";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import {
@@ -225,8 +226,10 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
     try {
       const result = await createBankAccount(trimmedName, parseResult.iban);
       if (!result.success) {
-        // BAS-016 — narrow on the typed error code to surface the right toast.
-        const isIbanConflict = result.error.code === "IbanAlreadyUsed";
+        // BAS-016 — route the IBAN-conflict branching through the presenter so
+        // F27 Layer 3 stays the only place that maps error variants to keys.
+        const { key } = formatBankError(result.error);
+        const isIbanConflict = key === "bank:errors.iban_already_used";
         setCreateError(
           isIbanConflict
             ? t("statement.modal.createAccount.errorIbanAlreadyUsed")

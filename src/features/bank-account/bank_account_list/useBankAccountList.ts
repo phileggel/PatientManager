@@ -41,7 +41,7 @@ export function useBankAccountList() {
     const result = await deleteBankAccount(id);
     if (!result.success) {
       const { key, params } = formatBankError(result.error);
-      throw new Error(t(key, params) || "Failed to delete bank account");
+      throw new Error(t(key, params));
     }
   };
 

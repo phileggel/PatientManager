@@ -224,7 +224,6 @@
     "add": {
       "nameRequired": "Le nom du compte bancaire est obligatoire",
       "success": "Compte bancaire créé avec succès",
-      "error": "Échec de la création du compte bancaire",
       "errorUnknown": "Erreur inattendue lors de la création du compte bancaire"
     },
     "edit": {

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { formatBankError } from "@/features/bank-account/shared/presenter";
 import { logger } from "@/infra/logger";
@@ -23,6 +23,13 @@ export function useBankTransferOperations() {
   const { t } = useTranslation("bank");
   const { transfers, isLoading, error } = useBankTransferController();
 
+  // Translate the typed cache error at render (F27 Layer 4).
+  const errorMessage = useMemo(() => {
+    if (!error) return null;
+    const { key, params } = formatBankError(error);
+    return t(key, params);
+  }, [error, t]);
+
   // Initial load on mount
   useEffect(() => {
     let isMounted = true;
@@ -33,11 +40,10 @@ export function useBankTransferOperations() {
       if (result.success && result.data) {
         useBankTransferStore.setState({ transfers: result.data, loading: false });
       } else if (!result.success) {
-        const { key, params } = formatBankError(result.error);
-        useBankTransferStore.setState({
-          error: t(key, params) || "Failed to load",
-          loading: false,
-        });
+        // Store the typed error; the consumer translates at render via
+        // `formatBankError` + `useTranslation`. This keeps the I/O effect
+        // independent of the i18n `t` identity.
+        useBankTransferStore.setState({ error: result.error, loading: false });
       }
     };
 
@@ -46,7 +52,7 @@ export function useBankTransferOperations() {
     return () => {
       isMounted = false;
     };
-  }, [t]);
+  }, []);
 
   // Event listener for real-time updates
   useEffect(() => {
@@ -71,7 +77,7 @@ export function useBankTransferOperations() {
   return {
     transfers,
     isLoading,
-    error,
+    error: errorMessage,
     deleteTransfer: deleteTransferByType,
   };
 }
