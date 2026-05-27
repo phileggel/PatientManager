@@ -117,7 +117,7 @@ describe("useEditPatientModal", () => {
 
   it("shows error toast and does not call onSuccess when gateway returns failure", async () => {
     const patient = makeTestPatient("p-1", "Dupont Jean", "111");
-    mockUpdate.mockResolvedValue({ success: false, error: "Duplicate name" });
+    mockUpdate.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     const { result } = renderHook(() => useEditPatientModal(patient, onSuccess));
 

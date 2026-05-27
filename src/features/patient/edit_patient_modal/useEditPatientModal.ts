@@ -4,7 +4,7 @@ import type { Patient } from "@/bindings";
 import { updatePatient } from "@/features/patient/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
-import { PatientPresenter } from "../shared/presenter";
+import { formatPatientError, PatientPresenter } from "../shared/presenter";
 import type { PatientFormData } from "../shared/types";
 import { type FormErrors, validatePatient } from "../shared/validatePatient";
 
@@ -74,8 +74,9 @@ export function useEditPatientModal(patient: Patient | null, onSuccess?: () => v
         toastService.show("success", t("action.updateSuccess", { name: result.data?.name }));
         onSuccess?.();
       } else {
-        logger.error("Failed to update patient", { error: result.error });
-        toastService.show("error", t("action.updateError", { error: result.error }));
+        const { key, params } = formatPatientError(result.error);
+        logger.error("Failed to update patient", { code: result.error.code });
+        toastService.show("error", t("action.updateError", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while updating patient", { error });

@@ -7,8 +7,15 @@
  * * @author 2026 Project Team
  */
 
-// Service result types
-export type ServiceResult<T = void> =
+// Service result types.
+//
+// `E` defaults to `string` so gateways that still return raw anyhow-formatted
+// strings keep working unchanged. Gateways for BCs migrated to the typed-error
+// gold (PatientError, ProcedureError, …) parameterise `E` and pass the typed
+// error through verbatim — the consumer (hook/component) translates via the
+// feature's presenter + `useTranslation`. Per F27: gateways are pure
+// pass-throughs; translation is Layer 4 (the render site).
+export type ServiceResult<T = void, E = string> =
   | {
       success: true;
       data: T;
@@ -17,5 +24,5 @@ export type ServiceResult<T = void> =
   | {
       success: false;
       data?: never;
-      error: string;
+      error: E;
     };

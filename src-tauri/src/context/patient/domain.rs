@@ -144,3 +144,53 @@ impl Patient {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_rejects_empty_name_on_non_anonymous() {
+        let result = Patient::new(false, Some("   ".to_string()), None);
+        assert!(matches!(result, Err(PatientError::NameEmpty)));
+    }
+
+    #[test]
+    fn new_rejects_missing_name_on_non_anonymous() {
+        let result = Patient::new(false, None, None);
+        assert!(matches!(
+            result,
+            Err(PatientError::NonAnonymousRequiresName)
+        ));
+    }
+
+    #[test]
+    fn new_rejects_invalid_ssn_too_short() {
+        let result = Patient::new(false, Some("Marie".to_string()), Some("123".to_string()));
+        assert!(matches!(result, Err(PatientError::InvalidSsn)));
+    }
+
+    #[test]
+    fn new_rejects_invalid_ssn_non_numeric() {
+        let result = Patient::new(
+            false,
+            Some("Marie".to_string()),
+            Some("123456789012A".to_string()),
+        );
+        assert!(matches!(result, Err(PatientError::InvalidSsn)));
+    }
+
+    #[test]
+    fn new_accepts_anonymous_without_name_or_ssn() {
+        let result = Patient::new(true, None, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn with_id_validates_like_new() {
+        let bad = Patient::with_id("id-1".to_string(), false, Some("".to_string()), None);
+        assert!(matches!(bad, Err(PatientError::NameEmpty)));
+        let ok = Patient::with_id("id-1".to_string(), false, Some("Marie".to_string()), None);
+        assert!(ok.is_ok());
+    }
+}

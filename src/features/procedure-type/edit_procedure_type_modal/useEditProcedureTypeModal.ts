@@ -4,7 +4,7 @@ import type { ProcedureType } from "@/bindings";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { updateProcedureType } from "../gateway";
-import { ProcedureTypePresenter } from "../shared/presenter";
+import { formatProcedureError, ProcedureTypePresenter } from "../shared/presenter";
 import type { FormErrors, ProcedureTypeFormData } from "../shared/types";
 import { validateProcedureType } from "../shared/validateProcedureType";
 
@@ -83,8 +83,9 @@ export function useEditProcedureTypeModal(
         toastService.show("success", t("action.updateSuccess", { name: result.data?.name }));
         onSuccess?.();
       } else {
-        logger.error("Failed to update procedure type", { error: result.error });
-        toastService.show("error", t("action.updateError", { error: result.error }));
+        const { key, params } = formatProcedureError(result.error);
+        logger.error("Failed to update procedure type", { code: result.error.code });
+        toastService.show("error", t("action.updateError", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while updating procedure type", { error });

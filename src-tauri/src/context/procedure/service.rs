@@ -437,11 +437,10 @@ mod tests {
         let result = service
             .add_procedure_type("   ".to_string(), 100000, None)
             .await;
-        assert!(result.is_err());
-        assert!(
-            result.unwrap_err().to_string().contains("cannot be empty"),
-            "Expected 'cannot be empty' error for blank name"
-        );
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ProcedureTypeNameEmpty)
+        ));
     }
 
     #[tokio::test]
@@ -453,14 +452,7 @@ mod tests {
         let result = service
             .add_procedure_type("Valid Name".to_string(), -1, None)
             .await;
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("cannot be negative"),
-            "Expected 'cannot be negative' error for negative amount"
-        );
+        assert!(matches!(result, Err(ProcedureError::DefaultAmountNegative)));
     }
 
     #[tokio::test]
@@ -472,8 +464,10 @@ mod tests {
         let result = service
             .add_procedure_type("consultation".to_string(), 100000, None)
             .await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("already exists"));
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ProcedureTypeNameDuplicate)
+        ));
     }
 
     #[tokio::test]
@@ -497,8 +491,10 @@ mod tests {
         );
         let pt = ProcedureType::restore("import-pdf".to_string(), "Import".to_string(), 0, None);
         let result = service.update_procedure_type(pt).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("import-pdf"));
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ReservedTypeNotMutable)
+        ));
     }
 
     #[tokio::test]
@@ -508,8 +504,10 @@ mod tests {
             Arc::new(EventBus::new()),
         );
         let result = service.delete_procedure_type("import-pdf").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("import-pdf"));
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ReservedTypeNotMutable)
+        ));
     }
 
     #[tokio::test]
@@ -525,8 +523,10 @@ mod tests {
             None,
         );
         let result = service.update_procedure_type(pt).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("already exists"));
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ProcedureTypeNameDuplicate)
+        ));
     }
 
     #[tokio::test]
@@ -748,5 +748,78 @@ mod tests {
         .unwrap();
         let result = service.update_procedure(p).await;
         assert!(result.is_ok());
+    }
+
+    // ------------------------------------------------------------------
+    // ProcedureTypeService — repo-failure branch coverage. Each `map_err`
+    // arm translates an `anyhow::Error` from the repository into
+    // `ProcedureError::DatabaseError`; the happy path tests above only
+    // exercise success returns, so the closures stay un-touched without
+    // these tests.
+    // ------------------------------------------------------------------
+
+    #[tokio::test]
+    async fn read_all_procedure_types_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_all_procedure_types()
+            .returning(|| Err(anyhow!("conn refused")));
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service.read_all_procedure_types().await;
+        assert!(matches!(result, Err(ProcedureError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn read_procedure_type_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service.read_procedure_type("any-id").await;
+        assert!(matches!(result, Err(ProcedureError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn add_procedure_type_translates_find_by_name_failure_to_database_error() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_find_by_name()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service
+            .add_procedure_type("Consultation".to_string(), 100_000, None)
+            .await;
+        assert!(matches!(result, Err(ProcedureError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn update_procedure_type_translates_find_by_name_failure_to_database_error() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_find_by_name()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let pt = ProcedureType::restore(
+            "pt-1".to_string(),
+            "Consultation".to_string(),
+            100_000,
+            None,
+        );
+        let result = service.update_procedure_type(pt).await;
+        assert!(matches!(result, Err(ProcedureError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn update_procedure_type_translates_update_failure_to_database_error() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_find_by_name().returning(|_| Ok(None));
+        mock.expect_update_procedure_type()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let pt = ProcedureType::restore(
+            "pt-1".to_string(),
+            "Consultation".to_string(),
+            100_000,
+            None,
+        );
+        let result = service.update_procedure_type(pt).await;
+        assert!(matches!(result, Err(ProcedureError::DatabaseError)));
     }
 }

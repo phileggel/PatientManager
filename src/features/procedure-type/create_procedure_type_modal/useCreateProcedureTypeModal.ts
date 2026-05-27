@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { addProcedureType } from "@/features/procedure-type/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
+import { formatProcedureError } from "../shared/presenter";
 import type { FormErrors, ProcedureTypeFormData } from "../shared/types";
 import { validateProcedureType } from "../shared/validateProcedureType";
 
@@ -65,8 +66,9 @@ export function useCreateProcedureTypeModal(isOpen: boolean, onClose: () => void
         toastService.show("success", t("action.addSuccess"));
         onClose();
       } else {
-        logger.error("Failed to create procedure type", { error: result.error });
-        toastService.show("error", t("action.addError", { error: result.error }));
+        const { key, params } = formatProcedureError(result.error);
+        logger.error("Failed to create procedure type", { code: result.error.code });
+        toastService.show("error", t("action.addError", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while creating procedure type", { error });

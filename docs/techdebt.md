@@ -8,6 +8,16 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-05-27 — `validate_batch` DTO field leaks anyhow string into the wire
+
+**Found by:** reviewer-backend (`refactor/typed-errors-patient-procedure` @ `602db31`)
+
+**Where:** `src-tauri/src/context/patient/service.rs:140` — inside `PatientService::validate_batch`, the per-candidate SSN-lookup error arm builds `result.error = Some(format!("Database error checking SSN: {}", e))`, where `e` is the `anyhow::Error` returned by the repository.
+
+**Observation:** The `PatientValidationResult.error` field exposes an untyped `Option<String>` carrying the raw `anyhow::Error` Display output on the batch-validation wire path. PR 1 of the typed-error migration leaves this surface unchanged because changing it requires modifying `PatientValidationResult.error` to a typed shape (struct variant or separate code/message split) — a DTO change that fans into the contract + FE consumers. Naturally folds into PR 3 of the migration, when the repo trait error type itself is reconsidered.
+
+---
+
 ## 2026-05-25 — Backend i18n gap: skip-report `reason` strings hardcoded in French
 
 **Found by:** spec-checker (`feat/excel-import-skipped-procedures`)

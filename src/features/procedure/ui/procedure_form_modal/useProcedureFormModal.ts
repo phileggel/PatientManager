@@ -12,6 +12,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Patient, Procedure } from "@/bindings";
+import { formatPatientError } from "@/features/patient/shared/presenter";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
@@ -250,8 +251,9 @@ export function useProcedureFormModal({
     async (data: { name: string; ssn?: string }) => {
       const result = await gateway.createNewPatient(data.name, data.ssn ?? null);
       if (!result.success) {
-        logger.error(`${TAG} Error creating patient`, { error: result.error });
-        toastService.show("error", result.error || tc("error.unknown"));
+        const { key, params } = formatPatientError(result.error);
+        logger.error(`${TAG} Error creating patient`, { code: result.error.code });
+        toastService.show("error", t(key, params) || tc("error.unknown"));
         return;
       }
       const patient: Patient = result.data;
@@ -259,7 +261,7 @@ export function useProcedureFormModal({
       setFieldErrors((prev) => ({ ...prev, patientId: undefined }));
       setPatientModal({ open: false, query: "" });
     },
-    [tc],
+    [t, tc],
   );
 
   const selectedPatient = useMemo(

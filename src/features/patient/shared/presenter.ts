@@ -1,26 +1,27 @@
 import type { Fund, Patient, PatientError, ProcedureType } from "@/bindings";
-import i18n from "@/i18n/config";
 import type { PatientFormData, PatientRow } from "./types";
 
 /**
- * Maps a typed PatientError variant to a translated, user-facing message.
- *
  * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping.
- * The gateway converts wire-typed errors here so callers (hooks, components)
- * see a single localized string in `ServiceResult.error` regardless of locale.
+ * Returns `{ key, params }`; the caller (Layer 4) calls `t(key, params)`
+ * to translate. The presenter has no runtime dependency on i18next, so it
+ * is trivially unit-testable.
  *
  * Exhaustive switch — every PatientError variant has an entry.
  */
-export function formatPatientError(err: PatientError): string {
+export function formatPatientError(err: PatientError): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
   switch (err.code) {
     case "NameEmpty":
-      return i18n.t("patient:errors.nameEmpty");
+      return { key: "patient:errors.name_empty" };
     case "NonAnonymousRequiresName":
-      return i18n.t("patient:errors.nonAnonymousRequiresName");
+      return { key: "patient:errors.non_anonymous_requires_name" };
     case "InvalidSsn":
-      return i18n.t("patient:errors.invalidSsn");
+      return { key: "patient:errors.invalid_ssn" };
     case "DatabaseError":
-      return i18n.t("patient:errors.databaseError");
+      return { key: "patient:errors.database_error" };
   }
 }
 

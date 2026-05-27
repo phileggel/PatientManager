@@ -48,15 +48,15 @@
     }
   },
   "errors": {
-    "patientIdEmpty": "L'identifiant du patient ne peut pas être vide",
-    "procedureTypeIdEmpty": "L'identifiant du type d'acte ne peut pas être vide",
-    "nameEmpty": "Le nom du type d'acte ne peut pas être vide",
-    "defaultAmountNegative": "Le montant par défaut ne peut pas être négatif",
-    "notFound": "Type d'acte introuvable (id : {{id}})",
-    "nameDuplicate": "Un type d'acte avec ce nom existe déjà",
-    "reservedNotMutable": "Le type réservé import-pdf ne peut pas être modifié",
-    "refundReasonTooLong": "Le motif de remboursement ne doit pas dépasser 255 caractères",
-    "invalidRefundDateFormat": "Format de date de remboursement invalide (attendu : AAAA-MM-JJ)",
-    "databaseError": "Une erreur de base de données est survenue"
+    "patient_id_empty": "L'identifiant du patient ne peut pas être vide",
+    "procedure_type_id_empty": "L'identifiant du type d'acte ne peut pas être vide",
+    "name_empty": "Le nom du type d'acte ne peut pas être vide",
+    "default_amount_negative": "Le montant par défaut ne peut pas être négatif",
+    "not_found": "Type d'acte introuvable (id : {{id}})",
+    "name_duplicate": "Un type d'acte avec ce nom existe déjà",
+    "reserved_not_mutable": "Le type réservé import-pdf ne peut pas être modifié",
+    "refund_reason_too_long": "Le motif de remboursement ne doit pas dépasser 255 caractères",
+    "invalid_refund_date_format": "Format de date de remboursement invalide (attendu : AAAA-MM-JJ)",
+    "database_error": "Une erreur de base de données est survenue"
   }
 }

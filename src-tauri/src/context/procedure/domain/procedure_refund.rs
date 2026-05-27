@@ -1,4 +1,3 @@
-use anyhow::Result;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -47,7 +46,7 @@ impl ProcedureRefund {
         refund_date: String,
         reason: Option<String>,
         previous_payment_status: ProcedureStatus,
-    ) -> Result<Self> {
+    ) -> Result<Self, ProcedureError> {
         Self::validate(&reason)?;
 
         let parsed_date = NaiveDate::parse_from_str(&refund_date, "%Y-%m-%d")
@@ -159,8 +158,7 @@ mod tests {
             Some(long_reason),
             ProcedureStatus::FundPaid,
         );
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("255"));
+        assert!(matches!(result, Err(ProcedureError::RefundReasonTooLong)));
     }
 
     #[test]

@@ -50,9 +50,9 @@
     "amount": "Amount"
   },
   "errors": {
-    "nameEmpty": "Patient name cannot be empty",
-    "nonAnonymousRequiresName": "A non-anonymous patient must have a name",
-    "invalidSsn": "SSN must be 13 numeric digits",
-    "databaseError": "An unexpected database error occurred"
+    "name_empty": "Patient name cannot be empty",
+    "non_anonymous_requires_name": "A non-anonymous patient must have a name",
+    "invalid_ssn": "SSN must be 13 numeric digits",
+    "database_error": "An unexpected database error occurred"
   }
 }

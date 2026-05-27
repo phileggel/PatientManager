@@ -72,7 +72,7 @@ describe("useCreateProcedureTypeModal", () => {
   it("shows error toast and keeps modal open on backend error (duplicate)", async () => {
     mockAddProcedureType.mockResolvedValue({
       success: false,
-      error: "Un type d'acte portant ce nom existe déjà",
+      error: { code: "ProcedureTypeNameDuplicate" },
     });
 
     const { result } = renderHook(() => useCreateProcedureTypeModal(true, onClose));

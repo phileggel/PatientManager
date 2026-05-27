@@ -216,16 +216,13 @@ describe("fetchAllPatients", () => {
     expect(result).toEqual({ success: true, data: [SAMPLE_PATIENT] });
   });
 
-  it("returns failure result on command error", async () => {
+  it("passes typed PatientError through unchanged on command error", async () => {
     vi.mocked(commands.readAllPatients).mockResolvedValue({
       status: "error",
       error: { code: "DatabaseError" },
     });
     const result = await fetchAllPatients();
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/database error/i);
-    }
+    expect(result).toEqual({ success: false, error: { code: "DatabaseError" } });
   });
 });
 
@@ -259,16 +256,13 @@ describe("fetchAllProcedureTypes", () => {
     expect(result).toEqual({ success: true, data: [SAMPLE_PROCEDURE_TYPE] });
   });
 
-  it("returns failure result on command error", async () => {
+  it("passes typed ProcedureError through unchanged on command error", async () => {
     vi.mocked(commands.readAllProcedureTypes).mockResolvedValue({
       status: "error",
       error: { code: "DatabaseError" },
     });
     const result = await fetchAllProcedureTypes();
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/database error/i);
-    }
+    expect(result).toEqual({ success: false, error: { code: "DatabaseError" } });
   });
 });
 
@@ -287,16 +281,13 @@ describe("createNewPatient", () => {
     expect(result).toEqual({ success: true, data: SAMPLE_PATIENT });
   });
 
-  it("returns failure result on command error", async () => {
+  it("passes typed PatientError through unchanged on command error", async () => {
     vi.mocked(commands.addPatient).mockResolvedValue({
       status: "error",
       error: { code: "InvalidSsn" },
     });
     const result = await createNewPatient(null, null);
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/13 numeric digits/i);
-    }
+    expect(result).toEqual({ success: false, error: { code: "InvalidSsn" } });
   });
 });
 
@@ -341,15 +332,15 @@ describe("createNewProcedureType", () => {
     expect(commands.addProcedureType).toHaveBeenCalledWith("Radio", 50000, "Imaging");
   });
 
-  it("returns failure result on command error", async () => {
+  it("passes typed ProcedureError through unchanged on command error", async () => {
     vi.mocked(commands.addProcedureType).mockResolvedValue({
       status: "error",
       error: { code: "ProcedureTypeNameDuplicate" },
     });
     const result = await createNewProcedureType("Consultation", null, null);
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/already exists/i);
-    }
+    expect(result).toEqual({
+      success: false,
+      error: { code: "ProcedureTypeNameDuplicate" },
+    });
   });
 });

@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCacheStore } from "@/infra/cache/store";
 import { deleteProcedureType, reloadProcedureTypes } from "../gateway";
-import { ProcedureTypePresenter } from "../shared/presenter";
+import { formatProcedureError, ProcedureTypePresenter } from "../shared/presenter";
 import { RESERVED_PROCEDURE_TYPE_ID } from "../shared/types";
 
 /**
@@ -30,6 +30,14 @@ export function useProcedureTypeList() {
     [visibleProcedureTypes],
   );
 
+  // Translate the typed cache error at render (F27 Layer 4 — `t(key, params)`
+  // off the presenter's pure key mapping).
+  const errorMessage = useMemo(() => {
+    if (!procedureTypesError) return null;
+    const { key, params } = formatProcedureError(procedureTypesError);
+    return t(key, params);
+  }, [procedureTypesError, t]);
+
   const retry = useCallback(async () => {
     setLoading("procedureTypes", true);
     const result = await reloadProcedureTypes();
@@ -37,7 +45,7 @@ export function useProcedureTypeList() {
       setProcedureTypes(result.data);
       setProcedureTypesError(null);
     } else {
-      setProcedureTypesError(result.error ?? null);
+      setProcedureTypesError(result.error);
     }
     setLoading("procedureTypes", false);
   }, [setProcedureTypes, setProcedureTypesError, setLoading]);
@@ -46,7 +54,8 @@ export function useProcedureTypeList() {
     async (id: string) => {
       const result = await deleteProcedureType(id);
       if (!result.success) {
-        throw new Error(result.error || t("action.delete.failedFallback"));
+        const { key, params } = formatProcedureError(result.error);
+        throw new Error(t(key, params) || t("action.delete.failedFallback"));
       }
     },
     [t],
@@ -56,7 +65,7 @@ export function useProcedureTypeList() {
     procedureTypeRows,
     procedureTypes: visibleProcedureTypes,
     loading: procedureTypesLoading,
-    error: procedureTypesError,
+    error: errorMessage,
     retry,
     deleteProcedureType: deleteProcedureTypeHandler,
   };
