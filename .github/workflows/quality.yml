@@ -88,7 +88,6 @@ jobs:
         # [[bin]] entries in Cargo.toml, so `required-features` gating is
         # insufficient. Only emptying src/bin/ prevents the Windows-release
         # bundling failure. Dev binaries belong in src-tauri/dev/.
-        # Refs: d79a245 (PatientManager fix), gh#41.
         shell: bash
         run: |
           if [ -d src-tauri/src/bin ] && [ -n "$(ls -A src-tauri/src/bin/)" ]; then
