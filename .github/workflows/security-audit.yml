@@ -33,9 +33,8 @@ jobs:
         # --audit-level=moderate: fail on moderate, high, and critical CVEs.
         # Low-severity issues are informational only and do not block.
         # --omit=dev: skip devDependencies — Tauri ships no devDeps in the
-        # production bundle, so dev-only advisories (e.g. WebDriver / mocha
-        # tooling, see docs/techdebt.md serialize-javascript entry) are not
-        # release blockers. CI/dev exposure is tracked separately.
+        # production bundle, so dev-only advisories are not release blockers.
+        # CI/dev exposure is tracked separately.
         # No `npm ci` needed — `npm audit` reads package-lock.json directly.
         run: npm audit --audit-level=moderate --omit=dev
 
@@ -62,5 +61,5 @@ jobs:
         shell: bash
         working-directory: src-tauri
         # --ignore RUSTSEC-2023-0071: rsa Marvin Attack — accepted risk (sqlx-mysql transitive,
-        # sqlite-only project, no fix available). See docs/techdebt.md entry "RUSTSEC-2023-0071".
+        # sqlite-only project, no fix available).
         run: cargo audit --ignore RUSTSEC-2023-0071
