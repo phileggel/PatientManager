@@ -23,7 +23,7 @@ export function useFundList() {
     const result = await deleteFund(id);
     if (!result.success) {
       const { key, params } = formatFundError(result.error);
-      throw new Error(t(key, params) || t("action.delete.failedFallback"));
+      throw new Error(t(key, params));
     }
   };
 

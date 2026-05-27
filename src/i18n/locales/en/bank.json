@@ -224,7 +224,6 @@
     "add": {
       "nameRequired": "Bank account name is required",
       "success": "Bank account created successfully",
-      "error": "Failed to create bank account",
       "errorUnknown": "Unexpected error creating bank account"
     },
     "edit": {

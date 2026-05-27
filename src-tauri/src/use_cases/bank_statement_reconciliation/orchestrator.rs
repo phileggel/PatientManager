@@ -489,7 +489,10 @@ impl BankStatementOrchestrator {
         &self,
         iban: &str,
     ) -> anyhow::Result<Option<crate::context::bank::BankAccount>> {
-        Ok(self.bank_account_service.find_account_by_iban(iban).await?)
+        self.bank_account_service
+            .find_account_by_iban(iban)
+            .await
+            .map_err(Into::into)
     }
 }
 
@@ -657,18 +660,7 @@ mod tests {
 
     fn bank_entry_repo_noop() -> MockBankEntryRepository {
         let mut mock = MockBankEntryRepository::new();
-        mock.expect_create_transfer().returning(
-            |transfer_date, amount, transfer_type, bank_account| {
-                use crate::context::bank::BankEntry;
-                Ok(BankEntry::restore(
-                    uuid::Uuid::new_v4().to_string(),
-                    transfer_date,
-                    amount,
-                    transfer_type,
-                    bank_account,
-                ))
-            },
-        );
+        mock.expect_create_transfer().returning(Ok);
         mock.expect_read_transfer().returning(|_| Ok(None));
         mock.expect_read_all_transfers().returning(|| Ok(vec![]));
         mock.expect_update_transfer().returning(Ok);

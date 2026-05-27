@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { BankError } from "@/bindings";
 import { makeBankAccount } from "@/tests/bank.factory";
-import { BankAccountPresenter } from "./presenter";
+import { BankAccountPresenter, formatBankError } from "./presenter";
 
 describe("BankAccountPresenter.toRow", () => {
   it("maps id, name, and iban from domain object and generates a rowId", () => {
@@ -43,5 +44,60 @@ describe("BankAccountPresenter.toFormData", () => {
     const account = makeBankAccount({ name: "BNP", iban: null });
 
     expect(BankAccountPresenter.toFormData(account)).toEqual({ name: "BNP", iban: "" });
+  });
+});
+
+describe("formatBankError - F27 Layer 3 (pure code → key mapping)", () => {
+  it("maps BankAccountNameEmpty to its key, no params", () => {
+    const err: BankError = { code: "BankAccountNameEmpty" };
+    expect(formatBankError(err)).toEqual({ key: "bank:errors.bank_account_name_empty" });
+  });
+
+  it("maps RefundOnlyVariantRejected to its key", () => {
+    const err: BankError = { code: "RefundOnlyVariantRejected" };
+    expect(formatBankError(err)).toEqual({ key: "bank:errors.refund_only_variant_rejected" });
+  });
+
+  it("maps AmountNotPositive to its key", () => {
+    const err: BankError = { code: "AmountNotPositive" };
+    expect(formatBankError(err)).toEqual({ key: "bank:errors.amount_not_positive" });
+  });
+
+  it("maps InvalidTransferDateFormat to its key", () => {
+    const err: BankError = { code: "InvalidTransferDateFormat" };
+    expect(formatBankError(err)).toEqual({ key: "bank:errors.invalid_transfer_date_format" });
+  });
+
+  it("maps IbanAlreadyUsed to its key WITHOUT a payload (IBAN is PII)", () => {
+    const err: BankError = { code: "IbanAlreadyUsed" };
+    const result = formatBankError(err);
+    expect(result).toEqual({ key: "bank:errors.iban_already_used" });
+    expect(result.params).toBeUndefined();
+  });
+
+  it("maps BankAccountNotFound to its key WITH the account id as a param", () => {
+    const err: BankError = { code: "BankAccountNotFound", bank_account_id: "acc-7" };
+    expect(formatBankError(err)).toEqual({
+      key: "bank:errors.bank_account_not_found",
+      params: { id: "acc-7" },
+    });
+  });
+
+  it("maps ProtectedCashAccount to its key", () => {
+    const err: BankError = { code: "ProtectedCashAccount" };
+    expect(formatBankError(err)).toEqual({ key: "bank:errors.protected_cash_account" });
+  });
+
+  it("maps TransferNotFound to its key WITH the transfer id as a param", () => {
+    const err: BankError = { code: "TransferNotFound", bank_transfer_id: "txn-9" };
+    expect(formatBankError(err)).toEqual({
+      key: "bank:errors.transfer_not_found",
+      params: { id: "txn-9" },
+    });
+  });
+
+  it("maps DatabaseError to its key", () => {
+    const err: BankError = { code: "DatabaseError" };
+    expect(formatBankError(err)).toEqual({ key: "bank:errors.database_error" });
   });
 });

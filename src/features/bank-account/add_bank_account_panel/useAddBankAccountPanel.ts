@@ -70,7 +70,7 @@ export function useAddBankAccountPanel(): UseAddBankAccountPanelReturn {
       } else {
         const { key, params } = formatBankError(result.error);
         logger.error("Failed to create bank account", { code: result.error.code });
-        const message = t(key, params) || t("account.add.error");
+        const message = t(key, params);
         setErrors({ name: message });
         toastService.show("error", message);
       }

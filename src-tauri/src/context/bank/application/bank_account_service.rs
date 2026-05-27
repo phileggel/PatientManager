@@ -240,6 +240,32 @@ mod tests {
         assert_eq!(account.name, "Main Account");
     }
 
+    // R5 — a provided IBAN with no existing match passes the uniqueness check
+    // and the account is created. Exercises `ensure_iban_unique`'s no-conflict
+    // branch (the `else { return Ok(()) }` when the lookup returns None) plus
+    // the create path carrying a real IBAN value — distinct from the iban=None
+    // fast-path covered by `test_create_account_success`.
+    #[tokio::test]
+    async fn test_create_account_with_unique_iban_succeeds() {
+        // MockBankAccountRepository returns None from find_by_iban_including_deleted,
+        // so the supplied IBAN is treated as unique.
+        let repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service
+            .create_account(
+                "Main".to_string(),
+                Some("FR7611111111111111111111111".to_string()),
+            )
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "unique IBAN must pass; got: {:?}",
+            result.err()
+        );
+    }
+
     #[tokio::test]
     async fn test_create_account_trims_whitespace() {
         let repo = Arc::new(MockBankAccountRepository { should_fail: false });
@@ -611,5 +637,95 @@ mod tests {
             "self-match IBAN on update must succeed; got: {:?}",
             result.unwrap_err()
         );
+    }
+
+    // ============ DatabaseError translation arms ============
+    // Each method translates a repository failure into `BankError::DatabaseError`
+    // via `.map_err(…)`. `MockBankAccountRepository { should_fail: true }` makes
+    // every repository call return an error, exercising those `Err` branches.
+
+    #[tokio::test]
+    async fn test_create_account_repository_error_translates_to_database_error() {
+        // iban = None skips `ensure_iban_unique`, so the failure originates from
+        // the `create_account` repository call's own `.map_err` arm.
+        let repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.create_account("Main".to_string(), None).await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_ensure_iban_unique_repository_error_translates_to_database_error() {
+        // Supplying an IBAN forces the uniqueness lookup, whose failure must
+        // surface as DatabaseError (not be mistaken for IbanAlreadyUsed).
+        let repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service
+            .create_account(
+                "Main".to_string(),
+                Some("FR7611111111111111111111111".to_string()),
+            )
+            .await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_read_account_repository_error_translates_to_database_error() {
+        let repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.read_account("acc-1").await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_read_all_accounts_repository_error_translates_to_database_error() {
+        let repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.read_all_accounts().await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_find_account_by_iban_repository_error_translates_to_database_error() {
+        let repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.find_account_by_iban("FR76123456").await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_update_account_repository_error_translates_to_database_error() {
+        // Non-cash id + iban = None reaches the `update_account` repository call,
+        // whose failure is the `.map_err` arm under test.
+        let repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service
+            .update_account("acc-1".to_string(), "Renamed".to_string(), None)
+            .await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn test_delete_account_repository_error_translates_to_database_error() {
+        // The existence check (`read_account`) fails first, exercising the
+        // delete path's read `.map_err` arm.
+        let repo = Arc::new(MockBankAccountRepository { should_fail: true });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.delete_account("acc-1").await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
     }
 }

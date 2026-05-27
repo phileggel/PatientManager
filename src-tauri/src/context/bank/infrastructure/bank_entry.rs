@@ -18,15 +18,7 @@ impl SqliteBankEntryRepository {
 
 #[async_trait::async_trait]
 impl BankEntryRepository for SqliteBankEntryRepository {
-    async fn create_transfer(
-        &self,
-        transfer_date: String,
-        amount: i64,
-        transfer_type: BankEntryType,
-        bank_account: BankAccount,
-    ) -> anyhow::Result<BankEntry> {
-        let transfer = BankEntry::new(transfer_date, amount, transfer_type, bank_account)?;
-
+    async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
         let type_str = transfer_type_to_str(transfer.transfer_type);
 
         tracing::info!(

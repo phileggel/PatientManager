@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Fund } from "@/bindings";
-import { FundPresenter } from "./presenter";
+import type { Fund, FundError } from "@/bindings";
+import { FundPresenter, formatFundError } from "./presenter";
 
 /**
  * FundPresenter - Gold Test Suite
@@ -188,5 +188,58 @@ describe("FundPresenter", () => {
 
       expect(result.fundName).toBeNull();
     });
+  });
+});
+
+describe("formatFundError - F27 Layer 3 (pure code → key mapping)", () => {
+  it("maps FundIdentifierEmpty to its key, no params", () => {
+    const err: FundError = { code: "FundIdentifierEmpty" };
+    expect(formatFundError(err)).toEqual({ key: "fund:errors.fund_identifier_empty" });
+  });
+
+  it("maps FundNameEmpty to its key", () => {
+    const err: FundError = { code: "FundNameEmpty" };
+    expect(formatFundError(err)).toEqual({ key: "fund:errors.fund_name_empty" });
+  });
+
+  it("maps FundIdEmpty to its key", () => {
+    const err: FundError = { code: "FundIdEmpty" };
+    expect(formatFundError(err)).toEqual({ key: "fund:errors.fund_id_empty" });
+  });
+
+  it("maps TotalAmountNotPositive to its key", () => {
+    const err: FundError = { code: "TotalAmountNotPositive" };
+    expect(formatFundError(err)).toEqual({ key: "fund:errors.total_amount_not_positive" });
+  });
+
+  it("maps InvalidPaymentDateFormat to its key", () => {
+    const err: FundError = { code: "InvalidPaymentDateFormat" };
+    expect(formatFundError(err)).toEqual({ key: "fund:errors.invalid_payment_date_format" });
+  });
+
+  it("maps FundPaymentGroupIdEmpty to its key", () => {
+    const err: FundError = { code: "FundPaymentGroupIdEmpty" };
+    expect(formatFundError(err)).toEqual({ key: "fund:errors.fund_payment_group_id_empty" });
+  });
+
+  it("maps LineProcedureIdEmpty to its key", () => {
+    const err: FundError = { code: "LineProcedureIdEmpty" };
+    expect(formatFundError(err)).toEqual({ key: "fund:errors.line_procedure_id_empty" });
+  });
+
+  it("maps PaymentGroupNotFound to its key WITH the group id as a param", () => {
+    const err: FundError = {
+      code: "PaymentGroupNotFound",
+      fund_payment_group_id: "grp-42",
+    };
+    expect(formatFundError(err)).toEqual({
+      key: "fund:errors.payment_group_not_found",
+      params: { id: "grp-42" },
+    });
+  });
+
+  it("maps DatabaseError to its key", () => {
+    const err: FundError = { code: "DatabaseError" };
+    expect(formatFundError(err)).toEqual({ key: "fund:errors.database_error" });
   });
 });

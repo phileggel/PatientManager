@@ -35,8 +35,7 @@
       "message": "Are you sure you want to delete {{name}}?",
       "confirm": "Delete",
       "success": "Fund \"{{name}}\" deleted successfully",
-      "error": "Failed to delete fund: {{error}}",
-      "failedFallback": "Failed to delete fund"
+      "error": "Failed to delete fund: {{error}}"
     }
   },
   "errors": {

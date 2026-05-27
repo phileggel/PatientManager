@@ -8,6 +8,56 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-05-27 — `FundService::validate_batch` repeats the patient `validate_batch` DTO anti-pattern
+
+**Found by:** reviewer-backend (`refactor/typed-errors-fund-bank` @ `ea606ad`)
+
+**Where:** `src-tauri/src/context/fund/service.rs:131-134` — inside `FundService::validate_batch`, the per-candidate `find_fund_by_identifier` `Err(e)` arm builds `result.error = Some(format!("Database error checking identifier: {}", e))`, folding the raw `anyhow::Error` Display into the `FundValidationResult.error` DTO field. Skips `tracing::error!` and bypasses `FundError::DatabaseError` translation.
+
+**Observation:** Mirror image of the existing 2026-05-27 patient/service.rs:140 entry. The two `validate_batch` paths share the same DTO-shape limitation: `error: Option<String>` carries a raw repo-error string on the wire. Both resolve together when PR 3 (use-case composites) reshapes the `*ValidationResult.error` field into a typed variant.
+
+---
+
+## 2026-05-27 — `DatabaseError` discriminant collision between `BankError` and `FundError`
+
+**Found by:** reviewer-backend (`refactor/typed-errors-fund-bank` @ `ea606ad`)
+
+**Where:** `src-tauri/src/context/{bank,fund}/error.rs` — both enums emit wire code `{ "code": "DatabaseError" }` for the infra catch-all variant.
+
+**Observation:** Per `docs/error-model.md` § Anti-patterns: "Two wrapper variants in a composite whose enums share a `code` discriminant" silently collide under `#[serde(untagged)]` — the first arm wins, the second is unreachable. PR 3-4 will wrap `BankError` + `FundError` (and other BCs) inside `{UseCase}Error` composites. Each composite must move `DatabaseError` into its `{UseCase}Task` sub-enum (single catch-all) rather than wrap both BC enums via `#[from]` — otherwise the second wrapper's `DatabaseError` is unreachable.
+
+---
+
+## 2026-05-27 — `bank_entry_service` repository trait still validates on the create path (`persist_transfer` cleanup follow-up)
+
+**Found by:** reviewer-backend (`refactor/typed-errors-fund-bank` @ `ea606ad`); the downcast it flagged was resolved in commit 2 — this entry is the residual cleanup.
+
+**Where:** `src-tauri/src/context/bank/domain/bank_entry_repo.rs` — trait still exposes both `create_transfer(transfer: BankEntry)` and `persist_transfer(transfer: BankEntry)`. After moving `BankEntry::new` to the service in this PR, both methods have identical bodies (no validation, just persist). The semantic distinction ("bypass validation for refund flow") moved upstream when validation moved to the service.
+
+**Observation:** The trait carries one redundant method. Consolidating to a single `persist` method requires renaming the refund use-case call site and the wire-bound `BankEntryService::create_transfer` to match. Mechanical but multi-file; defer to a follow-up cleanup PR.
+
+---
+
+## 2026-05-27 — `bank-transfer/gateway.ts` carries a local untyped `ServiceResult<T>` alongside the typed alias
+
+**Found by:** reviewer-arch (`refactor/typed-errors-fund-bank` @ `ea606ad`)
+
+**Where:** `src/features/bank-transfer/gateway.ts:14` — local `export type ServiceResult<T>` (string error) coexists with imported `ServiceResult as TypedServiceResult` (typed error). Three migrated functions use the typed alias; the remaining use-case commands (createFundTransfer, deleteTransferByType, fund-group helpers, etc.) still use the local type.
+
+**Observation:** Transitional split-contract surface — explicit half-state until PR 3-4 types the rest of the file. Consolidate to the canonical `@/types/api` `ServiceResult<T, E>` once all use-case commands in this file are typed. A TODO comment at line 12 documents the migration target.
+
+---
+
+## 2026-05-27 — `formatBankError` ownership: presenter lives in `bank-account` but two features consume it
+
+**Found by:** reviewer-arch (`refactor/typed-errors-fund-bank` @ `ea606ad`)
+
+**Where:** `src/features/bank-account/shared/presenter.ts` (defines `formatBankError`); consumed by `src/features/bank-transfer/useBankTransferOperations.ts` and `src/features/bank-statement-match/ui/useBankStatementModal.ts` via cross-feature primitive imports.
+
+**Observation:** `BankError` is a BC type — it belongs to neither feature alone. The presenter sits in `bank-account/shared/` only by historical accident (first writer wins). F26 currently permits the cross-feature primitive import. When a third consumer appears, promote `formatBankError` to a location that reflects shared BC ownership — e.g. a `src/features/bank/shared/presenter.ts` feature-level surface, or an explicit re-export shape.
+
+---
+
 ## 2026-05-27 — `validate_batch` DTO field leaks anyhow string into the wire
 
 **Found by:** reviewer-backend (`refactor/typed-errors-patient-procedure` @ `602db31`)
