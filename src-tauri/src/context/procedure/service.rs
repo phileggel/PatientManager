@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use super::domain::{Procedure, ProcedureRepository, ProcedureType, ProcedureTypeRepository};
+use super::error::ProcedureError;
 use crate::shared::event_bus::{EventBus, ProcedureTypeUpdated, ProcedureUpdated};
 use crate::shared::logger::BACKEND;
 
@@ -22,16 +23,21 @@ impl ProcedureTypeService {
         }
     }
 
-    pub async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>> {
-        self.repository.read_all_procedure_types().await
+    pub async fn read_all_procedure_types(&self) -> Result<Vec<ProcedureType>, ProcedureError> {
+        self.repository.read_all_procedure_types().await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_all_procedure_types: repository failed");
+            ProcedureError::DatabaseError
+        })
     }
 
-    pub async fn read_procedure_type(&self, id: &str) -> anyhow::Result<ProcedureType> {
-        if let Some(procedure_type) = self.repository.read_procedure_type(id).await? {
-            Ok(procedure_type)
-        } else {
-            anyhow::bail!("Procedure type with id {} not found", id)
-        }
+    pub async fn read_procedure_type(&self, id: &str) -> Result<ProcedureType, ProcedureError> {
+        let row = self.repository.read_procedure_type(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_procedure_type: repository failed");
+            ProcedureError::DatabaseError
+        })?;
+        row.ok_or_else(|| ProcedureError::ProcedureTypeNotFound {
+            procedure_type_id: id.to_string(),
+        })
     }
 
     pub async fn add_procedure_type(
@@ -39,25 +45,30 @@ impl ProcedureTypeService {
         name: String,
         default_amount: i64,
         category: Option<String>,
-    ) -> anyhow::Result<ProcedureType> {
+    ) -> Result<ProcedureType, ProcedureError> {
         tracing::info!(target: BACKEND, procedure_name = %name, default_amount, "Adding procedure type");
         if name.trim().is_empty() {
-            anyhow::bail!("Procedure type name cannot be empty");
+            return Err(ProcedureError::ProcedureTypeNameEmpty);
         }
         if default_amount < 0 {
-            anyhow::bail!(
-                "Default amount cannot be negative (received: {})",
-                default_amount
-            );
+            return Err(ProcedureError::DefaultAmountNegative);
         }
         let category = category.filter(|s| !s.trim().is_empty());
-        if self.repository.find_by_name(name.trim()).await?.is_some() {
-            anyhow::bail!("A procedure type with this name already exists");
+        let existing = self.repository.find_by_name(name.trim()).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "add_procedure_type: find_by_name failed");
+            ProcedureError::DatabaseError
+        })?;
+        if existing.is_some() {
+            return Err(ProcedureError::ProcedureTypeNameDuplicate);
         }
         let result = self
             .repository
             .create_procedure_type(name.trim().to_string(), default_amount, category)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "add_procedure_type: create failed");
+                ProcedureError::DatabaseError
+            })?;
         let _ = self
             .event_bus
             .publish::<ProcedureTypeUpdated>(ProcedureTypeUpdated);
@@ -68,24 +79,32 @@ impl ProcedureTypeService {
     pub async fn update_procedure_type(
         &self,
         procedure_type: ProcedureType,
-    ) -> anyhow::Result<ProcedureType> {
+    ) -> Result<ProcedureType, ProcedureError> {
         tracing::info!(target: BACKEND, id = %procedure_type.id, procedure_name = %procedure_type.name, "Updating procedure type");
         if procedure_type.id == "import-pdf" {
-            anyhow::bail!("The reserved import-pdf type cannot be updated");
+            return Err(ProcedureError::ReservedTypeNotMutable);
         }
-        if let Some(existing) = self
+        let conflict = self
             .repository
             .find_by_name(procedure_type.name.trim())
-            .await?
-        {
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_procedure_type: find_by_name failed");
+                ProcedureError::DatabaseError
+            })?;
+        if let Some(existing) = conflict {
             if existing.id != procedure_type.id {
-                anyhow::bail!("A procedure type with this name already exists");
+                return Err(ProcedureError::ProcedureTypeNameDuplicate);
             }
         }
         let result = self
             .repository
             .update_procedure_type(procedure_type)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_procedure_type: update failed");
+                ProcedureError::DatabaseError
+            })?;
         let _ = self
             .event_bus
             .publish::<ProcedureTypeUpdated>(ProcedureTypeUpdated);
@@ -93,12 +112,15 @@ impl ProcedureTypeService {
     }
 
     /// Soft-delete a procedure type
-    pub async fn delete_procedure_type(&self, id: &str) -> anyhow::Result<()> {
+    pub async fn delete_procedure_type(&self, id: &str) -> Result<(), ProcedureError> {
         tracing::info!(target: BACKEND, id = %id, "Deleting procedure type");
         if id == "import-pdf" {
-            anyhow::bail!("The reserved import-pdf type cannot be deleted");
+            return Err(ProcedureError::ReservedTypeNotMutable);
         }
-        self.repository.delete_procedure_type(id).await?;
+        self.repository.delete_procedure_type(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_procedure_type: repository failed");
+            ProcedureError::DatabaseError
+        })?;
         let _ = self
             .event_bus
             .publish::<ProcedureTypeUpdated>(ProcedureTypeUpdated);
@@ -393,8 +415,7 @@ mod tests {
         let result = service
             .add_procedure_type("Test Type".to_string(), 150000, None)
             .await;
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
+        assert!(matches!(result, Err(ProcedureError::DatabaseError)));
     }
 
     #[tokio::test]
@@ -404,8 +425,7 @@ mod tests {
             Arc::new(EventBus::new()),
         );
         let result = service.delete_procedure_type("test-id").await;
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
+        assert!(matches!(result, Err(ProcedureError::DatabaseError)));
     }
 
     #[tokio::test]
@@ -537,10 +557,12 @@ mod tests {
             .read_procedure_type("missing-id")
             .await
             .expect_err("missing id must surface as error");
-        assert!(
-            err.to_string().contains("not found") && err.to_string().contains("missing-id"),
-            "expected not-found error referencing the id, got: {err}"
-        );
+        match err {
+            ProcedureError::ProcedureTypeNotFound { procedure_type_id } => {
+                assert_eq!(procedure_type_id, "missing-id");
+            }
+            other => panic!("expected ProcedureTypeNotFound, got {other:?}"),
+        }
     }
 
     /// `read_procedure_type` returns the repository's type unchanged when found.

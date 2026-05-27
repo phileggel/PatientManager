@@ -46,5 +46,17 @@
       "error": "Failed to delete procedure type: {{error}}",
       "failedFallback": "Failed to delete procedure type"
     }
+  },
+  "errors": {
+    "patientIdEmpty": "Patient ID cannot be empty",
+    "procedureTypeIdEmpty": "Procedure type ID cannot be empty",
+    "nameEmpty": "Procedure type name cannot be empty",
+    "defaultAmountNegative": "Default amount cannot be negative",
+    "notFound": "Procedure type not found (id: {{id}})",
+    "nameDuplicate": "A procedure type with this name already exists",
+    "reservedNotMutable": "The reserved import-pdf procedure type cannot be modified",
+    "refundReasonTooLong": "Refund reason must not exceed 255 characters",
+    "invalidRefundDateFormat": "Invalid refund date format (expected YYYY-MM-DD)",
+    "databaseError": "An unexpected database error occurred"
   }
 }

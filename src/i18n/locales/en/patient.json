@@ -48,5 +48,11 @@
     "fund": "Fund",
     "date": "Date",
     "amount": "Amount"
+  },
+  "errors": {
+    "nameEmpty": "Patient name cannot be empty",
+    "nonAnonymousRequiresName": "A non-anonymous patient must have a name",
+    "invalidSsn": "SSN must be 13 numeric digits",
+    "databaseError": "An unexpected database error occurred"
   }
 }

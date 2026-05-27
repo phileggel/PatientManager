@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
+use super::super::error::ProcedureError;
+
 /// Payment method for a healthcare procedure
 ///
 /// Represents how a procedure payment was made, inferred from Excel import data:
@@ -380,12 +382,12 @@ impl Procedure {
     }
 
     /// Validates healthcare procedure fields.
-    fn validate(patient_id: &str, procedure_type_id: &str) -> Result<()> {
+    fn validate(patient_id: &str, procedure_type_id: &str) -> Result<(), ProcedureError> {
         if patient_id.trim().is_empty() {
-            anyhow::bail!("Patient ID cannot be empty");
+            return Err(ProcedureError::PatientIdEmpty);
         }
         if procedure_type_id.trim().is_empty() {
-            anyhow::bail!("Procedure type ID cannot be empty");
+            return Err(ProcedureError::ProcedureTypeIdEmpty);
         }
         Ok(())
     }

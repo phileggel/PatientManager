@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
+use super::super::error::ProcedureError;
 use super::procedure::ProcedureStatus;
 
 /// Maximum length for the optional reason field (REF-040).
@@ -49,12 +50,8 @@ impl ProcedureRefund {
     ) -> Result<Self> {
         Self::validate(&reason)?;
 
-        let parsed_date = NaiveDate::parse_from_str(&refund_date, "%Y-%m-%d").map_err(|_| {
-            anyhow::anyhow!(
-                "Invalid refund date format: {} (expected YYYY-MM-DD)",
-                refund_date
-            )
-        })?;
+        let parsed_date = NaiveDate::parse_from_str(&refund_date, "%Y-%m-%d")
+            .map_err(|_| ProcedureError::InvalidRefundDateFormat)?;
 
         Ok(Self {
             id: Uuid::new_v4().to_string(),
@@ -92,14 +89,10 @@ impl ProcedureRefund {
         }
     }
 
-    fn validate(reason: &Option<String>) -> Result<()> {
+    fn validate(reason: &Option<String>) -> Result<(), ProcedureError> {
         if let Some(r) = reason {
             if r.len() > MAX_REASON_LEN {
-                anyhow::bail!(
-                    "Reason must not exceed {} characters (got {})",
-                    MAX_REASON_LEN,
-                    r.len()
-                );
+                return Err(ProcedureError::RefundReasonTooLong);
             }
         }
         Ok(())

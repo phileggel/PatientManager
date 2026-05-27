@@ -1,5 +1,28 @@
-import type { Fund, Patient, ProcedureType } from "@/bindings";
+import type { Fund, Patient, PatientError, ProcedureType } from "@/bindings";
+import i18n from "@/i18n/config";
 import type { PatientFormData, PatientRow } from "./types";
+
+/**
+ * Maps a typed PatientError variant to a translated, user-facing message.
+ *
+ * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping.
+ * The gateway converts wire-typed errors here so callers (hooks, components)
+ * see a single localized string in `ServiceResult.error` regardless of locale.
+ *
+ * Exhaustive switch — every PatientError variant has an entry.
+ */
+export function formatPatientError(err: PatientError): string {
+  switch (err.code) {
+    case "NameEmpty":
+      return i18n.t("patient:errors.nameEmpty");
+    case "NonAnonymousRequiresName":
+      return i18n.t("patient:errors.nonAnonymousRequiresName");
+    case "InvalidSsn":
+      return i18n.t("patient:errors.invalidSsn");
+    case "DatabaseError":
+      return i18n.t("patient:errors.databaseError");
+  }
+}
 
 /**
  * PatientPresenter - UI Projection of Patient Domain Object

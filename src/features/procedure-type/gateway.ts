@@ -1,5 +1,6 @@
 import type { ProcedureType } from "@/bindings";
 import { commands } from "@/bindings";
+import { formatProcedureError } from "@/features/procedure-type/shared/presenter";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
@@ -21,8 +22,8 @@ export async function reloadProcedureTypes(): Promise<ServiceResult<ProcedureTyp
   if (result.status === "ok") {
     return { success: true, data: result.data };
   }
-  logger.error("Failed to reload procedure types", { error: result.error });
-  return { success: false, error: result.error };
+  logger.error("Failed to reload procedure types", { code: result.error.code });
+  return { success: false, error: formatProcedureError(result.error) };
 }
 
 export async function addProcedureType(
@@ -38,8 +39,8 @@ export async function addProcedureType(
     logger.info("Procedure type added successfully", { typeId: result.data.id });
     return { success: true, data: result.data };
   } else {
-    logger.error("Failed to add procedure type", { error: result.error });
-    return { success: false, error: result.error };
+    logger.error("Failed to add procedure type", { code: result.error.code });
+    return { success: false, error: formatProcedureError(result.error) };
   }
 }
 
@@ -54,8 +55,8 @@ export async function updateProcedureType(
     logger.info("Procedure type updated successfully");
     return { success: true, data: result.data };
   } else {
-    logger.error("Failed to update procedure type", { error: result.error });
-    return { success: false, error: result.error };
+    logger.error("Failed to update procedure type", { code: result.error.code });
+    return { success: false, error: formatProcedureError(result.error) };
   }
 }
 
@@ -68,7 +69,7 @@ export async function deleteProcedureType(id: string): Promise<ServiceResult<voi
     logger.info("Procedure type deleted successfully", { typeId: id });
     return { success: true, data: undefined };
   } else {
-    logger.error("Failed to delete procedure type", { error: result.error });
-    return { success: false, error: result.error };
+    logger.error("Failed to delete procedure type", { code: result.error.code });
+    return { success: false, error: formatProcedureError(result.error) };
   }
 }

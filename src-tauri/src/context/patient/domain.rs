@@ -1,8 +1,9 @@
-use anyhow::Result;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
+
+use crate::context::patient::error::PatientError;
 
 /// Patient aggregate root
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -29,7 +30,11 @@ pub struct Patient {
 
 impl Patient {
     /// Creates a new Patient with validation and generates ID.
-    pub fn new(is_anonymous: bool, name: Option<String>, ssn: Option<String>) -> Result<Self> {
+    pub fn new(
+        is_anonymous: bool,
+        name: Option<String>,
+        ssn: Option<String>,
+    ) -> Result<Self, PatientError> {
         Self::validate(&name, is_anonymous, &ssn)?;
 
         Ok(Self {
@@ -51,7 +56,7 @@ impl Patient {
         name: Option<String>,
         ssn: Option<String>,
         temp_id: String,
-    ) -> Result<Self> {
+    ) -> Result<Self, PatientError> {
         Self::validate(&name, is_anonymous, &ssn)?;
 
         Ok(Self {
@@ -74,7 +79,7 @@ impl Patient {
         is_anonymous: bool,
         name: Option<String>,
         ssn: Option<String>,
-    ) -> Result<Self> {
+    ) -> Result<Self, PatientError> {
         Self::validate(&name, is_anonymous, &ssn)?;
 
         Ok(Self {
@@ -117,20 +122,22 @@ impl Patient {
     }
 
     /// Validates patient fields.
-    fn validate(name: &Option<String>, is_anonymous: bool, ssn: &Option<String>) -> Result<()> {
+    fn validate(
+        name: &Option<String>,
+        is_anonymous: bool,
+        ssn: &Option<String>,
+    ) -> Result<(), PatientError> {
         if !is_anonymous {
-            if let Some(n) = name {
-                if n.trim().is_empty() {
-                    anyhow::bail!("Patient name cannot be empty");
-                }
-            } else {
-                anyhow::bail!("Non-anonymous patient must have a name");
+            match name {
+                Some(n) if n.trim().is_empty() => return Err(PatientError::NameEmpty),
+                None => return Err(PatientError::NonAnonymousRequiresName),
+                _ => {}
             }
         }
 
         if let Some(s) = ssn {
             if s.len() != 13 || !s.chars().all(|c| c.is_numeric()) {
-                anyhow::bail!("SSN must be 13 numeric digits (received: {})", s);
+                return Err(PatientError::InvalidSsn);
             }
         }
 

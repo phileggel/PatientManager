@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 use crate::{
     context::patient::*,
-    shared::event_bus::{EventBus, PatientUpdated},
+    shared::{
+        event_bus::{EventBus, PatientUpdated},
+        logger::BACKEND,
+    },
 };
 
 /// Application service for patient operations
@@ -29,46 +32,66 @@ impl PatientService {
         &self,
         name: Option<String>,
         ssn: Option<String>,
-    ) -> anyhow::Result<Patient> {
-        // Domain layer creates and validates the patient
+    ) -> Result<Patient, PatientError> {
         let patient = Patient::new(false, name, ssn)?;
 
-        let result = self.repository.create_patient(patient).await?;
+        let result = self.repository.create_patient(patient).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "create_patient: repository failed");
+            PatientError::DatabaseError
+        })?;
         let _ = self.event_bus.publish::<PatientUpdated>(PatientUpdated);
         Ok(result)
     }
 
     /// Get a single patient by ID
-    pub async fn read_patient(&self, id: &str) -> anyhow::Result<Option<Patient>> {
-        self.repository.read_patient(id).await
+    pub async fn read_patient(&self, id: &str) -> Result<Option<Patient>, PatientError> {
+        self.repository.read_patient(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_patient: repository failed");
+            PatientError::DatabaseError
+        })
     }
 
     /// Get a patient by SSN
-    pub async fn find_patient_by_ssn(&self, ssn: &str) -> anyhow::Result<Option<Patient>> {
-        self.repository.find_patient_by_ssn(ssn).await
+    pub async fn find_patient_by_ssn(&self, ssn: &str) -> Result<Option<Patient>, PatientError> {
+        self.repository.find_patient_by_ssn(ssn).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "find_patient_by_ssn: repository failed");
+            PatientError::DatabaseError
+        })
     }
 
     /// Look up a patient by name (case-insensitive). SSN-bearing rows win
     /// over blank-SSN rows when multiple names match. See EXI-080.
-    pub async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>> {
-        self.repository.find_patient_by_name(name).await
+    pub async fn find_patient_by_name(&self, name: &str) -> Result<Option<Patient>, PatientError> {
+        self.repository.find_patient_by_name(name).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "find_patient_by_name: repository failed");
+            PatientError::DatabaseError
+        })
     }
 
     /// Get all patients
-    pub async fn get_all_patients(&self) -> anyhow::Result<Vec<Patient>> {
-        self.repository.read_all_patients().await
+    pub async fn get_all_patients(&self) -> Result<Vec<Patient>, PatientError> {
+        self.repository.read_all_patients().await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "get_all_patients: repository failed");
+            PatientError::DatabaseError
+        })
     }
 
     /// Update an existing patient
-    pub async fn update_patient(&self, patient: Patient) -> anyhow::Result<Patient> {
-        let result = self.repository.update_patient(patient).await?;
+    pub async fn update_patient(&self, patient: Patient) -> Result<Patient, PatientError> {
+        let result = self.repository.update_patient(patient).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "update_patient: repository failed");
+            PatientError::DatabaseError
+        })?;
         let _ = self.event_bus.publish::<PatientUpdated>(PatientUpdated);
         Ok(result)
     }
 
     /// Delete an existing patient (soft delete)
-    pub async fn delete_patient(&self, id: &str) -> anyhow::Result<()> {
-        self.repository.delete_patient(id).await?;
+    pub async fn delete_patient(&self, id: &str) -> Result<(), PatientError> {
+        self.repository.delete_patient(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_patient: repository failed");
+            PatientError::DatabaseError
+        })?;
         let _ = self.event_bus.publish::<PatientUpdated>(PatientUpdated);
         Ok(())
     }
@@ -78,7 +101,7 @@ impl PatientService {
     pub async fn validate_batch(
         &self,
         candidates: Vec<PatientCandidate>,
-    ) -> anyhow::Result<Vec<PatientValidationResult>> {
+    ) -> Result<Vec<PatientValidationResult>, PatientError> {
         let mut results = Vec::new();
 
         for candidate in candidates {
@@ -108,6 +131,11 @@ impl PatientService {
                         // Patient doesn't exist, valid for creation
                     }
                     Err(e) => {
+                        tracing::error!(
+                            target: BACKEND,
+                            err = ?e,
+                            "validate_batch: SSN lookup failed for one candidate"
+                        );
                         result.status = PatientValidationStatus::Invalid;
                         result.error = Some(format!("Database error checking SSN: {}", e));
                     }
@@ -128,7 +156,7 @@ impl PatientService {
     pub async fn create_batch(
         &self,
         candidates: Vec<PatientCandidate>,
-    ) -> anyhow::Result<(Vec<Patient>, HashMap<String, String>)> {
+    ) -> Result<(Vec<Patient>, HashMap<String, String>), PatientError> {
         let mut patients: Vec<Patient> = Vec::new();
 
         for candidate in candidates {
@@ -138,7 +166,10 @@ impl PatientService {
             patients.push(patient);
         }
 
-        let created_patients = self.repository.create_batch(patients).await?;
+        let created_patients = self.repository.create_batch(patients).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "create_batch: repository failed");
+            PatientError::DatabaseError
+        })?;
 
         let temp_id_map: HashMap<String, String> = created_patients
             .iter()
@@ -226,8 +257,7 @@ mod tests {
             .create_patient(Some("Marie Dupont".to_string()), None)
             .await;
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
+        assert!(matches!(result, Err(PatientError::DatabaseError)));
     }
 
     #[tokio::test]
@@ -254,8 +284,7 @@ mod tests {
         let service = PatientService::new(Arc::new(mock), event_bus);
         let result = service.get_all_patients().await;
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Database error");
+        assert!(matches!(result, Err(PatientError::DatabaseError)));
     }
 
     #[tokio::test]
@@ -277,8 +306,7 @@ mod tests {
 
         let result = service.delete_patient("test-id").await;
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
+        assert!(matches!(result, Err(PatientError::DatabaseError)));
     }
 
     // --- read_patient ---

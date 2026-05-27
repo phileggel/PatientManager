@@ -46,5 +46,17 @@
       "error": "Échec de la suppression du type d'acte : {{error}}",
       "failedFallback": "Échec de la suppression du type d'acte"
     }
+  },
+  "errors": {
+    "patientIdEmpty": "L'identifiant du patient ne peut pas être vide",
+    "procedureTypeIdEmpty": "L'identifiant du type d'acte ne peut pas être vide",
+    "nameEmpty": "Le nom du type d'acte ne peut pas être vide",
+    "defaultAmountNegative": "Le montant par défaut ne peut pas être négatif",
+    "notFound": "Type d'acte introuvable (id : {{id}})",
+    "nameDuplicate": "Un type d'acte avec ce nom existe déjà",
+    "reservedNotMutable": "Le type réservé import-pdf ne peut pas être modifié",
+    "refundReasonTooLong": "Le motif de remboursement ne doit pas dépasser 255 caractères",
+    "invalidRefundDateFormat": "Format de date de remboursement invalide (attendu : AAAA-MM-JJ)",
+    "databaseError": "Une erreur de base de données est survenue"
   }
 }

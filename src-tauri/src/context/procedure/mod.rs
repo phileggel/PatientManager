@@ -1,10 +1,12 @@
 mod api;
 mod domain;
+mod error;
 mod repository;
 mod service;
 
 // Export all domain types, traits, and projections
 pub use domain::*;
+pub use error::*;
 
 // Export infra implementations
 pub use repository::{

@@ -1,4 +1,5 @@
 import { commands, type Patient } from "@/bindings";
+import { formatPatientError } from "@/features/patient/shared/presenter";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
@@ -18,8 +19,8 @@ export async function addPatient(name: string, ssn?: string): Promise<ServiceRes
     logger.info("Patient added successfully", { patientId: result.data.id });
     return { success: true, data: result.data };
   } else {
-    logger.error("Failed to add patient", { error: result.error });
-    return { success: false, error: result.error };
+    logger.error("Failed to add patient", { code: result.error.code });
+    return { success: false, error: formatPatientError(result.error) };
   }
 }
 
@@ -32,8 +33,8 @@ export async function updatePatient(patient: Patient): Promise<ServiceResult<Pat
     logger.info("Patient updated successfully");
     return { success: true, data: result.data };
   } else {
-    logger.error("Failed to update patient", { error: result.error });
-    return { success: false, error: result.error };
+    logger.error("Failed to update patient", { code: result.error.code });
+    return { success: false, error: formatPatientError(result.error) };
   }
 }
 
@@ -46,7 +47,7 @@ export async function deletePatient(id: string): Promise<ServiceResult<void>> {
     logger.info("Patient deleted successfully", { patientId: id });
     return { success: true, data: undefined };
   } else {
-    logger.error("Failed to delete patient", { error: result.error });
-    return { success: false, error: result.error };
+    logger.error("Failed to delete patient", { code: result.error.code });
+    return { success: false, error: formatPatientError(result.error) };
   }
 }

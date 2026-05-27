@@ -219,10 +219,13 @@ describe("fetchAllPatients", () => {
   it("returns failure result on command error", async () => {
     vi.mocked(commands.readAllPatients).mockResolvedValue({
       status: "error",
-      error: "boom",
+      error: { code: "DatabaseError" },
     });
     const result = await fetchAllPatients();
-    expect(result).toEqual({ success: false, error: "boom" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/database error/i);
+    }
   });
 });
 
@@ -259,10 +262,13 @@ describe("fetchAllProcedureTypes", () => {
   it("returns failure result on command error", async () => {
     vi.mocked(commands.readAllProcedureTypes).mockResolvedValue({
       status: "error",
-      error: "boom",
+      error: { code: "DatabaseError" },
     });
     const result = await fetchAllProcedureTypes();
-    expect(result).toEqual({ success: false, error: "boom" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/database error/i);
+    }
   });
 });
 
@@ -284,10 +290,13 @@ describe("createNewPatient", () => {
   it("returns failure result on command error", async () => {
     vi.mocked(commands.addPatient).mockResolvedValue({
       status: "error",
-      error: "duplicate name",
+      error: { code: "InvalidSsn" },
     });
     const result = await createNewPatient(null, null);
-    expect(result).toEqual({ success: false, error: "duplicate name" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/13 numeric digits/i);
+    }
   });
 });
 
@@ -335,9 +344,12 @@ describe("createNewProcedureType", () => {
   it("returns failure result on command error", async () => {
     vi.mocked(commands.addProcedureType).mockResolvedValue({
       status: "error",
-      error: "duplicate name",
+      error: { code: "ProcedureTypeNameDuplicate" },
     });
     const result = await createNewProcedureType("Consultation", null, null);
-    expect(result).toEqual({ success: false, error: "duplicate name" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/already exists/i);
+    }
   });
 });

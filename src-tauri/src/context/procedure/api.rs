@@ -7,6 +7,7 @@ use specta::Type;
 use tauri::State;
 
 use super::domain::ProcedureType;
+use super::error::ProcedureError;
 use super::service::ProcedureTypeService;
 
 // ============ DTOs ============
@@ -46,7 +47,7 @@ pub async fn add_procedure_type(
     default_amount: i64,
     category: Option<String>,
     service: State<'_, Arc<ProcedureTypeService>>,
-) -> Result<ProcedureType, String> {
+) -> Result<ProcedureType, ProcedureError> {
     tracing::info!(target: BACKEND, name = %name, default_amount = %default_amount, "Processing add procedure type request");
 
     service
@@ -55,10 +56,6 @@ pub async fn add_procedure_type(
         .inspect(|pt| {
             tracing::info!(target: BACKEND, procedure_type_id = ?pt.id, "Procedure type added successfully");
         })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to add procedure type");
-            format!("{:#}", e)
-        })
 }
 
 /// Tauri command: Read all procedure types
@@ -66,7 +63,7 @@ pub async fn add_procedure_type(
 #[specta::specta]
 pub async fn read_all_procedure_types(
     service: State<'_, Arc<ProcedureTypeService>>,
-) -> Result<Vec<ProcedureType>, String> {
+) -> Result<Vec<ProcedureType>, ProcedureError> {
     tracing::info!(target: BACKEND, "Processing read all procedure types request");
 
     service
@@ -74,10 +71,6 @@ pub async fn read_all_procedure_types(
         .await
         .inspect(|pts| {
             tracing::info!(target: BACKEND, count = pts.len(), "Retrieved procedure types successfully");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to retrieve procedure types");
-            format!("{:#}", e)
         })
 }
 
@@ -87,14 +80,13 @@ pub async fn read_all_procedure_types(
 pub async fn update_procedure_type(
     raw: RawProcedureType,
     service: State<'_, Arc<ProcedureTypeService>>,
-) -> Result<ProcedureType, String> {
+) -> Result<ProcedureType, ProcedureError> {
     tracing::info!(target: BACKEND, procedure_type_id = %raw.id, "Processing update procedure type request");
 
-    // Construct valid domain object from raw data
+    // Construct valid domain object from raw data.
     let procedure_type = ProcedureType::with_id(raw.id, raw.name, raw.default_amount, raw.category)
-        .map_err(|e| {
+        .inspect_err(|e| {
             tracing::error!(target: BACKEND, error = %e, "Invalid procedure type data");
-            format!("{:#}", e)
         })?;
 
     service
@@ -102,10 +94,6 @@ pub async fn update_procedure_type(
         .await
         .inspect(|pt| {
             tracing::info!(target: BACKEND, procedure_type_id = ?pt.id, "Procedure type updated successfully");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to update procedure type");
-            format!("{:#}", e)
         })
 }
 
@@ -115,7 +103,7 @@ pub async fn update_procedure_type(
 pub async fn delete_procedure_type(
     id: String,
     service: State<'_, Arc<ProcedureTypeService>>,
-) -> Result<(), String> {
+) -> Result<(), ProcedureError> {
     tracing::info!(target: BACKEND, procedure_type_id = %id, "Processing delete procedure type request");
 
     service
@@ -123,9 +111,5 @@ pub async fn delete_procedure_type(
         .await
         .inspect(|_| {
             tracing::info!(target: BACKEND, procedure_type_id = %id, "Procedure type deleted successfully");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to delete procedure type");
-            format!("{:#}", e)
         })
 }

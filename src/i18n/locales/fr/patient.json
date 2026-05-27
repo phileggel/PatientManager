@@ -48,5 +48,11 @@
     "fund": "Caisse",
     "date": "Date",
     "amount": "Montant"
+  },
+  "errors": {
+    "nameEmpty": "Le nom du patient ne peut pas être vide",
+    "nonAnonymousRequiresName": "Un patient non anonyme doit avoir un nom",
+    "invalidSsn": "Le numéro de sécurité sociale doit contenir 13 chiffres",
+    "databaseError": "Une erreur de base de données est survenue"
   }
 }

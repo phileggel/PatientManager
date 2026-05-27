@@ -1,6 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import { commands } from "@/bindings";
+import { formatProcedureError } from "@/features/procedure-type/shared/presenter";
 import { logger } from "@/infra/logger";
 import { useCacheStore } from "./store";
 
@@ -51,8 +52,8 @@ export function useCacheSync() {
           setProcedureTypesError(null);
           logger.info("Procedure types loaded and cached", { count: typesResult.data.length });
         } else {
-          setProcedureTypesError(typesResult.error);
-          logger.error("Failed to load procedure types", { error: typesResult.error });
+          setProcedureTypesError(formatProcedureError(typesResult.error));
+          logger.error("Failed to load procedure types", { code: typesResult.error.code });
         }
         setLoading("procedureTypes", false);
 

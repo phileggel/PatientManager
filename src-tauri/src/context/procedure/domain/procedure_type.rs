@@ -1,7 +1,8 @@
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
+
+use super::super::error::ProcedureError;
 
 /// Procedure Type aggregate root
 ///
@@ -19,7 +20,11 @@ pub struct ProcedureType {
 
 impl ProcedureType {
     /// Creates a new ProcedureType with validation and generates ID.
-    pub fn new(name: String, default_amount: i64, category: Option<String>) -> Result<Self> {
+    pub fn new(
+        name: String,
+        default_amount: i64,
+        category: Option<String>,
+    ) -> Result<Self, ProcedureError> {
         Self::validate_fields(&name, default_amount)?;
 
         Ok(Self {
@@ -38,7 +43,7 @@ impl ProcedureType {
         name: String,
         default_amount: i64,
         category: Option<String>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ProcedureError> {
         Self::validate_fields(&name, default_amount)?;
 
         Ok(Self {
@@ -67,15 +72,12 @@ impl ProcedureType {
 
     /// Validates procedure type fields.
     /// Used by factory methods to ensure domain invariants.
-    fn validate_fields(name: &str, default_amount: i64) -> Result<()> {
+    fn validate_fields(name: &str, default_amount: i64) -> Result<(), ProcedureError> {
         if name.trim().is_empty() {
-            anyhow::bail!("Procedure type name cannot be empty");
+            return Err(ProcedureError::ProcedureTypeNameEmpty);
         }
         if default_amount < 0 {
-            anyhow::bail!(
-                "Default amount cannot be negative (received: {})",
-                default_amount
-            );
+            return Err(ProcedureError::DefaultAmountNegative);
         }
         Ok(())
     }
