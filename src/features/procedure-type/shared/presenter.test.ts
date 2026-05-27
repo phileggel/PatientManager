@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ProcedureType } from "@/bindings";
-import { ProcedureTypePresenter } from "./presenter";
+import type { ProcedureError, ProcedureType } from "@/bindings";
+import { formatProcedureError, ProcedureTypePresenter } from "./presenter";
 
 /**
  * ProcedureTypePresenter - Gold Test Suite
@@ -169,6 +169,38 @@ describe("ProcedureTypePresenter", () => {
         category: "Radiology",
       });
       expect(result.rowId).toHaveLength(36); // UUID format
+    });
+  });
+
+  describe("formatProcedureError - F27 Layer 3 (pure code → key mapping)", () => {
+    const cases: Array<[ProcedureError["code"], string]> = [
+      ["PatientIdEmpty", "procedure-type:errors.patient_id_empty"],
+      ["ProcedureTypeIdEmpty", "procedure-type:errors.procedure_type_id_empty"],
+      ["ProcedureTypeNameEmpty", "procedure-type:errors.name_empty"],
+      ["DefaultAmountNegative", "procedure-type:errors.default_amount_negative"],
+      ["ProcedureTypeNameDuplicate", "procedure-type:errors.name_duplicate"],
+      ["ReservedTypeNotMutable", "procedure-type:errors.reserved_not_mutable"],
+      ["RefundReasonTooLong", "procedure-type:errors.refund_reason_too_long"],
+      ["InvalidRefundDateFormat", "procedure-type:errors.invalid_refund_date_format"],
+      ["DatabaseError", "procedure-type:errors.database_error"],
+    ];
+
+    for (const [code, expectedKey] of cases) {
+      it(`maps ${code} to ${expectedKey} (no params)`, () => {
+        const err = { code } as ProcedureError;
+        expect(formatProcedureError(err)).toEqual({ key: expectedKey });
+      });
+    }
+
+    it("maps ProcedureTypeNotFound to the not_found key with the id forwarded as params.id", () => {
+      const err: ProcedureError = {
+        code: "ProcedureTypeNotFound",
+        procedure_type_id: "pt-42",
+      };
+      expect(formatProcedureError(err)).toEqual({
+        key: "procedure-type:errors.not_found",
+        params: { id: "pt-42" },
+      });
     });
   });
 

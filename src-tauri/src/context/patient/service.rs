@@ -499,4 +499,68 @@ mod tests {
         assert!(map.contains_key("tmp-1"));
         assert!(map.contains_key("tmp-2"));
     }
+
+    // ------------------------------------------------------------------
+    // Repo-failure branch coverage: every `map_err` arm in PatientService
+    // translates an `anyhow::Error` from the repository into
+    // `PatientError::DatabaseError`. Existing tests cover the well-known
+    // create/get/delete arms; these close the read / find_by_ssn /
+    // find_by_name / update / create_batch arms.
+    // ------------------------------------------------------------------
+
+    #[tokio::test]
+    async fn read_patient_translates_repo_failure_to_database_error() {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_read_patient()
+            .returning(|_| Err(anyhow::anyhow!("conn refused")));
+        let service = PatientService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service.read_patient("any-id").await;
+        assert!(matches!(result, Err(PatientError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn find_patient_by_ssn_translates_repo_failure_to_database_error() {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_find_patient_by_ssn()
+            .returning(|_| Err(anyhow::anyhow!("conn refused")));
+        let service = PatientService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service.find_patient_by_ssn("1234567890123").await;
+        assert!(matches!(result, Err(PatientError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn find_patient_by_name_translates_repo_failure_to_database_error() {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_find_patient_by_name()
+            .returning(|_| Err(anyhow::anyhow!("conn refused")));
+        let service = PatientService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service.find_patient_by_name("Marie Dupont").await;
+        assert!(matches!(result, Err(PatientError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn update_patient_translates_repo_failure_to_database_error() {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_update_patient()
+            .returning(|_| Err(anyhow::anyhow!("conn refused")));
+        let service = PatientService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let patient = make_patient_with_id("p-1");
+        let result = service.update_patient(patient).await;
+        assert!(matches!(result, Err(PatientError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn create_batch_translates_repo_failure_to_database_error() {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_create_batch()
+            .returning(|_| Err(anyhow::anyhow!("conn refused")));
+        let service = PatientService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let candidates = vec![PatientCandidate {
+            temp_id: "tmp-1".to_string(),
+            name: Some("Marie".to_string()),
+            ssn: None,
+        }];
+        let result = service.create_batch(candidates).await;
+        assert!(matches!(result, Err(PatientError::DatabaseError)));
+    }
 }

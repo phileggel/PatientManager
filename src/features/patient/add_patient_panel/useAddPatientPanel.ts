@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { addPatient } from "@/features/patient/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
+import { formatPatientError } from "../shared/presenter";
 import type { PatientFormData } from "../shared/types";
 import { type FormErrors, validatePatient } from "../shared/validatePatient";
 
@@ -62,8 +63,9 @@ export function useAddPatientPanel() {
         setErrors({});
         toastService.show("success", t("action.addSuccess", { name: result.data?.name }));
       } else {
-        logger.error("Failed to add patient", { error: result.error });
-        toastService.show("error", t("action.addError", { error: result.error }));
+        const { key, params } = formatPatientError(result.error);
+        logger.error("Failed to add patient", { code: result.error.code });
+        toastService.show("error", t("action.addError", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while adding patient", { error });

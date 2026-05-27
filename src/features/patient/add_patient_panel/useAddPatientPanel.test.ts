@@ -72,7 +72,7 @@ describe("useAddPatientPanel", () => {
   });
 
   it("shows error toast and keeps form when gateway returns failure", async () => {
-    mockAdd.mockResolvedValue({ success: false, error: "Patient already exists" });
+    mockAdd.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     const { result } = renderHook(() => useAddPatientPanel());
 

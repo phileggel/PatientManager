@@ -83,6 +83,48 @@ impl ProcedureType {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_rejects_empty_name() {
+        let result = ProcedureType::new("".to_string(), 100_000, None);
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ProcedureTypeNameEmpty)
+        ));
+    }
+
+    #[test]
+    fn new_rejects_whitespace_only_name() {
+        let result = ProcedureType::new("   ".to_string(), 100_000, None);
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ProcedureTypeNameEmpty)
+        ));
+    }
+
+    #[test]
+    fn new_rejects_negative_default_amount() {
+        let result = ProcedureType::new("Consultation".to_string(), -1, None);
+        assert!(matches!(result, Err(ProcedureError::DefaultAmountNegative)));
+    }
+
+    #[test]
+    fn with_id_validates_like_new() {
+        let bad = ProcedureType::with_id("pt-1".to_string(), "".to_string(), 100_000, None);
+        assert!(matches!(bad, Err(ProcedureError::ProcedureTypeNameEmpty)));
+        let ok = ProcedureType::with_id(
+            "pt-1".to_string(),
+            "Consultation".to_string(),
+            100_000,
+            None,
+        );
+        assert!(ok.is_ok());
+    }
+}
+
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait ProcedureTypeRepository: Send + Sync {

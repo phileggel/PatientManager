@@ -589,4 +589,37 @@ mod tests {
         let err = "WAT".parse::<PaymentMethod>().unwrap_err();
         assert_eq!(err, "WAT");
     }
+
+    fn make_new(patient_id: &str, procedure_type_id: &str) -> Result<Procedure> {
+        Procedure::new(
+            patient_id.to_string(),
+            None,
+            procedure_type_id.to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            100_000,
+            PaymentMethod::None,
+            None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+    }
+
+    #[test]
+    fn new_rejects_empty_patient_id() {
+        let err = make_new("   ", "pt-1").unwrap_err();
+        assert!(matches!(
+            err.downcast::<ProcedureError>(),
+            Ok(ProcedureError::PatientIdEmpty)
+        ));
+    }
+
+    #[test]
+    fn new_rejects_empty_procedure_type_id() {
+        let err = make_new("patient-1", "").unwrap_err();
+        assert!(matches!(
+            err.downcast::<ProcedureError>(),
+            Ok(ProcedureError::ProcedureTypeIdEmpty)
+        ));
+    }
 }

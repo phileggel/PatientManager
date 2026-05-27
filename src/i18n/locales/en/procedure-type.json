@@ -48,15 +48,15 @@
     }
   },
   "errors": {
-    "patientIdEmpty": "Patient ID cannot be empty",
-    "procedureTypeIdEmpty": "Procedure type ID cannot be empty",
-    "nameEmpty": "Procedure type name cannot be empty",
-    "defaultAmountNegative": "Default amount cannot be negative",
-    "notFound": "Procedure type not found (id: {{id}})",
-    "nameDuplicate": "A procedure type with this name already exists",
-    "reservedNotMutable": "The reserved import-pdf procedure type cannot be modified",
-    "refundReasonTooLong": "Refund reason must not exceed 255 characters",
-    "invalidRefundDateFormat": "Invalid refund date format (expected YYYY-MM-DD)",
-    "databaseError": "An unexpected database error occurred"
+    "patient_id_empty": "Patient ID cannot be empty",
+    "procedure_type_id_empty": "Procedure type ID cannot be empty",
+    "name_empty": "Procedure type name cannot be empty",
+    "default_amount_negative": "Default amount cannot be negative",
+    "not_found": "Procedure type not found (id: {{id}})",
+    "name_duplicate": "A procedure type with this name already exists",
+    "reserved_not_mutable": "The reserved import-pdf procedure type cannot be modified",
+    "refund_reason_too_long": "Refund reason must not exceed 255 characters",
+    "invalid_refund_date_format": "Invalid refund date format (expected YYYY-MM-DD)",
+    "database_error": "An unexpected database error occurred"
   }
 }

@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import type { BankAccount, Fund, FundPaymentGroup, Patient, ProcedureType } from "@/bindings";
+import type {
+  BankAccount,
+  Fund,
+  FundPaymentGroup,
+  Patient,
+  ProcedureError,
+  ProcedureType,
+} from "@/bindings";
 
 interface AppState {
   // Data (persistent, global)
@@ -16,8 +23,9 @@ interface AppState {
   bankAccountsLoading: boolean;
   fundPaymentGroupsLoading: boolean;
 
-  // Error states
-  procedureTypesError: string | null;
+  // Error states (typed per F27 — consumers translate at render via the
+  // feature's `formatProcedureError` presenter + i18n).
+  procedureTypesError: ProcedureError | null;
 
   // Actions
   setPatients: (patients: Patient[]) => void;
@@ -30,7 +38,7 @@ interface AppState {
   addBankAccounts: (accounts: BankAccount[]) => void;
   setFundPaymentGroups: (groups: FundPaymentGroup[]) => void;
   addFundPaymentGroups: (groups: FundPaymentGroup[]) => void;
-  setProcedureTypesError: (error: string | null) => void;
+  setProcedureTypesError: (error: ProcedureError | null) => void;
 
   setLoading: (
     type: "patients" | "funds" | "procedureTypes" | "bankAccounts" | "fundPaymentGroups",

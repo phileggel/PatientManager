@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Fund, Patient } from "@/bindings";
-import { PatientPresenter } from "./presenter";
+import type { Fund, Patient, PatientError } from "@/bindings";
+import { formatPatientError, PatientPresenter } from "./presenter";
 
 /**
  * PatientPresenter - Gold Test Suite
@@ -217,6 +217,32 @@ describe("PatientPresenter", () => {
       const result = PatientPresenter.toRow(patient, funds);
 
       expect(result.latestFund).toBeNull();
+    });
+  });
+
+  describe("formatPatientError - F27 Layer 3 (pure code → key mapping)", () => {
+    it("maps NameEmpty to the patient:errors.name_empty key, no params", () => {
+      const err: PatientError = { code: "NameEmpty" };
+      expect(formatPatientError(err)).toEqual({ key: "patient:errors.name_empty" });
+    });
+
+    it("maps NonAnonymousRequiresName to its dedicated key", () => {
+      const err: PatientError = { code: "NonAnonymousRequiresName" };
+      expect(formatPatientError(err)).toEqual({
+        key: "patient:errors.non_anonymous_requires_name",
+      });
+    });
+
+    it("maps InvalidSsn to the invalid_ssn key WITHOUT a payload (SSN is PII)", () => {
+      const err: PatientError = { code: "InvalidSsn" };
+      const result = formatPatientError(err);
+      expect(result).toEqual({ key: "patient:errors.invalid_ssn" });
+      expect(result.params).toBeUndefined();
+    });
+
+    it("maps DatabaseError to the database_error key", () => {
+      const err: PatientError = { code: "DatabaseError" };
+      expect(formatPatientError(err)).toEqual({ key: "patient:errors.database_error" });
     });
   });
 

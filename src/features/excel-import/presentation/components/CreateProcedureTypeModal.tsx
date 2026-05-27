@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProcedureType } from "@/bindings";
 import * as procedureTypeGateway from "@/features/procedure-type/gateway";
+import { formatProcedureError } from "@/features/procedure-type/shared/presenter";
 import { logger } from "@/infra/logger";
 import { AmountField, Button, FormModal, TextField } from "@/ui/components";
 
@@ -72,8 +73,9 @@ export function CreateProcedureTypeModal({
         onSuccess(result.data);
         handleClose();
       } else {
-        setError(result.error || t("createTypeModal.error"));
-        logger.error("Failed to create procedure type", { error: result.error });
+        const { key, params } = formatProcedureError(result.error);
+        setError(t(key, params) || t("createTypeModal.error"));
+        logger.error("Failed to create procedure type", { code: result.error.code });
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);

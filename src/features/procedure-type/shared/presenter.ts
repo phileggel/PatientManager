@@ -1,43 +1,45 @@
 import type { ProcedureError, ProcedureType } from "@/bindings";
-import i18n from "@/i18n/config";
 import type { ProcedureTypeFormData, ProcedureTypeRow } from "./types";
 
 /**
- * Maps a typed ProcedureError variant to a translated, user-facing message.
- *
  * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping.
- * The gateway converts wire-typed errors here so callers (hooks, components)
- * see a single localized string in `ServiceResult.error` regardless of locale.
+ * Returns `{ key, params }`; the caller (Layer 4) calls `t(key, params)`
+ * to translate. The presenter has no runtime dependency on i18next, so it
+ * is trivially unit-testable.
  *
  * Exhaustive switch — every ProcedureError variant has an entry. Variants
  * unreachable from the procedure-type wire surface (Procedure aggregate
  * invariants, ProcedureRefund variants) still map to keys so future use-case
  * composites that surface them through this presenter remain typed.
  */
-export function formatProcedureError(err: ProcedureError): string {
+export function formatProcedureError(err: ProcedureError): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
   switch (err.code) {
     case "PatientIdEmpty":
-      return i18n.t("procedure-type:errors.patientIdEmpty");
+      return { key: "procedure-type:errors.patient_id_empty" };
     case "ProcedureTypeIdEmpty":
-      return i18n.t("procedure-type:errors.procedureTypeIdEmpty");
+      return { key: "procedure-type:errors.procedure_type_id_empty" };
     case "ProcedureTypeNameEmpty":
-      return i18n.t("procedure-type:errors.nameEmpty");
+      return { key: "procedure-type:errors.name_empty" };
     case "DefaultAmountNegative":
-      return i18n.t("procedure-type:errors.defaultAmountNegative");
+      return { key: "procedure-type:errors.default_amount_negative" };
     case "ProcedureTypeNotFound":
-      return i18n.t("procedure-type:errors.notFound", {
-        id: err.procedure_type_id,
-      });
+      return {
+        key: "procedure-type:errors.not_found",
+        params: { id: err.procedure_type_id },
+      };
     case "ProcedureTypeNameDuplicate":
-      return i18n.t("procedure-type:errors.nameDuplicate");
+      return { key: "procedure-type:errors.name_duplicate" };
     case "ReservedTypeNotMutable":
-      return i18n.t("procedure-type:errors.reservedNotMutable");
+      return { key: "procedure-type:errors.reserved_not_mutable" };
     case "RefundReasonTooLong":
-      return i18n.t("procedure-type:errors.refundReasonTooLong");
+      return { key: "procedure-type:errors.refund_reason_too_long" };
     case "InvalidRefundDateFormat":
-      return i18n.t("procedure-type:errors.invalidRefundDateFormat");
+      return { key: "procedure-type:errors.invalid_refund_date_format" };
     case "DatabaseError":
-      return i18n.t("procedure-type:errors.databaseError");
+      return { key: "procedure-type:errors.database_error" };
   }
 }
 

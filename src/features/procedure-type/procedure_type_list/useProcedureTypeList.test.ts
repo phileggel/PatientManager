@@ -39,7 +39,7 @@ describe("useProcedureTypeList", () => {
   it("retry updates store and clears error on success", async () => {
     const types = [makeProcedureType({ id: "pt-1", name: "Consultation" })];
     mockReload.mockResolvedValue({ success: true, data: types });
-    useCacheStore.setState({ procedureTypesError: "previous error" });
+    useCacheStore.setState({ procedureTypesError: { code: "DatabaseError" } });
 
     const { result } = renderHook(() => useProcedureTypeList());
 
@@ -52,7 +52,7 @@ describe("useProcedureTypeList", () => {
   });
 
   it("retry sets error and keeps existing data on failure", async () => {
-    mockReload.mockResolvedValue({ success: false, error: "network error" });
+    mockReload.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     const { result } = renderHook(() => useProcedureTypeList());
 
@@ -60,7 +60,7 @@ describe("useProcedureTypeList", () => {
       await result.current.retry();
     });
 
-    expect(useCacheStore.getState().procedureTypesError).toBe("network error");
+    expect(useCacheStore.getState().procedureTypesError).toEqual({ code: "DatabaseError" });
   });
 
   it("deleteProcedureType resolves without throwing when gateway returns success=true", async () => {
@@ -72,10 +72,10 @@ describe("useProcedureTypeList", () => {
   });
 
   it("deleteProcedureType throws when gateway returns success=false", async () => {
-    mockDelete.mockResolvedValue({ success: false, error: "Type in use" });
+    mockDelete.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     const { result } = renderHook(() => useProcedureTypeList());
 
-    await expect(result.current.deleteProcedureType("pt-1")).rejects.toThrow("Type in use");
+    await expect(result.current.deleteProcedureType("pt-1")).rejects.toThrow(/database error/i);
   });
 });

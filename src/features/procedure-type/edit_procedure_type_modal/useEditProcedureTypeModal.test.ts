@@ -148,7 +148,10 @@ describe("useEditProcedureTypeModal", () => {
   });
 
   it("shows error toast and does not call onSuccess on backend error", async () => {
-    mockUpdate.mockResolvedValue({ success: false, error: "Name conflict" });
+    mockUpdate.mockResolvedValue({
+      success: false,
+      error: { code: "ProcedureTypeNameDuplicate" },
+    });
     const { result } = renderHook(() => useEditProcedureTypeModal(pt, onSuccess));
 
     await act(async () => {

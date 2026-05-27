@@ -773,7 +773,10 @@ describe("create mode — handlePatientCreated", () => {
   it("shows error toast when createNewPatient returns a failure result", async () => {
     const { createNewPatient } = await import("@/features/procedure/api/gateway");
     const { toastService } = await import("@/ui/components/snackbar");
-    vi.mocked(createNewPatient).mockResolvedValue({ success: false, error: "create failed" });
+    vi.mocked(createNewPatient).mockResolvedValue({
+      success: false,
+      error: { code: "DatabaseError" },
+    });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
