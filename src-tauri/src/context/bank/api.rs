@@ -3,7 +3,8 @@ use std::sync::Arc;
 use tauri::State;
 
 use super::{
-    BankAccount, BankAccountService, BankEntry, BankEntryService, BankEntryType, CASH_ACCOUNT_ID,
+    BankAccount, BankAccountService, BankEntry, BankEntryService, BankEntryType, BankError,
+    CASH_ACCOUNT_ID,
 };
 
 // ============ BankEntry Tauri Commands ============
@@ -17,11 +18,10 @@ pub async fn create_bank_transfer(
     transfer_type: BankEntryType,
     bank_account_id: String,
     service: State<'_, Arc<BankEntryService>>,
-) -> Result<BankEntry, String> {
+) -> Result<BankEntry, BankError> {
     service
         .create_transfer(transfer_date, amount, transfer_type, bank_account_id, false)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// Tauri command: Read all bank transfers with account info
@@ -29,11 +29,8 @@ pub async fn create_bank_transfer(
 #[specta::specta]
 pub async fn read_all_bank_transfers(
     service: State<'_, Arc<BankEntryService>>,
-) -> Result<Vec<BankEntry>, String> {
-    service
-        .read_all_transfers()
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Vec<BankEntry>, BankError> {
+    service.read_all_transfers().await
 }
 
 /// Tauri command: Read a single bank transfer with account info
@@ -42,11 +39,8 @@ pub async fn read_all_bank_transfers(
 pub async fn read_bank_transfer(
     id: String,
     service: State<'_, Arc<BankEntryService>>,
-) -> Result<Option<BankEntry>, String> {
-    service
-        .read_transfer(&id)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Option<BankEntry>, BankError> {
+    service.read_transfer(&id).await
 }
 
 /// Tauri command: Update an existing bank transfer
@@ -55,11 +49,8 @@ pub async fn read_bank_transfer(
 pub async fn update_bank_transfer(
     transfer: BankEntry,
     service: State<'_, Arc<BankEntryService>>,
-) -> Result<BankEntry, String> {
-    service
-        .update_transfer(transfer)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<BankEntry, BankError> {
+    service.update_transfer(transfer).await
 }
 
 /// Tauri command: Delete a bank transfer
@@ -68,11 +59,8 @@ pub async fn update_bank_transfer(
 pub async fn delete_bank_transfer(
     id: String,
     service: State<'_, Arc<BankEntryService>>,
-) -> Result<(), String> {
-    service
-        .delete_transfer(&id)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<(), BankError> {
+    service.delete_transfer(&id).await
 }
 
 // ============ BankAccount Tauri Commands ============
@@ -84,11 +72,8 @@ pub async fn create_bank_account(
     name: String,
     iban: Option<String>,
     service: State<'_, Arc<BankAccountService>>,
-) -> Result<BankAccount, String> {
-    service
-        .create_account(name, iban)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<BankAccount, BankError> {
+    service.create_account(name, iban).await
 }
 
 /// Tauri command: Read all bank accounts
@@ -96,11 +81,8 @@ pub async fn create_bank_account(
 #[specta::specta]
 pub async fn read_all_bank_accounts(
     service: State<'_, Arc<BankAccountService>>,
-) -> Result<Vec<BankAccount>, String> {
-    service
-        .read_all_accounts()
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Vec<BankAccount>, BankError> {
+    service.read_all_accounts().await
 }
 
 /// Tauri command: Update a bank account
@@ -111,11 +93,8 @@ pub async fn update_bank_account(
     name: String,
     iban: Option<String>,
     service: State<'_, Arc<BankAccountService>>,
-) -> Result<BankAccount, String> {
-    service
-        .update_account(id, name, iban)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<BankAccount, BankError> {
+    service.update_account(id, name, iban).await
 }
 
 /// Tauri command: Returns the ID of the default cash account.
@@ -132,9 +111,6 @@ pub fn get_cash_bank_account_id() -> &'static str {
 pub async fn delete_bank_account(
     id: String,
     service: State<'_, Arc<BankAccountService>>,
-) -> Result<(), String> {
-    service
-        .delete_account(&id)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<(), BankError> {
+    service.delete_account(&id).await
 }

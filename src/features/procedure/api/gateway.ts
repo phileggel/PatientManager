@@ -14,6 +14,7 @@
 import {
   commands,
   type Fund,
+  type FundError,
   type Patient,
   type PatientError,
   type Procedure,
@@ -104,9 +105,12 @@ export async function fetchAllPatients(): Promise<ServiceResult<Patient[], Patie
 /**
  * Fetch all funds for autocomplete
  */
-export async function fetchAllFunds(): Promise<ServiceResult<Fund[]>> {
+export async function fetchAllFunds(): Promise<ServiceResult<Fund[], FundError>> {
   const result = await commands.readAllFunds();
-  return toServiceResult(result);
+  if (result.status === "ok") {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: result.error };
 }
 
 /**
@@ -142,9 +146,12 @@ export async function createNewPatient(
 export async function createNewFund(
   fundIdentifier: string,
   name: string,
-): Promise<ServiceResult<Fund>> {
+): Promise<ServiceResult<Fund, FundError>> {
   const result = await commands.addFund(fundIdentifier, name);
-  return toServiceResult(result);
+  if (result.status === "ok") {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: result.error };
 }
 
 /**

@@ -225,9 +225,8 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
     try {
       const result = await createBankAccount(trimmedName, parseResult.iban);
       if (!result.success) {
-        // BAS-016 — map known backend sentinels to translated user-facing text.
-        // Unknown errors fall back to a generic message so we never display raw sentinels.
-        const isIbanConflict = result.error.startsWith("IbanAlreadyUsed");
+        // BAS-016 — narrow on the typed error code to surface the right toast.
+        const isIbanConflict = result.error.code === "IbanAlreadyUsed";
         setCreateError(
           isIbanConflict
             ? t("statement.modal.createAccount.errorIbanAlreadyUsed")

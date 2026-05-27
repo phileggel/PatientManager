@@ -1,8 +1,13 @@
 use std::sync::Arc;
 
 use crate::{
-    context::bank::{BankAccountRepository, BankEntry, BankEntryRepository, BankEntryType},
-    shared::event_bus::{BankEntryUpdated, EventBus},
+    context::bank::{
+        BankAccountRepository, BankEntry, BankEntryRepository, BankEntryType, BankError,
+    },
+    shared::{
+        event_bus::{BankEntryUpdated, EventBus},
+        logger::BACKEND,
+    },
 };
 
 /// Application service for bank transfer operations
@@ -33,18 +38,32 @@ impl BankEntryService {
         transfer_type: BankEntryType,
         bank_account_id: String,
         is_silent: bool,
-    ) -> anyhow::Result<BankEntry> {
+    ) -> Result<BankEntry, BankError> {
         // Fetch and validate bank account exists
         let bank_account = self
             .account_repository
             .read_account(&bank_account_id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Bank account not found"))?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_transfer: read_account failed");
+                BankError::DatabaseError
+            })?
+            .ok_or_else(|| BankError::BankAccountNotFound {
+                bank_account_id: bank_account_id.clone(),
+            })?;
 
         let transfer = self
             .repository
             .create_transfer(transfer_date, amount, transfer_type, bank_account)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_transfer: repository failed");
+                // The repo wraps `BankEntry::new` which can raise typed domain
+                // errors (e.g. `AmountNotPositive`). Recover the typed variant if
+                // present; otherwise treat as infra.
+                e.downcast::<BankError>()
+                    .unwrap_or(BankError::DatabaseError)
+            })?;
 
         // Publish event
         if !is_silent {
@@ -55,24 +74,44 @@ impl BankEntryService {
     }
 
     /// Read a single transfer with account info
-    pub async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankEntry>> {
-        self.repository.read_transfer(id).await
+    pub async fn read_transfer(&self, id: &str) -> Result<Option<BankEntry>, BankError> {
+        self.repository.read_transfer(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_transfer: repository failed");
+            BankError::DatabaseError
+        })
     }
 
     /// Read all transfers with account info
-    pub async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>> {
-        self.repository.read_all_transfers().await
+    pub async fn read_all_transfers(&self) -> Result<Vec<BankEntry>, BankError> {
+        self.repository.read_all_transfers().await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_all_transfers: repository failed");
+            BankError::DatabaseError
+        })
     }
 
     /// Update an existing transfer
-    pub async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+    pub async fn update_transfer(&self, transfer: BankEntry) -> Result<BankEntry, BankError> {
         // Validate that the bank account exists
+        let account_id = transfer.bank_account.id.clone();
         self.account_repository
-            .read_account(&transfer.bank_account.id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Bank account not found"))?;
+            .read_account(&account_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_transfer: read_account failed");
+                BankError::DatabaseError
+            })?
+            .ok_or(BankError::BankAccountNotFound {
+                bank_account_id: account_id,
+            })?;
 
-        let updated = self.repository.update_transfer(transfer).await?;
+        let updated = self
+            .repository
+            .update_transfer(transfer)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_transfer: repository failed");
+                BankError::DatabaseError
+            })?;
 
         // Publish event
         let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
@@ -87,13 +126,23 @@ impl BankEntryService {
         &self,
         transfer: crate::context::bank::domain::BankEntry,
         is_silent: bool,
-    ) -> anyhow::Result<crate::context::bank::domain::BankEntry> {
+    ) -> Result<crate::context::bank::domain::BankEntry, BankError> {
+        let account_id = transfer.bank_account.id.clone();
         self.account_repository
-            .read_account(&transfer.bank_account.id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Bank account not found"))?;
+            .read_account(&account_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "persist_refund_transfer: read_account failed");
+                BankError::DatabaseError
+            })?
+            .ok_or(BankError::BankAccountNotFound {
+                bank_account_id: account_id,
+            })?;
 
-        let persisted = self.repository.persist_transfer(transfer).await?;
+        let persisted = self.repository.persist_transfer(transfer).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "persist_refund_transfer: repository failed");
+            BankError::DatabaseError
+        })?;
 
         if !is_silent {
             let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
@@ -103,14 +152,22 @@ impl BankEntryService {
     }
 
     /// Soft-delete a transfer
-    pub async fn delete_transfer(&self, id: &str) -> anyhow::Result<()> {
+    pub async fn delete_transfer(&self, id: &str) -> Result<(), BankError> {
         // Verify transfer exists
-        self.repository
-            .read_transfer(id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Transfer not found"))?;
+        let row = self.repository.read_transfer(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_transfer: read_transfer failed");
+            BankError::DatabaseError
+        })?;
+        if row.is_none() {
+            return Err(BankError::TransferNotFound {
+                bank_transfer_id: id.to_string(),
+            });
+        }
 
-        self.repository.delete_transfer(id).await?;
+        self.repository.delete_transfer(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_transfer: repository failed");
+            BankError::DatabaseError
+        })?;
 
         // Publish event
         let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
@@ -207,7 +264,12 @@ mod tests {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
-            BankEntry::new(transfer_date, amount, transfer_type, bank_account)
+            Ok(BankEntry::new(
+                transfer_date,
+                amount,
+                transfer_type,
+                bank_account,
+            )?)
         }
 
         async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
@@ -322,8 +384,7 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("greater than 0"));
+        assert!(matches!(result, Err(BankError::AmountNotPositive)));
     }
 
     #[tokio::test]
@@ -350,7 +411,12 @@ mod tests {
             transfer_type: BankEntryType,
             bank_account: BankAccount,
         ) -> anyhow::Result<BankEntry> {
-            BankEntry::new(transfer_date, amount, transfer_type, bank_account)
+            Ok(BankEntry::new(
+                transfer_date,
+                amount,
+                transfer_type,
+                bank_account,
+            )?)
         }
         async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
             Ok(None)
@@ -432,8 +498,7 @@ mod tests {
 
         let result = service.update_transfer(transfer).await;
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        assert!(matches!(result, Err(BankError::BankAccountNotFound { .. })));
     }
 
     #[tokio::test]
@@ -474,8 +539,7 @@ mod tests {
 
         let result = service.persist_refund_transfer(transfer, false).await;
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        assert!(matches!(result, Err(BankError::BankAccountNotFound { .. })));
     }
 
     #[tokio::test]
@@ -486,8 +550,10 @@ mod tests {
 
         let result = service.delete_transfer("missing-id").await;
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        assert!(matches!(
+            result,
+            Err(BankError::TransferNotFound { ref bank_transfer_id }) if bank_transfer_id == "missing-id"
+        ));
     }
 
     #[tokio::test]
@@ -506,7 +572,6 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        assert!(matches!(result, Err(BankError::BankAccountNotFound { .. })));
     }
 }

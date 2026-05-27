@@ -92,7 +92,7 @@ describe("useAddBankAccountPanel", () => {
   });
 
   it("sets name error and shows error toast when gateway returns failure", async () => {
-    mockCreate.mockResolvedValue({ success: false, error: "IBAN already in use" });
+    mockCreate.mockResolvedValue({ success: false, error: { code: "IbanAlreadyUsed" } });
 
     const { result } = renderHook(() => useAddBankAccountPanel());
 

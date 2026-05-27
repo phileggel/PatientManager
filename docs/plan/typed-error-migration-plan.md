@@ -19,12 +19,12 @@ Source pain: `docs/techdebt.md` 2026-05-24 entry (`Result<T, String>` on use-cas
 
 ## PR ladder
 
-- [ ] **PR 1** — `PatientError` + `ProcedureError` BCs (pattern-setter; BE + FE adoption for both BCs' own commands)
-- [ ] **PR 2** — `FundError` + `BankError` BCs (mirrors PR 1 mechanically once the pattern is locked)
+- [x] **PR 1** — `PatientError` + `ProcedureError` BCs (pattern-setter; BE + FE adoption for both BCs' own commands) — merged 2026-05-27 (#51)
+- [x] **PR 2** — `FundError` + `BankError` BCs (mirrors PR 1 mechanically once the pattern is locked)
 - [ ] **PR 3** — Procedure-side use-case composites (TBD: refine scope from PR 1-2 lessons)
 - [ ] **PR 4** — Bank/fund-side composites + `git rm` this plan + close the 2026-05-24 techdebt entry
 
-PR 3-4 scopes stay tentative until PR 1 ships and the actual pattern friction is measured.
+PR 3-4 scopes stay tentative until PR 1-2 ship and the actual pattern friction is measured.
 
 ## Per-PR detail
 

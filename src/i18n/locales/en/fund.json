@@ -38,5 +38,16 @@
       "error": "Failed to delete fund: {{error}}",
       "failedFallback": "Failed to delete fund"
     }
+  },
+  "errors": {
+    "fund_identifier_empty": "Fund identifier cannot be empty",
+    "fund_name_empty": "Fund name cannot be empty",
+    "fund_id_empty": "Fund ID cannot be empty",
+    "total_amount_not_positive": "Total amount must be greater than 0",
+    "invalid_payment_date_format": "Invalid payment date format (expected YYYY-MM-DD)",
+    "fund_payment_group_id_empty": "Fund payment group ID cannot be empty",
+    "line_procedure_id_empty": "Procedure ID cannot be empty",
+    "payment_group_not_found": "Fund payment group not found (id: {{id}})",
+    "database_error": "An unexpected database error occurred"
   }
 }

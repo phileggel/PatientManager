@@ -85,7 +85,7 @@ describe("AddFundPanel", () => {
     const { toastService } = await import("@/ui/components/snackbar");
     const { addFund } = await import("@/features/fund/gateway");
     const mockAddFund = vi.mocked(addFund);
-    mockAddFund.mockResolvedValueOnce({ success: false, error: "Duplicate identifier" });
+    mockAddFund.mockResolvedValueOnce({ success: false, error: { code: "DatabaseError" } });
 
     const user = userEvent.setup();
     render(<AddFundPanel />);

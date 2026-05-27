@@ -1,5 +1,6 @@
 import {
   type BankAccount,
+  type BankError,
   type BankStatementMatchResult,
   type BankStatementParseResult,
   type BankStatementReconciliationConfig,
@@ -25,13 +26,13 @@ const TAG = "[BankStatementGateway]";
 export async function createBankAccount(
   name: string,
   iban: string | null,
-): Promise<ServiceResult<BankAccount>> {
+): Promise<ServiceResult<BankAccount, BankError>> {
   logger.info(TAG, "Creating bank account", { name, hasIban: iban !== null });
 
   const result = await commands.createBankAccount(name, iban);
 
   if (result.status === "error") {
-    logger.error(TAG, "Failed to create bank account", result.error);
+    logger.error(TAG, "Failed to create bank account", { code: result.error.code });
     return { success: false, error: result.error };
   }
 

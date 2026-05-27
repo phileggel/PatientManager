@@ -90,7 +90,7 @@ describe("AddBankAccountPanel", () => {
 
     vi.mocked(gateway.createBankAccount).mockResolvedValue({
       success: false,
-      error: "Account name already exists",
+      error: { code: "BankAccountNameEmpty" },
     });
 
     render(<AddBankAccountPanel />);
@@ -102,7 +102,8 @@ describe("AddBankAccountPanel", () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Account name already exists")).toBeInTheDocument();
+      // BankAccountNameEmpty → "bank:errors.bank_account_name_empty" → "Bank account name cannot be empty"
+      expect(screen.getByText(/Bank account name cannot be empty/i)).toBeInTheDocument();
     });
   });
 

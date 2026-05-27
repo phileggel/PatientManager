@@ -1,5 +1,43 @@
-import type { BankAccount } from "@/bindings";
+import type { BankAccount, BankError } from "@/bindings";
 import type { BankAccountFormData, BankAccountRow } from "./types";
+
+/**
+ * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping for
+ * the Bank bounded context. Caller (Layer 4) calls `t(key, params)`. Variants
+ * unreachable from the bank-account wire surface (BankEntry / use-case ones)
+ * still map to keys so future composites stay typed.
+ */
+export function formatBankError(err: BankError): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
+  switch (err.code) {
+    case "BankAccountNameEmpty":
+      return { key: "bank:errors.bank_account_name_empty" };
+    case "RefundOnlyVariantRejected":
+      return { key: "bank:errors.refund_only_variant_rejected" };
+    case "AmountNotPositive":
+      return { key: "bank:errors.amount_not_positive" };
+    case "InvalidTransferDateFormat":
+      return { key: "bank:errors.invalid_transfer_date_format" };
+    case "IbanAlreadyUsed":
+      return { key: "bank:errors.iban_already_used" };
+    case "BankAccountNotFound":
+      return {
+        key: "bank:errors.bank_account_not_found",
+        params: { id: err.bank_account_id },
+      };
+    case "ProtectedCashAccount":
+      return { key: "bank:errors.protected_cash_account" };
+    case "TransferNotFound":
+      return {
+        key: "bank:errors.transfer_not_found",
+        params: { id: err.bank_transfer_id },
+      };
+    case "DatabaseError":
+      return { key: "bank:errors.database_error" };
+  }
+}
 
 /**
  * BankAccountPresenter - UI Projection of BankAccount Domain Object

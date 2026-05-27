@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCacheStore } from "@/infra/cache/store";
 import { deleteFund } from "../gateway";
-import { FundPresenter } from "../shared/presenter";
+import { FundPresenter, formatFundError } from "../shared/presenter";
 
 /**
  * Hook for FundList component
@@ -22,7 +22,8 @@ export function useFundList() {
   const deleteFundHandler = async (id: string) => {
     const result = await deleteFund(id);
     if (!result.success) {
-      throw new Error(result.error || t("action.delete.failedFallback"));
+      const { key, params } = formatFundError(result.error);
+      throw new Error(t(key, params) || t("action.delete.failedFallback"));
     }
   };
 

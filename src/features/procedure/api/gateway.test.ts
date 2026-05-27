@@ -236,13 +236,13 @@ describe("fetchAllFunds", () => {
     expect(result).toEqual({ success: true, data: [SAMPLE_FUND] });
   });
 
-  it("returns failure result on command error", async () => {
+  it("passes typed FundError through unchanged on command error", async () => {
     vi.mocked(commands.readAllFunds).mockResolvedValue({
       status: "error",
-      error: "boom",
+      error: { code: "DatabaseError" },
     });
     const result = await fetchAllFunds();
-    expect(result).toEqual({ success: false, error: "boom" });
+    expect(result).toEqual({ success: false, error: { code: "DatabaseError" } });
   });
 });
 
@@ -302,13 +302,13 @@ describe("createNewFund", () => {
     expect(result).toEqual({ success: true, data: SAMPLE_FUND });
   });
 
-  it("returns failure result on command error", async () => {
+  it("passes typed FundError through unchanged on command error", async () => {
     vi.mocked(commands.addFund).mockResolvedValue({
       status: "error",
-      error: "duplicate identifier",
+      error: { code: "DatabaseError" },
     });
     const result = await createNewFund("CPAM", "CPAM France");
-    expect(result).toEqual({ success: false, error: "duplicate identifier" });
+    expect(result).toEqual({ success: false, error: { code: "DatabaseError" } });
   });
 });
 

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import { deleteBankAccount, getCashBankAccountId } from "../gateway";
-import { BankAccountPresenter } from "../shared/presenter";
+import { BankAccountPresenter, formatBankError } from "../shared/presenter";
 
 /**
  * Hook for BankAccountList component
@@ -13,6 +14,7 @@ import { BankAccountPresenter } from "../shared/presenter";
  * View-dependent: This mapper is specific to how BankAccountList displays data
  */
 export function useBankAccountList() {
+  const { t } = useTranslation("bank");
   const accounts = useCacheStore((state) => state.bankAccounts);
   const bankAccountsLoading = useCacheStore((state) => state.bankAccountsLoading);
   const [cashAccountId, setCashAccountId] = useState<string | null>(null);
@@ -38,7 +40,8 @@ export function useBankAccountList() {
   const deleteBankAccountHandler = async (id: string) => {
     const result = await deleteBankAccount(id);
     if (!result.success) {
-      throw new Error(result.error || "Failed to delete bank account");
+      const { key, params } = formatBankError(result.error);
+      throw new Error(t(key, params) || "Failed to delete bank account");
     }
   };
 

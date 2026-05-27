@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use crate::{
-    context::bank::{BankAccount, BankAccountRepository, CASH_ACCOUNT_ID},
-    shared::event_bus::{BankAccountUpdated, EventBus},
+    context::bank::{BankAccount, BankAccountRepository, BankError, CASH_ACCOUNT_ID},
+    shared::{
+        event_bus::{BankAccountUpdated, EventBus},
+        logger::BACKEND,
+    },
 };
 
 /// Application service for bank account operations
@@ -26,15 +29,21 @@ impl BankAccountService {
         &self,
         iban: Option<&str>,
         exempt_id: Option<&str>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), BankError> {
         let Some(iban) = iban else { return Ok(()) };
-        let Some(other) = self.repository.find_by_iban_including_deleted(iban).await? else {
-            return Ok(());
-        };
+        let other = self
+            .repository
+            .find_by_iban_including_deleted(iban)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "ensure_iban_unique: repository failed");
+                BankError::DatabaseError
+            })?;
+        let Some(other) = other else { return Ok(()) };
         if exempt_id.is_some_and(|id| id == other.id) {
             return Ok(());
         }
-        anyhow::bail!("IbanAlreadyUsed");
+        Err(BankError::IbanAlreadyUsed)
     }
 
     /// Create a new bank account
@@ -42,13 +51,16 @@ impl BankAccountService {
         &self,
         name: String,
         iban: Option<String>,
-    ) -> anyhow::Result<BankAccount> {
+    ) -> Result<BankAccount, BankError> {
         // R5 — Normalize and check IBAN uniqueness BEFORE calling the factory.
         let normalized_iban = BankAccount::normalize_iban(iban.as_deref());
         self.ensure_iban_unique(normalized_iban.as_deref(), None)
             .await?;
         let account = BankAccount::new(name, iban)?;
-        let created = self.repository.create_account(account).await?;
+        let created = self.repository.create_account(account).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "create_account: repository failed");
+            BankError::DatabaseError
+        })?;
 
         // Publish event
         let _ = self
@@ -58,33 +70,42 @@ impl BankAccountService {
         Ok(created)
     }
 
-    /// Read a single account — fails with `NotFound` if the account does not exist.
-    pub async fn read_account(&self, id: &str) -> anyhow::Result<BankAccount> {
-        self.repository
-            .read_account(id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Bank account not found: {}", id))
+    /// Read a single account — fails with `BankAccountNotFound` if the account does not exist.
+    pub async fn read_account(&self, id: &str) -> Result<BankAccount, BankError> {
+        let row = self.repository.read_account(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_account: repository failed");
+            BankError::DatabaseError
+        })?;
+        row.ok_or_else(|| BankError::BankAccountNotFound {
+            bank_account_id: id.to_string(),
+        })
     }
 
     /// Read all accounts
-    pub async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
-        self.repository.read_all_accounts().await
+    pub async fn read_all_accounts(&self) -> Result<Vec<BankAccount>, BankError> {
+        self.repository.read_all_accounts().await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_all_accounts: repository failed");
+            BankError::DatabaseError
+        })
     }
 
     /// Find account by IBAN
-    pub async fn find_account_by_iban(&self, iban: &str) -> anyhow::Result<Option<BankAccount>> {
-        self.repository.find_by_iban(iban).await
+    pub async fn find_account_by_iban(&self, iban: &str) -> Result<Option<BankAccount>, BankError> {
+        self.repository.find_by_iban(iban).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "find_account_by_iban: repository failed");
+            BankError::DatabaseError
+        })
     }
 
-    /// Update an existing account — fails with `CashAccountProtected` for the default cash account (R4).
+    /// Update an existing account — fails with `ProtectedCashAccount` for the default cash account (R4).
     pub async fn update_account(
         &self,
         id: String,
         name: String,
         iban: Option<String>,
-    ) -> anyhow::Result<BankAccount> {
+    ) -> Result<BankAccount, BankError> {
         if id == CASH_ACCOUNT_ID {
-            anyhow::bail!("Cash account is protected and cannot be modified");
+            return Err(BankError::ProtectedCashAccount);
         }
         // R5 — Normalize and check IBAN uniqueness BEFORE calling the factory.
         // Self-match (same id) is allowed via the exempt_id arg.
@@ -92,7 +113,10 @@ impl BankAccountService {
         self.ensure_iban_unique(normalized_iban.as_deref(), Some(&id))
             .await?;
         let account = BankAccount::with_id(id, name, iban)?;
-        let updated = self.repository.update_account(account).await?;
+        let updated = self.repository.update_account(account).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "update_account: repository failed");
+            BankError::DatabaseError
+        })?;
 
         // Publish event
         let _ = self
@@ -102,18 +126,26 @@ impl BankAccountService {
         Ok(updated)
     }
 
-    /// Soft-delete an account — fails with `CashAccountProtected` for the default cash account (R4).
-    pub async fn delete_account(&self, id: &str) -> anyhow::Result<()> {
+    /// Soft-delete an account — fails with `ProtectedCashAccount` for the default cash account (R4).
+    pub async fn delete_account(&self, id: &str) -> Result<(), BankError> {
         if id == CASH_ACCOUNT_ID {
-            anyhow::bail!("Cash account is protected and cannot be deleted");
+            return Err(BankError::ProtectedCashAccount);
         }
         // Verify account exists
-        self.repository
-            .read_account(id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Bank account not found"))?;
+        let row = self.repository.read_account(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_account: read_account failed");
+            BankError::DatabaseError
+        })?;
+        if row.is_none() {
+            return Err(BankError::BankAccountNotFound {
+                bank_account_id: id.to_string(),
+            });
+        }
 
-        self.repository.delete_account(id).await?;
+        self.repository.delete_account(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_account: repository failed");
+            BankError::DatabaseError
+        })?;
 
         // Publish event
         let _ = self
@@ -276,8 +308,10 @@ mod tests {
 
         let service = BankAccountService::new(Arc::new(NotFoundRepo), Arc::new(EventBus::new()));
         let result = service.read_account("missing-id").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        assert!(matches!(
+            result,
+            Err(BankError::BankAccountNotFound { ref bank_account_id }) if bank_account_id == "missing-id"
+        ));
     }
 
     #[tokio::test]
@@ -289,8 +323,7 @@ mod tests {
             .update_account(CASH_ACCOUNT_ID.to_string(), "New Name".to_string(), None)
             .await;
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("protected"));
+        assert!(matches!(result, Err(BankError::ProtectedCashAccount)));
     }
 
     #[tokio::test]
@@ -300,8 +333,7 @@ mod tests {
 
         let result = service.delete_account(CASH_ACCOUNT_ID).await;
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("protected"));
+        assert!(matches!(result, Err(BankError::ProtectedCashAccount)));
     }
 
     // ============ Additional mock helpers ============
@@ -390,8 +422,7 @@ mod tests {
 
         let result = service.delete_account("missing-id").await;
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        assert!(matches!(result, Err(BankError::BankAccountNotFound { .. })));
     }
 
     // ============ R5 IBAN uniqueness tests ============
@@ -481,12 +512,7 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_err());
-        let msg = result.unwrap_err().to_string();
-        assert!(
-            msg.starts_with("IbanAlreadyUsed"),
-            "expected error to start with 'IbanAlreadyUsed', got: {msg}"
-        );
+        assert!(matches!(result, Err(BankError::IbanAlreadyUsed)));
     }
 
     // R5 — create rejects an IBAN already used by a soft-deleted account
@@ -511,12 +537,7 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_err());
-        let msg = result.unwrap_err().to_string();
-        assert!(
-            msg.starts_with("IbanAlreadyUsed"),
-            "expected error to start with 'IbanAlreadyUsed', got: {msg}"
-        );
+        assert!(matches!(result, Err(BankError::IbanAlreadyUsed)));
     }
 
     // R5 — create with iban = None must skip the uniqueness check entirely
@@ -559,12 +580,7 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_err());
-        let msg = result.unwrap_err().to_string();
-        assert!(
-            msg.starts_with("IbanAlreadyUsed"),
-            "expected error to start with 'IbanAlreadyUsed', got: {msg}"
-        );
+        assert!(matches!(result, Err(BankError::IbanAlreadyUsed)));
     }
 
     // R5 — update with same IBAN on the *same* account must succeed (self-match)
