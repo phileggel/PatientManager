@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::State;
 
-use crate::context::patient::{Patient, PatientService};
+use crate::context::patient::{Patient, PatientError, PatientService};
 
 // ============ Domain-Relevant Types (Kept) ============
 
@@ -58,19 +58,12 @@ pub async fn add_patient(
     name: Option<String>,
     ssn: Option<String>,
     service: State<'_, Arc<PatientService>>,
-) -> Result<Patient, String> {
+) -> Result<Patient, PatientError> {
     tracing::info!(target: BACKEND, has_name = name.is_some(), has_ssn = ssn.is_some(), "Processing add patient request");
 
-    service
-        .create_patient(name, ssn)
-        .await
-        .inspect(|patient| {
-            tracing::info!(target: BACKEND, patient_id = ?patient.id, "Patient added successfully");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to add patient");
-            format!("{:#}", e)
-        })
+    service.create_patient(name, ssn).await.inspect(|patient| {
+        tracing::info!(target: BACKEND, patient_id = ?patient.id, "Patient added successfully");
+    })
 }
 
 /// Tauri command: Read all patients
@@ -78,19 +71,12 @@ pub async fn add_patient(
 #[specta::specta]
 pub async fn read_all_patients(
     service: State<'_, Arc<PatientService>>,
-) -> Result<Vec<Patient>, String> {
+) -> Result<Vec<Patient>, PatientError> {
     tracing::info!(target: BACKEND, "Processing read all patients request");
 
-    service
-        .get_all_patients()
-        .await
-        .inspect(|patients| {
-            tracing::info!(target: BACKEND, count = patients.len(), "Retrieved patients successfully");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to retrieve patients");
-            format!("{:#}", e)
-        })
+    service.get_all_patients().await.inspect(|patients| {
+        tracing::info!(target: BACKEND, count = patients.len(), "Retrieved patients successfully");
+    })
 }
 
 /// Tauri command: Update an existing patient
@@ -99,19 +85,12 @@ pub async fn read_all_patients(
 pub async fn update_patient(
     patient: Patient,
     service: State<'_, Arc<PatientService>>,
-) -> Result<Patient, String> {
+) -> Result<Patient, PatientError> {
     tracing::info!(target: BACKEND, patient_id = ?patient.id, "Processing update patient request");
 
-    service
-        .update_patient(patient)
-        .await
-        .inspect(|patient| {
-            tracing::info!(target: BACKEND, patient_id = ?patient.id, "Patient updated successfully");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to update patient");
-            format!("{:#}", e)
-        })
+    service.update_patient(patient).await.inspect(|patient| {
+        tracing::info!(target: BACKEND, patient_id = ?patient.id, "Patient updated successfully");
+    })
 }
 
 /// Tauri command: Delete a patient
@@ -120,19 +99,12 @@ pub async fn update_patient(
 pub async fn delete_patient(
     id: String,
     service: State<'_, Arc<PatientService>>,
-) -> Result<(), String> {
+) -> Result<(), PatientError> {
     tracing::info!(target: BACKEND, patient_id = %id, "Processing delete patient request");
 
-    service
-        .delete_patient(&id)
-        .await
-        .inspect(|_| {
-            tracing::info!(target: BACKEND, patient_id = %id, "Patient deleted successfully");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to delete patient");
-            format!("{:#}", e)
-        })
+    service.delete_patient(&id).await.inspect(|_| {
+        tracing::info!(target: BACKEND, patient_id = %id, "Patient deleted successfully");
+    })
 }
 
 /// Tauri command: Validate batch of patient candidates
@@ -141,17 +113,14 @@ pub async fn delete_patient(
 pub async fn validate_batch_patients(
     patients: Vec<PatientCandidate>,
     service: State<'_, Arc<PatientService>>,
-) -> Result<ValidateBatchPatientsResponse, String> {
+) -> Result<ValidateBatchPatientsResponse, PatientError> {
     tracing::info!(
         target: BACKEND,
         count = patients.len(),
         "Processing validate batch patients request"
     );
 
-    let results = service.validate_batch(patients).await.map_err(|e| {
-        tracing::error!(target: BACKEND, error = %e, "Failed to validate batch patients");
-        format!("{:#}", e)
-    })?;
+    let results = service.validate_batch(patients).await?;
 
     tracing::info!(
         target: BACKEND,
@@ -167,17 +136,14 @@ pub async fn validate_batch_patients(
 pub async fn create_batch_patients(
     patients: Vec<PatientCandidate>,
     service: State<'_, Arc<PatientService>>,
-) -> Result<CreateBatchPatientsResponse, String> {
+) -> Result<CreateBatchPatientsResponse, PatientError> {
     tracing::info!(
         target: BACKEND,
         count = patients.len(),
         "Processing create batch patients request"
     );
 
-    let (created_patients, temp_id_map) = service.create_batch(patients).await.map_err(|e| {
-        tracing::error!(target: BACKEND, error = %e, "Failed to create batch patients");
-        format!("{:#}", e)
-    })?;
+    let (created_patients, temp_id_map) = service.create_batch(patients).await?;
 
     tracing::info!(
         target: BACKEND,

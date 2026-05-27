@@ -20,6 +20,8 @@ import {
   type RawProcedure,
   type Result,
 } from "@/bindings";
+import { formatPatientError } from "@/features/patient/shared/presenter";
+import { formatProcedureError } from "@/features/procedure-type/shared/presenter";
 import type { ServiceResult } from "@/types/api";
 
 /**
@@ -93,7 +95,10 @@ export async function deleteProcedure(id: string): Promise<ServiceResult<void>> 
  */
 export async function fetchAllPatients(): Promise<ServiceResult<Patient[]>> {
   const result = await commands.readAllPatients();
-  return toServiceResult(result);
+  if (result.status === "ok") {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: formatPatientError(result.error) };
 }
 
 /**
@@ -109,7 +114,10 @@ export async function fetchAllFunds(): Promise<ServiceResult<Fund[]>> {
  */
 export async function fetchAllProcedureTypes(): Promise<ServiceResult<ProcedureType[]>> {
   const result = await commands.readAllProcedureTypes();
-  return toServiceResult(result);
+  if (result.status === "ok") {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: formatProcedureError(result.error) };
 }
 
 /**
@@ -120,7 +128,10 @@ export async function createNewPatient(
   ssn: string | null,
 ): Promise<ServiceResult<Patient>> {
   const result = await commands.addPatient(name, ssn);
-  return toServiceResult(result);
+  if (result.status === "ok") {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: formatPatientError(result.error) };
 }
 
 /**
@@ -143,5 +154,8 @@ export async function createNewProcedureType(
   category: string | null,
 ): Promise<ServiceResult<ProcedureType>> {
   const result = await commands.addProcedureType(name, defaultAmount ?? 0, category);
-  return toServiceResult(result);
+  if (result.status === "ok") {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: formatProcedureError(result.error) };
 }

@@ -11,7 +11,7 @@ export const commands = {
 /**
  * Tauri command: Add a new patient
  */
-async addPatient(name: string | null, ssn: string | null) : Promise<Result<Patient, string>> {
+async addPatient(name: string | null, ssn: string | null) : Promise<Result<Patient, PatientError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_patient", { name, ssn }) };
 } catch (e) {
@@ -22,7 +22,7 @@ async addPatient(name: string | null, ssn: string | null) : Promise<Result<Patie
 /**
  * Tauri command: Read all patients
  */
-async readAllPatients() : Promise<Result<Patient[], string>> {
+async readAllPatients() : Promise<Result<Patient[], PatientError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_all_patients") };
 } catch (e) {
@@ -33,7 +33,7 @@ async readAllPatients() : Promise<Result<Patient[], string>> {
 /**
  * Tauri command: Update an existing patient
  */
-async updatePatient(patient: Patient) : Promise<Result<Patient, string>> {
+async updatePatient(patient: Patient) : Promise<Result<Patient, PatientError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_patient", { patient }) };
 } catch (e) {
@@ -44,7 +44,7 @@ async updatePatient(patient: Patient) : Promise<Result<Patient, string>> {
 /**
  * Tauri command: Delete a patient
  */
-async deletePatient(id: string) : Promise<Result<null, string>> {
+async deletePatient(id: string) : Promise<Result<null, PatientError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_patient", { id }) };
 } catch (e) {
@@ -55,7 +55,7 @@ async deletePatient(id: string) : Promise<Result<null, string>> {
 /**
  * Tauri command: Validate batch of patient candidates
  */
-async validateBatchPatients(patients: PatientCandidate[]) : Promise<Result<ValidateBatchPatientsResponse, string>> {
+async validateBatchPatients(patients: PatientCandidate[]) : Promise<Result<ValidateBatchPatientsResponse, PatientError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("validate_batch_patients", { patients }) };
 } catch (e) {
@@ -66,7 +66,7 @@ async validateBatchPatients(patients: PatientCandidate[]) : Promise<Result<Valid
 /**
  * Tauri command: Create batch of patients
  */
-async createBatchPatients(patients: PatientCandidate[]) : Promise<Result<CreateBatchPatientsResponse, string>> {
+async createBatchPatients(patients: PatientCandidate[]) : Promise<Result<CreateBatchPatientsResponse, PatientError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_batch_patients", { patients }) };
 } catch (e) {
@@ -231,7 +231,7 @@ async readProceduresByIds(ids: string[]) : Promise<Result<Procedure[], string>> 
 /**
  * Tauri command: Add a new procedure type
  */
-async addProcedureType(name: string, defaultAmount: number, category: string | null) : Promise<Result<ProcedureType, string>> {
+async addProcedureType(name: string, defaultAmount: number, category: string | null) : Promise<Result<ProcedureType, ProcedureError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_procedure_type", { name, defaultAmount, category }) };
 } catch (e) {
@@ -242,7 +242,7 @@ async addProcedureType(name: string, defaultAmount: number, category: string | n
 /**
  * Tauri command: Read all procedure types
  */
-async readAllProcedureTypes() : Promise<Result<ProcedureType[], string>> {
+async readAllProcedureTypes() : Promise<Result<ProcedureType[], ProcedureError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_all_procedure_types") };
 } catch (e) {
@@ -253,7 +253,7 @@ async readAllProcedureTypes() : Promise<Result<ProcedureType[], string>> {
 /**
  * Tauri command: Update an existing procedure type
  */
-async updateProcedureType(raw: RawProcedureType) : Promise<Result<ProcedureType, string>> {
+async updateProcedureType(raw: RawProcedureType) : Promise<Result<ProcedureType, ProcedureError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_procedure_type", { raw }) };
 } catch (e) {
@@ -264,7 +264,7 @@ async updateProcedureType(raw: RawProcedureType) : Promise<Result<ProcedureType,
 /**
  * Tauri command: Delete a procedure type
  */
-async deleteProcedureType(id: string) : Promise<Result<null, string>> {
+async deleteProcedureType(id: string) : Promise<Result<null, ProcedureError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_procedure_type", { id }) };
 } catch (e) {
@@ -1419,6 +1419,33 @@ latest_procedure_type: string | null; latest_fund: string | null; latest_date: s
  */
 export type PatientCandidate = { temp_id: string; name: string | null; ssn: string | null }
 /**
+ * Errors raised by the Patient bounded context.
+ * 
+ * Wire shape: each variant serializes as `{ "code": "<VariantName>", ... }`
+ * (struct fields when present). The frontend narrows on `code` per F27.
+ */
+export type PatientError = 
+/**
+ * Non-anonymous patient was constructed with an empty (or whitespace-only) name.
+ */
+{ code: "NameEmpty" } | 
+/**
+ * Non-anonymous patient was constructed without a name field.
+ */
+{ code: "NonAnonymousRequiresName" } | 
+/**
+ * SSN payload does not match the 13-ASCII-digit format. The SSN value is
+ * intentionally NOT carried as a payload — see § Logging hygiene in
+ * CLAUDE.md (PII must not appear on the wire).
+ */
+{ code: "InvalidSsn" } | 
+/**
+ * Infra failure from the repository / sqlx layer. The underlying error
+ * is logged via `tracing::error!` at the call site; the wire surface
+ * carries no detail to avoid leaking implementation specifics.
+ */
+{ code: "DatabaseError" }
+/**
  * Validation result wraps candidate with validation outcome
  */
 export type PatientValidationResult = { candidate: PatientCandidate; status: PatientValidationStatus; existing_id: string | null; error: string | null }
@@ -1570,6 +1597,65 @@ id: string }
  * Candidate procedure for batch creation and validation for orchestrators
  */
 export type ProcedureCandidate = { patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; awaited_amount: number | null }
+/**
+ * Errors raised by the Procedure bounded context.
+ * 
+ * Wire shape: each variant serializes as `{ "code": "<VariantName>", ... }`
+ * (struct fields when present). The frontend narrows on `code` per F27.
+ * 
+ * Scope note (PR 1 of typed-error migration): the variants listed here cover
+ * every error path the BC's domain + service layer can currently produce.
+ * The `Procedure` aggregate's CRUD commands are not wired through this BC's
+ * api.rs (they live in `use_cases/procedure_orchestration/api.rs` and become
+ * wire-typed in PR 3 of the migration). The corresponding variants
+ * (`PatientIdEmpty`, `ProcedureTypeIdEmpty`, `Refund*`) are reachable through
+ * `Procedure::new` / `ProcedureRefund::new`, called from those use cases.
+ */
+export type ProcedureError = 
+/**
+ * `Procedure::validate` rejected an empty patient ID.
+ */
+{ code: "PatientIdEmpty" } | 
+/**
+ * `Procedure::validate` rejected an empty procedure type ID.
+ */
+{ code: "ProcedureTypeIdEmpty" } | 
+/**
+ * `ProcedureType::validate_fields` rejected an empty/whitespace name.
+ */
+{ code: "ProcedureTypeNameEmpty" } | 
+/**
+ * `ProcedureType::validate_fields` rejected a negative default amount.
+ */
+{ code: "DefaultAmountNegative" } | 
+/**
+ * `ProcedureTypeService` lookup by id returned no row.
+ */
+{ code: "ProcedureTypeNotFound"; procedure_type_id: string } | 
+/**
+ * `ProcedureTypeService` add/update rejected because another row already
+ * uses the same name.
+ */
+{ code: "ProcedureTypeNameDuplicate" } | 
+/**
+ * `ProcedureTypeService` rejected mutation of the reserved `import-pdf`
+ * procedure type.
+ */
+{ code: "ReservedTypeNotMutable" } | 
+/**
+ * `ProcedureRefund::validate` rejected a reason exceeding the 255-char cap.
+ */
+{ code: "RefundReasonTooLong" } | 
+/**
+ * `ProcedureRefund::new` rejected a refund date that does not parse as
+ * `YYYY-MM-DD`.
+ */
+{ code: "InvalidRefundDateFormat" } | 
+/**
+ * Repository / sqlx-level failure. Underlying error is logged at the
+ * call site via `tracing::error!`; the wire surface carries no detail.
+ */
+{ code: "DatabaseError" }
 /**
  * DTO for surfacing ProcedureRefund data to the frontend.
  * Used when the OverpaymentRefund modal needs to resolve source_procedure_id (REF-200).
