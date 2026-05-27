@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { addFund } from "@/features/fund/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
+import { formatFundError } from "../shared/presenter";
 import type { FundFormData } from "../shared/types";
 import { type FormErrors, validateFund } from "../shared/validateFund";
 
@@ -63,8 +64,9 @@ export function useAddFundPanel() {
         setErrors({});
         toastService.show("success", t("action.addSuccess", { name: result.data?.name }));
       } else {
-        logger.error("Failed to add fund", { error: result.error });
-        toastService.show("error", t("action.addError", { error: result.error }));
+        const { key, params } = formatFundError(result.error);
+        logger.error("Failed to add fund", { code: result.error.code });
+        toastService.show("error", t("action.addError", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while adding fund", { error });

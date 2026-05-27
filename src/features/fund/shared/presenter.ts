@@ -1,5 +1,38 @@
-import type { Fund } from "@/bindings";
+import type { Fund, FundError } from "@/bindings";
 import type { FundFormData, FundRow } from "./types";
+
+/**
+ * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping for
+ * the Fund bounded context. Caller (Layer 4) calls `t(key, params)`.
+ */
+export function formatFundError(err: FundError): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
+  switch (err.code) {
+    case "FundIdentifierEmpty":
+      return { key: "fund:errors.fund_identifier_empty" };
+    case "FundNameEmpty":
+      return { key: "fund:errors.fund_name_empty" };
+    case "FundIdEmpty":
+      return { key: "fund:errors.fund_id_empty" };
+    case "TotalAmountNotPositive":
+      return { key: "fund:errors.total_amount_not_positive" };
+    case "InvalidPaymentDateFormat":
+      return { key: "fund:errors.invalid_payment_date_format" };
+    case "FundPaymentGroupIdEmpty":
+      return { key: "fund:errors.fund_payment_group_id_empty" };
+    case "LineProcedureIdEmpty":
+      return { key: "fund:errors.line_procedure_id_empty" };
+    case "PaymentGroupNotFound":
+      return {
+        key: "fund:errors.payment_group_not_found",
+        params: { id: err.fund_payment_group_id },
+      };
+    case "DatabaseError":
+      return { key: "fund:errors.database_error" };
+  }
+}
 
 /**
  * FundPresenter - UI Projection of Fund Domain Object

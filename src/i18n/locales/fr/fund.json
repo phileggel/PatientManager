@@ -38,5 +38,16 @@
       "error": "Échec de la suppression de la caisse : {{error}}",
       "failedFallback": "Échec de la suppression de la caisse"
     }
+  },
+  "errors": {
+    "fund_identifier_empty": "L'identifiant de la caisse ne peut pas être vide",
+    "fund_name_empty": "Le nom de la caisse ne peut pas être vide",
+    "fund_id_empty": "L'identifiant de la caisse ne peut pas être vide",
+    "total_amount_not_positive": "Le montant total doit être supérieur à 0",
+    "invalid_payment_date_format": "Format de date de paiement invalide (attendu : AAAA-MM-JJ)",
+    "fund_payment_group_id_empty": "L'identifiant du groupe de paiement ne peut pas être vide",
+    "line_procedure_id_empty": "L'identifiant de l'acte ne peut pas être vide",
+    "payment_group_not_found": "Groupe de paiement introuvable (id : {{id}})",
+    "database_error": "Une erreur de base de données est survenue"
   }
 }

@@ -77,7 +77,7 @@ async createBatchPatients(patients: PatientCandidate[]) : Promise<Result<CreateB
 /**
  * Tauri command: Add a new affiliated fund
  */
-async addFund(fundIdentifier: string, fundName: string) : Promise<Result<Fund, string>> {
+async addFund(fundIdentifier: string, fundName: string) : Promise<Result<Fund, FundError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_fund", { fundIdentifier, fundName }) };
 } catch (e) {
@@ -88,7 +88,7 @@ async addFund(fundIdentifier: string, fundName: string) : Promise<Result<Fund, s
 /**
  * Tauri command: Read all affiliated funds
  */
-async readAllFunds() : Promise<Result<Fund[], string>> {
+async readAllFunds() : Promise<Result<Fund[], FundError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_all_funds") };
 } catch (e) {
@@ -99,7 +99,7 @@ async readAllFunds() : Promise<Result<Fund[], string>> {
 /**
  * Tauri command: Update an existing affiliated fund
  */
-async updateFund(fund: Fund) : Promise<Result<Fund, string>> {
+async updateFund(fund: Fund) : Promise<Result<Fund, FundError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_fund", { fund }) };
 } catch (e) {
@@ -110,7 +110,7 @@ async updateFund(fund: Fund) : Promise<Result<Fund, string>> {
 /**
  * Tauri command: Delete an affiliated fund
  */
-async deleteFund(id: string) : Promise<Result<null, string>> {
+async deleteFund(id: string) : Promise<Result<null, FundError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_fund", { id }) };
 } catch (e) {
@@ -121,7 +121,7 @@ async deleteFund(id: string) : Promise<Result<null, string>> {
 /**
  * Tauri command: Validate batch of fund candidates
  */
-async validateBatchFunds(funds: FundCandidate[]) : Promise<Result<ValidateBatchFundsResponse, string>> {
+async validateBatchFunds(funds: FundCandidate[]) : Promise<Result<ValidateBatchFundsResponse, FundError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("validate_batch_funds", { funds }) };
 } catch (e) {
@@ -132,7 +132,7 @@ async validateBatchFunds(funds: FundCandidate[]) : Promise<Result<ValidateBatchF
 /**
  * Tauri command: Create batch of funds
  */
-async createBatchFunds(funds: FundCandidate[]) : Promise<Result<CreateBatchFundsResponse, string>> {
+async createBatchFunds(funds: FundCandidate[]) : Promise<Result<CreateBatchFundsResponse, FundError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_batch_funds", { funds }) };
 } catch (e) {
@@ -407,7 +407,7 @@ async getUnreconciledProceduresInRange(startDate: string, endDate: string) : Pro
  * `is_locked` is derived at restore time from the persisted
  * `FundPaymentGroupStatus` (BankPaid → locked).
  */
-async readAllFundPaymentGroups() : Promise<Result<FundPaymentGroup[], string>> {
+async readAllFundPaymentGroups() : Promise<Result<FundPaymentGroup[], FundError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_all_fund_payment_groups") };
 } catch (e) {
@@ -478,7 +478,7 @@ async getFundPaymentGroupEditData(groupId: string, fundId: string) : Promise<Res
 /**
  * Tauri command: Create a new bank transfer (bare — links managed by bank_manual_match use_case)
  */
-async createBankTransfer(transferDate: string, amount: number, transferType: BankEntryType, bankAccountId: string) : Promise<Result<BankEntry, string>> {
+async createBankTransfer(transferDate: string, amount: number, transferType: BankEntryType, bankAccountId: string) : Promise<Result<BankEntry, BankError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_bank_transfer", { transferDate, amount, transferType, bankAccountId }) };
 } catch (e) {
@@ -489,7 +489,7 @@ async createBankTransfer(transferDate: string, amount: number, transferType: Ban
 /**
  * Tauri command: Read all bank transfers with account info
  */
-async readAllBankTransfers() : Promise<Result<BankEntry[], string>> {
+async readAllBankTransfers() : Promise<Result<BankEntry[], BankError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_all_bank_transfers") };
 } catch (e) {
@@ -500,7 +500,7 @@ async readAllBankTransfers() : Promise<Result<BankEntry[], string>> {
 /**
  * Tauri command: Read a single bank transfer with account info
  */
-async readBankTransfer(id: string) : Promise<Result<BankEntry | null, string>> {
+async readBankTransfer(id: string) : Promise<Result<BankEntry | null, BankError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_bank_transfer", { id }) };
 } catch (e) {
@@ -511,7 +511,7 @@ async readBankTransfer(id: string) : Promise<Result<BankEntry | null, string>> {
 /**
  * Tauri command: Update an existing bank transfer
  */
-async updateBankTransfer(transfer: BankEntry) : Promise<Result<BankEntry, string>> {
+async updateBankTransfer(transfer: BankEntry) : Promise<Result<BankEntry, BankError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_bank_transfer", { transfer }) };
 } catch (e) {
@@ -522,7 +522,7 @@ async updateBankTransfer(transfer: BankEntry) : Promise<Result<BankEntry, string
 /**
  * Tauri command: Delete a bank transfer
  */
-async deleteBankTransfer(id: string) : Promise<Result<null, string>> {
+async deleteBankTransfer(id: string) : Promise<Result<null, BankError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_bank_transfer", { id }) };
 } catch (e) {
@@ -533,7 +533,7 @@ async deleteBankTransfer(id: string) : Promise<Result<null, string>> {
 /**
  * Tauri command: Create a new bank account
  */
-async createBankAccount(name: string, iban: string | null) : Promise<Result<BankAccount, string>> {
+async createBankAccount(name: string, iban: string | null) : Promise<Result<BankAccount, BankError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_bank_account", { name, iban }) };
 } catch (e) {
@@ -544,7 +544,7 @@ async createBankAccount(name: string, iban: string | null) : Promise<Result<Bank
 /**
  * Tauri command: Read all bank accounts
  */
-async readAllBankAccounts() : Promise<Result<BankAccount[], string>> {
+async readAllBankAccounts() : Promise<Result<BankAccount[], BankError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_all_bank_accounts") };
 } catch (e) {
@@ -555,7 +555,7 @@ async readAllBankAccounts() : Promise<Result<BankAccount[], string>> {
 /**
  * Tauri command: Update a bank account
  */
-async updateBankAccount(id: string, name: string, iban: string | null) : Promise<Result<BankAccount, string>> {
+async updateBankAccount(id: string, name: string, iban: string | null) : Promise<Result<BankAccount, BankError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_bank_account", { id, name, iban }) };
 } catch (e) {
@@ -566,7 +566,7 @@ async updateBankAccount(id: string, name: string, iban: string | null) : Promise
 /**
  * Tauri command: Delete a bank account
  */
-async deleteBankAccount(id: string) : Promise<Result<null, string>> {
+async deleteBankAccount(id: string) : Promise<Result<null, BankError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_bank_account", { id }) };
 } catch (e) {
@@ -1025,6 +1025,55 @@ export type BankEntryType = "FUND_WIRE" | "PATIENT_CHECK" | "PATIENT_CREDIT_CARD
  */
 "FUND_OUTGOING_WIRE"
 /**
+ * Errors raised by the Bank bounded context.
+ * 
+ * Wire shape: each variant serializes as `{ "code": "<VariantName>", ... }`
+ * (struct fields when present). The frontend narrows on `code` per F27.
+ */
+export type BankError = 
+/**
+ * `BankAccount::validate` rejected an empty name.
+ */
+{ code: "BankAccountNameEmpty" } | 
+/**
+ * `BankEntryType::ensure_not_refund_only_variant` rejected the
+ * `FundOutgoingWire` variant (REF-080: refund-only path).
+ */
+{ code: "RefundOnlyVariantRejected" } | 
+/**
+ * `BankEntry::validate` rejected an amount ≤ 0.
+ */
+{ code: "AmountNotPositive" } | 
+/**
+ * `BankEntry::new` / `with_id` rejected a transfer_date that does not
+ * parse as `YYYY-MM-DD`.
+ */
+{ code: "InvalidTransferDateFormat" } | 
+/**
+ * `BankAccountService::create_account` / `update_account` enforced
+ * IBAN uniqueness (R5) — another row already holds the IBAN.
+ */
+{ code: "IbanAlreadyUsed" } | 
+/**
+ * `BankAccountService::read_account` / `update_account` lookup returned
+ * no row.
+ */
+{ code: "BankAccountNotFound"; bank_account_id: string } | 
+/**
+ * `BankAccountService::update_account` / `delete_account` rejected
+ * mutation of the protected cash account.
+ */
+{ code: "ProtectedCashAccount" } | 
+/**
+ * `BankEntryService::update_transfer` lookup returned no row.
+ */
+{ code: "TransferNotFound"; bank_transfer_id: string } | 
+/**
+ * Repository / sqlx-level failure. Underlying error is logged at the
+ * call site via `tracing::error!`; the wire surface carries no detail.
+ */
+{ code: "DatabaseError" }
+/**
  * A mapping between a bank label (as seen on statements) and a fund
  */
 export type BankFundLabelMapping = { id: string; bank_account_id: string; bank_label: string; fund_id: string | null }
@@ -1204,6 +1253,51 @@ id: string }
  * Fund candidate for batch import - semantically different from Fund (lacks ID, created_at)
  */
 export type FundCandidate = { temp_id: string; fund_identifier: string; fund_name: string }
+/**
+ * Errors raised by the Fund bounded context.
+ * 
+ * Wire shape: each variant serializes as `{ "code": "<VariantName>", ... }`
+ * (struct fields when present). The frontend narrows on `code` per F27.
+ */
+export type FundError = 
+/**
+ * `Fund::validate` rejected an empty fund identifier.
+ */
+{ code: "FundIdentifierEmpty" } | 
+/**
+ * `Fund::validate` rejected an empty fund name.
+ */
+{ code: "FundNameEmpty" } | 
+/**
+ * `FundPaymentGroup::validate` rejected an empty fund_id.
+ */
+{ code: "FundIdEmpty" } | 
+/**
+ * `FundPaymentGroup::validate` rejected a non-positive total amount.
+ */
+{ code: "TotalAmountNotPositive" } | 
+/**
+ * `FundPaymentGroup::new` / `with_id` / service update path rejected
+ * a payment date that does not parse as `YYYY-MM-DD`.
+ */
+{ code: "InvalidPaymentDateFormat" } | 
+/**
+ * `FundPaymentLine::validate` rejected an empty fund_payment_group_id.
+ */
+{ code: "FundPaymentGroupIdEmpty" } | 
+/**
+ * `FundPaymentLine::validate` rejected an empty procedure_id.
+ */
+{ code: "LineProcedureIdEmpty" } | 
+/**
+ * `FundPaymentGroupService` update-by-id lookup returned no row.
+ */
+{ code: "PaymentGroupNotFound"; fund_payment_group_id: string } | 
+/**
+ * Repository / sqlx-level failure. Underlying error is logged at the
+ * call site via `tracing::error!`; the wire surface carries no detail.
+ */
+{ code: "DatabaseError" }
 /**
  * A fund payment group candidate for a FUND transfer (R6)
  */

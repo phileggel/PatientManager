@@ -4,7 +4,7 @@ import type { Fund } from "@/bindings";
 import { updateFund } from "@/features/fund/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
-import { FundPresenter } from "../shared/presenter";
+import { FundPresenter, formatFundError } from "../shared/presenter";
 import type { FundFormData } from "../shared/types";
 import { type FormErrors, validateFund } from "../shared/validateFund";
 
@@ -76,8 +76,9 @@ export function useEditFundModal(fund: Fund | null, onSuccess?: () => void) {
         toastService.show("success", t("action.updateSuccess", { name: result.data?.name }));
         onSuccess?.();
       } else {
-        logger.error("Failed to update fund", { error: result.error });
-        toastService.show("error", t("action.updateError", { error: result.error }));
+        const { key, params } = formatFundError(result.error);
+        logger.error("Failed to update fund", { code: result.error.code });
+        toastService.show("error", t("action.updateError", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while updating fund", { error });

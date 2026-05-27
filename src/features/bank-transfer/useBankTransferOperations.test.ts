@@ -45,7 +45,7 @@ describe("useBankTransferOperations", () => {
   });
 
   it("sets store error when readAllBankTransfers returns failure", async () => {
-    mockRead.mockResolvedValue({ success: false, error: "load failed" });
+    mockRead.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
     const { result } = renderHook(() => useBankTransferOperations());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.error).toBeTruthy();

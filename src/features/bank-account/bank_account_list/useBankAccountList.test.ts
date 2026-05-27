@@ -65,11 +65,11 @@ describe("useBankAccountList", () => {
 
   it("deleteBankAccount throws when gateway returns success=false", async () => {
     mockGetCashId.mockResolvedValue({ success: true, data: "acc-cash" });
-    mockDelete.mockResolvedValue({ success: false, error: "Account in use" });
+    mockDelete.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     const { result } = renderHook(() => useBankAccountList());
     await act(async () => {});
 
-    await expect(result.current.deleteBankAccount("acc-1")).rejects.toThrow("Account in use");
+    await expect(result.current.deleteBankAccount("acc-1")).rejects.toThrow(/database error/i);
   });
 });

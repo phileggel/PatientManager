@@ -1394,11 +1394,16 @@ mod tests {
             .await
             .expect_err("FundOutgoingWire must be rejected by create_direct_transfer");
 
-        let msg = err.to_string();
-        assert!(
-            msg.contains("REF-080"),
-            "rejection must cite REF-080: {msg}"
-        );
+        // REF-080: the wire-typed variant `BankError::RefundOnlyVariantRejected`
+        // carries the rejection semantics. The anyhow chain wraps it via
+        // thiserror's `From<BankError> for anyhow::Error` impl.
+        let downcast = err
+            .downcast_ref::<crate::context::bank::BankError>()
+            .expect("error chain must contain a BankError");
+        assert!(matches!(
+            downcast,
+            crate::context::bank::BankError::RefundOnlyVariantRejected
+        ));
 
         Ok(())
     }

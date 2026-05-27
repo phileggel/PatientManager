@@ -226,7 +226,7 @@ describe("useBankStatementModal — BAS-010..017 (inline create-account flow)", 
     stubConfigAndParseAndNoAccount();
     mockCreateBankAccount.mockResolvedValue({
       success: false,
-      error: "IbanAlreadyUsed",
+      error: { code: "IbanAlreadyUsed" },
     });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
@@ -243,9 +243,9 @@ describe("useBankStatementModal — BAS-010..017 (inline create-account flow)", 
       await result.current.handleCreateAccountSubmit();
     });
 
-    // Sentinel must be mapped to a translated user-facing message — never displayed raw.
+    // Sentinel must be mapped to a translated user-facing message — the typed
+    // BankError variant gets narrowed and translated; never displayed raw.
     expect(result.current.createError).toBeTruthy();
-    expect(result.current.createError).not.toBe("IbanAlreadyUsed");
     expect(result.current.createError?.toLowerCase()).toContain("iban");
     expect(result.current.step).toBe("create-account");
     // The typed name must be preserved so the user can correct without re-typing
@@ -259,7 +259,7 @@ describe("useBankStatementModal — BAS-010..017 (inline create-account flow)", 
     stubConfigAndParseAndNoAccount();
     mockCreateBankAccount.mockResolvedValue({
       success: false,
-      error: "IbanAlreadyUsed",
+      error: { code: "IbanAlreadyUsed" },
     });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));

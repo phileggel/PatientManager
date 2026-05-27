@@ -489,7 +489,7 @@ impl BankStatementOrchestrator {
         &self,
         iban: &str,
     ) -> anyhow::Result<Option<crate::context::bank::BankAccount>> {
-        self.bank_account_service.find_account_by_iban(iban).await
+        Ok(self.bank_account_service.find_account_by_iban(iban).await?)
     }
 }
 

@@ -1,8 +1,9 @@
-use anyhow::Result;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
+
+use crate::context::fund::error::FundError;
 
 /// Fund aggregate root
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -22,7 +23,7 @@ pub struct Fund {
 
 impl Fund {
     /// Creates a new Fund with validation and generates ID.
-    pub fn new(fund_identifier: String, name: String) -> Result<Self> {
+    pub fn new(fund_identifier: String, name: String) -> Result<Self, FundError> {
         Self::validate(&fund_identifier, &name)?;
 
         Ok(Self {
@@ -38,7 +39,7 @@ impl Fund {
         fund_identifier: String,
         name: String,
         temp_id: String,
-    ) -> Result<Self> {
+    ) -> Result<Self, FundError> {
         Self::validate(&fund_identifier, &name)?;
 
         Ok(Self {
@@ -51,7 +52,7 @@ impl Fund {
 
     /// Creates an Fund with an existing ID and validation.
     /// Does NOT generate a new ID.
-    pub fn with_id(id: String, fund_identifier: String, name: String) -> Result<Self> {
+    pub fn with_id(id: String, fund_identifier: String, name: String) -> Result<Self, FundError> {
         Self::validate(&fund_identifier, &name)?;
 
         Ok(Self {
@@ -74,12 +75,12 @@ impl Fund {
     }
 
     /// Validates fund fields.
-    fn validate(fund_identifier: &str, name: &str) -> Result<()> {
+    fn validate(fund_identifier: &str, name: &str) -> Result<(), FundError> {
         if fund_identifier.trim().is_empty() {
-            anyhow::bail!("Fund identifier cannot be empty");
+            return Err(FundError::FundIdentifierEmpty);
         }
         if name.trim().is_empty() {
-            anyhow::bail!("Fund name cannot be empty");
+            return Err(FundError::FundNameEmpty);
         }
         Ok(())
     }
@@ -128,15 +129,11 @@ impl FundPaymentGroup {
         payment_date: String,
         total_amount: i64,
         lines: Vec<FundPaymentLine>,
-    ) -> Result<Self> {
+    ) -> Result<Self, FundError> {
         Self::validate(&fund_id, &payment_date, total_amount)?;
 
-        let parsed_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").map_err(|_| {
-            anyhow::anyhow!(
-                "Invalid payment date format: {} (expected YYYY-MM-DD)",
-                payment_date
-            )
-        })?;
+        let parsed_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
+            .map_err(|_| FundError::InvalidPaymentDateFormat)?;
 
         Ok(Self {
             id: Uuid::new_v4().to_string(),
@@ -156,15 +153,11 @@ impl FundPaymentGroup {
         payment_date: String,
         total_amount: i64,
         lines: Vec<FundPaymentLine>,
-    ) -> Result<Self> {
+    ) -> Result<Self, FundError> {
         Self::validate(&fund_id, &payment_date, total_amount)?;
 
-        let parsed_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").map_err(|_| {
-            anyhow::anyhow!(
-                "Invalid payment date format: {} (expected YYYY-MM-DD)",
-                payment_date
-            )
-        })?;
+        let parsed_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
+            .map_err(|_| FundError::InvalidPaymentDateFormat)?;
 
         Ok(Self {
             id,
@@ -201,12 +194,12 @@ impl FundPaymentGroup {
     }
 
     /// Validates fund payment group fields.
-    fn validate(fund_id: &str, _payment_date: &str, total_amount: i64) -> Result<()> {
+    fn validate(fund_id: &str, _payment_date: &str, total_amount: i64) -> Result<(), FundError> {
         if fund_id.trim().is_empty() {
-            anyhow::bail!("Fund ID cannot be empty");
+            return Err(FundError::FundIdEmpty);
         }
         if total_amount <= 0 {
-            anyhow::bail!("Total amount must be greater than 0");
+            return Err(FundError::TotalAmountNotPositive);
         }
         Ok(())
     }
@@ -223,7 +216,7 @@ pub struct FundPaymentLine {
 
 impl FundPaymentLine {
     /// Creates a new FundPaymentLine with validation and generates ID.
-    pub fn new(fund_payment_group_id: String, procedure_id: String) -> Result<Self> {
+    pub fn new(fund_payment_group_id: String, procedure_id: String) -> Result<Self, FundError> {
         Self::validate(&fund_payment_group_id, &procedure_id)?;
 
         Ok(Self {
@@ -239,7 +232,7 @@ impl FundPaymentLine {
         id: String,
         fund_payment_group_id: String,
         procedure_id: String,
-    ) -> Result<Self> {
+    ) -> Result<Self, FundError> {
         Self::validate(&fund_payment_group_id, &procedure_id)?;
 
         Ok(Self {
@@ -260,12 +253,12 @@ impl FundPaymentLine {
     }
 
     /// Validates fund payment line fields.
-    fn validate(fund_payment_group_id: &str, procedure_id: &str) -> Result<()> {
+    fn validate(fund_payment_group_id: &str, procedure_id: &str) -> Result<(), FundError> {
         if fund_payment_group_id.trim().is_empty() {
-            anyhow::bail!("Fund payment group ID cannot be empty");
+            return Err(FundError::FundPaymentGroupIdEmpty);
         }
         if procedure_id.trim().is_empty() {
-            anyhow::bail!("Procedure ID cannot be empty");
+            return Err(FundError::LineProcedureIdEmpty);
         }
         Ok(())
     }

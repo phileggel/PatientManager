@@ -245,5 +245,16 @@
     },
     "createButton": "Create Bank Account",
     "creating": "Creating..."
+  },
+  "errors": {
+    "bank_account_name_empty": "Bank account name cannot be empty",
+    "refund_only_variant_rejected": "OutgoingWire transfers can only be created via the overpayment refund flow",
+    "amount_not_positive": "Amount must be greater than 0",
+    "invalid_transfer_date_format": "Invalid transfer date format (expected YYYY-MM-DD)",
+    "iban_already_used": "IBAN already used by another bank account",
+    "bank_account_not_found": "Bank account not found (id: {{id}})",
+    "protected_cash_account": "The cash account is protected and cannot be modified or deleted",
+    "transfer_not_found": "Bank transfer not found (id: {{id}})",
+    "database_error": "An unexpected database error occurred"
   }
 }

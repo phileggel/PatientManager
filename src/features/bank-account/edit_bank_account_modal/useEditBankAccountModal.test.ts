@@ -107,7 +107,7 @@ describe("useEditBankAccountModal", () => {
   });
 
   it("shows error toast and keeps modal open on backend error", async () => {
-    mockUpdate.mockResolvedValue({ success: false, error: "Name already taken" });
+    mockUpdate.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
     const { result } = renderHook(() => useEditBankAccountModal(account, onClose));
 
     await act(async () => {

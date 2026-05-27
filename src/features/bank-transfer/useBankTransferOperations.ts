@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { formatBankError } from "@/features/bank-account/shared/presenter";
 import { logger } from "@/infra/logger";
 import { deleteTransferByType, readAllBankTransfers } from "./gateway";
 import { useBankTransferStore } from "./store";
@@ -18,6 +20,7 @@ import { useBankTransferController } from "./useBankTransferController";
  * 4. Refetch data from API and update store
  */
 export function useBankTransferOperations() {
+  const { t } = useTranslation("bank");
   const { transfers, isLoading, error } = useBankTransferController();
 
   // Initial load on mount
@@ -29,8 +32,12 @@ export function useBankTransferOperations() {
       if (!isMounted) return;
       if (result.success && result.data) {
         useBankTransferStore.setState({ transfers: result.data, loading: false });
-      } else {
-        useBankTransferStore.setState({ error: result.error || "Failed to load", loading: false });
+      } else if (!result.success) {
+        const { key, params } = formatBankError(result.error);
+        useBankTransferStore.setState({
+          error: t(key, params) || "Failed to load",
+          loading: false,
+        });
       }
     };
 
@@ -39,7 +46,7 @@ export function useBankTransferOperations() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   // Event listener for real-time updates
   useEffect(() => {

@@ -3,10 +3,13 @@ use std::sync::Arc;
 
 use crate::{
     context::fund::{
-        Fund, FundCandidate, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine,
+        Fund, FundCandidate, FundError, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine,
         FundPaymentRepository, FundRepository, FundValidationResult, FundValidationStatus,
     },
-    shared::event_bus::{EventBus, FundPaymentGroupUpdated, FundUpdated},
+    shared::{
+        event_bus::{EventBus, FundPaymentGroupUpdated, FundUpdated},
+        logger::BACKEND,
+    },
 };
 
 /// Application service for affiliated fund operations
@@ -26,32 +29,64 @@ impl FundService {
         }
     }
 
-    pub async fn create_fund(&self, fund_identifier: String, name: String) -> anyhow::Result<Fund> {
-        let result = self.repository.create_fund(&fund_identifier, &name).await?;
+    pub async fn create_fund(
+        &self,
+        fund_identifier: String,
+        name: String,
+    ) -> Result<Fund, FundError> {
+        let result = self
+            .repository
+            .create_fund(&fund_identifier, &name)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_fund: repository failed");
+                FundError::DatabaseError
+            })?;
         let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
         Ok(result)
     }
 
-    pub async fn read_fund(&self, id: &str) -> anyhow::Result<Option<Fund>> {
-        self.repository.read_fund(id).await
+    pub async fn read_fund(&self, id: &str) -> Result<Option<Fund>, FundError> {
+        self.repository.read_fund(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_fund: repository failed");
+            FundError::DatabaseError
+        })
     }
 
-    pub async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
-        self.repository.read_all_funds().await
+    pub async fn read_all_funds(&self) -> Result<Vec<Fund>, FundError> {
+        self.repository.read_all_funds().await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_all_funds: repository failed");
+            FundError::DatabaseError
+        })
     }
 
-    pub async fn find_fund_by_identifier(&self, identifier: &str) -> anyhow::Result<Option<Fund>> {
-        self.repository.find_fund_by_identifier(identifier).await
+    pub async fn find_fund_by_identifier(
+        &self,
+        identifier: &str,
+    ) -> Result<Option<Fund>, FundError> {
+        self.repository
+            .find_fund_by_identifier(identifier)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "find_fund_by_identifier: repository failed");
+                FundError::DatabaseError
+            })
     }
 
-    pub async fn update_fund(&self, fund: Fund) -> anyhow::Result<Fund> {
-        let result = self.repository.update_fund(fund).await?;
+    pub async fn update_fund(&self, fund: Fund) -> Result<Fund, FundError> {
+        let result = self.repository.update_fund(fund).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "update_fund: repository failed");
+            FundError::DatabaseError
+        })?;
         let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
         Ok(result)
     }
 
-    pub async fn delete_fund(&self, id: &str) -> anyhow::Result<()> {
-        self.repository.delete_fund(id).await?;
+    pub async fn delete_fund(&self, id: &str) -> Result<(), FundError> {
+        self.repository.delete_fund(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_fund: repository failed");
+            FundError::DatabaseError
+        })?;
         let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
         Ok(())
     }
@@ -61,7 +96,7 @@ impl FundService {
     pub async fn validate_batch(
         &self,
         candidates: Vec<FundCandidate>,
-    ) -> anyhow::Result<Vec<FundValidationResult>> {
+    ) -> Result<Vec<FundValidationResult>, FundError> {
         let mut results = Vec::new();
 
         for candidate in candidates {
@@ -113,7 +148,7 @@ impl FundService {
     pub async fn create_batch(
         &self,
         candidates: Vec<FundCandidate>,
-    ) -> anyhow::Result<(Vec<Fund>, HashMap<String, String>)> {
+    ) -> Result<(Vec<Fund>, HashMap<String, String>), FundError> {
         let mut funds: Vec<Fund> = Vec::new();
 
         for candidate in candidates {
@@ -126,7 +161,10 @@ impl FundService {
             funds.push(fund);
         }
 
-        let created_funds = self.repository.create_batch(funds).await?;
+        let created_funds = self.repository.create_batch(funds).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "create_batch: repository failed");
+            FundError::DatabaseError
+        })?;
 
         let temp_id_map: HashMap<String, String> = created_funds
             .iter()
@@ -172,8 +210,11 @@ impl FundPaymentService {
     }
 
     /// Read all fund payment groups
-    pub async fn read_all_groups(&self) -> anyhow::Result<Vec<FundPaymentGroup>> {
-        self.repository.read_all_groups().await
+    pub async fn read_all_groups(&self) -> Result<Vec<FundPaymentGroup>, FundError> {
+        self.repository.read_all_groups().await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_all_groups: repository failed");
+            FundError::DatabaseError
+        })
     }
 
     /// Create fund payment group with procedures
@@ -461,8 +502,7 @@ mod tests {
             .create_fund("FUND-003".to_string(), "Fund".to_string())
             .await;
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
+        assert!(matches!(result, Err(FundError::DatabaseError)));
     }
 
     #[tokio::test]
@@ -485,8 +525,7 @@ mod tests {
 
         let result = service.read_all_funds().await;
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
+        assert!(matches!(result, Err(FundError::DatabaseError)));
     }
 
     #[tokio::test]
@@ -504,8 +543,7 @@ mod tests {
 
         let result = service.delete_fund("test-id").await;
 
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Mock repository error");
+        assert!(matches!(result, Err(FundError::DatabaseError)));
     }
 
     // --- FundPaymentService ---

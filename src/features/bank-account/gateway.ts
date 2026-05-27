@@ -1,4 +1,4 @@
-import { type BankAccount, commands } from "@/bindings";
+import { type BankAccount, type BankError, commands } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
@@ -24,48 +24,39 @@ export function readAllBankAccounts(): ServiceResult<BankAccount[]> {
 export async function createBankAccount(
   name: string,
   iban: string | null = null,
-): Promise<ServiceResult<BankAccount>> {
+): Promise<ServiceResult<BankAccount, BankError>> {
   logger.info("Creating bank account", { name });
-
   const result = await commands.createBankAccount(name, iban);
-
   if (result.status === "ok") {
     logger.info("Bank account created successfully", { accountId: result.data.id, name });
     return { success: true, data: result.data };
-  } else {
-    logger.error("Failed to create bank account", { error: result.error });
-    return { success: false, error: result.error };
   }
+  logger.error("Failed to create bank account", { code: result.error.code });
+  return { success: false, error: result.error };
 }
 
 export async function updateBankAccount(
   id: string,
   name: string,
   iban: string | null = null,
-): Promise<ServiceResult<BankAccount>> {
+): Promise<ServiceResult<BankAccount, BankError>> {
   logger.info("Updating bank account", { accountId: id, name });
-
   const result = await commands.updateBankAccount(id, name, iban);
-
   if (result.status === "ok") {
     logger.info("Bank account updated successfully");
     return { success: true, data: result.data };
-  } else {
-    logger.error("Failed to update bank account", { error: result.error });
-    return { success: false, error: result.error };
   }
+  logger.error("Failed to update bank account", { code: result.error.code });
+  return { success: false, error: result.error };
 }
 
-export async function deleteBankAccount(id: string): Promise<ServiceResult<void>> {
+export async function deleteBankAccount(id: string): Promise<ServiceResult<void, BankError>> {
   logger.info("Deleting bank account", { accountId: id });
-
   const result = await commands.deleteBankAccount(id);
-
   if (result.status === "ok") {
     logger.info("Bank account deleted successfully", { accountId: id });
     return { success: true, data: undefined };
-  } else {
-    logger.error("Failed to delete bank account", { error: result.error });
-    return { success: false, error: result.error };
   }
+  logger.error("Failed to delete bank account", { code: result.error.code });
+  return { success: false, error: result.error };
 }

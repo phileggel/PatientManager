@@ -1,7 +1,8 @@
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
+
+use crate::context::bank::error::BankError;
 
 /// Fixed ID of the default cash account seeded by migration (R4).
 pub const CASH_ACCOUNT_ID: &str = "cash-account-default";
@@ -28,7 +29,7 @@ impl BankAccount {
     }
 
     /// Creates a new BankAccount with validation and generates ID.
-    pub fn new(name: String, iban: Option<String>) -> Result<Self> {
+    pub fn new(name: String, iban: Option<String>) -> Result<Self, BankError> {
         let trimmed_name = name.trim().to_string();
         let trimmed_iban = Self::normalize_iban(iban.as_deref());
         Self::validate(&trimmed_name)?;
@@ -42,7 +43,7 @@ impl BankAccount {
 
     /// Creates a BankAccount with an existing ID and validation.
     /// Does NOT generate a new ID.
-    pub fn with_id(id: String, name: String, iban: Option<String>) -> Result<Self> {
+    pub fn with_id(id: String, name: String, iban: Option<String>) -> Result<Self, BankError> {
         let trimmed_name = name.trim().to_string();
         let trimmed_iban = Self::normalize_iban(iban.as_deref());
         Self::validate(&trimmed_name)?;
@@ -61,10 +62,10 @@ impl BankAccount {
     }
 
     /// Validates bank account fields.
-    fn validate(name: &str) -> Result<()> {
+    fn validate(name: &str) -> Result<(), BankError> {
         let trimmed = name.trim();
         if trimmed.is_empty() {
-            anyhow::bail!("Bank account name cannot be empty");
+            return Err(BankError::BankAccountNameEmpty);
         }
         Ok(())
     }

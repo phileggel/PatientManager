@@ -1,12 +1,14 @@
 import type {
   BankEntry,
   BankEntryType,
+  BankError,
   BankManualMatchResult,
   DirectPaymentProcedureCandidate,
   FundGroupCandidate,
 } from "@/bindings";
 import { commands } from "@/bindings";
 import { logger } from "@/infra/logger";
+import type { ServiceResult as TypedServiceResult } from "@/types/api";
 
 export type ServiceResult<T> = {
   success: boolean;
@@ -21,48 +23,30 @@ export async function createBankTransfer(
   amount: number,
   transferType: BankEntryType,
   bankAccount: string,
-): Promise<ServiceResult<BankEntry>> {
+): Promise<TypedServiceResult<BankEntry, BankError>> {
   logger.info("[bank-transfer] createBankTransfer", { transferDate, amount, transferType });
-  try {
-    const result = await commands.createBankTransfer(
-      transferDate,
-      amount,
-      transferType,
-      bankAccount,
-    );
-    if (result.status === "ok") return { success: true, data: result.data };
-    logger.error("[bank-transfer] createBankTransfer failed", { error: result.error });
-    return { success: false, error: result.error };
-  } catch (error) {
-    logger.error("[bank-transfer] createBankTransfer exception", { error });
-    return { success: false, error: String(error) };
-  }
+  const result = await commands.createBankTransfer(transferDate, amount, transferType, bankAccount);
+  if (result.status === "ok") return { success: true, data: result.data };
+  logger.error("[bank-transfer] createBankTransfer failed", { code: result.error.code });
+  return { success: false, error: result.error };
 }
 
-export async function readAllBankTransfers(): Promise<ServiceResult<BankEntry[]>> {
+export async function readAllBankTransfers(): Promise<TypedServiceResult<BankEntry[], BankError>> {
   logger.debug("[bank-transfer] readAllBankTransfers");
-  try {
-    const result = await commands.readAllBankTransfers();
-    if (result.status === "ok") return { success: true, data: result.data };
-    logger.error("[bank-transfer] readAllBankTransfers failed", { error: result.error });
-    return { success: false, error: result.error };
-  } catch (error) {
-    logger.error("[bank-transfer] readAllBankTransfers exception", { error });
-    return { success: false, error: String(error) };
-  }
+  const result = await commands.readAllBankTransfers();
+  if (result.status === "ok") return { success: true, data: result.data };
+  logger.error("[bank-transfer] readAllBankTransfers failed", { code: result.error.code });
+  return { success: false, error: result.error };
 }
 
-export async function updateBankTransfer(transfer: BankEntry): Promise<ServiceResult<BankEntry>> {
+export async function updateBankTransfer(
+  transfer: BankEntry,
+): Promise<TypedServiceResult<BankEntry, BankError>> {
   logger.info("[bank-transfer] updateBankTransfer", { id: transfer.id });
-  try {
-    const result = await commands.updateBankTransfer(transfer);
-    if (result.status === "ok") return { success: true, data: result.data };
-    logger.error("[bank-transfer] updateBankTransfer failed", { error: result.error });
-    return { success: false, error: result.error };
-  } catch (error) {
-    logger.error("[bank-transfer] updateBankTransfer exception", { error });
-    return { success: false, error: String(error) };
-  }
+  const result = await commands.updateBankTransfer(transfer);
+  if (result.status === "ok") return { success: true, data: result.data };
+  logger.error("[bank-transfer] updateBankTransfer failed", { code: result.error.code });
+  return { success: false, error: result.error };
 }
 
 export async function deleteTransferByType(transfer: BankEntry): Promise<ServiceResult<void>> {

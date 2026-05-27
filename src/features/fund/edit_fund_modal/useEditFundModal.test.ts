@@ -110,7 +110,7 @@ describe("useEditFundModal", () => {
   });
 
   it("shows error toast and does not call onSuccess on backend error", async () => {
-    mockUpdate.mockResolvedValue({ success: false, error: "Duplicate identifier" });
+    mockUpdate.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
     const { result } = renderHook(() => useEditFundModal(fund, onSuccess));
 
     await act(async () => {

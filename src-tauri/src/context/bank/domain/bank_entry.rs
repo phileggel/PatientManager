@@ -1,10 +1,10 @@
-use anyhow::Result;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
 use super::bank_account::BankAccount;
+use crate::context::bank::error::BankError;
 
 /// Payment type for bank transfers
 ///
@@ -27,11 +27,9 @@ impl BankEntryType {
     /// REF-080 — Reject `FundOutgoingWire`: it is exclusively created via the
     /// overpayment refund flow and must not be created through any other code
     /// path. All other variants (including `FundWire`) are accepted.
-    pub fn ensure_not_refund_only_variant(self) -> Result<()> {
+    pub fn ensure_not_refund_only_variant(self) -> Result<(), BankError> {
         if self == BankEntryType::FundOutgoingWire {
-            anyhow::bail!(
-                "REF-080: OutgoingWire transfers can only be created via the overpayment refund flow."
-            );
+            return Err(BankError::RefundOnlyVariantRejected);
         }
         Ok(())
     }
@@ -66,15 +64,11 @@ impl BankEntry {
         amount: i64,
         transfer_type: BankEntryType,
         bank_account: BankAccount,
-    ) -> Result<Self> {
+    ) -> Result<Self, BankError> {
         Self::validate(amount)?;
 
-        let parsed_date = NaiveDate::parse_from_str(&transfer_date, "%Y-%m-%d").map_err(|_| {
-            anyhow::anyhow!(
-                "Invalid transfer date format: {} (expected YYYY-MM-DD)",
-                transfer_date
-            )
-        })?;
+        let parsed_date = NaiveDate::parse_from_str(&transfer_date, "%Y-%m-%d")
+            .map_err(|_| BankError::InvalidTransferDateFormat)?;
 
         Ok(Self {
             id: Uuid::new_v4().to_string(),
@@ -93,15 +87,11 @@ impl BankEntry {
         amount: i64,
         transfer_type: BankEntryType,
         bank_account: BankAccount,
-    ) -> Result<Self> {
+    ) -> Result<Self, BankError> {
         Self::validate(amount)?;
 
-        let parsed_date = NaiveDate::parse_from_str(&transfer_date, "%Y-%m-%d").map_err(|_| {
-            anyhow::anyhow!(
-                "Invalid transfer date format: {} (expected YYYY-MM-DD)",
-                transfer_date
-            )
-        })?;
+        let parsed_date = NaiveDate::parse_from_str(&transfer_date, "%Y-%m-%d")
+            .map_err(|_| BankError::InvalidTransferDateFormat)?;
 
         Ok(Self {
             id,
@@ -134,9 +124,9 @@ impl BankEntry {
     }
 
     /// Validates bank transfer fields.
-    fn validate(amount: i64) -> Result<()> {
+    fn validate(amount: i64) -> Result<(), BankError> {
         if amount <= 0 {
-            anyhow::bail!("Amount must be greater than 0 (received: {})", amount);
+            return Err(BankError::AmountNotPositive);
         }
         Ok(())
     }
@@ -177,8 +167,7 @@ mod tests {
             BankEntryType::FundWire,
             make_account(),
         );
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("greater than 0"));
+        assert!(matches!(result, Err(BankError::AmountNotPositive)));
     }
 
     #[test]
@@ -230,13 +219,8 @@ mod tests {
 
     #[test]
     fn test_ensure_not_refund_only_variant_rejects_fund_outgoing_wire_with_ref_080() {
-        let err = BankEntryType::FundOutgoingWire
-            .ensure_not_refund_only_variant()
-            .expect_err("FundOutgoingWire must be rejected");
-        assert!(
-            err.to_string().contains("REF-080"),
-            "rejection must cite REF-080: {err}"
-        );
+        let result = BankEntryType::FundOutgoingWire.ensure_not_refund_only_variant();
+        assert!(matches!(result, Err(BankError::RefundOnlyVariantRejected)));
     }
 
     #[test]

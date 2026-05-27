@@ -4,7 +4,7 @@ import type { BankAccount } from "@/bindings";
 import { updateBankAccount } from "@/features/bank-account/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
-import { BankAccountPresenter } from "../shared/presenter";
+import { BankAccountPresenter, formatBankError } from "../shared/presenter";
 import type { BankAccountFormData, FormErrors } from "../shared/types";
 
 export function useEditBankAccountModal(bankAccount: BankAccount | null, onClose: () => void) {
@@ -75,8 +75,9 @@ export function useEditBankAccountModal(bankAccount: BankAccount | null, onClose
         onClose();
         // Backend event will trigger useCacheSync to refresh data
       } else {
-        logger.error("Failed to update bank account", { error: result.error });
-        toastService.show("error", t("account.edit.error", { error: result.error }));
+        const { key, params } = formatBankError(result.error);
+        logger.error("Failed to update bank account", { code: result.error.code });
+        toastService.show("error", t("account.edit.error", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while updating bank account", { error });
