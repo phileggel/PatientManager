@@ -143,7 +143,7 @@ async createBatchFunds(funds: FundCandidate[]) : Promise<Result<CreateBatchFunds
 /**
  * Tauri command: Add a new healthcare procedure
  */
-async addProcedure(patientId: string, fundId: string | null, procedureTypeId: string, procedureDate: string, billedAmount: number) : Promise<Result<Procedure, string>> {
+async addProcedure(patientId: string, fundId: string | null, procedureTypeId: string, procedureDate: string, billedAmount: number) : Promise<Result<Procedure, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_procedure", { patientId, fundId, procedureTypeId, procedureDate, billedAmount }) };
 } catch (e) {
@@ -154,7 +154,7 @@ async addProcedure(patientId: string, fundId: string | null, procedureTypeId: st
 /**
  * Tauri command: Read all procedures
  */
-async readAllProcedures() : Promise<Result<Procedure[], string>> {
+async readAllProcedures() : Promise<Result<Procedure[], ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_all_procedures") };
 } catch (e) {
@@ -165,7 +165,7 @@ async readAllProcedures() : Promise<Result<Procedure[], string>> {
 /**
  * Tauri command: Update an existing procedure
  */
-async updateProcedure(raw: RawProcedure) : Promise<Result<Procedure, string>> {
+async updateProcedure(raw: RawProcedure) : Promise<Result<Procedure, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_procedure", { raw }) };
 } catch (e) {
@@ -176,7 +176,7 @@ async updateProcedure(raw: RawProcedure) : Promise<Result<Procedure, string>> {
 /**
  * Tauri command: Delete a procedure
  */
-async deleteProcedure(id: string) : Promise<Result<null, string>> {
+async deleteProcedure(id: string) : Promise<Result<null, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_procedure", { id }) };
 } catch (e) {
@@ -187,7 +187,7 @@ async deleteProcedure(id: string) : Promise<Result<null, string>> {
 /**
  * Tauri command: Validate batch of procedure candidates
  */
-async validateBatchProcedures(procedures: ProcedureCandidate[]) : Promise<Result<ValidateBatchProceduresResponse, string>> {
+async validateBatchProcedures(procedures: ProcedureCandidate[]) : Promise<Result<ValidateBatchProceduresResponse, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("validate_batch_procedures", { procedures }) };
 } catch (e) {
@@ -198,7 +198,7 @@ async validateBatchProcedures(procedures: ProcedureCandidate[]) : Promise<Result
 /**
  * Tauri command: Create batch of procedures
  */
-async createBatchProcedures(procedures: ProcedureCandidate[]) : Promise<Result<CreateBatchProceduresResponse, string>> {
+async createBatchProcedures(procedures: ProcedureCandidate[]) : Promise<Result<CreateBatchProceduresResponse, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_batch_procedures", { procedures }) };
 } catch (e) {
@@ -209,7 +209,7 @@ async createBatchProcedures(procedures: ProcedureCandidate[]) : Promise<Result<C
 /**
  * Tauri command: Get unpaid procedures by fund
  */
-async getUnpaidProceduresByFund(fundId: string) : Promise<Result<Procedure[], string>> {
+async getUnpaidProceduresByFund(fundId: string) : Promise<Result<Procedure[], ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_unpaid_procedures_by_fund", { fundId }) };
 } catch (e) {
@@ -220,7 +220,7 @@ async getUnpaidProceduresByFund(fundId: string) : Promise<Result<Procedure[], st
 /**
  * Tauri command: Get procedures by their IDs
  */
-async readProceduresByIds(ids: string[]) : Promise<Result<Procedure[], string>> {
+async readProceduresByIds(ids: string[]) : Promise<Result<Procedure[], ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("read_procedures_by_ids", { ids }) };
 } catch (e) {
@@ -1715,6 +1715,11 @@ export type ProcedureError =
  */
 { code: "ProcedureTypeIdEmpty" } | 
 /**
+ * A `Procedure` lookup by id returned no row (e.g. the delete guard in
+ * `ProcedureOrchestrationService` reading the target before deletion).
+ */
+{ code: "ProcedureNotFound"; procedure_id: string } | 
+/**
  * `ProcedureType::validate_fields` rejected an empty/whitespace name.
  */
 { code: "ProcedureTypeNameEmpty" } | 
@@ -1748,6 +1753,53 @@ export type ProcedureError =
 /**
  * Repository / sqlx-level failure. Underlying error is logged at the
  * call site via `tracing::error!`; the wire surface carries no detail.
+ */
+{ code: "DatabaseError" }
+/**
+ * Composite error for the procedure-orchestration use case.
+ * 
+ * Holds ONLY `#[from]` wrappers — the Procedure BC enum and the use-case task
+ * sub-enum. Both carry their own `#[serde(tag = "code")]`, so the untagged
+ * composite flattens to a single `{ "code": "...", ... }` payload on the wire.
+ * 
+ * Note: both `ProcedureError::DatabaseError` and
+ * `ProcedureOrchestrationTask::DatabaseError` emit `{ "code": "DatabaseError" }`.
+ * This shared code is intentional (the FE maps both to one i18n key); see the
+ * 2026-05-27 `docs/techdebt.md` entry on the cross-enum `DatabaseError`
+ * discriminant.
+ */
+export type ProcedureOrchestrationError = ProcedureError | ProcedureOrchestrationTask
+/**
+ * Use-case-specific guards and catch-alls for procedure orchestration.
+ * 
+ * These are codes that do NOT belong to the Procedure bounded context: the
+ * orchestrator validates cross-context foreign keys (patient, fund), enforces
+ * a delete guard, parses the wire `procedure_date`, and translates failures
+ * from the patient / fund / procedure-type / refund repositories it holds
+ * directly. Tagged with `code` so each variant emits `{ "code": "..." }`.
+ */
+export type ProcedureOrchestrationTask = 
+/**
+ * FK validation: the referenced patient does not exist (or is deleted).
+ */
+{ code: "PatientNotFound"; patient_id: string } | 
+/**
+ * FK validation: the referenced fund does not exist (or is deleted).
+ */
+{ code: "FundNotFound"; fund_id: string } | 
+/**
+ * Delete guard: the procedure is linked to a fund payment group or bank
+ * transaction (a blocking status) and cannot be deleted directly.
+ */
+{ code: "ProcedureDeleteBlocked" } | 
+/**
+ * The wire `procedure_date` did not parse as `YYYY-MM-DD`.
+ */
+{ code: "InvalidProcedureDate" } | 
+/**
+ * Failure from a repository the orchestrator holds directly (patient /
+ * fund / procedure-type / refund). Logged at the call site via
+ * `tracing::error!`; the wire surface carries no detail.
  */
 { code: "DatabaseError" }
 /**

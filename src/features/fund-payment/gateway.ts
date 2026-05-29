@@ -14,8 +14,11 @@ export async function readProceduresByIds(ids: string[]): Promise<ServiceResult<
     if (result.status === "ok") {
       return { success: true, data: result.data };
     } else {
-      logger.error("Failed to fetch procedures by ids", { error: result.error });
-      return { success: false, error: result.error };
+      // Cross-feature read of a procedure_orchestration command: keep this
+      // gateway's string envelope by surfacing the stable error code. Typed
+      // adoption belongs to the fund-payment feature's own migration.
+      logger.error("Failed to fetch procedures by ids", { code: result.error.code });
+      return { success: false, error: result.error.code };
     }
   } catch (error) {
     logger.error("Exception fetching procedures by ids", { error });
@@ -34,8 +37,9 @@ export async function getUnpaidProceduresByFund(
       logger.info("Unpaid procedures fetched", { fundId, count: result.data.length });
       return { success: true, data: result.data };
     } else {
-      logger.error("Failed to fetch unpaid procedures", { error: result.error });
-      return { success: false, error: result.error };
+      // Cross-feature read: keep the string envelope via the stable error code.
+      logger.error("Failed to fetch unpaid procedures", { code: result.error.code });
+      return { success: false, error: result.error.code };
     }
   } catch (error) {
     logger.error("Exception fetching unpaid procedures", { error });

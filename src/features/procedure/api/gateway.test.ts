@@ -120,10 +120,10 @@ describe("readAllProcedures", () => {
   it("returns failure result with error on error", async () => {
     vi.mocked(commands.readAllProcedures).mockResolvedValue({
       status: "error",
-      error: "db unavailable",
+      error: { code: "DatabaseError" },
     });
     const result = await readAllProcedures();
-    expect(result).toEqual({ success: false, error: "db unavailable" });
+    expect(result).toEqual({ success: false, error: { code: "DatabaseError" } });
   });
 });
 
@@ -145,10 +145,10 @@ describe("addProcedure", () => {
   it("returns failure result on command error", async () => {
     vi.mocked(commands.addProcedure).mockResolvedValue({
       status: "error",
-      error: "validation failed",
+      error: { code: "PatientIdEmpty" },
     });
     const result = await addProcedure("p-1", null, "pt-1", "2026-05-01", 0);
-    expect(result).toEqual({ success: false, error: "validation failed" });
+    expect(result).toEqual({ success: false, error: { code: "PatientIdEmpty" } });
   });
 });
 
@@ -170,10 +170,13 @@ describe("updateProcedure", () => {
   it("returns failure result on command error", async () => {
     vi.mocked(commands.updateProcedure).mockResolvedValue({
       status: "error",
-      error: "not found",
+      error: { code: "ProcedureNotFound", procedure_id: "proc-1" },
     });
     const result = await updateProcedure(SAMPLE_RAW_PROCEDURE);
-    expect(result).toEqual({ success: false, error: "not found" });
+    expect(result).toEqual({
+      success: false,
+      error: { code: "ProcedureNotFound", procedure_id: "proc-1" },
+    });
   });
 });
 
@@ -195,10 +198,10 @@ describe("deleteProcedure", () => {
   it("returns failure result on command error", async () => {
     vi.mocked(commands.deleteProcedure).mockResolvedValue({
       status: "error",
-      error: "blocked by status",
+      error: { code: "ProcedureDeleteBlocked" },
     });
     const result = await deleteProcedure("proc-1");
-    expect(result).toEqual({ success: false, error: "blocked by status" });
+    expect(result).toEqual({ success: false, error: { code: "ProcedureDeleteBlocked" } });
   });
 });
 

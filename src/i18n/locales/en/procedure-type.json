@@ -50,6 +50,7 @@
   "errors": {
     "patient_id_empty": "Patient ID cannot be empty",
     "procedure_type_id_empty": "Procedure type ID cannot be empty",
+    "procedure_not_found": "Procedure not found: {{id}}",
     "name_empty": "Procedure type name cannot be empty",
     "default_amount_negative": "Default amount cannot be negative",
     "not_found": "Procedure type not found (id: {{id}})",

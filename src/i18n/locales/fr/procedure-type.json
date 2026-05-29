@@ -50,6 +50,7 @@
   "errors": {
     "patient_id_empty": "L'identifiant du patient ne peut pas être vide",
     "procedure_type_id_empty": "L'identifiant du type d'acte ne peut pas être vide",
+    "procedure_not_found": "Acte introuvable : {{id}}",
     "name_empty": "Le nom du type d'acte ne peut pas être vide",
     "default_amount_negative": "Le montant par défaut ne peut pas être négatif",
     "not_found": "Type d'acte introuvable (id : {{id}})",

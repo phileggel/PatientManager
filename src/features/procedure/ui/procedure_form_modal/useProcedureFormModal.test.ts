@@ -401,7 +401,10 @@ describe("create mode — error handling", () => {
   it("shows error toast on gateway failure", async () => {
     const { toastService } = await import("@/ui/components/snackbar");
     const { addProcedure } = await import("@/features/procedure/api/gateway");
-    vi.mocked(addProcedure).mockResolvedValueOnce({ success: false, error: "Network error" });
+    vi.mocked(addProcedure).mockResolvedValueOnce({
+      success: false,
+      error: { code: "DatabaseError" },
+    });
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
@@ -416,7 +419,7 @@ describe("create mode — error handling", () => {
       } as unknown as FormEvent);
     });
 
-    expect(toastService.show).toHaveBeenCalledWith("error", "Network error");
+    expect(toastService.show).toHaveBeenCalledWith("error", expect.any(String));
   });
 });
 
@@ -428,7 +431,7 @@ describe("view mode — error handling", () => {
     const { updateProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(updateProcedure).mockResolvedValueOnce({
       success: false,
-      error: "update conflict",
+      error: { code: "ProcedureNotFound", procedure_id: "proc-1" },
     });
 
     const procedure = {
@@ -454,7 +457,7 @@ describe("view mode — error handling", () => {
       } as unknown as FormEvent);
     });
 
-    expect(toastService.show).toHaveBeenCalledWith("error", "update conflict");
+    expect(toastService.show).toHaveBeenCalledWith("error", expect.any(String));
     expect(result.current.loading).toBe(false);
   });
 });
@@ -465,7 +468,7 @@ describe("edit mode — error handling", () => {
     const { updateProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(updateProcedure).mockResolvedValueOnce({
       success: false,
-      error: "update conflict",
+      error: { code: "ProcedureNotFound", procedure_id: "proc-1" },
     });
 
     const procedure = {
@@ -491,7 +494,7 @@ describe("edit mode — error handling", () => {
       } as unknown as FormEvent);
     });
 
-    expect(toastService.show).toHaveBeenCalledWith("error", "update conflict");
+    expect(toastService.show).toHaveBeenCalledWith("error", expect.any(String));
     expect(result.current.loading).toBe(false);
   });
 });

@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use anyhow::Context;
-
 use crate::context::fund::FundRepository;
 use crate::context::patient::PatientRepository;
 use crate::context::procedure::{
-    PaymentMethod, Procedure, ProcedureCandidate, ProcedureRefundRepository,
+    PaymentMethod, Procedure, ProcedureCandidate, ProcedureError, ProcedureRefundRepository,
     ProcedureService as ContextProcedureService, ProcedureStatus, ProcedureTypeRepository,
 };
 use crate::shared::logger::BACKEND;
+
+use super::error::{ProcedureOrchestrationError, ProcedureOrchestrationTask};
 
 /// Orchestration service for healthcare procedures
 ///
@@ -43,28 +43,28 @@ impl ProcedureOrchestrationService {
     }
 
     /// Get a single healthcare procedure by ID (delegates to context service)
-    pub async fn read_procedure(&self, id: &str) -> anyhow::Result<Option<Procedure>> {
-        self.context_procedure_service
-            .read_procedure(id)
-            .await
-            .map_err(Into::into)
+    pub async fn read_procedure(
+        &self,
+        id: &str,
+    ) -> Result<Option<Procedure>, ProcedureOrchestrationError> {
+        Ok(self.context_procedure_service.read_procedure(id).await?)
     }
 
     /// Get multiple healthcare procedures by their IDs (delegates to context service)
-    pub async fn read_procedures_by_ids(&self, ids: Vec<String>) -> anyhow::Result<Vec<Procedure>> {
+    pub async fn read_procedures_by_ids(
+        &self,
+        ids: Vec<String>,
+    ) -> Result<Vec<Procedure>, ProcedureOrchestrationError> {
         tracing::debug!(count = ids.len(), "Fetching procedures by IDs");
-        self.context_procedure_service
+        Ok(self
+            .context_procedure_service
             .read_procedures_by_ids(ids)
-            .await
-            .map_err(Into::into)
+            .await?)
     }
 
     /// Get all healthcare procedures (delegates to context service)
-    pub async fn get_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-        self.context_procedure_service
-            .read_all_procedures()
-            .await
-            .map_err(Into::into)
+    pub async fn get_all_procedures(&self) -> Result<Vec<Procedure>, ProcedureOrchestrationError> {
+        Ok(self.context_procedure_service.read_all_procedures().await?)
     }
 }
 
@@ -86,7 +86,10 @@ impl ProcedureOrchestrationService {
     /// 1. Validates that referenced entities (Patient, ProcedureType, optional Fund) exist
     /// 2. Updates patient tracking fields if the procedure date is newer than latest_date
     /// 3. Maps payment_method string to PaymentMethod enum
-    pub async fn create_procedure(&self, req: CreateProcedureRequest) -> anyhow::Result<Procedure> {
+    pub async fn create_procedure(
+        &self,
+        req: CreateProcedureRequest,
+    ) -> Result<Procedure, ProcedureOrchestrationError> {
         tracing::debug!(
             patient_id = %req.patient_id,
             procedure_type_id = %req.procedure_type_id,
@@ -98,29 +101,38 @@ impl ProcedureOrchestrationService {
             .patient_repository
             .read_patient(&req.patient_id)
             .await
-            .with_context(|| format!("reading patient '{}'", req.patient_id))?
-            .ok_or_else(|| anyhow::anyhow!("Patient not found or deleted"))?;
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_procedure: read_patient failed");
+                ProcedureOrchestrationTask::DatabaseError
+            })?
+            .ok_or_else(|| ProcedureOrchestrationTask::PatientNotFound {
+                patient_id: req.patient_id.clone(),
+            })?;
 
         // Validate: Does procedure type exist?
         let _ = self
             .procedure_type_repository
             .read_procedure_type(&req.procedure_type_id)
             .await
-            .with_context(|| format!("reading procedure type '{}'", req.procedure_type_id))?
-            .ok_or_else(|| anyhow::anyhow!("Procedure type not found or deleted"))?;
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_procedure: read_procedure_type failed");
+                ProcedureOrchestrationTask::DatabaseError
+            })?
+            .ok_or_else(|| ProcedureError::ProcedureTypeNotFound {
+                procedure_type_id: req.procedure_type_id.clone(),
+            })?;
 
         // Validate: Does fund exist if provided?
-        let _ = if let Some(id) = &req.fund_id {
-            Some(
-                self.fund_repository
-                    .read_fund(id)
-                    .await
-                    .with_context(|| format!("reading fund '{id}'"))?
-                    .ok_or_else(|| anyhow::anyhow!("Fund {} not found or deleted", id))?,
-            )
-        } else {
-            None
-        };
+        if let Some(id) = &req.fund_id {
+            self.fund_repository
+                .read_fund(id)
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "create_procedure: read_fund failed");
+                    ProcedureOrchestrationTask::DatabaseError
+                })?
+                .ok_or_else(|| ProcedureOrchestrationTask::FundNotFound { fund_id: id.clone() })?;
+        }
 
         // Map payment method string to enum
         let mapped_payment_method = Self::determine_payment_method(
@@ -170,7 +182,11 @@ impl ProcedureOrchestrationService {
 
             self.patient_repository
                 .update_patient(updated_patient)
-                .await?;
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "create_procedure: update_patient tracking failed");
+                    ProcedureOrchestrationTask::DatabaseError
+                })?;
 
             tracing::debug!(
                 patient_id = %req.patient_id,
@@ -185,7 +201,10 @@ impl ProcedureOrchestrationService {
     ///
     /// REF-170: If the updated procedure has `Overpaid` status, propagates any
     /// `procedure_type_id` change to the linked `OverpaymentRefund` procedure atomically.
-    pub async fn update_procedure(&self, procedure: Procedure) -> anyhow::Result<Procedure> {
+    pub async fn update_procedure(
+        &self,
+        procedure: Procedure,
+    ) -> Result<Procedure, ProcedureOrchestrationError> {
         let updated = self
             .context_procedure_service
             .update_procedure(procedure.clone())
@@ -196,7 +215,11 @@ impl ProcedureOrchestrationService {
             if let Some(refund_record) = self
                 .procedure_refund_repository
                 .find_by_source_procedure_id(&updated.id)
-                .await?
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "update_procedure: find refund record failed");
+                    ProcedureOrchestrationTask::DatabaseError
+                })?
             {
                 if let Some(refund_proc) = self
                     .context_procedure_service
@@ -240,7 +263,7 @@ impl ProcedureOrchestrationService {
     /// Orchestration responsibilities:
     /// 1. Rejects deletion for procedures linked to a payment group or bank transaction (R5)
     /// 2. Clears patient tracking fields if the patient has no remaining procedures (R20)
-    pub async fn delete_procedure(&self, id: &str) -> anyhow::Result<()> {
+    pub async fn delete_procedure(&self, id: &str) -> Result<(), ProcedureOrchestrationError> {
         tracing::debug!(procedure_id = %id, "Deleting healthcare procedure");
 
         // Guard: reject deletion for procedures linked to a payment (R5)
@@ -248,7 +271,9 @@ impl ProcedureOrchestrationService {
             .context_procedure_service
             .read_procedure(id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("Procedure {} not found", id))?;
+            .ok_or_else(|| ProcedureError::ProcedureNotFound {
+                procedure_id: id.to_string(),
+            })?;
 
         if Self::is_blocking_status(&procedure.payment_status) {
             tracing::warn!(
@@ -257,10 +282,7 @@ impl ProcedureOrchestrationService {
                 status = ?procedure.payment_status,
                 "Delete blocked: procedure is linked to a payment"
             );
-            anyhow::bail!(
-                "Cannot delete procedure with status {:?}: linked to a payment group or bank transaction",
-                procedure.payment_status
-            );
+            return Err(ProcedureOrchestrationTask::ProcedureDeleteBlocked.into());
         }
 
         // Delegate to context service for state change (which publishes event)
@@ -277,7 +299,11 @@ impl ProcedureOrchestrationService {
         if let Some(patient) = self
             .patient_repository
             .read_patient(&procedure.patient_id)
-            .await?
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "delete_procedure: read_patient failed");
+                ProcedureOrchestrationTask::DatabaseError
+            })?
         {
             let mut updated = patient;
             if remaining.is_empty() {
@@ -294,13 +320,22 @@ impl ProcedureOrchestrationService {
                 updated.latest_fund = new_latest.fund_id.clone();
                 updated.latest_procedure_amount = Some(new_latest.billed_amount);
             }
-            self.patient_repository.update_patient(updated).await?;
+            self.patient_repository
+                .update_patient(updated)
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "delete_procedure: update_patient tracking failed");
+                    ProcedureOrchestrationTask::DatabaseError
+                })?;
         }
 
         Ok(())
     }
 
     /// Clear procedure type tracking for all patients referencing a soft-deleted type
+    // reviewer-backend FP: B31 wire-error rule N/A — clear_* have only test
+    // callers, no command reaches them, so the anyhow signature is not
+    // wire-visible — see PR #54.
     pub async fn clear_procedure_type_tracking(&self, deleted_type_id: &str) -> anyhow::Result<()> {
         tracing::debug!(type_id = %deleted_type_id, "Clearing procedure type tracking");
 
@@ -341,11 +376,16 @@ impl ProcedureOrchestrationService {
         Ok(())
     }
 
-    /// Validate a batch of procedure candidates
+    /// Validate a batch of procedure candidates.
+    ///
+    /// Never propagates an error: per-candidate failures (including repository
+    /// errors) are captured into each result's `error` field, so the outer
+    /// `Result` is always `Ok`. The typed signature keeps the command boundary
+    /// uniform with the rest of the orchestrator.
     pub async fn validate_batch(
         &self,
         candidates: Vec<ProcedureCandidate>,
-    ) -> anyhow::Result<Vec<super::api::ProcedureValidationResult>> {
+    ) -> Result<Vec<super::api::ProcedureValidationResult>, ProcedureOrchestrationError> {
         let mut results = Vec::new();
 
         for candidate in candidates {
@@ -446,7 +486,7 @@ impl ProcedureOrchestrationService {
     pub async fn create_batch(
         &self,
         candidates: Vec<ProcedureCandidate>,
-    ) -> anyhow::Result<Vec<Procedure>> {
+    ) -> Result<Vec<Procedure>, ProcedureOrchestrationError> {
         let mut procedures_to_create = Vec::new();
 
         for candidate in candidates {
@@ -505,7 +545,15 @@ impl ProcedureOrchestrationService {
         }
 
         for (patient_id, latest) in &latest_per_patient {
-            if let Some(patient) = self.patient_repository.read_patient(patient_id).await? {
+            if let Some(patient) = self
+                .patient_repository
+                .read_patient(patient_id)
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "create_batch: read_patient tracking failed");
+                    ProcedureOrchestrationTask::DatabaseError
+                })?
+            {
                 let should_update = patient
                     .latest_date
                     .as_ref()
@@ -520,7 +568,11 @@ impl ProcedureOrchestrationService {
                     updated_patient.latest_fund = latest.fund_id.clone();
                     self.patient_repository
                         .update_patient(updated_patient)
-                        .await?;
+                        .await
+                        .map_err(|e| {
+                            tracing::error!(target: BACKEND, err = ?e, "create_batch: update_patient tracking failed");
+                            ProcedureOrchestrationTask::DatabaseError
+                        })?;
                     tracing::debug!(
                         patient_id = %patient_id,
                         "Patient tracking fields updated via batch creation"
@@ -533,11 +585,14 @@ impl ProcedureOrchestrationService {
     }
 
     /// Get unpaid procedures by fund (delegates to context service)
-    pub async fn get_unpaid_by_fund(&self, fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
-        self.context_procedure_service
+    pub async fn get_unpaid_by_fund(
+        &self,
+        fund_id: &str,
+    ) -> Result<Vec<Procedure>, ProcedureOrchestrationError> {
+        Ok(self
+            .context_procedure_service
             .find_unpaid_by_fund(fund_id)
-            .await
-            .map_err(Into::into)
+            .await?)
     }
 
     /// Returns true if the procedure status prevents deletion and direct editing (R5, R6).
@@ -1065,8 +1120,12 @@ mod tests {
         let proc = make_procedure_with_status(ProcedureStatus::Reconciled);
         let orchestrator = make_orchestrator_with_procedure(proc);
         let result = orchestrator.delete_procedure("proc-id-1").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::ProcedureDeleteBlocked
+            ))
+        ));
     }
 
     #[tokio::test]
@@ -1074,8 +1133,12 @@ mod tests {
         let proc = make_procedure_with_status(ProcedureStatus::PartiallyReconciled);
         let orchestrator = make_orchestrator_with_procedure(proc);
         let result = orchestrator.delete_procedure("proc-id-1").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::ProcedureDeleteBlocked
+            ))
+        ));
     }
 
     #[tokio::test]
@@ -1083,8 +1146,12 @@ mod tests {
         let proc = make_procedure_with_status(ProcedureStatus::FundPaid);
         let orchestrator = make_orchestrator_with_procedure(proc);
         let result = orchestrator.delete_procedure("proc-id-1").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::ProcedureDeleteBlocked
+            ))
+        ));
     }
 
     #[tokio::test]
@@ -1092,8 +1159,12 @@ mod tests {
         let proc = make_procedure_with_status(ProcedureStatus::PartiallyFundPaid);
         let orchestrator = make_orchestrator_with_procedure(proc);
         let result = orchestrator.delete_procedure("proc-id-1").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::ProcedureDeleteBlocked
+            ))
+        ));
     }
 
     #[tokio::test]
@@ -1101,8 +1172,12 @@ mod tests {
         let proc = make_procedure_with_status(ProcedureStatus::DirectlyPaid);
         let orchestrator = make_orchestrator_with_procedure(proc);
         let result = orchestrator.delete_procedure("proc-id-1").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cannot delete"));
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::ProcedureDeleteBlocked
+            ))
+        ));
     }
 
     #[tokio::test]
@@ -1763,11 +1838,12 @@ mod tests {
                 paid_amount: None,
             })
             .await;
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Patient not found"));
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::PatientNotFound { .. }
+            ))
+        ));
     }
 
     #[tokio::test]
@@ -1789,11 +1865,12 @@ mod tests {
                 paid_amount: None,
             })
             .await;
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Procedure type not found"));
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Procedure(
+                ProcedureError::ProcedureTypeNotFound { .. }
+            ))
+        ));
     }
 
     #[tokio::test]
@@ -1815,8 +1892,12 @@ mod tests {
                 paid_amount: None,
             })
             .await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::FundNotFound { .. }
+            ))
+        ));
     }
 
     // --- delete_procedure not found ---
@@ -1845,8 +1926,12 @@ mod tests {
             Arc::new(refund_repo_noop()),
         );
         let result = orchestrator.delete_procedure("non-existent").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Procedure(
+                ProcedureError::ProcedureNotFound { .. }
+            ))
+        ));
     }
 
     // --- validate_batch DB error paths ---

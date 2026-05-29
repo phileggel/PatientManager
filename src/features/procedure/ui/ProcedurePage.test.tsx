@@ -188,7 +188,7 @@ describe("ProcedurePage — reloadRows + delete flow", () => {
   test("procedure_updated event surfaces an error toast when readAllProcedures fails", async () => {
     vi.mocked(gateway.readAllProcedures).mockResolvedValue({
       success: false,
-      error: "db unavailable",
+      error: { code: "DatabaseError" },
     });
     const { toastService } = await import("@/ui/components/snackbar");
 
