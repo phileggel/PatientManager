@@ -1,4 +1,21 @@
 {
+  "errors": {
+    "patient_not_found": "Patient not found: {{id}}",
+    "fund_not_found": "Fund not found: {{id}}",
+    "delete_blocked": "This procedure is linked to a payment and cannot be deleted",
+    "invalid_procedure_date": "Invalid procedure date (expected YYYY-MM-DD)",
+    "patient_id_empty": "A patient is required",
+    "procedure_type_id_empty": "A procedure type is required",
+    "procedure_not_found": "Procedure not found: {{id}}",
+    "procedure_type_name_empty": "Procedure type name cannot be empty",
+    "default_amount_negative": "Default amount cannot be negative",
+    "procedure_type_not_found": "Procedure type not found: {{id}}",
+    "procedure_type_name_duplicate": "A procedure type with this name already exists",
+    "reserved_type_not_mutable": "The reserved import type cannot be modified",
+    "refund_reason_too_long": "Refund reason must not exceed 255 characters",
+    "invalid_refund_date_format": "Invalid refund date (expected YYYY-MM-DD)",
+    "database_error": "An unexpected database error occurred"
+  },
   "form": {
     "patient": "Patient",
     "fund": "Fund",

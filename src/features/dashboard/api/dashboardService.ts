@@ -8,8 +8,10 @@ export async function fetchDashboardData(): Promise<ServiceResult<DashboardData>
 
   const result = await procedureGateway.readAllProcedures();
   if (!result.success) {
-    logger.error("Failed to fetch dashboard data", { error: result.error });
-    return { success: false, error: result.error };
+    // Cross-feature read of a procedure_orchestration command: keep this
+    // service's string envelope via the stable error code.
+    logger.error("Failed to fetch dashboard data", { code: result.error.code });
+    return { success: false, error: result.error.code };
   }
 
   // Return raw procedures - aggregation happens in UI layer

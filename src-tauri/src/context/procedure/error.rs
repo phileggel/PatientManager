@@ -26,6 +26,12 @@ pub enum ProcedureError {
     #[error("Procedure type ID cannot be empty")]
     ProcedureTypeIdEmpty,
 
+    // --- Procedure service-layer errors ---
+    /// A `Procedure` lookup by id returned no row (e.g. the delete guard in
+    /// `ProcedureOrchestrationService` reading the target before deletion).
+    #[error("Procedure not found: {procedure_id}")]
+    ProcedureNotFound { procedure_id: String },
+
     // --- ProcedureType aggregate domain invariants ---
     /// `ProcedureType::validate_fields` rejected an empty/whitespace name.
     #[error("Procedure type name cannot be empty")]
@@ -81,6 +87,13 @@ mod tests {
         assert_eq!(
             to_value(ProcedureError::ProcedureTypeIdEmpty).unwrap(),
             json!({ "code": "ProcedureTypeIdEmpty" }),
+        );
+        assert_eq!(
+            to_value(ProcedureError::ProcedureNotFound {
+                procedure_id: "proc-7".into(),
+            })
+            .unwrap(),
+            json!({ "code": "ProcedureNotFound", "procedure_id": "proc-7" }),
         );
         assert_eq!(
             to_value(ProcedureError::ProcedureTypeNameEmpty).unwrap(),

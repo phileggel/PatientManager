@@ -681,6 +681,7 @@ mod tests {
                     paid_amount,
                     payment_status,
                 )
+                .map_err(Into::into)
             },
         );
         mock.expect_update_procedure().returning(Ok);

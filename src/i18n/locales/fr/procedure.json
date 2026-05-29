@@ -1,4 +1,21 @@
 {
+  "errors": {
+    "patient_not_found": "Patient introuvable : {{id}}",
+    "fund_not_found": "Caisse introuvable : {{id}}",
+    "delete_blocked": "Cet acte est lié à un paiement et ne peut pas être supprimé",
+    "invalid_procedure_date": "Date d'acte invalide (format attendu AAAA-MM-JJ)",
+    "patient_id_empty": "Un patient est requis",
+    "procedure_type_id_empty": "Un type d'acte est requis",
+    "procedure_not_found": "Acte introuvable : {{id}}",
+    "procedure_type_name_empty": "Le nom du type d'acte ne peut pas être vide",
+    "default_amount_negative": "Le montant par défaut ne peut pas être négatif",
+    "procedure_type_not_found": "Type d'acte introuvable : {{id}}",
+    "procedure_type_name_duplicate": "Un type d'acte portant ce nom existe déjà",
+    "reserved_type_not_mutable": "Le type d'import réservé ne peut pas être modifié",
+    "refund_reason_too_long": "Le motif de remboursement ne doit pas dépasser 255 caractères",
+    "invalid_refund_date_format": "Date de remboursement invalide (format attendu AAAA-MM-JJ)",
+    "database_error": "Une erreur de base de données inattendue s'est produite"
+  },
   "form": {
     "patient": "Patient",
     "fund": "Caisse",

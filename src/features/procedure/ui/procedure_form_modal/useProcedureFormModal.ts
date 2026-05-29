@@ -18,6 +18,7 @@ import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../../api/gateway";
 import { formatPatientLabel } from "../../model";
+import { formatProcedureOrchestrationError } from "../../shared/presenter";
 
 const TAG = "[useProcedureFormModal]";
 
@@ -160,9 +161,10 @@ export function useProcedureFormModal({
         setLoading(false);
         if (!result.success) {
           logger.error(`${TAG} Error updating procedure type in view mode`, {
-            error: result.error,
+            code: result.error.code,
           });
-          toastService.show("error", result.error || tc("error.unknown"));
+          const { key, params } = formatProcedureOrchestrationError(result.error);
+          toastService.show("error", t(key, params));
           return;
         }
         toastService.show("success", t("state.updated"));
@@ -191,8 +193,9 @@ export function useProcedureFormModal({
         );
         setLoading(false);
         if (!result.success) {
-          logger.error(`${TAG} Error submitting`, { error: result.error });
-          toastService.show("error", result.error || tc("error.unknown"));
+          logger.error(`${TAG} Error submitting`, { code: result.error.code });
+          const { key, params } = formatProcedureOrchestrationError(result.error);
+          toastService.show("error", t(key, params));
           return;
         }
         logger.info(`${TAG} Procedure added`, { id: result.data.id });
@@ -221,8 +224,9 @@ export function useProcedureFormModal({
         });
         setLoading(false);
         if (!result.success) {
-          logger.error(`${TAG} Error submitting`, { error: result.error });
-          toastService.show("error", result.error || tc("error.unknown"));
+          logger.error(`${TAG} Error submitting`, { code: result.error.code });
+          const { key, params } = formatProcedureOrchestrationError(result.error);
+          toastService.show("error", t(key, params));
           return;
         }
         toastService.show("success", t("state.updated"));
@@ -239,7 +243,6 @@ export function useProcedureFormModal({
       procedureDate,
       billedAmount,
       t,
-      tc,
       onSuccess,
       onClose,
       reset,

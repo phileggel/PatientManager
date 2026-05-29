@@ -232,7 +232,7 @@ impl Procedure {
         confirmed_payment_date: Option<NaiveDate>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
-    ) -> Result<Self> {
+    ) -> Result<Self, ProcedureError> {
         Self::validate(&patient_id, &procedure_type_id)?;
 
         Ok(Self {
@@ -266,7 +266,7 @@ impl Procedure {
         confirmed_payment_date: Option<NaiveDate>,
         paid_amount: Option<i64>,
         payment_status: ProcedureStatus,
-    ) -> Result<Self> {
+    ) -> Result<Self, ProcedureError> {
         Self::validate(&patient_id, &procedure_type_id)?;
 
         Ok(Self {
@@ -603,6 +603,7 @@ mod tests {
             None,
             ProcedureStatus::Created,
         )
+        .map_err(Into::into)
     }
 
     #[test]

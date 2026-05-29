@@ -21,6 +21,11 @@ export function formatProcedureError(err: ProcedureError): {
       return { key: "procedure-type:errors.patient_id_empty" };
     case "ProcedureTypeIdEmpty":
       return { key: "procedure-type:errors.procedure_type_id_empty" };
+    case "ProcedureNotFound":
+      return {
+        key: "procedure-type:errors.procedure_not_found",
+        params: { id: err.procedure_id },
+      };
     case "ProcedureTypeNameEmpty":
       return { key: "procedure-type:errors.name_empty" };
     case "DefaultAmountNegative":

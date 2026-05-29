@@ -1,7 +1,10 @@
-use crate::context::procedure::{PaymentMethod, Procedure, ProcedureCandidate, ProcedureStatus};
+use crate::context::procedure::{
+    PaymentMethod, Procedure, ProcedureCandidate, ProcedureError, ProcedureStatus,
+};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::procedure_orchestration::{
-    CreateProcedureRequest, ProcedureOrchestrationService,
+    CreateProcedureRequest, ProcedureOrchestrationError, ProcedureOrchestrationService,
+    ProcedureOrchestrationTask,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -34,7 +37,7 @@ impl RawProcedure {
     /// Converts raw procedure data into a validated domain Procedure.
     /// Unknown `payment_method` / `payment_status` strings fall back to the
     /// `None` variant of each enum (matching legacy behaviour).
-    pub fn into_procedure(self) -> anyhow::Result<Procedure> {
+    pub fn into_procedure(self) -> Result<Procedure, ProcedureError> {
         let payment_method = self
             .payment_method
             .as_deref()
@@ -101,14 +104,14 @@ pub async fn add_procedure(
     procedure_date: String,
     billed_amount: i64,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<Procedure, String> {
+) -> Result<Procedure, ProcedureOrchestrationError> {
     tracing::info!(target: BACKEND, patient_id = %patient_id, "Processing add procedure");
 
     // reviewer-arch FP: malformed-date case is now compile-time-checked via
     // NaiveDate + #[specta(type = String)] on the wire; Serde deserialization
     // isn't our test surface — see PR #44.
     let procedure_date = chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
-        .map_err(|e| format!("Invalid procedure_date: {e}"))?;
+        .map_err(|_| ProcedureOrchestrationTask::InvalidProcedureDate)?;
 
     service
         .create_procedure(CreateProcedureRequest {
@@ -125,10 +128,6 @@ pub async fn add_procedure(
         .inspect(|procedure| {
             tracing::info!(target: BACKEND, procedure_id = ?procedure.id, "Procedure created successfully");
         })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to create procedure");
-            format!("{:#}", e)
-        })
 }
 
 /// Tauri command: Read all procedures
@@ -136,23 +135,16 @@ pub async fn add_procedure(
 #[specta::specta]
 pub async fn read_all_procedures(
     service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<Vec<Procedure>, String> {
+) -> Result<Vec<Procedure>, ProcedureOrchestrationError> {
     tracing::info!(target: BACKEND, "Processing read all procedures request");
 
-    service
-        .get_all_procedures()
-        .await
-        .inspect(|procedures| {
-            tracing::info!(
-                target: BACKEND,
-                count = procedures.len(),
-                "Retrieved procedures successfully"
-            );
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to retrieve procedures");
-            format!("{:#}", e)
-        })
+    service.get_all_procedures().await.inspect(|procedures| {
+        tracing::info!(
+            target: BACKEND,
+            count = procedures.len(),
+            "Retrieved procedures successfully"
+        );
+    })
 }
 
 /// Tauri command: Update an existing procedure
@@ -161,14 +153,11 @@ pub async fn read_all_procedures(
 pub async fn update_procedure(
     raw: RawProcedure,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<Procedure, String> {
+) -> Result<Procedure, ProcedureOrchestrationError> {
     tracing::info!(target: BACKEND, procedure_id = %raw.id, "Processing update procedure");
 
     // Convert raw data to validated domain object
-    let procedure = raw.into_procedure().map_err(|e| {
-        tracing::error!(target: BACKEND, error = %e, "Invalid procedure data");
-        format!("{:#}", e)
-    })?;
+    let procedure = raw.into_procedure()?;
 
     // R18/R26: frontend restricts edits on blocking-status procedures to procedure_type_id only.
     // Log a warning if this invariant is violated (e.g. by a bug or direct API call).
@@ -187,10 +176,6 @@ pub async fn update_procedure(
         .inspect(|updated| {
             tracing::info!(target: BACKEND, procedure_id = ?updated.id, "Procedure updated successfully");
         })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to update procedure");
-            format!("{:#}", e)
-        })
 }
 
 /// Tauri command: Delete a procedure
@@ -199,19 +184,12 @@ pub async fn update_procedure(
 pub async fn delete_procedure(
     id: String,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<(), String> {
+) -> Result<(), ProcedureOrchestrationError> {
     tracing::info!(target: BACKEND, procedure_id = %id, "Processing delete procedure");
 
-    service
-        .delete_procedure(&id)
-        .await
-        .map(|_| {
-            tracing::info!(target: BACKEND, procedure_id = %id, "Procedure deleted successfully");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to delete procedure");
-            format!("{:#}", e)
-        })
+    service.delete_procedure(&id).await.inspect(|()| {
+        tracing::info!(target: BACKEND, procedure_id = %id, "Procedure deleted successfully");
+    })
 }
 
 /// Tauri command: Validate batch of procedure candidates
@@ -220,35 +198,28 @@ pub async fn delete_procedure(
 pub async fn validate_batch_procedures(
     procedures: Vec<ProcedureCandidate>,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<ValidateBatchProceduresResponse, String> {
+) -> Result<ValidateBatchProceduresResponse, ProcedureOrchestrationError> {
     tracing::info!(
         target: BACKEND,
         count = procedures.len(),
         "Processing batch procedure validation"
     );
 
-    service
-        .validate_batch(procedures)
-        .await
-        .map(|results| {
-            tracing::info!(
-                target: BACKEND,
-                valid_count = results
-                    .iter()
-                    .filter(|r| matches!(r.status, ProcedureValidationStatus::Valid))
-                    .count(),
-                invalid_count = results
-                    .iter()
-                    .filter(|r| matches!(r.status, ProcedureValidationStatus::Invalid))
-                    .count(),
-                "Batch validation complete"
-            );
-            ValidateBatchProceduresResponse { results }
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to validate batch procedures");
-            format!("{:#}", e)
-        })
+    service.validate_batch(procedures).await.map(|results| {
+        tracing::info!(
+            target: BACKEND,
+            valid_count = results
+                .iter()
+                .filter(|r| matches!(r.status, ProcedureValidationStatus::Valid))
+                .count(),
+            invalid_count = results
+                .iter()
+                .filter(|r| matches!(r.status, ProcedureValidationStatus::Invalid))
+                .count(),
+            "Batch validation complete"
+        );
+        ValidateBatchProceduresResponse { results }
+    })
 }
 
 /// Tauri command: Create batch of procedures
@@ -257,28 +228,21 @@ pub async fn validate_batch_procedures(
 pub async fn create_batch_procedures(
     procedures: Vec<ProcedureCandidate>,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<CreateBatchProceduresResponse, String> {
+) -> Result<CreateBatchProceduresResponse, ProcedureOrchestrationError> {
     tracing::info!(
         target: BACKEND,
         count = procedures.len(),
         "Processing batch procedure creation"
     );
 
-    service
-        .create_batch(procedures)
-        .await
-        .map(|procedures| {
-            tracing::info!(
-                target: BACKEND,
-                count = procedures.len(),
-                "Batch procedures created successfully"
-            );
-            CreateBatchProceduresResponse { procedures }
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to create batch procedures");
-            format!("{:#}", e)
-        })
+    service.create_batch(procedures).await.map(|procedures| {
+        tracing::info!(
+            target: BACKEND,
+            count = procedures.len(),
+            "Batch procedures created successfully"
+        );
+        CreateBatchProceduresResponse { procedures }
+    })
 }
 
 /// Tauri command: Get unpaid procedures by fund
@@ -287,7 +251,7 @@ pub async fn create_batch_procedures(
 pub async fn get_unpaid_procedures_by_fund(
     fund_id: String,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<Vec<Procedure>, String> {
+) -> Result<Vec<Procedure>, ProcedureOrchestrationError> {
     tracing::debug!(target: BACKEND, fund_id = %fund_id, "Processing get unpaid procedures by fund");
 
     service
@@ -301,10 +265,6 @@ pub async fn get_unpaid_procedures_by_fund(
                 "Retrieved unpaid procedures successfully"
             );
         })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to retrieve unpaid procedures");
-            format!("{:#}", e)
-        })
 }
 
 /// Tauri command: Get procedures by their IDs
@@ -313,7 +273,7 @@ pub async fn get_unpaid_procedures_by_fund(
 pub async fn read_procedures_by_ids(
     ids: Vec<String>,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<Vec<Procedure>, String> {
+) -> Result<Vec<Procedure>, ProcedureOrchestrationError> {
     tracing::debug!(target: BACKEND, count = ids.len(), "Processing read procedures by IDs");
 
     service
@@ -325,10 +285,6 @@ pub async fn read_procedures_by_ids(
                 count = procedures.len(),
                 "Retrieved procedures by IDs successfully"
             );
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to read procedures by IDs");
-            format!("{:#}", e)
         })
 }
 

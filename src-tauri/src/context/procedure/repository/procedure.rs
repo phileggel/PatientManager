@@ -744,6 +744,7 @@ mod tests {
             None,
             ProcedureStatus::Created,
         )
+        .map_err(Into::into)
     }
 
     #[tokio::test]

@@ -19,33 +19,29 @@ import {
   type PatientError,
   type Procedure,
   type ProcedureError,
+  type ProcedureOrchestrationError,
   type ProcedureType,
   type RawProcedure,
-  type Result,
 } from "@/bindings";
 import type { ServiceResult } from "@/types/api";
-
-/**
- * Convert a Specta `Result<T, string>` to a `ServiceResult<T>`.
- * Preserves the error string; never throws.
- */
-function toServiceResult<T>(result: Result<T, string>): ServiceResult<T> {
-  if (result.status === "ok") {
-    return { success: true, data: result.data };
-  }
-  return { success: false, error: result.error };
-}
 
 // ============================================
 // Procedure CRUD Operations
 // ============================================
+//
+// Per F27: pure pass-through of the typed `ProcedureOrchestrationError` wire
+// shape into the `ServiceResult` envelope. No throwing — callers branch on
+// `result.success` and translate via `formatProcedureOrchestrationError`.
 
 /**
  * Fetch all procedures
  */
-export async function readAllProcedures(): Promise<ServiceResult<Procedure[]>> {
+export async function readAllProcedures(): Promise<
+  ServiceResult<Procedure[], ProcedureOrchestrationError>
+> {
   const result = await commands.readAllProcedures();
-  return toServiceResult(result);
+  if (result.status === "ok") return { success: true, data: result.data };
+  return { success: false, error: result.error };
 }
 
 /**
@@ -57,7 +53,7 @@ export async function addProcedure(
   procedureTypeId: string,
   procedureDate: string,
   billedAmount: number,
-): Promise<ServiceResult<Procedure>> {
+): Promise<ServiceResult<Procedure, ProcedureOrchestrationError>> {
   const result = await commands.addProcedure(
     patientId,
     fundId,
@@ -65,21 +61,27 @@ export async function addProcedure(
     procedureDate,
     billedAmount,
   );
-  return toServiceResult(result);
+  if (result.status === "ok") return { success: true, data: result.data };
+  return { success: false, error: result.error };
 }
 
 /**
  * Update an existing procedure
  */
-export async function updateProcedure(procedure: RawProcedure): Promise<ServiceResult<Procedure>> {
+export async function updateProcedure(
+  procedure: RawProcedure,
+): Promise<ServiceResult<Procedure, ProcedureOrchestrationError>> {
   const result = await commands.updateProcedure(procedure);
-  return toServiceResult(result);
+  if (result.status === "ok") return { success: true, data: result.data };
+  return { success: false, error: result.error };
 }
 
 /**
  * Delete a procedure
  */
-export async function deleteProcedure(id: string): Promise<ServiceResult<void>> {
+export async function deleteProcedure(
+  id: string,
+): Promise<ServiceResult<void, ProcedureOrchestrationError>> {
   const result = await commands.deleteProcedure(id);
   if (result.status === "ok") {
     return { success: true, data: undefined };

@@ -25,12 +25,12 @@ describe("fetchDashboardData", () => {
     expect(result).toEqual({ success: true, data: { procedures: [] } });
   });
 
-  it("returns failure result preserving the gateway error string", async () => {
+  it("returns failure result surfacing the gateway error code", async () => {
     vi.mocked(procedureGateway.readAllProcedures).mockResolvedValue({
       success: false,
-      error: "db unavailable",
+      error: { code: "DatabaseError" },
     });
     const result = await fetchDashboardData();
-    expect(result).toEqual({ success: false, error: "db unavailable" });
+    expect(result).toEqual({ success: false, error: "DatabaseError" });
   });
 });

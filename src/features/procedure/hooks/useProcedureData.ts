@@ -1,20 +1,32 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { ProcedureOrchestrationError } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import * as gateway from "../api/gateway";
 import type { ProcedureRow } from "../model";
 import { toProcedureRow } from "../model/procedure-row.mapper";
+import { formatProcedureOrchestrationError } from "../shared/presenter";
 
 const TAG = "[useProcedureData]";
 
 export function useProcedureData() {
+  const { t } = useTranslation("procedure");
   const patients = useCacheStore((state) => state.patients);
   const funds = useCacheStore((state) => state.funds);
   const procedureTypes = useCacheStore((state) => state.procedureTypes);
 
   const [initialRows, setInitialRows] = useState<ProcedureRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Store the typed error; the consumer translates at render (F27 Layer 4) so
+  // the load effect stays independent of the i18n `t` identity.
+  const [error, setError] = useState<ProcedureOrchestrationError | null>(null);
+
+  const errorMessage = useMemo(() => {
+    if (!error) return null;
+    const { key, params } = formatProcedureOrchestrationError(error);
+    return t(key, params);
+  }, [error, t]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -24,7 +36,7 @@ export function useProcedureData() {
       const result = await gateway.readAllProcedures();
 
       if (!result.success) {
-        logger.error(TAG, "Failed to load data", { error: result.error });
+        logger.error(TAG, "Failed to load data", { code: result.error.code });
         setError(result.error);
         setIsLoading(false);
         return;
@@ -46,8 +58,10 @@ export function useProcedureData() {
     logger.debug(TAG, `deleting row ${id}`);
     const result = await gateway.deleteProcedure(id);
     if (!result.success) {
-      logger.error(TAG, `delete failed for ${id}`, { error: result.error });
-      throw new Error(result.error);
+      // Throw the stable code; the consumer (ProcedurePage) owns the
+      // user-facing message. Translating here would be discarded.
+      logger.error(TAG, `delete failed for ${id}`, { code: result.error.code });
+      throw new Error(result.error.code);
     }
   }, []);
 
@@ -57,7 +71,7 @@ export function useProcedureData() {
     procedureTypes,
     initialRows,
     isLoading,
-    error,
+    error: errorMessage,
     deleteRow,
   };
 }
