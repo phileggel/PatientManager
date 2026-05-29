@@ -20,11 +20,13 @@ Source pain: `docs/techdebt.md` 2026-05-24 entry (`Result<T, String>` on use-cas
 ## PR ladder
 
 - [x] **PR 1** — `PatientError` + `ProcedureError` BCs (pattern-setter; BE + FE adoption for both BCs' own commands) — merged 2026-05-27 (#51)
-- [x] **PR 2** — `FundError` + `BankError` BCs (mirrors PR 1 mechanically once the pattern is locked)
-- [ ] **PR 3** — Procedure-side use-case composites (TBD: refine scope from PR 1-2 lessons)
+- [x] **PR 2** — `FundError` + `BankError` BCs (mirrors PR 1 mechanically once the pattern is locked) — merged 2026-05-29 (#52)
+- [ ] **PR 3** — Procedure-side use-case composites. Split after PR-2 analysis revealed the context `ProcedureService` Procedure-aggregate CRUD was still on `anyhow` (PR 1 only typed the ProcedureType half):
+  - [ ] **PR 3a** — type the 9 orchestrator-facing context `ProcedureService` methods → `ProcedureError` (BE-only prereq; mergeable alone via the `From<ProcedureError> for anyhow::Error` bridge)
+  - [ ] **PR 3b** — `ProcedureOrchestrationError` composite (`#[serde(untagged)]` wrapping `ProcedureError` via `#[from]` + a `ProcedureOrchestrationTask` `#[serde(tag = "code")]` sub-enum for the cross-context FK guards / delete-blocked / invalid-date / DB) + the 8 `procedure_orchestration/api.rs` commands + FE adoption. `excel_import` + `overpayment` deferred to their own PR(s). First clean-up target: replace the 4 interim `.map_err(Into::into)` bridges in `procedure_orchestration/service.rs` (read_procedure / read_procedures_by_ids / read_all_procedures / get_unpaid_by_fund) with plain `?` once the composite's `#[from]` carries the type through.
 - [ ] **PR 4** — Bank/fund-side composites + `git rm` this plan + close the 2026-05-24 techdebt entry
 
-PR 3-4 scopes stay tentative until PR 1-2 ship and the actual pattern friction is measured.
+PR 3b / PR 4 scopes stay tentative until the preceding slices ship and the actual pattern friction is measured.
 
 ## Per-PR detail
 
@@ -127,12 +129,13 @@ Each gets a `{UseCase}Error` composite + `{UseCase}Task` sub-enum per the gold r
 
 ## Status tracker
 
-| PR  | Status                    | Branch                                    | Effort actual | LOC actual | Merged at |
-| --- | ------------------------- | ----------------------------------------- | ------------- | ---------- | --------- |
-| 1   | in progress               | `refactor/typed-errors-patient-procedure` | —             | —          | —         |
-| 2   | blocked on PR 1           | —                                         | —             | —          | —         |
-| 3   | TBD (refine after PR 1-2) | —                                         | —             | —          | —         |
-| 4   | TBD (refine after PR 1-2) | —                                         | —             | —          | —         |
+| PR  | Status      | Branch                                    | Merged at        |
+| --- | ----------- | ----------------------------------------- | ---------------- |
+| 1   | merged      | `refactor/typed-errors-patient-procedure` | 2026-05-27 (#51) |
+| 2   | merged      | `refactor/typed-errors-fund-bank`         | 2026-05-29 (#52) |
+| 3a  | in progress | `refactor/typed-errors-procedure-context` | —                |
+| 3b  | TBD         | —                                         | —                |
+| 4   | TBD         | —                                         | —                |
 
 ## Pattern reference
 

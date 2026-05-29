@@ -44,7 +44,10 @@ impl ProcedureOrchestrationService {
 
     /// Get a single healthcare procedure by ID (delegates to context service)
     pub async fn read_procedure(&self, id: &str) -> anyhow::Result<Option<Procedure>> {
-        self.context_procedure_service.read_procedure(id).await
+        self.context_procedure_service
+            .read_procedure(id)
+            .await
+            .map_err(Into::into)
     }
 
     /// Get multiple healthcare procedures by their IDs (delegates to context service)
@@ -53,11 +56,15 @@ impl ProcedureOrchestrationService {
         self.context_procedure_service
             .read_procedures_by_ids(ids)
             .await
+            .map_err(Into::into)
     }
 
     /// Get all healthcare procedures (delegates to context service)
     pub async fn get_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-        self.context_procedure_service.read_all_procedures().await
+        self.context_procedure_service
+            .read_all_procedures()
+            .await
+            .map_err(Into::into)
     }
 }
 
@@ -530,6 +537,7 @@ impl ProcedureOrchestrationService {
         self.context_procedure_service
             .find_unpaid_by_fund(fund_id)
             .await
+            .map_err(Into::into)
     }
 
     /// Returns true if the procedure status prevents deletion and direct editing (R5, R6).

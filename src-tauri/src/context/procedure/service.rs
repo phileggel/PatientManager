@@ -150,28 +150,44 @@ impl ProcedureService {
     }
 
     /// Get a single procedure by ID
-    pub async fn read_procedure(&self, id: &str) -> anyhow::Result<Option<Procedure>> {
-        self.repository.read_procedure(id).await
+    pub async fn read_procedure(&self, id: &str) -> Result<Option<Procedure>, ProcedureError> {
+        self.repository.read_procedure(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_procedure: repository failed");
+            ProcedureError::DatabaseError
+        })
     }
 
     /// Get all procedures
-    pub async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-        self.repository.read_all_procedures().await
+    pub async fn read_all_procedures(&self) -> Result<Vec<Procedure>, ProcedureError> {
+        self.repository.read_all_procedures().await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_all_procedures: repository failed");
+            ProcedureError::DatabaseError
+        })
     }
 
     /// Get multiple procedures by their IDs
-    pub async fn read_procedures_by_ids(&self, ids: Vec<String>) -> anyhow::Result<Vec<Procedure>> {
-        self.repository.read_procedures_by_ids(&ids).await
+    pub async fn read_procedures_by_ids(
+        &self,
+        ids: Vec<String>,
+    ) -> Result<Vec<Procedure>, ProcedureError> {
+        self.repository.read_procedures_by_ids(&ids).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "read_procedures_by_ids: repository failed");
+            ProcedureError::DatabaseError
+        })
     }
 
     /// Get all procedures for a given patient (uses idx_procedure_patient)
     pub async fn read_procedures_by_patient_id(
         &self,
         patient_id: &str,
-    ) -> anyhow::Result<Vec<Procedure>> {
+    ) -> Result<Vec<Procedure>, ProcedureError> {
         self.repository
             .read_procedures_by_patient_id(patient_id)
             .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "read_procedures_by_patient_id: repository failed");
+                ProcedureError::DatabaseError
+            })
     }
 
     /// Create a new procedure (basic CRUD, no cross-context logic)
@@ -188,7 +204,7 @@ impl ProcedureService {
         confirmed_payment_date: Option<chrono::NaiveDate>,
         paid_amount: Option<i64>,
         payment_status: super::domain::ProcedureStatus,
-    ) -> anyhow::Result<Procedure> {
+    ) -> Result<Procedure, ProcedureError> {
         let procedure = self
             .repository
             .create_procedure(
@@ -203,7 +219,11 @@ impl ProcedureService {
                 paid_amount,
                 payment_status,
             )
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_procedure: repository failed");
+                ProcedureError::DatabaseError
+            })?;
 
         let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
 
@@ -211,8 +231,18 @@ impl ProcedureService {
     }
 
     /// Create multiple procedures in a single transaction (basic CRUD)
-    pub async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
-        let result = self.repository.create_batch(procedures).await?;
+    pub async fn create_batch(
+        &self,
+        procedures: Vec<Procedure>,
+    ) -> Result<Vec<Procedure>, ProcedureError> {
+        let result = self
+            .repository
+            .create_batch(procedures)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_batch: repository failed");
+                ProcedureError::DatabaseError
+            })?;
 
         // Publish a single event for the entire batch
         let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
@@ -259,8 +289,18 @@ impl ProcedureService {
     }
 
     /// Update an existing procedure (basic CRUD, no cross-context logic)
-    pub async fn update_procedure(&self, procedure: Procedure) -> anyhow::Result<Procedure> {
-        let result = self.repository.update_procedure(procedure).await?;
+    pub async fn update_procedure(
+        &self,
+        procedure: Procedure,
+    ) -> Result<Procedure, ProcedureError> {
+        let result = self
+            .repository
+            .update_procedure(procedure)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_procedure: repository failed");
+                ProcedureError::DatabaseError
+            })?;
 
         let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
 
@@ -283,8 +323,11 @@ impl ProcedureService {
     }
 
     /// Delete a procedure (soft-delete)
-    pub async fn delete_procedure(&self, id: &str) -> anyhow::Result<()> {
-        self.repository.delete_procedure(id).await?;
+    pub async fn delete_procedure(&self, id: &str) -> Result<(), ProcedureError> {
+        self.repository.delete_procedure(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_procedure: repository failed");
+            ProcedureError::DatabaseError
+        })?;
 
         let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
 
@@ -292,8 +335,14 @@ impl ProcedureService {
     }
 
     /// Get unpaid procedures by fund
-    pub async fn find_unpaid_by_fund(&self, fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
-        self.repository.find_unpaid_by_fund(fund_id).await
+    pub async fn find_unpaid_by_fund(
+        &self,
+        fund_id: &str,
+    ) -> Result<Vec<Procedure>, ProcedureError> {
+        self.repository.find_unpaid_by_fund(fund_id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "find_unpaid_by_fund: repository failed");
+            ProcedureError::DatabaseError
+        })
     }
 
     /// Find procedures eligible for direct payment (status CREATED, date in window).
@@ -751,11 +800,9 @@ mod tests {
     }
 
     // ------------------------------------------------------------------
-    // ProcedureTypeService — repo-failure branch coverage. Each `map_err`
-    // arm translates an `anyhow::Error` from the repository into
-    // `ProcedureError::DatabaseError`; the happy path tests above only
-    // exercise success returns, so the closures stay un-touched without
-    // these tests.
+    // ProcedureTypeService — repo-failure branch coverage.
+    // Invariant: every `map_err` arm maps a repository `anyhow::Error` to
+    // `ProcedureError::DatabaseError` and never leaks the raw error.
     // ------------------------------------------------------------------
 
     #[tokio::test]
@@ -821,5 +868,149 @@ mod tests {
         );
         let result = service.update_procedure_type(pt).await;
         assert!(matches!(result, Err(ProcedureError::DatabaseError)));
+    }
+
+    // ------------------------------------------------------------------
+    // ProcedureService (Procedure aggregate) — repo-failure branch coverage.
+    // Invariant: every method maps a repository `anyhow::Error` to
+    // `ProcedureError::DatabaseError` and never leaks the raw error.
+    // Naming note: these match the sibling repo-failure tests
+    // (`*_translates_repo_failure_to_database_error`, no `test_` prefix) — the
+    // module's established style for error-translation tests.
+    // ------------------------------------------------------------------
+
+    fn make_proc() -> Procedure {
+        Procedure::new(
+            "p1".to_string(),
+            None,
+            "t1".to_string(),
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            0,
+            PaymentMethod::None,
+            None,
+            None,
+            None,
+            ProcedureStatus::None,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn procedure_read_procedure_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_read_procedure()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        assert!(matches!(
+            service.read_procedure("any").await,
+            Err(ProcedureError::DatabaseError)
+        ));
+    }
+
+    #[tokio::test]
+    async fn procedure_read_all_procedures_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_read_all_procedures()
+            .returning(|| Err(anyhow!("conn refused")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        assert!(matches!(
+            service.read_all_procedures().await,
+            Err(ProcedureError::DatabaseError)
+        ));
+    }
+
+    #[tokio::test]
+    async fn procedure_read_procedures_by_ids_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_read_procedures_by_ids()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        assert!(matches!(
+            service.read_procedures_by_ids(vec!["a".to_string()]).await,
+            Err(ProcedureError::DatabaseError)
+        ));
+    }
+
+    #[tokio::test]
+    async fn procedure_read_procedures_by_patient_id_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_read_procedures_by_patient_id()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        assert!(matches!(
+            service.read_procedures_by_patient_id("pat-1").await,
+            Err(ProcedureError::DatabaseError)
+        ));
+    }
+
+    #[tokio::test]
+    async fn procedure_create_procedure_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_create_procedure()
+            .returning(|_, _, _, _, _, _, _, _, _, _| Err(anyhow!("conn refused")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service
+            .create_procedure(
+                "patient-1".to_string(),
+                None,
+                "type-1".to_string(),
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                10000,
+                PaymentMethod::None,
+                None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await;
+        assert!(matches!(result, Err(ProcedureError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn procedure_create_batch_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_create_batch()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        assert!(matches!(
+            service.create_batch(vec![make_proc()]).await,
+            Err(ProcedureError::DatabaseError)
+        ));
+    }
+
+    #[tokio::test]
+    async fn procedure_update_procedure_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_update_procedure()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        assert!(matches!(
+            service.update_procedure(make_proc()).await,
+            Err(ProcedureError::DatabaseError)
+        ));
+    }
+
+    #[tokio::test]
+    async fn procedure_delete_procedure_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_delete_procedure()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        assert!(matches!(
+            service.delete_procedure("proc-1").await,
+            Err(ProcedureError::DatabaseError)
+        ));
+    }
+
+    #[tokio::test]
+    async fn procedure_find_unpaid_by_fund_translates_repo_failure_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_find_unpaid_by_fund()
+            .returning(|_| Err(anyhow!("conn refused")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        assert!(matches!(
+            service.find_unpaid_by_fund("fund-1").await,
+            Err(ProcedureError::DatabaseError)
+        ));
     }
 }
