@@ -1,7 +1,6 @@
 .claude/agents/adr-reviewer.md
 .claude/agents/contract-reviewer.md
 .claude/agents/plan-reviewer.md
-.claude/agents/retro-spec.md
 .claude/agents/reviewer-arch.md
 .claude/agents/reviewer-backend.md
 .claude/agents/reviewer-e2e.md
@@ -26,6 +25,7 @@
 .claude/skills/kit-discover/SKILL.md
 .claude/skills/prune/SKILL.md
 .claude/skills/review-triage/SKILL.md
+.claude/skills/session-reflect/SKILL.md
 .claude/skills/setup-e2e/SKILL.md
 .claude/skills/smart-commit/SKILL.md
 .claude/skills/spec-writer/SKILL.md
@@ -39,9 +39,7 @@ common.just
 .githooks/pre-merge-commit
 .githooks/pre-push
 .githooks/README.md
-scripts/branch-files.sh
 scripts/branch.sh
-scripts/changed-files.sh
 scripts/check.py
 scripts/list-fe-test-targets.py
 scripts/list-fresh-reviews.sh

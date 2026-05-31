@@ -107,6 +107,7 @@ Output: `src-tauri/target/release/bundle/`
 ### Testing
 
 Run tests with:
+
 ```bash
 npm run test
 ```
@@ -153,9 +154,11 @@ Both linters catch issues early and maintain consistent code standards across fr
 ## Documentation
 
 ### Business & Product
+
 - [Roadmap](docs/business/ROADMAP.md) - Feature planning and development phases
 
 ### Development & Technical
+
 - [Architecture](docs/development/architecture.md) - System design, structure, and data flow
 - [Commit Policy & Versioning](COMMIT_POLICY.md) - Commit standards, versioning, and release process
 - [Contributing](CONTRIBUTING.md) - How to contribute
@@ -164,18 +167,23 @@ Both linters catch issues early and maintain consistent code standards across fr
 ## Troubleshooting
 
 ### "Command not found"
+
 Rust backend not compiled:
+
 ```bash
 cd src-tauri && cargo build
 ```
 
 ### Blank window
+
 Frontend failed to build:
+
 ```bash
 npm install && npm run build
 ```
 
 ### Port 5173 in use
+
 ```bash
 # Linux/macOS
 lsof -i :5173 | grep LISTEN | awk '{print $2}' | xargs kill -9

@@ -55,7 +55,7 @@ Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — 
 
 ## Input
 
-No argument required. The agent discovers changed `.ts` / `.tsx` files under `src/` via `bash scripts/branch-files.sh`. E2E test files under `e2e/` are excluded — they're `reviewer-e2e`'s lane.
+No argument required. The agent discovers changed `.ts` / `.tsx` files under `src/` via `bash scripts/branch.sh files`. E2E test files under `e2e/` are excluded — they're `reviewer-e2e`'s lane.
 
 If no `.ts` / `.tsx` files under `src/` are in the branch diff, halt with the refusal in `## Output format`.
 
@@ -65,7 +65,7 @@ If no `.ts` / `.tsx` files under `src/` are in the branch diff, halt with the re
 
 ### Step 1 — Discover changed frontend files
 
-Run `bash scripts/branch-files.sh --frontend`. The `--frontend` filter excludes `e2e/` paths — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
+Run `bash scripts/branch.sh files --frontend`. The `--frontend` filter excludes `e2e/` paths — E2E test files are `reviewer-e2e`'s lane and must not be reviewed here. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
 
 Filter out deleted paths (their content can't be read): for each candidate, confirm the file exists with `Glob` before adding it to the review set.
 
@@ -139,8 +139,12 @@ The v4.5 error pipeline runs gateway → hook → presenter → component, each 
 ### Cross-feature imports (F23 navigation + F26 imports)
 
 - Inter-feature navigation NOT through the router (`useNavigate`, route paths) — flag direct cross-feature page-component renders (🔴, F23)
-- **Behaviour import** from a sibling feature (hook, store) — code smell; promote to `ui/hooks/` or `shell/` instead (🟡, F26)
+- **Behaviour import** from a sibling feature (hook, store) — code smell; promote per F26 (hooks → `ui/hooks/`; stores → `infra/cache/` or `infra/settings/`) (🟡, F26)
 - **Primitive import** from a sibling feature (type, pure function, presentational component) — fine; do not flag (F26)
+- **Cross-feature store import** (specific F26 case) (🟡, F26):
+  - _Grep_: `grep -rP 'import\s+\{[^}]*\buse(?:[A-Z][A-Za-z0-9]*)?Store\b[^}]*\}\s+from\s+"@/features/' src/features/` — the optional `(?:[A-Z][A-Za-z0-9]*)?` middle catches both `usePatientStore` and bare `useStore` (Zustand single-store-per-feature convention).
+  - _Path scope_: flag only when the importing file is under `src/features/<self>/` AND `<self> != <other>`. `App.tsx` and `shell/` legitimately import feature stores — do not flag those.
+  - _Remediation_: the imported store is behaviour, not a primitive. Two valid fixes: (a) promote the shared cache to `infra/cache/` and have each feature's gateway expose its own selectors over it (per F28's Store kinds table); (b) keep the data backend-side and orchestrate via a use-case command.
 
 ### Top-level `src/` bucket compliance (F28)
 
@@ -151,7 +155,7 @@ The v4.5 four-bucket layout has both inclusion AND exclusion rules. Flag misclas
 - A domain term in a file under `ui/` (🟡 — `ui/` is domain-agnostic)
 - A pure helper or formatter in `infra/` instead of `ui/format/` (🟡)
 - A generic UI hook in `infra/` instead of `ui/hooks/` (🟡)
-- A stateful UI runtime in `infra/` instead of colocated with its widget in `ui/components/` (🟡)
+- A widget-local UI runtime in `infra/` instead of colocated with its widget in `ui/components/` (🟡 — `infra/` holds app-wide singletons per F28's Store kinds; widget-local runtime belongs with the widget)
 - Stale path: `src/hooks/` instead of `src/ui/hooks/` (🟡 — F28 rename)
 
 ### Accessibility — i18n labels (F24)
@@ -324,6 +328,7 @@ The main agent only sees your terminal message; the file ensures `/review-triage
 6. **Don't double-up with siblings.** DDD layering at the architecture level (bounded-context isolation, not the F26 cross-feature-import discipline this lane owns) belongs to `reviewer-arch`; E2E test scenarios under `e2e/` belong to `reviewer-e2e`; Tauri command surface / IPC boundary belongs to `reviewer-security`. Skip those findings here.
 7. **Cite the F-rule on every finding.** Without a stable rule id, the consumer can't trace the finding back to canonical source. The rule numbers are stable (see `kit-readme.md` → "Spec Rule Numbering System (TRIGRAM-NNN)").
 8. **Scope-drift guard.** Per-PR review reads the diff + tightly-coupled neighbours (the presenter for a component change, the hook for a gateway change). Cap reads at 10 files unless a specific cross-reference ties to the diff; when the diff exceeds the cap, prioritize the largest changed-line counts and note the trim in the headline. Release-sweep mode (`## Scope`) is the only exception.
+9. **External-state claims need a verifiable source (gh#67).** Do not assert that a version is deprecated, a pattern is no longer idiomatic, or a tool recommendation is current based on training knowledge alone — that knowledge ages. Either cite a registry/doc/RFC link, or soften the finding ("as of training cutoff; verify against current docs") and hand the caller a concrete way to settle it — route dependency/version/CVE currency to `/dep-audit`, and for other registry-backed claims name the exact command that would confirm it. Surface the doubt and the check; the caller verifies — reviewers do not self-verify. Softened findings cap at 🟡 unless a link is provided. Don't bless a pattern as "current best practice" without a source either — affirmative claims rot the same way negative ones do.
 
 ---
 

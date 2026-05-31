@@ -50,7 +50,7 @@ Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — 
 
 ## Input
 
-No argument required. The agent discovers changed E2E test files via `bash scripts/branch-files.sh` filtered to `^e2e/.*\.test\.ts$`.
+No argument required. The agent discovers changed E2E test files via `bash scripts/branch.sh files` filtered to `^e2e/.*\.test\.ts$`.
 
 If no E2E test files match, halt with the refusal in `## Output format`.
 
@@ -60,7 +60,7 @@ If no E2E test files match, halt with the refusal in `## Output format`.
 
 ### Step 1 — Discover changed E2E test files
 
-Run `bash scripts/branch-files.sh --e2e`. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
+Run `bash scripts/branch.sh files --e2e`. If the result is empty, halt — output the empty-result refusal in `## Output format` and stop.
 
 Filter out deleted paths (their content can't be read): for each candidate, confirm the file exists with `Glob` before adding it to the review set.
 

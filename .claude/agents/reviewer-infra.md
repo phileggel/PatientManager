@@ -38,7 +38,7 @@ Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — 
 
 ## When to use
 
-- **After a change touches CI, config, capability, script, or hook files** — `branch-files.sh` discovery picks them up
+- **After a change touches CI, config, capability, script, or hook files** — `branch.sh files` discovery picks them up
 - **For a release-sweep audit** (invoke with the literal `release-sweep` phrase — see `## Scope`) — final audit on cumulative infra surface; invoke `/dep-audit` separately for CVEs
 - **Before opening a PR that modifies build, packaging, or release infrastructure** — catch drift before it ships
 
@@ -58,7 +58,7 @@ Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — 
 
 ## Input
 
-No argument required. The agent discovers changed infra files via `bash scripts/branch-files.sh`.
+No argument required. The agent discovers changed infra files via `bash scripts/branch.sh files`.
 
 If invoked with no in-scope files in the branch diff, halt with the refusal in `## Output format`.
 
@@ -68,7 +68,7 @@ If invoked with no in-scope files in the branch diff, halt with the refusal in `
 
 ### Step 1 — Discover changed infra files
 
-Run `bash scripts/branch-files.sh` and filter to the in-scope paths listed in `## Files in scope` below. If the result is empty, halt — output the no-files refusal and stop.
+Run `bash scripts/branch.sh files` and filter to the in-scope paths listed in `## Files in scope` below. If the result is empty, halt — output the no-files refusal and stop.
 
 Filter out deleted paths: confirm each candidate exists with `Glob` before adding it to the review set. Deletes are out of scope.
 
@@ -475,6 +475,9 @@ The main agent only sees your terminal message; the file ensures `/review-triage
 8. **Delegate CVE scanning to `/dep-audit`.** Never replicate dependency vulnerability auditing inline — this agent enforces _placement_ (dev vs runtime), not CVEs.
 9. **Skip silently when stack components are absent.** Non-Tauri projects (no `tauri.conf.json` / no `capabilities/`), no-`.githooks/` projects (Husky, lefthook, or no hook framework), no SQLx projects (no `SQLX_OFFLINE` to enforce) all degrade gracefully — emit `✅ No issues found.` or the empty-result form, not Criticals for missing files.
 10. **Scope-drift guard.** Per-PR review reads the diff + tightly-coupled neighbours (`tauri.conf.json` if `Cargo.toml` version changed, the CI workflow if a just recipe it invokes changed). Cap reads at 10 files unless a specific cross-reference ties to the diff; when the diff exceeds the cap, prioritize the largest changed-line counts and note the trim in the headline. The `## CI Improvement Opportunities` section (Step 7) and broad consistency sweeps are release-sweep-mode work (`## Scope`).
+11. **External-state claims need a verifiable source (gh#67).** Do not assert that a version is deprecated, a pattern is no longer idiomatic, or a tool recommendation is current based on training knowledge alone — that knowledge ages. Either cite a registry/doc/RFC link, or soften the finding ("as of training cutoff; verify against current docs") and hand the caller a concrete way to settle it — route dependency/version/CVE currency to `/dep-audit`, and for other registry-backed claims name the exact command that would confirm it. Surface the doubt and the check; the caller verifies — reviewers do not self-verify. Softened findings cap at 🟡 unless a link is provided. Don't bless a pattern as "current best practice" without a source either — affirmative claims rot the same way negative ones do.
+
+    _Example_: A finding of _"actions/checkout@v3 is deprecated — upgrade to v4"_ should soften to _"actions/checkout@v3 may be deprecated as of training cutoff; verify against https://github.com/actions/checkout/releases before applying"_, unless the link is provided inline. Hand the caller the exact check rather than running it yourself: `gh api repos/actions/checkout/releases/latest --jq .tag_name`.
 
 ---
 

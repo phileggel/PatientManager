@@ -9,10 +9,21 @@ tools: Read, Grep, Glob, Bash, Edit, Write
 Invocation: `/setup-e2e`
 
 Sets up the Tauri WebDriver E2E infrastructure for this project.
-Idempotent — skips any step already completed.
+Safe to re-run — completed steps are detected and skipped where possible
+(Step 2 reinstalls the full npm set if any package is missing).
 
 After this skill completes, the `test-writer-e2e` agent can be used to write tests
 without any further infrastructure work.
+
+---
+
+## When to use
+
+- **Before the first E2E test** — once per project, to stand up the WebDriver infrastructure `test-writer-e2e` depends on
+- **When `wdio.conf.ts` is missing or the suite won't start** — safe to re-run; every step skips work already done
+- **In Workflow A Phase 4** — the `/start` template calls it before `test-writer-e2e` if E2E isn't set up yet
+
+Not for writing or running tests — that's `test-writer-e2e` and `npm run test:e2e`. This skill only provisions the infrastructure.
 
 ---
 
@@ -77,15 +88,16 @@ not the debug binary name.
 If no `[[bin]]` section is found, report:
 
 ```
-⚠️  No [[bin]] entry found in src-tauri/Cargo.toml.
-    Add one pointing to src/main.rs before proceeding:
+## /setup-e2e — BLOCKED: no [[bin]] in src-tauri/Cargo.toml
+
+Add one pointing to src/main.rs before re-running:
 
     [[bin]]
     name = "your-app"
     path = "src/main.rs"
 ```
 
-Then stop.
+Then stop — this is a terminal state, not a warning to continue past.
 
 ---
 
@@ -106,6 +118,11 @@ If any are missing, install them:
 npm install --save-dev @wdio/cli @wdio/local-runner @wdio/mocha-framework \
     @wdio/spec-reporter webdriverio @wdio/globals
 ```
+
+If the install fails (no network, registry error), stop and report the failure
+verbatim — do not continue to Step 5, which would write a `wdio.conf.ts` that
+imports packages the project does not have. Carry the install status into the
+Step 8 report (`✅ installed` vs `⚠️ manual install needed`).
 
 If all are present, report `✅ npm E2E packages already installed.` and skip.
 
@@ -158,7 +175,11 @@ Continue regardless.
 
 Glob for `wdio.conf.ts` and `wdio.conf.js` at the project root.
 
-If found, report `✅ wdio.conf.ts already exists — skipping generation.` and skip.
+If found, compare it against the template below. If it matches the current
+template, report `✅ wdio.conf.ts already exists — skipping generation.` and
+skip. If it diverges (an older or hand-broken config — the usual reason for a
+re-run when "the suite won't start"), show the difference and ask the user
+whether to regenerate before overwriting. Do not silently skip a stale config.
 
 If absent, write `wdio.conf.ts` at the project root using the template below,
 substituting `{binary-name}` with the value from Step 1:
@@ -353,7 +374,7 @@ Output a summary:
 
 Binary: {binary-name}  (from src-tauri/Cargo.toml [[bin]])
 
-✅ npm packages installed (or already present)
+{✅ npm packages installed | ⚠️ manual install needed — see Step 2}
 ✅ wdio.conf.ts generated (or already present)
 ✅ npm scripts added (or already present)
 ✅ e2e/ directory ready

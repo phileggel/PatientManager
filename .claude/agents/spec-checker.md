@@ -11,7 +11,7 @@ You are a spec compliance auditor for this full-stack project.
 
 Given a feature spec document (e.g. `docs/spec/asset-pricing.md`), verify that every business rule is implemented and tested.
 
-The user normally passes the spec path explicitly. If no document is specified, run `bash scripts/branch-files.sh` and infer the relevant spec from the modified files by matching domain names to files in `docs/spec/`.
+The user normally passes the spec path explicitly. If no document is specified, run `bash scripts/branch.sh files` and infer the relevant spec from the modified files by matching domain names to files in `docs/spec/`.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: spec-writer
-description: Interactive spec writer for new features. Interviews the user to understand the feature (even if vague), reads the existing domain, then produces docs/spec/{feature}.md with structured TRIGRAM-NNN business rules and an optional UX draft. Not for documenting existing code — use `retro-spec` instead.
+description: Interactive spec writer for new features. Interviews the user to understand the feature (even if vague), reads the existing domain, then produces docs/spec/{feature}.md with structured TRIGRAM-NNN business rules and an optional UX draft. For new features only — not for documenting existing code.
 tools: Read, Glob, Write, AskUserQuestion
 model: opus
 ---
@@ -28,7 +28,7 @@ Works even if the feature is fuzzy — use the interview phase to clarify it.
 
 ## When NOT to use
 
-- **Documenting existing code** — use the `retro-spec` agent instead; it reverse-engineers a spec from the codebase
+- **Documenting existing code** — this skill is for new features only; it interviews the user rather than reverse-engineering a spec from the codebase
 - **Amending an existing spec** — edit `docs/spec/{feature}.md` directly; do not re-run this skill on a feature that already has a spec
 - **Deriving the contract from a spec** — that's `/contract`'s job; this skill only produces the spec
 
@@ -290,7 +290,7 @@ Next steps after validation:
 
 ## Critical Rules
 
-1. Read design docs BEFORE asking (`ARCHITECTURE.md`, `docs/`, ADRs) — never ask what the docs already answer. Do NOT read source code: this skill is for new features only; for documenting existing code, redirect the user to `retro-spec`.
+1. Read design docs BEFORE asking (`ARCHITECTURE.md`, `docs/`, ADRs) — never ask what the docs already answer. Do NOT read source code: this skill is for new features only.
 2. **Trigram is mandatory** — assign it in Round 1. Create or update `docs/spec-index.md` in step 3 to register it (prevents collisions).
 3. Interview is capped at 3 rounds (Round 1: max 4 questions, Round 2: max 3, Round 3: max 2) — stop earlier if all blocking unknowns are resolved; remaining unknowns go into `## Open Questions` for step 5
 4. Open Questions section is mandatory — never decide silently; if the user has no preference, search `docs/` specs and ADRs for similar patterns, propose 2–3 options with a recommended default, and let the user pick

@@ -18,14 +18,14 @@ type: description
 
 Must be one of the following:
 
-| Type | Purpose | Example |
-|------|---------|---------|
-| `feat` | A new feature | `feat: add patient search functionality` |
-| `fix` | A bug fix | `fix: correct date validation in forms` |
-| `docs` | Documentation changes | `docs: update README with setup instructions` |
-| `test` | Adding or updating tests | `test: add unit tests for patient service` |
-| `chore` | Build, dependencies, or tooling | `chore: upgrade React to 18.3` |
-| `refactor` | Code restructuring (no behavior change) | `refactor: extract validation logic` |
+| Type       | Purpose                                 | Example                                       |
+| ---------- | --------------------------------------- | --------------------------------------------- |
+| `feat`     | A new feature                           | `feat: add patient search functionality`      |
+| `fix`      | A bug fix                               | `fix: correct date validation in forms`       |
+| `docs`     | Documentation changes                   | `docs: update README with setup instructions` |
+| `test`     | Adding or updating tests                | `test: add unit tests for patient service`    |
+| `chore`    | Build, dependencies, or tooling         | `chore: upgrade React to 18.3`                |
+| `refactor` | Code restructuring (no behavior change) | `refactor: extract validation logic`          |
 
 ### Description
 
@@ -42,6 +42,7 @@ Must be one of the following:
 ### Commit Messages vs. PR Descriptions
 
 **Commits** describe WHAT changed and WHY (max 5 lines, no test results):
+
 ```
 feat: add patient tracking fields
 
@@ -50,6 +51,7 @@ Improves UX by reducing required data entry.
 ```
 
 **Pull Requests** provide context and VALIDATION (max 10 lines, include test results):
+
 ```
 ## Summary
 Add latestProcedureType, latestFund, latestDate fields to Patient.
@@ -66,13 +68,14 @@ Commit types automatically determine version bumps following SemVer:
 
 **Version format:** `MAJOR.MINOR.PATCH` (e.g., `1.2.3`)
 
-| Commit Type | Version Change | Example |
-|-------------|----------------|---------|
-| `feat` | MINOR bump | `1.0.0` → `1.1.0` (new feature) |
-| `fix` | PATCH bump | `1.0.0` → `1.0.1` (bug fix) |
-| `docs`, `chore`, `test`, `refactor` | PATCH bump or no release | No direct version change |
+| Commit Type                         | Version Change           | Example                         |
+| ----------------------------------- | ------------------------ | ------------------------------- |
+| `feat`                              | MINOR bump               | `1.0.0` → `1.1.0` (new feature) |
+| `fix`                               | PATCH bump               | `1.0.0` → `1.0.1` (bug fix)     |
+| `docs`, `chore`, `test`, `refactor` | PATCH bump or no release | No direct version change        |
 
 **SemVer Definitions:**
+
 - **MINOR**: New features added (backwards compatible)
 - **PATCH**: Bug fixes and patches (backwards compatible)
 
@@ -111,16 +114,19 @@ All tests must pass. If a test fails, fix the issue before committing.
 Run the linters appropriate to your changes:
 
 **Frontend (JavaScript/TypeScript):**
+
 ```bash
 npm run lint
 ```
 
 Auto-fix issues when possible:
+
 ```bash
 npm run lint:fix
 ```
 
 **Backend (Rust):**
+
 ```bash
 cd src-tauri
 cargo clippy -- -D warnings
@@ -131,6 +137,7 @@ Linter errors must be fixed before committing. Minor warnings can be acknowledge
 ### 3. No Sensitive Data ✅
 
 Never commit files containing:
+
 - `.env` files with credentials
 - Private keys (`.key`, `.pem`)
 - API tokens or secrets
@@ -244,11 +251,13 @@ just release
 ```
 
 Or dry-run mode to preview changes:
+
 ```bash
 just release-dry
 ```
 
 The script will:
+
 1. Run all tests (React + Rust)
 2. Analyze commit history since last tag
 3. Calculate version bump using SemVer rules
@@ -260,6 +269,7 @@ The script will:
 See [Contributing Guidelines](./CONTRIBUTING.md) for git hook setup.
 
 **Example flow:**
+
 - 2 `feat` commits, 3 `fix` commits since v1.0.0 → releases v1.1.0
 - Only `docs`, `chore` commits → no automatic release
 - Breaking changes → manual MAJOR version bump

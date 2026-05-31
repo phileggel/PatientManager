@@ -52,7 +52,7 @@ Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — 
 
 ## Input
 
-No argument required. The agent discovers changed `.rs` files via `bash scripts/branch-files.sh`.
+No argument required. The agent discovers changed `.rs` files via `bash scripts/branch.sh files`.
 
 If invoked with no `.rs` files in the branch diff, halt with the refusal in `## Output format`.
 
@@ -62,7 +62,7 @@ If invoked with no `.rs` files in the branch diff, halt with the refusal in `## 
 
 ### Step 1 — Discover changed Rust files
 
-Run `bash scripts/branch-files.sh --rust`. If the result is empty, halt — output the no-rust-files refusal and stop.
+Run `bash scripts/branch.sh files --rust`. If the result is empty, halt — output the no-rust-files refusal and stop.
 
 Filter out deleted paths (their content can't be read): for each candidate, confirm the file exists with `Glob` before adding it to the review set.
 
@@ -224,6 +224,7 @@ The main agent only sees your terminal message; the file ensures `/review-triage
 5. **Project rules win.** When `docs/backend-rules.md` defines a rule that conflicts with this file, follow `docs/backend-rules.md`.
 6. **Don't double-up with siblings.** If a finding is clearly DDD layering (gateway pattern, bounded-context isolation, factory methods), it belongs to `reviewer-arch` — skip it here. If it's security-sensitive (auth, crypto, IPC boundary, unsafe Rust), it belongs to `reviewer-security`.
 7. **Scope-drift guard.** Per-PR review reads the diff + tightly-coupled neighbours (the trait for an impl change, the test file for a public-API change). Cap reads at 10 files unless a specific cross-reference ties to the diff; when the diff exceeds the cap, prioritize the largest changed-line counts and note the trim in the headline. Release-sweep mode (`## Scope`) is the only exception.
+8. **External-state claims need a verifiable source (gh#67).** Do not assert that a version is deprecated, a pattern is no longer idiomatic, or a tool recommendation is current based on training knowledge alone — that knowledge ages. Either cite a registry/doc/RFC link, or soften the finding ("as of training cutoff; verify against current docs") and hand the caller a concrete way to settle it — route dependency/version/CVE currency to `/dep-audit`, and for other registry-backed claims name the exact command that would confirm it. Surface the doubt and the check; the caller verifies — reviewers do not self-verify. Softened findings cap at 🟡 unless a link is provided. Don't bless a pattern as "current best practice" without a source either — affirmative claims rot the same way negative ones do.
 
 ---
 

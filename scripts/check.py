@@ -27,8 +27,11 @@ STATUS_SKIPPED = "SKIPPED"
 STATUS_PENDING = "Pending"  # never-ran sentinel — rendered as Fail
 STATUS_STALE = "Stale"
 STATUS_UNCOMMITTED = "Uncommitted"
-# Variable-detail warning values use the suffix " errors" / " warnings"
-# (e.g. "3 errors") — recognised by `_format_status`.
+# Variable-detail values use a recognised prefix/suffix in `_format_status`:
+#   suffix " errors" / " warnings" — e.g. "3 errors"  (TSC)
+#   prefix "missing: "             — e.g. "missing: package.json absent"
+#                                    (strict-mode marker absent — see
+#                                    `_maybe_skip_for_stack`)
 
 # Backend root directory. Default to the kit's `src-tauri/` convention;
 # downstream forks with a different layout (e.g. `app/`, `tauri/`,
@@ -42,6 +45,24 @@ BACKEND_DIR = "src-tauri"
 SKIP_FRONTEND_ABSENT = "package.json absent"
 SKIP_BACKEND_ABSENT = f"{BACKEND_DIR}/Cargo.toml absent"
 SKIP_SQLX_ABSENT = f"{BACKEND_DIR}/.sqlx/ absent"
+
+# Markdown drift gate (gh#68). Biome doesn't cover .md and
+# `npm run format:docs` is write-only — without this step, drift
+# slips through PRs and `just format` silently rewrites unrelated
+# files on the next contributor's branch. Gated on package.json
+# because prettier ships via the JS devDep stack; pure-backend
+# projects skip rather than carry an npm dep just for md linting.
+# `**/*.md` must reach prettier as a literal string (prettier
+# handles globs internally via fast-glob); do NOT switch to
+# shell=True or pre-expand the glob.
+_PRETTIER_DOCS_CMD = [
+    "npx",
+    "prettier",
+    "--check",
+    "**/*.md",
+    "--ignore-path",
+    ".gitignore",
+]
 
 # Strip ANSI escape sequences when measuring visible cell width for the
 # report table. Needed because `f"{s:<30}"` pads by string length, which
@@ -92,10 +113,17 @@ class QualityChecker:
         backend_only: bool = False,
         format_only: bool = False,
         skip_tests: bool = False,
+        strict_mode: bool = False,
     ):
         self.repo_root = Path(__file__).parent.parent
         self.fast_mode = fast_mode
         self.verbose = verbose
+        # Strict mode promotes stack-marker skips to failures when the marker
+        # is "expected" (always-expected by default; sqlx is conditional on
+        # src-tauri/migrations/ existing). release.py passes --strict so a
+        # missing marker — e.g. accidentally deleted .sqlx/ — blocks the
+        # release instead of silently skipping the check.
+        self.strict_mode = strict_mode
         # Full mode runs frontend + backend groups concurrently by default.
         # --sequential forces the old serial order (useful for clean output
         # when debugging a single step's failure). Single-group modes
@@ -126,6 +154,7 @@ class QualityChecker:
             "sqlx": STATUS_PENDING,
             "lint": STATUS_PENDING,
             "biome": STATUS_PENDING,
+            "prettier_docs": STATUS_PENDING,
             "clippy": STATUS_PENDING,
             "rust_fmt": STATUS_PENDING,
             "tsc": STATUS_PENDING,
@@ -139,6 +168,13 @@ class QualityChecker:
         self.package_json = self.repo_root / "package.json"
         self.cargo_toml = self.repo_root / BACKEND_DIR / "Cargo.toml"
         self.sqlx_dir = self.repo_root / BACKEND_DIR / ".sqlx"
+        # Used as the `expected_when` signal for sqlx: the .sqlx/ cache is only
+        # required when the project actually has migrations. No migrations →
+        # no-DB project → sqlx skip is legitimate even under --strict.
+        # Cargo.toml-parsing for the `sqlx` dep would also work but is heavier
+        # (TOML parser or fragile regex); migrations-dir presence matches
+        # operator intuition: "I have a DB" ⇔ "I have migrations".
+        self.migrations_dir = self.repo_root / BACKEND_DIR / "migrations"
         self._skipped_for_stack: list[tuple[str, str]] = []  # (reason, check_name)
 
     # --- Thread-safe state mutators -----------------------------------------
@@ -173,17 +209,51 @@ class QualityChecker:
             self._safe_print(*args, **kwargs)
 
     def _maybe_skip_for_stack(
-        self, metric_key: str, check_name: str, marker: Path, reason: str
+        self,
+        metric_key: str,
+        check_name: str,
+        marker: Path,
+        reason: str,
+        *,
+        expected_when: Path | None = None,
     ) -> bool:
-        """Return True if the check should be skipped (stack marker absent).
-        Records the skip in metrics and in the stack-summary list."""
+        """Return True if the check should be skipped or fail-replaced (marker
+        absent). In default mode, records a skip. In strict mode, promotes the
+        skip to a failure when the marker is expected (always expected unless
+        `expected_when` is given and absent — used by sqlx, which only requires
+        .sqlx/ when src-tauri/migrations/ exists)."""
         if marker.exists():
             return False
+
+        is_expected = expected_when is None or expected_when.exists()
+        if self.strict_mode and is_expected:
+            self._safe_print(
+                f"  {check_name}... {FAILURE}❌ missing: {reason}{RESET}",
+                flush=True,
+            )
+            self._set_metric(metric_key, f"missing: {reason}")
+            self._record_failure(check_name, f"{reason} (required under --strict mode)")
+            return True
+
         self._safe_print(
             f"  {check_name}... {INFO}⏩ skipped ({reason}){RESET}", flush=True
         )
         self._record_stack_skip(metric_key, check_name, reason)
         return True
+
+    def _frontend_npm_check_step(
+        self, metric_key: str, name: str, cmd: list[str]
+    ) -> None:
+        """Frontend npm/npx single-step pattern: skip if package.json
+        absent, else run `cmd` and mark `metric_key` PASS on success.
+        Encapsulates the gate→run→record triple shared by Oxlint, Biome,
+        and Prettier Docs. Backend (cargo) steps need cwd/env overrides
+        and have their own shape — do not retrofit them here."""
+        if not self._maybe_skip_for_stack(
+            metric_key, name, self.package_json, SKIP_FRONTEND_ABSENT
+        ):
+            if self.run_step(name, cmd):
+                self._set_metric(metric_key, STATUS_PASS)
 
     def print_header(self, title: str):
         self._vprint(f"\n{INFO}🚀 {title}{RESET}")
@@ -264,7 +334,11 @@ class QualityChecker:
 
     def check_sqlx(self) -> bool:
         if self._maybe_skip_for_stack(
-            "sqlx", "SQLx Integrity", self.sqlx_dir, SKIP_SQLX_ABSENT
+            "sqlx",
+            "SQLx Integrity",
+            self.sqlx_dir,
+            SKIP_SQLX_ABSENT,
+            expected_when=self.migrations_dir,
         ):
             return True
 
@@ -332,7 +406,14 @@ class QualityChecker:
             for key in ("rust_lib", "rust_beh", "sqlx", "clippy", "rust_fmt"):
                 self._set_metric(key, STATUS_SKIPPED)
         elif self.backend_only:
-            for key in ("react_tests", "build", "lint", "biome", "tsc"):
+            for key in (
+                "react_tests",
+                "build",
+                "lint",
+                "biome",
+                "prettier_docs",
+                "tsc",
+            ):
                 self._set_metric(key, STATUS_SKIPPED)
 
         if self.format_only:
@@ -364,17 +445,11 @@ class QualityChecker:
     def _run_format_only(self):
         """Format-only: oxlint + biome + cargo fmt --check. Sub-second.
         Useful as a super-fast pre-flight before committing."""
-        if not self._maybe_skip_for_stack(
-            "lint", "Oxlint", self.package_json, SKIP_FRONTEND_ABSENT
-        ):
-            if self.run_step("Oxlint", ["npm", "run", "lint"]):
-                self._set_metric("lint", STATUS_PASS)
-
-        if not self._maybe_skip_for_stack(
-            "biome", "Biome Check", self.package_json, SKIP_FRONTEND_ABSENT
-        ):
-            if self.run_step("Biome Check", ["npm", "run", "format"]):
-                self._set_metric("biome", STATUS_PASS)
+        self._frontend_npm_check_step("lint", "Oxlint", ["npm", "run", "lint"])
+        self._frontend_npm_check_step("biome", "Biome Check", ["npm", "run", "format"])
+        self._frontend_npm_check_step(
+            "prettier_docs", "Prettier Docs", _PRETTIER_DOCS_CMD
+        )
 
         if not self._maybe_skip_for_stack(
             "rust_fmt", "Rust Fmt", self.cargo_toml, SKIP_BACKEND_ABSENT
@@ -411,17 +486,11 @@ class QualityChecker:
                 if self.run_step("Application Build", ["npm", "run", "build"]):
                     self._set_metric("build", STATUS_PASS)
 
-        if not self._maybe_skip_for_stack(
-            "lint", "Oxlint", self.package_json, SKIP_FRONTEND_ABSENT
-        ):
-            if self.run_step("Oxlint", ["npm", "run", "lint"]):
-                self._set_metric("lint", STATUS_PASS)
-
-        if not self._maybe_skip_for_stack(
-            "biome", "Biome Check", self.package_json, SKIP_FRONTEND_ABSENT
-        ):
-            if self.run_step("Biome Check", ["npm", "run", "format"]):
-                self._set_metric("biome", STATUS_PASS)
+        self._frontend_npm_check_step("lint", "Oxlint", ["npm", "run", "lint"])
+        self._frontend_npm_check_step("biome", "Biome Check", ["npm", "run", "format"])
+        self._frontend_npm_check_step(
+            "prettier_docs", "Prettier Docs", _PRETTIER_DOCS_CMD
+        )
 
         if not self._maybe_skip_for_stack(
             "tsc", "TSC", self.package_json, SKIP_FRONTEND_ABSENT
@@ -604,6 +673,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Stream subprocess output instead of capturing it",
     )
+    parser.add_argument(
+        "--strict",
+        dest="strict_mode",
+        action="store_true",
+        help=(
+            "Promote stack-marker skips to failures. "
+            "Used by release.py to catch accidentally-deleted markers."
+        ),
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--frontend",
@@ -628,6 +706,7 @@ if __name__ == "__main__":
         backend_only=args.backend,
         format_only=args.format_only,
         skip_tests=args.skip_tests,
+        strict_mode=args.strict_mode,
     )
     if not checker.run_all():
         sys.exit(1)

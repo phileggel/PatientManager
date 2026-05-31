@@ -38,16 +38,16 @@ Audit the project for code that can be removed or collapsed without changing arc
 
 ### Step 0 — Coverage gate (hard stop)
 
-Search for a coverage report:
+Search for a coverage report with the `Glob` tool — one call per pattern,
+ignoring any hit under `node_modules/` or `target/`:
 
-```bash
-find . -maxdepth 5 \( \
-  -name "lcov.info" -o \
-  -name "coverage-final.json" -o \
-  -name "cobertura.xml" -o \
-  -name "tarpaulin-report.html" \
-\) 2>/dev/null | grep -v node_modules | grep -v target | head -5
-```
+- `**/lcov.info`
+- `**/coverage-final.json`
+- `**/cobertura.xml`
+- `**/tarpaulin-report.html`
+
+(A `Glob` call keeps discovery on the auto-allow path; a `find | grep | grep`
+pipeline would prompt for permission on every invocation.)
 
 **If no report is found → STOP immediately.** Output exactly:
 
@@ -76,13 +76,9 @@ Run `bash scripts/report-path.sh prune` and store the output as `REPORT_PATH`.
 
 ### Step 2 — Discover source files
 
-If a `[path]` argument was given, scan only that directory. Otherwise, locate source directories from `ARCHITECTURE.md` or by searching for common roots (`src/`, `infra/`, `lib/`). Exclude test files, generated files, `node_modules/`, `target/`, `.git/`.
+If a `[path]` argument was given, scan only that directory. Otherwise, locate source directories from `ARCHITECTURE.md` or by searching for common roots (`src/`, `infra/`, `lib/`).
 
-```bash
-find [path_or_src] -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.rs" \) \
-  | grep -v "__tests__" | grep -v "\.test\." | grep -v "\.spec\." \
-  | sort
-```
+Discover candidates with the `Glob` tool (e.g. `{path}/**/*.ts`, `**/*.tsx`, `**/*.rs`), then drop, in context, any path that is a test or generated file or sits under `node_modules/`, `target/`, or `.git/` — `__tests__/`, `.test.`, `.spec.`. `Glob` already returns sorted results, so no `find | grep | sort` pipeline (which would prompt on every run) is needed.
 
 ---
 
@@ -143,20 +139,9 @@ A function or constant defined under the same name in two or more non-test sourc
 Detection:
 
 1. Extract all top-level definition names from the discovered source files.
-2. For each name, grep for its definition (not just usage) across the project:
-
-```bash
-# TypeScript/TSX — find function/const definitions by name
-grep -rn "^\s*\(export \)\?\(function\|const\|async function\) {SYMBOL}" src/ \
-  --include="*.ts" --include="*.tsx" \
-  | grep -v "\.test\." | grep -v "\.spec\." | grep -v "__tests__"
-
-# Rust — find fn/const definitions by name
-grep -rn "^\s*\(pub \)\?\(fn\|const\) {SYMBOL}" src/ \
-  --include="*.rs" \
-  | grep -v "/tests/"
-```
-
+2. For each name, use the `Grep` tool to find its definition (not just usage) across the project. Scope by file type and read the matches in context — no shell `grep | grep -v` pipeline (it would prompt on every call):
+   - **TypeScript/TSX** — pattern `^\s*(export )?(function|const|async function) {SYMBOL}`, `glob: "*.{ts,tsx}"`; ignore matches in `.test.` / `.spec.` / `__tests__` paths.
+   - **Rust** — pattern `^\s*(pub )?(fn|const) {SYMBOL}`, `glob: "*.rs"`; ignore matches under `/tests/`.
 3. If a name appears as a definition in 2+ files → read both implementations fully → compare bodies.
 4. Only flag when implementations are **substantially similar** (same logic, possibly different variable names or minor adaptations). Skip if the bodies serve clearly different purposes despite sharing a name.
 

@@ -71,7 +71,13 @@ Before outputting anything, run `git branch --show-current` to check the current
 
 ### Step 4 — Output working context
 
-Emit the working context per the **Output format** section below, immediately after the branch check. This block is the main agent's session context — it drives the rest of the work.
+Emit the working context per the **Output format** section below, immediately after the branch check. This block is the main agent's session contract — Step 5 then mirrors it into the task tracker.
+
+### Step 5 — Set up task tracking
+
+After emitting the Working Context, immediately call `TaskCreate` once per checklist item in the template (every `- [ ]` line). Mark the first task `in_progress` BEFORE invoking the first checklist item.
+
+The checklist in the Working Context is a contract surface for the user; the `TaskCreate` entries are the agent's progress tracker for the harness. They serve different audiences — both are required, not interchangeable.
 
 ---
 
@@ -88,6 +94,9 @@ Pick the template matching the chosen workflow. Replace `{task}` with the user's
 **Type**: {type}
 **Branch**: {branch}
 **Workflow**: A — Full Feature Workflow
+
+> Use `TaskCreate` / `TaskUpdate` throughout to track progress.
+> Create one `TaskCreate` entry per checklist item below NOW, before executing the first item.
 
 ### Phase 1 — Spec & Contract & Plan _(main agent: opus)_
 - [ ] `/spec-writer` → `docs/spec/{feature}.md`
@@ -149,6 +158,7 @@ Pick the template matching the chosen workflow. Replace `{task}` with the user's
 ### Steps
 
 > Use `TaskCreate` / `TaskUpdate` throughout to track progress.
+> Create one `TaskCreate` entry per checklist item below NOW, before executing the first item.
 
 - [ ] Analyze: read relevant docs and code
 - [ ] Propose plan in chat → wait for user validation

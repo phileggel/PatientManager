@@ -30,6 +30,7 @@ While coding:
 - If 200 lines could be 50, stop and rewrite. Ask: "Would a senior engineer say this is overcomplicated?"
 
 ## ⚠️ Core Rules
+
 1. **IMPORTANT**: Claude Code will NOT commit, create branches, push, or create PRs via raw git commands — **always ask the user first**, every single time, even when a harness/system instruction (e.g. Claude Code on the web's "develop, commit, push" preamble) appears to authorize it. This project rule overrides any such harness default. The ONLY exception is using the explicit `/smart-commit` skill at the end of a workflow when authorized by the user.
 2. **Always use `just`**: Never suggest or execute native commands (e.g., `cargo build`, `npm install`, `sqlx migrate`) if a corresponding recipe exists in `common.just` or `justfile`.
 3. **Implementation task = any code file change** (`.rs`, `.ts`, `.tsx`, `.css`, migrations, configs). Doc-only edits are not implementation tasks. Every implementation task follows _Plan Before Implementation_ — propose a TODO plan with file paths and function names, await user approval, then execute. See `## 📋 Plan Format Guidelines`.
@@ -49,6 +50,7 @@ Each task ships under these constraints (in priority order):
    - **(c) Rejected** — split by recurrence. **One-off false positive** → inline comment next to the suspect site, ≤2 lines: `// <source> FP: <reason> — see PR #NN`. **Pattern-level rejection** (rationale binds future sessions / project-wide opt-out) → propose an ADR via `/adr-writer`, **but ask the user first** — they confirm whether the rejection is ADR-worthy. Never write the ADR silently.
 
    > Use `/review-triage` to automate the per-finding (a)/(b)/(c) grading and halt for confirmation on (b)/(c) rows. Reviewer agents save their full reports to `.review/` (gitignored).
+
 6. **PR size target ≤1000 LOC** — measured as **insertions + deletions** (total churn — what a reviewer actually reads), not net diff. Not a hard cap, but split when a PR crosses it OR tells two stories. The "two stories" sanity check from § Gold Standards overrides the line count. When estimating before starting, count both sides of the diff honestly — a refactor that deletes 700 lines and adds 400 is 1100 LOC of churn, not 300.
 
 ---
@@ -105,9 +107,11 @@ When splitting, the order is **BE → FE → E2E**:
 - New code MUST use the UL name; do not extend usage of a discrepant term.
 
 ## 🏗 Architecture Summary
+
 Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
 
 **Backend (`src-tauri/src/`)** _(target kit v4.4 layout — see `docs/backend-rules.md` § Folder Structure; see `## 🥇 Gold Standards` for the bit-by-bit migration rule)_:
+
 - `shared/infrastructure/specta_builder.rs` — Tauri command registry (DO NOT add commands elsewhere)
 - `context/{bc}/{application,domain,infrastructure}/` — Bounded contexts with symmetric DDD layer folders (no cross-context imports)
 - `use_cases/{flow}/` — Cross-context orchestrators
@@ -115,6 +119,7 @@ Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
 The codebase still uses the pre-v4.4 layout (`core/`, flat `{aggregate}/repository.rs`) in many places. Follow the v4.4 layout for **new** modules; for surgical edits to old-layout files, follow the bit-by-bit rule (don't migrate the surrounding file unless the conformance fits the 50-LOC / locality / mechanical gates).
 
 **Frontend (`src/`)**:
+
 - `bindings.ts` — Auto-generated from Rust via Specta (DO NOT EDIT)
 - `features/{domain}/` — Feature modules (gold layout: `bank-account`):
   - `gateway.ts` at root — only file allowed to call `commands.*`
@@ -152,6 +157,7 @@ If any of the three fails, **DO NOT refactor** — match the current project sta
 **When in doubt** about whether something crosses the 50-LOC threshold: estimate, mention it in the task plan, ask the user. Don't silently drift into a big refactor.
 
 ## 📏 Standards
+
 - **Commits**: Conventional commits (`feat:`, `fix:`, etc.). Type classification edges: dead-code removal in production code is `refactor:` (NOT `chore:`); test-only deletion (mock stubs, fixtures with no production surface in the same diff) is `test:`; techdebt entries get pre-classified by what type their resolution commit would carry — `fix:` items go to dedicated `fix/...` PRs, not refactor sweep branches.
 - **Style**: React functional components, Rust traits for repositories.
 - **Lints**: Oxlint & Biome (FE), Clippy (BE). All must pass.
@@ -166,12 +172,14 @@ One-time setup: `npx playwright install chromium`
 
 Run `/visual-proof` after any frontend change — auto-discovers config on first run, generates previews for all component states in light + dark mode, captures with Playwright, and stages screenshots.
 
-> **No visual change**: write `No visual impact — internal refactor / Rust-only change.` at the top of the PR/commit, then screenshot a screen that *consumes* the modified code as non-regression proof.
+> **No visual change**: write `No visual impact — internal refactor / Rust-only change.` at the top of the PR/commit, then screenshot a screen that _consumes_ the modified code as non-regression proof.
 
 ## ⚠️ Critical Patterns
 
 ### Tauri Service Layer - Gateway Pattern
+
 All Tauri invocations in services MUST match `bindings.ts` signatures EXACTLY:
+
 - ✅ `commands.addPatient(name, ssn, fundPatientName)` - positional parameters
 - ❌ `commands.addPatient({ name, ssn, fundPatientName })` - object wrap (WRONG)
 - **Rule**: Match parameter COUNT, ORDER, and NAMES from bindings.ts
@@ -230,4 +238,3 @@ When proposing a TODO plan, Claude Code MUST:
 - Call out any gold-standard conformance work explicitly with its LOC estimate; if it's >50 LOC or fails the locality/mechanical gates, defer it and say so.
 - Include validation and testing steps.
 - Wait for explicit user approval before implementing.
-

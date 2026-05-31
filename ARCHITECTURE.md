@@ -193,22 +193,22 @@ features/{domain}/
 
 ## Where to find things
 
-| Need | Look at |
-|---|---|
-| Domain vocabulary | `docs/ubiquitous-language.md` |
-| Backend rules (DDD, layout) | `docs/backend-rules.md` |
-| DDD concepts + error categories | `docs/ddd-reference.md` |
-| Typed-error model how-to | `docs/error-model.md` |
-| Frontend rules (layout, F24–F28) | `docs/frontend-rules.md` |
-| i18n conventions | `docs/i18n-rules.md` |
-| Frontend visual proof | `docs/frontend-visual-proof.md` |
-| Test conventions (unit, RTL) | `docs/test_convention.md` |
-| E2E conventions | `docs/e2e-rules.md` |
-| Per-feature business rules | `docs/spec/*.md` |
-| Per-domain contracts | `docs/contracts/*.md` |
-| Architecture decisions | `docs/adr/*.md` |
-| Recorded code smells | `docs/techdebt.md` |
-| Backlog | `docs/todo.md` |
-| Kit tools / agents / skills | `.claude/kit-tools.md` |
-| Kit version | `.claude/kit-version.md` |
-| Kit sync manifest | `.claude/kit-manifest.txt` |
+| Need                             | Look at                         |
+| -------------------------------- | ------------------------------- |
+| Domain vocabulary                | `docs/ubiquitous-language.md`   |
+| Backend rules (DDD, layout)      | `docs/backend-rules.md`         |
+| DDD concepts + error categories  | `docs/ddd-reference.md`         |
+| Typed-error model how-to         | `docs/error-model.md`           |
+| Frontend rules (layout, F24–F28) | `docs/frontend-rules.md`        |
+| i18n conventions                 | `docs/i18n-rules.md`            |
+| Frontend visual proof            | `docs/frontend-visual-proof.md` |
+| Test conventions (unit, RTL)     | `docs/test_convention.md`       |
+| E2E conventions                  | `docs/e2e-rules.md`             |
+| Per-feature business rules       | `docs/spec/*.md`                |
+| Per-domain contracts             | `docs/contracts/*.md`           |
+| Architecture decisions           | `docs/adr/*.md`                 |
+| Recorded code smells             | `docs/techdebt.md`              |
+| Backlog                          | `docs/todo.md`                  |
+| Kit tools / agents / skills      | `.claude/kit-tools.md`          |
+| Kit version                      | `.claude/kit-version.md`        |
+| Kit sync manifest                | `.claude/kit-manifest.txt`      |

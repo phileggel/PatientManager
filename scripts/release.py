@@ -472,14 +472,17 @@ class ReleaseManager:
             return False
 
     def run_tests(self) -> bool:
-        """Run the full test suite via the QualityChecker from check.py."""
-        print(f"{BLUE}🚀 Running full quality validation...{NC}")
+        """Run the full test suite via the QualityChecker from check.py.
+        Uses strict_mode=True so any stack-marker skip (e.g. accidentally
+        deleted .sqlx/ when migrations exist) blocks the release instead of
+        being silently tolerated."""
+        print(f"{BLUE}🚀 Running full quality validation (--strict)...{NC}")
 
         if self.mode is Mode.DRY_RUN:
             print(f"{BLUE}[DRY-RUN] Simulating test suite (check.py){NC}")
             return True
 
-        checker = QualityChecker(fast_mode=False)
+        checker = QualityChecker(fast_mode=False, strict_mode=True)
 
         # run_all() streams output directly to the terminal
         success = checker.run_all()

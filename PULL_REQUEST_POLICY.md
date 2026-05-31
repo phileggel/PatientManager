@@ -5,6 +5,7 @@
 **All work MUST be done on dedicated feature branches, never directly on `main`.**
 
 Branch naming:
+
 - `feature/*` - New features
 - `fix/*` - Bug fixes
 - `refactor/*` - Code refactoring
@@ -26,22 +27,28 @@ git commit -m "feat: ..." # on main branch
 Every PR description must contain **3 sections in English**:
 
 ### 1. Objective
+
 One or two sentences stating what the PR accomplishes.
 
 ### 2. Feature
+
 User-facing description without technical details.
 
 **Focus on:**
+
 - What the user can do
 - How it helps solve the problem
 
 **Avoid:**
+
 - Implementation details
 - File paths or function names
 - Technical architecture
 
 ### 3. Tests
+
 Test report showing all checks pass:
+
 ```
 ✅ X React tests (all passing)
 ✅ X Rust tests (all passing)
@@ -52,6 +59,7 @@ Test report showing all checks pass:
 ## Quality Requirements
 
 Before creating a PR, ensure:
+
 1. All tests pass (`npm run test`, `cargo test`)
 2. Linters pass (`npm run lint`, `cargo clippy`)
 3. Build succeeds (`npm run build`)
@@ -74,6 +82,7 @@ Before creating a PR, ensure:
 **Title:** Feature: PDF Payment Reconciliation
 
 **Description:**
+
 ```
 ## Objective
 

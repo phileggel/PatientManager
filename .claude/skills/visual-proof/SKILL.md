@@ -60,13 +60,19 @@ Write `.claude/visual-proof.json`:
 
 ## Step 1 — Identify the target component
 
+Discover the changed frontend files on the branch with a single literal command
+(no `| grep` pipeline, which would prompt on every run):
+
 ```bash
-bash scripts/branch-files.sh | grep -E '\.tsx$'
+bash scripts/branch.sh files --frontend
 ```
 
-- **One result** → use it automatically.
-- **Multiple results** → ask the user which component to capture via `AskUserQuestion`.
-- **No results** → ask the user to provide a component path (useful for bug discovery on unmodified components, e.g. "capture `src/features/auth/LoginForm.tsx`").
+`--frontend` returns both `.ts` and `.tsx`. From that output, **keep only the
+`.tsx` files** — only those render to components; ignore any plain `.ts`. Then:
+
+- **One `.tsx` file** → use it automatically.
+- **Multiple `.tsx` files** → ask the user which component to capture via `AskUserQuestion`.
+- **No `.tsx` files** → ask the user to provide a component path (useful for bug discovery on unmodified components, e.g. "capture `src/features/auth/LoginForm.tsx`").
 
 Extract the component name from the filename (e.g. `src/features/auth/LoginForm.tsx` → `LoginForm`).
 

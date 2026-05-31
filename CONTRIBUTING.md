@@ -3,6 +3,7 @@
 ## Quick Start
 
 1. **Install just** (command runner):
+
    ```bash
    # macOS
    brew install just
@@ -14,6 +15,7 @@
    ```
 
 2. **Setup and start developing**:
+
    ```bash
    just dev              # Setup git hooks + start app
    just start            # Start app with hot reload
@@ -51,6 +53,7 @@ python3 scripts/check.py
 ```
 
 Output example:
+
 ```
 | Check              | Status              |
 |:-------------------|:--------------------|
@@ -67,18 +70,21 @@ Output example:
 If you prefer not to use `just`, you can run commands directly:
 
 ### Testing
+
 ```bash
 npm test                    # Frontend tests
 cd src-tauri && cargo test  # Backend tests
 ```
 
 ### Linting
+
 ```bash
 npm run lint                              # Frontend
 cd src-tauri && cargo clippy -- -D warnings  # Backend
 ```
 
 ### GitHub CLI
+
 ```bash
 gh pr create                    # Create PR
 gh pr view <NUMBER> --comments  # View PR with comments

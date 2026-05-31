@@ -55,7 +55,7 @@ Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — 
 
 ## Input
 
-No argument required. The agent discovers changed migration files via `bash scripts/branch-files.sh`.
+No argument required. The agent discovers changed migration files via `bash scripts/branch.sh files`.
 
 If invoked with no migration files in the branch diff, halt with the refusal in `## Output format`.
 
@@ -65,7 +65,7 @@ If invoked with no migration files in the branch diff, halt with the refusal in 
 
 ### Step 1 — Discover changed migration files
 
-Run `bash scripts/branch-files.sh --migrations`. If the result is empty, halt — output the no-migrations refusal and stop.
+Run `bash scripts/branch.sh files --migrations`. If the result is empty, halt — output the no-migrations refusal and stop.
 
 The kit's SQLx convention pins migrations to `migrations/` at the repo root. Projects using a different layout must override this agent's discovery in a local fork, not rely on a runtime branch.
 
