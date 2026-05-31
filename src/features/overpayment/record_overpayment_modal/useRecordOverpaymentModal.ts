@@ -126,7 +126,7 @@ export function useRecordOverpaymentModal({
         onClose();
       } else {
         logger.error(`${TAG} Failed to create overpayment`, { error: result.error });
-        toastService.show("error", result.error ?? t("error.create"));
+        toastService.show("error", t("error.create"));
       }
     } catch (error) {
       logger.error(`${TAG} Exception creating overpayment`, { error });

@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { OverpaymentError } from "@/bindings";
 import { toastService } from "@/ui/components/snackbar";
 import { useCancelRefundDialog } from "./useCancelRefundDialog";
 
@@ -40,7 +41,10 @@ describe("useCancelRefundDialog", () => {
   });
 
   it("shows error toast and does not call onSuccess when gateway returns failure", async () => {
-    mockCancel.mockResolvedValue({ success: false, error: "Already cancelled" });
+    mockCancel.mockResolvedValue({
+      success: false,
+      error: { code: "RefundRecordNotFound" } as OverpaymentError,
+    });
 
     const { result } = renderHook(() =>
       useCancelRefundDialog({ sourceProcedureId: "proc-1", onSuccess, onClose }),
