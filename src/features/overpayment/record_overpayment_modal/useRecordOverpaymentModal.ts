@@ -14,6 +14,7 @@ import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../gateway";
+import { formatOverpaymentError } from "../shared/presenter";
 
 const TAG = "[useRecordOverpaymentModal]";
 
@@ -126,7 +127,8 @@ export function useRecordOverpaymentModal({
         onClose();
       } else {
         logger.error(`${TAG} Failed to create overpayment`, { error: result.error });
-        toastService.show("error", t("error.create"));
+        const { key, params } = formatOverpaymentError(result.error);
+        toastService.show("error", t(key, params));
       }
     } catch (error) {
       logger.error(`${TAG} Exception creating overpayment`, { error });

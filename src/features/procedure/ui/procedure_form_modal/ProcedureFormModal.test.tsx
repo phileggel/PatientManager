@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankAccount, Fund, Procedure, ProcedureType } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { makePatient } from "@/tests/patient.factory";
+import { toastService } from "@/ui/components/snackbar";
 import { ProcedureFormModal } from "./ProcedureFormModal";
 
 // --- Mocks ---
@@ -17,6 +18,10 @@ vi.mock("@/features/procedure/api/gateway", () => ({
 
 vi.mock("@/features/overpayment/gateway", () => ({
   getProcedureRefundByRefundProcedure: vi.fn(),
+}));
+
+vi.mock("@/ui/components/snackbar", () => ({
+  toastService: { show: vi.fn() },
 }));
 
 // Replace complex HeadlessUI / portal-based UI components with simple test doubles.
@@ -103,6 +108,7 @@ const MOCK_PROCEDURE: Procedure = {
   paid_amount: null,
 };
 
+import * as overpaymentGateway from "@/features/overpayment/gateway";
 import * as procedureGateway from "@/features/procedure/api/gateway";
 
 // --- Setup ---
@@ -227,5 +233,81 @@ describe("ProcedureFormModal — create mode (ComboboxField wiring)", () => {
     // Patient not selected → button still disabled (patientId missing)
     expect(screen.getByRole("button", { name: "Add Procedure" })).toBeDisabled();
     expect(procedureGateway.addProcedure).not.toHaveBeenCalled();
+  });
+});
+
+// Covers handleCancelRefundClick in refund mode (REF-200): resolve the source
+// procedure via the refund procedure id, then branch on the typed result.
+describe("ProcedureFormModal — refund mode (Cancel Refund / F27 typed-error pipeline)", () => {
+  const REFUND_PROCEDURE: Procedure = { ...MOCK_PROCEDURE, payment_status: "OVERPAYMENT_REFUND" };
+
+  const mockResolve = vi.mocked(overpaymentGateway.getProcedureRefundByRefundProcedure);
+  const mockToast = vi.mocked(toastService.show);
+
+  function renderRefund() {
+    return render(
+      <ProcedureFormModal mode="refund" procedure={REFUND_PROCEDURE} isOpen onClose={vi.fn()} />,
+    );
+  }
+
+  it("opens the cancel dialog when the source procedure resolves", async () => {
+    mockResolve.mockResolvedValue({
+      success: true,
+      data: {
+        id: "refund-link-1",
+        source_procedure_id: "source-1",
+        refund_procedure_id: "proc-1",
+        refund_date: "2026-05-01",
+        reason: null,
+        previous_payment_status: "FUND_PAID",
+      },
+    });
+    renderRefund();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel Refund" }));
+
+    await waitFor(() => {
+      expect(mockResolve).toHaveBeenCalledWith("proc-1");
+    });
+    expect(mockToast).not.toHaveBeenCalled();
+  });
+
+  it("shows the formatted typed-error toast when resolution fails (my F27 branch)", async () => {
+    mockResolve.mockResolvedValue({
+      success: false,
+      error: { code: "RefundRecordNotFound" },
+    });
+    renderRefund();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel Refund" }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        "error",
+        "No overpayment record found for this procedure.",
+      );
+    });
+  });
+
+  it("shows the unknown-error toast when resolution succeeds with no record (else arm)", async () => {
+    mockResolve.mockResolvedValue({ success: true, data: null });
+    renderRefund();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel Refund" }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
+    });
+  });
+
+  it("shows an error toast when the gateway throws (catch arm)", async () => {
+    mockResolve.mockRejectedValue(new Error("network down"));
+    renderRefund();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel Refund" }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith("error", "network down");
+    });
   });
 });

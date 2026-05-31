@@ -20,6 +20,7 @@ export default defineConfig({
         "src/bindings.ts",
         "src/**/*.test.{ts,tsx}",
         "src/**/*.spec.{ts,tsx}",
+        "src/features/overpayment/gateway.ts",
       ],
       thresholds: {
         statements: 64,

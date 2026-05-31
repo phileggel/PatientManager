@@ -16,11 +16,11 @@ Atomic transaction. Creates the full refund chain in sequence:
 5. `ProcedureRefund` link (REF-130)
 6. Source procedure status → `Overpaid` (REF-160)
 
-Validates eligibility (REF-010), full-amount constraint (REF-020), refund date (REF-030), reason length (REF-040), payment method (REF-060), and bank account presence (REF-070). If any step fails, all changes roll back.
+Validates eligibility (REF-010), refund date (REF-030), reason length (REF-040), payment method (REF-060), and bank account presence (REF-070). If any step fails, all changes roll back. REF-020 (full-amount constraint) is structurally enforced: `CreateOverpaymentRequest` carries no client-submitted amount — the refund always equals `source.billed_amount`, making partial refunds impossible by construction.
 
 - **Args:** `CreateOverpaymentRequest`
 - **Returns:** `()`
-- **Errors:** `ProcedureNotEligible`, `PartialRefundNotSupported`, `InvalidRefundDate`, `ReasonTooLong`, `InvalidPaymentMethod`, `BankAccountNotFound`, `SourceProcedureNotFound`
+- **Errors:** `SourceProcedureNotFound`, `SourceNotRefundable` (REF-010), `InvalidRefundDate` (REF-030), `ReasonTooLong` (REF-040), `TransferTypeRejected` (REF-060), `BankAccountRequired` (REF-070), `BankAccountNotFound` (REF-070), `SourceHasNoFund`
 
 ---
 
@@ -30,7 +30,7 @@ Atomic transaction. Reversal cascade in order: revert source procedure status (f
 
 - **Args:** `CancelOverpaymentRequest`
 - **Returns:** `()`
-- **Errors:** `RefundNotFound`, `SourceProcedureNotFound`
+- **Errors:** `RefundRecordNotFound`, `SourceProcedureNotFound`
 
 ---
 
@@ -91,4 +91,5 @@ struct ProcedureRefundInfo {
 
 ## Changelog
 
+- 2026-05-31 — Reconcile error names with typed implementation: `ProcedureNotEligible`→`SourceNotRefundable`, `InvalidPaymentMethod`→`TransferTypeRejected`, `RefundNotFound`→`RefundRecordNotFound`; drop stale `PartialRefundNotSupported` (REF-020 structurally enforced); add `BankAccountRequired` and `SourceHasNoFund` variants.
 - 2026-05-02 — Added by `overpayment` spec: create_overpayment, cancel_overpayment, get_procedure_refund_by_source, get_procedure_refund_by_refund_procedure

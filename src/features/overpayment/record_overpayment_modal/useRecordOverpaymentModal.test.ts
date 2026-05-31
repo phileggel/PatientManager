@@ -138,6 +138,34 @@ describe("useRecordOverpaymentModal", () => {
     expect(result.current.loading).toBe(false);
   });
 
+  it("handleSubmit sets fieldErrors.refundDate when date is before confirmed_payment_date (REF-030)", () => {
+    const confirmedProc = makeProcedure({
+      id: "proc-1",
+      confirmed_payment_date: "2024-03-15",
+      fund_reconciliation_date: "2024-01-05",
+    });
+    const { result } = makeHook(confirmedProc);
+    act(() => {
+      result.current.setRefundDate("2024-03-10"); // before confirmed 2024-03-15
+      result.current.setTransferType("CreditCard");
+      result.current.setBankAccountId("ba-1");
+    });
+    act(() => result.current.handleSubmit());
+    expect(result.current.fieldErrors.refundDate).toBeTruthy();
+    expect(result.current.showConfirmation).toBe(false);
+  });
+
+  it("handleConfirm shows unknown error toast when a non-Error exception is thrown", async () => {
+    mockCreate.mockRejectedValue("plain string rejection");
+    const { result, onSuccess } = makeHook();
+    await act(async () => {
+      await result.current.handleConfirm();
+    });
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
+    expect(result.current.loading).toBe(false);
+  });
+
   it("handleCancelConfirmation resets showConfirmation to false", () => {
     const { result } = makeHook();
     act(() => {
