@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../gateway";
+import { formatOverpaymentError } from "../shared/presenter";
 
 const TAG = "[useCancelRefundDialog]";
 
@@ -35,7 +36,8 @@ export function useCancelRefundDialog({
         onClose();
       } else {
         logger.error(`${TAG} Failed to cancel overpayment`, { error: result.error });
-        toastService.show("error", t("error.cancel"));
+        const { key, params } = formatOverpaymentError(result.error);
+        toastService.show("error", t(key, params));
       }
     } catch (error) {
       logger.error(`${TAG} Exception cancelling overpayment`, { error });

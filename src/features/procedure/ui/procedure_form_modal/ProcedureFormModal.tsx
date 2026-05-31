@@ -19,6 +19,7 @@ import type { Procedure } from "@/bindings";
 import { CancelRefundDialog } from "@/features/overpayment/cancel_refund_dialog/CancelRefundDialog";
 import * as overpaymentGateway from "@/features/overpayment/gateway";
 import { RecordOverpaymentModal } from "@/features/overpayment/record_overpayment_modal/RecordOverpaymentModal";
+import { formatOverpaymentError } from "@/features/overpayment/shared/presenter";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import {
@@ -141,13 +142,14 @@ export function ProcedureFormModal({
         if (result.success && result.data) {
           setCancelSourceProcedureId(result.data.source_procedure_id);
           setShowCancelRefundDialog(true);
-        } else {
+        } else if (!result.success) {
           logger.error(
             "[ProcedureFormModal] Could not resolve source procedure for refund cancel",
-            {
-              error: result.error,
-            },
+            { error: result.error },
           );
+          const { key, params } = formatOverpaymentError(result.error);
+          toastService.show("error", tov(key, params));
+        } else {
           toastService.show("error", tc("error.unknown"));
         }
       } catch (err) {

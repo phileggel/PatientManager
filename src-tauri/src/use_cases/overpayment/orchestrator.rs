@@ -512,6 +512,16 @@ mod tests {
         mock
     }
 
+    /// Bank-account repo where `read_account` returns `Ok(None)` — causes
+    /// `BankAccountService::read_account` to emit `BankError::BankAccountNotFound`.
+    fn bank_account_repo_returns_none() -> MockBankAccountRepository {
+        let mut mock = MockBankAccountRepository::new();
+        mock.expect_find_by_iban_including_deleted()
+            .returning(|_| Ok(None));
+        mock.expect_read_account().returning(|_| Ok(None));
+        mock
+    }
+
     fn bank_entry_link_repo_unimplemented() -> MockBankEntryLinkRepository {
         MockBankEntryLinkRepository::new()
     }
@@ -951,6 +961,108 @@ mod tests {
                 OverpaymentError::Task(OverpaymentTask::BankAccountRequired)
             ),
             "expected BankAccountRequired (REF-070), got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn create_overpayment_bank_account_not_found_returns_error() {
+        // bank repo returns Ok(None) → service emits BankError::BankAccountNotFound
+        // → orchestrator maps to OverpaymentTask::BankAccountNotFound (REF-070)
+        let event_bus = Arc::new(EventBus::new());
+        let procedure_service = Arc::new(ProcedureService::new(
+            Arc::new(proc_repo_returns(Some(fund_paid_procedure()))),
+            event_bus.clone(),
+        ));
+        let fund_payment_service = Arc::new(FundPaymentService::new(
+            Arc::new(fund_payment_repo_unimplemented()),
+            event_bus.clone(),
+        ));
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(bank_account_repo_returns_none());
+        let bank_transfer_service = Arc::new(BankEntryService::new(
+            Arc::new(bank_entry_repo_unimplemented()),
+            bank_account_repo.clone(),
+            event_bus.clone(),
+        ));
+        let bank_account_service = Arc::new(BankAccountService::new(
+            bank_account_repo,
+            event_bus.clone(),
+        ));
+        let orchestrator = OverpaymentOrchestrator::new(
+            procedure_service,
+            fund_payment_service,
+            bank_transfer_service,
+            bank_account_service,
+            Arc::new(bank_entry_link_repo_unimplemented()),
+            Arc::new(procedure_refund_repo_noop()),
+        );
+        let err = orchestrator
+            .create_overpayment(base_request())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::BankAccountNotFound { .. })
+            ),
+            "expected BankAccountNotFound (REF-070), got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn create_overpayment_source_has_no_fund_returns_error() {
+        // source procedure has fund_id = None — fires after bank account lookup succeeds
+        let no_fund_proc = Procedure::restore(
+            "source-proc-1".to_string(),
+            "patient-1".to_string(),
+            None, // no fund
+            "type-1".to_string(),
+            NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            100_000,
+            PaymentMethod::None,
+            Some(NaiveDate::from_ymd_opt(2024, 1, 5).unwrap()),
+            Some(NaiveDate::from_ymd_opt(2024, 1, 10).unwrap()),
+            Some(100_000),
+            ProcedureStatus::FundPaid,
+        );
+        let event_bus = Arc::new(EventBus::new());
+        let procedure_service = Arc::new(ProcedureService::new(
+            Arc::new(proc_repo_for_success_with(no_fund_proc, "refund-proc-1")),
+            event_bus.clone(),
+        ));
+        let fund_payment_service = Arc::new(FundPaymentService::new(
+            Arc::new(fund_payment_repo_unimplemented()),
+            event_bus.clone(),
+        ));
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(bank_account_repo_returns_account());
+        let bank_transfer_service = Arc::new(BankEntryService::new(
+            Arc::new(bank_entry_repo_unimplemented()),
+            bank_account_repo.clone(),
+            event_bus.clone(),
+        ));
+        let bank_account_service = Arc::new(BankAccountService::new(
+            bank_account_repo,
+            event_bus.clone(),
+        ));
+        let orchestrator = OverpaymentOrchestrator::new(
+            procedure_service,
+            fund_payment_service,
+            bank_transfer_service,
+            bank_account_service,
+            Arc::new(bank_entry_link_repo_unimplemented()),
+            Arc::new(procedure_refund_repo_noop()),
+        );
+        let err = orchestrator
+            .create_overpayment(base_request())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::SourceHasNoFund { .. })
+            ),
+            "expected SourceHasNoFund, got: {err}"
         );
     }
 

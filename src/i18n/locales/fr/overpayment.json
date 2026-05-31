@@ -40,5 +40,18 @@
     "paymentMethod": "Le mode de paiement est requis.",
     "bankAccount": "Le compte bancaire est requis.",
     "reasonTooLong": "Le motif ne doit pas dépasser 255 caractères."
+  },
+  "errors": {
+    "source_procedure_not_found": "Acte source introuvable.",
+    "source_not_refundable": "Cet acte n'est pas éligible au remboursement.",
+    "invalid_refund_date": "Date de remboursement invalide.",
+    "reason_too_long": "Le motif ne doit pas dépasser 255 caractères.",
+    "transfer_type_rejected": "Ce mode de paiement n'est pas accepté pour les remboursements.",
+    "bank_account_required": "Un compte bancaire est requis.",
+    "bank_account_not_found": "Compte bancaire introuvable.",
+    "source_has_no_fund": "L'acte source n'a pas de caisse associée.",
+    "refund_group_protected": "Ce groupe de paiement appartient à un remboursement et ne peut être supprimé qu'en annulant le remboursement.",
+    "refund_record_not_found": "Aucun remboursement de trop-perçu trouvé pour cet acte.",
+    "database_error": "Une erreur inattendue s'est produite."
   }
 }

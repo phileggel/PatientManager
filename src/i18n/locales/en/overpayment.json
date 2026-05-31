@@ -40,5 +40,18 @@
     "paymentMethod": "Payment method is required.",
     "bankAccount": "Bank account is required.",
     "reasonTooLong": "Reason must not exceed 255 characters."
+  },
+  "errors": {
+    "source_procedure_not_found": "Source procedure not found.",
+    "source_not_refundable": "This procedure is not eligible for a refund.",
+    "invalid_refund_date": "Invalid refund date.",
+    "reason_too_long": "Reason must not exceed 255 characters.",
+    "transfer_type_rejected": "This payment method is not accepted for refunds.",
+    "bank_account_required": "A bank account is required.",
+    "bank_account_not_found": "Bank account not found.",
+    "source_has_no_fund": "The source procedure has no associated fund.",
+    "refund_group_protected": "This payment group belongs to a refund and can only be removed by cancelling the refund.",
+    "refund_record_not_found": "No overpayment record found for this procedure.",
+    "database_error": "An unexpected error occurred."
   }
 }

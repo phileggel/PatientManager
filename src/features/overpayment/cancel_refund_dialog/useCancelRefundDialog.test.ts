@@ -74,4 +74,20 @@ describe("useCancelRefundDialog", () => {
     expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
     expect(result.current.loading).toBe(false);
   });
+
+  it("shows unknown error toast when a non-Error exception is thrown", async () => {
+    mockCancel.mockRejectedValue("plain string rejection");
+
+    const { result } = renderHook(() =>
+      useCancelRefundDialog({ sourceProcedureId: "proc-1", onSuccess, onClose }),
+    );
+
+    await act(async () => {
+      await result.current.handleConfirm();
+    });
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
+    expect(result.current.loading).toBe(false);
+  });
 });
