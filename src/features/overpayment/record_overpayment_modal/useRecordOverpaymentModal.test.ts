@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BankAccount } from "@/bindings";
+import type { BankAccount, OverpaymentError } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { makeProcedure } from "@/tests/procedure.factory";
 import { toastService } from "@/ui/components/snackbar";
@@ -114,7 +114,10 @@ describe("useRecordOverpaymentModal", () => {
   });
 
   it("handleConfirm shows error toast and does not call onSuccess on gateway failure", async () => {
-    mockCreate.mockResolvedValue({ success: false, error: "Conflict" });
+    mockCreate.mockResolvedValue({
+      success: false,
+      error: { code: "DatabaseError" } as OverpaymentError,
+    });
     const { result, onSuccess } = makeHook();
     await act(async () => {
       await result.current.handleConfirm();

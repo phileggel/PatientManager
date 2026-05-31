@@ -148,7 +148,7 @@ export function ProcedureFormModal({
               error: result.error,
             },
           );
-          toastService.show("error", result.error ?? tc("error.unknown"));
+          toastService.show("error", tc("error.unknown"));
         }
       } catch (err) {
         logger.error("[ProcedureFormModal] Exception resolving source procedure", { err });

@@ -35,7 +35,7 @@ export function useCancelRefundDialog({
         onClose();
       } else {
         logger.error(`${TAG} Failed to cancel overpayment`, { error: result.error });
-        toastService.show("error", result.error ?? t("error.cancel"));
+        toastService.show("error", t("error.cancel"));
       }
     } catch (error) {
       logger.error(`${TAG} Exception cancelling overpayment`, { error });

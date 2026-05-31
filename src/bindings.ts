@@ -848,7 +848,7 @@ async logFrontend(level: string, message: string) : Promise<void> {
 /**
  * REF-050/REF-090-REF-160 — Create an overpayment refund for the given source procedure.
  */
-async createOverpayment(request: CreateOverpaymentRequest) : Promise<Result<null, string>> {
+async createOverpayment(request: CreateOverpaymentRequest) : Promise<Result<null, OverpaymentError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_overpayment", { request }) };
 } catch (e) {
@@ -859,7 +859,7 @@ async createOverpayment(request: CreateOverpaymentRequest) : Promise<Result<null
 /**
  * REF-210 — Cancel an overpayment refund (reverse creation cascade).
  */
-async cancelOverpayment(request: CancelOverpaymentRequest) : Promise<Result<null, string>> {
+async cancelOverpayment(request: CancelOverpaymentRequest) : Promise<Result<null, OverpaymentError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("cancel_overpayment", { request }) };
 } catch (e) {
@@ -871,7 +871,7 @@ async cancelOverpayment(request: CancelOverpaymentRequest) : Promise<Result<null
  * REF-200 — Fetch ProcedureRefund by source_procedure_id.
  * Used by the OverpaymentRefund modal to resolve source_procedure_id before cancel.
  */
-async getProcedureRefundBySource(sourceProcedureId: string) : Promise<Result<ProcedureRefundInfo | null, string>> {
+async getProcedureRefundBySource(sourceProcedureId: string) : Promise<Result<ProcedureRefundInfo | null, OverpaymentError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_procedure_refund_by_source", { sourceProcedureId }) };
 } catch (e) {
@@ -884,7 +884,7 @@ async getProcedureRefundBySource(sourceProcedureId: string) : Promise<Result<Pro
  * Used by the OverpaymentRefund modal to resolve source_procedure_id before cancel
  * (the modal only holds the refund procedure's own ID).
  */
-async getProcedureRefundByRefundProcedure(refundProcedureId: string) : Promise<Result<ProcedureRefundInfo | null, string>> {
+async getProcedureRefundByRefundProcedure(refundProcedureId: string) : Promise<Result<ProcedureRefundInfo | null, OverpaymentError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_procedure_refund_by_refund_procedure", { refundProcedureId }) };
 } catch (e) {
@@ -1486,6 +1486,76 @@ amount: number }
  */
 export type NotFoundCandidate = { procedure_id: string; patient_name: string; ssn: string; procedure_date: string; amount: number }
 /**
+ * Composite error for the overpayment use case.
+ * 
+ * `ProcedureError` is included because the orchestrator delegates procedure
+ * creation, update, and deletion to `ProcedureService`, whose typed errors
+ * are already FE-meaningful (e.g. `ProcedureNotFound` when the source
+ * procedure vanishes mid-flight). All other BC service failures (fund,
+ * bank) collapse to `OverpaymentTask::DatabaseError`.
+ * 
+ * Both arms may emit `{ "code": "DatabaseError" }` — collision intentional,
+ * see `docs/techdebt.md`.
+ */
+export type OverpaymentError = ProcedureError | OverpaymentTask
+/**
+ * Use-case-specific guards and catch-alls for the overpayment use case.
+ * 
+ * Tagged with `code` so each variant emits `{ "code": "..." }` on the wire.
+ * The frontend narrows on `code` per F27.
+ */
+export type OverpaymentTask = 
+/**
+ * Source procedure not found by id (create or cancel path).
+ */
+{ code: "SourceProcedureNotFound"; id: string } | 
+/**
+ * REF-010 — source procedure status is not eligible for a refund.
+ */
+{ code: "SourceNotRefundable" } | 
+/**
+ * REF-030 — refund_date is malformed, in the future, or before the
+ * source procedure's confirmed_payment_date.
+ */
+{ code: "InvalidRefundDate" } | 
+/**
+ * REF-040 — reason string exceeds 255 characters.
+ */
+{ code: "ReasonTooLong" } | 
+/**
+ * REF-060 — transfer_type is not accepted for refunds ("Cash", "Fund",
+ * or an unknown value).
+ */
+{ code: "TransferTypeRejected" } | 
+/**
+ * REF-070 — bank_account_id was provided as empty.
+ */
+{ code: "BankAccountRequired" } | 
+/**
+ * REF-070 — bank_account_id was provided but the account does not exist.
+ */
+{ code: "BankAccountNotFound"; id: string } | 
+/**
+ * The source procedure has no associated fund — cannot create the refund
+ * FundPaymentGroup.
+ */
+{ code: "SourceHasNoFund"; id: string } | 
+/**
+ * REF-240 — the fund payment group belongs to an overpayment refund and
+ * must be removed via cancel, not direct deletion.
+ */
+{ code: "RefundGroupProtected" } | 
+/**
+ * Cancel path (REF-210) — no overpayment record was found for the given
+ * source_procedure_id.
+ */
+{ code: "RefundRecordNotFound" } | 
+/**
+ * Failure from a repository or service the orchestrator delegates to.
+ * Logged at the call site; the wire surface carries no detail.
+ */
+{ code: "DatabaseError" }
+/**
  * Parsed Excel file with metadata (total record count)
  */
 export type ParseExcelResponse = { patients: ExcelPatient[]; funds: ExcelFund[]; procedures: ExcelProcedure[]; total_records: number; parsing_issues: ParsingIssues }
@@ -1762,11 +1832,8 @@ export type ProcedureError =
  * sub-enum. Both carry their own `#[serde(tag = "code")]`, so the untagged
  * composite flattens to a single `{ "code": "...", ... }` payload on the wire.
  * 
- * Note: both `ProcedureError::DatabaseError` and
- * `ProcedureOrchestrationTask::DatabaseError` emit `{ "code": "DatabaseError" }`.
- * This shared code is intentional (the FE maps both to one i18n key); see the
- * 2026-05-27 `docs/techdebt.md` entry on the cross-enum `DatabaseError`
- * discriminant.
+ * Both arms emit `{ "code": "DatabaseError" }`; collision intentional — see
+ * `docs/techdebt.md`.
  */
 export type ProcedureOrchestrationError = ProcedureError | ProcedureOrchestrationTask
 /**

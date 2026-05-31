@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use anyhow::Context;
 use chrono::Local;
 
 use crate::context::bank::{
     BankAccountService, BankEntry, BankEntryLinkRepository, BankEntryService, BankEntryType,
+    BankError,
 };
 use crate::context::fund::{
     FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine, FundPaymentService,
@@ -13,8 +13,10 @@ use crate::context::procedure::{
     PaymentMethod, Procedure, ProcedureRefund, ProcedureRefundRepository, ProcedureService,
     ProcedureStatus,
 };
+use crate::shared::logger::BACKEND;
 
 use super::domain::{CreateOverpaymentRequest, ProcedureRefundInfo};
+use super::error::{OverpaymentError, OverpaymentTask};
 
 /// Orchestrator for the overpayment refund feature (REF).
 /// Cross-context: coordinates Procedure, Fund, and Bank bounded contexts.
@@ -54,7 +56,10 @@ impl OverpaymentOrchestrator {
     /// trade-off consistent with the rest of the codebase which does not use
     /// a distributed transaction manager. Each record ID is persisted into
     /// `ProcedureRefund` only after all records are created (REF-130).
-    pub async fn create_overpayment(&self, req: CreateOverpaymentRequest) -> anyhow::Result<()> {
+    pub async fn create_overpayment(
+        &self,
+        req: CreateOverpaymentRequest,
+    ) -> Result<(), OverpaymentError> {
         tracing::info!(
             source_procedure_id = %req.source_procedure_id,
             refund_date = %req.refund_date,
@@ -66,70 +71,62 @@ impl OverpaymentOrchestrator {
             .procedure_service
             .read_procedure(&req.source_procedure_id)
             .await?
-            .ok_or_else(|| {
-                anyhow::anyhow!("Source procedure not found: {}", req.source_procedure_id)
+            .ok_or_else(|| OverpaymentTask::SourceProcedureNotFound {
+                id: req.source_procedure_id.clone(),
             })?;
 
-        anyhow::ensure!(
-            matches!(
-                source.payment_status,
-                ProcedureStatus::FundPaid | ProcedureStatus::PartiallyFundPaid
-            ),
-            "REF-010: procedure {} is not eligible for a refund (status: {:?})",
-            source.id,
-            source.payment_status
-        );
+        if !matches!(
+            source.payment_status,
+            ProcedureStatus::FundPaid | ProcedureStatus::PartiallyFundPaid
+        ) {
+            return Err(OverpaymentTask::SourceNotRefundable.into());
+        }
 
         // Step 2 — Full refund only: amount must equal source amount (REF-020)
         let source_amount = source.billed_amount;
 
         // Step 3 — Validate refund_date (REF-030)
-        let refund_date =
-            chrono::NaiveDate::parse_from_str(&req.refund_date, "%Y-%m-%d").map_err(|_| {
-                anyhow::anyhow!(
-                    "REF-030: invalid refund_date format: {} (expected YYYY-MM-DD)",
-                    req.refund_date
-                )
-            })?;
+        let refund_date = chrono::NaiveDate::parse_from_str(&req.refund_date, "%Y-%m-%d")
+            .map_err(|_| OverpaymentTask::InvalidRefundDate)?;
 
         let today = Local::now().date_naive();
-        anyhow::ensure!(
-            refund_date <= today,
-            "REF-030: refund_date {} is in the future",
-            refund_date
-        );
+        if refund_date > today {
+            return Err(OverpaymentTask::InvalidRefundDate.into());
+        }
 
         if let Some(confirmed) = source.confirmed_payment_date {
-            anyhow::ensure!(
-                refund_date >= confirmed,
-                "REF-030: refund_date {} is before source confirmed_payment_date {}",
-                refund_date,
-                confirmed
-            );
+            if refund_date < confirmed {
+                return Err(OverpaymentTask::InvalidRefundDate.into());
+            }
         }
 
         // Step 4 — Validate reason max 255 chars (REF-040)
         if let Some(ref reason) = req.reason {
-            anyhow::ensure!(
-                reason.len() <= 255,
-                "REF-040: reason must not exceed 255 characters (got {})",
-                reason.len()
-            );
+            if reason.len() > 255 {
+                return Err(OverpaymentTask::ReasonTooLong.into());
+            }
         }
 
         // Step 5 — Validate transfer type (REF-060)
         let transfer_type = parse_transfer_type(&req.transfer_type)?;
 
         // Step 6 — Validate bank account is provided (REF-070)
-        anyhow::ensure!(
-            !req.bank_account_id.is_empty(),
-            "REF-070: bank_account_id is required"
-        );
+        if req.bank_account_id.is_empty() {
+            return Err(OverpaymentTask::BankAccountRequired.into());
+        }
         let bank_account = self
             .bank_account_service
             .read_account(&req.bank_account_id)
             .await
-            .with_context(|| format!("REF-070: bank account not found: {}", req.bank_account_id))?;
+            .map_err(|e| match e {
+                BankError::BankAccountNotFound { .. } => OverpaymentTask::BankAccountNotFound {
+                    id: req.bank_account_id.clone(),
+                },
+                _ => {
+                    tracing::error!(target: BACKEND, err = ?e, "REF-070: bank account service failed");
+                    OverpaymentTask::DatabaseError
+                }
+            })?;
 
         let previous_payment_status = source.payment_status;
 
@@ -165,14 +162,18 @@ impl OverpaymentOrchestrator {
         // BankPaid status and negative total_amount bypass normal validation.
         // Build the group with a known ID so we can set the line's group_id.
         let group_id = uuid::Uuid::new_v4().to_string();
-        let refund_line = FundPaymentLine::new(group_id.clone(), refund_procedure.id.clone())?;
+        let refund_line = FundPaymentLine::new(group_id.clone(), refund_procedure.id.clone())
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to build refund fund payment line");
+                OverpaymentTask::DatabaseError
+            })?;
 
-        let fund_id = source.fund_id.clone().ok_or_else(|| {
-            anyhow::anyhow!(
-                "Source procedure {} has no fund_id — cannot create refund group",
-                source.id
-            )
-        })?;
+        let fund_id = source
+            .fund_id
+            .clone()
+            .ok_or_else(|| OverpaymentTask::SourceHasNoFund {
+                id: source.id.clone(),
+            })?;
 
         let refund_group = FundPaymentGroup::restore(
             group_id,
@@ -186,7 +187,11 @@ impl OverpaymentOrchestrator {
         let refund_group = self
             .fund_payment_service
             .persist_refund_group(refund_group)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to persist refund fund payment group");
+                OverpaymentTask::DatabaseError
+            })?;
 
         // Step 9 — Create refund BankEntry (REF-110)
         // Uses BankEntry::restore() via persist_refund_transfer to bypass positive-amount check.
@@ -202,12 +207,20 @@ impl OverpaymentOrchestrator {
         let refund_transfer = self
             .bank_transfer_service
             .persist_refund_transfer(refund_transfer, true)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to persist refund bank transfer");
+                OverpaymentTask::DatabaseError
+            })?;
 
         // Step 10 — Create BankTransferLink (REF-120)
         self.transfer_link_repo
             .link_fund_groups(&refund_transfer.id, std::slice::from_ref(&refund_group.id))
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to link refund bank transfer to fund group");
+                OverpaymentTask::DatabaseError
+            })?;
 
         // Step 11 — Create ProcedureRefund record (REF-130)
         let procedure_refund = ProcedureRefund::new(
@@ -222,7 +235,11 @@ impl OverpaymentOrchestrator {
 
         self.procedure_refund_repo
             .create_procedure_refund(&procedure_refund)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to persist procedure refund record");
+                OverpaymentTask::DatabaseError
+            })?;
 
         // Step 12 — Update source procedure status to Overpaid (REF-160)
         let updated_source = Procedure::restore(
@@ -254,7 +271,10 @@ impl OverpaymentOrchestrator {
 
     /// Cancel an overpayment refund, reversing the full creation cascade (REF-210).
     /// Always receives `source_procedure_id` as identifier.
-    pub async fn cancel_overpayment(&self, source_procedure_id: &str) -> anyhow::Result<()> {
+    pub async fn cancel_overpayment(
+        &self,
+        source_procedure_id: &str,
+    ) -> Result<(), OverpaymentError> {
         tracing::info!(
             source_procedure_id = %source_procedure_id,
             "Cancelling overpayment refund"
@@ -264,21 +284,20 @@ impl OverpaymentOrchestrator {
         let refund_record = self
             .procedure_refund_repo
             .find_by_source_procedure_id(source_procedure_id)
-            .await?
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "No overpayment record found for source procedure: {}",
-                    source_procedure_id
-                )
-            })?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"DB error finding refund record by source");
+                OverpaymentTask::DatabaseError
+            })?
+            .ok_or(OverpaymentTask::RefundRecordNotFound)?;
 
         // 1. Revert source procedure status to previous_payment_status
         let source = self
             .procedure_service
             .read_procedure(source_procedure_id)
             .await?
-            .ok_or_else(|| {
-                anyhow::anyhow!("Source procedure not found: {}", source_procedure_id)
+            .ok_or_else(|| OverpaymentTask::SourceProcedureNotFound {
+                id: source_procedure_id.to_string(),
             })?;
 
         let reverted_source = Procedure::restore(
@@ -301,25 +320,45 @@ impl OverpaymentOrchestrator {
         // 2. Delete ProcedureRefund link
         self.procedure_refund_repo
             .delete_procedure_refund(&refund_record.id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to delete procedure refund record");
+                OverpaymentTask::DatabaseError
+            })?;
 
         // 3. Delete BankTransferLink
         self.transfer_link_repo
             .unlink_all_fund_groups(&refund_record.refund_bank_transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to unlink bank transfer fund groups");
+                OverpaymentTask::DatabaseError
+            })?;
 
         // 4. Delete refund BankEntry
         self.bank_transfer_service
             .delete_transfer(&refund_record.refund_bank_transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to delete refund bank transfer");
+                OverpaymentTask::DatabaseError
+            })?;
 
         // 5. Delete refund FundPaymentGroup (and its lines)
         self.fund_payment_service
             .delete_lines_by_group(&refund_record.refund_fund_payment_group_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to delete refund fund payment lines");
+                OverpaymentTask::DatabaseError
+            })?;
         self.fund_payment_service
             .delete_group(refund_record.refund_fund_payment_group_id.clone())
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"Failed to delete refund fund payment group");
+                OverpaymentTask::DatabaseError
+            })?;
 
         // 6. Delete refund Procedure (soft delete)
         self.procedure_service
@@ -339,11 +378,15 @@ impl OverpaymentOrchestrator {
     pub async fn get_procedure_refund_by_source(
         &self,
         source_procedure_id: &str,
-    ) -> anyhow::Result<Option<ProcedureRefundInfo>> {
+    ) -> Result<Option<ProcedureRefundInfo>, OverpaymentError> {
         let record = self
             .procedure_refund_repo
             .find_by_source_procedure_id(source_procedure_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"DB error finding refund by source procedure");
+                OverpaymentTask::DatabaseError
+            })?;
 
         Ok(record.map(|r| ProcedureRefundInfo {
             id: r.id,
@@ -361,11 +404,15 @@ impl OverpaymentOrchestrator {
     pub async fn get_procedure_refund_by_refund_procedure(
         &self,
         refund_procedure_id: &str,
-    ) -> anyhow::Result<Option<ProcedureRefundInfo>> {
+    ) -> Result<Option<ProcedureRefundInfo>, OverpaymentError> {
         let record = self
             .procedure_refund_repo
             .find_by_refund_procedure_id(refund_procedure_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"DB error finding refund by refund procedure");
+                OverpaymentTask::DatabaseError
+            })?;
 
         Ok(record.map(|r| ProcedureRefundInfo {
             id: r.id,
@@ -380,15 +427,20 @@ impl OverpaymentOrchestrator {
     /// REF-240 — Refund fund payment groups can only be removed by cancelling
     /// the refund, not by direct deletion. Returns Err with a user-facing
     /// message when `group_id` points to a refund group; Ok otherwise.
-    pub async fn ensure_not_refund_fund_payment_group(&self, group_id: &str) -> anyhow::Result<()> {
+    pub async fn ensure_not_refund_fund_payment_group(
+        &self,
+        group_id: &str,
+    ) -> Result<(), OverpaymentError> {
         let is_refund = self
             .procedure_refund_repo
             .is_refund_fund_payment_group(group_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e,"DB error checking refund fund payment group");
+                OverpaymentTask::DatabaseError
+            })?;
         if is_refund {
-            anyhow::bail!(
-                "This fund payment group belongs to an overpayment refund and can only be removed by cancelling the refund."
-            );
+            return Err(OverpaymentTask::RefundGroupProtected.into());
         }
         Ok(())
     }
@@ -397,19 +449,12 @@ impl OverpaymentOrchestrator {
 /// Parse a transfer_type string from the frontend into a `BankEntryType`.
 /// Accepted values: "CreditCard", "Check", "OutgoingWire" (REF-060).
 /// "Cash" and "Fund" are explicitly rejected.
-fn parse_transfer_type(s: &str) -> anyhow::Result<BankEntryType> {
+fn parse_transfer_type(s: &str) -> Result<BankEntryType, OverpaymentTask> {
     match s {
         "CreditCard" => Ok(BankEntryType::PatientCreditCard),
         "Check" => Ok(BankEntryType::PatientCheck),
         "OutgoingWire" => Ok(BankEntryType::FundOutgoingWire),
-        "Cash" => anyhow::bail!("REF-060: 'Cash' is not an accepted refund payment method"),
-        "Fund" => anyhow::bail!(
-            "REF-060: 'Fund' is not an accepted refund payment method (it is an incoming type)"
-        ),
-        other => anyhow::bail!(
-            "REF-060: unknown transfer_type '{}'. Accepted: CreditCard, Check, OutgoingWire",
-            other
-        ),
+        _ => Err(OverpaymentTask::TransferTypeRejected),
     }
 }
 
@@ -425,6 +470,7 @@ mod tests {
         MockProcedureRefundRepository, MockProcedureRepository, ProcedureRefund,
     };
     use crate::shared::event_bus::EventBus;
+    use crate::use_cases::overpayment::error::{OverpaymentError, OverpaymentTask};
     use chrono::NaiveDate;
     use std::sync::Arc;
 
@@ -779,9 +825,17 @@ mod tests {
     #[tokio::test]
     async fn create_overpayment_source_procedure_not_found_returns_error() {
         let orchestrator = make_orchestrator(None);
-        let result = orchestrator.create_overpayment(base_request()).await;
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("not found"));
+        let err = orchestrator
+            .create_overpayment(base_request())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::SourceProcedureNotFound { .. })
+            ),
+            "expected SourceProcedureNotFound, got: {err}"
+        );
     }
 
     #[tokio::test]
@@ -800,9 +854,17 @@ mod tests {
             ProcedureStatus::Created,
         );
         let orchestrator = make_orchestrator(Some(created_proc));
-        let result = orchestrator.create_overpayment(base_request()).await;
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("REF-010"));
+        let err = orchestrator
+            .create_overpayment(base_request())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::SourceNotRefundable)
+            ),
+            "expected SourceNotRefundable (REF-010), got: {err}"
+        );
     }
 
     #[tokio::test]
@@ -810,9 +872,14 @@ mod tests {
         let orchestrator = make_orchestrator(Some(fund_paid_procedure()));
         let mut req = base_request();
         req.refund_date = "not-a-date".to_string();
-        let result = orchestrator.create_overpayment(req).await;
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("REF-030"));
+        let err = orchestrator.create_overpayment(req).await.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::InvalidRefundDate)
+            ),
+            "expected InvalidRefundDate (REF-030), got: {err}"
+        );
     }
 
     #[tokio::test]
@@ -820,9 +887,14 @@ mod tests {
         let orchestrator = make_orchestrator(Some(fund_paid_procedure()));
         let mut req = base_request();
         req.refund_date = "2099-01-01".to_string();
-        let result = orchestrator.create_overpayment(req).await;
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("REF-030"));
+        let err = orchestrator.create_overpayment(req).await.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::InvalidRefundDate)
+            ),
+            "expected InvalidRefundDate (REF-030 future), got: {err}"
+        );
     }
 
     #[tokio::test]
@@ -830,9 +902,14 @@ mod tests {
         let orchestrator = make_orchestrator(Some(fund_paid_procedure()));
         let mut req = base_request();
         req.refund_date = "2024-01-05".to_string(); // before confirmed_payment_date 2024-01-10
-        let result = orchestrator.create_overpayment(req).await;
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("REF-030"));
+        let err = orchestrator.create_overpayment(req).await.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::InvalidRefundDate)
+            ),
+            "expected InvalidRefundDate (REF-030 before-confirmed), got: {err}"
+        );
     }
 
     #[tokio::test]
@@ -840,9 +917,11 @@ mod tests {
         let orchestrator = make_orchestrator(Some(fund_paid_procedure()));
         let mut req = base_request();
         req.reason = Some("x".repeat(256));
-        let result = orchestrator.create_overpayment(req).await;
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("REF-040"));
+        let err = orchestrator.create_overpayment(req).await.unwrap_err();
+        assert!(
+            matches!(err, OverpaymentError::Task(OverpaymentTask::ReasonTooLong)),
+            "expected ReasonTooLong (REF-040), got: {err}"
+        );
     }
 
     #[tokio::test]
@@ -850,9 +929,14 @@ mod tests {
         let orchestrator = make_orchestrator(Some(fund_paid_procedure()));
         let mut req = base_request();
         req.transfer_type = "Cash".to_string();
-        let result = orchestrator.create_overpayment(req).await;
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("REF-060"));
+        let err = orchestrator.create_overpayment(req).await.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::TransferTypeRejected)
+            ),
+            "expected TransferTypeRejected (REF-060), got: {err}"
+        );
     }
 
     #[tokio::test]
@@ -860,9 +944,14 @@ mod tests {
         let orchestrator = make_orchestrator(Some(fund_paid_procedure()));
         let mut req = base_request();
         req.bank_account_id = String::new();
-        let result = orchestrator.create_overpayment(req).await;
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("REF-070"));
+        let err = orchestrator.create_overpayment(req).await.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::BankAccountRequired)
+            ),
+            "expected BankAccountRequired (REF-070), got: {err}"
+        );
     }
 
     // --- cancel_overpayment ---
@@ -870,9 +959,17 @@ mod tests {
     #[tokio::test]
     async fn cancel_overpayment_no_record_returns_error() {
         let orchestrator = make_orchestrator(None);
-        let result = orchestrator.cancel_overpayment("missing-proc").await;
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("No overpayment record found"));
+        let err = orchestrator
+            .cancel_overpayment("missing-proc")
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::RefundRecordNotFound)
+            ),
+            "expected RefundRecordNotFound, got: {err}"
+        );
     }
 
     // --- get_procedure_refund_by_source ---
@@ -937,21 +1034,19 @@ mod tests {
     #[test]
     fn parse_transfer_type_rejects_cash_with_ref_060() {
         let err = parse_transfer_type("Cash").unwrap_err();
-        assert!(err.to_string().contains("REF-060"));
+        assert_eq!(err, OverpaymentTask::TransferTypeRejected);
     }
 
     #[test]
     fn parse_transfer_type_rejects_fund_with_ref_060() {
         let err = parse_transfer_type("Fund").unwrap_err();
-        assert!(err.to_string().contains("REF-060"));
+        assert_eq!(err, OverpaymentTask::TransferTypeRejected);
     }
 
     #[test]
     fn parse_transfer_type_rejects_unknown_value_with_ref_060_and_value() {
         let err = parse_transfer_type("Venmo").unwrap_err();
-        let msg = err.to_string();
-        assert!(msg.contains("REF-060"));
-        assert!(msg.contains("Venmo"));
+        assert_eq!(err, OverpaymentTask::TransferTypeRejected);
     }
 
     // --- create_overpayment success path (steps 7-12) ---
@@ -1088,10 +1183,12 @@ mod tests {
             .ensure_not_refund_fund_payment_group("group-1")
             .await
             .expect_err("refund group must be rejected by REF-240 guard");
-        let msg = err.to_string();
         assert!(
-            msg.contains("overpayment refund") && msg.contains("cancelling the refund"),
-            "rejection must surface the cancel-refund guidance: {msg}"
+            matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::RefundGroupProtected)
+            ),
+            "expected RefundGroupProtected (REF-240), got: {err}"
         );
     }
 }
