@@ -161,14 +161,17 @@ jobs:
           sqlx database setup
       - name: Quality checks
         run: python3 scripts/check.py --backend
-      - name: Install cargo-tarpaulin
+      - name: Install cargo-tarpaulin and just
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
         uses: taiki-e/install-action@f48d2f8ba2b452934c948b7be1a768079c3632ff
         with:
-          tool: cargo-tarpaulin
+          tool: cargo-tarpaulin,just
+      # Single source of truth: `just coverage-be` is the same recipe developers
+      # run locally (--lib --tests + the shared exclude list), so CI/Codecov and
+      # local coverage can never drift. Runs from repo root — the recipe cd's
+      # into src-tauri itself and writes to repo-root coverage/backend/.
       - name: Coverage with tarpaulin
-        working-directory: src-tauri
-        run: cargo tarpaulin --out Lcov --output-dir ../coverage/backend --lib --exclude-files "build.rs" --exclude-files "dev/generate_bindings.rs"
+        run: just coverage-be
       - name: Upload to Codecov
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
         with:
