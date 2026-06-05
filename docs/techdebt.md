@@ -145,3 +145,13 @@ not as a sweep.
 **Where:** `package-lock.json` — `@wdio/mocha-framework@9.27.1 → mocha → serialize-javascript ≤ 7.0.4`. Two advisories: [GHSA-5c6j-r48x-rmvq](https://github.com/advisories/GHSA-5c6j-r48x-rmvq) (RCE via `RegExp.flags`) and [GHSA-qj8w-gfj5-8c6v](https://github.com/advisories/GHSA-qj8w-gfj5-8c6v) (DoS via crafted array-likes).
 
 **Observation:** `npm audit fix` cannot reach this without `--force`, which would downgrade `@wdio/mocha-framework` to 6.1.17 (major breaking change in our WebDriver E2E setup). Exposure is dev-only (test runner serialization), not in production. Track until `@wdio/mocha-framework` (or upstream mocha) ships a non-vulnerable `serialize-javascript`.
+
+---
+
+## 2026-06-05 — BE coverage omits dev-fixtures-gated codec integration tests
+
+- Found by: reviewer-infra
+- Where: justfile `coverage-be` recipe; `src-tauri/tests/codec_round_trip{,_bank_pdf,_fund_pdf}.rs`
+- Context: branch `chore/tarpaulin-integration-coverage` @ `5be9be4`
+- Severity: 🔵
+- Observation: The three codec round-trip integration tests are gated behind `#![cfg(feature = "dev-fixtures")]`; `just coverage-be` does not pass `--features dev-fixtures`, so tarpaulin compiles them out and they contribute zero coverage even after the `--lib --tests` fix — recovering them additionally requires the dev-fixtures binary fixtures present in the CI environment.
