@@ -6,6 +6,7 @@ import { logger } from "@/infra/logger";
 import { FormModal } from "@/ui/components";
 import { Button } from "@/ui/components/button";
 import { executeExcelImport, parseExcelFile } from "../api/gateway";
+import { formatExcelImportError } from "../shared/presenter";
 import { ParsingReportModal } from "./components/ParsingReportModal";
 import { ProcedureTypeMappingStep } from "./components/ProcedureTypeMappingStep";
 import { ProgressIndicator } from "./components/ProgressIndicator";
@@ -56,8 +57,10 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
         });
 
         const parseResult = await parseExcelFile(fileData.path);
-        if (!parseResult.success || !parseResult.data) {
-          throw new Error(parseResult.error || t("error.failedParseExcel"));
+        if (!parseResult.success) {
+          // reviewer-frontend FP: storing only the translated string is the
+          // terminal render form for this single-banner workflow (see PR #59).
+          throw new Error(t(formatExcelImportError(parseResult.error).key));
         }
 
         setParsed(parseResult.data);
@@ -79,8 +82,8 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
           setIsLoading(true);
 
           const result = await executeExcelImport(parseResult.data, {}, []);
-          if (!result.success || !result.data) {
-            throw new Error(result.error || t("error.failedCreateProcedures"));
+          if (!result.success) {
+            throw new Error(t(formatExcelImportError(result.error).key));
           }
           setImportResult(result.data);
           setCurrentStep("complete");
@@ -133,8 +136,8 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
       try {
         const result = await executeExcelImport(parsed, mapping, selectedSheets);
 
-        if (!result.success || !result.data) {
-          throw new Error(result.error || t("error.failedCreateProcedures"));
+        if (!result.success) {
+          throw new Error(t(formatExcelImportError(result.error).key));
         }
 
         setImportResult(result.data);

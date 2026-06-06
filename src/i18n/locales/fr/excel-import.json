@@ -114,6 +114,13 @@
     "failedCreateProcedures": "Échec de la création des actes",
     "missingWorkflowState": "État du workflow manquant"
   },
+  "errors": {
+    "file_not_found": "Le fichier sélectionné est introuvable.",
+    "invalid_format": "Le fichier n'est pas un classeur Excel lisible.",
+    "parse_error": "Le fichier Excel n'a pas pu être analysé.",
+    "import_failed": "L'import n'a pas pu être effectué. Veuillez réessayer.",
+    "database_error": "Une erreur de base de données inattendue s'est produite."
+  },
   "parsingReport": {
     "unifiedTitle": "Rapport d'import",
     "summary": "Résumé",

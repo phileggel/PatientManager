@@ -6,7 +6,9 @@ use chrono::{Datelike, NaiveDate};
 use crate::context::fund::FundService;
 use crate::context::patient::{PatientCandidate, PatientService};
 use crate::context::procedure::{ProcedureCandidate, ProcedureService};
+use crate::shared::logger::BACKEND;
 use crate::use_cases::excel_import::api::{ImportExecutionResult, ParseExcelResponse};
+use crate::use_cases::excel_import::error::ExcelImportError;
 use crate::use_cases::excel_import::excel_codec::{sheet_nominal_month, SkippedRow};
 use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 
@@ -52,7 +54,7 @@ impl ExcelImportOrchestrator {
         parsed_data: ParseExcelResponse,
         procedure_type_mapping: HashMap<String, String>,
         selected_sheets: Vec<String>,
-    ) -> anyhow::Result<ImportExecutionResult> {
+    ) -> Result<ImportExecutionResult, ExcelImportError> {
         tracing::debug!(
             patients = parsed_data.patients.len(),
             funds = parsed_data.funds.len(),
@@ -72,11 +74,21 @@ impl ExcelImportOrchestrator {
             let existing = if !excel_patient.ssn.is_empty() {
                 self.patient_service
                     .find_patient_by_ssn(&excel_patient.ssn)
-                    .await?
+                    .await
+                    .map_err(|e| {
+                        // reviewer-backend FP: err = ?e carries no PII — PatientError
+                        // variants hold only IDs, never SSN/name (see PR #59).
+                        tracing::error!(target: BACKEND, err = ?e, "Failed to look up patient by SSN");
+                        ExcelImportError::ImportFailed
+                    })?
             } else if !excel_patient.name.is_empty() {
                 self.patient_service
                     .find_patient_by_name(&excel_patient.name)
-                    .await?
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(target: BACKEND, err = ?e, "Failed to look up patient by name");
+                        ExcelImportError::ImportFailed
+                    })?
             } else {
                 None
             };
@@ -107,7 +119,11 @@ impl ExcelImportOrchestrator {
             let (_, created_map) = self
                 .patient_service
                 .create_batch(new_patient_candidates)
-                .await?;
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "Failed to create patient batch");
+                    ExcelImportError::ImportFailed
+                })?;
             patients_map.extend(created_map);
         }
 
@@ -126,7 +142,11 @@ impl ExcelImportOrchestrator {
             if let Some(existing) = self
                 .fund_service
                 .find_fund_by_identifier(&excel_fund.fund_identifier)
-                .await?
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "Failed to look up fund by identifier");
+                    ExcelImportError::ImportFailed
+                })?
             {
                 funds_reused += 1;
                 funds_map.insert(excel_fund.temp_id.clone(), existing.id);
@@ -141,7 +161,14 @@ impl ExcelImportOrchestrator {
 
         let funds_created = new_fund_candidates.len() as u32;
         if !new_fund_candidates.is_empty() {
-            let (_, created_map) = self.fund_service.create_batch(new_fund_candidates).await?;
+            let (_, created_map) = self
+                .fund_service
+                .create_batch(new_fund_candidates)
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "Failed to create fund batch");
+                    ExcelImportError::ImportFailed
+                })?;
             funds_map.extend(created_map);
         }
 
@@ -182,7 +209,11 @@ impl ExcelImportOrchestrator {
                 if self
                     .procedure_service
                     .has_blocking_procedures_in_month(&month_key)
-                    .await?
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(target: BACKEND, err = ?e, month = %month_key, "Failed to check blocking procedures for month");
+                        ExcelImportError::ImportFailed
+                    })?
                 {
                     tracing::warn!(month = %month_key, sheet = %sheet, "Month blocked: contains reconciliated/fund-payed procedures");
                     blocked_months.push(month_key);
@@ -190,7 +221,11 @@ impl ExcelImportOrchestrator {
                     let deleted = self
                         .procedure_service
                         .delete_procedures_by_month(&month_key)
-                        .await?;
+                        .await
+                        .map_err(|e| {
+                            tracing::error!(target: BACKEND, err = ?e, month = %month_key, "Failed to delete procedures for month");
+                            ExcelImportError::ImportFailed
+                        })?;
                     procedures_deleted += deleted as u32;
                     tracing::debug!(month = %month_key, sheet = %sheet, deleted = deleted, "Cleared procedures for month before re-import");
                     allowed_sheets.insert(sheet.clone());
@@ -370,7 +405,11 @@ impl ExcelImportOrchestrator {
             let created = self
                 .procedure_orchestration
                 .create_batch(candidates)
-                .await?;
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "Failed to create procedure batch");
+                    ExcelImportError::ImportFailed
+                })?;
             created.len() as u32
         };
 

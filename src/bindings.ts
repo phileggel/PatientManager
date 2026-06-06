@@ -275,7 +275,7 @@ async deleteProcedureType(id: string) : Promise<Result<null, ProcedureError>> {
 /**
  * Tauri command: Parse Excel file (preview step — no DB writes)
  */
-async parseExcelFile(filePath: string) : Promise<Result<ParseExcelResponse, string>> {
+async parseExcelFile(filePath: string) : Promise<Result<ParseExcelResponse, ExcelImportError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("parse_excel_file", { filePath }) };
 } catch (e) {
@@ -292,7 +292,7 @@ async parseExcelFile(filePath: string) : Promise<Result<ParseExcelResponse, stri
  * `procedure_type_mapping` maps `procedure_type_tmp_id → procedure_type_id` as selected
  * by the user in the type-mapping UI step.
  */
-async executeExcelImport(parsedData: ParseExcelResponse, procedureTypeMapping: Partial<{ [key in string]: string }>, selectedSheets: string[]) : Promise<Result<ImportExecutionResult, string>> {
+async executeExcelImport(parsedData: ParseExcelResponse, procedureTypeMapping: Partial<{ [key in string]: string }>, selectedSheets: string[]) : Promise<Result<ImportExecutionResult, ExcelImportError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("execute_excel_import", { parsedData, procedureTypeMapping, selectedSheets }) };
 } catch (e) {
@@ -303,7 +303,7 @@ async executeExcelImport(parsedData: ParseExcelResponse, procedureTypeMapping: P
 /**
  * Tauri command: Return all saved Excel amount → procedure type mappings
  */
-async getExcelAmountMappings() : Promise<Result<ExcelAmountMapping[], string>> {
+async getExcelAmountMappings() : Promise<Result<ExcelAmountMapping[], ExcelImportError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_excel_amount_mappings") };
 } catch (e) {
@@ -314,7 +314,7 @@ async getExcelAmountMappings() : Promise<Result<ExcelAmountMapping[], string>> {
 /**
  * Tauri command: Save (upsert) Excel amount → procedure type mappings
  */
-async saveExcelAmountMappings(mappings: SaveExcelAmountMappingRequest[]) : Promise<Result<null, string>> {
+async saveExcelAmountMappings(mappings: SaveExcelAmountMappingRequest[]) : Promise<Result<null, ExcelImportError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("save_excel_amount_mappings", { mappings }) };
 } catch (e) {
@@ -1221,6 +1221,47 @@ export type ExcelAmountMapping = { amount: number; procedure_type_id: string }
  * Parsed fund data from Excel Secu sheet
  */
 export type ExcelFund = { temp_id: string; fund_identifier: string; fund_name: string; fund_address: string | null }
+/**
+ * Error surface for the Excel import use case.
+ * 
+ * A flat `#[serde(tag = "code")]` enum — NOT an untagged composite. The
+ * excel-import contract deliberately keeps the error surface coarse: per-row
+ * failures are reported in-band via `ParsingIssues` / `skipped_procedures`,
+ * never as command errors, and infrastructure failures collapse to a single
+ * catch-all (`ImportFailed` for execution, `DatabaseError` for the mapping
+ * repo). There are no FE-meaningful bounded-context errors to wrap with
+ * `#[from]`, so the use-case enum is the FE-facing type directly.
+ * 
+ * The frontend narrows on `code` per F27.
+ */
+export type ExcelImportError = 
+/**
+ * `parse_excel_file` — the path does not exist on disk.
+ */
+{ code: "FileNotFound"; path: string } | 
+/**
+ * `parse_excel_file` — the file exists but cannot be opened or read as an
+ * xlsx workbook.
+ */
+{ code: "InvalidFormat" } | 
+/**
+ * `parse_excel_file` — the workbook opened but a required sheet could not
+ * be parsed.
+ */
+{ code: "ParseError" } | 
+/**
+ * `execute_excel_import` — catch-all for infrastructure failures (repo /
+ * service writes). Per the contract, all per-row failures surface via
+ * `ImportExecutionResult.skipped_procedures`, so this covers only
+ * infrastructure-level faults. Logged at the call site; the wire surface
+ * carries no detail.
+ */
+{ code: "ImportFailed" } | 
+/**
+ * `get_excel_amount_mappings` / `save_excel_amount_mappings` — a failure
+ * from the amount-mapping repository. Logged at the call site.
+ */
+{ code: "DatabaseError" }
 /**
  * Parsed patient data from Excel Patiente sheet
  */

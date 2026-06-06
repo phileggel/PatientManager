@@ -123,7 +123,7 @@ describe("ImportExcelPage", () => {
   it("handles parse error gracefully — shows alert", async () => {
     mockParseExcelFile.mockResolvedValue({
       success: false,
-      error: "Failed to parse Excel file: Invalid format",
+      error: { code: "InvalidFormat" },
     });
 
     render(<ImportExcelPage {...defaultProps} />);

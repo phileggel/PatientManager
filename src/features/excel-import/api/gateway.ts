@@ -10,23 +10,22 @@
  * All orchestration (patients, funds, procedures) is handled backend-side.
  * The frontend only passes parsed_data and the type mapping to execute_excel_import.
  *
- * All functions wrap Tauri commands and convert errors to ServiceResult.
+ * Layer 1 of the F27 typed-error pipeline: each function is a pure typed
+ * pass-through over `commands.*`, surfacing `ExcelImportError` verbatim inside
+ * `ServiceResult`. Translation happens at the render site (Layer 4) via the
+ * feature presenter.
  */
 
 import type {
   ExcelAmountMapping,
+  ExcelImportError,
   ImportExecutionResult,
   ParseExcelResponse,
   SaveExcelAmountMappingRequest,
 } from "@/bindings";
 import { commands } from "@/bindings";
 import { logger } from "@/infra/logger";
-
-export interface ServiceResult<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
+import type { ServiceResult } from "@/types/api";
 
 /**
  * Parse Excel file from file path.
@@ -38,28 +37,59 @@ export interface ServiceResult<T> {
  * @param filePath - Full file path to Excel file
  * @returns Service result with ParseExcelResponse containing parsed data and issues
  */
-export async function parseExcelFile(filePath: string): Promise<ServiceResult<ParseExcelResponse>> {
+export async function parseExcelFile(
+  filePath: string,
+): Promise<ServiceResult<ParseExcelResponse, ExcelImportError>> {
   logger.info("Parsing Excel file");
 
-  try {
-    const result = await commands.parseExcelFile(filePath);
+  const result = await commands.parseExcelFile(filePath);
+  if (result.status === "ok") {
+    logger.info("Excel file parsed successfully", {
+      patients: result.data.patients.length,
+      funds: result.data.funds.length,
+      procedures: result.data.procedures.length,
+      skipped_rows: result.data.parsing_issues.skipped_rows.length,
+      missing_sheets: result.data.parsing_issues.missing_sheets.length,
+    });
+    return { success: true, data: result.data };
+  }
+  logger.error("Failed to parse Excel file", { code: result.error.code });
+  return { success: false, error: result.error };
+}
 
-    if (result.status === "ok") {
-      logger.info("Excel file parsed successfully", {
-        patients: result.data.patients.length,
-        funds: result.data.funds.length,
-        procedures: result.data.procedures.length,
-        skipped_rows: result.data.parsing_issues.skipped_rows.length,
-        missing_sheets: result.data.parsing_issues.missing_sheets.length,
-      });
-      return { success: true, data: result.data };
-    } else {
-      logger.error("Failed to parse Excel file", { error: result.error });
-      return { success: false, error: result.error };
+/**
+ * Fetch all saved Excel amount → procedure type mappings.
+ * Used to pre-fill defaults in the mapping step.
+ */
+export async function getExcelAmountMappings(): Promise<
+  ServiceResult<ExcelAmountMapping[], ExcelImportError>
+> {
+  const result = await commands.getExcelAmountMappings();
+  if (result.status === "ok") {
+    return { success: true, data: result.data };
+  }
+  logger.error("Failed to fetch excel amount mappings", { code: result.error.code });
+  return { success: false, error: result.error };
+}
+
+/**
+ * Persist the user's amount → procedure type mapping choices for future imports.
+ * Fire-and-forget: failures are logged but do not block the import flow, so this
+ * keeps its own try/catch and returns void rather than a ServiceResult.
+ */
+export async function saveExcelAmountMappings(
+  mappings: SaveExcelAmountMappingRequest[],
+): Promise<void> {
+  try {
+    const result = await commands.saveExcelAmountMappings(mappings);
+    if (result.status !== "ok") {
+      logger.error("Failed to save excel amount mappings", { code: result.error.code });
     }
   } catch (error) {
-    logger.error("Exception during Excel parsing", { error });
-    return { success: false, error: String(error) };
+    // Only a Tauri transport exception can land here (a typed ExcelImportError
+    // arrives via result.status === "error" above, not as a throw), so the raw
+    // value is logged rather than a structured error code.
+    logger.error("Exception saving excel amount mappings", { error });
   }
 }
 
@@ -77,45 +107,11 @@ export async function parseExcelFile(filePath: string): Promise<ServiceResult<Pa
  * @param typeMapping - Maps procedure_type_tmp_id → procedure_type_id (from user mapping step)
  * @returns Service result with ImportExecutionResult
  */
-/**
- * Fetch all saved Excel amount → procedure type mappings.
- * Used to pre-fill defaults in the mapping step.
- */
-export async function getExcelAmountMappings(): Promise<ServiceResult<ExcelAmountMapping[]>> {
-  try {
-    const result = await commands.getExcelAmountMappings();
-    if (result.status === "ok") {
-      return { success: true, data: result.data };
-    }
-    return { success: false, error: result.error };
-  } catch (error) {
-    logger.error("Exception fetching excel amount mappings", { error });
-    return { success: false, error: String(error) };
-  }
-}
-
-/**
- * Persist the user's amount → procedure type mapping choices for future imports.
- * Fire-and-forget: failures are logged but do not block the import flow.
- */
-export async function saveExcelAmountMappings(
-  mappings: SaveExcelAmountMappingRequest[],
-): Promise<void> {
-  try {
-    const result = await commands.saveExcelAmountMappings(mappings);
-    if (result.status !== "ok") {
-      logger.error("Failed to save excel amount mappings", { error: result.error });
-    }
-  } catch (error) {
-    logger.error("Exception saving excel amount mappings", { error });
-  }
-}
-
 export async function executeExcelImport(
   parsedData: ParseExcelResponse,
   typeMapping: Record<string, string>,
   selectedSheets: string[],
-): Promise<ServiceResult<ImportExecutionResult>> {
+): Promise<ServiceResult<ImportExecutionResult, ExcelImportError>> {
   logger.info("Executing Excel import", {
     patients: parsedData.patients.length,
     funds: parsedData.funds.length,
@@ -124,25 +120,18 @@ export async function executeExcelImport(
     selectedSheets,
   });
 
-  try {
-    const result = await commands.executeExcelImport(parsedData, typeMapping, selectedSheets);
-
-    if (result.status === "ok") {
-      logger.info("Excel import completed", {
-        patients_created: result.data.patients_created,
-        patients_reused: result.data.patients_reused,
-        funds_created: result.data.funds_created,
-        funds_reused: result.data.funds_reused,
-        procedures_created: result.data.procedures_created,
-        procedures_skipped: result.data.procedures_skipped,
-      });
-      return { success: true, data: result.data };
-    } else {
-      logger.error("Failed to execute Excel import", { error: result.error });
-      return { success: false, error: result.error };
-    }
-  } catch (error) {
-    logger.error("Exception during Excel import execution", { error });
-    return { success: false, error: String(error) };
+  const result = await commands.executeExcelImport(parsedData, typeMapping, selectedSheets);
+  if (result.status === "ok") {
+    logger.info("Excel import completed", {
+      patients_created: result.data.patients_created,
+      patients_reused: result.data.patients_reused,
+      funds_created: result.data.funds_created,
+      funds_reused: result.data.funds_reused,
+      procedures_created: result.data.procedures_created,
+      procedures_skipped: result.data.procedures_skipped,
+    });
+    return { success: true, data: result.data };
   }
+  logger.error("Failed to execute Excel import", { code: result.error.code });
+  return { success: false, error: result.error };
 }
