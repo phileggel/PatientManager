@@ -6,6 +6,7 @@
 /// not a domain-specific context.
 mod amount_mapping_repo;
 mod api;
+pub mod error;
 pub mod excel_codec;
 mod orchestrator;
 mod parser;
@@ -15,6 +16,7 @@ pub use amount_mapping_repo::{
     SqliteExcelAmountMappingRepository,
 };
 pub use api::*;
+pub use error::ExcelImportError;
 pub use orchestrator::ExcelImportOrchestrator;
 
 // IFC codec — public surface of the Excel import contract (IFC-020, IFC-024).

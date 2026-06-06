@@ -114,6 +114,13 @@
     "failedCreateProcedures": "Failed to create procedures",
     "missingWorkflowState": "Missing workflow state"
   },
+  "errors": {
+    "file_not_found": "The selected file could not be found.",
+    "invalid_format": "The file is not a readable Excel workbook.",
+    "parse_error": "The Excel file could not be parsed.",
+    "import_failed": "The import could not be completed. Please try again.",
+    "database_error": "An unexpected database error occurred."
+  },
   "parsingReport": {
     "unifiedTitle": "Import report",
     "summary": "Summary",

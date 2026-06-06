@@ -10,6 +10,7 @@ use crate::use_cases::excel_import::amount_mapping_repo::{
     ExcelAmountMapping, ExcelAmountMappingRepository, SaveExcelAmountMappingRequest,
     SqliteExcelAmountMappingRepository,
 };
+use crate::use_cases::excel_import::error::ExcelImportError;
 use crate::use_cases::excel_import::excel_codec::{
     ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues, SkippedRow,
 };
@@ -67,26 +68,19 @@ pub struct ImportExecutionResult {
 /// Tauri command: Parse Excel file (preview step — no DB writes)
 #[tauri::command]
 #[specta::specta]
-pub async fn parse_excel_file(file_path: String) -> Result<ParseExcelResponse, String> {
+pub async fn parse_excel_file(file_path: String) -> Result<ParseExcelResponse, ExcelImportError> {
     tracing::debug!(target: BACKEND, "Processing parse_excel_file request");
 
-    ExcelParserService::parse_excel(&file_path)
-        .await
-        .map(|data| {
-            let response = ParseExcelResponse::from(data);
-            tracing::info!(
-                target: BACKEND,
-                patients = response.patients.len(),
-                funds = response.funds.len(),
-                procedures = response.procedures.len(),
-                "Excel file parsed successfully"
-            );
-            response
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to parse Excel file");
-            format!("{:#}", e)
-        })
+    let data = ExcelParserService::parse_excel(&file_path).await?;
+    let response = ParseExcelResponse::from(data);
+    tracing::info!(
+        target: BACKEND,
+        patients = response.patients.len(),
+        funds = response.funds.len(),
+        procedures = response.procedures.len(),
+        "Excel file parsed successfully"
+    );
+    Ok(response)
 }
 
 /// Tauri command: Execute Excel import (creates patients, funds, and procedures)
@@ -103,7 +97,7 @@ pub async fn execute_excel_import(
     procedure_type_mapping: HashMap<String, String>,
     selected_sheets: Vec<String>,
     service: State<'_, Arc<ExcelImportOrchestrator>>,
-) -> Result<ImportExecutionResult, String> {
+) -> Result<ImportExecutionResult, ExcelImportError> {
     tracing::debug!(
         target: BACKEND,
         patients = parsed_data.patients.len(),
@@ -113,6 +107,8 @@ pub async fn execute_excel_import(
         "Processing execute_excel_import request"
     );
 
+    // reviewer-arch FP: no api-level error log here by design — the orchestrator
+    // already logs at every error site; adding one would double-log (see PR #59).
     service
         .execute_import(parsed_data, procedure_type_mapping, selected_sheets)
         .await
@@ -129,10 +125,6 @@ pub async fn execute_excel_import(
                 "Excel import completed successfully"
             );
         })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to execute Excel import");
-            format!("{:#}", e)
-        })
 }
 
 /// Tauri command: Return all saved Excel amount → procedure type mappings
@@ -140,11 +132,11 @@ pub async fn execute_excel_import(
 #[specta::specta]
 pub async fn get_excel_amount_mappings(
     repo: State<'_, Arc<SqliteExcelAmountMappingRepository>>,
-) -> Result<Vec<ExcelAmountMapping>, String> {
+) -> Result<Vec<ExcelAmountMapping>, ExcelImportError> {
     tracing::debug!(target: BACKEND, "Processing get_excel_amount_mappings request");
     repo.find_all().await.map_err(|e| {
-        tracing::error!(target: BACKEND, error = %e, "Failed to get excel amount mappings");
-        format!("{:#}", e)
+        tracing::error!(target: BACKEND, err = ?e, "Failed to get excel amount mappings");
+        ExcelImportError::DatabaseError
     })
 }
 
@@ -154,14 +146,14 @@ pub async fn get_excel_amount_mappings(
 pub async fn save_excel_amount_mappings(
     mappings: Vec<SaveExcelAmountMappingRequest>,
     repo: State<'_, Arc<SqliteExcelAmountMappingRepository>>,
-) -> Result<(), String> {
+) -> Result<(), ExcelImportError> {
     tracing::debug!(
         target: BACKEND,
         count = mappings.len(),
         "Processing save_excel_amount_mappings request"
     );
     repo.save_mappings(mappings).await.map_err(|e| {
-        tracing::error!(target: BACKEND, error = %e, "Failed to save excel amount mappings");
-        format!("{:#}", e)
+        tracing::error!(target: BACKEND, err = ?e, "Failed to save excel amount mappings");
+        ExcelImportError::DatabaseError
     })
 }

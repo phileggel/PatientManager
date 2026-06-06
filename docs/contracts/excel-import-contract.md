@@ -33,7 +33,7 @@ Returns the user's saved amount → procedure type preferences. Excludes mapping
 
 - **Args:** —
 - **Returns:** `Vec<ExcelAmountMapping>`
-- **Errors:** —
+- **Errors:** `DatabaseError` — infrastructure-only; no domain rejection.
 
 ---
 
@@ -43,7 +43,7 @@ Persists the user's amount → procedure type choices. Upserted keyed on `amount
 
 - **Args:** `mappings: Vec<SaveExcelAmountMappingRequest>`
 - **Returns:** `()`
-- **Errors:** —
+- **Errors:** `DatabaseError` — infrastructure-only; no domain rejection.
 
 ---
 
@@ -137,3 +137,4 @@ struct SaveExcelAmountMappingRequest {
   - `execute_excel_import`: arg `selected_months` → `selected_sheets` (canonical sheet names matching `sheet_month`)
   - `ExcelProcedure`: added `source_row: u32` (transport metadata for execute-time skip reporting)
   - `ImportExecutionResult`: added `skipped_procedures: Vec<SkippedRow>` (execute-time skip report, mirrors parse-time `parsing_issues.skipped_rows`)
+- 2026-06-06 — Typed-error migration: all 4 commands return `ExcelImportError` (flat `#[serde(tag = "code")]` enum) instead of `Result<T, String>`. `get_excel_amount_mappings` / `save_excel_amount_mappings` now surface `DatabaseError` on infra failure (previously `Errors: —`).

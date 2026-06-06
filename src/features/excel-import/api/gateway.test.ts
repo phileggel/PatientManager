@@ -135,17 +135,18 @@ describe("excel-import gateway — executeExcelImport", () => {
     expect(result.data?.skipped_procedures).toEqual([]);
   });
 
-  // error pass-through — gateway wraps command error in success:false (F27 — no throw)
-  it("returns success:false with error string on error response", async () => {
+  // error pass-through — gateway surfaces the typed ExcelImportError verbatim
+  // in success:false (F27 — no throw, no transformation)
+  it("returns success:false with the typed error on error response", async () => {
     vi.mocked(commands.executeExcelImport).mockResolvedValue({
       status: "error",
-      error: "ImportFailed",
+      error: { code: "ImportFailed" },
     });
 
     const result = await gateway.executeExcelImport(minimalParsedData, {}, ["Jan"]);
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe("ImportFailed");
+    expect(result.error).toEqual({ code: "ImportFailed" });
     expect(result.data).toBeUndefined();
   });
 

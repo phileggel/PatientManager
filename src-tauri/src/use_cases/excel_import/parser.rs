@@ -1,3 +1,5 @@
+use crate::shared::logger::BACKEND;
+use crate::use_cases::excel_import::error::ExcelImportError;
 use crate::use_cases::excel_import::excel_codec as codec;
 use crate::use_cases::excel_import::excel_codec::{
     convert_excel_date_to_iso, parse_text_date_to_iso, ExcelFund, ExcelPatient, ExcelProcedure,
@@ -93,19 +95,29 @@ impl ExcelParserService {
         trimmed.starts_with('#') && (trimmed.ends_with('!') || trimmed == "#N/A")
     }
 
-    /// Parse an Excel file and extract patients, funds, and procedures
-    pub async fn parse_excel(file_path: &str) -> anyhow::Result<ParsedExcelData> {
+    /// Parse an Excel file and extract patients, funds, and procedures.
+    ///
+    /// Per-row issues are collected into `ParsingIssues`; only structural
+    /// failures (missing file, unreadable workbook, sheet parse failure) are
+    /// returned as a typed [`ExcelImportError`].
+    pub async fn parse_excel(file_path: &str) -> Result<ParsedExcelData, ExcelImportError> {
         tracing::debug!("Starting Excel file parse");
 
         let path = Path::new(file_path);
         if !path.exists() {
-            return Err(anyhow::anyhow!("File not found: {}", file_path));
+            return Err(ExcelImportError::FileNotFound {
+                path: file_path.to_string(),
+            });
         }
 
-        let file = File::open(file_path)
-            .map_err(|e| anyhow::anyhow!("Failed to open Excel file: {}", e))?;
-        let mut workbook =
-            Xlsx::new(file).map_err(|e| anyhow::anyhow!("Failed to read Excel file: {}", e))?;
+        let file = File::open(file_path).map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "Failed to open Excel file");
+            ExcelImportError::InvalidFormat
+        })?;
+        let mut workbook = Xlsx::new(file).map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "Failed to read file as xlsx workbook");
+            ExcelImportError::InvalidFormat
+        })?;
 
         tracing::debug!("Excel file opened successfully");
 
@@ -115,19 +127,29 @@ impl ExcelParserService {
         };
 
         // Parse Patiente sheet (generates temp_ids)
-        let patients = Self::parse_patients_sheet(&mut workbook, &mut parsing_issues)?;
+        let patients =
+            Self::parse_patients_sheet(&mut workbook, &mut parsing_issues).map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "Failed to parse Patiente sheet");
+                ExcelImportError::ParseError
+            })?;
         tracing::debug!("Parsed {} patients from Patiente sheet", patients.len());
 
         // Fallback: if Patiente sheet was absent, extract patients from monthly sheets
         let patients = if patients.is_empty() {
             tracing::debug!("Patiente sheet absent — extracting patients from monthly sheets");
-            Self::extract_patients_from_monthly_sheets(&mut workbook)?
+            Self::extract_patients_from_monthly_sheets(&mut workbook).map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "Failed to extract patients from monthly sheets");
+                ExcelImportError::ParseError
+            })?
         } else {
             patients
         };
 
         // Parse Secu sheet (generates temp_ids)
-        let funds = Self::parse_funds_sheet(&mut workbook, &mut parsing_issues)?;
+        let funds = Self::parse_funds_sheet(&mut workbook, &mut parsing_issues).map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "Failed to parse Secu sheet");
+            ExcelImportError::ParseError
+        })?;
         tracing::debug!("Parsed {} funds", funds.len());
 
         // Create lookup maps for procedures to reference patient/fund temp_ids
@@ -154,7 +176,11 @@ impl ExcelParserService {
             &patient_ssn_to_temp_id,
             &patient_name_to_temp_id,
             &fund_identifier_to_temp_id,
-        )?;
+        )
+        .map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "Failed to parse monthly procedure sheets");
+            ExcelImportError::ParseError
+        })?;
         tracing::debug!("Parsed {} procedures", procedures.len());
 
         // Create tmp_ids for each unique procedure amount and assign to procedures
@@ -813,7 +839,9 @@ mod tests {
     #[tokio::test]
     async fn parse_excel_returns_error_for_nonexistent_file() {
         let result = ExcelParserService::parse_excel("/path/to/nonexistent/file.xlsx").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("File not found"));
+        assert!(matches!(
+            result.unwrap_err(),
+            ExcelImportError::FileNotFound { .. }
+        ));
     }
 }
