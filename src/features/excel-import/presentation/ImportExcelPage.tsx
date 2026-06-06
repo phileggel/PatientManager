@@ -6,6 +6,7 @@ import { logger } from "@/infra/logger";
 import { FormModal } from "@/ui/components";
 import { Button } from "@/ui/components/button";
 import { executeExcelImport, parseExcelFile } from "../api/gateway";
+import { deriveProcedureMappings } from "../shared/mappings";
 import { formatExcelImportError } from "../shared/presenter";
 import { ParsingReportModal } from "./components/ParsingReportModal";
 import { ProcedureTypeMappingStep } from "./components/ProcedureTypeMappingStep";
@@ -232,11 +233,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
         >
           {parsed && (
             <ProcedureTypeMappingStep
-              procedureMappings={Array.from(
-                new Map(
-                  parsed.procedures.map((p) => [p.procedure_type_tmp_id, p.amount]),
-                ).entries(),
-              ).map(([tmpId, amount]) => ({ tmp_id: tmpId, amount }))}
+              procedureMappings={deriveProcedureMappings(parsed.procedures, selectedSheets)}
               procedureTypes={procedureTypes}
               onMappingComplete={handleMappingComplete}
               isLoading={isLoading}
