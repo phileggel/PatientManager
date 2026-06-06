@@ -12,12 +12,8 @@ import { logger } from "@/infra/logger";
 import { Button } from "@/ui/components/button";
 import { useFormatters } from "@/ui/format/formatters";
 import { getExcelAmountMappings, saveExcelAmountMappings } from "../../api/gateway";
+import type { ProcedureMapping } from "../../shared/mappings";
 import { CreateProcedureTypeModal } from "./CreateProcedureTypeModal";
-
-interface ProcedureMapping {
-  tmp_id: string;
-  amount: number;
-}
 
 interface ProcedureTypeMappingStepProps {
   procedureMappings: ProcedureMapping[];
