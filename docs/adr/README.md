@@ -9,3 +9,4 @@
 | [ADR-005](005-combobox-feasibility-investigation.md)  | ComboboxField replacement feasibility investigation                                | Accepted — Option 1 (status quo + Tauri invoke seed) |
 | [ADR-006](006-frontend-resolves-pdf-translations.md)  | Frontend pre-resolves all translations and formatting for the backend PDF renderer | Accepted                                             |
 | [ADR-007](007-e2e-native-dialog-override.md)          | E2E native-dialog override pattern (`window.__e2e` + `e2eOverride()`)              | Accepted                                             |
+| [ADR-008](008-native-dialog-modal-system.md)          | Native `<dialog>` top layer for the modal system                                   | Accepted                                             |
