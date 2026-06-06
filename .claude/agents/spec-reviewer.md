@@ -106,6 +106,7 @@ Read for comparison (skip silently if a file or directory is absent):
 #### F — Open questions
 
 - 🟡 A rule contains ambiguous language but there is no corresponding Open Question
+- 🟡 **Coverage-scan gap** — beyond the per-rule check above, sweep by dimension: apply the two-interpretation test ("could two competent developers read this and build two different things?") across these business-behavior dimensions: entity fields, state transitions, validation thresholds, deletion semantics, inter-entity dependencies, edge cases, permissions. If a dimension the spec clearly touches is left readable two ways — with neither a resolving rule nor an Open Question — flag the specific dimension so the user re-runs spec-writer
 - 🔵 Open Questions section is missing entirely (acceptable only if spec has zero ambiguity)
 
 #### G — Contractability

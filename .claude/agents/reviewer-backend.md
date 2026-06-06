@@ -120,6 +120,8 @@ Use the format in `## Output format` below. Lead with the headline summary.
 
 ### Trait-based repositories
 
+> If the project persists data, these rules apply. With no database there may be no repository layer — don't flag its absence as a defect; the trait rules below still apply to any repository abstraction that does exist (in-memory, file-backed).
+
 - Repositories must be defined as traits in `repository.rs` and implemented separately (🔴)
 - The service layer must depend on the trait, not the concrete type — use `dyn Repository` or `<R: Repository>` (🔴)
 - Concrete repository types injected directly into services (🔴, candidate for `[DECISION]` if the trait abstraction would force a cross-cutting refactor)

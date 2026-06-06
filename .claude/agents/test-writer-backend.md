@@ -139,7 +139,7 @@ Integration tests live in `src-tauri/tests/` and call the service layer via the 
 
 Cover these three patterns:
 
-- **Happy-path end-to-end** — one per command, exercises Service → Repository → real in-memory SQLite via the public API.
+- **Happy-path end-to-end** — one per command, exercises the full call chain via the public API. If the project persists data, that chain is Service → Repository → real in-memory SQLite; with no database, it is Service → in-memory state and the SQLite setup is omitted.
 - **Error propagation** — one per command, picks the most representative error variant and verifies it surfaces correctly through the full stack.
 - **Event publishing** — where the contract mandates an event, subscribe before the call and assert the event arrives. One test per event type.
 

@@ -168,7 +168,9 @@ Synced to downstream `scripts/` on every sync.
 | `merge`          | `just merge`          | Fast-forward current branch into main, then delete the branch                                        |
 | `clean-branches` | `just clean-branches` | **Destructive** — removes stale remote-tracking branches                                             |
 | `stat`           | `just stat`           | Line count stats via `cloc`                                                                          |
-| `migrate`        | `just migrate`        | Run pending SQLx database migrations                                                                 |
+| `migrate`        | `just migrate`        | Run pending SQLx database migrations †                                                               |
 | `generate-types` | `just generate-types` | Regenerate Specta TypeScript bindings after adding or changing Tauri commands (project-configurable) |
-| `prepare-sqlx`   | `just prepare-sqlx`   | Regenerate SQLx offline query cache after schema or query changes                                    |
-| `clean-db`       | `just clean-db`       | **Destructive** — deletes local database and recreates schema                                        |
+| `prepare-sqlx`   | `just prepare-sqlx`   | Regenerate SQLx offline query cache after schema or query changes †                                  |
+| `clean-db`       | `just clean-db`       | **Destructive** — deletes local database and recreates schema †                                      |
+
+> † DB-only recipes — omitted from the sync when `.claude/kit.config.json` sets `"database": false`.
