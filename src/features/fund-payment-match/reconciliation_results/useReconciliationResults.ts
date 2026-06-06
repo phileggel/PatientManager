@@ -54,7 +54,7 @@ export function useReconciliationResults(
         return (
           acceptedKeys.has(buildNotFoundKey(match.data.pdf_line)) ||
           match.data.nearby_candidates.some((c) =>
-            acceptedKeys.has(buildLinkProcedureKey(c.procedure_id)),
+            acceptedKeys.has(buildLinkProcedureKey(match.data.pdf_line.line_index, c.procedure_id)),
           )
         );
       }

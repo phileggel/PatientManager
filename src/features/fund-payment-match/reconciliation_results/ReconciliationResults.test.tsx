@@ -186,7 +186,8 @@ describe("ReconciliationResults interactions", () => {
 
     await user.click(screen.getByText(/Link this procedure/));
 
-    expect(onAcceptCorrection).toHaveBeenCalledWith("LinkProcedure-proc-nearby", {
+    // Key is line-scoped (#61): LinkProcedure-{line_index}-{procedure_id}.
+    expect(onAcceptCorrection).toHaveBeenCalledWith("LinkProcedure-1-proc-nearby", {
       LinkProcedure: {
         procedure_id: "proc-nearby",
         pdf_ssn: "9876543210987",
@@ -196,8 +197,9 @@ describe("ReconciliationResults interactions", () => {
     });
   });
 
-  it("linked candidate is filtered out when already accepted in another issue", () => {
-    const acceptedKeys = new Set(["LinkProcedure-proc-nearby"]);
+  it("linked candidate is filtered out when accepted for THIS line (#61)", () => {
+    // mockPdfLine.line_index === 1 → the line-scoped accepted key.
+    const acceptedKeys = new Set(["LinkProcedure-1-proc-nearby"]);
 
     const result: ReconciliationResult = {
       matches: [
@@ -228,8 +230,46 @@ describe("ReconciliationResults interactions", () => {
       />,
     );
 
-    // Candidate should not appear since it's already linked
+    // Candidate is gone: it was linked for THIS line.
     expect(screen.queryByText(/Link this procedure/)).toBeNull();
+  });
+
+  it("candidate stays available when the SAME procedure was linked for ANOTHER line (#61)", () => {
+    // The same procedure linked under a DIFFERENT line (index 0) must NOT
+    // suppress this line's (index 1) proposal — the core #61 regression.
+    const acceptedKeys = new Set(["LinkProcedure-0-proc-nearby"]);
+
+    const result: ReconciliationResult = {
+      matches: [
+        {
+          type: "NotFoundIssue",
+          data: {
+            pdf_line: mockPdfLine, // line_index 1
+            nearby_candidates: [
+              {
+                procedure_id: "proc-nearby",
+                patient_name: "AUTRE PATIENT",
+                ssn: "9876543210000",
+                procedure_date: "2025-02-06",
+                amount: 50000,
+              },
+            ],
+          },
+        } as ReconciliationMatch,
+      ],
+    };
+
+    render(
+      <ReconciliationResultsView
+        result={result}
+        acceptedKeys={acceptedKeys}
+        autoCorrections={new Map()}
+        onAcceptCorrection={vi.fn()}
+      />,
+    );
+
+    // Still offered: the link under line 0 does not resolve line 1.
+    expect(screen.queryByText(/Link this procedure/)).not.toBeNull();
   });
 });
 

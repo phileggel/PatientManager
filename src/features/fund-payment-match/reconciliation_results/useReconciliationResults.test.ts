@@ -282,3 +282,96 @@ describe("useReconciliationResults — onReportResolvedCount", () => {
     expect(onReport).toHaveBeenLastCalledWith(1);
   });
 });
+
+// Issue #61: a fund-payment group with two unmatched lines (23,00 + 3,50,
+// same date/SSN/name) where the matching DB procedures exist but are
+// unreconciled (imported from Excel with no SSN). Both lines surface as
+// NotFoundIssue, and — because the candidates are looked up by date only —
+// BOTH lines carry the SAME nearby_candidates list.
+//
+// BUG: isResolved() marks a NotFoundIssue resolved when ANY of its
+// nearby_candidates has been link-accepted (`.some(... buildLinkProcedureKey)`).
+// Linking a candidate to the 23,00 line therefore also marks the 3,50 line
+// resolved, so its proposal disappears — the reported symptom.
+describe("useReconciliationResults — two NotFound lines sharing candidates (#61)", () => {
+  // Two DB candidates (the unreconciled 23,00 and 3,50 procedures), shared by
+  // both NotFound lines because nearby lookup is keyed on date alone.
+  const sharedCandidates = [
+    {
+      procedure_id: "proc-2300",
+      patient_name: "Test",
+      ssn: "",
+      procedure_date: "2026-04-29",
+      amount: 23000,
+    },
+    {
+      procedure_id: "proc-350",
+      patient_name: "Test",
+      ssn: "",
+      procedure_date: "2026-04-29",
+      amount: 3500,
+    },
+  ];
+
+  const twoLinesSharedCandidates: ReconciliationResult = {
+    matches: [
+      {
+        type: "NotFoundIssue",
+        data: {
+          pdf_line: { ...makePdfLine(0), amount: 23000 },
+          nearby_candidates: sharedCandidates,
+        },
+      } as ReconciliationMatch,
+      {
+        type: "NotFoundIssue",
+        data: {
+          pdf_line: { ...makePdfLine(1), amount: 3500 },
+          nearby_candidates: sharedCandidates,
+        },
+      } as ReconciliationMatch,
+    ],
+  };
+
+  it("both lines start unresolved", () => {
+    const { result } = renderHook(() =>
+      useReconciliationResults(twoLinesSharedCandidates, emptyKeys, emptyCorrections),
+    );
+    expect(result.current.sortedIssues).toHaveLength(2);
+    expect(result.current.resolvedCount).toBe(0);
+  });
+
+  // This is the bug: linking ONE candidate must resolve exactly ONE line.
+  it("linking one candidate must leave the second line unresolved", () => {
+    const onReport = vi.fn();
+    const { rerender } = renderHook(
+      ({ keys }: { keys: Set<string> }) =>
+        useReconciliationResults(twoLinesSharedCandidates, keys, emptyCorrections, onReport),
+      { initialProps: { keys: emptyKeys } },
+    );
+
+    expect(onReport).toHaveBeenLastCalledWith(0);
+
+    // Link the 23,00 candidate to the FIRST line (line_index 0). The key is
+    // line-scoped, so it resolves only that line.
+    rerender({ keys: new Set(["LinkProcedure-0-proc-2300"]) });
+
+    // Exactly one line resolved (3,50 still needs its own link).
+    expect(onReport).toHaveBeenLastCalledWith(1);
+  });
+
+  it("resolves both lines only when each is linked to its own candidate", () => {
+    const onReport = vi.fn();
+    const { rerender } = renderHook(
+      ({ keys }: { keys: Set<string> }) =>
+        useReconciliationResults(twoLinesSharedCandidates, keys, emptyCorrections, onReport),
+      { initialProps: { keys: emptyKeys } },
+    );
+
+    // Line 0 → 23,00 candidate, line 1 → 3,50 candidate.
+    rerender({
+      keys: new Set(["LinkProcedure-0-proc-2300", "LinkProcedure-1-proc-350"]),
+    });
+
+    expect(onReport).toHaveBeenLastCalledWith(2);
+  });
+});

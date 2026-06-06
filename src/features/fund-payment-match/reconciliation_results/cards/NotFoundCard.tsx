@@ -40,7 +40,7 @@ export function NotFoundCard({
   const createKey = buildNotFoundKey(line);
   const isCreateAccepted = acceptedKeys.has(createKey);
   const linkedCandidate = nearbyCandidates.find((c) =>
-    acceptedKeys.has(buildLinkProcedureKey(c.procedure_id)),
+    acceptedKeys.has(buildLinkProcedureKey(line.line_index, c.procedure_id)),
   );
   const isResolved = isCreateAccepted || linkedCandidate !== undefined;
 
@@ -78,7 +78,7 @@ export function NotFoundCard({
                 <div className="flex-1 border-t border-m3-outline/20" />
               </div>
               {nearbyCandidates.map((candidate) => {
-                const linkKey = buildLinkProcedureKey(candidate.procedure_id);
+                const linkKey = buildLinkProcedureKey(line.line_index, candidate.procedure_id);
                 return (
                   <div
                     key={candidate.procedure_id}

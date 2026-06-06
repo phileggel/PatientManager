@@ -124,7 +124,9 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
       if (match.type === "NotFoundIssue") {
         const key = buildNotFoundKey(match.data.pdf_line);
         const isAlreadyLinked = match.data.nearby_candidates.some((c) =>
-          newAcceptedKeys.has(buildLinkProcedureKey(c.procedure_id)),
+          newAcceptedKeys.has(
+            buildLinkProcedureKey(match.data.pdf_line.line_index, c.procedure_id),
+          ),
         );
         if (!newAcceptedKeys.has(key) && !isAlreadyLinked) {
           newAcceptedKeys.add(key);

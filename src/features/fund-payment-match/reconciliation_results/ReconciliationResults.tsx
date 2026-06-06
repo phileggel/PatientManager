@@ -177,7 +177,10 @@ export function ReconciliationResultsView({
             <NotFoundCard
               line={currentIssue.data.pdf_line}
               nearbyCandidates={currentIssue.data.nearby_candidates.filter(
-                (c) => !acceptedKeys.has(buildLinkProcedureKey(c.procedure_id)),
+                (c) =>
+                  !acceptedKeys.has(
+                    buildLinkProcedureKey(currentIssue.data.pdf_line.line_index, c.procedure_id),
+                  ),
               )}
               acceptedKeys={acceptedKeys}
               onAcceptCorrection={onAcceptCorrection}
