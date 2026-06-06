@@ -159,3 +159,78 @@ describe("useReconciliationModal — handleValidate null dateRange calls onClose
     expect(gateway.getUnreconciledProceduresInRange).not.toHaveBeenCalled();
   });
 });
+
+// #61: two NotFoundIssue lines on the same date share one nearby_candidates
+// list. handleAutoCorrectAll must give the second line its own CreateProcedure
+// correction even when the first line already has a (line-scoped) link.
+describe("useReconciliationModal — handleAutoCorrectAll with two shared-candidate NotFound lines (#61)", () => {
+  const onClose = vi.fn();
+
+  const sharedCandidates = [
+    {
+      procedure_id: "proc-a",
+      patient_name: "DUPONT",
+      ssn: "",
+      procedure_date: "2026-02-28",
+      amount: 23000,
+    },
+  ];
+
+  const makeNotFound = (lineIndex: number, amount: number) => ({
+    type: "NotFoundIssue",
+    data: {
+      pdf_line: {
+        line_index: lineIndex,
+        payment_date: "2026-03-10",
+        invoice_number: `${lineIndex}`,
+        fund_name: "CPAM",
+        patient_name: "DUPONT",
+        ssn: "123",
+        nature: "SF",
+        procedure_start_date: "2026-02-28",
+        procedure_end_date: "2026-02-28",
+        is_period: false,
+        amount,
+      },
+      nearby_candidates: sharedCandidates,
+    },
+  });
+
+  const RECONCILE_TWO_NOT_FOUND = {
+    candidates: [],
+    reconciliation: { matches: [makeNotFound(0, 23000), makeNotFound(1, 3500)] },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExtract.mockResolvedValue("PDF text");
+    // biome-ignore lint/suspicious/noExplicitAny: test fixture
+    mockParse.mockResolvedValue(PDF_WITH_LINE as any);
+    // biome-ignore lint/suspicious/noExplicitAny: discriminated-union widening
+    mockReconcile.mockResolvedValue(RECONCILE_TWO_NOT_FOUND as any);
+  });
+
+  it("gives the second line its own CreateProcedure even when the first is already linked", async () => {
+    const { result } = renderHook(() => useReconciliationModal("/test.pdf", onClose));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // Pre-link the shared candidate to line 0 only (line-scoped key).
+    act(() =>
+      result.current.handleAcceptCorrection("LinkProcedure-0-proc-a", {
+        LinkProcedure: {
+          procedure_id: "proc-a",
+          pdf_ssn: "123",
+          pdf_fund_label: "CPAM",
+          payment_date: "2026-03-10",
+        },
+      }),
+    );
+
+    act(() => result.current.handleAutoCorrectAll());
+
+    // Line 1 still needs resolution → it gets its own CreateProcedure.
+    expect(result.current.acceptedKeys.has("CreateProcedure-1")).toBe(true);
+    // Line 0 was already linked → no CreateProcedure created for it.
+    expect(result.current.acceptedKeys.has("CreateProcedure-0")).toBe(false);
+  });
+});

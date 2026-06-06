@@ -490,6 +490,64 @@ mod tests {
         assert!(!result.candidates[0].is_fully_covered);
     }
 
+    /// Issue #61 reproduction: a single fund-payment group with TWO lines
+    /// (23.50 + 3.50), same date / SSN / name, neither matching any DB
+    /// procedure. Expected: TWO `NotFoundIssue` matches — one per line — so the
+    /// correction UI proposes two `CreateProcedure` autocorrections. The bug
+    /// report says only one line (23.50) was ever proposed.
+    #[tokio::test]
+    async fn reconcile_two_unmatched_lines_same_group_produces_two_not_found() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_procedures_by_ssns_and_date_range_with_ssn()
+            .returning(|_, _, _| Ok(vec![]));
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .returning(|_, _| Ok(vec![]));
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo.expect_read_all_funds().returning(|| Ok(vec![]));
+
+        // One group, two lines, same SSN/name/date, amounts 23.50 and 3.50.
+        let date = chrono::NaiveDate::parse_from_str("2026-04-29", "%Y-%m-%d").unwrap();
+        let mut line_a = make_pdf_line("123456789012", 23500, "2026-04-29");
+        line_a.line_index = 0;
+        let mut line_b = make_pdf_line("123456789012", 3500, "2026-04-29");
+        line_b.line_index = 1;
+        let group = PdfProcedureGroup {
+            fund_label: "CPAM 75".into(),
+            fund_full_name: "CPAM Paris".into(),
+            payment_date: date + chrono::Duration::days(5),
+            total_amount: 27000,
+            is_total_valid: true,
+            lines: vec![line_a, line_b],
+        };
+
+        let service = make_service(proc_repo, fund_repo);
+        let result = service
+            .reconcile(PdfParseResult {
+                groups: vec![group],
+                unparsed_line_count: 0,
+                unparsed_lines: vec![],
+            })
+            .await
+            .unwrap();
+
+        let not_found: Vec<_> = result
+            .reconciliation
+            .matches
+            .iter()
+            .filter(|m| matches!(m, ReconciliationMatch::NotFoundIssue { .. }))
+            .collect();
+
+        // Expectation per issue #61: two unmatched lines → two proposals.
+        assert_eq!(
+            not_found.len(),
+            2,
+            "expected two NotFoundIssue (one per line: 23.50 and 3.50), got {}",
+            not_found.len()
+        );
+    }
+
     #[tokio::test]
     async fn reconcile_perfect_single_match_detected() {
         use crate::context::procedure::ProcedureStatus;

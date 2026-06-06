@@ -24,8 +24,8 @@ export function buildNotFoundKey(line: NormalizedPdfLine): string {
   return `CreateProcedure-${line.line_index}`;
 }
 
-export function buildLinkProcedureKey(procedureId: string): string {
-  return `LinkProcedure-${procedureId}`;
+export function buildLinkProcedureKey(lineIndex: number, procedureId: string): string {
+  return `LinkProcedure-${lineIndex}-${procedureId}`;
 }
 
 export function buildContestKey(procedureId: string): string {

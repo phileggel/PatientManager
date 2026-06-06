@@ -266,8 +266,11 @@ describe("key builders", () => {
     expect(buildNotFoundKey(line)).toBe("CreateProcedure-3");
   });
 
-  it("buildLinkProcedureKey uses procedureId", () => {
-    expect(buildLinkProcedureKey("p-42")).toBe("LinkProcedure-p-42");
+  it("buildLinkProcedureKey scopes the key by line index and procedureId (#61)", () => {
+    expect(buildLinkProcedureKey(0, "p-42")).toBe("LinkProcedure-0-p-42");
+    // Same procedure under a different line yields a distinct key, so linking
+    // it for one line never marks a sibling line resolved.
+    expect(buildLinkProcedureKey(1, "p-42")).toBe("LinkProcedure-1-p-42");
   });
 
   it("buildContestKey uses procedureId", () => {
