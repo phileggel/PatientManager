@@ -844,4 +844,15 @@ mod tests {
             ExcelImportError::FileNotFound { .. }
         ));
     }
+
+    #[tokio::test]
+    async fn parse_excel_returns_invalid_format_for_non_xlsx_file() {
+        // Cargo.toml exists but is not an xlsx workbook: File::open succeeds,
+        // Xlsx::new fails → InvalidFormat.
+        let result = ExcelParserService::parse_excel("Cargo.toml").await;
+        assert!(matches!(
+            result.unwrap_err(),
+            ExcelImportError::InvalidFormat
+        ));
+    }
 }

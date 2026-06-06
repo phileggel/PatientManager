@@ -1787,4 +1787,210 @@ mod tests {
         assert!(result.blocked_months.is_empty());
         assert!(result.skipped_procedures.is_empty());
     }
+
+    // --- Error paths: infrastructure failures collapse to ImportFailed ---
+
+    #[tokio::test]
+    async fn execute_import_patient_ssn_lookup_db_error_returns_import_failed() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo
+            .expect_find_patient_by_ssn()
+            .returning(|_| Err(anyhow::anyhow!("db down")));
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Marie Dupont".to_string(),
+            ssn: "1234567890123".to_string(),
+            latest_fund: None,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            ..Default::default()
+        });
+        let err = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap_err();
+        assert_eq!(err, ExcelImportError::ImportFailed);
+    }
+
+    #[tokio::test]
+    async fn execute_import_patient_name_lookup_db_error_returns_import_failed() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().times(0); // row has no SSN
+        patient_repo
+            .expect_find_patient_by_name()
+            .returning(|_| Err(anyhow::anyhow!("db down")));
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Marie Dupont".to_string(),
+            ssn: String::new(),
+            latest_fund: None,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            ..Default::default()
+        });
+        let err = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap_err();
+        assert_eq!(err, ExcelImportError::ImportFailed);
+    }
+
+    #[tokio::test]
+    async fn execute_import_fund_lookup_db_error_returns_import_failed() {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Err(anyhow::anyhow!("db down")));
+
+        let mut parse_result = empty_parse_result();
+        parse_result.funds = vec![ExcelFund {
+            temp_id: "fund-tmp-1".to_string(),
+            fund_identifier: "CPAM".to_string(),
+            fund_name: "CPAM France".to_string(),
+            fund_address: None,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            fund_repo,
+            ..Default::default()
+        });
+        let err = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap_err();
+        assert_eq!(err, ExcelImportError::ImportFailed);
+    }
+
+    #[tokio::test]
+    async fn execute_import_patient_create_batch_db_error_returns_import_failed() {
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo
+            .expect_find_patient_by_ssn()
+            .returning(|_| Ok(None));
+        patient_repo
+            .expect_create_batch()
+            .returning(|_| Err(anyhow::anyhow!("db down")));
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Marie Dupont".to_string(),
+            ssn: "1234567890123".to_string(),
+            latest_fund: None,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            ..Default::default()
+        });
+        let err = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap_err();
+        assert_eq!(err, ExcelImportError::ImportFailed);
+    }
+
+    #[tokio::test]
+    async fn execute_import_fund_create_batch_db_error_returns_import_failed() {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        fund_repo
+            .expect_create_batch()
+            .returning(|_| Err(anyhow::anyhow!("db down")));
+
+        let mut parse_result = empty_parse_result();
+        parse_result.funds = vec![ExcelFund {
+            temp_id: "fund-tmp-1".to_string(),
+            fund_identifier: "CPAM".to_string(),
+            fund_name: "CPAM France".to_string(),
+            fund_address: None,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            fund_repo,
+            ..Default::default()
+        });
+        let err = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap_err();
+        assert_eq!(err, ExcelImportError::ImportFailed);
+    }
+
+    /// A well-formed procedure row anchors `workbook_year`, so the sheet-level
+    /// block check runs. The repo erroring there collapses to ImportFailed.
+    fn parse_result_with_january_anchor() -> ParseExcelResponse {
+        let mut parse_result = empty_parse_result();
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-anchor".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-anchor".to_string(),
+            amount: 0,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+        parse_result
+    }
+
+    #[tokio::test]
+    async fn execute_import_has_blocking_db_error_returns_import_failed() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Err(anyhow::anyhow!("db down")));
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            proc_repo,
+            ..Default::default()
+        });
+        let err = orchestrator
+            .execute_import(
+                parse_result_with_january_anchor(),
+                HashMap::new(),
+                vec!["Jan".to_string()],
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(err, ExcelImportError::ImportFailed);
+    }
+
+    #[tokio::test]
+    async fn execute_import_delete_procedures_db_error_returns_import_failed() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        proc_repo
+            .expect_delete_procedures_by_month()
+            .returning(|_| Err(anyhow::anyhow!("db down")));
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            proc_repo,
+            ..Default::default()
+        });
+        let err = orchestrator
+            .execute_import(
+                parse_result_with_january_anchor(),
+                HashMap::new(),
+                vec!["Jan".to_string()],
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(err, ExcelImportError::ImportFailed);
+    }
 }
