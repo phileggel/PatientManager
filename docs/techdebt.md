@@ -156,3 +156,13 @@ not as a sweep.
 - Severity: 🔵
 - Observation: The three codec round-trip integration tests are gated behind `#![cfg(feature = "dev-fixtures")]`; `just coverage-be` does not pass `--features dev-fixtures`, so tarpaulin compiles them out and they contribute zero coverage even after the `--lib --tests` fix — recovering them additionally requires the dev-fixtures binary fixtures present in the CI environment.
 - 2026-06-06 follow-up (PR #59): this is what holds `parser.rs` at ~33% line coverage. The sheet-parsing business logic (13-digit SSN validation, SSN/name patient dedup, EXI-030 invalid-SSN-into-name traceability) is workbook-coupled — it lives inside `workbook.worksheet_range(...)` loops with no pure helper — so it can only be exercised by feeding a built `Xlsx`, and the only xlsx writer (`rust_xlsxwriter`) is itself `dev-fixtures`-gated. The logic IS tested via the round-trip tests; tarpaulin just can't see them. Adding `--features dev-fixtures` to the coverage recipe (and confirming the fixture generation runs under tarpaulin in CI) would surface this honestly. Until then, parser.rs's low number is a measurement artifact, not an untested-logic gap.
+
+---
+
+## 2026-06-06 — Three competing modal primitives with hardcoded z-index
+
+- Found by: manual (issue #60 investigation)
+- Where: `src/ui/components/modal/Dialog.tsx` (z-100), `src/ui/components/modal/ModalContainer.tsx` (z-50), `src/features/fund-payment/select_procedure_modal/SelectProcedureModal.tsx` (hand-rolled overlay, z-50)
+- Context: branch `fix/60-add-procedure-modal-layering` @ `fe3a400`
+- Severity: 🟡
+- Observation: The app has three independent modal primitives, each rendering inline in the React tree with its own hardcoded z-index and no shared stacking coordination. A modal opened from inside another (or, in future, route-driven modals) must manually out-number whatever it stacks over, and two modals at the same tier collide by DOM order — hardcoded z-index does not compose. Issue #60 was one instance (child z-50 behind parent z-100), fixed surgically with a z-200 bump. ADR-008 ratifies the resolution: migrate all three primitives onto native `<dialog>` `showModal()` (browser top layer, no z-index). This entry tracks that migration — fold the three primitives into one native-dialog primitive incrementally as features are touched, deleting each interim hardcoded z-index (incl. the #60 z-200) on the way.

@@ -63,13 +63,16 @@ export function ProcedureSelectionModal({
 
   if (!isOpen) return null;
 
+  // z-200: this modal opens from inside the EditFundPaymentModal Dialog (z-100),
+  // so it must clear z-100 to render above its parent (#60). The DateField
+  // popover uses the same z-200 "above-dialog" tier.
   return (
     <div
       id="select-procedure-modal"
       role="dialog"
       aria-modal="true"
       aria-labelledby="select-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-m3-on-surface/40"
+      className="fixed inset-0 z-200 flex items-center justify-center bg-m3-on-surface/40"
     >
       <div className="bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
