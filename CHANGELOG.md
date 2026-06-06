@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2026-06-06
+
+### Added
+- wire typed OverpaymentError through F27 FE pipeline
+Surface typed OverpaymentError through gateway, presenter, hooks, i18n, and
+ProcedureFormModal so the UI matches on error codes instead of strings.
+Add gateway/presenter/hook + orchestrator branch tests, and exclude the
+logicless gateway.ts (vitest) and api.rs (tarpaulin) pass-through layers.
+Also reconcile the contract error names and log PR 4a in the migration todo.
+- sheet-based selection + execute-time skip report
+- BE: orchestrator filters by sheet_month; EXI-280/281 date+month gates emit SkippedRow entries
+- FE: SheetSelectionStep replaces MonthSelectionStep; ParsingReportModal surfaces execute-time skips
+- spec EXI-270/280/281/290 + IFC-026 (source_row transport metadata); amended EXI-110/160/170/180/220
+- closes techdebt 2026-05-24 silent month-prefix fallback
+- tighten billed_amount + add PRO-025 propagation
+A migration backfills legacy NULL rows from the procedure type's
+`default_amount` and adds the NOT NULL constraint, closing the
+null-paid_amount defect in reconciliation and removing the FE
+`effectiveAmount` fallback chain that compensated for it.
+- add fund_reconciliation_date to split Stage 1/2 dates
+confirmed_payment_date previously carried Stage 1 (fund-document date,
+set at reconciliation) AND Stage 2 (bank-transfer date) — the two
+collided and dashboard "Payments" double-counted. The new field
+separates Stage 1 cleanly; migration backfills losslessly. Dashboard
+metric now narrows to Stage 2 only — the semantically correct view.
+- show care-period range in groups list
+payment_date is the fund-document date and doesn't tell the user which
+care window the payment actually covers. The list cell now derives
+min/max procedure_date from each group's lines (FPM-360 new), collapsing
+to a single date when start === end and to "—" when no procedure
+resolves. Search filter extended to match the displayed range (FPM-540).
+
+### Fixed
+- scope link key per PDF line
+Two unmatched fund-group lines on the same date share one nearby_candidates
+list. The link-resolution key was procedure_id only, so linking a candidate
+to one line marked every sibling line resolved — the second proposal
+vanished and auto-correct-all skipped it. Key is now scoped by line_index.
+Closes #61
+- raise select-procedure modal above parent
+SelectProcedureModal opened from inside the EditFundPaymentModal Dialog
+(z-100) but rendered at z-50, so it sat behind its parent and the parent's
+rows intercepted clicks. Bump to z-200 (the DateField above-dialog tier).
+ADR-008 ratifies migrating modals to native <dialog> as the structural fix.
+Closes #60
+- map types only for selected sheets
+The mapping step derived its amount list from all parsed sheets, prompting
+type mappings (and orphan type creation) for months the user never selected.
+The backend already filters by sheet (EXI-270); this aligns the UI.
+No visual impact — row count only.
+- count integration tests in BE coverage + fix inert exclude
+tarpaulin ran `--lib` only, so the 8 integration tests under src-tauri/tests/
+scored zero coverage (BE understated ~70.6% vs real ~76%); add `--tests`.
+Also fix the overpayment api.rs exclude path that never matched
+(`use_cases/...` → `src/use_cases/...`). Route CI through `just coverage-be`
+(single source of truth) + add `just` to install-action, killing the drift.
+- unicode case-fold patient name lookup
+SQLite's LOWER() only folds ASCII, so a DB row "élodie dupont" and an
+Excel row "Élodie Dupont" missed each other and produced a duplicate
+patient on re-import. The parser already uses Rust's Unicode-aware
+to_lowercase() (excel_import/parser.rs); moving the DB-side compare
+into Rust restores EXI-080 dedup symmetry on accented names.
+- update codec round-trip imports for pdf_extractor move
+Sweep merge 2ab199b removed parsing::extract_pdf_text re-export; these integration tests still consumed it. Caught only by GH Dev Fixtures CI (pre-push doesn't enable --features dev-fixtures).
+- locale-aware currency display across the app (#33)
+
 ## [0.17.1] - 2026-05-13
 
 ### Added

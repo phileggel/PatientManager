@@ -33,7 +33,7 @@
     ]
   },
   "productName": "PatientManager",
-  "version": "0.17.1",
+  "version": "0.18.0",
   "identifier": "com.projectsf.patient-manager",
   "plugins": {
     "updater": {
