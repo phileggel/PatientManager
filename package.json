@@ -20,7 +20,7 @@
     "format": "biome check ./src",
     "format:fix": "biome check --write ./src",
     "format:unsafe": "biome check --write --unsafe ./src",
-    "format:docs": "prettier --write \"docs/**/*.md\"",
+    "format:docs": "prettier --write \"**/*.md\"",
     "stats": "cloc . --vcs=git --exclude-dir=node_modules,target --exclude-ext=json,lock,yaml"
   },
   "dependencies": {
