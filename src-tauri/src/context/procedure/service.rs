@@ -1020,4 +1020,36 @@ mod tests {
             Err(ProcedureError::DatabaseError)
         ));
     }
+
+    #[tokio::test]
+    async fn create_procedures_batch_repo_error_maps_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_create_batch()
+            .returning(|_| Err(anyhow!("db down")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service
+            .create_procedures_batch_from_candidates(vec![], true)
+            .await;
+
+        assert!(
+            matches!(result, Err(ProcedureError::DatabaseError)),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn update_procedures_batch_repo_error_maps_to_database_error() {
+        let mut mock = MockProcedureRepository::new();
+        mock.expect_update_batch()
+            .returning(|_| Err(anyhow!("db down")));
+        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.update_procedures_batch(vec![], true).await;
+
+        assert!(
+            matches!(result, Err(ProcedureError::DatabaseError)),
+            "got {result:?}"
+        );
+    }
 }

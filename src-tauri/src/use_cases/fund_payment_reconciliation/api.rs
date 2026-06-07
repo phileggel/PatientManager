@@ -583,4 +583,22 @@ mod tests {
             "invalid start_date must return InvalidDateRange, got: {result:?}",
         );
     }
+
+    /// Boundary path-validation: a path that is non-existent / outside the
+    /// allowed root (or an unresolvable home) is rejected with the typed
+    /// `PdfPathRejected` — the new `extract_pdf_text` command error branch.
+    #[tokio::test]
+    async fn extract_pdf_text_rejects_invalid_path() {
+        let result = extract_pdf_text("/no/such/file/at/all.pdf".to_string()).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(FundPaymentReconciliationError::Task(
+                    FundPaymentReconciliationTask::PdfPathRejected
+                ))
+            ),
+            "invalid path must return PdfPathRejected, got: {result:?}",
+        );
+    }
 }

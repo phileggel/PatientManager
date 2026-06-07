@@ -980,4 +980,51 @@ mod tests {
 
         assert!(matches!(result, Err(FundError::DatabaseError)));
     }
+
+    #[tokio::test]
+    async fn create_group_repo_error_maps_to_database_error() {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_create_group()
+            .returning(|_, _, _, _| Err(anyhow!("db down")));
+        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service
+            .create_group("fund-1".into(), "2026-01-15".into(), 10000, vec![], true)
+            .await;
+
+        assert!(
+            matches!(result, Err(FundError::DatabaseError)),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn exists_group_repo_error_maps_to_database_error() {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_exists_group()
+            .returning(|_, _, _| Err(anyhow!("db down")));
+        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.exists_group("fund-1", "2026-01-15", 10000).await;
+
+        assert!(
+            matches!(result, Err(FundError::DatabaseError)),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn create_groups_batch_repo_error_maps_to_database_error() {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_create_batch_groups()
+            .returning(|_| Err(anyhow!("db down")));
+        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.create_groups_batch(vec![], true).await;
+
+        assert!(
+            matches!(result, Err(FundError::DatabaseError)),
+            "got {result:?}"
+        );
+    }
 }
