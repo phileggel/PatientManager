@@ -25,7 +25,8 @@ export async function extractPdfText(filePath: string): Promise<string> {
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to extract PDF text", result.error);
-    throw new Error(result.error);
+    // Phase 2 tsc bridge — typed error; full F27 presenter pipeline lands in the FE PR.
+    throw new Error(result.error.code);
   }
 
   logger.info(TAG, `Successfully extracted ${result.data.length} characters`);
@@ -44,13 +45,8 @@ export async function parsePdfText(text: string): Promise<PdfParseResult> {
 
   const result = await commands.parsePdfText(text);
 
-  if (result.status === "error") {
-    logger.error(TAG, "Failed to parse PDF text", result.error);
-    throw new Error(result.error);
-  }
-
-  logger.info(TAG, `Parsed ${result.data.groups.length} groups`);
-  return result.data;
+  logger.info(TAG, `Parsed ${result.groups.length} groups`);
+  return result;
 }
 
 /**
@@ -72,7 +68,8 @@ export async function reconcileAndCreateCandidates(
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to reconcile and create candidates", result.error);
-    throw new Error(result.error);
+    // Phase 2 tsc bridge — typed error; full F27 presenter pipeline lands in the FE PR.
+    throw new Error(result.error.code);
   }
 
   const issueCount = result.data.reconciliation.matches.filter((m) =>
@@ -109,7 +106,8 @@ export async function createFundPaymentWithAutoCorrections(
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to create fund payment groups with auto-corrections", result.error);
-    throw new Error(result.error);
+    // Phase 2 tsc bridge — typed error; full F27 presenter pipeline lands in the FE PR.
+    throw new Error(result.error.code);
   }
 
   logger.info(
@@ -137,7 +135,8 @@ export async function getUnreconciledProceduresInRange(
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to fetch unreconciled procedures", result.error);
-    throw new Error(result.error);
+    // Phase 2 tsc bridge — typed error; full F27 presenter pipeline lands in the FE PR.
+    throw new Error(result.error.code);
   }
 
   logger.info(TAG, `Found ${result.data.length} unreconciled procedures in range`);

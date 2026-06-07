@@ -12,8 +12,19 @@ use super::api::{
 };
 use super::core::InternalAmount;
 use super::data::{FundCache, ProcedurePoolBuilder};
+use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use super::output::PdfCandidateMapper;
 use super::reconciliation::ReconciliationPass;
+
+/// Translate an infra/repository failure held directly by the reconciliation
+/// service into the use-case catch-all. The underlying error is logged here;
+/// the wire surface carries only `{ code: "DatabaseError" }`.
+fn db_error(context: &str) -> impl FnOnce(anyhow::Error) -> FundPaymentReconciliationError + '_ {
+    move |e| {
+        tracing::error!(target: BACKEND, error = %e, context, "Reconciliation infra failure");
+        FundPaymentReconciliationTask::DatabaseError.into()
+    }
+}
 
 pub struct ReconciliationService {
     procedure_repository: Arc<dyn ProcedureRepository>,
@@ -37,7 +48,7 @@ impl ReconciliationService {
     pub async fn reconcile(
         &self,
         parse_result: PdfParseResult,
-    ) -> anyhow::Result<ReconcileAndCandidatesResponse> {
+    ) -> Result<ReconcileAndCandidatesResponse, FundPaymentReconciliationError> {
         tracing::info!(
             target: BACKEND,
             groups = parse_result.groups.len(),
@@ -49,7 +60,8 @@ impl ReconciliationService {
         let reconciliation = self.reconcile_groups(&parse_result.groups).await?;
 
         // Group into fund payment candidates
-        let candidates = PdfCandidateMapper::map(&reconciliation, &parse_result.groups)?;
+        let candidates = PdfCandidateMapper::map(&reconciliation, &parse_result.groups)
+            .map_err(db_error("candidate_mapping"))?;
 
         Ok(ReconcileAndCandidatesResponse {
             candidates,
@@ -62,7 +74,7 @@ impl ReconciliationService {
     async fn reconcile_groups(
         &self,
         groups: &[PdfProcedureGroup],
-    ) -> anyhow::Result<ReconciliationResult> {
+    ) -> Result<ReconciliationResult, FundPaymentReconciliationError> {
         let all_lines: Vec<&NormalizedPdfLine> =
             groups.iter().flat_map(|g| g.lines.iter()).collect();
 
@@ -77,11 +89,14 @@ impl ReconciliationService {
         let pdf_lines_count = all_lines.len();
 
         // Load data
-        let fund_cache = FundCache::build(self.fund_repository.clone()).await?;
+        let fund_cache = FundCache::build(self.fund_repository.clone())
+            .await
+            .map_err(db_error("fund_cache"))?;
 
         let pool = ProcedurePoolBuilder::new(self.procedure_repository.clone())
             .build(all_lines.as_slice())
-            .await?;
+            .await
+            .map_err(db_error("procedure_pool"))?;
 
         let pool_size: usize = pool.values().map(|v| v.len()).sum();
         tracing::info!(target: BACKEND, pool_ssn_groups = pool.len(), total_procedures = pool_size, "Procedure pool loaded");
@@ -96,7 +111,9 @@ impl ReconciliationService {
         let mut pass = ReconciliationPass::new(pool);
         for pass_num in 1..=8u8 {
             tracing::debug!(target: BACKEND, pass = pass_num, "Running reconciliation pass");
-            pass.run(pass_num, &owned_lines, &fund_cache).await?;
+            pass.run(pass_num, &owned_lines, &fund_cache)
+                .await
+                .map_err(db_error("reconciliation_pass"))?;
         }
 
         // Build result
@@ -237,11 +254,12 @@ impl ReconciliationService {
         &self,
         start_date: NaiveDate,
         end_date: NaiveDate,
-    ) -> anyhow::Result<Vec<super::api::UnreconciledProcedure>> {
+    ) -> Result<Vec<super::api::UnreconciledProcedure>, FundPaymentReconciliationError> {
         let rows = self
             .procedure_repository
             .find_unreconciled_by_date_range(start_date, end_date)
-            .await?;
+            .await
+            .map_err(db_error("find_unreconciled"))?;
 
         Ok(rows
             .into_iter()
@@ -378,7 +396,15 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_err());
+        assert!(
+            matches!(
+                result,
+                Err(FundPaymentReconciliationError::Task(
+                    FundPaymentReconciliationTask::DatabaseError
+                ))
+            ),
+            "repository failure must surface as Task::DatabaseError, got: {result:?}",
+        );
     }
 
     #[tokio::test]

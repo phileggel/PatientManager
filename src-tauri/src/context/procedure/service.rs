@@ -258,7 +258,7 @@ impl ProcedureService {
         &self,
         candidates: Vec<super::api::ProcedureCandidate>,
         is_silent: bool,
-    ) -> anyhow::Result<Vec<Procedure>> {
+    ) -> Result<Vec<Procedure>, ProcedureError> {
         // Create procedures from candidates using factory methods
         let mut procedures = Vec::new();
         for candidate in candidates {
@@ -278,7 +278,10 @@ impl ProcedureService {
         }
 
         // Persist all procedures in a single transaction
-        let result = self.repository.create_batch(procedures).await?;
+        let result = self.repository.create_batch(procedures).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "create_procedures_batch_from_candidates: repository failed");
+            ProcedureError::DatabaseError
+        })?;
 
         // Publish event only if not silent
         if !is_silent {
@@ -312,8 +315,11 @@ impl ProcedureService {
         &self,
         procedures: Vec<Procedure>,
         is_silent: bool,
-    ) -> anyhow::Result<Vec<Procedure>> {
-        let result = self.repository.update_batch(procedures).await?;
+    ) -> Result<Vec<Procedure>, ProcedureError> {
+        let result = self.repository.update_batch(procedures).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "update_procedures_batch: repository failed");
+            ProcedureError::DatabaseError
+        })?;
 
         if !is_silent {
             let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
