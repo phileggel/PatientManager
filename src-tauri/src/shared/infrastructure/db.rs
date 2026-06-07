@@ -94,6 +94,16 @@ impl Database {
             .await
             .with_context(|| "Failed to heal migration checksums")?;
 
+        // Repair pre-existing `procedure` foreign-key orphans before the
+        // 20260524 table rebuild re-validates them (gh#67). Must run before
+        // sqlx::migrate! — 20260524 rebuilds `procedure` under
+        // `defer_foreign_keys=ON`, whose commit-time check aborts the whole
+        // migration on any dangling fund/patient/type reference left by
+        // legacy data. Self-deactivates once 20260524 is applied.
+        repair_procedure_fk_orphans(&db.pool)
+            .await
+            .with_context(|| "Failed to repair procedure foreign-key orphans")?;
+
         // Apply database migrations from ./migrations directory
         //
         // IMPORTANT: When creating a new migration:
@@ -243,6 +253,129 @@ async fn heal_crlf_checksum_drift(pool: &SqlitePool) -> Result<()> {
                 .await?;
         }
     }
+    Ok(())
+}
+
+/// Reserved, always-seeded procedure type (20260308_init.sql) used as the
+/// repoint target for `procedure` rows whose type no longer exists.
+const RESERVED_IMPORT_TYPE_ID: &str = "import-pdf";
+/// On-demand placeholder patient for `procedure` rows whose patient no longer
+/// exists. Created only when such an orphan is found, so the procedure survives
+/// for manual reassignment instead of being deleted.
+const ORPHAN_RECOVERY_PATIENT_ID: &str = "__orphan_recovery__";
+
+/// Recover `procedure` rows that reference a fund / patient / procedure_type
+/// that no longer exists, so the `20260524` NOT-NULL rebuild does not abort the
+/// whole migration. (gh#67)
+///
+/// `20260524` rebuilds `procedure` under `PRAGMA defer_foreign_keys = ON`,
+/// whose commit-time check re-validates every foreign key in the rebuilt table
+/// — the first global FK validation this database has ever had. A single
+/// dangling reference left by legacy data aborts the migration and crashes the
+/// app on startup. Such orphans cannot be produced by the current app (every
+/// delete is a soft delete, so parent rows never disappear); they are artifacts
+/// of older builds that did not enforce foreign keys, or of an imported DB.
+///
+/// The repair is **non-destructive** — no `procedure` row is ever deleted:
+///   - `fund_id` (nullable)           → set NULL
+///   - `procedure_type_id` (NOT NULL) → repoint to the reserved seeded type
+///   - `patient_id` (NOT NULL)        → repoint to a recovery placeholder patient
+///
+/// Skipped on a fresh install (no `procedure` table yet) and once `20260524`
+/// has applied (the rebuild has run, so no orphan can remain). Every repair
+/// statement is itself FK-safe, so it runs cleanly on the foreign-key-enforcing
+/// pool.
+async fn repair_procedure_fk_orphans(pool: &SqlitePool) -> Result<()> {
+    // Fresh install — schema not created yet, nothing to repair.
+    let procedure_exists: Option<String> = sqlx::query_scalar(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'procedure'",
+    )
+    .fetch_optional(pool)
+    .await?;
+    if procedure_exists.is_none() {
+        return Ok(());
+    }
+
+    // Self-deactivate once the rebuild has applied: its commit-time FK check
+    // passed, so no orphan can remain.
+    let rebuild_applied: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM _sqlx_migrations WHERE version = 20260524 AND success = 1",
+    )
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
+    if rebuild_applied.is_some() {
+        return Ok(());
+    }
+
+    // Diagnostics: surface exactly which rows dangle before repairing. Columns:
+    // (table, rowid, parent, fkid). No-op fast path when the table is clean.
+    let violations: Vec<(String, Option<i64>, String, i64)> =
+        sqlx::query_as("PRAGMA foreign_key_check(procedure)")
+            .fetch_all(pool)
+            .await
+            .unwrap_or_default();
+    if violations.is_empty() {
+        return Ok(());
+    }
+    tracing::warn!(
+        target: BACKEND,
+        orphan_rows = violations.len(),
+        "Found procedure foreign-key orphans predating the 20260524 rebuild; repairing (gh#67)"
+    );
+
+    // fund_id is nullable — drop the dangling link.
+    let funds_nulled = sqlx::query(
+        "UPDATE procedure SET fund_id = NULL \
+         WHERE fund_id IS NOT NULL AND fund_id NOT IN (SELECT id FROM fund)",
+    )
+    .execute(pool)
+    .await?
+    .rows_affected();
+
+    // procedure_type_id is NOT NULL — repoint to the reserved seeded type.
+    let types_repointed = sqlx::query(
+        "UPDATE procedure SET procedure_type_id = ?1 \
+         WHERE procedure_type_id NOT IN (SELECT id FROM procedure_type)",
+    )
+    .bind(RESERVED_IMPORT_TYPE_ID)
+    .execute(pool)
+    .await?
+    .rows_affected();
+
+    // patient_id is NOT NULL — repoint to a recovery placeholder (created only
+    // when needed) so the procedure survives for manual reassignment.
+    let patients_orphaned: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM procedure WHERE patient_id NOT IN (SELECT id FROM patient)",
+    )
+    .fetch_one(pool)
+    .await?;
+    if patients_orphaned > 0 {
+        sqlx::query(
+            "INSERT OR IGNORE INTO patient (id, is_anonymous, name, is_deleted) \
+             VALUES (?1, 0, ?2, 0)",
+        )
+        .bind(ORPHAN_RECOVERY_PATIENT_ID)
+        .bind("\u{26a0} Procédure orpheline — patient à réattribuer")
+        .execute(pool)
+        .await?;
+        sqlx::query(
+            "UPDATE procedure SET patient_id = ?1 \
+             WHERE patient_id NOT IN (SELECT id FROM patient)",
+        )
+        .bind(ORPHAN_RECOVERY_PATIENT_ID)
+        .execute(pool)
+        .await?;
+    }
+
+    tracing::warn!(
+        target: BACKEND,
+        fund_id_nulled = funds_nulled,
+        type_repointed = types_repointed,
+        patient_repointed = patients_orphaned,
+        "Repaired procedure foreign-key orphans (gh#67)"
+    );
+
     Ok(())
 }
 
@@ -494,5 +627,168 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(count_backups(dir.path()), 1);
+    }
+
+    // ─── repair_procedure_fk_orphans (gh#67) ──────────────────────────────
+
+    /// In-memory pool with FK enforcement OFF so tests can plant the orphan
+    /// rows that real legacy databases carry but the schema would otherwise
+    /// reject. `foreign_key_check` works regardless of the enforcement pragma,
+    /// so assertions stay faithful.
+    async fn fk_off_pool() -> SqlitePool {
+        let opts = SqliteConnectOptions::new()
+            .in_memory(true)
+            .foreign_keys(false);
+        SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap()
+    }
+
+    /// Apply the real migrations up to and including 20260523 — i.e. the exact
+    /// schema state a DB is left in when 20260524 fails (the gh#67 scenario).
+    async fn migrate_to_523(pool: &SqlitePool) {
+        let migrator = sqlx::migrate!("./migrations");
+        for m in migrator.iter() {
+            if m.version > 20260523 {
+                break;
+            }
+            sqlx::raw_sql(&m.sql).execute(pool).await.unwrap();
+        }
+    }
+
+    async fn fk_orphan_count(pool: &SqlitePool) -> usize {
+        let rows: Vec<(String, Option<i64>, String, i64)> =
+            sqlx::query_as("PRAGMA foreign_key_check(procedure)")
+                .fetch_all(pool)
+                .await
+                .unwrap();
+        rows.len()
+    }
+
+    #[tokio::test]
+    async fn repair_fixes_all_three_orphan_kinds() {
+        let pool = fk_off_pool().await;
+        migrate_to_523(&pool).await;
+
+        // Valid parents (import-pdf type is seeded by 20260308_init).
+        sqlx::raw_sql(
+            "INSERT INTO fund (id, fund_identifier, name) VALUES ('F1', 'f1', 'Fund 1');\
+             INSERT INTO patient (id, is_anonymous) VALUES ('P1', 0);\
+             INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date) \
+                 VALUES ('proc-fund', 'P1', 'ghost-fund', 'import-pdf', '2026-01-01');\
+             INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date) \
+                 VALUES ('proc-type', 'P1', NULL, 'ghost-type', '2026-01-01');\
+             INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date) \
+                 VALUES ('proc-pat', 'ghost-patient', NULL, 'import-pdf', '2026-01-01');",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        assert_eq!(fk_orphan_count(&pool).await, 3, "three orphans planted");
+
+        repair_procedure_fk_orphans(&pool).await.unwrap();
+
+        // No procedure FK dangles → the 20260524 rebuild's commit check passes.
+        assert_eq!(fk_orphan_count(&pool).await, 0, "all orphans repaired");
+
+        let fund_id: Option<String> =
+            sqlx::query_scalar("SELECT fund_id FROM procedure WHERE id = 'proc-fund'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(fund_id, None, "dangling fund_id nulled");
+
+        let type_id: String =
+            sqlx::query_scalar("SELECT procedure_type_id FROM procedure WHERE id = 'proc-type'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(type_id, "import-pdf", "dangling type repointed to reserved");
+
+        let patient_id: String =
+            sqlx::query_scalar("SELECT patient_id FROM procedure WHERE id = 'proc-pat'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            patient_id, "__orphan_recovery__",
+            "dangling patient repointed"
+        );
+        let placeholder_exists: Option<String> =
+            sqlx::query_scalar("SELECT id FROM patient WHERE id = '__orphan_recovery__'")
+                .fetch_optional(&pool)
+                .await
+                .unwrap();
+        assert!(placeholder_exists.is_some(), "recovery patient created");
+    }
+
+    #[tokio::test]
+    async fn repair_is_noop_when_no_orphans() {
+        let pool = fk_off_pool().await;
+        migrate_to_523(&pool).await;
+        sqlx::raw_sql(
+            "INSERT INTO patient (id, is_anonymous) VALUES ('P1', 0);\
+             INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date) \
+                 VALUES ('proc-ok', 'P1', NULL, 'import-pdf', '2026-01-01');",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        repair_procedure_fk_orphans(&pool).await.unwrap();
+
+        // No recovery placeholder is fabricated when nothing is wrong.
+        let placeholder: Option<String> =
+            sqlx::query_scalar("SELECT id FROM patient WHERE id = '__orphan_recovery__'")
+                .fetch_optional(&pool)
+                .await
+                .unwrap();
+        assert!(placeholder.is_none(), "no placeholder when clean");
+    }
+
+    #[tokio::test]
+    async fn repair_skips_when_rebuild_already_applied() {
+        let pool = fk_off_pool().await;
+        migrate_to_523(&pool).await;
+        seed_migrations_table(&pool).await;
+        sqlx::query(
+            "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time) \
+             VALUES (20260524, 'billed amount not null', 1, X'00', 0)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::raw_sql(
+            "INSERT INTO patient (id, is_anonymous) VALUES ('P1', 0);\
+             INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date) \
+                 VALUES ('proc-orphan', 'P1', 'ghost-fund', 'import-pdf', '2026-01-01');",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        repair_procedure_fk_orphans(&pool).await.unwrap();
+
+        // Gate fired: the orphan is left untouched (no work once 524 applied).
+        let fund_id: Option<String> =
+            sqlx::query_scalar("SELECT fund_id FROM procedure WHERE id = 'proc-orphan'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            fund_id,
+            Some("ghost-fund".to_string()),
+            "skipped when applied"
+        );
+    }
+
+    #[tokio::test]
+    async fn repair_skips_when_procedure_table_absent() {
+        let pool = fk_off_pool().await;
+        // No migrations run — `procedure` table does not exist (fresh install).
+        repair_procedure_fk_orphans(&pool).await.unwrap();
     }
 }

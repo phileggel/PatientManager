@@ -178,3 +178,18 @@ not as a sweep.
   - **Multi-group:** one credit equals the sum of _several tracked_ fund groups (e.g. 247 € = 72 € + 175 €, both real groups). Matching is 1:1 only — there is no subset-sum that lets one bank line settle multiple groups whose totals add up to it. The line stays in `unmatched_lines`.
   - **Uncovered amount:** part of the credit corresponds to something the app does not model at all — e.g. 247 € = 72 € fund group + 175 € "aide"/bonus (an assistance transfer with no entity in the domain). Even perfect multi-group matching can't reconcile this: there is no record to match the 175 € against.
 - Note: validating a tracked group via manual match is always safe — it mints its own FundWire transfer sized to the group and never touches the bank statement line, so there is NO data-integrity risk and the bank payment is not "broken". The gap is purely reconciliation _coverage_, not correctness. Resolution direction differs per case: multi-group needs subset/multi-group matching (one bank line → N groups); uncovered-amount needs either a modeled "aid payment" entity that becomes a matchable line item, OR a manual "remainder" annotation recording the untracked portion. Until then, composite credit lines remain unmatched and require manual bookkeeping outside the app.
+
+---
+
+## 2026-06-07 — Migrations are only ever tested against referentially-clean databases
+
+**Found by:** manual (issue #67 — 0.18.0 startup crash)
+
+**Where:** `src-tauri/migrations/*` + CI. No fixture exercises a migration against a database carrying invalid-but-real data (FK orphans, NULLs in a soon-to-be-`NOT NULL` column, rows a new `UNIQUE` index would reject).
+
+**Observation:** `20260524_billed_amount_not_null.sql` rebuilds `procedure` under `defer_foreign_keys = ON`, whose commit-time check re-validates every foreign key — the first global FK validation any database has ever had. It aborted on a legacy `procedure` orphan and crashed the app on startup (gh#67). It passed CI because every test DB is built clean (FK enforcement on), so an orphan cannot exist; the failure only manifests on aged/imported real data. The whole bug class — a migration assuming an invariant the schema never enforced — is invisible to clean-data testing.
+
+**Prevention (this is the part that must not be skipped — the fix below was the patch, not the guarantee):**
+
+- **Adversarial migration fixtures (Form B).** Seed bad row shapes via raw SQL with `PRAGMA foreign_keys = OFF` at a frozen past schema version, run migrations forward, assert success + a clean `PRAGMA foreign_key_check`. The new `repair_fixes_all_three_orphan_kinds` test in `db.rs` is the prototype — generalize it into a standing per-migration suite, gated in CI on any `migrations/` change. Grow a catalog of bad shapes (orphan FK from #67; later a NOT-NULL column's NULL row; later a UNIQUE index's duplicate).
+- **Startup `PRAGMA foreign_key_check`.** Repair/report dirty data before migrating instead of crashing on it. First instance shipped in the #67 fix (`repair_procedure_fk_orphans`); the standing form is a general integrity sweep, not one-FK-at-a-time recovery functions.
