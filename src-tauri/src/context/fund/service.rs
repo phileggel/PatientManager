@@ -225,7 +225,7 @@ impl FundPaymentService {
         total_amount: i64,
         procedure_ids: Vec<String>,
         is_silent: bool,
-    ) -> anyhow::Result<FundPaymentGroup> {
+    ) -> Result<FundPaymentGroup, FundError> {
         tracing::info!(
             fund_id = %fund_id,
             payment_date = %payment_date,
@@ -236,7 +236,11 @@ impl FundPaymentService {
         let created_group = self
             .repository
             .create_group(fund_id, payment_date, total_amount, procedure_ids)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, error = %e, "Failed to create fund payment group");
+                FundError::DatabaseError
+            })?;
 
         if !is_silent {
             let _ = self
@@ -255,10 +259,14 @@ impl FundPaymentService {
         fund_id: &str,
         payment_date: &str,
         total_amount: i64,
-    ) -> anyhow::Result<bool> {
+    ) -> Result<bool, FundError> {
         self.repository
             .exists_group(fund_id, payment_date, total_amount)
             .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, error = %e, "Failed to check fund payment group existence");
+                FundError::DatabaseError
+            })
     }
 
     /// Update fund payment group
@@ -341,7 +349,7 @@ impl FundPaymentService {
         &self,
         batch_data: Vec<(String, String, i64, Vec<String>)>,
         is_silent: bool,
-    ) -> anyhow::Result<Vec<FundPaymentGroup>> {
+    ) -> Result<Vec<FundPaymentGroup>, FundError> {
         tracing::debug!(
             count = batch_data.len(),
             "Creating batch of fund payment groups"
@@ -370,7 +378,14 @@ impl FundPaymentService {
         }
 
         // Repository layer: Persist all groups and lines atomically
-        let created_groups = self.repository.create_batch_groups(groups).await?;
+        let created_groups = self
+            .repository
+            .create_batch_groups(groups)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, error = %e, "Failed to create batch of fund payment groups");
+                FundError::DatabaseError
+            })?;
 
         // Emit event only if not silent (orchestrator will emit its own event)
         if !is_silent {

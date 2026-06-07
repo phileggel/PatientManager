@@ -325,7 +325,7 @@ async saveExcelAmountMappings(mappings: SaveExcelAmountMappingRequest[]) : Promi
 /**
  * Handler for PDF text extraction from file path
  */
-async extractPdfText(filePath: string) : Promise<Result<string, string>> {
+async extractPdfText(filePath: string) : Promise<Result<string, FundPaymentReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("extract_pdf_text", { filePath }) };
 } catch (e) {
@@ -338,18 +338,13 @@ async extractPdfText(filePath: string) : Promise<Result<string, string>> {
  * Normalization (French date parsing) happens here — lines with unparseable
  * dates are counted as unparsed rather than propagating errors.
  */
-async parsePdfText(text: string) : Promise<Result<PdfParseResult, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("parse_pdf_text", { text }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
+async parsePdfText(text: string) : Promise<PdfParseResult> {
+    return await TAURI_INVOKE("parse_pdf_text", { text });
 },
 /**
  * Handler for reconciling PDF procedures with database
  */
-async reconcilePdfProcedures(parseResult: PdfParseResult) : Promise<Result<ReconciliationResult, string>> {
+async reconcilePdfProcedures(parseResult: PdfParseResult) : Promise<Result<ReconciliationResult, FundPaymentReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("reconcile_pdf_procedures", { parseResult }) };
 } catch (e) {
@@ -360,7 +355,7 @@ async reconcilePdfProcedures(parseResult: PdfParseResult) : Promise<Result<Recon
 /**
  * Handler for complete reconciliation workflow: reconcile PDF and group into candidates
  */
-async reconcileAndCreateCandidates(parseResult: PdfParseResult) : Promise<Result<ReconcileAndCandidatesResponse, string>> {
+async reconcileAndCreateCandidates(parseResult: PdfParseResult) : Promise<Result<ReconcileAndCandidatesResponse, FundPaymentReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("reconcile_and_create_candidates", { parseResult }) };
 } catch (e) {
@@ -371,7 +366,7 @@ async reconcileAndCreateCandidates(parseResult: PdfParseResult) : Promise<Result
 /**
  * Handler for creating fund payment groups from validated reconciliation candidates
  */
-async createFundPaymentFromCandidates(request: CreateFundPaymentFromCandidatesRequest) : Promise<Result<FundPaymentGroup[], string>> {
+async createFundPaymentFromCandidates(request: CreateFundPaymentFromCandidatesRequest) : Promise<Result<FundPaymentGroup[], FundPaymentReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_fund_payment_from_candidates", { request }) };
 } catch (e) {
@@ -382,7 +377,7 @@ async createFundPaymentFromCandidates(request: CreateFundPaymentFromCandidatesRe
 /**
  * Handler for creating fund payment groups with auto-corrections for anomalies
  */
-async createFundPaymentWithAutoCorrections(request: CreateFundPaymentWithAutoCorrectionsRequest) : Promise<Result<FundPaymentGroup[], string>> {
+async createFundPaymentWithAutoCorrections(request: CreateFundPaymentWithAutoCorrectionsRequest) : Promise<Result<FundPaymentGroup[], FundPaymentReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_fund_payment_with_auto_corrections", { request }) };
 } catch (e) {
@@ -393,7 +388,7 @@ async createFundPaymentWithAutoCorrections(request: CreateFundPaymentWithAutoCor
 /**
  * Handler for getting all unreconciled procedures in a date range (for post-reconciliation report)
  */
-async getUnreconciledProceduresInRange(startDate: string, endDate: string) : Promise<Result<UnreconciledProcedure[], string>> {
+async getUnreconciledProceduresInRange(startDate: string, endDate: string) : Promise<Result<UnreconciledProcedure[], FundPaymentReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_unreconciled_procedures_in_range", { startDate, endDate }) };
 } catch (e) {
@@ -1438,6 +1433,61 @@ export type FundPaymentGroupStatus =
  * Links a fund payment group to a specific procedure
  */
 export type FundPaymentLine = { id: string; fund_payment_group_id: string; procedure_id: string }
+/**
+ * Composite error for the fund-payment-reconciliation use case.
+ * 
+ * Holds ONLY `#[from]` wrappers — the three bounded-context enums it
+ * orchestrates plus the use-case task sub-enum. Each carries its own
+ * `#[serde(tag = "code")]`, so the untagged composite flattens to a single
+ * `{ "code": "...", ... }` payload on the wire.
+ * 
+ * Multiple arms can emit `{ "code": "DatabaseError" }` (each BC enum + the
+ * Task sub-enum); the collision is intentional — the frontend maps the single
+ * code to one message. See `procedure_orchestration/error.rs` for the same
+ * precedent.
+ */
+export type FundPaymentReconciliationError = FundError | PatientError | ProcedureError | FundPaymentReconciliationTask
+/**
+ * Use-case-specific guards and catch-alls for fund-payment reconciliation.
+ * 
+ * Codes that do NOT belong to any single bounded context: the duplicate-batch
+ * guards, the "nothing to process" guards, the wire date-range parse, the PDF
+ * path-validation / extraction failures, and the catch-all for failures from
+ * repositories the reconciliation service holds directly. Tagged with `code`
+ * so each variant emits `{ "code": "..." }`.
+ */
+export type FundPaymentReconciliationTask = 
+/**
+ * Every candidate in the batch already exists as a fund-payment group —
+ * the PDF was almost certainly already imported.
+ */
+{ code: "AllDuplicates"; count: number } | 
+/**
+ * No non-duplicate candidate remained to process.
+ */
+{ code: "NoValidCandidates" } | 
+/**
+ * No non-duplicate candidate remained after applying auto-corrections.
+ */
+{ code: "NoValidCandidatesAfterCorrections" } | 
+/**
+ * A wire date (`start_date` / `end_date`) did not parse as `YYYY-MM-DD`.
+ */
+{ code: "InvalidDateRange" } | 
+/**
+ * The supplied PDF path was rejected by the path validator.
+ */
+{ code: "PdfPathRejected" } | 
+/**
+ * Text extraction from the PDF failed.
+ */
+{ code: "PdfExtractionFailed" } | 
+/**
+ * Failure from a repository the reconciliation service holds directly.
+ * Logged at the call site via `tracing::error!`; the wire surface carries
+ * no detail.
+ */
+{ code: "DatabaseError" }
 /**
  * Validation status for a fund payment candidate
  */

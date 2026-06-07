@@ -1,15 +1,26 @@
 use chrono::NaiveDate;
 use regex::Regex;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use super::api::AutoCorrection;
+use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use crate::context::fund::{
     FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentService, FundService,
 };
 use crate::context::patient::PatientService;
 use crate::context::procedure::{Procedure, ProcedureService, ProcedureStatus};
 use crate::shared::event_bus::{EventBus, FundPaymentGroupUpdated, ProcedureUpdated};
+
+/// Compile-time-constant fund-number pattern (e.g. "n° 931"), compiled once and
+/// cached. The literal is always valid, but the crate denies `expect_used`, so
+/// on the (unreachable) compile failure callers fall back to treating the whole
+/// label as the identifier — never a panic. Mirrors the `Regex::new(...).ok()`
+/// idiom used in `parsing/pdf_parser.rs`.
+fn fund_number_regex() -> Option<&'static Regex> {
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"n°\s*(\d+)").ok()).as_ref()
+}
 
 /// Statistics from correction processing
 #[derive(Default, Debug)]
@@ -53,15 +64,16 @@ impl FundPaymentReconciliationOrchestrator {
     ///
     /// Strategy: Extract the fund number from the label and match it against fund identifiers.
     /// If no fund exists, create one automatically.
-    async fn resolve_fund_id(&self, fund_label: &str) -> anyhow::Result<String> {
+    async fn resolve_fund_id(
+        &self,
+        fund_label: &str,
+    ) -> Result<String, FundPaymentReconciliationError> {
         // Extract fund number: look for pattern "n° XXX" or similar
-        let regex = Regex::new(r"n°\s*(\d+)")?;
-
-        let fund_identifier = if let Some(caps) = regex.captures(fund_label) {
-            caps[1].to_string()
-        } else {
-            // No number found, use the full label as identifier (e.g., "MGEN")
-            fund_label.trim().to_string()
+        let fund_identifier = match fund_number_regex().and_then(|re| re.captures(fund_label)) {
+            Some(caps) => caps[1].to_string(),
+            // No number found (or, unreachably, no regex), use the full label
+            // as identifier (e.g., "MGEN")
+            None => fund_label.trim().to_string(),
         };
 
         // Search for existing fund by identifier
@@ -96,7 +108,7 @@ impl FundPaymentReconciliationOrchestrator {
     pub async fn all_candidates_are_duplicates(
         &self,
         candidates: &[super::api::FundPaymentCandidateFromPdf],
-    ) -> anyhow::Result<bool> {
+    ) -> Result<bool, FundPaymentReconciliationError> {
         if candidates.is_empty() {
             return Ok(false);
         }
@@ -121,30 +133,31 @@ impl FundPaymentReconciliationOrchestrator {
         fund_label: &str,
         payment_date: NaiveDate,
         total_amount: i64,
-    ) -> anyhow::Result<bool> {
+    ) -> Result<bool, FundPaymentReconciliationError> {
         // Resolve fund label to fund ID (without creating if missing)
         let fund_id = match self.try_resolve_fund_id(fund_label).await? {
             Some(id) => id,
             None => return Ok(false), // Fund doesn't exist yet, so no duplicate possible
         };
 
-        self.fund_payment_service
+        Ok(self
+            .fund_payment_service
             .exists_group(
                 &fund_id,
                 &payment_date.format("%Y-%m-%d").to_string(),
                 total_amount,
             )
-            .await
+            .await?)
     }
 
     /// Try to resolve fund label to fund ID without creating a new fund
-    async fn try_resolve_fund_id(&self, fund_label: &str) -> anyhow::Result<Option<String>> {
-        let regex = Regex::new(r"n°\s*(\d+)")?;
-
-        let fund_identifier = if let Some(caps) = regex.captures(fund_label) {
-            caps[1].to_string()
-        } else {
-            fund_label.trim().to_string()
+    async fn try_resolve_fund_id(
+        &self,
+        fund_label: &str,
+    ) -> Result<Option<String>, FundPaymentReconciliationError> {
+        let fund_identifier = match fund_number_regex().and_then(|re| re.captures(fund_label)) {
+            Some(caps) => caps[1].to_string(),
+            None => fund_label.trim().to_string(),
         };
 
         if let Some(fund) = self
@@ -169,7 +182,7 @@ impl FundPaymentReconciliationOrchestrator {
         total_amount: i64,
         procedure_ids: Vec<String>,
         paid_amount: Option<i64>,
-    ) -> anyhow::Result<FundPaymentGroup> {
+    ) -> Result<FundPaymentGroup, FundPaymentReconciliationError> {
         let payment_date_iso = payment_date.format("%Y-%m-%d").to_string();
 
         tracing::info!(
@@ -243,7 +256,7 @@ impl FundPaymentReconciliationOrchestrator {
     pub async fn create_multiple_from_candidates(
         &self,
         candidates: Vec<FundPaymentGroupCandidate>,
-    ) -> anyhow::Result<Vec<FundPaymentGroup>> {
+    ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
         // Step 1: Check for duplicates (single pass — results reused in Step 2)
         let mut duplicate_flags = Vec::with_capacity(candidates.len());
         for candidate in &candidates {
@@ -259,10 +272,10 @@ impl FundPaymentReconciliationOrchestrator {
 
         let duplicate_count = duplicate_flags.iter().filter(|&&d| d).count();
         if !candidates.is_empty() && duplicate_count == candidates.len() {
-            anyhow::bail!(
-                "All {} payment groups already exist. PDF was likely already processed.",
-                duplicate_count
-            );
+            return Err(FundPaymentReconciliationTask::AllDuplicates {
+                count: duplicate_count,
+            }
+            .into());
         }
 
         // Step 2: Filter non-duplicates and resolve fund IDs
@@ -293,7 +306,7 @@ impl FundPaymentReconciliationOrchestrator {
         }
 
         if batch_data.is_empty() {
-            anyhow::bail!("No valid candidates to process");
+            return Err(FundPaymentReconciliationTask::NoValidCandidates.into());
         }
 
         // Step 3: Create all groups atomically (single transaction)
@@ -381,7 +394,7 @@ impl FundPaymentReconciliationOrchestrator {
         candidates: Vec<FundPaymentGroupCandidate>,
         auto_corrections: Vec<super::api::AutoCorrection>,
         patient_service: Arc<PatientService>,
-    ) -> anyhow::Result<Vec<FundPaymentGroup>> {
+    ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
         // Step 1: Check for duplicates BEFORE any DB writes
         let mut duplicate_flags = Vec::with_capacity(candidates.len());
         for candidate in &candidates {
@@ -397,10 +410,10 @@ impl FundPaymentReconciliationOrchestrator {
 
         let duplicate_count = duplicate_flags.iter().filter(|&&d| d).count();
         if !candidates.is_empty() && duplicate_count == candidates.len() {
-            anyhow::bail!(
-                "All {} payment groups already exist. PDF was likely already processed.",
-                duplicate_count
-            );
+            return Err(FundPaymentReconciliationTask::AllDuplicates {
+                count: duplicate_count,
+            }
+            .into());
         }
 
         // Step 2: Apply auto-corrections (only reachable when at least one
@@ -455,7 +468,7 @@ impl FundPaymentReconciliationOrchestrator {
         }
 
         if batch_data.is_empty() {
-            anyhow::bail!("No valid candidates to process after applying corrections");
+            return Err(FundPaymentReconciliationTask::NoValidCandidatesAfterCorrections.into());
         }
 
         // Step 5: Create all groups atomically (single transaction)
@@ -642,7 +655,7 @@ impl FundPaymentReconciliationOrchestrator {
         &self,
         auto_corrections: Vec<AutoCorrection>,
         patient_service: Arc<PatientService>,
-    ) -> anyhow::Result<Vec<(String, NaiveDate, String)>> {
+    ) -> Result<Vec<(String, NaiveDate, String)>, FundPaymentReconciliationError> {
         let total_corrections = auto_corrections.len();
         tracing::info!(
             correction_count = total_corrections,
@@ -693,7 +706,7 @@ impl FundPaymentReconciliationOrchestrator {
     async fn apply_update_corrections(
         &self,
         auto_corrections: Vec<AutoCorrection>,
-    ) -> anyhow::Result<CorrectionStats> {
+    ) -> Result<CorrectionStats, FundPaymentReconciliationError> {
         use std::collections::HashSet;
 
         // Step 1: Collect all procedure IDs that need updating
@@ -804,7 +817,7 @@ impl FundPaymentReconciliationOrchestrator {
         &self,
         auto_corrections: Vec<AutoCorrection>,
         patient_service: Arc<PatientService>,
-    ) -> anyhow::Result<Vec<(String, NaiveDate, String)>> {
+    ) -> Result<Vec<(String, NaiveDate, String)>, FundPaymentReconciliationError> {
         let mut result = Vec::new();
 
         for correction in auto_corrections {
@@ -855,7 +868,7 @@ impl FundPaymentReconciliationOrchestrator {
         &self,
         auto_corrections: Vec<AutoCorrection>,
         patient_service: Arc<PatientService>,
-    ) -> anyhow::Result<Vec<(String, NaiveDate, String)>> {
+    ) -> Result<Vec<(String, NaiveDate, String)>, FundPaymentReconciliationError> {
         use crate::context::procedure::ProcedureCandidate;
 
         let mut candidates = Vec::new();
@@ -1342,9 +1355,13 @@ mod tests {
             .await;
 
         assert!(
-            result.is_err(),
-            "all-duplicate batch must error, got: {:?}",
-            result.as_ref().ok()
+            matches!(
+                result,
+                Err(FundPaymentReconciliationError::Task(
+                    FundPaymentReconciliationTask::AllDuplicates { count: 1 }
+                ))
+            ),
+            "all-duplicate batch must return AllDuplicates {{ count: 1 }}, got: {result:?}",
         );
         Ok(())
     }

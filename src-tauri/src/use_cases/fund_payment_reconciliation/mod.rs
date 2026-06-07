@@ -23,10 +23,12 @@ pub mod fund_pdf_codec;
 
 // Public API layer
 pub mod api;
+pub mod error;
 pub mod orchestrator;
 pub mod service;
 
 // Re-export commonly used types and services
 pub use api::*;
+pub use error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 pub use orchestrator::FundPaymentReconciliationOrchestrator;
 pub use service::ReconciliationService;

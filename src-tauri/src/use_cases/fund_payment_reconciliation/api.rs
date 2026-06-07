@@ -1,3 +1,4 @@
+use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use super::parsing::pdf_parser;
 use super::service::ReconciliationService;
 use crate::shared::logger::BACKEND;
@@ -233,7 +234,7 @@ pub struct CreateFundPaymentWithAutoCorrectionsRequest {
 pub async fn reconcile_pdf_procedures_fn(
     parse_result: PdfParseResult,
     service: Arc<ReconciliationService>,
-) -> anyhow::Result<ReconciliationResult> {
+) -> Result<ReconciliationResult, FundPaymentReconciliationError> {
     let response = service.reconcile(parse_result).await?;
     Ok(response.reconciliation)
 }
@@ -242,7 +243,7 @@ pub async fn reconcile_and_create_candidates_fn(
     parse_result: PdfParseResult,
     service: Arc<ReconciliationService>,
     orchestrator: Arc<super::FundPaymentReconciliationOrchestrator>,
-) -> anyhow::Result<ReconcileAndCandidatesResponse> {
+) -> Result<ReconcileAndCandidatesResponse, FundPaymentReconciliationError> {
     let mut response = service.reconcile(parse_result).await?;
     response.already_imported = orchestrator
         .all_candidates_are_duplicates(&response.candidates)
@@ -253,7 +254,7 @@ pub async fn reconcile_and_create_candidates_fn(
 pub async fn create_fund_payment_from_candidates_fn(
     request: CreateFundPaymentFromCandidatesRequest,
     orchestrator: Arc<super::FundPaymentReconciliationOrchestrator>,
-) -> anyhow::Result<Vec<crate::context::fund::FundPaymentGroup>> {
+) -> Result<Vec<crate::context::fund::FundPaymentGroup>, FundPaymentReconciliationError> {
     orchestrator
         .create_multiple_from_candidates(request.candidates)
         .await
@@ -263,7 +264,7 @@ pub async fn create_fund_payment_with_auto_corrections_fn(
     request: CreateFundPaymentWithAutoCorrectionsRequest,
     patient_service: Arc<crate::context::patient::PatientService>,
     orchestrator: Arc<super::FundPaymentReconciliationOrchestrator>,
-) -> anyhow::Result<Vec<crate::context::fund::FundPaymentGroup>> {
+) -> Result<Vec<crate::context::fund::FundPaymentGroup>, FundPaymentReconciliationError> {
     orchestrator
         .create_multiple_with_auto_corrections(
             request.candidates,
@@ -277,11 +278,15 @@ pub async fn get_unreconciled_procedures_in_range_fn(
     start_date: String,
     end_date: String,
     service: Arc<ReconciliationService>,
-) -> anyhow::Result<Vec<UnreconciledProcedure>> {
-    let start = NaiveDate::parse_from_str(&start_date, "%Y-%m-%d")
-        .map_err(|e| anyhow::anyhow!("Invalid start_date '{start_date}': {e}"))?;
-    let end = NaiveDate::parse_from_str(&end_date, "%Y-%m-%d")
-        .map_err(|e| anyhow::anyhow!("Invalid end_date '{end_date}': {e}"))?;
+) -> Result<Vec<UnreconciledProcedure>, FundPaymentReconciliationError> {
+    let parse = |raw: &str, field: &str| {
+        NaiveDate::parse_from_str(raw, "%Y-%m-%d").map_err(|e| {
+            tracing::warn!(target: BACKEND, field, error = %e, "Invalid date in unreconciled range query");
+            FundPaymentReconciliationError::from(FundPaymentReconciliationTask::InvalidDateRange)
+        })
+    };
+    let start = parse(&start_date, "start_date")?;
+    let end = parse(&end_date, "end_date")?;
     service.find_unreconciled_in_range(start, end).await
 }
 
@@ -290,11 +295,13 @@ pub async fn get_unreconciled_procedures_in_range_fn(
 /// Handler for PDF text extraction from file path
 #[tauri::command]
 #[specta::specta]
-pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
+pub async fn extract_pdf_text(file_path: String) -> Result<String, FundPaymentReconciliationError> {
     tracing::info!(target: BACKEND, "Extracting text from PDF");
 
-    let allowed_root =
-        secure_path::user_home().ok_or_else(|| "Cannot resolve user home directory".to_string())?;
+    let allowed_root = secure_path::user_home().ok_or_else(|| {
+        tracing::error!(target: BACKEND, "Cannot resolve user home directory");
+        FundPaymentReconciliationError::from(FundPaymentReconciliationTask::PdfPathRejected)
+    })?;
     let canonical = secure_path::validate_user_path(
         &file_path,
         &allowed_root,
@@ -304,9 +311,12 @@ pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
     )
     .map_err(|e| {
         tracing::warn!(target: BACKEND, error = %e, "PDF path rejected by validator");
-        format!("{e}")
+        FundPaymentReconciliationError::from(FundPaymentReconciliationTask::PdfPathRejected)
     })?;
-    let result = pdf_extractor::extract_pdf_text(&canonical).map_err(|e| format!("{:#}", e))?;
+    let result = pdf_extractor::extract_pdf_text(&canonical).map_err(|e| {
+        tracing::error!(target: BACKEND, error = %format!("{e:#}"), "PDF text extraction failed");
+        FundPaymentReconciliationError::from(FundPaymentReconciliationTask::PdfExtractionFailed)
+    })?;
 
     tracing::info!(
         target: BACKEND,
@@ -322,7 +332,7 @@ pub async fn extract_pdf_text(file_path: String) -> Result<String, String> {
 /// dates are counted as unparsed rather than propagating errors.
 #[tauri::command]
 #[specta::specta]
-pub async fn parse_pdf_text(text: String) -> Result<PdfParseResult, String> {
+pub async fn parse_pdf_text(text: String) -> PdfParseResult {
     tracing::info!(target: BACKEND, chars = text.len(), "Parsing PDF text");
 
     let result = pdf_parser::parse_pdf_text(&text);
@@ -334,7 +344,7 @@ pub async fn parse_pdf_text(text: String) -> Result<PdfParseResult, String> {
         "PDF text parsed"
     );
 
-    Ok(result)
+    result
 }
 
 /// Handler for reconciling PDF procedures with database
@@ -343,7 +353,7 @@ pub async fn parse_pdf_text(text: String) -> Result<PdfParseResult, String> {
 pub async fn reconcile_pdf_procedures(
     parse_result: PdfParseResult,
     service: State<'_, Arc<ReconciliationService>>,
-) -> Result<ReconciliationResult, String> {
+) -> Result<ReconciliationResult, FundPaymentReconciliationError> {
     tracing::info!(target: BACKEND, "Starting PDF reconciliation");
     reconcile_pdf_procedures_fn(parse_result, service.inner().clone())
         .await
@@ -356,9 +366,8 @@ pub async fn reconcile_pdf_procedures(
                 issue_count
             );
         })
-        .map_err(|e| {
+        .inspect_err(|e| {
             tracing::error!(target: BACKEND, error = %e, operation = "reconcile_pdf_procedures", "Reconciliation failed");
-            format!("{:#}", e)
         })
 }
 
@@ -369,7 +378,7 @@ pub async fn reconcile_and_create_candidates(
     parse_result: PdfParseResult,
     service: State<'_, Arc<ReconciliationService>>,
     orchestrator: State<'_, Arc<super::FundPaymentReconciliationOrchestrator>>,
-) -> Result<ReconcileAndCandidatesResponse, String> {
+) -> Result<ReconcileAndCandidatesResponse, FundPaymentReconciliationError> {
     tracing::info!(target: BACKEND, "Starting complete reconciliation workflow");
     reconcile_and_create_candidates_fn(
         parse_result,
@@ -387,9 +396,8 @@ pub async fn reconcile_and_create_candidates(
                 issue_count
             );
         })
-        .map_err(|e| {
+        .inspect_err(|e| {
             tracing::error!(target: BACKEND, error = %e, operation = "reconcile_and_create_candidates", "Reconciliation workflow failed");
-            format!("{:#}", e)
         })
 }
 
@@ -399,10 +407,12 @@ pub async fn reconcile_and_create_candidates(
 pub async fn create_fund_payment_from_candidates(
     request: CreateFundPaymentFromCandidatesRequest,
     orchestrator: tauri::State<'_, std::sync::Arc<super::FundPaymentReconciliationOrchestrator>>,
-) -> Result<Vec<crate::context::fund::FundPaymentGroup>, String> {
+) -> Result<Vec<crate::context::fund::FundPaymentGroup>, FundPaymentReconciliationError> {
     create_fund_payment_from_candidates_fn(request, orchestrator.inner().clone())
         .await
-        .map_err(|e| format!("{:#}", e))
+        .inspect_err(|e| {
+            tracing::error!(target: BACKEND, error = %e, operation = "create_fund_payment_from_candidates", "Fund payment creation failed");
+        })
 }
 
 /// Handler for creating fund payment groups with auto-corrections for anomalies
@@ -412,14 +422,16 @@ pub async fn create_fund_payment_with_auto_corrections(
     request: CreateFundPaymentWithAutoCorrectionsRequest,
     patient_service: tauri::State<'_, std::sync::Arc<crate::context::patient::PatientService>>,
     orchestrator: tauri::State<'_, std::sync::Arc<super::FundPaymentReconciliationOrchestrator>>,
-) -> Result<Vec<crate::context::fund::FundPaymentGroup>, String> {
+) -> Result<Vec<crate::context::fund::FundPaymentGroup>, FundPaymentReconciliationError> {
     create_fund_payment_with_auto_corrections_fn(
         request,
         patient_service.inner().clone(),
         orchestrator.inner().clone(),
     )
     .await
-    .map_err(|e| format!("{:#}", e))
+    .inspect_err(|e| {
+        tracing::error!(target: BACKEND, error = %e, operation = "create_fund_payment_with_auto_corrections", "Fund payment creation with corrections failed");
+    })
 }
 
 /// Handler for getting all unreconciled procedures in a date range (for post-reconciliation report)
@@ -429,7 +441,7 @@ pub async fn get_unreconciled_procedures_in_range(
     start_date: String,
     end_date: String,
     service: State<'_, Arc<ReconciliationService>>,
-) -> Result<Vec<UnreconciledProcedure>, String> {
+) -> Result<Vec<UnreconciledProcedure>, FundPaymentReconciliationError> {
     tracing::info!(
         target: BACKEND,
         "Getting unreconciled procedures from {} to {}",
@@ -438,7 +450,9 @@ pub async fn get_unreconciled_procedures_in_range(
     );
     get_unreconciled_procedures_in_range_fn(start_date, end_date, service.inner().clone())
         .await
-        .map_err(|e| format!("{:#}", e))
+        .inspect_err(|e| {
+            tracing::error!(target: BACKEND, error = %e, operation = "get_unreconciled_procedures_in_range", "Unreconciled query failed");
+        })
 }
 
 #[cfg(test)]
@@ -537,5 +551,36 @@ mod tests {
     fn issue_count_is_zero_for_empty_result() {
         let result = ReconciliationResult { matches: vec![] };
         assert_eq!(result.issue_count(), 0);
+    }
+
+    /// A malformed wire date short-circuits to `Task::InvalidDateRange` before
+    /// the service (and thus the repository) is ever touched — the mock repos
+    /// carry zero expectations, so any DB call would panic the test.
+    #[tokio::test]
+    async fn get_unreconciled_in_range_invalid_date_returns_typed_error() {
+        use crate::context::fund::MockFundRepository;
+        use crate::context::procedure::MockProcedureRepository;
+
+        let service = Arc::new(ReconciliationService::new(
+            Arc::new(MockProcedureRepository::new()),
+            Arc::new(MockFundRepository::new()),
+        ));
+
+        let result = get_unreconciled_procedures_in_range_fn(
+            "not-a-date".to_string(),
+            "2026-01-31".to_string(),
+            service,
+        )
+        .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(FundPaymentReconciliationError::Task(
+                    FundPaymentReconciliationTask::InvalidDateRange
+                ))
+            ),
+            "invalid start_date must return InvalidDateRange, got: {result:?}",
+        );
     }
 }
