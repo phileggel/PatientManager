@@ -181,15 +181,14 @@ not as a sweep.
 
 ---
 
-## 2026-06-07 — Migrations are only ever tested against referentially-clean databases
+## 2026-06-07 — Migrations ran with foreign keys enforced, and were only tested against childless databases
 
 **Found by:** manual (issue #67 — 0.18.0 startup crash)
 
-**Where:** `src-tauri/migrations/*` + CI. No fixture exercises a migration against a database carrying invalid-but-real data (FK orphans, NULLs in a soon-to-be-`NOT NULL` column, rows a new `UNIQUE` index would reject).
+**Where:** `src-tauri/src/shared/infrastructure/db.rs` (migration runner) + CI fixtures.
 
-**Observation:** `20260524_billed_amount_not_null.sql` rebuilds `procedure` under `defer_foreign_keys = ON`, whose commit-time check re-validates every foreign key — the first global FK validation any database has ever had. It aborted on a legacy `procedure` orphan and crashed the app on startup (gh#67). It passed CI because every test DB is built clean (FK enforcement on), so an orphan cannot exist; the failure only manifests on aged/imported real data. The whole bug class — a migration assuming an invariant the schema never enforced — is invisible to clean-data testing.
+**Observation:** `20260524_billed_amount_not_null.sql` rebuilds `procedure` (a _parent_ table, referenced by `fund_payment_line`) via DROP + CREATE + RENAME. Migrations ran on a connection with `foreign_keys = ON`, and `defer_foreign_keys = ON` does NOT cover dropping a parent: `DROP TABLE procedure` increments SQLite's deferred-violation counter once per child row and recreating the table never clears it, so COMMIT fails (code 787) even though the data is perfectly consistent. Confirmed against a real affected DB: `PRAGMA foreign_key_check` returned **zero** violations, yet COMMIT still failed — the failure is the counter, not an orphan. The original "legacy FK orphan" diagnosis was wrong. Every DB with at least one reconciled payment (a `fund_payment_line` row) crashed on startup; CI passed because test/fresh DBs have no child rows referencing `procedure`, so there is no child to trip the counter.
 
-**Prevention (this is the part that must not be skipped — the fix below was the patch, not the guarantee):**
+**Fixed (runner policy, not a one-off):** migrations now run on a dedicated connection with `foreign_keys = OFF` — SQLite's documented table-rebuild recipe. The pragma is a no-op inside sqlx's per-migration transaction (verified empirically), so it must be set on the connection, not in the `.sql`. A `PRAGMA foreign_key_check` runs afterward (non-fatal) as a standing integrity net for genuinely-dirty data (e.g. imports). Each migration still runs in its own transaction, so rollback safety is kept. This future-proofs every later parent-table rebuild.
 
-- **Adversarial migration fixtures (Form B).** Seed bad row shapes via raw SQL with `PRAGMA foreign_keys = OFF` at a frozen past schema version, run migrations forward, assert success + a clean `PRAGMA foreign_key_check`. The new `repair_fixes_all_three_orphan_kinds` test in `db.rs` is the prototype — generalize it into a standing per-migration suite, gated in CI on any `migrations/` change. Grow a catalog of bad shapes (orphan FK from #67; later a NOT-NULL column's NULL row; later a UNIQUE index's duplicate).
-- **Startup `PRAGMA foreign_key_check`.** Repair/report dirty data before migrating instead of crashing on it. First instance shipped in the #67 fix (`repair_procedure_fk_orphans`); the standing form is a general integrity sweep, not one-FK-at-a-time recovery functions.
+**Prevention still owed — adversarial migration fixtures.** CI only ever runs migrations against clean/childless data, which is exactly why this shipped. Seed representative messy/edge shapes at a frozen past schema version (parent rows WITH children for #67; later: a NOT-NULL column's NULL row; a UNIQUE index's duplicate), then run migrations forward and assert success + a clean `PRAGMA foreign_key_check`. The new `parent_rebuild_*` tests in `db.rs` are the prototype — generalize into a standing per-migration suite, gated in CI on any `migrations/` change.
