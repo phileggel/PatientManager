@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1] - 2026-06-07
+
+### Fixed
+
+- run migrations with foreign_keys off (correct #67 fix)
+  The real cause of #67 is not an orphan — the affected DB is FK-clean. 20260524 rebuilds the parent table procedure, and dropping a parent under enforced foreign keys trips SQLite's deferred-violation counter once per child row, so COMMIT fails. Run migrations on a foreign_keys=OFF connection (SQLite's documented table-rebuild recipe) + foreign_key_check after; supersedes the no-op orphan repair from the previous commit.
+- repair procedure FK orphans before migrating (#67)
+  0.18.0's 20260524 rebuild re-validates every procedure foreign key at commit; a legacy orphan (FK never historically enforced) aborted the migration and crashed startup. Repair orphans non-destructively before sqlx::migrate! so the untouched migration commits. Adds adversarial-data regression tests — the clean-data testing gap that let this ship; prevention tracked in techdebt.
+- format root CHANGELOG.md via broadened prettier glob
+  The format:docs fixer only globbed docs/**/\*.md while the CI checker globs **/\*.md, so release.py left the generated root CHANGELOG.md unformatted and Quality failed. Broaden the fixer to match the checker.
+
 ## [0.18.0] - 2026-06-06
 
 ### Added
