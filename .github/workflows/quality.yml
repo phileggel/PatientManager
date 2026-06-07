@@ -151,7 +151,7 @@ jobs:
       - name: Install sqlx-cli
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk.
         # sqlx-cli version matches `sqlx` in Cargo.lock (0.8.6).
-        uses: taiki-e/install-action@59012be0884e296ca2da49b530610e72c49039ad
+        uses: taiki-e/install-action@56545b37b57562edd73171cb6c62cc509db4c34e
         with:
           tool: sqlx-cli@0.8.6
       - name: Setup sqlx-check DB
@@ -163,7 +163,7 @@ jobs:
         run: python3 scripts/check.py --backend
       - name: Install cargo-tarpaulin and just
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
-        uses: taiki-e/install-action@59012be0884e296ca2da49b530610e72c49039ad
+        uses: taiki-e/install-action@56545b37b57562edd73171cb6c62cc509db4c34e
         with:
           tool: cargo-tarpaulin,just
       # Single source of truth: `just coverage-be` is the same recipe developers
