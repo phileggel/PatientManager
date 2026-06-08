@@ -22,5 +22,13 @@
       "confirm": "Oui, restaurer",
       "cancel": "Annuler"
     }
+  },
+  "errors": {
+    "home_unresolved": "Impossible de localiser votre dossier personnel. Veuillez réessayer.",
+    "path_rejected": "L'emplacement sélectionné n'est pas autorisé. Choisissez un dossier dans votre répertoire personnel.",
+    "export_failed": "L'export de la base de données a échoué. Veuillez réessayer.",
+    "import_failed": "La sauvegarde n'a pas pu être restaurée. Veuillez réessayer.",
+    "backup_corrupted": "Ce fichier n'est pas une sauvegarde valide ou il est corrompu. Choisissez un autre fichier.",
+    "unexpected": "Une erreur inattendue s'est produite. Veuillez réessayer."
   }
 }

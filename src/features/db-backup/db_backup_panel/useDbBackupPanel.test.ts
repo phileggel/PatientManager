@@ -41,7 +41,7 @@ describe("useDbBackupPanel — export flow (R2, R3)", () => {
 
   it("calls exportDatabase with the chosen path and shows success toast", async () => {
     vi.mocked(gateway.pickExportPath).mockResolvedValue("/backups/backup.db.gz");
-    vi.mocked(gateway.exportDatabase).mockResolvedValue(undefined);
+    vi.mocked(gateway.exportDatabase).mockResolvedValue({ success: true, data: undefined });
 
     const { result } = renderHook(() => useDbBackupPanel());
     await act(() => result.current.handleExport());
@@ -50,14 +50,28 @@ describe("useDbBackupPanel — export flow (R2, R3)", () => {
     expect(toastService.show).toHaveBeenCalledWith("success", "export.success");
   });
 
-  it("shows error toast and resets isExporting when export fails", async () => {
+  it("maps a typed export error to its presenter key and resets isExporting (F27)", async () => {
     vi.mocked(gateway.pickExportPath).mockResolvedValue("/backups/backup.db.gz");
-    vi.mocked(gateway.exportDatabase).mockRejectedValue(new Error("disk full"));
+    vi.mocked(gateway.exportDatabase).mockResolvedValue({
+      success: false,
+      error: { code: "ExportFailed" },
+    });
 
     const { result } = renderHook(() => useDbBackupPanel());
     await act(() => result.current.handleExport());
 
-    expect(toastService.show).toHaveBeenCalledWith("error", "disk full");
+    expect(toastService.show).toHaveBeenCalledWith("error", "db-backup:errors.export_failed");
+    expect(result.current.isExporting).toBe(false);
+  });
+
+  it("falls back to the generic key when the export gateway throws (IPC safety net)", async () => {
+    vi.mocked(gateway.pickExportPath).mockResolvedValue("/backups/backup.db.gz");
+    vi.mocked(gateway.exportDatabase).mockRejectedValue(new Error("ipc dropped"));
+
+    const { result } = renderHook(() => useDbBackupPanel());
+    await act(() => result.current.handleExport());
+
+    expect(toastService.show).toHaveBeenCalledWith("error", "errors.unexpected");
     expect(result.current.isExporting).toBe(false);
   });
 
@@ -84,7 +98,7 @@ describe("useDbBackupPanel — export flow (R2, R3)", () => {
 
   it("persists the parent of the chosen export path to db-backup memory", async () => {
     vi.mocked(gateway.pickExportPath).mockResolvedValue("/new/folder/backup.db.gz");
-    vi.mocked(gateway.exportDatabase).mockResolvedValue(undefined);
+    vi.mocked(gateway.exportDatabase).mockResolvedValue({ success: true, data: undefined });
 
     const { result } = renderHook(() => useDbBackupPanel());
     await act(() => result.current.handleExport());
@@ -129,7 +143,7 @@ describe("useDbBackupPanel — import flow (R4, R5, R6)", () => {
 
   it("calls importDatabase and relaunch on confirm success", async () => {
     vi.mocked(gateway.pickImportPath).mockResolvedValue("/backups/backup.db.gz");
-    vi.mocked(gateway.importDatabase).mockResolvedValue(undefined);
+    vi.mocked(gateway.importDatabase).mockResolvedValue({ success: true, data: undefined });
     vi.mocked(process.relaunch).mockResolvedValue(undefined);
     vi.useFakeTimers();
 
@@ -146,15 +160,30 @@ describe("useDbBackupPanel — import flow (R4, R5, R6)", () => {
     vi.useRealTimers();
   });
 
-  it("shows error toast and resets isImporting when import fails", async () => {
+  it("maps a typed import error to its presenter key and resets isImporting (F27)", async () => {
     vi.mocked(gateway.pickImportPath).mockResolvedValue("/backups/backup.db.gz");
-    vi.mocked(gateway.importDatabase).mockRejectedValue(new Error("invalid backup"));
+    vi.mocked(gateway.importDatabase).mockResolvedValue({
+      success: false,
+      error: { code: "BackupCorrupted" },
+    });
 
     const { result } = renderHook(() => useDbBackupPanel());
     await act(() => result.current.handleImportRequest());
     await act(() => result.current.handleImportConfirm());
 
-    expect(toastService.show).toHaveBeenCalledWith("error", "invalid backup");
+    expect(toastService.show).toHaveBeenCalledWith("error", "db-backup:errors.backup_corrupted");
+    expect(result.current.isImporting).toBe(false);
+  });
+
+  it("falls back to the generic key when the import gateway throws (IPC safety net)", async () => {
+    vi.mocked(gateway.pickImportPath).mockResolvedValue("/backups/backup.db.gz");
+    vi.mocked(gateway.importDatabase).mockRejectedValue(new Error("ipc dropped"));
+
+    const { result } = renderHook(() => useDbBackupPanel());
+    await act(() => result.current.handleImportRequest());
+    await act(() => result.current.handleImportConfirm());
+
+    expect(toastService.show).toHaveBeenCalledWith("error", "errors.unexpected");
     expect(result.current.isImporting).toBe(false);
   });
 

@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockOpen = vi.hoisted(() => vi.fn());
 const mockSave = vi.hoisted(() => vi.fn());
+const mockExport = vi.hoisted(() => vi.fn());
+const mockImport = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mockOpen, save: mockSave }));
+vi.mock("@/bindings", () => ({
+  commands: { exportDatabase: mockExport, importDatabase: mockImport },
+}));
 vi.mock("@/infra/logger", () => ({
   logger: { info: vi.fn(), error: vi.fn(), debug: vi.fn(), warn: vi.fn() },
 }));
 
-import { pickExportPath, pickImportPath } from "./gateway";
+import { exportDatabase, importDatabase, pickExportPath, pickImportPath } from "./gateway";
 
 describe("db-backup/gateway — pickExportPath", () => {
   beforeEach(() => {
@@ -71,5 +76,38 @@ describe("db-backup/gateway — pickImportPath", () => {
     window.__e2e = { pickImportPath: "/fixture/in.gz" };
     expect(await pickImportPath("t")).toBe("/fixture/in.gz");
     expect(mockOpen).not.toHaveBeenCalled();
+  });
+});
+
+// F27: the gateway returns a typed ServiceResult and never throws.
+describe("db-backup/gateway — typed ServiceResult pass-through", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("exportDatabase ok → { success: true }", async () => {
+    mockExport.mockResolvedValue({ status: "ok", data: null });
+    expect(await exportDatabase("/tmp/backup.gz")).toEqual({ success: true, data: undefined });
+  });
+
+  it("exportDatabase typed error → { success: false, error } (not thrown)", async () => {
+    mockExport.mockResolvedValue({ status: "error", error: { code: "ExportFailed" } });
+    expect(await exportDatabase("/tmp/backup.gz")).toEqual({
+      success: false,
+      error: { code: "ExportFailed" },
+    });
+  });
+
+  it("importDatabase ok → { success: true }", async () => {
+    mockImport.mockResolvedValue({ status: "ok", data: null });
+    expect(await importDatabase("/tmp/in.gz")).toEqual({ success: true, data: undefined });
+  });
+
+  it("importDatabase typed error → { success: false, error } (not thrown)", async () => {
+    mockImport.mockResolvedValue({ status: "error", error: { code: "BackupCorrupted" } });
+    expect(await importDatabase("/tmp/in.gz")).toEqual({
+      success: false,
+      error: { code: "BackupCorrupted" },
+    });
   });
 });

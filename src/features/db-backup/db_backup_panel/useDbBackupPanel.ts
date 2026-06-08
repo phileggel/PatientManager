@@ -9,6 +9,7 @@ import {
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { exportDatabase, importDatabase, pickExportPath, pickImportPath } from "../gateway";
+import { formatDbBackupError } from "../shared/errorPresenter";
 
 const TAG = "[useDbBackupPanel]";
 
@@ -53,14 +54,17 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
 
     setIsExporting(true);
     try {
-      await exportDatabase(destPath);
+      const result = await exportDatabase(destPath);
+      if (!result.success) {
+        toastService.show("error", t(formatDbBackupError(result.error).key));
+        return;
+      }
       const parent = parentDir(destPath);
       if (parent) setLastFolder("db-backup", parent);
       toastService.show("success", t("export.success"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error(TAG, "export failed", { error: message });
-      toastService.show("error", message);
+      logger.error(TAG, "export failed", { error: String(err) });
+      toastService.show("error", t("errors.unexpected"));
     } finally {
       setIsExporting(false);
     }
@@ -88,7 +92,11 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
 
     setIsImporting(true);
     try {
-      await importDatabase(pendingSourcePath);
+      const result = await importDatabase(pendingSourcePath);
+      if (!result.success) {
+        toastService.show("error", t(formatDbBackupError(result.error).key));
+        return;
+      }
       toastService.show("success", t("import.success"));
       setIsRelaunching(true);
       // Relaunch after brief delay so user sees the toast (R6)
@@ -96,9 +104,8 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
         relaunch().catch((e) => logger.error(TAG, "relaunch failed", { error: String(e) }));
       }, 1500);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error(TAG, "import failed", { error: message });
-      toastService.show("error", message);
+      logger.error(TAG, "import failed", { error: String(err) });
+      toastService.show("error", t("errors.unexpected"));
     } finally {
       setIsImporting(false); // W3: always reset, even on success path before relaunch
     }

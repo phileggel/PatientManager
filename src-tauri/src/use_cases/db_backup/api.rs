@@ -4,6 +4,7 @@ use tauri::State;
 use crate::shared::logger::BACKEND;
 use crate::shared::secure_path::{self, PathPolicy};
 
+use super::error::DbBackupError;
 use super::orchestrator::DbBackupOrchestrator;
 
 /// Exports the active database to the given destination path as a gzip-compressed
@@ -19,11 +20,10 @@ use super::orchestrator::DbBackupOrchestrator;
 pub async fn export_database(
     dest_path: String,
     orchestrator: State<'_, Arc<DbBackupOrchestrator>>,
-) -> Result<(), String> {
+) -> Result<(), DbBackupError> {
     tracing::info!(target: BACKEND, "export_database command");
 
-    let allowed_root =
-        secure_path::user_home().ok_or_else(|| "Cannot resolve user home directory".to_string())?;
+    let allowed_root = secure_path::user_home().ok_or(DbBackupError::HomeUnresolved)?;
     let canonical = secure_path::validate_user_path(
         &dest_path,
         &allowed_root,
@@ -33,13 +33,12 @@ pub async fn export_database(
     )
     .map_err(|e| {
         tracing::warn!(target: BACKEND, error = %e, "Export path rejected by validator");
-        format!("{e}")
+        DbBackupError::PathRejected
     })?;
 
     orchestrator
         .export_database(canonical.to_string_lossy().into_owned())
         .await
-        .map_err(|e| format!("{e:#}"))
 }
 
 /// Decompresses, validates, and stages a backup file as a pending import (R9, R10).
@@ -54,11 +53,10 @@ pub async fn export_database(
 pub async fn import_database(
     source_path: String,
     orchestrator: State<'_, Arc<DbBackupOrchestrator>>,
-) -> Result<(), String> {
+) -> Result<(), DbBackupError> {
     tracing::info!(target: BACKEND, "import_database command");
 
-    let allowed_root =
-        secure_path::user_home().ok_or_else(|| "Cannot resolve user home directory".to_string())?;
+    let allowed_root = secure_path::user_home().ok_or(DbBackupError::HomeUnresolved)?;
     let canonical = secure_path::validate_user_path(
         &source_path,
         &allowed_root,
@@ -68,11 +66,10 @@ pub async fn import_database(
     )
     .map_err(|e| {
         tracing::warn!(target: BACKEND, error = %e, "Import path rejected by validator");
-        format!("{e}")
+        DbBackupError::PathRejected
     })?;
 
     orchestrator
         .import_database(canonical.to_string_lossy().into_owned())
         .await
-        .map_err(|e| format!("{e:#}"))
 }
