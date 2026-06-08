@@ -424,6 +424,23 @@ impl OverpaymentOrchestrator {
         }))
     }
 
+    /// REF-240 — whether `group_id` points to an overpayment refund fund
+    /// payment group. Exposed so callers in other use cases can branch on the
+    /// raw fact and map it into their own error vocabulary, without importing
+    /// this use case's error types (B18).
+    pub async fn is_refund_fund_payment_group(
+        &self,
+        group_id: &str,
+    ) -> Result<bool, OverpaymentError> {
+        self.procedure_refund_repo
+            .is_refund_fund_payment_group(group_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "DB error checking refund fund payment group");
+                OverpaymentTask::DatabaseError.into()
+            })
+    }
+
     /// REF-240 — Refund fund payment groups can only be removed by cancelling
     /// the refund, not by direct deletion. Returns Err with a user-facing
     /// message when `group_id` points to a refund group; Ok otherwise.
@@ -431,15 +448,7 @@ impl OverpaymentOrchestrator {
         &self,
         group_id: &str,
     ) -> Result<(), OverpaymentError> {
-        let is_refund = self
-            .procedure_refund_repo
-            .is_refund_fund_payment_group(group_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e,"DB error checking refund fund payment group");
-                OverpaymentTask::DatabaseError
-            })?;
-        if is_refund {
+        if self.is_refund_fund_payment_group(group_id).await? {
             return Err(OverpaymentTask::RefundGroupProtected.into());
         }
         Ok(())

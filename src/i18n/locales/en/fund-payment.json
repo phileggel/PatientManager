@@ -46,8 +46,7 @@
       "message": "Are you sure you want to delete the payment group for \"{{fundName}}\"? This action cannot be undone.",
       "confirm": "Delete",
       "success": "Payment group for \"{{fundName}}\" deleted successfully",
-      "error": "Failed to delete payment group: {{error}}",
-      "failedFallback": "Failed to delete payment group"
+      "error": "Failed to delete payment group: {{error}}"
     }
   },
   "edit": {
@@ -65,11 +64,9 @@
     "update": "Update",
     "success": "Payment group updated successfully",
     "sectionCurrent": "Current procedures",
-    "errorLoadProcedures": "Failed to load procedures: {{error}}",
     "errorLoadDetails": "Failed to load procedure details",
     "errorDateRequired": "Please enter a payment date",
     "errorProcedureRequired": "Please select at least one procedure",
-    "errorUpdate": "Error: {{error}}",
     "errorUnknown": "An unexpected error occurred",
     "lockedBadge": "Locked — read only",
     "close": "Close"
@@ -88,5 +85,13 @@
     "creating": "Creating...",
     "addProcedures": "Add Procedures ({{count}})",
     "errorLoad": "Failed to load available procedures"
+  },
+  "errors": {
+    "group_locked": "This payment group contains bank-reconciled procedures and cannot be changed.",
+    "refund_group_protected": "This payment group is part of a refund and can only be removed by cancelling the refund.",
+    "group_not_found": "This payment group no longer exists. Please refresh and try again.",
+    "invalid_payment_date": "The payment date is invalid (expected YYYY-MM-DD).",
+    "database_error": "An unexpected database error occurred. Please try again.",
+    "unexpected": "An unexpected error occurred. Please try again."
   }
 }

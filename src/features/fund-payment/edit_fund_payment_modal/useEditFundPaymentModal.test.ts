@@ -279,7 +279,7 @@ describe("useEditFundPaymentModal", () => {
     });
     vi.mocked(gateway.updatePaymentGroupWithProcedures).mockResolvedValue({
       success: false,
-      error: "Server error",
+      error: { code: "GroupLocked" },
     });
 
     const onClose = vi.fn();
@@ -296,7 +296,7 @@ describe("useEditFundPaymentModal", () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(toastService.show).toHaveBeenCalledWith(
       "error",
-      expect.stringContaining("Server error"),
+      expect.stringContaining("bank-reconciled"),
     );
   });
 
@@ -327,13 +327,13 @@ describe("useEditFundPaymentModal", () => {
 
     vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
       success: false,
-      error: "Load failed",
+      error: { code: "DatabaseError" },
     });
 
     const { result } = renderHook(() => useEditFundPaymentModal(makePayment(), vi.fn()));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(toastService.show).toHaveBeenCalledWith("error", expect.stringContaining("Load failed"));
+    expect(toastService.show).toHaveBeenCalledWith("error", expect.stringMatching(/database/i));
   });
 });

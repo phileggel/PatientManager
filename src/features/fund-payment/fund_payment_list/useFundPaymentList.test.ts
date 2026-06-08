@@ -104,13 +104,13 @@ describe("useFundPaymentList", () => {
     expect(mockDelete).toHaveBeenCalledWith("g-1");
   });
 
-  it("deleteGroup throws when the gateway returns failure", async () => {
+  it("deleteGroup throws a translated message when the gateway returns a typed failure", async () => {
     seedStore();
     mockRead.mockResolvedValue({ success: true, data: [] });
-    mockDelete.mockResolvedValue({ success: false, error: "delete failed" });
+    mockDelete.mockResolvedValue({ success: false, error: { code: "RefundGroupProtected" } });
 
     const { result } = renderHook(() => useFundPaymentList());
 
-    await expect(result.current.deleteGroup("g-1")).rejects.toThrow("delete failed");
+    await expect(result.current.deleteGroup("g-1")).rejects.toThrow(/refund/i);
   });
 });

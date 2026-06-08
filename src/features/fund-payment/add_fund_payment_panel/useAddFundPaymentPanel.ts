@@ -4,6 +4,7 @@ import type { Procedure } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import { createFundPayment } from "../gateway";
+import { formatManualManagementError } from "../shared/errorPresenter";
 import { FundPaymentPresenter } from "../shared/presenter";
 import { type PaymentFormErrors, validatePaymentForm } from "../shared/validatePayment";
 
@@ -111,7 +112,10 @@ export function useAddFundPaymentPanel() {
         setErrors({});
         return { success: true };
       }
-      return { success: false, error: result.error };
+      return { success: false, error: t(formatManualManagementError(result.error).key) };
+    } catch (error) {
+      logger.error("Exception creating fund payment group", { error });
+      return { success: false, error: t("errors.unexpected") };
     } finally {
       setIsSubmitting(false);
     }

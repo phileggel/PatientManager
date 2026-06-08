@@ -14,6 +14,7 @@ import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { getFundPaymentGroupEditData, updatePaymentGroupWithProcedures } from "../gateway";
+import { formatManualManagementError } from "../shared/errorPresenter";
 import { FundPaymentPresenter } from "../shared/presenter";
 
 export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClose: () => void) {
@@ -62,13 +63,13 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClos
       setLoading(true);
       try {
         const result = await getFundPaymentGroupEditData(paymentId, paymentFundId);
-        if (result.success && result.data) {
+        if (result.success) {
           setPaymentDate(paymentInitialDate);
           setCurrentProcedures(result.data.current_procedures);
           setAvailableProcedures(result.data.available_procedures);
           setSelectedIds(new Set(result.data.current_procedures.map((p) => p.id)));
         } else {
-          toastService.show("error", t("edit.errorLoadProcedures", { error: result.error }));
+          toastService.show("error", t(formatManualManagementError(result.error).key));
         }
       } catch (error) {
         logger.error("[useEditFundPaymentModal] Failed to fetch edit data", { error });
@@ -160,7 +161,7 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClos
           toastService.show("success", t("edit.success"));
           onClose();
         } else {
-          toastService.show("error", t("edit.errorUpdate", { error: result.error }));
+          toastService.show("error", t(formatManualManagementError(result.error).key));
         }
       } catch (error) {
         logger.error("[useEditFundPaymentModal] Error updating payment group", { error });

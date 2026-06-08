@@ -197,16 +197,25 @@ impl FundPaymentService {
     }
 
     /// Read a fund payment group by ID
-    pub async fn read_group(&self, id: &str) -> anyhow::Result<Option<FundPaymentGroup>> {
-        self.repository.read_group(id).await
+    pub async fn read_group(&self, id: &str) -> Result<Option<FundPaymentGroup>, FundError> {
+        self.repository.read_group(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, error = %e, "Failed to read fund payment group");
+            FundError::DatabaseError
+        })
     }
 
     /// Read fund payment lines for a specific group
     pub async fn read_lines_by_group(
         &self,
         group_id: &str,
-    ) -> anyhow::Result<Vec<crate::context::fund::FundPaymentLine>> {
-        self.repository.read_lines_by_group(group_id).await
+    ) -> Result<Vec<crate::context::fund::FundPaymentLine>, FundError> {
+        self.repository
+            .read_lines_by_group(group_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, error = %e, "Failed to read fund payment lines");
+                FundError::DatabaseError
+            })
     }
 
     /// Read all fund payment groups
@@ -276,7 +285,7 @@ impl FundPaymentService {
         payment_date: String,
         procedure_ids: Vec<String>,
         total_amount: i64,
-    ) -> anyhow::Result<FundPaymentGroup> {
+    ) -> Result<FundPaymentGroup, FundError> {
         tracing::info!(
             group_id = %group_id,
             payment_date = %payment_date,
@@ -288,25 +297,35 @@ impl FundPaymentService {
         let mut group = self
             .repository
             .read_group(&group_id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Payment group not found"))?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, error = %e, "Failed to read fund payment group");
+                FundError::DatabaseError
+            })?
+            .ok_or_else(|| FundError::PaymentGroupNotFound {
+                fund_payment_group_id: group_id.clone(),
+            })?;
 
         // Parse payment date
-        let parsed_date =
-            chrono::NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").map_err(|_| {
-                anyhow::anyhow!(
-                    "Invalid payment date format: {} (expected YYYY-MM-DD)",
-                    payment_date
-                )
-            })?;
+        let parsed_date = chrono::NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
+            .map_err(|_| FundError::InvalidPaymentDateFormat)?;
 
         group.payment_date = parsed_date;
         group.total_amount = total_amount;
 
-        let updated_group = self.repository.update_group(group).await?;
+        let updated_group = self.repository.update_group(group).await.map_err(|e| {
+            tracing::error!(target: BACKEND, error = %e, "Failed to update fund payment group");
+            FundError::DatabaseError
+        })?;
 
         // Soft-delete old lines
-        self.repository.delete_lines_by_group(&group_id).await?;
+        self.repository
+            .delete_lines_by_group(&group_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, error = %e, "Failed to delete fund payment lines");
+                FundError::DatabaseError
+            })?;
 
         // Create new lines using factory method (generates IDs)
         let new_lines: Vec<crate::context::fund::FundPaymentLine> = procedure_ids
@@ -317,7 +336,10 @@ impl FundPaymentService {
             .collect::<Result<Vec<_>, _>>()?;
 
         if !new_lines.is_empty() {
-            self.repository.create_lines(new_lines).await?;
+            self.repository.create_lines(new_lines).await.map_err(|e| {
+                tracing::error!(target: BACKEND, error = %e, "Failed to create fund payment lines");
+                FundError::DatabaseError
+            })?;
         }
 
         let _ = self
@@ -330,8 +352,14 @@ impl FundPaymentService {
     }
 
     /// Delete fund payment lines by group ID
-    pub async fn delete_lines_by_group(&self, group_id: &str) -> anyhow::Result<()> {
-        self.repository.delete_lines_by_group(group_id).await
+    pub async fn delete_lines_by_group(&self, group_id: &str) -> Result<(), FundError> {
+        self.repository
+            .delete_lines_by_group(group_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, error = %e, "Failed to delete fund payment lines");
+                FundError::DatabaseError
+            })
     }
 
     /// Create multiple fund payment groups from resolved data (batch operation)
@@ -433,10 +461,13 @@ impl FundPaymentService {
     }
 
     /// Delete fund payment group
-    pub async fn delete_group(&self, group_id: String) -> anyhow::Result<()> {
+    pub async fn delete_group(&self, group_id: String) -> Result<(), FundError> {
         tracing::info!(group_id = %group_id, "Deleting fund payment group");
 
-        self.repository.delete_group(&group_id).await?;
+        self.repository.delete_group(&group_id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, error = %e, "Failed to delete fund payment group");
+            FundError::DatabaseError
+        })?;
 
         let _ = self
             .event_bus

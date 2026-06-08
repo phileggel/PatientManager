@@ -5,6 +5,7 @@ import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { deleteFundPaymentGroup, readProceduresByIds } from "../gateway";
+import { formatManualManagementError } from "../shared/errorPresenter";
 import { FundPaymentPresenter } from "../shared/presenter";
 
 /**
@@ -63,7 +64,7 @@ export function useFundPaymentList() {
   const deleteGroupHandler = async (id: string) => {
     const result = await deleteFundPaymentGroup(id);
     if (!result.success) {
-      throw new Error(result.error || t("list.delete.failedFallback"));
+      throw new Error(t(formatManualManagementError(result.error).key));
     }
   };
 

@@ -46,8 +46,7 @@
       "message": "Êtes-vous sûr de vouloir supprimer le groupe de paiement pour « {{fundName}} » ? Cette action est irréversible.",
       "confirm": "Supprimer",
       "success": "Groupe de paiement pour « {{fundName}} » supprimé avec succès",
-      "error": "Échec de la suppression du groupe de paiement : {{error}}",
-      "failedFallback": "Échec de la suppression du groupe de paiement"
+      "error": "Échec de la suppression du groupe de paiement : {{error}}"
     }
   },
   "edit": {
@@ -65,11 +64,9 @@
     "update": "Mettre à jour",
     "success": "Groupe de paiement mis à jour avec succès",
     "sectionCurrent": "Actes en cours",
-    "errorLoadProcedures": "Échec du chargement des actes : {{error}}",
     "errorLoadDetails": "Échec du chargement des détails des actes",
     "errorDateRequired": "Veuillez saisir une date de paiement",
     "errorProcedureRequired": "Veuillez sélectionner au moins un acte",
-    "errorUpdate": "Erreur : {{error}}",
     "errorUnknown": "Une erreur inattendue s'est produite",
     "lockedBadge": "Verrouillé — lecture seule",
     "close": "Fermer"
@@ -88,5 +85,13 @@
     "creating": "Création...",
     "addProcedures": "Ajouter les actes ({{count}})",
     "errorLoad": "Échec du chargement des actes disponibles"
+  },
+  "errors": {
+    "group_locked": "Ce groupe de paiement contient des actes rapprochés en banque et ne peut pas être modifié.",
+    "refund_group_protected": "Ce groupe de paiement fait partie d'un remboursement et ne peut être supprimé qu'en annulant le remboursement.",
+    "group_not_found": "Ce groupe de paiement n'existe plus. Veuillez actualiser et réessayer.",
+    "invalid_payment_date": "La date de paiement est invalide (format attendu : AAAA-MM-JJ).",
+    "database_error": "Une erreur de base de données inattendue s'est produite. Veuillez réessayer.",
+    "unexpected": "Une erreur inattendue s'est produite. Veuillez réessayer."
   }
 }
