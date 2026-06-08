@@ -812,7 +812,7 @@ async getProceduresByIds(procedureIds: string[]) : Promise<Result<DirectPaymentP
  * call that bypasses the save dialog cannot reach the filesystem layer with
  * an unrestricted path.
  */
-async exportDatabase(destPath: string) : Promise<Result<null, string>> {
+async exportDatabase(destPath: string) : Promise<Result<null, DbBackupError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("export_database", { destPath }) };
 } catch (e) {
@@ -829,7 +829,7 @@ async exportDatabase(destPath: string) : Promise<Result<null, string>> {
  * file under the user's home with a `.gz` extension — a crafted IPC call
  * cannot trick the importer into reading arbitrary files.
  */
-async importDatabase(sourcePath: string) : Promise<Result<null, string>> {
+async importDatabase(sourcePath: string) : Promise<Result<null, DbBackupError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("import_database", { sourcePath }) };
 } catch (e) {
@@ -1200,6 +1200,42 @@ bank_account_id: string;
  * Optional free-text reason, max 255 chars (REF-040).
  */
 reason: string | null }
+/**
+ * Typed error for the database-backup use case.
+ * 
+ * `db_backup` orchestrates no bounded context — it is pure infrastructure
+ * (filesystem + SQLite snapshotting) — so this is a single flat enum rather
+ * than a `{UseCase}Error` composite. Tagged with `code` so each variant emits
+ * `{ "code": "..." }` on the wire.
+ * 
+ * Variants carry no payload: the underlying `std::io` / `sqlx` detail is logged
+ * at the failure site via `tracing::error!` and never crosses the wire (it can
+ * leak absolute paths). The frontend maps each code to a localized message.
+ */
+export type DbBackupError = 
+/**
+ * The user's home directory could not be resolved — the allowed-root for
+ * path validation is unavailable.
+ */
+{ code: "HomeUnresolved" } | 
+/**
+ * The frontend-supplied path was rejected by the secure-path validator
+ * (outside the allowed root, wrong extension, or wrong file kind).
+ */
+{ code: "PathRejected" } | 
+/**
+ * Producing the compressed snapshot failed (VACUUM, gzip, or file I/O).
+ */
+{ code: "ExportFailed" } | 
+/**
+ * Staging the backup failed (decompression, file I/O, or rename).
+ */
+{ code: "ImportFailed" } | 
+/**
+ * The decompressed file is not a valid, intact SQLite database — the
+ * integrity check failed. The selected file is not a usable backup.
+ */
+{ code: "BackupCorrupted" }
 /**
  * A single DB procedure match within an issue
  */
