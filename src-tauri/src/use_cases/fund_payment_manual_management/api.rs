@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::State;
 
+use super::error::{FundPaymentManualManagementError, FundPaymentManualManagementTask};
 use super::FundPaymentManualManagementOrchestrator;
 use crate::context::fund::FundPaymentGroup;
 use crate::context::procedure::Procedure;
@@ -32,23 +33,25 @@ pub async fn delete_fund_payment_group(
         '_,
         Arc<crate::use_cases::overpayment::OverpaymentOrchestrator>,
     >,
-) -> Result<(), String> {
+) -> Result<(), FundPaymentManualManagementError> {
     tracing::info!(target: BACKEND, group_id = %group_id, "Processing delete fund payment group request");
 
-    overpayment_orchestrator
-        .ensure_not_refund_fund_payment_group(&group_id)
+    // REF-240 cross-call into the overpayment use case. We branch on the raw
+    // boolean and map into this use case's own Task vocabulary, so no overpayment
+    // error type crosses the use-case boundary (B18).
+    let is_refund = overpayment_orchestrator
+        .is_refund_fund_payment_group(&group_id)
         .await
-        .map_err(|e| format!("{:#}", e))?;
+        .map_err(|_| FundPaymentManualManagementTask::DatabaseError)?;
+    if is_refund {
+        return Err(FundPaymentManualManagementTask::RefundGroupProtected.into());
+    }
 
     orchestrator
         .delete_group_with_cleanup(&group_id)
         .await
         .inspect(|_| {
             tracing::info!(target: BACKEND, group_id = %group_id, "Fund payment group deleted with cleanup");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to delete fund payment group");
-            format!("{:#}", e)
         })
 }
 
@@ -62,7 +65,7 @@ pub async fn create_fund_payment_group(
     payment_date: String,
     procedure_ids: Vec<String>,
     orchestrator: State<'_, Arc<FundPaymentManualManagementOrchestrator>>,
-) -> Result<FundPaymentGroup, String> {
+) -> Result<FundPaymentGroup, FundPaymentManualManagementError> {
     tracing::info!(
         target: BACKEND,
         fund_id = %fund_id,
@@ -76,10 +79,6 @@ pub async fn create_fund_payment_group(
         .await
         .inspect(|group| {
             tracing::info!(target: BACKEND, group_id = %group.id, "Fund payment group created successfully");
-        })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to create fund payment group");
-            format!("{:#}", e)
         })
 }
 
@@ -97,7 +96,7 @@ pub async fn update_fund_payment_group_with_procedures(
     payment_date: String,
     procedure_ids: Vec<String>,
     orchestrator: State<'_, Arc<FundPaymentManualManagementOrchestrator>>,
-) -> Result<FundPaymentGroup, String> {
+) -> Result<FundPaymentGroup, FundPaymentManualManagementError> {
     tracing::info!(
         target: BACKEND,
         group_id = %group_id,
@@ -112,10 +111,6 @@ pub async fn update_fund_payment_group_with_procedures(
         .inspect(|group| {
             tracing::info!(target: BACKEND, group_id = %group.id, "Fund payment group updated successfully");
         })
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to update fund payment group");
-            format!("{:#}", e)
-        })
 }
 
 /// Tauri command: Get edit data for a fund payment group
@@ -129,7 +124,7 @@ pub async fn get_fund_payment_group_edit_data(
     group_id: String,
     fund_id: String,
     orchestrator: State<'_, Arc<FundPaymentManualManagementOrchestrator>>,
-) -> Result<FundPaymentGroupEditData, String> {
+) -> Result<FundPaymentGroupEditData, FundPaymentManualManagementError> {
     tracing::info!(
         target: BACKEND,
         group_id = %group_id,
@@ -139,11 +134,7 @@ pub async fn get_fund_payment_group_edit_data(
 
     let (current_procedures, available_procedures) = orchestrator
         .get_group_edit_data(&group_id, &fund_id)
-        .await
-        .map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to get fund payment group edit data");
-            format!("{:#}", e)
-        })?;
+        .await?;
 
     tracing::info!(
         target: BACKEND,

@@ -417,7 +417,7 @@ async readAllFundPaymentGroups() : Promise<Result<FundPaymentGroup[], FundError>
  * (status → Created, clears confirmed_payment_date and paid_amount).
  * REF-240: Rejects deletion if the group belongs to an overpayment refund cascade.
  */
-async deleteFundPaymentGroup(groupId: string) : Promise<Result<null, string>> {
+async deleteFundPaymentGroup(groupId: string) : Promise<Result<null, FundPaymentManualManagementError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_fund_payment_group", { groupId }) };
 } catch (e) {
@@ -430,7 +430,7 @@ async deleteFundPaymentGroup(groupId: string) : Promise<Result<null, string>> {
  * 
  * Calculates total_amount from procedure amounts and sets procedures to Reconciled.
  */
-async createFundPaymentGroup(fundId: string, paymentDate: string, procedureIds: string[]) : Promise<Result<FundPaymentGroup, string>> {
+async createFundPaymentGroup(fundId: string, paymentDate: string, procedureIds: string[]) : Promise<Result<FundPaymentGroup, FundPaymentManualManagementError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_fund_payment_group", { fundId, paymentDate, procedureIds }) };
 } catch (e) {
@@ -447,7 +447,7 @@ async createFundPaymentGroup(fundId: string, paymentDate: string, procedureIds: 
  * - Recalculates total_amount
  * - Rejects if any procedure is bank-reconciled (FundPaid/PartiallyFundPaid)
  */
-async updateFundPaymentGroupWithProcedures(groupId: string, paymentDate: string, procedureIds: string[]) : Promise<Result<FundPaymentGroup, string>> {
+async updateFundPaymentGroupWithProcedures(groupId: string, paymentDate: string, procedureIds: string[]) : Promise<Result<FundPaymentGroup, FundPaymentManualManagementError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_fund_payment_group_with_procedures", { groupId, paymentDate, procedureIds }) };
 } catch (e) {
@@ -462,7 +462,7 @@ async updateFundPaymentGroupWithProcedures(groupId: string, paymentDate: string,
  * - `current_procedures`: in the group (Reconciled / PartiallyReconciled)
  * - `available_procedures`: Created procedures for the same fund, not in the group
  */
-async getFundPaymentGroupEditData(groupId: string, fundId: string) : Promise<Result<FundPaymentGroupEditData, string>> {
+async getFundPaymentGroupEditData(groupId: string, fundId: string) : Promise<Result<FundPaymentGroupEditData, FundPaymentManualManagementError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_fund_payment_group_edit_data", { groupId, fundId }) };
 } catch (e) {
@@ -1469,6 +1469,45 @@ export type FundPaymentGroupStatus =
  * Links a fund payment group to a specific procedure
  */
 export type FundPaymentLine = { id: string; fund_payment_group_id: string; procedure_id: string }
+/**
+ * Composite error for the manual fund-payment-management use case.
+ * 
+ * Holds ONLY `#[from]` wrappers — the two bounded-context enums it
+ * orchestrates (fund + procedure) plus the use-case task sub-enum. Each
+ * carries its own `#[serde(tag = "code")]`, so the untagged composite
+ * flattens to a single `{ "code": "...", ... }` payload on the wire.
+ * 
+ * Multiple arms can emit `{ "code": "DatabaseError" }` (each BC enum + the
+ * Task sub-enum); the collision is intentional — the frontend maps the single
+ * code to one message. See `fund_payment_reconciliation/error.rs` for the same
+ * precedent.
+ */
+export type FundPaymentManualManagementError = FundError | ProcedureError | FundPaymentManualManagementTask
+/**
+ * Use-case-specific guards for manual fund-payment-group management.
+ * 
+ * Codes that do NOT belong to any single bounded context: the
+ * state-dependent "group is locked by bank-reconciled procedures" guard, the
+ * REF-240 refund-group protection (enforced via a cross-call into the
+ * overpayment use case), and the catch-all for the overpayment cross-call's
+ * infra failures. Tagged with `code` so each variant emits `{ "code": "..." }`.
+ */
+export type FundPaymentManualManagementTask = 
+/**
+ * The group contains bank-reconciled procedures (`FundPaid` /
+ * `PartiallyFundPaid`); it cannot be modified or deleted (R9).
+ */
+{ code: "GroupLocked" } | 
+/**
+ * REF-240 — the group belongs to an overpayment refund cascade and can
+ * only be removed by cancelling the refund, not by direct deletion.
+ */
+{ code: "RefundGroupProtected" } | 
+/**
+ * Failure from the overpayment refund-group check the delete flow performs.
+ * Logged at the call site via `tracing::error!`; the wire carries no detail.
+ */
+{ code: "DatabaseError" }
 /**
  * Composite error for the fund-payment-reconciliation use case.
  * 

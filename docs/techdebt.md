@@ -192,3 +192,13 @@ not as a sweep.
 **Fixed (runner policy, not a one-off):** migrations now run on a dedicated connection with `foreign_keys = OFF` — SQLite's documented table-rebuild recipe. The pragma is a no-op inside sqlx's per-migration transaction (verified empirically), so it must be set on the connection, not in the `.sql`. A `PRAGMA foreign_key_check` runs afterward (non-fatal) as a standing integrity net for genuinely-dirty data (e.g. imports). Each migration still runs in its own transaction, so rollback safety is kept. This future-proofs every later parent-table rebuild.
 
 **Prevention still owed — adversarial migration fixtures.** CI only ever runs migrations against clean/childless data, which is exactly why this shipped. Seed representative messy/edge shapes at a frozen past schema version (parent rows WITH children for #67; later: a NOT-NULL column's NULL row; a UNIQUE index's duplicate), then run migrations forward and assert success + a clean `PRAGMA foreign_key_check`. The new `parent_rebuild_*` tests in `db.rs` are the prototype — generalize into a standing per-migration suite, gated in CI on any `migrations/` change.
+
+---
+
+## 2026-06-08 — `fund-payment` delete error is thrown, not toasted (F27 Layer-2 shape)
+
+**Found by:** reviewer-arch + reviewer-frontend (branch `refactor/fund-manual-mgmt-typed-errors`)
+
+**Where:** `src/features/fund-payment/fund_payment_list/useFundPaymentList.ts` (`deleteGroupHandler`) + the catch in `src/features/fund-payment/fund_payment_list/FundPaymentList.tsx` (~L242).
+
+**Observation:** The typed-error migration routed the delete error through the presenter (`t(formatManualManagementError(result.error).key)`), but the hook still **throws** that message rather than dispatching a toast like its siblings (`useEditFundPaymentModal`, `useAddFundPaymentPanel`). The component catches and renders `t("list.delete.error", { error: String(error) })`, where `String(error)` on an `Error` yields a `"Error: "` prefix and the outer wrapper double-frames the message ("Failed to delete payment group: Error: …"). The throw shape pre-dates this branch (it previously threw a raw backend string); only the message content changed. Proper fix: align `deleteGroupHandler` with the toast-in-hook pattern and drop the component's try/catch + `list.delete.error` wrapper — a small confirm-dialog flow refactor, deferred to keep the typed-error slice one story. Severity: 🔵.

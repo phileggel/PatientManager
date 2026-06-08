@@ -301,8 +301,8 @@ describe("useAddFundPaymentPanel", () => {
     expect(result.current.paymentDate).toBe("");
   });
 
-  it("handleCreatePayment returns gateway error when gateway returns failure", async () => {
-    mockCreate.mockResolvedValue({ success: false, error: "Fund mismatch" });
+  it("handleCreatePayment maps a typed gateway error to a translated message (F27)", async () => {
+    mockCreate.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     const proc = makeProcedure({ id: "p1" });
     const { result } = renderHook(() => useAddFundPaymentPanel());
@@ -315,7 +315,8 @@ describe("useAddFundPaymentPanel", () => {
 
     const outcome = await act(async () => result.current.handleCreatePayment());
 
-    expect(outcome).toEqual({ success: false, error: "Fund mismatch" });
+    expect(outcome?.success).toBe(false);
+    expect(outcome && "error" in outcome ? outcome.error : "").toMatch(/database/i);
     expect(result.current.isSubmitting).toBe(false);
   });
 });

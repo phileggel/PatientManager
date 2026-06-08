@@ -369,10 +369,14 @@ impl ProcedureService {
         &self,
         fund_id: &str,
         date: chrono::NaiveDate,
-    ) -> anyhow::Result<Vec<Procedure>> {
+    ) -> Result<Vec<Procedure>, ProcedureError> {
         self.repository
             .find_created_by_fund_before_date(fund_id, date)
             .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "find_created_by_fund_before_date: repository failed");
+                ProcedureError::DatabaseError
+            })
     }
 
     /// Check if a month (YYYY-MM) has any procedures with a blocking status

@@ -11,6 +11,8 @@
 //! procedures and a manual fund payment group.
 
 pub mod api;
+pub mod error;
 pub mod orchestrator;
 
+pub use error::{FundPaymentManualManagementError, FundPaymentManualManagementTask};
 pub use orchestrator::FundPaymentManualManagementOrchestrator;

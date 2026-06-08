@@ -1,10 +1,12 @@
 use chrono::NaiveDate;
 use std::sync::Arc;
 
-use crate::context::fund::{FundPaymentGroup, FundPaymentService};
+use crate::context::fund::{FundError, FundPaymentGroup, FundPaymentService};
 use crate::context::procedure::{Procedure, ProcedureService, ProcedureStatus};
 use crate::shared::event_bus::{EventBus, FundPaymentGroupUpdated, ProcedureUpdated};
 use crate::shared::logger::BACKEND;
+
+use super::error::{FundPaymentManualManagementError, FundPaymentManualManagementTask};
 
 /// Orchestrator for manual CRUD on fund payment groups (FundPaymentManager page)
 ///
@@ -49,7 +51,7 @@ impl FundPaymentManualManagementOrchestrator {
         fund_id: String,
         payment_date: String,
         procedure_ids: Vec<String>,
-    ) -> anyhow::Result<FundPaymentGroup> {
+    ) -> Result<FundPaymentGroup, FundPaymentManualManagementError> {
         tracing::info!(
             target: BACKEND,
             fund_id = %fund_id,
@@ -66,13 +68,8 @@ impl FundPaymentManualManagementOrchestrator {
 
         let total_amount: i64 = procedures.iter().map(|p| p.billed_amount).sum();
 
-        let parsed_payment_date =
-            NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").map_err(|_| {
-                anyhow::anyhow!(
-                    "Invalid payment date format: {} (expected YYYY-MM-DD)",
-                    payment_date
-                )
-            })?;
+        let parsed_payment_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
+            .map_err(|_| FundError::InvalidPaymentDateFormat)?;
 
         // Step 2: Create the group (silent — we publish at the end)
         let group = self
@@ -126,7 +123,7 @@ impl FundPaymentManualManagementOrchestrator {
         group_id: String,
         payment_date: String,
         new_procedure_ids: Vec<String>,
-    ) -> anyhow::Result<FundPaymentGroup> {
+    ) -> Result<FundPaymentGroup, FundPaymentManualManagementError> {
         tracing::info!(
             target: BACKEND,
             group_id = %group_id,
@@ -140,7 +137,9 @@ impl FundPaymentManualManagementOrchestrator {
             .fund_payment_service
             .read_group(&group_id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("Fund payment group not found: {}", group_id))?;
+            .ok_or_else(|| FundError::PaymentGroupNotFound {
+                fund_payment_group_id: group_id.clone(),
+            })?;
 
         let old_procedure_ids: Vec<String> =
             group.lines.iter().map(|l| l.procedure_id.clone()).collect();
@@ -159,10 +158,7 @@ impl FundPaymentManualManagementOrchestrator {
         });
 
         if is_locked {
-            anyhow::bail!(
-                "Cannot modify fund payment group {}: it contains bank-reconciled procedures",
-                group_id
-            );
+            return Err(FundPaymentManualManagementTask::GroupLocked.into());
         }
 
         // Step 2: Detect removed and added procedure IDs
@@ -204,12 +200,7 @@ impl FundPaymentManualManagementOrchestrator {
         // Step 4: Set added procedures → Reconciled (R8)
         if !added_ids.is_empty() {
             let parsed_payment_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
-                .map_err(|_| {
-                    anyhow::anyhow!(
-                        "Invalid payment date format: {} (expected YYYY-MM-DD)",
-                        payment_date
-                    )
-                })?;
+                .map_err(|_| FundError::InvalidPaymentDateFormat)?;
 
             let added_procedures = self
                 .procedure_service
@@ -281,7 +272,10 @@ impl FundPaymentManualManagementOrchestrator {
     /// 2. Reject if any linked procedure is bank-reconciled (R9)
     /// 3. Reset each procedure: status → Created, clear confirmed_payment_date, clear paid_amount
     /// 4. Soft-delete the lines and the group
-    pub async fn delete_group_with_cleanup(&self, group_id: &str) -> anyhow::Result<()> {
+    pub async fn delete_group_with_cleanup(
+        &self,
+        group_id: &str,
+    ) -> Result<(), FundPaymentManualManagementError> {
         tracing::info!(target: BACKEND, group_id = %group_id, "Deleting fund payment group with procedure cleanup");
 
         // Step 1: Read group to get procedure IDs from lines
@@ -289,7 +283,9 @@ impl FundPaymentManualManagementOrchestrator {
             .fund_payment_service
             .read_group(group_id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("Fund payment group not found: {}", group_id))?;
+            .ok_or_else(|| FundError::PaymentGroupNotFound {
+                fund_payment_group_id: group_id.to_string(),
+            })?;
 
         let procedure_ids: Vec<String> =
             group.lines.iter().map(|l| l.procedure_id.clone()).collect();
@@ -309,10 +305,7 @@ impl FundPaymentManualManagementOrchestrator {
         });
 
         if is_locked {
-            anyhow::bail!(
-                "Cannot delete fund payment group {}: it contains bank-reconciled procedures",
-                group_id
-            );
+            return Err(FundPaymentManualManagementTask::GroupLocked.into());
         }
 
         // Step 3: Reset Stage 1 reconciliation data in a single batch transaction (FPM-400).
@@ -358,7 +351,7 @@ impl FundPaymentManualManagementOrchestrator {
         &self,
         group_id: &str,
         fund_id: &str,
-    ) -> anyhow::Result<(Vec<Procedure>, Vec<Procedure>)> {
+    ) -> Result<(Vec<Procedure>, Vec<Procedure>), FundPaymentManualManagementError> {
         tracing::debug!(
             target: BACKEND,
             group_id = %group_id,
@@ -371,7 +364,9 @@ impl FundPaymentManualManagementOrchestrator {
             .fund_payment_service
             .read_group(group_id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("Fund payment group not found: {}", group_id))?;
+            .ok_or_else(|| FundError::PaymentGroupNotFound {
+                fund_payment_group_id: group_id.to_string(),
+            })?;
 
         let procedure_ids: Vec<String> =
             group.lines.iter().map(|l| l.procedure_id.clone()).collect();
@@ -443,9 +438,13 @@ mod tests {
             .get_group_edit_data("nonexistent-group", "nonexistent-fund")
             .await;
         assert!(
-            result.is_err(),
-            "expected Err for nonexistent group, got: {:?}",
-            result.as_ref().ok()
+            matches!(
+                result,
+                Err(FundPaymentManualManagementError::Fund(
+                    FundError::PaymentGroupNotFound { .. }
+                ))
+            ),
+            "expected PaymentGroupNotFound for nonexistent group, got: {result:?}"
         );
     }
 
@@ -467,9 +466,13 @@ mod tests {
             )
             .await;
         assert!(
-            result.is_err(),
-            "expected Err for nonexistent group, got: {:?}",
-            result.as_ref().ok()
+            matches!(
+                result,
+                Err(FundPaymentManualManagementError::Fund(
+                    FundError::PaymentGroupNotFound { .. }
+                ))
+            ),
+            "expected PaymentGroupNotFound for nonexistent group, got: {result:?}"
         );
     }
 }
