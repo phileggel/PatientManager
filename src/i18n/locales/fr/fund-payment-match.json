@@ -184,5 +184,15 @@
     "resolved": {
       "label": "Résolu"
     }
+  },
+  "errors": {
+    "already_imported": "Ce relevé semble déjà avoir été importé ({{count}} groupes de paiement existent déjà).",
+    "no_valid_candidates": "Aucun groupe de paiement à traiter.",
+    "no_valid_candidates_after_corrections": "Aucun groupe de paiement à traiter après application des corrections.",
+    "invalid_date_range": "Plage de dates invalide.",
+    "pdf_path_rejected": "Impossible d'ouvrir ce fichier PDF.",
+    "pdf_extraction_failed": "Impossible de lire le contenu de ce PDF.",
+    "database_error": "Une erreur de base de données s'est produite. Veuillez réessayer.",
+    "unexpected": "Une erreur inattendue s'est produite lors du rapprochement."
   }
 }

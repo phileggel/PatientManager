@@ -27,6 +27,7 @@ import {
   parsePdfText,
   reconcileAndCreateCandidates,
 } from "../gateway";
+import { formatReconciliationError } from "../shared/errorPresenter";
 import {
   buildCorrectionKey,
   buildLinkProcedureKey,
@@ -66,18 +67,28 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
       try {
         setIsLoading(true);
         setError(null);
-        const text = await extractPdfText(filePath);
-        const parsed = await parsePdfText(text);
+        const textResult = await extractPdfText(filePath);
+        if (!textResult.success) {
+          const { key, params } = formatReconciliationError(textResult.error);
+          setError(t(key, params));
+          return;
+        }
+        const parsed = await parsePdfText(textResult.data);
         setParsedData(parsed);
-        const result = await reconcileAndCreateCandidates(parsed);
-        if (result.already_imported) {
+        const reconResult = await reconcileAndCreateCandidates(parsed);
+        if (!reconResult.success) {
+          const { key, params } = formatReconciliationError(reconResult.error);
+          setError(t(key, params));
+          return;
+        }
+        if (reconResult.data.already_imported) {
           setAlreadyImported(true);
         } else {
-          setReconciliationData(result);
+          setReconciliationData(reconResult.data);
         }
       } catch (err) {
         logger.error("[useReconciliationModal] Failed to load or reconcile PDF", { err });
-        setError(err instanceof Error ? err.message : t("modal.error.unknown"));
+        setError(t("modal.error.unknown"));
       } finally {
         setIsLoading(false);
       }
@@ -174,22 +185,35 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
     if (!reconciliationData || !parsedData) return;
     try {
       setIsValidating(true);
-      await createFundPaymentWithAutoCorrections({
+      const createResult = await createFundPaymentWithAutoCorrections({
         candidates: reconciliationData.candidates,
         auto_corrections: Array.from(autoCorrections.values()),
       });
+      if (!createResult.success) {
+        const { key, params } = formatReconciliationError(createResult.error);
+        setValidationError(t(key, params));
+        return;
+      }
       toastService.show("success", t("modal.footer.validateSuccess"));
       const dateRange = computePdfDateRange(parsedData);
       if (dateRange) {
         setReportDateRange(dateRange);
-        const procedures = await getUnreconciledProceduresInRange(dateRange.start, dateRange.end);
-        setUnreconciledReport(procedures);
+        const proceduresResult = await getUnreconciledProceduresInRange(
+          dateRange.start,
+          dateRange.end,
+        );
+        if (!proceduresResult.success) {
+          const { key, params } = formatReconciliationError(proceduresResult.error);
+          setValidationError(t(key, params));
+          return;
+        }
+        setUnreconciledReport(proceduresResult.data);
       } else {
         onClose();
       }
     } catch (err) {
       logger.error("[useReconciliationModal] Validation failed", { err });
-      setValidationError(err instanceof Error ? err.message : t("modal.error.unknown"));
+      setValidationError(t("modal.error.unknown"));
     } finally {
       setIsValidating(false);
     }

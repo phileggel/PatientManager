@@ -16,7 +16,14 @@ vi.mock("@/infra/logger", () => ({
 // ---------------------------------------------------------------------------
 
 import { invoke } from "@tauri-apps/api/core";
-import { exportAndOpenReportPdf, generateReportPdf } from "./gateway";
+import {
+  createFundPaymentWithAutoCorrections,
+  exportAndOpenReportPdf,
+  extractPdfText,
+  generateReportPdf,
+  getUnreconciledProceduresInRange,
+  reconcileAndCreateCandidates,
+} from "./gateway";
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -135,5 +142,74 @@ describe("fund-payment-match gateway — exportAndOpenReportPdf", () => {
     await expect(exportAndOpenReportPdf(makeRequest(), "bad/name.pdf")).rejects.toThrow(
       "Filename contains path separator",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Typed ServiceResult pass-through (F27 — migrated commands do NOT throw)
+// ---------------------------------------------------------------------------
+
+describe("fund-payment-match gateway — typed ServiceResult pass-through", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("extractPdfText ok → { success: true, data }", async () => {
+    mockInvoke.mockResolvedValue("PDF text content");
+
+    const result = await extractPdfText("/home/user/doc.pdf");
+
+    expect(result).toEqual({ success: true, data: "PDF text content" });
+  });
+
+  it("extractPdfText typed error → { success: false, error } (not thrown)", async () => {
+    mockInvoke.mockRejectedValue({ code: "PdfPathRejected" });
+
+    const result = await extractPdfText("/bad/path.pdf");
+
+    expect(result).toEqual({ success: false, error: { code: "PdfPathRejected" } });
+  });
+
+  it("reconcileAndCreateCandidates ok / error", async () => {
+    const data = { candidates: [], reconciliation: { matches: [] }, already_imported: false };
+    mockInvoke.mockResolvedValueOnce(data);
+    // biome-ignore lint/suspicious/noExplicitAny: minimal test fixture
+    expect(await reconcileAndCreateCandidates({} as any)).toEqual({ success: true, data });
+
+    mockInvoke.mockRejectedValueOnce({ code: "DatabaseError" });
+    // biome-ignore lint/suspicious/noExplicitAny: minimal test fixture
+    expect(await reconcileAndCreateCandidates({} as any)).toEqual({
+      success: false,
+      error: { code: "DatabaseError" },
+    });
+  });
+
+  it("createFundPaymentWithAutoCorrections ok / error", async () => {
+    const request = { candidates: [], auto_corrections: [] };
+    mockInvoke.mockResolvedValueOnce([]);
+    expect(await createFundPaymentWithAutoCorrections(request)).toEqual({
+      success: true,
+      data: [],
+    });
+
+    mockInvoke.mockRejectedValueOnce({ code: "AllDuplicates", count: 2 });
+    expect(await createFundPaymentWithAutoCorrections(request)).toEqual({
+      success: false,
+      error: { code: "AllDuplicates", count: 2 },
+    });
+  });
+
+  it("getUnreconciledProceduresInRange ok / error", async () => {
+    mockInvoke.mockResolvedValueOnce([]);
+    expect(await getUnreconciledProceduresInRange("2026-01-01", "2026-01-31")).toEqual({
+      success: true,
+      data: [],
+    });
+
+    mockInvoke.mockRejectedValueOnce({ code: "InvalidDateRange" });
+    expect(await getUnreconciledProceduresInRange("bad", "2026-01-31")).toEqual({
+      success: false,
+      error: { code: "InvalidDateRange" },
+    });
   });
 });
