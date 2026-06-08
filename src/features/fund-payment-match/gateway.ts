@@ -2,12 +2,14 @@ import {
   type CreateFundPaymentWithAutoCorrectionsRequest,
   commands,
   type FundPaymentGroup,
+  type FundPaymentReconciliationError,
   type PdfParseResult,
   type ReconcileAndCandidatesResponse,
   type ReportGenerationRequest,
   type UnreconciledProcedure,
 } from "@/bindings";
 import { logger } from "@/infra/logger";
+import type { ServiceResult } from "@/types/api";
 
 const TAG = "[ReconciliationGateway]";
 
@@ -15,30 +17,30 @@ const TAG = "[ReconciliationGateway]";
  * Extract text content from a PDF file
  *
  * @param filePath - Absolute path to the PDF file
- * @returns Extracted text content
- * @throws Error if extraction fails
+ * @returns Extracted text content, or the typed error (F27 pass-through)
  */
-export async function extractPdfText(filePath: string): Promise<string> {
+export async function extractPdfText(
+  filePath: string,
+): Promise<ServiceResult<string, FundPaymentReconciliationError>> {
   logger.debug(TAG, "Extracting text from PDF");
 
   const result = await commands.extractPdfText(filePath);
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to extract PDF text", result.error);
-    // Phase 2 tsc bridge — typed error; full F27 presenter pipeline lands in the FE PR.
-    throw new Error(result.error.code);
+    return { success: false, error: result.error };
   }
 
   logger.info(TAG, `Successfully extracted ${result.data.length} characters`);
-  return result.data;
+  return { success: true, data: result.data };
 }
 
 /**
  * Parse extracted PDF text into structured procedure groups
  *
  * @param text - Raw extracted PDF text
- * @returns Parsed procedure groups with fund/patient resolution
- * @throws Error if parsing fails
+ * @returns Parsed procedure groups with fund/patient resolution (infallible —
+ *   unparseable lines are reported inside the result, never as an error)
  */
 export async function parsePdfText(text: string): Promise<PdfParseResult> {
   logger.debug(TAG, "Parsing PDF text", `${text.length} characters`);
@@ -56,20 +58,18 @@ export async function parsePdfText(text: string): Promise<PdfParseResult> {
  * that returns fund payment candidates ready for user validation.
  *
  * @param parseResult - Parsed PDF procedure data
- * @returns Candidates grouped by fund + payment date, ready for validation
- * @throws Error if reconciliation fails
+ * @returns Candidates grouped by fund + payment date, or the typed error
  */
 export async function reconcileAndCreateCandidates(
   parseResult: PdfParseResult,
-): Promise<ReconcileAndCandidatesResponse> {
+): Promise<ServiceResult<ReconcileAndCandidatesResponse, FundPaymentReconciliationError>> {
   logger.debug(TAG, "Reconciling PDF and creating fund payment candidates");
 
   const result = await commands.reconcileAndCreateCandidates(parseResult);
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to reconcile and create candidates", result.error);
-    // Phase 2 tsc bridge — typed error; full F27 presenter pipeline lands in the FE PR.
-    throw new Error(result.error.code);
+    return { success: false, error: result.error };
   }
 
   const issueCount = result.data.reconciliation.matches.filter((m) =>
@@ -81,7 +81,7 @@ export async function reconcileAndCreateCandidates(
     TAG,
     `Created ${result.data.candidates.length} fund payment candidates from ${result.data.reconciliation.matches.length} total matches (${issueCount} issues)`,
   );
-  return result.data;
+  return { success: true, data: result.data };
 }
 
 /**
@@ -91,12 +91,11 @@ export async function reconcileAndCreateCandidates(
  * then creates fund payment groups from validated candidates.
  *
  * @param request - Request containing candidates and auto-corrections
- * @returns Created fund payment groups
- * @throws Error if creation or corrections fail
+ * @returns Created fund payment groups, or the typed error
  */
 export async function createFundPaymentWithAutoCorrections(
   request: CreateFundPaymentWithAutoCorrectionsRequest,
-): Promise<FundPaymentGroup[]> {
+): Promise<ServiceResult<FundPaymentGroup[], FundPaymentReconciliationError>> {
   logger.debug(TAG, "Creating fund payment groups with auto-corrections", {
     candidateCount: request.candidates.length,
     correctionCount: request.auto_corrections.length,
@@ -106,15 +105,14 @@ export async function createFundPaymentWithAutoCorrections(
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to create fund payment groups with auto-corrections", result.error);
-    // Phase 2 tsc bridge — typed error; full F27 presenter pipeline lands in the FE PR.
-    throw new Error(result.error.code);
+    return { success: false, error: result.error };
   }
 
   logger.info(
     TAG,
     `Created ${result.data.length} fund payment groups with ${request.auto_corrections.length} auto-corrections`,
   );
-  return result.data;
+  return { success: true, data: result.data };
 }
 
 /**
@@ -122,25 +120,23 @@ export async function createFundPaymentWithAutoCorrections(
  *
  * @param startDate - Start date in ISO format (YYYY-MM-DD)
  * @param endDate - End date in ISO format (YYYY-MM-DD)
- * @returns List of unreconciled procedures
- * @throws Error if query fails
+ * @returns List of unreconciled procedures, or the typed error
  */
 export async function getUnreconciledProceduresInRange(
   startDate: string,
   endDate: string,
-): Promise<UnreconciledProcedure[]> {
+): Promise<ServiceResult<UnreconciledProcedure[], FundPaymentReconciliationError>> {
   logger.debug(TAG, "Fetching unreconciled procedures in range", { startDate, endDate });
 
   const result = await commands.getUnreconciledProceduresInRange(startDate, endDate);
 
   if (result.status === "error") {
     logger.error(TAG, "Failed to fetch unreconciled procedures", result.error);
-    // Phase 2 tsc bridge — typed error; full F27 presenter pipeline lands in the FE PR.
-    throw new Error(result.error.code);
+    return { success: false, error: result.error };
   }
 
   logger.info(TAG, `Found ${result.data.length} unreconciled procedures in range`);
-  return result.data;
+  return { success: true, data: result.data };
 }
 
 /**

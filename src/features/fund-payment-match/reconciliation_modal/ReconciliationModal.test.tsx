@@ -155,18 +155,26 @@ describe("ReconciliationModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (gateway.extractPdfText as ReturnType<typeof vi.fn>).mockResolvedValue("PDF text content");
+    (gateway.extractPdfText as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: "PDF text content",
+    });
     (gateway.parsePdfText as ReturnType<typeof vi.fn>).mockResolvedValue(mockParsedData);
-    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue(
-      mockReconciliationNoAnomalies,
-    );
-    (gateway.getUnreconciledProceduresInRange as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: mockReconciliationNoAnomalies,
+    });
+    (gateway.getUnreconciledProceduresInRange as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: [],
+    });
   });
 
   it("does not auto-validate when unresolved anomalies exist", async () => {
-    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue(
-      mockReconciliationWithAnomaly,
-    );
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: mockReconciliationWithAnomaly,
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
@@ -180,12 +188,14 @@ describe("ReconciliationModal", () => {
   it("auto-validates after clicking Corriger automatiquement", async () => {
     const user = userEvent.setup();
 
-    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue(
-      mockReconciliationWithAnomaly,
-    );
-    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
-      [],
-    );
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: mockReconciliationWithAnomaly,
+    });
+    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: [],
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
@@ -201,9 +211,10 @@ describe("ReconciliationModal", () => {
   });
 
   it("auto-validates immediately when no anomalies", async () => {
-    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
-      [],
-    );
+    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: [],
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
@@ -217,8 +228,8 @@ describe("ReconciliationModal", () => {
 
   it("shows the already-imported empty state and never dispatches downstream commands when the backend flags the PDF as already imported", async () => {
     (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ...mockReconciliationNoAnomalies,
-      already_imported: true,
+      success: true,
+      data: { ...mockReconciliationNoAnomalies, already_imported: true },
     });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
@@ -234,9 +245,10 @@ describe("ReconciliationModal", () => {
   });
 
   it("calls getUnreconciledProceduresInRange with date range derived from PDF after auto-validation", async () => {
-    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
-      [],
-    );
+    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: [],
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
@@ -253,9 +265,10 @@ describe("ReconciliationModal", () => {
   it("closes modal when clicking Close in unreconciled report", async () => {
     const user = userEvent.setup();
 
-    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
-      [],
-    );
+    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: [],
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
@@ -269,14 +282,17 @@ describe("ReconciliationModal", () => {
   });
 
   it("shows error state when PDF reconciliation fails to load", async () => {
-    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("Network error"),
-    );
+    // F27: the gateway no longer throws — it returns a typed error that the
+    // hook maps through the presenter to a translated message.
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      error: { code: "DatabaseError" },
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Network error")).toBeInTheDocument();
+      expect(screen.getByText(/database/i)).toBeInTheDocument();
     });
   });
 
@@ -284,9 +300,10 @@ describe("ReconciliationModal", () => {
   it("shows Report button in report step and calls gateway.exportAndOpenReportPdf on click", async () => {
     const user = userEvent.setup();
 
-    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
-      [],
-    );
+    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: [],
+    });
     (gateway.exportAndOpenReportPdf as ReturnType<typeof vi.fn>).mockResolvedValue(
       "/home/phil/Downloads/rapport.pdf",
     );
@@ -311,9 +328,10 @@ describe("ReconciliationModal", () => {
   it("shows error toast when exportAndOpenReportPdf throws", async () => {
     const user = userEvent.setup();
 
-    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue(
-      [],
-    );
+    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: [],
+    });
     (gateway.exportAndOpenReportPdf as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("Failed to export PDF"),
     );
@@ -337,9 +355,10 @@ describe("ReconciliationModal", () => {
   });
 
   it("does not show Report button during reconciliation workflow (non-report steps)", async () => {
-    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue(
-      mockReconciliationWithAnomaly,
-    );
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: mockReconciliationWithAnomaly,
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
@@ -351,14 +370,16 @@ describe("ReconciliationModal", () => {
   });
 
   it("shows error message when auto-validation fails", async () => {
-    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("Validation failed"),
-    );
+    // F27: typed error from the gateway → presenter → translated message.
+    (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      error: { code: "DatabaseError" },
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Validation failed")).toBeInTheDocument();
+      expect(screen.getByText(/database/i)).toBeInTheDocument();
     });
 
     expect(mockOnClose).not.toHaveBeenCalled();

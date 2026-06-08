@@ -184,5 +184,15 @@
     "resolved": {
       "label": "Resolved"
     }
+  },
+  "errors": {
+    "already_imported": "This statement appears to have already been imported ({{count}} payment groups already exist).",
+    "no_valid_candidates": "No payment groups to process.",
+    "no_valid_candidates_after_corrections": "No payment groups left to process after applying corrections.",
+    "invalid_date_range": "Invalid date range.",
+    "pdf_path_rejected": "Could not open this PDF file.",
+    "pdf_extraction_failed": "Could not read the contents of this PDF.",
+    "database_error": "A database error occurred. Please try again.",
+    "unexpected": "An unexpected error occurred during reconciliation."
   }
 }

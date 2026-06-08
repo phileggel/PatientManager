@@ -95,12 +95,12 @@ describe("useReconciliationModal — direct state setters", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockExtract.mockResolvedValue("PDF text");
+    mockExtract.mockResolvedValue({ success: true, data: "PDF text" });
     // biome-ignore lint/suspicious/noExplicitAny: test fixture
     mockParse.mockResolvedValue(PDF_WITH_LINE as any);
     // Use an anomaly so totalAnomalies=1 → canValidate=false → no auto-validate loop
     // biome-ignore lint/suspicious/noExplicitAny: test fixture — ReconciliationMatch is a discriminated union that TypeScript widens
-    mockReconcile.mockResolvedValue(RECONCILE_WITH_ANOMALY as any);
+    mockReconcile.mockResolvedValue({ success: true, data: RECONCILE_WITH_ANOMALY } as any);
   });
 
   it("handleAcceptCorrection adds key to acceptedKeys and stores the correction", async () => {
@@ -142,14 +142,18 @@ describe("useReconciliationModal — direct state setters", () => {
 describe("useReconciliationModal — handleValidate null dateRange calls onClose", () => {
   it("calls onClose when parsedData has no groups (computePdfDateRange returns null)", async () => {
     const onClose = vi.fn();
-    vi.mocked(gateway.extractPdfText).mockResolvedValue("text");
+    vi.mocked(gateway.extractPdfText).mockResolvedValue({ success: true, data: "text" });
     // biome-ignore lint/suspicious/noExplicitAny: test fixture
     vi.mocked(gateway.parsePdfText).mockResolvedValue(PDF_NO_LINES as any);
     // biome-ignore lint/suspicious/noExplicitAny: test fixture cast
-    vi.mocked(gateway.reconcileAndCreateCandidates).mockResolvedValue(
-      RECONCILE_NO_ANOMALIES as any,
-    );
-    vi.mocked(gateway.createFundPaymentWithAutoCorrections).mockResolvedValue([]);
+    vi.mocked(gateway.reconcileAndCreateCandidates).mockResolvedValue({
+      success: true,
+      data: RECONCILE_NO_ANOMALIES,
+    } as any);
+    vi.mocked(gateway.createFundPaymentWithAutoCorrections).mockResolvedValue({
+      success: true,
+      data: [],
+    });
 
     renderHook(() => useReconciliationModal("/test.pdf", onClose));
 
@@ -203,11 +207,11 @@ describe("useReconciliationModal — handleAutoCorrectAll with two shared-candid
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockExtract.mockResolvedValue("PDF text");
+    mockExtract.mockResolvedValue({ success: true, data: "PDF text" });
     // biome-ignore lint/suspicious/noExplicitAny: test fixture
     mockParse.mockResolvedValue(PDF_WITH_LINE as any);
     // biome-ignore lint/suspicious/noExplicitAny: discriminated-union widening
-    mockReconcile.mockResolvedValue(RECONCILE_TWO_NOT_FOUND as any);
+    mockReconcile.mockResolvedValue({ success: true, data: RECONCILE_TWO_NOT_FOUND } as any);
   });
 
   it("gives the second line its own CreateProcedure even when the first is already linked", async () => {
@@ -232,5 +236,43 @@ describe("useReconciliationModal — handleAutoCorrectAll with two shared-candid
     expect(result.current.acceptedKeys.has("CreateProcedure-1")).toBe(true);
     // Line 0 was already linked → no CreateProcedure created for it.
     expect(result.current.acceptedKeys.has("CreateProcedure-0")).toBe(false);
+  });
+});
+
+// F27: a typed gateway error must surface a (translated) message through the
+// presenter, not crash or leave the modal stuck loading.
+describe("useReconciliationModal — typed gateway error surfaces a message (F27)", () => {
+  it("sets error and renders no reconciliation data when extract returns a typed error", async () => {
+    vi.clearAllMocks();
+    mockExtract.mockResolvedValue({ success: false, error: { code: "PdfPathRejected" } });
+
+    const { result } = renderHook(() => useReconciliationModal("/bad.pdf", vi.fn()));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.error).toBeTruthy();
+    expect(result.current.reconciliationData).toBeNull();
+  });
+
+  it("surfaces a validation error when getUnreconciledProceduresInRange returns a typed error", async () => {
+    vi.clearAllMocks();
+    mockExtract.mockResolvedValue({ success: true, data: "PDF text" });
+    // biome-ignore lint/suspicious/noExplicitAny: test fixture
+    mockParse.mockResolvedValue(PDF_WITH_LINE as any); // valid date range
+    // No anomalies → canValidate=true → the auto-validate effect runs handleValidate.
+    // biome-ignore lint/suspicious/noExplicitAny: discriminated-union widening
+    mockReconcile.mockResolvedValue({ success: true, data: RECONCILE_NO_ANOMALIES } as any);
+    vi.mocked(gateway.createFundPaymentWithAutoCorrections).mockResolvedValue({
+      success: true,
+      data: [],
+    });
+    vi.mocked(gateway.getUnreconciledProceduresInRange).mockResolvedValue({
+      success: false,
+      error: { code: "DatabaseError" },
+    });
+
+    const { result } = renderHook(() => useReconciliationModal("/test.pdf", vi.fn()));
+
+    await waitFor(() => expect(result.current.validationError).toBeTruthy());
+    expect(result.current.unreconciledReport).toBeNull();
   });
 });
