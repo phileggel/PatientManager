@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { FundPaymentReconciliationError } from "@/bindings";
-import { formatReconciliationError } from "./errorPresenter";
+import type { FundPaymentReconciliationError, ReportPdfError } from "@/bindings";
+import { formatReconciliationError, formatReportPdfError } from "./errorPresenter";
 
 describe("formatReconciliationError", () => {
   it("maps AllDuplicates to the already_imported key with the count param", () => {
@@ -47,5 +47,21 @@ describe("formatReconciliationError", () => {
         code: "TotalAmountNotPositive",
       } as FundPaymentReconciliationError).key,
     ).toBe("fund-payment-match:errors.unexpected");
+  });
+});
+
+describe("formatReportPdfError", () => {
+  it("maps every ReportPdfError code to the single export-failed key", () => {
+    const codes: Array<ReportPdfError["code"]> = [
+      "InvalidRequest",
+      "PdfGenerationFailed",
+      "WriteFailed",
+      "OpenFailed",
+    ];
+    for (const code of codes) {
+      expect(formatReportPdfError({ code }).key).toBe(
+        "fund-payment-match:modal.report.error.exportFailed",
+      );
+    }
   });
 });

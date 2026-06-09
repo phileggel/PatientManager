@@ -65,10 +65,16 @@ pub fn render(req: &ReportGenerationRequest) -> Result<Vec<u8>, ReportPdfError> 
 fn build_document(
     req: &ReportGenerationRequest,
 ) -> Result<(PdfDocument, Vec<PdfPage>), ReportPdfError> {
-    let regular = ParsedFont::from_bytes(FONT_REGULAR, 0, &mut Vec::new())
-        .ok_or_else(|| ReportPdfError::PdfGenerationFailed("regular font load failed".into()))?;
-    let bold = ParsedFont::from_bytes(FONT_BOLD, 0, &mut Vec::new())
-        .ok_or_else(|| ReportPdfError::PdfGenerationFailed("bold font load failed".into()))?;
+    let regular = ParsedFont::from_bytes(FONT_REGULAR, 0, &mut Vec::new()).ok_or_else(|| {
+        ReportPdfError::PdfGenerationFailed {
+            detail: "regular font load failed".into(),
+        }
+    })?;
+    let bold = ParsedFont::from_bytes(FONT_BOLD, 0, &mut Vec::new()).ok_or_else(|| {
+        ReportPdfError::PdfGenerationFailed {
+            detail: "bold font load failed".into(),
+        }
+    })?;
 
     let mut doc = PdfDocument::new(&req.title);
     let regular_id = PdfFontHandle::External(doc.add_font(&regular));

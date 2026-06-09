@@ -8,7 +8,8 @@
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AutoCorrection, ReconcileAndCandidatesResponse } from "@/bindings";
+import type { AutoCorrection, ReconcileAndCandidatesResponse, ReportPdfError } from "@/bindings";
+import type { ServiceResult } from "@/types/api";
 import {
   mockReportPeriod,
   mockSourceFileName,
@@ -113,9 +114,10 @@ describe("useReportGeneration", () => {
   // ── FPR-011: handleReport calls the gateway exactly once ─────────────────
 
   it("handleReport calls gateway.exportAndOpenReportPdf exactly once (FPR-011)", async () => {
-    mockExportAndOpen.mockResolvedValue(
-      "/home/phil/Downloads/rapport_rapprochement_caisse_2026-04.pdf",
-    );
+    mockExportAndOpen.mockResolvedValue({
+      success: true,
+      data: "/home/phil/Downloads/rapport_rapprochement_caisse_2026-04.pdf",
+    });
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
 
@@ -129,7 +131,7 @@ describe("useReportGeneration", () => {
   // ── FPR-011, FPR-013, ADR-006: request payload shape ─────────────────────
 
   it("dispatched request has non-empty string fields and pre-joined rows (FPR-011, FPR-013, ADR-006)", async () => {
-    mockExportAndOpen.mockResolvedValue("/home/phil/Downloads/file.pdf");
+    mockExportAndOpen.mockResolvedValue({ success: true, data: "/home/phil/Downloads/file.pdf" });
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
 
@@ -148,7 +150,7 @@ describe("useReportGeneration", () => {
   });
 
   it("unreconciled rows variant carries all input rows", async () => {
-    mockExportAndOpen.mockResolvedValue("/home/phil/Downloads/file.pdf");
+    mockExportAndOpen.mockResolvedValue({ success: true, data: "/home/phil/Downloads/file.pdf" });
 
     const args = { ...baseArgs, unreconciledReport: mockUnreconciledProcedures };
     const { result } = renderHook(() => useReportGeneration(args));
@@ -165,7 +167,7 @@ describe("useReportGeneration", () => {
   });
 
   it("empty unreconciledReport → request carries unreconciled.type === 'Empty' (FPR-032)", async () => {
-    mockExportAndOpen.mockResolvedValue("/home/phil/Downloads/file.pdf");
+    mockExportAndOpen.mockResolvedValue({ success: true, data: "/home/phil/Downloads/file.pdf" });
 
     const args = { ...baseArgs, unreconciledReport: [] };
     const { result } = renderHook(() => useReportGeneration(args));
@@ -179,7 +181,7 @@ describe("useReportGeneration", () => {
   });
 
   it("empty autoCorrections Map → request.correction_groups is [] (FPR-040)", async () => {
-    mockExportAndOpen.mockResolvedValue("/home/phil/Downloads/file.pdf");
+    mockExportAndOpen.mockResolvedValue({ success: true, data: "/home/phil/Downloads/file.pdf" });
 
     const args = { ...baseArgs, autoCorrections: new Map<string, AutoCorrection>() };
     const { result } = renderHook(() => useReportGeneration(args));
@@ -195,7 +197,7 @@ describe("useReportGeneration", () => {
   // ── Locale-aware filename construction ───────────────────────────────────
 
   it("French locale → filename uses rapport_rapprochement_caisse stem and end-month tag", async () => {
-    mockExportAndOpen.mockResolvedValue("/home/phil/Downloads/x.pdf");
+    mockExportAndOpen.mockResolvedValue({ success: true, data: "/home/phil/Downloads/x.pdf" });
     currentLang = "fr";
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
@@ -209,7 +211,7 @@ describe("useReportGeneration", () => {
   });
 
   it("English locale → filename uses fund_reconciliation_report stem and end-month tag", async () => {
-    mockExportAndOpen.mockResolvedValue("/home/phil/Downloads/x.pdf");
+    mockExportAndOpen.mockResolvedValue({ success: true, data: "/home/phil/Downloads/x.pdf" });
     currentLang = "en";
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
@@ -223,7 +225,7 @@ describe("useReportGeneration", () => {
   });
 
   it("filename month tag is taken from the period end date, not the start", async () => {
-    mockExportAndOpen.mockResolvedValue("/home/phil/Downloads/x.pdf");
+    mockExportAndOpen.mockResolvedValue({ success: true, data: "/home/phil/Downloads/x.pdf" });
 
     const args = {
       ...baseArgs,
@@ -242,9 +244,9 @@ describe("useReportGeneration", () => {
   // ── FPR-019: isGenerating flips true → false ─────────────────────────────
 
   it("isGenerating is true while awaiting the gateway and false after it resolves (FPR-019)", async () => {
-    let resolveGenerate!: (v: string) => void;
+    let resolveGenerate!: (v: ServiceResult<string, ReportPdfError>) => void;
     mockExportAndOpen.mockReturnValue(
-      new Promise<string>((r) => {
+      new Promise<ServiceResult<string, ReportPdfError>>((r) => {
         resolveGenerate = r;
       }),
     );
@@ -262,7 +264,7 @@ describe("useReportGeneration", () => {
     });
 
     await act(async () => {
-      resolveGenerate("/home/phil/Downloads/x.pdf");
+      resolveGenerate({ success: true, data: "/home/phil/Downloads/x.pdf" });
     });
 
     await waitFor(() => {
@@ -271,9 +273,9 @@ describe("useReportGeneration", () => {
   });
 
   it("duplicate call guard: second handleReport call while isGenerating=true does not call gateway again (FPR-019)", async () => {
-    let resolveFirst!: (v: string) => void;
+    let resolveFirst!: (v: ServiceResult<string, ReportPdfError>) => void;
     mockExportAndOpen.mockReturnValue(
-      new Promise<string>((r) => {
+      new Promise<ServiceResult<string, ReportPdfError>>((r) => {
         resolveFirst = r;
       }),
     );
@@ -295,7 +297,7 @@ describe("useReportGeneration", () => {
     expect(mockExportAndOpen).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      resolveFirst("/home/phil/Downloads/x.pdf");
+      resolveFirst({ success: true, data: "/home/phil/Downloads/x.pdf" });
     });
   });
 
@@ -303,7 +305,7 @@ describe("useReportGeneration", () => {
 
   it("success: shows success toast with the saved filename (FPR-015)", async () => {
     const savedPath = "/home/phil/Downloads/rapport_rapprochement_caisse_2026-04.pdf";
-    mockExportAndOpen.mockResolvedValue(savedPath);
+    mockExportAndOpen.mockResolvedValue({ success: true, data: savedPath });
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
 
@@ -318,9 +320,10 @@ describe("useReportGeneration", () => {
   });
 
   it("success toast uses the path leaf (handles backend collision suffix)", async () => {
-    mockExportAndOpen.mockResolvedValue(
-      "/home/phil/Downloads/rapport_rapprochement_caisse_2026-04 (3).pdf",
-    );
+    mockExportAndOpen.mockResolvedValue({
+      success: true,
+      data: "/home/phil/Downloads/rapport_rapprochement_caisse_2026-04 (3).pdf",
+    });
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
 
@@ -336,8 +339,8 @@ describe("useReportGeneration", () => {
 
   // ── FPR-014: failures surface as a toast and reset the busy flag ─────────
 
-  it("error: gateway throws → error toast is shown (FPR-014)", async () => {
-    mockExportAndOpen.mockRejectedValue(new Error("Failed to save PDF: permission_denied"));
+  it("error: gateway returns a typed error → error toast is shown (FPR-014)", async () => {
+    mockExportAndOpen.mockResolvedValue({ success: false, error: { code: "WriteFailed" } });
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
 
@@ -345,11 +348,14 @@ describe("useReportGeneration", () => {
       await result.current.handleReport();
     });
 
-    expect(mockToastShow).toHaveBeenCalledWith("error", "modal.report.error.exportFailed");
+    expect(mockToastShow).toHaveBeenCalledWith(
+      "error",
+      "fund-payment-match:modal.report.error.exportFailed",
+    );
   });
 
-  it("error: logger.error is called once when gateway throws (FPR-014)", async () => {
-    mockExportAndOpen.mockRejectedValue(new Error("Failed to open PDF in system viewer"));
+  it("error: logger.error is called once when gateway returns an error (FPR-014)", async () => {
+    mockExportAndOpen.mockResolvedValue({ success: false, error: { code: "OpenFailed" } });
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
 
@@ -361,7 +367,7 @@ describe("useReportGeneration", () => {
   });
 
   it("error: isGenerating returns to false after a failure so the user can retry (FPR-014, FPR-019)", async () => {
-    mockExportAndOpen.mockRejectedValue(new Error("PdfGenerationFailed"));
+    mockExportAndOpen.mockResolvedValue({ success: false, error: { code: "PdfGenerationFailed" } });
 
     const { result } = renderHook(() => useReportGeneration(baseArgs));
 

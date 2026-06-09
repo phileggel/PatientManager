@@ -304,9 +304,10 @@ describe("ReconciliationModal", () => {
       success: true,
       data: [],
     });
-    (gateway.exportAndOpenReportPdf as ReturnType<typeof vi.fn>).mockResolvedValue(
-      "/home/phil/Downloads/rapport.pdf",
-    );
+    (gateway.exportAndOpenReportPdf as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: "/home/phil/Downloads/rapport.pdf",
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
@@ -324,17 +325,18 @@ describe("ReconciliationModal", () => {
     });
   });
 
-  // FPR-014 — exportAndOpenReportPdf throws → error toast shown, modal stays open
-  it("shows error toast when exportAndOpenReportPdf throws", async () => {
+  // FPR-014 — exportAndOpenReportPdf returns a typed error → error toast shown, modal stays open
+  it("shows error toast when exportAndOpenReportPdf returns an error", async () => {
     const user = userEvent.setup();
 
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: true,
       data: [],
     });
-    (gateway.exportAndOpenReportPdf as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("Failed to export PDF"),
-    );
+    (gateway.exportAndOpenReportPdf as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      error: { code: "WriteFailed" },
+    });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 

@@ -897,7 +897,7 @@ async getProcedureRefundByRefundProcedure(refundProcedureId: string) : Promise<R
  * values, and the per-correction joined row strings. The backend performs
  * no database lookup, no translation, and no formatting (FPR-013, FPR-021).
  */
-async generateFundReconciliationReportPdf(request: ReportGenerationRequest) : Promise<Result<number[], string>> {
+async generateFundReconciliationReportPdf(request: ReportGenerationRequest) : Promise<Result<number[], ReportPdfError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("generate_fund_reconciliation_report_pdf", { request }) };
 } catch (e) {
@@ -922,7 +922,7 @@ async generateFundReconciliationReportPdf(request: ReportGenerationRequest) : Pr
  * is appended before the extension (`name.pdf` → `name (1).pdf` → …) so
  * re-exporting the same report never silently overwrites a prior one.
  */
-async exportAndOpenFundReconciliationReportPdf(request: ReportGenerationRequest, filename: string) : Promise<Result<string, string>> {
+async exportAndOpenFundReconciliationReportPdf(request: ReportGenerationRequest, filename: string) : Promise<Result<string, ReportPdfError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("export_and_open_fund_reconciliation_report_pdf", { request, filename }) };
 } catch (e) {
@@ -2276,6 +2276,42 @@ correction_groups: CorrectionGroup[];
  * Footer page-number label, e.g. "Page" — rendered as `"{label} {n} / {total}"` (FPR-022).
  */
 page_label: string }
+/**
+ * Errors produced by the `generate_fund_reconciliation_report_pdf` and
+ * `export_and_open_fund_reconciliation_report_pdf` commands. This is the
+ * FE-facing wire type — each variant serializes as `{ "code": "<Variant>" }`.
+ * 
+ * The `detail` strings are diagnostic context (which field failed validation,
+ * which font/IO operation broke). They stay server-side for `Display` +
+ * `tracing` and the validator's unit tests; `#[serde(skip)]` keeps them off the
+ * wire, where they would leak infra detail with no FE value.
+ */
+export type ReportPdfError = 
+/**
+ * The `ReportGenerationRequest` payload is structurally invalid.
+ * 
+ * Triggered when: a required pre-resolved string is empty, exceeds the
+ * length cap, contains control characters, or a collection (header
+ * lines, unreconciled rows, correction groups, correction rows) exceeds
+ * its DoS-guard cap. See `request::validate_safe_string`.
+ */
+{ code: "InvalidRequest" } | 
+/**
+ * PDF rendering failed after validation passed — e.g. font load error,
+ * internal printpdf error, or I/O error.
+ */
+{ code: "PdfGenerationFailed" } | 
+/**
+ * Writing the rendered PDF bytes to the destination failed (permission
+ * denied, disk full, missing parent directory, etc.).
+ */
+{ code: "WriteFailed" } | 
+/**
+ * Launching the system default application for the saved file failed
+ * (no associated app, platform launcher refused, etc.). The file has
+ * already been written when this error is returned.
+ */
+{ code: "OpenFailed" }
 /**
  * A credit line that has been resolved with a fund ID
  */

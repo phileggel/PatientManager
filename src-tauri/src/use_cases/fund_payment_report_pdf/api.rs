@@ -24,7 +24,7 @@ const FILENAME_MAX_LEN: usize = 200;
 #[specta::specta]
 pub async fn generate_fund_reconciliation_report_pdf(
     request: ReportGenerationRequest,
-) -> Result<Vec<u8>, String> {
+) -> Result<Vec<u8>, ReportPdfError> {
     let unreconciled_count = match &request.unreconciled {
         super::request::UnreconciledSection::Empty { .. } => 0,
         super::request::UnreconciledSection::Rows { rows, .. } => rows.len(),
@@ -40,38 +40,30 @@ pub async fn generate_fund_reconciliation_report_pdf(
         "Generating fund reconciliation report PDF"
     );
 
-    match generate(&request) {
-        Ok(bytes) => {
-            tracing::info!(
-                target: BACKEND,
-                size_bytes = bytes.len(),
-                "Fund reconciliation report PDF generated"
-            );
-            Ok(bytes)
-        }
-        Err(ReportPdfError::InvalidRequest(detail)) => {
+    let bytes = generate(&request).inspect_err(log_report_pdf_error)?;
+    tracing::info!(
+        target: BACKEND,
+        size_bytes = bytes.len(),
+        "Fund reconciliation report PDF generated"
+    );
+    Ok(bytes)
+}
+
+/// Log a `ReportPdfError` at the command boundary with its server-side `detail`
+/// before it is returned to the frontend (where only the `code` survives).
+fn log_report_pdf_error(e: &ReportPdfError) {
+    match e {
+        ReportPdfError::InvalidRequest { detail } => {
             tracing::warn!(target: BACKEND, %detail, "Report PDF request rejected");
-            Err(format!("Invalid request: {detail}"))
         }
-        Err(ReportPdfError::PdfGenerationFailed(detail)) => {
+        ReportPdfError::PdfGenerationFailed { detail } => {
             tracing::error!(target: BACKEND, %detail, "Report PDF rendering failed");
-            Err("PDF rendering failed".into())
         }
-        Err(ReportPdfError::WriteFailed(detail)) => {
-            tracing::error!(
-                target: BACKEND,
-                %detail,
-                "Unexpected WriteFailed from generate() — likely an orchestrator regression"
-            );
-            Err("Internal error".into())
+        ReportPdfError::WriteFailed { detail } => {
+            tracing::error!(target: BACKEND, %detail, "Report PDF write failed");
         }
-        Err(ReportPdfError::OpenFailed(detail)) => {
-            tracing::error!(
-                target: BACKEND,
-                %detail,
-                "Unexpected OpenFailed from generate() — likely an orchestrator regression"
-            );
-            Err("Internal error".into())
+        ReportPdfError::OpenFailed { detail } => {
+            tracing::error!(target: BACKEND, %detail, "Report PDF open failed");
         }
     }
 }
@@ -97,53 +89,32 @@ pub async fn export_and_open_fund_reconciliation_report_pdf(
     app: AppHandle,
     request: ReportGenerationRequest,
     filename: String,
-) -> Result<String, String> {
+) -> Result<String, ReportPdfError> {
     tracing::info!(
         target: BACKEND,
         filename_len = filename.len(),
         "Exporting fund reconciliation report PDF"
     );
 
-    validate_filename(&filename).map_err(|e| {
-        tracing::warn!(target: BACKEND, error = %e, "Export filename rejected by validator");
-        e
-    })?;
+    validate_filename(&filename).inspect_err(log_report_pdf_error)?;
 
     let downloads_dir = app.path().download_dir().map_err(|e| {
         tracing::error!(target: BACKEND, error = %e, "Cannot resolve Downloads directory");
-        "Cannot resolve Downloads directory".to_string()
+        ReportPdfError::WriteFailed {
+            detail: "downloads_dir_unresolved".into(),
+        }
     })?;
 
     let target = next_available_path(&downloads_dir.join(&filename));
 
-    match save(&request, &target) {
-        Ok(()) => {
-            tracing::info!(
-                target: BACKEND,
-                "Fund reconciliation report PDF saved"
-            );
-        }
-        Err(ReportPdfError::InvalidRequest(detail)) => {
-            tracing::warn!(target: BACKEND, %detail, "Export report PDF rejected");
-            return Err(format!("Invalid request: {detail}"));
-        }
-        Err(ReportPdfError::PdfGenerationFailed(detail)) => {
-            tracing::error!(target: BACKEND, %detail, "Export report PDF rendering failed");
-            return Err("PDF rendering failed".into());
-        }
-        Err(ReportPdfError::WriteFailed(detail)) => {
-            tracing::error!(target: BACKEND, %detail, "Failed to write report PDF");
-            return Err(format!("Failed to save PDF: {detail}"));
-        }
-        Err(ReportPdfError::OpenFailed(_)) => {
-            tracing::error!(target: BACKEND, "Unexpected OpenFailed from save()");
-            return Err("Internal error".into());
-        }
-    }
+    save(&request, &target).inspect_err(log_report_pdf_error)?;
+    tracing::info!(target: BACKEND, "Fund reconciliation report PDF saved");
 
     tauri_plugin_opener::open_path(&target, None::<&str>).map_err(|e| {
         tracing::error!(target: BACKEND, error = %e, "Failed to open report PDF in system viewer");
-        "Failed to open PDF in system viewer".to_string()
+        ReportPdfError::OpenFailed {
+            detail: e.to_string(),
+        }
     })?;
 
     Ok(target.to_string_lossy().into_owned())
@@ -154,21 +125,24 @@ pub async fn export_and_open_fund_reconciliation_report_pdf(
 ///
 /// Returns an `Err` carrying a fixed code suitable for direct surfacing to
 /// the frontend — no user-supplied content is echoed back.
-fn validate_filename(filename: &str) -> Result<(), String> {
+fn validate_filename(filename: &str) -> Result<(), ReportPdfError> {
+    let reject = |detail: &str| ReportPdfError::InvalidRequest {
+        detail: detail.to_string(),
+    };
     if filename.is_empty() {
-        return Err("Filename is empty".into());
+        return Err(reject("Filename is empty"));
     }
     if filename.chars().count() > FILENAME_MAX_LEN {
-        return Err("Filename too long".into());
+        return Err(reject("Filename too long"));
     }
     if filename.contains('/') || filename.contains('\\') {
-        return Err("Filename contains path separator".into());
+        return Err(reject("Filename contains path separator"));
     }
     if filename.split(['/', '\\']).any(|segment| segment == "..") || filename.contains("..") {
-        return Err("Filename contains parent reference".into());
+        return Err(reject("Filename contains parent reference"));
     }
     if !filename.to_ascii_lowercase().ends_with(".pdf") {
-        return Err("Filename must end with .pdf".into());
+        return Err(reject("Filename must end with .pdf"));
     }
     Ok(())
 }

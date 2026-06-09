@@ -73,28 +73,6 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 ---
 
-## (backend/frontend) — Structured errors: replace anyhow/String with typed error variants
-
-Tauri commands currently return `Result<T, String>` (via `anyhow` formatted with `{:#}`). Replace with a typed error enum per domain, serialized via Specta, so the frontend can pattern-match on error codes instead of parsing strings. Scope: define error enums in each bounded context, expose via Specta, update gateway.ts to switch on error type.
-
-Migration progress (2026-05-31):
-
-- PR 1 (#51): `PatientError` + `ProcedureError` BCs — merged
-- PR 2 (#52): `FundError` + `BankError` BCs — merged
-- PR 3a (#53): `ProcedureService` context typing — merged
-- PR 3b (#54): `ProcedureOrchestrationError` composite + FE + coverage — merged
-- PR 4a (#56): `OverpaymentError` composite + 4 overpayment commands + FE pipeline — merged
-- PR 4b (this PR): `ExcelImportError` flat enum + 4 excel-import commands + FE pipeline — merged
-
-Remaining (next PRs):
-
-- `fund_payment_reconciliation` — 7 commands
-- `fund_payment_manual_management`, `bank_manual_match`, `bank_statement_reconciliation`
-- `fund_payment_report_pdf/error.rs` rewrite
-- `db_backup`
-
----
-
 ## (frontend/fund-payment-match) — Back-then-forward shortcut
 
 When the user goes back to the previous step, advance directly to the next one (reconciliation flow).

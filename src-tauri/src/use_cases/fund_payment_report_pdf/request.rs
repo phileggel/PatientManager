@@ -110,22 +110,27 @@ const MAX_CORRECTION_GROUPS: usize = 16;
 /// Rows in any single correction group.
 const MAX_CORRECTION_ROWS_PER_GROUP: usize = 10_000;
 
+/// Build an `InvalidRequest` error carrying a field-qualified diagnostic. The
+/// detail is `#[serde(skip)]` on the wire — it stays for `Display`, `tracing`,
+/// and the validator's unit tests.
+fn invalid_request(detail: String) -> ReportPdfError {
+    ReportPdfError::InvalidRequest { detail }
+}
+
 /// Reject empty, oversized, or control-character-bearing strings.
 /// NUL bytes corrupt the PDF text stream; other control chars (besides tab)
 /// produce visually wrong output.
 fn validate_safe_string(s: &str, field: &str) -> Result<(), ReportPdfError> {
     if s.is_empty() {
-        return Err(ReportPdfError::InvalidRequest(format!(
-            "{field} must not be empty"
-        )));
+        return Err(invalid_request(format!("{field} must not be empty")));
     }
     if s.len() > MAX_STRING_LEN {
-        return Err(ReportPdfError::InvalidRequest(format!(
+        return Err(invalid_request(format!(
             "{field} exceeds maximum length of {MAX_STRING_LEN} bytes"
         )));
     }
     if s.chars().any(|c| c.is_control() && c != '\t') {
-        return Err(ReportPdfError::InvalidRequest(format!(
+        return Err(invalid_request(format!(
             "{field} must not contain control characters"
         )));
     }
@@ -136,12 +141,12 @@ fn validate_safe_string(s: &str, field: &str) -> Result<(), ReportPdfError> {
 /// but still bound length and forbid control chars.
 fn validate_optional_string(s: &str, field: &str) -> Result<(), ReportPdfError> {
     if s.len() > MAX_STRING_LEN {
-        return Err(ReportPdfError::InvalidRequest(format!(
+        return Err(invalid_request(format!(
             "{field} exceeds maximum length of {MAX_STRING_LEN} bytes"
         )));
     }
     if s.chars().any(|c| c.is_control() && c != '\t') {
-        return Err(ReportPdfError::InvalidRequest(format!(
+        return Err(invalid_request(format!(
             "{field} must not contain control characters"
         )));
     }
@@ -162,7 +167,7 @@ impl ReportGenerationRequest {
         )?;
 
         if self.header_lines.len() > MAX_HEADER_LINES {
-            return Err(ReportPdfError::InvalidRequest(format!(
+            return Err(invalid_request(format!(
                 "header_lines contains {} entries; maximum is {MAX_HEADER_LINES}",
                 self.header_lines.len()
             )));
@@ -174,7 +179,7 @@ impl ReportGenerationRequest {
         self.unreconciled.validate()?;
 
         if self.correction_groups.len() > MAX_CORRECTION_GROUPS {
-            return Err(ReportPdfError::InvalidRequest(format!(
+            return Err(invalid_request(format!(
                 "correction_groups contains {} entries; maximum is {MAX_CORRECTION_GROUPS}",
                 self.correction_groups.len()
             )));
@@ -216,7 +221,7 @@ impl UnreconciledSection {
                 validate_safe_string(total_value, "unreconciled.total_value")?;
 
                 if rows.len() > MAX_UNRECONCILED_ROWS {
-                    return Err(ReportPdfError::InvalidRequest(format!(
+                    return Err(invalid_request(format!(
                         "unreconciled.rows contains {} entries; maximum is {MAX_UNRECONCILED_ROWS}",
                         rows.len()
                     )));
@@ -243,7 +248,7 @@ impl CorrectionGroup {
     fn validate(&self, index: usize) -> Result<(), ReportPdfError> {
         validate_safe_string(&self.title, &format!("correction_groups[{index}].title"))?;
         if self.rows.len() > MAX_CORRECTION_ROWS_PER_GROUP {
-            return Err(ReportPdfError::InvalidRequest(format!(
+            return Err(invalid_request(format!(
                 "correction_groups[{index}].rows contains {} entries; maximum is {MAX_CORRECTION_ROWS_PER_GROUP}",
                 self.rows.len()
             )));
@@ -334,7 +339,7 @@ mod tests {
         };
         let result = req.validate();
         assert!(
-            matches!(result, Err(ReportPdfError::InvalidRequest(ref m)) if m.contains("title")),
+            matches!(result, Err(ReportPdfError::InvalidRequest { detail: ref m }) if m.contains("title")),
             "expected InvalidRequest mentioning 'title', got {result:?}"
         );
     }
@@ -347,7 +352,7 @@ mod tests {
         };
         let result = req.validate();
         assert!(
-            matches!(result, Err(ReportPdfError::InvalidRequest(ref m)) if m.contains("page_label")),
+            matches!(result, Err(ReportPdfError::InvalidRequest { detail: ref m }) if m.contains("page_label")),
             "expected InvalidRequest mentioning 'page_label', got {result:?}"
         );
     }
@@ -360,7 +365,7 @@ mod tests {
         };
         let result = req.validate();
         assert!(
-            matches!(result, Err(ReportPdfError::InvalidRequest(ref m)) if m.contains("title")),
+            matches!(result, Err(ReportPdfError::InvalidRequest { detail: ref m }) if m.contains("title")),
             "expected oversized title to fail, got {result:?}"
         );
     }
@@ -373,7 +378,7 @@ mod tests {
         };
         let result = req.validate();
         assert!(
-            matches!(result, Err(ReportPdfError::InvalidRequest(ref m)) if m.contains("control")),
+            matches!(result, Err(ReportPdfError::InvalidRequest { detail: ref m }) if m.contains("control")),
             "expected control-char rejection, got {result:?}"
         );
     }
@@ -388,7 +393,7 @@ mod tests {
         };
         let result = req.validate();
         assert!(
-            matches!(result, Err(ReportPdfError::InvalidRequest(ref m)) if m.contains("header_lines")),
+            matches!(result, Err(ReportPdfError::InvalidRequest { detail: ref m }) if m.contains("header_lines")),
             "expected header_lines count rejection, got {result:?}"
         );
     }
@@ -407,7 +412,7 @@ mod tests {
         };
         let result = req.validate();
         assert!(
-            matches!(result, Err(ReportPdfError::InvalidRequest(ref m)) if m.contains("correction_groups")),
+            matches!(result, Err(ReportPdfError::InvalidRequest { detail: ref m }) if m.contains("correction_groups")),
             "expected correction_groups count rejection, got {result:?}"
         );
     }
@@ -437,7 +442,7 @@ mod tests {
         };
         let result = req.validate();
         assert!(
-            matches!(result, Err(ReportPdfError::InvalidRequest(ref m)) if m.contains("unreconciled.rows")),
+            matches!(result, Err(ReportPdfError::InvalidRequest { detail: ref m }) if m.contains("unreconciled.rows")),
             "expected rows count rejection, got {result:?}"
         );
     }

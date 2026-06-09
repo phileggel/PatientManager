@@ -6,6 +6,7 @@ import {
   type PdfParseResult,
   type ReconcileAndCandidatesResponse,
   type ReportGenerationRequest,
+  type ReportPdfError,
   type UnreconciledProcedure,
 } from "@/bindings";
 import { logger } from "@/infra/logger";
@@ -147,21 +148,24 @@ export async function getUnreconciledProceduresInRange(
  * per-correction joined row strings (ADR-006).
  *
  * @param request - Pre-resolved report payload assembled by the hook
- * @returns Generated PDF as a Uint8Array
- * @throws Error if backend rendering or validation fails
+ * @returns Generated PDF bytes, or the typed error (F27 pass-through)
  */
-export async function generateReportPdf(request: ReportGenerationRequest): Promise<Uint8Array> {
+export async function generateReportPdf(
+  request: ReportGenerationRequest,
+): Promise<ServiceResult<Uint8Array, ReportPdfError>> {
   logger.debug(TAG, "Generating fund reconciliation report PDF");
-
-  const result = await commands.generateFundReconciliationReportPdf(request);
-
-  if (result.status === "error") {
-    logger.error(TAG, "Failed to generate report PDF", result.error);
-    throw new Error(result.error);
+  try {
+    const result = await commands.generateFundReconciliationReportPdf(request);
+    if (result.status === "error") {
+      logger.error(TAG, "Failed to generate report PDF", { code: result.error.code });
+      return { success: false, error: result.error };
+    }
+    logger.info(TAG, `Report PDF generated (${result.data.length} bytes)`);
+    return { success: true, data: new Uint8Array(result.data) };
+  } catch (e) {
+    logger.error(TAG, "generateReportPdf exception", { error: e });
+    return { success: false, error: { code: "PdfGenerationFailed" } };
   }
-
-  logger.info(TAG, `Report PDF generated (${result.data.length} bytes)`);
-  return new Uint8Array(result.data);
 }
 
 /**
@@ -177,22 +181,23 @@ export async function generateReportPdf(request: ReportGenerationRequest): Promi
  *
  * @param request - Pre-resolved payload, same shape as for `generateReportPdf`
  * @param filename - Locale-aware leaf name, e.g. `rapport_rapprochement_caisse_2026-05.pdf`
- * @returns Absolute path of the written file
- * @throws Error if generation, write, or launch fails
+ * @returns Absolute path of the written file, or the typed error (F27 pass-through)
  */
 export async function exportAndOpenReportPdf(
   request: ReportGenerationRequest,
   filename: string,
-): Promise<string> {
+): Promise<ServiceResult<string, ReportPdfError>> {
   logger.debug(TAG, "Exporting report PDF to Downloads", { filename });
-
-  const result = await commands.exportAndOpenFundReconciliationReportPdf(request, filename);
-
-  if (result.status === "error") {
-    logger.error(TAG, "Failed to export and open report PDF", result.error);
-    throw new Error(result.error);
+  try {
+    const result = await commands.exportAndOpenFundReconciliationReportPdf(request, filename);
+    if (result.status === "error") {
+      logger.error(TAG, "Failed to export and open report PDF", { code: result.error.code });
+      return { success: false, error: result.error };
+    }
+    logger.info(TAG, "Report PDF exported and opened");
+    return { success: true, data: result.data };
+  } catch (e) {
+    logger.error(TAG, "exportAndOpenReportPdf exception", { error: e });
+    return { success: false, error: { code: "OpenFailed" } };
   }
-
-  logger.info(TAG, "Report PDF exported and opened");
-  return result.data;
 }

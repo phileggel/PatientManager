@@ -68,16 +68,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-05-24 — `Result<T, String>` on use-case Tauri commands violates the wire-error contract
-
-**Found by:** reviewer-backend (`refactor/dates-naive-be`)
-
-**Where:** `src-tauri/src/use_cases/procedure_orchestration/api.rs:104,136,161,199` (`add_procedure`, `read_all_procedures`, `update_procedure`, `delete_procedure`). Same pattern across `src-tauri/src/use_cases/{excel_import,fund_payment_reconciliation}/api.rs`.
-
-**Observation:** Per `docs/error-model.md` § Tauri command boundary, commands should return a typed `{UseCase}Error` composite (`#[serde(untagged)]` wrapping per-BC error enums + a `{UseCase}Task` sub-enum for use-case-specific guards). The current `Result<T, String>` collapses every error into an opaque string on the wire — the FE loses the discriminated-union type for errors and Specta generates `string` instead of the typed error union. Pre-existing across all use-case command surfaces; surfaced by reviewer when `refactor/dates-naive-be` added a new parse-error path inside the already-String-mapped `add_procedure` command.
-
----
-
 ## 2026-05-19 — REF-240 enforced at command layer via dual-orchestrator injection
 
 **Found by:** manual (`refactor/fund-payment-manual-management`)

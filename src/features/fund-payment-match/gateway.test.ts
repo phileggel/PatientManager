@@ -64,34 +64,38 @@ describe("fund-payment-match gateway — generateReportPdf", () => {
     vi.clearAllMocks();
   });
 
-  it("happy path: invokes generate_fund_reconciliation_report_pdf with the request and returns a Uint8Array", async () => {
+  it("happy path: invokes the command and returns { success: true, data: Uint8Array }", async () => {
     mockInvoke.mockResolvedValue(fakePdfBytes);
 
     const request = makeRequest();
     const result = await generateReportPdf(request);
 
     expect(mockInvoke).toHaveBeenCalledWith("generate_fund_reconciliation_report_pdf", { request });
-    expect(result).toBeInstanceOf(Uint8Array);
-    expect(result.length).toBe(fakePdfBytes.length);
-    expect(Array.from(result)).toEqual(fakePdfBytes);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toBeInstanceOf(Uint8Array);
+      expect(Array.from(result.data)).toEqual(fakePdfBytes);
+    }
   });
 
-  it("error path: backend rejects → function throws with the error message", async () => {
-    const errorMsg = "PdfGenerationFailed: font load error";
-    mockInvoke.mockRejectedValue(errorMsg);
+  it("error path: backend returns a typed error → { success: false, error } (F27 pass-through)", async () => {
+    // A non-Error rejection: bindings returns { status: "error", error }.
+    mockInvoke.mockRejectedValue({ code: "PdfGenerationFailed" });
 
-    await expect(generateReportPdf(makeRequest())).rejects.toThrow(errorMsg);
+    const result = await generateReportPdf(makeRequest());
+
+    expect(result).toEqual({ success: false, error: { code: "PdfGenerationFailed" } });
     expect(mockInvoke).toHaveBeenCalledWith("generate_fund_reconciliation_report_pdf", {
       request: expect.any(Object),
     });
   });
 
-  it("error path: backend rejects with InvalidRequest message → throws", async () => {
-    mockInvoke.mockRejectedValue("InvalidRequest: title is empty");
+  it("error path: backend returns InvalidRequest → { success: false, error }", async () => {
+    mockInvoke.mockRejectedValue({ code: "InvalidRequest" });
 
-    await expect(generateReportPdf(makeRequest())).rejects.toThrow(
-      "InvalidRequest: title is empty",
-    );
+    const result = await generateReportPdf(makeRequest());
+
+    expect(result).toEqual({ success: false, error: { code: "InvalidRequest" } });
   });
 });
 
@@ -106,42 +110,42 @@ describe("fund-payment-match gateway — exportAndOpenReportPdf", () => {
     vi.clearAllMocks();
   });
 
-  it("happy path: invokes export_and_open_fund_reconciliation_report_pdf with the request and filename, returns the absolute path", async () => {
+  it("happy path: invokes the command and returns { success: true, data: path }", async () => {
     const savedPath = "/home/phil/Downloads/fund_reconciliation_report_2025-04.pdf";
     mockInvoke.mockResolvedValue(savedPath);
 
     const request = makeRequest();
     const result = await exportAndOpenReportPdf(request, filename);
 
-    expect(result).toBe(savedPath);
+    expect(result).toEqual({ success: true, data: savedPath });
     expect(mockInvoke).toHaveBeenCalledWith("export_and_open_fund_reconciliation_report_pdf", {
       request,
       filename,
     });
   });
 
-  it("error path: backend rejects with WriteFailed → error propagates", async () => {
-    mockInvoke.mockRejectedValue("Failed to save PDF: permission_denied");
+  it("error path: backend returns WriteFailed → { success: false, error }", async () => {
+    mockInvoke.mockRejectedValue({ code: "WriteFailed" });
 
-    await expect(exportAndOpenReportPdf(makeRequest(), filename)).rejects.toThrow(
-      "Failed to save PDF: permission_denied",
-    );
+    const result = await exportAndOpenReportPdf(makeRequest(), filename);
+
+    expect(result).toEqual({ success: false, error: { code: "WriteFailed" } });
   });
 
-  it("error path: backend rejects with OpenFailed → error propagates", async () => {
-    mockInvoke.mockRejectedValue("Failed to open PDF in system viewer");
+  it("error path: backend returns OpenFailed → { success: false, error }", async () => {
+    mockInvoke.mockRejectedValue({ code: "OpenFailed" });
 
-    await expect(exportAndOpenReportPdf(makeRequest(), filename)).rejects.toThrow(
-      "Failed to open PDF in system viewer",
-    );
+    const result = await exportAndOpenReportPdf(makeRequest(), filename);
+
+    expect(result).toEqual({ success: false, error: { code: "OpenFailed" } });
   });
 
-  it("error path: backend rejects InvalidRequest for a bad filename → error propagates", async () => {
-    mockInvoke.mockRejectedValue("Invalid request: Filename contains path separator");
+  it("error path: backend returns InvalidRequest for a bad filename → { success: false, error }", async () => {
+    mockInvoke.mockRejectedValue({ code: "InvalidRequest" });
 
-    await expect(exportAndOpenReportPdf(makeRequest(), "bad/name.pdf")).rejects.toThrow(
-      "Filename contains path separator",
-    );
+    const result = await exportAndOpenReportPdf(makeRequest(), "bad/name.pdf");
+
+    expect(result).toEqual({ success: false, error: { code: "InvalidRequest" } });
   });
 });
 
