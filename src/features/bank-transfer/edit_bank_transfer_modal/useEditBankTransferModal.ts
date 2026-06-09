@@ -11,6 +11,7 @@ import {
   updateDirectTransfer,
   updateFundTransfer,
 } from "../gateway";
+import { formatBankManualMatchError } from "../shared/errorPresenter";
 
 /**
  * useEditBankTransferModal — Logic for the EditBankTransferModal component.
@@ -131,7 +132,8 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
         toastService.show("success", t("transfer.edit.success"));
         onClose();
       } else {
-        toastService.show("error", result.error ?? t("transfer.edit.error"));
+        const { key, params } = formatBankManualMatchError(result.error);
+        toastService.show("error", t(key, params));
       }
     } catch (error) {
       logger.error("[useEditBankTransferModal] Exception", { error });

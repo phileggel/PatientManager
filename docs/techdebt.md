@@ -38,16 +38,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-05-27 — `bank-transfer/gateway.ts` carries a local untyped `ServiceResult<T>` alongside the typed alias
-
-**Found by:** reviewer-arch (`refactor/typed-errors-fund-bank` @ `ea606ad`)
-
-**Where:** `src/features/bank-transfer/gateway.ts:14` — local `export type ServiceResult<T>` (string error) coexists with imported `ServiceResult as TypedServiceResult` (typed error). Three migrated functions use the typed alias; the remaining use-case commands (createFundTransfer, deleteTransferByType, fund-group helpers, etc.) still use the local type.
-
-**Observation:** Transitional split-contract surface — explicit half-state until PR 3-4 types the rest of the file. Consolidate to the canonical `@/types/api` `ServiceResult<T, E>` once all use-case commands in this file are typed. A TODO comment at line 12 documents the migration target.
-
----
-
 ## 2026-05-27 — `formatBankError` ownership: presenter lives in `bank-account` but two features consume it
 
 **Found by:** reviewer-arch (`refactor/typed-errors-fund-bank` @ `ea606ad`)

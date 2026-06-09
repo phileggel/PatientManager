@@ -131,9 +131,6 @@
       },
       "success": {
         "deleted": "Bank transfer deleted successfully"
-      },
-      "error": {
-        "delete": "Failed to delete bank transfer"
       }
     },
     "list": {
@@ -153,14 +150,12 @@
       "title": "Edit Bank Transfer",
       "update": "Update",
       "success": "Bank transfer updated successfully",
-      "error": "Failed to update bank transfer",
       "errorUnknown": "An unexpected error occurred",
       "errorInvalidAccount": "Selected bank account is invalid",
       "errorInvalidForm": "Please fill in all fields with valid values"
     },
     "add": {
       "success": "Bank transfer created successfully!",
-      "error": "Error: {{error}}",
       "errorUnknown": "An unexpected error occurred"
     },
     "validate": {
@@ -254,6 +249,9 @@
     "bank_account_not_found": "Bank account not found (id: {{id}})",
     "protected_cash_account": "The cash account is protected and cannot be modified or deleted",
     "transfer_not_found": "Bank transfer not found (id: {{id}})",
+    "wrong_transfer_type": "This transfer's type does not match the requested operation",
+    "payment_group_not_found": "Fund payment group not found (id: {{id}})",
+    "unexpected": "An unexpected error occurred",
     "database_error": "An unexpected database error occurred"
   }
 }

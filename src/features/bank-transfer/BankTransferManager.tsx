@@ -8,6 +8,7 @@ import { toastService } from "@/ui/components/snackbar";
 import { AddBankTransferForm } from "./add_bank_transfer_form/AddBankTransferForm";
 import { BankTransferList } from "./bank_transfer_list/BankTransferList";
 import { EditBankTransferModal } from "./edit_bank_transfer_modal/EditBankTransferModal";
+import { formatBankManualMatchError } from "./shared/errorPresenter";
 import { useBankTransferManager } from "./useBankTransferManager";
 import { useBankTransferOperations } from "./useBankTransferOperations";
 
@@ -51,7 +52,8 @@ export default function BankTransferManager() {
       if (result.success) {
         toastService.show("success", t("transfer.manager.success.deleted"));
       } else {
-        toastService.show("error", result.error || t("transfer.manager.error.delete"));
+        const { key, params } = formatBankManualMatchError(result.error);
+        toastService.show("error", t(key, params));
       }
     } catch (err) {
       logger.error("Exception deleting transfer", { error: err });

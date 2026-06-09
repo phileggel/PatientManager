@@ -131,9 +131,6 @@
       },
       "success": {
         "deleted": "Virement bancaire supprimé avec succès"
-      },
-      "error": {
-        "delete": "Échec de la suppression du virement bancaire"
       }
     },
     "list": {
@@ -153,14 +150,12 @@
       "title": "Modifier le virement bancaire",
       "update": "Mettre à jour",
       "success": "Virement bancaire mis à jour avec succès",
-      "error": "Échec de la mise à jour du virement bancaire",
       "errorUnknown": "Une erreur inattendue s'est produite",
       "errorInvalidAccount": "Le compte bancaire sélectionné est invalide",
       "errorInvalidForm": "Veuillez remplir tous les champs avec des valeurs valides"
     },
     "add": {
       "success": "Virement bancaire créé avec succès !",
-      "error": "Erreur : {{error}}",
       "errorUnknown": "Une erreur inattendue s'est produite"
     },
     "validate": {
@@ -254,6 +249,9 @@
     "bank_account_not_found": "Compte bancaire introuvable (id : {{id}})",
     "protected_cash_account": "Le compte espèces est protégé et ne peut pas être modifié ou supprimé",
     "transfer_not_found": "Virement bancaire introuvable (id : {{id}})",
+    "wrong_transfer_type": "Le type de ce virement ne correspond pas à l'opération demandée",
+    "payment_group_not_found": "Groupe de paiement de caisse introuvable (id : {{id}})",
+    "unexpected": "Une erreur inattendue est survenue",
     "database_error": "Une erreur de base de données est survenue"
   }
 }

@@ -83,7 +83,7 @@ describe("useSelectFundGroupsPanel", () => {
   });
 
   it("keeps candidates empty when gateway fetch fails", async () => {
-    mockGetUnsettled.mockResolvedValue({ success: false, error: "fetch failed" });
+    mockGetUnsettled.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     const { result } = renderHook(() =>
       useSelectFundGroupsPanel({

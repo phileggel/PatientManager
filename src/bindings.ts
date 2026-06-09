@@ -651,7 +651,7 @@ async getBankStatementReconciliationConfig() : Promise<BankStatementReconciliati
 /**
  * R6 — Return Active fund payment groups within the 7-day window of transfer_date.
  */
-async getUnsettledFundGroups(transferDate: string) : Promise<Result<FundGroupCandidate[], string>> {
+async getUnsettledFundGroups(transferDate: string) : Promise<Result<FundGroupCandidate[], BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_unsettled_fund_groups", { transferDate }) };
 } catch (e) {
@@ -662,7 +662,7 @@ async getUnsettledFundGroups(transferDate: string) : Promise<Result<FundGroupCan
 /**
  * R12 — Return all Active fund payment groups (no date constraint).
  */
-async getAllUnsettledFundGroups() : Promise<Result<FundGroupCandidate[], string>> {
+async getAllUnsettledFundGroups() : Promise<Result<FundGroupCandidate[], BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_all_unsettled_fund_groups") };
 } catch (e) {
@@ -673,7 +673,7 @@ async getAllUnsettledFundGroups() : Promise<Result<FundGroupCandidate[], string>
 /**
  * R7 — Create a FUND bank transfer linked to the given group IDs.
  */
-async createFundTransfer(bankAccountId: string, transferDate: string, groupIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
+async createFundTransfer(bankAccountId: string, transferDate: string, groupIds: string[]) : Promise<Result<BankManualMatchResult, BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_fund_transfer", { bankAccountId, transferDate, groupIds }) };
 } catch (e) {
@@ -684,7 +684,7 @@ async createFundTransfer(bankAccountId: string, transferDate: string, groupIds: 
 /**
  * R9 — Update a FUND transfer: change date and/or linked groups.
  */
-async updateFundTransfer(transferId: string, newTransferDate: string, newGroupIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
+async updateFundTransfer(transferId: string, newTransferDate: string, newGroupIds: string[]) : Promise<Result<BankManualMatchResult, BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_fund_transfer", { transferId, newTransferDate, newGroupIds }) };
 } catch (e) {
@@ -695,7 +695,7 @@ async updateFundTransfer(transferId: string, newTransferDate: string, newGroupId
 /**
  * R8 — Delete a FUND transfer: revert linked groups to Active, hard-delete transfer.
  */
-async deleteFundTransfer(transferId: string) : Promise<Result<null, string>> {
+async deleteFundTransfer(transferId: string) : Promise<Result<null, BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_fund_transfer", { transferId }) };
 } catch (e) {
@@ -706,7 +706,7 @@ async deleteFundTransfer(transferId: string) : Promise<Result<null, string>> {
 /**
  * R14 — Return CREATED procedures within the 7-day window of payment_date.
  */
-async getEligibleProceduresForDirectPayment(paymentDate: string) : Promise<Result<DirectPaymentProcedureCandidate[], string>> {
+async getEligibleProceduresForDirectPayment(paymentDate: string) : Promise<Result<DirectPaymentProcedureCandidate[], BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_eligible_procedures_for_direct_payment", { paymentDate }) };
 } catch (e) {
@@ -717,7 +717,7 @@ async getEligibleProceduresForDirectPayment(paymentDate: string) : Promise<Resul
 /**
  * R20 — Return all CREATED procedures (no date constraint).
  */
-async getAllEligibleProceduresForDirectPayment() : Promise<Result<DirectPaymentProcedureCandidate[], string>> {
+async getAllEligibleProceduresForDirectPayment() : Promise<Result<DirectPaymentProcedureCandidate[], BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_all_eligible_procedures_for_direct_payment") };
 } catch (e) {
@@ -728,7 +728,7 @@ async getAllEligibleProceduresForDirectPayment() : Promise<Result<DirectPaymentP
 /**
  * R15 — Create a direct payment transfer linked to the given procedure IDs.
  */
-async createDirectTransfer(bankAccountId: string, transferDate: string, transferType: BankEntryType, procedureIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
+async createDirectTransfer(bankAccountId: string, transferDate: string, transferType: BankEntryType, procedureIds: string[]) : Promise<Result<BankManualMatchResult, BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_direct_transfer", { bankAccountId, transferDate, transferType, procedureIds }) };
 } catch (e) {
@@ -739,7 +739,7 @@ async createDirectTransfer(bankAccountId: string, transferDate: string, transfer
 /**
  * R17 — Update a direct transfer: change date and/or linked procedures.
  */
-async updateDirectTransfer(transferId: string, newTransferDate: string, newProcedureIds: string[]) : Promise<Result<BankManualMatchResult, string>> {
+async updateDirectTransfer(transferId: string, newTransferDate: string, newProcedureIds: string[]) : Promise<Result<BankManualMatchResult, BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_direct_transfer", { transferId, newTransferDate, newProcedureIds }) };
 } catch (e) {
@@ -750,7 +750,7 @@ async updateDirectTransfer(transferId: string, newTransferDate: string, newProce
 /**
  * R16 — Delete a direct transfer: revert procedures to Created, hard-delete transfer.
  */
-async deleteDirectTransfer(transferId: string) : Promise<Result<null, string>> {
+async deleteDirectTransfer(transferId: string) : Promise<Result<null, BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_direct_transfer", { transferId }) };
 } catch (e) {
@@ -761,7 +761,7 @@ async deleteDirectTransfer(transferId: string) : Promise<Result<null, string>> {
 /**
  * Return the fund group IDs linked to a FUND transfer.
  */
-async getTransferFundGroupIds(transferId: string) : Promise<Result<string[], string>> {
+async getTransferFundGroupIds(transferId: string) : Promise<Result<string[], BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_transfer_fund_group_ids", { transferId }) };
 } catch (e) {
@@ -772,7 +772,7 @@ async getTransferFundGroupIds(transferId: string) : Promise<Result<string[], str
 /**
  * Return the procedure IDs linked to a direct payment transfer.
  */
-async getTransferProcedureIds(transferId: string) : Promise<Result<string[], string>> {
+async getTransferProcedureIds(transferId: string) : Promise<Result<string[], BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_transfer_procedure_ids", { transferId }) };
 } catch (e) {
@@ -783,7 +783,7 @@ async getTransferProcedureIds(transferId: string) : Promise<Result<string[], str
 /**
  * R21 — Return fund group candidates by IDs for the edit modal (groups are BankPaid).
  */
-async getFundGroupsByIds(groupIds: string[]) : Promise<Result<FundGroupCandidate[], string>> {
+async getFundGroupsByIds(groupIds: string[]) : Promise<Result<FundGroupCandidate[], BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_fund_groups_by_ids", { groupIds }) };
 } catch (e) {
@@ -794,7 +794,7 @@ async getFundGroupsByIds(groupIds: string[]) : Promise<Result<FundGroupCandidate
 /**
  * R21 — Return procedure candidates by IDs for the edit modal (procedures are DirectlyPaid).
  */
-async getProceduresByIds(procedureIds: string[]) : Promise<Result<DirectPaymentProcedureCandidate[], string>> {
+async getProceduresByIds(procedureIds: string[]) : Promise<Result<DirectPaymentProcedureCandidate[], BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_procedures_by_ids", { procedureIds }) };
 } catch (e) {
@@ -1073,9 +1073,37 @@ export type BankError =
  */
 export type BankFundLabelMapping = { id: string; bank_account_id: string; bank_label: string; fund_id: string | null }
 /**
+ * Composite error for the manual bank-transfer matching use case.
+ * 
+ * Holds ONLY `#[from]` wrappers — the three bounded-context enums it
+ * orchestrates (bank + fund + procedure) plus the use-case task sub-enum. Each
+ * carries its own `#[serde(tag = "code")]`, so the untagged composite flattens
+ * to a single `{ "code": "...", ... }` payload on the wire.
+ * 
+ * Each BC enum emits `{ "code": "DatabaseError" }` for its infra catch-all; the
+ * collision is intentional — the frontend maps the single code to one message.
+ * See `fund_payment_manual_management/error.rs` for the same precedent.
+ */
+export type BankManualMatchError = BankError | FundError | ProcedureError | BankManualMatchTask
+/**
  * Result of creating a bank transfer with links
  */
 export type BankManualMatchResult = { transfer_id: string; linked_count: number }
+/**
+ * Use-case-specific guards for manual bank-transfer matching.
+ * 
+ * The single guard that does NOT belong to any one bounded context: R4's
+ * immutable-type cross-check, which rejects driving a FUND transfer through a
+ * direct-payment command (or vice versa). Tagged with `code` so the variant
+ * emits `{ "code": "WrongTransferType" }` on the wire.
+ */
+export type BankManualMatchTask = 
+/**
+ * R4 — the targeted transfer's type does not match the command: a FUND
+ * transfer was passed to a direct-payment operation, or a direct transfer
+ * to a FUND operation. The matching-typed command must be used instead.
+ */
+{ code: "WrongTransferType" }
 /**
  * A single credit line from a bank statement (VIR SEPA only)
  */

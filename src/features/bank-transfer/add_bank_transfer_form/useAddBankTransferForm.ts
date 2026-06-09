@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BankAccount, BankEntryType } from "@/bindings";
+import type {
+  BankAccount,
+  BankEntryType,
+  BankManualMatchError,
+  BankManualMatchResult,
+} from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
+import type { ServiceResult } from "@/types/api";
 import { toastService } from "@/ui/components/snackbar";
 import { createDirectTransfer, createFundTransfer, getCashBankAccountId } from "../gateway";
+import { formatBankManualMatchError } from "../shared/errorPresenter";
 import { type BankTransferFormErrors, validateBankTransfer } from "../shared/validateBankTransfer";
 
 export function useAddBankTransferForm() {
@@ -130,7 +137,7 @@ export function useAddBankTransferForm() {
 
     setSubmitting(true);
     try {
-      let result: { success: boolean; error?: string };
+      let result: ServiceResult<BankManualMatchResult, BankManualMatchError>;
 
       if (isFund) {
         result = await createFundTransfer(bankAccount, transferDate, selectedGroupIds);
@@ -147,7 +154,8 @@ export function useAddBankTransferForm() {
         toastService.show("success", t("transfer.add.success"));
         resetForm();
       } else {
-        toastService.show("error", t("transfer.add.error", { error: result.error }));
+        const { key, params } = formatBankManualMatchError(result.error);
+        toastService.show("error", t(key, params));
       }
     } catch (error) {
       logger.error("[useAddBankTransferForm] Exception", { error });
