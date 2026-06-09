@@ -14,6 +14,7 @@ import {
   resolveBankFundLabels,
   saveBankFundLabelMappings,
 } from "../gateway";
+import { formatBankStatementError } from "../shared/errorPresenter";
 import type { IdentifiableCreditLine } from "./types";
 
 const TAG = "[BankStatementModal]";
@@ -114,32 +115,34 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
 
       setAllCreditLines(resolvedLines);
 
-      try {
-        const result = await matchBankStatementLines(resolvedLines);
-
-        const initialSelections = new Map<string, string | null>();
-        for (const line of resolvedLines) {
-          const match = result.matched.find(
-            (m) =>
-              m.credit_line.date === line.date &&
-              m.credit_line.label === line.label &&
-              m.credit_line.amount === line.amount,
-          );
-          initialSelections.set(line.lineId, match?.group_id || null);
-        }
-
-        setUserSelections(initialSelections);
-        setStep("results");
-        logger.info(
-          TAG,
-          `Initial matching: ${result.matched.length} suggested, ${result.unmatched_lines.length} unmatched`,
-        );
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger.error(TAG, "Failed to match bank statement lines", { message: msg });
-        setError(t("statement.modal.unknownError"));
+      const matchResult = await matchBankStatementLines(resolvedLines);
+      if (!matchResult.success) {
+        logger.error(TAG, "Failed to match bank statement lines", {
+          code: matchResult.error.code,
+        });
+        setError(t(formatBankStatementError(matchResult.error).key));
         setStep("error");
+        return;
       }
+      const result = matchResult.data;
+
+      const initialSelections = new Map<string, string | null>();
+      for (const line of resolvedLines) {
+        const match = result.matched.find(
+          (m) =>
+            m.credit_line.date === line.date &&
+            m.credit_line.label === line.label &&
+            m.credit_line.amount === line.amount,
+        );
+        initialSelections.set(line.lineId, match?.group_id || null);
+      }
+
+      setUserSelections(initialSelections);
+      setStep("results");
+      logger.info(
+        TAG,
+        `Initial matching: ${result.matched.length} suggested, ${result.unmatched_lines.length} unmatched`,
+      );
     },
     [t],
   );
@@ -148,55 +151,59 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
     let isMounted = true;
 
     async function loadAndParse() {
-      try {
-        logger.info(TAG, "Processing bank statement", { filePath });
+      logger.info(TAG, "Processing bank statement", { filePath });
 
-        const parsed = await parseBankStatement(filePath);
-        if (!isMounted) return;
-        setParseResult(parsed);
-        logger.info(
-          TAG,
-          `Parsed: ${parsed.credit_lines.length} credit lines, IBAN: ${parsed.iban}`,
-        );
-
-        if (!parsed.iban) {
-          setError(t("statement.modal.noIban"));
-          setStep("error");
-          return;
-        }
-
-        const account = await resolveBankAccountFromIban(parsed.iban);
-        if (!isMounted) return;
-        if (!account) {
-          // BAS-011 — IBAN unknown: drive the inline create form instead of dead-ending.
-          setStep("create-account");
-          return;
-        }
-        setBankAccount(account);
-        logger.info(TAG, `Bank account resolved: ${account.name}`);
-
-        const labels = parsed.credit_lines.map((l) => l.label);
-        const resolutions = await resolveBankFundLabels(account.id, labels);
-        if (!isMounted) return;
-        setLabelResolutions(resolutions);
-
-        // R7: always show label-mapping step for all labels (confirmed pre-filled, unknown empty)
-        logger.info(TAG, `${resolutions.length} labels to review in mapping step`);
-        setStep("label-mapping");
-      } catch (err) {
-        if (!isMounted) return;
-        const msg = err instanceof Error ? err.message : String(err);
-        // R26: dedicated message when no VIR SEPA lines found
-        if (msg === "NO_VIR_SEPA_LINES") {
-          logger.error(TAG, "No VIR SEPA lines found in bank statement");
-          setError(t("statement.modal.noVirSepaLines"));
-          setStep("error");
-          return;
-        }
-        logger.error(TAG, "Failed to process bank statement", { message: msg, error: err });
-        setError(t("statement.modal.unknownError"));
+      // R26: the `NoSepaCreditLines` code maps (via the presenter) to the
+      // dedicated "no SEPA lines" guidance; every other code → generic error.
+      const parsedRes = await parseBankStatement(filePath);
+      if (!isMounted) return;
+      if (!parsedRes.success) {
+        logger.error(TAG, "Failed to parse bank statement", { code: parsedRes.error.code });
+        setError(t(formatBankStatementError(parsedRes.error).key));
         setStep("error");
+        return;
       }
+      const parsed = parsedRes.data;
+      setParseResult(parsed);
+      logger.info(TAG, `Parsed: ${parsed.credit_lines.length} credit lines, IBAN: ${parsed.iban}`);
+
+      if (!parsed.iban) {
+        setError(t("statement.modal.noIban"));
+        setStep("error");
+        return;
+      }
+
+      const accountRes = await resolveBankAccountFromIban(parsed.iban);
+      if (!isMounted) return;
+      if (!accountRes.success) {
+        logger.error(TAG, "Failed to resolve bank account", { code: accountRes.error.code });
+        setError(t(formatBankStatementError(accountRes.error).key));
+        setStep("error");
+        return;
+      }
+      const account = accountRes.data;
+      if (!account) {
+        // BAS-011 — IBAN unknown: drive the inline create form instead of dead-ending.
+        setStep("create-account");
+        return;
+      }
+      setBankAccount(account);
+      logger.info(TAG, `Bank account resolved: ${account.name}`);
+
+      const labels = parsed.credit_lines.map((l) => l.label);
+      const resolutionsRes = await resolveBankFundLabels(account.id, labels);
+      if (!isMounted) return;
+      if (!resolutionsRes.success) {
+        logger.error(TAG, "Failed to resolve fund labels", { code: resolutionsRes.error.code });
+        setError(t(formatBankStatementError(resolutionsRes.error).key));
+        setStep("error");
+        return;
+      }
+      setLabelResolutions(resolutionsRes.data);
+
+      // R7: always show label-mapping step for all labels (confirmed pre-filled, unknown empty)
+      logger.info(TAG, `${resolutionsRes.data.length} labels to review in mapping step`);
+      setStep("label-mapping");
     }
 
     loadAndParse();
@@ -242,14 +249,17 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
       logger.info(TAG, `Bank account created inline: ${account.name}`);
 
       const labels = parseResult.credit_lines.map((l) => l.label);
-      const resolutions = await resolveBankFundLabels(account.id, labels);
-      setLabelResolutions(resolutions);
+      const resolutionsRes = await resolveBankFundLabels(account.id, labels);
+      if (!resolutionsRes.success) {
+        logger.error(TAG, "Failed to resolve fund labels after inline create", {
+          code: resolutionsRes.error.code,
+        });
+        setCreateError(t("statement.modal.unknownError"));
+        return;
+      }
+      setLabelResolutions(resolutionsRes.data);
       // BAS-014 — workflow continuation: proceed to label-mapping with the new account.
       setStep("label-mapping");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      logger.error(TAG, "Inline create-account failed", { message: msg });
-      setCreateError(t("statement.modal.unknownError"));
     } finally {
       setIsCreatingAccount(false);
     }
@@ -267,7 +277,13 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
           fund_id,
         }));
         if (newMappings.length > 0) {
-          await saveBankFundLabelMappings(bankAccount.id, newMappings);
+          const saveRes = await saveBankFundLabelMappings(bankAccount.id, newMappings);
+          if (!saveRes.success) {
+            logger.error(TAG, "Failed to save label mappings", { code: saveRes.error.code });
+            setError(t(formatBankStatementError(saveRes.error).key));
+            setStep("error");
+            return;
+          }
         }
 
         const updatedResolutions = labelResolutions.map((r) => {
@@ -329,10 +345,16 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
         return;
       }
 
-      const count = await createBankTransfersFromStatement(bankAccount.id, confirmedMatches);
-      setCreatedCount(count);
+      const res = await createBankTransfersFromStatement(bankAccount.id, confirmedMatches);
+      if (!res.success) {
+        logger.error(TAG, "Failed to create bank transfers", { code: res.error.code });
+        setError(t(formatBankStatementError(res.error).key));
+        setStep("error");
+        return;
+      }
+      setCreatedCount(res.data);
       setStep("done");
-      logger.info(TAG, `Created ${count} bank transfers`);
+      logger.info(TAG, `Created ${res.data} bank transfers`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(TAG, "Failed to create bank transfers", { message: msg });

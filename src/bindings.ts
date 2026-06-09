@@ -579,7 +579,7 @@ async getCashBankAccountId() : Promise<string> {
 /**
  * Parse a bank statement PDF and return structured data
  */
-async parseBankStatement(filePath: string) : Promise<Result<BankStatementParseResult, string>> {
+async parseBankStatement(filePath: string) : Promise<Result<BankStatementParseResult, BankStatementReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("parse_bank_statement", { filePath }) };
 } catch (e) {
@@ -590,7 +590,7 @@ async parseBankStatement(filePath: string) : Promise<Result<BankStatementParseRe
 /**
  * Resolve a bank account from IBAN
  */
-async resolveBankAccountFromIban(iban: string) : Promise<Result<BankAccount | null, string>> {
+async resolveBankAccountFromIban(iban: string) : Promise<Result<BankAccount | null, BankStatementReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("resolve_bank_account_from_iban", { iban }) };
 } catch (e) {
@@ -601,7 +601,7 @@ async resolveBankAccountFromIban(iban: string) : Promise<Result<BankAccount | nu
 /**
  * Resolve fund labels for a bank account
  */
-async resolveBankFundLabels(bankAccountId: string, labels: string[]) : Promise<Result<FundLabelResolution[], string>> {
+async resolveBankFundLabels(bankAccountId: string, labels: string[]) : Promise<Result<FundLabelResolution[], BankStatementReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("resolve_bank_fund_labels", { bankAccountId, labels }) };
 } catch (e) {
@@ -612,7 +612,7 @@ async resolveBankFundLabels(bankAccountId: string, labels: string[]) : Promise<R
 /**
  * Save confirmed fund label mappings
  */
-async saveBankFundLabelMappings(bankAccountId: string, mappings: SaveLabelMappingRequest[]) : Promise<Result<null, string>> {
+async saveBankFundLabelMappings(bankAccountId: string, mappings: SaveLabelMappingRequest[]) : Promise<Result<null, BankStatementReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("save_bank_fund_label_mappings", { bankAccountId, mappings }) };
 } catch (e) {
@@ -623,7 +623,7 @@ async saveBankFundLabelMappings(bankAccountId: string, mappings: SaveLabelMappin
 /**
  * Match resolved credit lines against unsettled fund payment groups
  */
-async matchBankStatementLines(resolvedLines: ResolvedCreditLine[]) : Promise<Result<BankStatementMatchResult, string>> {
+async matchBankStatementLines(resolvedLines: ResolvedCreditLine[]) : Promise<Result<BankStatementMatchResult, BankStatementReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("match_bank_statement_lines", { resolvedLines }) };
 } catch (e) {
@@ -634,7 +634,7 @@ async matchBankStatementLines(resolvedLines: ResolvedCreditLine[]) : Promise<Res
 /**
  * Create bank transfers from confirmed matches
  */
-async createBankTransfersFromStatement(bankAccountId: string, confirmedMatches: ConfirmedMatch[]) : Promise<Result<number, string>> {
+async createBankTransfersFromStatement(bankAccountId: string, confirmedMatches: ConfirmedMatch[]) : Promise<Result<number, BankStatementReconciliationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("create_bank_transfers_from_statement", { bankAccountId, confirmedMatches }) };
 } catch (e) {
@@ -1160,6 +1160,60 @@ export type BankStatementReconciliationConfig = {
  * Maximum date offset (days) for matching bank lines to payment groups
  */
 max_date_offset_days: number }
+/**
+ * Composite error for the bank-statement reconciliation use case.
+ * 
+ * Holds ONLY `#[from]` wrappers — the two bounded-context enums it orchestrates
+ * (bank + fund) plus the use-case task sub-enum. Each carries its own
+ * `#[serde(tag = "code")]`, so the untagged composite flattens to a single
+ * `{ "code": "...", ... }` payload on the wire.
+ * 
+ * Each BC enum + the Task sub-enum emit `{ "code": "DatabaseError" }` for their
+ * infra catch-all; the collision is intentional — the frontend maps the single
+ * code to one message.
+ */
+export type BankStatementReconciliationError = BankError | FundError | BankStatementReconciliationTask
+/**
+ * Use-case-specific guards for bank-statement reconciliation.
+ * 
+ * Codes that do NOT belong to any single bounded context: the PDF parse /
+ * path-validation pipeline failures, the R26 "no SEPA credit lines" halt (the
+ * frontend keys its dedicated guidance on this code), the confirmed-match date
+ * guard, and the catch-all for the use-case-owned label-mapping repository's
+ * infra failures. Tagged with `code` so each variant emits `{ "code": "..." }`.
+ */
+export type BankStatementReconciliationTask = 
+/**
+ * R26 — the parsed statement contains no actionable VIR SEPA credit lines.
+ * The frontend matches on this code to show dedicated "no SEPA lines"
+ * guidance instead of the generic error.
+ */
+{ code: "NoSepaCreditLines" } | 
+/**
+ * The user home directory could not be resolved, so the upload path cannot
+ * be sandbox-validated.
+ */
+{ code: "HomeDirUnresolved" } | 
+/**
+ * The supplied statement path failed sandbox validation (outside the
+ * allowed root, wrong extension, missing file, traversal). Detail is logged
+ * at the call site; the wire carries no path.
+ */
+{ code: "PathRejected" } | 
+/**
+ * PDF text extraction failed after the path passed validation (corrupt or
+ * unreadable PDF).
+ */
+{ code: "PdfExtractionFailed" } | 
+/**
+ * A confirmed match carried a date that does not parse as `YYYY-MM-DD`.
+ */
+{ code: "InvalidConfirmedMatchDate" } | 
+/**
+ * Failure from the use-case-owned label-mapping repository. Logged at the
+ * call site via `tracing::error!`; the wire carries no detail.
+ */
+{ code: "DatabaseError" }
 /**
  * Request DTO for cancelling an overpayment (REF-210).
  * The frontend always passes the source_procedure_id as identifier.

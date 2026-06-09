@@ -1,7 +1,9 @@
 # Contract — Bank Statement Auto-Match
 
 > Domain: bank-statement-auto-match
-> Last updated by: bank-statement-auto-match spec
+> Last updated by: bank_statement_reconciliation typed-error migration
+
+> Wire errors are the composite `BankStatementReconciliationError` (untagged union of `BankError`, `FundError`, and the use-case `BankStatementReconciliationTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
 ## Commands
 
@@ -11,7 +13,7 @@ Step 1 of the workflow. Reads the PDF bank statement from the given file path, e
 
 - **Args:** `file_path: String`
 - **Returns:** `BankStatementParseResult`
-- **Errors:** `PdfExtractionFailed`, `NoVirSepaLines`
+- **Errors:** `PathRejected`, `PdfExtractionFailed`, `NoSepaCreditLines` (R26), `HomeDirUnresolved`
 
 ---
 
@@ -19,11 +21,11 @@ Step 1 of the workflow. Reads the PDF bank statement from the given file path, e
 
 Resolves the practitioner's `BankAccount` from the IBAN extracted by `parse_bank_statement`. Returns `None` if no account matches — the frontend then drives the inline create flow (BAS-011..017) by calling `create_bank_account` directly via the bank-account gateway, then proceeds to label-mapping with the new account.
 
-> `None` is intentional here, not a gap. An unregistered IBAN is a valid, expected workflow state (the user is offered the inline create form). This is distinct from `read_bank_account` which raises `NotFound` because a missing ID would indicate a data integrity problem.
+> `Ok(None)` is intentional here, not a gap. An unregistered IBAN is a valid, expected workflow state (the user is offered the inline create form). This is distinct from `read_bank_account` which raises `NotFound` because a missing ID would indicate a data integrity problem.
 
 - **Args:** `iban: String`
 - **Returns:** `Option<BankAccount>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -33,7 +35,7 @@ Step 3 of the workflow. For each raw label extracted from the statement, looks u
 
 - **Args:** `bank_account_id: String, labels: Vec<String>`
 - **Returns:** `Vec<FundLabelResolution>`
-- **Errors:** `AccountNotFound`
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -43,7 +45,7 @@ Persists the full set of label→fund assignments validated by the user at the m
 
 - **Args:** `bank_account_id: String, mappings: Vec<SaveLabelMappingRequest>`
 - **Returns:** `()`
-- **Errors:** `AccountNotFound`
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -53,7 +55,7 @@ Pure in-memory matching algorithm — no DB writes. Sorts resolved credit lines 
 
 - **Args:** `resolved_lines: Vec<ResolvedCreditLine>`
 - **Returns:** `BankStatementMatchResult`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -65,7 +67,7 @@ Final step. For each confirmed match, creates one `BankEntry` (R19), updates all
 
 - **Args:** `bank_account_id: String, confirmed_matches: Vec<ConfirmedMatch>`
 - **Returns:** `u32` — count of `BankEntry` records created
-- **Errors:** `AccountNotFound`, `GroupNotFound`, `InvalidDateFormat`
+- **Errors:** `InvalidConfirmedMatchDate`, `AmountNotPositive`, `BankAccountNotFound`, `InvalidTransferDateFormat`, `DatabaseError`
 
 ---
 
@@ -163,3 +165,4 @@ struct BankStatementReconciliationConfig {
 - 2026-04-29 — Added by `bank-statement-auto-match` spec: parse_bank_statement, resolve_bank_account_from_iban, resolve_bank_fund_labels, save_bank_fund_label_mappings, match_bank_statement_lines, create_bank_transfers_from_statement, get_bank_statement_reconciliation_config
 - 2026-04-29 — Deep review applied: added per-command intent and spec rule tracing, UL discrepancy note on create_bank_transfers_from_statement, GroupNotFound and InvalidDateFormat errors, ConfirmedMatch field origins, get_bank_statement_reconciliation_config frontend usage documented
 - 2026-05-04 — Inline create flow (BAS-011..017): resolve_bank_account_from_iban description updated — `None` now drives the frontend inline create form rather than a dead-end. Rule reference R1 → BAS-010. No new commands; uses existing `create_bank_account` (see bank-contract.md).
+- 2026-06-09 — Typed-error migration: per-command Errors columns now list the real wire-visible `BankStatementReconciliationError` variant codes (`BankError`/`FundError`/`BankStatementReconciliationTask`), replacing the pre-implementation aspirational names. `NoVirSepaLines` → `NoSepaCreditLines`.
