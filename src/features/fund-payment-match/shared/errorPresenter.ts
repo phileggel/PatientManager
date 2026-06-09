@@ -1,4 +1,4 @@
-import type { FundPaymentReconciliationError } from "@/bindings";
+import type { FundPaymentReconciliationError, ReportPdfError } from "@/bindings";
 
 /**
  * Layer 3 of the F27 typed-error pipeline for the fund-payment reconciliation
@@ -63,5 +63,23 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     case "RefundReasonTooLong":
     case "InvalidRefundDateFormat":
       return { key: "fund-payment-match:errors.unexpected" };
+  }
+}
+
+/**
+ * Layer 3 of the F27 pipeline for the report-PDF commands
+ * (`generate_fund_reconciliation_report_pdf` /
+ * `export_and_open_fund_reconciliation_report_pdf`). The report flow surfaces a
+ * single "export failed" toast regardless of cause, so every `ReportPdfError`
+ * code maps to one key — but the switch is exhaustive (no `default`), so a new
+ * wire variant fails to compile here rather than silently dropping.
+ */
+export function formatReportPdfError(err: ReportPdfError): { key: string } {
+  switch (err.code) {
+    case "InvalidRequest":
+    case "PdfGenerationFailed":
+    case "WriteFailed":
+    case "OpenFailed":
+      return { key: "fund-payment-match:modal.report.error.exportFailed" };
   }
 }

@@ -37,8 +37,9 @@ pub fn generate(request: &ReportGenerationRequest) -> Result<Vec<u8>, ReportPdfE
 /// - `ReportPdfError::WriteFailed` if the filesystem write fails.
 pub fn save(request: &ReportGenerationRequest, path: &Path) -> Result<(), ReportPdfError> {
     let bytes = generate(request)?;
-    std::fs::write(path, &bytes)
-        .map_err(|e| ReportPdfError::WriteFailed(io_error_code(&e).to_string()))?;
+    std::fs::write(path, &bytes).map_err(|e| ReportPdfError::WriteFailed {
+        detail: io_error_code(&e).to_string(),
+    })?;
     Ok(())
 }
 
@@ -115,7 +116,7 @@ mod tests {
             ..valid_request()
         };
         let err = generate(&req).expect_err("empty title must fail validation");
-        assert!(matches!(err, ReportPdfError::InvalidRequest(_)));
+        assert!(matches!(err, ReportPdfError::InvalidRequest { .. }));
     }
 
     #[test]
@@ -139,7 +140,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("create tempdir");
         let path = dir.path().join("report.pdf");
         let err = save(&req, &path).expect_err("empty title must fail validation");
-        assert!(matches!(err, ReportPdfError::InvalidRequest(_)));
+        assert!(matches!(err, ReportPdfError::InvalidRequest { .. }));
         assert!(!path.exists(), "no file written when validation fails");
     }
 
@@ -150,7 +151,7 @@ mod tests {
         let path = dir.path().join("missing-subdir").join("report.pdf");
         let err = save(&req, &path).expect_err("missing parent dir must fail write");
         match err {
-            ReportPdfError::WriteFailed(code) => {
+            ReportPdfError::WriteFailed { detail: code } => {
                 assert_eq!(code, "no_such_directory");
             }
             other => panic!("expected WriteFailed, got {other:?}"),

@@ -10,6 +10,7 @@ import type {
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { exportAndOpenReportPdf } from "../gateway";
+import { formatReportPdfError } from "../shared/errorPresenter";
 import { formatLongDateTime, formatShortDate } from "../shared/formatters";
 import { buildCorrectionGroups, buildUnreconciledSection } from "../shared/reportPresenter";
 
@@ -91,16 +92,17 @@ export function useReportGeneration({
     const filename = buildExportFilename(reportDateRange.end, tStr);
 
     try {
-      const savedPath = await exportAndOpenReportPdf(request, filename);
-      const savedName = savedPath.split(/[\\/]/).pop() ?? filename;
+      const result = await exportAndOpenReportPdf(request, filename);
+      if (!result.success) {
+        logger.error(TAG, "Failed to export report PDF", { code: result.error.code });
+        toastService.show("error", String(t(formatReportPdfError(result.error).key)));
+        return;
+      }
+      const savedName = result.data.split(/[\\/]/).pop() ?? filename;
       toastService.show(
         "success",
         String(t("modal.report.exportSuccess", { filename: savedName })),
       );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error(TAG, "Failed to export report PDF", message);
-      toastService.show("error", tStr("modal.report.error.exportFailed"));
     } finally {
       setIsGenerating(false);
     }
