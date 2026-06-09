@@ -76,8 +76,8 @@ const LABEL_RESOLUTIONS = [
 // -------------------------------------------------------------------
 function stubConfigAndParseAndNoAccount() {
   mockGetConfig.mockResolvedValue({ max_date_offset_days: 6 });
-  mockParse.mockResolvedValue(PARSE_RESULT);
-  mockResolveAccount.mockResolvedValue(null); // BAS-010 trigger
+  mockParse.mockResolvedValue({ success: true, data: PARSE_RESULT });
+  mockResolveAccount.mockResolvedValue({ success: true, data: null }); // BAS-010 trigger
 }
 
 // -------------------------------------------------------------------
@@ -114,7 +114,7 @@ describe("useBankStatementModal — BAS-010..017 (inline create-account flow)", 
   it("calls createBankAccount with trimmed name and IBAN, then transitions to label-mapping (BAS-012 + BAS-014)", async () => {
     stubConfigAndParseAndNoAccount();
     mockCreateBankAccount.mockResolvedValue({ success: true, data: NEW_ACCOUNT });
-    mockResolveLabels.mockResolvedValue(LABEL_RESOLUTIONS);
+    mockResolveLabels.mockResolvedValue({ success: true, data: LABEL_RESOLUTIONS });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
 
@@ -183,7 +183,7 @@ describe("useBankStatementModal — BAS-010..017 (inline create-account flow)", 
         resolveCreate = resolve;
       }),
     );
-    mockResolveLabels.mockResolvedValue(LABEL_RESOLUTIONS);
+    mockResolveLabels.mockResolvedValue({ success: true, data: LABEL_RESOLUTIONS });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
 
@@ -323,9 +323,9 @@ const MATCH_RESULT_EMPTY = { matched: [], unmatched_lines: [] };
 
 function stubNormalFlow() {
   mockGetConfig.mockResolvedValue({ max_date_offset_days: 6 });
-  mockParse.mockResolvedValue(PARSE_RESULT);
-  mockResolveAccount.mockResolvedValue(NEW_ACCOUNT);
-  mockResolveLabels.mockResolvedValue(LABEL_RESOLUTIONS_WITH_FUND);
+  mockParse.mockResolvedValue({ success: true, data: PARSE_RESULT });
+  mockResolveAccount.mockResolvedValue({ success: true, data: NEW_ACCOUNT });
+  mockResolveLabels.mockResolvedValue({ success: true, data: LABEL_RESOLUTIONS_WITH_FUND });
 }
 
 describe("useBankStatementModal — normal flow (account found) and error paths", () => {
@@ -346,7 +346,7 @@ describe("useBankStatementModal — normal flow (account found) and error paths"
   it("getBankStatementReconciliationConfig updates maxDateOffsetDays", async () => {
     mockGetConfig.mockResolvedValue({ max_date_offset_days: 14 });
     // Short-circuit the parse flow to avoid waiting for full setup
-    mockParse.mockRejectedValue(new Error("stop-here"));
+    mockParse.mockResolvedValue({ success: false, error: { code: "PdfExtractionFailed" } });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
 
@@ -354,9 +354,9 @@ describe("useBankStatementModal — normal flow (account found) and error paths"
     expect(result.current.maxDateOffsetDays).toBe(14);
   });
 
-  it("sets error step with the specific message for NO_VIR_SEPA_LINES", async () => {
+  it("sets error step with the specific message for NoSepaCreditLines (R26)", async () => {
     mockGetConfig.mockResolvedValue({ max_date_offset_days: 6 });
-    mockParse.mockRejectedValue(new Error("NO_VIR_SEPA_LINES"));
+    mockParse.mockResolvedValue({ success: false, error: { code: "NoSepaCreditLines" } });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
 
@@ -364,9 +364,9 @@ describe("useBankStatementModal — normal flow (account found) and error paths"
     expect(result.current.error).toBeTruthy();
   });
 
-  it("sets error step for a generic parseBankStatement exception", async () => {
+  it("sets error step for a generic parseBankStatement error", async () => {
     mockGetConfig.mockResolvedValue({ max_date_offset_days: 6 });
-    mockParse.mockRejectedValue(new Error("unexpected parse error"));
+    mockParse.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
 
@@ -376,8 +376,8 @@ describe("useBankStatementModal — normal flow (account found) and error paths"
 
   it("handleLabelMappingConfirm saves mappings and proceeds through matching to results", async () => {
     stubNormalFlow();
-    mockSaveMappings.mockResolvedValue(undefined);
-    mockMatch.mockResolvedValue(MATCH_RESULT_EMPTY);
+    mockSaveMappings.mockResolvedValue({ success: true, data: undefined });
+    mockMatch.mockResolvedValue({ success: true, data: MATCH_RESULT_EMPTY });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
     await waitFor(() => expect(result.current.step).toBe("label-mapping"));
@@ -393,9 +393,9 @@ describe("useBankStatementModal — normal flow (account found) and error paths"
 
   it("handleCreateTransfers transitions to done with confirmed matches", async () => {
     stubNormalFlow();
-    mockSaveMappings.mockResolvedValue(undefined);
-    mockMatch.mockResolvedValue(MATCH_RESULT_WITH_MATCH);
-    mockCreateTransfers.mockResolvedValue(1);
+    mockSaveMappings.mockResolvedValue({ success: true, data: undefined });
+    mockMatch.mockResolvedValue({ success: true, data: MATCH_RESULT_WITH_MATCH });
+    mockCreateTransfers.mockResolvedValue({ success: true, data: 1 });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
     await waitFor(() => expect(result.current.step).toBe("label-mapping"));
@@ -415,8 +415,8 @@ describe("useBankStatementModal — normal flow (account found) and error paths"
 
   it("handleCreateTransfers shows error toast and stays on results when no matches confirmed", async () => {
     stubNormalFlow();
-    mockSaveMappings.mockResolvedValue(undefined);
-    mockMatch.mockResolvedValue(MATCH_RESULT_EMPTY);
+    mockSaveMappings.mockResolvedValue({ success: true, data: undefined });
+    mockMatch.mockResolvedValue({ success: true, data: MATCH_RESULT_EMPTY });
 
     const { result } = renderHook(() => useBankStatementModal(FILE_PATH));
     await waitFor(() => expect(result.current.step).toBe("label-mapping"));

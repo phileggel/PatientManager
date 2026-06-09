@@ -8,6 +8,7 @@ use tauri::State;
 use crate::context::bank::BankAccount;
 
 use super::bank_pdf_codec::BankStatementParseResult;
+use super::error::BankStatementReconciliationError;
 use super::orchestrator::{
     BankStatementMatchResult, BankStatementOrchestrator, BankStatementReconciliationConfig,
     ConfirmedMatch, FundLabelResolution, ResolvedCreditLine,
@@ -33,11 +34,9 @@ pub struct CreateTransfersFromStatementRequest {
 pub async fn parse_bank_statement(
     file_path: String,
     orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
-) -> Result<BankStatementParseResult, String> {
+) -> Result<BankStatementParseResult, BankStatementReconciliationError> {
     tracing::info!(target: BACKEND, "Starting bank statement parsing");
-    orchestrator
-        .parse_bank_statement(&file_path)
-        .map_err(|e| format!("{:#}", e))
+    orchestrator.parse_bank_statement(&file_path)
 }
 
 /// Resolve a bank account from IBAN
@@ -46,11 +45,8 @@ pub async fn parse_bank_statement(
 pub async fn resolve_bank_account_from_iban(
     iban: String,
     orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
-) -> Result<Option<BankAccount>, String> {
-    orchestrator
-        .resolve_bank_account_from_iban(&iban)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Option<BankAccount>, BankStatementReconciliationError> {
+    orchestrator.resolve_bank_account_from_iban(&iban).await
 }
 
 /// Resolve fund labels for a bank account
@@ -60,11 +56,10 @@ pub async fn resolve_bank_fund_labels(
     bank_account_id: String,
     labels: Vec<String>,
     orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
-) -> Result<Vec<FundLabelResolution>, String> {
+) -> Result<Vec<FundLabelResolution>, BankStatementReconciliationError> {
     orchestrator
         .resolve_fund_labels(&bank_account_id, labels)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// Save confirmed fund label mappings
@@ -74,7 +69,7 @@ pub async fn save_bank_fund_label_mappings(
     bank_account_id: String,
     mappings: Vec<SaveLabelMappingRequest>,
     orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
-) -> Result<(), String> {
+) -> Result<(), BankStatementReconciliationError> {
     let mapping_tuples: Vec<(String, String)> = mappings
         .into_iter()
         .map(|m| (m.bank_label, m.fund_id))
@@ -83,7 +78,6 @@ pub async fn save_bank_fund_label_mappings(
     orchestrator
         .save_label_mappings(&bank_account_id, mapping_tuples)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// Match resolved credit lines against unsettled fund payment groups
@@ -92,11 +86,10 @@ pub async fn save_bank_fund_label_mappings(
 pub async fn match_bank_statement_lines(
     resolved_lines: Vec<ResolvedCreditLine>,
     orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
-) -> Result<BankStatementMatchResult, String> {
+) -> Result<BankStatementMatchResult, BankStatementReconciliationError> {
     orchestrator
         .match_against_unsettled_groups(resolved_lines)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// Create bank transfers from confirmed matches
@@ -106,11 +99,10 @@ pub async fn create_bank_transfers_from_statement(
     bank_account_id: String,
     confirmed_matches: Vec<ConfirmedMatch>,
     orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
-) -> Result<u32, String> {
+) -> Result<u32, BankStatementReconciliationError> {
     orchestrator
         .create_transfers(&bank_account_id, confirmed_matches)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// Get bank statement reconciliation configuration

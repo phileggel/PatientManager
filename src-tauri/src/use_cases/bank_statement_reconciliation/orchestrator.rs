@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::context::bank::{
-    BankAccountService, BankEntryLinkRepository, BankEntryService, BankEntryType,
+    BankAccountService, BankEntryLinkRepository, BankEntryService, BankEntryType, BankError,
 };
 use crate::context::fund::{Fund, FundPaymentGroupStatus, FundPaymentService, FundService};
 use crate::context::procedure::{ProcedureService, ProcedureStatus};
@@ -15,6 +15,7 @@ use crate::shared::pdf_extractor;
 use crate::shared::secure_path::{self, PathPolicy};
 
 use super::bank_pdf_codec::BankStatementParseResult;
+use super::error::{BankStatementReconciliationError, BankStatementReconciliationTask};
 use super::label_mapping_repo::BankFundLabelMappingRepository;
 use super::parser;
 
@@ -131,9 +132,9 @@ impl BankStatementOrchestrator {
     pub fn parse_bank_statement(
         &self,
         file_path: &str,
-    ) -> anyhow::Result<BankStatementParseResult> {
-        let allowed_root = secure_path::user_home()
-            .ok_or_else(|| anyhow::anyhow!("Cannot resolve user home directory"))?;
+    ) -> Result<BankStatementParseResult, BankStatementReconciliationError> {
+        let allowed_root =
+            secure_path::user_home().ok_or(BankStatementReconciliationTask::HomeDirUnresolved)?;
         let canonical = secure_path::validate_user_path(
             file_path,
             &allowed_root,
@@ -143,10 +144,13 @@ impl BankStatementOrchestrator {
         )
         .map_err(|e| {
             tracing::warn!(target: BACKEND, error = %e, "Bank statement path rejected by validator");
-            anyhow::anyhow!("{e}")
+            BankStatementReconciliationTask::PathRejected
         })?;
 
-        let text = pdf_extractor::extract_pdf_text(&canonical)?;
+        let text = pdf_extractor::extract_pdf_text(&canonical).map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "parse_bank_statement: PDF text extraction failed");
+            BankStatementReconciliationTask::PdfExtractionFailed
+        })?;
         tracing::info!(target: BACKEND, chars = text.len(), "PDF text extracted");
 
         let result = parser::parse_bank_statement(&text);
@@ -166,12 +170,16 @@ impl BankStatementOrchestrator {
         &self,
         bank_account_id: &str,
         labels: Vec<String>,
-    ) -> anyhow::Result<Vec<FundLabelResolution>> {
+    ) -> Result<Vec<FundLabelResolution>, BankStatementReconciliationError> {
         // Get existing mappings for this account
         let mappings = self
             .label_mapping_repo
             .find_mappings_for_account(bank_account_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "resolve_fund_labels: find_mappings_for_account failed");
+                BankStatementReconciliationTask::DatabaseError
+            })?;
 
         // Get all funds for suggestion
         let funds = self.fund_service.read_all_funds().await?;
@@ -222,11 +230,15 @@ impl BankStatementOrchestrator {
         &self,
         bank_account_id: &str,
         mappings: Vec<(String, String)>, // (bank_label, fund_id)
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), BankStatementReconciliationError> {
         for (label, fund_id) in mappings {
             self.label_mapping_repo
                 .save_mapping(bank_account_id, &label, &fund_id)
-                .await?;
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "save_label_mappings: save_mapping failed");
+                    BankStatementReconciliationTask::DatabaseError
+                })?;
         }
         Ok(())
     }
@@ -245,7 +257,7 @@ impl BankStatementOrchestrator {
     pub async fn match_against_unsettled_groups(
         &self,
         resolved_lines: Vec<ResolvedCreditLine>,
-    ) -> anyhow::Result<BankStatementMatchResult> {
+    ) -> Result<BankStatementMatchResult, BankStatementReconciliationError> {
         // Filter out rejected lines
         let mut active_lines: Vec<_> = resolved_lines
             .into_iter()
@@ -356,15 +368,13 @@ impl BankStatementOrchestrator {
         &self,
         bank_account_id: &str,
         confirmed_matches: Vec<ConfirmedMatch>,
-    ) -> anyhow::Result<u32> {
+    ) -> Result<u32, BankStatementReconciliationError> {
         let mut created_count = 0u32;
 
         for m in confirmed_matches {
             // Parse date once for this match
-            let confirmed_date =
-                chrono::NaiveDate::parse_from_str(&m.date, "%Y-%m-%d").map_err(|_| {
-                    anyhow::anyhow!("Invalid date format in confirmed match: {}", m.date)
-                })?;
+            let confirmed_date = chrono::NaiveDate::parse_from_str(&m.date, "%Y-%m-%d")
+                .map_err(|_| BankStatementReconciliationTask::InvalidConfirmedMatchDate)?;
 
             // Step 1: Create bank transfer (silent - orchestrator will publish once)
             let transfer = self
@@ -381,7 +391,11 @@ impl BankStatementOrchestrator {
             // Step 2: Link transfer to fund payment group
             self.transfer_link_repo
                 .link_fund_groups(&transfer.id, std::slice::from_ref(&m.group_id))
-                .await?;
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "create_transfers: link_fund_groups failed");
+                    BankError::DatabaseError
+                })?;
 
             tracing::info!(
                 group_id = %m.group_id,
@@ -488,11 +502,8 @@ impl BankStatementOrchestrator {
     pub async fn resolve_bank_account_from_iban(
         &self,
         iban: &str,
-    ) -> anyhow::Result<Option<crate::context::bank::BankAccount>> {
-        self.bank_account_service
-            .find_account_by_iban(iban)
-            .await
-            .map_err(Into::into)
+    ) -> Result<Option<crate::context::bank::BankAccount>, BankStatementReconciliationError> {
+        Ok(self.bank_account_service.find_account_by_iban(iban).await?)
     }
 }
 
@@ -556,10 +567,10 @@ fn suggest_fund(label: &str, funds: &[Fund]) -> (Option<String>, Option<String>)
 /// "no SEPA lines" guidance.
 fn ensure_credit_lines(
     result: BankStatementParseResult,
-) -> anyhow::Result<BankStatementParseResult> {
+) -> Result<BankStatementParseResult, BankStatementReconciliationError> {
     if result.credit_lines.is_empty() {
         tracing::warn!(target: BACKEND, "Bank statement parsed but contains no VIR SEPA credit lines");
-        anyhow::bail!("NO_VIR_SEPA_LINES");
+        return Err(BankStatementReconciliationTask::NoSepaCreditLines.into());
     }
     Ok(result)
 }
@@ -1135,11 +1146,13 @@ mod tests {
                 }],
             )
             .await;
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid date format"));
+        let err = result.expect_err("invalid confirmed-match date must be rejected");
+        assert!(matches!(
+            err,
+            BankStatementReconciliationError::Task(
+                BankStatementReconciliationTask::InvalidConfirmedMatchDate
+            )
+        ));
     }
 
     #[tokio::test]
@@ -1227,10 +1240,14 @@ mod tests {
     fn ensure_credit_lines_rejects_empty_with_no_vir_sepa_lines_sentinel() {
         let err = ensure_credit_lines(empty_parse_result())
             .expect_err("R26: empty credit lines must be rejected");
-        assert_eq!(
-            err.to_string(),
-            "NO_VIR_SEPA_LINES",
-            "frontend matches on this exact sentinel"
+        assert!(
+            matches!(
+                err,
+                BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::NoSepaCreditLines
+                )
+            ),
+            "frontend keys its dedicated guidance on this code"
         );
     }
 

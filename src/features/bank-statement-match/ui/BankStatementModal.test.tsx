@@ -48,9 +48,9 @@ describe("BankStatementModal — inline create-account happy path (BAS-011..014)
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetConfig.mockResolvedValue({ max_date_offset_days: 6 });
-    mockParse.mockResolvedValue(PARSE_RESULT);
-    mockResolveAccount.mockResolvedValue(null);
-    mockResolveLabels.mockResolvedValue([]);
+    mockParse.mockResolvedValue({ success: true, data: PARSE_RESULT });
+    mockResolveAccount.mockResolvedValue({ success: true, data: null });
+    mockResolveLabels.mockResolvedValue({ success: true, data: [] });
   });
 
   it("creates the missing account inline then advances to label-mapping", async () => {
