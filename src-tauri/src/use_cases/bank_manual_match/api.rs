@@ -4,6 +4,7 @@ use tauri::State;
 
 use crate::context::bank::BankEntryType;
 
+use super::error::BankManualMatchError;
 use super::orchestrator::{
     BankManualMatchOrchestrator, BankManualMatchResult, DirectPaymentProcedureCandidate,
     FundGroupCandidate,
@@ -19,11 +20,8 @@ use super::orchestrator::{
 pub async fn get_unsettled_fund_groups(
     transfer_date: String,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<Vec<FundGroupCandidate>, String> {
-    orchestrator
-        .get_unsettled_fund_groups(&transfer_date)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Vec<FundGroupCandidate>, BankManualMatchError> {
+    orchestrator.get_unsettled_fund_groups(&transfer_date).await
 }
 
 /// R12 — Return all Active fund payment groups (no date constraint).
@@ -31,11 +29,8 @@ pub async fn get_unsettled_fund_groups(
 #[specta::specta]
 pub async fn get_all_unsettled_fund_groups(
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<Vec<FundGroupCandidate>, String> {
-    orchestrator
-        .get_all_unsettled_fund_groups()
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Vec<FundGroupCandidate>, BankManualMatchError> {
+    orchestrator.get_all_unsettled_fund_groups().await
 }
 
 /// R7 — Create a FUND bank transfer linked to the given group IDs.
@@ -46,11 +41,10 @@ pub async fn create_fund_transfer(
     transfer_date: String,
     group_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<BankManualMatchResult, String> {
+) -> Result<BankManualMatchResult, BankManualMatchError> {
     orchestrator
         .create_fund_transfer(bank_account_id, transfer_date, group_ids)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// R9 — Update a FUND transfer: change date and/or linked groups.
@@ -61,11 +55,10 @@ pub async fn update_fund_transfer(
     new_transfer_date: String,
     new_group_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<BankManualMatchResult, String> {
+) -> Result<BankManualMatchResult, BankManualMatchError> {
     orchestrator
         .update_fund_transfer(transfer_id, new_transfer_date, new_group_ids)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// R8 — Delete a FUND transfer: revert linked groups to Active, hard-delete transfer.
@@ -74,11 +67,8 @@ pub async fn update_fund_transfer(
 pub async fn delete_fund_transfer(
     transfer_id: String,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<(), String> {
-    orchestrator
-        .delete_fund_transfer(transfer_id)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<(), BankManualMatchError> {
+    orchestrator.delete_fund_transfer(transfer_id).await
 }
 
 // ======================================================================
@@ -91,11 +81,10 @@ pub async fn delete_fund_transfer(
 pub async fn get_eligible_procedures_for_direct_payment(
     payment_date: String,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<Vec<DirectPaymentProcedureCandidate>, String> {
+) -> Result<Vec<DirectPaymentProcedureCandidate>, BankManualMatchError> {
     orchestrator
         .get_eligible_procedures_for_direct_payment(&payment_date)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// R20 — Return all CREATED procedures (no date constraint).
@@ -103,11 +92,10 @@ pub async fn get_eligible_procedures_for_direct_payment(
 #[specta::specta]
 pub async fn get_all_eligible_procedures_for_direct_payment(
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<Vec<DirectPaymentProcedureCandidate>, String> {
+) -> Result<Vec<DirectPaymentProcedureCandidate>, BankManualMatchError> {
     orchestrator
         .get_all_eligible_procedures_for_direct_payment()
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// R15 — Create a direct payment transfer linked to the given procedure IDs.
@@ -119,11 +107,10 @@ pub async fn create_direct_transfer(
     transfer_type: BankEntryType,
     procedure_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<BankManualMatchResult, String> {
+) -> Result<BankManualMatchResult, BankManualMatchError> {
     orchestrator
         .create_direct_transfer(bank_account_id, transfer_date, transfer_type, procedure_ids)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// R17 — Update a direct transfer: change date and/or linked procedures.
@@ -134,11 +121,10 @@ pub async fn update_direct_transfer(
     new_transfer_date: String,
     new_procedure_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<BankManualMatchResult, String> {
+) -> Result<BankManualMatchResult, BankManualMatchError> {
     orchestrator
         .update_direct_transfer(transfer_id, new_transfer_date, new_procedure_ids)
         .await
-        .map_err(|e| format!("{:#}", e))
 }
 
 /// R16 — Delete a direct transfer: revert procedures to Created, hard-delete transfer.
@@ -147,11 +133,8 @@ pub async fn update_direct_transfer(
 pub async fn delete_direct_transfer(
     transfer_id: String,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<(), String> {
-    orchestrator
-        .delete_direct_transfer(transfer_id)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<(), BankManualMatchError> {
+    orchestrator.delete_direct_transfer(transfer_id).await
 }
 
 // ======================================================================
@@ -164,11 +147,8 @@ pub async fn delete_direct_transfer(
 pub async fn get_transfer_fund_group_ids(
     transfer_id: String,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<Vec<String>, String> {
-    orchestrator
-        .get_transfer_fund_group_ids(&transfer_id)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Vec<String>, BankManualMatchError> {
+    orchestrator.get_transfer_fund_group_ids(&transfer_id).await
 }
 
 /// Return the procedure IDs linked to a direct payment transfer.
@@ -177,11 +157,8 @@ pub async fn get_transfer_fund_group_ids(
 pub async fn get_transfer_procedure_ids(
     transfer_id: String,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<Vec<String>, String> {
-    orchestrator
-        .get_transfer_procedure_ids(&transfer_id)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Vec<String>, BankManualMatchError> {
+    orchestrator.get_transfer_procedure_ids(&transfer_id).await
 }
 
 /// R21 — Return fund group candidates by IDs for the edit modal (groups are BankPaid).
@@ -190,11 +167,8 @@ pub async fn get_transfer_procedure_ids(
 pub async fn get_fund_groups_by_ids(
     group_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<Vec<FundGroupCandidate>, String> {
-    orchestrator
-        .get_fund_groups_by_ids(group_ids)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Vec<FundGroupCandidate>, BankManualMatchError> {
+    orchestrator.get_fund_groups_by_ids(group_ids).await
 }
 
 /// R21 — Return procedure candidates by IDs for the edit modal (procedures are DirectlyPaid).
@@ -203,9 +177,6 @@ pub async fn get_fund_groups_by_ids(
 pub async fn get_procedures_by_ids(
     procedure_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<Vec<DirectPaymentProcedureCandidate>, String> {
-    orchestrator
-        .get_procedures_by_ids(procedure_ids)
-        .await
-        .map_err(|e| format!("{:#}", e))
+) -> Result<Vec<DirectPaymentProcedureCandidate>, BankManualMatchError> {
+    orchestrator.get_procedures_by_ids(procedure_ids).await
 }

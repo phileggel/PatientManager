@@ -73,7 +73,7 @@ export function useSelectProceduresPanel({
             onSelectionChangeRef.current(ids, total);
           }
         } else {
-          logger.error("[SelectProceduresPanel] fetch failed", { error: result.error });
+          logger.error("[SelectProceduresPanel] fetch failed", { code: result.error.code });
           setCandidates([]);
         }
       })

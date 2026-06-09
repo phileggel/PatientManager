@@ -4,9 +4,16 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::context::bank::{BankEntryLinkRepository, BankEntryService, BankEntryType};
-use crate::context::fund::{FundPaymentGroup, FundPaymentGroupStatus, FundPaymentService};
-use crate::context::procedure::{PaymentMethod, Procedure, ProcedureService, ProcedureStatus};
+use crate::context::bank::{BankEntryLinkRepository, BankEntryService, BankEntryType, BankError};
+use crate::context::fund::{
+    FundError, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentService,
+};
+use crate::context::procedure::{
+    PaymentMethod, Procedure, ProcedureError, ProcedureService, ProcedureStatus,
+};
+
+use super::error::{BankManualMatchError, BankManualMatchTask};
+use crate::BACKEND;
 
 /// Number of days before the transfer/payment date within which to search for eligible items (R6, R14).
 const WINDOW_DAYS: i64 = 7;
@@ -79,7 +86,7 @@ impl BankManualMatchOrchestrator {
     pub async fn get_unsettled_fund_groups(
         &self,
         transfer_date: &str,
-    ) -> anyhow::Result<Vec<FundGroupCandidate>> {
+    ) -> Result<Vec<FundGroupCandidate>, BankManualMatchError> {
         let date = parse_date(transfer_date)?;
         let date_min = date - chrono::Duration::days(WINDOW_DAYS);
 
@@ -94,7 +101,9 @@ impl BankManualMatchOrchestrator {
     }
 
     /// R12 — All Active groups, no date constraint (expanded search).
-    pub async fn get_all_unsettled_fund_groups(&self) -> anyhow::Result<Vec<FundGroupCandidate>> {
+    pub async fn get_all_unsettled_fund_groups(
+        &self,
+    ) -> Result<Vec<FundGroupCandidate>, BankManualMatchError> {
         let groups = self.fund_payment_service.read_all_groups().await?;
         Ok(groups
             .into_iter()
@@ -110,7 +119,7 @@ impl BankManualMatchOrchestrator {
         bank_account_id: String,
         transfer_date: String,
         group_ids: Vec<String>,
-    ) -> anyhow::Result<BankManualMatchResult> {
+    ) -> Result<BankManualMatchResult, BankManualMatchError> {
         // Compute total amount from groups
         let total_amount = self.compute_fund_groups_amount(&group_ids).await?;
 
@@ -127,7 +136,11 @@ impl BankManualMatchOrchestrator {
 
         self.transfer_link_repo
             .link_fund_groups(&transfer.id, &group_ids)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_fund_transfer: link_fund_groups failed");
+                BankError::DatabaseError
+            })?;
 
         let confirmed_date = parse_date(&transfer_date)?;
 
@@ -150,25 +163,28 @@ impl BankManualMatchOrchestrator {
         transfer_id: String,
         new_transfer_date: String,
         new_group_ids: Vec<String>,
-    ) -> anyhow::Result<BankManualMatchResult> {
+    ) -> Result<BankManualMatchResult, BankManualMatchError> {
         // R4 — Immutable type guard: must be a FUND transfer (checked before any mutation).
         let transfer = self
             .bank_transfer_service
             .read_transfer(&transfer_id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?;
-        anyhow::ensure!(
-            transfer.transfer_type == BankEntryType::FundWire,
-            "R4: transfer {} has type {:?}, not FUND — use update_direct_transfer instead",
-            transfer_id,
-            transfer.transfer_type
-        );
+            .ok_or_else(|| BankError::TransferNotFound {
+                bank_transfer_id: transfer_id.clone(),
+            })?;
+        if transfer.transfer_type != BankEntryType::FundWire {
+            return Err(BankManualMatchTask::WrongTransferType.into());
+        }
 
         // Revert old groups
         let old_group_ids = self
             .transfer_link_repo
             .get_fund_group_ids(&transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_fund_transfer: get_fund_group_ids failed");
+                BankError::DatabaseError
+            })?;
         for group_id in &old_group_ids {
             self.revert_fund_transfer_from_group(group_id).await?;
         }
@@ -189,10 +205,18 @@ impl BankManualMatchOrchestrator {
         // Update links
         self.transfer_link_repo
             .unlink_all_fund_groups(&transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_fund_transfer: unlink_all_fund_groups failed");
+                BankError::DatabaseError
+            })?;
         self.transfer_link_repo
             .link_fund_groups(&transfer_id, &new_group_ids)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_fund_transfer: link_fund_groups failed");
+                BankError::DatabaseError
+            })?;
 
         // Apply new groups
         for group_id in &new_group_ids {
@@ -207,25 +231,31 @@ impl BankManualMatchOrchestrator {
     }
 
     /// R8 — Delete a FUND transfer: hard-delete transfer, revert all linked groups (Active).
-    pub async fn delete_fund_transfer(&self, transfer_id: String) -> anyhow::Result<()> {
+    pub async fn delete_fund_transfer(
+        &self,
+        transfer_id: String,
+    ) -> Result<(), BankManualMatchError> {
         // R4 — Immutable type guard (guard only — transfer not reused after this check).
         let transfer_type = self
             .bank_transfer_service
             .read_transfer(&transfer_id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?
+            .ok_or_else(|| BankError::TransferNotFound {
+                bank_transfer_id: transfer_id.clone(),
+            })?
             .transfer_type;
-        anyhow::ensure!(
-            transfer_type == BankEntryType::FundWire,
-            "R4: transfer {} has type {:?}, not FUND — use delete_direct_transfer instead",
-            transfer_id,
-            transfer_type
-        );
+        if transfer_type != BankEntryType::FundWire {
+            return Err(BankManualMatchTask::WrongTransferType.into());
+        }
 
         let group_ids = self
             .transfer_link_repo
             .get_fund_group_ids(&transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "delete_fund_transfer: get_fund_group_ids failed");
+                BankError::DatabaseError
+            })?;
 
         // Revert all linked groups before deleting
         for group_id in &group_ids {
@@ -235,7 +265,11 @@ impl BankManualMatchOrchestrator {
         // Remove links then hard-delete the transfer
         self.transfer_link_repo
             .unlink_all_fund_groups(&transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "delete_fund_transfer: unlink_all_fund_groups failed");
+                BankError::DatabaseError
+            })?;
         self.bank_transfer_service
             .delete_transfer(&transfer_id)
             .await?;
@@ -252,14 +286,18 @@ impl BankManualMatchOrchestrator {
     pub async fn get_eligible_procedures_for_direct_payment(
         &self,
         payment_date: &str,
-    ) -> anyhow::Result<Vec<DirectPaymentProcedureCandidate>> {
+    ) -> Result<Vec<DirectPaymentProcedureCandidate>, BankManualMatchError> {
         let date = parse_date(payment_date)?;
         let date_min = date - chrono::Duration::days(WINDOW_DAYS);
 
         let procedures = self
             .procedure_service
             .find_created_in_date_range(date_min, date)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "get_eligible_procedures_for_direct_payment: find_created_in_date_range failed");
+                ProcedureError::DatabaseError
+            })?;
 
         Ok(procedures.into_iter().map(procedure_to_candidate).collect())
     }
@@ -268,11 +306,15 @@ impl BankManualMatchOrchestrator {
     /// Returns all procedures with status Created, sorted by procedure_date DESC.
     pub async fn get_all_eligible_procedures_for_direct_payment(
         &self,
-    ) -> anyhow::Result<Vec<DirectPaymentProcedureCandidate>> {
+    ) -> Result<Vec<DirectPaymentProcedureCandidate>, BankManualMatchError> {
         let procedures = self
             .procedure_service
             .find_created_in_date_range(all_dates_min(), all_dates_max())
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "get_all_eligible_procedures_for_direct_payment: find_created_in_date_range failed");
+                ProcedureError::DatabaseError
+            })?;
 
         Ok(procedures.into_iter().map(procedure_to_candidate).collect())
     }
@@ -288,7 +330,7 @@ impl BankManualMatchOrchestrator {
         transfer_date: String,
         transfer_type: BankEntryType,
         procedure_ids: Vec<String>,
-    ) -> anyhow::Result<BankManualMatchResult> {
+    ) -> Result<BankManualMatchResult, BankManualMatchError> {
         transfer_type.ensure_not_refund_only_variant()?;
 
         let total_amount = self.compute_procedures_amount(&procedure_ids).await?;
@@ -306,7 +348,11 @@ impl BankManualMatchOrchestrator {
 
         self.transfer_link_repo
             .link_procedures(&transfer.id, &procedure_ids)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_direct_transfer: link_procedures failed");
+                BankError::DatabaseError
+            })?;
 
         let confirmed_date = parse_date(&transfer_date)?;
         let payment_method = transfer_type_to_payment_method(transfer_type);
@@ -326,24 +372,28 @@ impl BankManualMatchOrchestrator {
         transfer_id: String,
         new_transfer_date: String,
         new_procedure_ids: Vec<String>,
-    ) -> anyhow::Result<BankManualMatchResult> {
+    ) -> Result<BankManualMatchResult, BankManualMatchError> {
         // R4 — Immutable type guard: must not be a FUND transfer (checked before any mutation).
         let transfer = self
             .bank_transfer_service
             .read_transfer(&transfer_id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?;
-        anyhow::ensure!(
-            transfer.transfer_type != BankEntryType::FundWire,
-            "R4: transfer {} is a FUND transfer — use update_fund_transfer instead",
-            transfer_id
-        );
+            .ok_or_else(|| BankError::TransferNotFound {
+                bank_transfer_id: transfer_id.clone(),
+            })?;
+        if transfer.transfer_type == BankEntryType::FundWire {
+            return Err(BankManualMatchTask::WrongTransferType.into());
+        }
 
         // Revert old procedures
         let old_procedure_ids = self
             .transfer_link_repo
             .get_procedure_ids(&transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_direct_transfer: get_procedure_ids failed");
+                BankError::DatabaseError
+            })?;
         self.revert_direct_payment_from_procedures(&old_procedure_ids)
             .await?;
 
@@ -365,10 +415,18 @@ impl BankManualMatchOrchestrator {
         // Update links
         self.transfer_link_repo
             .unlink_all_procedures(&transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_direct_transfer: unlink_all_procedures failed");
+                BankError::DatabaseError
+            })?;
         self.transfer_link_repo
             .link_procedures(&transfer_id, &new_procedure_ids)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_direct_transfer: link_procedures failed");
+                BankError::DatabaseError
+            })?;
 
         // Apply new procedures
         self.apply_direct_payment_to_procedures(&new_procedure_ids, payment_method, confirmed_date)
@@ -381,31 +439,42 @@ impl BankManualMatchOrchestrator {
     }
 
     /// R16 — Delete a direct transfer: hard-delete, revert all linked procedures to Created.
-    pub async fn delete_direct_transfer(&self, transfer_id: String) -> anyhow::Result<()> {
+    pub async fn delete_direct_transfer(
+        &self,
+        transfer_id: String,
+    ) -> Result<(), BankManualMatchError> {
         // R4 — Immutable type guard (guard only — transfer not reused after this check).
         let transfer_type = self
             .bank_transfer_service
             .read_transfer(&transfer_id)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("Transfer not found: {}", transfer_id))?
+            .ok_or_else(|| BankError::TransferNotFound {
+                bank_transfer_id: transfer_id.clone(),
+            })?
             .transfer_type;
-        anyhow::ensure!(
-            transfer_type != BankEntryType::FundWire,
-            "R4: transfer {} is a FUND transfer — use delete_fund_transfer instead",
-            transfer_id
-        );
+        if transfer_type == BankEntryType::FundWire {
+            return Err(BankManualMatchTask::WrongTransferType.into());
+        }
 
         let procedure_ids = self
             .transfer_link_repo
             .get_procedure_ids(&transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "delete_direct_transfer: get_procedure_ids failed");
+                BankError::DatabaseError
+            })?;
 
         self.revert_direct_payment_from_procedures(&procedure_ids)
             .await?;
 
         self.transfer_link_repo
             .unlink_all_procedures(&transfer_id)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "delete_direct_transfer: unlink_all_procedures failed");
+                BankError::DatabaseError
+            })?;
         self.bank_transfer_service
             .delete_transfer(&transfer_id)
             .await?;
@@ -420,17 +489,31 @@ impl BankManualMatchOrchestrator {
     pub async fn get_transfer_fund_group_ids(
         &self,
         transfer_id: &str,
-    ) -> anyhow::Result<Vec<String>> {
-        self.transfer_link_repo
+    ) -> Result<Vec<String>, BankManualMatchError> {
+        let ids = self
+            .transfer_link_repo
             .get_fund_group_ids(transfer_id)
             .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "get_transfer_fund_group_ids: repository failed");
+                BankError::DatabaseError
+            })?;
+        Ok(ids)
     }
 
     pub async fn get_transfer_procedure_ids(
         &self,
         transfer_id: &str,
-    ) -> anyhow::Result<Vec<String>> {
-        self.transfer_link_repo.get_procedure_ids(transfer_id).await
+    ) -> Result<Vec<String>, BankManualMatchError> {
+        let ids = self
+            .transfer_link_repo
+            .get_procedure_ids(transfer_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "get_transfer_procedure_ids: repository failed");
+                BankError::DatabaseError
+            })?;
+        Ok(ids)
     }
 
     /// R21 — Fetch fund group candidates by IDs for the edit modal.
@@ -438,10 +521,18 @@ impl BankManualMatchOrchestrator {
     pub async fn get_fund_groups_by_ids(
         &self,
         group_ids: Vec<String>,
-    ) -> anyhow::Result<Vec<FundGroupCandidate>> {
+    ) -> Result<Vec<FundGroupCandidate>, BankManualMatchError> {
         let mut candidates = Vec::new();
         for group_id in &group_ids {
-            match self.fund_payment_service.read_group(group_id).await? {
+            let group = self
+                .fund_payment_service
+                .read_group(group_id)
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "get_fund_groups_by_ids: read_group failed");
+                    FundError::DatabaseError
+                })?;
+            match group {
                 Some(group) => candidates.push(group_to_candidate(group)),
                 None => tracing::warn!("Fund group not found for edit pre-fill: {}", group_id),
             }
@@ -454,7 +545,7 @@ impl BankManualMatchOrchestrator {
     pub async fn get_procedures_by_ids(
         &self,
         procedure_ids: Vec<String>,
-    ) -> anyhow::Result<Vec<DirectPaymentProcedureCandidate>> {
+    ) -> Result<Vec<DirectPaymentProcedureCandidate>, BankManualMatchError> {
         let procedures = self
             .procedure_service
             .read_procedures_by_ids(procedure_ids)
@@ -466,27 +557,43 @@ impl BankManualMatchOrchestrator {
     // Private helpers
     // ======================================================================
 
-    async fn compute_fund_groups_amount(&self, group_ids: &[String]) -> anyhow::Result<i64> {
+    async fn compute_fund_groups_amount(
+        &self,
+        group_ids: &[String],
+    ) -> Result<i64, BankManualMatchError> {
         let mut total = 0i64;
         for group_id in group_ids {
             let group = self
                 .fund_payment_service
                 .read_group(group_id)
-                .await?
-                .ok_or_else(|| anyhow::anyhow!("Fund payment group not found: {}", group_id))?;
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "compute_fund_groups_amount: read_group failed");
+                    FundError::DatabaseError
+                })?
+                .ok_or_else(|| FundError::PaymentGroupNotFound {
+                    fund_payment_group_id: group_id.clone(),
+                })?;
             total += group.total_amount;
         }
-        anyhow::ensure!(total > 0, "Total amount must be greater than 0");
+        if total <= 0 {
+            return Err(BankError::AmountNotPositive.into());
+        }
         Ok(total)
     }
 
-    async fn compute_procedures_amount(&self, procedure_ids: &[String]) -> anyhow::Result<i64> {
+    async fn compute_procedures_amount(
+        &self,
+        procedure_ids: &[String],
+    ) -> Result<i64, BankManualMatchError> {
         let procedures = self
             .procedure_service
             .read_procedures_by_ids(procedure_ids.to_vec())
             .await?;
         let total: i64 = procedures.iter().map(|p| p.billed_amount).sum();
-        anyhow::ensure!(total > 0, "Total amount must be greater than 0");
+        if total <= 0 {
+            return Err(BankError::AmountNotPositive.into());
+        }
         Ok(total)
     }
 
@@ -496,8 +603,16 @@ impl BankManualMatchOrchestrator {
         &self,
         group_id: &str,
         confirmed_date: NaiveDate,
-    ) -> anyhow::Result<()> {
-        if let Some(group) = self.fund_payment_service.read_group(group_id).await? {
+    ) -> Result<(), BankManualMatchError> {
+        let group = self
+            .fund_payment_service
+            .read_group(group_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "apply_fund_transfer_to_group: read_group failed");
+                FundError::DatabaseError
+            })?;
+        if let Some(group) = group {
             let procedure_ids: Vec<String> =
                 group.lines.iter().map(|l| l.procedure_id.clone()).collect();
 
@@ -528,15 +643,30 @@ impl BankManualMatchOrchestrator {
 
         self.fund_payment_service
             .update_group_status(group_id, FundPaymentGroupStatus::BankPaid)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "apply_fund_transfer_to_group: update_group_status failed");
+                FundError::DatabaseError
+            })?;
 
         Ok(())
     }
 
     /// R8 — Revert procedures of a group to Reconciled/PartiallyReconciled
     /// and set the group status back to Active.
-    async fn revert_fund_transfer_from_group(&self, group_id: &str) -> anyhow::Result<()> {
-        if let Some(group) = self.fund_payment_service.read_group(group_id).await? {
+    async fn revert_fund_transfer_from_group(
+        &self,
+        group_id: &str,
+    ) -> Result<(), BankManualMatchError> {
+        let group = self
+            .fund_payment_service
+            .read_group(group_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "revert_fund_transfer_from_group: read_group failed");
+                FundError::DatabaseError
+            })?;
+        if let Some(group) = group {
             let procedure_ids: Vec<String> =
                 group.lines.iter().map(|l| l.procedure_id.clone()).collect();
 
@@ -566,7 +696,11 @@ impl BankManualMatchOrchestrator {
 
         self.fund_payment_service
             .update_group_status(group_id, FundPaymentGroupStatus::Active)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "revert_fund_transfer_from_group: update_group_status failed");
+                FundError::DatabaseError
+            })?;
 
         Ok(())
     }
@@ -577,7 +711,7 @@ impl BankManualMatchOrchestrator {
         procedure_ids: &[String],
         payment_method: PaymentMethod,
         confirmed_date: NaiveDate,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), BankManualMatchError> {
         let procedures = self
             .procedure_service
             .read_procedures_by_ids(procedure_ids.to_vec())
@@ -603,7 +737,7 @@ impl BankManualMatchOrchestrator {
     async fn revert_direct_payment_from_procedures(
         &self,
         procedure_ids: &[String],
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), BankManualMatchError> {
         let procedures = self
             .procedure_service
             .read_procedures_by_ids(procedure_ids.to_vec())
@@ -629,9 +763,8 @@ impl BankManualMatchOrchestrator {
 // Pure conversion helpers (testable)
 // ======================================================================
 
-fn parse_date(s: &str) -> anyhow::Result<NaiveDate> {
-    NaiveDate::parse_from_str(s, "%Y-%m-%d")
-        .map_err(|_| anyhow::anyhow!("Invalid date format: {} (expected YYYY-MM-DD)", s))
+fn parse_date(s: &str) -> Result<NaiveDate, BankError> {
+    NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| BankError::InvalidTransferDateFormat)
 }
 
 fn group_to_candidate(g: FundPaymentGroup) -> FundGroupCandidate {
@@ -1394,15 +1527,10 @@ mod tests {
             .await
             .expect_err("FundOutgoingWire must be rejected by create_direct_transfer");
 
-        // REF-080: the wire-typed variant `BankError::RefundOnlyVariantRejected`
-        // carries the rejection semantics. The anyhow chain wraps it via
-        // thiserror's `From<BankError> for anyhow::Error` impl.
-        let downcast = err
-            .downcast_ref::<crate::context::bank::BankError>()
-            .expect("error chain must contain a BankError");
+        // REF-080: the composite surfaces the bank-BC variant directly on the wire.
         assert!(matches!(
-            downcast,
-            crate::context::bank::BankError::RefundOnlyVariantRejected
+            err,
+            BankManualMatchError::Bank(BankError::RefundOnlyVariantRejected)
         ));
 
         Ok(())
@@ -1441,17 +1569,13 @@ mod tests {
         // Attempt to update it as a FUND transfer — must fail
         let err = orchestrator
             .update_fund_transfer(result.transfer_id, "2026-03-11".to_string(), vec![])
-            .await;
+            .await
+            .expect_err("Expected error when calling update_fund_transfer on a CHECK transfer");
 
-        assert!(
-            err.is_err(),
-            "Expected error when calling update_fund_transfer on a CHECK transfer"
-        );
-        let msg = err.unwrap_err().to_string();
-        assert!(
-            msg.contains("R4"),
-            "Error message should reference R4: {msg}"
-        );
+        assert!(matches!(
+            err,
+            BankManualMatchError::Task(BankManualMatchTask::WrongTransferType)
+        ));
 
         Ok(())
     }
@@ -1493,17 +1617,13 @@ mod tests {
         // Attempt to update it as a direct transfer — must fail
         let err = orchestrator
             .update_direct_transfer(result.transfer_id, "2026-03-11".to_string(), vec![])
-            .await;
+            .await
+            .expect_err("Expected error when calling update_direct_transfer on a FUND transfer");
 
-        assert!(
-            err.is_err(),
-            "Expected error when calling update_direct_transfer on a FUND transfer"
-        );
-        let msg = err.unwrap_err().to_string();
-        assert!(
-            msg.contains("R4"),
-            "Error message should reference R4: {msg}"
-        );
+        assert!(matches!(
+            err,
+            BankManualMatchError::Task(BankManualMatchTask::WrongTransferType)
+        ));
 
         Ok(())
     }
@@ -1533,17 +1653,15 @@ mod tests {
             )
             .await?;
 
-        let err = orchestrator.delete_fund_transfer(result.transfer_id).await;
+        let err = orchestrator
+            .delete_fund_transfer(result.transfer_id)
+            .await
+            .expect_err("Expected error when calling delete_fund_transfer on a CHECK transfer");
 
-        assert!(
-            err.is_err(),
-            "Expected error when calling delete_fund_transfer on a CHECK transfer"
-        );
-        let msg = err.unwrap_err().to_string();
-        assert!(
-            msg.contains("R4"),
-            "Error message should reference R4: {msg}"
-        );
+        assert!(matches!(
+            err,
+            BankManualMatchError::Task(BankManualMatchTask::WrongTransferType)
+        ));
 
         Ok(())
     }
@@ -1583,17 +1701,13 @@ mod tests {
 
         let err = orchestrator
             .delete_direct_transfer(result.transfer_id)
-            .await;
+            .await
+            .expect_err("Expected error when calling delete_direct_transfer on a FUND transfer");
 
-        assert!(
-            err.is_err(),
-            "Expected error when calling delete_direct_transfer on a FUND transfer"
-        );
-        let msg = err.unwrap_err().to_string();
-        assert!(
-            msg.contains("R4"),
-            "Error message should reference R4: {msg}"
-        );
+        assert!(matches!(
+            err,
+            BankManualMatchError::Task(BankManualMatchTask::WrongTransferType)
+        ));
 
         Ok(())
     }

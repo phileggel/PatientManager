@@ -234,7 +234,7 @@ describe("useEditBankTransferModal", () => {
     vi.mocked(gateway.getFundGroupsByIds).mockResolvedValue({ success: true, data: [mockGroup] });
     vi.mocked(gateway.updateFundTransfer).mockResolvedValue({
       success: false,
-      error: "Server error",
+      error: { code: "DatabaseError" },
     });
 
     const onClose = vi.fn();
@@ -268,7 +268,7 @@ describe("useEditBankTransferModal", () => {
   it("keeps selectedGroupIds empty when getTransferFundGroupIds returns failure", async () => {
     vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({
       success: false,
-      error: "Not found",
+      error: { code: "DatabaseError" },
     });
 
     const transfer = makeFundTransfer();
@@ -287,7 +287,7 @@ describe("useEditBankTransferModal", () => {
     });
     vi.mocked(gateway.getProceduresByIds).mockResolvedValue({
       success: false,
-      error: "Not found",
+      error: { code: "DatabaseError" },
     });
 
     const transfer = makeDirectTransfer();

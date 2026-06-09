@@ -83,7 +83,7 @@ describe("useSelectProceduresPanel", () => {
   });
 
   it("keeps candidates empty when gateway fetch fails", async () => {
-    mockGetEligible.mockResolvedValue({ success: false, error: "fetch failed" });
+    mockGetEligible.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     const { result } = renderHook(() =>
       useSelectProceduresPanel({

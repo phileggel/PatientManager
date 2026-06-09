@@ -1,7 +1,9 @@
 # Contract — Bank Statement Manual Match
 
 > Domain: bank-statement-manual-match
-> Last updated by: bank-statement-manual-match spec
+> Last updated by: bank_manual_match typed-error migration
+
+> Wire errors are the composite `BankManualMatchError` (untagged union of `BankError`, `FundError`, `ProcedureError`, and the use-case `BankManualMatchTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
 ## Commands
 
@@ -13,7 +15,7 @@ Returns fund-payment groups not yet reconciled at the bank level whose payment d
 
 - **Args:** `transfer_date: String`
 - **Returns:** `Vec<FundGroupCandidate>`
-- **Errors:** `InvalidDateFormat`
+- **Errors:** `InvalidTransferDateFormat`, `DatabaseError`
 
 ---
 
@@ -23,7 +25,7 @@ Returns all fund-payment groups not yet reconciled at the bank level, no date co
 
 - **Args:** —
 - **Returns:** `Vec<FundGroupCandidate>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -33,7 +35,7 @@ Returns `FundGroupCandidate` details for a given set of IDs. Used in the FUND-tr
 
 - **Args:** `group_ids: Vec<String>`
 - **Returns:** `Vec<FundGroupCandidate>`
-- **Errors:** `GroupNotFound`
+- **Errors:** `DatabaseError` (unknown IDs are silently skipped, not an error)
 
 ---
 
@@ -43,7 +45,7 @@ Creates a `FUND` bank entry linked to the given group IDs. On success: procedure
 
 - **Args:** `bank_account_id: String, transfer_date: String, group_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `AccountNotFound`, `GroupNotFound`, `GroupAlreadyReconciled`, `InvalidDateFormat`
+- **Errors:** `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound`, `InvalidTransferDateFormat`, `DatabaseError`
 
 ---
 
@@ -53,7 +55,7 @@ Updates the date and/or group composition of an existing FUND transfer. Newly ad
 
 - **Args:** `transfer_id: String, new_transfer_date: String, new_group_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `TransferNotFound`, `GroupNotFound`, `GroupAlreadyReconciled`, `InvalidDateFormat`
+- **Errors:** `TransferNotFound`, `WrongTransferType` (R4), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound`, `InvalidTransferDateFormat`, `DatabaseError`
 
 ---
 
@@ -63,7 +65,7 @@ Hard-deletes a FUND transfer and rolls back all linked groups: procedures revert
 
 - **Args:** `transfer_id: String`
 - **Returns:** `()`
-- **Errors:** `TransferNotFound`
+- **Errors:** `TransferNotFound`, `WrongTransferType` (R4), `DatabaseError`
 
 ---
 
@@ -73,7 +75,7 @@ Returns the IDs of groups currently linked to a FUND transfer. Used alongside `g
 
 - **Args:** `transfer_id: String`
 - **Returns:** `Vec<String>`
-- **Errors:** `TransferNotFound`
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -83,7 +85,7 @@ Returns procedures in `Created` status whose `procedure_date` is within 7 days p
 
 - **Args:** `payment_date: String`
 - **Returns:** `Vec<DirectPaymentProcedureCandidate>`
-- **Errors:** `InvalidDateFormat`
+- **Errors:** `InvalidTransferDateFormat`, `DatabaseError`
 
 ---
 
@@ -93,7 +95,7 @@ Returns all procedures in `Created` status with no date constraint. Used for the
 
 - **Args:** —
 - **Returns:** `Vec<DirectPaymentProcedureCandidate>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -103,7 +105,7 @@ Returns `DirectPaymentProcedureCandidate` details for a given set of IDs. Used i
 
 - **Args:** `procedure_ids: Vec<String>`
 - **Returns:** `Vec<DirectPaymentProcedureCandidate>`
-- **Errors:** `ProcedureNotFound`
+- **Errors:** `DatabaseError` (unknown IDs are silently skipped, not an error)
 
 ---
 
@@ -111,11 +113,11 @@ Returns `DirectPaymentProcedureCandidate` details for a given set of IDs. Used i
 
 Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or `PATIENT_CASH`) linked to the given procedure IDs. For `PATIENT_CASH`, the backend enforces `bank_account_id = cash-account-default` (R13). On success: each procedure moves to `DirectlyPayed`; `payment_method`, `confirmed_payment_date`, and `actual_payment_amount` are set according to the type mapping in `BankEntryType`.
 
-> R2: `OutgoingWire` and `FundWire` are rejected — `InvalidTransferType` is returned.
+> REF-080: `FundOutgoingWire` (refund-only) is rejected — `RefundOnlyVariantRejected` is returned.
 
 - **Args:** `bank_account_id: String, transfer_date: String, transfer_type: BankEntryType, procedure_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `AccountNotFound`, `ProcedureNotFound`, `ProcedureNotInCreatedStatus`, `InvalidTransferType`, `CashAccountMismatch`, `InvalidDateFormat`
+- **Errors:** `RefundOnlyVariantRejected` (REF-080), `AmountNotPositive`, `BankAccountNotFound`, `InvalidTransferDateFormat`, `DatabaseError`
 
 ---
 
@@ -125,7 +127,7 @@ Updates the date and/or procedure composition of an existing direct payment. New
 
 - **Args:** `transfer_id: String, new_transfer_date: String, new_procedure_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `TransferNotFound`, `ProcedureNotFound`, `ProcedureNotInCreatedStatus`, `InvalidDateFormat`
+- **Errors:** `TransferNotFound`, `WrongTransferType` (R4), `AmountNotPositive`, `BankAccountNotFound`, `InvalidTransferDateFormat`, `DatabaseError`
 
 ---
 
@@ -135,7 +137,7 @@ Hard-deletes a direct payment and rolls back all linked procedures to `Created` 
 
 - **Args:** `transfer_id: String`
 - **Returns:** `()`
-- **Errors:** `TransferNotFound`
+- **Errors:** `TransferNotFound`, `WrongTransferType` (R4), `DatabaseError`
 
 ---
 
@@ -145,7 +147,7 @@ Returns the IDs of procedures currently linked to a direct payment. Used alongsi
 
 - **Args:** `transfer_id: String`
 - **Returns:** `Vec<String>`
-- **Errors:** `TransferNotFound`
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -198,3 +200,4 @@ struct BankManualMatchResult {
 
 - 2026-05-02 — Added by `bank-statement-manual-match` spec: get_cash_bank_account_id, get_unsettled_fund_groups, get_all_unsettled_fund_groups, get_fund_groups_by_ids, create_fund_transfer, update_fund_transfer, delete_fund_transfer, get_transfer_fund_group_ids, get_eligible_procedures_for_direct_payment, get_all_eligible_procedures_for_direct_payment, get_procedures_by_ids, create_direct_transfer, update_direct_transfer, delete_direct_transfer, get_transfer_procedure_ids
 - 2026-05-02 — Rescoped: read_all_bank_transfers moved to bank-contract.md (context/bank); BankEntry/BankAccount types moved there too
+- 2026-06-09 — Typed-error migration: per-command Errors columns now list the real wire-visible `BankManualMatchError` variant codes (`BankError`/`FundError`/`ProcedureError`/`WrongTransferType`), replacing the pre-implementation aspirational names

@@ -69,7 +69,7 @@ export function useSelectFundGroupsPanel({
             onSelectionChangeRef.current(ids, total);
           }
         } else {
-          logger.error("[SelectFundGroupsPanel] fetch failed", { error: result.error });
+          logger.error("[SelectFundGroupsPanel] fetch failed", { code: result.error.code });
           setCandidates([]);
         }
       })

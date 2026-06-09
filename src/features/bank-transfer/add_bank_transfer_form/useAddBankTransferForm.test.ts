@@ -144,7 +144,10 @@ describe("useAddBankTransferForm — form fields and validation", () => {
   });
 
   it("handleSubmit calls createFundTransfer for FUND_WIRE type", async () => {
-    vi.mocked(gateway.createFundTransfer).mockResolvedValue({ success: true });
+    vi.mocked(gateway.createFundTransfer).mockResolvedValue({
+      success: true,
+      data: { transfer_id: "bt-1", linked_count: 1 },
+    });
     const { result } = renderHook(() => useAddBankTransferForm());
 
     act(() => result.current.setTransferDate("2025-06-01"));
@@ -160,7 +163,10 @@ describe("useAddBankTransferForm — form fields and validation", () => {
   });
 
   it("handleSubmit calls createDirectTransfer for PATIENT_CHECK type", async () => {
-    vi.mocked(gateway.createDirectTransfer).mockResolvedValue({ success: true });
+    vi.mocked(gateway.createDirectTransfer).mockResolvedValue({
+      success: true,
+      data: { transfer_id: "bt-1", linked_count: 1 },
+    });
     const { result } = renderHook(() => useAddBankTransferForm());
 
     act(() => result.current.handleTypeChange("PATIENT_CHECK"));
@@ -181,7 +187,10 @@ describe("useAddBankTransferForm — form fields and validation", () => {
   });
 
   it("handleSubmit shows success toast and resets form on success", async () => {
-    vi.mocked(gateway.createFundTransfer).mockResolvedValue({ success: true });
+    vi.mocked(gateway.createFundTransfer).mockResolvedValue({
+      success: true,
+      data: { transfer_id: "bt-1", linked_count: 1 },
+    });
     const { result } = renderHook(() => useAddBankTransferForm());
 
     act(() => result.current.setTransferDate("2025-06-01"));
@@ -200,7 +209,7 @@ describe("useAddBankTransferForm — form fields and validation", () => {
   it("handleSubmit shows error toast on backend failure", async () => {
     vi.mocked(gateway.createFundTransfer).mockResolvedValue({
       success: false,
-      error: "Server error",
+      error: { code: "DatabaseError" },
     });
     const { result } = renderHook(() => useAddBankTransferForm());
 
