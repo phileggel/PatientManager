@@ -45,8 +45,7 @@
       "title": "Delete Payment Group?",
       "message": "Are you sure you want to delete the payment group for \"{{fundName}}\"? This action cannot be undone.",
       "confirm": "Delete",
-      "success": "Payment group for \"{{fundName}}\" deleted successfully",
-      "error": "Failed to delete payment group: {{error}}"
+      "success": "Payment group for \"{{fundName}}\" deleted successfully"
     }
   },
   "edit": {

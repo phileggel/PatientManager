@@ -13,7 +13,6 @@ import { useTranslation } from "react-i18next";
 import type { FundPaymentGroup } from "@/bindings";
 import { logger } from "@/infra/logger";
 import { ConfirmationDialog, IconButton, SortIcon } from "@/ui/components";
-import { toastService } from "@/ui/components/snackbar";
 import { useFormatters } from "@/ui/format/formatters";
 import { EditFundPaymentModal } from "../edit_fund_payment_modal/EditFundPaymentModal";
 import type { FundPaymentRow } from "../shared/types";
@@ -230,17 +229,9 @@ export function FundPaymentList() {
         onCancel={() => setDeleteData(null)}
         onConfirm={async () => {
           if (deleteData) {
-            try {
-              await deleteGroup(deleteData.id);
-              toastService.show(
-                "success",
-                t("list.delete.success", { fundName: deleteData.fundName }),
-              );
-              setDeleteData(null);
-            } catch (error) {
-              logger.error("Delete fund payment group failed", { error, groupId: deleteData.id });
-              toastService.show("error", t("list.delete.error", { error: String(error) }));
-            }
+            // Toasts live in the hook; keep the dialog open on failure for a retry.
+            const deleted = await deleteGroup(deleteData.id, deleteData.fundName);
+            if (deleted) setDeleteData(null);
           }
         }}
         title={t("list.delete.title")}
