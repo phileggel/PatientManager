@@ -93,24 +93,26 @@ describe("useFundPaymentList", () => {
     expect(row?.procedureEndDate).toBeUndefined();
   });
 
-  it("deleteGroup resolves on gateway success", async () => {
+  it("deleteGroup returns true and shows a success toast with the fund name", async () => {
     seedStore();
     mockRead.mockResolvedValue({ success: true, data: [] });
     mockDelete.mockResolvedValue({ success: true, data: undefined });
 
     const { result } = renderHook(() => useFundPaymentList());
 
-    await expect(result.current.deleteGroup("g-1")).resolves.toBeUndefined();
+    await expect(result.current.deleteGroup("g-1", "CPAM")).resolves.toBe(true);
     expect(mockDelete).toHaveBeenCalledWith("g-1");
+    expect(mockToast).toHaveBeenCalledWith("success", expect.stringContaining("CPAM"));
   });
 
-  it("deleteGroup throws a translated message when the gateway returns a typed failure", async () => {
+  it("deleteGroup returns false and toasts the translated error on a typed failure", async () => {
     seedStore();
     mockRead.mockResolvedValue({ success: true, data: [] });
     mockDelete.mockResolvedValue({ success: false, error: { code: "RefundGroupProtected" } });
 
     const { result } = renderHook(() => useFundPaymentList());
 
-    await expect(result.current.deleteGroup("g-1")).rejects.toThrow(/refund/i);
+    await expect(result.current.deleteGroup("g-1", "CPAM")).resolves.toBe(false);
+    expect(mockToast).toHaveBeenCalledWith("error", expect.stringMatching(/refund/i));
   });
 });

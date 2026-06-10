@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatCurrency } from "@/ui/format/formatters";
 import { FundPaymentList } from "./FundPaymentList";
@@ -19,12 +20,22 @@ interface ConfirmationDialogProps {
   message: string;
 }
 
-vi.mock("@ui/components", async () => {
-  const actual = await vi.importActual("@ui/components");
+vi.mock("@/ui/components", async () => {
+  const actual = await vi.importActual("@/ui/components");
   return {
     ...actual,
-    ConfirmationDialog: ({ isOpen, title }: ConfirmationDialogProps) =>
-      isOpen ? <div data-testid="confirmation-dialog">{title}</div> : null,
+    ConfirmationDialog: ({ isOpen, title, onConfirm, onCancel }: ConfirmationDialogProps) =>
+      isOpen ? (
+        <div data-testid="confirmation-dialog">
+          {title}
+          <button type="button" onClick={onConfirm}>
+            stub-confirm
+          </button>
+          <button type="button" onClick={onCancel}>
+            stub-cancel
+          </button>
+        </div>
+      ) : null,
   };
 });
 
@@ -195,6 +206,58 @@ describe("FundPaymentList", () => {
         name: /delete payment for CPAM - Test/i,
       });
       expect(deleteButton).not.toBeDisabled();
+    });
+  });
+
+  describe("delete confirmation flow", () => {
+    function renderWithDelete(deleteGroup: (id: string, fundName: string) => Promise<boolean>) {
+      vi.mocked(useFundPaymentList).mockReturnValue({
+        fundPaymentRows: [makeRow("g1", false)],
+        groups: [makeGroup("g1", false)],
+        loading: false,
+        deleteGroup,
+      });
+      render(<FundPaymentList />);
+    }
+
+    it("confirm calls deleteGroup with id + fund name and closes the dialog on success", async () => {
+      const user = userEvent.setup();
+      const deleteGroup = vi.fn().mockResolvedValue(true);
+      renderWithDelete(deleteGroup);
+
+      await user.click(screen.getByRole("button", { name: /delete payment for CPAM - Test/i }));
+      expect(screen.getByTestId("confirmation-dialog")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "stub-confirm" }));
+
+      expect(deleteGroup).toHaveBeenCalledWith("g1", "CPAM - Test");
+      await waitFor(() => {
+        expect(screen.queryByTestId("confirmation-dialog")).not.toBeInTheDocument();
+      });
+    });
+
+    it("keeps the dialog open when deleteGroup reports failure, so the user can retry", async () => {
+      const user = userEvent.setup();
+      const deleteGroup = vi.fn().mockResolvedValue(false);
+      renderWithDelete(deleteGroup);
+
+      await user.click(screen.getByRole("button", { name: /delete payment for CPAM - Test/i }));
+      await user.click(screen.getByRole("button", { name: "stub-confirm" }));
+
+      expect(deleteGroup).toHaveBeenCalledWith("g1", "CPAM - Test");
+      expect(screen.getByTestId("confirmation-dialog")).toBeInTheDocument();
+    });
+
+    it("cancel closes the dialog without calling deleteGroup", async () => {
+      const user = userEvent.setup();
+      const deleteGroup = vi.fn().mockResolvedValue(true);
+      renderWithDelete(deleteGroup);
+
+      await user.click(screen.getByRole("button", { name: /delete payment for CPAM - Test/i }));
+      await user.click(screen.getByRole("button", { name: "stub-cancel" }));
+
+      expect(deleteGroup).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("confirmation-dialog")).not.toBeInTheDocument();
     });
   });
 });

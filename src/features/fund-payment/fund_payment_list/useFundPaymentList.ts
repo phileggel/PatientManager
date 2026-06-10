@@ -61,11 +61,21 @@ export function useFundPaymentList() {
     [groups, funds, proceduresById],
   );
 
-  const deleteGroupHandler = async (id: string) => {
+  // Toast-in-hook like the sibling flows (`useEditFundPaymentModal`,
+  // `useAddFundPaymentPanel`); returns whether the delete succeeded so the
+  // caller can keep the confirmation dialog open for a retry on failure.
+  const deleteGroupHandler = async (id: string, fundName: string): Promise<boolean> => {
     const result = await deleteFundPaymentGroup(id);
     if (!result.success) {
-      throw new Error(t(formatManualManagementError(result.error).key));
+      logger.error("[FundPaymentList] Delete fund payment group failed", {
+        code: result.error.code,
+        groupId: id,
+      });
+      toastService.show("error", t(formatManualManagementError(result.error).key));
+      return false;
     }
+    toastService.show("success", t("list.delete.success", { fundName }));
+    return true;
   };
 
   return {

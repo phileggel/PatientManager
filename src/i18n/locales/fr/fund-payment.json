@@ -45,8 +45,7 @@
       "title": "Supprimer le groupe de paiement ?",
       "message": "Êtes-vous sûr de vouloir supprimer le groupe de paiement pour « {{fundName}} » ? Cette action est irréversible.",
       "confirm": "Supprimer",
-      "success": "Groupe de paiement pour « {{fundName}} » supprimé avec succès",
-      "error": "Échec de la suppression du groupe de paiement : {{error}}"
+      "success": "Groupe de paiement pour « {{fundName}} » supprimé avec succès"
     }
   },
   "edit": {
