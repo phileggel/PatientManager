@@ -25,7 +25,7 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 ## (frontend/ui) — Split BankStatementModal step components
 
-`BankStatementModal.tsx` contains 7 conditional `step === "..."` blocks (loading, matching, create-account, label-mapping, results, done, error). The create-account step now has form state, validation, error display — non-trivial. Extract step components (e.g. `CreateAccountStep`, `DoneStep`, `ErrorStep`) once another step gains comparable logic, or if the modal grows past ~200 lines. Pure refactor — defer until there's a second non-trivial step or the file becomes unwieldy.
+`BankStatementModal.tsx` (208 lines, 12 `step === "..."` conditionals) hosts the create-account (form state, validation, error display — non-trivial), loading, done, and error steps inline. Extract them as step components (e.g. `CreateAccountStep`, `DoneStep`, `ErrorStep`) alongside the existing `FundLabelMappingStep` / `MatchResultsStep` when next touching the modal. Pure refactor.
 
 ---
 

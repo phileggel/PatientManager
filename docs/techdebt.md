@@ -14,17 +14,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 **Where:** `src-tauri/src/context/fund/service.rs:131-134` — inside `FundService::validate_batch`, the per-candidate `find_fund_by_identifier` `Err(e)` arm builds `result.error = Some(format!("Database error checking identifier: {}", e))`, folding the raw `anyhow::Error` Display into the `FundValidationResult.error` DTO field. Skips `tracing::error!` and bypasses `FundError::DatabaseError` translation.
 
-**Observation:** Mirror image of the existing 2026-05-27 patient/service.rs:140 entry. The two `validate_batch` paths share the same DTO-shape limitation: `error: Option<String>` carries a raw repo-error string on the wire. Both resolve together when PR 3 (use-case composites) reshapes the `*ValidationResult.error` field into a typed variant.
-
----
-
-## 2026-05-27 — `DatabaseError` discriminant collision between `BankError` and `FundError`
-
-**Found by:** reviewer-backend (`refactor/typed-errors-fund-bank` @ `ea606ad`)
-
-**Where:** `src-tauri/src/context/{bank,fund}/error.rs` — both enums emit wire code `{ "code": "DatabaseError" }` for the infra catch-all variant.
-
-**Observation:** Per `docs/error-model.md` § Anti-patterns: "Two wrapper variants in a composite whose enums share a `code` discriminant" silently collide under `#[serde(untagged)]` — the first arm wins, the second is unreachable. PR 3-4 will wrap `BankError` + `FundError` (and other BCs) inside `{UseCase}Error` composites. Each composite must move `DatabaseError` into its `{UseCase}Task` sub-enum (single catch-all) rather than wrap both BC enums via `#[from]` — otherwise the second wrapper's `DatabaseError` is unreachable.
+**Observation:** Mirror image of the existing 2026-05-27 patient/service.rs:140 entry. The two `validate_batch` paths share the same DTO-shape limitation: `error: Option<String>` carries a raw repo-error string on the wire. Both entries resolve together by reshaping the `*ValidationResult.error` field into a typed variant.
 
 ---
 
@@ -54,7 +44,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 **Where:** `src-tauri/src/context/patient/service.rs:140` — inside `PatientService::validate_batch`, the per-candidate SSN-lookup error arm builds `result.error = Some(format!("Database error checking SSN: {}", e))`, where `e` is the `anyhow::Error` returned by the repository.
 
-**Observation:** The `PatientValidationResult.error` field exposes an untyped `Option<String>` carrying the raw `anyhow::Error` Display output on the batch-validation wire path. PR 1 of the typed-error migration leaves this surface unchanged because changing it requires modifying `PatientValidationResult.error` to a typed shape (struct variant or separate code/message split) — a DTO change that fans into the contract + FE consumers. Naturally folds into PR 3 of the migration, when the repo trait error type itself is reconsidered.
+**Observation:** The `PatientValidationResult.error` field exposes an untyped `Option<String>` carrying the raw `anyhow::Error` Display output on the batch-validation wire path. Changing it requires reshaping `PatientValidationResult.error` to a typed shape (struct variant or separate code/message split) — a DTO change that fans into the contract + FE consumers. Standalone follow-up, paired with the sibling fund entry above.
 
 ---
 

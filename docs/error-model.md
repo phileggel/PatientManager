@@ -224,7 +224,7 @@ if (result.status === "error") {
 - ❌ `format!("{e:#}")` into a wire-visible payload.
 - ❌ Re-declaring leaf variant codes inside a composite (the `#[from]` wrapper does the routing).
 - ❌ Tuple variants on a `#[serde(tag = "code")]` enum — use struct variants.
-- ❌ Two wrapper variants in a composite whose enums share a `code` discriminant (silent collision under `#[serde(untagged)]`; verify uniqueness when adding a wrapper).
+- ❌ Two wrapper variants in a composite whose enums share a `code` discriminant (silent collision under `#[serde(untagged)]`; verify uniqueness when adding a wrapper). **Ratified exception:** the shared infra catch-all `DatabaseError` — every wrapped BC enum may emit `{ "code": "DatabaseError" }` because the payloads are identical and the FE maps the single code to one message. The composite's wire test must assert the colliding variants serialize identically (see `fund_payment_manual_management/error.rs` for the precedent).
 - ❌ `panic!` / `unwrap` / `expect` in production paths. Tests only.
 - ❌ Comments like `// Replaces the anyhow-era X` or `// Per the Y rule` (rationale-as-comment; doc what the code IS, not what it used to be).
 
