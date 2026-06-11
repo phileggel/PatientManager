@@ -9,7 +9,7 @@ use crate::context::procedure::{ProcedureCandidate, ProcedureService};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::excel_import::api::{ImportExecutionResult, ParseExcelResponse};
 use crate::use_cases::excel_import::error::ExcelImportError;
-use crate::use_cases::excel_import::excel_codec::{sheet_nominal_month, SkippedRow};
+use crate::use_cases::excel_import::excel_codec::{sheet_nominal_month, SkipReason, SkippedRow};
 use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 
 /// Orchestrates the full Excel import workflow on the backend.
@@ -300,18 +300,18 @@ impl ExcelImportOrchestrator {
                 match NaiveDate::parse_from_str(&excel_proc.procedure_date, "%Y-%m-%d") {
                     Ok(d) => d,
                     Err(_) => {
-                        let reason =
-                            format!("Date d'acte invalide : « {} »", excel_proc.procedure_date);
                         tracing::warn!(
                             sheet = %excel_proc.sheet_month,
                             row = excel_proc.source_row,
-                            reason = %reason,
+                            value = %excel_proc.procedure_date,
                             "EXI-280 procedure_date format gate failed"
                         );
                         skipped_procedures.push(SkippedRow {
                             sheet: excel_proc.sheet_month.clone(),
                             row_number: excel_proc.source_row,
-                            reason,
+                            reason: SkipReason::InvalidProcedureDate {
+                                value: excel_proc.procedure_date.clone(),
+                            },
                         });
                         procedures_skipped += 1;
                         continue;
@@ -328,17 +328,18 @@ impl ExcelImportOrchestrator {
                 Some(raw) => match NaiveDate::parse_from_str(raw, "%Y-%m-%d") {
                     Ok(d) => Some(d),
                     Err(_) => {
-                        let reason = format!("Date de paiement confirmée invalide : « {} »", raw);
                         tracing::warn!(
                             sheet = %excel_proc.sheet_month,
                             row = excel_proc.source_row,
-                            reason = %reason,
+                            value = %raw,
                             "EXI-280 confirmed_payment_date format gate failed"
                         );
                         skipped_procedures.push(SkippedRow {
                             sheet: excel_proc.sheet_month.clone(),
                             row_number: excel_proc.source_row,
-                            reason,
+                            reason: SkipReason::InvalidConfirmedPaymentDate {
+                                value: raw.to_string(),
+                            },
                         });
                         procedures_skipped += 1;
                         continue;
@@ -350,7 +351,6 @@ impl ExcelImportOrchestrator {
             // Soft-skip on unknown sheet name (defensive — should not occur given
             // upstream canonicalization, but never panic).
             let Some(expected_month) = sheet_nominal_month(&excel_proc.sheet_month) else {
-                let reason = format!("Nom de feuille inconnu : « {} »", excel_proc.sheet_month);
                 tracing::warn!(
                     sheet = %excel_proc.sheet_month,
                     row = excel_proc.source_row,
@@ -359,27 +359,24 @@ impl ExcelImportOrchestrator {
                 skipped_procedures.push(SkippedRow {
                     sheet: excel_proc.sheet_month.clone(),
                     row_number: excel_proc.source_row,
-                    reason,
+                    reason: SkipReason::UnknownSheetName,
                 });
                 procedures_skipped += 1;
                 continue;
             };
             if procedure_date.month() != expected_month {
-                let reason = format!(
-                    "La date d'acte {} ne correspond pas au mois de la feuille « {} »",
-                    procedure_date.format("%Y-%m-%d"),
-                    excel_proc.sheet_month,
-                );
                 tracing::warn!(
                     sheet = %excel_proc.sheet_month,
                     row = excel_proc.source_row,
-                    reason = %reason,
+                    date = %procedure_date.format("%Y-%m-%d"),
                     "EXI-281 procedure_date month does not match sheet"
                 );
                 skipped_procedures.push(SkippedRow {
                     sheet: excel_proc.sheet_month.clone(),
                     row_number: excel_proc.source_row,
-                    reason,
+                    reason: SkipReason::DateOutsideSheetMonth {
+                        date: procedure_date.format("%Y-%m-%d").to_string(),
+                    },
                 });
                 procedures_skipped += 1;
                 continue;
@@ -1074,11 +1071,12 @@ mod tests {
         let entry = &result.skipped_procedures[0];
         assert_eq!(entry.sheet, "Jan");
         assert_eq!(entry.row_number, 5);
-        // EXI-290: raw cell text must appear verbatim in the reason.
-        assert!(
-            entry.reason.contains("31/12/2026"),
-            "reason '{}' must contain the raw cell text '31/12/2026'",
-            entry.reason
+        // EXI-290: the raw cell text travels as the variant's payload.
+        assert_eq!(
+            entry.reason,
+            SkipReason::InvalidProcedureDate {
+                value: "31/12/2026".to_string()
+            }
         );
     }
 
@@ -1148,11 +1146,12 @@ mod tests {
         let entry = &result.skipped_procedures[0];
         assert_eq!(entry.sheet, "Jan");
         assert_eq!(entry.row_number, 7);
-        // EXI-290: raw cell text "garbage" must appear verbatim in the reason.
-        assert!(
-            entry.reason.contains("garbage"),
-            "reason '{}' must contain the raw cell text 'garbage'",
-            entry.reason
+        // EXI-290: the raw cell text travels as the variant's payload.
+        assert_eq!(
+            entry.reason,
+            SkipReason::InvalidConfirmedPaymentDate {
+                value: "garbage".to_string()
+            }
         );
     }
 
@@ -1310,11 +1309,12 @@ mod tests {
         let entry = &result.skipped_procedures[0];
         assert_eq!(entry.sheet, "Jan");
         assert_eq!(entry.row_number, 4);
-        // EXI-290: parsed date in YYYY-MM-DD form must appear verbatim in the reason.
-        assert!(
-            entry.reason.contains("2026-02-15"),
-            "reason '{}' must contain the parsed date '2026-02-15'",
-            entry.reason
+        // EXI-290: the parsed date travels as the variant's payload.
+        assert_eq!(
+            entry.reason,
+            SkipReason::DateOutsideSheetMonth {
+                date: "2026-02-15".to_string()
+            }
         );
     }
 
@@ -1563,11 +1563,9 @@ mod tests {
         let entry = &result.skipped_procedures[0];
         assert_eq!(entry.sheet, "UnknownSheet");
         assert_eq!(entry.row_number, 3);
-        assert!(
-            entry.reason.contains("UnknownSheet"),
-            "reason '{}' must mention the unknown sheet name",
-            entry.reason
-        );
+        // The sheet name is carried by `entry.sheet` (asserted above); the
+        // reason itself is the bare code.
+        assert_eq!(entry.reason, SkipReason::UnknownSheetName);
     }
 
     // ── EXI-290 — Skip report shape ───────────────────────────────────────────

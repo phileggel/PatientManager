@@ -21,7 +21,10 @@
       {
         "sheet": "Mars",
         "row_number": 2,
-        "reason": "Unrecognized date format: 'not-a-date'"
+        "reason": {
+          "code": "UnrecognizedDateFormat",
+          "value": "not-a-date"
+        }
       }
     ],
     "missing_sheets": []

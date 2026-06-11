@@ -58,16 +58,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-05-25 — Backend i18n gap: skip-report `reason` strings hardcoded in French
-
-**Found by:** spec-checker (`feat/excel-import-skipped-procedures`)
-
-**Where:** `src-tauri/src/use_cases/excel_import/orchestrator.rs:276–280,303–307,324–328,344–348` — execute-time skip `reason` strings for EXI-280 / EXI-281 / EXI-290 (`"Date d'acte invalide"`, `"Date de paiement confirmée invalide"`, `"La date d'acte … ne correspond pas …"`, `"Nom de feuille inconnu"`). Same pattern in `parser.rs` for EXI-020/220 reasons.
-
-**Observation:** EXI-280 / EXI-290 say the `reason` is "authored on the backend in the user's runtime locale", but no backend i18n infrastructure exists. The orchestrator hardcodes French (the primary locale per `ARCHITECTURE.md`). Secondary en-GB users see French strings. Same pre-existing limitation as EXI-220's parse-time `reason`. Resolving requires either (a) a backend i18n layer reading the runtime locale, or (b) emit stable codes from the backend and translate on the frontend (per F24). Track until the project commits to one of the two; in the meantime EXI-280/290's "runtime locale" wording should be read as "primary locale (fr-FR)".
-
----
-
 ## 2026-05-19 — REF-240 enforced at command layer via dual-orchestrator injection
 
 **Found by:** manual (`refactor/fund-payment-manual-management`)

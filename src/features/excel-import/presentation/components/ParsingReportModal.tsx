@@ -4,6 +4,7 @@ import type { ParsingIssues, SkippedRow } from "@/bindings";
 import { logger } from "@/infra/logger";
 import { Button, Dialog } from "@/ui/components";
 import { SHEET_ORDER } from "../../shared/sheets";
+import { formatSkipReason } from "../../shared/skipReasonPresenter";
 
 interface ParsingReportModalProps {
   isOpen: boolean;
@@ -16,11 +17,6 @@ interface ParsingReportModalProps {
    * surfaced separately in the UI.
    */
   executeSkippedRows?: SkippedRow[];
-}
-
-function isNoiseReason(reason: string): boolean {
-  // EXI-220 — `#N/A` and empty-row skips are too numerous and uninformative.
-  return reason.includes("patient name is #N/A") || reason.includes("empty row");
 }
 
 function compareRows(a: SkippedRow, b: SkippedRow): number {
@@ -45,9 +41,8 @@ export function ParsingReportModal({
   // Merge parse-time + execute-time into a single sorted list.
   // EXI-220 + EXI-290 — pipeline origin is internal, not user-visible.
   const skippedRows = useMemo(() => {
-    const parseFiltered = parsingIssues.skipped_rows.filter((row) => !isNoiseReason(row.reason));
     const execute = executeSkippedRows ?? [];
-    return [...parseFiltered, ...execute].toSorted(compareRows);
+    return [...parsingIssues.skipped_rows, ...execute].toSorted(compareRows);
   }, [parsingIssues.skipped_rows, executeSkippedRows]);
 
   const hasSkippedRows = skippedRows.length > 0;
@@ -143,7 +138,10 @@ export function ParsingReportModal({
                         {skipped.row_number}
                       </td>
                       <td className="px-4 py-3 text-left text-m3-on-surface-variant">
-                        {skipped.reason}
+                        {(() => {
+                          const { key, params } = formatSkipReason(skipped.reason);
+                          return t(key, params);
+                        })()}
                       </td>
                     </tr>
                   ))}

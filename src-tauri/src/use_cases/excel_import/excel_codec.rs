@@ -153,12 +153,83 @@ pub struct ExcelProcedure {
     pub source_row: u32,
 }
 
+/// Why a row was skipped during Excel parsing (EXI-020/220) or import
+/// execution (EXI-280/281/290).
+///
+/// Wire shape: `{ "code": "<Variant>", ...params }` — the frontend translates
+/// the code through its i18n pipeline; the backend authors no display text.
+/// Params carry the offending cell values the report table shows; the sheet
+/// name lives on the enclosing [`SkippedRow`], so sheet-related variants do
+/// not repeat it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(tag = "code")]
+pub enum SkipReason {
+    /// EXI-020 — the sheet row has fewer columns than the layout requires.
+    InsufficientColumns {
+        needed: u32,
+    },
+    MissingPatientName,
+    MissingFundIdentifier,
+    MissingFundName,
+    /// EXI-220 — the date cell matches no accepted format.
+    UnrecognizedDateFormat {
+        value: String,
+    },
+    /// The row references a patient absent from the parsed patient sheet.
+    PatientNotFound {
+        name: String,
+    },
+    /// The row references a fund absent from the parsed fund sheet.
+    FundNotFound {
+        identifier: String,
+    },
+    InvalidAmount {
+        value: String,
+    },
+    /// EXI-280 — procedure_date does not parse as `YYYY-MM-DD`.
+    InvalidProcedureDate {
+        value: String,
+    },
+    /// EXI-280 — confirmed_payment_date does not parse as `YYYY-MM-DD`.
+    InvalidConfirmedPaymentDate {
+        value: String,
+    },
+    /// EXI-281 (defensive) — the sheet name maps to no nominal month.
+    UnknownSheetName,
+    /// EXI-281 — procedure_date's month differs from the sheet's nominal month.
+    DateOutsideSheetMonth {
+        date: String,
+    },
+}
+
+impl SkipReason {
+    /// Stable variant code for `tracing` fields. Never includes payload
+    /// values, so PII-bearing variants (the patient name in
+    /// [`SkipReason::PatientNotFound`]) stay out of the logs.
+    pub fn code(&self) -> &'static str {
+        match self {
+            SkipReason::InsufficientColumns { .. } => "InsufficientColumns",
+            SkipReason::MissingPatientName => "MissingPatientName",
+            SkipReason::MissingFundIdentifier => "MissingFundIdentifier",
+            SkipReason::MissingFundName => "MissingFundName",
+            SkipReason::UnrecognizedDateFormat { .. } => "UnrecognizedDateFormat",
+            SkipReason::PatientNotFound { .. } => "PatientNotFound",
+            SkipReason::FundNotFound { .. } => "FundNotFound",
+            SkipReason::InvalidAmount { .. } => "InvalidAmount",
+            SkipReason::InvalidProcedureDate { .. } => "InvalidProcedureDate",
+            SkipReason::InvalidConfirmedPaymentDate { .. } => "InvalidConfirmedPaymentDate",
+            SkipReason::UnknownSheetName => "UnknownSheetName",
+            SkipReason::DateOutsideSheetMonth { .. } => "DateOutsideSheetMonth",
+        }
+    }
+}
+
 /// Information about a skipped row during parsing
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct SkippedRow {
     pub sheet: String,
     pub row_number: u32,
-    pub reason: String,
+    pub reason: SkipReason,
 }
 
 /// Parsing issues encountered during Excel file parsing
@@ -304,5 +375,94 @@ mod tests {
             .format("%Y-%m-%d")
             .to_string();
         assert_eq!(convert_excel_date_to_iso(serial), Some(expected));
+    }
+}
+
+#[cfg(test)]
+mod skip_reason_tests {
+    use super::*;
+    use serde_json::{json, to_value};
+
+    /// Every variant must emit `{ "code": ..., ...params }` on the wire and
+    /// report the matching stable code for logs.
+    #[test]
+    fn each_variant_emits_its_code_and_payload() {
+        let cases: Vec<(SkipReason, serde_json::Value)> = vec![
+            (
+                SkipReason::InsufficientColumns { needed: 4 },
+                json!({ "code": "InsufficientColumns", "needed": 4 }),
+            ),
+            (
+                SkipReason::MissingPatientName,
+                json!({ "code": "MissingPatientName" }),
+            ),
+            (
+                SkipReason::MissingFundIdentifier,
+                json!({ "code": "MissingFundIdentifier" }),
+            ),
+            (
+                SkipReason::MissingFundName,
+                json!({ "code": "MissingFundName" }),
+            ),
+            (
+                SkipReason::UnrecognizedDateFormat {
+                    value: "not-a-date".into(),
+                },
+                json!({ "code": "UnrecognizedDateFormat", "value": "not-a-date" }),
+            ),
+            (
+                SkipReason::PatientNotFound {
+                    name: "Alice".into(),
+                },
+                json!({ "code": "PatientNotFound", "name": "Alice" }),
+            ),
+            (
+                SkipReason::FundNotFound {
+                    identifier: "440".into(),
+                },
+                json!({ "code": "FundNotFound", "identifier": "440" }),
+            ),
+            (
+                SkipReason::InvalidAmount {
+                    value: "abc".into(),
+                },
+                json!({ "code": "InvalidAmount", "value": "abc" }),
+            ),
+            (
+                SkipReason::InvalidProcedureDate {
+                    value: "31/12/2026".into(),
+                },
+                json!({ "code": "InvalidProcedureDate", "value": "31/12/2026" }),
+            ),
+            (
+                SkipReason::InvalidConfirmedPaymentDate {
+                    value: "garbage".into(),
+                },
+                json!({ "code": "InvalidConfirmedPaymentDate", "value": "garbage" }),
+            ),
+            (
+                SkipReason::UnknownSheetName,
+                json!({ "code": "UnknownSheetName" }),
+            ),
+            (
+                SkipReason::DateOutsideSheetMonth {
+                    date: "2026-02-15".into(),
+                },
+                json!({ "code": "DateOutsideSheetMonth", "date": "2026-02-15" }),
+            ),
+        ];
+
+        for (reason, expected) in cases {
+            let wire = to_value(&reason).unwrap();
+            assert_eq!(wire, expected);
+            assert_eq!(
+                wire["code"],
+                reason.code(),
+                "code() must match the wire tag"
+            );
+            // Codec round trip: expected.json files deserialize back to the enum.
+            let back: SkipReason = serde_json::from_value(wire).unwrap();
+            assert_eq!(back, reason);
+        }
     }
 }

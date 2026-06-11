@@ -3,7 +3,7 @@ use crate::use_cases::excel_import::error::ExcelImportError;
 use crate::use_cases::excel_import::excel_codec as codec;
 use crate::use_cases::excel_import::excel_codec::{
     convert_excel_date_to_iso, parse_text_date_to_iso, ExcelFund, ExcelPatient, ExcelProcedure,
-    ParsedExcelData, ParsingIssues, SkippedRow,
+    ParsedExcelData, ParsingIssues, SkipReason, SkippedRow,
 };
 use calamine::{Reader, Xlsx};
 use std::collections::HashMap;
@@ -326,7 +326,7 @@ impl ExcelParserService {
                 parsing_issues.skipped_rows.push(SkippedRow {
                     sheet: sheet_name.to_string(),
                     row_number,
-                    reason: "Insufficient columns (need at least 4)".to_string(),
+                    reason: SkipReason::InsufficientColumns { needed: 4 },
                 });
                 continue;
             }
@@ -359,11 +359,7 @@ impl ExcelParserService {
                 parsing_issues.skipped_rows.push(SkippedRow {
                     sheet: sheet_name.to_string(),
                     row_number,
-                    reason: if name.is_empty() {
-                        "Missing patient name".to_string()
-                    } else {
-                        "Missing SSN".to_string()
-                    },
+                    reason: SkipReason::MissingPatientName,
                 });
             }
         }
@@ -399,7 +395,7 @@ impl ExcelParserService {
                 parsing_issues.skipped_rows.push(SkippedRow {
                     sheet: sheet_name.to_string(),
                     row_number,
-                    reason: "Insufficient columns (need at least 2)".to_string(),
+                    reason: SkipReason::InsufficientColumns { needed: 2 },
                 });
                 continue;
             }
@@ -432,9 +428,9 @@ impl ExcelParserService {
                     sheet: sheet_name.to_string(),
                     row_number,
                     reason: if fund_identifier.is_empty() {
-                        "Missing fund identifier".to_string()
+                        SkipReason::MissingFundIdentifier
                     } else {
-                        "Missing fund name".to_string()
+                        SkipReason::MissingFundName
                     },
                 });
             }
@@ -565,9 +561,9 @@ impl ExcelParserService {
                                     parsing_issues.skipped_rows.push(SkippedRow {
                                         sheet: canonical_month.to_string(),
                                         row_number,
-                                        reason: format!(
-                                            "Unrecognized date format: '{trimmed_date}'"
-                                        ),
+                                        reason: SkipReason::UnrecognizedDateFormat {
+                                            value: trimmed_date.to_string(),
+                                        },
                                     });
                                 }
                                 continue;
@@ -628,15 +624,19 @@ impl ExcelParserService {
                         // Validate patient exists
                         if patient_name.is_empty() || patient_temp_id.is_none() {
                             let reason = if patient_name.is_empty() {
-                                "Missing patient name".to_string()
+                                SkipReason::MissingPatientName
                             } else {
-                                format!("Patient '{}' not found in parsed patients", patient_name)
+                                SkipReason::PatientNotFound {
+                                    name: patient_name.clone(),
+                                }
                             };
+                            // Code only — the PatientNotFound payload carries
+                            // the patient name (PII) and must not reach logs.
                             tracing::debug!(
                                 month = canonical_month,
                                 row = row_number,
-                                reason = %reason,
-                                "Skipping row: {}", reason
+                                reason_code = reason.code(),
+                                "Skipping row"
                             );
                             parsing_issues.skipped_rows.push(SkippedRow {
                                 sheet: canonical_month.to_string(),
@@ -648,18 +648,18 @@ impl ExcelParserService {
 
                         // Validate fund exists if provided
                         if !fund_identifier.is_empty() && fund_temp_id.is_none() {
-                            let reason =
-                                format!("Fund '{}' not found in parsed funds", fund_identifier);
                             tracing::debug!(
                                 month = canonical_month,
                                 row = row_number,
-                                reason = %reason,
-                                "Skipping row: {}", reason
+                                fund_identifier = %fund_identifier,
+                                "Skipping row: fund not found in parsed funds"
                             );
                             parsing_issues.skipped_rows.push(SkippedRow {
                                 sheet: canonical_month.to_string(),
                                 row_number,
-                                reason,
+                                reason: SkipReason::FundNotFound {
+                                    identifier: fund_identifier.clone(),
+                                },
                             });
                             continue;
                         }
@@ -677,7 +677,9 @@ impl ExcelParserService {
                             parsing_issues.skipped_rows.push(SkippedRow {
                                 sheet: canonical_month.to_string(),
                                 row_number,
-                                reason: format!("Invalid amount: {}", amount_str),
+                                reason: SkipReason::InvalidAmount {
+                                    value: amount_str.clone(),
+                                },
                             });
                             continue;
                         }

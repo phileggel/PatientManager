@@ -16,7 +16,7 @@
 
 use anyhow::{Context, Result};
 use patient_manager_app::use_cases::excel_import::{
-    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, SkippedRow,
+    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, SkipReason, SkippedRow,
 };
 // The codec module owns every format string the production parser scans for.
 // Importing it as `codec` keeps call sites short and visible.
@@ -297,15 +297,11 @@ fn write_skipped_rows_for_month(
                 next_row_cursor + 1
             );
         }
-        match sr.reason.as_str() {
+        match &sr.reason {
             // EXI-020 (date format): non-empty patient + amount, but the date
-            // cell is non-empty and unparseable. The prefix is the parser's
-            // emitted output, not document data mapping — matched here as a
-            // local literal. Drift between parser and writer is caught by the
-            // round-trip test (IFC-021).
-            r if r.starts_with("Unrecognized date format:") => {
-                let bad_date =
-                    extract_quoted(r).with_context(|| format!("malformed reason: {r}"))?;
+            // cell is non-empty and unparseable. Drift between parser and
+            // writer is caught by the round-trip test (IFC-021).
+            SkipReason::UnrecognizedDateFormat { value } => {
                 sheet.write_string(target_row_idx, 0, "1234567890123")?;
                 sheet.write_string(
                     target_row_idx,
@@ -314,19 +310,13 @@ fn write_skipped_rows_for_month(
                 )?;
                 sheet.write_string(target_row_idx, 3, "FUND-A")?;
                 sheet.write_number(target_row_idx, 5, 50.0)?;
-                sheet.write_string(target_row_idx, 6, bad_date)?;
+                sheet.write_string(target_row_idx, 6, value)?;
             }
             other => anyhow::bail!(
-                "scenario declares an unsupported skip reason on sheet '{month}': {other}"
+                "scenario declares an unsupported skip reason on sheet '{month}': {code}",
+                code = other.code()
             ),
         }
     }
     Ok(())
-}
-
-fn extract_quoted(s: &str) -> Option<&str> {
-    let start = s.find('\'')?;
-    let rest = &s[start + 1..];
-    let end = rest.rfind('\'')?;
-    Some(&rest[..end])
 }

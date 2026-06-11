@@ -134,6 +134,20 @@
     "colRow": "Ligne",
     "colReason": "Raison",
     "noIssues": "Aucun problème d'analyse détecté",
-    "close": "Fermer"
+    "close": "Fermer",
+    "reasons": {
+      "insufficient_columns": "Colonnes insuffisantes ({{needed}} minimum)",
+      "missing_patient_name": "Nom du patient manquant",
+      "missing_fund_identifier": "Identifiant de caisse manquant",
+      "missing_fund_name": "Nom de caisse manquant",
+      "unrecognized_date_format": "Format de date non reconnu : « {{value}} »",
+      "patient_not_found": "Patient « {{name}} » introuvable dans la feuille des patients",
+      "fund_not_found": "Caisse « {{identifier}} » introuvable dans la feuille des caisses",
+      "invalid_amount": "Montant invalide : {{value}}",
+      "invalid_procedure_date": "Date d'acte invalide : « {{value}} »",
+      "invalid_confirmed_payment_date": "Date de paiement confirmée invalide : « {{value}} »",
+      "unknown_sheet_name": "Nom de feuille inconnu",
+      "date_outside_sheet_month": "La date d'acte {{date}} ne correspond pas au mois de la feuille"
+    }
   }
 }

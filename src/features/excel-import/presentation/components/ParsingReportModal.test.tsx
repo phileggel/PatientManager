@@ -17,8 +17,8 @@ const emptyParsingIssues: ParsingIssues = {
 
 const parsingSkips: ParsingIssues = {
   skipped_rows: [
-    { sheet: "Jan", row_number: 3, reason: "amount missing or non-numeric" },
-    { sheet: "Fév", row_number: 7, reason: "fund identifier not found in Secu sheet" },
+    { sheet: "Jan", row_number: 3, reason: { code: "InvalidAmount", value: "abc" } },
+    { sheet: "Fév", row_number: 7, reason: { code: "FundNotFound", identifier: "440" } },
   ],
   missing_sheets: [],
 };
@@ -27,12 +27,12 @@ const executeSkips: SkippedRow[] = [
   {
     sheet: "Jan",
     row_number: 5,
-    reason: "Date d'acte invalide : « 31/12/2026 »",
+    reason: { code: "InvalidProcedureDate", value: "31/12/2026" },
   },
   {
     sheet: "Fév",
     row_number: 12,
-    reason: "La date d'acte 2026-01-15 ne correspond pas au mois de la feuille « Fév »",
+    reason: { code: "DateOutsideSheetMonth", date: "2026-01-15" },
   },
 ];
 
@@ -61,10 +61,11 @@ describe("ParsingReportModal — unified skipped-rows table", () => {
     render(<ParsingReportModal {...defaultProps} executeSkippedRows={executeSkips} />);
     // Section heading carries the merged count
     expect(screen.getByText(/skipped rows \(2\)/i)).toBeInTheDocument();
-    // Each reason is rendered verbatim (BE-authored, locale-invariant)
-    expect(screen.getByText("Date d'acte invalide : « 31/12/2026 »")).toBeInTheDocument();
+    // Each reason code is translated through the FE i18n pipeline (en here),
+    // carrying the offending cell value as a param.
+    expect(screen.getByText("Invalid procedure date: '31/12/2026'")).toBeInTheDocument();
     expect(
-      screen.getByText("La date d'acte 2026-01-15 ne correspond pas au mois de la feuille « Fév »"),
+      screen.getByText("Procedure date 2026-01-15 does not match the sheet month"),
     ).toBeInTheDocument();
   });
 
@@ -106,34 +107,10 @@ describe("ParsingReportModal — unified skipped-rows table", () => {
     // Merged count = 2 parse + 2 execute = 4
     expect(screen.getByText(/skipped rows \(4\)/i)).toBeInTheDocument();
     // Parse-time reasons render
-    expect(screen.getByText("amount missing or non-numeric")).toBeInTheDocument();
-    expect(screen.getByText("fund identifier not found in Secu sheet")).toBeInTheDocument();
+    expect(screen.getByText("Invalid amount: abc")).toBeInTheDocument();
+    expect(screen.getByText("Fund '440' not found in the fund sheet")).toBeInTheDocument();
     // Execute-time reasons render in the SAME table
-    expect(screen.getByText("Date d'acte invalide : « 31/12/2026 »")).toBeInTheDocument();
-  });
-
-  it("filters out parse-time noise rows (#N/A name, empty row)", () => {
-    const noisy: ParsingIssues = {
-      skipped_rows: [
-        { sheet: "Jan", row_number: 1, reason: "patient name is #N/A" },
-        { sheet: "Jan", row_number: 2, reason: "empty row" },
-        { sheet: "Jan", row_number: 3, reason: "amount must be > 0" },
-      ],
-      missing_sheets: [],
-    };
-    render(
-      <ParsingReportModal
-        {...defaultProps}
-        parsingIssues={noisy}
-        skippedRowsCount={noisy.skipped_rows.length}
-        executeSkippedRows={[]}
-      />,
-    );
-    // Only the non-noise row renders
-    expect(screen.getByText(/skipped rows \(1\)/i)).toBeInTheDocument();
-    expect(screen.getByText("amount must be > 0")).toBeInTheDocument();
-    expect(screen.queryByText("patient name is #N/A")).not.toBeInTheDocument();
-    expect(screen.queryByText("empty row")).not.toBeInTheDocument();
+    expect(screen.getByText("Invalid procedure date: '31/12/2026'")).toBeInTheDocument();
   });
 
   it("renders the no-issues banner when both lists are empty", () => {
