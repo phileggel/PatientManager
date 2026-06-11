@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha384};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
-use sqlx::{ConnectOptions, Connection};
+use sqlx::{AssertSqlSafe, ConnectOptions, Connection};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -212,7 +212,7 @@ async fn backup_db_if_migrations_pending(pool: &SqlitePool, db_path: &Path) -> R
     );
 
     let escaped = backup_path.to_string_lossy().replace('\'', "''");
-    sqlx::query(&format!("VACUUM INTO '{escaped}'"))
+    sqlx::query(AssertSqlSafe(format!("VACUUM INTO '{escaped}'")))
         .execute(pool)
         .await
         .with_context(|| {
@@ -266,7 +266,7 @@ async fn heal_crlf_checksum_drift(pool: &SqlitePool) -> Result<()> {
             continue;
         }
 
-        let crlf_sql: String = m.sql.replace("\r\n", "\n").replace('\n', "\r\n");
+        let crlf_sql: String = m.sql.as_str().replace("\r\n", "\n").replace('\n', "\r\n");
         let crlf_checksum = Sha384::digest(crlf_sql.as_bytes()).to_vec();
         if stored_checksum == crlf_checksum {
             tracing::warn!(
@@ -330,7 +330,7 @@ mod tests {
             )
             .bind(m.version)
             .bind(&*m.description)
-            .bind(crlf_checksum(&m.sql))
+            .bind(crlf_checksum(m.sql.as_str()))
             .execute(&pool)
             .await
             .unwrap();
@@ -556,7 +556,10 @@ mod tests {
             if m.version > 20260523 {
                 break;
             }
-            sqlx::raw_sql(&m.sql).execute(&mut *conn).await.unwrap();
+            sqlx::raw_sql(m.sql.clone())
+                .execute(&mut *conn)
+                .await
+                .unwrap();
         }
     }
 
@@ -589,6 +592,7 @@ mod tests {
             .expect("20260524 present");
         let clean: String = m
             .sql
+            .as_str()
             .lines()
             .filter(|l| !l.trim_start().starts_with("--"))
             .collect::<Vec<_>>()
@@ -597,7 +601,9 @@ mod tests {
         for stmt in clean.split(';') {
             let s = stmt.trim();
             if !s.is_empty() {
-                sqlx::query(s).execute(&mut *conn).await?;
+                sqlx::query(AssertSqlSafe(s.to_owned()))
+                    .execute(&mut *conn)
+                    .await?;
             }
         }
         sqlx::query("COMMIT").execute(&mut *conn).await?;

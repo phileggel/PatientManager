@@ -61,7 +61,7 @@ impl DbBackupOrchestrator {
             tracing::error!(target: BACKEND, "Temp export path contains unexpected characters");
             return Err(DbBackupError::ExportFailed);
         }
-        sqlx::query(&format!("VACUUM INTO '{temp_str}'"))
+        sqlx::query(sqlx::AssertSqlSafe(format!("VACUUM INTO '{temp_str}'")))
             .execute(self.db.get_pool())
             .await
             .map_err(|e| {

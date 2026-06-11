@@ -6,42 +6,90 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_transfer",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "transfer_date",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_transfer",
+            "name": "transfer_date"
+          }
+        }
       },
       {
         "name": "amount",
         "ordinal": 2,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bank_transfer",
+            "name": "amount"
+          }
+        }
       },
       {
         "name": "transfer_type",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_transfer",
+            "name": "transfer_type"
+          }
+        }
       },
       {
         "name": "bank_account_id",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_transfer",
+            "name": "bank_account_id"
+          }
+        }
       },
       {
         "name": "account_id",
         "ordinal": 5,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_account",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "account_name",
         "ordinal": 6,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_account",
+            "name": "name"
+          }
+        }
       },
       {
         "name": "account_iban",
         "ordinal": 7,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_account",
+            "name": "iban"
+          }
+        }
       }
     ],
     "parameters": {

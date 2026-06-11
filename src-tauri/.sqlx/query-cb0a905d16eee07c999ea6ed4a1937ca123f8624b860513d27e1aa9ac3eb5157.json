@@ -6,22 +6,46 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_fund_label_mapping",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "bank_account_id",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_fund_label_mapping",
+            "name": "bank_account_id"
+          }
+        }
       },
       {
         "name": "bank_label",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_fund_label_mapping",
+            "name": "bank_label"
+          }
+        }
       },
       {
         "name": "fund_id",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_fund_label_mapping",
+            "name": "fund_id"
+          }
+        }
       }
     ],
     "parameters": {

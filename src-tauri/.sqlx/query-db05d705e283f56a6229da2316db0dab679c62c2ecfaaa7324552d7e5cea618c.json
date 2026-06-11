@@ -6,7 +6,13 @@
       {
         "name": "fund_payment_group_id",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_transfer_fund_group_link",
+            "name": "fund_payment_group_id"
+          }
+        }
       }
     ],
     "parameters": {

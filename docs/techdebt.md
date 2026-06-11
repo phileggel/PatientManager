@@ -84,14 +84,6 @@ not as a sweep.
 
 ---
 
-## 2026-05-13 — `rsa 0.9.10` (Marvin timing side-channel) compiled in via `sqlx-mysql` even though we use SQLite only
-
-**Where:** `Cargo.lock` — `rsa 0.9.10` pulled in by `sqlx-macros → sqlx-mysql 0.8.6`. `Cargo.toml` declares `sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }` — no `mysql` feature.
-
-**Observation:** [RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071) flags `rsa <= 0.9.x` as vulnerable to the Marvin attack (RSA key recovery via timing sidechannel). The crate ends up in our compiled binary because `sqlx-macros` resolves dependencies for every sqlx backend at proc-macro time, even features we don't enable at runtime. **No runtime path in this app calls MySQL or invokes `rsa`** — the code is dead in execution. Upstream advisory currently shows _"No fixed upgrade is available!"_; track via `sqlx` ≥ 0.9 (whenever it lands) or a `sqlx-mysql` feature exclusion. Pre-existing — surfaced by the pre-release `cargo audit` run.
-
----
-
 ## 2026-05-13 — `serialize-javascript` RCE/DoS in mocha via `@wdio/mocha-framework` (E2E dev dep only)
 
 **Where:** `package-lock.json` — `@wdio/mocha-framework@9.27.1 → mocha → serialize-javascript ≤ 7.0.4`. Two advisories: [GHSA-5c6j-r48x-rmvq](https://github.com/advisories/GHSA-5c6j-r48x-rmvq) (RCE via `RegExp.flags`) and [GHSA-qj8w-gfj5-8c6v](https://github.com/advisories/GHSA-qj8w-gfj5-8c6v) (DoS via crafted array-likes).
