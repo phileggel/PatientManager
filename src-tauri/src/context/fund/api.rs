@@ -1,5 +1,4 @@
 use crate::shared::logger::BACKEND;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -35,37 +34,6 @@ pub struct FundPaymentGroupCandidate {
     pub matched_amount: i64,
     /// Coverage status: is matched_amount == total_amount?
     pub is_fully_covered: bool,
-}
-
-/// Validation status for fund candidate
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Type, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum FundValidationStatus {
-    Valid,
-    AlreadyExists,
-    Invalid,
-}
-
-/// Validation result wraps candidate with validation outcome
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct FundValidationResult {
-    pub candidate: FundCandidate,
-    pub status: FundValidationStatus,
-    pub existing_id: Option<String>,
-    pub error: Option<String>,
-}
-
-/// Complex response: validation results
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct ValidateBatchFundsResponse {
-    pub results: Vec<FundValidationResult>,
-}
-
-/// Complex response: created funds + temp ID mapping for import tracking
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct CreateBatchFundsResponse {
-    pub funds: Vec<Fund>,
-    pub temp_id_map: HashMap<String, String>,
 }
 
 // ============ Tauri Commands ============
@@ -124,47 +92,6 @@ pub async fn delete_fund(
 
     service.delete_fund(&id).await.inspect(|_| {
         tracing::info!(target: BACKEND, fund_id = %id, "Fund deleted successfully");
-    })
-}
-
-/// Tauri command: Validate batch of fund candidates
-#[tauri::command]
-#[specta::specta]
-pub async fn validate_batch_funds(
-    funds: Vec<FundCandidate>,
-    service: State<'_, Arc<FundService>>,
-) -> Result<ValidateBatchFundsResponse, FundError> {
-    tracing::info!(
-        target: BACKEND,
-        count = funds.len(),
-        "Processing validate batch funds request"
-    );
-
-    let results = service.validate_batch(funds).await?;
-
-    tracing::info!(target: BACKEND, count = results.len(), "Batch funds validated successfully");
-    Ok(ValidateBatchFundsResponse { results })
-}
-
-/// Tauri command: Create batch of funds
-#[tauri::command]
-#[specta::specta]
-pub async fn create_batch_funds(
-    funds: Vec<FundCandidate>,
-    service: State<'_, Arc<FundService>>,
-) -> Result<CreateBatchFundsResponse, FundError> {
-    tracing::info!(target: BACKEND, count = funds.len(), "Processing create batch funds request");
-
-    let (created_funds, temp_id_map) = service.create_batch(funds).await?;
-
-    tracing::info!(
-        target: BACKEND,
-        count = created_funds.len(),
-        "Batch funds created successfully"
-    );
-    Ok(CreateBatchFundsResponse {
-        funds: created_funds,
-        temp_id_map,
     })
 }
 

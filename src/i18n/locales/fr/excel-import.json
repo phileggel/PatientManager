@@ -10,20 +10,6 @@
     "processing": "Traitement...",
     "formats": "Formats supportés : .xlsx, .xls, .csv"
   },
-  "validation": {
-    "patients": "Patients",
-    "funds": "Caisses",
-    "procedures": "Actes",
-    "summaryTitle": "Résumé de validation {{type}}",
-    "valid": "Valide",
-    "existing": "Déjà existant",
-    "invalid": "Invalide",
-    "percentOfTotal": "{{percent}}% du total",
-    "willProcess": "{{count}} seront traités.",
-    "alreadyInDb": "{{count}} déjà dans la base de données.",
-    "hasErrors_one": "{{count}} entrée contient des erreurs.",
-    "hasErrors_other": "{{count}} entrées contiennent des erreurs."
-  },
   "createTypeModal": {
     "title": "Créer un nouveau type d'acte",
     "nameLabel": "Nom",
@@ -50,11 +36,8 @@
     "upload": "Chargement",
     "parsing": "Analyse",
     "sheetSelection": "Sélection feuilles",
-    "patients": "Traitement patients",
-    "funds": "Traitement caisses",
     "mapping": "Association types",
     "importing": "Import en cours",
-    "procedures": "Traitement actes",
     "complete": "Terminé",
     "stepCompleted": "Étape terminée"
   },
@@ -94,25 +77,9 @@
     "viewReport": "Voir le rapport d'import"
   },
   "status": {
-    "validating": "Validation de {{type}}...",
-    "creating": "Création de {{count}} {{type}}...",
     "parsing": "Analyse du fichier Excel...",
     "retry": "Réessayer l'import",
     "importFailed": "L'import a échoué"
-  },
-  "error": {
-    "noValidProcedures": "Aucun acte valide trouvé après association. Veuillez vous assurer que les types d'actes sont bien associés.",
-    "noValidPatients": "Aucun patient valide ou existant trouvé à importer",
-    "noValidFunds": "Aucune caisse valide ou existante trouvée à importer",
-    "noValidProceduresImport": "Aucun acte valide trouvé à importer",
-    "failedParseExcel": "Échec de l'analyse du fichier Excel",
-    "failedValidatePatients": "Échec de la validation des patients",
-    "failedCreatePatients": "Échec de la création des patients",
-    "failedValidateFunds": "Échec de la validation des caisses",
-    "failedCreateFunds": "Échec de la création des caisses",
-    "failedValidateProcedures": "Échec de la validation des actes",
-    "failedCreateProcedures": "Échec de la création des actes",
-    "missingWorkflowState": "État du workflow manquant"
   },
   "errors": {
     "file_not_found": "Le fichier sélectionné est introuvable.",

@@ -1,5 +1,4 @@
 use crate::shared::logger::BACKEND;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -16,37 +15,6 @@ pub struct PatientCandidate {
     pub temp_id: String,
     pub name: Option<String>,
     pub ssn: Option<String>,
-}
-
-/// Validation status for patient candidate
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Type, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum PatientValidationStatus {
-    Valid,
-    AlreadyExists,
-    Invalid,
-}
-
-/// Validation result wraps candidate with validation outcome
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct PatientValidationResult {
-    pub candidate: PatientCandidate,
-    pub status: PatientValidationStatus,
-    pub existing_id: Option<String>,
-    pub error: Option<String>,
-}
-
-/// Complex response: validation results
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct ValidateBatchPatientsResponse {
-    pub results: Vec<PatientValidationResult>,
-}
-
-/// Complex response: created patients + temp ID mapping for import tracking
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct CreateBatchPatientsResponse {
-    pub patients: Vec<Patient>,
-    pub temp_id_map: HashMap<String, String>,
 }
 
 // ============ Tauri Commands ============
@@ -104,54 +72,5 @@ pub async fn delete_patient(
 
     service.delete_patient(&id).await.inspect(|_| {
         tracing::info!(target: BACKEND, patient_id = %id, "Patient deleted successfully");
-    })
-}
-
-/// Tauri command: Validate batch of patient candidates
-#[tauri::command]
-#[specta::specta]
-pub async fn validate_batch_patients(
-    patients: Vec<PatientCandidate>,
-    service: State<'_, Arc<PatientService>>,
-) -> Result<ValidateBatchPatientsResponse, PatientError> {
-    tracing::info!(
-        target: BACKEND,
-        count = patients.len(),
-        "Processing validate batch patients request"
-    );
-
-    let results = service.validate_batch(patients).await?;
-
-    tracing::info!(
-        target: BACKEND,
-        count = results.len(),
-        "Batch patients validated successfully"
-    );
-    Ok(ValidateBatchPatientsResponse { results })
-}
-
-/// Tauri command: Create batch of patients
-#[tauri::command]
-#[specta::specta]
-pub async fn create_batch_patients(
-    patients: Vec<PatientCandidate>,
-    service: State<'_, Arc<PatientService>>,
-) -> Result<CreateBatchPatientsResponse, PatientError> {
-    tracing::info!(
-        target: BACKEND,
-        count = patients.len(),
-        "Processing create batch patients request"
-    );
-
-    let (created_patients, temp_id_map) = service.create_batch(patients).await?;
-
-    tracing::info!(
-        target: BACKEND,
-        count = created_patients.len(),
-        "Batch patients created successfully"
-    );
-    Ok(CreateBatchPatientsResponse {
-        patients: created_patients,
-        temp_id_map,
     })
 }

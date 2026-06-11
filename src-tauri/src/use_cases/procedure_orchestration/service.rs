@@ -376,107 +376,6 @@ impl ProcedureOrchestrationService {
         Ok(())
     }
 
-    /// Validate a batch of procedure candidates.
-    ///
-    /// Never propagates an error: per-candidate failures (including repository
-    /// errors) are captured into each result's `error` field, so the outer
-    /// `Result` is always `Ok`. The typed signature keeps the command boundary
-    /// uniform with the rest of the orchestrator.
-    pub async fn validate_batch(
-        &self,
-        candidates: Vec<ProcedureCandidate>,
-    ) -> Result<Vec<super::api::ProcedureValidationResult>, ProcedureOrchestrationError> {
-        let mut results = Vec::new();
-
-        for candidate in candidates {
-            let mut result = super::api::ProcedureValidationResult {
-                candidate: candidate.clone(),
-                status: super::api::ProcedureValidationStatus::Valid,
-                error: None,
-            };
-
-            // Validate required fields
-            if candidate.patient_id.is_empty() || candidate.procedure_type_id.is_empty() {
-                result.status = super::api::ProcedureValidationStatus::Invalid;
-                result.error =
-                    Some("Procedure must have patient_id and procedure_type_id".to_string());
-                results.push(result);
-                continue;
-            }
-
-            // Validate that patient exists
-            match self
-                .patient_repository
-                .read_patient(&candidate.patient_id)
-                .await
-            {
-                Ok(Some(_)) => {
-                    // Patient exists, valid
-                }
-                Ok(None) => {
-                    result.status = super::api::ProcedureValidationStatus::Invalid;
-                    result.error = Some("Patient not found".to_string());
-                    results.push(result);
-                    continue;
-                }
-                Err(e) => {
-                    result.status = super::api::ProcedureValidationStatus::Invalid;
-                    result.error = Some(format!("Database error checking patient: {}", e));
-                    results.push(result);
-                    continue;
-                }
-            }
-
-            // Validate that procedure type exists
-            match self
-                .procedure_type_repository
-                .read_procedure_type(&candidate.procedure_type_id)
-                .await
-            {
-                Ok(Some(_)) => {
-                    // Procedure type exists, valid
-                }
-                Ok(None) => {
-                    result.status = super::api::ProcedureValidationStatus::Invalid;
-                    result.error = Some("Procedure type not found".to_string());
-                    results.push(result);
-                    continue;
-                }
-                Err(e) => {
-                    result.status = super::api::ProcedureValidationStatus::Invalid;
-                    result.error = Some(format!("Database error checking procedure type: {}", e));
-                    results.push(result);
-                    continue;
-                }
-            }
-
-            // Validate fund if provided
-            if let Some(fund_id) = &candidate.fund_id {
-                match self.fund_repository.read_fund(fund_id).await {
-                    Ok(Some(_)) => {
-                        // Fund exists, valid
-                    }
-                    Ok(None) => {
-                        result.status = super::api::ProcedureValidationStatus::Invalid;
-                        result.error = Some("Fund not found".to_string());
-                        results.push(result);
-                        continue;
-                    }
-                    Err(e) => {
-                        result.status = super::api::ProcedureValidationStatus::Invalid;
-                        result.error = Some(format!("Database error checking fund: {}", e));
-                        results.push(result);
-                        continue;
-                    }
-                }
-            }
-
-            results.push(result);
-        }
-
-        Ok(results)
-    }
-
     /// Create a batch of valid procedures
     ///
     /// awaited_amount is recalculated from billed_amount and paid_amount
@@ -681,7 +580,7 @@ impl ProcedureOrchestrationService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::fund::{Fund, MockFundRepository};
+    use crate::context::fund::MockFundRepository;
     use crate::context::patient::{MockPatientRepository, Patient};
     use crate::context::procedure::{
         MockProcedureRefundRepository, MockProcedureRepository, MockProcedureTypeRepository,
@@ -689,7 +588,6 @@ mod tests {
         ProcedureType,
     };
     use crate::shared::event_bus::EventBus;
-    use crate::use_cases::procedure_orchestration::ProcedureValidationStatus;
     use chrono::NaiveDate;
     use std::sync::{Arc, Mutex};
 
@@ -810,20 +708,6 @@ mod tests {
         let mut mock = MockProcedureTypeRepository::new();
         mock.expect_read_all_procedure_types()
             .returning(|| Ok(vec![]));
-        mock
-    }
-
-    /// Build a FundRepository mock that returns a fund on read_fund
-    fn mock_fund_repo_with_fund() -> MockFundRepository {
-        let mut mock = MockFundRepository::new();
-        mock.expect_read_fund().returning(|id| {
-            Ok(Some(Fund::restore(
-                id.to_string(),
-                "FND".to_string(),
-                "Test Fund".to_string(),
-            )))
-        });
-        mock.expect_read_all_funds().returning(|| Ok(vec![]));
         mock
     }
 
@@ -1610,155 +1494,6 @@ mod tests {
         assert!(!ProcedureOrchestrationService::is_fully_paid(100_000, None));
     }
 
-    // --- validate_batch ---
-
-    #[tokio::test]
-    async fn validate_batch_empty_candidates_returns_empty() {
-        let orchestrator = make_orchestrator_with_repos(
-            make_patient_repo(None),
-            Arc::new(mock_type_repo_stub()),
-            Arc::new(mock_fund_repo_stub()),
-        );
-        let result = orchestrator.validate_batch(vec![]).await.unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[tokio::test]
-    async fn validate_batch_missing_patient_id_returns_invalid() {
-        let orchestrator = make_orchestrator_with_repos(
-            make_patient_repo(None),
-            Arc::new(mock_type_repo_stub()),
-            Arc::new(mock_fund_repo_stub()),
-        );
-        let candidate = ProcedureCandidate {
-            patient_id: "".to_string(),
-            fund_id: None,
-            procedure_type_id: "type-1".to_string(),
-            procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: 0,
-            payment_method: None,
-            confirmed_payment_date: None,
-            paid_amount: None,
-            awaited_amount: None,
-        };
-        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert!(matches!(
-            results[0].status,
-            ProcedureValidationStatus::Invalid
-        ));
-    }
-
-    #[tokio::test]
-    async fn validate_batch_patient_not_found_returns_invalid() {
-        let orchestrator = make_orchestrator_with_repos(
-            make_patient_repo(None),
-            Arc::new(mock_type_repo_stub()),
-            Arc::new(mock_fund_repo_stub()),
-        );
-        let candidate = ProcedureCandidate {
-            patient_id: "missing-patient".to_string(),
-            fund_id: None,
-            procedure_type_id: "type-1".to_string(),
-            procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: 0,
-            payment_method: None,
-            confirmed_payment_date: None,
-            paid_amount: None,
-            awaited_amount: None,
-        };
-        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert!(matches!(
-            results[0].status,
-            ProcedureValidationStatus::Invalid
-        ));
-        assert_eq!(results[0].error, Some("Patient not found".to_string()));
-    }
-
-    #[tokio::test]
-    async fn validate_batch_procedure_type_not_found_returns_invalid() {
-        let orchestrator = make_orchestrator_with_repos(
-            make_patient_repo(Some(make_valid_patient())),
-            Arc::new(mock_type_repo_not_found()),
-            Arc::new(mock_fund_repo_stub()),
-        );
-        let candidate = ProcedureCandidate {
-            patient_id: "patient-id-1".to_string(),
-            fund_id: None,
-            procedure_type_id: "missing-type".to_string(),
-            procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: 0,
-            payment_method: None,
-            confirmed_payment_date: None,
-            paid_amount: None,
-            awaited_amount: None,
-        };
-        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert!(matches!(
-            results[0].status,
-            ProcedureValidationStatus::Invalid
-        ));
-        assert_eq!(
-            results[0].error,
-            Some("Procedure type not found".to_string())
-        );
-    }
-
-    #[tokio::test]
-    async fn validate_batch_fund_not_found_returns_invalid() {
-        let orchestrator = make_orchestrator_with_repos(
-            make_patient_repo(Some(make_valid_patient())),
-            Arc::new(mock_type_repo_with_type()),
-            Arc::new(mock_fund_repo_not_found()),
-        );
-        let candidate = ProcedureCandidate {
-            patient_id: "patient-id-1".to_string(),
-            fund_id: Some("missing-fund".to_string()),
-            procedure_type_id: "type-1".to_string(),
-            procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: 0,
-            payment_method: None,
-            confirmed_payment_date: None,
-            paid_amount: None,
-            awaited_amount: None,
-        };
-        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert!(matches!(
-            results[0].status,
-            ProcedureValidationStatus::Invalid
-        ));
-        assert_eq!(results[0].error, Some("Fund not found".to_string()));
-    }
-
-    #[tokio::test]
-    async fn validate_batch_valid_candidate_with_fund_returns_valid() {
-        let orchestrator = make_orchestrator_with_repos(
-            make_patient_repo(Some(make_valid_patient())),
-            Arc::new(mock_type_repo_with_type()),
-            Arc::new(mock_fund_repo_with_fund()),
-        );
-        let candidate = ProcedureCandidate {
-            patient_id: "patient-id-1".to_string(),
-            fund_id: Some("fund-1".to_string()),
-            procedure_type_id: "type-1".to_string(),
-            procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: 100_000,
-            payment_method: None,
-            confirmed_payment_date: None,
-            paid_amount: None,
-            awaited_amount: None,
-        };
-        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert!(matches!(
-            results[0].status,
-            ProcedureValidationStatus::Valid
-        ));
-    }
-
     // --- update_procedure ---
 
     #[tokio::test]
@@ -1932,122 +1667,6 @@ mod tests {
                 ProcedureError::ProcedureNotFound { .. }
             ))
         ));
-    }
-
-    // --- validate_batch DB error paths ---
-
-    fn mock_patient_repo_db_error() -> Arc<MockPatientRepository> {
-        let mut mock = MockPatientRepository::new();
-        mock.expect_read_patient()
-            .returning(|_| Err(anyhow::anyhow!("DB error")));
-        Arc::new(mock)
-    }
-
-    fn mock_type_repo_db_error() -> MockProcedureTypeRepository {
-        let mut mock = MockProcedureTypeRepository::new();
-        mock.expect_read_procedure_type()
-            .returning(|_| Err(anyhow::anyhow!("DB error")));
-        mock
-    }
-
-    fn mock_fund_repo_db_error() -> MockFundRepository {
-        let mut mock = MockFundRepository::new();
-        mock.expect_read_fund()
-            .returning(|_| Err(anyhow::anyhow!("DB error")));
-        mock
-    }
-
-    #[tokio::test]
-    async fn validate_batch_patient_db_error_returns_invalid() {
-        let orchestrator = make_orchestrator_with_repos(
-            mock_patient_repo_db_error(),
-            Arc::new(mock_type_repo_stub()),
-            Arc::new(mock_fund_repo_stub()),
-        );
-        let candidate = ProcedureCandidate {
-            patient_id: "p1".to_string(),
-            fund_id: None,
-            procedure_type_id: "t1".to_string(),
-            procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: 0,
-            payment_method: None,
-            confirmed_payment_date: None,
-            paid_amount: None,
-            awaited_amount: None,
-        };
-        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert!(matches!(
-            results[0].status,
-            ProcedureValidationStatus::Invalid
-        ));
-        assert!(results[0]
-            .error
-            .as_ref()
-            .unwrap()
-            .contains("Database error checking patient"));
-    }
-
-    #[tokio::test]
-    async fn validate_batch_type_db_error_returns_invalid() {
-        let orchestrator = make_orchestrator_with_repos(
-            make_patient_repo(Some(make_valid_patient())),
-            Arc::new(mock_type_repo_db_error()),
-            Arc::new(mock_fund_repo_stub()),
-        );
-        let candidate = ProcedureCandidate {
-            patient_id: "patient-id-1".to_string(),
-            fund_id: None,
-            procedure_type_id: "t1".to_string(),
-            procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: 0,
-            payment_method: None,
-            confirmed_payment_date: None,
-            paid_amount: None,
-            awaited_amount: None,
-        };
-        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert!(matches!(
-            results[0].status,
-            ProcedureValidationStatus::Invalid
-        ));
-        assert!(results[0]
-            .error
-            .as_ref()
-            .unwrap()
-            .contains("Database error checking procedure type"));
-    }
-
-    #[tokio::test]
-    async fn validate_batch_fund_db_error_returns_invalid() {
-        let orchestrator = make_orchestrator_with_repos(
-            make_patient_repo(Some(make_valid_patient())),
-            Arc::new(mock_type_repo_with_type()),
-            Arc::new(mock_fund_repo_db_error()),
-        );
-        let candidate = ProcedureCandidate {
-            patient_id: "patient-id-1".to_string(),
-            fund_id: Some("fund-1".to_string()),
-            procedure_type_id: "type-1".to_string(),
-            procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
-            billed_amount: 0,
-            payment_method: None,
-            confirmed_payment_date: None,
-            paid_amount: None,
-            awaited_amount: None,
-        };
-        let results = orchestrator.validate_batch(vec![candidate]).await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert!(matches!(
-            results[0].status,
-            ProcedureValidationStatus::Invalid
-        ));
-        assert!(results[0]
-            .error
-            .as_ref()
-            .unwrap()
-            .contains("Database error checking fund"));
     }
 
     // --- REF-170: update_procedure propagation paths ---
@@ -2233,6 +1852,27 @@ mod tests {
     fn refund_repo_find_err() -> MockProcedureRefundRepository {
         let mut mock = MockProcedureRefundRepository::new();
         mock.expect_find_by_source_procedure_id()
+            .returning(|_| Err(anyhow::anyhow!("DB error")));
+        mock
+    }
+
+    fn mock_patient_repo_db_error() -> Arc<MockPatientRepository> {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_read_patient()
+            .returning(|_| Err(anyhow::anyhow!("DB error")));
+        Arc::new(mock)
+    }
+
+    fn mock_type_repo_db_error() -> MockProcedureTypeRepository {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type()
+            .returning(|_| Err(anyhow::anyhow!("DB error")));
+        mock
+    }
+
+    fn mock_fund_repo_db_error() -> MockFundRepository {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_fund()
             .returning(|_| Err(anyhow::anyhow!("DB error")));
         mock
     }

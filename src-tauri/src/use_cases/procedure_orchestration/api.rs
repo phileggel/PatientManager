@@ -1,6 +1,4 @@
-use crate::context::procedure::{
-    PaymentMethod, Procedure, ProcedureCandidate, ProcedureError, ProcedureStatus,
-};
+use crate::context::procedure::{PaymentMethod, Procedure, ProcedureError, ProcedureStatus};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::procedure_orchestration::{
     CreateProcedureRequest, ProcedureOrchestrationError, ProcedureOrchestrationService,
@@ -62,34 +60,6 @@ impl RawProcedure {
             payment_status,
         )
     }
-}
-
-/// Validation status for a procedure candidate
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ProcedureValidationStatus {
-    Valid,
-    Invalid,
-}
-
-/// Result of validating a procedure candidate
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct ProcedureValidationResult {
-    pub candidate: ProcedureCandidate,
-    pub status: ProcedureValidationStatus,
-    pub error: Option<String>,
-}
-
-/// Response DTO for procedure batch validation
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct ValidateBatchProceduresResponse {
-    pub results: Vec<ProcedureValidationResult>,
-}
-
-/// Response DTO for procedure batch creation
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct CreateBatchProceduresResponse {
-    pub procedures: Vec<Procedure>,
 }
 
 // ============ Tauri Commands ============
@@ -189,59 +159,6 @@ pub async fn delete_procedure(
 
     service.delete_procedure(&id).await.inspect(|()| {
         tracing::info!(target: BACKEND, procedure_id = %id, "Procedure deleted successfully");
-    })
-}
-
-/// Tauri command: Validate batch of procedure candidates
-#[tauri::command]
-#[specta::specta]
-pub async fn validate_batch_procedures(
-    procedures: Vec<ProcedureCandidate>,
-    service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<ValidateBatchProceduresResponse, ProcedureOrchestrationError> {
-    tracing::info!(
-        target: BACKEND,
-        count = procedures.len(),
-        "Processing batch procedure validation"
-    );
-
-    service.validate_batch(procedures).await.map(|results| {
-        tracing::info!(
-            target: BACKEND,
-            valid_count = results
-                .iter()
-                .filter(|r| matches!(r.status, ProcedureValidationStatus::Valid))
-                .count(),
-            invalid_count = results
-                .iter()
-                .filter(|r| matches!(r.status, ProcedureValidationStatus::Invalid))
-                .count(),
-            "Batch validation complete"
-        );
-        ValidateBatchProceduresResponse { results }
-    })
-}
-
-/// Tauri command: Create batch of procedures
-#[tauri::command]
-#[specta::specta]
-pub async fn create_batch_procedures(
-    procedures: Vec<ProcedureCandidate>,
-    service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<CreateBatchProceduresResponse, ProcedureOrchestrationError> {
-    tracing::info!(
-        target: BACKEND,
-        count = procedures.len(),
-        "Processing batch procedure creation"
-    );
-
-    service.create_batch(procedures).await.map(|procedures| {
-        tracing::info!(
-            target: BACKEND,
-            count = procedures.len(),
-            "Batch procedures created successfully"
-        );
-        CreateBatchProceduresResponse { procedures }
     })
 }
 

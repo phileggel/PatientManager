@@ -53,28 +53,6 @@ async deletePatient(id: string) : Promise<Result<null, PatientError>> {
 }
 },
 /**
- * Tauri command: Validate batch of patient candidates
- */
-async validateBatchPatients(patients: PatientCandidate[]) : Promise<Result<ValidateBatchPatientsResponse, PatientError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("validate_batch_patients", { patients }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Tauri command: Create batch of patients
- */
-async createBatchPatients(patients: PatientCandidate[]) : Promise<Result<CreateBatchPatientsResponse, PatientError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("create_batch_patients", { patients }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
  * Tauri command: Add a new affiliated fund
  */
 async addFund(fundIdentifier: string, fundName: string) : Promise<Result<Fund, FundError>> {
@@ -119,28 +97,6 @@ async deleteFund(id: string) : Promise<Result<null, FundError>> {
 }
 },
 /**
- * Tauri command: Validate batch of fund candidates
- */
-async validateBatchFunds(funds: FundCandidate[]) : Promise<Result<ValidateBatchFundsResponse, FundError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("validate_batch_funds", { funds }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Tauri command: Create batch of funds
- */
-async createBatchFunds(funds: FundCandidate[]) : Promise<Result<CreateBatchFundsResponse, FundError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("create_batch_funds", { funds }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
  * Tauri command: Add a new healthcare procedure
  */
 async addProcedure(patientId: string, fundId: string | null, procedureTypeId: string, procedureDate: string, billedAmount: number) : Promise<Result<Procedure, ProcedureOrchestrationError>> {
@@ -179,28 +135,6 @@ async updateProcedure(raw: RawProcedure) : Promise<Result<Procedure, ProcedureOr
 async deleteProcedure(id: string) : Promise<Result<null, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_procedure", { id }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Tauri command: Validate batch of procedure candidates
- */
-async validateBatchProcedures(procedures: ProcedureCandidate[]) : Promise<Result<ValidateBatchProceduresResponse, ProcedureOrchestrationError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("validate_batch_procedures", { procedures }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Tauri command: Create batch of procedures
- */
-async createBatchProcedures(procedures: ProcedureCandidate[]) : Promise<Result<CreateBatchProceduresResponse, ProcedureOrchestrationError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("create_batch_procedures", { procedures }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1231,18 +1165,6 @@ export type ConfirmedMatch = { group_id: string; date: string; amount: number }
  */
 export type CorrectionGroup = { title: string; rows: string[] }
 /**
- * Complex response: created funds + temp ID mapping for import tracking
- */
-export type CreateBatchFundsResponse = { funds: Fund[]; temp_id_map: Partial<{ [key in string]: string }> }
-/**
- * Complex response: created patients + temp ID mapping for import tracking
- */
-export type CreateBatchPatientsResponse = { patients: Patient[]; temp_id_map: Partial<{ [key in string]: string }> }
-/**
- * Response DTO for procedure batch creation
- */
-export type CreateBatchProceduresResponse = { procedures: Procedure[] }
-/**
  * Request to create fund payment groups from validated candidates
  */
 export type CreateFundPaymentFromCandidatesRequest = { 
@@ -1403,10 +1325,6 @@ temp_id?: string | null;
  * Metadata - not a domain property
  */
 id: string }
-/**
- * Fund candidate for batch import - semantically different from Fund (lacks ID, created_at)
- */
-export type FundCandidate = { temp_id: string; fund_identifier: string; fund_name: string }
 /**
  * Errors raised by the Fund bounded context.
  * 
@@ -1650,14 +1568,6 @@ export type FundPaymentReconciliationTask =
  */
 export type FundPaymentValidationStatus = "VALID" | "INVALID"
 /**
- * Validation result wraps candidate with validation outcome
- */
-export type FundValidationResult = { candidate: FundCandidate; status: FundValidationStatus; existing_id: string | null; error: string | null }
-/**
- * Validation status for fund candidate
- */
-export type FundValidationStatus = "VALID" | "ALREADY_EXISTS" | "INVALID"
-/**
  * Result of a completed Excel import execution
  */
 export type ImportExecutionResult = { patients_created: number; patients_reused: number; funds_created: number; funds_reused: number; procedures_created: number; 
@@ -1827,10 +1737,6 @@ temp_id?: string | null;
  */
 latest_procedure_type: string | null; latest_fund: string | null; latest_date: string; latest_procedure_amount: number | null }
 /**
- * Patient candidate for batch import - semantically different from Patient (lacks ID, created_at)
- */
-export type PatientCandidate = { temp_id: string; name: string | null; ssn: string | null }
-/**
  * Errors raised by the Patient bounded context.
  * 
  * Wire shape: each variant serializes as `{ "code": "<VariantName>", ... }`
@@ -1857,14 +1763,6 @@ export type PatientError =
  * carries no detail to avoid leaking implementation specifics.
  */
 { code: "DatabaseError" }
-/**
- * Validation result wraps candidate with validation outcome
- */
-export type PatientValidationResult = { candidate: PatientCandidate; status: PatientValidationStatus; existing_id: string | null; error: string | null }
-/**
- * Validation status for patient candidate
- */
-export type PatientValidationStatus = "VALID" | "ALREADY_EXISTS" | "INVALID"
 /**
  * Payment method for a healthcare procedure
  * 
@@ -2005,10 +1903,6 @@ paid_amount: number | null;
  * Metadata - not a domain property
  */
 id: string }
-/**
- * Candidate procedure for batch creation and validation for orchestrators
- */
-export type ProcedureCandidate = { patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number; payment_method: string | null; confirmed_payment_date: string | null; paid_amount: number | null; awaited_amount: number | null }
 /**
  * Errors raised by the Procedure bounded context.
  * 
@@ -2164,14 +2058,6 @@ export type ProcedureType = { name: string; default_amount: number; category: st
  * Metadata - not a domain property
  */
 id: string }
-/**
- * Result of validating a procedure candidate
- */
-export type ProcedureValidationResult = { candidate: ProcedureCandidate; status: ProcedureValidationStatus; error: string | null }
-/**
- * Validation status for a procedure candidate
- */
-export type ProcedureValidationStatus = "VALID" | "INVALID"
 /**
  * Raw healthcare procedure data from frontend (unvalidated)
  * Used for updating an existing procedure with data from an external source
@@ -2395,18 +2281,6 @@ export type UnreconciledSection =
  * FPR-031, FPR-033 — populated table with header row, data rows, and total.
  */
 { type: "Rows"; data: { heading: string; column_headers: UnreconciledColumns; rows: UnreconciledRow[]; total_label: string; total_value: string } }
-/**
- * Complex response: validation results
- */
-export type ValidateBatchFundsResponse = { results: FundValidationResult[] }
-/**
- * Complex response: validation results
- */
-export type ValidateBatchPatientsResponse = { results: PatientValidationResult[] }
-/**
- * Response DTO for procedure batch validation
- */
-export type ValidateBatchProceduresResponse = { results: ProcedureValidationResult[] }
 
 /** tauri-specta globals **/
 

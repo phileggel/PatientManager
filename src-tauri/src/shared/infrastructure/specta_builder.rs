@@ -20,21 +20,6 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<bank::BankEntry>()
         .typ::<bank::BankEntryType>()
         .typ::<bank::BankAccount>()
-        .typ::<patient::PatientCandidate>()
-        .typ::<patient::PatientValidationStatus>()
-        .typ::<patient::PatientValidationResult>()
-        .typ::<patient::ValidateBatchPatientsResponse>()
-        .typ::<patient::CreateBatchPatientsResponse>()
-        .typ::<fund::FundCandidate>()
-        .typ::<fund::FundValidationStatus>()
-        .typ::<fund::FundValidationResult>()
-        .typ::<fund::ValidateBatchFundsResponse>()
-        .typ::<fund::CreateBatchFundsResponse>()
-        .typ::<procedure::ProcedureCandidate>()
-        .typ::<use_cases_procedure::ProcedureValidationStatus>()
-        .typ::<use_cases_procedure::ProcedureValidationResult>()
-        .typ::<use_cases_procedure::ValidateBatchProceduresResponse>()
-        .typ::<use_cases_procedure::CreateBatchProceduresResponse>()
         .typ::<excel_import::ParseExcelResponse>()
         .typ::<excel_import::ImportExecutionResult>()
         .typ::<excel_import::ExcelAmountMapping>()
@@ -78,20 +63,14 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             patient::read_all_patients,
             patient::update_patient,
             patient::delete_patient,
-            patient::validate_batch_patients,
-            patient::create_batch_patients,
             fund::add_fund,
             fund::read_all_funds,
             fund::update_fund,
             fund::delete_fund,
-            fund::validate_batch_funds,
-            fund::create_batch_funds,
             use_cases_procedure::add_procedure,
             use_cases_procedure::read_all_procedures,
             use_cases_procedure::update_procedure,
             use_cases_procedure::delete_procedure,
-            use_cases_procedure::validate_batch_procedures,
-            use_cases_procedure::create_batch_procedures,
             use_cases_procedure::get_unpaid_procedures_by_fund,
             use_cases_procedure::read_procedures_by_ids,
             procedure::add_procedure_type,

@@ -10,20 +10,6 @@
     "processing": "Processing...",
     "formats": "Supported formats: .xlsx, .xls, .csv"
   },
-  "validation": {
-    "patients": "Patients",
-    "funds": "Healthcare Funds",
-    "procedures": "Procedures",
-    "summaryTitle": "{{type}} Validation Summary",
-    "valid": "Valid",
-    "existing": "Already Exist",
-    "invalid": "Invalid",
-    "percentOfTotal": "{{percent}}% of total",
-    "willProcess": "{{count}} will be processed.",
-    "alreadyInDb": "{{count}} already in database.",
-    "hasErrors_one": "{{count}} entry has errors.",
-    "hasErrors_other": "{{count}} entries have errors."
-  },
   "createTypeModal": {
     "title": "Create New Procedure Type",
     "nameLabel": "Name",
@@ -50,11 +36,8 @@
     "upload": "Upload",
     "parsing": "Parse",
     "sheetSelection": "Select sheets",
-    "patients": "Process Patients",
-    "funds": "Process Funds",
     "mapping": "Map Types",
     "importing": "Importing",
-    "procedures": "Process Procedures",
     "complete": "Complete",
     "stepCompleted": "Step completed"
   },
@@ -94,25 +77,9 @@
     "viewReport": "View import report"
   },
   "status": {
-    "validating": "Validating {{type}}...",
-    "creating": "Creating {{count}} {{type}}...",
     "parsing": "Parsing Excel file...",
     "retry": "Retry Import",
     "importFailed": "Import failed"
-  },
-  "error": {
-    "noValidProcedures": "No valid procedures found after mapping. Please ensure procedure types are mapped.",
-    "noValidPatients": "No valid or existing patients found to import",
-    "noValidFunds": "No valid or existing funds found to import",
-    "noValidProceduresImport": "No valid procedures found to import",
-    "failedParseExcel": "Failed to parse Excel file",
-    "failedValidatePatients": "Failed to validate patients",
-    "failedCreatePatients": "Failed to create patients",
-    "failedValidateFunds": "Failed to validate funds",
-    "failedCreateFunds": "Failed to create funds",
-    "failedValidateProcedures": "Failed to validate procedures",
-    "failedCreateProcedures": "Failed to create procedures",
-    "missingWorkflowState": "Missing workflow state"
   },
   "errors": {
     "file_not_found": "The selected file could not be found.",

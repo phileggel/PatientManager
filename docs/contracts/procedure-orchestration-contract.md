@@ -66,26 +66,6 @@ Returns procedures by a list of IDs. Used by features that need to resolve proce
 
 ---
 
-### `validate_batch_procedures`
-
-Validates a list of procedure candidates before batch creation. Returns a per-candidate result without persisting anything. Used by the excel import flow.
-
-- **Args:** `procedures: Vec<ProcedureCandidate>`
-- **Returns:** `ValidateBatchProceduresResponse`
-- **Errors:** —
-
----
-
-### `create_batch_procedures` — PRO-300
-
-Creates a batch of procedures in a single transaction, emitting exactly one `ProcedureUpdated` event (PRO-300). Returns the created `Procedure` records. Used by the excel import flow.
-
-- **Args:** `procedures: Vec<ProcedureCandidate>`
-- **Returns:** `CreateBatchProceduresResponse`
-- **Errors:** `BatchCreationFailed`
-
----
-
 ## Shared Types
 
 ```rust
@@ -126,19 +106,6 @@ struct RawProcedure {
     payment_status: String,              // raw string
 }
 
-// batch import candidate
-struct ProcedureCandidate {
-    patient_id: String,
-    fund_id: Option<String>,
-    procedure_type_id: String,
-    procedure_date: String,
-    billed_amount: i64,
-    payment_method: Option<String>,
-    confirmed_payment_date: Option<String>,
-    paid_amount: Option<i64>,
-    awaited_amount: Option<i64>,         // ignored at persistence (PRO-240)
-}
-
 enum ProcedureStatus {
     None,
     Created,
@@ -161,32 +128,10 @@ enum PaymentMethod {
     BankTransfer,
 }
 
-struct ProcedureValidationResult {
-    candidate: ProcedureCandidate,
-    status: ProcedureValidationStatus,
-    error: Option<String>,
-}
-
-enum ProcedureValidationStatus {
-    Valid,
-    Invalid,
-}
-
-struct ValidateBatchProceduresResponse {
-    results: Vec<ProcedureValidationResult>,
-}
-
-struct CreateBatchProceduresResponse {
-    procedures: Vec<Procedure>,
-}
 ```
 
 ## Events
 
-| Event              | Trigger                                                                                  |
-| ------------------ | ---------------------------------------------------------------------------------------- |
-| `ProcedureUpdated` | After `add_procedure`, `update_procedure`, `delete_procedure`, `create_batch_procedures` |
-
-## Changelog
-
-- 2026-05-02 — Added by `procedure-orchestration` spec + retroactive from specta_builder.rs: read_all_procedures, add_procedure, update_procedure, delete_procedure, get_unpaid_procedures_by_fund, read_procedures_by_ids, validate_batch_procedures, create_batch_procedures
+| Event              | Trigger                                                       |
+| ------------------ | ------------------------------------------------------------- |
+| `ProcedureUpdated` | After `add_procedure`, `update_procedure`, `delete_procedure` |
