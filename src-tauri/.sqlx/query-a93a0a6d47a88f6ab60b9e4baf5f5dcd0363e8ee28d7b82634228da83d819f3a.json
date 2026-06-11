@@ -6,27 +6,57 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "fund_payment_group",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "fund_id",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "fund_payment_group",
+            "name": "fund_id"
+          }
+        }
       },
       {
         "name": "payment_date: chrono::NaiveDate",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "fund_payment_group",
+            "name": "payment_date"
+          }
+        }
       },
       {
         "name": "total_amount",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "fund_payment_group",
+            "name": "total_amount"
+          }
+        }
       },
       {
         "name": "status",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "fund_payment_group",
+            "name": "status"
+          }
+        }
       }
     ],
     "parameters": {

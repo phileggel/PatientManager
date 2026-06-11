@@ -60,6 +60,4 @@ jobs:
       - name: Run cargo audit
         shell: bash
         working-directory: src-tauri
-        # --ignore RUSTSEC-2023-0071: rsa Marvin Attack — accepted risk (sqlx-mysql transitive,
-        # sqlite-only project, no fix available).
-        run: cargo audit --ignore RUSTSEC-2023-0071
+        run: cargo audit

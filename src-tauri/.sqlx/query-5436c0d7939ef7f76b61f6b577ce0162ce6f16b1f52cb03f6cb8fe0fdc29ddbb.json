@@ -6,42 +6,90 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure_refund",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "source_procedure_id",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure_refund",
+            "name": "source_procedure_id"
+          }
+        }
       },
       {
         "name": "refund_procedure_id",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure_refund",
+            "name": "refund_procedure_id"
+          }
+        }
       },
       {
         "name": "refund_fund_payment_group_id",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure_refund",
+            "name": "refund_fund_payment_group_id"
+          }
+        }
       },
       {
         "name": "refund_bank_transfer_id",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure_refund",
+            "name": "refund_bank_transfer_id"
+          }
+        }
       },
       {
         "name": "refund_date",
         "ordinal": 5,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure_refund",
+            "name": "refund_date"
+          }
+        }
       },
       {
         "name": "reason",
         "ordinal": 6,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure_refund",
+            "name": "reason"
+          }
+        }
       },
       {
         "name": "previous_payment_status",
         "ordinal": 7,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure_refund",
+            "name": "previous_payment_status"
+          }
+        }
       }
     ],
     "parameters": {

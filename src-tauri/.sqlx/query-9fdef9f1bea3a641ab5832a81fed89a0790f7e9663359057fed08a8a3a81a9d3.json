@@ -6,22 +6,46 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "fund",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "fund_identifier",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "fund",
+            "name": "fund_identifier"
+          }
+        }
       },
       {
         "name": "name",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "fund",
+            "name": "name"
+          }
+        }
       },
       {
         "name": "is_deleted",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "fund",
+            "name": "is_deleted"
+          }
+        }
       }
     ],
     "parameters": {

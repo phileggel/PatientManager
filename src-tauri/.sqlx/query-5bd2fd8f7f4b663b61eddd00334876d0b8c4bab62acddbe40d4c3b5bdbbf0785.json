@@ -6,62 +6,134 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "patient_id",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "patient_id"
+          }
+        }
       },
       {
         "name": "fund_id",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "fund_id"
+          }
+        }
       },
       {
         "name": "procedure_type_id",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "procedure_type_id"
+          }
+        }
       },
       {
         "name": "procedure_date: NaiveDate",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "procedure_date"
+          }
+        }
       },
       {
         "name": "billed_amount",
         "ordinal": 5,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "billed_amount"
+          }
+        }
       },
       {
         "name": "payment_method",
         "ordinal": 6,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "payment_method"
+          }
+        }
       },
       {
         "name": "fund_reconciliation_date?: NaiveDate",
         "ordinal": 7,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "fund_reconciliation_date"
+          }
+        }
       },
       {
         "name": "confirmed_payment_date?: NaiveDate",
         "ordinal": 8,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "confirmed_payment_date"
+          }
+        }
       },
       {
         "name": "paid_amount",
         "ordinal": 9,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "paid_amount"
+          }
+        }
       },
       {
         "name": "payment_status",
         "ordinal": 10,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "payment_status"
+          }
+        }
       },
       {
         "name": "is_deleted",
         "ordinal": 11,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "procedure",
+            "name": "is_deleted"
+          }
+        }
       }
     ],
     "parameters": {
