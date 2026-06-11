@@ -8,13 +8,15 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-05-27 — `FundService::validate_batch` repeats the patient `validate_batch` DTO anti-pattern
+## 2026-06-11 — `FundPaymentService` methods return `anyhow::Result` instead of `FundError`
 
-**Found by:** reviewer-backend (`refactor/typed-errors-fund-bank` @ `ea606ad`)
+**Found by:** reviewer-backend (`refactor/remove-dead-batch-validation` @ `781d056`)
 
-**Where:** `src-tauri/src/context/fund/service.rs:131-134` — inside `FundService::validate_batch`, the per-candidate `find_fund_by_identifier` `Err(e)` arm builds `result.error = Some(format!("Database error checking identifier: {}", e))`, folding the raw `anyhow::Error` Display into the `FundValidationResult.error` DTO field. Skips `tracing::error!` and bypasses `FundError::DatabaseError` translation.
+**Where:** `src-tauri/src/context/fund/service.rs`
 
-**Observation:** Mirror image of the existing 2026-05-27 patient/service.rs:140 entry. The two `validate_batch` paths share the same DTO-shape limitation: `error: Option<String>` carries a raw repo-error string on the wire. Both entries resolve together by reshaping the `*ValidationResult.error` field into a typed variant.
+**Severity:** 🔵
+
+**Observation:** `FundPaymentService::update_group_status` (~L387) and `persist_refund_group` (~L402) return `anyhow::Result` instead of `FundError` — the only two service methods in the fund BC still off the typed error model; their callers translate at the use-case layer instead.
 
 ---
 
@@ -35,16 +37,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 **Where:** `src/features/bank-account/shared/presenter.ts` (defines `formatBankError`); consumed by `src/features/bank-transfer/useBankTransferOperations.ts` and `src/features/bank-statement-match/ui/useBankStatementModal.ts` via cross-feature primitive imports.
 
 **Observation:** `BankError` is a BC type — it belongs to neither feature alone. The presenter sits in `bank-account/shared/` only by historical accident (first writer wins). F26 currently permits the cross-feature primitive import. When a third consumer appears, promote `formatBankError` to a location that reflects shared BC ownership — e.g. a `src/features/bank/shared/presenter.ts` feature-level surface, or an explicit re-export shape.
-
----
-
-## 2026-05-27 — `validate_batch` DTO field leaks anyhow string into the wire
-
-**Found by:** reviewer-backend (`refactor/typed-errors-patient-procedure` @ `602db31`)
-
-**Where:** `src-tauri/src/context/patient/service.rs:140` — inside `PatientService::validate_batch`, the per-candidate SSN-lookup error arm builds `result.error = Some(format!("Database error checking SSN: {}", e))`, where `e` is the `anyhow::Error` returned by the repository.
-
-**Observation:** The `PatientValidationResult.error` field exposes an untyped `Option<String>` carrying the raw `anyhow::Error` Display output on the batch-validation wire path. Changing it requires reshaping `PatientValidationResult.error` to a typed shape (struct variant or separate code/message split) — a DTO change that fans into the contract + FE consumers. Standalone follow-up, paired with the sibling fund entry above.
 
 ---
 

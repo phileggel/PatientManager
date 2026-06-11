@@ -48,26 +48,6 @@ Hard-deletes a fund. Side effect: any patient whose `latest_fund` references thi
 
 ---
 
-### `validate_batch_funds`
-
-Validates a list of fund candidates before batch creation. Each candidate is checked for duplicate identifiers. Returns a per-candidate result without persisting anything.
-
-- **Args:** `funds: Vec<FundCandidate>`
-- **Returns:** `ValidateBatchFundsResponse`
-- **Errors:** —
-
----
-
-### `create_batch_funds`
-
-Creates a batch of validated fund candidates in a single transaction. Returns created `Fund` records and a `temp_id → real_id` map.
-
-- **Args:** `funds: Vec<FundCandidate>`
-- **Returns:** `CreateBatchFundsResponse`
-- **Errors:** `BatchCreationFailed`
-
----
-
 ### Fund Payment Group CRUD
 
 ### `read_all_fund_payment_groups` — FPM R10
@@ -119,35 +99,6 @@ struct Fund {
     name: String,
 }
 
-// batch import candidate — lacks a real ID
-struct FundCandidate {
-    temp_id: String,
-    fund_identifier: String,
-    fund_name: String,
-}
-
-struct FundValidationResult {
-    candidate: FundCandidate,
-    status: FundValidationStatus,
-    existing_id: Option<String>,   // populated when status = AlreadyExists
-    error: Option<String>,         // populated when status = Invalid
-}
-
-enum FundValidationStatus {
-    Valid,
-    AlreadyExists,
-    Invalid,
-}
-
-struct ValidateBatchFundsResponse {
-    results: Vec<FundValidationResult>,
-}
-
-struct CreateBatchFundsResponse {
-    funds: Vec<Fund>,
-    temp_id_map: Map<String, String>,  // temp_id → real fund ID
-}
-
 // FPM R10 — a fund-payment group aggregate
 struct FundPaymentGroup {
     id: String,
@@ -176,7 +127,3 @@ enum FundPaymentGroupStatus {
 | Event              | Trigger                                                                                                                                                    |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ProcedureUpdated` | After `create_fund_payment_group`, `update_fund_payment_group_with_procedures`, `delete_fund_payment_group` — procedure statuses and payment fields change |
-
-## Changelog
-
-- 2026-05-02 — Added retroactively from specta_builder.rs: add_fund, read_all_funds, update_fund, delete_fund, validate_batch_funds, create_batch_funds, read_all_fund_payment_groups, create_fund_payment_group, update_fund_payment_group_with_procedures, delete_fund_payment_group

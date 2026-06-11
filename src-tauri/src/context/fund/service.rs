@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::{
     context::fund::{
         Fund, FundCandidate, FundError, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine,
-        FundPaymentRepository, FundRepository, FundValidationResult, FundValidationStatus,
+        FundPaymentRepository, FundRepository,
     },
     shared::{
         event_bus::{EventBus, FundPaymentGroupUpdated, FundUpdated},
@@ -89,55 +89,6 @@ impl FundService {
         })?;
         let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
         Ok(())
-    }
-
-    /// Validate batch of fund candidates
-    /// Checks for required fields and existing funds by identifier
-    pub async fn validate_batch(
-        &self,
-        candidates: Vec<FundCandidate>,
-    ) -> Result<Vec<FundValidationResult>, FundError> {
-        let mut results = Vec::new();
-
-        for candidate in candidates {
-            let mut result = FundValidationResult {
-                candidate: candidate.clone(),
-                status: FundValidationStatus::Valid,
-                existing_id: None,
-                error: None,
-            };
-
-            // Validate fund_identifier and fund_name are not empty
-            if candidate.fund_identifier.is_empty() || candidate.fund_name.is_empty() {
-                result.status = FundValidationStatus::Invalid;
-                result.error = Some("Fund must have both identifier and name".to_string());
-                results.push(result);
-                continue;
-            }
-
-            // Check for existing fund by identifier
-            match self
-                .repository
-                .find_fund_by_identifier(&candidate.fund_identifier)
-                .await
-            {
-                Ok(Some(existing)) => {
-                    result.status = FundValidationStatus::AlreadyExists;
-                    result.existing_id = Some(existing.id);
-                }
-                Ok(None) => {
-                    // Fund doesn't exist, valid for creation
-                }
-                Err(e) => {
-                    result.status = FundValidationStatus::Invalid;
-                    result.error = Some(format!("Database error checking identifier: {}", e));
-                }
-            }
-
-            results.push(result);
-        }
-
-        Ok(results)
     }
 
     /// Create batch of valid funds.
@@ -803,68 +754,6 @@ mod tests {
             Some(&funds[0].id),
             "temp_id_map must map the candidate temp_id to the created fund id"
         );
-    }
-
-    #[tokio::test]
-    async fn validate_batch_valid_fund() {
-        let mut mock = MockFundRepository::new();
-        mock.expect_find_fund_by_identifier()
-            .returning(|_| Ok(None));
-        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
-        let results = service
-            .validate_batch(vec![make_candidate()])
-            .await
-            .unwrap();
-        assert!(matches!(results[0].status, FundValidationStatus::Valid));
-    }
-
-    #[tokio::test]
-    async fn validate_batch_already_exists() {
-        let mut mock = MockFundRepository::new();
-        mock.expect_find_fund_by_identifier().returning(|_| {
-            Ok(Some(Fund::restore(
-                "f1".into(),
-                "93".into(),
-                "CPAM 93".into(),
-            )))
-        });
-        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
-        let results = service
-            .validate_batch(vec![make_candidate()])
-            .await
-            .unwrap();
-        assert!(matches!(
-            results[0].status,
-            FundValidationStatus::AlreadyExists
-        ));
-        assert_eq!(results[0].existing_id.as_deref(), Some("f1"));
-    }
-
-    #[tokio::test]
-    async fn validate_batch_empty_identifier_is_invalid() {
-        let mock = MockFundRepository::new();
-        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
-        let bad = FundCandidate {
-            fund_identifier: "".into(),
-            fund_name: "X".into(),
-            temp_id: String::new(),
-        };
-        let results = service.validate_batch(vec![bad]).await.unwrap();
-        assert!(matches!(results[0].status, FundValidationStatus::Invalid));
-        assert!(results[0].error.is_some());
-    }
-
-    #[tokio::test]
-    async fn validate_batch_db_error_marks_invalid() {
-        let mut mock = MockFundRepository::new();
-        mock.expect_find_fund_by_identifier()
-            .returning(|_| Err(anyhow!("DB error")));
-        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
-        let results = service
-            .validate_batch(vec![make_candidate()])
-            .await
-            .unwrap();
-        assert!(matches!(results[0].status, FundValidationStatus::Invalid));
     }
 
     #[tokio::test]
