@@ -27,7 +27,7 @@ pub use orchestrator::ExcelImportOrchestrator;
 // externally. The module stays private; only the codec types and the parser
 // entry point are exported.
 pub use excel_codec::{
-    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues, SkippedRow,
+    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues, SkipReason, SkippedRow,
 };
 
 // `ExcelParserService` is reachable internally by `api.rs` and `orchestrator.rs`

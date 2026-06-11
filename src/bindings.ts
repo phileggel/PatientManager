@@ -2325,9 +2325,52 @@ export type SaveExcelAmountMappingRequest = { amount: number; procedure_type_id:
  */
 export type SaveLabelMappingRequest = { bank_label: string; fund_id: string }
 /**
+ * Why a row was skipped during Excel parsing (EXI-020/220) or import
+ * execution (EXI-280/281/290).
+ * 
+ * Wire shape: `{ "code": "<Variant>", ...params }` — the frontend translates
+ * the code through its i18n pipeline; the backend authors no display text.
+ * Params carry the offending cell values the report table shows; the sheet
+ * name lives on the enclosing [`SkippedRow`], so sheet-related variants do
+ * not repeat it.
+ */
+export type SkipReason = 
+/**
+ * EXI-020 — the sheet row has fewer columns than the layout requires.
+ */
+{ code: "InsufficientColumns"; needed: number } | { code: "MissingPatientName" } | { code: "MissingFundIdentifier" } | { code: "MissingFundName" } | 
+/**
+ * EXI-220 — the date cell matches no accepted format.
+ */
+{ code: "UnrecognizedDateFormat"; value: string } | 
+/**
+ * The row references a patient absent from the parsed patient sheet.
+ */
+{ code: "PatientNotFound"; name: string } | 
+/**
+ * The row references a fund absent from the parsed fund sheet.
+ */
+{ code: "FundNotFound"; identifier: string } | { code: "InvalidAmount"; value: string } | 
+/**
+ * EXI-280 — procedure_date does not parse as `YYYY-MM-DD`.
+ */
+{ code: "InvalidProcedureDate"; value: string } | 
+/**
+ * EXI-280 — confirmed_payment_date does not parse as `YYYY-MM-DD`.
+ */
+{ code: "InvalidConfirmedPaymentDate"; value: string } | 
+/**
+ * EXI-281 (defensive) — the sheet name maps to no nominal month.
+ */
+{ code: "UnknownSheetName" } | 
+/**
+ * EXI-281 — procedure_date's month differs from the sheet's nominal month.
+ */
+{ code: "DateOutsideSheetMonth"; date: string }
+/**
  * Information about a skipped row during parsing
  */
-export type SkippedRow = { sheet: string; row_number: number; reason: string }
+export type SkippedRow = { sheet: string; row_number: number; reason: SkipReason }
 /**
  * Column-header strings for the unreconciled table (FPR-031). Fixed 4 columns.
  */

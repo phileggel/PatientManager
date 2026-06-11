@@ -98,11 +98,15 @@ describe("excel-import gateway — executeExcelImport", () => {
   // EXI-290 — skipped_procedures array flows back to the caller without transformation
   it("passes skipped_procedures from ImportExecutionResult through without transformation", async () => {
     const executeSkips: SkippedRow[] = [
-      { sheet: "Jan", row_number: 5, reason: "Date d'acte invalide : '32/01/2026'" },
+      {
+        sheet: "Jan",
+        row_number: 5,
+        reason: { code: "InvalidProcedureDate", value: "32/01/2026" },
+      },
       {
         sheet: "Fév",
         row_number: 12,
-        reason: "La date d'acte 2026-01-15 ne correspond pas au mois de la feuille « Fév »",
+        reason: { code: "DateOutsideSheetMonth", date: "2026-01-15" },
       },
     ];
     const resultWithSkips: ImportExecutionResult = {

@@ -11,7 +11,7 @@
 //! `ParsedExcelData` literal.
 
 use patient_manager_app::use_cases::excel_import::{
-    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues, SkippedRow,
+    ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues, SkipReason, SkippedRow,
 };
 
 /// Happy-path scenario per IFC-032 §1: covers all three sheet kinds, three
@@ -98,7 +98,7 @@ pub fn happy_path_3_patients_2_funds() -> ParsedExcelData {
 
 /// Parsing-issues scenario per IFC-032 §2: monthly sheet contains a row whose
 /// date cell is non-empty but unparseable (`"not-a-date"`). The parser MUST
-/// emit one `SkippedRow` with `reason = "Unrecognized date format: 'not-a-date'"`.
+/// emit one `SkippedRow` with `reason = UnrecognizedDateFormat { value: "not-a-date" }`.
 ///
 /// One patient and one fund are present in the workbook so the bad row is the
 /// only thing that fails — confirming the failure is due to the bad date and
@@ -123,7 +123,9 @@ pub fn skipped_rows_invalid_dates() -> ParsedExcelData {
             skipped_rows: vec![SkippedRow {
                 sheet: "Mars".into(),
                 row_number: 2,
-                reason: "Unrecognized date format: 'not-a-date'".into(),
+                reason: SkipReason::UnrecognizedDateFormat {
+                    value: "not-a-date".into(),
+                },
             }],
             missing_sheets: vec![],
         },

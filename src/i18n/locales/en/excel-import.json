@@ -134,6 +134,20 @@
     "colRow": "Row",
     "colReason": "Reason",
     "noIssues": "No parsing issues detected",
-    "close": "Close"
+    "close": "Close",
+    "reasons": {
+      "insufficient_columns": "Insufficient columns (need at least {{needed}})",
+      "missing_patient_name": "Missing patient name",
+      "missing_fund_identifier": "Missing fund identifier",
+      "missing_fund_name": "Missing fund name",
+      "unrecognized_date_format": "Unrecognized date format: '{{value}}'",
+      "patient_not_found": "Patient '{{name}}' not found in the patient sheet",
+      "fund_not_found": "Fund '{{identifier}}' not found in the fund sheet",
+      "invalid_amount": "Invalid amount: {{value}}",
+      "invalid_procedure_date": "Invalid procedure date: '{{value}}'",
+      "invalid_confirmed_payment_date": "Invalid confirmed payment date: '{{value}}'",
+      "unknown_sheet_name": "Unknown sheet name",
+      "date_outside_sheet_month": "Procedure date {{date}} does not match the sheet month"
+    }
   }
 }
