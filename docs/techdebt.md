@@ -112,17 +112,3 @@ not as a sweep.
 - Note: validating a tracked group via manual match is always safe — it mints its own FundWire transfer sized to the group and never touches the bank statement line, so there is NO data-integrity risk and the bank payment is not "broken". The gap is purely reconciliation _coverage_, not correctness. Resolution direction differs per case: multi-group needs subset/multi-group matching (one bank line → N groups); uncovered-amount needs either a modeled "aid payment" entity that becomes a matchable line item, OR a manual "remainder" annotation recording the untracked portion. Until then, composite credit lines remain unmatched and require manual bookkeeping outside the app.
 
 ---
-
-## 2026-06-07 — Migrations ran with foreign keys enforced, and were only tested against childless databases
-
-**Found by:** manual (issue #67 — 0.18.0 startup crash)
-
-**Where:** `src-tauri/src/shared/infrastructure/db.rs` (migration runner) + CI fixtures.
-
-**Observation:** `20260524_billed_amount_not_null.sql` rebuilds `procedure` (a _parent_ table, referenced by `fund_payment_line`) via DROP + CREATE + RENAME. Migrations ran on a connection with `foreign_keys = ON`, and `defer_foreign_keys = ON` does NOT cover dropping a parent: `DROP TABLE procedure` increments SQLite's deferred-violation counter once per child row and recreating the table never clears it, so COMMIT fails (code 787) even though the data is perfectly consistent. Confirmed against a real affected DB: `PRAGMA foreign_key_check` returned **zero** violations, yet COMMIT still failed — the failure is the counter, not an orphan. The original "legacy FK orphan" diagnosis was wrong. Every DB with at least one reconciled payment (a `fund_payment_line` row) crashed on startup; CI passed because test/fresh DBs have no child rows referencing `procedure`, so there is no child to trip the counter.
-
-**Fixed (runner policy, not a one-off):** migrations now run on a dedicated connection with `foreign_keys = OFF` — SQLite's documented table-rebuild recipe. The pragma is a no-op inside sqlx's per-migration transaction (verified empirically), so it must be set on the connection, not in the `.sql`. A `PRAGMA foreign_key_check` runs afterward (non-fatal) as a standing integrity net for genuinely-dirty data (e.g. imports). Each migration still runs in its own transaction, so rollback safety is kept. This future-proofs every later parent-table rebuild.
-
-**Prevention still owed — adversarial migration fixtures.** CI only ever runs migrations against clean/childless data, which is exactly why this shipped. Seed representative messy/edge shapes at a frozen past schema version (parent rows WITH children for #67; later: a NOT-NULL column's NULL row; a UNIQUE index's duplicate), then run migrations forward and assert success + a clean `PRAGMA foreign_key_check`. The new `parent_rebuild_*` tests in `db.rs` are the prototype — generalize into a standing per-migration suite, gated in CI on any `migrations/` change.
-
----
