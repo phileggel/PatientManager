@@ -23,12 +23,6 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 ---
 
-## (frontend/ui) — Split BankStatementModal step components
-
-`BankStatementModal.tsx` (208 lines, 12 `step === "..."` conditionals) hosts the create-account (form state, validation, error display — non-trivial), loading, done, and error steps inline. Extract them as step components (e.g. `CreateAccountStep`, `DoneStep`, `ErrorStep`) alongside the existing `FundLabelMappingStep` / `MatchResultsStep` when next touching the modal. Pure refactor.
-
----
-
 ## (frontend/db-index) — IBAN uniqueness DB constraint follow-up
 
 `bank-account` R5 (IBAN uniqueness across soft-deleted accounts) is enforced at the service layer (`BankAccountService::create_account` + `update_account` + `find_by_iban_including_deleted`). The existing partial unique index `idx_bank_account_iban_active` covers active rows only. Reconsider whether a DB-level CHECK / trigger / non-partial unique index would be preferable once SQLite version is upgraded — would close the (currently negligible) TOCTOU window between the service-layer guard and the INSERT.
