@@ -28,7 +28,7 @@ describe("ReconciliationPage entry point smoke", () => {
     await importBtn.waitForExist({ timeout: 10000 });
     await importBtn.click();
 
-    const dialog = await $('[role="dialog"]');
+    const dialog = await $("#import-modal");
     await dialog.waitForExist({ timeout: 8000 });
 
     const card = await $("#import-card-fund-reconciliation");
