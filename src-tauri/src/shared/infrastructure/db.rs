@@ -666,4 +666,65 @@ mod tests {
             .await
             .expect("no child row → even FK-enforced rebuild commits");
     }
+
+    /// Standing adversarial-migration net (gh#67 class): freeze a populated
+    /// database at the 20260523 schema — a parent row WITH a child reference,
+    /// plus a NULL in the column 20260524 tightens to NOT NULL — then replay
+    /// every later migration in order on an FK-off connection, mirroring the
+    /// runner policy in `Database::new`. New migration files join the replay
+    /// automatically; this fails the build if any of them cannot handle
+    /// populated data, instead of shipping a startup crash to real databases.
+    #[tokio::test]
+    async fn later_migrations_replay_on_populated_db() {
+        let mut conn = mem_conn(false).await;
+        migrate_to_523(&mut conn).await;
+        seed_parent_with_child(&mut conn).await;
+
+        for m in sqlx::migrate!("./migrations").iter() {
+            // Frozen at the last schema before the first parent-rebuild
+            // migration (the seed helpers target this version). Advance the
+            // floor only together with the seed shape.
+            if m.version <= 20260523 {
+                continue;
+            }
+            sqlx::raw_sql(m.sql.clone())
+                .execute(&mut conn)
+                .await
+                .unwrap_or_else(|e| panic!("migration {} failed on populated DB: {e}", m.version));
+        }
+
+        let viol: Vec<(String, Option<i64>, String, i64)> =
+            sqlx::query_as("PRAGMA foreign_key_check")
+                .fetch_all(&mut conn)
+                .await
+                .expect("PRAGMA foreign_key_check query failed");
+        assert!(
+            viol.is_empty(),
+            "FK violations after forward replay: {viol:?}"
+        );
+
+        let procedures: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM procedure")
+            .fetch_one(&mut conn)
+            .await
+            .expect("SELECT COUNT(*) FROM procedure failed");
+        let lines: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM fund_payment_line")
+            .fetch_one(&mut conn)
+            .await
+            .expect("SELECT COUNT(*) FROM fund_payment_line failed");
+        assert_eq!(
+            (procedures, lines),
+            (1, 1),
+            "seeded rows must survive every rebuild"
+        );
+
+        let billed: Option<i64> =
+            sqlx::query_scalar("SELECT billed_amount FROM procedure WHERE id = 'PR1'")
+                .fetch_one(&mut conn)
+                .await
+                .expect("SELECT billed_amount failed");
+        assert!(
+            billed.is_some(),
+            "20260524 must backfill billed_amount to non-NULL"
+        );
+    }
 }
