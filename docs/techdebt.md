@@ -8,16 +8,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-05-27 — `bank_entry_service` repository trait still validates on the create path (`persist_transfer` cleanup follow-up)
-
-**Found by:** reviewer-backend (`refactor/typed-errors-fund-bank` @ `ea606ad`); the downcast it flagged was resolved in commit 2 — this entry is the residual cleanup.
-
-**Where:** `src-tauri/src/context/bank/domain/bank_entry_repo.rs` — trait still exposes both `create_transfer(transfer: BankEntry)` and `persist_transfer(transfer: BankEntry)`. After moving `BankEntry::new` to the service in this PR, both methods have identical bodies (no validation, just persist). The semantic distinction ("bypass validation for refund flow") moved upstream when validation moved to the service.
-
-**Observation:** The trait carries one redundant method. Consolidating to a single `persist` method requires renaming the refund use-case call site and the wire-bound `BankEntryService::create_transfer` to match. Mechanical but multi-file; defer to a follow-up cleanup PR.
-
----
-
 ## 2026-05-27 — `formatBankError` ownership: presenter lives in `bank-account` but two features consume it
 
 **Found by:** reviewer-arch (`refactor/typed-errors-fund-bank` @ `ea606ad`)

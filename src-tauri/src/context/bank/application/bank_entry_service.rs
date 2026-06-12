@@ -55,7 +55,7 @@ impl BankEntryService {
         // Domain construction happens in the service so typed domain errors
         // (e.g. `AmountNotPositive`) surface directly — the repo just persists.
         let entry = BankEntry::new(transfer_date, amount, transfer_type, bank_account)?;
-        let transfer = self.repository.create_transfer(entry).await.map_err(|e| {
+        let transfer = self.repository.persist_transfer(entry).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "create_transfer: repository failed");
             BankError::DatabaseError
         })?;
@@ -114,7 +114,7 @@ impl BankEntryService {
         Ok(updated)
     }
 
-    /// Persist a fully-constructed BankEntry directly, bypassing amount validation.
+    /// Persist a BankEntry pre-built via `BankEntry::restore` (no factory pass).
     /// Used for overpayment refund transfers which carry a negative amount (REF-110).
     /// Validates that the bank account exists before persisting.
     pub async fn persist_refund_transfer(
@@ -249,13 +249,6 @@ mod tests {
 
     #[async_trait::async_trait]
     impl BankEntryRepository for MockBankEntryRepository {
-        async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(transfer)
-        }
-
         async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
@@ -388,9 +381,6 @@ mod tests {
 
     #[async_trait::async_trait]
     impl BankEntryRepository for MockBankEntryRepositoryReturnsNone {
-        async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
-            Ok(transfer)
-        }
         async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
             Ok(None)
         }
@@ -560,9 +550,6 @@ mod tests {
 
     #[async_trait::async_trait]
     impl BankEntryRepository for MockBankEntryRepoReadOkDeleteFails {
-        async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
-            Ok(transfer)
-        }
         async fn read_transfer(&self, _id: &str) -> anyhow::Result<Option<BankEntry>> {
             let account =
                 BankAccount::restore("acc-123".to_string(), "Main Account".to_string(), None);
@@ -611,7 +598,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_transfer_persist_repository_error_translates() {
         // account_repo ok (account found, valid amount) → failure comes from the
-        // entry repo's `create_transfer` `.map_err` arm.
+        // entry repo's `persist_transfer` `.map_err` arm.
         let repo = Arc::new(MockBankEntryRepository { should_fail: true });
         let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
         let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));

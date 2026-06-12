@@ -4,12 +4,6 @@ use crate::context::bank::BankEntry;
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait BankEntryRepository: Send + Sync {
-    /// Persist a validated BankEntry. The service is responsible for calling
-    /// `BankEntry::new` first so typed domain errors (e.g. `AmountNotPositive`)
-    /// surface directly from the service, not through an `anyhow`-wrapped
-    /// downcast.
-    async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry>;
-
     /// Read a single transfer by ID with bank account info
     async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankEntry>>;
 
@@ -22,7 +16,9 @@ pub trait BankEntryRepository: Send + Sync {
     /// Hard-delete a transfer (permanent)
     async fn delete_transfer(&self, id: &str) -> anyhow::Result<()>;
 
-    /// Persist a fully-constructed BankEntry directly (no factory validation).
-    /// Used for overpayment refund transfers which carry a negative amount (REF-110).
+    /// Persist a fully-constructed BankEntry. Validation lives upstream in the
+    /// service: the create path constructs via `BankEntry::new` so typed domain
+    /// errors surface there; refund transfers arrive pre-built with a negative
+    /// amount via `BankEntry::restore` (REF-110).
     async fn persist_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry>;
 }

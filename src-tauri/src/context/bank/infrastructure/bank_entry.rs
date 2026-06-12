@@ -18,38 +18,6 @@ impl SqliteBankEntryRepository {
 
 #[async_trait::async_trait]
 impl BankEntryRepository for SqliteBankEntryRepository {
-    async fn create_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
-        let type_str = transfer_type_to_str(transfer.transfer_type);
-
-        tracing::info!(
-            id = %transfer.id,
-            transfer_date = %transfer.transfer_date,
-            amount = transfer.amount,
-            transfer_type = %type_str,
-            account_id = %transfer.bank_account.id,
-            "Creating bank transfer"
-        );
-
-        let transfer_date_str = transfer.transfer_date.format("%Y-%m-%d").to_string();
-
-        sqlx::query!(
-            r#"
-            INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id)
-            VALUES ($1, $2, $3, $4, $5)
-            "#,
-            transfer.id,
-            transfer_date_str,
-            transfer.amount,
-            type_str,
-            transfer.bank_account.id,
-        )
-        .execute(&self.pool)
-        .await
-        .context("Failed to insert bank transfer")?;
-
-        Ok(transfer)
-    }
-
     async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankEntry>> {
         tracing::debug!(transfer_id = %id, "Reading bank transfer");
 
@@ -168,8 +136,7 @@ impl BankEntryRepository for SqliteBankEntryRepository {
         Ok(())
     }
 
-    /// Persist a fully-constructed BankEntry (no factory validation).
-    /// Used for overpayment refund transfers which carry a negative amount (REF-110).
+    /// Persist a fully-constructed BankEntry (validation lives in the service).
     async fn persist_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
         let type_str = transfer_type_to_str(transfer.transfer_type);
         let transfer_date_str = transfer.transfer_date.format("%Y-%m-%d").to_string();
@@ -180,7 +147,7 @@ impl BankEntryRepository for SqliteBankEntryRepository {
             amount = transfer.amount,
             transfer_type = %type_str,
             account_id = %transfer.bank_account.id,
-            "Persisting bank transfer (bypass validation)"
+            "Persisting bank transfer"
         );
 
         sqlx::query!(
