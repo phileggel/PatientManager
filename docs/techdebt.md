@@ -84,14 +84,6 @@ not as a sweep.
 
 ---
 
-## 2026-05-13 — `serialize-javascript` RCE/DoS in mocha via `@wdio/mocha-framework` (E2E dev dep only)
-
-**Where:** `package-lock.json` — `@wdio/mocha-framework@9.27.1 → mocha → serialize-javascript ≤ 7.0.4`. Two advisories: [GHSA-5c6j-r48x-rmvq](https://github.com/advisories/GHSA-5c6j-r48x-rmvq) (RCE via `RegExp.flags`) and [GHSA-qj8w-gfj5-8c6v](https://github.com/advisories/GHSA-qj8w-gfj5-8c6v) (DoS via crafted array-likes).
-
-**Observation:** `npm audit fix` cannot reach this without `--force`, which would downgrade `@wdio/mocha-framework` to 6.1.17 (major breaking change in our WebDriver E2E setup). Exposure is dev-only (test runner serialization), not in production. Track until `@wdio/mocha-framework` (or upstream mocha) ships a non-vulnerable `serialize-javascript`.
-
----
-
 ## 2026-06-05 — BE coverage omits dev-fixtures-gated codec integration tests
 
 - Found by: reviewer-infra
