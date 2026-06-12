@@ -127,12 +127,32 @@ export function DateField({
         {showCalendar &&
           !disabled &&
           createPortal(
+            // popover="manual" promotes the calendar into the browser top
+            // layer so it paints above native <dialog> modals (ADR-008) —
+            // unlike showModal(), showPopover() neither steals focus nor
+            // inerts the page, so the blur-based close keeps working.
+            // Engines without the Popover API fall back to a plain fixed div.
             <div
-              ref={calendarRef}
+              ref={(node) => {
+                calendarRef.current = node;
+                if (node?.showPopover) {
+                  try {
+                    if (!node.matches(":popover-open")) node.showPopover();
+                  } catch {
+                    // Popover API unsupported — plain fixed positioning applies.
+                  }
+                }
+              }}
+              popover="manual"
               onMouseDown={(e) => e.preventDefault()}
               role="dialog"
-              style={{ top: calendarPos.top, left: calendarPos.left }}
-              className="fixed bg-m3-surface-container-lowest rounded-2xl shadow-elevation-3 p-3 z-200 w-64"
+              style={{
+                top: calendarPos.top,
+                left: calendarPos.left,
+                right: "auto",
+                bottom: "auto",
+              }}
+              className="fixed m-0 border-0 bg-m3-surface-container-lowest rounded-2xl shadow-elevation-3 p-3 w-64"
             >
               <div className="flex items-center justify-between mb-3">
                 <button

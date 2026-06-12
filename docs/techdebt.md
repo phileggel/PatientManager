@@ -73,16 +73,6 @@ not as a sweep.
 
 ---
 
-## 2026-06-06 — Three competing modal primitives with hardcoded z-index
-
-- Found by: manual (issue #60 investigation)
-- Where: `src/ui/components/modal/Dialog.tsx` (z-100), `src/ui/components/modal/ModalContainer.tsx` (z-50), `src/features/fund-payment/select_procedure_modal/SelectProcedureModal.tsx` (hand-rolled overlay, z-50)
-- Context: branch `fix/60-add-procedure-modal-layering` @ `fe3a400`
-- Severity: 🟡
-- Observation: The app has three independent modal primitives, each rendering inline in the React tree with its own hardcoded z-index and no shared stacking coordination. A modal opened from inside another (or, in future, route-driven modals) must manually out-number whatever it stacks over, and two modals at the same tier collide by DOM order — hardcoded z-index does not compose. Issue #60 was one instance (child z-50 behind parent z-100), fixed surgically with a z-200 bump. ADR-008 ratifies the resolution: migrate all three primitives onto native `<dialog>` `showModal()` (browser top layer, no z-index). This entry tracks that migration — fold the three primitives into one native-dialog primitive incrementally as features are touched, deleting each interim hardcoded z-index (incl. the #60 z-200) on the way.
-
----
-
 ## 2026-06-06 — Bank credit reconciliation can't handle composite credit lines
 
 - Found by: manual (issue #62)
