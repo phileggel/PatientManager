@@ -1,10 +1,13 @@
-import { Loader, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/ui/components/button";
 import { IconButton } from "@/ui/components/button/IconButton";
-import { TextField } from "@/ui/components/field";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
+import { CreateAccountStep } from "./CreateAccountStep";
+import { DoneStep } from "./DoneStep";
+import { ErrorStep } from "./ErrorStep";
 import { FundLabelMappingStep } from "./FundLabelMappingStep";
+import { LoadingStep } from "./LoadingStep";
 import { MatchResultsStep } from "./MatchResultsStep";
 import { useBankStatementModal } from "./useBankStatementModal";
 
@@ -65,59 +68,19 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 min-h-0">
-        {step === "loading" && (
-          <div className="flex flex-col items-center justify-center py-16 gap-4">
-            <Loader className="w-8 h-8 animate-spin text-m3-primary" />
-            <p className="text-m3-on-surface-variant">{t("statement.modal.loading")}</p>
-          </div>
-        )}
+        {step === "loading" && <LoadingStep message={t("statement.modal.loading")} />}
 
-        {step === "matching" && (
-          <div className="flex flex-col items-center justify-center py-16 gap-4">
-            <Loader className="w-8 h-8 animate-spin text-m3-primary" />
-            <p className="text-m3-on-surface-variant">{t("statement.modal.matching")}</p>
-          </div>
-        )}
+        {step === "matching" && <LoadingStep message={t("statement.modal.matching")} />}
 
         {step === "create-account" && parseResult && (
-          <form
-            id="create-account-form"
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleCreateAccountSubmit();
-            }}
-          >
-            <div className="space-y-1">
-              <p className="text-lg font-medium text-m3-on-surface">
-                {t("statement.modal.createAccount.title")}
-              </p>
-              <p className="text-sm text-m3-on-surface-variant">
-                {t("statement.modal.createAccount.description", { iban: parseResult.iban })}
-              </p>
-            </div>
-            <TextField
-              id="create-account-iban"
-              label={t("statement.modal.createAccount.ibanLabel")}
-              value={parseResult.iban ?? ""}
-              readOnly
-              disabled
-            />
-            <TextField
-              id="create-account-name"
-              label={t("statement.modal.createAccount.nameLabel")}
-              placeholder={t("statement.modal.createAccount.namePlaceholder")}
-              value={createName}
-              onChange={(e) => handleCreateNameChange(e.target.value)}
-              disabled={isCreatingAccount}
-              autoFocus
-            />
-            {createError && (
-              <p role="alert" className="text-sm text-m3-error">
-                {createError}
-              </p>
-            )}
-          </form>
+          <CreateAccountStep
+            iban={parseResult.iban}
+            name={createName}
+            error={createError}
+            isCreating={isCreatingAccount}
+            onNameChange={handleCreateNameChange}
+            onSubmit={handleCreateAccountSubmit}
+          />
         )}
 
         {step === "label-mapping" && (
@@ -137,23 +100,9 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
           />
         )}
 
-        {step === "done" && (
-          <div className="text-center py-12 space-y-4">
-            <p className="text-lg font-medium text-m3-on-success-container">
-              {t("statement.modal.done", { count: createdCount })}
-            </p>
-            <p className="text-m3-on-surface-variant">{t("statement.modal.doneDescription")}</p>
-          </div>
-        )}
+        {step === "done" && <DoneStep createdCount={createdCount} />}
 
-        {step === "error" && (
-          <div className="text-center py-12 space-y-4">
-            <p className="text-lg font-medium text-m3-error">{t("statement.modal.error")}</p>
-            <p role="alert" className="text-m3-on-surface-variant">
-              {error}
-            </p>
-          </div>
-        )}
+        {step === "error" && <ErrorStep error={error} />}
       </div>
 
       {/* Footer — not shown during label-mapping (Accepter is embedded in FundLabelMappingStep) */}
