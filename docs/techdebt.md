@@ -62,17 +62,6 @@ not as a sweep.
 
 ---
 
-## 2026-06-05 — BE coverage omits dev-fixtures-gated codec integration tests
-
-- Found by: reviewer-infra
-- Where: justfile `coverage-be` recipe; `src-tauri/tests/codec_round_trip{,_bank_pdf,_fund_pdf}.rs`
-- Context: branch `chore/tarpaulin-integration-coverage` @ `5be9be4`
-- Severity: 🔵
-- Observation: The three codec round-trip integration tests are gated behind `#![cfg(feature = "dev-fixtures")]`; `just coverage-be` does not pass `--features dev-fixtures`, so tarpaulin compiles them out and they contribute zero coverage even after the `--lib --tests` fix — recovering them additionally requires the dev-fixtures binary fixtures present in the CI environment.
-- 2026-06-06 follow-up (PR #59): this is what holds `parser.rs` at ~33% line coverage. The sheet-parsing business logic (13-digit SSN validation, SSN/name patient dedup, EXI-030 invalid-SSN-into-name traceability) is workbook-coupled — it lives inside `workbook.worksheet_range(...)` loops with no pure helper — so it can only be exercised by feeding a built `Xlsx`, and the only xlsx writer (`rust_xlsxwriter`) is itself `dev-fixtures`-gated. The logic IS tested via the round-trip tests; tarpaulin just can't see them. Adding `--features dev-fixtures` to the coverage recipe (and confirming the fixture generation runs under tarpaulin in CI) would surface this honestly. Until then, parser.rs's low number is a measurement artifact, not an untested-logic gap.
-
----
-
 ## 2026-06-06 — Bank credit reconciliation can't handle composite credit lines
 
 - Found by: manual (issue #62)

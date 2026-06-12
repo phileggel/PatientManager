@@ -43,8 +43,11 @@ coverage-fe:
 
 # Generate backend coverage report (outputs coverage/backend/)
 # Requires: cargo install cargo-tarpaulin
+# --features dev-fixtures compiles the codec round-trip integration tests in,
+# so the workbook-coupled parser logic they exercise is measured instead of
+# reported as uncovered (the fixtures live in src-tauri/tests/fixtures/).
 coverage-be:
-    mkdir -p coverage/backend && cd src-tauri && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir ../coverage/backend --lib --tests --exclude-files "build.rs" --exclude-files "dev/generate_bindings.rs" --exclude-files "dev/generate_fixtures.rs" --exclude-files "dev/fixtures_excel/*" --exclude-files "src/use_cases/overpayment/api.rs"
+    mkdir -p coverage/backend && cd src-tauri && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir ../coverage/backend --lib --tests --features dev-fixtures --exclude-files "build.rs" --exclude-files "dev/generate_bindings.rs" --exclude-files "dev/generate_fixtures.rs" --exclude-files "dev/fixtures_excel/*" --exclude-files "src/use_cases/overpayment/api.rs"
 
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be
