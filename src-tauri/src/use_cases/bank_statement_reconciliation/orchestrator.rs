@@ -671,7 +671,6 @@ mod tests {
 
     fn bank_entry_repo_noop() -> MockBankEntryRepository {
         let mut mock = MockBankEntryRepository::new();
-        mock.expect_create_transfer().returning(Ok);
         mock.expect_read_transfer().returning(|_| Ok(None));
         mock.expect_read_all_transfers().returning(|| Ok(vec![]));
         mock.expect_update_transfer().returning(Ok);

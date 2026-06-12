@@ -659,8 +659,7 @@ mod tests {
     }
 
     /// `read_transfer` returns a canned negative-amount PatientCheck entry;
-    /// `update`/`delete`/`persist` echo their input. `create_transfer` is
-    /// deliberately unconfigured — must not be called on this path.
+    /// `update`/`delete`/`persist` echo their input.
     fn bank_entry_repo_persist_ok() -> MockBankEntryRepository {
         let mut mock = MockBankEntryRepository::new();
         mock.expect_read_transfer().returning(|id| {
