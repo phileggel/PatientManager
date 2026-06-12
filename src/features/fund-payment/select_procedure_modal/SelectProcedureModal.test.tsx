@@ -1,8 +1,9 @@
 // Regression guard for #60: SelectProcedureModal opens from inside the
-// EditFundPaymentModal Dialog (z-100). Its overlay must render ABOVE that
-// parent, so it carries z-200 (the "above-dialog" tier shared with the
-// DateField popover). If a future edit drops it to z-50/z-100, the parent
-// dialog would paint over it and its rows would be unselectable again.
+// EditFundPaymentModal Dialog. Per ADR-008 it renders as a native <dialog>
+// opened via showModal(), so the browser top layer stacks it above its
+// parent by open order — no z-index tier involved. If a future edit demotes
+// it to an inline overlay, the parent dialog could paint over it and its
+// rows would be unselectable again.
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import "@/i18n/config";
@@ -35,10 +36,12 @@ const defaultProps = {
 };
 
 describe("ProcedureSelectionModal — stacking (#60)", () => {
-  it("renders its overlay at z-200 so it sits above the parent Dialog (z-100)", () => {
+  it("renders as a native <dialog> in the top layer, above any parent dialog", () => {
     render(<ProcedureSelectionModal {...defaultProps} />);
     const overlay = screen.getByRole("dialog");
-    expect(overlay).toHaveClass("z-200");
+    expect(overlay.tagName).toBe("DIALOG");
+    expect((overlay as HTMLDialogElement).open).toBe(true);
+    expect(overlay.className).not.toMatch(/z-\d/);
   });
 
   it("does not render when closed", () => {

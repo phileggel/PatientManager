@@ -1,5 +1,5 @@
-import { type ReactNode, useEffect } from "react";
-import { useTranslation } from "react-i18next";
+import type { ReactNode } from "react";
+import { NativeDialog } from "./NativeDialog";
 
 interface ModalContainerProps {
   /** Stable id forwarded to the dialog root; F25 — `{feature}-{component}-modal`. */
@@ -16,7 +16,7 @@ interface ModalContainerProps {
  * ModalContainer: Base modal wrapper with consistent overlay and close handling
  *
  * This is the foundation for all modal patterns. It provides:
- * - Fixed overlay with centered positioning
+ * - Native `<dialog>` top-layer rendering (ADR-008)
  * - Consistent backdrop styling
  * - Body scroll prevention
  * - Escape key handling
@@ -32,48 +32,16 @@ export function ModalContainer({
   maxHeight = "max-h-[90vh]",
   titleId,
 }: ModalContainerProps) {
-  const { t } = useTranslation("common");
-  useEffect(() => {
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      document.addEventListener("keydown", handleEscapeKey);
-    }
-
-    return () => {
-      if (isOpen) {
-        document.body.style.overflow = "auto";
-      }
-      document.removeEventListener("keydown", handleEscapeKey);
-    };
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop — interactive button so screen readers can dismiss */}
-      <button
-        type="button"
-        aria-label={t("aria.closeModal")}
-        className="absolute inset-0 bg-m3-scrim/50 backdrop-blur-[2px] cursor-default"
-        onClick={onClose}
-      />
-      {/* Dialog panel — sibling, renders above backdrop via DOM order */}
-      <div
-        id={id}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className={`relative bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 w-full ${maxWidth} ${maxHeight} overflow-hidden flex flex-col`}
-      >
-        {children}
-      </div>
-    </div>
+    <NativeDialog
+      id={id}
+      onClose={onClose}
+      aria-labelledby={titleId}
+      className={`bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 w-full ${maxWidth} ${maxHeight} overflow-hidden flex-col open:flex`}
+    >
+      {children}
+    </NativeDialog>
   );
 }
