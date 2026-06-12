@@ -384,10 +384,14 @@ impl FundPaymentService {
         &self,
         group_id: &str,
         status: FundPaymentGroupStatus,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), FundError> {
         self.repository
             .update_group_status(group_id, status)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "update_group_status: repository failed");
+                FundError::DatabaseError
+            })?;
         let _ = self
             .event_bus
             .publish::<FundPaymentGroupUpdated>(FundPaymentGroupUpdated);
@@ -399,8 +403,11 @@ impl FundPaymentService {
     pub async fn persist_refund_group(
         &self,
         group: FundPaymentGroup,
-    ) -> anyhow::Result<FundPaymentGroup> {
-        let result = self.repository.persist_group(group).await?;
+    ) -> Result<FundPaymentGroup, FundError> {
+        let result = self.repository.persist_group(group).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "persist_refund_group: repository failed");
+            FundError::DatabaseError
+        })?;
 
         let _ = self
             .event_bus
@@ -789,6 +796,36 @@ mod tests {
         );
         let result = service.persist_refund_group(group).await.unwrap();
         assert_eq!(result.fund_id, "fund-1");
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_update_group_status_db_error_returns_database_error() {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_update_group_status()
+            .returning(|_, _| Err(anyhow!("Mock repository error")));
+        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let result = service
+            .update_group_status("group-1", FundPaymentGroupStatus::BankPaid)
+            .await;
+        assert!(matches!(result, Err(FundError::DatabaseError)));
+    }
+
+    #[tokio::test]
+    async fn fund_payment_service_persist_refund_group_db_error_returns_database_error() {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_persist_group()
+            .returning(|_| Err(anyhow!("Mock repository error")));
+        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let group = FundPaymentGroup::restore(
+            "g1".into(),
+            "fund-1".into(),
+            chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            10000,
+            vec![],
+            FundPaymentGroupStatus::BankPaid,
+        );
+        let result = service.persist_refund_group(group).await;
+        assert!(matches!(result, Err(FundError::DatabaseError)));
     }
 
     #[tokio::test]

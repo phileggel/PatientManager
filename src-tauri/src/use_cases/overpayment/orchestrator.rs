@@ -189,7 +189,7 @@ impl OverpaymentOrchestrator {
             .persist_refund_group(refund_group)
             .await
             .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e,"Failed to persist refund fund payment group");
+                tracing::error!(target: BACKEND, err = ?e, "create_overpayment: persist_refund_group failed");
                 OverpaymentTask::DatabaseError
             })?;
 

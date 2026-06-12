@@ -524,14 +524,7 @@ impl BankManualMatchOrchestrator {
     ) -> Result<Vec<FundGroupCandidate>, BankManualMatchError> {
         let mut candidates = Vec::new();
         for group_id in &group_ids {
-            let group = self
-                .fund_payment_service
-                .read_group(group_id)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "get_fund_groups_by_ids: read_group failed");
-                    FundError::DatabaseError
-                })?;
+            let group = self.fund_payment_service.read_group(group_id).await?;
             match group {
                 Some(group) => candidates.push(group_to_candidate(group)),
                 None => tracing::warn!("Fund group not found for edit pre-fill: {}", group_id),
@@ -566,11 +559,7 @@ impl BankManualMatchOrchestrator {
             let group = self
                 .fund_payment_service
                 .read_group(group_id)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "compute_fund_groups_amount: read_group failed");
-                    FundError::DatabaseError
-                })?
+                .await?
                 .ok_or_else(|| FundError::PaymentGroupNotFound {
                     fund_payment_group_id: group_id.clone(),
                 })?;
@@ -643,11 +632,7 @@ impl BankManualMatchOrchestrator {
 
         self.fund_payment_service
             .update_group_status(group_id, FundPaymentGroupStatus::BankPaid)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "apply_fund_transfer_to_group: update_group_status failed");
-                FundError::DatabaseError
-            })?;
+            .await?;
 
         Ok(())
     }
@@ -696,11 +681,7 @@ impl BankManualMatchOrchestrator {
 
         self.fund_payment_service
             .update_group_status(group_id, FundPaymentGroupStatus::Active)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "revert_fund_transfer_from_group: update_group_status failed");
-                FundError::DatabaseError
-            })?;
+            .await?;
 
         Ok(())
     }

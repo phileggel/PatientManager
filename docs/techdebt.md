@@ -8,18 +8,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-06-11 — `FundPaymentService` methods return `anyhow::Result` instead of `FundError`
-
-**Found by:** reviewer-backend (`refactor/remove-dead-batch-validation` @ `781d056`)
-
-**Where:** `src-tauri/src/context/fund/service.rs`
-
-**Severity:** 🔵
-
-**Observation:** `FundPaymentService::update_group_status` (~L387) and `persist_refund_group` (~L402) return `anyhow::Result` instead of `FundError` — the only two service methods in the fund BC still off the typed error model; their callers translate at the use-case layer instead.
-
----
-
 ## 2026-05-27 — `bank_entry_service` repository trait still validates on the create path (`persist_transfer` cleanup follow-up)
 
 **Found by:** reviewer-backend (`refactor/typed-errors-fund-bank` @ `ea606ad`); the downcast it flagged was resolved in commit 2 — this entry is the residual cleanup.
