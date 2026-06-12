@@ -60,13 +60,6 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 ---
 
-## (backend) — Tech Debt: Event emission reduction — Steps 3 & 4
-
-- Step 3: Batch patient/fund creation during reconciliation (instead of N individual creations)
-- Step 4: Batch group creation events
-
----
-
 ## (frontend/fund-payment-match) — Back-then-forward shortcut
 
 When the user goes back to the previous step, advance directly to the next one (reconciliation flow).
