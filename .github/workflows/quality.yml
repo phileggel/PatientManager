@@ -114,7 +114,7 @@ jobs:
       - name: Tests with coverage (instrumented)
         run: npm run test:coverage
       - name: Upload to Codecov
-        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/frontend/lcov.info
@@ -151,7 +151,7 @@ jobs:
       - name: Install sqlx-cli
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk.
         # sqlx-cli version matches `sqlx` in Cargo.lock (0.8.6).
-        uses: taiki-e/install-action@56545b37b57562edd73171cb6c62cc509db4c34e
+        uses: taiki-e/install-action@7a79fe8c3a13344501c80d99cae481c1c9085912
         with:
           tool: sqlx-cli@0.8.6
       - name: Setup sqlx-check DB
@@ -163,7 +163,7 @@ jobs:
         run: python3 scripts/check.py --backend
       - name: Install cargo-tarpaulin and just
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
-        uses: taiki-e/install-action@56545b37b57562edd73171cb6c62cc509db4c34e
+        uses: taiki-e/install-action@7a79fe8c3a13344501c80d99cae481c1c9085912
         with:
           tool: cargo-tarpaulin,just
       # Single source of truth: `just coverage-be` is the same recipe developers
@@ -173,7 +173,7 @@ jobs:
       - name: Coverage with tarpaulin
         run: just coverage-be
       - name: Upload to Codecov
-        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/backend/lcov.info
