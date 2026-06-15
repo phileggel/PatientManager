@@ -8,18 +8,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-06-12 — Brittle non-id selectors scattered across the E2E suite
-
-**Found by:** reviewer-e2e (`fix/e2e-dialog-selector` sweep after the `[role="dialog"]` breakage)
-
-**Where:** `e2e/bank-transfer/bank-transfer.test.ts` (`.m3-table-container` class selector L34/L53; text-content XPath label L65); `//td[text()="…"]` row assertions in `fund`, `patient`, `bank-account`, `bank-transfer`, `procedure-type` tests; `e2e/helpers/seed.ts:139` unconstrained `button[type="submit"]`.
-
-**Severity:** 🔵
-
-**Observation:** The suite is mostly E4-conformant (stable ids), but a residue of class-name, text-content, and unconstrained selectors is coupled to styling, locale, or DOM order rather than contract surface. The `[role="dialog"]` selector that broke when modals became native `<dialog>` elements was the first of this class to fire.
-
----
-
 ## 2026-05-27 — `formatBankError` ownership: presenter lives in `bank-account` but two features consume it
 
 **Found by:** reviewer-arch (`refactor/typed-errors-fund-bank` @ `ea606ad`)
