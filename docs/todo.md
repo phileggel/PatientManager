@@ -60,12 +60,6 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 ---
 
-## (frontend/fund-payment-match) — Back-then-forward shortcut
-
-When the user goes back to the previous step, advance directly to the next one (reconciliation flow).
-
----
-
 ## (frontend/fund-payment-match) — Create multiple procedures during auto-correction
 
 Currently, the auto-correction flow only allows creating a single procedure. It should support creating multiple procedures in the same operation.

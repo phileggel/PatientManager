@@ -6,7 +6,7 @@
  * Resolved count tracked by useReconciliationResults and reported via onReportResolvedCount.
  */
 
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Undo2 } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, ReconciliationResult } from "@/bindings";
@@ -18,6 +18,7 @@ import {
   buildLinkProcedureKey,
   buildNotFoundCorrection,
   buildNotFoundKey,
+  correctionKeysForMatch,
 } from "../shared/utils";
 import { GroupMatchCard } from "./cards/GroupMatchCard";
 import { NotFoundCard } from "./cards/NotFoundCard";
@@ -30,6 +31,7 @@ interface ReconciliationResultsProps {
   acceptedKeys: Set<string>;
   autoCorrections: Map<string, AutoCorrection>;
   onAcceptCorrection: (key: string, correction: AutoCorrection) => void;
+  onUnacceptCorrection: (keys: string[]) => void;
   onReportResolvedCount?: (count: number) => void;
   onReportUnresolvedGroupCount?: (count: number) => void;
 }
@@ -39,6 +41,7 @@ export function ReconciliationResultsView({
   acceptedKeys,
   autoCorrections,
   onAcceptCorrection,
+  onUnacceptCorrection,
   onReportResolvedCount,
   onReportUnresolvedGroupCount,
 }: ReconciliationResultsProps) {
@@ -155,7 +158,24 @@ export function ReconciliationResultsView({
         <div className="flex items-center gap-2 text-sm text-m3-on-surface-variant">
           <span>{t("results.stepNav", { current: currentIndex + 1, total })}</span>
           {currentIssue && isResolved(currentIssue) && (
-            <Check size={14} className="text-m3-success" />
+            <>
+              <Check size={14} className="text-m3-success" />
+              {/* FPA-460 — un-handle / modify a resolved anomaly (corrections are
+                  staged + reversible until explicit Validate). */}
+              {/* reviewer-frontend FP: fixed id is unambiguous — the step navigator
+                  renders only the current issue, so at most one undo button is in
+                  the DOM; an index suffix would be less stable across navigation. */}
+              <button
+                type="button"
+                id="reconciliation-undo-correction"
+                onClick={() => onUnacceptCorrection(correctionKeysForMatch(currentIssue))}
+                className="inline-flex items-center gap-1 text-xs font-medium text-m3-primary hover:underline"
+                aria-label={t("results.action.undoAria")}
+              >
+                <Undo2 size={13} />
+                {t("results.action.undo")}
+              </button>
+            </>
           )}
         </div>
 

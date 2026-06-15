@@ -55,6 +55,7 @@
     "footer": {
       "cancel": "Annuler",
       "autoCorrect": "Corriger automatiquement",
+      "validate": "Valider",
       "validateSuccess": "Rapprochement validé avec succès"
     },
     "blocking": {
@@ -167,7 +168,9 @@
       "correctDate": "Appliquer la date du PDF",
       "accepted": "Accepté",
       "validateDistribution": "Valider cette distribution",
-      "contestAmount": "Contester (montant réel : {{amount}})"
+      "contestAmount": "Contester (montant réel : {{amount}})",
+      "undo": "Modifier",
+      "undoAria": "Modifier cette correction et choisir de nouveau"
     },
     "nearby": {
       "title": "Actes proches (INS différent)"

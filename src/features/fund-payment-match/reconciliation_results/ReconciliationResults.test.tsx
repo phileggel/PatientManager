@@ -38,6 +38,7 @@ const defaultProps = {
   acceptedKeys: new Set<string>(),
   autoCorrections: new Map(),
   onAcceptCorrection: vi.fn(),
+  onUnacceptCorrection: vi.fn(),
 };
 
 describe("ReconciliationResults interactions", () => {
@@ -227,6 +228,7 @@ describe("ReconciliationResults interactions", () => {
         acceptedKeys={acceptedKeys}
         autoCorrections={new Map()}
         onAcceptCorrection={vi.fn()}
+        onUnacceptCorrection={vi.fn()}
       />,
     );
 
@@ -265,6 +267,7 @@ describe("ReconciliationResults interactions", () => {
         acceptedKeys={acceptedKeys}
         autoCorrections={new Map()}
         onAcceptCorrection={vi.fn()}
+        onUnacceptCorrection={vi.fn()}
       />,
     );
 
@@ -320,6 +323,69 @@ describe("GroupMatchIssue — Validate distribution", () => {
     expect(onAcceptCorrection).toHaveBeenCalledWith("AmountMismatch-proc-2", {
       AmountMismatch: { procedure_id: "proc-2", pdf_amount: 20000 },
     });
+  });
+});
+
+describe("FPA-460 — un-handle a resolved anomaly", () => {
+  it("shows Undo on a resolved issue and clears all of that issue's correction keys", async () => {
+    const user = userEvent.setup();
+    const onUnacceptCorrection = vi.fn();
+
+    // FundMismatch already accepted + amounts equal → the issue is resolved.
+    const dbMatch: DbMatch = {
+      procedure_id: "proc-1",
+      procedure_date: "2025-02-06",
+      fund_id: "fund-other",
+      amount: 50000,
+      anomalies: ["FundMismatch"],
+    };
+    const result: ReconciliationResult = {
+      matches: [
+        {
+          type: "SingleMatchIssue",
+          data: { pdf_line: mockPdfLine, db_match: dbMatch },
+        } as ReconciliationMatch,
+      ],
+    };
+
+    render(
+      <ReconciliationResultsView
+        result={result}
+        acceptedKeys={new Set(["FundMismatch-proc-1"])}
+        autoCorrections={new Map()}
+        onAcceptCorrection={vi.fn()}
+        onUnacceptCorrection={onUnacceptCorrection}
+      />,
+    );
+
+    await user.click(screen.getByText("Modify"));
+
+    expect(onUnacceptCorrection).toHaveBeenCalledWith([
+      "FundMismatch-proc-1",
+      "ContestAmount-proc-1",
+    ]);
+  });
+
+  it("does not show Undo while the issue is unresolved", () => {
+    const dbMatch: DbMatch = {
+      procedure_id: "proc-1",
+      procedure_date: "2025-02-06",
+      fund_id: "fund-other",
+      amount: 50000,
+      anomalies: ["FundMismatch"],
+    };
+    const result: ReconciliationResult = {
+      matches: [
+        {
+          type: "SingleMatchIssue",
+          data: { pdf_line: mockPdfLine, db_match: dbMatch },
+        } as ReconciliationMatch,
+      ],
+    };
+
+    render(<ReconciliationResultsView result={result} {...defaultProps} />);
+
+    expect(screen.queryByText("Modify")).toBeNull();
   });
 });
 

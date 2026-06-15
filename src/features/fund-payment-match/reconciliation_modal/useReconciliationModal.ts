@@ -117,6 +117,22 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
     setAutoCorrections((prev) => new Map(prev).set(key, correction));
   }, []);
 
+  // FPA-460 — un-handle: drop all staged corrections for an issue so it returns
+  // to its unresolved, editable state. Nothing is persisted until handleValidate,
+  // so this is a pure in-memory revert with no backend round-trip.
+  const handleUnacceptCorrection = useCallback((keys: string[]) => {
+    setAcceptedKeys((prev) => {
+      const next = new Set(prev);
+      for (const key of keys) next.delete(key);
+      return next;
+    });
+    setAutoCorrections((prev) => {
+      const next = new Map(prev);
+      for (const key of keys) next.delete(key);
+      return next;
+    });
+  }, []);
+
   const handleReportResolvedCount = useCallback((count: number) => {
     setResolvedCount(count);
   }, []);
@@ -219,13 +235,6 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
     }
   }, [reconciliationData, parsedData, autoCorrections, onClose, t]);
 
-  // Auto-validate when all issues are resolved (does not retry after failure)
-  useEffect(() => {
-    if (!canValidate || isValidating || unreconciledReport !== null || validationError !== null)
-      return;
-    handleValidate();
-  }, [canValidate, isValidating, unreconciledReport, validationError, handleValidate]);
-
   return {
     reconciliationData,
     alreadyImported,
@@ -240,10 +249,13 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
     validationError,
     unreconciledReport,
     reportDateRange,
+    canValidate,
     handleAcceptCorrection,
+    handleUnacceptCorrection,
     handleReportResolvedCount,
     handleReportUnresolvedGroupCount,
     handleAutoCorrectAll,
+    handleValidate,
     unresolvedGroupCount,
   };
 }

@@ -8,6 +8,26 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-06-15 — `handleValidate` stores a translated string in `validationError` (F27 layer violation)
+
+**Found by:** reviewer-frontend (FPA-460 supersession branch)
+
+**Where:** `src/features/fund-payment-match/reconciliation_modal/useReconciliationModal.ts` — `handleValidate` coerces `result.error` via `formatReconciliationError` + `t()` and stores a `string` in `validationError` (the PDF-load `error` state does the same).
+
+**Observation:** F27 wants the hook (Layer 2) to store the _typed_ error and let the presenter (Layer 3) map `code → i18n key` and the component (Layer 4) translate. Today the hook translates eagerly, collapsing the typed `FundPaymentReconciliationError` to a display string. Pre-existing — `handleValidate` predates the FPA-460 change (the diff only surfaced it in the hook's return object). Fix when the reconciliation error pipeline is next touched: store the typed error in state, move `formatReconciliationError` into a presenter, translate in the component.
+
+---
+
+## 2026-06-15 — fund-payment-match i18n keys use camelCase segments (i18n-rules §31 snake_case)
+
+**Found by:** reviewer-frontend (FPA-460 supersession branch)
+
+**Where:** `src/i18n/locales/{en,fr}/fund-payment-match.json` — ~46 keys use camelCase segments (`autoCorrect`, `validateSuccess`, `prevAria`, `correctAmount`, …).
+
+**Observation:** `docs/i18n-rules.md` §31 mandates snake_case for every key segment. This namespace predates the rule and is uniformly camelCase. New keys added by the FPA-460 change (`validate`, `undo`, `undoAria`) followed the established in-file convention on purpose — introducing a split would leave the namespace half-migrated, which is worse than either pure state. Resolve as a dedicated `refactor(i18n)` pass (rename JSON keys + their `t()` call sites across the feature), not piecemeal; likely affects other feature namespaces too, so audit scope before scheduling.
+
+---
+
 ## 2026-05-27 — `formatBankError` ownership: presenter lives in `bank-account` but two features consume it
 
 **Found by:** reviewer-arch (`refactor/typed-errors-fund-bank` @ `ea606ad`)

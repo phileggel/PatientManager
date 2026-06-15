@@ -111,7 +111,9 @@ Action applied per anomaly type:
 | `GroupMatchIssue`                     | Not handled — button hidden as long as group issues remain unresolved                                                     |
 | `TooManyMatchIssue`                   | Not handled — button hidden                                                                                               |
 
-**FPA-460 (R26) — Auto-validation (frontend)**: As soon as all anomalies are resolved, validation is triggered automatically without user action. On failure, the cycle is not retried.
+**FPA-460 (R26) — Staged corrections + explicit validation (frontend)**: Corrections (correct / contest / link / create) are **staged in memory and remain fully reversible** until the user explicitly applies them — nothing is written to the database before that point. While reviewing anomalies the user may navigate back to any already-resolved anomaly and **un-handle it** (clearing its staged correction so the anomaly returns to its editable, unresolved state) or **modify it** (un-handle, then pick a different correction). Validation is **not** triggered automatically: once every anomaly is resolved, an explicit **Validate** action applies the whole correction batch in a single operation. On failure the batch is not retried automatically; the staged corrections are preserved so the user can adjust and re-validate.
+
+> Supersedes the previous FPA-460, which auto-triggered validation the instant all anomalies were resolved. That behaviour left no window to review or undo a staged correction before the irreversible write. Changed because corrections must be reviewable and reversible until one deliberate apply step.
 
 **FPA-470 — Last-folder memory (frontend)**: When the user successfully picks a fund-payment PDF from the OS file dialog, the parent folder of the picked file is persisted in `localStorage` under the per-feature key `import-last-folder:fund-pdf`. On the next fund-payment import, that folder is passed to the dialog as `defaultPath`. Excel and bank-statement imports use independent slots (`import-last-folder:excel` / `import-last-folder:bank-pdf`) and do not share this default. Cancelling the dialog leaves the persisted folder untouched. If the persisted folder is no longer reachable, the native dialog opens at the OS's own fallback (home or last-used location depending on platform); no explicit fallback resolution happens in the app.
 
@@ -146,15 +148,16 @@ Action applied per anomaly type:
   → TooManyMatchIssue shown first (blocking)
   → Then anomalies in PDF document order
   → For each anomaly: correction / contest / link buttons
+  → Resolved anomalies can be un-handled / modified (corrections staged, reversible)
   → Progress bar + automatic advancement
           │
           ▼
 [All anomalies resolved?]
   → No: the user continues correcting
-  → Yes: auto-validation triggered
+  → Yes: explicit "Validate" action enabled (FPA-460)
           │
           ▼
-[Apply corrections + create fund payment] (backend)
+[User clicks Validate → apply corrections + create fund payment] (backend)
   → Duplicate check: reject if the same PDF has already been imported
   → Update procedures per AutoCorrections
   → Resolve fund labels (creating funds if needed)
