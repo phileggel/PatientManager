@@ -34,11 +34,11 @@ describe("fund smoke", () => {
     await setReactInputValue("add-fund-identifier", FUND_IDENTIFIER);
     await setReactInputValue("add-fund-name", FUND_NAME);
 
-    const submitBtn = await $('button[type="submit"]');
+    const submitBtn = await $('button[type="submit"][form="add-fund-form"]');
     await submitBtn.waitForEnabled({ timeout: 5000 });
     await submitBtn.click();
 
-    const newRow = await $(`//td[text()="${FUND_IDENTIFIER}"]`);
+    const newRow = await $("#fund-list").$(`td=${FUND_IDENTIFIER}`);
     await newRow.waitForExist({ timeout: 10000 });
     assert.ok(await newRow.isExisting(), "Newly created fund should be visible in list");
   });

@@ -48,7 +48,7 @@ describe("procedure-type smoke", () => {
     await submitBtn.click();
 
     // Modal should close and new row appear in list
-    const newRow = await $(`//td[text()="${PROCEDURE_TYPE_NAME}"]`);
+    const newRow = await $("#procedure-type-list").$(`td=${PROCEDURE_TYPE_NAME}`);
     await newRow.waitForExist({ timeout: 10000 });
     assert.ok(await newRow.isExisting(), "Newly created procedure type should be visible in list");
   });

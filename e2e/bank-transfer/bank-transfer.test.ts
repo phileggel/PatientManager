@@ -31,7 +31,7 @@ async function navigateToBankTransfer(): Promise<void> {
   const btCard = await $("#mgmt-card-bank-transfers");
   await btCard.waitForExist({ timeout: 8000 });
   await btCard.click();
-  await $(".m3-table-container").waitForExist({ timeout: 10000 });
+  await $("#bank-transfer-list").waitForExist({ timeout: 10000 });
 }
 
 describe("bank-transfer — PATIENT_CASH smoke", () => {
@@ -50,7 +50,7 @@ describe("bank-transfer — PATIENT_CASH smoke", () => {
   });
 
   it("bank-transfer page renders with the transfers table", async () => {
-    const table = await $(".m3-table-container");
+    const table = await $("#bank-transfer-list");
     assert.ok(await table.isExisting(), "Bank transfer page should render with a table");
   });
 
@@ -62,7 +62,9 @@ describe("bank-transfer — PATIENT_CASH smoke", () => {
     await setReactInputValue("transferDate", PROCEDURE_DATE_DISPLAY);
 
     // 3. Wait for the seeded procedure to appear and select it
-    const procedureLabel = await $(`//label[contains(., "${PATIENT_NAME}")]`);
+    const procedureLabel = await $("#bank-transfer-procedure-candidate-list").$(
+      `label*=${PATIENT_NAME}`,
+    );
     await procedureLabel.waitForExist({ timeout: 8000 });
     await procedureLabel.click();
 
@@ -72,7 +74,7 @@ describe("bank-transfer — PATIENT_CASH smoke", () => {
     await submitBtn.click();
 
     // 5. Assert the new row appears in the transfers list
-    const newRow = await $(`//td[text()="${PROCEDURE_DATE_DISPLAY}"]`);
+    const newRow = await $("#bank-transfer-list").$(`td=${PROCEDURE_DATE_DISPLAY}`);
     await newRow.waitForExist({ timeout: 10000 });
     assert.ok(await newRow.isExisting(), "Transfer row should appear in the list");
   });

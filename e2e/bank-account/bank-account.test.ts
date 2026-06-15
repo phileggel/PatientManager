@@ -32,7 +32,7 @@ describe("bank-account smoke", () => {
     const createBtn = await $('button[type="submit"][form="add-bank-account-form"]');
     await createBtn.waitForEnabled({ timeout: 5000 });
     await createBtn.click();
-    const seededRow = await $(`//td[text()="${SEED_NAME}"]`);
+    const seededRow = await $("#bank-account-list").$(`td=${SEED_NAME}`);
     await seededRow.waitForExist({ timeout: 10000 });
   });
 
@@ -55,7 +55,7 @@ describe("bank-account smoke", () => {
     await createBtn.waitForEnabled({ timeout: 5000 });
     await createBtn.click();
 
-    const newRow = await $(`//td[text()="${CREATE_NAME}"]`);
+    const newRow = await $("#bank-account-list").$(`td=${CREATE_NAME}`);
     await newRow.waitForExist({ timeout: 10000 });
     assert.ok(await newRow.isExisting(), "Newly created account should be visible in list");
   });
@@ -91,7 +91,7 @@ describe("bank-account smoke", () => {
     await form.waitForExist({ timeout: 8000, reverse: true });
     assert.strictEqual(await form.isExisting(), false, "Edit modal should close after update");
 
-    const updatedRow = await $(`//td[text()="${UPDATE_NAME}"]`);
+    const updatedRow = await $("#bank-account-list").$(`td=${UPDATE_NAME}`);
     await updatedRow.waitForExist({ timeout: 10000 });
     assert.ok(await updatedRow.isExisting(), "Updated name should be visible in list");
   });

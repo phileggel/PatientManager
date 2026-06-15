@@ -25,7 +25,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
   }, []);
 
   return (
-    <div className="m3-table-container flex-1">
+    <div id="bank-transfer-list" className="m3-table-container flex-1">
       <table className="w-full border-collapse">
         <thead className="sticky top-0 bg-m3-surface-container z-10">
           <tr>

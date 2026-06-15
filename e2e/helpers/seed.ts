@@ -105,7 +105,7 @@ export async function seedBankAccount(name: string): Promise<void> {
   const submitBtn = await $('button[type="submit"][form="add-bank-account-form"]');
   await submitBtn.waitForEnabled({ timeout: 5000 });
   await submitBtn.click();
-  await $(`//td[text()="${name}"]`).waitForExist({ timeout: 10000 });
+  await $("#bank-account-list").$(`td=${name}`).waitForExist({ timeout: 10000 });
 }
 
 export async function seedProcedureType(name: string, amount: string): Promise<void> {
@@ -125,7 +125,7 @@ export async function seedProcedureType(name: string, amount: string): Promise<v
   const submitBtn = await $('button[type="submit"][form="create-procedure-type-form"]');
   await submitBtn.waitForEnabled({ timeout: 5000 });
   await submitBtn.click();
-  await $(`//td[text()="${name}"]`).waitForExist({ timeout: 10000 });
+  await $("#procedure-type-list").$(`td=${name}`).waitForExist({ timeout: 10000 });
 }
 
 export async function seedPatient(name: string): Promise<void> {
@@ -136,10 +136,10 @@ export async function seedPatient(name: string): Promise<void> {
   await $("#patient-search").waitForExist({ timeout: 10000 });
 
   await setReactInputValue("add-patient-name", name);
-  const submitBtn = await $('button[type="submit"]');
+  const submitBtn = await $('button[type="submit"][form="add-patient-form"]');
   await submitBtn.waitForEnabled({ timeout: 5000 });
   await submitBtn.click();
-  await $(`//td[text()="${name}"]`).waitForExist({ timeout: 10000 });
+  await $("#patient-list").$(`td=${name}`).waitForExist({ timeout: 10000 });
 }
 
 /**
