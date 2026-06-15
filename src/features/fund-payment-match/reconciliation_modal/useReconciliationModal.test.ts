@@ -17,7 +17,7 @@ const mockExtract = vi.mocked(gateway.extractPdfText);
 const mockParse = vi.mocked(gateway.parsePdfText);
 const mockReconcile = vi.mocked(gateway.reconcileAndCreateCandidates);
 
-// A PDF with 1 group and 1 line — computePdfDateRange returns a valid range, stopping the auto-validate loop
+// A PDF with 1 group and 1 line — computePdfDateRange returns a valid range
 const PDF_WITH_LINE = {
   groups: [
     {
@@ -98,7 +98,7 @@ describe("useReconciliationModal — direct state setters", () => {
     mockExtract.mockResolvedValue({ success: true, data: "PDF text" });
     // biome-ignore lint/suspicious/noExplicitAny: test fixture
     mockParse.mockResolvedValue(PDF_WITH_LINE as any);
-    // Use an anomaly so totalAnomalies=1 → canValidate=false → no auto-validate loop
+    // Use an anomaly so totalAnomalies=1 → canValidate=false (Validate stays disabled)
     // biome-ignore lint/suspicious/noExplicitAny: test fixture — ReconciliationMatch is a discriminated union that TypeScript widens
     mockReconcile.mockResolvedValue({ success: true, data: RECONCILE_WITH_ANOMALY } as any);
   });
@@ -155,7 +155,13 @@ describe("useReconciliationModal — handleValidate null dateRange calls onClose
       data: [],
     });
 
-    renderHook(() => useReconciliationModal("/test.pdf", onClose));
+    const { result } = renderHook(() => useReconciliationModal("/test.pdf", onClose));
+
+    // FPA-460 — validation is explicit; trigger it once the data has loaded.
+    await waitFor(() => expect(result.current.canValidate).toBe(true));
+    await act(async () => {
+      await result.current.handleValidate();
+    });
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(gateway.createFundPaymentWithAutoCorrections).toHaveBeenCalled();
@@ -258,7 +264,7 @@ describe("useReconciliationModal — typed gateway error surfaces a message (F27
     mockExtract.mockResolvedValue({ success: true, data: "PDF text" });
     // biome-ignore lint/suspicious/noExplicitAny: test fixture
     mockParse.mockResolvedValue(PDF_WITH_LINE as any); // valid date range
-    // No anomalies → canValidate=true → the auto-validate effect runs handleValidate.
+    // No anomalies → canValidate=true; FPA-460 makes validation explicit.
     // biome-ignore lint/suspicious/noExplicitAny: discriminated-union widening
     mockReconcile.mockResolvedValue({ success: true, data: RECONCILE_NO_ANOMALIES } as any);
     vi.mocked(gateway.createFundPaymentWithAutoCorrections).mockResolvedValue({
@@ -271,6 +277,11 @@ describe("useReconciliationModal — typed gateway error surfaces a message (F27
     });
 
     const { result } = renderHook(() => useReconciliationModal("/test.pdf", vi.fn()));
+
+    await waitFor(() => expect(result.current.canValidate).toBe(true));
+    await act(async () => {
+      await result.current.handleValidate();
+    });
 
     await waitFor(() => expect(result.current.validationError).toBeTruthy());
     expect(result.current.unreconciledReport).toBeNull();

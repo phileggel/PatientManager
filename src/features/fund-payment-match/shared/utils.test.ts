@@ -15,6 +15,7 @@ import {
   buildNotFoundCorrection,
   buildNotFoundKey,
   computePdfDateRange,
+  correctionKeysForMatch,
   countTotalAnomalies,
   sortIssuesByPriority,
 } from "./utils";
@@ -347,5 +348,71 @@ describe("buildNotFoundCorrection", () => {
         pdf_fund_label: "CPAM",
       },
     });
+  });
+});
+
+describe("correctionKeysForMatch", () => {
+  it("returns per-anomaly + contest keys for a SingleMatchIssue", () => {
+    const match = {
+      type: "SingleMatchIssue",
+      data: {
+        pdf_line: makePdfLine(0),
+        db_match: { ...makeDbMatch("p1"), anomalies: ["AmountMismatch", "DateMismatch"] },
+      },
+    } as ReconciliationMatch;
+    expect(correctionKeysForMatch(match)).toEqual([
+      "AmountMismatch-p1",
+      "DateMismatch-p1",
+      "ContestAmount-p1",
+    ]);
+  });
+
+  it("returns create + per-candidate link keys for a NotFoundIssue", () => {
+    const match = {
+      type: "NotFoundIssue",
+      data: {
+        pdf_line: makePdfLine(2),
+        nearby_candidates: [
+          {
+            procedure_id: "p-near",
+            patient_name: "X",
+            ssn: "1",
+            procedure_date: "2025-05-01",
+            amount: 1,
+          },
+        ],
+      },
+    } as ReconciliationMatch;
+    expect(correctionKeysForMatch(match)).toEqual(["CreateProcedure-2", "LinkProcedure-2-p-near"]);
+  });
+
+  it("returns deduped amount/contest keys per match for a GroupMatchIssue", () => {
+    const match = {
+      type: "GroupMatchIssue",
+      data: {
+        pdf_line: makePdfLine(0),
+        db_matches: [
+          { ...makeDbMatch("p1"), anomalies: ["AmountMismatch"] },
+          { ...makeDbMatch("p2"), anomalies: ["DateMismatch"] },
+        ],
+      },
+    } as ReconciliationMatch;
+    // p1's AmountMismatch appears via both the anomaly map and the always-staged
+    // amount key — deduped to a single entry.
+    expect(correctionKeysForMatch(match)).toEqual([
+      "AmountMismatch-p1",
+      "ContestAmount-p1",
+      "DateMismatch-p2",
+      "AmountMismatch-p2",
+      "ContestAmount-p2",
+    ]);
+  });
+
+  it("returns no keys for an unresolvable TooManyMatchIssue", () => {
+    const match = {
+      type: "TooManyMatchIssue",
+      data: { pdf_line: makePdfLine(0), candidate_ids: ["a", "b"] },
+    } as ReconciliationMatch;
+    expect(correctionKeysForMatch(match)).toEqual([]);
   });
 });

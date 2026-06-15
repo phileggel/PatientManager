@@ -46,10 +46,13 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
     validationError,
     unreconciledReport,
     reportDateRange,
+    canValidate,
     handleAcceptCorrection,
+    handleUnacceptCorrection,
     handleReportResolvedCount,
     handleReportUnresolvedGroupCount,
     handleAutoCorrectAll,
+    handleValidate,
     unresolvedGroupCount,
   } = useReconciliationModal(filePath, onClose);
 
@@ -148,6 +151,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
                 acceptedKeys={acceptedKeys}
                 autoCorrections={autoCorrections}
                 onAcceptCorrection={handleAcceptCorrection}
+                onUnacceptCorrection={handleUnacceptCorrection}
                 onReportResolvedCount={handleReportResolvedCount}
                 onReportUnresolvedGroupCount={handleReportUnresolvedGroupCount}
               />
@@ -176,13 +180,25 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
                 <Button variant="ghost" onClick={onClose}>
                   {t("modal.footer.cancel")}
                 </Button>
-                {blockingCount === 0 &&
-                  unresolvedGroupCount === 0 &&
-                  resolvedCount < totalAnomalies && (
-                    <Button variant="primary" loading={isValidating} onClick={handleAutoCorrectAll}>
-                      {t("modal.footer.autoCorrect")}
-                    </Button>
-                  )}
+                <div className="flex items-center gap-3">
+                  {blockingCount === 0 &&
+                    unresolvedGroupCount === 0 &&
+                    resolvedCount < totalAnomalies && (
+                      <Button variant="secondary" onClick={handleAutoCorrectAll}>
+                        {t("modal.footer.autoCorrect")}
+                      </Button>
+                    )}
+                  {/* FPA-460 — explicit batch apply; enabled once every anomaly is resolved. */}
+                  <Button
+                    id="reconciliation-modal-validate"
+                    variant="primary"
+                    loading={isValidating}
+                    disabled={!canValidate}
+                    onClick={handleValidate}
+                  >
+                    {t("modal.footer.validate")}
+                  </Button>
+                </div>
               </div>
             </div>
           )}

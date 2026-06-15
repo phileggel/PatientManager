@@ -32,6 +32,46 @@ export function buildContestKey(procedureId: string): string {
   return `ContestAmount-${procedureId}`;
 }
 
+/**
+ * Every correction key an issue could possibly hold, regardless of which the
+ * user actually accepted. Used to un-handle (FPA-460): clearing all of these
+ * from the staged correction state returns the issue to its unresolved,
+ * editable form. `TooManyMatchIssue` is unresolvable, so it contributes none.
+ */
+export function correctionKeysForMatch(match: ReconciliationMatch): string[] {
+  let keys: string[];
+  switch (match.type) {
+    case "SingleMatchIssue": {
+      const { procedure_id, anomalies } = match.data.db_match;
+      keys = [
+        ...anomalies.map((a) => buildCorrectionKey(a, procedure_id)),
+        buildContestKey(procedure_id),
+      ];
+      break;
+    }
+    case "GroupMatchIssue":
+      // The distribution always stages an AmountMismatch correction per match
+      // (the AmountField), even when AmountMismatch isn't a flagged anomaly.
+      keys = match.data.db_matches.flatMap((m) => [
+        ...m.anomalies.map((a) => buildCorrectionKey(a, m.procedure_id)),
+        buildCorrectionKey("AmountMismatch", m.procedure_id),
+        buildContestKey(m.procedure_id),
+      ]);
+      break;
+    case "NotFoundIssue":
+      keys = [
+        buildNotFoundKey(match.data.pdf_line),
+        ...match.data.nearby_candidates.map((c) =>
+          buildLinkProcedureKey(match.data.pdf_line.line_index, c.procedure_id),
+        ),
+      ];
+      break;
+    default:
+      return [];
+  }
+  return [...new Set(keys)];
+}
+
 // ─── Correction factories ─────────────────────────────────────────────────────
 
 export function buildAutoCorrection(

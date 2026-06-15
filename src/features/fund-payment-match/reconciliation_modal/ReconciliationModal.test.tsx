@@ -170,7 +170,9 @@ describe("ReconciliationModal", () => {
     });
   });
 
-  it("does not auto-validate when unresolved anomalies exist", async () => {
+  // FPA-460 — validation is never automatic: Validate is disabled while any
+  // anomaly is unresolved and nothing is committed without the explicit click.
+  it("does not validate (and keeps Validate disabled) while unresolved anomalies exist", async () => {
     (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: true,
       data: mockReconciliationWithAnomaly,
@@ -182,10 +184,13 @@ describe("ReconciliationModal", () => {
       expect(screen.getByText(/Auto-correct all/)).toBeInTheDocument();
     });
 
+    expect(screen.getByRole("button", { name: "Validate" })).toBeDisabled();
     expect(gateway.createFundPaymentWithAutoCorrections).not.toHaveBeenCalled();
   });
 
-  it("auto-validates after clicking Corriger automatiquement", async () => {
+  // FPA-460 — auto-correcting only STAGES corrections; the backend is not hit
+  // until the user explicitly clicks Validate.
+  it("stages corrections on auto-correct, then commits only on explicit Validate", async () => {
     const user = userEvent.setup();
 
     (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -205,18 +210,59 @@ describe("ReconciliationModal", () => {
 
     await user.click(screen.getByText(/Auto-correct all/));
 
+    // Staging is purely in-memory — no backend call yet.
+    expect(gateway.createFundPaymentWithAutoCorrections).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Validate" }));
+
     await waitFor(() => {
       expect(gateway.createFundPaymentWithAutoCorrections).toHaveBeenCalled();
     });
   });
 
-  it("auto-validates immediately when no anomalies", async () => {
+  // FPA-460 — un-handle: a resolved anomaly can be reverted, which re-disables
+  // Validate and re-exposes the correction action.
+  it("un-handles a resolved anomaly so it can be corrected again", async () => {
+    const user = userEvent.setup();
+
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: mockReconciliationWithAnomaly,
+    });
+
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    await user.click(await screen.findByText(/Auto-correct all/));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Validate" })).toBeEnabled();
+    });
+
+    await user.click(screen.getByText("Modify"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Validate" })).toBeDisabled();
+    });
+    expect(screen.getByText(/Auto-correct all/)).toBeInTheDocument();
+    expect(gateway.createFundPaymentWithAutoCorrections).not.toHaveBeenCalled();
+  });
+
+  it("commits with no corrections when no anomalies, after clicking Validate", async () => {
+    const user = userEvent.setup();
+
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: true,
       data: [],
     });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    const validateButton = await screen.findByRole("button", { name: "Validate" });
+
+    // Not auto-fired even though there is nothing to resolve.
+    expect(gateway.createFundPaymentWithAutoCorrections).not.toHaveBeenCalled();
+
+    await user.click(validateButton);
 
     await waitFor(() => {
       expect(gateway.createFundPaymentWithAutoCorrections).toHaveBeenCalledWith({
@@ -244,13 +290,17 @@ describe("ReconciliationModal", () => {
     expect(gateway.getUnreconciledProceduresInRange).not.toHaveBeenCalled();
   });
 
-  it("calls getUnreconciledProceduresInRange with date range derived from PDF after auto-validation", async () => {
+  it("calls getUnreconciledProceduresInRange with date range derived from PDF after validation", async () => {
+    const user = userEvent.setup();
+
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: true,
       data: [],
     });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    await user.click(await screen.findByRole("button", { name: "Validate" }));
 
     await waitFor(() => {
       expect(gateway.getUnreconciledProceduresInRange).toHaveBeenCalledWith(
@@ -271,6 +321,8 @@ describe("ReconciliationModal", () => {
     });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    await user.click(await screen.findByRole("button", { name: "Validate" }));
 
     await waitFor(() => {
       expect(screen.getByText(/Unreconciled procedures/)).toBeInTheDocument();
@@ -311,6 +363,8 @@ describe("ReconciliationModal", () => {
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
 
+    await user.click(await screen.findByRole("button", { name: "Validate" }));
+
     await waitFor(() => {
       expect(screen.getByText(/Unreconciled procedures/)).toBeInTheDocument();
     });
@@ -339,6 +393,8 @@ describe("ReconciliationModal", () => {
     });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    await user.click(await screen.findByRole("button", { name: "Validate" }));
 
     await waitFor(() => {
       expect(screen.getByText(/Unreconciled procedures/)).toBeInTheDocument();
@@ -371,7 +427,9 @@ describe("ReconciliationModal", () => {
     expect(screen.queryByRole("button", { name: /report/i })).not.toBeInTheDocument();
   });
 
-  it("shows error message when auto-validation fails", async () => {
+  it("shows error message when validation fails", async () => {
+    const user = userEvent.setup();
+
     // F27: typed error from the gateway → presenter → translated message.
     (gateway.createFundPaymentWithAutoCorrections as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: false,
@@ -379,6 +437,8 @@ describe("ReconciliationModal", () => {
     });
 
     render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    await user.click(await screen.findByRole("button", { name: "Validate" }));
 
     await waitFor(() => {
       expect(screen.getByText(/database/i)).toBeInTheDocument();
