@@ -17,7 +17,7 @@ export function AddFundPanel() {
   const { formData, errors, loading, handleChange, handleSubmit } = useAddFundPanel();
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form id="add-fund-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
       <fieldset disabled={loading} className="disabled:opacity-50">
         <FundForm
           formData={formData}
@@ -26,7 +26,13 @@ export function AddFundPanel() {
           idPrefix="add-fund"
         />
       </fieldset>
-      <Button type="submit" variant="primary" loading={loading} icon={<Building2 size={18} />}>
+      <Button
+        type="submit"
+        form="add-fund-form"
+        variant="primary"
+        loading={loading}
+        icon={<Building2 size={18} />}
+      >
         {loading ? t("action.adding") : t("action.add")}
       </Button>
     </form>

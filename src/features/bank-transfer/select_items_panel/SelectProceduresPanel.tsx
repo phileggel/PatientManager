@@ -89,7 +89,10 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
             : t("transfer.selectProcedures.empty")}
         </p>
       ) : (
-        <div className="bg-m3-surface-container-low rounded-xl flex flex-col max-h-48 overflow-y-auto">
+        <div
+          id="bank-transfer-procedure-candidate-list"
+          className="bg-m3-surface-container-low rounded-xl flex flex-col max-h-48 overflow-y-auto"
+        >
           {filteredCandidates.map((proc) => (
             <label
               key={proc.procedure_id}

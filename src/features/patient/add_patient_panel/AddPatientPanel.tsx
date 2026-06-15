@@ -16,7 +16,7 @@ export function AddPatientPanel() {
   const { formData, errors, loading, handleChange, handleSubmit } = useAddPatientPanel();
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form id="add-patient-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
       <fieldset disabled={loading} className="disabled:opacity-50">
         <PatientForm
           formData={formData}
@@ -25,7 +25,13 @@ export function AddPatientPanel() {
           idPrefix="add-patient"
         />
       </fieldset>
-      <Button type="submit" variant="primary" loading={loading} icon={<UserPlus size={18} />}>
+      <Button
+        type="submit"
+        form="add-patient-form"
+        variant="primary"
+        loading={loading}
+        icon={<UserPlus size={18} />}
+      >
         {loading ? t("action.adding") : t("action.add")}
       </Button>
     </form>
