@@ -4,29 +4,29 @@
     "procedures": "Procedures",
     "patient": "Patients",
     "funds": "Funds",
-    "procedureTypes": "Procedure Types",
-    "excelImport": "Excel Import",
-    "fundPayment": "Fund Payment",
+    "procedure_types": "Procedure Types",
+    "excel_import": "Excel Import",
+    "fund_payment": "Fund Payment",
     "reconciliation": "Fund Reconciliation",
-    "bankTransfer": "Bank Transfer",
-    "bankAccount": "Bank Accounts",
-    "bankStatement": "Bank Reconciliation",
+    "bank_transfer": "Bank Transfer",
+    "bank_account": "Bank Accounts",
+    "bank_statement": "Bank Reconciliation",
     "import": "Import",
     "management": "Management",
-    "dbBackup": "Backup",
-    "designSystem": "Design System",
-    "mainNavigation": "Main navigation",
-    "expandDrawer": "Expand menu",
-    "collapseDrawer": "Collapse menu",
+    "db_backup": "Backup",
+    "design_system": "Design System",
+    "main_navigation": "Main navigation",
+    "expand_drawer": "Expand menu",
+    "collapse_drawer": "Collapse menu",
     "theme": {
       "day": "Switch to night mode",
       "night": "Switch to auto mode",
       "auto": "Switch to day mode"
     },
     "subtitle": {
-      "excelImport": "Upload an Excel file to import patients, funds, and procedures into the database.",
+      "excel_import": "Upload an Excel file to import patients, funds, and procedures into the database.",
       "reconciliation": "Upload a PDF payment statement to reconcile with procedures in the database.",
-      "bankStatement": "Upload a bank statement PDF to reconcile transfers with fund payment groups."
+      "bank_statement": "Upload a bank statement PDF to reconcile transfers with fund payment groups."
     }
   },
   "action": {
@@ -40,18 +40,18 @@
     "continue": "Continue",
     "retry": "Retry",
     "search": "Search",
-    "clearSearch": "Clear search",
+    "clear_search": "Clear search",
     "dismiss": "Dismiss"
   },
   "aria": {
-    "dismissNotification": "Dismiss notification"
+    "dismiss_notification": "Dismiss notification"
   },
   "field": {
-    "datePlaceholder": "MM/DD/YYYY",
-    "clearAriaLabel": "Clear",
-    "amountAriaLabel": "Amount",
-    "previousMonth": "Previous month",
-    "nextMonth": "Next month"
+    "date_placeholder": "MM/DD/YYYY",
+    "clear_aria_label": "Clear",
+    "amount_aria_label": "Amount",
+    "previous_month": "Previous month",
+    "next_month": "Next month"
   },
   "state": {
     "loading": "Loading...",
@@ -62,9 +62,9 @@
   },
   "table": {
     "actions": "Actions",
-    "noData": "No results found.",
+    "no_data": "No results found.",
     "loading": "Loading...",
-    "doubleClickToEdit": "Double-click to edit",
+    "double_click_to_edit": "Double-click to edit",
     "total": "Total"
   },
   "validation": {
@@ -73,7 +73,7 @@
     "existing": "Already exists"
   },
   "error": {
-    "requiredFields": "Please fill in all required fields.",
+    "required_fields": "Please fill in all required fields.",
     "unknown": "An unexpected error occurred.",
     "loading": "Error loading data"
   },

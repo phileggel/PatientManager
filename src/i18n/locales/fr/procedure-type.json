@@ -1,18 +1,18 @@
 {
   "page": {
     "title": "Types d'actes",
-    "searchPlaceholder": "Rechercher un type d'acte..."
+    "search_placeholder": "Rechercher un type d'acte..."
   },
   "form": {
     "name": "Nom du type d'acte",
-    "namePlaceholder": "ex. : Consultation",
+    "name_placeholder": "ex. : Consultation",
     "amount": "Montant par défaut (€)",
     "category": "Catégorie",
-    "amountPlaceholder": "0,00",
-    "categoryPlaceholder": "ex. : Médical",
-    "nameRequired": "Le nom est obligatoire",
-    "amountRequired": "Le montant par défaut est obligatoire",
-    "amountInvalid": "Le montant par défaut doit être un nombre valide"
+    "amount_placeholder": "0,00",
+    "category_placeholder": "ex. : Médical",
+    "name_required": "Le nom est obligatoire",
+    "amount_required": "Le montant par défaut est obligatoire",
+    "amount_invalid": "Le montant par défaut doit être un nombre valide"
   },
   "list": {
     "name": "Nom",
@@ -20,31 +20,31 @@
     "category": "Catégorie",
     "loading": "Chargement des types d'actes...",
     "empty": "Aucun type d'acte. Utilisez le bouton + pour en créer un.",
-    "noResults": "Aucun type d'acte ne correspond à votre recherche.",
-    "loadError": "Impossible de charger les types d'actes.",
+    "no_results": "Aucun type d'acte ne correspond à votre recherche.",
+    "load_error": "Impossible de charger les types d'actes.",
     "retry": "Réessayer"
   },
   "action": {
     "add": "Ajouter un type d'acte",
-    "addTitle": "Nouveau type d'acte",
-    "fabAriaLabel": "Créer un type d'acte",
+    "add_title": "Nouveau type d'acte",
+    "fab_aria_label": "Créer un type d'acte",
     "adding": "Ajout en cours...",
     "update": "Mettre à jour",
     "updating": "Mise à jour...",
-    "editTitle": "Modifier le type d'acte",
-    "addSuccess": "Type d'acte ajouté avec succès",
-    "addError": "Échec de l'ajout du type d'acte : {{error}}",
-    "updateSuccess": "Type d'acte \"{{name}}\" mis à jour avec succès",
-    "updateError": "Échec de la mise à jour du type d'acte : {{error}}",
-    "editAriaLabel": "Modifier le type d'acte {{name}}",
-    "deleteAriaLabel": "Supprimer le type d'acte {{name}}",
+    "edit_title": "Modifier le type d'acte",
+    "add_success": "Type d'acte ajouté avec succès",
+    "add_error": "Échec de l'ajout du type d'acte : {{error}}",
+    "update_success": "Type d'acte \"{{name}}\" mis à jour avec succès",
+    "update_error": "Échec de la mise à jour du type d'acte : {{error}}",
+    "edit_aria_label": "Modifier le type d'acte {{name}}",
+    "delete_aria_label": "Supprimer le type d'acte {{name}}",
     "delete": {
       "title": "Supprimer un type d'acte",
       "message": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
       "confirm": "Supprimer",
       "success": "Type d'acte \"{{name}}\" supprimé avec succès",
       "error": "Échec de la suppression du type d'acte : {{error}}",
-      "failedFallback": "Échec de la suppression du type d'acte"
+      "failed_fallback": "Échec de la suppression du type d'acte"
     }
   },
   "errors": {

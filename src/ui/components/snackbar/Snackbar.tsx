@@ -57,7 +57,7 @@ export function Snackbar({ type, message, onDismiss }: SnackbarProps) {
         type="button"
         onClick={onDismiss}
         className="hover:opacity-70 p-1 shrink-0 transition-opacity"
-        aria-label={t("aria.dismissNotification")}
+        aria-label={t("aria.dismiss_notification")}
       >
         <X size={18} />
       </button>

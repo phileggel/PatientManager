@@ -47,10 +47,10 @@ export function NotFoundCard({
   return (
     <div className="m3-card-elevated space-y-4">
       <div className="flex items-start justify-between gap-3">
-        <IssueChip label={t("results.issueType.notFound")} variant="error" />
+        <IssueChip label={t("results.issue_type.not_found")} variant="error" />
         {isResolved && (
           <ResolvedBadge
-            label={isCreateAccepted ? t("results.action.willCreate") : t("results.action.linked")}
+            label={isCreateAccepted ? t("results.action.will_create") : t("results.action.linked")}
           />
         )}
       </div>

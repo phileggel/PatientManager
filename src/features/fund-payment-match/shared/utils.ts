@@ -144,14 +144,14 @@ export function buildNotFoundCorrection(line: NormalizedPdfLine): AutoCorrection
 
 /** Format procedure date for display. Single dates render via the locale-aware
  * short-date helper; period dates render both endpoints localized and joined
- * through the `format.datePeriod` i18n key. */
+ * through the `format.date_period` i18n key. */
 export function formatProcedureDateFromLine(
   line: NormalizedPdfLine,
   t: TFunction<"fund-payment-match">,
   locale: string,
 ): string {
   if (line.is_period) {
-    return t("format.datePeriod", {
+    return t("format.date_period", {
       start: formatShortDate(line.procedure_start_date, locale),
       end: formatShortDate(line.procedure_end_date, locale),
     });

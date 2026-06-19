@@ -8,19 +8,19 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       const map: Record<string, string> = {
-        "labelMapping.title": "Associations labels → organismes",
-        "labelMapping.description": "Description",
-        "labelMapping.accept": "Accepter",
-        "labelMapping.saving": "Enregistrement...",
-        "labelMapping.selectPlaceholder": "-- Sélectionner --",
-        "labelMapping.rejected": "REJETÉ",
-        "labelMapping.fundsGroup": "Organismes",
-        "labelMapping.sectionUnknown": "Labels inconnus",
-        "labelMapping.sectionConfirmed": "Labels déjà enregistrés",
-        "labelMapping.empty": "Aucun label.",
+        "label_mapping.title": "Associations labels → organismes",
+        "label_mapping.description": "Description",
+        "label_mapping.accept": "Accepter",
+        "label_mapping.saving": "Enregistrement...",
+        "label_mapping.select_placeholder": "-- Sélectionner --",
+        "label_mapping.rejected": "REJETÉ",
+        "label_mapping.funds_group": "Organismes",
+        "label_mapping.section_unknown": "Labels inconnus",
+        "label_mapping.section_confirmed": "Labels déjà enregistrés",
+        "label_mapping.empty": "Aucun label.",
       };
-      if (key === "labelMapping.fundAriaLabel" && opts) return `Organisme pour ${opts.label}`;
-      if (key === "labelMapping.suggestion" && opts) return `Suggestion : ${opts.name}`;
+      if (key === "label_mapping.fund_aria_label" && opts) return `Organisme pour ${opts.label}`;
+      if (key === "label_mapping.suggestion" && opts) return `Suggestion : ${opts.name}`;
       return map[key] ?? key;
     },
   }),

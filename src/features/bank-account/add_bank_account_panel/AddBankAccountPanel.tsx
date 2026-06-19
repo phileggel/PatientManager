@@ -42,7 +42,7 @@ export function AddBankAccountPanel() {
         loading={loading}
         icon={<Landmark size={18} />}
       >
-        {loading ? t("account.creating") : t("account.createButton")}
+        {loading ? t("account.creating") : t("account.create_button")}
       </Button>
     </form>
   );

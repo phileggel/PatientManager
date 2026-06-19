@@ -76,23 +76,23 @@ function AppContent() {
       case "funds":
         return t("nav.funds");
       case "procedure-types":
-        return t("nav.procedureTypes");
+        return t("nav.procedure_types");
       case "excel-import":
-        return t("nav.excelImport");
+        return t("nav.excel_import");
       case "fund-payment":
-        return t("nav.fundPayment");
+        return t("nav.fund_payment");
       case "fund-payment-match":
         return t("nav.reconciliation");
       case "bank-transfer":
-        return t("nav.bankTransfer");
+        return t("nav.bank_transfer");
       case "bank-account":
-        return t("nav.bankAccount");
+        return t("nav.bank_account");
       case "bank-statement-match":
-        return t("nav.bankStatement");
+        return t("nav.bank_statement");
       case "dashboard":
         return t("nav.dashboard");
       case "design-system":
-        return t("nav.designSystem");
+        return t("nav.design_system");
       default:
         return t("nav.dashboard");
     }
@@ -101,11 +101,11 @@ function AppContent() {
   const pageSubtitle = useMemo(() => {
     switch (currentPage) {
       case "excel-import":
-        return t("nav.subtitle.excelImport");
+        return t("nav.subtitle.excel_import");
       case "fund-payment-match":
         return t("nav.subtitle.reconciliation");
       case "bank-statement-match":
-        return t("nav.subtitle.bankStatement");
+        return t("nav.subtitle.bank_statement");
       default:
         return undefined;
     }

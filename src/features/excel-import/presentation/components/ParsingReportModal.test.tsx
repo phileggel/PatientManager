@@ -135,7 +135,7 @@ describe("ParsingReportModal — missing sheets", () => {
         executeSkippedRows={[]}
       />,
     );
-    // Each entry rendered ONCE via t("sheetSelection.sheets.${sheet}") — no canonical+full pair
+    // Each entry rendered ONCE via t("sheet_selection.sheets.${sheet}") — no canonical+full pair
     expect(screen.getByText("June")).toBeInTheDocument();
     expect(screen.getByText("July")).toBeInTheDocument();
     expect(screen.getByText("August")).toBeInTheDocument();

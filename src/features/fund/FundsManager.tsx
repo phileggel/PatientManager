@@ -34,11 +34,11 @@ export function FundsManager() {
       count={count}
       searchTerm={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("page.searchPlaceholder")}
+      searchPlaceholder={t("page.search_placeholder")}
       table={<FundList searchTerm={searchTerm} />}
       sidePanelTitle={t("action.add")}
       sidePanelIcon={<Plus size={24} strokeWidth={2.5} />}
-      sidePanelDescription={t("page.addDescription")}
+      sidePanelDescription={t("page.add_description")}
       sidePanelContent={<AddFundPanel />}
     />
   );

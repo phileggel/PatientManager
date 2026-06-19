@@ -11,7 +11,7 @@ export function DoneStep({ createdCount }: DoneStepProps) {
       <p className="text-lg font-medium text-m3-on-success-container">
         {t("statement.modal.done", { count: createdCount })}
       </p>
-      <p className="text-m3-on-surface-variant">{t("statement.modal.doneDescription")}</p>
+      <p className="text-m3-on-surface-variant">{t("statement.modal.done_description")}</p>
     </div>
   );
 }

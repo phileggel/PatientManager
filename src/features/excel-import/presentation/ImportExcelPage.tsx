@@ -186,7 +186,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
             role="alert"
             aria-live="polite"
           >
-            <p className="font-medium">{t("status.importFailed")}</p>
+            <p className="font-medium">{t("status.import_failed")}</p>
             <p className="text-sm mt-1 opacity-90">{error}</p>
             <div className="flex gap-2 mt-3">
               <Button onClick={handleRetry}>{t("status.retry")}</Button>
@@ -226,7 +226,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
         <FormModal
           id="excel-mapping-procedure-types-modal"
           isOpen={currentStep === "mapping_procedure_types" && parsed !== null}
-          title={t("mapping.modalTitle")}
+          title={t("mapping.modal_title")}
           onClose={handleMappingModalClose}
           maxWidth="max-w-3xl"
           maxHeight="max-h-[80vh]"
@@ -247,37 +247,37 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
               <p className="font-medium text-m3-on-tertiary-container">{t("result.title")}</p>
               <div className="mt-4 grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm text-neutral-70">{t("result.patientsProcessed")}</p>
+                  <p className="text-sm text-neutral-70">{t("result.patients_processed")}</p>
                   <p className="text-2xl font-bold text-m3-primary">
                     {importResult.patients_created + importResult.patients_reused}
                   </p>
                   <p className="text-xs text-neutral-50">
-                    {t("result.createdReused", {
+                    {t("result.created_reused", {
                       created: importResult.patients_created,
                       reused: importResult.patients_reused,
                     })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-neutral-70">{t("result.fundsProcessed")}</p>
+                  <p className="text-sm text-neutral-70">{t("result.funds_processed")}</p>
                   <p className="text-2xl font-bold text-m3-primary">
                     {importResult.funds_created + importResult.funds_reused}
                   </p>
                   <p className="text-xs text-neutral-50">
-                    {t("result.createdReused", {
+                    {t("result.created_reused", {
                       created: importResult.funds_created,
                       reused: importResult.funds_reused,
                     })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-neutral-70">{t("result.proceduresCreated")}</p>
+                  <p className="text-sm text-neutral-70">{t("result.procedures_created")}</p>
                   <p className="text-2xl font-bold text-m3-primary">
                     {importResult.procedures_created}
                   </p>
                   {importResult.procedures_deleted > 0 && (
                     <p className="text-xs text-neutral-50">
-                      {t("result.deletedBeforeReimport", {
+                      {t("result.deleted_before_reimport", {
                         count: importResult.procedures_deleted,
                       })}
                     </p>
@@ -294,7 +294,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
             {importResult.blocked_months.length > 0 && (
               <div className="p-4 bg-m3-secondary-container/20 rounded-xl">
                 <p className="font-medium text-m3-on-secondary-container">
-                  {t("result.blockedMonthsTitle")}
+                  {t("result.blocked_months_title")}
                 </p>
                 <p className="text-sm text-m3-on-secondary-container/80 mt-1">
                   {importResult.blocked_months.join(", ")}
@@ -305,7 +305,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
             {parsed && (
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => setShowParsingReport(true)}>
-                  {t("result.viewReport")}
+                  {t("result.view_report")}
                 </Button>
               </div>
             )}

@@ -62,7 +62,7 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
           variant="ghost"
           shape="round"
           onClick={onClose}
-          aria-label={t("statement.modal.closeAria")}
+          aria-label={t("statement.modal.close_aria")}
         />
       </div>
 
@@ -128,8 +128,8 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
               loading={isCreatingAccount}
             >
               {isCreatingAccount
-                ? t("statement.modal.createAccount.submitting")
-                : t("statement.modal.createAccount.submit")}
+                ? t("statement.modal.create_account.submitting")
+                : t("statement.modal.create_account.submit")}
             </Button>
           )}
 
@@ -147,7 +147,7 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
 
           {step === "create-account" && (
             <Button onClick={onClose} variant="secondary" disabled={isCreatingAccount}>
-              {t("statement.modal.createAccount.cancel")}
+              {t("statement.modal.create_account.cancel")}
             </Button>
           )}
         </div>

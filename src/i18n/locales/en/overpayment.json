@@ -1,34 +1,34 @@
 {
   "modal": {
     "title": "Record Overpayment",
-    "confirmTitle": "Confirm Refund",
-    "cancelTitle": "Cancel Refund",
-    "confirmBody": "This will create a negative bank transfer and fund payment group to offset the overpayment.",
-    "cancelBody": "This will permanently cancel the refund and revert the source procedure to its previous status.",
-    "viewTitle": "Overpaid Procedure",
-    "refundViewTitle": "Overpayment Refund",
-    "closeAriaLabel": "Close"
+    "confirm_title": "Confirm Refund",
+    "cancel_title": "Cancel Refund",
+    "confirm_body": "This will create a negative bank transfer and fund payment group to offset the overpayment.",
+    "cancel_body": "This will permanently cancel the refund and revert the source procedure to its previous status.",
+    "view_title": "Overpaid Procedure",
+    "refund_view_title": "Overpayment Refund",
+    "close_aria_label": "Close"
   },
   "form": {
-    "refundDate": "Repayment Date",
-    "paymentMethod": "Payment Method",
-    "bankAccount": "Bank Account",
+    "refund_date": "Repayment Date",
+    "payment_method": "Payment Method",
+    "bank_account": "Bank Account",
     "reason": "Reason (optional)",
-    "sourceProcedure": "Source Procedure",
-    "selectBankAccount": "Select a bank account",
-    "selectPaymentMethod": "Select a payment method"
+    "source_procedure": "Source Procedure",
+    "select_bank_account": "Select a bank account",
+    "select_payment_method": "Select a payment method"
   },
   "action": {
     "refund": "Refund",
-    "cancelRefund": "Cancel Refund",
-    "confirmRefund": "Confirm Refund"
+    "cancel_refund": "Cancel Refund",
+    "confirm_refund": "Confirm Refund"
   },
-  "paymentMethod": {
-    "creditCard": "Credit Card",
+  "payment_method": {
+    "credit_card": "Credit Card",
     "check": "Check",
-    "outgoingWire": "Outgoing Wire Transfer"
+    "outgoing_wire": "Outgoing Wire Transfer"
   },
-  "noAccountTooltip": "A bank account must be created before recording a refund.",
+  "no_account_tooltip": "A bank account must be created before recording a refund.",
   "success": {
     "created": "Refund recorded successfully.",
     "cancelled": "Refund cancelled successfully."
@@ -36,10 +36,10 @@
   "error": {
     "create": "Failed to record the refund.",
     "cancel": "Failed to cancel the refund.",
-    "refundDate": "Refund date is required and must not be in the future.",
-    "paymentMethod": "Payment method is required.",
-    "bankAccount": "Bank account is required.",
-    "reasonTooLong": "Reason must not exceed 255 characters."
+    "refund_date": "Refund date is required and must not be in the future.",
+    "payment_method": "Payment method is required.",
+    "bank_account": "Bank account is required.",
+    "reason_too_long": "Reason must not exceed 255 characters."
   },
   "errors": {
     "source_procedure_not_found": "Source procedure not found.",

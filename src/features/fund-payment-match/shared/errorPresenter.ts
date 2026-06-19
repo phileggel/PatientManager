@@ -106,6 +106,6 @@ export function formatReportPdfError(err: ReportPdfError): { key: string } {
     case "PdfGenerationFailed":
     case "WriteFailed":
     case "OpenFailed":
-      return { key: "fund-payment-match:modal.report.error.exportFailed" };
+      return { key: "fund-payment-match:modal.report.error.export_failed" };
   }
 }

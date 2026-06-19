@@ -41,9 +41,9 @@ export function useCreateProcedureTypeModal(isOpen: boolean, onClose: () => void
     e.preventDefault();
 
     const newErrors = validateProcedureType(formData, {
-      nameRequired: t("form.nameRequired"),
-      amountRequired: t("form.amountRequired"),
-      amountInvalid: t("form.amountInvalid"),
+      nameRequired: t("form.name_required"),
+      amountRequired: t("form.amount_required"),
+      amountInvalid: t("form.amount_invalid"),
     });
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
@@ -63,12 +63,12 @@ export function useCreateProcedureTypeModal(isOpen: boolean, onClose: () => void
 
       if (result.success) {
         logger.info("Procedure type created successfully");
-        toastService.show("success", t("action.addSuccess"));
+        toastService.show("success", t("action.add_success"));
         onClose();
       } else {
         const { key, params } = formatProcedureError(result.error);
         logger.error("Failed to create procedure type", { code: result.error.code });
-        toastService.show("error", t("action.addError", { error: t(key, params) }));
+        toastService.show("error", t("action.add_error", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while creating procedure type", { error });

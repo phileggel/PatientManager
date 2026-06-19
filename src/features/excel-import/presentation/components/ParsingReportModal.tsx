@@ -54,25 +54,25 @@ export function ParsingReportModal({
       id="excel-parsing-report-modal"
       isOpen={isOpen}
       onClose={onClose}
-      title={t("parsingReport.unifiedTitle")}
+      title={t("parsing_report.unified_title")}
       maxWidth="max-w-2xl"
       actions={
         <Button variant="primary" onClick={onClose}>
-          {t("parsingReport.close")}
+          {t("parsing_report.close")}
         </Button>
       }
     >
       <div className="space-y-6 pb-2">
         {/* Summary */}
         <div className="bg-m3-surface-container rounded-xl p-4">
-          <h3 className="font-semibold text-m3-on-surface mb-2">{t("parsingReport.summary")}</h3>
+          <h3 className="font-semibold text-m3-on-surface mb-2">{t("parsing_report.summary")}</h3>
           <div className="space-y-1 text-sm text-m3-on-surface-variant">
             <p>
-              <span className="font-medium">{t("parsingReport.skippedRows")}</span>{" "}
+              <span className="font-medium">{t("parsing_report.skipped_rows")}</span>{" "}
               {skippedRows.length}
             </p>
             <p>
-              <span className="font-medium">{t("parsingReport.missingSheets")}</span>{" "}
+              <span className="font-medium">{t("parsing_report.missing_sheets")}</span>{" "}
               {parsingIssues.missing_sheets.length}
             </p>
           </div>
@@ -82,11 +82,11 @@ export function ParsingReportModal({
         {hasMissingSheets && (
           <div>
             <h3 className="font-semibold text-m3-on-surface mb-3">
-              {t("parsingReport.missingSheetsTitle")}
+              {t("parsing_report.missing_sheets_title")}
             </h3>
             <div className="bg-m3-surface-container rounded-xl p-4">
               <p className="text-sm text-m3-on-surface-variant mb-4">
-                {t("parsingReport.missingSheetsDesc", {
+                {t("parsing_report.missing_sheets_desc", {
                   count: parsingIssues.missing_sheets.length,
                 })}
               </p>
@@ -96,7 +96,7 @@ export function ParsingReportModal({
                     key={sheet}
                     className="bg-m3-primary/10 rounded-xl px-3 py-2 text-m3-primary font-semibold text-sm"
                   >
-                    {t(`sheetSelection.sheets.${sheet}`, { defaultValue: sheet })}
+                    {t(`sheet_selection.sheets.${sheet}`, { defaultValue: sheet })}
                   </div>
                 ))}
               </div>
@@ -108,20 +108,20 @@ export function ParsingReportModal({
         {hasSkippedRows && (
           <div>
             <h3 className="font-semibold text-m3-on-surface mb-3">
-              {t("parsingReport.skippedRowsTitle", { count: skippedRows.length })}
+              {t("parsing_report.skipped_rows_title", { count: skippedRows.length })}
             </h3>
             <div className="overflow-x-auto rounded-xl bg-m3-surface-container">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="bg-m3-surface-container-high">
                     <th className="px-4 py-3 text-left font-semibold text-m3-on-surface">
-                      {t("parsingReport.colSheet")}
+                      {t("parsing_report.col_sheet")}
                     </th>
                     <th className="px-4 py-3 text-center font-semibold text-m3-on-surface">
-                      {t("parsingReport.colRow")}
+                      {t("parsing_report.col_row")}
                     </th>
                     <th className="px-4 py-3 text-left font-semibold text-m3-on-surface">
-                      {t("parsingReport.colReason")}
+                      {t("parsing_report.col_reason")}
                     </th>
                   </tr>
                 </thead>
@@ -155,7 +155,7 @@ export function ParsingReportModal({
         {!hasAnyIssue && (
           <div className="bg-m3-tertiary-container/30 rounded-xl p-4">
             <p className="text-sm text-m3-on-tertiary-container font-medium">
-              ✓ {t("parsingReport.noIssues")}
+              ✓ {t("parsing_report.no_issues")}
             </p>
           </div>
         )}

@@ -1,35 +1,35 @@
 {
   "page": {
     "title": "Caisses",
-    "searchPlaceholder": "Rechercher une caisse...",
-    "addDescription": "Ajouter une nouvelle caisse."
+    "search_placeholder": "Rechercher une caisse...",
+    "add_description": "Ajouter une nouvelle caisse."
   },
   "form": {
     "identifier": "Identifiant caisse",
-    "identifierPlaceholder": "ex. : CPAM75",
+    "identifier_placeholder": "ex. : CPAM75",
     "name": "Nom de la caisse",
-    "namePlaceholder": "ex. : Caisse Primaire",
-    "identifierRequired": "L'identifiant de la caisse est obligatoire",
-    "nameRequired": "Le nom de la caisse est obligatoire"
+    "name_placeholder": "ex. : Caisse Primaire",
+    "identifier_required": "L'identifiant de la caisse est obligatoire",
+    "name_required": "Le nom de la caisse est obligatoire"
   },
   "list": {
     "identifier": "Identifiant",
     "name": "Nom",
     "loading": "Chargement des caisses...",
-    "noData": "Aucune caisse trouvée."
+    "no_data": "Aucune caisse trouvée."
   },
   "action": {
     "add": "Ajouter une caisse",
     "adding": "Ajout en cours...",
     "update": "Mettre à jour",
     "updating": "Mise à jour...",
-    "editTitle": "Modifier la caisse",
-    "addSuccess": "Caisse \"{{name}}\" ajoutée avec succès",
-    "addError": "Échec de l'ajout de la caisse : {{error}}",
-    "updateSuccess": "Caisse \"{{name}}\" mise à jour avec succès",
-    "updateError": "Échec de la mise à jour de la caisse : {{error}}",
-    "editAriaLabel": "Modifier la caisse {{name}}",
-    "deleteAriaLabel": "Supprimer la caisse {{name}}",
+    "edit_title": "Modifier la caisse",
+    "add_success": "Caisse \"{{name}}\" ajoutée avec succès",
+    "add_error": "Échec de l'ajout de la caisse : {{error}}",
+    "update_success": "Caisse \"{{name}}\" mise à jour avec succès",
+    "update_error": "Échec de la mise à jour de la caisse : {{error}}",
+    "edit_aria_label": "Modifier la caisse {{name}}",
+    "delete_aria_label": "Supprimer la caisse {{name}}",
     "delete": {
       "title": "Supprimer une caisse",
       "message": "Êtes-vous sûr de vouloir supprimer {{name}} ?",

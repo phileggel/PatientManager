@@ -30,23 +30,23 @@ export function CreateAccountStep({
     >
       <div className="space-y-1">
         <p className="text-lg font-medium text-m3-on-surface">
-          {t("statement.modal.createAccount.title")}
+          {t("statement.modal.create_account.title")}
         </p>
         <p className="text-sm text-m3-on-surface-variant">
-          {t("statement.modal.createAccount.description", { iban })}
+          {t("statement.modal.create_account.description", { iban })}
         </p>
       </div>
       <TextField
         id="create-account-iban"
-        label={t("statement.modal.createAccount.ibanLabel")}
+        label={t("statement.modal.create_account.iban_label")}
         value={iban ?? ""}
         readOnly
         disabled
       />
       <TextField
         id="create-account-name"
-        label={t("statement.modal.createAccount.nameLabel")}
-        placeholder={t("statement.modal.createAccount.namePlaceholder")}
+        label={t("statement.modal.create_account.name_label")}
+        placeholder={t("statement.modal.create_account.name_placeholder")}
         value={name}
         onChange={(e) => onNameChange(e.target.value)}
         disabled={isCreating}

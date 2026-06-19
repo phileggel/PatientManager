@@ -74,7 +74,7 @@ export default function BankTransferManager() {
         count={count}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={t("transfer.manager.searchPlaceholder")}
+        searchPlaceholder={t("transfer.manager.search_placeholder")}
         table={
           <div className="flex flex-col h-full">
             <BankTransferList
@@ -90,9 +90,9 @@ export default function BankTransferManager() {
             )}
           </div>
         }
-        sidePanelTitle={t("transfer.manager.panelTitle")}
+        sidePanelTitle={t("transfer.manager.panel_title")}
         sidePanelIcon={<Send size={24} strokeWidth={2.5} />}
-        sidePanelDescription={t("transfer.manager.panelDescription")}
+        sidePanelDescription={t("transfer.manager.panel_description")}
         sidePanelContent={<AddBankTransferForm />}
       />
 

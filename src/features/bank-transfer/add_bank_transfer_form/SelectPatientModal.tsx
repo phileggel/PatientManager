@@ -27,30 +27,30 @@ export function SelectPatientModal({ isOpen, onSelect, onCancel }: SelectPatient
       id="select-patient-modal"
       isOpen={isOpen}
       onClose={onCancel}
-      title={t("transfer.selectPatientModal.title")}
+      title={t("transfer.select_patient_modal.title")}
       maxWidth="max-w-3xl"
       searchValue={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("transfer.selectPatientModal.searchPlaceholder")}
+      searchPlaceholder={t("transfer.select_patient_modal.search_placeholder")}
     >
       {filteredPatients.length === 0 ? (
         <p className="text-sm text-m3-on-surface-variant py-4 text-center">
           {patients.length === 0
-            ? t("transfer.selectPatientModal.empty")
-            : t("transfer.selectPatientModal.noMatch")}
+            ? t("transfer.select_patient_modal.empty")
+            : t("transfer.select_patient_modal.no_match")}
         </p>
       ) : (
         <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-m3-surface-container">
             <tr className="border-b border-m3-outline">
               <th className="px-4 py-2 text-left text-sm font-semibold text-m3-on-surface">
-                {t("transfer.selectPatientModal.columns.name")}
+                {t("transfer.select_patient_modal.columns.name")}
               </th>
               <th className="px-4 py-2 text-left text-sm font-semibold text-m3-on-surface">
-                {t("transfer.selectPatientModal.columns.ssn")}
+                {t("transfer.select_patient_modal.columns.ssn")}
               </th>
               <th className="px-4 py-2 text-left text-sm font-semibold text-m3-on-surface">
-                {t("transfer.selectPatientModal.columns.latestDate")}
+                {t("transfer.select_patient_modal.columns.latest_date")}
               </th>
             </tr>
           </thead>
@@ -62,10 +62,10 @@ export function SelectPatientModal({ isOpen, onSelect, onCancel }: SelectPatient
                 className="border-b border-m3-outline hover:bg-m3-surface-variant cursor-pointer transition-colors"
               >
                 <td className="px-4 py-3 text-sm text-m3-on-surface">
-                  {patient.name || t("transfer.selectPatientModal.na")}
+                  {patient.name || t("transfer.select_patient_modal.na")}
                 </td>
                 <td className="px-4 py-3 text-sm text-m3-on-surface-variant">
-                  {patient.ssn || t("transfer.selectPatientModal.na")}
+                  {patient.ssn || t("transfer.select_patient_modal.na")}
                 </td>
                 <td className="px-4 py-3 text-sm text-m3-on-surface-variant">
                   {formatDate(patient.latest_date)}

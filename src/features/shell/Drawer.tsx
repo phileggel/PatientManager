@@ -78,8 +78,8 @@ export const Drawer = ({
           type="button"
           onClick={onToggle}
           className="shrink-0 p-2 rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-          aria-label={isExpanded ? t("nav.collapseDrawer") : t("nav.expandDrawer")}
-          title={isExpanded ? t("nav.collapseDrawer") : t("nav.expandDrawer")}
+          aria-label={isExpanded ? t("nav.collapse_drawer") : t("nav.expand_drawer")}
+          title={isExpanded ? t("nav.collapse_drawer") : t("nav.expand_drawer")}
         >
           {isExpanded ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
         </button>
@@ -94,7 +94,7 @@ export const Drawer = ({
       </div>
 
       {/* Navigation Section */}
-      <nav className="flex-1 py-3 overflow-y-auto" aria-label={t("nav.mainNavigation")}>
+      <nav className="flex-1 py-3 overflow-y-auto" aria-label={t("nav.main_navigation")}>
         <ul className="list-none m-0 p-0">
           <li>
             <button
@@ -162,11 +162,11 @@ export const Drawer = ({
               type="button"
               className={navItemClasses}
               onClick={() => onOpenDbBackup?.()}
-              title={!isExpanded ? t("nav.dbBackup") : undefined}
-              aria-label={t("nav.dbBackup")}
+              title={!isExpanded ? t("nav.db_backup") : undefined}
+              aria-label={t("nav.db_backup")}
             >
               <HardDrive size={20} className="shrink-0" />
-              {isExpanded && <span>{t("nav.dbBackup")}</span>}
+              {isExpanded && <span>{t("nav.db_backup")}</span>}
             </button>
           </li>
         </ul>
@@ -179,12 +179,12 @@ export const Drawer = ({
             type="button"
             className={navItemClasses}
             onClick={() => onNavigate?.("design-system")}
-            title={!isExpanded ? t("nav.designSystem") : undefined}
-            aria-label={!isExpanded ? t("nav.designSystem") : undefined}
+            title={!isExpanded ? t("nav.design_system") : undefined}
+            aria-label={!isExpanded ? t("nav.design_system") : undefined}
             aria-current={currentPage === "design-system" ? "page" : undefined}
           >
             <Palette size={20} className="shrink-0" />
-            {isExpanded && <span>{t("nav.designSystem")}</span>}
+            {isExpanded && <span>{t("nav.design_system")}</span>}
           </button>
         </div>
       )}

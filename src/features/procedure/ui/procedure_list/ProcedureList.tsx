@@ -38,9 +38,9 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
               </div>
             </th>
             <th className={`m3-th ${COL_WIDTHS.ssn}`}>{t("table.ssn")}</th>
-            <th className={`m3-th ${COL_WIDTHS.fundId}`}>{t("table.fundCode")}</th>
-            <th className={`m3-th ${COL_WIDTHS.fundName}`}>{t("table.fundName")}</th>
-            <th className={`m3-th ${COL_WIDTHS.procedureType}`}>{t("table.procedureType")}</th>
+            <th className={`m3-th ${COL_WIDTHS.fundId}`}>{t("table.fund_code")}</th>
+            <th className={`m3-th ${COL_WIDTHS.fundName}`}>{t("table.fund_name")}</th>
+            <th className={`m3-th ${COL_WIDTHS.procedureType}`}>{t("table.procedure_type")}</th>
             <th className={`m3-th ${COL_WIDTHS.date}`} onClick={() => handleSort("procedureDate")}>
               <div className="flex items-center gap-1">
                 {t("table.date")}
@@ -59,9 +59,9 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                 />
               </div>
             </th>
-            <th className="m3-th w-24">{t("table.paymentMethod")}</th>
-            <th className="m3-th w-28">{t("table.reconciledDate")}</th>
-            <th className="m3-th w-28">{t("table.confirmedDate")}</th>
+            <th className="m3-th w-24">{t("table.payment_method")}</th>
+            <th className="m3-th w-28">{t("table.reconciled_date")}</th>
+            <th className="m3-th w-28">{t("table.confirmed_date")}</th>
             <th className="m3-th w-28" onClick={() => handleSort("status")}>
               <div className="flex items-center gap-1">
                 {t("table.status")}
@@ -76,7 +76,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
           {sortedRows.length === 0 ? (
             <tr>
               <td colSpan={12} className="m3-td text-center py-8">
-                {isFiltered ? t("filter.emptySearch") : t("table.empty")}
+                {isFiltered ? t("filter.empty_search") : t("table.empty")}
               </td>
             </tr>
           ) : (
@@ -113,7 +113,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                       variant="ghost"
                       size="sm"
                       shape="round"
-                      aria-label={t("action.editTitle")}
+                      aria-label={t("action.edit_title")}
                       icon={<Edit size={16} />}
                       onClick={() => onEdit(row)}
                     />
@@ -121,7 +121,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                       variant="danger"
                       size="sm"
                       shape="round"
-                      aria-label={t("action.deleteTitle")}
+                      aria-label={t("action.delete_title")}
                       icon={<Trash2 size={16} />}
                       disabled={!row.id || isBlockingStatus(row.status)}
                       onClick={() => row.id && onDelete(row.id)}

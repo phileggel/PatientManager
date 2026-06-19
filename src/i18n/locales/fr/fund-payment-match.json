@@ -2,7 +2,7 @@
   "print": {
     "title": "Rapport de rapprochement",
     "header": {
-      "fileName": "Fichier PDF",
+      "file_name": "Fichier PDF",
       "period": "Période",
       "generated": "Généré le"
     },
@@ -29,19 +29,19 @@
       "fund": "Caisse",
       "billed": "Montant facturé",
       "paid": "Montant payé",
-      "originalAmount": "Montant initial",
-      "correctedAmount": "Montant corrigé",
-      "originalFund": "Caisse initiale",
-      "correctedFund": "Caisse corrigée",
-      "originalDate": "Date initiale",
-      "correctedDate": "Date corrigée",
-      "paymentDate": "Date de paiement"
+      "original_amount": "Montant initial",
+      "corrected_amount": "Montant corrigé",
+      "original_fund": "Caisse initiale",
+      "corrected_fund": "Caisse corrigée",
+      "original_date": "Date initiale",
+      "corrected_date": "Date corrigée",
+      "payment_date": "Date de paiement"
     },
     "continued": "suite",
     "page": "Page"
   },
   "page": {
-    "uploadAriaLabel": "Télécharger un fichier PDF"
+    "upload_aria_label": "Télécharger un fichier PDF"
   },
   "modal": {
     "title": "Rapprochement PDF",
@@ -54,14 +54,14 @@
     },
     "footer": {
       "cancel": "Annuler",
-      "autoCorrect": "Corriger automatiquement",
+      "auto_correct": "Corriger automatiquement",
       "validate": "Valider",
-      "validateSuccess": "Rapprochement validé avec succès"
+      "validate_success": "Rapprochement validé avec succès"
     },
     "blocking": {
       "banner": "{{count}} anomalie(s) bloquante(s) — la validation est impossible tant qu'elles ne sont pas résolues manuellement."
     },
-    "alreadyImported": {
+    "already_imported": {
       "title": "PDF déjà importé",
       "body": "Tous les paiements de ce PDF correspondent à des rapprochements déjà enregistrés. Aucune action n'est nécessaire."
     },
@@ -73,10 +73,10 @@
       "filename": {
         "stem": "rapport_rapprochement_caisse"
       },
-      "exportSuccess": "Rapport enregistré dans Téléchargements : {{filename}}",
+      "export_success": "Rapport enregistré dans Téléchargements : {{filename}}",
       "error": {
-        "generationFailed": "Impossible de générer le rapport.",
-        "exportFailed": "Impossible d'exporter le rapport."
+        "generation_failed": "Impossible de générer le rapport.",
+        "export_failed": "Impossible d'exporter le rapport."
       }
     }
   },
@@ -87,8 +87,8 @@
       "groups_other": "{{count}} groupes",
       "lines_one": "{{count}} ligne",
       "lines_other": "{{count}} lignes",
-      "totalAmount": "Montant total",
-      "pdfStated": "PDF indique :"
+      "total_amount": "Montant total",
+      "pdf_stated": "PDF indique :"
     },
     "unparsed": {
       "warning_one": "{{count}} ligne n'a pas pu être analysée.",
@@ -97,7 +97,7 @@
     },
     "group": {
       "payment": "Paiement :",
-      "invalidTotal": "Total invalide"
+      "invalid_total": "Total invalide"
     },
     "columns": {
       "patient": "Patient",
@@ -123,26 +123,26 @@
     }
   },
   "format": {
-    "datePeriod": "{{start}} au {{end}}"
+    "date_period": "{{start}} au {{end}}"
   },
   "results": {
     "ssn": "INS",
-    "allCorrect": "Tout est correct — aucune anomalie détectée.",
+    "all_correct": "Tout est correct — aucune anomalie détectée.",
     "progress": "{{resolved}} / {{total}} résolues",
-    "stepNav": "Anomalie {{current}} sur {{total}}",
-    "prevAria": "Anomalie précédente",
-    "nextAria": "Anomalie suivante",
-    "dotAria": "Aller à l'anomalie {{index}}",
-    "issueType": {
-      "notFound": "Acte manquant",
-      "singleMatch": "Anomalie de correspondance",
-      "groupMatch": "Distribution à confirmer",
-      "tooMany": "Intervention manuelle requise"
+    "step_nav": "Anomalie {{current}} sur {{total}}",
+    "prev_aria": "Anomalie précédente",
+    "next_aria": "Anomalie suivante",
+    "dot_aria": "Aller à l'anomalie {{index}}",
+    "issue_type": {
+      "not_found": "Acte manquant",
+      "single_match": "Anomalie de correspondance",
+      "group_match": "Distribution à confirmer",
+      "too_many": "Intervention manuelle requise"
     },
     "badge": {
-      "amountMismatch": "Montant différent",
-      "fundMismatch": "Caisse différente",
-      "dateMismatch": "Date différente"
+      "amount_mismatch": "Montant différent",
+      "fund_mismatch": "Caisse différente",
+      "date_mismatch": "Date différente"
     },
     "pdf": {
       "label": "Relevé PDF",
@@ -160,17 +160,17 @@
     },
     "action": {
       "create": "Créer un nouvel acte",
-      "willCreate": "Sera créé",
+      "will_create": "Sera créé",
       "link": "Lier cet acte",
       "linked": "Sera lié",
-      "correctAmount": "Appliquer le montant PDF : {{amount}}",
-      "correctFund": "Appliquer la caisse du PDF",
-      "correctDate": "Appliquer la date du PDF",
+      "correct_amount": "Appliquer le montant PDF : {{amount}}",
+      "correct_fund": "Appliquer la caisse du PDF",
+      "correct_date": "Appliquer la date du PDF",
       "accepted": "Accepté",
-      "validateDistribution": "Valider cette distribution",
-      "contestAmount": "Contester (montant réel : {{amount}})",
+      "validate_distribution": "Valider cette distribution",
+      "contest_amount": "Contester (montant réel : {{amount}})",
       "undo": "Modifier",
-      "undoAria": "Modifier cette correction et choisir de nouveau"
+      "undo_aria": "Modifier cette correction et choisir de nouveau"
     },
     "nearby": {
       "title": "Actes proches (INS différent)"
@@ -180,7 +180,7 @@
       "expected": "Attendu",
       "remaining": "Reste : {{diff}}"
     },
-    "tooMany": {
+    "too_many": {
       "description": "{{count}} actes correspondent — rapprochement automatique impossible.",
       "hint": "Résolvez cette situation manuellement dans la saisie des actes avant de relancer le rapprochement."
     },

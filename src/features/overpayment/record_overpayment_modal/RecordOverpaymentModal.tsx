@@ -68,14 +68,14 @@ export function RecordOverpaymentModal({
   } = useRecordOverpaymentModal({ sourceProcedure, onSuccess, onClose });
 
   const transferTypeOptions = [
-    { value: "", label: t("form.selectPaymentMethod") },
-    { value: "CreditCard", label: t("paymentMethod.creditCard") },
-    { value: "Check", label: t("paymentMethod.check") },
-    { value: "OutgoingWire", label: t("paymentMethod.outgoingWire") },
+    { value: "", label: t("form.select_payment_method") },
+    { value: "CreditCard", label: t("payment_method.credit_card") },
+    { value: "Check", label: t("payment_method.check") },
+    { value: "OutgoingWire", label: t("payment_method.outgoing_wire") },
   ];
 
   const bankAccountOptions = [
-    { value: "", label: t("form.selectBankAccount") },
+    { value: "", label: t("form.select_bank_account") },
     ...bankAccounts.map((a) => ({ value: a.id, label: a.name })),
   ];
 
@@ -98,13 +98,13 @@ export function RecordOverpaymentModal({
           id="record-overpayment-modal-title"
           className="text-xl font-semibold text-m3-on-surface"
         >
-          {showConfirmation ? t("modal.confirmTitle") : t("modal.title")}
+          {showConfirmation ? t("modal.confirm_title") : t("modal.title")}
         </h2>
         <IconButton
           variant="ghost"
           shape="round"
           size="sm"
-          aria-label={t("modal.closeAriaLabel")}
+          aria-label={t("modal.close_aria_label")}
           icon={<X size={18} />}
           onClick={onClose}
           disabled={loading}
@@ -119,7 +119,7 @@ export function RecordOverpaymentModal({
             {/* Source procedure summary */}
             <TextField
               id="sourceProcedurePatient"
-              label={t("form.sourceProcedure")}
+              label={t("form.source_procedure")}
               value={`${patientLabel} — ${formatCurrency(sourceProcedure.billed_amount ?? 0)} (${formatDate(sourceProcedure.procedure_date)})`}
               readOnly
             />
@@ -127,7 +127,7 @@ export function RecordOverpaymentModal({
             {/* Refund date (REF-030) */}
             <DateField
               id="refundDate"
-              label={t("form.refundDate")}
+              label={t("form.refund_date")}
               value={refundDate}
               onChange={(e) => setRefundDate(e.target.value)}
               disabled={loading}
@@ -137,7 +137,7 @@ export function RecordOverpaymentModal({
             {/* Transfer type (REF-060) */}
             <SelectField
               id="transferType"
-              label={t("form.paymentMethod")}
+              label={t("form.payment_method")}
               options={transferTypeOptions}
               value={transferType}
               onChange={(e) => setTransferType(e.target.value)}
@@ -148,7 +148,7 @@ export function RecordOverpaymentModal({
             {/* Bank account (REF-070) */}
             <SelectField
               id="bankAccount"
-              label={t("form.bankAccount")}
+              label={t("form.bank_account")}
               options={bankAccountOptions}
               value={bankAccountId}
               onChange={(e) => setBankAccountId(e.target.value)}
@@ -169,28 +169,28 @@ export function RecordOverpaymentModal({
         ) : (
           /* ── Step 2: Confirmation summary ── */
           <>
-            <p className="text-sm text-m3-on-surface-variant">{t("modal.confirmBody")}</p>
+            <p className="text-sm text-m3-on-surface-variant">{t("modal.confirm_body")}</p>
             <TextField
               id="confirmPatient"
-              label={t("form.sourceProcedure")}
+              label={t("form.source_procedure")}
               value={`${patientLabel} — ${formatCurrency(sourceProcedure.billed_amount ?? 0)}`}
               readOnly
             />
             <TextField
               id="confirmDate"
-              label={t("form.refundDate")}
+              label={t("form.refund_date")}
               value={formatDate(refundDate)}
               readOnly
             />
             <TextField
               id="confirmPaymentMethod"
-              label={t("form.paymentMethod")}
+              label={t("form.payment_method")}
               value={selectedTransferTypeLabel}
               readOnly
             />
             <TextField
               id="confirmBankAccount"
-              label={t("form.bankAccount")}
+              label={t("form.bank_account")}
               value={selectedBankAccountName}
               readOnly
             />
@@ -221,7 +221,7 @@ export function RecordOverpaymentModal({
               disabled={!refundDate || !transferType || !bankAccountId || loading}
               className="flex-1"
             >
-              {t("action.confirmRefund")}
+              {t("action.confirm_refund")}
             </Button>
           </>
         ) : (
@@ -243,7 +243,7 @@ export function RecordOverpaymentModal({
               disabled={loading}
               className="flex-1"
             >
-              {t("action.confirmRefund")}
+              {t("action.confirm_refund")}
             </Button>
           </>
         )}

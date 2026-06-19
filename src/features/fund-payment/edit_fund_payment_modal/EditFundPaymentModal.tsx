@@ -119,7 +119,7 @@ export function EditFundPaymentModal({
           {isReadOnly && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-m3-surface-container rounded-xl text-m3-on-surface-variant text-sm font-medium">
               <Lock size={14} className="shrink-0 text-m3-on-surface-variant" />
-              {t("edit.lockedBadge")}
+              {t("edit.locked_badge")}
             </div>
           )}
 
@@ -127,7 +127,7 @@ export function EditFundPaymentModal({
           <div className="grid grid-cols-2 gap-6 bg-m3-surface-container-low p-5 rounded-xl">
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-m3-on-surface-variant/70">
-                {t("edit.fundLabel")}
+                {t("edit.fund_label")}
               </span>
               <div className="text-m3-on-surface font-semibold text-base">
                 {selectedFund?.fundName}
@@ -135,7 +135,7 @@ export function EditFundPaymentModal({
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-m3-on-surface-variant/70">
-                {t("edit.fundIdentifier")}
+                {t("edit.fund_identifier")}
               </span>
               <div className="text-m3-on-surface font-semibold text-base">
                 {selectedFund?.fundIdentifier}
@@ -146,7 +146,7 @@ export function EditFundPaymentModal({
           {/* Payment Date */}
           <DateField
             id="paymentDate"
-            label={`${t("edit.paymentDateLabel")} *`}
+            label={`${t("edit.payment_date_label")} *`}
             value={paymentDate}
             onChange={(e) => setPaymentDate(e.target.value)}
             disabled={loading || isReadOnly}
@@ -155,7 +155,7 @@ export function EditFundPaymentModal({
           {/* Section: Current procedures */}
           <section className="space-y-3" aria-busy={loading}>
             <h3 className="text-lg font-bold text-m3-on-surface tracking-tight">
-              {t("edit.sectionCurrent")}
+              {t("edit.section_current")}
             </h3>
             {loading ? (
               <div className="flex justify-center py-8">
@@ -163,7 +163,7 @@ export function EditFundPaymentModal({
               </div>
             ) : currentProcedures.length === 0 ? (
               <p className="text-center py-8 text-m3-on-surface-variant">
-                {t("edit.noProcedures")}
+                {t("edit.no_procedures")}
               </p>
             ) : (
               <div className="bg-m3-surface-container rounded-xl overflow-hidden">
@@ -177,7 +177,7 @@ export function EditFundPaymentModal({
           {/* Summary bar (R20) */}
           <div className="py-3 px-4 bg-m3-secondary-container/40 rounded-xl flex justify-between items-center">
             <span className="text-[13px] font-semibold text-m3-primary">
-              {t("edit.proceduresSelected", { count: selectedIds.size })}
+              {t("edit.procedures_selected", { count: selectedIds.size })}
             </span>
             <span className="text-[14px] font-bold text-m3-primary tracking-tight">
               {t("edit.total")} : {formatCurrency(totalAmount)}
@@ -206,7 +206,9 @@ export function EditFundPaymentModal({
               <div
                 className="inline-flex"
                 title={
-                  proceduresForModal.length === 0 ? t("edit.addProceduresDisabledHint") : undefined
+                  proceduresForModal.length === 0
+                    ? t("edit.add_procedures_disabled_hint")
+                    : undefined
                 }
               >
                 <Button
@@ -217,7 +219,7 @@ export function EditFundPaymentModal({
                   disabled={loading || proceduresForModal.length === 0}
                   icon={<Plus size={13} />}
                 >
-                  {t("edit.addProcedures")}
+                  {t("edit.add_procedures")}
                 </Button>
               </div>
               <Button

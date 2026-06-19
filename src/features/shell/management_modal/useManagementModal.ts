@@ -47,7 +47,7 @@ export function useManagementModal({
 
   const handleFundPayment = useCallback(() => {
     if (fundCount === 0) {
-      toastService.show("info", t("prerequisites.noFund"));
+      toastService.show("info", t("prerequisites.no_fund"));
       onNavigate("funds");
     } else {
       onNavigate("fund-payment");
@@ -57,7 +57,7 @@ export function useManagementModal({
 
   const handleBankTransfer = useCallback(() => {
     if (bankAccountCount === 0) {
-      toastService.show("info", t("prerequisites.noBankAccount"));
+      toastService.show("info", t("prerequisites.no_bank_account"));
       onNavigate("bank-account");
     } else {
       onNavigate("bank-transfer");

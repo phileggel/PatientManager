@@ -5,7 +5,7 @@ import { formatBankStatementError } from "./errorPresenter";
 describe("formatBankStatementError", () => {
   it("maps the R26 sentinel to the dedicated no-SEPA-lines guidance", () => {
     expect(formatBankStatementError({ code: "NoSepaCreditLines" }).key).toBe(
-      "bank:statement.modal.noVirSepaLines",
+      "bank:statement.modal.no_vir_sepa_lines",
     );
   });
 
@@ -23,7 +23,7 @@ describe("formatBankStatementError", () => {
       { code: "TotalAmountNotPositive" },
     ];
     for (const err of cases) {
-      expect(formatBankStatementError(err).key).toBe("bank:statement.modal.unknownError");
+      expect(formatBankStatementError(err).key).toBe("bank:statement.modal.unknown_error");
     }
   });
 });

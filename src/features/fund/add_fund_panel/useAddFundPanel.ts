@@ -20,8 +20,8 @@ export function useAddFundPanel() {
 
   const validateForm = (): boolean => {
     const newErrors = validateFund(formData, {
-      identifierRequired: t("form.identifierRequired"),
-      nameRequired: t("form.nameRequired"),
+      identifierRequired: t("form.identifier_required"),
+      nameRequired: t("form.name_required"),
     });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -62,11 +62,11 @@ export function useAddFundPanel() {
         logger.info("Fund added successfully");
         setFormData({ fund_identifier: "", name: "" });
         setErrors({});
-        toastService.show("success", t("action.addSuccess", { name: result.data?.name }));
+        toastService.show("success", t("action.add_success", { name: result.data?.name }));
       } else {
         const { key, params } = formatFundError(result.error);
         logger.error("Failed to add fund", { code: result.error.code });
-        toastService.show("error", t("action.addError", { error: t(key, params) }));
+        toastService.show("error", t("action.add_error", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while adding fund", { error });

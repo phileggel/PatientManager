@@ -68,7 +68,7 @@ export function useReportGeneration({
     const headerLines = [
       `${tStr("print.header.period")} : ${formatShortDate(reportDateRange.start, locale)} – ${formatShortDate(reportDateRange.end, locale)}`,
       `${tStr("print.header.generated")} : ${formatLongDateTime(now, locale)}`,
-      `${tStr("print.header.fileName")} : ${filePath.split(/[\\/]/).pop() ?? filePath}`,
+      `${tStr("print.header.file_name")} : ${filePath.split(/[\\/]/).pop() ?? filePath}`,
     ];
 
     const correctionGroups = buildCorrectionGroups({
@@ -101,7 +101,7 @@ export function useReportGeneration({
       const savedName = result.data.split(/[\\/]/).pop() ?? filename;
       toastService.show(
         "success",
-        String(t("modal.report.exportSuccess", { filename: savedName })),
+        String(t("modal.report.export_success", { filename: savedName })),
       );
     } finally {
       setIsGenerating(false);

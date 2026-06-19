@@ -108,13 +108,13 @@ export function DateField({
           onFocus={openCalendar}
           onBlur={closeCalendar}
           disabled={disabled}
-          placeholder={t("field.datePlaceholder")}
+          placeholder={t("field.date_placeholder")}
           {...props}
         />
         {displayValue && !disabled && (
           <button
             type="button"
-            aria-label={t("field.clearAriaLabel")}
+            aria-label={t("field.clear_aria_label")}
             onMouseDown={(e) => {
               e.preventDefault();
               clearDate();
@@ -157,7 +157,7 @@ export function DateField({
               <div className="flex items-center justify-between mb-3">
                 <button
                   type="button"
-                  aria-label={t("field.previousMonth")}
+                  aria-label={t("field.previous_month")}
                   onClick={() =>
                     setCurrentMonth(
                       new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1),
@@ -172,7 +172,7 @@ export function DateField({
                 </span>
                 <button
                   type="button"
-                  aria-label={t("field.nextMonth")}
+                  aria-label={t("field.next_month")}
                   onClick={() =>
                     setCurrentMonth(
                       new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1),

@@ -49,7 +49,7 @@ export default function DashboardPage() {
           <ul className="text-sm text-m3-on-surface-variant space-y-2 ml-5">
             <li>✓ {t("welcome.patients")}</li>
             <li>✓ {t("welcome.funds")}</li>
-            <li>✓ {t("welcome.procedureTypes")}</li>
+            <li>✓ {t("welcome.procedure_types")}</li>
             <li>✓ {t("welcome.procedures")}</li>
           </ul>
           <p className="text-sm text-m3-on-surface-variant mt-4">{t("welcome.hint")}</p>

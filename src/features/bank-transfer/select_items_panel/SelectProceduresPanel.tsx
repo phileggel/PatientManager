@@ -32,13 +32,13 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-neutral-90">{t("transfer.selectProcedures.label")}</p>
+      <p className="text-sm font-medium text-neutral-90">{t("transfer.select_procedures.label")}</p>
 
       {/* Current procedures section — shown in edit mode */}
       {currentProcedures && currentProcedures.length > 0 && (
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium text-neutral-60 uppercase tracking-wide">
-            {t("transfer.selectProcedures.current")}
+            {t("transfer.select_procedures.current")}
           </p>
           <div className="bg-m3-surface-container-low rounded-xl flex flex-col">
             {currentProcedures.map((proc) => (
@@ -75,18 +75,18 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t("transfer.selectProcedures.filterPlaceholder")}
+          placeholder={t("transfer.select_procedures.filter_placeholder")}
           className="w-full px-3 py-2 text-sm border border-neutral-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-m3-primary"
         />
       )}
 
       {loading ? (
-        <p className="text-sm text-neutral-60 py-2">{t("transfer.selectProcedures.loading")}</p>
+        <p className="text-sm text-neutral-60 py-2">{t("transfer.select_procedures.loading")}</p>
       ) : filteredCandidates.length === 0 ? (
         <p className="text-sm text-neutral-60 py-2">
           {isExpanded
-            ? t("transfer.selectProcedures.emptyAll")
-            : t("transfer.selectProcedures.empty")}
+            ? t("transfer.select_procedures.empty_all")
+            : t("transfer.select_procedures.empty")}
         </p>
       ) : (
         <div
@@ -128,13 +128,13 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
           onClick={handleExpand}
           icon={<Search size={14} />}
         >
-          {t("transfer.selectProcedures.expand")}
+          {t("transfer.select_procedures.expand")}
         </Button>
       )}
 
       {selectedProcedureIds.length > 0 && (
         <p className="text-xs text-neutral-60">
-          {t("transfer.selectProcedures.selected", { count: selectedProcedureIds.length })}
+          {t("transfer.select_procedures.selected", { count: selectedProcedureIds.length })}
         </p>
       )}
     </div>

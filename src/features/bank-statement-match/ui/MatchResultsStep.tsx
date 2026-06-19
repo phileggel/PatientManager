@@ -65,13 +65,13 @@ export function MatchResultsStep({
           <p className="text-2xl font-bold text-success-70">
             {Array.from(userSelections.values()).filter((id) => id !== null).length}
           </p>
-          <p className="text-sm text-success-70">{t("statement.matchResults.matched")}</p>
+          <p className="text-sm text-success-70">{t("statement.match_results.matched")}</p>
         </div>
         <div className="flex-1 p-4 rounded-lg bg-warning-10 border border-warning-30 text-center">
           <p className="text-2xl font-bold text-warning-90">
             {Array.from(userSelections.values()).filter((id) => id === null).length}
           </p>
-          <p className="text-sm text-warning-90">{t("statement.matchResults.unmatched")}</p>
+          <p className="text-sm text-warning-90">{t("statement.match_results.unmatched")}</p>
         </div>
       </div>
 
@@ -80,13 +80,13 @@ export function MatchResultsStep({
           <thead>
             <tr className="border-b border-neutral-20 bg-neutral-5">
               <th className="text-left py-3 px-4 font-medium text-neutral-60">
-                {t("statement.matchResults.columns.line")}
+                {t("statement.match_results.columns.line")}
               </th>
               <th className="text-left py-3 px-4 font-medium text-neutral-60">
-                {t("statement.matchResults.columns.group", { days: maxDateOffsetDays })}
+                {t("statement.match_results.columns.group", { days: maxDateOffsetDays })}
               </th>
               <th className="text-center py-3 px-4 font-medium text-neutral-60 w-16">
-                {t("statement.matchResults.columns.status")}
+                {t("statement.match_results.columns.status")}
               </th>
             </tr>
           </thead>
@@ -147,7 +147,9 @@ export function MatchResultsStep({
                             isMatched ? "border-success-40" : "border-warning-40"
                           }`}
                         >
-                          <option value="">{t("statement.matchResults.select.placeholder")}</option>
+                          <option value="">
+                            {t("statement.match_results.select.placeholder")}
+                          </option>
                           {sortedCandidates.map((cand) => {
                             const isUsedByOther =
                               assignedGroupIds.has(cand.id) && selectedGroupId !== cand.id;
@@ -160,10 +162,10 @@ export function MatchResultsStep({
                                 {formatCurrency(cand.total_amount)}
                                 {isExpanded ? ` [${candFund?.fund_identifier || "?"}]` : ""}
                                 {isExactAmount
-                                  ? t("statement.matchResults.option.exactAmount")
+                                  ? t("statement.match_results.option.exact_amount")
                                   : ""}
                                 {isUsedByOther
-                                  ? t("statement.matchResults.option.alreadyUsed")
+                                  ? t("statement.match_results.option.already_used")
                                   : ""}
                               </option>
                             );
@@ -180,8 +182,8 @@ export function MatchResultsStep({
                           }`}
                         >
                           {isExpanded
-                            ? t("statement.matchResults.search.active")
-                            : t("statement.matchResults.search.expand")}
+                            ? t("statement.match_results.search.active")
+                            : t("statement.match_results.search.expand")}
                         </button>
                       </div>
 
@@ -189,7 +191,7 @@ export function MatchResultsStep({
                         <div className="flex items-start gap-2 p-2 rounded bg-white/50 border border-neutral-20">
                           <Check className="w-4 h-4 text-success-60 shrink-0 mt-0.5" />
                           <div className="text-xs text-neutral-70">
-                            {t("statement.matchResults.match.confirmed", {
+                            {t("statement.match_results.match.confirmed", {
                               date: formatDate(
                                 allGroups.find((g) => g.id === selectedGroupId)?.payment_date ?? "",
                               ),
@@ -203,11 +205,11 @@ export function MatchResultsStep({
                           <AlertCircle className="w-4 h-4 text-warning-70 shrink-0 mt-0.5" />
                           <p className="text-xs text-warning-80">
                             {isExpanded
-                              ? t("statement.matchResults.candidates.foundAllFunds", {
+                              ? t("statement.match_results.candidates.found_all_funds", {
                                   count: sortedCandidates.length,
                                   days: maxDateOffsetDays,
                                 })
-                              : t("statement.matchResults.candidates.found", {
+                              : t("statement.match_results.candidates.found", {
                                   count: sortedCandidates.length,
                                   days: maxDateOffsetDays,
                                 })}
@@ -219,7 +221,7 @@ export function MatchResultsStep({
                         <div className="flex items-start gap-2 p-2 rounded bg-neutral-10 border border-neutral-20">
                           <Search className="w-4 h-4 text-neutral-50 shrink-0 mt-0.5" />
                           <p className="text-xs text-neutral-60 italic">
-                            {t("statement.matchResults.candidates.none", {
+                            {t("statement.match_results.candidates.none", {
                               days: maxDateOffsetDays,
                             })}
                           </p>

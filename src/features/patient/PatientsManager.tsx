@@ -34,7 +34,7 @@ export function PatientsManager() {
       count={count}
       searchTerm={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("page.searchPlaceholder")}
+      searchPlaceholder={t("page.search_placeholder")}
       table={<PatientList searchTerm={searchTerm} />}
       sidePanelTitle={t("action.add")}
       sidePanelIcon={<UserPlus size={24} strokeWidth={2.5} />}

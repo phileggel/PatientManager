@@ -1,34 +1,34 @@
 {
   "modal": {
     "title": "Enregistrer un trop-perçu",
-    "confirmTitle": "Confirmer le remboursement",
-    "cancelTitle": "Annuler le remboursement",
-    "confirmBody": "Cela créera un virement bancaire et un groupe de paiement négatifs pour compenser le trop-perçu.",
-    "cancelBody": "Cela annulera définitivement le remboursement et rétablira le statut précédent de l'acte source.",
-    "viewTitle": "Acte en trop-perçu",
-    "refundViewTitle": "Remboursement de trop-perçu",
-    "closeAriaLabel": "Fermer"
+    "confirm_title": "Confirmer le remboursement",
+    "cancel_title": "Annuler le remboursement",
+    "confirm_body": "Cela créera un virement bancaire et un groupe de paiement négatifs pour compenser le trop-perçu.",
+    "cancel_body": "Cela annulera définitivement le remboursement et rétablira le statut précédent de l'acte source.",
+    "view_title": "Acte en trop-perçu",
+    "refund_view_title": "Remboursement de trop-perçu",
+    "close_aria_label": "Fermer"
   },
   "form": {
-    "refundDate": "Date de remboursement",
-    "paymentMethod": "Mode de paiement",
-    "bankAccount": "Compte bancaire",
+    "refund_date": "Date de remboursement",
+    "payment_method": "Mode de paiement",
+    "bank_account": "Compte bancaire",
     "reason": "Motif (optionnel)",
-    "sourceProcedure": "Acte source",
-    "selectBankAccount": "Sélectionner un compte bancaire",
-    "selectPaymentMethod": "Sélectionner un mode de paiement"
+    "source_procedure": "Acte source",
+    "select_bank_account": "Sélectionner un compte bancaire",
+    "select_payment_method": "Sélectionner un mode de paiement"
   },
   "action": {
     "refund": "Rembourser",
-    "cancelRefund": "Annuler le remboursement",
-    "confirmRefund": "Confirmer le remboursement"
+    "cancel_refund": "Annuler le remboursement",
+    "confirm_refund": "Confirmer le remboursement"
   },
-  "paymentMethod": {
-    "creditCard": "Carte bancaire",
+  "payment_method": {
+    "credit_card": "Carte bancaire",
     "check": "Chèque",
-    "outgoingWire": "Virement sortant"
+    "outgoing_wire": "Virement sortant"
   },
-  "noAccountTooltip": "Un compte bancaire doit être créé avant d'enregistrer un remboursement.",
+  "no_account_tooltip": "Un compte bancaire doit être créé avant d'enregistrer un remboursement.",
   "success": {
     "created": "Remboursement enregistré avec succès.",
     "cancelled": "Remboursement annulé avec succès."
@@ -36,10 +36,10 @@
   "error": {
     "create": "Échec de l'enregistrement du remboursement.",
     "cancel": "Échec de l'annulation du remboursement.",
-    "refundDate": "La date de remboursement est requise et ne doit pas être dans le futur.",
-    "paymentMethod": "Le mode de paiement est requis.",
-    "bankAccount": "Le compte bancaire est requis.",
-    "reasonTooLong": "Le motif ne doit pas dépasser 255 caractères."
+    "refund_date": "La date de remboursement est requise et ne doit pas être dans le futur.",
+    "payment_method": "Le mode de paiement est requis.",
+    "bank_account": "Le compte bancaire est requis.",
+    "reason_too_long": "Le motif ne doit pas dépasser 255 caractères."
   },
   "errors": {
     "source_procedure_not_found": "Acte source introuvable.",

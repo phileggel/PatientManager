@@ -113,7 +113,7 @@ export function ReconciliationResultsView({
         <div className="w-12 h-12 rounded-full bg-m3-success-container flex items-center justify-center">
           <Check size={24} className="text-m3-on-success-container" />
         </div>
-        <p className="text-base font-medium text-m3-on-surface">{t("results.allCorrect")}</p>
+        <p className="text-base font-medium text-m3-on-surface">{t("results.all_correct")}</p>
       </div>
     );
   }
@@ -150,13 +150,13 @@ export function ReconciliationResultsView({
           onClick={goPrev}
           disabled={currentIndex === 0}
           className="m3-icon-button-primary disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label={t("results.prevAria")}
+          aria-label={t("results.prev_aria")}
         >
           <ArrowLeft size={18} />
         </button>
 
         <div className="flex items-center gap-2 text-sm text-m3-on-surface-variant">
-          <span>{t("results.stepNav", { current: currentIndex + 1, total })}</span>
+          <span>{t("results.step_nav", { current: currentIndex + 1, total })}</span>
           {currentIssue && isResolved(currentIssue) && (
             <>
               <Check size={14} className="text-m3-success" />
@@ -170,7 +170,7 @@ export function ReconciliationResultsView({
                 id="reconciliation-undo-correction"
                 onClick={() => onUnacceptCorrection(correctionKeysForMatch(currentIssue))}
                 className="inline-flex items-center gap-1 text-xs font-medium text-m3-primary hover:underline"
-                aria-label={t("results.action.undoAria")}
+                aria-label={t("results.action.undo_aria")}
               >
                 <Undo2 size={13} />
                 {t("results.action.undo")}
@@ -184,7 +184,7 @@ export function ReconciliationResultsView({
           onClick={goNext}
           disabled={currentIndex === total - 1}
           className="m3-icon-button-primary disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label={t("results.nextAria")}
+          aria-label={t("results.next_aria")}
         >
           <ArrowRight size={18} />
         </button>
@@ -257,7 +257,7 @@ export function ReconciliationResultsView({
                       ? "w-2 h-2 bg-m3-success/60"
                       : "w-2 h-2 bg-m3-outline/30 hover:bg-m3-outline/60"
                 }`}
-                aria-label={t("results.dotAria", { index: i + 1 })}
+                aria-label={t("results.dot_aria", { index: i + 1 })}
               />
             );
           })}

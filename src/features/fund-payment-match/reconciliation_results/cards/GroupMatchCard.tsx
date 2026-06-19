@@ -64,7 +64,7 @@ export function GroupMatchCard({
   return (
     <div className="m3-card-elevated space-y-4">
       <div className="flex items-start justify-between gap-3">
-        <IssueChip label={t("results.issueType.groupMatch")} variant="warning" />
+        <IssueChip label={t("results.issue_type.group_match")} variant="warning" />
         {isResolved && <ResolvedBadge label={t("results.resolved.label")} />}
       </div>
 
@@ -105,7 +105,7 @@ export function GroupMatchCard({
               .map((a) => (
                 <div key={a} className="flex items-center gap-1.5">
                   <span className="text-xs px-2 py-0.5 rounded-full bg-m3-warning-container text-m3-on-warning-container">
-                    {t(`results.badge.${a === "DateMismatch" ? "dateMismatch" : "fundMismatch"}`)}
+                    {t(`results.badge.${a === "DateMismatch" ? "date_mismatch" : "fund_mismatch"}`)}
                   </span>
                 </div>
               ))}
@@ -149,7 +149,7 @@ export function GroupMatchCard({
             }
           }}
         >
-          {t("results.action.validateDistribution")}
+          {t("results.action.validate_distribution")}
         </Button>
       )}
       {!isResolved && !amountOk && !allContested && currentTotal > 0 && (
@@ -167,7 +167,7 @@ export function GroupMatchCard({
             }
           }}
         >
-          {t("results.action.contestAmount", { amount: formatCurrency(currentTotal) })}
+          {t("results.action.contest_amount", { amount: formatCurrency(currentTotal) })}
         </Button>
       )}
     </div>

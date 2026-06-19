@@ -153,9 +153,9 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
               >
                 <CheckCircle2 size={40} className="text-m3-primary" />
                 <h3 className="text-base font-semibold text-m3-on-surface">
-                  {t("modal.alreadyImported.title")}
+                  {t("modal.already_imported.title")}
                 </h3>
-                <p className="text-sm text-center max-w-md">{t("modal.alreadyImported.body")}</p>
+                <p className="text-sm text-center max-w-md">{t("modal.already_imported.body")}</p>
               </output>
             ) : reconciliationData ? (
               <ReconciliationResultsView
@@ -197,7 +197,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
                     unresolvedGroupCount === 0 &&
                     resolvedCount < totalAnomalies && (
                       <Button variant="secondary" onClick={handleAutoCorrectAll}>
-                        {t("modal.footer.autoCorrect")}
+                        {t("modal.footer.auto_correct")}
                       </Button>
                     )}
                   {/* FPA-460 — explicit batch apply; enabled once every anomaly is resolved. */}

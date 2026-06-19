@@ -64,7 +64,7 @@ export function EditFundModal({ fund, isOpen, onClose }: EditFundModalProps) {
       id="edit-fund-modal"
       isOpen={isOpen}
       onClose={onClose}
-      title={t("action.editTitle")}
+      title={t("action.edit_title")}
       actions={actions}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">

@@ -91,7 +91,7 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
           ) : error ? (
             <tr>
               <td colSpan={4} className="m3-td text-center py-12">
-                <p className="text-m3-error mb-3">{t("list.loadError")}</p>
+                <p className="text-m3-error mb-3">{t("list.load_error")}</p>
                 <Button variant="secondary" size="sm" onClick={retry}>
                   {t("list.retry")}
                 </Button>
@@ -106,7 +106,7 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
           ) : sortedAndFilteredProcedureTypes.length === 0 ? (
             <tr>
               <td colSpan={4} className="m3-td text-center py-12 text-m3-on-surface-variant">
-                {t("list.noResults")}
+                {t("list.no_results")}
               </td>
             </tr>
           ) : (
@@ -117,7 +117,7 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
                   key={row.rowId}
                   onClick={() => handleRowClick(row.id)}
                   className="m3-tr cursor-pointer select-none"
-                  title={tc("table.doubleClickToEdit")}
+                  title={tc("table.double_click_to_edit")}
                 >
                   <td className="m3-td font-medium text-m3-on-surface">{row.name}</td>
                   <td className="m3-td text-m3-on-surface">{formatCurrency(row.defaultAmount)}</td>
@@ -128,7 +128,7 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
                         variant="ghost"
                         size="sm"
                         shape="round"
-                        aria-label={t("action.editAriaLabel", { name: row.name })}
+                        aria-label={t("action.edit_aria_label", { name: row.name })}
                         icon={<Edit2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -139,7 +139,7 @@ export function ProcedureTypeList({ searchTerm }: ProcedureTypeListProps) {
                         variant="danger"
                         size="sm"
                         shape="round"
-                        aria-label={t("action.deleteAriaLabel", { name: row.name })}
+                        aria-label={t("action.delete_aria_label", { name: row.name })}
                         icon={<Trash2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();

@@ -1,50 +1,50 @@
 {
   "page": {
     "title": "Patients",
-    "searchPlaceholder": "Rechercher un patient...",
-    "addDescription": "Ajouter un nouveau patient."
+    "search_placeholder": "Rechercher un patient...",
+    "add_description": "Ajouter un nouveau patient."
   },
   "form": {
     "name": "Nom du patient",
-    "namePlaceholder": "Entrez le nom du patient",
+    "name_placeholder": "Entrez le nom du patient",
     "ssn": "Numéro INS",
-    "ssnPlaceholder": "Entrez le numéro INS (optionnel)",
-    "fundPatientName": "Nom patient caisse",
-    "fundPatientNamePlaceholder": "Entrez le nom patient caisse (optionnel)",
-    "nameRequired": "Le nom du patient est obligatoire"
+    "ssn_placeholder": "Entrez le numéro INS (optionnel)",
+    "fund_patient_name": "Nom patient caisse",
+    "fund_patient_name_placeholder": "Entrez le nom patient caisse (optionnel)",
+    "name_required": "Le nom du patient est obligatoire"
   },
   "list": {
     "name": "Nom",
     "ssn": "INS",
-    "latestFund": "Dernière caisse",
-    "latestDate": "Dernière date",
+    "latest_fund": "Dernière caisse",
+    "latest_date": "Dernière date",
     "loading": "Chargement des patients...",
-    "noData": "Aucun patient trouvé."
+    "no_data": "Aucun patient trouvé."
   },
   "action": {
     "add": "Ajouter un patient",
     "adding": "Ajout en cours...",
     "update": "Mettre à jour",
     "updating": "Mise à jour...",
-    "editTitle": "Modifier le patient",
-    "addSuccess": "Patient \"{{name}}\" ajouté avec succès",
-    "addError": "Échec de l'ajout du patient : {{error}}",
-    "updateSuccess": "Patient \"{{name}}\" mis à jour avec succès",
-    "updateError": "Échec de la mise à jour du patient : {{error}}",
-    "editAriaLabel": "Modifier le patient {{name}}",
-    "deleteAriaLabel": "Supprimer le patient {{name}}",
+    "edit_title": "Modifier le patient",
+    "add_success": "Patient \"{{name}}\" ajouté avec succès",
+    "add_error": "Échec de l'ajout du patient : {{error}}",
+    "update_success": "Patient \"{{name}}\" mis à jour avec succès",
+    "update_error": "Échec de la mise à jour du patient : {{error}}",
+    "edit_aria_label": "Modifier le patient {{name}}",
+    "delete_aria_label": "Supprimer le patient {{name}}",
     "delete": {
       "title": "Supprimer un patient",
       "message": "Êtes-vous sûr de vouloir supprimer {{name}} ?",
       "confirm": "Supprimer",
       "success": "Patient \"{{name}}\" supprimé avec succès",
       "error": "Échec de la suppression du patient : {{error}}",
-      "failedFallback": "Échec de la suppression du patient"
+      "failed_fallback": "Échec de la suppression du patient"
     }
   },
   "modal": {
-    "latestProcedure": "Dernière procédure",
-    "procedureType": "Type d'acte",
+    "latest_procedure": "Dernière procédure",
+    "procedure_type": "Type d'acte",
     "fund": "Caisse",
     "date": "Date",
     "amount": "Montant"

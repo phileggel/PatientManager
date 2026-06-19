@@ -41,7 +41,7 @@ export function CancelRefundDialog({
         {tc("action.cancel")}
       </Button>
       <Button variant="danger" onClick={handleConfirm} loading={loading} disabled={loading}>
-        {t("action.cancelRefund")}
+        {t("action.cancel_refund")}
       </Button>
     </div>
   );
@@ -51,11 +51,11 @@ export function CancelRefundDialog({
       id="cancel-refund-dialog"
       isOpen={isOpen}
       onClose={onClose}
-      title={t("modal.cancelTitle")}
+      title={t("modal.cancel_title")}
       actions={actions}
       disableClose={loading}
     >
-      <p className="text-sm">{t("modal.cancelBody")}</p>
+      <p className="text-sm">{t("modal.cancel_body")}</p>
     </Dialog>
   );
 }

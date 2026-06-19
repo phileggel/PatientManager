@@ -1,10 +1,10 @@
 {
   "loading": "Loading dashboard...",
   "computing": "Computing...",
-  "noDataYear": "No data for {{year}}",
+  "no_data_year": "No data for {{year}}",
   "error": "Error",
-  "loadFailed": "Failed to load dashboard data",
-  "reloadFailed": "Failed to refresh dashboard data",
+  "load_failed": "Failed to load dashboard data",
+  "reload_failed": "Failed to refresh dashboard data",
   "year": "Year:",
   "title": "Dashboard",
   "payments": "Payments {{year}}",
@@ -21,7 +21,7 @@
     "description": "The dashboard will appear here once you have created:",
     "patients": "Patients",
     "funds": "Funds",
-    "procedureTypes": "Procedure types",
+    "procedure_types": "Procedure types",
     "procedures": "Procedures",
     "hint": "Use the navigation menu to start entering data."
   }

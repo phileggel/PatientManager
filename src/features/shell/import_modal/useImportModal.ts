@@ -46,7 +46,7 @@ export function useImportModal({
   const handleExcelImport = useCallback(async () => {
     setIsPicking(true);
     try {
-      const path = await pickExcelFilePath(t("excel.dialogTitle"), getLastFolder("excel"));
+      const path = await pickExcelFilePath(t("excel.dialog_title"), getLastFolder("excel"));
       if (!path) return;
       rememberParentFolder("excel", path);
       onFileSelected("excel-import", path);
@@ -58,7 +58,7 @@ export function useImportModal({
 
   const handleFundReconciliation = useCallback(async () => {
     if (fundCount === 0) {
-      toastService.show("info", t("prerequisites.noFund"));
+      toastService.show("info", t("prerequisites.no_fund"));
       onNavigate("funds");
       onClose();
       return;
@@ -66,7 +66,7 @@ export function useImportModal({
     setIsPicking(true);
     try {
       const path = await pickPdfFilePath(
-        t("fundReconciliation.dialogTitle"),
+        t("fund_reconciliation.dialog_title"),
         getLastFolder("fund-pdf"),
       );
       if (!path) return;
@@ -80,7 +80,7 @@ export function useImportModal({
 
   const handleBankReconciliation = useCallback(async () => {
     if (bankAccountCount === 0) {
-      toastService.show("info", t("prerequisites.noBankAccount"));
+      toastService.show("info", t("prerequisites.no_bank_account"));
       onNavigate("bank-account");
       onClose();
       return;
@@ -88,7 +88,7 @@ export function useImportModal({
     setIsPicking(true);
     try {
       const path = await pickPdfFilePath(
-        t("bankReconciliation.dialogTitle"),
+        t("bank_reconciliation.dialog_title"),
         getLastFolder("bank-pdf"),
       );
       if (!path) return;

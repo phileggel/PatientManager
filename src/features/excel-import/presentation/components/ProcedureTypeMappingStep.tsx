@@ -128,8 +128,8 @@ export function ProcedureTypeMappingStep({
   return (
     <div className="space-y-6">
       <div className="p-4 bg-m3-primary/10 rounded-xl">
-        <h3 className="font-semibold text-m3-primary">{t("mapping.infoTitle")}</h3>
-        <p className="text-sm text-m3-on-surface-variant mt-2">{t("mapping.infoDescription")}</p>
+        <h3 className="font-semibold text-m3-primary">{t("mapping.info_title")}</h3>
+        <p className="text-sm text-m3-on-surface-variant mt-2">{t("mapping.info_description")}</p>
       </div>
 
       {/* Mapping table */}
@@ -141,7 +141,7 @@ export function ProcedureTypeMappingStep({
                 {t("mapping.amount")}
               </th>
               <th className="px-4 py-3 text-left font-semibold text-neutral-90">
-                {t("mapping.procedureType")}
+                {t("mapping.procedure_type")}
               </th>
             </tr>
           </thead>
@@ -169,14 +169,14 @@ export function ProcedureTypeMappingStep({
                         disabled={isLoading || showNewTypeModal !== null}
                       >
                         <option value={IMPORTED_FROM_EXCEL_ID}>
-                          {t("mapping.importedFromExcel")}
+                          {t("mapping.imported_from_excel")}
                         </option>
                         {availableTypes.map((type) => (
                           <option key={type.id} value={type.id}>
                             {type.name} ({formatCurrency(procMapping.amount)})
                           </option>
                         ))}
-                        <option value="create-new">{t("mapping.createNew")}</option>
+                        <option value="create-new">{t("mapping.create_new")}</option>
                       </select>
                     </div>
                   </td>

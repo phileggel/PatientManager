@@ -129,7 +129,7 @@ export default function ProcedurePage() {
     const result = await gateway.readAllProcedures();
     if (!result.success) {
       logger.error(TAG, "Error refreshing procedures", { error: result.error });
-      toastService.show("error", t("state.reloadFailed"));
+      toastService.show("error", t("state.reload_failed"));
       return;
     }
     const mappedRows = result.data.map((proc) =>
@@ -146,7 +146,7 @@ export default function ProcedurePage() {
       await reloadRows();
     } catch (err) {
       logger.error(TAG, "Error deleting procedure", { error: err });
-      toastService.show("error", t("error.deleteFailed"));
+      toastService.show("error", t("error.delete_failed"));
     } finally {
       setPendingDeleteId(null);
     }
@@ -224,7 +224,7 @@ export default function ProcedurePage() {
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
             >
-              <option value="">{t("filter.allStatuses")}</option>
+              <option value="">{t("filter.all_statuses")}</option>
               <option value="NONE">{t("status.none")}</option>
               <option value="CREATED">{t("status.created")}</option>
               <option value="RECONCILED">{t("status.reconciled")}</option>
@@ -266,7 +266,7 @@ export default function ProcedurePage() {
       </PageContent>
 
       {/* FAB — open create modal (PRO-110) */}
-      <FAB onClick={openCreateModal} label={t("action.fabAriaLabel")} />
+      <FAB onClick={openCreateModal} label={t("action.fab_aria_label")} />
 
       {/* Unified create/edit modal (PRO-040, PRO-110) */}
       <ProcedureFormModal
@@ -283,10 +283,10 @@ export default function ProcedurePage() {
         isOpen={pendingDeleteId !== null}
         onCancel={handleCancelDelete}
         onConfirm={handleConfirmDelete}
-        title={t("action.deleteTitle")}
+        title={t("action.delete_title")}
         message={t("action.delete.confirm")}
-        confirmLabel={t("action.delete.confirmLabel")}
-        cancelLabel={t("action.delete.cancelLabel")}
+        confirmLabel={t("action.delete.confirm_label")}
+        cancelLabel={t("action.delete.cancel_label")}
         variant="danger"
       />
     </>

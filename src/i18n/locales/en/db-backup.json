@@ -1,12 +1,12 @@
 {
-  "modalTitle": "Database backup",
+  "modal_title": "Database backup",
   "export": {
     "title": "Export database",
     "description": "Creates a compressed copy of the database as a `.db.gz` file. This file can be used to restore your data later.",
     "button": "Export",
     "progress": "Exporting…",
     "success": "Database exported successfully",
-    "dialogTitle": "Choose backup destination"
+    "dialog_title": "Choose backup destination"
   },
   "import": {
     "title": "Restore a backup",
@@ -15,7 +15,7 @@
     "progress": "Restoring…",
     "relaunching": "Restarting…",
     "success": "Backup imported — restarting…",
-    "dialogTitle": "Select a backup file",
+    "dialog_title": "Select a backup file",
     "confirm": {
       "title": "Confirm restore",
       "message": "This will permanently replace all current data with the contents of the selected file. The application will restart automatically.\n\nThis action cannot be undone. Continue?",

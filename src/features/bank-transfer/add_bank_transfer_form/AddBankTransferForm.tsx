@@ -71,26 +71,26 @@ export function AddBankTransferForm() {
         value={transferType}
         onChange={(e) => handleTypeChange(e.target.value as BankEntryType)}
         options={[
-          { value: "FUND_WIRE", label: t("transfer.typeFund") },
-          { value: "PATIENT_CHECK", label: t("transfer.typeCheck") },
-          { value: "PATIENT_CREDIT_CARD", label: t("transfer.typeCreditCard") },
-          { value: "PATIENT_CASH", label: t("transfer.typeCash") },
+          { value: "FUND_WIRE", label: t("transfer.type_fund") },
+          { value: "PATIENT_CHECK", label: t("transfer.type_check") },
+          { value: "PATIENT_CREDIT_CARD", label: t("transfer.type_credit_card") },
+          { value: "PATIENT_CASH", label: t("transfer.type_cash") },
         ]}
       />
 
       {/* Bank Account — hidden for CASH (auto-assigned, R13) */}
       {isCash ? (
         <div className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-neutral-90">{t("transfer.bankAccount")}</span>
-          <span className="text-sm text-neutral-60">{t("transfer.cashAccount")}</span>
+          <span className="text-sm font-medium text-neutral-90">{t("transfer.bank_account")}</span>
+          <span className="text-sm text-neutral-60">{t("transfer.cash_account")}</span>
         </div>
       ) : (
         <SelectField
           id="bankAccount"
-          label={t("transfer.bankAccount")}
+          label={t("transfer.bank_account")}
           value={bankAccount}
           onChange={(e) => setBankAccount(e.target.value)}
-          options={[{ value: "", label: t("transfer.selectBankAccount") }, ...bankAccountOptions]}
+          options={[{ value: "", label: t("transfer.select_bank_account") }, ...bankAccountOptions]}
           error={errors.bankAccount}
         />
       )}
@@ -116,7 +116,7 @@ export function AddBankTransferForm() {
       {/* Computed amount display */}
       {totalAmountMillis > 0 && (
         <div className="rounded-md bg-neutral-10 border border-neutral-20 px-4 py-3 text-sm">
-          <span className="text-neutral-60">{t("transfer.computedAmount")}</span>{" "}
+          <span className="text-neutral-60">{t("transfer.computed_amount")}</span>{" "}
           <span className="font-semibold text-neutral-90">{formatCurrency(totalAmountMillis)}</span>
         </div>
       )}
@@ -128,7 +128,7 @@ export function AddBankTransferForm() {
         loading={submitting}
         disabled={!isValid || submitting}
       >
-        {submitting ? t("transfer.creating") : t("transfer.createButton")}
+        {submitting ? t("transfer.creating") : t("transfer.create_button")}
       </Button>
     </form>
   );

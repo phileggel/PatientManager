@@ -76,10 +76,10 @@ export function ImportModal({ isOpen, onClose, onNavigate, onFileSelected }: Imp
           disabled={isPicking}
         >
           <span className="text-sm font-medium text-m3-on-surface">
-            {t("fundReconciliation.title")}
+            {t("fund_reconciliation.title")}
           </span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("fundReconciliation.description")}
+            {t("fund_reconciliation.description")}
           </p>
         </button>
 
@@ -92,10 +92,10 @@ export function ImportModal({ isOpen, onClose, onNavigate, onFileSelected }: Imp
           disabled={isPicking}
         >
           <span className="text-sm font-medium text-m3-on-surface">
-            {t("bankReconciliation.title")}
+            {t("bank_reconciliation.title")}
           </span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("bankReconciliation.description")}
+            {t("bank_reconciliation.description")}
           </p>
         </button>
       </div>

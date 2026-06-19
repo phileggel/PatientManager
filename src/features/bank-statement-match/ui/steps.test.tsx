@@ -28,7 +28,7 @@ describe("DoneStep", () => {
   it("renders the done message with the created count", () => {
     render(<DoneStep createdCount={3} />);
     expect(screen.getByText('statement.modal.done:{"count":3}')).toBeInTheDocument();
-    expect(screen.getByText("statement.modal.doneDescription")).toBeInTheDocument();
+    expect(screen.getByText("statement.modal.done_description")).toBeInTheDocument();
   });
 });
 

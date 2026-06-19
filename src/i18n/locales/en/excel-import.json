@@ -3,50 +3,50 @@
     "title": "Step 1: Select File"
   },
   "dropzone": {
-    "ariaLabel": "File drop zone",
+    "aria_label": "File drop zone",
     "text": "Drag and drop your Excel file here",
     "or": "or",
     "select": "Select File",
     "processing": "Processing...",
     "formats": "Supported formats: .xlsx, .xls, .csv"
   },
-  "createTypeModal": {
+  "create_type_modal": {
     "title": "Create New Procedure Type",
-    "nameLabel": "Name",
-    "namePlaceholder": "e.g., Consultation",
-    "amountLabel": "Default Amount (€)",
-    "nameRequired": "Please enter a procedure type name",
+    "name_label": "Name",
+    "name_placeholder": "e.g., Consultation",
+    "amount_label": "Default Amount (€)",
+    "name_required": "Please enter a procedure type name",
     "cancel": "Cancel",
     "create": "Create",
     "creating": "Creating...",
     "error": "Failed to create procedure type"
   },
   "mapping": {
-    "modalTitle": "Map Procedure Types",
-    "infoTitle": "Map Procedure Amounts to Types",
-    "infoDescription": "For each procedure amount, select the appropriate procedure type or create a new one. Amounts are pre-filled with a default type—please review and change the mapping if needed.",
+    "modal_title": "Map Procedure Types",
+    "info_title": "Map Procedure Amounts to Types",
+    "info_description": "For each procedure amount, select the appropriate procedure type or create a new one. Amounts are pre-filled with a default type—please review and change the mapping if needed.",
     "amount": "Amount",
-    "procedureType": "Procedure Type",
-    "importedFromExcel": "Imported from Excel",
-    "createNew": "+ Create new type...",
+    "procedure_type": "Procedure Type",
+    "imported_from_excel": "Imported from Excel",
+    "create_new": "+ Create new type...",
     "continue": "Continue",
     "processing": "Processing..."
   },
   "progress": {
     "upload": "Upload",
     "parsing": "Parse",
-    "sheetSelection": "Select sheets",
+    "sheet_selection": "Select sheets",
     "mapping": "Map Types",
     "importing": "Importing",
     "complete": "Complete",
-    "stepCompleted": "Step completed"
+    "step_completed": "Step completed"
   },
-  "sheetSelection": {
+  "sheet_selection": {
     "title": "Select sheets to import",
     "description": "Choose which sheets to import. Existing procedures for the corresponding months will be deleted and replaced. Months with reconciled procedures cannot be re-imported.",
-    "selectAll": "Select all",
-    "deselectAll": "Deselect all",
-    "sheetsSelected": "sheets selected",
+    "select_all": "Select all",
+    "deselect_all": "Deselect all",
+    "sheets_selected": "sheets selected",
     "continue": "Continue",
     "sheets": {
       "Jan": "January",
@@ -65,21 +65,21 @@
   },
   "result": {
     "title": "Import completed successfully!",
-    "patientsProcessed": "Patients processed",
-    "fundsProcessed": "Funds processed",
-    "proceduresCreated": "Procedures created",
-    "createdReused": "{{created}} created · {{reused}} reused",
-    "deletedBeforeReimport_one": "{{count}} deleted before reimport",
-    "deletedBeforeReimport_other": "{{count}} deleted before reimport",
+    "patients_processed": "Patients processed",
+    "funds_processed": "Funds processed",
+    "procedures_created": "Procedures created",
+    "created_reused": "{{created}} created · {{reused}} reused",
+    "deleted_before_reimport_one": "{{count}} deleted before reimport",
+    "deleted_before_reimport_other": "{{count}} deleted before reimport",
     "skipped_one": "{{count}} skipped",
     "skipped_other": "{{count}} skipped",
-    "blockedMonthsTitle": "Months not imported (reconciled procedures)",
-    "viewReport": "View import report"
+    "blocked_months_title": "Months not imported (reconciled procedures)",
+    "view_report": "View import report"
   },
   "status": {
     "parsing": "Parsing Excel file...",
     "retry": "Retry Import",
-    "importFailed": "Import failed"
+    "import_failed": "Import failed"
   },
   "errors": {
     "file_not_found": "The selected file could not be found.",
@@ -88,19 +88,19 @@
     "import_failed": "The import could not be completed. Please try again.",
     "database_error": "An unexpected database error occurred."
   },
-  "parsingReport": {
-    "unifiedTitle": "Import report",
+  "parsing_report": {
+    "unified_title": "Import report",
     "summary": "Summary",
-    "skippedRows": "Skipped rows:",
-    "missingSheets": "Missing sheets:",
-    "missingSheetsTitle": "Missing Month Sheets",
-    "missingSheetsDesc_one": "The following {{count}} month sheet was not found:",
-    "missingSheetsDesc_other": "The following {{count}} month sheets were not found:",
-    "skippedRowsTitle": "Skipped Rows ({{count}})",
-    "colSheet": "Sheet",
-    "colRow": "Row",
-    "colReason": "Reason",
-    "noIssues": "No parsing issues detected",
+    "skipped_rows": "Skipped rows:",
+    "missing_sheets": "Missing sheets:",
+    "missing_sheets_title": "Missing Month Sheets",
+    "missing_sheets_desc_one": "The following {{count}} month sheet was not found:",
+    "missing_sheets_desc_other": "The following {{count}} month sheets were not found:",
+    "skipped_rows_title": "Skipped Rows ({{count}})",
+    "col_sheet": "Sheet",
+    "col_row": "Row",
+    "col_reason": "Reason",
+    "no_issues": "No parsing issues detected",
     "close": "Close",
     "reasons": {
       "insufficient_columns": "Insufficient columns (need at least {{needed}})",

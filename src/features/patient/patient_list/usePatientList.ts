@@ -27,7 +27,7 @@ export function usePatientList() {
     const result = await deletePatient(id);
     if (!result.success) {
       const { key, params } = formatPatientError(result.error);
-      throw new Error(t(key, params) || t("action.delete.failedFallback"));
+      throw new Error(t(key, params) || t("action.delete.failed_fallback"));
     }
   };
 

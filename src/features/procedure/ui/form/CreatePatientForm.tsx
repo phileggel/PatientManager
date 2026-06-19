@@ -55,7 +55,7 @@ export function CreatePatientForm({
     validator: (fields) => {
       const errors: Record<string, string> = {};
       if (!fields.name.trim()) {
-        errors.name = t("createPatient.nameRequired");
+        errors.name = t("create_patient.name_required");
       }
       return errors;
     },
@@ -84,7 +84,7 @@ export function CreatePatientForm({
         loading={form.isSubmitting}
         disabled={!form.fields.name.trim()}
       >
-        {t("createPatient.submit")}
+        {t("create_patient.submit")}
       </Button>
     </>
   );
@@ -94,17 +94,17 @@ export function CreatePatientForm({
       id="procedure-create-patient-dialog"
       isOpen={isOpen}
       onClose={form.handleClose}
-      title={t("createPatient.title")}
+      title={t("create_patient.title")}
       actions={actions}
     >
       <form id="create-patient-form" onSubmit={form.handleSubmit} className="flex flex-col gap-4">
         <TextField
           id="patient-name"
-          label={t("createPatient.nameLabel")}
+          label={t("create_patient.name_label")}
           type="text"
           value={form.fields.name}
           onChange={(e) => form.updateField("name", e.target.value)}
-          placeholder={t("createPatient.namePlaceholder")}
+          placeholder={t("create_patient.name_placeholder")}
           required
           error={form.errors.name}
           disabled={form.isSubmitting}
@@ -113,11 +113,11 @@ export function CreatePatientForm({
 
         <TextField
           id="patient-ssn"
-          label={t("createPatient.ssnLabel")}
+          label={t("create_patient.ssn_label")}
           type="text"
           value={form.fields.ssn}
           onChange={(e) => form.updateField("ssn", e.target.value)}
-          placeholder={t("createPatient.ssnPlaceholder")}
+          placeholder={t("create_patient.ssn_placeholder")}
           disabled={form.isSubmitting}
         />
 

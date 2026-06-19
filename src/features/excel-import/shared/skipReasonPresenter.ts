@@ -16,50 +16,50 @@ export function formatSkipReason(reason: SkipReason): {
   switch (reason.code) {
     case "InsufficientColumns":
       return {
-        key: "excel-import:parsingReport.reasons.insufficient_columns",
+        key: "excel-import:parsing_report.reasons.insufficient_columns",
         params: { needed: reason.needed },
       };
     case "MissingPatientName":
-      return { key: "excel-import:parsingReport.reasons.missing_patient_name" };
+      return { key: "excel-import:parsing_report.reasons.missing_patient_name" };
     case "MissingFundIdentifier":
-      return { key: "excel-import:parsingReport.reasons.missing_fund_identifier" };
+      return { key: "excel-import:parsing_report.reasons.missing_fund_identifier" };
     case "MissingFundName":
-      return { key: "excel-import:parsingReport.reasons.missing_fund_name" };
+      return { key: "excel-import:parsing_report.reasons.missing_fund_name" };
     case "UnrecognizedDateFormat":
       return {
-        key: "excel-import:parsingReport.reasons.unrecognized_date_format",
+        key: "excel-import:parsing_report.reasons.unrecognized_date_format",
         params: { value: reason.value },
       };
     case "PatientNotFound":
       return {
-        key: "excel-import:parsingReport.reasons.patient_not_found",
+        key: "excel-import:parsing_report.reasons.patient_not_found",
         params: { name: reason.name },
       };
     case "FundNotFound":
       return {
-        key: "excel-import:parsingReport.reasons.fund_not_found",
+        key: "excel-import:parsing_report.reasons.fund_not_found",
         params: { identifier: reason.identifier },
       };
     case "InvalidAmount":
       return {
-        key: "excel-import:parsingReport.reasons.invalid_amount",
+        key: "excel-import:parsing_report.reasons.invalid_amount",
         params: { value: reason.value },
       };
     case "InvalidProcedureDate":
       return {
-        key: "excel-import:parsingReport.reasons.invalid_procedure_date",
+        key: "excel-import:parsing_report.reasons.invalid_procedure_date",
         params: { value: reason.value },
       };
     case "InvalidConfirmedPaymentDate":
       return {
-        key: "excel-import:parsingReport.reasons.invalid_confirmed_payment_date",
+        key: "excel-import:parsing_report.reasons.invalid_confirmed_payment_date",
         params: { value: reason.value },
       };
     case "UnknownSheetName":
-      return { key: "excel-import:parsingReport.reasons.unknown_sheet_name" };
+      return { key: "excel-import:parsing_report.reasons.unknown_sheet_name" };
     case "DateOutsideSheetMonth":
       return {
-        key: "excel-import:parsingReport.reasons.date_outside_sheet_month",
+        key: "excel-import:parsing_report.reasons.date_outside_sheet_month",
         params: { date: reason.date },
       };
   }

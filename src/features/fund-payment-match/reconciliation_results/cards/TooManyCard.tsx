@@ -20,13 +20,13 @@ export function TooManyCard({ pdfLine, count }: TooManyCardProps) {
   const { t } = useTranslation("fund-payment-match");
   return (
     <div className="m3-card-elevated space-y-4">
-      <IssueChip label={t("results.issueType.tooMany")} variant="blocked" />
+      <IssueChip label={t("results.issue_type.too_many")} variant="blocked" />
       <PdfSummary line={pdfLine} />
       <div className="rounded-lg bg-m3-error-container/30 border border-m3-error/20 px-4 py-3 space-y-1">
         <p className="text-sm font-medium text-m3-on-error-container">
-          {t("results.tooMany.description", { count })}
+          {t("results.too_many.description", { count })}
         </p>
-        <p className="text-xs text-m3-on-surface-variant">{t("results.tooMany.hint")}</p>
+        <p className="text-xs text-m3-on-surface-variant">{t("results.too_many.hint")}</p>
       </div>
     </div>
   );

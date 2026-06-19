@@ -35,7 +35,7 @@ export function ProcedureTypeManager() {
         count={count}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={t("page.searchPlaceholder")}
+        searchPlaceholder={t("page.search_placeholder")}
       />
       <div className="flex-1 overflow-auto">
         <ProcedureTypeList searchTerm={searchTerm} />
@@ -44,7 +44,7 @@ export function ProcedureTypeManager() {
       <FAB
         id="fab-create-procedure-type"
         onClick={() => setIsCreateModalOpen(true)}
-        label={t("action.fabAriaLabel")}
+        label={t("action.fab_aria_label")}
       />
 
       <CreateProcedureTypeModal

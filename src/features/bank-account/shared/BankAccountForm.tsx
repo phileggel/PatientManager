@@ -26,7 +26,7 @@ export function BankAccountForm({
         label={t("account.form.name")}
         id={`${idPrefix}-name`}
         name="name"
-        placeholder={t("account.form.namePlaceholder")}
+        placeholder={t("account.form.name_placeholder")}
         value={formData.name}
         onChange={handleChange}
         error={errors?.name}
@@ -35,7 +35,7 @@ export function BankAccountForm({
         label={t("account.form.iban")}
         id={`${idPrefix}-iban`}
         name="iban"
-        placeholder={t("account.form.ibanPlaceholder")}
+        placeholder={t("account.form.iban_placeholder")}
         value={formData.iban}
         onChange={handleChange}
         error={errors?.iban}

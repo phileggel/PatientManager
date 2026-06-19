@@ -81,7 +81,7 @@ describe("formatReportPdfError", () => {
     ];
     for (const code of codes) {
       expect(formatReportPdfError({ code }).key).toBe(
-        "fund-payment-match:modal.report.error.exportFailed",
+        "fund-payment-match:modal.report.error.export_failed",
       );
     }
   });

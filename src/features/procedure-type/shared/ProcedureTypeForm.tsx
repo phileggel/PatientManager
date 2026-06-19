@@ -26,7 +26,7 @@ export function ProcedureTypeForm({
         value={formData.name}
         onChange={handleChange}
         name="name"
-        placeholder={t("form.namePlaceholder")}
+        placeholder={t("form.name_placeholder")}
         error={errors?.name}
         required
       />
@@ -39,7 +39,7 @@ export function ProcedureTypeForm({
         value={formData.defaultAmount}
         onChange={handleChange}
         name="defaultAmount"
-        placeholder={t("form.amountPlaceholder")}
+        placeholder={t("form.amount_placeholder")}
         error={errors?.defaultAmount}
         required
       />
@@ -50,7 +50,7 @@ export function ProcedureTypeForm({
         value={formData.category}
         onChange={handleChange}
         name="category"
-        placeholder={t("form.categoryPlaceholder")}
+        placeholder={t("form.category_placeholder")}
       />
     </div>
   );

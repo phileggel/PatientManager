@@ -92,7 +92,7 @@ export function FundList({ searchTerm }: FundListProps) {
           ) : sortedAndFilteredFunds.length === 0 ? (
             <tr>
               <td colSpan={3} className="m3-td text-center py-12 text-m3-on-surface-variant">
-                {t("list.noData")}
+                {t("list.no_data")}
               </td>
             </tr>
           ) : (
@@ -103,7 +103,7 @@ export function FundList({ searchTerm }: FundListProps) {
                   key={fund.rowId}
                   onClick={() => handleRowClick(fund.id)}
                   className="m3-tr cursor-pointer select-none"
-                  title={tc("table.doubleClickToEdit")}
+                  title={tc("table.double_click_to_edit")}
                 >
                   <td className="m3-td font-medium text-m3-on-surface">{fund.fundIdentifier}</td>
                   <td className="m3-td text-m3-on-surface">{fund.fundName}</td>
@@ -113,7 +113,7 @@ export function FundList({ searchTerm }: FundListProps) {
                         variant="ghost"
                         size="sm"
                         shape="round"
-                        aria-label={t("action.editAriaLabel", { name: fund.fundName || "" })}
+                        aria-label={t("action.edit_aria_label", { name: fund.fundName || "" })}
                         icon={<Edit2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -124,7 +124,7 @@ export function FundList({ searchTerm }: FundListProps) {
                         variant="danger"
                         size="sm"
                         shape="round"
-                        aria-label={t("action.deleteAriaLabel", { name: fund.fundName || "" })}
+                        aria-label={t("action.delete_aria_label", { name: fund.fundName || "" })}
                         icon={<Trash2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();

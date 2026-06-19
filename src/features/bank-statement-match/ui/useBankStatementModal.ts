@@ -108,7 +108,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
       }
 
       if (resolvedLines.length === 0) {
-        setError(t("statement.modal.noCredit"));
+        setError(t("statement.modal.no_credit"));
         setStep("error");
         return;
       }
@@ -168,7 +168,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
       logger.info(TAG, `Parsed: ${parsed.credit_lines.length} credit lines, IBAN: ${parsed.iban}`);
 
       if (!parsed.iban) {
-        setError(t("statement.modal.noIban"));
+        setError(t("statement.modal.no_iban"));
         setStep("error");
         return;
       }
@@ -224,7 +224,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
 
     const trimmedName = createName.trim();
     if (trimmedName.length === 0) {
-      setCreateError(t("statement.modal.createAccount.nameRequired"));
+      setCreateError(t("statement.modal.create_account.name_required"));
       return;
     }
 
@@ -239,8 +239,8 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
         const isIbanConflict = key === "bank:errors.iban_already_used";
         setCreateError(
           isIbanConflict
-            ? t("statement.modal.createAccount.errorIbanAlreadyUsed")
-            : t("statement.modal.createAccount.errorUnknown"),
+            ? t("statement.modal.create_account.error_iban_already_used")
+            : t("statement.modal.create_account.error_unknown"),
         );
         return;
       }
@@ -254,7 +254,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
         logger.error(TAG, "Failed to resolve fund labels after inline create", {
           code: resolutionsRes.error.code,
         });
-        setCreateError(t("statement.modal.unknownError"));
+        setCreateError(t("statement.modal.unknown_error"));
         return;
       }
       setLabelResolutions(resolutionsRes.data);
@@ -304,7 +304,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         logger.error(TAG, "Failed to save label mappings", { message: msg });
-        setError(t("statement.modal.unknownError"));
+        setError(t("statement.modal.unknown_error"));
         setStep("error");
       } finally {
         setIsProcessing(false);
@@ -340,7 +340,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
       }
 
       if (confirmedMatches.length === 0) {
-        toastService.show("error", t("statement.modal.noTransfer"));
+        toastService.show("error", t("statement.modal.no_transfer"));
         setIsProcessing(false);
         return;
       }
@@ -358,7 +358,7 @@ export function useBankStatementModal(filePath: string): UseBankStatementModalRe
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(TAG, "Failed to create bank transfers", { message: msg });
-      setError(t("statement.modal.unknownError"));
+      setError(t("statement.modal.unknown_error"));
       setStep("error");
     } finally {
       setIsProcessing(false);

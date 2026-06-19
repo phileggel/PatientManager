@@ -20,7 +20,7 @@ export function useAddPatientPanel() {
 
   const validateForm = (): boolean => {
     const newErrors = validatePatient(formData, {
-      nameRequired: t("form.nameRequired"),
+      nameRequired: t("form.name_required"),
     });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -61,11 +61,11 @@ export function useAddPatientPanel() {
         logger.info("Patient added successfully");
         setFormData({ name: "", ssn: "" });
         setErrors({});
-        toastService.show("success", t("action.addSuccess", { name: result.data?.name }));
+        toastService.show("success", t("action.add_success", { name: result.data?.name }));
       } else {
         const { key, params } = formatPatientError(result.error);
         logger.error("Failed to add patient", { code: result.error.code });
-        toastService.show("error", t("action.addError", { error: t(key, params) }));
+        toastService.show("error", t("action.add_error", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while adding patient", { error });
