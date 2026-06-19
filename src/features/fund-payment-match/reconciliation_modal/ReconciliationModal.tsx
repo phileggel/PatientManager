@@ -15,6 +15,10 @@ import { Button } from "@/ui/components/button";
 import { IconButton } from "@/ui/components/button/IconButton";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { ReconciliationResultsView } from "../reconciliation_results/ReconciliationResults";
+import {
+  presentReconciliationErrorState,
+  type ReconciliationErrorState,
+} from "../shared/errorPresenter";
 import { buildFundIdToLabel } from "../shared/reportPresenter";
 import { UnreconciledReportView } from "../unreconciled_report/UnreconciledReport";
 import { useReconciliationModal } from "./useReconciliationModal";
@@ -57,6 +61,14 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
   } = useReconciliationModal(filePath, onClose);
 
   const isReportStep = unreconciledReport !== null && reportDateRange !== null;
+
+  // F27 Layer 4 — translate the typed error states at render time.
+  const translateError = (state: ReconciliationErrorState): string => {
+    const { key, params } = presentReconciliationErrorState(state);
+    return t(key, params);
+  };
+  const errorMessage = error ? translateError(error) : null;
+  const validationErrorMessage = validationError ? translateError(validationError) : null;
 
   const funds = useCacheStore((state) => state.funds);
   const fundIdToLabel = useMemo(() => buildFundIdToLabel(funds), [funds]);
@@ -131,7 +143,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
             ) : error ? (
               <div className="rounded-lg bg-m3-error-container/40 border border-m3-error/20 px-5 py-4">
                 <p role="alert" className="text-sm text-m3-on-error-container">
-                  {error}
+                  {errorMessage}
                 </p>
               </div>
             ) : alreadyImported ? (
@@ -171,9 +183,9 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
 
           {!isLoading && !error && reconciliationData && (
             <div className="shrink-0 border-t border-m3-outline/20 bg-m3-surface-container-low px-6 py-4">
-              {validationError && (
+              {validationErrorMessage && (
                 <p role="alert" className="text-xs text-m3-error mb-3">
-                  {validationError}
+                  {validationErrorMessage}
                 </p>
               )}
               <div className="flex items-center justify-between gap-3">

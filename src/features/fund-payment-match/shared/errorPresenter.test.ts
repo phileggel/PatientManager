@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { FundPaymentReconciliationError, ReportPdfError } from "@/bindings";
-import { formatReconciliationError, formatReportPdfError } from "./errorPresenter";
+import {
+  formatReconciliationError,
+  formatReportPdfError,
+  presentReconciliationErrorState,
+} from "./errorPresenter";
 
 describe("formatReconciliationError", () => {
   it("maps AllDuplicates to the already_imported key with the count param", () => {
@@ -47,6 +51,23 @@ describe("formatReconciliationError", () => {
         code: "TotalAmountNotPositive",
       } as FundPaymentReconciliationError).key,
     ).toBe("fund-payment-match:errors.unexpected");
+  });
+});
+
+describe("presentReconciliationErrorState", () => {
+  it("delegates a typed error to formatReconciliationError", () => {
+    expect(
+      presentReconciliationErrorState({
+        kind: "typed",
+        error: { code: "AllDuplicates", count: 2 },
+      }),
+    ).toEqual({ key: "fund-payment-match:errors.already_imported", params: { count: 2 } });
+  });
+
+  it("maps the unexpected case to the generic unknown key", () => {
+    expect(presentReconciliationErrorState({ kind: "unexpected" })).toEqual({
+      key: "fund-payment-match:modal.error.unknown",
+    });
   });
 });
 

@@ -255,7 +255,8 @@ describe("useReconciliationModal — typed gateway error surfaces a message (F27
     const { result } = renderHook(() => useReconciliationModal("/bad.pdf", vi.fn()));
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.error).toBeTruthy();
+    // F27: the hook stores the typed error, not a pre-translated string.
+    expect(result.current.error).toEqual({ kind: "typed", error: { code: "PdfPathRejected" } });
     expect(result.current.reconciliationData).toBeNull();
   });
 
@@ -283,7 +284,12 @@ describe("useReconciliationModal — typed gateway error surfaces a message (F27
       await result.current.handleValidate();
     });
 
-    await waitFor(() => expect(result.current.validationError).toBeTruthy());
+    await waitFor(() =>
+      expect(result.current.validationError).toEqual({
+        kind: "typed",
+        error: { code: "DatabaseError" },
+      }),
+    );
     expect(result.current.unreconciledReport).toBeNull();
   });
 });
