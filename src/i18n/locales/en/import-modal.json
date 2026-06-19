@@ -1,22 +1,22 @@
 {
-  "modalTitle": "Import",
+  "modal_title": "Import",
   "prerequisites": {
-    "noFund": "Create a fund first to access reconciliation.",
-    "noBankAccount": "Create a bank account first to access this feature."
+    "no_fund": "Create a fund first to access reconciliation.",
+    "no_bank_account": "Create a bank account first to access this feature."
   },
   "excel": {
     "title": "Accounting from an Excel file",
     "description": "Upload an Excel file to import patients, funds, and procedures into the database.",
-    "dialogTitle": "Select an Excel file"
+    "dialog_title": "Select an Excel file"
   },
-  "fundReconciliation": {
+  "fund_reconciliation": {
     "title": "Fund Reconciliation from a PDF",
     "description": "Upload a PDF payment statement to reconcile with procedures in the database.",
-    "dialogTitle": "Select a fund statement"
+    "dialog_title": "Select a fund statement"
   },
-  "bankReconciliation": {
+  "bank_reconciliation": {
     "title": "Bank Reconciliation from a bank statement PDF",
     "description": "Upload a bank statement PDF to reconcile transfers with fund payment groups.",
-    "dialogTitle": "Select a bank statement"
+    "dialog_title": "Select a bank statement"
   }
 }

@@ -85,13 +85,13 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
           type="button"
           className={cardClasses}
           onClick={handleProcedureTypes}
-          aria-label={t("procedureTypes.title")}
+          aria-label={t("procedure_types.title")}
         >
           <span className="text-sm font-medium text-m3-on-surface">
-            {t("procedureTypes.title")}
+            {t("procedure_types.title")}
           </span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("procedureTypes.description")}
+            {t("procedure_types.description")}
           </p>
         </button>
 
@@ -101,11 +101,11 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
           type="button"
           className={cardClasses}
           onClick={handleFundPayment}
-          aria-label={t("fundPayment.title")}
+          aria-label={t("fund_payment.title")}
         >
-          <span className="text-sm font-medium text-m3-on-surface">{t("fundPayment.title")}</span>
+          <span className="text-sm font-medium text-m3-on-surface">{t("fund_payment.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("fundPayment.description")}
+            {t("fund_payment.description")}
           </p>
         </button>
 
@@ -115,11 +115,11 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
           type="button"
           className={cardClasses}
           onClick={handleBankTransfer}
-          aria-label={t("bankTransfer.title")}
+          aria-label={t("bank_transfer.title")}
         >
-          <span className="text-sm font-medium text-m3-on-surface">{t("bankTransfer.title")}</span>
+          <span className="text-sm font-medium text-m3-on-surface">{t("bank_transfer.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("bankTransfer.description")}
+            {t("bank_transfer.description")}
           </p>
         </button>
 
@@ -129,11 +129,11 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
           type="button"
           className={cardClasses}
           onClick={handleBankAccount}
-          aria-label={t("bankAccount.title")}
+          aria-label={t("bank_account.title")}
         >
-          <span className="text-sm font-medium text-m3-on-surface">{t("bankAccount.title")}</span>
+          <span className="text-sm font-medium text-m3-on-surface">{t("bank_account.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("bankAccount.description")}
+            {t("bank_account.description")}
           </p>
         </button>
       </div>

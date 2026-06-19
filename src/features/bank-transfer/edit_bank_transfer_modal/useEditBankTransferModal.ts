@@ -118,7 +118,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
     e.preventDefault();
 
     if (!transfer || !isValid) {
-      toastService.show("error", t("transfer.edit.errorInvalidForm"));
+      toastService.show("error", t("transfer.edit.error_invalid_form"));
       return;
     }
 
@@ -137,7 +137,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
       }
     } catch (error) {
       logger.error("[useEditBankTransferModal] Exception", { error });
-      toastService.show("error", t("transfer.edit.errorUnknown"));
+      toastService.show("error", t("transfer.edit.error_unknown"));
     } finally {
       setSubmitting(false);
     }

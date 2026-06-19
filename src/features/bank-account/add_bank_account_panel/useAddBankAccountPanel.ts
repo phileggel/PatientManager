@@ -42,7 +42,7 @@ export function useAddBankAccountPanel(): UseAddBankAccountPanelReturn {
     const newErrors: FormErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = t("account.add.nameRequired");
+      newErrors.name = t("account.add.name_required");
     }
 
     setErrors(newErrors);
@@ -76,7 +76,7 @@ export function useAddBankAccountPanel(): UseAddBankAccountPanelReturn {
       }
     } catch (err) {
       logger.error("Exception creating bank account", { error: err });
-      const message = t("account.add.errorUnknown");
+      const message = t("account.add.error_unknown");
       setErrors({ name: message });
       toastService.show("error", message);
     } finally {

@@ -123,9 +123,9 @@ export function useAddBankTransferForm() {
     const newErrors = validateBankTransfer(
       { transferDate, bankAccount, hasItems },
       {
-        dateRequired: t("transfer.validate.dateRequired"),
-        bankAccountRequired: t("transfer.validate.bankAccountRequired"),
-        noItemsSelected: t("transfer.validate.noItemsSelected"),
+        dateRequired: t("transfer.validate.date_required"),
+        bankAccountRequired: t("transfer.validate.bank_account_required"),
+        noItemsSelected: t("transfer.validate.no_items_selected"),
       },
     );
     setErrors(newErrors);
@@ -159,7 +159,7 @@ export function useAddBankTransferForm() {
       }
     } catch (error) {
       logger.error("[useAddBankTransferForm] Exception", { error });
-      toastService.show("error", t("transfer.add.errorUnknown"));
+      toastService.show("error", t("transfer.add.error_unknown"));
     } finally {
       setSubmitting(false);
     }

@@ -59,12 +59,12 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
   } = useEditBankTransferModal(transfer, onClose);
 
   const typeLabel = isFund
-    ? t("transfer.typeFund")
+    ? t("transfer.type_fund")
     : transfer?.transfer_type === "PATIENT_CHECK"
-      ? t("transfer.typeCheck")
+      ? t("transfer.type_check")
       : transfer?.transfer_type === "PATIENT_CASH"
-        ? t("transfer.typeCash")
-        : t("transfer.typeCreditCard");
+        ? t("transfer.type_cash")
+        : t("transfer.type_credit_card");
 
   return (
     <FormModal
@@ -108,16 +108,16 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
       {/* Bank Account — read-only label for CASH (R13: auto-assigned, immutable) */}
       {isCash ? (
         <div className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-neutral-90">{t("transfer.bankAccount")}</span>
-          <span className="text-sm text-neutral-60">{t("transfer.cashAccount")}</span>
+          <span className="text-sm font-medium text-neutral-90">{t("transfer.bank_account")}</span>
+          <span className="text-sm text-neutral-60">{t("transfer.cash_account")}</span>
         </div>
       ) : (
         <SelectField
           id="editBankAccount"
-          label={t("transfer.bankAccount")}
+          label={t("transfer.bank_account")}
           value={bankAccount}
           onChange={(e) => setBankAccount(e.target.value)}
-          options={[{ value: "", label: t("transfer.selectBankAccount") }, ...bankAccountOptions]}
+          options={[{ value: "", label: t("transfer.select_bank_account") }, ...bankAccountOptions]}
           required
         />
       )}
@@ -142,7 +142,7 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
       {/* Computed amount display */}
       {totalAmountMillis > 0 && (
         <div className="rounded-xl bg-m3-surface-container px-4 py-3 text-sm">
-          <span className="text-neutral-60">{t("transfer.computedAmount")}</span>{" "}
+          <span className="text-neutral-60">{t("transfer.computed_amount")}</span>{" "}
           <span className="font-semibold text-neutral-90">{formatCurrency(totalAmountMillis)}</span>
         </div>
       )}

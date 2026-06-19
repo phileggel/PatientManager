@@ -19,12 +19,12 @@
   "form": {
     "patient": "Patient",
     "fund": "Fund",
-    "procedureType": "Procedure Type",
-    "procedureDate": "Procedure Date",
+    "procedure_type": "Procedure Type",
+    "procedure_date": "Procedure Date",
     "amount": "Amount",
-    "noSelection": "—",
-    "selectPatient": "Enter patient name",
-    "selectFund": "Enter fund identifier or name",
+    "no_selection": "—",
+    "select_patient": "Enter patient name",
+    "select_fund": "Enter fund identifier or name",
     "payment": {
       "none": "—",
       "cash": "Cash",
@@ -32,34 +32,34 @@
       "card": "Card",
       "transfer": "Transfer"
     },
-    "cardTitle": "Add Procedure"
+    "card_title": "Add Procedure"
   },
   "action": {
     "add": "Add Procedure",
-    "fabAriaLabel": "Add procedure",
+    "fab_aria_label": "Add procedure",
     "adding": "Adding...",
     "update": "Update",
     "updating": "Updating...",
-    "editTitle": "Edit procedure",
-    "deleteTitle": "Delete procedure",
+    "edit_title": "Edit procedure",
+    "delete_title": "Delete procedure",
     "delete": {
       "confirm": "Are you sure you want to delete this procedure?",
-      "confirmLabel": "Delete",
-      "cancelLabel": "Cancel"
+      "confirm_label": "Delete",
+      "cancel_label": "Cancel"
     }
   },
   "table": {
     "patient": "Patient",
     "ssn": "SSN",
-    "fundCode": "Fund Code",
-    "fundName": "Fund Name",
-    "procedureType": "Procedure",
+    "fund_code": "Fund Code",
+    "fund_name": "Fund Name",
+    "procedure_type": "Procedure",
     "date": "DATE",
     "amount": "Amount",
-    "paymentMethod": "Payment Method",
-    "_comment_reconciledDate": "reviewer-frontend FP: camelCase matches every adjacent table.* key — snake_case namespace cleanup is a separate PR",
-    "reconciledDate": "Reconciled On",
-    "confirmedDate": "Confirmed Date",
+    "payment_method": "Payment Method",
+    "_comment_reconciled_date": "reviewer-frontend FP: camelCase matches every adjacent table.* key — snake_case namespace cleanup is a separate PR",
+    "reconciled_date": "Reconciled On",
+    "confirmed_date": "Confirmed Date",
     "status": "Status",
     "empty": "No procedures for this period"
   },
@@ -79,63 +79,63 @@
   },
   "filter": {
     "placeholder": "Filter by patient...",
-    "emptySearch": "No results matching your search",
-    "allStatuses": "All statuses"
+    "empty_search": "No results matching your search",
+    "all_statuses": "All statuses"
   },
   "period": {
     "month": "Month:",
     "year": "Year:",
-    "prevMonth": "Previous month",
-    "nextMonth": "Next month"
+    "prev_month": "Previous month",
+    "next_month": "Next month"
   },
   "summary": {
-    "patientsTooltip": "Number of patients in this period",
-    "proceduresTooltip": "Number of procedures in this period",
+    "patients_tooltip": "Number of patients in this period",
+    "procedures_tooltip": "Number of procedures in this period",
     "effectue": "Done",
-    "effectueTooltip": "Total amount done",
+    "effectue_tooltip": "Total amount done",
     "recu": "Received",
-    "recuTooltip": "Total amount received",
-    "enAttente": "Pending",
-    "enAttenteTooltip": "Total amount pending"
+    "recu_tooltip": "Total amount received",
+    "en_attente": "Pending",
+    "en_attente_tooltip": "Total amount pending"
   },
   "state": {
     "loading": "Loading procedures...",
     "added": "Procedure added successfully!",
     "updated": "Procedure updated successfully!",
     "deleted": "Procedure deleted successfully!",
-    "reloadFailed": "Failed to reload procedures"
+    "reload_failed": "Failed to reload procedures"
   },
   "error": {
     "loading": "Error loading data",
-    "requiredField": "Required field",
-    "requiredFields": "Please fill in all required fields.",
-    "deleteFailed": "Failed to delete procedure"
+    "required_field": "Required field",
+    "required_fields": "Please fill in all required fields.",
+    "delete_failed": "Failed to delete procedure"
   },
   "modal": {
     "title": "Update Procedure",
-    "viewTitle": "View Procedure",
-    "closeAriaLabel": "Close"
+    "view_title": "View Procedure",
+    "close_aria_label": "Close"
   },
-  "createPatient": {
+  "create_patient": {
     "title": "Create New Patient",
-    "nameLabel": "Patient Name",
-    "namePlaceholder": "Enter patient name",
-    "nameRequired": "Patient name is required",
-    "ssnLabel": "SSN (Optional)",
-    "ssnPlaceholder": "Enter SSN (optional)",
+    "name_label": "Patient Name",
+    "name_placeholder": "Enter patient name",
+    "name_required": "Patient name is required",
+    "ssn_label": "SSN (Optional)",
+    "ssn_placeholder": "Enter SSN (optional)",
     "submit": "Create Patient"
   },
-  "createProcedureType": {
+  "create_procedure_type": {
     "title": "Create New Procedure Type",
-    "nameLabel": "Procedure Type Name",
-    "namePlaceholder": "Enter procedure type name",
-    "nameRequired": "Procedure type name is required",
-    "amountLabel": "Default Amount",
-    "amountPlaceholder": "Enter default amount",
-    "amountRequired": "Default amount is required",
-    "amountInvalid": "Default amount must be a valid positive number",
-    "categoryLabel": "Category (Optional)",
-    "categoryPlaceholder": "Enter category (optional)",
+    "name_label": "Procedure Type Name",
+    "name_placeholder": "Enter procedure type name",
+    "name_required": "Procedure type name is required",
+    "amount_label": "Default Amount",
+    "amount_placeholder": "Enter default amount",
+    "amount_required": "Default amount is required",
+    "amount_invalid": "Default amount must be a valid positive number",
+    "category_label": "Category (Optional)",
+    "category_placeholder": "Enter category (optional)",
     "submit": "Create Procedure Type"
   }
 }

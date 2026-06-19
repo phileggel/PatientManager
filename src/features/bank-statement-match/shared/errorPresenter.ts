@@ -16,7 +16,7 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
   switch (err.code) {
     // R26 — dedicated "no SEPA lines" guidance.
     case "NoSepaCreditLines":
-      return { key: "bank:statement.modal.noVirSepaLines" };
+      return { key: "bank:statement.modal.no_vir_sepa_lines" };
 
     // --- BankStatementReconciliationTask (other use-case guards) ---
     case "HomeDirUnresolved":
@@ -42,6 +42,6 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
     case "PaymentGroupNotFound":
-      return { key: "bank:statement.modal.unknownError" };
+      return { key: "bank:statement.modal.unknown_error" };
   }
 }

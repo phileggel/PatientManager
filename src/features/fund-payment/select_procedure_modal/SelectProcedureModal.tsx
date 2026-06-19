@@ -82,7 +82,7 @@ export function ProcedureSelectionModal({
               htmlFor="monthFilter"
               className="block text-sm font-medium mb-1 text-m3-on-surface"
             >
-              {t("select.filterLabel")}
+              {t("select.filter_label")}
             </label>
             <div className="relative">
               <select
@@ -91,7 +91,7 @@ export function ProcedureSelectionModal({
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="w-full px-3 py-2 border border-m3-outline rounded-xl appearance-none bg-m3-surface-container-lowest/70 cursor-pointer text-m3-on-surface"
               >
-                <option value="">{t("select.allMonths")}</option>
+                <option value="">{t("select.all_months")}</option>
                 {monthYearOptions.map((month) => {
                   const [year, monthNum] = month.split("-");
                   const date = new Date(`${year}-${monthNum}-01`);
@@ -117,7 +117,7 @@ export function ProcedureSelectionModal({
         {/* Procedures List */}
         <div className="space-y-2">
           <p className="text-sm font-medium text-m3-on-surface">
-            {t("select.procedureCount", { count: filteredProcedures.length })}
+            {t("select.procedure_count", { count: filteredProcedures.length })}
           </p>
           {loading ? (
             <div className="flex justify-center py-8">
@@ -177,7 +177,7 @@ export function ProcedureSelectionModal({
         <div className="flex items-center justify-between mb-4">
           <div className="space-y-1">
             <p className="text-sm text-m3-on-surface-variant">
-              {t("select.linesSelected", { count: stats.count })}
+              {t("select.lines_selected", { count: stats.count })}
             </p>
             <p className="text-lg font-semibold text-m3-on-surface">
               {formatCurrency(stats.total)}
@@ -211,7 +211,7 @@ export function ProcedureSelectionModal({
           >
             {isSubmitting
               ? t("select.creating")
-              : t("select.addProcedures", { count: stats.count })}
+              : t("select.add_procedures", { count: stats.count })}
           </Button>
         </div>
       </div>

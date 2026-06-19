@@ -73,7 +73,7 @@ export function AmountField({
               clearAmount();
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-m3-on-surface-variant hover:text-m3-on-surface transition-colors"
-            aria-label={t("field.clearAriaLabel")}
+            aria-label={t("field.clear_aria_label")}
           >
             <X size={14} />
           </button>

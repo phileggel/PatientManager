@@ -60,7 +60,7 @@ export function AddFundPaymentPanel() {
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden bg-m3-surface-container-low rounded-[28px] shadow-elevation-1">
       <h2 className="shrink-0 px-6 pt-6 pb-2 text-base font-semibold text-m3-on-surface">
-        {t("add.cardTitle")}
+        {t("add.card_title")}
       </h2>
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-6 pb-6">
         <form onSubmit={handleOpenSelection} className="flex flex-col gap-6">
@@ -84,7 +84,7 @@ export function AddFundPaymentPanel() {
 
               <DateField
                 id="paymentDate"
-                label={t("add.paymentDate")}
+                label={t("add.payment_date")}
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
                 error={errors.paymentDate}
@@ -102,7 +102,7 @@ export function AddFundPaymentPanel() {
                 variant="secondary"
                 className="flex-1"
               >
-                {hasSelection ? t("add.modifySelection") : t("add.selectProcedures")}
+                {hasSelection ? t("add.modify_selection") : t("add.select_procedures")}
               </Button>
               {errors.procedures && (
                 <p className="text-xs text-m3-error mt-1 ml-1">{errors.procedures}</p>
@@ -124,7 +124,7 @@ export function AddFundPaymentPanel() {
                 </div>
               ) : (
                 <p className="text-xs text-m3-on-surface-variant ml-1">
-                  {t("add.noProceduresSelected")}
+                  {t("add.no_procedures_selected")}
                 </p>
               )}
             </div>
@@ -138,7 +138,7 @@ export function AddFundPaymentPanel() {
               icon={<Plus size={18} />}
               className="flex-1"
             >
-              {isSubmitting ? t("add.creating") : t("add.createButton")}
+              {isSubmitting ? t("add.creating") : t("add.create_button")}
             </Button>
           </div>
         </form>

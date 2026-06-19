@@ -32,7 +32,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
             <th className="m3-th">{t("transfer.list.columns.date")}</th>
             <th className="m3-th text-right">{t("transfer.list.columns.amount")}</th>
             <th className="m3-th">{t("transfer.list.columns.type")}</th>
-            <th className="m3-th">{t("transfer.list.columns.bankAccount")}</th>
+            <th className="m3-th">{t("transfer.list.columns.bank_account")}</th>
             <th className="m3-th text-right">{tCommon("table.actions")}</th>
           </tr>
         </thead>
@@ -60,12 +60,12 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                 </td>
                 <td className="m3-td text-m3-on-surface capitalize">
                   {transfer.transfer_type === "FUND_WIRE"
-                    ? t("transfer.typeFund")
+                    ? t("transfer.type_fund")
                     : transfer.transfer_type === "PATIENT_CHECK"
-                      ? t("transfer.typeCheck")
+                      ? t("transfer.type_check")
                       : transfer.transfer_type === "PATIENT_CASH"
-                        ? t("transfer.typeCash")
-                        : t("transfer.typeCreditCard")}
+                        ? t("transfer.type_cash")
+                        : t("transfer.type_credit_card")}
                 </td>
                 <td
                   className="m3-td text-m3-on-surface-variant truncate max-w-[160px]"
@@ -79,7 +79,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                       variant="ghost"
                       size="sm"
                       shape="round"
-                      aria-label={t("transfer.list.editAriaLabel", {
+                      aria-label={t("transfer.list.edit_aria_label", {
                         date: formatDate(transfer.transfer_date),
                         amount: formatCurrency(transfer.amount),
                       })}
@@ -90,7 +90,7 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
                       variant="danger"
                       size="sm"
                       shape="round"
-                      aria-label={t("transfer.list.deleteAriaLabel", {
+                      aria-label={t("transfer.list.delete_aria_label", {
                         date: formatDate(transfer.transfer_date),
                         amount: formatCurrency(transfer.amount),
                       })}

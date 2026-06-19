@@ -30,7 +30,7 @@ export function useAddFundPaymentPanel() {
   }, [selectedFundId, funds]);
 
   const fundSelectorLabels = useMemo(() => {
-    return FundPaymentPresenter.toSelectorOptions(funds, t("form.selectFund"));
+    return FundPaymentPresenter.toSelectorOptions(funds, t("form.select_fund"));
   }, [funds, t]);
 
   const selectionSummary = useMemo(() => {
@@ -61,9 +61,9 @@ export function useAddFundPaymentPanel() {
 
     // Validate fund and date (not procedures yet)
     const newErrors = validatePaymentForm(selectedFundId, paymentDate, hasSelection, false, {
-      fundRequired: t("form.fundRequired"),
-      paymentDateRequired: t("form.paymentDateRequired"),
-      proceduresRequired: t("form.proceduresRequired"),
+      fundRequired: t("form.fund_required"),
+      paymentDateRequired: t("form.payment_date_required"),
+      proceduresRequired: t("form.procedures_required"),
     });
     setErrors(newErrors);
 
@@ -89,9 +89,9 @@ export function useAddFundPaymentPanel() {
   const handleCreatePayment = async () => {
     // Validate all fields including procedures
     const newErrors = validatePaymentForm(selectedFundId, paymentDate, hasSelection, true, {
-      fundRequired: t("form.fundRequired"),
-      paymentDateRequired: t("form.paymentDateRequired"),
-      proceduresRequired: t("form.proceduresRequired"),
+      fundRequired: t("form.fund_required"),
+      paymentDateRequired: t("form.payment_date_required"),
+      proceduresRequired: t("form.procedures_required"),
     });
     setErrors(newErrors);
 

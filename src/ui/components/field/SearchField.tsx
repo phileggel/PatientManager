@@ -40,7 +40,7 @@ export function SearchField({ id, value, onChange, placeholder = "Search..." }: 
           type="button"
           onClick={() => onChange("")}
           className="m3-search-clear-btn"
-          aria-label={t("action.clearSearch")}
+          aria-label={t("action.clear_search")}
         >
           <X size={16} strokeWidth={2.5} />
         </button>

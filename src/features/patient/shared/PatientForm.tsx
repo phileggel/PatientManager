@@ -32,7 +32,7 @@ export function PatientForm({
         label={t("form.name")}
         id={`${idPrefix}-name`}
         name="name"
-        placeholder={t("form.namePlaceholder")}
+        placeholder={t("form.name_placeholder")}
         value={formData.name}
         onChange={handleChange}
         error={errors?.name}
@@ -42,7 +42,7 @@ export function PatientForm({
         label={t("form.ssn")}
         id={`${idPrefix}-ssn`}
         name="ssn"
-        placeholder={t("form.ssnPlaceholder")}
+        placeholder={t("form.ssn_placeholder")}
         value={formData.ssn}
         onChange={handleChange}
         error={errors?.ssn}

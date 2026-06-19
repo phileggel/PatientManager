@@ -54,7 +54,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (k: string, opts?: Record<string, unknown>) => {
       if (k === "modal.report.filename.stem") return STEM_BY_LANG[currentLang] ?? k;
-      if (k === "modal.report.exportSuccess" && opts && "filename" in opts) {
+      if (k === "modal.report.export_success" && opts && "filename" in opts) {
         return `saved:${String(opts.filename)}`;
       }
       return k;
@@ -350,7 +350,7 @@ describe("useReportGeneration", () => {
 
     expect(mockToastShow).toHaveBeenCalledWith(
       "error",
-      "fund-payment-match:modal.report.error.exportFailed",
+      "fund-payment-match:modal.report.error.export_failed",
     );
   });
 

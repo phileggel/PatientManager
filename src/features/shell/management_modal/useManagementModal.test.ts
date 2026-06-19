@@ -68,7 +68,7 @@ describe("useManagementModal", () => {
 
     result.current.handleFundPayment();
 
-    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.noFund");
+    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.no_fund");
     expect(onNavigate).toHaveBeenCalledWith("funds");
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -90,7 +90,7 @@ describe("useManagementModal", () => {
 
     result.current.handleBankTransfer();
 
-    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.noBankAccount");
+    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.no_bank_account");
     expect(onNavigate).toHaveBeenCalledWith("bank-account");
     expect(onClose).toHaveBeenCalledOnce();
   });

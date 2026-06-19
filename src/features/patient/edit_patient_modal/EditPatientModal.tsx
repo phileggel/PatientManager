@@ -80,7 +80,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
       id="edit-patient-modal"
       isOpen={isOpen}
       onClose={onClose}
-      title={t("action.editTitle")}
+      title={t("action.edit_title")}
       actions={actions}
     >
       <form id="edit-patient-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -96,12 +96,12 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
         {/* Latest Procedure Information - read-only section */}
         <div className="border-t border-m3-outline/10 pt-4">
           <h3 className="text-sm font-medium text-m3-on-surface-variant mb-3">
-            {t("modal.latestProcedure")}
+            {t("modal.latest_procedure")}
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <div className="text-xs font-medium text-m3-on-surface-variant">
-                {t("modal.procedureType")}
+                {t("modal.procedure_type")}
               </div>
               <div className="px-4 py-2 rounded-lg bg-m3-surface text-m3-on-surface text-sm">
                 {latestProcedureTypeName || "—"}

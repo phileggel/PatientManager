@@ -56,7 +56,7 @@ export function CreateProcedureTypeModal({
 
   const handleCreate = async () => {
     if (!newTypeName.trim()) {
-      setError(t("createTypeModal.nameRequired"));
+      setError(t("create_type_modal.name_required"));
       return;
     }
 
@@ -74,7 +74,7 @@ export function CreateProcedureTypeModal({
         handleClose();
       } else {
         const { key, params } = formatProcedureError(result.error);
-        setError(t(key, params) || t("createTypeModal.error"));
+        setError(t(key, params) || t("create_type_modal.error"));
         logger.error("Failed to create procedure type", { code: result.error.code });
       }
     } catch (err) {
@@ -91,20 +91,20 @@ export function CreateProcedureTypeModal({
       id="excel-create-procedure-type-modal"
       isOpen={isOpen}
       onClose={handleClose}
-      title={t("createTypeModal.title")}
+      title={t("create_type_modal.title")}
       maxWidth="max-w-md"
       maxHeight="max-h-[80vh]"
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={handleClose} disabled={isCreatingType}>
-            {t("createTypeModal.cancel")}
+            {t("create_type_modal.cancel")}
           </Button>
           <Button
             onClick={handleCreate}
             disabled={isCreatingType || !newTypeName.trim()}
             loading={isCreatingType}
           >
-            {isCreatingType ? t("createTypeModal.creating") : t("createTypeModal.create")}
+            {isCreatingType ? t("create_type_modal.creating") : t("create_type_modal.create")}
           </Button>
         </div>
       }
@@ -117,17 +117,17 @@ export function CreateProcedureTypeModal({
 
       <TextField
         id="type-name"
-        label={t("createTypeModal.nameLabel")}
+        label={t("create_type_modal.name_label")}
         type="text"
         value={newTypeName}
         onChange={(e) => setNewTypeName(e.target.value)}
-        placeholder={t("createTypeModal.namePlaceholder")}
+        placeholder={t("create_type_modal.name_placeholder")}
         disabled={isCreatingType}
       />
 
       <AmountField
         id="type-amount"
-        label={t("createTypeModal.amountLabel")}
+        label={t("create_type_modal.amount_label")}
         value={newTypeDefaultAmount}
         onChange={(v) => setNewTypeDefaultAmount(v ?? 0)}
         disabled={isCreatingType}

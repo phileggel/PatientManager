@@ -62,31 +62,31 @@ export function useRecordOverpaymentModal({
     const errors: FieldErrors = {};
 
     if (!refundDate) {
-      errors.refundDate = t("error.refundDate");
+      errors.refundDate = t("error.refund_date");
     } else {
       const parsed = new Date(refundDate);
       const todayDate = new Date(today);
       if (parsed > todayDate) {
-        errors.refundDate = t("error.refundDate");
+        errors.refundDate = t("error.refund_date");
       } else if (
         // REF-030: refundDate must not be before the source procedure's confirmed payment date
         sourceProcedure.confirmed_payment_date &&
         refundDate < sourceProcedure.confirmed_payment_date
       ) {
-        errors.refundDate = t("error.refundDate");
+        errors.refundDate = t("error.refund_date");
       }
     }
 
     if (!transferType) {
-      errors.transferType = t("error.paymentMethod");
+      errors.transferType = t("error.payment_method");
     }
 
     if (!bankAccountId) {
-      errors.bankAccountId = t("error.bankAccount");
+      errors.bankAccountId = t("error.bank_account");
     }
 
     if (reason.length > 255) {
-      errors.reason = t("error.reasonTooLong");
+      errors.reason = t("error.reason_too_long");
     }
 
     return errors;

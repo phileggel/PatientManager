@@ -63,7 +63,7 @@ describe("useImportModal", () => {
       await result.current.handleExcelImport();
     });
 
-    expect(mockPickExcel).toHaveBeenCalledWith("excel.dialogTitle", undefined);
+    expect(mockPickExcel).toHaveBeenCalledWith("excel.dialog_title", undefined);
     expect(onFileSelected).toHaveBeenCalledWith("excel-import", "/tmp/data.xlsx");
     expect(onClose).toHaveBeenCalledOnce();
     expect(onNavigate).not.toHaveBeenCalled();
@@ -79,7 +79,7 @@ describe("useImportModal", () => {
       await result.current.handleFundReconciliation();
     });
 
-    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.noFund");
+    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.no_fund");
     expect(onNavigate).toHaveBeenCalledWith("funds");
     expect(onClose).toHaveBeenCalledOnce();
     expect(mockPickPdf).not.toHaveBeenCalled();
@@ -107,7 +107,7 @@ describe("useImportModal", () => {
       await result.current.handleFundReconciliation();
     });
 
-    expect(mockPickPdf).toHaveBeenCalledWith("fundReconciliation.dialogTitle", undefined);
+    expect(mockPickPdf).toHaveBeenCalledWith("fund_reconciliation.dialog_title", undefined);
     expect(onFileSelected).toHaveBeenCalledWith("fund-payment-match", "/tmp/statement.pdf");
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -122,7 +122,7 @@ describe("useImportModal", () => {
       await result.current.handleBankReconciliation();
     });
 
-    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.noBankAccount");
+    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.no_bank_account");
     expect(onNavigate).toHaveBeenCalledWith("bank-account");
     expect(onClose).toHaveBeenCalledOnce();
     expect(mockPickPdf).not.toHaveBeenCalled();
@@ -150,7 +150,7 @@ describe("useImportModal", () => {
       await result.current.handleBankReconciliation();
     });
 
-    expect(mockPickPdf).toHaveBeenCalledWith("bankReconciliation.dialogTitle", undefined);
+    expect(mockPickPdf).toHaveBeenCalledWith("bank_reconciliation.dialog_title", undefined);
     expect(onFileSelected).toHaveBeenCalledWith("bank-statement-match", "/tmp/bank.pdf");
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -166,7 +166,7 @@ describe("useImportModal", () => {
       await result.current.handleExcelImport();
     });
 
-    expect(mockPickExcel).toHaveBeenCalledWith("excel.dialogTitle", "/saved/excel/folder");
+    expect(mockPickExcel).toHaveBeenCalledWith("excel.dialog_title", "/saved/excel/folder");
   });
 
   it("handleExcelImport: stores the parent folder of the picked file on success", async () => {
@@ -205,7 +205,7 @@ describe("useImportModal", () => {
     });
 
     expect(mockPickPdf).toHaveBeenCalledWith(
-      "fundReconciliation.dialogTitle",
+      "fund_reconciliation.dialog_title",
       "/saved/fund/folder",
     );
   });
@@ -233,7 +233,7 @@ describe("useImportModal", () => {
     });
 
     expect(mockPickPdf).toHaveBeenCalledWith(
-      "bankReconciliation.dialogTitle",
+      "bank_reconciliation.dialog_title",
       "/saved/bank/folder",
     );
   });

@@ -31,9 +31,9 @@ interface SingleMatchCardProps {
 }
 
 function anomalyBadgeLabel(anomaly: string, t: (k: string) => string): string {
-  if (anomaly === "AmountMismatch") return t("results.badge.amountMismatch");
-  if (anomaly === "FundMismatch") return t("results.badge.fundMismatch");
-  return t("results.badge.dateMismatch");
+  if (anomaly === "AmountMismatch") return t("results.badge.amount_mismatch");
+  if (anomaly === "FundMismatch") return t("results.badge.fund_mismatch");
+  return t("results.badge.date_mismatch");
 }
 
 export function SingleMatchCard({
@@ -77,7 +77,7 @@ export function SingleMatchCard({
   );
   const chipLabel = unresolvedAnomaly
     ? anomalyBadgeLabel(unresolvedAnomaly, t)
-    : t("results.issueType.singleMatch");
+    : t("results.issue_type.single_match");
 
   return (
     <div className="m3-card-elevated space-y-4">
@@ -155,7 +155,7 @@ export function SingleMatchCard({
                         onAcceptCorrection(key, buildAutoCorrection(anomaly, pdfLine, dbMatch))
                       }
                     >
-                      {t("results.action.correctAmount", {
+                      {t("results.action.correct_amount", {
                         amount: formatCurrency(pdfLine.amount),
                       })}
                     </Button>
@@ -168,7 +168,7 @@ export function SingleMatchCard({
                         )
                       }
                     >
-                      {t("results.action.contestAmount", {
+                      {t("results.action.contest_amount", {
                         amount: formatCurrency(pdfLine.amount),
                       })}
                     </Button>
@@ -178,8 +178,8 @@ export function SingleMatchCard({
               const key = buildCorrectionKey(anomaly, dbMatch.procedure_id);
               const label =
                 anomaly === "FundMismatch"
-                  ? t("results.action.correctFund")
-                  : t("results.action.correctDate");
+                  ? t("results.action.correct_fund")
+                  : t("results.action.correct_date");
               return (
                 <Button
                   key={anomaly}

@@ -80,7 +80,7 @@ export function PatientList({ searchTerm }: PatientListProps) {
             </th>
             <th className="m3-th text-right" onClick={() => handleSort("latestFund")}>
               <div className="flex items-center justify-end">
-                {t("list.latestFund")}{" "}
+                {t("list.latest_fund")}{" "}
                 <SortIcon
                   active={sortConfig.key === "latestFund"}
                   direction={sortConfig.direction}
@@ -89,7 +89,7 @@ export function PatientList({ searchTerm }: PatientListProps) {
             </th>
             <th className="m3-th text-right" onClick={() => handleSort("latestDate")}>
               <div className="flex items-center justify-end">
-                {t("list.latestDate")}{" "}
+                {t("list.latest_date")}{" "}
                 <SortIcon
                   active={sortConfig.key === "latestDate"}
                   direction={sortConfig.direction}
@@ -111,7 +111,7 @@ export function PatientList({ searchTerm }: PatientListProps) {
           ) : sortedAndFilteredPatients.length === 0 ? (
             <tr>
               <td colSpan={5} className="m3-td text-center py-12 text-m3-on-surface-variant">
-                {t("list.noData")}
+                {t("list.no_data")}
               </td>
             </tr>
           ) : (
@@ -122,7 +122,7 @@ export function PatientList({ searchTerm }: PatientListProps) {
                   key={patient.rowId}
                   onClick={() => handleRowClick(patient.id)}
                   className="m3-tr cursor-pointer select-none"
-                  title={tc("table.doubleClickToEdit")}
+                  title={tc("table.double_click_to_edit")}
                 >
                   <td className="m3-td font-medium text-m3-on-surface">{patient.name || "-"}</td>
                   <td className="m3-td text-m3-on-surface font-mono">{patient.ssn || "-"}</td>
@@ -134,7 +134,7 @@ export function PatientList({ searchTerm }: PatientListProps) {
                         variant="ghost"
                         size="sm"
                         shape="round"
-                        aria-label={t("action.editAriaLabel", { name: patient.name || "" })}
+                        aria-label={t("action.edit_aria_label", { name: patient.name || "" })}
                         icon={<Edit2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -145,7 +145,7 @@ export function PatientList({ searchTerm }: PatientListProps) {
                         variant="danger"
                         size="sm"
                         shape="round"
-                        aria-label={t("action.deleteAriaLabel", { name: patient.name || "" })}
+                        aria-label={t("action.delete_aria_label", { name: patient.name || "" })}
                         icon={<Trash2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();

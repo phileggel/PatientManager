@@ -54,7 +54,7 @@ export function CreateProcedureTypeModal({ isOpen, onClose }: CreateProcedureTyp
       id="create-procedure-type-modal"
       isOpen={isOpen}
       onClose={onClose}
-      title={t("action.addTitle")}
+      title={t("action.add_title")}
       actions={actions}
     >
       <form id="create-procedure-type-form" onSubmit={handleSubmit} className="flex flex-col gap-6">

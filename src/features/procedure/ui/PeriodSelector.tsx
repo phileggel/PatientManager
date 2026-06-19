@@ -92,7 +92,7 @@ export function PeriodSelector({
           variant="ghost"
           shape="round"
           size="sm"
-          aria-label={t("period.prevMonth")}
+          aria-label={t("period.prev_month")}
           icon={<ChevronLeft size={18} />}
           onClick={() => navigateMonth(-1)}
           disabled={!canGoPrev}
@@ -101,7 +101,7 @@ export function PeriodSelector({
           variant="ghost"
           shape="round"
           size="sm"
-          aria-label={t("period.nextMonth")}
+          aria-label={t("period.next_month")}
           icon={<ChevronRight size={18} />}
           onClick={() => navigateMonth(1)}
           disabled={!canGoNext}

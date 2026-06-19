@@ -40,11 +40,11 @@ export function BankAccountManager() {
       count={count}
       searchTerm={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("account.manager.searchPlaceholder")}
+      searchPlaceholder={t("account.manager.search_placeholder")}
       table={<BankAccountList searchTerm={searchTerm} />}
-      sidePanelTitle={t("account.manager.panelTitle")}
+      sidePanelTitle={t("account.manager.panel_title")}
       sidePanelIcon={<Landmark size={24} strokeWidth={2.5} />}
-      sidePanelDescription={t("account.manager.panelDescription")}
+      sidePanelDescription={t("account.manager.panel_description")}
       sidePanelContent={<AddBankAccountPanel />}
     />
   );

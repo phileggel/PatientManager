@@ -28,7 +28,7 @@ export function useEditPatientModal(patient: Patient | null, onSuccess?: () => v
 
   const validateForm = (): boolean => {
     const newErrors = validatePatient(formData, {
-      nameRequired: t("form.nameRequired"),
+      nameRequired: t("form.name_required"),
     });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -71,12 +71,12 @@ export function useEditPatientModal(patient: Patient | null, onSuccess?: () => v
 
       if (result.success) {
         logger.info("Patient updated successfully");
-        toastService.show("success", t("action.updateSuccess", { name: result.data?.name }));
+        toastService.show("success", t("action.update_success", { name: result.data?.name }));
         onSuccess?.();
       } else {
         const { key, params } = formatPatientError(result.error);
         logger.error("Failed to update patient", { code: result.error.code });
-        toastService.show("error", t("action.updateError", { error: t(key, params) }));
+        toastService.show("error", t("action.update_error", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while updating patient", { error });

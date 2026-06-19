@@ -32,13 +32,13 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-neutral-90">{t("transfer.selectGroups.label")}</p>
+      <p className="text-sm font-medium text-neutral-90">{t("transfer.select_groups.label")}</p>
 
       {/* Current groups section — shown in edit mode */}
       {currentGroups && currentGroups.length > 0 && (
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium text-neutral-60 uppercase tracking-wide">
-            {t("transfer.selectGroups.current")}
+            {t("transfer.select_groups.current")}
           </p>
           <div className="bg-m3-surface-container-low rounded-xl flex flex-col">
             {currentGroups.map((group) => (
@@ -75,16 +75,16 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
           type="text"
           value={fundFilter}
           onChange={(e) => setFundFilter(e.target.value)}
-          placeholder={t("transfer.selectGroups.filterPlaceholder")}
+          placeholder={t("transfer.select_groups.filter_placeholder")}
           className="w-full px-3 py-2 text-sm border border-neutral-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-m3-primary"
         />
       )}
 
       {loading ? (
-        <p className="text-sm text-neutral-60 py-2">{t("transfer.selectGroups.loading")}</p>
+        <p className="text-sm text-neutral-60 py-2">{t("transfer.select_groups.loading")}</p>
       ) : filteredCandidates.length === 0 ? (
         <p className="text-sm text-neutral-60 py-2">
-          {isExpanded ? t("transfer.selectGroups.emptyAll") : t("transfer.selectGroups.empty")}
+          {isExpanded ? t("transfer.select_groups.empty_all") : t("transfer.select_groups.empty")}
         </p>
       ) : (
         <div className="bg-m3-surface-container-low rounded-xl flex flex-col max-h-48 overflow-y-auto">
@@ -123,13 +123,13 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
           onClick={handleExpand}
           icon={<Search size={14} />}
         >
-          {t("transfer.selectGroups.expand")}
+          {t("transfer.select_groups.expand")}
         </Button>
       )}
 
       {selectedGroupIds.length > 0 && (
         <p className="text-xs text-neutral-60">
-          {t("transfer.selectGroups.selected", { count: selectedGroupIds.length })}
+          {t("transfer.select_groups.selected", { count: selectedGroupIds.length })}
         </p>
       )}
     </div>

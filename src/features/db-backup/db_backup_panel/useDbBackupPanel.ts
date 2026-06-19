@@ -48,7 +48,7 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
     const lastFolder = getLastFolder("db-backup");
     const defaultPath = lastFolder ? `${lastFolder}/${defaultFilename}` : defaultFilename;
 
-    const destPath = await pickExportPath(t("export.dialogTitle"), defaultPath);
+    const destPath = await pickExportPath(t("export.dialog_title"), defaultPath);
 
     if (!destPath) return; // user cancelled
 
@@ -74,7 +74,7 @@ export function useDbBackupPanel(): UseDbBackupPanelReturn {
 
   /** Step 1: open file picker, store path, show confirmation dialog (R4, R5). */
   const handleImportRequest = async () => {
-    const sourcePath = await pickImportPath(t("import.dialogTitle"), getLastFolder("db-backup"));
+    const sourcePath = await pickImportPath(t("import.dialog_title"), getLastFolder("db-backup"));
 
     if (!sourcePath) return; // user cancelled (W4)
 

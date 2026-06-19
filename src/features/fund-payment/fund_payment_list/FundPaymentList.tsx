@@ -74,8 +74,8 @@ export function FundPaymentList() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-60" size={18} />
           <input
             type="text"
-            aria-label={t("list.searchPlaceholder")}
-            placeholder={t("list.searchPlaceholder")}
+            aria-label={t("list.search_placeholder")}
+            placeholder={t("list.search_placeholder")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="m3-input pl-10 w-full"
@@ -98,7 +98,7 @@ export function FundPaymentList() {
               </th>
               <th className="m3-th" onClick={() => handleSort("paymentDate")}>
                 <div className="flex items-center">
-                  {t("list.columns.carePeriod")}{" "}
+                  {t("list.columns.care_period")}{" "}
                   <SortIcon
                     active={sortConfig.key === "paymentDate"}
                     direction={sortConfig.direction}
@@ -149,7 +149,7 @@ export function FundPaymentList() {
                     key={group.rowId}
                     onClick={() => handleRowClick(group.id, group.isLocked)}
                     className="m3-tr select-none cursor-pointer"
-                    title={group.isLocked ? t("list.lockedHint") : t("list.rowEditHint")}
+                    title={group.isLocked ? t("list.locked_hint") : t("list.row_edit_hint")}
                   >
                     <td className="m3-td font-medium text-m3-on-surface">
                       <div className="flex items-center gap-2">
@@ -163,9 +163,9 @@ export function FundPaymentList() {
                       {(() => {
                         const start = group.procedureStartDate;
                         const end = group.procedureEndDate;
-                        if (!start || !end) return t("list.columns.carePeriodUnavailable");
+                        if (!start || !end) return t("list.columns.care_period_unavailable");
                         if (start === end) return formatDate(start);
-                        return t("list.columns.carePeriodRange", {
+                        return t("list.columns.care_period_range", {
                           start: formatDate(start),
                           end: formatDate(end),
                         });
@@ -183,8 +183,8 @@ export function FundPaymentList() {
                           shape="round"
                           aria-label={
                             group.isLocked
-                              ? t("action.viewAriaLabel", { name: group.fundName })
-                              : t("action.editAriaLabel", { name: group.fundName })
+                              ? t("action.view_aria_label", { name: group.fundName })
+                              : t("action.edit_aria_label", { name: group.fundName })
                           }
                           icon={group.isLocked ? <Eye size={16} /> : <Edit size={16} />}
                           onClick={(e) => {
@@ -196,7 +196,7 @@ export function FundPaymentList() {
                           variant="danger"
                           size="sm"
                           shape="round"
-                          aria-label={t("action.deleteAriaLabel", { name: group.fundName })}
+                          aria-label={t("action.delete_aria_label", { name: group.fundName })}
                           disabled={group.isLocked}
                           icon={<Trash2 size={16} />}
                           onClick={(e) => {

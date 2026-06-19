@@ -52,7 +52,7 @@ export function FundLabelMappingStep({
           {/* R28: suggestion shown as hint text only, never pre-selected */}
           {resolution.suggested_fund_name && !isRejected && !resolution.is_confirmed && (
             <p className="text-xs text-m3-on-surface-variant mt-1">
-              {t("labelMapping.suggestion", { name: resolution.suggested_fund_name })}
+              {t("label_mapping.suggestion", { name: resolution.suggested_fund_name })}
             </p>
           )}
         </div>
@@ -62,13 +62,13 @@ export function FundLabelMappingStep({
             value={selected}
             onChange={(e) => handleSelectChange(resolution.bank_label, e.target.value)}
             className={`w-full ${isRejected ? "text-m3-error border-m3-error" : ""}`}
-            aria-label={t("labelMapping.fundAriaLabel", { label: resolution.bank_label })}
+            aria-label={t("label_mapping.fund_aria_label", { label: resolution.bank_label })}
           >
-            <option value="">{t("labelMapping.selectPlaceholder")}</option>
+            <option value="">{t("label_mapping.select_placeholder")}</option>
             <option value="REJECTED" className="text-m3-error font-semibold">
-              {t("labelMapping.rejected")}
+              {t("label_mapping.rejected")}
             </option>
-            <optgroup label={t("labelMapping.fundsGroup")}>
+            <optgroup label={t("label_mapping.funds_group")}>
               {fundOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
@@ -86,8 +86,8 @@ export function FundLabelMappingStep({
       {/* R24: "Accepter" button fixed at top, always visible */}
       <div className="sticky top-0 z-10 bg-m3-surface px-4 py-3 flex items-center justify-between gap-8">
         <div>
-          <h3 className="text-base font-semibold text-m3-on-surface">{t("labelMapping.title")}</h3>
-          <p className="text-sm text-m3-on-surface-variant">{t("labelMapping.description")}</p>
+          <h3 className="text-base font-semibold text-m3-on-surface">{t("label_mapping.title")}</h3>
+          <p className="text-sm text-m3-on-surface-variant">{t("label_mapping.description")}</p>
         </div>
         {/* R25: disabled until all labels have a selection */}
         <Button
@@ -96,7 +96,7 @@ export function FundLabelMappingStep({
           disabled={!allMapped || isProcessing}
           loading={isProcessing}
         >
-          {isProcessing ? t("labelMapping.saving") : t("labelMapping.accept")}
+          {isProcessing ? t("label_mapping.saving") : t("label_mapping.accept")}
         </Button>
       </div>
 
@@ -105,7 +105,7 @@ export function FundLabelMappingStep({
         {unknownLabels.length > 0 && (
           <div className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-m3-on-surface-variant">
-              {t("labelMapping.sectionUnknown")}
+              {t("label_mapping.section_unknown")}
             </p>
             {unknownLabels.map(renderRow)}
           </div>
@@ -115,7 +115,7 @@ export function FundLabelMappingStep({
         {confirmedLabels.length > 0 && (
           <div className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-m3-on-surface-variant">
-              {t("labelMapping.sectionConfirmed")}
+              {t("label_mapping.section_confirmed")}
             </p>
             {confirmedLabels.map(renderRow)}
           </div>
@@ -124,7 +124,7 @@ export function FundLabelMappingStep({
 
       {resolutions.length === 0 && (
         <p className="text-sm text-m3-on-surface-variant text-center py-8">
-          {t("labelMapping.empty")}
+          {t("label_mapping.empty")}
         </p>
       )}
     </div>

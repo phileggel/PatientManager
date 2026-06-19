@@ -103,8 +103,8 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                   className="m3-tr cursor-pointer select-none"
                   title={
                     isCash
-                      ? t("account.list.cashAccountProtectedTooltip")
-                      : tCommon("table.doubleClickToEdit")
+                      ? t("account.list.cash_account_protected_tooltip")
+                      : tCommon("table.double_click_to_edit")
                   }
                 >
                   <td className="m3-td font-medium text-m3-on-surface">{account.name}</td>
@@ -119,7 +119,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                         size="sm"
                         shape="round"
                         disabled={isCash}
-                        aria-label={t("account.list.editAriaLabel", { name: account.name })}
+                        aria-label={t("account.list.edit_aria_label", { name: account.name })}
                         icon={<Edit2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -131,7 +131,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                         size="sm"
                         shape="round"
                         disabled={isCash}
-                        aria-label={t("account.list.deleteAriaLabel", { name: account.name })}
+                        aria-label={t("account.list.delete_aria_label", { name: account.name })}
                         icon={<Trash2 size={16} />}
                         onClick={(e) => {
                           e.stopPropagation();

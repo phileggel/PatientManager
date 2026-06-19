@@ -109,10 +109,10 @@ export function ProcedureFormModal({
   const isOverpaidMode = mode === "overpaid";
 
   const title = (() => {
-    if (mode === "create") return t("form.cardTitle");
-    if (mode === "overpaid") return tov("modal.viewTitle");
-    if (mode === "refund") return tov("modal.refundViewTitle");
-    if (mode === "view") return t("modal.viewTitle");
+    if (mode === "create") return t("form.card_title");
+    if (mode === "overpaid") return tov("modal.view_title");
+    if (mode === "refund") return tov("modal.refund_view_title");
+    if (mode === "view") return t("modal.view_title");
     return t("modal.title");
   })();
 
@@ -172,7 +172,7 @@ export function ProcedureFormModal({
   };
 
   const procedureTypeOptions = [
-    { value: "", label: t("form.noSelection") },
+    { value: "", label: t("form.no_selection") },
     ...procedureTypes.map((pt) => ({ value: pt.id, label: pt.name })),
   ];
 
@@ -194,7 +194,7 @@ export function ProcedureFormModal({
             variant="ghost"
             shape="round"
             size="sm"
-            aria-label={t("modal.closeAriaLabel")}
+            aria-label={t("modal.close_aria_label")}
             icon={<X size={18} />}
             onClick={onClose}
           />
@@ -224,9 +224,9 @@ export function ProcedureFormModal({
               priorityKey="hasSsn"
               value={patientId}
               onChange={handlePatientChange}
-              placeholder={t("form.selectPatient")}
+              placeholder={t("form.select_patient")}
               onCreateNew={(q) => setPatientModal({ open: true, query: q })}
-              createLabel={t("createPatient.submit")}
+              createLabel={t("create_patient.submit")}
               error={fieldErrors.patientId}
             />
           ) : (
@@ -239,7 +239,7 @@ export function ProcedureFormModal({
               priorityKey="hasSsn"
               value={patientId}
               onChange={handlePatientChange}
-              placeholder={t("form.selectPatient")}
+              placeholder={t("form.select_patient")}
               error={fieldErrors.patientId}
             />
           )}
@@ -262,7 +262,7 @@ export function ProcedureFormModal({
               searchKeys={["fund_identifier", "name"]}
               value={fundId}
               onChange={setFundId}
-              placeholder={t("form.selectFund")}
+              placeholder={t("form.select_fund")}
             />
           ) : (
             <SelectField
@@ -272,7 +272,7 @@ export function ProcedureFormModal({
               onChange={(e) => setFundId(e.target.value)}
               disabled={loading}
               options={[
-                { label: t("form.selectFund"), value: "" },
+                { label: t("form.select_fund"), value: "" },
                 ...sortedFunds.map((f) => ({
                   label: `${f.fund_identifier} (${f.name})`,
                   value: f.id,
@@ -285,7 +285,7 @@ export function ProcedureFormModal({
           {isProcedureTypeEditable ? (
             <SelectField
               id="procedure-form-type"
-              label={t("form.procedureType")}
+              label={t("form.procedure_type")}
               options={procedureTypeOptions}
               value={procedureTypeId}
               onChange={(e) => handleProcedureTypeChange(e.target.value)}
@@ -295,7 +295,7 @@ export function ProcedureFormModal({
           ) : (
             <TextField
               id="procedure-form-view-type"
-              label={t("form.procedureType")}
+              label={t("form.procedure_type")}
               value={procedureTypes.find((pt) => pt.id === procedureTypeId)?.name ?? "—"}
               readOnly
             />
@@ -305,14 +305,14 @@ export function ProcedureFormModal({
           {isReadOnlyMode ? (
             <TextField
               id="procedure-form-view-date"
-              label={t("form.procedureDate")}
+              label={t("form.procedure_date")}
               value={procedureDate ? formatDate(procedureDate) : "—"}
               readOnly
             />
           ) : (
             <DateField
               id="procedure-form-date"
-              label={t("form.procedureDate")}
+              label={t("form.procedure_date")}
               value={procedureDate}
               onChange={(e) => setProcedureDate(e.target.value)}
               disabled={loading}
@@ -385,7 +385,7 @@ export function ProcedureFormModal({
               disabled={loading}
               className="flex-1"
             >
-              {tov("action.cancelRefund")}
+              {tov("action.cancel_refund")}
             </Button>
           )}
 

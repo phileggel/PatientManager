@@ -46,7 +46,7 @@ export function useFundPaymentList() {
           error: result.error,
         });
         setProcedures([]);
-        toastService.show("error", t("list.errors.proceduresFetchFailed"));
+        toastService.show("error", t("list.errors.procedures_fetch_failed"));
       }
     })();
     return () => {

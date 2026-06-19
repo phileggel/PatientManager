@@ -55,7 +55,7 @@ function ProcedureGroupCard({ group }: { group: PdfProcedureGroup }) {
           </span>
           {!group.is_total_valid && (
             <span className="text-xs text-error-60 font-medium">
-              {t("table.group.invalidTotal")}
+              {t("table.group.invalid_total")}
             </span>
           )}
         </div>
@@ -117,11 +117,11 @@ export function PdfDataTable({ data }: PdfDataTableProps) {
             {t("table.summary.lines", { count: totalLines })}
           </div>
           <div className="text-right">
-            <p className="text-xs text-slate-600 mb-1">{t("table.summary.totalAmount")}</p>
+            <p className="text-xs text-slate-600 mb-1">{t("table.summary.total_amount")}</p>
             <p className="text-2xl font-bold text-primary-70">{formatCurrency(actualTotal)}</p>
             {hasDiscrepancy && (
               <p className="text-xs text-error-60 mt-1">
-                {t("table.summary.pdfStated")} {formatCurrency(statedTotal)}
+                {t("table.summary.pdf_stated")} {formatCurrency(statedTotal)}
               </p>
             )}
           </div>

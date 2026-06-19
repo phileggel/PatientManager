@@ -4,29 +4,29 @@
     "procedures": "Saisie des Actes",
     "patient": "Patients",
     "funds": "Caisses",
-    "procedureTypes": "Types d'actes",
-    "excelImport": "Import Excel",
-    "fundPayment": "Paiement Caisse",
+    "procedure_types": "Types d'actes",
+    "excel_import": "Import Excel",
+    "fund_payment": "Paiement Caisse",
     "reconciliation": "Rapprochement Caisse",
-    "bankTransfer": "Virement Bancaire",
-    "bankAccount": "Comptes Bancaires",
-    "bankStatement": "Rapprochement Bancaire",
+    "bank_transfer": "Virement Bancaire",
+    "bank_account": "Comptes Bancaires",
+    "bank_statement": "Rapprochement Bancaire",
     "import": "Importer",
     "management": "Gestion",
-    "dbBackup": "Sauvegarde",
-    "designSystem": "Design System",
-    "mainNavigation": "Navigation principale",
-    "expandDrawer": "Développer le menu",
-    "collapseDrawer": "Réduire le menu",
+    "db_backup": "Sauvegarde",
+    "design_system": "Design System",
+    "main_navigation": "Navigation principale",
+    "expand_drawer": "Développer le menu",
+    "collapse_drawer": "Réduire le menu",
     "theme": {
       "day": "Passer en mode nuit",
       "night": "Passer en mode automatique",
       "auto": "Passer en mode jour"
     },
     "subtitle": {
-      "excelImport": "Importez un fichier Excel pour créer des patients, caisses et actes en base de données.",
+      "excel_import": "Importez un fichier Excel pour créer des patients, caisses et actes en base de données.",
       "reconciliation": "Téléchargez un relevé PDF de paiement pour rapprocher avec les actes en base de données.",
-      "bankStatement": "Téléchargez un relevé bancaire PDF pour rapprocher les virements avec les groupes de paiement."
+      "bank_statement": "Téléchargez un relevé bancaire PDF pour rapprocher les virements avec les groupes de paiement."
     }
   },
   "action": {
@@ -40,18 +40,18 @@
     "continue": "Continuer",
     "retry": "Réessayer",
     "search": "Rechercher",
-    "clearSearch": "Effacer la recherche",
+    "clear_search": "Effacer la recherche",
     "dismiss": "Fermer"
   },
   "aria": {
-    "dismissNotification": "Fermer la notification"
+    "dismiss_notification": "Fermer la notification"
   },
   "field": {
-    "datePlaceholder": "JJ/MM/AAAA",
-    "clearAriaLabel": "Effacer",
-    "amountAriaLabel": "Montant",
-    "previousMonth": "Mois précédent",
-    "nextMonth": "Mois suivant"
+    "date_placeholder": "JJ/MM/AAAA",
+    "clear_aria_label": "Effacer",
+    "amount_aria_label": "Montant",
+    "previous_month": "Mois précédent",
+    "next_month": "Mois suivant"
   },
   "state": {
     "loading": "Chargement...",
@@ -62,9 +62,9 @@
   },
   "table": {
     "actions": "Actions",
-    "noData": "Aucun résultat.",
+    "no_data": "Aucun résultat.",
     "loading": "Chargement...",
-    "doubleClickToEdit": "Double-clic pour modifier",
+    "double_click_to_edit": "Double-clic pour modifier",
     "total": "Total"
   },
   "validation": {
@@ -73,7 +73,7 @@
     "existing": "Déjà existant"
   },
   "error": {
-    "requiredFields": "Veuillez remplir tous les champs obligatoires.",
+    "required_fields": "Veuillez remplir tous les champs obligatoires.",
     "unknown": "Une erreur inattendue s'est produite.",
     "loading": "Erreur de chargement des données"
   },

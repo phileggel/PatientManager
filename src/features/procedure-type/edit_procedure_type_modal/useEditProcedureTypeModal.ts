@@ -33,9 +33,9 @@ export function useEditProcedureTypeModal(
 
   const validateForm = (): boolean => {
     const newErrors = validateProcedureType(formData, {
-      nameRequired: t("form.nameRequired"),
-      amountRequired: t("form.amountRequired"),
-      amountInvalid: t("form.amountInvalid"),
+      nameRequired: t("form.name_required"),
+      amountRequired: t("form.amount_required"),
+      amountInvalid: t("form.amount_invalid"),
     });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -80,12 +80,12 @@ export function useEditProcedureTypeModal(
 
       if (result.success) {
         logger.info("Procedure type updated successfully");
-        toastService.show("success", t("action.updateSuccess", { name: result.data?.name }));
+        toastService.show("success", t("action.update_success", { name: result.data?.name }));
         onSuccess?.();
       } else {
         const { key, params } = formatProcedureError(result.error);
         logger.error("Failed to update procedure type", { code: result.error.code });
-        toastService.show("error", t("action.updateError", { error: t(key, params) }));
+        toastService.show("error", t("action.update_error", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while updating procedure type", { error });

@@ -1,18 +1,18 @@
 {
   "page": {
     "title": "Procedure Types",
-    "searchPlaceholder": "Search procedure types..."
+    "search_placeholder": "Search procedure types..."
   },
   "form": {
     "name": "Procedure Type Name",
-    "namePlaceholder": "e.g., Consultation",
+    "name_placeholder": "e.g., Consultation",
     "amount": "Default Amount (€)",
     "category": "Category",
-    "amountPlaceholder": "0.00",
-    "categoryPlaceholder": "e.g., Medical",
-    "nameRequired": "Name is required",
-    "amountRequired": "Default amount is required",
-    "amountInvalid": "Default amount must be a valid number"
+    "amount_placeholder": "0.00",
+    "category_placeholder": "e.g., Medical",
+    "name_required": "Name is required",
+    "amount_required": "Default amount is required",
+    "amount_invalid": "Default amount must be a valid number"
   },
   "list": {
     "name": "Name",
@@ -20,31 +20,31 @@
     "category": "Category",
     "loading": "Loading procedure types...",
     "empty": "No procedure types yet. Use the + button to create one.",
-    "noResults": "No procedure types match your search.",
-    "loadError": "Failed to load procedure types.",
+    "no_results": "No procedure types match your search.",
+    "load_error": "Failed to load procedure types.",
     "retry": "Retry"
   },
   "action": {
     "add": "Add Procedure Type",
-    "addTitle": "New Procedure Type",
-    "fabAriaLabel": "Create a procedure type",
+    "add_title": "New Procedure Type",
+    "fab_aria_label": "Create a procedure type",
     "adding": "Adding...",
     "update": "Update",
     "updating": "Updating...",
-    "editTitle": "Update Procedure Type",
-    "addSuccess": "Procedure type added successfully",
-    "addError": "Failed to add procedure type: {{error}}",
-    "updateSuccess": "Procedure type \"{{name}}\" updated successfully",
-    "updateError": "Failed to update procedure type: {{error}}",
-    "editAriaLabel": "Edit procedure type {{name}}",
-    "deleteAriaLabel": "Delete procedure type {{name}}",
+    "edit_title": "Update Procedure Type",
+    "add_success": "Procedure type added successfully",
+    "add_error": "Failed to add procedure type: {{error}}",
+    "update_success": "Procedure type \"{{name}}\" updated successfully",
+    "update_error": "Failed to update procedure type: {{error}}",
+    "edit_aria_label": "Edit procedure type {{name}}",
+    "delete_aria_label": "Delete procedure type {{name}}",
     "delete": {
       "title": "Delete Procedure Type",
       "message": "Are you sure you want to delete {{name}}?",
       "confirm": "Delete",
       "success": "Procedure type \"{{name}}\" deleted successfully",
       "error": "Failed to delete procedure type: {{error}}",
-      "failedFallback": "Failed to delete procedure type"
+      "failed_fallback": "Failed to delete procedure type"
     }
   },
   "errors": {

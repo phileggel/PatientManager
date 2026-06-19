@@ -55,7 +55,7 @@ export function useProcedureTypeList() {
       const result = await deleteProcedureType(id);
       if (!result.success) {
         const { key, params } = formatProcedureError(result.error);
-        throw new Error(t(key, params) || t("action.delete.failedFallback"));
+        throw new Error(t(key, params) || t("action.delete.failed_fallback"));
       }
     },
     [t],

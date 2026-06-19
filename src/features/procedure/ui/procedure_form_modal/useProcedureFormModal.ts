@@ -29,9 +29,9 @@ function validateForm(
   t: (key: string) => string,
 ): FieldErrors {
   const errors: FieldErrors = {};
-  if (!patientId) errors.patientId = t("error.requiredField");
-  if (!procedureTypeId) errors.procedureTypeId = t("error.requiredField");
-  if (!procedureDate) errors.procedureDate = t("error.requiredField");
+  if (!patientId) errors.patientId = t("error.required_field");
+  if (!procedureTypeId) errors.procedureTypeId = t("error.required_field");
+  if (!procedureDate) errors.procedureDate = t("error.required_field");
   return errors;
 }
 
@@ -177,7 +177,7 @@ export function useProcedureFormModal({
       if (Object.keys(errors).length > 0) {
         logger.warn(`${TAG} Submit with missing required fields`);
         setFieldErrors(errors);
-        toastService.show("error", t("error.requiredFields"));
+        toastService.show("error", t("error.required_fields"));
         return;
       }
 

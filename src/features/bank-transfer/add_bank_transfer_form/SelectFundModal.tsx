@@ -26,27 +26,27 @@ export function SelectFundModal({ isOpen, onSelect, onCancel }: SelectFundModalP
       id="select-fund-modal"
       isOpen={isOpen}
       onClose={onCancel}
-      title={t("transfer.selectFundModal.title")}
+      title={t("transfer.select_fund_modal.title")}
       maxWidth="max-w-2xl"
       searchValue={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("transfer.selectFundModal.searchPlaceholder")}
+      searchPlaceholder={t("transfer.select_fund_modal.search_placeholder")}
     >
       {filteredFunds.length === 0 ? (
         <p className="text-sm text-m3-on-surface-variant py-4 text-center">
           {funds.length === 0
-            ? t("transfer.selectFundModal.empty")
-            : t("transfer.selectFundModal.noMatch")}
+            ? t("transfer.select_fund_modal.empty")
+            : t("transfer.select_fund_modal.no_match")}
         </p>
       ) : (
         <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-m3-surface-container">
             <tr className="border-b border-m3-outline">
               <th className="px-4 py-2 text-left text-sm font-semibold text-m3-on-surface">
-                {t("transfer.selectFundModal.columns.name")}
+                {t("transfer.select_fund_modal.columns.name")}
               </th>
               <th className="px-4 py-2 text-left text-sm font-semibold text-m3-on-surface">
-                {t("transfer.selectFundModal.columns.identifier")}
+                {t("transfer.select_fund_modal.columns.identifier")}
               </th>
             </tr>
           </thead>

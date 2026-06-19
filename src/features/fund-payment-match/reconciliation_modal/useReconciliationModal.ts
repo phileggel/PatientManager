@@ -207,7 +207,7 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
         setValidationError({ kind: "typed", error: createResult.error });
         return;
       }
-      toastService.show("success", t("modal.footer.validateSuccess"));
+      toastService.show("success", t("modal.footer.validate_success"));
       const dateRange = computePdfDateRange(parsedData);
       if (dateRange) {
         setReportDateRange(dateRange);

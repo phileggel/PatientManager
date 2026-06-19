@@ -28,8 +28,8 @@ export function useEditFundModal(fund: Fund | null, onSuccess?: () => void) {
 
   const validateForm = (): boolean => {
     const newErrors = validateFund(formData, {
-      identifierRequired: t("form.identifierRequired"),
-      nameRequired: t("form.nameRequired"),
+      identifierRequired: t("form.identifier_required"),
+      nameRequired: t("form.name_required"),
     });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -73,12 +73,12 @@ export function useEditFundModal(fund: Fund | null, onSuccess?: () => void) {
 
       if (result.success) {
         logger.info("Fund updated successfully");
-        toastService.show("success", t("action.updateSuccess", { name: result.data?.name }));
+        toastService.show("success", t("action.update_success", { name: result.data?.name }));
         onSuccess?.();
       } else {
         const { key, params } = formatFundError(result.error);
         logger.error("Failed to update fund", { code: result.error.code });
-        toastService.show("error", t("action.updateError", { error: t(key, params) }));
+        toastService.show("error", t("action.update_error", { error: t(key, params) }));
       }
     } catch (error) {
       logger.error("Exception occurred while updating fund", { error });

@@ -141,7 +141,7 @@ describe("ProcedurePage — R6: modal mode routing based on blocking status", ()
       capturedOnEdit?.(makeRow("RECONCILED"));
     });
 
-    // View mode title key is "modal.viewTitle" — modal should be open
+    // View mode title key is "modal.view_title" — modal should be open
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 

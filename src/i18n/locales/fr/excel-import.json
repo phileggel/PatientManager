@@ -3,50 +3,50 @@
     "title": "Étape 1 : Sélectionner un fichier"
   },
   "dropzone": {
-    "ariaLabel": "Zone de dépôt de fichier",
+    "aria_label": "Zone de dépôt de fichier",
     "text": "Glissez-déposez votre fichier Excel ici",
     "or": "ou",
     "select": "Sélectionner un fichier",
     "processing": "Traitement...",
     "formats": "Formats supportés : .xlsx, .xls, .csv"
   },
-  "createTypeModal": {
+  "create_type_modal": {
     "title": "Créer un nouveau type d'acte",
-    "nameLabel": "Nom",
-    "namePlaceholder": "ex : Consultation",
-    "amountLabel": "Montant par défaut (€)",
-    "nameRequired": "Veuillez saisir un nom pour le type d'acte",
+    "name_label": "Nom",
+    "name_placeholder": "ex : Consultation",
+    "amount_label": "Montant par défaut (€)",
+    "name_required": "Veuillez saisir un nom pour le type d'acte",
     "cancel": "Annuler",
     "create": "Créer",
     "creating": "Création...",
     "error": "Échec de la création du type d'acte"
   },
   "mapping": {
-    "modalTitle": "Associer les types d'actes",
-    "infoTitle": "Associer les montants aux types d'actes",
-    "infoDescription": "Pour chaque montant, sélectionnez le type d'acte correspondant ou créez-en un nouveau. Les montants sont pré-remplis avec un type par défaut — veuillez vérifier et modifier l'association si nécessaire.",
+    "modal_title": "Associer les types d'actes",
+    "info_title": "Associer les montants aux types d'actes",
+    "info_description": "Pour chaque montant, sélectionnez le type d'acte correspondant ou créez-en un nouveau. Les montants sont pré-remplis avec un type par défaut — veuillez vérifier et modifier l'association si nécessaire.",
     "amount": "Montant",
-    "procedureType": "Type d'acte",
-    "importedFromExcel": "Importé depuis Excel",
-    "createNew": "+ Créer un nouveau type...",
+    "procedure_type": "Type d'acte",
+    "imported_from_excel": "Importé depuis Excel",
+    "create_new": "+ Créer un nouveau type...",
     "continue": "Continuer",
     "processing": "Traitement..."
   },
   "progress": {
     "upload": "Chargement",
     "parsing": "Analyse",
-    "sheetSelection": "Sélection feuilles",
+    "sheet_selection": "Sélection feuilles",
     "mapping": "Association types",
     "importing": "Import en cours",
     "complete": "Terminé",
-    "stepCompleted": "Étape terminée"
+    "step_completed": "Étape terminée"
   },
-  "sheetSelection": {
+  "sheet_selection": {
     "title": "Sélectionner les feuilles à importer",
     "description": "Choisissez les feuilles à importer. Les actes existants pour les mois correspondants seront supprimés et remplacés. Les mois contenant des actes rapprochés ne peuvent pas être réimportés.",
-    "selectAll": "Tout sélectionner",
-    "deselectAll": "Tout désélectionner",
-    "sheetsSelected": "feuilles sélectionnées",
+    "select_all": "Tout sélectionner",
+    "deselect_all": "Tout désélectionner",
+    "sheets_selected": "feuilles sélectionnées",
     "continue": "Continuer",
     "sheets": {
       "Jan": "Janvier",
@@ -65,21 +65,21 @@
   },
   "result": {
     "title": "Import réussi !",
-    "patientsProcessed": "Patients traités",
-    "fundsProcessed": "Caisses traitées",
-    "proceduresCreated": "Actes créés",
-    "createdReused": "{{created}} créés · {{reused}} réutilisés",
-    "deletedBeforeReimport_one": "{{count}} supprimé avant réimport",
-    "deletedBeforeReimport_other": "{{count}} supprimés avant réimport",
+    "patients_processed": "Patients traités",
+    "funds_processed": "Caisses traitées",
+    "procedures_created": "Actes créés",
+    "created_reused": "{{created}} créés · {{reused}} réutilisés",
+    "deleted_before_reimport_one": "{{count}} supprimé avant réimport",
+    "deleted_before_reimport_other": "{{count}} supprimés avant réimport",
     "skipped_one": "{{count}} ignoré",
     "skipped_other": "{{count}} ignorés",
-    "blockedMonthsTitle": "Mois non importés (actes rapprochés)",
-    "viewReport": "Voir le rapport d'import"
+    "blocked_months_title": "Mois non importés (actes rapprochés)",
+    "view_report": "Voir le rapport d'import"
   },
   "status": {
     "parsing": "Analyse du fichier Excel...",
     "retry": "Réessayer l'import",
-    "importFailed": "L'import a échoué"
+    "import_failed": "L'import a échoué"
   },
   "errors": {
     "file_not_found": "Le fichier sélectionné est introuvable.",
@@ -88,19 +88,19 @@
     "import_failed": "L'import n'a pas pu être effectué. Veuillez réessayer.",
     "database_error": "Une erreur de base de données inattendue s'est produite."
   },
-  "parsingReport": {
-    "unifiedTitle": "Rapport d'import",
+  "parsing_report": {
+    "unified_title": "Rapport d'import",
     "summary": "Résumé",
-    "skippedRows": "Lignes ignorées :",
-    "missingSheets": "Feuilles manquantes :",
-    "missingSheetsTitle": "Feuilles de mois manquantes",
-    "missingSheetsDesc_one": "La feuille de mois suivante est introuvable :",
-    "missingSheetsDesc_other": "Les {{count}} feuilles de mois suivantes sont introuvables :",
-    "skippedRowsTitle": "Lignes ignorées ({{count}})",
-    "colSheet": "Feuille",
-    "colRow": "Ligne",
-    "colReason": "Raison",
-    "noIssues": "Aucun problème d'analyse détecté",
+    "skipped_rows": "Lignes ignorées :",
+    "missing_sheets": "Feuilles manquantes :",
+    "missing_sheets_title": "Feuilles de mois manquantes",
+    "missing_sheets_desc_one": "La feuille de mois suivante est introuvable :",
+    "missing_sheets_desc_other": "Les {{count}} feuilles de mois suivantes sont introuvables :",
+    "skipped_rows_title": "Lignes ignorées ({{count}})",
+    "col_sheet": "Feuille",
+    "col_row": "Ligne",
+    "col_reason": "Raison",
+    "no_issues": "Aucun problème d'analyse détecté",
     "close": "Fermer",
     "reasons": {
       "insufficient_columns": "Colonnes insuffisantes ({{needed}} minimum)",

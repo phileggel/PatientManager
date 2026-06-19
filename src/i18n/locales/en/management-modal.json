@@ -1,8 +1,8 @@
 {
-  "modalTitle": "Management",
+  "modal_title": "Management",
   "prerequisites": {
-    "noFund": "Create a fund first to access fund payments.",
-    "noBankAccount": "Create a bank account first to access this feature."
+    "no_fund": "Create a fund first to access fund payments.",
+    "no_bank_account": "Create a bank account first to access this feature."
   },
   "patient": {
     "title": "Patients",
@@ -12,19 +12,19 @@
     "title": "Funds",
     "description": "Manage the affiliated funds associated with patients and procedures."
   },
-  "procedureTypes": {
+  "procedure_types": {
     "title": "Procedure Types",
     "description": "Manage the medical procedure types used during data entry."
   },
-  "fundPayment": {
+  "fund_payment": {
     "title": "Fund Payment",
     "description": "View and manage fund payment groups."
   },
-  "bankTransfer": {
+  "bank_transfer": {
     "title": "Bank Transfer",
     "description": "View and manage bank transfers associated with payment groups."
   },
-  "bankAccount": {
+  "bank_account": {
     "title": "Bank Accounts",
     "description": "Manage bank accounts used for reconciliation."
   }

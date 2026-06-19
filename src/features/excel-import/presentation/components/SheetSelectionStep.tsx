@@ -40,8 +40,8 @@ export function SheetSelectionStep({ parsedData, onConfirm, isLoading }: SheetSe
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-neutral-90">{t("sheetSelection.title")}</h2>
-        <p className="text-sm text-neutral-60 mt-1">{t("sheetSelection.description")}</p>
+        <h2 className="text-lg font-semibold text-neutral-90">{t("sheet_selection.title")}</h2>
+        <p className="text-sm text-neutral-60 mt-1">{t("sheet_selection.description")}</p>
       </div>
 
       <div className="rounded-xl overflow-hidden bg-m3-surface-container-low">
@@ -58,10 +58,10 @@ export function SheetSelectionStep({ parsedData, onConfirm, isLoading }: SheetSe
             htmlFor="sheet-selection-select-all"
             className="text-sm font-medium text-neutral-70 cursor-pointer"
           >
-            {allSelected ? t("sheetSelection.deselectAll") : t("sheetSelection.selectAll")}
+            {allSelected ? t("sheet_selection.deselect_all") : t("sheet_selection.select_all")}
           </label>
           <span className="ml-auto text-xs text-neutral-50">
-            {selected.size}/{availableSheets.length} {t("sheetSelection.sheetsSelected")}
+            {selected.size}/{availableSheets.length} {t("sheet_selection.sheets_selected")}
           </span>
         </div>
 
@@ -80,7 +80,7 @@ export function SheetSelectionStep({ parsedData, onConfirm, isLoading }: SheetSe
                 htmlFor={`sheet-selection-sheet-${sheet}`}
                 className="text-sm text-neutral-80 cursor-pointer flex-1"
               >
-                {t(`sheetSelection.sheets.${sheet}`)}
+                {t(`sheet_selection.sheets.${sheet}`)}
               </label>
             </li>
           ))}
@@ -93,7 +93,7 @@ export function SheetSelectionStep({ parsedData, onConfirm, isLoading }: SheetSe
           onClick={() => onConfirm(Array.from(selected))}
           disabled={isLoading || selected.size === 0}
         >
-          {t("sheetSelection.continue")}
+          {t("sheet_selection.continue")}
         </Button>
       </div>
     </div>

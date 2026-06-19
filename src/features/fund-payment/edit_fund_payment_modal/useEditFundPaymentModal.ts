@@ -73,7 +73,7 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClos
         }
       } catch (error) {
         logger.error("[useEditFundPaymentModal] Failed to fetch edit data", { error });
-        toastService.show("error", t("edit.errorLoadDetails"));
+        toastService.show("error", t("edit.error_load_details"));
       } finally {
         setLoading(false);
       }
@@ -130,12 +130,12 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClos
       e.preventDefault();
 
       if (!paymentDate.trim()) {
-        toastService.show("error", t("edit.errorDateRequired"));
+        toastService.show("error", t("edit.error_date_required"));
         return;
       }
 
       if (selectedIds.size === 0) {
-        toastService.show("error", t("edit.errorProcedureRequired"));
+        toastService.show("error", t("edit.error_procedure_required"));
         return;
       }
 
@@ -165,7 +165,7 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClos
         }
       } catch (error) {
         logger.error("[useEditFundPaymentModal] Error updating payment group", { error });
-        toastService.show("error", t("edit.errorUnknown"));
+        toastService.show("error", t("edit.error_unknown"));
       } finally {
         setLoading(false);
       }

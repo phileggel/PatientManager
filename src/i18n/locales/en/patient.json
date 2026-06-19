@@ -1,50 +1,50 @@
 {
   "page": {
     "title": "Patients",
-    "searchPlaceholder": "Search patients...",
-    "addDescription": "Add a new patient."
+    "search_placeholder": "Search patients...",
+    "add_description": "Add a new patient."
   },
   "form": {
     "name": "Patient Name",
-    "namePlaceholder": "Enter patient name",
+    "name_placeholder": "Enter patient name",
     "ssn": "Social Security Number",
-    "ssnPlaceholder": "Enter SSN (optional)",
-    "fundPatientName": "Fund Patient Name",
-    "fundPatientNamePlaceholder": "Enter fund patient name (optional)",
-    "nameRequired": "Patient name is required"
+    "ssn_placeholder": "Enter SSN (optional)",
+    "fund_patient_name": "Fund Patient Name",
+    "fund_patient_name_placeholder": "Enter fund patient name (optional)",
+    "name_required": "Patient name is required"
   },
   "list": {
     "name": "Name",
     "ssn": "SSN",
-    "latestFund": "Latest Fund",
-    "latestDate": "Latest Date",
+    "latest_fund": "Latest Fund",
+    "latest_date": "Latest Date",
     "loading": "Loading patients...",
-    "noData": "No patients found."
+    "no_data": "No patients found."
   },
   "action": {
     "add": "Add Patient",
     "adding": "Adding...",
     "update": "Update",
     "updating": "Updating...",
-    "editTitle": "Update Patient",
-    "addSuccess": "Patient \"{{name}}\" added successfully",
-    "addError": "Failed to add patient: {{error}}",
-    "updateSuccess": "Patient \"{{name}}\" updated successfully",
-    "updateError": "Failed to update patient: {{error}}",
-    "editAriaLabel": "Edit patient {{name}}",
-    "deleteAriaLabel": "Delete patient {{name}}",
+    "edit_title": "Update Patient",
+    "add_success": "Patient \"{{name}}\" added successfully",
+    "add_error": "Failed to add patient: {{error}}",
+    "update_success": "Patient \"{{name}}\" updated successfully",
+    "update_error": "Failed to update patient: {{error}}",
+    "edit_aria_label": "Edit patient {{name}}",
+    "delete_aria_label": "Delete patient {{name}}",
     "delete": {
       "title": "Delete Patient",
       "message": "Are you sure you want to delete {{name}}?",
       "confirm": "Delete",
       "success": "Patient \"{{name}}\" deleted successfully",
       "error": "Failed to delete patient: {{error}}",
-      "failedFallback": "Failed to delete patient"
+      "failed_fallback": "Failed to delete patient"
     }
   },
   "modal": {
-    "latestProcedure": "Latest Procedure Information",
-    "procedureType": "Procedure Type",
+    "latest_procedure": "Latest Procedure Information",
+    "procedure_type": "Procedure Type",
     "fund": "Fund",
     "date": "Date",
     "amount": "Amount"

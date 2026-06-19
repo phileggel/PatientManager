@@ -27,7 +27,7 @@ export function useEditBankAccountModal(bankAccount: BankAccount | null, onClose
     const newErrors: FormErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = t("account.edit.nameRequired");
+      newErrors.name = t("account.edit.name_required");
     }
 
     setErrors(newErrors);
@@ -81,7 +81,7 @@ export function useEditBankAccountModal(bankAccount: BankAccount | null, onClose
       }
     } catch (error) {
       logger.error("Exception occurred while updating bank account", { error });
-      toastService.show("error", t("account.edit.errorUnknown"));
+      toastService.show("error", t("account.edit.error_unknown"));
     } finally {
       setLoading(false);
     }
