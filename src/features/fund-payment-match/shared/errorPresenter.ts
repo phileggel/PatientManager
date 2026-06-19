@@ -1,6 +1,32 @@
 import type { FundPaymentReconciliationError, ReportPdfError } from "@/bindings";
 
 /**
+ * Error state stored by the reconciliation hook (Layer 2). Either a typed
+ * backend error from a gateway `Result`, or `unexpected` for a JS/IPC exception
+ * caught outside the typed-Result contract (transport failure, thrown bug).
+ * Keeping the typed error un-translated in state is the F27 requirement —
+ * translation happens at Layer 4 via `presentReconciliationErrorState`.
+ */
+export type ReconciliationErrorState =
+  | { kind: "typed"; error: FundPaymentReconciliationError }
+  | { kind: "unexpected" };
+
+/**
+ * Layer 3 entry point for the hook's error state. Maps the union to a
+ * `{ key, params }` the component translates; the `unexpected` case maps to the
+ * generic unknown-error key. Delegates the typed case to
+ * `formatReconciliationError` so the exhaustive code mapping lives in one place.
+ */
+export function presentReconciliationErrorState(state: ReconciliationErrorState): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
+  return state.kind === "unexpected"
+    ? { key: "fund-payment-match:modal.error.unknown" }
+    : formatReconciliationError(state.error);
+}
+
+/**
  * Layer 3 of the F27 typed-error pipeline for the fund-payment reconciliation
  * use case. Pure `code → { key, params }` mapping over the untagged composite
  * (`FundError | PatientError | ProcedureError | FundPaymentReconciliationTask`).

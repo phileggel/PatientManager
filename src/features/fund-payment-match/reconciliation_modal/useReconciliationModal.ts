@@ -27,7 +27,7 @@ import {
   parsePdfText,
   reconcileAndCreateCandidates,
 } from "../gateway";
-import { formatReconciliationError } from "../shared/errorPresenter";
+import type { ReconciliationErrorState } from "../shared/errorPresenter";
 import {
   buildCorrectionKey,
   buildLinkProcedureKey,
@@ -45,14 +45,14 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
     useState<ReconcileAndCandidatesResponse | null>(null);
   const [alreadyImported, setAlreadyImported] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ReconciliationErrorState | null>(null);
 
   const [acceptedKeys, setAcceptedKeys] = useState<Set<string>>(new Set());
   const [autoCorrections, setAutoCorrections] = useState<Map<string, AutoCorrection>>(new Map());
   const [resolvedCount, setResolvedCount] = useState(0);
   const [unresolvedGroupCount, setUnresolvedGroupCount] = useState(0);
   const [isValidating, setIsValidating] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<ReconciliationErrorState | null>(null);
 
   const [unreconciledReport, setUnreconciledReport] = useState<UnreconciledProcedure[] | null>(
     null,
@@ -69,16 +69,14 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
         setError(null);
         const textResult = await extractPdfText(filePath);
         if (!textResult.success) {
-          const { key, params } = formatReconciliationError(textResult.error);
-          setError(t(key, params));
+          setError({ kind: "typed", error: textResult.error });
           return;
         }
         const parsed = await parsePdfText(textResult.data);
         setParsedData(parsed);
         const reconResult = await reconcileAndCreateCandidates(parsed);
         if (!reconResult.success) {
-          const { key, params } = formatReconciliationError(reconResult.error);
-          setError(t(key, params));
+          setError({ kind: "typed", error: reconResult.error });
           return;
         }
         if (reconResult.data.already_imported) {
@@ -88,13 +86,13 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
         }
       } catch (err) {
         logger.error("[useReconciliationModal] Failed to load or reconcile PDF", { err });
-        setError(t("modal.error.unknown"));
+        setError({ kind: "unexpected" });
       } finally {
         setIsLoading(false);
       }
     }
     loadAndReconcilePdf();
-  }, [filePath, t]);
+  }, [filePath]);
 
   const totalAnomalies = useMemo(
     () => (reconciliationData ? countTotalAnomalies(reconciliationData.reconciliation) : 0),
@@ -206,8 +204,7 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
         auto_corrections: Array.from(autoCorrections.values()),
       });
       if (!createResult.success) {
-        const { key, params } = formatReconciliationError(createResult.error);
-        setValidationError(t(key, params));
+        setValidationError({ kind: "typed", error: createResult.error });
         return;
       }
       toastService.show("success", t("modal.footer.validateSuccess"));
@@ -219,8 +216,7 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
           dateRange.end,
         );
         if (!proceduresResult.success) {
-          const { key, params } = formatReconciliationError(proceduresResult.error);
-          setValidationError(t(key, params));
+          setValidationError({ kind: "typed", error: proceduresResult.error });
           return;
         }
         setUnreconciledReport(proceduresResult.data);
@@ -229,7 +225,7 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
       }
     } catch (err) {
       logger.error("[useReconciliationModal] Validation failed", { err });
-      setValidationError(t("modal.error.unknown"));
+      setValidationError({ kind: "unexpected" });
     } finally {
       setIsValidating(false);
     }
