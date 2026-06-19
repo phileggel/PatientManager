@@ -97,3 +97,21 @@ Streamline how a user sends support data to the maintainer. Today it's a manual 
 **GDPR (health data):** consent prompt before a bundle includes the DB; minimize (Tier 1 by default, Tier 2 only on request); retention / auto-delete; a short privacy note.
 
 Deferred decisions: exact diagnostic field list, log-line count, support-code format, Tier-2 transport (drop-link vs gated R2), retention window. Spec via `/spec-writer` when scheduled.
+
+---
+
+## (frontend/i18n) — Migrate i18n keys to snake_case (i18n-rules §31)
+
+`docs/i18n-rules.md` §31 mandates snake_case for every key segment, but the locale files predate the rule and are uniformly camelCase. Scope audit (2026-06-19, requested before scheduling): this is **project-wide, not fund-payment-match-local** — ~467 camelCase segments across all 14 namespaces under `src/i18n/locales/{en,fr}/`, heaviest in `bank.json` (82), `procedure.json` (49), `fund-payment-match.json` (46), `fund-payment.json` (36), `excel-import.json` (35).
+
+Approach:
+
+- **One `refactor(i18n)` PR per namespace**, each migrating that namespace's JSON keys (en + fr) **and** all its `t()` call sites together. Per-namespace is the natural unit: each namespace is independent, and a full single-namespace migration avoids the within-namespace half-migrated split the original observation warned against. Do NOT do a piecemeal subset of one namespace.
+- Sequence smallest-first (`db-backup` 3, `dashboard` 4, `management-modal` 7…) to validate the rename mechanics before the large namespaces.
+
+⚠️ **Hazard — PascalCase keys bound to backend enum variant names.** Some keys mirror Rust enum variants and are looked up via **dynamic interpolation**, so a naive snake_case rename silently breaks them (the interpolated key no longer matches). Known in fund-payment-match: `print.section2.groups.{ContestAmount,CreateProcedure,LinkProcedure,AmountMismatch,FundMismatch,DateMismatch}` resolved via ``t(`print.section2.groups.${type}`)`` in `reportPresenter.ts:211`, where `type` is the wire variant. Audit each namespace for ``t(`...${var}`)`` patterns (`status.${key}`, `sheetSelection.sheets.${sheet}`, etc.) first. For each: either keep the dynamic segment matching the wire variant (i.e. do NOT snake_case enum-keyed segments), or introduce an explicit `variant → snake_case_key` mapping at the call site. This is the design call that makes the rename non-mechanical.
+
+- Mechanical-only segments (static `t("modal.footer.autoCorrect")` → `auto_correct`) are a safe find-replace once the dynamic ones are carved out.
+- Lint/test gate: `i18n-rules` review + `just check` per PR; no behavior change, so non-visual exemption applies.
+
+Cost: ~1 focused PR per namespace, ~14 PRs total (or grouped). Priority: low — pure convention alignment, no functional impact. Schedule the hazardous namespaces (fund-payment-match, anything with dynamic enum keys) only after the mechanical ones prove the pattern.
