@@ -14,7 +14,11 @@
 import { describe, expect, it } from "vitest";
 import type { BankStatementLineStatus, BankStatementReconciliationError } from "@/bindings";
 
-import { presentLineStatus, presentReconciliationError } from "./reconciliationPresenter";
+import {
+  lineStatusTone,
+  presentLineStatus,
+  presentReconciliationError,
+} from "./reconciliationPresenter";
 
 // ---------------------------------------------------------------------------
 // presentLineStatus — BAS-061 six-status set
@@ -33,6 +37,27 @@ describe("presentLineStatus — BAS-061", () => {
   for (const { status, expectedKey } of cases) {
     it(`maps ${status} to ${expectedKey}`, () => {
       expect(presentLineStatus(status)).toBe(expectedKey);
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// lineStatusTone — badge tone per status (BAS-061)
+// ---------------------------------------------------------------------------
+
+describe("lineStatusTone — BAS-061 badge tone", () => {
+  const resolved: BankStatementLineStatus[] = ["Matched", "Rejected"];
+  const attention: BankStatementLineStatus[] = ["NeedsLink", "NeedsGroup", "Partial", "Unresolved"];
+
+  for (const status of resolved) {
+    it(`maps ${status} to "resolved"`, () => {
+      expect(lineStatusTone(status)).toBe("resolved");
+    });
+  }
+
+  for (const status of attention) {
+    it(`maps ${status} to "attention"`, () => {
+      expect(lineStatusTone(status)).toBe("attention");
     });
   }
 });

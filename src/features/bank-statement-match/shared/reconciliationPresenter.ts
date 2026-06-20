@@ -34,6 +34,24 @@ export function presentLineStatus(status: BankStatementLineStatus): string {
 }
 
 /**
+ * Visual tone for a line's status badge: `attention` (gold) for the four
+ * correction-needed states so they stand out, `resolved` (subdued) for the two
+ * done states (Matched / Rejected). Exhaustive over BAS-061.
+ */
+export function lineStatusTone(status: BankStatementLineStatus): "attention" | "resolved" {
+  switch (status) {
+    case "Matched":
+    case "Rejected":
+      return "resolved";
+    case "NeedsLink":
+    case "NeedsGroup":
+    case "Partial":
+    case "Unresolved":
+      return "attention";
+  }
+}
+
+/**
  * Draft-engine correction guards get dedicated guidance (BAS-090/094/067); every
  * other code (BC errors + infra catch-all + other use-case guards) maps to the
  * generic unknown key — the workflow surfaces a single inline error either way.
