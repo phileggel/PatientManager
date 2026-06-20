@@ -8,6 +8,7 @@ use tauri::State;
 use crate::context::bank::BankAccount;
 
 use super::bank_pdf_codec::BankStatementParseResult;
+use super::draft::{ReconciliationCorrection, ReconciliationDraft};
 use super::error::BankStatementReconciliationError;
 use super::orchestrator::{
     BankStatementMatchResult, BankStatementOrchestrator, BankStatementReconciliationConfig,
@@ -110,4 +111,39 @@ pub async fn create_bank_transfers_from_statement(
 #[specta::specta]
 pub fn get_bank_statement_reconciliation_config() -> BankStatementReconciliationConfig {
     BankStatementReconciliationConfig::instance()
+}
+
+/// BAS-064 — compute the ephemeral reconciliation draft.
+///
+/// Pure read-only: no DB writes. The draft is never persisted; the frontend
+/// re-calls on every correction and every revert (BAS-065).
+#[tauri::command]
+#[specta::specta]
+pub async fn compute_bank_reconciliation_draft(
+    bank_account_id: String,
+    parse_result: BankStatementParseResult,
+    corrections: Vec<ReconciliationCorrection>,
+    orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
+) -> Result<ReconciliationDraft, BankStatementReconciliationError> {
+    orchestrator
+        .compute_draft(&bank_account_id, &parse_result, &corrections)
+        .await
+}
+
+/// BAS-063/035/070–073/093 — commit the draft (validate).
+///
+/// Recomputes the draft server-side, upserts label mappings, creates N bank
+/// entries per multi-group line, and locks settled groups. Returns the count of
+/// `BankEntry` records created.
+#[tauri::command]
+#[specta::specta]
+pub async fn validate_bank_reconciliation(
+    bank_account_id: String,
+    parse_result: BankStatementParseResult,
+    corrections: Vec<ReconciliationCorrection>,
+    orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
+) -> Result<u32, BankStatementReconciliationError> {
+    orchestrator
+        .validate_reconciliation(&bank_account_id, &parse_result, &corrections)
+        .await
 }
