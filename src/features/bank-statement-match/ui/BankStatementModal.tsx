@@ -4,39 +4,37 @@ import { Button } from "@/ui/components/button";
 import { IconButton } from "@/ui/components/button/IconButton";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { CreateAccountStep } from "./CreateAccountStep";
-import { DoneStep } from "./DoneStep";
 import { ErrorStep } from "./ErrorStep";
-import { FundLabelMappingStep } from "./FundLabelMappingStep";
 import { LoadingStep } from "./LoadingStep";
-import { MatchResultsStep } from "./MatchResultsStep";
-import { useBankStatementModal } from "./useBankStatementModal";
+import { ReconciliationView } from "./ReconciliationView";
+import { useBankStatementGate } from "./useBankStatementGate";
 
 interface BankStatementModalProps {
   filePath: string;
   onClose: () => void;
 }
 
+/**
+ * Host for the bank-statement reconciliation flow.
+ *
+ * Phase 1 (gate): parse the PDF + resolve the IBAN, inline-creating the bank
+ * account when the IBAN is unknown (BAS-011–017).
+ * Phase 2 (ready): hand over to `ReconciliationView`, which drives the
+ * document-order list, correction modals, wizard, and validate (BAS-060–103).
+ */
 export function BankStatementModal({ filePath, onClose }: BankStatementModalProps) {
   const { t } = useTranslation("bank");
   const {
-    step,
+    phase,
     error,
     parseResult,
-    labelResolutions,
-    allCreditLines,
-    userSelections,
-    isProcessing,
-    createdCount,
-    maxDateOffsetDays,
+    bankAccount,
     createName,
     createError,
     isCreatingAccount,
     handleCreateNameChange,
     handleCreateAccountSubmit,
-    handleLabelMappingConfirm,
-    handleSelectionChange,
-    handleCreateTransfers,
-  } = useBankStatementModal(filePath);
+  } = useBankStatementGate(filePath);
 
   return (
     <ModalContainer
@@ -68,11 +66,9 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 min-h-0">
-        {step === "loading" && <LoadingStep message={t("statement.modal.loading")} />}
+        {phase === "loading" && <LoadingStep message={t("statement.modal.loading")} />}
 
-        {step === "matching" && <LoadingStep message={t("statement.modal.matching")} />}
-
-        {step === "create-account" && parseResult && (
+        {phase === "create-account" && parseResult && (
           <CreateAccountStep
             iban={parseResult.iban}
             name={createName}
@@ -83,71 +79,48 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
           />
         )}
 
-        {step === "label-mapping" && (
-          <FundLabelMappingStep
-            resolutions={labelResolutions}
-            onConfirm={handleLabelMappingConfirm}
-            isProcessing={isProcessing}
+        {phase === "ready" && bankAccount && parseResult && (
+          <ReconciliationView
+            bankAccountId={bankAccount.id}
+            parseResult={parseResult}
+            onClose={onClose}
           />
         )}
 
-        {step === "results" && (
-          <MatchResultsStep
-            lines={allCreditLines}
-            userSelections={userSelections}
-            onSelectionChange={handleSelectionChange}
-            maxDateOffsetDays={maxDateOffsetDays}
-          />
-        )}
-
-        {step === "done" && <DoneStep createdCount={createdCount} />}
-
-        {step === "error" && <ErrorStep error={error} />}
+        {phase === "error" && <ErrorStep error={error} />}
       </div>
 
-      {/* Footer — not shown during label-mapping (Accepter is embedded in FundLabelMappingStep) */}
-      {step !== "label-mapping" && (
+      {/* Footer — the reconciliation phase renders its own actions inside ReconciliationView. */}
+      {phase !== "ready" && (
         <div className="flex justify-end gap-3 px-6 py-4 bg-m3-surface-container-low shrink-0 rounded-b-[28px]">
-          {step === "results" && (
-            <Button
-              onClick={handleCreateTransfers}
-              variant="primary"
-              disabled={isProcessing}
-              loading={isProcessing}
-            >
-              {isProcessing ? t("statement.modal.creating") : t("statement.modal.validate")}
-            </Button>
+          {phase === "create-account" && (
+            <>
+              <Button
+                type="submit"
+                form="create-account-form"
+                variant="primary"
+                disabled={isCreatingAccount}
+                loading={isCreatingAccount}
+              >
+                {isCreatingAccount
+                  ? t("statement.modal.create_account.submitting")
+                  : t("statement.modal.create_account.submit")}
+              </Button>
+              <Button onClick={onClose} variant="secondary" disabled={isCreatingAccount}>
+                {t("statement.modal.create_account.cancel")}
+              </Button>
+            </>
           )}
 
-          {step === "create-account" && (
-            <Button
-              type="submit"
-              form="create-account-form"
-              variant="primary"
-              disabled={isCreatingAccount}
-              loading={isCreatingAccount}
-            >
-              {isCreatingAccount
-                ? t("statement.modal.create_account.submitting")
-                : t("statement.modal.create_account.submit")}
-            </Button>
-          )}
-
-          {(step === "done" || step === "error") && (
+          {phase === "error" && (
             <Button onClick={onClose} variant="secondary">
               {t("statement.modal.close")}
             </Button>
           )}
 
-          {(step === "loading" || step === "matching" || step === "results") && (
+          {phase === "loading" && (
             <Button onClick={onClose} variant="secondary">
               {t("statement.modal.cancel")}
-            </Button>
-          )}
-
-          {step === "create-account" && (
-            <Button onClick={onClose} variant="secondary" disabled={isCreatingAccount}>
-              {t("statement.modal.create_account.cancel")}
             </Button>
           )}
         </div>

@@ -1,4 +1,52 @@
 {
+  "reconciliation": {
+    "summary": "{{resolved}} résolue(s), {{needsCorrection}} à corriger",
+    "status": {
+      "matched": "Rapprochée",
+      "needs_link": "À associer",
+      "needs_group": "Groupe à choisir",
+      "partial": "Partielle",
+      "rejected": "Rejetée",
+      "unresolved": "Non résolue"
+    },
+    "error": {
+      "assignment_overflow": "Les groupes sélectionnés dépassent le montant de la ligne.",
+      "group_not_eligible": "Ce groupe n'est pas éligible pour cette ligne.",
+      "group_already_consumed": "Ce groupe est déjà affecté à une autre ligne.",
+      "unknown": "Une erreur inattendue s'est produite."
+    },
+    "link_fund": {
+      "title": "Associer « {{label}} » à une caisse",
+      "suggestion": "Suggestion : {{name}}",
+      "fund_label": "Caisse",
+      "select_placeholder": "-- Sélectionner une caisse --",
+      "reject": "Pas une caisse",
+      "cancel": "Annuler",
+      "submit": "Associer la caisse"
+    },
+    "assign_groups": {
+      "title": "Affecter des groupes à « {{label}} »",
+      "balance": "Couvert {{covered}} sur {{total}}",
+      "cancel": "Annuler",
+      "submit": "Affecter"
+    },
+    "remainder": {
+      "title": "Accepter le reliquat",
+      "amount": "Reliquat non couvert : {{amount}}",
+      "cancel": "Annuler",
+      "confirm": "Accepter"
+    },
+    "wizard": {
+      "open": "Correction guidée",
+      "title": "Correction guidée",
+      "abandon": "Fermer",
+      "done": "Terminer",
+      "done_body": "Toutes les lignes sont résolues.",
+      "phase_link_fund": "Étape 1 — Associer les caisses",
+      "step_label": "Ligne : {{label}}",
+      "apply": "Appliquer"
+    }
+  },
   "statement": {
     "title": "Rapprochement Bancaire",
     "match_results": {

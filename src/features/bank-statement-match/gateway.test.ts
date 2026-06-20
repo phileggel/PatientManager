@@ -1,16 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BankAccount, BankError } from "@/bindings";
+import type {
+  BankAccount,
+  BankError,
+  BankStatementCorrection,
+  BankStatementParseResult,
+  BankStatementReconciliation,
+} from "@/bindings";
 import type { ServiceResult } from "@/types/api";
 
 import {
+  computeBankStatementReconciliation,
   createBankAccount,
-  createBankTransfersFromStatement,
-  matchBankStatementLines,
   parseBankStatement,
   resolveBankAccountFromIban,
-  resolveBankFundLabels,
-  saveBankFundLabelMappings,
+  validateBankStatementReconciliation,
 } from "./gateway";
 
 const mockInvoke = vi.mocked(invoke);
@@ -120,52 +124,203 @@ describe("bank-statement-match gateway — typed-error ServiceResult wrappers", 
       error: { code: "DatabaseError" },
     });
   });
+});
 
-  it("resolveBankFundLabels passes data through and maps typed errors", async () => {
-    invokeResolves([]);
-    expect(await resolveBankFundLabels("acc-1", ["CPAM75"])).toEqual({ success: true, data: [] });
+// ---------------------------------------------------------------------------
+// NEW: computeBankStatementReconciliation / validateBankStatementReconciliation
+// (BAS-060–069, BAS-090–094, BAS-100–103)
+// ---------------------------------------------------------------------------
 
-    invokeTypedError("DatabaseError");
-    expect(await resolveBankFundLabels("acc-1", ["CPAM75"])).toEqual({
-      success: false,
-      error: { code: "DatabaseError" },
-    });
+const PARSE_RESULT_FIXTURE: BankStatementParseResult = {
+  iban: "FR7612345678901234567890189",
+  period: "du 01/04/2026 au 30/04/2026",
+  credit_lines: [{ date: "2026-04-10", label: "CPAM75", amount: 150000 }],
+  total_credits: 150000,
+  unparsed_count: 0,
+};
+
+const CORRECTIONS_FIXTURE: BankStatementCorrection[] = [
+  {
+    type: "LinkFund",
+    bank_label: "CPAM75",
+    assignment: { type: "Fund", fund_id: "fund-1" },
+  },
+];
+
+const RECONCILIATION_FIXTURE: BankStatementReconciliation = {
+  lines: [
+    {
+      line_id: "line-1",
+      credit_line: { date: "2026-04-10", label: "CPAM75", amount: 150000 },
+      status: "Matched",
+      fund_id: "fund-1",
+      assigned_group_ids: ["group-1"],
+      covered_amount: 150000,
+      remainder_acknowledged: false,
+      candidate_groups: [],
+      suggested_fund_id: null,
+      suggested_fund_name: null,
+    },
+  ],
+  resolved_count: 1,
+  needs_correction_count: 0,
+};
+
+describe("bank-statement-match gateway — computeBankStatementReconciliation (BAS-064)", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
   });
 
-  it("saveBankFundLabelMappings returns void success and maps typed errors", async () => {
-    invokeResolves(null);
-    expect(await saveBankFundLabelMappings("acc-1", [])).toEqual({
-      success: true,
-      data: undefined,
-    });
+  it("passes through ok result: returns ServiceResult success with BankStatementReconciliation", async () => {
+    vi.mocked(invoke).mockResolvedValue(RECONCILIATION_FIXTURE);
 
-    invokeTypedError("DatabaseError");
-    expect(await saveBankFundLabelMappings("acc-1", [])).toEqual({
-      success: false,
-      error: { code: "DatabaseError" },
-    });
+    const result: ServiceResult<BankStatementReconciliation, unknown> =
+      await computeBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, CORRECTIONS_FIXTURE);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.resolved_count).toBe(1);
+      expect(result.data.needs_correction_count).toBe(0);
+      expect(result.data.lines).toHaveLength(1);
+      expect(result.data.lines[0]?.status).toBe("Matched");
+    }
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith(
+      "compute_bank_statement_reconciliation",
+      expect.objectContaining({
+        bankAccountId: "acc-1",
+        parseResult: PARSE_RESULT_FIXTURE,
+        corrections: CORRECTIONS_FIXTURE,
+      }),
+    );
   });
 
-  it("matchBankStatementLines passes data through and maps typed errors", async () => {
-    const data = { matched: [], unmatched_lines: [] };
-    invokeResolves(data);
-    expect(await matchBankStatementLines([])).toEqual({ success: true, data });
+  it("passes through AssignmentOverflow error without throwing (BAS-094, F27)", async () => {
+    vi.mocked(invoke).mockRejectedValue({ code: "AssignmentOverflow" });
 
-    invokeTypedError("DatabaseError");
-    expect(await matchBankStatementLines([])).toEqual({
-      success: false,
-      error: { code: "DatabaseError" },
-    });
+    const result = await computeBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, [
+      { type: "AssignGroups", line_id: "line-1", group_ids: ["group-big"] },
+    ]);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect((result.error as { code: string }).code).toBe("AssignmentOverflow");
+    }
   });
 
-  it("createBankTransfersFromStatement passes the count through and maps typed errors", async () => {
-    invokeResolves(2);
-    expect(await createBankTransfersFromStatement("acc-1", [])).toEqual({ success: true, data: 2 });
+  it("passes through GroupNotEligible error without throwing (BAS-090, F27)", async () => {
+    vi.mocked(invoke).mockRejectedValue({ code: "GroupNotEligible" });
 
-    invokeTypedError("InvalidConfirmedMatchDate");
-    expect(await createBankTransfersFromStatement("acc-1", [])).toEqual({
-      success: false,
-      error: { code: "InvalidConfirmedMatchDate" },
-    });
+    const result = await computeBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, []);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect((result.error as { code: string }).code).toBe("GroupNotEligible");
+    }
+  });
+
+  it("passes through GroupAlreadyConsumed error without throwing (BAS-067, F27)", async () => {
+    vi.mocked(invoke).mockRejectedValue({ code: "GroupAlreadyConsumed" });
+
+    const result = await computeBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, []);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect((result.error as { code: string }).code).toBe("GroupAlreadyConsumed");
+    }
+  });
+
+  it("passes through DatabaseError without throwing (F27 infra catch-all)", async () => {
+    vi.mocked(invoke).mockRejectedValue({ code: "DatabaseError" });
+
+    const result = await computeBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, []);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect((result.error as { code: string }).code).toBe("DatabaseError");
+    }
+  });
+
+  it("maps a genuine IPC Error throw to the DatabaseError infra sentinel (F27)", async () => {
+    vi.mocked(invoke).mockRejectedValue(new Error("ipc crash"));
+
+    const result = await computeBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, []);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect((result.error as { code: string }).code).toBe("DatabaseError");
+    }
+  });
+});
+
+describe("bank-statement-match gateway — validateBankStatementReconciliation (BAS-063, BAS-093)", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
+  });
+
+  it("passes through ok result: returns ServiceResult success with the BankEntry count", async () => {
+    vi.mocked(invoke).mockResolvedValue(3);
+
+    const result: ServiceResult<number, unknown> = await validateBankStatementReconciliation(
+      "acc-1",
+      PARSE_RESULT_FIXTURE,
+      CORRECTIONS_FIXTURE,
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toBe(3);
+    }
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith(
+      "validate_bank_statement_reconciliation",
+      expect.objectContaining({
+        bankAccountId: "acc-1",
+        parseResult: PARSE_RESULT_FIXTURE,
+        corrections: CORRECTIONS_FIXTURE,
+      }),
+    );
+  });
+
+  it("passes through AssignmentOverflow error without throwing (BAS-094, F27)", async () => {
+    vi.mocked(invoke).mockRejectedValue({ code: "AssignmentOverflow" });
+
+    const result = await validateBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, []);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect((result.error as { code: string }).code).toBe("AssignmentOverflow");
+    }
+  });
+
+  it("passes through BankAccountNotFound error without throwing (F27)", async () => {
+    vi.mocked(invoke).mockRejectedValue({ code: "BankAccountNotFound", bank_account_id: "acc-1" });
+
+    const result = await validateBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, []);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect((result.error as { code: string }).code).toBe("BankAccountNotFound");
+    }
+  });
+
+  it("passes through DatabaseError without throwing (F27 infra catch-all)", async () => {
+    vi.mocked(invoke).mockRejectedValue({ code: "DatabaseError" });
+
+    const result = await validateBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, []);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect((result.error as { code: string }).code).toBe("DatabaseError");
+    }
+  });
+
+  it("maps a genuine IPC Error throw to the DatabaseError infra sentinel (F27)", async () => {
+    vi.mocked(invoke).mockRejectedValue(new Error("ipc crash"));
+
+    const result = await validateBankStatementReconciliation("acc-1", PARSE_RESULT_FIXTURE, []);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect((result.error as { code: string }).code).toBe("DatabaseError");
+    }
   });
 });

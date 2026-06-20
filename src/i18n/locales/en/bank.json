@@ -1,4 +1,52 @@
 {
+  "reconciliation": {
+    "summary": "{{resolved}} resolved, {{needsCorrection}} to correct",
+    "status": {
+      "matched": "Matched",
+      "needs_link": "Needs link",
+      "needs_group": "Needs group",
+      "partial": "Partial",
+      "rejected": "Rejected",
+      "unresolved": "Unresolved"
+    },
+    "error": {
+      "assignment_overflow": "The selected groups exceed the line amount.",
+      "group_not_eligible": "This group is not eligible for the line.",
+      "group_already_consumed": "This group is already assigned to another line.",
+      "unknown": "An unexpected error occurred."
+    },
+    "link_fund": {
+      "title": "Link \"{{label}}\" to a fund",
+      "suggestion": "Suggestion: {{name}}",
+      "fund_label": "Fund",
+      "select_placeholder": "-- Select a fund --",
+      "reject": "Not a fund",
+      "cancel": "Cancel",
+      "submit": "Link fund"
+    },
+    "assign_groups": {
+      "title": "Assign groups to \"{{label}}\"",
+      "balance": "Covered {{covered}} of {{total}}",
+      "cancel": "Cancel",
+      "submit": "Assign"
+    },
+    "remainder": {
+      "title": "Acknowledge remainder",
+      "amount": "Uncovered remainder: {{amount}}",
+      "cancel": "Cancel",
+      "confirm": "Acknowledge"
+    },
+    "wizard": {
+      "open": "Guided correction",
+      "title": "Guided correction",
+      "abandon": "Close",
+      "done": "Done",
+      "done_body": "All lines are resolved.",
+      "phase_link_fund": "Step 1 — Link funds",
+      "step_label": "Line: {{label}}",
+      "apply": "Apply"
+    }
+  },
   "statement": {
     "title": "Bank Reconciliation",
     "match_results": {

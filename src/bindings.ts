@@ -533,56 +533,6 @@ async resolveBankAccountFromIban(iban: string) : Promise<Result<BankAccount | nu
 }
 },
 /**
- * Resolve fund labels for a bank account
- */
-async resolveBankFundLabels(bankAccountId: string, labels: string[]) : Promise<Result<FundLabelResolution[], BankStatementReconciliationError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("resolve_bank_fund_labels", { bankAccountId, labels }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Save confirmed fund label mappings
- */
-async saveBankFundLabelMappings(bankAccountId: string, mappings: SaveLabelMappingRequest[]) : Promise<Result<null, BankStatementReconciliationError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("save_bank_fund_label_mappings", { bankAccountId, mappings }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Match resolved credit lines against unsettled fund payment groups
- */
-async matchBankStatementLines(resolvedLines: ResolvedCreditLine[]) : Promise<Result<BankStatementMatchResult, BankStatementReconciliationError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("match_bank_statement_lines", { resolvedLines }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Create bank transfers from confirmed matches
- */
-async createBankTransfersFromStatement(bankAccountId: string, confirmedMatches: ConfirmedMatch[]) : Promise<Result<number, BankStatementReconciliationError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("create_bank_transfers_from_statement", { bankAccountId, confirmedMatches }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Get bank statement reconciliation configuration
- */
-async getBankStatementReconciliationConfig() : Promise<BankStatementReconciliationConfig> {
-    return await TAURI_INVOKE("get_bank_statement_reconciliation_config");
-},
-/**
  * BAS-064 — compute the ephemeral bank-statement reconciliation.
  * 
  * Pure read-only: no DB writes. The reconciliation is never persisted; the
@@ -1169,14 +1119,6 @@ export type BankStatementLineStatus =
  */
 "Unresolved"
 /**
- * A match between a bank statement credit line and a FundPaymentGroup
- */
-export type BankStatementMatch = { credit_line: ResolvedCreditLine; group_id: string; group_fund_id: string; group_payment_date: string; group_total_amount: number }
-/**
- * Result of matching bank statement lines against unsettled groups
- */
-export type BankStatementMatchResult = { matched: BankStatementMatch[]; unmatched_lines: ResolvedCreditLine[] }
-/**
  * Result of parsing a bank statement PDF
  */
 export type BankStatementParseResult = { 
@@ -1217,14 +1159,6 @@ resolved_count: number;
  * BAS-069 — count of lines still needing correction.
  */
 needs_correction_count: number }
-/**
- * Bank statement reconciliation configuration exported to frontend
- */
-export type BankStatementReconciliationConfig = { 
-/**
- * Maximum date offset (days) for matching bank lines to payment groups
- */
-max_date_offset_days: number }
 /**
  * Composite error for the bank-statement reconciliation use case.
  * 
@@ -1309,10 +1243,6 @@ export type BankStatementReconciliationTask =
  * The frontend always passes the source_procedure_id as identifier.
  */
 export type CancelOverpaymentRequest = { source_procedure_id: string }
-/**
- * A confirmed match ready for bank transfer creation
- */
-export type ConfirmedMatch = { group_id: string; date: string; amount: number }
 /**
  * One correction group within Section 2 (FPR-041, FPR-042).
  * 
@@ -1535,30 +1465,6 @@ export type FundError =
  * A fund payment group candidate for a FUND transfer (R6)
  */
 export type FundGroupCandidate = { group_id: string; fund_id: string; payment_date: string; total_amount: number }
-/**
- * Resolution status for a bank statement fund label
- */
-export type FundLabelResolution = { bank_label: string; 
-/**
- * Fund ID if already confirmed via mapping table
- */
-fund_id: string | null; 
-/**
- * Suggested fund ID from heuristic matching
- */
-suggested_fund_id: string | null; 
-/**
- * Suggested fund name (for display)
- */
-suggested_fund_name: string | null; 
-/**
- * Whether this mapping is confirmed (from mapping table)
- */
-is_confirmed: boolean; 
-/**
- * Whether this label is explicitly rejected (not a fund payment)
- */
-is_rejected: boolean }
 /**
  * Validation result for a fund payment candidate
  */
@@ -2360,17 +2266,9 @@ export type ReportPdfError =
  */
 { code: "OpenFailed" }
 /**
- * A credit line that has been resolved with a fund ID
- */
-export type ResolvedCreditLine = { date: string; label: string; amount: number; fund_id: string }
-/**
  * Request to save or update a single amount → procedure type mapping
  */
 export type SaveExcelAmountMappingRequest = { amount: number; procedure_type_id: string }
-/**
- * Request to save label mappings
- */
-export type SaveLabelMappingRequest = { bank_label: string; fund_id: string }
 /**
  * Why a row was skipped during Excel parsing (EXI-020/220) or import
  * execution (EXI-280/281/290).

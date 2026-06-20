@@ -1,29 +1,29 @@
 /**
- * Component RTL test for BankStatementModal — happy path only (BAS-011..014).
+ * Component RTL test for BankStatementModal — the gate phase (BAS-011..017).
  *
  * Renders the real modal, mocks the local `./gateway` boundary, and exercises
  * the actual DOM: typing into the name field, submitting via the form button,
- * and verifying the create-account step gives way to the label-mapping step.
+ * and verifying the create-account step gives way to the reconciliation list
+ * (the gate hands over to `useBankStatementReconciliation`, which recomputes the
+ * draft for the freshly created account).
  *
- * Hook-level state-machine tests live in useBankStatementModal.test.ts; this
- * file complements them with rendering + DOM-event coverage and replaces the
- * E2E test that would need a native file-picker workaround.
+ * Gate-level state lives in useBankStatementGate; this file complements the
+ * hook tests with rendering + DOM-event coverage and replaces the E2E test that
+ * would need a native file-picker workaround.
  */
 
 import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { BankStatementReconciliation } from "@/bindings";
 import { makeBankAccount } from "@/tests/bank.factory";
 
 vi.mock("../gateway", () => ({
   parseBankStatement: vi.fn(),
   resolveBankAccountFromIban: vi.fn(),
-  resolveBankFundLabels: vi.fn(),
-  saveBankFundLabelMappings: vi.fn(),
-  matchBankStatementLines: vi.fn(),
-  createBankTransfersFromStatement: vi.fn(),
-  getBankStatementReconciliationConfig: vi.fn(),
   createBankAccount: vi.fn(),
+  computeBankStatementReconciliation: vi.fn(),
+  validateBankStatementReconciliation: vi.fn(),
 }));
 
 import * as gateway from "../gateway";
@@ -31,9 +31,8 @@ import { BankStatementModal } from "./BankStatementModal";
 
 const mockParse = vi.mocked(gateway.parseBankStatement);
 const mockResolveAccount = vi.mocked(gateway.resolveBankAccountFromIban);
-const mockResolveLabels = vi.mocked(gateway.resolveBankFundLabels);
-const mockGetConfig = vi.mocked(gateway.getBankStatementReconciliationConfig);
 const mockCreateBankAccount = vi.mocked(gateway.createBankAccount);
+const mockCompute = vi.mocked(gateway.computeBankStatementReconciliation);
 
 const FILE_PATH = "/tmp/statement.pdf";
 const PARSE_RESULT = {
@@ -44,16 +43,21 @@ const PARSE_RESULT = {
   unparsed_count: 0,
 };
 
-describe("BankStatementModal — inline create-account happy path (BAS-011..014)", () => {
+const EMPTY_RECONCILIATION: BankStatementReconciliation = {
+  lines: [],
+  resolved_count: 0,
+  needs_correction_count: 0,
+};
+
+describe("BankStatementModal — inline create-account gate (BAS-011..014)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetConfig.mockResolvedValue({ max_date_offset_days: 6 });
     mockParse.mockResolvedValue({ success: true, data: PARSE_RESULT });
     mockResolveAccount.mockResolvedValue({ success: true, data: null });
-    mockResolveLabels.mockResolvedValue({ success: true, data: [] });
+    mockCompute.mockResolvedValue({ success: true, data: EMPTY_RECONCILIATION });
   });
 
-  it("creates the missing account inline then advances to label-mapping", async () => {
+  it("creates the missing account inline then hands over to the reconciliation list", async () => {
     const user = userEvent.setup();
     const newAccount = makeBankAccount({
       id: "acc-new-1",
@@ -92,10 +96,11 @@ describe("BankStatementModal — inline create-account happy path (BAS-011..014)
     // Gateway called with the typed name and the pre-filled IBAN.
     expect(mockCreateBankAccount).toHaveBeenCalledWith("Cabinet principal", PARSE_RESULT.iban);
 
-    // After success, label-mapping is requested for the new account and the
-    // create-account form is no longer in the DOM.
+    // After success, the reconciliation list mounts for the new account: it
+    // recomputes the draft (with the new account id) and the create-account form
+    // is no longer in the DOM.
     await waitFor(() => {
-      expect(mockResolveLabels).toHaveBeenCalledWith(newAccount.id, ["CPAM75"]);
+      expect(mockCompute).toHaveBeenCalledWith(newAccount.id, PARSE_RESULT, []);
     });
     await waitFor(() => {
       expect(document.getElementById("create-account-form")).toBeNull();
