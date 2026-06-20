@@ -176,6 +176,16 @@ The nature of a `BankEntry`. Encodes both the payment instrument and its source/
   > ⚠️ Code discrepancy: currently named `BankTransferType` with variants `Fund`, `Check`,
   > `CreditCard`, `Cash`, `OutgoingWire` — to be renamed.
 
+### BankStatementReconciliation
+
+The in-progress, ephemeral reconciliation of one imported bank statement: the set of
+bank-statement lines, each carrying a match status plus any pending corrections. Computed
+by the backend as a pure function of the parsed statement and an ordered list of corrections
+(never persisted), and re-computed on every correction or revert. Posted to the backend on
+validate, which commits the resolved lines into `BankEntry` records.
+
+> Status: confirmed
+
 ---
 
 ## Aggregate Root Methods

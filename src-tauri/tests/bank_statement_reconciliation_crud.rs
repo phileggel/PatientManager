@@ -1,18 +1,18 @@
-//! Integration tests for `compute_bank_reconciliation_draft` and
-//! `validate_bank_reconciliation` (BAS-060–094).
+//! Integration tests for `compute_bank_statement_reconciliation` and
+//! `validate_bank_statement_reconciliation` (BAS-060–094).
 //!
-//! Tests call the public orchestrator API (`compute_draft`,
+//! Tests call the public orchestrator API (`compute_reconciliation`,
 //! `validate_reconciliation`) through the crate's public surface — no mocks,
 //! real in-memory SQLite.
 //!
 //! # Scenarios
 //!
-//! 1. `compute_draft_end_to_end_auto_match` — auto-match happy path: saved
+//! 1. `compute_reconciliation_end_to_end_auto_match` — auto-match happy path: saved
 //!    mapping + eligible group → Matched from the initial pass.
-//! 2. `compute_draft_link_fund_cascade_end_to_end` — LinkFund correction
+//! 2. `compute_reconciliation_link_fund_cascade_end_to_end` — LinkFund correction
 //!    resolves two lines for the same label and auto-matches the one with an
 //!    eligible group.
-//! 3. `compute_draft_group_not_eligible_propagates` — assigning a locked
+//! 3. `compute_reconciliation_group_not_eligible_propagates` — assigning a locked
 //!    group returns GroupNotEligible through the full stack.
 //! 4. `validate_reconciliation_end_to_end` — wiring: happy path creates 1
 //!    BankEntry for 1 auto-matched line.
@@ -35,7 +35,7 @@ use patient_manager_app::{
     shared::event_bus::EventBus,
     use_cases::bank_statement_reconciliation::{
         bank_pdf_codec::{BankStatementCreditLine, BankStatementParseResult},
-        draft::{DraftLineStatus, FundAssignment, ReconciliationCorrection},
+        reconciliation::{BankStatementCorrection, BankStatementLineStatus, FundAssignment},
         BankStatementReconciliationError, BankStatementReconciliationTask,
         SqliteBankFundLabelMappingRepository,
     },
@@ -196,13 +196,13 @@ fn parse_result_with_one_line(label: &str, date: &str, amount: i64) -> BankState
 }
 
 // ---------------------------------------------------------------------------
-// Integration tests — compute_draft
+// Integration tests — compute_reconciliation
 // ---------------------------------------------------------------------------
 
 /// Happy path: one credit line with a saved mapping + one eligible unsettled
-/// group → auto-match produces DraftLineStatus::Matched.
+/// group → auto-match produces BankStatementLineStatus::Matched.
 #[tokio::test]
-async fn compute_draft_end_to_end_auto_match() {
+async fn compute_reconciliation_end_to_end_auto_match() {
     let pool = setup_pool().await;
     let ctx = build_ctx(&pool);
 
@@ -213,27 +213,27 @@ async fn compute_draft_end_to_end_auto_match() {
 
     let parse_result = parse_result_with_one_line("CPAM93", "2026-01-15", 100_000);
 
-    let draft = ctx
+    let reconciliation = ctx
         .orchestrator
-        .compute_draft("acc-1", &parse_result, &[])
+        .compute_reconciliation("acc-1", &parse_result, &[])
         .await
         .unwrap();
 
-    assert_eq!(draft.lines.len(), 1);
+    assert_eq!(reconciliation.lines.len(), 1);
     assert_eq!(
-        draft.lines[0].status,
-        DraftLineStatus::Matched,
+        reconciliation.lines[0].status,
+        BankStatementLineStatus::Matched,
         "saved mapping + eligible group → auto-match → Matched (BAS-050–054)"
     );
-    assert_eq!(draft.resolved_count, 1);
-    assert_eq!(draft.needs_correction_count, 0);
+    assert_eq!(reconciliation.resolved_count, 1);
+    assert_eq!(reconciliation.needs_correction_count, 0);
 }
 
 /// LinkFund cascade end-to-end: two lines for the same label, one eligible
 /// group (exact amount match for the first line). After the correction, the
 /// first line should be Matched and the second line should have fund_id set.
 #[tokio::test]
-async fn compute_draft_link_fund_cascade_end_to_end() {
+async fn compute_reconciliation_link_fund_cascade_end_to_end() {
     let pool = setup_pool().await;
     let ctx = build_ctx(&pool);
 
@@ -261,22 +261,22 @@ async fn compute_draft_link_fund_cascade_end_to_end() {
         unparsed_count: 0,
     };
 
-    let corrections = vec![ReconciliationCorrection::LinkFund {
+    let corrections = vec![BankStatementCorrection::LinkFund {
         bank_label: "CPAM93".to_string(),
         assignment: FundAssignment::Fund {
             fund_id: "fund-1".to_string(),
         },
     }];
 
-    let draft = ctx
+    let reconciliation = ctx
         .orchestrator
-        .compute_draft("acc-1", &parse_result, &corrections)
+        .compute_reconciliation("acc-1", &parse_result, &corrections)
         .await
         .unwrap();
 
-    assert_eq!(draft.lines.len(), 2);
+    assert_eq!(reconciliation.lines.len(), 2);
     // Both lines must now know their fund (BAS-066 cascade).
-    for line in &draft.lines {
+    for line in &reconciliation.lines {
         assert_eq!(
             line.fund_id.as_deref(),
             Some("fund-1"),
@@ -284,13 +284,16 @@ async fn compute_draft_link_fund_cascade_end_to_end() {
         );
     }
     // Line 0 (100_000) matches group-1 → Matched.
-    assert_eq!(draft.lines[0].status, DraftLineStatus::Matched);
+    assert_eq!(
+        reconciliation.lines[0].status,
+        BankStatementLineStatus::Matched
+    );
 }
 
 /// Error propagation: assigning a locked group returns GroupNotEligible
 /// through the full stack.
 #[tokio::test]
-async fn compute_draft_group_not_eligible_propagates() {
+async fn compute_reconciliation_group_not_eligible_propagates() {
     let pool = setup_pool().await;
     let ctx = build_ctx(&pool);
 
@@ -309,14 +312,14 @@ async fn compute_draft_group_not_eligible_propagates() {
     .await;
 
     let parse_result = parse_result_with_one_line("CPAM93", "2026-01-15", 100_000);
-    let corrections = vec![ReconciliationCorrection::AssignGroups {
+    let corrections = vec![BankStatementCorrection::AssignGroups {
         line_id: "line-0".to_string(),
         group_ids: vec!["group-locked".to_string()],
     }];
 
     let result = ctx
         .orchestrator
-        .compute_draft("acc-1", &parse_result, &corrections)
+        .compute_reconciliation("acc-1", &parse_result, &corrections)
         .await;
 
     assert!(
@@ -373,7 +376,7 @@ async fn validate_reconciliation_multi_group_n_entries() {
 
     // Explicitly assign both groups (auto-match only does 1:1 exact; we need
     // multi-group explicit assignment here).
-    let corrections = vec![ReconciliationCorrection::AssignGroups {
+    let corrections = vec![BankStatementCorrection::AssignGroups {
         line_id: "line-0".to_string(),
         group_ids: vec!["group-a".to_string(), "group-b".to_string()],
     }];

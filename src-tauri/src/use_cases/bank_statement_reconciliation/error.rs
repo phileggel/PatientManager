@@ -42,7 +42,7 @@ pub enum BankStatementReconciliationTask {
     InvalidConfirmedMatchDate,
 
     /// BAS-094 — the sum of groups assigned to a line would exceed the line
-    /// amount. The correction is rejected; the draft is left unchanged.
+    /// amount. The correction is rejected; the reconciliation is left unchanged.
     #[error("Assigned groups total exceeds the line amount")]
     AssignmentOverflow,
 
@@ -57,8 +57,8 @@ pub enum BankStatementReconciliationTask {
     GroupAlreadyConsumed,
 
     /// The `line_id` supplied in a correction does not match any line in the
-    /// current draft (stale or malformed client state).
-    #[error("Line not found in the current draft")]
+    /// current reconciliation (stale or malformed client state).
+    #[error("Line not found in the current reconciliation")]
     LineNotFound,
 
     /// The `fund_id` supplied in a `LinkFund` correction does not correspond to

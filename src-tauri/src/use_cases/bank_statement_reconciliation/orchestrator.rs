@@ -506,8 +506,8 @@ impl BankStatementOrchestrator {
         Ok(self.bank_account_service.find_account_by_iban(iban).await?)
     }
 
-    /// BAS-064 — compute the ephemeral reconciliation draft as a pure function
-    /// of the parsed statement plus the ordered correction list.
+    /// BAS-064 — compute the ephemeral bank-statement reconciliation as a pure
+    /// function of the parsed statement plus the ordered correction list.
     ///
     /// Reads saved label mappings and live unsettled groups, applies the
     /// heuristic, runs the auto-match (BAS-050–054), then replays every
@@ -515,12 +515,13 @@ impl BankStatementOrchestrator {
     /// BAS-067, multi-group balance BAS-090/091, remainder BAS-092).
     ///
     /// Read-only — no DB writes.
-    pub async fn compute_draft(
+    pub async fn compute_reconciliation(
         &self,
         bank_account_id: &str,
         parse_result: &super::bank_pdf_codec::BankStatementParseResult,
-        corrections: &[super::draft::ReconciliationCorrection],
-    ) -> Result<super::draft::ReconciliationDraft, BankStatementReconciliationError> {
+        corrections: &[super::reconciliation::BankStatementCorrection],
+    ) -> Result<super::reconciliation::BankStatementReconciliation, BankStatementReconciliationError>
+    {
         let mappings = self.load_mappings(bank_account_id).await?;
         // service layer logs the error; propagate typed
         let groups = self.fund_payment_service.read_all_groups().await?;
@@ -531,17 +532,17 @@ impl BankStatementOrchestrator {
             .into_iter()
             .map(|f| f.id)
             .collect();
-        let repos = super::draft::DraftRepos {
+        let repos = super::reconciliation::BankStatementReconciliationRepos {
             mappings: &mappings,
             groups: &groups,
             valid_fund_ids: &valid_fund_ids,
         };
-        super::draft::compute_draft(parse_result, &repos, corrections)
+        super::reconciliation::compute_reconciliation(parse_result, &repos, corrections)
     }
 
-    /// BAS-063/035/070–073/093 — commit the draft.
+    /// BAS-063/035/070–073/093 — commit the reconciliation.
     ///
-    /// Recomputes the draft server-side from `corrections` (never trusts
+    /// Recomputes the reconciliation server-side from `corrections` (never trusts
     /// FE-supplied state), then in one pass:
     /// - Upserts label mappings implied by `LinkFund` corrections (BAS-035).
     /// - For every resolved (Matched/Rejected-exempt) line, creates N
@@ -556,18 +557,20 @@ impl BankStatementOrchestrator {
         &self,
         bank_account_id: &str,
         parse_result: &super::bank_pdf_codec::BankStatementParseResult,
-        corrections: &[super::draft::ReconciliationCorrection],
+        corrections: &[super::reconciliation::BankStatementCorrection],
     ) -> Result<u32, BankStatementReconciliationError> {
-        use super::draft::{DraftLineStatus, FundAssignment, ReconciliationCorrection};
+        use super::reconciliation::{
+            BankStatementCorrection, BankStatementLineStatus, FundAssignment,
+        };
 
-        // Recompute server-side — never trust FE-supplied draft state (BAS-064).
-        let draft = self
-            .compute_draft(bank_account_id, parse_result, corrections)
+        // Recompute server-side — never trust FE-supplied reconciliation state (BAS-064).
+        let reconciliation = self
+            .compute_reconciliation(bank_account_id, parse_result, corrections)
             .await?;
 
         // BAS-035 — upsert the label mapping implied by each LinkFund correction.
         for correction in corrections {
-            if let ReconciliationCorrection::LinkFund {
+            if let BankStatementCorrection::LinkFund {
                 bank_label,
                 assignment,
             } = correction
@@ -593,8 +596,8 @@ impl BankStatementOrchestrator {
         // service layer logs the error; propagate typed
         let groups = self.fund_payment_service.read_all_groups().await?;
         let mut confirmed_matches: Vec<ConfirmedMatch> = Vec::new();
-        for line in &draft.lines {
-            if line.status != DraftLineStatus::Matched {
+        for line in &reconciliation.lines {
+            if line.status != BankStatementLineStatus::Matched {
                 continue;
             }
             for group_id in &line.assigned_group_ids {
@@ -726,9 +729,9 @@ mod tests {
     use crate::shared::event_bus::EventBus;
     use crate::use_cases::bank_statement_reconciliation::{
         bank_pdf_codec::BankStatementCreditLine,
-        draft::{DraftLineStatus, FundAssignment, ReconciliationCorrection},
         error::BankStatementReconciliationTask,
         label_mapping_repo::{BankFundLabelMapping, MockBankFundLabelMappingRepository},
+        reconciliation::{BankStatementCorrection, BankStatementLineStatus, FundAssignment},
     };
     use chrono::NaiveDate;
     use std::sync::Arc;
@@ -1446,10 +1449,10 @@ mod tests {
     }
 
     // =========================================================================
-    // compute_draft — initial pass (no corrections)
+    // compute_reconciliation — initial pass (no corrections)
     // =========================================================================
 
-    // Helper — a parse result with one credit line for reuse across draft tests.
+    // Helper — a parse result with one credit line for reuse across reconciliation tests.
     fn one_line_parse_result(label: &str, amount: i64) -> BankStatementParseResult {
         BankStatementParseResult {
             iban: None,
@@ -1464,11 +1467,11 @@ mod tests {
         }
     }
 
-    // BAS-050–054, BAS-061: initial draft with no corrections.
+    // BAS-050–054, BAS-061: initial reconciliation with no corrections.
     // A line whose label has a saved mapping and a matching group should be
     // auto-matched → status Matched.
     #[tokio::test]
-    async fn compute_draft_no_corrections_auto_matches_eligible_line() {
+    async fn compute_reconciliation_no_corrections_auto_matches_eligible_line() {
         let fund_id = "fund-1";
         let group = FundPaymentGroup::restore(
             "group-1".to_string(),
@@ -1487,22 +1490,25 @@ mod tests {
         let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
         let parse_result = one_line_parse_result("CPAM93", 100_000);
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &[])
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &[])
             .await
             .unwrap();
 
-        assert_eq!(draft.lines.len(), 1);
-        assert_eq!(draft.lines[0].status, DraftLineStatus::Matched);
-        assert_eq!(draft.lines[0].assigned_group_ids, vec!["group-1"]);
-        assert_eq!(draft.resolved_count, 1);
-        assert_eq!(draft.needs_correction_count, 0);
+        assert_eq!(reconciliation.lines.len(), 1);
+        assert_eq!(
+            reconciliation.lines[0].status,
+            BankStatementLineStatus::Matched
+        );
+        assert_eq!(reconciliation.lines[0].assigned_group_ids, vec!["group-1"]);
+        assert_eq!(reconciliation.resolved_count, 1);
+        assert_eq!(reconciliation.needs_correction_count, 0);
     }
 
     // BAS-061 NeedsLink: a line whose label has no saved mapping and no
     // LinkFund correction should remain NeedsLink.
     #[tokio::test]
-    async fn compute_draft_no_corrections_unknown_label_is_needs_link() {
+    async fn compute_reconciliation_no_corrections_unknown_label_is_needs_link() {
         let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1516,21 +1522,24 @@ mod tests {
             unparsed_count: 0,
         };
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &[])
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &[])
             .await
             .unwrap();
 
-        assert_eq!(draft.lines.len(), 1);
-        assert_eq!(draft.lines[0].status, DraftLineStatus::NeedsLink);
-        assert_eq!(draft.needs_correction_count, 1);
-        assert_eq!(draft.resolved_count, 0);
+        assert_eq!(reconciliation.lines.len(), 1);
+        assert_eq!(
+            reconciliation.lines[0].status,
+            BankStatementLineStatus::NeedsLink
+        );
+        assert_eq!(reconciliation.needs_correction_count, 1);
+        assert_eq!(reconciliation.resolved_count, 0);
     }
 
-    // BAS-061 Rejected: initial draft with a saved rejection mapping → status
+    // BAS-061 Rejected: initial reconciliation with a saved rejection mapping → status
     // Rejected (and no transfer will be created).
     #[tokio::test]
-    async fn compute_draft_saved_rejection_mapping_gives_rejected_status() {
+    async fn compute_reconciliation_saved_rejection_mapping_gives_rejected_status() {
         let mapping = BankFundLabelMapping {
             id: "m2".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -1550,20 +1559,23 @@ mod tests {
             unparsed_count: 0,
         };
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &[])
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &[])
             .await
             .unwrap();
 
-        assert_eq!(draft.lines.len(), 1);
-        assert_eq!(draft.lines[0].status, DraftLineStatus::Rejected);
+        assert_eq!(reconciliation.lines.len(), 1);
+        assert_eq!(
+            reconciliation.lines[0].status,
+            BankStatementLineStatus::Rejected
+        );
         // Rejected counts as resolved (BAS-061).
-        assert_eq!(draft.resolved_count, 1);
+        assert_eq!(reconciliation.resolved_count, 1);
     }
 
     // BAS-061 NeedsGroup: label mapped to a fund but no unsettled group matches.
     #[tokio::test]
-    async fn compute_draft_fund_known_but_no_group_gives_needs_group_or_unresolved() {
+    async fn compute_reconciliation_fund_known_but_no_group_gives_needs_group_or_unresolved() {
         let mapping = BankFundLabelMapping {
             id: "m3".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -1583,27 +1595,27 @@ mod tests {
             unparsed_count: 0,
         };
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &[])
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &[])
             .await
             .unwrap();
 
-        assert_eq!(draft.lines.len(), 1);
+        assert_eq!(reconciliation.lines.len(), 1);
         // With no matching groups the line is either NeedsGroup (has candidate)
         // or Unresolved (no candidate). Either way it is NOT resolved.
         assert!(
-            draft.lines[0].status == DraftLineStatus::NeedsGroup
-                || draft.lines[0].status == DraftLineStatus::Unresolved,
+            reconciliation.lines[0].status == BankStatementLineStatus::NeedsGroup
+                || reconciliation.lines[0].status == BankStatementLineStatus::Unresolved,
             "expected NeedsGroup or Unresolved, got {:?}",
-            draft.lines[0].status
+            reconciliation.lines[0].status
         );
-        assert_eq!(draft.needs_correction_count, 1);
+        assert_eq!(reconciliation.needs_correction_count, 1);
     }
 
-    // BAS-061 summary counter: draft.resolved_count + needs_correction_count ==
+    // BAS-061 summary counter: reconciliation.resolved_count + needs_correction_count ==
     // total lines.
     #[tokio::test]
-    async fn compute_draft_summary_counts_are_consistent() {
+    async fn compute_reconciliation_summary_counts_are_consistent() {
         let mapping = BankFundLabelMapping {
             id: "m-matched".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -1640,28 +1652,28 @@ mod tests {
             unparsed_count: 0,
         };
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &[])
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &[])
             .await
             .unwrap();
 
-        assert_eq!(draft.lines.len(), 2);
+        assert_eq!(reconciliation.lines.len(), 2);
         assert_eq!(
-            draft.resolved_count + draft.needs_correction_count,
+            reconciliation.resolved_count + reconciliation.needs_correction_count,
             2,
             "resolved_count + needs_correction_count must equal total lines"
         );
     }
 
     // =========================================================================
-    // compute_draft — LinkFund correction cascade (BAS-066)
+    // compute_reconciliation — LinkFund correction cascade (BAS-066)
     // =========================================================================
 
     // BAS-066: a LinkFund correction with FundAssignment::Fund resolves ALL
     // lines sharing the label and auto-matches those that now hit an eligible
     // group.
     #[tokio::test]
-    async fn compute_draft_link_fund_correction_resolves_all_lines_for_label() {
+    async fn compute_reconciliation_link_fund_correction_resolves_all_lines_for_label() {
         let group = FundPaymentGroup::restore(
             "group-1".to_string(),
             "fund-1".to_string(),
@@ -1697,20 +1709,20 @@ mod tests {
             total_credits: 150_000,
             unparsed_count: 0,
         };
-        let corrections = vec![ReconciliationCorrection::LinkFund {
+        let corrections = vec![BankStatementCorrection::LinkFund {
             bank_label: "CPAM93".to_string(),
             assignment: FundAssignment::Fund {
                 fund_id: "fund-1".to_string(),
             },
         }];
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections)
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &corrections)
             .await
             .unwrap();
 
         // Both lines must have a resolved fund.
-        for line in &draft.lines {
+        for line in &reconciliation.lines {
             assert_eq!(
                 line.fund_id.as_deref(),
                 Some("fund-1"),
@@ -1718,12 +1730,15 @@ mod tests {
             );
         }
         // The first line matches group-1 exactly → Matched.
-        assert_eq!(draft.lines[0].status, DraftLineStatus::Matched);
+        assert_eq!(
+            reconciliation.lines[0].status,
+            BankStatementLineStatus::Matched
+        );
     }
 
     // BAS-030/066: LinkFund with FundAssignment::Rejected marks the line Rejected.
     #[tokio::test]
-    async fn compute_draft_link_fund_rejected_gives_rejected_status() {
+    async fn compute_reconciliation_link_fund_rejected_gives_rejected_status() {
         let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1736,27 +1751,30 @@ mod tests {
             total_credits: 30_000,
             unparsed_count: 0,
         };
-        let corrections = vec![ReconciliationCorrection::LinkFund {
+        let corrections = vec![BankStatementCorrection::LinkFund {
             bank_label: "SALAIRES".to_string(),
             assignment: FundAssignment::Rejected,
         }];
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections)
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &corrections)
             .await
             .unwrap();
 
-        assert_eq!(draft.lines[0].status, DraftLineStatus::Rejected);
-        assert_eq!(draft.resolved_count, 1);
+        assert_eq!(
+            reconciliation.lines[0].status,
+            BankStatementLineStatus::Rejected
+        );
+        assert_eq!(reconciliation.resolved_count, 1);
     }
 
     // =========================================================================
-    // compute_draft — AssignGroups correction (BAS-067, BAS-090/091)
+    // compute_reconciliation — AssignGroups correction (BAS-067, BAS-090/091)
     // =========================================================================
 
     // BAS-090/091: assigning one group that exactly covers the line → Matched.
     #[tokio::test]
-    async fn compute_draft_assign_single_group_exact_amount_gives_matched() {
+    async fn compute_reconciliation_assign_single_group_exact_amount_gives_matched() {
         let mapping = BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -1796,28 +1814,28 @@ mod tests {
             unparsed_count: 0,
         };
         // Assign both groups: 70_000 + 30_000 == 100_000 → Matched.
-        let corrections = vec![ReconciliationCorrection::AssignGroups {
-            // line_id is derived by compute_draft; use index-based id "line-0"
+        let corrections = vec![BankStatementCorrection::AssignGroups {
+            // line_id is derived by compute_reconciliation; use index-based id "line-0"
             // as a placeholder — implementation must honour whatever stable id
             // it assigns.
             line_id: "line-0".to_string(),
             group_ids: vec!["group-a".to_string(), "group-b".to_string()],
         }];
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections)
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &corrections)
             .await
             .unwrap();
 
-        let line = &draft.lines[0];
+        let line = &reconciliation.lines[0];
         assert_eq!(line.covered_amount, 100_000);
-        assert_eq!(line.status, DraftLineStatus::Matched);
+        assert_eq!(line.status, BankStatementLineStatus::Matched);
     }
 
     // BAS-091 Partial: sum of assigned groups < line amount and no remainder
     // acknowledged → Partial.
     #[tokio::test]
-    async fn compute_draft_assign_group_partial_coverage_gives_partial_status() {
+    async fn compute_reconciliation_assign_group_partial_coverage_gives_partial_status() {
         let mapping = BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -1845,25 +1863,25 @@ mod tests {
             total_credits: 100_000,
             unparsed_count: 0,
         };
-        let corrections = vec![ReconciliationCorrection::AssignGroups {
+        let corrections = vec![BankStatementCorrection::AssignGroups {
             line_id: "line-0".to_string(),
             group_ids: vec!["group-a".to_string()],
         }];
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections)
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &corrections)
             .await
             .unwrap();
 
-        let line = &draft.lines[0];
+        let line = &reconciliation.lines[0];
         assert_eq!(line.covered_amount, 60_000);
-        assert_eq!(line.status, DraftLineStatus::Partial);
+        assert_eq!(line.status, BankStatementLineStatus::Partial);
     }
 
     // BAS-067: a group assigned to line A must no longer appear in line B's
     // candidate list.
     #[tokio::test]
-    async fn compute_draft_assign_group_removes_it_from_other_lines_candidates() {
+    async fn compute_reconciliation_assign_group_removes_it_from_other_lines_candidates() {
         let mapping = BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -1900,17 +1918,17 @@ mod tests {
             total_credits: 160_000,
             unparsed_count: 0,
         };
-        let corrections = vec![ReconciliationCorrection::AssignGroups {
+        let corrections = vec![BankStatementCorrection::AssignGroups {
             line_id: "line-0".to_string(),
             group_ids: vec!["group-shared".to_string()],
         }];
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections)
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &corrections)
             .await
             .unwrap();
 
-        let line_b = &draft.lines[1];
+        let line_b = &reconciliation.lines[1];
         assert!(
             line_b
                 .candidate_groups
@@ -1923,7 +1941,7 @@ mod tests {
     // BAS-067: attempting to assign a group already consumed by another line
     // via a second AssignGroups correction returns GroupAlreadyConsumed.
     #[tokio::test]
-    async fn compute_draft_double_assign_same_group_returns_group_already_consumed() {
+    async fn compute_reconciliation_double_assign_same_group_returns_group_already_consumed() {
         let mapping = BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -1960,18 +1978,18 @@ mod tests {
         };
         // Assign the group to line-0, then also to line-1 → should fail.
         let corrections = vec![
-            ReconciliationCorrection::AssignGroups {
+            BankStatementCorrection::AssignGroups {
                 line_id: "line-0".to_string(),
                 group_ids: vec!["group-shared".to_string()],
             },
-            ReconciliationCorrection::AssignGroups {
+            BankStatementCorrection::AssignGroups {
                 line_id: "line-1".to_string(),
                 group_ids: vec!["group-shared".to_string()],
             },
         ];
 
         let result = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections)
+            .compute_reconciliation("acc-1", &parse_result, &corrections)
             .await;
 
         assert!(
@@ -1987,7 +2005,7 @@ mod tests {
 
     // BAS-094: assigning groups whose total exceeds the line amount is rejected.
     #[tokio::test]
-    async fn compute_draft_overflow_assignment_returns_assignment_overflow() {
+    async fn compute_reconciliation_overflow_assignment_returns_assignment_overflow() {
         let mapping = BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -2025,13 +2043,13 @@ mod tests {
             unparsed_count: 0,
         };
         // 80_000 + 80_000 = 160_000 > 100_000 → AssignmentOverflow.
-        let corrections = vec![ReconciliationCorrection::AssignGroups {
+        let corrections = vec![BankStatementCorrection::AssignGroups {
             line_id: "line-0".to_string(),
             group_ids: vec!["group-a".to_string(), "group-b".to_string()],
         }];
 
         let result = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections)
+            .compute_reconciliation("acc-1", &parse_result, &corrections)
             .await;
 
         assert!(
@@ -2047,7 +2065,7 @@ mod tests {
 
     // BAS-090: assigning a locked (already-reconciled) group is rejected.
     #[tokio::test]
-    async fn compute_draft_assign_locked_group_returns_group_not_eligible() {
+    async fn compute_reconciliation_assign_locked_group_returns_group_not_eligible() {
         let mapping = BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -2075,13 +2093,13 @@ mod tests {
             total_credits: 100_000,
             unparsed_count: 0,
         };
-        let corrections = vec![ReconciliationCorrection::AssignGroups {
+        let corrections = vec![BankStatementCorrection::AssignGroups {
             line_id: "line-0".to_string(),
             group_ids: vec!["group-locked".to_string()],
         }];
 
         let result = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections)
+            .compute_reconciliation("acc-1", &parse_result, &corrections)
             .await;
 
         assert!(
@@ -2096,13 +2114,13 @@ mod tests {
     }
 
     // =========================================================================
-    // compute_draft — AcknowledgeRemainder (BAS-092)
+    // compute_reconciliation — AcknowledgeRemainder (BAS-092)
     // =========================================================================
 
     // BAS-092: a Partial line where the user acknowledges the remainder
     // transitions to Matched.
     #[tokio::test]
-    async fn compute_draft_acknowledge_remainder_on_partial_line_gives_matched() {
+    async fn compute_reconciliation_acknowledge_remainder_on_partial_line_gives_matched() {
         let mapping = BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -2131,38 +2149,38 @@ mod tests {
             unparsed_count: 0,
         };
         let corrections = vec![
-            ReconciliationCorrection::AssignGroups {
+            BankStatementCorrection::AssignGroups {
                 line_id: "line-0".to_string(),
                 group_ids: vec!["group-a".to_string()],
             },
-            ReconciliationCorrection::AcknowledgeRemainder {
+            BankStatementCorrection::AcknowledgeRemainder {
                 line_id: "line-0".to_string(),
             },
         ];
 
-        let draft = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections)
+        let reconciliation = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &corrections)
             .await
             .unwrap();
 
-        let line = &draft.lines[0];
+        let line = &reconciliation.lines[0];
         assert!(line.remainder_acknowledged);
         assert_eq!(
             line.status,
-            DraftLineStatus::Matched,
+            BankStatementLineStatus::Matched,
             "acknowledging the remainder on a partial line must give Matched (BAS-092)"
         );
     }
 
     // =========================================================================
-    // compute_draft — pure-function / revert semantics (BAS-064/065)
+    // compute_reconciliation — pure-function / revert semantics (BAS-064/065)
     // =========================================================================
 
-    // BAS-064/065: compute_draft is a pure function of (parse_result, corrections).
+    // BAS-064/065: compute_reconciliation is a pure function of (parse_result, corrections).
     // Recomputing with the correction list minus the last entry must yield the
-    // prior draft — same line count, same statuses.
+    // prior reconciliation — same line count, same statuses.
     #[tokio::test]
-    async fn compute_draft_is_pure_function_of_parse_result_and_corrections() {
+    async fn compute_reconciliation_is_pure_function_of_parse_result_and_corrections() {
         let mapping = BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -2191,32 +2209,35 @@ mod tests {
             unparsed_count: 0,
         };
 
-        // Draft with no corrections (auto-match → Matched).
-        let draft_before = orchestrator
-            .compute_draft("acc-1", &parse_result, &[])
+        // Reconciliation with no corrections (auto-match → Matched).
+        let reconciliation_before = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &[])
             .await
             .unwrap();
 
         // Apply an AssignGroups correction that overrides the auto-match
         // (BAS-062 unassign by passing empty ids).
-        let corrections_with_unassign = vec![ReconciliationCorrection::AssignGroups {
+        let corrections_with_unassign = vec![BankStatementCorrection::AssignGroups {
             line_id: "line-0".to_string(),
             group_ids: vec![], // unassign
         }];
-        let _draft_after = orchestrator
-            .compute_draft("acc-1", &parse_result, &corrections_with_unassign)
+        let _reconciliation_after = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &corrections_with_unassign)
             .await;
 
-        // Revert: recompute with empty corrections list — must equal draft_before.
-        let draft_reverted = orchestrator
-            .compute_draft("acc-1", &parse_result, &[])
+        // Revert: recompute with empty corrections list — must equal reconciliation_before.
+        let reconciliation_reverted = orchestrator
+            .compute_reconciliation("acc-1", &parse_result, &[])
             .await
             .unwrap();
 
-        assert_eq!(draft_before.lines.len(), draft_reverted.lines.len());
         assert_eq!(
-            draft_before.lines[0].status, draft_reverted.lines[0].status,
-            "after reverting a correction, the draft must equal the pre-correction state (BAS-065)"
+            reconciliation_before.lines.len(),
+            reconciliation_reverted.lines.len()
+        );
+        assert_eq!(
+            reconciliation_before.lines[0].status, reconciliation_reverted.lines[0].status,
+            "after reverting a correction, the reconciliation must equal the pre-correction state (BAS-065)"
         );
     }
 
@@ -2300,7 +2321,7 @@ mod tests {
             unparsed_count: 0,
         };
         // AssignGroups: two groups summing to line amount → Matched → 2 entries.
-        let corrections = vec![ReconciliationCorrection::AssignGroups {
+        let corrections = vec![BankStatementCorrection::AssignGroups {
             line_id: "line-0".to_string(),
             group_ids: vec!["group-a".to_string(), "group-b".to_string()],
         }];
@@ -2353,11 +2374,11 @@ mod tests {
         // One group (60_000) + acknowledge remainder (40_000) → Matched,
         // but only 1 BankEntry must be created.
         let corrections = vec![
-            ReconciliationCorrection::AssignGroups {
+            BankStatementCorrection::AssignGroups {
                 line_id: "line-0".to_string(),
                 group_ids: vec!["group-a".to_string()],
             },
-            ReconciliationCorrection::AcknowledgeRemainder {
+            BankStatementCorrection::AcknowledgeRemainder {
                 line_id: "line-0".to_string(),
             },
         ];
@@ -2421,7 +2442,7 @@ mod tests {
         };
         // A LinkFund correction (even if the saved mapping already exists)
         // triggers an upsert (BAS-035).
-        let corrections = vec![ReconciliationCorrection::LinkFund {
+        let corrections = vec![BankStatementCorrection::LinkFund {
             bank_label: "CPAM93".to_string(),
             assignment: FundAssignment::Fund {
                 fund_id: "fund-1".to_string(),
@@ -2459,7 +2480,7 @@ mod tests {
             total_credits: 50_000,
             unparsed_count: 0,
         };
-        let corrections = vec![ReconciliationCorrection::LinkFund {
+        let corrections = vec![BankStatementCorrection::LinkFund {
             bank_label: "SALAIRES".to_string(),
             assignment: FundAssignment::Rejected,
         }];
