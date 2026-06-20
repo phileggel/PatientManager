@@ -42,6 +42,12 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
     case "PaymentGroupNotFound":
+    // --- draft-engine correction guards (BAS-064/090/094); dedicated messages land with the FE rework (PR 2) ---
+    case "AssignmentOverflow":
+    case "GroupNotEligible":
+    case "GroupAlreadyConsumed":
+    case "LineNotFound":
+    case "FundNotFound":
       return { key: "bank:statement.modal.unknown_error" };
   }
 }

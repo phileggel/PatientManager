@@ -41,6 +41,31 @@ pub enum BankStatementReconciliationTask {
     #[error("A confirmed match has an invalid date")]
     InvalidConfirmedMatchDate,
 
+    /// BAS-094 — the sum of groups assigned to a line would exceed the line
+    /// amount. The correction is rejected; the draft is left unchanged.
+    #[error("Assigned groups total exceeds the line amount")]
+    AssignmentOverflow,
+
+    /// BAS-090 — a group does not meet the fund/date/already-settled eligibility
+    /// criteria for the target line. The correction is rejected.
+    #[error("Group is not eligible for this line")]
+    GroupNotEligible,
+
+    /// BAS-067 — a group has already been consumed by another line and cannot
+    /// be assigned a second time.
+    #[error("Group has already been consumed by another line")]
+    GroupAlreadyConsumed,
+
+    /// The `line_id` supplied in a correction does not match any line in the
+    /// current draft (stale or malformed client state).
+    #[error("Line not found in the current draft")]
+    LineNotFound,
+
+    /// The `fund_id` supplied in a `LinkFund` correction does not correspond to
+    /// any known fund.
+    #[error("Fund not found")]
+    FundNotFound,
+
     /// Failure from the use-case-owned label-mapping repository. Logged at the
     /// call site via `tracing::error!`; the wire carries no detail.
     #[error("An unexpected database error occurred")]
@@ -97,6 +122,26 @@ mod tests {
             (
                 BankStatementReconciliationTask::InvalidConfirmedMatchDate,
                 "InvalidConfirmedMatchDate",
+            ),
+            (
+                BankStatementReconciliationTask::AssignmentOverflow,
+                "AssignmentOverflow",
+            ),
+            (
+                BankStatementReconciliationTask::GroupNotEligible,
+                "GroupNotEligible",
+            ),
+            (
+                BankStatementReconciliationTask::GroupAlreadyConsumed,
+                "GroupAlreadyConsumed",
+            ),
+            (
+                BankStatementReconciliationTask::LineNotFound,
+                "LineNotFound",
+            ),
+            (
+                BankStatementReconciliationTask::FundNotFound,
+                "FundNotFound",
             ),
             (
                 BankStatementReconciliationTask::DatabaseError,

@@ -583,6 +583,35 @@ async getBankStatementReconciliationConfig() : Promise<BankStatementReconciliati
     return await TAURI_INVOKE("get_bank_statement_reconciliation_config");
 },
 /**
+ * BAS-064 — compute the ephemeral reconciliation draft.
+ * 
+ * Pure read-only: no DB writes. The draft is never persisted; the frontend
+ * re-calls on every correction and every revert (BAS-065).
+ */
+async computeBankReconciliationDraft(bankAccountId: string, parseResult: BankStatementParseResult, corrections: ReconciliationCorrection[]) : Promise<Result<ReconciliationDraft, BankStatementReconciliationError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("compute_bank_reconciliation_draft", { bankAccountId, parseResult, corrections }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * BAS-063/035/070–073/093 — commit the draft (validate).
+ * 
+ * Recomputes the draft server-side, upserts label mappings, creates N bank
+ * entries per multi-group line, and locks settled groups. Returns the count of
+ * `BankEntry` records created.
+ */
+async validateBankReconciliation(bankAccountId: string, parseResult: BankStatementParseResult, corrections: ReconciliationCorrection[]) : Promise<Result<number, BankStatementReconciliationError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("validate_bank_reconciliation", { bankAccountId, parseResult, corrections }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * R6 — Return Active fund payment groups within the 7-day window of transfer_date.
  */
 async getUnsettledFundGroups(transferDate: string) : Promise<Result<FundGroupCandidate[], BankManualMatchError>> {
@@ -1144,6 +1173,31 @@ export type BankStatementReconciliationTask =
  */
 { code: "InvalidConfirmedMatchDate" } | 
 /**
+ * BAS-094 — the sum of groups assigned to a line would exceed the line
+ * amount. The correction is rejected; the draft is left unchanged.
+ */
+{ code: "AssignmentOverflow" } | 
+/**
+ * BAS-090 — a group does not meet the fund/date/already-settled eligibility
+ * criteria for the target line. The correction is rejected.
+ */
+{ code: "GroupNotEligible" } | 
+/**
+ * BAS-067 — a group has already been consumed by another line and cannot
+ * be assigned a second time.
+ */
+{ code: "GroupAlreadyConsumed" } | 
+/**
+ * The `line_id` supplied in a correction does not match any line in the
+ * current draft (stale or malformed client state).
+ */
+{ code: "LineNotFound" } | 
+/**
+ * The `fund_id` supplied in a `LinkFund` correction does not correspond to
+ * any known fund.
+ */
+{ code: "FundNotFound" } | 
+/**
  * Failure from the use-case-owned label-mapping repository. Logged at the
  * call site via `tracing::error!`; the wire carries no detail.
  */
@@ -1153,6 +1207,14 @@ export type BankStatementReconciliationTask =
  * The frontend always passes the source_procedure_id as identifier.
  */
 export type CancelOverpaymentRequest = { source_procedure_id: string }
+/**
+ * BAS-068 — one ranked candidate group for an unresolved or partial line.
+ */
+export type CandidateGroup = { group_id: string; fund_id: string; payment_date: string; total_amount: number; 
+/**
+ * True if this group's amount exactly matches the line's outstanding amount.
+ */
+is_exact_amount: boolean }
 /**
  * A confirmed match ready for bank transfer creation
  */
@@ -1249,6 +1311,66 @@ export type DbMatch = { procedure_id: string; procedure_date: string; fund_id: s
  */
 export type DirectPaymentProcedureCandidate = { procedure_id: string; patient_id: string; procedure_date: string; billed_amount: number }
 /**
+ * One bank credit line within the draft.
+ */
+export type DraftLine = { 
+/**
+ * Stable id for this line within the draft session.
+ */
+line_id: string; credit_line: BankStatementCreditLine; status: DraftLineStatus; 
+/**
+ * Resolved fund once linked; absent while needs-link.
+ */
+fund_id: string | null; 
+/**
+ * 0..N assigned group ids (BAS-090).
+ */
+assigned_group_ids: string[]; 
+/**
+ * Σ assigned group amounts (BAS-091).
+ */
+covered_amount: number; 
+/**
+ * BAS-092 — true when the user acknowledged the remainder.
+ */
+remainder_acknowledged: boolean; 
+/**
+ * BAS-068 — ranked candidate groups for needs-group / partial.
+ */
+candidate_groups: CandidateGroup[]; 
+/**
+ * BAS-032/066 — heuristic suggestion for the link-fund modal.
+ */
+suggested_fund_id: string | null; suggested_fund_name: string | null }
+/**
+ * BAS-061 — the six per-line statuses.
+ */
+export type DraftLineStatus = 
+/**
+ * Fully covered: auto-matched 1:1, or Σ groups (+ acknowledged remainder) == line amount.
+ */
+"Matched" | 
+/**
+ * Label not yet linked to a fund.
+ */
+"NeedsLink" | 
+/**
+ * Fund known, zero groups assigned, at least one eligible candidate.
+ */
+"NeedsGroup" | 
+/**
+ * 1+ groups assigned but line not fully covered and no remainder acknowledged.
+ */
+"Partial" | 
+/**
+ * Label marked not-a-fund-payment (BAS-030).
+ */
+"Rejected" | 
+/**
+ * Fund known, zero groups assigned, no eligible candidate, not acknowledged.
+ */
+"Unresolved"
+/**
  * A saved mapping between a procedure amount (thousandths of a euro) and a procedure type id
  */
 export type ExcelAmountMapping = { amount: number; procedure_type_id: string }
@@ -1325,6 +1447,11 @@ temp_id?: string | null;
  * Metadata - not a domain property
  */
 id: string }
+/**
+ * BAS-030/066 — typed fund assignment; avoids the `"REJECTED"` string
+ * sentinel used on the old wire surface (ADR-001 tightening).
+ */
+export type FundAssignment = { type: "Fund"; fund_id: string } | { type: "Rejected" }
 /**
  * Errors raised by the Fund bounded context.
  * 
@@ -2088,6 +2215,40 @@ reconciliation: ReconciliationResult;
  * reached the auto-correction step.
  */
 already_imported: boolean }
+/**
+ * A user correction, replayed in order by `compute_draft` / validate.
+ * Reverting = remove from the list and recompute (BAS-065).
+ */
+export type ReconciliationCorrection = 
+/**
+ * BAS-066 / BAS-030 — link a label to a fund or mark it rejected.
+ */
+{ type: "LinkFund"; bank_label: string; assignment: FundAssignment } | 
+/**
+ * BAS-090 — assign 1..N groups to a line (empty = unassign).
+ */
+{ type: "AssignGroups"; line_id: string; group_ids: string[] } | 
+/**
+ * BAS-092 — acknowledge the uncovered remainder on a partial line.
+ */
+{ type: "AcknowledgeRemainder"; line_id: string }
+/**
+ * The recomputed reconciliation state: every statement line with its status
+ * (BAS-061), candidate proposals, and running coverage totals.
+ */
+export type ReconciliationDraft = { 
+/**
+ * All lines in document order (BAS-060).
+ */
+lines: DraftLine[]; 
+/**
+ * BAS-069 — count of lines whose status is Matched or Rejected.
+ */
+resolved_count: number; 
+/**
+ * BAS-069 — count of lines still needing correction.
+ */
+needs_correction_count: number }
 /**
  * A reconciliation match result (unified discriminated union for all scenarios)
  */

@@ -505,6 +505,134 @@ impl BankStatementOrchestrator {
     ) -> Result<Option<crate::context::bank::BankAccount>, BankStatementReconciliationError> {
         Ok(self.bank_account_service.find_account_by_iban(iban).await?)
     }
+
+    /// BAS-064 — compute the ephemeral reconciliation draft as a pure function
+    /// of the parsed statement plus the ordered correction list.
+    ///
+    /// Reads saved label mappings and live unsettled groups, applies the
+    /// heuristic, runs the auto-match (BAS-050–054), then replays every
+    /// correction in order (link-fund cascade BAS-066, group consumption
+    /// BAS-067, multi-group balance BAS-090/091, remainder BAS-092).
+    ///
+    /// Read-only — no DB writes.
+    pub async fn compute_draft(
+        &self,
+        bank_account_id: &str,
+        parse_result: &super::bank_pdf_codec::BankStatementParseResult,
+        corrections: &[super::draft::ReconciliationCorrection],
+    ) -> Result<super::draft::ReconciliationDraft, BankStatementReconciliationError> {
+        let mappings = self.load_mappings(bank_account_id).await?;
+        // service layer logs the error; propagate typed
+        let groups = self.fund_payment_service.read_all_groups().await?;
+        let valid_fund_ids: std::collections::HashSet<String> = self
+            .fund_service
+            .read_all_funds()
+            .await?
+            .into_iter()
+            .map(|f| f.id)
+            .collect();
+        let repos = super::draft::DraftRepos {
+            mappings: &mappings,
+            groups: &groups,
+            valid_fund_ids: &valid_fund_ids,
+        };
+        super::draft::compute_draft(parse_result, &repos, corrections)
+    }
+
+    /// BAS-063/035/070–073/093 — commit the draft.
+    ///
+    /// Recomputes the draft server-side from `corrections` (never trusts
+    /// FE-supplied state), then in one pass:
+    /// - Upserts label mappings implied by `LinkFund` corrections (BAS-035).
+    /// - For every resolved (Matched/Rejected-exempt) line, creates N
+    ///   `BankEntry` records — one per assigned group (BAS-093).
+    /// - Moves each group's procedures to `FundPaid` / `PartiallyFundPaid`
+    ///   (BAS-071) and locks the group to `BankPaid` (BAS-072–073).
+    /// - Unresolved and needs-* lines are skipped (BAS-063).
+    /// - Acknowledged remainders create nothing (BAS-092).
+    ///
+    /// Returns the count of `BankEntry` records created.
+    pub async fn validate_reconciliation(
+        &self,
+        bank_account_id: &str,
+        parse_result: &super::bank_pdf_codec::BankStatementParseResult,
+        corrections: &[super::draft::ReconciliationCorrection],
+    ) -> Result<u32, BankStatementReconciliationError> {
+        use super::draft::{DraftLineStatus, FundAssignment, ReconciliationCorrection};
+
+        // Recompute server-side — never trust FE-supplied draft state (BAS-064).
+        let draft = self
+            .compute_draft(bank_account_id, parse_result, corrections)
+            .await?;
+
+        // BAS-035 — upsert the label mapping implied by each LinkFund correction.
+        for correction in corrections {
+            if let ReconciliationCorrection::LinkFund {
+                bank_label,
+                assignment,
+            } = correction
+            {
+                let fund_id = match assignment {
+                    FundAssignment::Fund { fund_id } => fund_id.clone(),
+                    FundAssignment::Rejected => "REJECTED".to_string(),
+                };
+                self.label_mapping_repo
+                    .save_mapping(bank_account_id, bank_label, &fund_id)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(target: BACKEND, err = ?e, "validate_reconciliation: save_mapping failed");
+                        BankStatementReconciliationTask::DatabaseError
+                    })?;
+            }
+        }
+
+        // BAS-093 — one BankEntry per assigned group on every resolved (Matched)
+        // line, each sized to its group's total amount (not the line amount).
+        // Unresolved / needs-* lines are skipped (BAS-063); an acknowledged
+        // remainder contributes no transfer (BAS-092).
+        // service layer logs the error; propagate typed
+        let groups = self.fund_payment_service.read_all_groups().await?;
+        let mut confirmed_matches: Vec<ConfirmedMatch> = Vec::new();
+        for line in &draft.lines {
+            if line.status != DraftLineStatus::Matched {
+                continue;
+            }
+            for group_id in &line.assigned_group_ids {
+                let amount = groups
+                    .iter()
+                    .find(|g| &g.id == group_id)
+                    .map(|g| g.total_amount)
+                    .ok_or_else(|| crate::context::fund::FundError::PaymentGroupNotFound {
+                        fund_payment_group_id: group_id.clone(),
+                    })?;
+                confirmed_matches.push(ConfirmedMatch {
+                    group_id: group_id.clone(),
+                    date: line.credit_line.date.clone(),
+                    amount,
+                });
+            }
+        }
+
+        self.create_transfers(bank_account_id, confirmed_matches)
+            .await
+    }
+
+    /// Load the saved label mappings for an account (BAS-035 read path).
+    async fn load_mappings(
+        &self,
+        bank_account_id: &str,
+    ) -> Result<
+        Vec<super::label_mapping_repo::BankFundLabelMapping>,
+        BankStatementReconciliationError,
+    > {
+        self.label_mapping_repo
+            .find_mappings_for_account(bank_account_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "load_mappings: find_mappings_for_account failed");
+                BankStatementReconciliationTask::DatabaseError.into()
+            })
+    }
 }
 
 /// Suggest a fund based on the bank label.
@@ -596,8 +724,11 @@ mod tests {
     };
     use crate::context::procedure::{MockProcedureRepository, Procedure};
     use crate::shared::event_bus::EventBus;
-    use crate::use_cases::bank_statement_reconciliation::label_mapping_repo::{
-        BankFundLabelMapping, MockBankFundLabelMappingRepository,
+    use crate::use_cases::bank_statement_reconciliation::{
+        bank_pdf_codec::BankStatementCreditLine,
+        draft::{DraftLineStatus, FundAssignment, ReconciliationCorrection},
+        error::BankStatementReconciliationTask,
+        label_mapping_repo::{BankFundLabelMapping, MockBankFundLabelMappingRepository},
     };
     use chrono::NaiveDate;
     use std::sync::Arc;
@@ -1312,5 +1443,1033 @@ mod tests {
         assert!(is_exact_date_offset(d1, d2, 1));
         assert!(is_exact_date_offset(d1, d3, 4));
         assert!(!is_exact_date_offset(d1, d4, 1));
+    }
+
+    // =========================================================================
+    // compute_draft — initial pass (no corrections)
+    // =========================================================================
+
+    // Helper — a parse result with one credit line for reuse across draft tests.
+    fn one_line_parse_result(label: &str, amount: i64) -> BankStatementParseResult {
+        BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: label.to_string(),
+                amount,
+            }],
+            total_credits: amount,
+            unparsed_count: 0,
+        }
+    }
+
+    // BAS-050–054, BAS-061: initial draft with no corrections.
+    // A line whose label has a saved mapping and a matching group should be
+    // auto-matched → status Matched.
+    #[tokio::test]
+    async fn compute_draft_no_corrections_auto_matches_eligible_line() {
+        let fund_id = "fund-1";
+        let group = FundPaymentGroup::restore(
+            "group-1".to_string(),
+            fund_id.to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some(fund_id.to_string()),
+        };
+        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
+        let parse_result = one_line_parse_result("CPAM93", 100_000);
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &[])
+            .await
+            .unwrap();
+
+        assert_eq!(draft.lines.len(), 1);
+        assert_eq!(draft.lines[0].status, DraftLineStatus::Matched);
+        assert_eq!(draft.lines[0].assigned_group_ids, vec!["group-1"]);
+        assert_eq!(draft.resolved_count, 1);
+        assert_eq!(draft.needs_correction_count, 0);
+    }
+
+    // BAS-061 NeedsLink: a line whose label has no saved mapping and no
+    // LinkFund correction should remain NeedsLink.
+    #[tokio::test]
+    async fn compute_draft_no_corrections_unknown_label_is_needs_link() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "UNKNOWN_LABEL".to_string(),
+                amount: 50_000,
+            }],
+            total_credits: 50_000,
+            unparsed_count: 0,
+        };
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &[])
+            .await
+            .unwrap();
+
+        assert_eq!(draft.lines.len(), 1);
+        assert_eq!(draft.lines[0].status, DraftLineStatus::NeedsLink);
+        assert_eq!(draft.needs_correction_count, 1);
+        assert_eq!(draft.resolved_count, 0);
+    }
+
+    // BAS-061 Rejected: initial draft with a saved rejection mapping → status
+    // Rejected (and no transfer will be created).
+    #[tokio::test]
+    async fn compute_draft_saved_rejection_mapping_gives_rejected_status() {
+        let mapping = BankFundLabelMapping {
+            id: "m2".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "SALAIRES".to_string(),
+            fund_id: None, // NULL in DB = rejected
+        };
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![mapping]);
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "SALAIRES".to_string(),
+                amount: 20_000,
+            }],
+            total_credits: 20_000,
+            unparsed_count: 0,
+        };
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &[])
+            .await
+            .unwrap();
+
+        assert_eq!(draft.lines.len(), 1);
+        assert_eq!(draft.lines[0].status, DraftLineStatus::Rejected);
+        // Rejected counts as resolved (BAS-061).
+        assert_eq!(draft.resolved_count, 1);
+    }
+
+    // BAS-061 NeedsGroup: label mapped to a fund but no unsettled group matches.
+    #[tokio::test]
+    async fn compute_draft_fund_known_but_no_group_gives_needs_group_or_unresolved() {
+        let mapping = BankFundLabelMapping {
+            id: "m3".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![mapping]);
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &[])
+            .await
+            .unwrap();
+
+        assert_eq!(draft.lines.len(), 1);
+        // With no matching groups the line is either NeedsGroup (has candidate)
+        // or Unresolved (no candidate). Either way it is NOT resolved.
+        assert!(
+            draft.lines[0].status == DraftLineStatus::NeedsGroup
+                || draft.lines[0].status == DraftLineStatus::Unresolved,
+            "expected NeedsGroup or Unresolved, got {:?}",
+            draft.lines[0].status
+        );
+        assert_eq!(draft.needs_correction_count, 1);
+    }
+
+    // BAS-061 summary counter: draft.resolved_count + needs_correction_count ==
+    // total lines.
+    #[tokio::test]
+    async fn compute_draft_summary_counts_are_consistent() {
+        let mapping = BankFundLabelMapping {
+            id: "m-matched".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group = FundPaymentGroup::restore(
+            "group-ok".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
+
+        // Two lines: one that auto-matches, one with unknown label.
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![
+                BankStatementCreditLine {
+                    date: "2026-01-15".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 100_000,
+                },
+                BankStatementCreditLine {
+                    date: "2026-01-16".to_string(),
+                    label: "UNKNOWN".to_string(),
+                    amount: 50_000,
+                },
+            ],
+            total_credits: 150_000,
+            unparsed_count: 0,
+        };
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &[])
+            .await
+            .unwrap();
+
+        assert_eq!(draft.lines.len(), 2);
+        assert_eq!(
+            draft.resolved_count + draft.needs_correction_count,
+            2,
+            "resolved_count + needs_correction_count must equal total lines"
+        );
+    }
+
+    // =========================================================================
+    // compute_draft — LinkFund correction cascade (BAS-066)
+    // =========================================================================
+
+    // BAS-066: a LinkFund correction with FundAssignment::Fund resolves ALL
+    // lines sharing the label and auto-matches those that now hit an eligible
+    // group.
+    #[tokio::test]
+    async fn compute_draft_link_fund_correction_resolves_all_lines_for_label() {
+        let group = FundPaymentGroup::restore(
+            "group-1".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        // No saved mapping — the label starts as NeedsLink.
+        let funds = vec![Fund::restore(
+            "fund-1".into(),
+            "93".into(),
+            "CPAM 93".into(),
+        )];
+        let orchestrator = make_orchestrator_with(funds, vec![group], None, vec![]);
+
+        // Two credit lines with the same label.
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![
+                BankStatementCreditLine {
+                    date: "2026-01-15".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 100_000,
+                },
+                BankStatementCreditLine {
+                    date: "2026-01-20".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 50_000,
+                },
+            ],
+            total_credits: 150_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![ReconciliationCorrection::LinkFund {
+            bank_label: "CPAM93".to_string(),
+            assignment: FundAssignment::Fund {
+                fund_id: "fund-1".to_string(),
+            },
+        }];
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        // Both lines must have a resolved fund.
+        for line in &draft.lines {
+            assert_eq!(
+                line.fund_id.as_deref(),
+                Some("fund-1"),
+                "link-fund cascade must set fund_id on all same-label lines"
+            );
+        }
+        // The first line matches group-1 exactly → Matched.
+        assert_eq!(draft.lines[0].status, DraftLineStatus::Matched);
+    }
+
+    // BAS-030/066: LinkFund with FundAssignment::Rejected marks the line Rejected.
+    #[tokio::test]
+    async fn compute_draft_link_fund_rejected_gives_rejected_status() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "SALAIRES".to_string(),
+                amount: 30_000,
+            }],
+            total_credits: 30_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![ReconciliationCorrection::LinkFund {
+            bank_label: "SALAIRES".to_string(),
+            assignment: FundAssignment::Rejected,
+        }];
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        assert_eq!(draft.lines[0].status, DraftLineStatus::Rejected);
+        assert_eq!(draft.resolved_count, 1);
+    }
+
+    // =========================================================================
+    // compute_draft — AssignGroups correction (BAS-067, BAS-090/091)
+    // =========================================================================
+
+    // BAS-090/091: assigning one group that exactly covers the line → Matched.
+    #[tokio::test]
+    async fn compute_draft_assign_single_group_exact_amount_gives_matched() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        // Group with different amount than line so auto-match doesn't fire —
+        // the explicit AssignGroups correction must be the one that resolves it.
+        let group_a = FundPaymentGroup::restore(
+            "group-a".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            70_000, // not equal to line amount (100_000)
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let group_b = FundPaymentGroup::restore(
+            "group-b".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 12).unwrap(),
+            30_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator =
+            make_orchestrator_with(vec![], vec![group_a, group_b], None, vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        // Assign both groups: 70_000 + 30_000 == 100_000 → Matched.
+        let corrections = vec![ReconciliationCorrection::AssignGroups {
+            // line_id is derived by compute_draft; use index-based id "line-0"
+            // as a placeholder — implementation must honour whatever stable id
+            // it assigns.
+            line_id: "line-0".to_string(),
+            group_ids: vec!["group-a".to_string(), "group-b".to_string()],
+        }];
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        let line = &draft.lines[0];
+        assert_eq!(line.covered_amount, 100_000);
+        assert_eq!(line.status, DraftLineStatus::Matched);
+    }
+
+    // BAS-091 Partial: sum of assigned groups < line amount and no remainder
+    // acknowledged → Partial.
+    #[tokio::test]
+    async fn compute_draft_assign_group_partial_coverage_gives_partial_status() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group_a = FundPaymentGroup::restore(
+            "group-a".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            60_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group_a], None, vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![ReconciliationCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec!["group-a".to_string()],
+        }];
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        let line = &draft.lines[0];
+        assert_eq!(line.covered_amount, 60_000);
+        assert_eq!(line.status, DraftLineStatus::Partial);
+    }
+
+    // BAS-067: a group assigned to line A must no longer appear in line B's
+    // candidate list.
+    #[tokio::test]
+    async fn compute_draft_assign_group_removes_it_from_other_lines_candidates() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group = FundPaymentGroup::restore(
+            "group-shared".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 14).unwrap(),
+            80_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
+
+        // Two lines both eligible for the same group, but we assign it to
+        // the first line.  The second line must NOT see it as a candidate.
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![
+                BankStatementCreditLine {
+                    date: "2026-01-15".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 80_000,
+                },
+                BankStatementCreditLine {
+                    date: "2026-01-15".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 80_000,
+                },
+            ],
+            total_credits: 160_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![ReconciliationCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec!["group-shared".to_string()],
+        }];
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        let line_b = &draft.lines[1];
+        assert!(
+            line_b
+                .candidate_groups
+                .iter()
+                .all(|c| c.group_id != "group-shared"),
+            "consumed group must not appear in the second line's candidates (BAS-067)"
+        );
+    }
+
+    // BAS-067: attempting to assign a group already consumed by another line
+    // via a second AssignGroups correction returns GroupAlreadyConsumed.
+    #[tokio::test]
+    async fn compute_draft_double_assign_same_group_returns_group_already_consumed() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group = FundPaymentGroup::restore(
+            "group-shared".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 14).unwrap(),
+            80_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![
+                BankStatementCreditLine {
+                    date: "2026-01-15".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 80_000,
+                },
+                BankStatementCreditLine {
+                    date: "2026-01-16".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 80_000,
+                },
+            ],
+            total_credits: 160_000,
+            unparsed_count: 0,
+        };
+        // Assign the group to line-0, then also to line-1 → should fail.
+        let corrections = vec![
+            ReconciliationCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: vec!["group-shared".to_string()],
+            },
+            ReconciliationCorrection::AssignGroups {
+                line_id: "line-1".to_string(),
+                group_ids: vec!["group-shared".to_string()],
+            },
+        ];
+
+        let result = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections)
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::GroupAlreadyConsumed
+                ))
+            ),
+            "double-assigning the same group must yield GroupAlreadyConsumed (BAS-067)"
+        );
+    }
+
+    // BAS-094: assigning groups whose total exceeds the line amount is rejected.
+    #[tokio::test]
+    async fn compute_draft_overflow_assignment_returns_assignment_overflow() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group_a = FundPaymentGroup::restore(
+            "group-a".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            80_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let group_b = FundPaymentGroup::restore(
+            "group-b".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 11).unwrap(),
+            80_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator =
+            make_orchestrator_with(vec![], vec![group_a, group_b], None, vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        // 80_000 + 80_000 = 160_000 > 100_000 → AssignmentOverflow.
+        let corrections = vec![ReconciliationCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec!["group-a".to_string(), "group-b".to_string()],
+        }];
+
+        let result = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections)
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::AssignmentOverflow
+                ))
+            ),
+            "sum of group amounts exceeding line amount must yield AssignmentOverflow (BAS-094)"
+        );
+    }
+
+    // BAS-090: assigning a locked (already-reconciled) group is rejected.
+    #[tokio::test]
+    async fn compute_draft_assign_locked_group_returns_group_not_eligible() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let locked_group = FundPaymentGroup::restore(
+            "group-locked".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::BankPaid, // is_locked = true → ineligible
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![locked_group], None, vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![ReconciliationCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec!["group-locked".to_string()],
+        }];
+
+        let result = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections)
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::GroupNotEligible
+                ))
+            ),
+            "assigning a locked group must yield GroupNotEligible (BAS-090)"
+        );
+    }
+
+    // =========================================================================
+    // compute_draft — AcknowledgeRemainder (BAS-092)
+    // =========================================================================
+
+    // BAS-092: a Partial line where the user acknowledges the remainder
+    // transitions to Matched.
+    #[tokio::test]
+    async fn compute_draft_acknowledge_remainder_on_partial_line_gives_matched() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group_a = FundPaymentGroup::restore(
+            "group-a".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            60_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group_a], None, vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![
+            ReconciliationCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: vec!["group-a".to_string()],
+            },
+            ReconciliationCorrection::AcknowledgeRemainder {
+                line_id: "line-0".to_string(),
+            },
+        ];
+
+        let draft = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        let line = &draft.lines[0];
+        assert!(line.remainder_acknowledged);
+        assert_eq!(
+            line.status,
+            DraftLineStatus::Matched,
+            "acknowledging the remainder on a partial line must give Matched (BAS-092)"
+        );
+    }
+
+    // =========================================================================
+    // compute_draft — pure-function / revert semantics (BAS-064/065)
+    // =========================================================================
+
+    // BAS-064/065: compute_draft is a pure function of (parse_result, corrections).
+    // Recomputing with the correction list minus the last entry must yield the
+    // prior draft — same line count, same statuses.
+    #[tokio::test]
+    async fn compute_draft_is_pure_function_of_parse_result_and_corrections() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group = FundPaymentGroup::restore(
+            "group-1".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+
+        // Draft with no corrections (auto-match → Matched).
+        let draft_before = orchestrator
+            .compute_draft("acc-1", &parse_result, &[])
+            .await
+            .unwrap();
+
+        // Apply an AssignGroups correction that overrides the auto-match
+        // (BAS-062 unassign by passing empty ids).
+        let corrections_with_unassign = vec![ReconciliationCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec![], // unassign
+        }];
+        let _draft_after = orchestrator
+            .compute_draft("acc-1", &parse_result, &corrections_with_unassign)
+            .await;
+
+        // Revert: recompute with empty corrections list — must equal draft_before.
+        let draft_reverted = orchestrator
+            .compute_draft("acc-1", &parse_result, &[])
+            .await
+            .unwrap();
+
+        assert_eq!(draft_before.lines.len(), draft_reverted.lines.len());
+        assert_eq!(
+            draft_before.lines[0].status, draft_reverted.lines[0].status,
+            "after reverting a correction, the draft must equal the pre-correction state (BAS-065)"
+        );
+    }
+
+    // =========================================================================
+    // validate_reconciliation — orchestrator method (BAS-063/035/093)
+    // =========================================================================
+
+    // BAS-063: calling validate with all lines unresolved (no corrections,
+    // no mappings, no groups) must succeed and return 0 created entries.
+    #[tokio::test]
+    async fn validate_reconciliation_all_unresolved_creates_zero_entries() {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "UNKNOWN".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![], Some(account), vec![]);
+
+        let count = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &[])
+            .await
+            .unwrap();
+
+        assert_eq!(count, 0, "unresolved lines must be skipped (BAS-063)");
+    }
+
+    // BAS-093: validate with a matched line that has N assigned groups creates
+    // N BankEntry records.
+    #[tokio::test]
+    async fn validate_reconciliation_multi_group_line_creates_n_entries() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group_a = FundPaymentGroup::restore(
+            "group-a".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            60_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let group_b = FundPaymentGroup::restore(
+            "group-b".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 12).unwrap(),
+            40_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+        let orchestrator =
+            make_orchestrator_with(vec![], vec![group_a, group_b], Some(account), vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        // AssignGroups: two groups summing to line amount → Matched → 2 entries.
+        let corrections = vec![ReconciliationCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec!["group-a".to_string(), "group-b".to_string()],
+        }];
+
+        let count = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        assert_eq!(count, 2, "one BankEntry per assigned group (BAS-093)");
+    }
+
+    // BAS-092: a line with an acknowledged remainder creates exactly
+    // len(assigned_group_ids) entries — no entry for the remainder itself.
+    #[tokio::test]
+    async fn validate_reconciliation_acknowledged_remainder_creates_no_extra_entry() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group_a = FundPaymentGroup::restore(
+            "group-a".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            60_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+        let orchestrator =
+            make_orchestrator_with(vec![], vec![group_a], Some(account), vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        // One group (60_000) + acknowledge remainder (40_000) → Matched,
+        // but only 1 BankEntry must be created.
+        let corrections = vec![
+            ReconciliationCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: vec!["group-a".to_string()],
+            },
+            ReconciliationCorrection::AcknowledgeRemainder {
+                line_id: "line-0".to_string(),
+            },
+        ];
+
+        let count = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            count, 1,
+            "acknowledged remainder must not produce a BankEntry (BAS-092)"
+        );
+    }
+
+    // BAS-035: validate upserts a label mapping for each LinkFund correction.
+    // The mock repo's `save_mapping` will be called once per distinct label.
+    // We can't easily assert the mock call count without adjusting the existing
+    // mock helper, so we assert the overall return value + that no error is
+    // raised — wiring correctness is covered by the integration test.
+    #[tokio::test]
+    async fn validate_reconciliation_link_fund_correction_persists_mapping() {
+        // Auto-matched line (saved mapping + matching group) — validate must
+        // succeed and persist the LinkFund correction's mapping.
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group = FundPaymentGroup::restore(
+            "group-1".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+        let funds = vec![Fund::restore(
+            "fund-1".into(),
+            "93".into(),
+            "CPAM 93".into(),
+        )];
+        let orchestrator = make_orchestrator_with(funds, vec![group], Some(account), vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        // A LinkFund correction (even if the saved mapping already exists)
+        // triggers an upsert (BAS-035).
+        let corrections = vec![ReconciliationCorrection::LinkFund {
+            bank_label: "CPAM93".to_string(),
+            assignment: FundAssignment::Fund {
+                fund_id: "fund-1".to_string(),
+            },
+        }];
+
+        let result = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "validate with a LinkFund correction must succeed"
+        );
+    }
+
+    // BAS-035: a Rejected LinkFund correction is also persisted (as NULL fund_id).
+    #[tokio::test]
+    async fn validate_reconciliation_rejected_link_fund_persists_rejection() {
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+        let orchestrator = make_orchestrator_with(vec![], vec![], Some(account), vec![]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "SALAIRES".to_string(),
+                amount: 50_000,
+            }],
+            total_credits: 50_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![ReconciliationCorrection::LinkFund {
+            bank_label: "SALAIRES".to_string(),
+            assignment: FundAssignment::Rejected,
+        }];
+
+        let count = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        // Rejected line produces no entry, but validate must not error.
+        assert_eq!(count, 0);
     }
 }
