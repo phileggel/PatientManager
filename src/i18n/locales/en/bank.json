@@ -45,6 +45,12 @@
       "phase_link_fund": "Step 1 — Link funds",
       "step_label": "Line: {{label}}",
       "apply": "Apply"
+    },
+    "col": {
+      "date": "Date",
+      "fund": "Fund",
+      "amount": "Amount",
+      "status": "Status"
     }
   },
   "statement": {

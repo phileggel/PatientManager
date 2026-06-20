@@ -14,13 +14,13 @@ interface ReconciliationListProps {
 
 /**
  * BAS-060/061/069 — the draft reconciliation list: every credit line in document
- * order, one row each (date · fund · amount · status), with a running summary and
+ * order as a table row (date · fund · amount · status), with a running summary and
  * a wizard launcher.
  *
  * The status renders as a badge: gold (`attention`) for the four correction-needed
  * states so they stand out at a glance, subdued for resolved lines (Matched /
- * Rejected). Double-clicking any line opens it for correction (BAS-062) — including
- * Matched lines, which can be overridden. Interaction is suppressed while a recompute
+ * Rejected). Double-clicking any row opens it for correction (BAS-062) — including
+ * Matched rows, which can be overridden. Interaction is suppressed while a recompute
  * is in flight (BAS-064 busy state).
  */
 export function ReconciliationList({
@@ -60,42 +60,52 @@ export function ReconciliationList({
         )}
       </div>
 
-      <ul className="flex flex-col gap-1">
-        {reconciliation.lines.map((line) => {
-          const attention = lineStatusTone(line.status) === "attention";
-          return (
-            <li
-              key={line.line_id}
-              id={`reconciliation-line-row-${line.line_id}`}
-              className="grid grid-cols-[5rem_1fr_auto_auto] items-center gap-4 rounded-lg border border-m3-outline/20 px-4 py-3 cursor-pointer"
-              onDoubleClick={() => {
-                if (isBusy) return;
-                onApplyCorrection(line);
-              }}
-            >
-              <span className="text-xs text-m3-on-surface-variant tabular-nums">
-                {formatDate(line.credit_line.date)}
-              </span>
-              <span className="text-sm font-medium text-m3-on-surface truncate">
-                {fundName(line)}
-              </span>
-              <span className="text-sm text-m3-on-surface tabular-nums text-right">
-                {formatCurrency(line.credit_line.amount)}
-              </span>
-              <span
-                id={`reconciliation-line-status-${line.line_id}`}
-                className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${
-                  attention
-                    ? "bg-m3-tertiary-container text-m3-on-tertiary-container"
-                    : "bg-m3-surface-container-high text-m3-on-surface-variant"
-                }`}
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="text-xs text-m3-on-surface-variant">
+            <th className="text-left font-medium px-4 py-2">{t("reconciliation.col.date")}</th>
+            <th className="text-left font-medium px-4 py-2">{t("reconciliation.col.fund")}</th>
+            <th className="text-right font-medium px-4 py-2">{t("reconciliation.col.amount")}</th>
+            <th className="text-right font-medium px-4 py-2">{t("reconciliation.col.status")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reconciliation.lines.map((line) => {
+            const attention = lineStatusTone(line.status) === "attention";
+            return (
+              <tr
+                key={line.line_id}
+                id={`reconciliation-line-row-${line.line_id}`}
+                className="cursor-pointer border-b border-m3-outline/15 hover:bg-m3-surface-container-low"
+                onDoubleClick={() => {
+                  if (isBusy) return;
+                  onApplyCorrection(line);
+                }}
               >
-                {t(presentLineStatus(line.status))}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+                <td className="px-4 py-3 text-m3-on-surface-variant tabular-nums whitespace-nowrap">
+                  {formatDate(line.credit_line.date)}
+                </td>
+                <td className="px-4 py-3 font-medium text-m3-on-surface">{fundName(line)}</td>
+                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap text-m3-on-surface">
+                  {formatCurrency(line.credit_line.amount)}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <span
+                    id={`reconciliation-line-status-${line.line_id}`}
+                    className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${
+                      attention
+                        ? "bg-m3-tertiary-container text-m3-on-tertiary-container"
+                        : "bg-m3-surface-container-high text-m3-on-surface-variant"
+                    }`}
+                  >
+                    {t(presentLineStatus(line.status))}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

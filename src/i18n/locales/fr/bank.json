@@ -45,6 +45,12 @@
       "phase_link_fund": "Étape 1 — Associer les caisses",
       "step_label": "Ligne : {{label}}",
       "apply": "Appliquer"
+    },
+    "col": {
+      "date": "Date",
+      "fund": "Fonds",
+      "amount": "Montant",
+      "status": "Statut"
     }
   },
   "statement": {
