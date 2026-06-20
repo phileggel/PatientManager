@@ -265,3 +265,133 @@ describe("useBankStatementReconciliation — revert (BAS-065)", () => {
     expect(mockCompute).toHaveBeenCalledTimes(callCountAfterMount);
   });
 });
+
+// ---------------------------------------------------------------------------
+// validate (BAS-063/093) — lines 101-116 of useBankStatementReconciliation.ts
+// ---------------------------------------------------------------------------
+
+describe("useBankStatementReconciliation — validate (BAS-063/093)", () => {
+  const mockValidate = vi.mocked(gateway.validateBankStatementReconciliation);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCompute.mockResolvedValue({ success: true, data: INITIAL_RECONCILIATION });
+  });
+
+  it("calls validateBankStatementReconciliation with bankAccountId + parseResult + current corrections and returns the count on success (BAS-093)", async () => {
+    mockValidate.mockResolvedValue({ success: true, data: 7 });
+
+    const afterCorrection = makeReconciliation({ needs_correction_count: 0, resolved_count: 2 });
+    mockCompute
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION }) // mount
+      .mockResolvedValueOnce({ success: true, data: afterCorrection }); // after correction
+
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    // Apply one correction so corrections[] is non-empty — validate must forward it
+    await act(async () => {
+      await result.current.applyCorrection(LINK_FUND_CORRECTION);
+    });
+
+    let count: number | null | undefined;
+    await act(async () => {
+      count = await result.current.validate();
+    });
+
+    expect(mockValidate).toHaveBeenCalledWith(BANK_ACCOUNT_ID, PARSE_RESULT, [
+      LINK_FUND_CORRECTION,
+    ]);
+    expect(count).toBe(7);
+  });
+
+  it("returns null and sets typed error state when validateBankStatementReconciliation returns an error (F27)", async () => {
+    mockValidate.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
+
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    let count: number | null | undefined;
+    await act(async () => {
+      count = await result.current.validate();
+    });
+
+    expect(count).toBeNull();
+    // The typed error must be set in state (not thrown — F27 layer 2)
+    expect(result.current.error).toEqual({ code: "DatabaseError" });
+  });
+
+  it("sets isBusy=true while validate is in flight and false after resolution", async () => {
+    let resolveValidate!: (v: { success: true; data: number }) => void;
+
+    mockValidate.mockReturnValue(
+      new Promise<{ success: true; data: number }>((r) => {
+        resolveValidate = r;
+      }),
+    );
+
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    act(() => {
+      result.current.validate();
+    });
+
+    await waitFor(() => expect(result.current.isBusy).toBe(true));
+
+    await act(async () => {
+      resolveValidate({ success: true, data: 3 });
+    });
+
+    expect(result.current.isBusy).toBe(false);
+  });
+
+  it("clears a prior error when validate is called again (setError(null) at the top of validate)", async () => {
+    // First validate: error
+    mockValidate
+      .mockResolvedValueOnce({ success: false, error: { code: "InvalidConfirmedMatchDate" } })
+      .mockResolvedValueOnce({ success: true, data: 2 });
+
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.validate();
+    });
+    expect(result.current.error).not.toBeNull();
+
+    // Second validate: success — error must be cleared
+    await act(async () => {
+      await result.current.validate();
+    });
+    expect(result.current.error).toBeNull();
+  });
+
+  it("validate passes an empty corrections list when no corrections have been applied", async () => {
+    mockValidate.mockResolvedValue({ success: true, data: 0 });
+
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.validate();
+    });
+
+    expect(mockValidate).toHaveBeenCalledWith(BANK_ACCOUNT_ID, PARSE_RESULT, []);
+  });
+});
