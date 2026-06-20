@@ -39,14 +39,7 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<fund_payment_reconciliation::UnreconciledProcedure>()
         .typ::<bank_statement_reconciliation::BankStatementParseResult>()
         .typ::<bank_statement_reconciliation::BankStatementCreditLine>()
-        .typ::<bank_statement_reconciliation::FundLabelResolution>()
-        .typ::<bank_statement_reconciliation::ResolvedCreditLine>()
-        .typ::<bank_statement_reconciliation::BankStatementMatchResult>()
-        .typ::<bank_statement_reconciliation::BankStatementMatch>()
-        .typ::<bank_statement_reconciliation::ConfirmedMatch>()
-        .typ::<bank_statement_reconciliation::SaveLabelMappingRequest>()
         .typ::<bank_statement_reconciliation::BankFundLabelMapping>()
-        .typ::<bank_statement_reconciliation::BankStatementReconciliationConfig>()
         .typ::<bank_statement_reconciliation::BankStatementReconciliation>()
         .typ::<bank_statement_reconciliation::BankStatementLine>()
         .typ::<bank_statement_reconciliation::BankStatementLineStatus>()
@@ -111,11 +104,6 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             bank::get_cash_bank_account_id,
             bank_statement_reconciliation::parse_bank_statement,
             bank_statement_reconciliation::resolve_bank_account_from_iban,
-            bank_statement_reconciliation::resolve_bank_fund_labels,
-            bank_statement_reconciliation::save_bank_fund_label_mappings,
-            bank_statement_reconciliation::match_bank_statement_lines,
-            bank_statement_reconciliation::create_bank_transfers_from_statement,
-            bank_statement_reconciliation::get_bank_statement_reconciliation_config,
             bank_statement_reconciliation::compute_bank_statement_reconciliation,
             bank_statement_reconciliation::validate_bank_statement_reconciliation,
             bank_manual_match::get_unsettled_fund_groups,

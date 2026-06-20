@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::context::bank::{
     BankAccountService, BankEntryLinkRepository, BankEntryService, BankEntryType, BankError,
 };
-use crate::context::fund::{Fund, FundPaymentGroupStatus, FundPaymentService, FundService};
+use crate::context::fund::{FundPaymentGroupStatus, FundPaymentService, FundService};
 use crate::context::procedure::{ProcedureService, ProcedureStatus};
 use crate::shared::event_bus::{BankEntryUpdated, EventBus, ProcedureUpdated};
 use crate::shared::logger::BACKEND;
@@ -23,67 +22,9 @@ use super::parser;
 /// A group dated on D may appear on the bank statement up to D+7 (R11).
 pub const MAX_DATE_OFFSET_DAYS: i64 = 7;
 
-/// Bank statement reconciliation configuration exported to frontend
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct BankStatementReconciliationConfig {
-    /// Maximum date offset (days) for matching bank lines to payment groups
-    pub max_date_offset_days: i32,
-}
-
-impl BankStatementReconciliationConfig {
-    /// Get the singleton instance
-    pub fn instance() -> Self {
-        Self {
-            max_date_offset_days: MAX_DATE_OFFSET_DAYS as i32,
-        }
-    }
-}
-
-/// Resolution status for a bank statement fund label
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct FundLabelResolution {
-    pub bank_label: String,
-    /// Fund ID if already confirmed via mapping table
-    pub fund_id: Option<String>,
-    /// Suggested fund ID from heuristic matching
-    pub suggested_fund_id: Option<String>,
-    /// Suggested fund name (for display)
-    pub suggested_fund_name: Option<String>,
-    /// Whether this mapping is confirmed (from mapping table)
-    pub is_confirmed: bool,
-    /// Whether this label is explicitly rejected (not a fund payment)
-    pub is_rejected: bool,
-}
-
-/// A credit line that has been resolved with a fund ID
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct ResolvedCreditLine {
-    pub date: String,
-    pub label: String,
-    pub amount: i64,
-    pub fund_id: String,
-}
-
-/// A match between a bank statement credit line and a FundPaymentGroup
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct BankStatementMatch {
-    pub credit_line: ResolvedCreditLine,
-    pub group_id: String,
-    pub group_fund_id: String,
-    pub group_payment_date: String,
-    pub group_total_amount: i64,
-}
-
-/// Result of matching bank statement lines against unsettled groups
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct BankStatementMatchResult {
-    pub matched: Vec<BankStatementMatch>,
-    pub unmatched_lines: Vec<ResolvedCreditLine>,
-}
-
 /// A confirmed match ready for bank transfer creation
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct ConfirmedMatch {
+pub(crate) struct ConfirmedMatch {
     pub group_id: String,
     pub date: String,
     pub amount: i64,
@@ -165,196 +106,6 @@ impl BankStatementOrchestrator {
         Ok(result)
     }
 
-    /// Resolve fund labels against the mapping table and suggest matches.
-    pub async fn resolve_fund_labels(
-        &self,
-        bank_account_id: &str,
-        labels: Vec<String>,
-    ) -> Result<Vec<FundLabelResolution>, BankStatementReconciliationError> {
-        // Get existing mappings for this account
-        let mappings = self
-            .label_mapping_repo
-            .find_mappings_for_account(bank_account_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "resolve_fund_labels: find_mappings_for_account failed");
-                BankStatementReconciliationTask::DatabaseError
-            })?;
-
-        // Get all funds for suggestion
-        let funds = self.fund_service.read_all_funds().await?;
-
-        let mut resolutions = Vec::new();
-        // Deduplicate labels
-        let unique_labels: Vec<String> = {
-            let mut seen = std::collections::HashSet::new();
-            labels
-                .into_iter()
-                .filter(|l| seen.insert(l.clone()))
-                .collect()
-        };
-
-        for label in unique_labels {
-            // Check if already mapped
-            let existing = mappings.iter().find(|m| m.bank_label == label);
-
-            if let Some(mapping) = existing {
-                let is_rejected = mapping.fund_id.is_none();
-                resolutions.push(FundLabelResolution {
-                    bank_label: label,
-                    fund_id: mapping.fund_id.clone(),
-                    suggested_fund_id: None,
-                    suggested_fund_name: None,
-                    is_confirmed: true,
-                    is_rejected,
-                });
-            } else {
-                // Try to suggest a fund
-                let (suggested_id, suggested_name) = suggest_fund(&label, &funds);
-                resolutions.push(FundLabelResolution {
-                    bank_label: label,
-                    fund_id: None,
-                    suggested_fund_id: suggested_id,
-                    suggested_fund_name: suggested_name,
-                    is_confirmed: false,
-                    is_rejected: false,
-                });
-            }
-        }
-
-        Ok(resolutions)
-    }
-
-    /// Save confirmed label mappings
-    pub async fn save_label_mappings(
-        &self,
-        bank_account_id: &str,
-        mappings: Vec<(String, String)>, // (bank_label, fund_id)
-    ) -> Result<(), BankStatementReconciliationError> {
-        for (label, fund_id) in mappings {
-            self.label_mapping_repo
-                .save_mapping(bank_account_id, &label, &fund_id)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "save_label_mappings: save_mapping failed");
-                    BankStatementReconciliationTask::DatabaseError
-                })?;
-        }
-        Ok(())
-    }
-
-    /// Match resolved credit lines against unsettled FundPaymentGroups.
-    ///
-    /// A group is "unsettled" if no BankEntry exists with
-    /// source = `fund_payment_group_{group_id}`.
-    ///
-    /// Algorithm:
-    /// 1. Sort bank statement lines by date (oldest first)
-    /// 2. Iterate through date offsets from MAX_DATE_OFFSET_DAYS down to 0
-    ///    This ensures oldest lines get reconciled first with broader date tolerance,
-    ///    then progressively tighten to exact day match.
-    /// 3. For each line and offset, find the first matching unsettled group
-    pub async fn match_against_unsettled_groups(
-        &self,
-        resolved_lines: Vec<ResolvedCreditLine>,
-    ) -> Result<BankStatementMatchResult, BankStatementReconciliationError> {
-        // Filter out rejected lines
-        let mut active_lines: Vec<_> = resolved_lines
-            .into_iter()
-            .filter(|l| l.fund_id != "REJECTED")
-            .collect();
-
-        // Sort by date: oldest first
-        active_lines.sort_by(|a, b| a.date.cmp(&b.date));
-
-        // Filter to unsettled (Active) groups only — locked groups are already bank-reconciled
-        let unsettled_groups: Vec<_> = self
-            .fund_payment_service
-            .read_all_groups()
-            .await?
-            .into_iter()
-            .filter(|g| !g.is_locked)
-            .collect();
-
-        let mut matched = Vec::new();
-        let mut used_group_ids: std::collections::HashSet<String> =
-            std::collections::HashSet::new();
-        let mut matched_indices = std::collections::HashSet::new();
-
-        // Iterative matching: for each line (oldest first), find the best matching group
-        // by trying offsets from MAX_DATE_OFFSET_DAYS down to 0.
-        // This ensures:
-        // 1. Oldest lines get matched first (priority)
-        // 2. Each line gets the best available offset (broader → stricter)
-        // 3. Recent lines only get groups not taken by older lines
-        for (idx, line) in active_lines.iter().enumerate() {
-            // Parse bank line date once
-            let line_date_parsed = match chrono::NaiveDate::parse_from_str(&line.date, "%Y-%m-%d") {
-                Ok(date) => date,
-                Err(_) => continue, // Skip line with invalid date
-            };
-
-            // Try each offset from largest (most lenient) to 0 (exact day match)
-            for offset in (0..=MAX_DATE_OFFSET_DAYS).rev() {
-                // Try to find a matching group for this line at this offset
-                let mut found_match = false;
-
-                for group in &unsettled_groups {
-                    if used_group_ids.contains(&group.id) {
-                        continue;
-                    }
-
-                    // Match criteria:
-                    // 1. Same fund
-                    if group.fund_id != line.fund_id {
-                        continue;
-                    }
-
-                    // 2. Exact amount match
-                    if group.total_amount != line.amount {
-                        continue;
-                    }
-
-                    // 3. Exact date offset (group date must be 'offset' days before bank line date)
-                    if !is_exact_date_offset(line_date_parsed, group.payment_date, offset) {
-                        continue;
-                    }
-
-                    // Match found! Lock this line and group, then move to next line
-                    matched.push(BankStatementMatch {
-                        credit_line: line.clone(),
-                        group_id: group.id.clone(),
-                        group_fund_id: group.fund_id.clone(),
-                        group_payment_date: group.payment_date.format("%Y-%m-%d").to_string(),
-                        group_total_amount: group.total_amount,
-                    });
-                    used_group_ids.insert(group.id.clone());
-                    matched_indices.insert(idx);
-                    found_match = true;
-                    break; // Move to next line
-                }
-
-                // If we found a match at this offset, stop trying larger offsets
-                if found_match {
-                    break;
-                }
-            }
-        }
-
-        // Extract unmatched lines
-        let unmatched_lines = active_lines
-            .into_iter()
-            .enumerate()
-            .filter(|(idx, _)| !matched_indices.contains(idx))
-            .map(|(_, line)| line)
-            .collect();
-
-        Ok(BankStatementMatchResult {
-            matched,
-            unmatched_lines,
-        })
-    }
-
     /// Create BankTransfers for confirmed matches and update associated procedures.
     ///
     /// This method orchestrates the batch creation of bank transfers and procedure updates.
@@ -364,7 +115,10 @@ impl BankStatementOrchestrator {
     /// 1. Create a bank transfer linked to the fund payment group
     /// 2. Update all procedures in the group to Payed status
     /// 3. Update confirmed_payment_date to the bank transfer date
-    pub async fn create_transfers(
+    ///
+    /// Internal helper reused by `validate_reconciliation` (BAS-093) to commit
+    /// the per-group bank entries once the draft is recomputed server-side.
+    async fn create_transfers(
         &self,
         bank_account_id: &str,
         confirmed_matches: Vec<ConfirmedMatch>,
@@ -638,60 +392,6 @@ impl BankStatementOrchestrator {
     }
 }
 
-/// Suggest a fund based on the bank label.
-///
-/// Strategy:
-/// 1. Extract number from CPAM/CAISSE labels → match fund_identifier
-/// 2. Fuzzy name matching as fallback
-fn suggest_fund(label: &str, funds: &[Fund]) -> (Option<String>, Option<String>) {
-    // Strategy 1: Extract CPAM number
-    // Labels like "CPAM93", "CPAM94", "CPAM75PRESTATIONS"
-    let cpam_re = Regex::new(r"(?i)(?:CPAM|CAISSE)(\d+)").ok();
-    if let Some(re) = &cpam_re {
-        if let Some(caps) = re.captures(label) {
-            if let Some(num) = caps.get(1) {
-                let identifier = num.as_str();
-                // Find fund by identifier
-                if let Some(fund) = funds.iter().find(|f| f.fund_identifier == identifier) {
-                    return (Some(fund.id.clone()), Some(fund.name.clone()));
-                }
-            }
-        }
-    }
-
-    // Strategy 2: Word overlap fuzzy matching
-    let label_upper = label.to_uppercase();
-    let mut best_score = 0usize;
-    let mut best_fund: Option<&Fund> = None;
-
-    for fund in funds {
-        let fund_name_upper = fund.name.to_uppercase().replace(' ', "");
-        // Check if label contains the fund name (without spaces) or vice versa
-        let score = if label_upper.contains(&fund_name_upper) {
-            fund_name_upper.len()
-        } else if fund_name_upper.contains(&label_upper) {
-            label_upper.len()
-        } else {
-            // Count matching characters in sequence
-            label_upper
-                .chars()
-                .zip(fund_name_upper.chars())
-                .take_while(|(a, b)| a == b)
-                .count()
-        };
-
-        if score > best_score && score >= 3 {
-            best_score = score;
-            best_fund = Some(fund);
-        }
-    }
-
-    match best_fund {
-        Some(fund) => (Some(fund.id.clone()), Some(fund.name.clone())),
-        None => (None, None),
-    }
-}
-
 /// R26 — Halt the workflow with the `NO_VIR_SEPA_LINES` sentinel when the
 /// parsed statement contains no actionable VIR SEPA credit lines. The
 /// frontend matches on this exact error string to display a dedicated
@@ -706,15 +406,6 @@ fn ensure_credit_lines(
     Ok(result)
 }
 
-/// Check if bank_date is exactly 'offset' days after group_date
-fn is_exact_date_offset(
-    bank_date: chrono::NaiveDate,
-    group_date: chrono::NaiveDate,
-    offset: i64,
-) -> bool {
-    (bank_date - group_date).num_days() == offset
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -723,7 +414,8 @@ mod tests {
         MockBankEntryRepository,
     };
     use crate::context::fund::{
-        FundPaymentGroup, FundPaymentGroupStatus, MockFundPaymentRepository, MockFundRepository,
+        Fund, FundPaymentGroup, FundPaymentGroupStatus, MockFundPaymentRepository,
+        MockFundRepository,
     };
     use crate::context::procedure::{MockProcedureRepository, Procedure};
     use crate::shared::event_bus::EventBus;
@@ -939,235 +631,6 @@ mod tests {
         )
     }
 
-    // --- BankStatementReconciliationConfig ---
-
-    #[test]
-    fn config_instance_has_expected_offset() {
-        let config = BankStatementReconciliationConfig::instance();
-        assert_eq!(config.max_date_offset_days, MAX_DATE_OFFSET_DAYS as i32);
-    }
-
-    // --- match_against_unsettled_groups ---
-
-    #[tokio::test]
-    async fn match_empty_lines_returns_empty() {
-        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
-        let result = orchestrator
-            .match_against_unsettled_groups(vec![])
-            .await
-            .unwrap();
-        assert!(result.matched.is_empty());
-        assert!(result.unmatched_lines.is_empty());
-    }
-
-    #[tokio::test]
-    async fn match_rejected_line_is_filtered() {
-        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
-        let result = orchestrator
-            .match_against_unsettled_groups(vec![ResolvedCreditLine {
-                date: "2026-01-15".to_string(),
-                label: "REJECTED LINE".to_string(),
-                amount: 100_000,
-                fund_id: "REJECTED".to_string(),
-            }])
-            .await
-            .unwrap();
-        assert!(result.matched.is_empty());
-        assert!(result.unmatched_lines.is_empty());
-    }
-
-    #[tokio::test]
-    async fn match_line_with_no_groups_is_unmatched() {
-        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
-        let result = orchestrator
-            .match_against_unsettled_groups(vec![ResolvedCreditLine {
-                date: "2026-01-15".to_string(),
-                label: "CPAM93".to_string(),
-                amount: 100_000,
-                fund_id: "fund-1".to_string(),
-            }])
-            .await
-            .unwrap();
-        assert!(result.matched.is_empty());
-        assert_eq!(result.unmatched_lines.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn match_line_finds_group_with_exact_date() {
-        let group = FundPaymentGroup::restore(
-            "group-1".to_string(),
-            "fund-1".to_string(),
-            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-            100_000,
-            vec![],
-            FundPaymentGroupStatus::Active,
-        );
-        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![]);
-        let result = orchestrator
-            .match_against_unsettled_groups(vec![ResolvedCreditLine {
-                date: "2026-01-15".to_string(),
-                label: "CPAM93".to_string(),
-                amount: 100_000,
-                fund_id: "fund-1".to_string(),
-            }])
-            .await
-            .unwrap();
-        assert_eq!(result.matched.len(), 1);
-        assert_eq!(result.matched[0].group_id, "group-1");
-        assert!(result.unmatched_lines.is_empty());
-    }
-
-    #[tokio::test]
-    async fn match_line_finds_group_within_offset() {
-        let group = FundPaymentGroup::restore(
-            "group-2".to_string(),
-            "fund-1".to_string(),
-            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(), // 5 days before bank date
-            50_000,
-            vec![],
-            FundPaymentGroupStatus::Active,
-        );
-        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![]);
-        let result = orchestrator
-            .match_against_unsettled_groups(vec![ResolvedCreditLine {
-                date: "2026-01-15".to_string(), // 5 days after group date
-                label: "CPAM93".to_string(),
-                amount: 50_000,
-                fund_id: "fund-1".to_string(),
-            }])
-            .await
-            .unwrap();
-        assert_eq!(result.matched.len(), 1);
-        assert_eq!(result.matched[0].group_id, "group-2");
-    }
-
-    #[tokio::test]
-    async fn match_locked_group_is_skipped() {
-        let group = FundPaymentGroup::restore(
-            "group-locked".to_string(),
-            "fund-1".to_string(),
-            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-            100_000,
-            vec![],
-            FundPaymentGroupStatus::BankPaid, // is_locked = true
-        );
-        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![]);
-        let result = orchestrator
-            .match_against_unsettled_groups(vec![ResolvedCreditLine {
-                date: "2026-01-15".to_string(),
-                label: "CPAM93".to_string(),
-                amount: 100_000,
-                fund_id: "fund-1".to_string(),
-            }])
-            .await
-            .unwrap();
-        assert!(result.matched.is_empty());
-        assert_eq!(result.unmatched_lines.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn match_wrong_amount_not_matched() {
-        let group = FundPaymentGroup::restore(
-            "group-1".to_string(),
-            "fund-1".to_string(),
-            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-            200_000, // different amount
-            vec![],
-            FundPaymentGroupStatus::Active,
-        );
-        let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![]);
-        let result = orchestrator
-            .match_against_unsettled_groups(vec![ResolvedCreditLine {
-                date: "2026-01-15".to_string(),
-                label: "CPAM93".to_string(),
-                amount: 100_000,
-                fund_id: "fund-1".to_string(),
-            }])
-            .await
-            .unwrap();
-        assert!(result.matched.is_empty());
-        assert_eq!(result.unmatched_lines.len(), 1);
-    }
-
-    // --- resolve_fund_labels ---
-
-    #[tokio::test]
-    async fn resolve_fund_labels_no_mappings_returns_suggestion() {
-        let funds = vec![Fund::restore("f1".into(), "93".into(), "CPAM 93".into())];
-        let orchestrator = make_orchestrator_with(funds, vec![], None, vec![]);
-        let resolutions = orchestrator
-            .resolve_fund_labels("account-1", vec!["CPAM93".to_string()])
-            .await
-            .unwrap();
-        assert_eq!(resolutions.len(), 1);
-        assert!(!resolutions[0].is_confirmed);
-        assert_eq!(resolutions[0].suggested_fund_id.as_deref(), Some("f1"));
-    }
-
-    #[tokio::test]
-    async fn resolve_fund_labels_with_confirmed_mapping() {
-        let mapping = BankFundLabelMapping {
-            id: "m1".to_string(),
-            bank_account_id: "account-1".to_string(),
-            bank_label: "CPAM93".to_string(),
-            fund_id: Some("f1".to_string()),
-        };
-        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![mapping]);
-        let resolutions = orchestrator
-            .resolve_fund_labels("account-1", vec!["CPAM93".to_string()])
-            .await
-            .unwrap();
-        assert_eq!(resolutions.len(), 1);
-        assert!(resolutions[0].is_confirmed);
-        assert!(!resolutions[0].is_rejected);
-        assert_eq!(resolutions[0].fund_id.as_deref(), Some("f1"));
-    }
-
-    #[tokio::test]
-    async fn resolve_fund_labels_rejected_mapping() {
-        let mapping = BankFundLabelMapping {
-            id: "m2".to_string(),
-            bank_account_id: "account-1".to_string(),
-            bank_label: "SALAIRES".to_string(),
-            fund_id: None, // rejected
-        };
-        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![mapping]);
-        let resolutions = orchestrator
-            .resolve_fund_labels("account-1", vec!["SALAIRES".to_string()])
-            .await
-            .unwrap();
-        assert_eq!(resolutions.len(), 1);
-        assert!(resolutions[0].is_confirmed);
-        assert!(resolutions[0].is_rejected);
-    }
-
-    #[tokio::test]
-    async fn resolve_fund_labels_deduplicates_labels() {
-        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
-        let resolutions = orchestrator
-            .resolve_fund_labels(
-                "account-1",
-                vec!["CPAM93".to_string(), "CPAM93".to_string()],
-            )
-            .await
-            .unwrap();
-        assert_eq!(resolutions.len(), 1);
-    }
-
-    // --- save_label_mappings ---
-
-    #[tokio::test]
-    async fn save_label_mappings_returns_ok() {
-        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
-        let result = orchestrator
-            .save_label_mappings(
-                "account-1",
-                vec![("CPAM93".to_string(), "fund-1".to_string())],
-            )
-            .await;
-        assert!(result.is_ok());
-    }
-
     // --- resolve_bank_account_from_iban ---
 
     #[tokio::test]
@@ -1314,49 +777,6 @@ mod tests {
         assert_eq!(count, 1);
     }
 
-    #[test]
-    fn test_suggest_fund_cpam() {
-        let funds = vec![
-            Fund::restore("f1".into(), "93".into(), "CPAM 93".into()),
-            Fund::restore("f2".into(), "94".into(), "CPAM 94".into()),
-        ];
-
-        let (id, name) = suggest_fund("CPAM93", &funds);
-        assert_eq!(id.as_deref(), Some("f1"));
-        assert_eq!(name.as_deref(), Some("CPAM 93"));
-
-        let (id, _) = suggest_fund("CPAM94", &funds);
-        assert_eq!(id.as_deref(), Some("f2"));
-    }
-
-    #[test]
-    fn test_suggest_fund_cpam_with_suffix() {
-        let funds = vec![Fund::restore("f1".into(), "75".into(), "CPAM 75".into())];
-
-        let (id, _) = suggest_fund("CPAM75PRESTATIONS", &funds);
-        assert_eq!(id.as_deref(), Some("f1"));
-    }
-
-    #[test]
-    fn test_suggest_fund_no_match() {
-        let funds = vec![Fund::restore("f1".into(), "93".into(), "CPAM 93".into())];
-
-        let (id, _) = suggest_fund("XY", &funds);
-        assert!(id.is_none());
-    }
-
-    #[test]
-    fn test_suggest_fund_fuzzy_name() {
-        let funds = vec![Fund::restore(
-            "f1".into(),
-            "MGEN".into(),
-            "MUTUELLE GENERALE EDUCATION NAT".into(),
-        )];
-
-        let (id, _) = suggest_fund("MUTUELLEGENERALEEDUCATIONNAT", &funds);
-        assert_eq!(id.as_deref(), Some("f1"));
-    }
-
     // --- ensure_credit_lines (R26) ---
 
     fn empty_parse_result() -> BankStatementParseResult {
@@ -1433,19 +853,6 @@ mod tests {
         };
         let passed = ensure_credit_lines(result).expect("non-empty lines must pass through");
         assert_eq!(passed.credit_lines.len(), 1);
-    }
-
-    #[test]
-    fn test_is_exact_date_offset() {
-        let d1 = chrono::NaiveDate::from_ymd_opt(2025, 5, 5).unwrap();
-        let d2 = chrono::NaiveDate::from_ymd_opt(2025, 5, 4).unwrap();
-        let d3 = chrono::NaiveDate::from_ymd_opt(2025, 5, 1).unwrap();
-        let d4 = chrono::NaiveDate::from_ymd_opt(2025, 5, 6).unwrap();
-
-        assert!(is_exact_date_offset(d1, d1, 0));
-        assert!(is_exact_date_offset(d1, d2, 1));
-        assert!(is_exact_date_offset(d1, d3, 4));
-        assert!(!is_exact_date_offset(d1, d4, 1));
     }
 
     // =========================================================================

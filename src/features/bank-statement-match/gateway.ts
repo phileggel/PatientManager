@@ -1,15 +1,11 @@
 import {
   type BankAccount,
   type BankError,
-  type BankStatementMatchResult,
+  type BankStatementCorrection,
   type BankStatementParseResult,
-  type BankStatementReconciliationConfig,
+  type BankStatementReconciliation,
   type BankStatementReconciliationError,
-  type ConfirmedMatch,
   commands,
-  type FundLabelResolution,
-  type ResolvedCreditLine,
-  type SaveLabelMappingRequest,
 } from "@/bindings";
 import { logger } from "@/infra/logger";
 
@@ -22,6 +18,10 @@ const TAG = "[BankStatementGateway]";
 // infrastructure failure with no domain meaning — surface it as `DatabaseError`,
 // the shared infra catch-all the presenter already maps.
 const INFRA_FAILURE: BankStatementReconciliationError = { code: "DatabaseError" };
+
+// Same infra catch-all, typed as `BankError` for the create-account wrapper
+// (which surfaces the bank context's own error enum).
+const BANK_INFRA_FAILURE: BankError = { code: "DatabaseError" };
 
 /**
  * Inline create-account flow for the bank-statement import (BAS-013/014).
@@ -36,14 +36,17 @@ export async function createBankAccount(
 ): Promise<ServiceResult<BankAccount, BankError>> {
   logger.info(TAG, "Creating bank account", { name, hasIban: iban !== null });
 
-  const result = await commands.createBankAccount(name, iban);
-
-  if (result.status === "error") {
-    logger.error(TAG, "Failed to create bank account", { code: result.error.code });
-    return { success: false, error: result.error };
+  try {
+    const result = await commands.createBankAccount(name, iban);
+    if (result.status === "error") {
+      logger.error(TAG, "Failed to create bank account", { code: result.error.code });
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: result.data };
+  } catch (e) {
+    logger.error(TAG, "createBankAccount exception", { error: e });
+    return { success: false, error: BANK_INFRA_FAILURE };
   }
-
-  return { success: true, data: result.data };
 }
 
 export async function parseBankStatement(
@@ -81,88 +84,67 @@ export async function resolveBankAccountFromIban(
   }
 }
 
-export async function resolveBankFundLabels(
+/**
+ * BAS-064 — recompute the draft reconciliation from the parse result + the
+ * accumulated corrections list. Pure read-model: no writes. Passes the typed
+ * Result through unchanged (F27 layer 1); a genuine IPC throw maps to the
+ * shared `DatabaseError` infra sentinel.
+ */
+export async function computeBankStatementReconciliation(
   bankAccountId: string,
-  labels: string[],
-): Promise<ServiceResult<FundLabelResolution[], BankStatementReconciliationError>> {
-  logger.info(TAG, "Resolving fund labels", { bankAccountId, labelCount: labels.length });
-  try {
-    const result = await commands.resolveBankFundLabels(bankAccountId, labels);
-    if (result.status === "error") {
-      logger.error(TAG, "Failed to resolve fund labels", { code: result.error.code });
-      return { success: false, error: result.error };
-    }
-    return { success: true, data: result.data };
-  } catch (e) {
-    logger.error(TAG, "resolveBankFundLabels exception", { error: e });
-    return { success: false, error: INFRA_FAILURE };
-  }
-}
-
-export async function saveBankFundLabelMappings(
-  bankAccountId: string,
-  mappings: SaveLabelMappingRequest[],
-): Promise<ServiceResult<void, BankStatementReconciliationError>> {
-  logger.info(TAG, "Saving label mappings", { bankAccountId, count: mappings.length });
-  try {
-    const result = await commands.saveBankFundLabelMappings(bankAccountId, mappings);
-    if (result.status === "error") {
-      logger.error(TAG, "Failed to save label mappings", { code: result.error.code });
-      return { success: false, error: result.error };
-    }
-    return { success: true, data: undefined };
-  } catch (e) {
-    logger.error(TAG, "saveBankFundLabelMappings exception", { error: e });
-    return { success: false, error: INFRA_FAILURE };
-  }
-}
-
-export async function matchBankStatementLines(
-  resolvedLines: ResolvedCreditLine[],
-): Promise<ServiceResult<BankStatementMatchResult, BankStatementReconciliationError>> {
-  logger.info(TAG, "Matching bank statement lines", { lineCount: resolvedLines.length });
-  try {
-    const result = await commands.matchBankStatementLines(resolvedLines);
-    if (result.status === "error") {
-      logger.error(TAG, "Failed to match bank statement lines", { code: result.error.code });
-      return { success: false, error: result.error };
-    }
-    logger.info(TAG, `Matched ${result.data.matched.length} lines`);
-    return { success: true, data: result.data };
-  } catch (e) {
-    logger.error(TAG, "matchBankStatementLines exception", { error: e });
-    return { success: false, error: INFRA_FAILURE };
-  }
-}
-
-export async function createBankTransfersFromStatement(
-  bankAccountId: string,
-  confirmedMatches: ConfirmedMatch[],
-): Promise<ServiceResult<number, BankStatementReconciliationError>> {
-  logger.info(TAG, "Creating bank transfers", {
+  parseResult: BankStatementParseResult,
+  corrections: BankStatementCorrection[],
+): Promise<ServiceResult<BankStatementReconciliation, BankStatementReconciliationError>> {
+  logger.info(TAG, "Computing bank statement reconciliation", {
     bankAccountId,
-    matchCount: confirmedMatches.length,
+    correctionCount: corrections.length,
   });
   try {
-    const result = await commands.createBankTransfersFromStatement(bankAccountId, confirmedMatches);
+    const result = await commands.computeBankStatementReconciliation(
+      bankAccountId,
+      parseResult,
+      corrections,
+    );
     if (result.status === "error") {
-      logger.error(TAG, "Failed to create bank transfers", { code: result.error.code });
+      logger.error(TAG, "Failed to compute reconciliation", { code: result.error.code });
       return { success: false, error: result.error };
     }
-    logger.info(TAG, `Created ${result.data} bank transfers`);
     return { success: true, data: result.data };
   } catch (e) {
-    logger.error(TAG, "createBankTransfersFromStatement exception", { error: e });
+    logger.error(TAG, "computeBankStatementReconciliation exception", { error: e });
     return { success: false, error: INFRA_FAILURE };
   }
 }
 
-export async function getBankStatementReconciliationConfig(): Promise<BankStatementReconciliationConfig> {
-  logger.info(TAG, "Fetching bank statement reconciliation config");
-
-  // This command returns the config directly (not Result<T,E>), so no status check needed.
-  const config = await commands.getBankStatementReconciliationConfig();
-
-  logger.info(TAG, "Config fetched", config);
-  return config;
+/**
+ * BAS-063/093 — commit the reconciliation. Recomputes server-side from the
+ * corrections list, writes the bank entries, and returns the count created.
+ * Passes the typed Result through unchanged (F27 layer 1); a genuine IPC throw
+ * maps to the shared `DatabaseError` infra sentinel.
+ */
+export async function validateBankStatementReconciliation(
+  bankAccountId: string,
+  parseResult: BankStatementParseResult,
+  corrections: BankStatementCorrection[],
+): Promise<ServiceResult<number, BankStatementReconciliationError>> {
+  logger.info(TAG, "Validating bank statement reconciliation", {
+    bankAccountId,
+    correctionCount: corrections.length,
+  });
+  try {
+    const result = await commands.validateBankStatementReconciliation(
+      bankAccountId,
+      parseResult,
+      corrections,
+    );
+    if (result.status === "error") {
+      logger.error(TAG, "Failed to validate reconciliation", { code: result.error.code });
+      return { success: false, error: result.error };
+    }
+    logger.info(TAG, `Validated reconciliation: ${result.data} bank entries created`);
+    return { success: true, data: result.data };
+  } catch (e) {
+    logger.error(TAG, "validateBankStatementReconciliation exception", { error: e });
+    return { success: false, error: INFRA_FAILURE };
+  }
 }
