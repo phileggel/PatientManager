@@ -33,3 +33,11 @@ When referencing a rule in code, documentation, or tests, use the full code:
 ✅ **Correct**: "REF-010 ensures only eligible procedures can be refunded"
 ✅ **Correct**: `// Implements REF-012: validate refund date`
 ❌ **Avoid**: "R1 ensures eligibility" (ambiguous across specs)
+
+---
+
+## Reference Documents
+
+Cross-spec conventions a spec author MUST honor when the relevant trigramme is in scope.
+
+- [`reconciliation-ux-pattern.md`](reconciliation-ux-pattern.md) — **applies to FPA · BAS · BSM.** The shared reconciliation **UX** convention: whole-document list (not bit-by-bit), per-line correction modal + batch action, live update, single validate. UX converges across the flows; code stays per-bounded-context (no shared component).
