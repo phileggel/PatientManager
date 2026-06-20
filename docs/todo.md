@@ -52,14 +52,6 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 ---
 
-## (backend/fund) — Tech Debt: fund/patient creation in reconciliation feature
-
-- Currently fund/patient records are created automatically during fund-payment reconciliation.
-- Is this expected?
-- What's the right solution?
-
----
-
 ## (frontend/fund-payment-match) — Create multiple procedures during auto-correction
 
 Currently, the auto-correction flow only allows creating a single procedure. It should support creating multiple procedures in the same operation.
