@@ -8,10 +8,11 @@
  * These tests will fail until ui/ReconciliationList.tsx is created.
  */
 
-import { render } from "@testing-library/react";
+import { render, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BankStatementLine, BankStatementReconciliation } from "@/bindings";
+import type { BankStatementLine, BankStatementReconciliation, Fund } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 
 // ---------------------------------------------------------------------------
 // Mock the gateway boundary (F3 — only gateway.ts may call commands.*)
@@ -28,6 +29,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
       opts ? `${key}:${JSON.stringify(opts)}` : key,
+    i18n: { language: "fr" },
   }),
 }));
 
@@ -61,6 +63,13 @@ function makeReconciliation(
   return { lines, resolved_count: resolvedCount, needs_correction_count: needsCorrectionCount };
 }
 
+// Funds resolve linked lines' fund_id → name (fund-1 → "CPAM 75", fund-2 → "MGEN").
+// Unlinked lines (fund_id null) still render their raw bank label.
+const MOCK_FUNDS: Fund[] = [
+  { id: "fund-1", fund_identifier: "75", name: "CPAM 75", temp_id: null },
+  { id: "fund-2", fund_identifier: "93", name: "MGEN", temp_id: null },
+];
+
 const MATCHED_LINE = makeLine({ line_id: "line-1", status: "Matched" });
 const NEEDS_LINK_LINE = makeLine({
   line_id: "line-2",
@@ -93,7 +102,10 @@ const NEEDS_GROUP_LINE = makeLine({
 // ---------------------------------------------------------------------------
 
 describe("ReconciliationList — document order rendering (BAS-060)", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ funds: MOCK_FUNDS });
+  });
 
   it("renders all lines in document order with their line_id as stable id (BAS-060, F25)", () => {
     const reconciliation = makeReconciliation([MATCHED_LINE, NEEDS_LINK_LINE], 1, 1);
@@ -116,6 +128,28 @@ describe("ReconciliationList — document order rendering (BAS-060)", () => {
     expect(allLines[0]?.id).toBe("reconciliation-line-row-line-1");
     expect(allLines[1]?.id).toBe("reconciliation-line-row-line-2");
   });
+
+  it("resolves the fund name for a linked line and falls back to the bank label when unlinked", () => {
+    // line-1 (Matched) is linked to fund-1 → resolved name "CPAM 75";
+    // line-2 (NeedsLink, fund_id null) still shows its raw bank label "MGEN".
+    const reconciliation = makeReconciliation([MATCHED_LINE, NEEDS_LINK_LINE], 1, 1);
+
+    render(
+      <ReconciliationList
+        reconciliation={reconciliation}
+        onApplyCorrection={vi.fn()}
+        isBusy={false}
+      />,
+    );
+
+    const linkedRow = document.getElementById("reconciliation-line-row-line-1");
+    if (!linkedRow) throw new Error("linked row missing");
+    expect(within(linkedRow).getByText("CPAM 75")).not.toBeNull();
+
+    const unlinkedRow = document.getElementById("reconciliation-line-row-line-2");
+    if (!unlinkedRow) throw new Error("unlinked row missing");
+    expect(within(unlinkedRow).getByText("MGEN")).not.toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -123,7 +157,10 @@ describe("ReconciliationList — document order rendering (BAS-060)", () => {
 // ---------------------------------------------------------------------------
 
 describe("ReconciliationList — per-line status (BAS-061)", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ funds: MOCK_FUNDS });
+  });
 
   it("renders the status indicator for a Matched line (BAS-061)", () => {
     const reconciliation = makeReconciliation([MATCHED_LINE], 1, 0);
@@ -162,7 +199,10 @@ describe("ReconciliationList — per-line status (BAS-061)", () => {
 // ---------------------------------------------------------------------------
 
 describe("ReconciliationList — summary count (BAS-069)", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ funds: MOCK_FUNDS });
+  });
 
   it("renders a summary element with the resolved and needs-correction counts (BAS-069)", () => {
     const reconciliation = makeReconciliation([MATCHED_LINE, NEEDS_LINK_LINE], 1, 1);
@@ -202,7 +242,10 @@ describe("ReconciliationList — summary count (BAS-069)", () => {
 // ---------------------------------------------------------------------------
 
 describe("ReconciliationList — double-click opens correction modal (BAS-062)", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ funds: MOCK_FUNDS });
+  });
 
   it("calls onApplyCorrection with the line when a needs-link line is double-clicked (BAS-062)", async () => {
     const user = userEvent.setup();
@@ -298,7 +341,10 @@ describe("ReconciliationList — double-click opens correction modal (BAS-062)",
 // ---------------------------------------------------------------------------
 
 describe("ReconciliationList — wizard button (BAS-100)", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ funds: MOCK_FUNDS });
+  });
 
   it("renders the wizard launch button with stable id (BAS-100, F25)", () => {
     const reconciliation = makeReconciliation([NEEDS_LINK_LINE], 0, 1);
