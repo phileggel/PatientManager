@@ -1,8 +1,8 @@
-//! Draft model and recompute engine for the unified bank reconciliation list
-//! (BAS-060–069, BAS-090–094).
+//! Reconciliation model and recompute engine for the unified bank reconciliation
+//! list (BAS-060–069, BAS-090–094).
 //!
-//! `compute_draft` is the sole entry point: it is a pure read-only function
-//! that derives the full `ReconciliationDraft` from the parsed statement plus
+//! `compute_reconciliation` is the sole entry point: it is a pure read-only function
+//! that derives the full `BankStatementReconciliation` from the parsed statement plus
 //! an ordered list of user corrections, without writing anything to the
 //! database.
 
@@ -24,11 +24,11 @@ use crate::use_cases::bank_statement_reconciliation::{
 // Wire types — contract (BAS-060–102)
 // =============================================================================
 
-/// A user correction, replayed in order by `compute_draft` / validate.
+/// A user correction, replayed in order by `compute_reconciliation` / validate.
 /// Reverting = remove from the list and recompute (BAS-065).
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(tag = "type")]
-pub enum ReconciliationCorrection {
+pub enum BankStatementCorrection {
     /// BAS-066 / BAS-030 — link a label to a fund or mark it rejected.
     LinkFund {
         bank_label: String,
@@ -55,22 +55,22 @@ pub enum FundAssignment {
 /// The recomputed reconciliation state: every statement line with its status
 /// (BAS-061), candidate proposals, and running coverage totals.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct ReconciliationDraft {
+pub struct BankStatementReconciliation {
     /// All lines in document order (BAS-060).
-    pub lines: Vec<DraftLine>,
+    pub lines: Vec<BankStatementLine>,
     /// BAS-069 — count of lines whose status is Matched or Rejected.
     pub resolved_count: u32,
     /// BAS-069 — count of lines still needing correction.
     pub needs_correction_count: u32,
 }
 
-/// One bank credit line within the draft.
+/// One bank credit line within the reconciliation.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct DraftLine {
-    /// Stable id for this line within the draft session.
+pub struct BankStatementLine {
+    /// Stable id for this line within the reconciliation session.
     pub line_id: String,
     pub credit_line: BankStatementCreditLine,
-    pub status: DraftLineStatus,
+    pub status: BankStatementLineStatus,
     /// Resolved fund once linked; absent while needs-link.
     pub fund_id: Option<String>,
     /// 0..N assigned group ids (BAS-090).
@@ -80,7 +80,7 @@ pub struct DraftLine {
     /// BAS-092 — true when the user acknowledged the remainder.
     pub remainder_acknowledged: bool,
     /// BAS-068 — ranked candidate groups for needs-group / partial.
-    pub candidate_groups: Vec<CandidateGroup>,
+    pub candidate_groups: Vec<BankStatementCandidate>,
     /// BAS-032/066 — heuristic suggestion for the link-fund modal.
     pub suggested_fund_id: Option<String>,
     pub suggested_fund_name: Option<String>,
@@ -88,7 +88,7 @@ pub struct DraftLine {
 
 /// BAS-061 — the six per-line statuses.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub enum DraftLineStatus {
+pub enum BankStatementLineStatus {
     /// Fully covered: auto-matched 1:1, or Σ groups (+ acknowledged remainder) == line amount.
     Matched,
     /// Label not yet linked to a fund.
@@ -105,7 +105,7 @@ pub enum DraftLineStatus {
 
 /// BAS-068 — one ranked candidate group for an unresolved or partial line.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct CandidateGroup {
+pub struct BankStatementCandidate {
     pub group_id: String,
     pub fund_id: String,
     pub payment_date: String,
@@ -115,12 +115,12 @@ pub struct CandidateGroup {
 }
 
 // =============================================================================
-// Repositories needed by compute_draft (read-only)
+// Repositories needed by compute_reconciliation (read-only)
 // =============================================================================
 
-/// All repositories needed by `compute_draft` in one struct so the signature
+/// All repositories needed by `compute_reconciliation` in one struct so the signature
 /// stays manageable.
-pub struct DraftRepos<'a> {
+pub struct BankStatementReconciliationRepos<'a> {
     pub mappings: &'a [BankFundLabelMapping],
     pub groups: &'a [FundPaymentGroup],
     /// Ids of every known fund, used to reject a `LinkFund` correction that
@@ -129,7 +129,7 @@ pub struct DraftRepos<'a> {
 }
 
 // =============================================================================
-// compute_draft
+// compute_reconciliation
 // =============================================================================
 
 /// Internal working state for one line while the corrections are replayed.
@@ -148,15 +148,15 @@ struct WorkingLine {
     suggested_fund_name: Option<String>,
 }
 
-/// Compute the full reconciliation draft as a pure function of the parsed
+/// Compute the full reconciliation as a pure function of the parsed
 /// statement plus an ordered list of user corrections (BAS-064).
 ///
 /// Read-only — no DB writes.
-pub fn compute_draft(
+pub fn compute_reconciliation(
     parse_result: &BankStatementParseResult,
-    repos: &DraftRepos<'_>,
-    corrections: &[ReconciliationCorrection],
-) -> Result<ReconciliationDraft, BankStatementReconciliationError> {
+    repos: &BankStatementReconciliationRepos<'_>,
+    corrections: &[BankStatementCorrection],
+) -> Result<BankStatementReconciliation, BankStatementReconciliationError> {
     // --- 1. Seed working lines from saved mappings (BAS-061). ---
     let mut lines: Vec<WorkingLine> = parse_result
         .credit_lines
@@ -194,7 +194,7 @@ pub fn compute_draft(
     // --- 3. Replay corrections in order (BAS-064). ---
     for correction in corrections {
         match correction {
-            ReconciliationCorrection::LinkFund {
+            BankStatementCorrection::LinkFund {
                 bank_label,
                 assignment,
             } => {
@@ -211,34 +211,34 @@ pub fn compute_draft(
                     assignment,
                 );
             }
-            ReconciliationCorrection::AssignGroups { line_id, group_ids } => {
+            BankStatementCorrection::AssignGroups { line_id, group_ids } => {
                 apply_assign_groups(&mut lines, repos.groups, &mut consumed, line_id, group_ids)?;
             }
-            ReconciliationCorrection::AcknowledgeRemainder { line_id } => {
+            BankStatementCorrection::AcknowledgeRemainder { line_id } => {
                 apply_acknowledge_remainder(&mut lines, line_id)?;
             }
         }
     }
 
     // --- 4. Derive per-line status + candidates (BAS-061, BAS-068). ---
-    let draft_lines: Vec<DraftLine> = lines
+    let reconciliation_lines: Vec<BankStatementLine> = lines
         .iter()
         .map(|wl| finalize_line(wl, repos.groups, &consumed))
         .collect();
 
-    let resolved_count = draft_lines
+    let resolved_count = reconciliation_lines
         .iter()
         .filter(|l| {
             matches!(
                 l.status,
-                DraftLineStatus::Matched | DraftLineStatus::Rejected
+                BankStatementLineStatus::Matched | BankStatementLineStatus::Rejected
             )
         })
         .count() as u32;
-    let needs_correction_count = draft_lines.len() as u32 - resolved_count;
+    let needs_correction_count = reconciliation_lines.len() as u32 - resolved_count;
 
-    Ok(ReconciliationDraft {
-        lines: draft_lines,
+    Ok(BankStatementReconciliation {
+        lines: reconciliation_lines,
         resolved_count,
         needs_correction_count,
     })
@@ -335,7 +335,7 @@ fn apply_link_fund(
 
 /// BAS-067/090/091/094 — assign an explicit set of groups to one line. Empty
 /// `group_ids` unassigns (BAS-062). Rejects ineligible, already-consumed, or
-/// overflowing assignments with a typed error; the draft is left unchanged on
+/// overflowing assignments with a typed error; the reconciliation is left unchanged on
 /// rejection (validation precedes mutation).
 fn apply_assign_groups(
     lines: &mut [WorkingLine],
@@ -406,13 +406,13 @@ fn apply_acknowledge_remainder(
     Ok(())
 }
 
-/// Derive the final `DraftLine` (status + candidate proposals) from the
+/// Derive the final `BankStatementLine` (status + candidate proposals) from the
 /// working state (BAS-061, BAS-068).
 fn finalize_line(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
     consumed: &HashSet<String>,
-) -> DraftLine {
+) -> BankStatementLine {
     let line_amount = wl.credit_line.amount;
     let covered_amount: i64 = wl
         .assigned_group_ids
@@ -422,14 +422,14 @@ fn finalize_line(
         .sum();
 
     let status = if wl.rejected {
-        DraftLineStatus::Rejected
+        BankStatementLineStatus::Rejected
     } else if wl.fund_id.is_none() {
-        DraftLineStatus::NeedsLink
+        BankStatementLineStatus::NeedsLink
     } else if !wl.assigned_group_ids.is_empty() {
         if covered_amount == line_amount || wl.remainder_acknowledged {
-            DraftLineStatus::Matched
+            BankStatementLineStatus::Matched
         } else {
-            DraftLineStatus::Partial
+            BankStatementLineStatus::Partial
         }
     } else {
         // Fund known, no groups assigned: NeedsGroup if a candidate exists,
@@ -437,16 +437,16 @@ fn finalize_line(
         let outstanding = line_amount - covered_amount;
         let has_candidate = !candidate_groups(wl, groups, consumed, outstanding).is_empty();
         if has_candidate {
-            DraftLineStatus::NeedsGroup
+            BankStatementLineStatus::NeedsGroup
         } else {
-            DraftLineStatus::Unresolved
+            BankStatementLineStatus::Unresolved
         }
     };
 
     let outstanding = line_amount - covered_amount;
     let candidate_groups = candidate_groups(wl, groups, consumed, outstanding);
 
-    DraftLine {
+    BankStatementLine {
         line_id: wl.line_id.clone(),
         credit_line: wl.credit_line.clone(),
         status,
@@ -468,7 +468,7 @@ fn candidate_groups(
     groups: &[FundPaymentGroup],
     consumed: &HashSet<String>,
     outstanding: i64,
-) -> Vec<CandidateGroup> {
+) -> Vec<BankStatementCandidate> {
     let Some(fund_id) = wl.fund_id.as_deref() else {
         return Vec::new();
     };
@@ -476,7 +476,7 @@ fn candidate_groups(
         return Vec::new();
     };
 
-    let mut candidates: Vec<(i64, CandidateGroup)> = groups
+    let mut candidates: Vec<(i64, BankStatementCandidate)> = groups
         .iter()
         .filter(|g| {
             !g.is_locked
@@ -491,7 +491,7 @@ fn candidate_groups(
             }
             Some((
                 offset,
-                CandidateGroup {
+                BankStatementCandidate {
                     group_id: g.id.clone(),
                     fund_id: g.fund_id.clone(),
                     payment_date: g.payment_date.format("%Y-%m-%d").to_string(),
@@ -517,7 +517,7 @@ mod tests {
     use super::*;
 
     // A `LinkFund` correction referencing a fund id absent from the known funds
-    // is rejected with `FundNotFound`, leaving compute_draft to surface the
+    // is rejected with `FundNotFound`, leaving compute_reconciliation to surface the
     // typed error rather than silently linking a phantom fund.
     #[test]
     fn link_fund_to_unknown_fund_returns_fund_not_found() {
@@ -533,19 +533,19 @@ mod tests {
             unparsed_count: 0,
         };
         let valid_fund_ids: HashSet<String> = std::iter::once("fund-1".to_string()).collect();
-        let repos = DraftRepos {
+        let repos = BankStatementReconciliationRepos {
             mappings: &[],
             groups: &[],
             valid_fund_ids: &valid_fund_ids,
         };
-        let corrections = vec![ReconciliationCorrection::LinkFund {
+        let corrections = vec![BankStatementCorrection::LinkFund {
             bank_label: "CPAM93".to_string(),
             assignment: FundAssignment::Fund {
                 fund_id: "fund-unknown".to_string(),
             },
         }];
 
-        let err = compute_draft(&parse_result, &repos, &corrections)
+        let err = compute_reconciliation(&parse_result, &repos, &corrections)
             .expect_err("LinkFund to an unknown fund must be rejected");
         assert!(matches!(
             err,
