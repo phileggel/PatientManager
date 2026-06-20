@@ -1,7 +1,7 @@
 # Contract — Bank Statement Auto-Match
 
 > Domain: bank-statement-auto-match
-> Last updated by: bank_statement_reconciliation typed-error migration
+> Last updated by: bank-reconciliation draft-UX rework (BAS-060–102)
 
 > Wire errors are the composite `BankStatementReconciliationError` (untagged union of `BankError`, `FundError`, and the use-case `BankStatementReconciliationTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
@@ -29,7 +29,9 @@ Resolves the practitioner's `BankAccount` from the IBAN extracted by `parse_bank
 
 ---
 
-### `resolve_bank_fund_labels` — R5, R6, R8
+### `resolve_bank_fund_labels` — R5, R6, R8 — **SUPERSEDED** by `compute_bank_reconciliation_draft`
+
+> Absorbed into the draft engine: the initial draft applies saved mappings + heuristic suggestions itself, and each needs-link line carries its suggestion. No longer a separate frontend command.
 
 Step 3 of the workflow. For each raw label extracted from the statement, looks up any saved mapping for this bank account (pre-fill, R5) and runs the heuristic fund-matching algorithm for unknown labels (suggestion, R6). Rejected labels are flagged via `is_rejected` (R8). Always called after `resolve_bank_account_from_iban` succeeds.
 
@@ -39,7 +41,9 @@ Step 3 of the workflow. For each raw label extracted from the statement, looks u
 
 ---
 
-### `save_bank_fund_label_mappings` — R9
+### `save_bank_fund_label_mappings` — R9 — **SUPERSEDED** by `validate_bank_reconciliation`
+
+> Mapping upsert now happens at validate (BAS-035), atomic with the commit. No separate save step.
 
 Persists the full set of label→fund assignments validated by the user at the mapping step. Each entry is upserted keyed on `(bank_account_id, bank_label)`. Rejected labels are stored as `"REJECTED"` (converted to NULL in the DB). Always called before `match_bank_statement_lines`.
 
@@ -49,7 +53,9 @@ Persists the full set of label→fund assignments validated by the user at the m
 
 ---
 
-### `match_bank_statement_lines` — R10, R11, R12, R13, R14
+### `match_bank_statement_lines` — R10, R11, R12, R13, R14 — **SUPERSEDED** by `compute_bank_reconciliation_draft`
+
+> The auto-match runs inside the draft computation (initial pass, before corrections). No longer a separate frontend command.
 
 Pure in-memory matching algorithm — no DB writes. Sorts resolved credit lines by ascending date (R12), then matches each line against unsettled `FundPaymentGroup`s on three criteria: same fund, equal amount, bank date within the date tolerance window (R10, R11). Each line and group can only be matched once (R14). Already bank-reconciled groups are excluded (R13). Returns matched and unmatched lines for user review.
 
@@ -59,7 +65,9 @@ Pure in-memory matching algorithm — no DB writes. Sorts resolved credit lines 
 
 ---
 
-### `create_bank_transfers_from_statement` — R19, R20, R21, R22
+### `create_bank_transfers_from_statement` — R19, R20, R21, R22 — **SUPERSEDED** by `validate_bank_reconciliation`
+
+> Replaced by validate, which recomputes the draft server-side from `corrections[]`, upserts label mappings, and creates N transfers per multi-group line (BAS-093). Never trusts an FE-supplied match list.
 
 Final step. For each confirmed match, creates one `BankEntry` (R19), updates all procedures in the group to their terminal status (`FundPaid` / `PartiallyFundPaid`, R20), and locks the group (`BankPaid`, R21–R22). Returns the count of `BankEntry` records created.
 
@@ -78,6 +86,26 @@ Returns the backend matching configuration. Used by the frontend for two purpose
 - **Args:** —
 - **Returns:** `BankStatementReconciliationConfig`
 - **Errors:** —
+
+---
+
+### `compute_bank_reconciliation_draft` — BAS-060–069, BAS-090–092, BAS-094
+
+The draft engine. Computes the full reconciliation draft as a pure function of the parsed statement plus an ordered list of correction commands. Reads live unsettled `FundPaymentGroup`s and saved label mappings, applies heuristic suggestions, runs the auto-match (BAS-050–054) for the initial pass, then **replays every correction in order** — link-fund cascade (BAS-066), group assignment with consumption (BAS-067, BAS-090), remainder acknowledgment (BAS-092) — re-deriving each line's status and candidate proposals. Read-only: no DB writes; the draft is never persisted (ephemeral, BAS-064). The frontend re-calls this on every correction and every revert (BAS-065 = drop a command and recompute).
+
+- **Args:** `bank_account_id: String, parse_result: BankStatementParseResult, corrections: Vec<ReconciliationCorrection>`
+- **Returns:** `ReconciliationDraft`
+- **Errors:** `AssignmentOverflow` (BAS-094 — assigned groups exceed the line amount), `GroupNotEligible` (BAS-090 — group fails fund/date/already-settled criteria), `GroupAlreadyConsumed` (BAS-067 — group assigned to another line), `LineNotFound`, `FundNotFound`, `DatabaseError`
+
+---
+
+### `validate_bank_reconciliation` — BAS-063, BAS-035, BAS-070–073, BAS-093
+
+Commits the draft. **Recomputes the draft server-side** from `corrections[]` (never trusts FE-side state), then in one pass: upserts the label mappings implied by link-fund corrections (BAS-035), and for every resolved line creates one `BankEntry` per assigned group (N per multi-group line, BAS-093), moves the group's procedures to their terminal status (`FundPaid` / `PartiallyFundPaid`, BAS-071), and locks the group (`BankPaid`, BAS-072–073). Unresolved/needs-\* lines are skipped (BAS-063); acknowledged remainders create nothing (BAS-092). Writes are **not** wrapped in a single transaction (deferred UoW — see spec Accepted Limitations / ADR-003). Returns the count of `BankEntry` records created.
+
+- **Args:** `bank_account_id: String, parse_result: BankStatementParseResult, corrections: Vec<ReconciliationCorrection>`
+- **Returns:** `u32` — count of `BankEntry` records created
+- **Errors:** `AssignmentOverflow`, `GroupNotEligible`, `GroupAlreadyConsumed`, `BankAccountNotFound`, `AmountNotPositive`, `InvalidTransferDateFormat`, `FundNotFound`, `DatabaseError`
 
 ---
 
@@ -151,14 +179,72 @@ struct ConfirmedMatch {
 struct BankStatementReconciliationConfig {
     max_date_offset_days: i32,   // maximum days the bank date may follow the group payment date
 }
+
+// BAS-060–102: draft model — all of the following are ephemeral (never persisted)
+
+// One user correction, replayed in order by compute_bank_reconciliation_draft / validate.
+// Reverting a correction = removing it from the list and recomputing (BAS-065).
+enum ReconciliationCorrection {
+    LinkFund { bank_label: String, assignment: FundAssignment }, // BAS-066, BAS-030
+    AssignGroups { line_id: String, group_ids: Vec<String> },    // 1..N groups; empty = unassign/override auto-match (BAS-062, BAS-090)
+    AcknowledgeRemainder { line_id: String },                    // mark the uncovered portion accepted (BAS-092)
+}
+
+// BAS-030/066 — a label is linked to a fund, or explicitly marked not-a-fund-payment.
+// Typed variant rather than a "REJECTED" string sentinel (tightens the ADR-001 weakness on this new surface).
+enum FundAssignment {
+    Fund { fund_id: String },
+    Rejected,
+}
+
+// The recomputed reconciliation state: every statement line with its resolved status.
+struct ReconciliationDraft {
+    lines: Vec<DraftLine>,
+    resolved_count: u32,        // BAS-069 — running summary
+    needs_correction_count: u32,
+}
+
+// One bank credit line within the draft, in document order (BAS-060).
+struct DraftLine {
+    line_id: String,            // stable id for the line within this draft session
+    credit_line: BankStatementCreditLine,
+    status: DraftLineStatus,    // BAS-061
+    fund_id: Option<String>,    // resolved fund once linked; absent while needs-link
+    assigned_group_ids: Vec<String>,  // BAS-090 — 0..N
+    covered_amount: i64,        // BAS-091 — Σ assigned group amounts
+    remainder_acknowledged: bool,     // BAS-092
+    candidate_groups: Vec<CandidateGroup>, // BAS-068 — ranked proposals for needs-group/partial
+    suggested_fund_id: Option<String>,     // BAS-066/032 — heuristic, for the link-fund modal
+    suggested_fund_name: Option<String>,
+}
+
+// BAS-061 — the per-line status set
+enum DraftLineStatus {
+    Matched,     // auto-matched or fully assigned (covered == line amount)
+    NeedsLink,   // label not yet linked to a fund
+    NeedsGroup,  // fund known, no group assigned
+    Partial,     // some groups assigned, line not yet fully covered
+    Rejected,    // label marked not-a-fund-payment (BAS-030)
+    Unresolved,  // linked but no eligible group and not acknowledged
+}
+
+// BAS-068 — a ranked candidate group for an unresolved/partial line
+struct CandidateGroup {
+    group_id: String,
+    fund_id: String,
+    payment_date: String,
+    total_amount: i64,
+    is_exact_amount: bool,      // exact match against the line's outstanding amount (ranked first)
+}
 ```
 
 ## Events
 
-| Event              | Trigger                                                                                                  |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `ProcedureUpdated` | After `create_bank_transfers_from_statement` — procedures move to `FundPaid` / `PartiallyFundPaid` (R20) |
-| `BankEntryUpdated` | After `create_bank_transfers_from_statement` — new `BankEntry` records created (R19)                     |
+| Event                     | Trigger                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `ProcedureUpdated`        | After `validate_bank_reconciliation` — procedures move to `FundPaid` / `PartiallyFundPaid` (BAS-071)     |
+| `BankEntryUpdated`        | After `validate_bank_reconciliation` — new `BankEntry` records created, N per multi-group line (BAS-093) |
+| `FundPaymentGroupUpdated` | After `validate_bank_reconciliation` — settled groups move to `BankPaid` and lock (BAS-072–073)          |
 
 ## Changelog
 
@@ -166,3 +252,4 @@ struct BankStatementReconciliationConfig {
 - 2026-04-29 — Deep review applied: added per-command intent and spec rule tracing, UL discrepancy note on create_bank_transfers_from_statement, GroupNotFound and InvalidDateFormat errors, ConfirmedMatch field origins, get_bank_statement_reconciliation_config frontend usage documented
 - 2026-05-04 — Inline create flow (BAS-011..017): resolve_bank_account_from_iban description updated — `None` now drives the frontend inline create form rather than a dead-end. Rule reference R1 → BAS-010. No new commands; uses existing `create_bank_account` (see bank-contract.md).
 - 2026-06-09 — Typed-error migration: per-command Errors columns now list the real wire-visible `BankStatementReconciliationError` variant codes (`BankError`/`FundError`/`BankStatementReconciliationTask`), replacing the pre-implementation aspirational names. `NoVirSepaLines` → `NoSepaCreditLines`.
+- 2026-06-20 — Draft-UX rework (BAS-060–102): added `compute_bank_reconciliation_draft` and `validate_bank_reconciliation`; superseded `resolve_bank_fund_labels`, `save_bank_fund_label_mappings`, `match_bank_statement_lines`, `create_bank_transfers_from_statement` (absorbed into the two new commands — collapse confirmed by user). Added draft types (`ReconciliationCorrection`, `ReconciliationDraft`, `DraftLine`, `DraftLineStatus`, `CandidateGroup`), new error variants (`AssignmentOverflow`, `GroupNotEligible`, `GroupAlreadyConsumed`), and `FundPaymentGroupUpdated` event. Validate recomputes server-side from `corrections[]`; writes non-atomic (deferred UoW). `LinkFund` uses a typed `FundAssignment` (`Fund | Rejected`) instead of a `"REJECTED"` string sentinel; `AssignGroups` with an empty set means unassign / override an auto-match (BAS-062).

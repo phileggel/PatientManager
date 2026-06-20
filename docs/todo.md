@@ -97,3 +97,9 @@ Streamline how a user sends support data to the maintainer. Today it's a manual 
 **GDPR (health data):** consent prompt before a bundle includes the DB; minimize (Tier 1 by default, Tier 2 only on request); retention / auto-delete; a short privacy note.
 
 Deferred decisions: exact diagnostic field list, log-line count, support-code format, Tier-2 transport (drop-link vs gated R2), retention window. Spec via `/spec-writer` when scheduled.
+
+---
+
+## (frontend/bank) — Standalone bank label-mapping review surface
+
+Saved `BankFundLabelMapping` records (bank label → fund, per ADR-001) are today **only** editable inside the bank-statement import flow — there is no standalone management surface (the `ManagementModal` covers patients, funds, procedure types, bank accounts, fund payments, but not label mappings; no list/delete command is exposed). Surfaced during the bank-reconciliation draft-UX rework (`feat/bank-reconciliation-draft-ux`), where the in-flow mapping step folds into the unified list — in-flow revision is preserved, but there's still no way to proactively review/fix a wrong mapping without re-importing. Add a `ManagementModal` "Bank label mappings" section: list saved mappings per account, edit the fund (or rejected) assignment, delete a mapping. Backend repo already supports listing (`label_mapping_repo` "find all active mappings"); needs list + delete commands + UI. Priority: low — convenience, no functional gap (in-flow revision works).
