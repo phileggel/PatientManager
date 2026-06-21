@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-06-21
+
+### Added
+
+- flag overdue procedures with a warning row
+  Overdue is derived live in the frontend — a CREATED procedure dated
+  before the latest fund-reconciled procedure — not a persisted status.
+  Kept out of ProcedureStatus to avoid feeding the status conflation;
+  no backend, contract, or migration change.
+- render reconciliation list as a table for column alignment
+  Grid auto-columns let amounts float; a real table with date/fund/amount/
+  status columns + headers right-aligns the amount column on a shared edge.
+  Row + status stable ids unchanged.
+- one-line reconciliation rows with gold status badge
+  Each line is now a single row — date · fund name · amount · status — with
+  the fund name resolved from cache and locale-formatted amounts. The four
+  correction-needed statuses render as a gold (m3-tertiary) badge so the
+  lines to tackle stand out at a glance; resolved lines stay subdued.
+- unified reconciliation list + correction modals + wizard
+  Frontend half (PR 2 of 3) of the bank-reconciliation rework: replaces the
+  stepwise import wizard with a unified document-order list driven by the
+  recompute engine — per-line correction modals (link-fund/assign-groups/
+  remainder), guided wizard, and revert. Also lands the BE+FE removal of the
+  now-superseded commands (label-mapping/match/create-transfers/config).
+- reconciliation draft engine + validate command
+  Backend half (PR 1, additive) of the bank-reconciliation rework: a pure
+  recompute engine computing the per-line draft from the parsed statement +
+  an ordered correction list, plus a validate command that recomputes
+  server-side before committing. The 4 stepwise commands stay registered so
+  the current FE still compiles; they're removed in PR 2 with the FE rework.
+- reversible corrections + explicit validate
+  Supersede FPA-460: validation no longer auto-fires when the last anomaly
+  resolves, which left no window to review or undo a correction. Corrections
+  now stage in memory and stay reversible (Modify) until one explicit Validate
+  applies the batch. Frontend-only — persistence already deferred to validate.
+- wire typed reconciliation errors through F27
+  FE half of the fund_payment_reconciliation typed-error migration. The 4 fallible gateway commands return ServiceResult<T, FundPaymentReconciliationError> (typed pass-through, no longer throwing the error code); a new shared/errorPresenter.ts maps each code to an i18n key; useReconciliationModal routes errors through it to t(key). Adds en+fr error keys and gateway/presenter/hook tests. The 2 report fns stay throwing (deferred fund_payment_report_pdf). No .tsx/.css change.
+
+### Fixed
+
+- restore heuristic suggestion + broaden/hide-resolved/revert
+  spec-checker closure gate caught 4 spec gaps the rework left: the fund
+  heuristic suggestion (BAS-032) was dropped when resolve_fund_labels
+  collapsed into the engine — restored + now carried on every needs-link
+  line; plus the missing BAS-068 broaden affordance (BE broadened_candidates
+
+* FE toggle), BAS-069 hide-resolved filter, and BAS-065 revert-any-correction.
+
+- select import modal by stable id, not role attribute
+  Native <dialog> carries the role implicitly — the attribute selector
+  stopped matching after ADR-008 and broke the post-merge E2E run.
+- resolve npm audit findings in E2E dev chain
+  serialize-javascript forced to 7.0.5 via overrides (mocha pins ^6);
+  ws bumped in-range. npm audit now reports 0 vulnerabilities.
+- toast delete errors in hook instead of throwing
+  The thrown presenter message was caught and re-wrapped by the component
+  ("Failed to delete payment group: Error: ...") — double-framed and off the
+  sibling toast-in-hook pattern. The dialog now stays open on failure (boolean
+  return). Also fixes the test file's dead @ui/components mock specifier, which
+  had silently never applied. Closes the 2026-06-08 tech-debt entry.
+
 ## [0.18.1] - 2026-06-07
 
 ### Fixed
