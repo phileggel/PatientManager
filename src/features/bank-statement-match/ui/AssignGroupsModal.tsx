@@ -31,7 +31,11 @@ function rankCandidates(candidates: BankStatementCandidate[]): BankStatementCand
  */
 export function AssignGroupsModal({ line, isOpen, onSubmit, onCancel }: AssignGroupsModalProps) {
   const { t } = useTranslation("bank");
-  const ranked = useMemo(() => rankCandidates(line.candidate_groups), [line.candidate_groups]);
+  const [broadened, setBroadened] = useState(false);
+  // BAS-068 — default to the fund-filtered set; broadening swaps in the
+  // fund-agnostic superset (same date tolerance) the backend provides.
+  const source = broadened ? line.broadened_candidates : line.candidate_groups;
+  const ranked = useMemo(() => rankCandidates(source), [source]);
   const [selected, setSelected] = useState<string[]>([]);
 
   const coveredAmount = ranked
@@ -64,6 +68,21 @@ export function AssignGroupsModal({ line, isOpen, onSubmit, onCancel }: AssignGr
             total: toEuros(lineAmount),
           })}
         </output>
+
+        <div className="flex justify-end">
+          <Button
+            id="assign-groups-broaden"
+            variant="secondary"
+            aria-pressed={broadened}
+            onClick={() => setBroadened((prev) => !prev)}
+          >
+            {t(
+              broadened
+                ? "reconciliation.assign_groups.broaden_off"
+                : "reconciliation.assign_groups.broaden_on",
+            )}
+          </Button>
+        </div>
 
         <ul className="flex flex-col gap-1">
           {ranked.map((candidate) => (

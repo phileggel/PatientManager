@@ -46,6 +46,7 @@ function makeNeedsLinkLine(id: string, label: string): BankStatementLine {
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [],
+    broadened_candidates: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
   };
@@ -69,6 +70,7 @@ function makeNeedsGroupLine(id: string): BankStatementLine {
         is_exact_amount: true,
       },
     ],
+    broadened_candidates: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
   };
@@ -199,6 +201,7 @@ describe("ReconciliationWizard — BAS-100–103", () => {
         covered_amount: 150000,
         remainder_acknowledged: false,
         candidate_groups: [],
+        broadened_candidates: [],
         suggested_fund_id: null,
         suggested_fund_name: null,
       },

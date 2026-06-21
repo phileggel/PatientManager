@@ -49,6 +49,7 @@ function makeLine(overrides: Partial<BankStatementLine>): BankStatementLine {
     covered_amount: 150000,
     remainder_acknowledged: false,
     candidate_groups: [],
+    broadened_candidates: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
     ...overrides,
@@ -382,5 +383,84 @@ describe("ReconciliationList — wizard button (BAS-100)", () => {
     await user.click(wizardBtn);
 
     expect(onOpenWizard).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BAS-069 — hide-resolved filter
+// ---------------------------------------------------------------------------
+
+describe("ReconciliationList — hide-resolved filter (BAS-069)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ funds: MOCK_FUNDS });
+  });
+
+  it("hides Matched/Rejected rows but keeps correction-needed rows when toggled (BAS-069)", async () => {
+    const user = userEvent.setup();
+    const REJECTED_LINE = makeLine({
+      line_id: "line-rejected",
+      status: "Rejected",
+      fund_id: null,
+    });
+    // Mixed list: resolved (Matched, Rejected) + correction-needed (NeedsLink, NeedsGroup).
+    const reconciliation = makeReconciliation(
+      [MATCHED_LINE, NEEDS_LINK_LINE, REJECTED_LINE, NEEDS_GROUP_LINE],
+      2,
+      2,
+    );
+
+    render(
+      <ReconciliationList
+        reconciliation={reconciliation}
+        onApplyCorrection={vi.fn()}
+        isBusy={false}
+      />,
+    );
+
+    // All four rows visible by default.
+    expect(document.getElementById("reconciliation-line-row-line-1")).not.toBeNull();
+    expect(document.getElementById("reconciliation-line-row-line-rejected")).not.toBeNull();
+
+    const toggle = document.getElementById("reconciliation-hide-resolved");
+    expect(toggle).not.toBeNull();
+    if (!toggle) throw new Error("hide-resolved toggle missing");
+
+    await user.click(toggle);
+
+    // Resolved rows hidden; correction-needed rows still shown.
+    expect(document.getElementById("reconciliation-line-row-line-1")).toBeNull();
+    expect(document.getElementById("reconciliation-line-row-line-rejected")).toBeNull();
+    expect(document.getElementById("reconciliation-line-row-line-2")).not.toBeNull();
+    expect(document.getElementById("reconciliation-line-row-line-3")).not.toBeNull();
+
+    // The summary count is unaffected by the filter.
+    expect(document.getElementById("reconciliation-summary")?.textContent).toMatch(/2/);
+  });
+
+  it("preserves document order among the shown rows when filtering (BAS-060/069)", async () => {
+    const user = userEvent.setup();
+    // Order: NeedsLink, Matched, NeedsGroup — after hiding Matched, NeedsLink stays before NeedsGroup.
+    const reconciliation = makeReconciliation(
+      [NEEDS_LINK_LINE, MATCHED_LINE, NEEDS_GROUP_LINE],
+      1,
+      2,
+    );
+
+    render(
+      <ReconciliationList
+        reconciliation={reconciliation}
+        onApplyCorrection={vi.fn()}
+        isBusy={false}
+      />,
+    );
+
+    const toggle = document.getElementById("reconciliation-hide-resolved");
+    if (!toggle) throw new Error("hide-resolved toggle missing");
+    await user.click(toggle);
+
+    const shown = document.querySelectorAll("[id^='reconciliation-line-row-']");
+    expect(shown[0]?.id).toBe("reconciliation-line-row-line-2");
+    expect(shown[1]?.id).toBe("reconciliation-line-row-line-3");
   });
 });

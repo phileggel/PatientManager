@@ -84,6 +84,7 @@ function makeLine(overrides: Partial<BankStatementLine>): BankStatementLine {
     covered_amount: 150000,
     remainder_acknowledged: false,
     candidate_groups: [],
+    broadened_candidates: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
     ...overrides,
@@ -339,6 +340,51 @@ describe("ReconciliationView — modal routing by line status (BAS-062)", () => 
     expect(document.getElementById("remainder-modal-confirm")).toBeNull();
   });
 
+  // BAS-033 — the heuristic suggestion populated on a needs-link line flows
+  // through ReconciliationView → LinkFundModal and renders as helper text.
+  it("renders the heuristic suggestion in LinkFundModal when the line carries one (BAS-033)", async () => {
+    const user = userEvent.setup();
+    const SUGGESTED_LINE = makeLine({
+      line_id: "line-needs-link",
+      credit_line: { date: "2026-04-11", label: "CPAM75", amount: 75000 },
+      status: "NeedsLink",
+      fund_id: null,
+      assigned_group_ids: [],
+      covered_amount: 0,
+      suggested_fund_id: "fund-1",
+      suggested_fund_name: "CPAM 75",
+    });
+    mockCompute.mockResolvedValue({
+      success: true,
+      data: makeReconciliation([SUGGESTED_LINE]),
+    });
+
+    render(
+      <ReconciliationView
+        bankAccountId={BANK_ACCOUNT_ID}
+        parseResult={PARSE_RESULT}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(document.getElementById("reconciliation-line-row-line-needs-link")).not.toBeNull();
+    });
+
+    const lineEl = document.getElementById("reconciliation-line-row-line-needs-link");
+    if (!lineEl) throw new Error("line row element missing");
+    await user.dblClick(lineEl);
+
+    // The suggestion helper text rendered, and the fund select stays empty (BAS-033).
+    const suggestionEl = document.getElementById("link-fund-modal-suggestion");
+    expect(suggestionEl).not.toBeNull();
+    expect(suggestionEl?.textContent).toContain("CPAM 75");
+    const fundSelect = document.getElementById(
+      "link-fund-modal-fund-select",
+    ) as HTMLSelectElement | null;
+    expect(fundSelect?.value).toBe("");
+  });
+
   it("opens RemainderModal when a Partial line is double-clicked (BAS-062)", async () => {
     const user = userEvent.setup();
     mockCompute.mockResolvedValue({
@@ -509,6 +555,68 @@ describe("ReconciliationView — applyCorrection from modal (BAS-064)", () => {
     // Modal closes — fund select no longer in DOM
     await waitFor(() => {
       expect(document.getElementById("link-fund-modal-fund-select")).toBeNull();
+    });
+  });
+
+  // BAS-065 — applied corrections are listed, each with a revert button that
+  // drops it and recomputes.
+  it("lists an applied correction and reverts it on revert-button click (BAS-065)", async () => {
+    const user = userEvent.setup();
+    const AFTER_CORRECTION = makeReconciliation([{ ...NEEDS_LINK_LINE, status: "NeedsGroup" }]);
+
+    mockCompute
+      .mockResolvedValueOnce({ success: true, data: makeReconciliation([NEEDS_LINK_LINE]) }) // mount
+      .mockResolvedValueOnce({ success: true, data: AFTER_CORRECTION }) // after LinkFund
+      .mockResolvedValueOnce({ success: true, data: makeReconciliation([NEEDS_LINK_LINE]) }); // after revert
+
+    render(
+      <ReconciliationView
+        bankAccountId={BANK_ACCOUNT_ID}
+        parseResult={PARSE_RESULT}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(document.getElementById("reconciliation-line-row-line-needs-link")).not.toBeNull();
+    });
+
+    // No corrections yet → no applied-corrections list.
+    expect(document.getElementById("applied-corrections")).toBeNull();
+
+    // Apply a LinkFund correction via the modal.
+    const lineEl = document.getElementById("reconciliation-line-row-line-needs-link");
+    if (!lineEl) throw new Error("line row element missing");
+    await user.dblClick(lineEl);
+    const fundSelect = document.getElementById("link-fund-modal-fund-select");
+    if (!fundSelect) throw new Error("fund select missing");
+    await userEvent.selectOptions(fundSelect, "fund-1");
+    const submitBtn = document.getElementById("link-fund-modal-submit");
+    if (!submitBtn) throw new Error("submit button missing");
+    await user.click(submitBtn);
+
+    // The applied-corrections list now shows the correction with a revert button.
+    await waitFor(() => {
+      expect(document.getElementById("applied-corrections")).not.toBeNull();
+      expect(document.getElementById("correction-revert-0")).not.toBeNull();
+    });
+
+    const computeCallsBefore = mockCompute.mock.calls.length;
+
+    // Click the revert button → recompute with the correction removed.
+    const revertBtn = document.getElementById("correction-revert-0");
+    if (!revertBtn) throw new Error("revert button missing");
+    await user.click(revertBtn);
+
+    await waitFor(() => {
+      expect(mockCompute.mock.calls.length).toBe(computeCallsBefore + 1);
+      // Last recompute carries an empty corrections list (the only correction was reverted).
+      expect(mockCompute.mock.calls.at(-1)?.[2]).toEqual([]);
+    });
+
+    // The applied-corrections list disappears once empty.
+    await waitFor(() => {
+      expect(document.getElementById("applied-corrections")).toBeNull();
     });
   });
 

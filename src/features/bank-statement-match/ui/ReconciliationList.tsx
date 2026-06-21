@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankStatementLine, BankStatementReconciliation } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
@@ -32,6 +33,13 @@ export function ReconciliationList({
   const { t } = useTranslation("bank");
   const { formatCurrency, formatDate } = useFormatters();
   const funds = useCacheStore((s) => s.funds);
+  // BAS-069 — optional filter hiding resolved (Matched / Rejected) rows; the
+  // underlying document order of the shown rows is untouched.
+  const [hideResolved, setHideResolved] = useState(false);
+
+  const visibleLines = hideResolved
+    ? reconciliation.lines.filter((line) => lineStatusTone(line.status) !== "resolved")
+    : reconciliation.lines;
 
   // Resolved fund name once linked; the raw bank label while still needs-link.
   const fundName = (line: BankStatementLine): string =>
@@ -48,16 +56,30 @@ export function ReconciliationList({
             needsCorrection: reconciliation.needs_correction_count,
           })}
         </output>
-        {onOpenWizard && (
-          <Button
-            id="reconciliation-wizard-btn"
-            variant="primary"
-            onClick={onOpenWizard}
-            disabled={isBusy}
+        <div className="flex items-center gap-3">
+          <label
+            htmlFor="reconciliation-hide-resolved"
+            className="flex items-center gap-2 text-sm text-m3-on-surface-variant cursor-pointer"
           >
-            {t("reconciliation.wizard.open")}
-          </Button>
-        )}
+            <input
+              id="reconciliation-hide-resolved"
+              type="checkbox"
+              checked={hideResolved}
+              onChange={(e) => setHideResolved(e.target.checked)}
+            />
+            {t("reconciliation.hide_resolved")}
+          </label>
+          {onOpenWizard && (
+            <Button
+              id="reconciliation-wizard-btn"
+              variant="primary"
+              onClick={onOpenWizard}
+              disabled={isBusy}
+            >
+              {t("reconciliation.wizard.open")}
+            </Button>
+          )}
+        </div>
       </div>
 
       <table className="w-full text-sm border-collapse">
@@ -70,7 +92,7 @@ export function ReconciliationList({
           </tr>
         </thead>
         <tbody>
-          {reconciliation.lines.map((line) => {
+          {visibleLines.map((line) => {
             const attention = lineStatusTone(line.status) === "attention";
             return (
               <tr
