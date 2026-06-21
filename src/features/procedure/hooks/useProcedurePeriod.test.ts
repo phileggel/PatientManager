@@ -28,6 +28,7 @@ describe("useProcedurePeriod", () => {
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
+        isOverdue: false,
         paidAmount: null,
       },
       {
@@ -51,6 +52,7 @@ describe("useProcedurePeriod", () => {
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
+        isOverdue: false,
         paidAmount: null,
       },
       {
@@ -74,6 +76,7 @@ describe("useProcedurePeriod", () => {
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
+        isOverdue: false,
         paidAmount: null,
       },
     ];
@@ -108,6 +111,7 @@ describe("useProcedurePeriod", () => {
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
+        isOverdue: false,
         paidAmount: null,
       },
       {
@@ -131,6 +135,7 @@ describe("useProcedurePeriod", () => {
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
+        isOverdue: false,
         paidAmount: null,
       },
       {
@@ -154,6 +159,7 @@ describe("useProcedurePeriod", () => {
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
+        isOverdue: false,
         paidAmount: null,
       },
     ];
@@ -191,6 +197,7 @@ describe("useProcedurePeriod", () => {
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
+        isOverdue: false,
         paidAmount: null,
       },
       {
@@ -214,6 +221,7 @@ describe("useProcedurePeriod", () => {
         confirmedPaymentDate: null,
         awaitedAmount: null,
         status: "CREATED",
+        isOverdue: false,
         paidAmount: null,
       },
     ];

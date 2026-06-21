@@ -566,6 +566,12 @@
     @apply bg-m3-secondary-container hover:bg-m3-secondary-container;
   }
 
+  /* PRO-320 — overdue warning row: low-opacity amber/gold tint, distinct from
+     the full-strength tertiary-container used by the PRO-090 reconciled badge. */
+  .m3-tr-warning {
+    @apply bg-m3-tertiary-container/35 hover:bg-m3-tertiary-container/45;
+  }
+
   .m3-td {
     @apply px-6 py-2 text-sm text-m3-on-surface-variant align-middle;
   }

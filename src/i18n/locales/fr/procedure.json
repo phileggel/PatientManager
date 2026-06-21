@@ -77,6 +77,9 @@
     "overpaid": "Trop-perçu",
     "overpayment_refund": "Remboursement"
   },
+  "overdue": {
+    "row_title": "En retard — devrait normalement déjà être réglé"
+  },
   "filter": {
     "placeholder": "Filtrer par patient...",
     "empty_search": "Aucun résultat pour cette recherche",

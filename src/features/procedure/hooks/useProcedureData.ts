@@ -4,7 +4,7 @@ import type { ProcedureOrchestrationError } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import * as gateway from "../api/gateway";
-import type { ProcedureRow } from "../model";
+import { markOverdueRows, type ProcedureRow } from "../model";
 import { toProcedureRow } from "../model/procedure-row.mapper";
 import { formatProcedureOrchestrationError } from "../shared/presenter";
 
@@ -47,7 +47,8 @@ export function useProcedureData() {
         toProcedureRow(proc, { patients: p, funds: f, procedureTypes: pt }),
       );
 
-      setInitialRows(mappedRows);
+      // PRO-310 — flag overdue over the full set, before any period filter.
+      setInitialRows(markOverdueRows(mappedRows));
       setIsLoading(false);
     };
 

@@ -32,6 +32,10 @@ export interface ProcedureRow {
   awaitedAmount: number | null;
   status: string | null;
 
+  // PRO-310 — derived UI flag: true when this CREATED procedure predates the
+  // global reconciliation high-water mark. Emphasis only; never persisted.
+  isOverdue: boolean;
+
   // Procedure database ID
   id?: string;
 }
@@ -77,6 +81,23 @@ export function isOverpaidStatus(status: string | null): boolean {
 /** Returns true if the procedure is the mirror refund procedure (REF-090). */
 export function isOverpaymentRefundStatus(status: string | null): boolean {
   return status === "OVERPAYMENT_REFUND";
+}
+
+// PRO-310 — statuses that count as fund-reconciled for the overdue high-water
+// mark. Direct payments (`DIRECTLY_PAID`, `IMPORT_DIRECTLY_PAID`) and the
+// overpayment end-states (`OVERPAID`, `OVERPAYMENT_REFUND`) are deliberately
+// excluded — they do not define the normal fund-payment frontier.
+const FUND_RECONCILED_STATUSES = new Set<ProcedureStatus>([
+  "RECONCILED",
+  "PARTIALLY_RECONCILED",
+  "FUND_PAID",
+  "PARTIALLY_FUND_PAID",
+  "IMPORT_FUND_PAID",
+]);
+
+/** Returns true if the procedure has been fund-reconciled (PRO-310). */
+export function isFundReconciledStatus(status: string | null): boolean {
+  return status != null && FUND_RECONCILED_STATUSES.has(status as ProcedureStatus);
 }
 
 /**

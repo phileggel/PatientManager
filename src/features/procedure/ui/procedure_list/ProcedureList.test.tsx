@@ -159,4 +159,45 @@ describe("ProcedureList", () => {
     // Unknown method falls through the `??` to render the raw value
     expect(screen.getByText("WEIRD_METHOD")).toBeInTheDocument();
   });
+
+  test("overdue row (PRO-320) carries the warning class, data marker, and translated title", () => {
+    const overdue = makeProcedureRow({
+      rowId: "r-overdue",
+      id: "p-overdue",
+      patientName: "Old Act",
+      status: "CREATED",
+      isOverdue: true,
+    });
+    const normal = makeProcedureRow({
+      rowId: "r-normal",
+      id: "p-normal",
+      patientName: "Recent Act",
+      status: "CREATED",
+      isOverdue: false,
+    });
+    const { container } = render(
+      <ProcedureList rows={[overdue, normal]} onEdit={vi.fn()} onDelete={vi.fn()} />,
+    );
+
+    const overdueRows = container.querySelectorAll('tbody tr[data-overdue="true"]');
+    expect(overdueRows.length).toBe(1);
+    const overdueTr = overdueRows[0];
+    expect(overdueTr).toHaveAttribute("id", "procedure-row-p-overdue"); // F25 stable row id
+    expect(overdueTr).toHaveClass("m3-tr-warning");
+    expect(overdueTr).toHaveAttribute("title", "Overdue — should normally have been paid by now");
+    // Screen-reader affordance: an sr-only span echoes the reason next to the badge.
+    expect(overdueTr?.querySelector(".sr-only")?.textContent).toBe(
+      "Overdue — should normally have been paid by now",
+    );
+    // Badge is unaffected — an overdue row still shows the CREATED status badge.
+    expect(overdueTr?.textContent).toContain("Created");
+
+    // The non-overdue row gets no marker, no warning tint, no title.
+    const normalTr = Array.from(container.querySelectorAll("tbody tr")).find((tr) =>
+      tr.textContent?.includes("Recent Act"),
+    );
+    expect(normalTr).not.toHaveClass("m3-tr-warning");
+    expect(normalTr).not.toHaveAttribute("data-overdue");
+    expect(normalTr).not.toHaveAttribute("title");
+  });
 });

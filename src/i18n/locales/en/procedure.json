@@ -77,6 +77,9 @@
     "overpaid": "Overpaid",
     "overpayment_refund": "Refund"
   },
+  "overdue": {
+    "row_title": "Overdue — should normally have been paid by now"
+  },
   "filter": {
     "placeholder": "Filter by patient...",
     "empty_search": "No results matching your search",

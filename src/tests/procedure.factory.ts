@@ -49,6 +49,7 @@ export function makeProcedureRow(overrides?: Partial<ProcedureRow>): ProcedureRo
     paidAmount: null,
     awaitedAmount: 50,
     status: "CREATED",
+    isOverdue: false,
     id: "procedure-1",
     ...overrides,
   };
