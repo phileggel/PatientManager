@@ -1,6 +1,7 @@
 {
   "reconciliation": {
     "summary": "{{resolved}} resolved, {{needsCorrection}} to correct",
+    "hide_resolved": "Hide resolved lines",
     "status": {
       "matched": "Matched",
       "needs_link": "Needs link",
@@ -27,6 +28,8 @@
     "assign_groups": {
       "title": "Assign groups to \"{{label}}\"",
       "balance": "Covered {{covered}} of {{total}}",
+      "broaden_on": "Search all funds",
+      "broaden_off": "Limit to this fund",
       "cancel": "Cancel",
       "submit": "Assign"
     },
@@ -35,6 +38,18 @@
       "amount": "Uncovered remainder: {{amount}}",
       "cancel": "Cancel",
       "confirm": "Acknowledge"
+    },
+    "applied_corrections": {
+      "title": "Applied corrections",
+      "revert": "Undo",
+      "revert_aria": "Revert this correction"
+    },
+    "correction": {
+      "link_fund": "Linked \"{{label}}\" to a fund",
+      "link_fund_rejected": "Marked \"{{label}}\" as not a fund",
+      "assign_groups": "Assigned {{count}} group(s) to line {{line}}",
+      "unassign_groups": "Unassigned line {{line}}",
+      "acknowledge_remainder": "Acknowledged remainder on line {{line}}"
     },
     "wizard": {
       "open": "Guided correction",

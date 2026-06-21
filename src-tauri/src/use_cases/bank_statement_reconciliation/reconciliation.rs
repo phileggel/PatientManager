@@ -12,7 +12,7 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::context::fund::FundPaymentGroup;
+use crate::context::fund::{Fund, FundPaymentGroup};
 use crate::use_cases::bank_statement_reconciliation::{
     bank_pdf_codec::{BankStatementCreditLine, BankStatementParseResult},
     error::{BankStatementReconciliationError, BankStatementReconciliationTask},
@@ -79,8 +79,12 @@ pub struct BankStatementLine {
     pub covered_amount: i64,
     /// BAS-092 — true when the user acknowledged the remainder.
     pub remainder_acknowledged: bool,
-    /// BAS-068 — ranked candidate groups for needs-group / partial.
+    /// BAS-068 — ranked candidate groups for needs-group / partial,
+    /// filtered to the line's fund (the default view).
     pub candidate_groups: Vec<BankStatementCandidate>,
+    /// BAS-068 — ranked candidate groups across ALL funds (same date
+    /// tolerance, not locked/consumed); shown when the user broadens the search.
+    pub broadened_candidates: Vec<BankStatementCandidate>,
     /// BAS-032/066 — heuristic suggestion for the link-fund modal.
     pub suggested_fund_id: Option<String>,
     pub suggested_fund_name: Option<String>,
@@ -123,9 +127,10 @@ pub struct BankStatementCandidate {
 pub struct BankStatementReconciliationRepos<'a> {
     pub mappings: &'a [BankFundLabelMapping],
     pub groups: &'a [FundPaymentGroup],
-    /// Ids of every known fund, used to reject a `LinkFund` correction that
-    /// references a fund that does not exist (`FundNotFound`).
-    pub valid_fund_ids: &'a HashSet<String>,
+    /// Every known fund. Used to reject a `LinkFund` correction that references a
+    /// fund that does not exist (`FundNotFound`) and to drive the heuristic
+    /// fund suggestion on unmapped labels (BAS-032).
+    pub funds: &'a [Fund],
 }
 
 // =============================================================================
@@ -171,6 +176,12 @@ pub fn compute_reconciliation(
                 },
                 None => (None, false),
             };
+            // BAS-032 — for an unmapped label (no saved mapping), run the
+            // heuristic to surface a suggestion for the link-fund modal.
+            let (suggested_fund_id, suggested_fund_name) = match mapping {
+                None => suggest_fund(&cl.label, repos.funds),
+                Some(_) => (None, None),
+            };
             WorkingLine {
                 line_id: format!("line-{idx}"),
                 line_date: NaiveDate::parse_from_str(&cl.date, "%Y-%m-%d").ok(),
@@ -179,8 +190,8 @@ pub fn compute_reconciliation(
                 rejected,
                 assigned_group_ids: Vec::new(),
                 remainder_acknowledged: false,
-                suggested_fund_id: None,
-                suggested_fund_name: None,
+                suggested_fund_id,
+                suggested_fund_name,
             }
         })
         .collect();
@@ -199,7 +210,7 @@ pub fn compute_reconciliation(
                 assignment,
             } => {
                 if let FundAssignment::Fund { fund_id } = assignment {
-                    if !repos.valid_fund_ids.contains(fund_id) {
+                    if !repos.funds.iter().any(|f| &f.id == fund_id) {
                         return Err(BankStatementReconciliationTask::FundNotFound.into());
                     }
                 }
@@ -445,6 +456,9 @@ fn finalize_line(
 
     let outstanding = line_amount - covered_amount;
     let candidate_groups = candidate_groups(wl, groups, consumed, outstanding);
+    // BAS-068 — broadened set: same date tolerance + eligibility, but across all
+    // funds (no fund filter). Superset shown when the user broadens the search.
+    let broadened_candidates = broadened_candidates(wl, groups, consumed, outstanding);
 
     BankStatementLine {
         line_id: wl.line_id.clone(),
@@ -455,6 +469,7 @@ fn finalize_line(
         covered_amount,
         remainder_acknowledged: wl.remainder_acknowledged,
         candidate_groups,
+        broadened_candidates,
         suggested_fund_id: wl.suggested_fund_id.clone(),
         suggested_fund_name: wl.suggested_fund_name.clone(),
     }
@@ -462,7 +477,7 @@ fn finalize_line(
 
 /// BAS-068 — rank eligible candidate groups for a line: same fund, not
 /// locked/consumed, within date tolerance, amount ≤ outstanding (BAS-090).
-/// Ordered exact-amount first, then by date proximity.
+/// Ordered exact-amount first, then by date proximity (the default view).
 fn candidate_groups(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
@@ -472,6 +487,32 @@ fn candidate_groups(
     let Some(fund_id) = wl.fund_id.as_deref() else {
         return Vec::new();
     };
+    rank_candidates(wl, groups, consumed, outstanding, |g| g.fund_id == fund_id)
+}
+
+/// BAS-068 — the broadened set: identical eligibility and ranking to
+/// `candidate_groups` but WITHOUT the fund filter (all funds), shown when the
+/// user broadens the search beyond the line's fund. Same date tolerance applies.
+fn broadened_candidates(
+    wl: &WorkingLine,
+    groups: &[FundPaymentGroup],
+    consumed: &HashSet<String>,
+    outstanding: i64,
+) -> Vec<BankStatementCandidate> {
+    rank_candidates(wl, groups, consumed, outstanding, |_| true)
+}
+
+/// Shared eligibility filter + ranking for candidate proposals (BAS-068). A
+/// group is eligible when it is not locked, not already consumed, within the
+/// date tolerance window, amount ≤ outstanding (BAS-090), and passes the
+/// caller-supplied `fund_filter`. Ordered exact-amount first, then nearest date.
+fn rank_candidates(
+    wl: &WorkingLine,
+    groups: &[FundPaymentGroup],
+    consumed: &HashSet<String>,
+    outstanding: i64,
+    fund_filter: impl Fn(&FundPaymentGroup) -> bool,
+) -> Vec<BankStatementCandidate> {
     let Some(line_date) = wl.line_date else {
         return Vec::new();
     };
@@ -481,7 +522,7 @@ fn candidate_groups(
         .filter(|g| {
             !g.is_locked
                 && !consumed.contains(&g.id)
-                && g.fund_id == fund_id
+                && fund_filter(g)
                 && g.total_amount <= outstanding
         })
         .filter_map(|g| {
@@ -512,9 +553,76 @@ fn candidate_groups(
     candidates.into_iter().map(|(_, c)| c).collect()
 }
 
+/// BAS-032 — heuristic fund suggestion for an unmapped label, in priority order:
+/// first prefixed extraction (`CPAM`/`CAISSE` + digits matched against a fund's
+/// `fund_identifier`), then a name-match fallback scored with a minimum of 3.
+/// Informational only (never pre-selected, BAS-033).
+fn suggest_fund(label: &str, funds: &[Fund]) -> (Option<String>, Option<String>) {
+    // Strategy 1: prefixed extraction — CPAM/CAISSE + digits → fund_identifier (BAS-032 §1)
+    let cpam_re = regex::Regex::new(r"(?i)(?:CPAM|CAISSE)(\d+)").ok();
+    if let Some(re) = &cpam_re {
+        if let Some(caps) = re.captures(label) {
+            if let Some(num) = caps.get(1) {
+                let identifier = num.as_str();
+                if let Some(fund) = funds.iter().find(|f| f.fund_identifier == identifier) {
+                    return (Some(fund.id.clone()), Some(fund.name.clone()));
+                }
+            }
+        }
+    }
+    // Strategy 2: name-match fallback, min score 3 (BAS-032 §2)
+    let label_upper = label.to_uppercase();
+    let mut best_score = 0usize;
+    let mut best_fund: Option<&Fund> = None;
+    for fund in funds {
+        let fund_name_upper = fund.name.to_uppercase().replace(' ', "");
+        let score = if label_upper.contains(&fund_name_upper) {
+            fund_name_upper.len()
+        } else if fund_name_upper.contains(&label_upper) {
+            label_upper.len()
+        } else {
+            label_upper
+                .chars()
+                .zip(fund_name_upper.chars())
+                .take_while(|(a, b)| a == b)
+                .count()
+        };
+        if score > best_score && score >= 3 {
+            best_score = score;
+            best_fund = Some(fund);
+        }
+    }
+    match best_fund {
+        Some(fund) => (Some(fund.id.clone()), Some(fund.name.clone())),
+        None => (None, None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::fund::{FundPaymentGroup, FundPaymentGroupStatus};
+
+    fn fund(id: &str, identifier: &str, name: &str) -> Fund {
+        Fund {
+            id: id.to_string(),
+            fund_identifier: identifier.to_string(),
+            name: name.to_string(),
+            temp_id: None,
+        }
+    }
+
+    fn group(id: &str, fund_id: &str, date: &str, amount: i64) -> FundPaymentGroup {
+        FundPaymentGroup {
+            id: id.to_string(),
+            fund_id: fund_id.to_string(),
+            payment_date: NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
+            total_amount: amount,
+            lines: Vec::new(),
+            status: FundPaymentGroupStatus::Active,
+            is_locked: false,
+        }
+    }
 
     // A `LinkFund` correction referencing a fund id absent from the known funds
     // is rejected with `FundNotFound`, leaving compute_reconciliation to surface the
@@ -532,11 +640,11 @@ mod tests {
             total_credits: 100_000,
             unparsed_count: 0,
         };
-        let valid_fund_ids: HashSet<String> = std::iter::once("fund-1".to_string()).collect();
+        let funds = vec![fund("fund-1", "1", "CPAM Paris")];
         let repos = BankStatementReconciliationRepos {
             mappings: &[],
             groups: &[],
-            valid_fund_ids: &valid_fund_ids,
+            funds: &funds,
         };
         let corrections = vec![BankStatementCorrection::LinkFund {
             bank_label: "CPAM93".to_string(),
@@ -551,5 +659,114 @@ mod tests {
             err,
             BankStatementReconciliationError::Task(BankStatementReconciliationTask::FundNotFound)
         ));
+    }
+
+    // BAS-032 §1 — an unmapped label "CPAM93" resolves to the fund whose
+    // fund_identifier is exactly "93" via prefixed extraction.
+    #[test]
+    fn suggest_fund_prefixed_extraction_matches_identifier() {
+        let funds = vec![
+            fund("fund-93", "93", "CPAM Seine-Saint-Denis"),
+            fund("fund-75", "75", "CPAM Paris"),
+        ];
+        let (id, name) = suggest_fund("CPAM93", &funds);
+        assert_eq!(id.as_deref(), Some("fund-93"));
+        assert_eq!(name.as_deref(), Some("CPAM Seine-Saint-Denis"));
+    }
+
+    // BAS-032 §2 — when no prefixed identifier matches, the name-match fallback
+    // (score ≥ 3) selects the best-scoring fund.
+    #[test]
+    fn suggest_fund_name_match_fallback() {
+        let funds = vec![fund("fund-mut", "999", "MUTUELLE GENERALE")];
+        let (id, _) = suggest_fund("MUTUELLEGENERALEEDUCATION", &funds);
+        assert_eq!(id.as_deref(), Some("fund-mut"));
+    }
+
+    // BAS-032 — a label that neither carries a matching identifier nor scores ≥3
+    // against any fund name yields no suggestion.
+    #[test]
+    fn suggest_fund_no_match_returns_none() {
+        let funds = vec![fund("fund-75", "75", "CPAM Paris")];
+        let (id, name) = suggest_fund("XY", &funds);
+        assert_eq!(id, None);
+        assert_eq!(name, None);
+    }
+
+    // BAS-032 — the heuristic suggestion flows through finalize_line onto the
+    // wire for an unmapped (needs-link) line.
+    #[test]
+    fn unmapped_line_carries_heuristic_suggestion() {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let funds = vec![fund("fund-93", "93", "CPAM Seine-Saint-Denis")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &[],
+            groups: &[],
+            funds: &funds,
+        };
+
+        let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
+        let line = &recon.lines[0];
+        assert_eq!(line.status, BankStatementLineStatus::NeedsLink);
+        assert_eq!(line.suggested_fund_id.as_deref(), Some("fund-93"));
+        assert_eq!(
+            line.suggested_fund_name.as_deref(),
+            Some("CPAM Seine-Saint-Denis")
+        );
+    }
+
+    // BAS-068 — broadened_candidates surfaces an eligible group from a DIFFERENT
+    // fund (within date tolerance) that the fund-filtered candidate_groups set
+    // excludes.
+    #[test]
+    fn broadened_candidates_include_other_fund_group() {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        // Line is linked to fund-93 via a saved mapping, but the only eligible
+        // group within date tolerance belongs to fund-75.
+        let mappings = vec![BankFundLabelMapping {
+            id: "map-1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-93".to_string()),
+        }];
+        let groups = vec![group("grp-75", "fund-75", "2026-01-15", 100_000)];
+        let funds = vec![
+            fund("fund-93", "93", "CPAM Seine-Saint-Denis"),
+            fund("fund-75", "75", "CPAM Paris"),
+        ];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+        };
+
+        let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
+        let line = &recon.lines[0];
+        // Fund-filtered view excludes the fund-75 group.
+        assert!(line.candidate_groups.is_empty());
+        // Broadened view surfaces it.
+        assert_eq!(line.broadened_candidates.len(), 1);
+        assert_eq!(line.broadened_candidates[0].group_id, "grp-75");
+        assert_eq!(line.broadened_candidates[0].fund_id, "fund-75");
     }
 }

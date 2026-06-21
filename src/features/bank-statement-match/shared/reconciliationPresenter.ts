@@ -1,4 +1,8 @@
-import type { BankStatementLineStatus, BankStatementReconciliationError } from "@/bindings";
+import type {
+  BankStatementCorrection,
+  BankStatementLineStatus,
+  BankStatementReconciliationError,
+} from "@/bindings";
 
 /** Euros (two decimals) from a thousandths-of-a-euro amount, for inline display. */
 export function toEuros(thousandths: number): string {
@@ -48,6 +52,46 @@ export function lineStatusTone(status: BankStatementLineStatus): "attention" | "
     case "Partial":
     case "Unresolved":
       return "attention";
+  }
+}
+
+/**
+ * BAS-065 — a one-line human description of an applied correction, for the
+ * revertable applied-corrections list. Pure: maps each correction variant to a
+ * namespace-qualified i18n key plus its interpolation params. Exhaustive over
+ * the three correction variants (no `default`) so a new wire variant fails to
+ * compile here. `AssignGroups` with an empty set is an unassign override (BAS-062).
+ */
+export function presentCorrection(correction: BankStatementCorrection): {
+  key: string;
+  params: Record<string, string | number>;
+} {
+  switch (correction.type) {
+    case "LinkFund":
+      return correction.assignment.type === "Rejected"
+        ? {
+            key: "bank:reconciliation.correction.link_fund_rejected",
+            params: { label: correction.bank_label },
+          }
+        : {
+            key: "bank:reconciliation.correction.link_fund",
+            params: { label: correction.bank_label },
+          };
+    case "AssignGroups":
+      return correction.group_ids.length === 0
+        ? {
+            key: "bank:reconciliation.correction.unassign_groups",
+            params: { line: correction.line_id },
+          }
+        : {
+            key: "bank:reconciliation.correction.assign_groups",
+            params: { line: correction.line_id, count: correction.group_ids.length },
+          };
+    case "AcknowledgeRemainder":
+      return {
+        key: "bank:reconciliation.correction.acknowledge_remainder",
+        params: { line: correction.line_id },
+      };
   }
 }
 

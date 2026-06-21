@@ -1083,9 +1083,15 @@ covered_amount: number;
  */
 remainder_acknowledged: boolean; 
 /**
- * BAS-068 — ranked candidate groups for needs-group / partial.
+ * BAS-068 — ranked candidate groups for needs-group / partial,
+ * filtered to the line's fund (the default view).
  */
 candidate_groups: BankStatementCandidate[]; 
+/**
+ * BAS-068 — ranked candidate groups across ALL funds (same date
+ * tolerance, not locked/consumed); shown when the user broadens the search.
+ */
+broadened_candidates: BankStatementCandidate[]; 
 /**
  * BAS-032/066 — heuristic suggestion for the link-fund modal.
  */

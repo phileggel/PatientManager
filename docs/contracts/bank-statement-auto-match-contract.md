@@ -213,7 +213,8 @@ struct BankStatementLine {
     assigned_group_ids: Vec<String>,  // BAS-090 — 0..N
     covered_amount: i64,        // BAS-091 — Σ assigned group amounts
     remainder_acknowledged: bool,     // BAS-092
-    candidate_groups: Vec<BankStatementCandidate>, // BAS-068 — ranked proposals for needs-group/partial
+    candidate_groups: Vec<BankStatementCandidate>, // BAS-068 — ranked proposals for needs-group/partial, fund-filtered (default view)
+    broadened_candidates: Vec<BankStatementCandidate>, // BAS-068 — same proposals across ALL funds (date tolerance kept); shown on "broaden"
     suggested_fund_id: Option<String>,     // BAS-066/032 — heuristic, for the link-fund modal
     suggested_fund_name: Option<String>,
 }

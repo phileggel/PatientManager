@@ -20,6 +20,7 @@ export interface UseBankStatementReconciliationReturn {
   error: BankStatementReconciliationError | null;
   applyCorrection: (correction: BankStatementCorrection) => Promise<void>;
   revert: () => Promise<void>;
+  revertCorrection: (index: number) => Promise<void>;
   validate: () => Promise<number | null>;
 }
 
@@ -30,7 +31,8 @@ export interface UseBankStatementReconciliationReturn {
  * - `applyCorrection`: append, recompute; the correction is only committed and
  *   the draft only advanced when compute succeeds (BAS-064 — a failing
  *   correction leaves the prior draft intact).
- * - `revert`: drop the last correction and recompute (BAS-065); no-op when empty.
+ * - `revertCorrection`: drop the i-th correction and recompute (BAS-065); no-op
+ *   for an out-of-range index. `revert` is the last-correction shorthand.
  * - `validate`: commit server-side; returns the created BankEntry count or null.
  */
 export function useBankStatementReconciliation(
@@ -87,15 +89,23 @@ export function useBankStatementReconciliation(
     [recompute],
   );
 
-  const revert = useCallback(async () => {
-    const current = correctionsRef.current;
-    if (current.length === 0) return;
-    const next = current.slice(0, -1);
-    const ok = await recompute(next);
-    if (ok) {
-      setCorrections(next);
-    }
-  }, [recompute]);
+  const revertCorrection = useCallback(
+    async (index: number) => {
+      const current = correctionsRef.current;
+      if (index < 0 || index >= current.length) return;
+      const next = current.filter((_, i) => i !== index);
+      const ok = await recompute(next);
+      if (ok) {
+        setCorrections(next);
+      }
+    },
+    [recompute],
+  );
+
+  const revert = useCallback(
+    () => revertCorrection(correctionsRef.current.length - 1),
+    [revertCorrection],
+  );
 
   const validate = useCallback(async (): Promise<number | null> => {
     setIsBusy(true);
@@ -117,5 +127,14 @@ export function useBankStatementReconciliation(
     }
   }, [bankAccountId, parseResult]);
 
-  return { reconciliation, corrections, isBusy, error, applyCorrection, revert, validate };
+  return {
+    reconciliation,
+    corrections,
+    isBusy,
+    error,
+    applyCorrection,
+    revert,
+    revertCorrection,
+    validate,
+  };
 }

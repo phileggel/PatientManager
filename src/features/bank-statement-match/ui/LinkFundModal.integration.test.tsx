@@ -53,6 +53,7 @@ function makeNeedsLinkLine(overrides: Partial<BankStatementLine> = {}): BankStat
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [],
+    broadened_candidates: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
     ...overrides,

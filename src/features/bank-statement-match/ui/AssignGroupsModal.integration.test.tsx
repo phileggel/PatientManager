@@ -69,6 +69,7 @@ function makeNeedsGroupLine(overrides: Partial<BankStatementLine> = {}): BankSta
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [CANDIDATE_EXACT, CANDIDATE_PARTIAL],
+    broadened_candidates: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
     ...overrides,
@@ -210,6 +211,41 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       line_id: "line-needs-group",
       group_ids: [],
     });
+  });
+
+  // BAS-068 — the broaden toggle swaps the fund-filtered set for the fund-agnostic
+  // superset, revealing a candidate from a different fund not in the default list.
+  it("reveals a different-fund candidate when the broaden toggle is on (BAS-068)", async () => {
+    const user = userEvent.setup();
+    const OTHER_FUND_CANDIDATE: BankStatementCandidate = {
+      group_id: "group-other-fund",
+      fund_id: "fund-2",
+      payment_date: "2026-04-07",
+      total_amount: 150000,
+      is_exact_amount: true,
+    };
+    const line = makeNeedsGroupLine({
+      candidate_groups: [CANDIDATE_EXACT],
+      broadened_candidates: [CANDIDATE_EXACT, OTHER_FUND_CANDIDATE],
+    });
+
+    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+    // Default (fund-filtered): the other-fund candidate is NOT shown.
+    expect(document.getElementById("assign-groups-candidate-group-other-fund")).toBeNull();
+
+    const broadenBtn = document.getElementById("assign-groups-broaden");
+    expect(broadenBtn).not.toBeNull();
+    if (!broadenBtn) throw new Error("broaden toggle missing");
+
+    await user.click(broadenBtn);
+
+    // Broadened: the other-fund candidate now appears.
+    expect(document.getElementById("assign-groups-candidate-group-other-fund")).not.toBeNull();
+
+    // Toggling off restores the fund-filtered set.
+    await user.click(broadenBtn);
+    expect(document.getElementById("assign-groups-candidate-group-other-fund")).toBeNull();
   });
 
   it("calls onCancel and does not call onSubmit when cancel is clicked", async () => {

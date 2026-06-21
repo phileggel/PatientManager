@@ -1,6 +1,7 @@
 {
   "reconciliation": {
     "summary": "{{resolved}} résolue(s), {{needsCorrection}} à corriger",
+    "hide_resolved": "Masquer les lignes résolues",
     "status": {
       "matched": "Rapprochée",
       "needs_link": "À associer",
@@ -27,6 +28,8 @@
     "assign_groups": {
       "title": "Affecter des groupes à « {{label}} »",
       "balance": "Couvert {{covered}} sur {{total}}",
+      "broaden_on": "Chercher dans toutes les caisses",
+      "broaden_off": "Limiter à cette caisse",
       "cancel": "Annuler",
       "submit": "Affecter"
     },
@@ -35,6 +38,18 @@
       "amount": "Reliquat non couvert : {{amount}}",
       "cancel": "Annuler",
       "confirm": "Accepter"
+    },
+    "applied_corrections": {
+      "title": "Corrections appliquées",
+      "revert": "Annuler",
+      "revert_aria": "Annuler cette correction"
+    },
+    "correction": {
+      "link_fund": "« {{label}} » associé à une caisse",
+      "link_fund_rejected": "« {{label}} » marqué comme non-caisse",
+      "assign_groups": "{{count}} groupe(s) affecté(s) à la ligne {{line}}",
+      "unassign_groups": "Ligne {{line}} désaffectée",
+      "acknowledge_remainder": "Reliquat accepté sur la ligne {{line}}"
     },
     "wizard": {
       "open": "Correction guidée",

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankStatementLine, BankStatementParseResult } from "@/bindings";
 import { Button } from "@/ui/components/button";
-import { presentReconciliationError } from "../shared/reconciliationPresenter";
+import { presentCorrection, presentReconciliationError } from "../shared/reconciliationPresenter";
 import { AssignGroupsModal } from "./AssignGroupsModal";
 import { ErrorStep } from "./ErrorStep";
 import { LinkFundModal } from "./LinkFundModal";
@@ -33,8 +33,15 @@ export function ReconciliationView({
   onClose,
 }: ReconciliationViewProps) {
   const { t } = useTranslation("bank");
-  const { reconciliation, isBusy, error, applyCorrection, validate } =
-    useBankStatementReconciliation(bankAccountId, parseResult);
+  const {
+    reconciliation,
+    corrections,
+    isBusy,
+    error,
+    applyCorrection,
+    revertCorrection,
+    validate,
+  } = useBankStatementReconciliation(bankAccountId, parseResult);
 
   const [activeLine, setActiveLine] = useState<BankStatementLine | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -78,6 +85,38 @@ export function ReconciliationView({
         isBusy={isBusy}
         onOpenWizard={() => setIsWizardOpen(true)}
       />
+
+      {/* BAS-065 — applied corrections, each revertable. */}
+      {corrections.length > 0 && (
+        <div id="applied-corrections">
+          <h3 className="text-sm font-medium text-m3-on-surface-variant mb-2">
+            {t("reconciliation.applied_corrections.title")}
+          </h3>
+          <ul className="flex flex-col gap-1">
+            {corrections.map((correction, index) => {
+              const { key, params } = presentCorrection(correction);
+              return (
+                <li
+                  // biome-ignore lint/suspicious/noArrayIndexKey: corrections are an ordered append-only log; the index IS the stable identity (BAS-065 revert removes by index).
+                  key={index}
+                  className="flex items-center justify-between gap-3 text-sm text-m3-on-surface"
+                >
+                  <span>{t(key, params)}</span>
+                  <Button
+                    id={`correction-revert-${index}`}
+                    variant="secondary"
+                    aria-label={t("reconciliation.applied_corrections.revert_aria")}
+                    disabled={isBusy}
+                    onClick={() => void revertCorrection(index)}
+                  >
+                    {t("reconciliation.applied_corrections.revert")}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {error && <ErrorStep error={t(presentReconciliationError(error).key)} />}
 

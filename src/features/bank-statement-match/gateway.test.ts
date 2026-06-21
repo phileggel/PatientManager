@@ -158,6 +158,7 @@ const RECONCILIATION_FIXTURE: BankStatementReconciliation = {
       covered_amount: 150000,
       remainder_acknowledged: false,
       candidate_groups: [],
+      broadened_candidates: [],
       suggested_fund_id: null,
       suggested_fund_name: null,
     },

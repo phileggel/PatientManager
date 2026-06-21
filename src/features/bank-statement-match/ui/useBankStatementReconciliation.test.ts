@@ -266,6 +266,68 @@ describe("useBankStatementReconciliation — revert (BAS-065)", () => {
   });
 });
 
+describe("useBankStatementReconciliation — revertCorrection (BAS-065)", () => {
+  const ACKNOWLEDGE_CORRECTION: BankStatementCorrection = {
+    type: "AcknowledgeRemainder",
+    line_id: "line-1",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCompute.mockResolvedValue({ success: true, data: INITIAL_RECONCILIATION });
+  });
+
+  it("removes the i-th correction (not just the last) and recomputes with the rest (BAS-065)", async () => {
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    // Apply three corrections in order: [LinkFund, AssignGroups, Acknowledge].
+    await act(async () => {
+      await result.current.applyCorrection(LINK_FUND_CORRECTION);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_GROUPS_CORRECTION);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ACKNOWLEDGE_CORRECTION);
+    });
+
+    expect(result.current.corrections).toHaveLength(3);
+
+    // Revert the MIDDLE correction (index 1 = AssignGroups).
+    await act(async () => {
+      await result.current.revertCorrection(1);
+    });
+
+    // Recompute called with the first + third corrections, order preserved.
+    const lastCall = mockCompute.mock.calls.at(-1);
+    expect(lastCall?.[2]).toEqual([LINK_FUND_CORRECTION, ACKNOWLEDGE_CORRECTION]);
+    expect(result.current.corrections).toEqual([LINK_FUND_CORRECTION, ACKNOWLEDGE_CORRECTION]);
+  });
+
+  it("is a no-op for an out-of-range index (does not call compute again)", async () => {
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+    await act(async () => {
+      await result.current.applyCorrection(LINK_FUND_CORRECTION);
+    });
+
+    const callsBefore = mockCompute.mock.calls.length;
+    await act(async () => {
+      await result.current.revertCorrection(5);
+    });
+
+    expect(mockCompute).toHaveBeenCalledTimes(callsBefore);
+    expect(result.current.corrections).toEqual([LINK_FUND_CORRECTION]);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // validate (BAS-063/093) — lines 101-116 of useBankStatementReconciliation.ts
 // ---------------------------------------------------------------------------

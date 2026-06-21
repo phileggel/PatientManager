@@ -279,17 +279,11 @@ impl BankStatementOrchestrator {
         let mappings = self.load_mappings(bank_account_id).await?;
         // service layer logs the error; propagate typed
         let groups = self.fund_payment_service.read_all_groups().await?;
-        let valid_fund_ids: std::collections::HashSet<String> = self
-            .fund_service
-            .read_all_funds()
-            .await?
-            .into_iter()
-            .map(|f| f.id)
-            .collect();
+        let funds = self.fund_service.read_all_funds().await?;
         let repos = super::reconciliation::BankStatementReconciliationRepos {
             mappings: &mappings,
             groups: &groups,
-            valid_fund_ids: &valid_fund_ids,
+            funds: &funds,
         };
         super::reconciliation::compute_reconciliation(parse_result, &repos, corrections)
     }
