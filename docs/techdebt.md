@@ -8,6 +8,16 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-06-21 — BAS-022 unparsed-line warning is parsed but never displayed
+
+**Found by:** spec-checker (bank-reconciliation draft-UX closure).
+
+**Where:** `src/features/bank-statement-match/ui/BankStatementModal.tsx` — the parser returns `BankStatementParseResult.unparsed_count` (BAS-022, "the number of lines not recognized by the parser is shown as a warning") but no FE component renders it; the modal shows the period only.
+
+**Observation:** pre-existing — the old stepwise flow also never displayed it, so the draft-UX rework neither introduced nor closed it. The data crosses the wire; only the display is missing. Surface `unparsed_count > 0` as a warning in the import header/modal when next touching that surface.
+
+---
+
 ## 2026-06-19 — Two i18n key sets intentionally exempt from §31 snake_case
 
 **Found by:** the snake_case migration (PR #91 — resolved the `docs/todo.md` "Migrate i18n keys" entry).
@@ -69,17 +79,3 @@ integration is covered by `SingleMatchCard.test.tsx` AmountMismatch and
 `FundPaymentList.test.tsx` locale-aware regressions). Add RTL coverage
 **bit-by-bit when these components are next touched for behavioral changes**,
 not as a sweep.
-
----
-
-## 2026-06-06 — Bank credit reconciliation can't handle composite credit lines
-
-- Found by: manual (issue #62)
-- Where: `src-tauri/src/use_cases/bank_statement_reconciliation/orchestrator.rs` (exact-amount match, ~L302); domain model (no "aid"/bonus payment concept)
-- Severity: 🟡
-- Observation: Bank-statement reconciliation auto-matches a credit line to a single fund payment group only on exact amount equality (`group.total_amount == line.amount`, ~L302). A real bank credit is often a composite the current 1:1 exact match cannot settle, in two distinct cases:
-  - **Multi-group:** one credit equals the sum of _several tracked_ fund groups (e.g. 247 € = 72 € + 175 €, both real groups). Matching is 1:1 only — there is no subset-sum that lets one bank line settle multiple groups whose totals add up to it. The line stays in `unmatched_lines`.
-  - **Uncovered amount:** part of the credit corresponds to something the app does not model at all — e.g. 247 € = 72 € fund group + 175 € "aide"/bonus (an assistance transfer with no entity in the domain). Even perfect multi-group matching can't reconcile this: there is no record to match the 175 € against.
-- Note: validating a tracked group via manual match is always safe — it mints its own FundWire transfer sized to the group and never touches the bank statement line, so there is NO data-integrity risk and the bank payment is not "broken". The gap is purely reconciliation _coverage_, not correctness. Resolution direction differs per case: multi-group needs subset/multi-group matching (one bank line → N groups); uncovered-amount needs either a modeled "aid payment" entity that becomes a matchable line item, OR a manual "remainder" annotation recording the untracked portion. Until then, composite credit lines remain unmatched and require manual bookkeeping outside the app.
-
----
