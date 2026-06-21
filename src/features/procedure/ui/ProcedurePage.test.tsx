@@ -62,6 +62,7 @@ const makeRow = (status: string): ProcedureRow => ({
   paidAmount: null,
   awaitedAmount: null,
   status,
+  isOverdue: false,
 });
 
 const defaultHookValue = {

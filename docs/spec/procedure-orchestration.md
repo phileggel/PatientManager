@@ -124,9 +124,25 @@ event, regardless of batch size.
 
 ---
 
+## Overdue highlighting
+
+> An **`Overdue`** _derived_ display attribute layered on `Created` procedures — **not** a `ProcedureStatus` value (see the note in **Status lifecycle**). It exists purely to emphasise procedures that should normally have been paid by now.
+
+**PRO-310 (frontend) — Overdue derived state**: A procedure is **overdue** when its `payment_status` is `Created` **and** its `procedure_date` is strictly earlier than the **reconciliation high-water mark** — the most recent `procedure_date` among all fund-reconciled procedures (`Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `ImportFundPayed`) across the **full loaded procedure set** (the complete list returned by `read_all_procedures`, before the PRO-010 period filter is applied). The high-water mark is **global**: it is never scoped by patient or fund, and direct payments (`DirectlyPayed`, `ImportDirectlyPayed`) never contribute to it. Overdue is **derived in the frontend** — recomputed from the loaded procedures on each render; it is never persisted, needs no backend or contract change, and is not a `ProcedureStatus`. The procedure stays `Created` for every other purpose (reconciliation eligibility, deletion, editing). When no fund-reconciled procedure exists the high-water mark is undefined and nothing is overdue. Because it is recomputed live, a later-reverted reconciliation lowers the high-water mark and the overdue set follows automatically — there is no stored flag to reconcile. `Overpaid` and `OverpaymentRefund` are deliberately excluded from the contributor set — the former is a rare terminal overpayment end-state, the latter a synthetic mirror procedure, so neither defines the normal fund-payment frontier; this edge is left to the pending status-model review (see `docs/todo.md`).
+
+**PRO-320 (frontend) — Overdue warning row**: In the procedure list, a row whose procedure is overdue (see PRO-310) is rendered with a **warning background** — a subtle **low-opacity** amber/gold row tint (amber in light mode, gold in dark mode), deliberately distinct from the full-strength `m3-tertiary-container` used by the PRO-090 reconciled **badge** so the two never read as the same signal; the exact token is finalised at `/visual-proof` time. Only overdue rows are tinted; every other row (including the partially-paid statuses) keeps its default background. The status badge (PRO-090) is unaffected — it still shows `Created`, since overdue is a derived emphasis, not a status.
+
+- **Scope of emphasis**: overdue highlighting only affects rows already visible under the current period (PRO-010). An overdue procedure whose date falls outside the selected period receives **no** signal (no count, no period hint) — it surfaces only when its own period is selected.
+- **Filtering**: `Overdue` is **not** a selectable value in the PRO-180 status filter (it is a derived attribute, not a `ProcedureStatus`); overdue rows therefore appear only when `Created` is included by that filter.
+- **Sorting**: overdue introduces **no** sort key (PRO-170) — overdue rows sort exactly as their `Created` peers. The search (PRO-100) is likewise unaffected.
+
+---
+
 ## Status lifecycle
 
 This feature is responsible for procedure **creation** only. Subsequent status transitions are managed by other features.
+
+> **`Overdue` is not part of this lifecycle.** It is a derived display attribute over `Created` (see **Overdue highlighting** / PRO-310), not a persisted status — so it appears in no transition below and inherits `Created`'s row in _Allowed actions per status_.
 
 ### Statuses created by this feature
 

@@ -54,6 +54,7 @@ export const toProcedureRow = (
     paidAmount: procedure.paid_amount != null ? procedure.paid_amount / 1000 : null,
     awaitedAmount: null, // Not available from backend Procedure type
     status: procedure.payment_status,
+    isOverdue: false, // PRO-310 — set by markOverdueRows over the full set
     id: procedure.id,
   };
 };

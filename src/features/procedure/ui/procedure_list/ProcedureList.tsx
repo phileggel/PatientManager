@@ -81,7 +81,13 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
             </tr>
           ) : (
             sortedRows.map((row) => (
-              <tr key={row.rowId} className="m3-tr">
+              <tr
+                key={row.rowId}
+                id={`procedure-row-${row.id ?? row.rowId}`}
+                className={row.isOverdue ? "m3-tr m3-tr-warning" : "m3-tr"}
+                data-overdue={row.isOverdue || undefined}
+                title={row.isOverdue ? t("overdue.row_title") : undefined}
+              >
                 <td className={`m3-td ${COL_WIDTHS.patientName}`}>{row.patientName ?? "—"}</td>
                 <td className={`m3-td ${COL_WIDTHS.ssn}`}>{row.ssn ?? "—"}</td>
                 <td className={`m3-td ${COL_WIDTHS.fundId}`}>{row.fundIdentifier ?? "—"}</td>
@@ -106,6 +112,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                 </td>
                 <td className="m3-td w-28">
                   <StatusBadge status={row.status} />
+                  {row.isOverdue && <span className="sr-only">{t("overdue.row_title")}</span>}
                 </td>
                 <td className="m3-td text-right">
                   <div className="flex gap-1 justify-end">
