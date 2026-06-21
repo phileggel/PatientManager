@@ -55,6 +55,8 @@ Source: PDF bank statement from the practitioner's bank. Specs: [`docs/spec/bank
 
 Parses bank credit lines, resolves fund labels via `BankFundLabelMapping` (user-trained per bank account; ADR-001), matches each line to a `FundPaymentGroup`. Confirmed matches create `BankTransfer`s and **lock** the fund payment group (`is_locked = true`). Direct payments (cash/check/card) follow a separate manual-match flow that links bank transfers directly to procedures.
 
+The auto-match flow runs through an **ephemeral draft-recompute engine** (BAS-060–103): after parsing, `compute_bank_statement_reconciliation` derives a per-line draft (status + ranked candidates + heuristic fund suggestion) as a _pure function_ of the parsed statement plus an ordered list of correction commands (link-fund / assign-groups / acknowledge-remainder). The frontend replays a correction on every edit and revert — the draft is never persisted; `validate_bank_statement_reconciliation` recomputes server-side then commits (upserts mappings, creates one `BankTransfer` per assigned group, locks groups). This handles composite credits (one line → N groups, plus an acknowledged untracked remainder; formerly issue #62). The UI is a single document-order table with per-line correction modals + a guided wizard (see [`docs/reconciliation-ux-pattern.md`](docs/reconciliation-ux-pattern.md)).
+
 ---
 
 ## Bounded contexts

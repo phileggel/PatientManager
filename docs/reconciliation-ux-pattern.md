@@ -43,10 +43,18 @@ Every reconciliation flow MUST follow these six rules.
    acting.
 2. **Status per line.** Each row shows its identity columns plus a **status**:
    `OK`, or `correction needed` labelled with the correction _type_.
-3. **Exception-first ordering.** Rows needing correction float to the top. A
-   **summary count** is always visible (e.g. `193 OK · 7 need correction`), with
-   a filter toggle to hide OK rows. All-OK rows give scope confidence without
+3. **Exception-first emphasis.** The lines needing action must stand out. This
+   can be by **ordering** (float them to the top) OR by **visual emphasis** while
+   keeping the source's document order — whichever fits the flow. A **summary
+   count** is always visible (e.g. `193 OK · 7 need correction`), with a filter
+   toggle to hide resolved rows. All-resolved rows give scope confidence without
    burying the actionable ones.
+
+   > **BAS (bank-statement) chose emphasis-over-ordering** (BAS-060/069): rows
+   > stay in statement document order so the user can cross-reference the paper
+   > statement, and correction-needed lines pop via a gold status badge plus the
+   > hide-resolved filter. Document order overrides float-to-top for that flow.
+
 4. **Per-line correction.** Clicking a correction-needed row opens a
    **type-specific modal scoped to that single line**. These modals differ per
    feature and per correction type — that is expected and correct.
@@ -150,7 +158,8 @@ These are deliberately left to per-feature `/spec-writer` work:
 
 - **Surface** — ephemeral modal (import-time) vs a persistent, revisitable view
   (storing partial reconciliation state — a meaningfully larger build). This
-  gates the whole shape; decide it first.
+  gates the whole shape; decide it first. _(BAS chose **ephemeral**.)_
 - **Uncovered amount** — lightweight **remainder annotation** (no new aggregate,
-  ships fast) vs a first-class **aid-payment entity**.
-- **Batch** — auto-apply vs guided walkthrough (per [§ Batch semantics](#batch-semantics)).
+  ships fast) vs a first-class **aid-payment entity**. _(BAS chose **remainder
+  annotation**, BAS-092.)_
+- **Batch** — auto-apply vs guided walkthrough (per [§ Batch semantics](#batch-semantics)). _(BAS chose **guided walkthrough**, phased link-fund → assign-group, BAS-100–103.)_
