@@ -570,10 +570,12 @@ fn rank_candidates(
 /// BAS-032 — heuristic fund suggestion for an unmapped label, in priority order:
 /// first prefixed extraction (`CPAM`/`CAISSE` + digits matched against a fund's
 /// `fund_identifier`), then a name-match fallback scored with a minimum of 3.
-/// Informational only (never pre-selected, BAS-033).
+/// Both strategies are whitespace-insensitive (`CPAM 93` ≡ `CPAM93`), and a
+/// fallback tie between two funds suppresses the suggestion — a wrong guess is
+/// worse than none. Informational only (never pre-selected, BAS-033).
 fn suggest_fund(label: &str, funds: &[Fund]) -> (Option<String>, Option<String>) {
     // Strategy 1: prefixed extraction — CPAM/CAISSE + digits → fund_identifier (BAS-032 §1)
-    let cpam_re = regex::Regex::new(r"(?i)(?:CPAM|CAISSE)(\d+)").ok();
+    let cpam_re = regex::Regex::new(r"(?i)(?:CPAM|CAISSE)\s*(\d+)").ok();
     if let Some(re) = &cpam_re {
         if let Some(caps) = re.captures(label) {
             if let Some(num) = caps.get(1) {
@@ -585,9 +587,10 @@ fn suggest_fund(label: &str, funds: &[Fund]) -> (Option<String>, Option<String>)
         }
     }
     // Strategy 2: name-match fallback, min score 3 (BAS-032 §2)
-    let label_upper = label.to_uppercase();
+    let label_upper = label.to_uppercase().replace(' ', "");
     let mut best_score = 0usize;
     let mut best_fund: Option<&Fund> = None;
+    let mut ambiguous = false;
     for fund in funds {
         let fund_name_upper = fund.name.to_uppercase().replace(' ', "");
         let score = if label_upper.contains(&fund_name_upper) {
@@ -601,14 +604,20 @@ fn suggest_fund(label: &str, funds: &[Fund]) -> (Option<String>, Option<String>)
                 .take_while(|(a, b)| a == b)
                 .count()
         };
-        if score > best_score && score >= 3 {
+        if score < 3 {
+            continue;
+        }
+        if score > best_score {
             best_score = score;
             best_fund = Some(fund);
+            ambiguous = false;
+        } else if score == best_score {
+            ambiguous = true;
         }
     }
     match best_fund {
-        Some(fund) => (Some(fund.id.clone()), Some(fund.name.clone())),
-        None => (None, None),
+        Some(fund) if !ambiguous => (Some(fund.id.clone()), Some(fund.name.clone())),
+        _ => (None, None),
     }
 }
 
@@ -703,6 +712,41 @@ mod tests {
     fn suggest_fund_no_match_returns_none() {
         let funds = vec![fund("fund-75", "75", "CPAM Paris")];
         let (id, name) = suggest_fund("XY", &funds);
+        assert_eq!(id, None);
+        assert_eq!(name, None);
+    }
+
+    // BAS-032 §1 — a space between the prefix and the digits ("CPAM 93") still
+    // resolves via prefixed extraction.
+    #[test]
+    fn suggest_fund_prefixed_extraction_tolerates_space() {
+        let funds = vec![
+            fund("fund-93", "93", "CPAM Seine-Saint-Denis"),
+            fund("fund-75", "75", "CPAM Paris"),
+        ];
+        let (id, _) = suggest_fund("CPAM 93", &funds);
+        assert_eq!(id.as_deref(), Some("fund-93"));
+    }
+
+    // BAS-032 §2 — the name-match fallback normalizes spaces on the label side
+    // too ("HARMONIE MUTUELLE" vs fund "Harmonie Mutuelle").
+    #[test]
+    fn suggest_fund_name_match_normalizes_label_spaces() {
+        let funds = vec![fund("fund-harm", "999", "Harmonie Mutuelle")];
+        let (id, _) = suggest_fund("HARMONIE MUTUELLE VIREMENT", &funds);
+        assert_eq!(id.as_deref(), Some("fund-harm"));
+    }
+
+    // BAS-032 §2 — a fallback tie between two funds suppresses the suggestion
+    // instead of guessing the first one.
+    #[test]
+    fn suggest_fund_tie_suppresses_suggestion() {
+        // No identifier matches "930" — both names tie on the "CPAM" prefix.
+        let funds = vec![
+            fund("fund-75", "75", "CPAM Paris"),
+            fund("fund-93", "93", "CPAM Seine-Saint-Denis"),
+        ];
+        let (id, name) = suggest_fund("CPAM 930", &funds);
         assert_eq!(id, None);
         assert_eq!(name, None);
     }
