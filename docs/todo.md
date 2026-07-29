@@ -2,12 +2,6 @@
 
 ---
 
-## (backend/bank) — `suggest_fund` heuristic misses spaced labels and guesses on ties
-
-`reconciliation.rs:560-599`: the CPAM/CAISSE regex requires digits immediately after the prefix (`CPAM 93` defeats it); strategy 2 strips spaces from the fund name but not the label; ties resolve first-wins (wrong CPAM suggested). Fix: `\s*` in the regex, normalize both sides, suppress the suggestion on a strategy-2 tie.
-
----
-
 ## (ci) — Windows E2E at the release gate
 
 Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.
