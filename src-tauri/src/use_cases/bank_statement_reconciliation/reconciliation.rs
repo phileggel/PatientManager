@@ -6,7 +6,7 @@
 //! an ordered list of user corrections, without writing anything to the
 //! database.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -526,6 +526,11 @@ fn rank_candidates(
         return Vec::new();
     };
 
+    let fund_names: HashMap<&str, &str> = funds
+        .iter()
+        .map(|f| (f.id.as_str(), f.name.as_str()))
+        .collect();
+
     let mut candidates: Vec<(i64, BankStatementCandidate)> = groups
         .iter()
         .filter(|g| {
@@ -544,10 +549,11 @@ fn rank_candidates(
                 BankStatementCandidate {
                     group_id: g.id.clone(),
                     fund_id: g.fund_id.clone(),
-                    fund_name: funds
-                        .iter()
-                        .find(|f| f.id == g.fund_id)
-                        .map(|f| f.name.clone())
+                    // `repos.funds` is the complete fund list, so every group's
+                    // fund_id resolves; "" would mean an orphaned reference.
+                    fund_name: fund_names
+                        .get(g.fund_id.as_str())
+                        .map(|n| (*n).to_string())
                         .unwrap_or_default(),
                     payment_date: g.payment_date.format("%Y-%m-%d").to_string(),
                     total_amount: g.total_amount,
