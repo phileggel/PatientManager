@@ -2,12 +2,6 @@
 
 ---
 
-## (frontend/bank) — Wizard link-fund step silently rejects on empty selection
-
-`ReconciliationWizard.tsx:118-135`: Apply with the placeholder selected submits `{ type: "Rejected" }` — no disabled state, no explicit reject affordance (unlike `LinkFundModal`). Fix: disable Apply until a fund is chosen; add an explicit Reject button.
-
----
-
 ## (frontend/bank) — Wizard assign-group step has no candidate selector
 
 `ReconciliationWizard.tsx:128-133`: phase 2 always submits `AssignGroups` with `group_ids: []` (an unassign override per BAS-062) — the wizard cannot actually resolve needs-group lines. Fix per amended BAS-101: present the same ranked candidate selector as the manual correction (extract a shared `CandidateList` from `AssignGroupsModal`); a step with nothing selected is skipped, not applied.
