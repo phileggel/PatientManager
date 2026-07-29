@@ -296,6 +296,30 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     });
   });
 
+  // BAS-090 — unchecking a selected candidate removes it from the submission.
+  it("deselects a candidate on second click and submits without it", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const line = makeNeedsGroupLine();
+
+    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    const check = document.getElementById("assign-groups-check-group-1");
+    if (!check) throw new Error("candidate checkbox missing");
+    await user.click(check);
+    await user.click(check);
+
+    const submitBtn = document.getElementById("assign-groups-submit");
+    if (!submitBtn) throw new Error("submit button missing");
+    await user.click(submitBtn);
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      type: "AssignGroups",
+      line_id: "line-needs-group",
+      group_ids: [],
+    });
+  });
+
   it("calls onCancel and does not call onSubmit when cancel is clicked", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
