@@ -91,6 +91,7 @@ const NEEDS_GROUP_LINE = makeLine({
     {
       group_id: "group-cand-1",
       fund_id: "fund-2",
+      fund_name: "Mutuelle Générale",
       payment_date: "2026-04-09",
       total_amount: 200000,
       is_exact_amount: true,

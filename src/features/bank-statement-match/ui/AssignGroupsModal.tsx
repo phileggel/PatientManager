@@ -101,7 +101,8 @@ export function AssignGroupsModal({ line, isOpen, onSubmit, onCancel }: AssignGr
                   checked={selected.includes(candidate.group_id)}
                   onChange={() => toggle(candidate.group_id)}
                 />
-                <span className="text-sm text-m3-on-surface">{candidate.payment_date}</span>
+                <span className="text-sm text-m3-on-surface">{candidate.fund_name}</span>
+                <span className="text-sm text-m3-on-surface-variant">{candidate.payment_date}</span>
                 <span className="ml-auto text-sm font-medium text-m3-on-surface">
                   {toEuros(candidate.total_amount)}
                 </span>

@@ -112,6 +112,9 @@ pub enum BankStatementLineStatus {
 pub struct BankStatementCandidate {
     pub group_id: String,
     pub fund_id: String,
+    /// Resolved fund name so the candidate row is identifiable, in particular
+    /// in the broadened (fund-agnostic) view (BAS-068).
+    pub fund_name: String,
     pub payment_date: String,
     pub total_amount: i64,
     /// True if this group's amount exactly matches the line's outstanding amount.
@@ -234,7 +237,7 @@ pub fn compute_reconciliation(
     // --- 4. Derive per-line status + candidates (BAS-061, BAS-068). ---
     let reconciliation_lines: Vec<BankStatementLine> = lines
         .iter()
-        .map(|wl| finalize_line(wl, repos.groups, &consumed))
+        .map(|wl| finalize_line(wl, repos.groups, repos.funds, &consumed))
         .collect();
 
     let resolved_count = reconciliation_lines
@@ -422,6 +425,7 @@ fn apply_acknowledge_remainder(
 fn finalize_line(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
+    funds: &[Fund],
     consumed: &HashSet<String>,
 ) -> BankStatementLine {
     let line_amount = wl.credit_line.amount;
@@ -446,7 +450,7 @@ fn finalize_line(
         // Fund known, no groups assigned: NeedsGroup if a candidate exists,
         // else Unresolved (BAS-061).
         let outstanding = line_amount - covered_amount;
-        let has_candidate = !candidate_groups(wl, groups, consumed, outstanding).is_empty();
+        let has_candidate = !candidate_groups(wl, groups, funds, consumed, outstanding).is_empty();
         if has_candidate {
             BankStatementLineStatus::NeedsGroup
         } else {
@@ -455,10 +459,10 @@ fn finalize_line(
     };
 
     let outstanding = line_amount - covered_amount;
-    let candidate_groups = candidate_groups(wl, groups, consumed, outstanding);
+    let candidate_groups = candidate_groups(wl, groups, funds, consumed, outstanding);
     // BAS-068 — broadened set: same date tolerance + eligibility, but across all
     // funds (no fund filter). Superset shown when the user broadens the search.
-    let broadened_candidates = broadened_candidates(wl, groups, consumed, outstanding);
+    let broadened_candidates = broadened_candidates(wl, groups, funds, consumed, outstanding);
 
     BankStatementLine {
         line_id: wl.line_id.clone(),
@@ -481,13 +485,16 @@ fn finalize_line(
 fn candidate_groups(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
+    funds: &[Fund],
     consumed: &HashSet<String>,
     outstanding: i64,
 ) -> Vec<BankStatementCandidate> {
     let Some(fund_id) = wl.fund_id.as_deref() else {
         return Vec::new();
     };
-    rank_candidates(wl, groups, consumed, outstanding, |g| g.fund_id == fund_id)
+    rank_candidates(wl, groups, funds, consumed, outstanding, |g| {
+        g.fund_id == fund_id
+    })
 }
 
 /// BAS-068 — the broadened set: identical eligibility and ranking to
@@ -496,10 +503,11 @@ fn candidate_groups(
 fn broadened_candidates(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
+    funds: &[Fund],
     consumed: &HashSet<String>,
     outstanding: i64,
 ) -> Vec<BankStatementCandidate> {
-    rank_candidates(wl, groups, consumed, outstanding, |_| true)
+    rank_candidates(wl, groups, funds, consumed, outstanding, |_| true)
 }
 
 /// Shared eligibility filter + ranking for candidate proposals (BAS-068). A
@@ -509,6 +517,7 @@ fn broadened_candidates(
 fn rank_candidates(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
+    funds: &[Fund],
     consumed: &HashSet<String>,
     outstanding: i64,
     fund_filter: impl Fn(&FundPaymentGroup) -> bool,
@@ -535,6 +544,11 @@ fn rank_candidates(
                 BankStatementCandidate {
                     group_id: g.id.clone(),
                     fund_id: g.fund_id.clone(),
+                    fund_name: funds
+                        .iter()
+                        .find(|f| f.id == g.fund_id)
+                        .map(|f| f.name.clone())
+                        .unwrap_or_default(),
                     payment_date: g.payment_date.format("%Y-%m-%d").to_string(),
                     total_amount: g.total_amount,
                     is_exact_amount: g.total_amount == outstanding,
@@ -764,9 +778,10 @@ mod tests {
         let line = &recon.lines[0];
         // Fund-filtered view excludes the fund-75 group.
         assert!(line.candidate_groups.is_empty());
-        // Broadened view surfaces it.
+        // Broadened view surfaces it, identified by its fund name (BAS-068).
         assert_eq!(line.broadened_candidates.len(), 1);
         assert_eq!(line.broadened_candidates[0].group_id, "grp-75");
         assert_eq!(line.broadened_candidates[0].fund_id, "fund-75");
+        assert_eq!(line.broadened_candidates[0].fund_name, "CPAM Paris");
     }
 }

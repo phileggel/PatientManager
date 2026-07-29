@@ -123,6 +123,7 @@ const NEEDS_GROUP_LINE = makeLine({
     {
       group_id: "group-1",
       fund_id: "fund-1",
+      fund_name: "CPAM Paris",
       payment_date: "2026-04-08",
       total_amount: 150000,
       is_exact_amount: true,
