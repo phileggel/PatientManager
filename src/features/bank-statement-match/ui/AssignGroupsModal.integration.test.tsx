@@ -255,6 +255,47 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     expect(document.getElementById("assign-groups-candidate-group-other-fund")).toBeNull();
   });
 
+  // A selection made in the broadened set must not survive invisibly after the
+  // user narrows back — submit must only carry visible selections.
+  it("drops a broadened-only selection when the broaden toggle is turned off", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const OTHER_FUND_CANDIDATE: BankStatementCandidate = {
+      group_id: "group-other-fund",
+      fund_id: "fund-2",
+      fund_name: "Mutuelle Générale",
+      payment_date: "2026-04-07",
+      total_amount: 150000,
+      is_exact_amount: true,
+    };
+    const line = makeNeedsGroupLine({
+      candidate_groups: [CANDIDATE_EXACT],
+      broadened_candidates: [CANDIDATE_EXACT, OTHER_FUND_CANDIDATE],
+    });
+
+    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    const broadenBtn = document.getElementById("assign-groups-broaden");
+    if (!broadenBtn) throw new Error("broaden toggle missing");
+
+    // Broaden, select the other-fund candidate, then narrow back.
+    await user.click(broadenBtn);
+    const otherFundCheck = document.getElementById("assign-groups-check-group-other-fund");
+    if (!otherFundCheck) throw new Error("broadened candidate checkbox missing");
+    await user.click(otherFundCheck);
+    await user.click(broadenBtn);
+
+    const submitBtn = document.getElementById("assign-groups-submit");
+    if (!submitBtn) throw new Error("submit button missing");
+    await user.click(submitBtn);
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      type: "AssignGroups",
+      line_id: "line-needs-group",
+      group_ids: [],
+    });
+  });
+
   it("calls onCancel and does not call onSubmit when cancel is clicked", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

@@ -2,12 +2,6 @@
 
 ---
 
-## (frontend/bank) — Broadened selections survive invisibly when broaden toggles off
-
-`AssignGroupsModal.tsx`: `selected` isn't pruned when the candidate source narrows — a broadened-only selection stays in `group_ids` on submit while excluded from the displayed balance. Fix: prune `selected` to visible candidate ids on toggle.
-
----
-
 ## (frontend/bank) — Wizard link-fund step silently rejects on empty selection
 
 `ReconciliationWizard.tsx:118-135`: Apply with the placeholder selected submits `{ type: "Rejected" }` — no disabled state, no explicit reject affordance (unlike `LinkFundModal`). Fix: disable Apply until a fund is chosen; add an explicit Reject button.

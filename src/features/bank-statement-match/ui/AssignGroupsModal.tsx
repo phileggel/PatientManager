@@ -50,6 +50,18 @@ export function AssignGroupsModal({ line, isOpen, onSubmit, onCancel }: AssignGr
     );
   };
 
+  // Swapping the candidate source must drop selections that are no longer
+  // visible — otherwise a broadened-only selection would be submitted (and
+  // counted nowhere in the balance) after the user narrows back.
+  const toggleBroadened = () => {
+    const next = !broadened;
+    const visible = new Set(
+      (next ? line.broadened_candidates : line.candidate_groups).map((c) => c.group_id),
+    );
+    setSelected((prev) => prev.filter((id) => visible.has(id)));
+    setBroadened(next);
+  };
+
   return (
     <ModalContainer
       id="assign-groups-modal"
@@ -74,7 +86,7 @@ export function AssignGroupsModal({ line, isOpen, onSubmit, onCancel }: AssignGr
             id="assign-groups-broaden"
             variant="secondary"
             aria-pressed={broadened}
-            onClick={() => setBroadened((prev) => !prev)}
+            onClick={toggleBroadened}
           >
             {t(
               broadened
