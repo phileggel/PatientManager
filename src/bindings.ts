@@ -1020,7 +1020,12 @@ export type BankManualMatchTask =
 /**
  * BAS-068 — one ranked candidate group for an unresolved or partial line.
  */
-export type BankStatementCandidate = { group_id: string; fund_id: string; payment_date: string; total_amount: number; 
+export type BankStatementCandidate = { group_id: string; fund_id: string; 
+/**
+ * Resolved fund name so the candidate row is identifiable, in particular
+ * in the broadened (fund-agnostic) view (BAS-068).
+ */
+fund_name: string; payment_date: string; total_amount: number; 
 /**
  * True if this group's amount exactly matches the line's outstanding amount.
  */

@@ -2,12 +2,6 @@
 
 ---
 
-## (frontend+backend/bank) — Assign-group candidate rows are anonymous
-
-`AssignGroupsModal.tsx:104-107` shows only date + amount per candidate — no fund name. Indistinguishable rows, especially with broaden on (BAS-068) where candidates span all funds. Fix: add `fund_name` to `BankStatementCandidate` (`reconciliation.rs`), regenerate bindings, render it.
-
----
-
 ## (frontend/bank) — Broadened selections survive invisibly when broaden toggles off
 
 `AssignGroupsModal.tsx`: `selected` isn't pruned when the candidate source narrows — a broadened-only selection stays in `group_ids` on submit while excluded from the displayed balance. Fix: prune `selected` to visible candidate ids on toggle.

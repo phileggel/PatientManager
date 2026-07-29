@@ -38,6 +38,7 @@ import { AssignGroupsModal } from "./AssignGroupsModal";
 const CANDIDATE_EXACT: BankStatementCandidate = {
   group_id: "group-1",
   fund_id: "fund-1",
+  fund_name: "CPAM Paris",
   payment_date: "2026-04-08",
   total_amount: 150000,
   is_exact_amount: true,
@@ -46,6 +47,7 @@ const CANDIDATE_EXACT: BankStatementCandidate = {
 const CANDIDATE_PARTIAL: BankStatementCandidate = {
   group_id: "group-2",
   fund_id: "fund-1",
+  fund_name: "CPAM Paris",
   payment_date: "2026-04-06",
   total_amount: 80000,
   is_exact_amount: false,
@@ -54,6 +56,7 @@ const CANDIDATE_PARTIAL: BankStatementCandidate = {
 const CANDIDATE_PARTIAL_2: BankStatementCandidate = {
   group_id: "group-3",
   fund_id: "fund-1",
+  fund_name: "CPAM Paris",
   payment_date: "2026-04-05",
   total_amount: 70000,
   is_exact_amount: false,
@@ -94,6 +97,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     const candidateRow2 = document.getElementById("assign-groups-candidate-group-2");
     expect(candidateRow1).not.toBeNull();
     expect(candidateRow2).not.toBeNull();
+
+    // Each row identifies its fund by name (BAS-068)
+    expect(candidateRow1?.textContent).toContain("CPAM Paris");
 
     // Exact-amount candidate appears before the partial candidate in DOM order
     const allRows = document.querySelectorAll("[id^='assign-groups-candidate-']");
@@ -220,6 +226,7 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     const OTHER_FUND_CANDIDATE: BankStatementCandidate = {
       group_id: "group-other-fund",
       fund_id: "fund-2",
+      fund_name: "Mutuelle Générale",
       payment_date: "2026-04-07",
       total_amount: 150000,
       is_exact_amount: true,

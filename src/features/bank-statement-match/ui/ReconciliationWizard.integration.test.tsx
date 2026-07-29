@@ -65,6 +65,7 @@ function makeNeedsGroupLine(id: string): BankStatementLine {
       {
         group_id: "group-1",
         fund_id: "fund-1",
+        fund_name: "CPAM Paris",
         payment_date: "2026-04-08",
         total_amount: 200000,
         is_exact_amount: true,
