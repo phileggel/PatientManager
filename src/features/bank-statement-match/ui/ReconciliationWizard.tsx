@@ -7,7 +7,9 @@ import type {
 } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { Button } from "@/ui/components/button";
+import { SelectField } from "@/ui/components/field/SelectField";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
+import { sortFundsByName } from "../shared/fundOptions";
 
 interface ReconciliationWizardProps {
   reconciliation: BankStatementReconciliation;
@@ -97,19 +99,19 @@ export function ReconciliationWizard({
             </p>
 
             {isLinkFundPhase && (
-              <select
+              <SelectField
                 id="wizard-fund-select"
-                className="rounded-lg border border-m3-outline/40 px-3 py-2"
+                label={t("reconciliation.link_fund.fund_label")}
                 value={selectedFundId}
                 onChange={(e) => setSelectedFundId(e.target.value)}
-              >
-                <option value="">{t("reconciliation.link_fund.select_placeholder")}</option>
-                {funds.map((fund) => (
-                  <option key={fund.id} value={fund.id}>
-                    {fund.name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { label: t("reconciliation.link_fund.select_placeholder"), value: "" },
+                  ...sortFundsByName(funds).map((fund) => ({
+                    label: fund.name,
+                    value: fund.id,
+                  })),
+                ]}
+              />
             )}
 
             <Button
