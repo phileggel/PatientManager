@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-07-29
+
+### Added
+
+- wizard assign-group step offers the candidate selector
+
+### Fixed
+
+- space- and tie-tolerant fund suggestion heuristic
+- wizard link-fund step requires explicit choice or reject
+- drop hidden broadened selections when narrowing candidates
+- identify assign-group candidates by fund name
+- themed, sorted fund selects in link-fund modal and wizard
+
 ## [0.19.0] - 2026-06-21
 
 ### Added
