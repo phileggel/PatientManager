@@ -212,6 +212,73 @@ describe("ReconciliationWizard — BAS-100–103", () => {
     });
   });
 
+  // BAS-101 — phase 2 presents the ranked candidate selector; apply carries the
+  // explicit selection (never an implicit empty assignment).
+  it("submits the selected candidate group from the assign-group step (BAS-101)", async () => {
+    const user = userEvent.setup();
+    const onApplyCorrection = vi.fn();
+    const reconciliation = makeReconciliation([makeNeedsGroupLine("line-ng-1")]);
+
+    render(
+      <ReconciliationWizard
+        reconciliation={reconciliation}
+        isOpen={true}
+        onApplyCorrection={onApplyCorrection}
+        onComplete={vi.fn()}
+        onAbandon={vi.fn()}
+      />,
+    );
+
+    // Phase-2 indicator + candidate selector rendered with wizard-scoped ids.
+    expect(document.getElementById("wizard-phase-assign-group")).not.toBeNull();
+    const candidateCheck = document.getElementById("wizard-assign-check-group-1");
+    expect(candidateCheck).not.toBeNull();
+    if (!candidateCheck) throw new Error("wizard candidate checkbox missing");
+
+    // Apply is disabled until something is selected.
+    const applyBtn = document.getElementById("wizard-apply-step") as HTMLButtonElement | null;
+    expect(applyBtn?.disabled).toBe(true);
+    if (!applyBtn) throw new Error("wizard apply button missing");
+
+    await user.click(candidateCheck);
+    expect(applyBtn.disabled).toBe(false);
+
+    await user.click(applyBtn);
+
+    expect(onApplyCorrection).toHaveBeenCalledWith({
+      type: "AssignGroups",
+      line_id: "line-ng-1",
+      group_ids: ["group-1"],
+    });
+  });
+
+  // BAS-101 — skipping advances past the line without applying any correction.
+  it("skips a step without applying a correction (BAS-101)", async () => {
+    const user = userEvent.setup();
+    const onApplyCorrection = vi.fn();
+    const reconciliation = makeReconciliation([makeNeedsGroupLine("line-ng-1")]);
+
+    render(
+      <ReconciliationWizard
+        reconciliation={reconciliation}
+        isOpen={true}
+        onApplyCorrection={onApplyCorrection}
+        onComplete={vi.fn()}
+        onAbandon={vi.fn()}
+      />,
+    );
+
+    const skipBtn = document.getElementById("wizard-skip-step");
+    expect(skipBtn).not.toBeNull();
+    if (!skipBtn) throw new Error("wizard skip button missing");
+
+    await user.click(skipBtn);
+
+    // The only line was skipped — the wizard reaches its done state.
+    expect(onApplyCorrection).not.toHaveBeenCalled();
+    expect(document.getElementById("wizard-done")).not.toBeNull();
+  });
+
   // BAS-103 — abandoning calls onAbandon (corrections already applied are kept — caller's concern)
   it("calls onAbandon when the abandon/close button is clicked mid-wizard (BAS-103)", async () => {
     const user = userEvent.setup();

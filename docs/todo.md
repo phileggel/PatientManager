@@ -2,12 +2,6 @@
 
 ---
 
-## (frontend/bank) — Wizard assign-group step has no candidate selector
-
-`ReconciliationWizard.tsx:128-133`: phase 2 always submits `AssignGroups` with `group_ids: []` (an unassign override per BAS-062) — the wizard cannot actually resolve needs-group lines. Fix per amended BAS-101: present the same ranked candidate selector as the manual correction (extract a shared `CandidateList` from `AssignGroupsModal`); a step with nothing selected is skipped, not applied.
-
----
-
 ## (backend/bank) — `suggest_fund` heuristic misses spaced labels and guesses on ties
 
 `reconciliation.rs:560-599`: the CPAM/CAISSE regex requires digits immediately after the prefix (`CPAM 93` defeats it); strategy 2 strips spaces from the fund name but not the label; ties resolve first-wins (wrong CPAM suggested). Fix: `\s*` in the regex, normalize both sides, suppress the suggestion on a strategy-2 tie.

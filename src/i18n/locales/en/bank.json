@@ -59,7 +59,9 @@
       "done_body": "All lines are resolved.",
       "phase_link_fund": "Step 1 — Link funds",
       "step_label": "Line: {{label}}",
-      "apply": "Apply"
+      "apply": "Apply",
+      "skip": "Skip",
+      "phase_assign_group": "Step 2 — Assign groups"
     },
     "col": {
       "date": "Date",

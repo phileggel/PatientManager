@@ -9,7 +9,9 @@ import { useCacheStore } from "@/infra/cache/store";
 import { Button } from "@/ui/components/button";
 import { SelectField } from "@/ui/components/field/SelectField";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
+import { coveredAmount } from "../shared/candidateSelection";
 import { sortFundsByName } from "../shared/fundOptions";
+import { CandidateList } from "./CandidateList";
 
 interface ReconciliationWizardProps {
   reconciliation: BankStatementReconciliation;
@@ -37,8 +39,10 @@ function buildQueue(lines: BankStatementLine[]): BankStatementLine[] {
 /**
  * BAS-100–103 — phased link-fund → assign-group walkthrough over the
  * correction-needed lines. Each step reuses the same correction model as the
- * manual list (BAS-102): applying a step calls `onApplyCorrection`. The wizard
- * NEVER auto-validates — when the queue is empty it surfaces a done state whose
+ * manual list (BAS-102): the link-fund step requires an explicit fund or
+ * reject, the assign-group step presents the ranked candidate selector, and a
+ * step can be skipped without applying anything (BAS-101). The wizard NEVER
+ * auto-validates — when the queue is empty it surfaces a done state whose
  * button calls `onComplete`; abandoning calls `onAbandon` (BAS-103).
  */
 export function ReconciliationWizard({
@@ -50,12 +54,30 @@ export function ReconciliationWizard({
 }: ReconciliationWizardProps) {
   const { t } = useTranslation("bank");
   const funds = useCacheStore((state) => state.funds);
-  const queue = useMemo(() => buildQueue(reconciliation.lines), [reconciliation.lines]);
+  // Skipped lines stay uncorrected (BAS-063) — the queue just walks past them.
+  const [skippedLineIds, setSkippedLineIds] = useState<string[]>([]);
+  const queue = useMemo(
+    () => buildQueue(reconciliation.lines).filter((l) => !skippedLineIds.includes(l.line_id)),
+    [reconciliation.lines, skippedLineIds],
+  );
   const current = queue[0] ?? null;
 
   const [selectedFundId, setSelectedFundId] = useState("");
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+
+  // A recompute can advance the step without a local apply (e.g. a link-fund
+  // correction resolving several lines) — never carry a selection across lines.
+  const currentLineId = current?.line_id ?? null;
+  const [lastLineId, setLastLineId] = useState(currentLineId);
+  if (lastLineId !== currentLineId) {
+    setLastLineId(currentLineId);
+    setSelectedFundId("");
+    setSelectedGroupIds([]);
+  }
 
   const isLinkFundPhase = current?.status === "NeedsLink";
+  const isOverflow =
+    current !== null && coveredAmount(current, selectedGroupIds) > current.credit_line.amount;
 
   return (
     <ModalContainer
@@ -88,9 +110,13 @@ export function ReconciliationWizard({
           </div>
         ) : (
           <div id="wizard-current-step" className="flex flex-col gap-3">
-            {isLinkFundPhase && (
+            {isLinkFundPhase ? (
               <p id="wizard-phase-link-fund" className="text-xs font-semibold text-m3-primary">
                 {t("reconciliation.wizard.phase_link_fund")}
+              </p>
+            ) : (
+              <p id="wizard-phase-assign-group" className="text-xs font-semibold text-m3-primary">
+                {t("reconciliation.wizard.phase_assign_group")}
               </p>
             )}
 
@@ -98,7 +124,7 @@ export function ReconciliationWizard({
               {t("reconciliation.wizard.step_label", { label: current.credit_line.label })}
             </p>
 
-            {isLinkFundPhase && (
+            {isLinkFundPhase ? (
               <SelectField
                 id="wizard-fund-select"
                 label={t("reconciliation.link_fund.fund_label")}
@@ -112,6 +138,14 @@ export function ReconciliationWizard({
                   })),
                 ]}
               />
+            ) : (
+              <CandidateList
+                key={current.line_id}
+                line={current}
+                idPrefix="wizard-assign"
+                selected={selectedGroupIds}
+                onSelectionChange={setSelectedGroupIds}
+              />
             )}
 
             <div className="flex items-center justify-between gap-2">
@@ -119,45 +153,58 @@ export function ReconciliationWizard({
                 <Button
                   id="wizard-reject-step"
                   variant="danger"
-                  onClick={() => {
+                  onClick={() =>
                     onApplyCorrection({
                       type: "LinkFund",
                       bank_label: current.credit_line.label,
                       assignment: { type: "Rejected" },
-                    });
-                    setSelectedFundId("");
-                  }}
+                    })
+                  }
                 >
                   {t("reconciliation.link_fund.reject")}
                 </Button>
               ) : (
                 <span />
               )}
-              <Button
-                id="wizard-apply-step"
-                variant="primary"
-                disabled={isLinkFundPhase && selectedFundId === ""}
-                onClick={() => {
-                  if (isLinkFundPhase) {
-                    // Rejection is only ever the explicit button above (BAS-101) —
-                    // an empty selection never implies it.
-                    onApplyCorrection({
-                      type: "LinkFund",
-                      bank_label: current.credit_line.label,
-                      assignment: { type: "Fund", fund_id: selectedFundId },
-                    });
-                  } else {
-                    onApplyCorrection({
-                      type: "AssignGroups",
-                      line_id: current.line_id,
-                      group_ids: [],
-                    });
+              <div className="flex items-center gap-2">
+                <Button
+                  id="wizard-skip-step"
+                  variant="secondary"
+                  onClick={() => setSkippedLineIds((prev) => [...prev, current.line_id])}
+                >
+                  {t("reconciliation.wizard.skip")}
+                </Button>
+                <Button
+                  id="wizard-apply-step"
+                  variant="primary"
+                  disabled={
+                    isLinkFundPhase
+                      ? selectedFundId === ""
+                      : selectedGroupIds.length === 0 || isOverflow
                   }
-                  setSelectedFundId("");
-                }}
-              >
-                {t("reconciliation.wizard.apply")}
-              </Button>
+                  onClick={() => {
+                    if (isLinkFundPhase) {
+                      // Rejection is only ever the explicit button on the left
+                      // (BAS-101) — an empty selection never implies it.
+                      onApplyCorrection({
+                        type: "LinkFund",
+                        bank_label: current.credit_line.label,
+                        assignment: { type: "Fund", fund_id: selectedFundId },
+                      });
+                    } else {
+                      // Skipping is its own button (BAS-101) — apply always
+                      // carries the explicit non-empty selection.
+                      onApplyCorrection({
+                        type: "AssignGroups",
+                        line_id: current.line_id,
+                        group_ids: selectedGroupIds,
+                      });
+                    }
+                  }}
+                >
+                  {t("reconciliation.wizard.apply")}
+                </Button>
+              </div>
             </div>
           </div>
         )}
