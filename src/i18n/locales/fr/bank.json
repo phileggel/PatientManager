@@ -59,7 +59,9 @@
       "done_body": "Toutes les lignes sont résolues.",
       "phase_link_fund": "Étape 1 — Associer les caisses",
       "step_label": "Ligne : {{label}}",
-      "apply": "Appliquer"
+      "apply": "Appliquer",
+      "skip": "Passer",
+      "phase_assign_group": "Étape 2 — Affecter les groupes"
     },
     "col": {
       "date": "Date",
