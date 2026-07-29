@@ -161,6 +161,57 @@ describe("ReconciliationWizard — BAS-100–103", () => {
     );
   });
 
+  // BAS-101 — the apply button never submits with the placeholder selected;
+  // an empty selection must not imply rejection.
+  it("disables apply while no fund is selected in the link-fund step (BAS-101)", () => {
+    const onApplyCorrection = vi.fn();
+    const reconciliation = makeReconciliation([makeNeedsLinkLine("line-nl-1", "MGEN")]);
+
+    render(
+      <ReconciliationWizard
+        reconciliation={reconciliation}
+        isOpen={true}
+        onApplyCorrection={onApplyCorrection}
+        onComplete={vi.fn()}
+        onAbandon={vi.fn()}
+      />,
+    );
+
+    const applyBtn = document.getElementById("wizard-apply-step") as HTMLButtonElement | null;
+    expect(applyBtn).not.toBeNull();
+    expect(applyBtn?.disabled).toBe(true);
+    expect(onApplyCorrection).not.toHaveBeenCalled();
+  });
+
+  // BAS-101/BAS-030 — rejection is an explicit affordance, mirroring LinkFundModal.
+  it("submits a Rejected assignment only via the explicit reject button (BAS-101)", async () => {
+    const user = userEvent.setup();
+    const onApplyCorrection = vi.fn();
+    const reconciliation = makeReconciliation([makeNeedsLinkLine("line-nl-1", "MGEN")]);
+
+    render(
+      <ReconciliationWizard
+        reconciliation={reconciliation}
+        isOpen={true}
+        onApplyCorrection={onApplyCorrection}
+        onComplete={vi.fn()}
+        onAbandon={vi.fn()}
+      />,
+    );
+
+    const rejectBtn = document.getElementById("wizard-reject-step");
+    expect(rejectBtn).not.toBeNull();
+    if (!rejectBtn) throw new Error("wizard reject button missing");
+
+    await user.click(rejectBtn);
+
+    expect(onApplyCorrection).toHaveBeenCalledWith({
+      type: "LinkFund",
+      bank_label: "MGEN",
+      assignment: { type: "Rejected" },
+    });
+  });
+
   // BAS-103 — abandoning calls onAbandon (corrections already applied are kept — caller's concern)
   it("calls onAbandon when the abandon/close button is clicked mid-wizard (BAS-103)", async () => {
     const user = userEvent.setup();

@@ -114,31 +114,51 @@ export function ReconciliationWizard({
               />
             )}
 
-            <Button
-              id="wizard-apply-step"
-              variant="primary"
-              onClick={() => {
-                if (isLinkFundPhase) {
-                  onApplyCorrection({
-                    type: "LinkFund",
-                    bank_label: current.credit_line.label,
-                    assignment:
-                      selectedFundId === ""
-                        ? { type: "Rejected" }
-                        : { type: "Fund", fund_id: selectedFundId },
-                  });
-                } else {
-                  onApplyCorrection({
-                    type: "AssignGroups",
-                    line_id: current.line_id,
-                    group_ids: [],
-                  });
-                }
-                setSelectedFundId("");
-              }}
-            >
-              {t("reconciliation.wizard.apply")}
-            </Button>
+            <div className="flex items-center justify-between gap-2">
+              {isLinkFundPhase ? (
+                <Button
+                  id="wizard-reject-step"
+                  variant="danger"
+                  onClick={() => {
+                    onApplyCorrection({
+                      type: "LinkFund",
+                      bank_label: current.credit_line.label,
+                      assignment: { type: "Rejected" },
+                    });
+                    setSelectedFundId("");
+                  }}
+                >
+                  {t("reconciliation.link_fund.reject")}
+                </Button>
+              ) : (
+                <span />
+              )}
+              <Button
+                id="wizard-apply-step"
+                variant="primary"
+                disabled={isLinkFundPhase && selectedFundId === ""}
+                onClick={() => {
+                  if (isLinkFundPhase) {
+                    // Rejection is only ever the explicit button above (BAS-101) —
+                    // an empty selection never implies it.
+                    onApplyCorrection({
+                      type: "LinkFund",
+                      bank_label: current.credit_line.label,
+                      assignment: { type: "Fund", fund_id: selectedFundId },
+                    });
+                  } else {
+                    onApplyCorrection({
+                      type: "AssignGroups",
+                      line_id: current.line_id,
+                      group_ids: [],
+                    });
+                  }
+                  setSelectedFundId("");
+                }}
+              >
+                {t("reconciliation.wizard.apply")}
+              </Button>
+            </div>
           </div>
         )}
       </div>
