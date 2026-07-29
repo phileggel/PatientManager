@@ -163,7 +163,7 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 
 **BAS-100 — Wizard entry (frontend)**: A wizard button is shown at the top of the unified list. It launches a guided walkthrough that steps through the lines needing correction one at a time, instead of the user hunting for them.
 
-**BAS-101 — Phased walkthrough order (frontend)**: The wizard resolves corrections in two phases: first every **link-fund** correction (all unlinked labels), then every **assign-group** correction. Within a phase, items are presented in document order (BAS-060).
+**BAS-101 — Phased walkthrough order (frontend)**: The wizard resolves corrections in two phases: first every **link-fund** correction (all unlinked labels), then every **assign-group** correction. Within a phase, items are presented in document order (BAS-060). Each step presents the same selection UI as the equivalent manual correction: the link-fund step requires an explicit fund choice or an explicit reject (BAS-030/036 — an empty selection never implies rejection); the assign-group step presents the ranked candidate selector with balance, broaden, and overflow guard (BAS-068, BAS-090–094). A step can be **skipped** without applying any correction — the line keeps its status and remains non-blocking (BAS-063); skipping never submits an empty assignment (which would be an unassign override, BAS-062).
 
 **BAS-102 — Wizard shares the correction model (frontend + backend)**: Each wizard step applies the same typed correction command as the equivalent manual per-line correction (BAS-062), triggering the same draft recompute and cascade (BAS-064, BAS-066, BAS-067). A correction made via the wizard is revertable identically (BAS-065); there is one correction model, not two.
 

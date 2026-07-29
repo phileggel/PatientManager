@@ -2,6 +2,42 @@
 
 ---
 
+## (frontend/bank) — Fund selects in link-fund modal and wizard are unstyled and unsorted
+
+`LinkFundModal.tsx:54` and `ReconciliationWizard.tsx:102` use raw `<select>`s with no `bg-*`/`text-*` classes — the only unstyled selects in the app — causing invisible options in one theme (day/night report, 2026-07-29). They also bypass `ui/components/field/SelectField` and render funds in DB-insertion order. Fix: reuse `SelectField`, sort options by `localeCompare`, capture visual proof of both modals (currently uncaptured).
+
+---
+
+## (frontend+backend/bank) — Assign-group candidate rows are anonymous
+
+`AssignGroupsModal.tsx:104-107` shows only date + amount per candidate — no fund name. Indistinguishable rows, especially with broaden on (BAS-068) where candidates span all funds. Fix: add `fund_name` to `BankStatementCandidate` (`reconciliation.rs`), regenerate bindings, render it.
+
+---
+
+## (frontend/bank) — Broadened selections survive invisibly when broaden toggles off
+
+`AssignGroupsModal.tsx`: `selected` isn't pruned when the candidate source narrows — a broadened-only selection stays in `group_ids` on submit while excluded from the displayed balance. Fix: prune `selected` to visible candidate ids on toggle.
+
+---
+
+## (frontend/bank) — Wizard link-fund step silently rejects on empty selection
+
+`ReconciliationWizard.tsx:118-135`: Apply with the placeholder selected submits `{ type: "Rejected" }` — no disabled state, no explicit reject affordance (unlike `LinkFundModal`). Fix: disable Apply until a fund is chosen; add an explicit Reject button.
+
+---
+
+## (frontend/bank) — Wizard assign-group step has no candidate selector
+
+`ReconciliationWizard.tsx:128-133`: phase 2 always submits `AssignGroups` with `group_ids: []` (an unassign override per BAS-062) — the wizard cannot actually resolve needs-group lines. Fix per amended BAS-101: present the same ranked candidate selector as the manual correction (extract a shared `CandidateList` from `AssignGroupsModal`); a step with nothing selected is skipped, not applied.
+
+---
+
+## (backend/bank) — `suggest_fund` heuristic misses spaced labels and guesses on ties
+
+`reconciliation.rs:560-599`: the CPAM/CAISSE regex requires digits immediately after the prefix (`CPAM 93` defeats it); strategy 2 strips spaces from the fund name but not the label; ties resolve first-wins (wrong CPAM suggested). Fix: `\s*` in the regex, normalize both sides, suppress the suggestion on a strategy-2 tie.
+
+---
+
 ## (ci) — Windows E2E at the release gate
 
 Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.

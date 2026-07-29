@@ -8,6 +8,16 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-07-29 — `read_all_funds` has no ORDER BY; every consumer inherits insertion order
+
+**Found by:** manual audit (bank reconciliation UX, branch `next`).
+
+**Where:** `src-tauri/src/context/fund/repository.rs:82-97` — `SELECT … FROM fund` without `ORDER BY`, so the funds cache (`infra/cache/store.ts`) and every dropdown consuming it render funds in DB-insertion order.
+
+**Observation:** the bank-statement fund selects get an FE-local `localeCompare` sort as the surgical fix; a backend `ORDER BY name COLLATE NOCASE` would fix all consumers at once but changes ordering everywhere (dashboard, excel-import mapping) and deserves its own pass. When next touching the fund repository, consider promoting the sort to SQL and dropping the FE-local sorts.
+
+---
+
 ## 2026-06-21 — BAS-022 unparsed-line warning is parsed but never displayed
 
 **Found by:** spec-checker (bank-reconciliation draft-UX closure).
