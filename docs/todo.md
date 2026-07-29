@@ -2,12 +2,6 @@
 
 ---
 
-## (frontend/bank) — Fund selects in link-fund modal and wizard are unstyled and unsorted
-
-`LinkFundModal.tsx:54` and `ReconciliationWizard.tsx:102` use raw `<select>`s with no `bg-*`/`text-*` classes — the only unstyled selects in the app — causing invisible options in one theme (day/night report, 2026-07-29). They also bypass `ui/components/field/SelectField` and render funds in DB-insertion order. Fix: reuse `SelectField`, sort options by `localeCompare`, capture visual proof of both modals (currently uncaptured).
-
----
-
 ## (frontend+backend/bank) — Assign-group candidate rows are anonymous
 
 `AssignGroupsModal.tsx:104-107` shows only date + amount per candidate — no fund name. Indistinguishable rows, especially with broaden on (BAS-068) where candidates span all funds. Fix: add `fund_name` to `BankStatementCandidate` (`reconciliation.rs`), regenerate bindings, render it.

@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 import type { BankStatementCorrection, BankStatementLine, Fund } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { Button } from "@/ui/components/button";
+import { SelectField } from "@/ui/components/field/SelectField";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
+import { sortFundsByName } from "../shared/fundOptions";
 
 interface LinkFundModalProps {
   line: BankStatementLine;
@@ -47,22 +49,19 @@ export function LinkFundModal({ line, isOpen, onSubmit, onCancel, funds }: LinkF
           </p>
         )}
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span>{t("reconciliation.link_fund.fund_label")}</span>
-          <select
-            id="link-fund-modal-fund-select"
-            className="rounded-lg border border-m3-outline/40 px-3 py-2"
-            value={selectedFundId}
-            onChange={(e) => setSelectedFundId(e.target.value)}
-          >
-            <option value="">{t("reconciliation.link_fund.select_placeholder")}</option>
-            {fundOptions.map((fund) => (
-              <option key={fund.id} value={fund.id}>
-                {fund.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectField
+          id="link-fund-modal-fund-select"
+          label={t("reconciliation.link_fund.fund_label")}
+          value={selectedFundId}
+          onChange={(e) => setSelectedFundId(e.target.value)}
+          options={[
+            { label: t("reconciliation.link_fund.select_placeholder"), value: "" },
+            ...sortFundsByName(fundOptions).map((fund) => ({
+              label: fund.name,
+              value: fund.id,
+            })),
+          ]}
+        />
 
         <div className="flex items-center justify-between gap-2">
           <Button
