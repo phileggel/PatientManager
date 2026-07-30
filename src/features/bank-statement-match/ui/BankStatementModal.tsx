@@ -54,6 +54,16 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
           {parseResult?.period && (
             <p className="text-xs text-m3-on-surface-variant">{parseResult.period}</p>
           )}
+          {/* BAS-022 — lines the parser could not read must not vanish silently. */}
+          {parseResult !== null && parseResult.unparsed_count > 0 && (
+            <p
+              id="bank-statement-modal-unparsed-warning"
+              role="alert"
+              className="text-xs font-medium text-m3-error"
+            >
+              {t("statement.modal.unparsed_warning", { count: parseResult.unparsed_count })}
+            </p>
+          )}
         </div>
         <IconButton
           icon={<X size={20} />}

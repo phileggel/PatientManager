@@ -132,4 +132,27 @@ describe("BankStatementModal — inline create-account gate (BAS-011..014)", () 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(mockCreateBankAccount).not.toHaveBeenCalled();
   });
+
+  // BAS-022 — the unparsed-line count renders as a header warning; absent at 0.
+  it("shows the unparsed-lines warning when the parser dropped lines (BAS-022)", async () => {
+    mockParse.mockResolvedValue({
+      success: true,
+      data: { ...PARSE_RESULT, unparsed_count: 2 },
+    });
+
+    render(<BankStatementModal filePath={FILE_PATH} onClose={() => {}} />);
+
+    await waitFor(() => {
+      expect(document.getElementById("bank-statement-modal-unparsed-warning")).not.toBeNull();
+    });
+  });
+
+  it("renders no unparsed-lines warning when every line parsed (BAS-022)", async () => {
+    render(<BankStatementModal filePath={FILE_PATH} onClose={() => {}} />);
+
+    await waitFor(() => {
+      expect(document.getElementById("create-account-form")).not.toBeNull();
+    });
+    expect(document.getElementById("bank-statement-modal-unparsed-warning")).toBeNull();
+  });
 });

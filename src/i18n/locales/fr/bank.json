@@ -127,7 +127,9 @@
       "done": "{{count}} virement(s) créé(s) avec succès",
       "done_description": "Les virements ont été enregistrés et les groupes de paiement sont maintenant rapprochés.",
       "error": "Erreur",
-      "unknown_error": "Une erreur inattendue s'est produite."
+      "unknown_error": "Une erreur inattendue s'est produite.",
+      "unparsed_warning_one": "{{count}} ligne du relevé n'a pas pu être lue et n'apparaît pas ci-dessous.",
+      "unparsed_warning_other": "{{count}} lignes du relevé n'ont pas pu être lues et n'apparaissent pas ci-dessous."
     }
   },
   "label_mapping": {

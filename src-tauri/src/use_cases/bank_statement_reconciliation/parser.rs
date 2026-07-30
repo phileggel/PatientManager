@@ -15,7 +15,7 @@ use regex::Regex;
 pub fn parse_bank_statement(text: &str) -> BankStatementParseResult {
     let iban = extract_iban(text);
     let period = extract_period(text);
-    let credit_lines: Vec<BankStatementCreditLine> = extract_credit_lines(text);
+    let (credit_lines, unparsed_count) = extract_credit_lines(text);
     let total_credits: i64 = credit_lines
         .iter()
         .inspect(|l| tracing::debug!(target: BACKEND, line = ?l))
@@ -27,7 +27,7 @@ pub fn parse_bank_statement(text: &str) -> BankStatementParseResult {
         period,
         credit_lines,
         total_credits,
-        unparsed_count: 0,
+        unparsed_count,
     }
 }
 
@@ -72,7 +72,11 @@ fn extract_period(text: &str) -> Option<String> {
 ///
 /// The label is everything between "VIR SEPA" and the second date, excluding
 /// any trailing `SEPA` suffix (which some bank export formats append).
-fn extract_credit_lines(text: &str) -> Vec<BankStatementCreditLine> {
+///
+/// Returns the parsed lines plus the BAS-022 unparsed count: VIR-SEPA-looking
+/// lines the parser could not turn into a credit line (regex mismatch, empty
+/// label, malformed date or amount).
+fn extract_credit_lines(text: &str) -> (Vec<BankStatementCreditLine>, u32) {
     let mut results = Vec::new();
 
     // VIR_SEPA_MARKER is `VIR SEPA` (single space); split and rejoin with \s+
@@ -83,7 +87,7 @@ fn extract_credit_lines(text: &str) -> Vec<BankStatementCreditLine> {
         r"^\d{{2}}/\d{{2}}/\d{{4}}\s+{marker}\s+(.+?)\s+(\d{{2}}/\d{{2}}/\d{{4}})\s+([\d\s]+,\d{{2}})"
     )) {
         Ok(r) => r,
-        Err(_) => return results,
+        Err(_) => return (results, 0),
     };
 
     let mut virsepa_lines = Vec::new();
@@ -151,7 +155,10 @@ fn extract_credit_lines(text: &str) -> Vec<BankStatementCreditLine> {
         tracing::debug!(?matched_lines, "Regex matched lines");
     }
 
-    results
+    // BAS-022 — every VIR-SEPA-looking line that produced no credit line.
+    let unparsed_count = (virsepa_lines.len() - results.len()) as u32;
+
+    (results, unparsed_count)
 }
 
 /// Convert DD/MM/YYYY to YYYY-MM-DD.
@@ -239,7 +246,7 @@ Ref000000000000000000
 02/01/2025 VIR SEPA CPAM02 02/01/2025 50,00
 0000000000000000000000000000"#;
 
-        let lines = extract_credit_lines(text);
+        let (lines, _) = extract_credit_lines(text);
         assert_eq!(lines.len(), 2);
         assert_eq!(lines[0].date, "2025-01-01");
         assert_eq!(lines[0].label, "CPAM01");
@@ -252,7 +259,7 @@ Ref000000000000000000
     fn test_extract_credit_lines_mgen() {
         let text =
             "01/01/2025 VIR SEPA MUTUELLEGENERALEEDUCATIONNAT 01/01/2025 50,00\nTP-00000000-000";
-        let lines = extract_credit_lines(text);
+        let (lines, _) = extract_credit_lines(text);
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].label, "MUTUELLEGENERALEEDUCATIONNAT");
         assert_eq!(lines[0].amount, 50000);
@@ -261,7 +268,7 @@ Ref000000000000000000
     #[test]
     fn test_extract_credit_lines_cpam75() {
         let text = "01/01/2025 VIR SEPA CPAM01PRESTATIONS 01/01/2025 50,00\n000000000";
-        let lines = extract_credit_lines(text);
+        let (lines, _) = extract_credit_lines(text);
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].label, "CPAM01PRESTATIONS");
     }
@@ -269,7 +276,7 @@ Ref000000000000000000
     #[test]
     fn test_extract_credit_lines_cprpf() {
         let text = "01/01/2025 VIR SEPA CPRPFRG 01/01/2025 50,00\n0000000";
-        let lines = extract_credit_lines(text);
+        let (lines, _) = extract_credit_lines(text);
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].label, "CPRPFRG");
     }
@@ -278,7 +285,7 @@ Ref000000000000000000
     fn test_extract_credit_lines_hauts_de_seine() {
         let text =
             "01/01/2025 VIR SEPA CPAMHAUTSDESEINE 01/01/2025 50,00\n0000000000000000000000000000";
-        let lines = extract_credit_lines(text);
+        let (lines, _) = extract_credit_lines(text);
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].date, "2025-01-01");
         assert_eq!(lines[0].label, "CPAMHAUTSDESEINE");
@@ -290,10 +297,26 @@ Ref000000000000000000
         let text = r#"01/01/2025 PRLVSEPABOUYGUESTELECOM 01/01/2025 20,00
 02/01/2025 CARTE01/01/25COMMERCECB*0000 02/01/2025 75,00
 02/01/2025 VIRVirementinternedepuisPARTICULIER 02/01/2025 1 000,00"#;
-        let lines = extract_credit_lines(text);
+        let (lines, _) = extract_credit_lines(text);
         // PRLVSEPA and CARTE should be filtered out.
         // "VIRVirement" doesn't have "VIRSEPA" pattern (no "SEPA" after "VIR").
         assert_eq!(lines.len(), 0);
+    }
+
+    // BAS-022 — a VIR-SEPA-looking line the parser cannot turn into a credit
+    // line (malformed amount here) is counted as unparsed, and the count flows
+    // onto the wire via parse_bank_statement.
+    #[test]
+    fn test_unparsed_count_reports_unrecognized_vir_sepa_lines() {
+        let text = r#"01/01/2025 VIR SEPA CPAM01 01/01/2025 100,00
+03/01/2025 VIR SEPA BROKENLINE 03/01/2025 notanamount"#;
+
+        let (lines, unparsed) = extract_credit_lines(text);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(unparsed, 1);
+
+        let result = parse_bank_statement(text);
+        assert_eq!(result.unparsed_count, 1);
     }
 
     #[test]

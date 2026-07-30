@@ -127,7 +127,9 @@
       "done": "{{count}} transfer(s) created successfully",
       "done_description": "Transfers have been recorded and payment groups are now reconciled.",
       "error": "Error",
-      "unknown_error": "An unexpected error occurred."
+      "unknown_error": "An unexpected error occurred.",
+      "unparsed_warning_one": "{{count}} statement line could not be read and is not shown below.",
+      "unparsed_warning_other": "{{count}} statement lines could not be read and are not shown below."
     }
   },
   "label_mapping": {

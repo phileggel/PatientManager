@@ -2,12 +2,6 @@
 
 ---
 
-## (backend+frontend/bank) — BAS-022: unparsed count hardcoded to 0, warning never shown
-
-`parser.rs:30` emits `unparsed_count: 0` although `extract_credit_lines` measures the delta at `parser.rs:139-144`; no FE renders it. Fix: emit the real count; show a warning line in `BankStatementModal` when > 0. (Replaces the 2026-06-21 techdebt entry, whose "the data crosses the wire" claim was wrong — both halves were missing.)
-
----
-
 ## (backend+frontend/bank) — Mechanical batch: date guard, wizard suggestion, formatters
 
 `apply_assign_groups` lacks the BAS-051 date-window check (UI can't produce out-of-window ids, but validate is the trust boundary); the wizard's link-fund step omits the BAS-033 suggestion helper text that `LinkFundModal` shows; `toEuros` / raw ISO dates in the correction modals bypass `useFormatters` (list shows "1 234,50 €", modals "1234.50").
