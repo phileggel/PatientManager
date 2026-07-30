@@ -20,7 +20,6 @@ export interface UseBankStatementReconciliationReturn {
   error: BankStatementReconciliationError | null;
   /** Resolves true when the correction was accepted (hosts close their dialog on success only). */
   applyCorrection: (correction: BankStatementCorrection) => Promise<boolean>;
-  revert: () => Promise<void>;
   revertCorrection: (index: number) => Promise<void>;
   validate: () => Promise<number | null>;
 }
@@ -33,7 +32,7 @@ export interface UseBankStatementReconciliationReturn {
  *   the draft only advanced when compute succeeds (BAS-064 — a failing
  *   correction leaves the prior draft intact).
  * - `revertCorrection`: drop the i-th correction and recompute (BAS-065); no-op
- *   for an out-of-range index. `revert` is the last-correction shorthand.
+ *   for an out-of-range index.
  * - `validate`: commit server-side; returns the created BankEntry count or null.
  */
 export function useBankStatementReconciliation(
@@ -104,11 +103,6 @@ export function useBankStatementReconciliation(
     [recompute],
   );
 
-  const revert = useCallback(
-    () => revertCorrection(correctionsRef.current.length - 1),
-    [revertCorrection],
-  );
-
   const validate = useCallback(async (): Promise<number | null> => {
     setIsBusy(true);
     setError(null);
@@ -135,7 +129,6 @@ export function useBankStatementReconciliation(
     isBusy,
     error,
     applyCorrection,
-    revert,
     revertCorrection,
     validate,
   };

@@ -239,12 +239,6 @@ impl BankStatementOrchestrator {
         Ok(created_count)
     }
 
-    /// Publish batched events after batch reconciliation completes
-    pub fn publish_batch_events(&self) {
-        let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
-        let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
-    }
-
     /// Resolve IBAN to bank account
     pub async fn resolve_bank_account_from_iban(
         &self,
@@ -640,66 +634,6 @@ mod tests {
             .await
             .unwrap();
         assert!(result.is_none());
-    }
-
-    // --- publish_batch_events ---
-
-    #[tokio::test]
-    async fn publish_batch_events_emits_procedure_and_bank_entry_updates() {
-        let event_bus = Arc::new(EventBus::new());
-        let mut proc_rx = event_bus.subscribe::<ProcedureUpdated>().unwrap();
-        let mut bank_rx = event_bus.subscribe::<BankEntryUpdated>().unwrap();
-
-        let bank_account_repo: Arc<dyn BankAccountRepository> =
-            Arc::new(bank_account_repo_returning(None));
-        let orchestrator = BankStatementOrchestrator::new(
-            Arc::new(BankAccountService::new(
-                bank_account_repo.clone(),
-                event_bus.clone(),
-            )),
-            Arc::new(FundService::new(
-                Arc::new(fund_repo_returning(vec![])),
-                event_bus.clone(),
-            )),
-            Arc::new(FundPaymentService::new(
-                Arc::new(fund_payment_repo_returning_groups(vec![])),
-                event_bus.clone(),
-            )),
-            Arc::new(BankEntryService::new(
-                Arc::new(bank_entry_repo_noop()),
-                bank_account_repo,
-                event_bus.clone(),
-            )),
-            Arc::new(bank_link_repo_noop()),
-            Arc::new(ProcedureService::new(
-                Arc::new(proc_repo_noop()),
-                event_bus.clone(),
-            )),
-            Arc::new(label_mapping_repo_returning(vec![])),
-            event_bus,
-        );
-
-        orchestrator.publish_batch_events();
-
-        proc_rx
-            .recv()
-            .await
-            .expect("ProcedureUpdated must be published");
-        bank_rx
-            .recv()
-            .await
-            .expect("BankEntryUpdated must be published");
-
-        // Each topic must receive exactly one event — guard against future
-        // accidental double-publishes silently passing the at-least-one check.
-        assert!(
-            proc_rx.try_recv().is_err(),
-            "no second ProcedureUpdated expected"
-        );
-        assert!(
-            bank_rx.try_recv().is_err(),
-            "no second BankEntryUpdated expected"
-        );
     }
 
     // --- create_transfers ---
