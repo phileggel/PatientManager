@@ -1,12 +1,12 @@
 /**
  * E2E — bank-statement reconciliation entry point + IPC smoke
  *
- * Limitation (known, per ADR-007 pattern):
- *   The full flow (card click → native OS file dialog → BankStatementModal →
- *   correction flow → validate) cannot be automated in WebDriver because the
- *   file picker is outside WebDriver's reach — same category as the
- *   fund-payment-report suite. The correction/validate logic is densely
- *   covered by unit + RTL integration tests.
+ * Scope (deliberate, KISS): entry-point wiring + one real-IPC recompute. The
+ * deeper flow (card click → file pick → BankStatementModal → correction →
+ * validate) IS drivable — ADR-007's `setE2eOverrides({ pickPdfFilePath })`
+ * exists precisely to bypass the native file dialog — but needs a committed
+ * fixture bank-statement PDF and its own scenario budget; tracked in
+ * docs/techdebt.md (2026-07-30, "Deep bank-statement E2E via ADR-007").
  *
  * What this suite covers:
  *   - The Import nav button opens the import modal and the bank-reconciliation
@@ -21,30 +21,7 @@
 
 import { $, browser } from "@wdio/globals";
 import assert from "node:assert";
-
-/** Invoke a Tauri command directly from the WebView, bypassing the UI. */
-async function tauriInvoke<T>(
-  cmd: string,
-  args: unknown,
-): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
-  try {
-    const data = await browser.execute(
-      async (command, invokeArgs) => {
-        // biome-ignore lint/suspicious/noExplicitAny: __TAURI_INTERNALS__ is untyped
-        const invoke = (window as any).__TAURI_INTERNALS__.invoke as (
-          cmd: string,
-          args: unknown,
-        ) => Promise<unknown>;
-        return invoke(command, invokeArgs);
-      },
-      cmd,
-      args,
-    );
-    return { ok: true, data: data as T };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
-  }
-}
+import { tauriInvoke } from "../helpers/tauri-invoke";
 
 interface ReconciliationSmoke {
   lines: { status: string }[];
@@ -52,6 +29,12 @@ interface ReconciliationSmoke {
 }
 
 describe("Bank statement reconciliation entry point smoke", () => {
+  // maxInstances: 1 — the session is shared across spec files; never leak an
+  // open modal into whichever spec runs next.
+  after(async () => {
+    await browser.keys("Escape");
+  });
+
   it("import modal opens and shows the bank reconciliation entry point", async () => {
     const importBtn = await $("#nav-import");
     await importBtn.waitForExist({ timeout: 10000 });

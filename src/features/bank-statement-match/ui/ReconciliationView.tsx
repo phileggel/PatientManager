@@ -42,6 +42,7 @@ export function ReconciliationView({
     isBusy,
     error,
     applyCorrection,
+    clearError,
     revertCorrection,
     validate,
   } = useBankStatementReconciliation(bankAccountId, parseResult);
@@ -84,6 +85,18 @@ export function ReconciliationView({
   // the native <dialog> top layer and is invisible while a modal is open.
   const correctionErrorText = error ? t(presentReconciliationError(error).key) : null;
 
+  // A rejection message belongs to the dialog it happened in — clear it when
+  // the dialog is dismissed or another line is opened, or it would render as
+  // a stale error inside the next dialog.
+  const openLine = (line: BankStatementLine) => {
+    clearError();
+    setActiveLine(line);
+  };
+  const closeDialog = () => {
+    clearError();
+    setActiveLine(null);
+  };
+
   // Close the dialog only when the correction was accepted; on rejection the
   // dialog stays open and shows the error (BAS-064 — "the frontend signals it").
   const submitAndCloseOnSuccess = async (correction: BankStatementCorrection) => {
@@ -97,7 +110,7 @@ export function ReconciliationView({
     <div className="flex flex-col gap-6">
       <ReconciliationList
         reconciliation={reconciliation}
-        onApplyCorrection={setActiveLine}
+        onApplyCorrection={openLine}
         isBusy={isBusy}
         onOpenWizard={() => setIsWizardOpen(true)}
       />
@@ -134,7 +147,7 @@ export function ReconciliationView({
         </div>
       )}
 
-      {error && <ErrorStep error={t(presentReconciliationError(error).key)} />}
+      {correctionErrorText && <ErrorStep error={correctionErrorText} />}
 
       <div className="flex justify-end gap-3">
         <Button onClick={onClose} variant="secondary" disabled={isBusy}>
@@ -151,8 +164,9 @@ export function ReconciliationView({
           line={activeLine}
           isOpen={true}
           errorText={correctionErrorText}
+          isBusy={isBusy}
           onSubmit={(correction) => void submitAndCloseOnSuccess(correction)}
-          onCancel={() => setActiveLine(null)}
+          onCancel={closeDialog}
         />
       )}
 
@@ -163,8 +177,9 @@ export function ReconciliationView({
           line={activeLine}
           isOpen={true}
           errorText={correctionErrorText}
+          isBusy={isBusy}
           onSubmit={(correction) => void submitAndCloseOnSuccess(correction)}
-          onCancel={() => setActiveLine(null)}
+          onCancel={closeDialog}
         />
       )}
 
@@ -175,8 +190,15 @@ export function ReconciliationView({
           errorText={correctionErrorText}
           isBusy={isBusy}
           onApplyCorrection={(correction) => void applyCorrection(correction)}
-          onComplete={() => setIsWizardOpen(false)}
-          onAbandon={() => setIsWizardOpen(false)}
+          onErrorDismiss={clearError}
+          onComplete={() => {
+            clearError();
+            setIsWizardOpen(false);
+          }}
+          onAbandon={() => {
+            clearError();
+            setIsWizardOpen(false);
+          }}
         />
       )}
     </div>

@@ -14,6 +14,8 @@ interface AssignGroupsModalProps {
   onCancel: () => void;
   /** Rejection message from the last correction attempt, shown inside the dialog. */
   errorText?: string | null;
+  /** True while a recompute is in flight — action buttons are disabled (BAS-064). */
+  isBusy?: boolean;
 }
 
 /**
@@ -30,6 +32,7 @@ export function AssignGroupsModal({
   onSubmit,
   onCancel,
   errorText,
+  isBusy = false,
 }: AssignGroupsModalProps) {
   const { t } = useTranslation("bank");
   const { formatCurrency } = useFormatters();
@@ -74,6 +77,7 @@ export function AssignGroupsModal({
             <Button
               id="assign-groups-acknowledge-remainder"
               variant="secondary"
+              disabled={isBusy}
               onClick={() => onSubmit({ type: "AcknowledgeRemainder", line_id: line.line_id })}
             >
               {t("reconciliation.remainder.confirm")}
@@ -88,7 +92,7 @@ export function AssignGroupsModal({
           <Button
             id="assign-groups-submit"
             variant="primary"
-            disabled={isOverflow}
+            disabled={isBusy || isOverflow}
             onClick={() =>
               onSubmit({
                 type: "AssignGroups",

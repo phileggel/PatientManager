@@ -8,6 +8,16 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-07-30 — Deep bank-statement E2E via ADR-007 (fixture PDF + full flow)
+
+**Found by:** reviewer-e2e (branch `next`, batch 2) — user confirmed techdebt routing.
+
+**Where:** `e2e/bank-statement/entry-point.test.ts` covers entry wiring + one direct-invoke IPC smoke only. ADR-007's `setE2eOverrides({ pickPdfFilePath })` (unused by any spec today) can bypass the native file dialog and drive the REAL flow: card click → fixture PDF → `BankStatementModal` → correction (wizard or modal) → validate → transfer count.
+
+**Observation:** needs a committed fixture bank-statement PDF (synthetic — generate via the dev-fixtures codec, never a real statement; binary-resource rule applies) plus scenario budget. First E2E consumer of `setE2eOverrides` — worth pairing with a fund-payment-report deep flow in the same task to amortize the pattern.
+
+---
+
 ## 2026-07-29 — `read_all_funds` has no ORDER BY; every consumer inherits insertion order
 
 **Found by:** manual audit (bank reconciliation UX, branch `next`).

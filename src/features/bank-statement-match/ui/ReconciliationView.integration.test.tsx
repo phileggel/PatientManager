@@ -7,7 +7,7 @@
  *   - Loading state while useBankStatementReconciliation has not yet computed (line 62)
  *   - The reconciliation list + per-line correction modals on double-click (BAS-062):
  *       NeedsLink  → LinkFundModal
- *       Partial    → RemainderModal
+ *       Partial    → AssignGroupsModal (seeded, with acknowledge-remainder)
  *       NeedsGroup / Unresolved / Matched / Rejected → AssignGroupsModal
  *   - applyCorrection called from a modal + modal closes afterwards (BAS-064)
  *   - Wizard button → ReconciliationWizard; apply/abandon/complete paths (BAS-100–103)
@@ -384,7 +384,7 @@ describe("ReconciliationView — modal routing by line status (BAS-062)", () => 
     expect(fundSelect?.value).toBe("");
   });
 
-  it("opens RemainderModal when a Partial line is double-clicked (BAS-062)", async () => {
+  it("opens the seeded AssignGroupsModal when a Partial line is double-clicked (BAS-062)", async () => {
     const user = userEvent.setup();
     mockCompute.mockResolvedValue({
       success: true,
@@ -600,6 +600,15 @@ describe("ReconciliationView — applyCorrection from modal (BAS-064)", () => {
       expect(document.getElementById("link-fund-modal-error")).not.toBeNull();
     });
     expect(document.getElementById("link-fund-modal-fund-select")).not.toBeNull();
+
+    // Dismissing the dialog clears the rejection — reopening the line must
+    // not show the stale error (the message belongs to the failed attempt).
+    const cancelBtn = document.getElementById("link-fund-modal-cancel");
+    if (!cancelBtn) throw new Error("cancel button missing");
+    await user.click(cancelBtn);
+    await user.dblClick(lineEl);
+    expect(document.getElementById("link-fund-modal-fund-select")).not.toBeNull();
+    expect(document.getElementById("link-fund-modal-error")).toBeNull();
   });
 
   // BAS-065 — applied corrections are listed, each with a revert button that
@@ -1125,7 +1134,7 @@ describe("ReconciliationView — modal cancel closes the modal (BAS-062)", () =>
     expect(mockCompute).toHaveBeenCalledTimes(callCountAfterMount);
   });
 
-  it("cancelling RemainderModal closes it without calling computeBankStatementReconciliation again", async () => {
+  it("cancelling the Partial-line assign modal closes it without calling computeBankStatementReconciliation again", async () => {
     const user = userEvent.setup();
     mockCompute.mockResolvedValue({
       success: true,
