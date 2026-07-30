@@ -2,12 +2,6 @@
 
 ---
 
-## (frontend/bank) — Current assignment not seeded; Partial lines dead-end on RemainderModal
-
-`AssignGroupsModal.tsx` / `ReconciliationWizard.tsx` start with an empty selection, so applying on a partial line replaces (drops) the existing groups and the balance reads "Covered 0.00". `ReconciliationView.tsx:145-159` routes `Partial` only to `RemainderModal` — adding groups is unreachable. Fix: seed `selected` with `assigned_group_ids`; route `Partial` to `AssignGroupsModal` with an acknowledge-remainder affordance.
-
----
-
 ## (backend/bank) — Broadened cross-fund selection always rejected on submit
 
 `reconciliation.rs:379-381` rejects any group whose fund differs from the line's fund, so every broadened selection fails with `GroupNotEligible`. Per amended BAS-090: drop the fund-equality check for manual assignment (keep lock/consumed/overflow + add the date-window guard); test spanning broadened selection → successful submit.

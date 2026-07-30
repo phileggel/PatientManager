@@ -34,9 +34,7 @@
       "submit": "Affecter"
     },
     "remainder": {
-      "title": "Accepter le reliquat",
       "amount": "Reliquat non couvert : {{amount}}",
-      "cancel": "Annuler",
       "confirm": "Accepter"
     },
     "applied_corrections": {

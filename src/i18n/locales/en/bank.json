@@ -34,9 +34,7 @@
       "submit": "Assign"
     },
     "remainder": {
-      "title": "Acknowledge remainder",
       "amount": "Uncovered remainder: {{amount}}",
-      "cancel": "Cancel",
       "confirm": "Acknowledge"
     },
     "applied_corrections": {

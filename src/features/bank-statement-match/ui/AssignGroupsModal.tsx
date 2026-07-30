@@ -4,6 +4,7 @@ import type { BankStatementCorrection, BankStatementLine } from "@/bindings";
 import { Button } from "@/ui/components/button";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { coveredAmount } from "../shared/candidateSelection";
+import { toEuros } from "../shared/reconciliationPresenter";
 import { CandidateList } from "./CandidateList";
 
 interface AssignGroupsModalProps {
@@ -31,9 +32,12 @@ export function AssignGroupsModal({
   errorText,
 }: AssignGroupsModalProps) {
   const { t } = useTranslation("bank");
-  const [selected, setSelected] = useState<string[]>([]);
+  // Seeded with the current assignment — submitting recomposes (replaces) the
+  // set, so an unseeded selection would silently drop existing groups (BAS-068).
+  const [selected, setSelected] = useState<string[]>(line.assigned_group_ids);
 
   const isOverflow = coveredAmount(line, selected) > line.credit_line.amount;
+  const remainder = line.credit_line.amount - line.covered_amount;
 
   return (
     <ModalContainer
@@ -58,6 +62,22 @@ export function AssignGroupsModal({
           <p id="assign-groups-error" role="alert" className="text-sm text-m3-error">
             {errorText}
           </p>
+        )}
+
+        {/* BAS-092 — a partial line can acknowledge its uncovered remainder here. */}
+        {line.status === "Partial" && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-m3-on-surface-variant">
+              {t("reconciliation.remainder.amount", { amount: toEuros(remainder) })}
+            </span>
+            <Button
+              id="assign-groups-acknowledge-remainder"
+              variant="secondary"
+              onClick={() => onSubmit({ type: "AcknowledgeRemainder", line_id: line.line_id })}
+            >
+              {t("reconciliation.remainder.confirm")}
+            </Button>
+          </div>
         )}
 
         <div className="flex items-center justify-end gap-2">

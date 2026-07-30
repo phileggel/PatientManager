@@ -117,7 +117,8 @@ pub struct BankStatementCandidate {
     pub fund_name: String,
     pub payment_date: String,
     pub total_amount: i64,
-    /// True if this group's amount exactly matches the line's outstanding amount.
+    /// True if this group's amount exactly matches the line amount (the
+    /// recomposition basis — see `finalize_line`).
     pub is_exact_amount: bool,
 }
 
@@ -458,11 +459,21 @@ fn finalize_line(
         }
     };
 
-    let outstanding = line_amount - covered_amount;
-    let candidate_groups = candidate_groups(wl, groups, funds, consumed, outstanding);
+    // BAS-068 — the candidate lists support RECOMPOSING the assignment: the
+    // line's own assigned groups reappear (hosts pre-select them) and the
+    // amount filter runs against the full line amount, not the yet-uncovered
+    // remainder. AssignGroups replaces the set (BAS-062); the overflow guard
+    // (BAS-094) bounds the recomposed total.
+    let consumed_by_others: HashSet<String> = consumed
+        .iter()
+        .filter(|id| !wl.assigned_group_ids.contains(id))
+        .cloned()
+        .collect();
+    let candidate_groups = candidate_groups(wl, groups, funds, &consumed_by_others, line_amount);
     // BAS-068 — broadened set: same date tolerance + eligibility, but across all
     // funds (no fund filter). Superset shown when the user broadens the search.
-    let broadened_candidates = broadened_candidates(wl, groups, funds, consumed, outstanding);
+    let broadened_candidates =
+        broadened_candidates(wl, groups, funds, &consumed_by_others, line_amount);
 
     BankStatementLine {
         line_id: wl.line_id.clone(),
@@ -786,6 +797,58 @@ mod tests {
         assert_eq!(
             line.suggested_fund_name.as_deref(),
             Some("CPAM Seine-Saint-Denis")
+        );
+    }
+
+    // BAS-068 — a partially-assigned line's candidate lists include its own
+    // assigned group and other groups filtered against the FULL line amount,
+    // so the hosts can recompose the assignment (seeded selection).
+    #[test]
+    fn partial_line_candidates_support_recomposition() {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let mappings = vec![BankFundLabelMapping {
+            id: "map-1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-93".to_string()),
+        }];
+        let groups = vec![
+            group("grp-60", "fund-93", "2026-01-12", 60_000),
+            group("grp-40", "fund-93", "2026-01-13", 40_000),
+        ];
+        let funds = vec![fund("fund-93", "93", "CPAM Seine-Saint-Denis")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+        };
+        let corrections = vec![BankStatementCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec!["grp-60".to_string()],
+        }];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
+        assert_eq!(line.status, BankStatementLineStatus::Partial);
+        let ids: Vec<&str> = line
+            .candidate_groups
+            .iter()
+            .map(|c| c.group_id.as_str())
+            .collect();
+        assert!(ids.contains(&"grp-60"), "own assigned group is a candidate");
+        assert!(
+            ids.contains(&"grp-40"),
+            "other in-window group qualifies against the full line amount"
         );
     }
 
