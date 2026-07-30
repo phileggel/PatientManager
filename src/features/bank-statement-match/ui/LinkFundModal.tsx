@@ -14,6 +14,8 @@ interface LinkFundModalProps {
   onCancel: () => void;
   /** Optional fund list override; defaults to the shared cache store. */
   funds?: Fund[];
+  /** Rejection message from the last correction attempt, shown inside the dialog. */
+  errorText?: string | null;
 }
 
 /**
@@ -23,7 +25,14 @@ interface LinkFundModalProps {
  * pre-selected (BAS-033); the user must make an explicit choice. Submitting a
  * fund produces a `LinkFund/Fund` correction; rejecting produces `LinkFund/Rejected`.
  */
-export function LinkFundModal({ line, isOpen, onSubmit, onCancel, funds }: LinkFundModalProps) {
+export function LinkFundModal({
+  line,
+  isOpen,
+  onSubmit,
+  onCancel,
+  funds,
+  errorText,
+}: LinkFundModalProps) {
   const { t } = useTranslation("bank");
   const cacheFunds = useCacheStore((state) => state.funds);
   const fundOptions = funds ?? cacheFunds;
@@ -62,6 +71,12 @@ export function LinkFundModal({ line, isOpen, onSubmit, onCancel, funds }: LinkF
             })),
           ]}
         />
+
+        {errorText && (
+          <p id="link-fund-modal-error" role="alert" className="text-sm text-m3-error">
+            {errorText}
+          </p>
+        )}
 
         <div className="flex items-center justify-between gap-2">
           <Button

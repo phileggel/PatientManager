@@ -18,7 +18,8 @@ export interface UseBankStatementReconciliationReturn {
   corrections: BankStatementCorrection[];
   isBusy: boolean;
   error: BankStatementReconciliationError | null;
-  applyCorrection: (correction: BankStatementCorrection) => Promise<void>;
+  /** Resolves true when the correction was accepted (hosts close their dialog on success only). */
+  applyCorrection: (correction: BankStatementCorrection) => Promise<boolean>;
   revert: () => Promise<void>;
   revertCorrection: (index: number) => Promise<void>;
   validate: () => Promise<number | null>;
@@ -79,12 +80,13 @@ export function useBankStatementReconciliation(
   }, [recompute]);
 
   const applyCorrection = useCallback(
-    async (correction: BankStatementCorrection) => {
+    async (correction: BankStatementCorrection): Promise<boolean> => {
       const next = [...correctionsRef.current, correction];
       const ok = await recompute(next);
       if (ok) {
         setCorrections(next);
       }
+      return ok;
     },
     [recompute],
   );

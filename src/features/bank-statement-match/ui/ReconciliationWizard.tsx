@@ -19,6 +19,10 @@ interface ReconciliationWizardProps {
   onApplyCorrection: (correction: BankStatementCorrection) => void;
   onComplete: () => void;
   onAbandon: () => void;
+  /** Rejection message from the last correction attempt, shown inside the dialog. */
+  errorText?: string | null;
+  /** True while a recompute is in flight — apply/reject are disabled (BAS-064). */
+  isBusy?: boolean;
 }
 
 /** A line still needs a correction when it is not yet Matched or Rejected. */
@@ -51,6 +55,8 @@ export function ReconciliationWizard({
   onApplyCorrection,
   onComplete,
   onAbandon,
+  errorText,
+  isBusy = false,
 }: ReconciliationWizardProps) {
   const { t } = useTranslation("bank");
   const funds = useCacheStore((state) => state.funds);
@@ -148,11 +154,18 @@ export function ReconciliationWizard({
               />
             )}
 
+            {errorText && (
+              <p id="wizard-step-error" role="alert" className="text-sm text-m3-error">
+                {errorText}
+              </p>
+            )}
+
             <div className="flex items-center justify-between gap-2">
               {isLinkFundPhase ? (
                 <Button
                   id="wizard-reject-step"
                   variant="danger"
+                  disabled={isBusy}
                   onClick={() =>
                     onApplyCorrection({
                       type: "LinkFund",
@@ -170,6 +183,7 @@ export function ReconciliationWizard({
                 <Button
                   id="wizard-skip-step"
                   variant="secondary"
+                  disabled={isBusy}
                   onClick={() => setSkippedLineIds((prev) => [...prev, current.line_id])}
                 >
                   {t("reconciliation.wizard.skip")}
@@ -178,9 +192,10 @@ export function ReconciliationWizard({
                   id="wizard-apply-step"
                   variant="primary"
                   disabled={
-                    isLinkFundPhase
+                    isBusy ||
+                    (isLinkFundPhase
                       ? selectedFundId === ""
-                      : selectedGroupIds.length === 0 || isOverflow
+                      : selectedGroupIds.length === 0 || isOverflow)
                   }
                   onClick={() => {
                     if (isLinkFundPhase) {
