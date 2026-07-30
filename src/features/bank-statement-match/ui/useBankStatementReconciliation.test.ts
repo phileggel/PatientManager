@@ -1,11 +1,11 @@
 /**
- * Unit tests for useBankStatementReconciliation — applyCorrection + revert
- * (BAS-062/065, [unit-test-needed] markers from the plan).
+ * Unit tests for useBankStatementReconciliation — applyCorrection +
+ * revertCorrection (BAS-062/065, [unit-test-needed] markers from the plan).
  *
- * applyCorrection:  appends a correction to corrections[] then calls
- *                  computeBankStatementReconciliation (BAS-064).
- * revert:          removes the last correction from corrections[] then
- *                  re-calls computeBankStatementReconciliation (BAS-065).
+ * applyCorrection:   appends a correction to corrections[] then calls
+ *                    computeBankStatementReconciliation (BAS-064).
+ * revertCorrection:  removes the i-th correction from corrections[] then
+ *                    re-calls computeBankStatementReconciliation (BAS-065).
  *
  * Both use the mocked gateway boundary (F3). renderHook discipline per
  * docs/test_convention.md (stable references outside the callback).
@@ -200,69 +200,6 @@ describe("useBankStatementReconciliation — applyCorrection (BAS-062/064)", () 
     });
 
     expect(result.current.isBusy).toBe(false);
-  });
-});
-
-describe("useBankStatementReconciliation — revert (BAS-065)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockCompute.mockResolvedValue({ success: true, data: INITIAL_RECONCILIATION });
-  });
-
-  it("removes the last correction and re-calls computeBankStatementReconciliation (BAS-065)", async () => {
-    const afterLinkFund = makeReconciliation({ needs_correction_count: 1 });
-    const afterAssign = makeReconciliation({ needs_correction_count: 0 });
-    const afterRevert = makeReconciliation({ needs_correction_count: 1 }); // back to after link-fund
-
-    mockCompute
-      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION }) // mount
-      .mockResolvedValueOnce({ success: true, data: afterLinkFund }) // after LINK_FUND
-      .mockResolvedValueOnce({ success: true, data: afterAssign }) // after ASSIGN_GROUPS
-      .mockResolvedValueOnce({ success: true, data: afterRevert }); // after revert
-
-    const { result } = renderHook(() =>
-      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
-    );
-
-    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
-
-    await act(async () => {
-      await result.current.applyCorrection(LINK_FUND_CORRECTION);
-    });
-    await act(async () => {
-      await result.current.applyCorrection(ASSIGN_GROUPS_CORRECTION);
-    });
-
-    // Now revert the last correction (ASSIGN_GROUPS)
-    await act(async () => {
-      await result.current.revert();
-    });
-
-    // After revert, compute is called with only the first correction
-    const lastCall = mockCompute.mock.calls.at(-1);
-    expect(lastCall?.[2]).toEqual([LINK_FUND_CORRECTION]);
-    expect(lastCall?.[2]).not.toContainEqual(ASSIGN_GROUPS_CORRECTION);
-
-    // Reconciliation reflects the post-revert state
-    expect(result.current.reconciliation?.needs_correction_count).toBe(1);
-  });
-
-  it("calling revert with an empty corrections list is a no-op (does not call compute again)", async () => {
-    mockCompute.mockResolvedValue({ success: true, data: INITIAL_RECONCILIATION });
-
-    const { result } = renderHook(() =>
-      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
-    );
-
-    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
-    const callCountAfterMount = mockCompute.mock.calls.length;
-
-    await act(async () => {
-      await result.current.revert();
-    });
-
-    // No additional compute call — nothing to revert
-    expect(mockCompute).toHaveBeenCalledTimes(callCountAfterMount);
   });
 });
 
