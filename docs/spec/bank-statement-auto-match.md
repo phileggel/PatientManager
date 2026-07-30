@@ -113,7 +113,7 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 
 **BAS-067 — Group consumption (backend)**: Assigning a group to a line removes that group from every other line's candidate proposals (a group settles at most one line; BAS-054). Reverting the assignment (BAS-065) restores the group to the candidate pool.
 
-**BAS-068 — Candidate proposals and broadened search (frontend)**: For a line needing a group, the draft offers candidate groups ranked by match quality (exact amount first, then date proximity), filtered to the line's fund and date tolerance (BAS-051). A "broaden" affordance shows all candidate groups beyond the fund filter while keeping date tolerance. _(Replaces former BAS-062.)_
+**BAS-068 — Candidate proposals and broadened search (frontend)**: For a line needing a group, the draft offers candidate groups ranked by match quality (exact amount first, then date proximity), filtered to the line's fund and date tolerance (BAS-051). A "broaden" affordance shows all candidate groups beyond the fund filter while keeping date tolerance; a broadened candidate is selectable and assignable (manual cross-fund override, BAS-090). _(Replaces former BAS-062.)_
 
 **BAS-069 — Summary and filter (frontend)**: The list shows a running count of resolved vs needs-correction lines and offers a filter to hide resolved lines. Filtering never changes the underlying document order (BAS-060).
 
@@ -149,7 +149,7 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 
 > A real bank credit can be a composite the original 1:1 exact-amount match (BAS-050) cannot settle: one credit equal to the sum of several groups, and/or a credit that includes a portion the application does not model (e.g. an "aide"/bonus transfer). These rules cover both. (Resolves issue #62.)
 
-**BAS-090 — Multi-group assignment (frontend + backend)**: A line can be assigned to one **or several** groups. Each assigned group must be eligible for the line under the existing match criteria (BAS-050 fund + date tolerance, BAS-053 not already reconciled), except that exact-amount equality (BAS-050 condition 2) is relaxed — a group qualifies if its amount is less than or equal to the line's outstanding (yet-uncovered) amount.
+**BAS-090 — Multi-group assignment (frontend + backend)**: A line can be assigned to one **or several** groups. Each assigned group must be eligible for the line under the existing match criteria (BAS-051 date tolerance, BAS-053 not already reconciled), with two relaxations relative to auto-match: exact-amount equality (BAS-050 condition 2) is relaxed — a group qualifies if its amount is less than or equal to the line's outstanding (yet-uncovered) amount — and the fund criterion (BAS-050 condition 1) binds **auto-match only**. An explicit manual assignment may reference a group from another fund (the broadened view, BAS-068): the user selecting a broadened candidate is the human override for an imperfect label mapping. _(2026-07-30 — previously the backend rejected cross-fund manual assignment with `GroupNotEligible`, making every broadened selection fail on submit; resolved in favor of allowing the override.)_
 
 **BAS-091 — Line balance (backend)**: The draft tracks, per line, the running balance `Σ(assigned group amounts) + acknowledged remainder` against the line amount. A multi-group line is fully covered — and therefore status **matched** (BAS-061) — only when that sum equals the line amount exactly. While the sum is below the line amount it is **partial**.
 

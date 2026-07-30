@@ -18,13 +18,33 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-06-21 — BAS-022 unparsed-line warning is parsed but never displayed
+## 2026-07-30 — Rejected / mis-linked labels have no re-link route from the list
 
-**Found by:** spec-checker (bank-reconciliation draft-UX closure).
+**Found by:** post-v0.20.0 audit (branch `next`, batch 2).
 
-**Where:** `src/features/bank-statement-match/ui/BankStatementModal.tsx` — the parser returns `BankStatementParseResult.unparsed_count` (BAS-022, "the number of lines not recognized by the parser is shown as a warning") but no FE component renders it; the modal shows the period only.
+**Where:** `src/features/bank-statement-match/ui/ReconciliationView.tsx` (Rejected falls through to `AssignGroupsModal` and dead-ends — no path back to `LinkFundModal`); `src-tauri/src/use_cases/bank_statement_reconciliation/reconciliation.rs` `apply_link_fund` Fund branch (does not release groups assigned under the previous fund — latent until a re-link route exists; ship both together).
 
-**Observation:** pre-existing — the old stepwise flow also never displayed it, so the draft-UX rework neither introduced nor closed it. The data crosses the wire; only the display is missing. Surface `unparsed_count > 0` as a warning in the import header/modal when next touching that surface.
+**Observation:** a wrong rejection or wrong saved mapping cannot be corrected from the list; the fix needs a small routing design (which modal for which status) plus the release fix, so it deserves its own scoped task rather than a bolt-on.
+
+---
+
+## 2026-07-30 — Explicit unassign does not survive a later link-fund cascade
+
+**Found by:** post-v0.20.0 audit (spec-checker, BAS-062).
+
+**Where:** `src-tauri/src/use_cases/bank_statement_reconciliation/reconciliation.rs` — `apply_link_fund` re-runs `auto_match` unconditionally; a deliberately unassigned line (`assigned_group_ids` empty) matches the auto-match eligibility filter and gets silently re-matched, contradicting BAS-062's "takes precedence for the rest of the recompute".
+
+**Observation:** fixing it needs an explicit-override marker on the working line (design call on the engine's state model) for an interaction that requires unassigning then linking a different label in the same session — rare. Defer until the engine is next touched.
+
+---
+
+## 2026-07-30 — Reconciliation polish backlog (grouped)
+
+**Found by:** post-v0.20.0 audit (branch `next`, batch 2) — items deliberately deferred under KISS/YAGNI; none affects correctness of the main flow.
+
+**Where/what:** double-click-only correction entry (no keyboard path, no hint string) — `ReconciliationList.tsx`; revert log shows internal `line-N` ids and shares one aria-label — `reconciliationPresenter.ts`, `ReconciliationView.tsx`; gate state not reset when a second file is opened in the same session — `useBankStatementGate.ts`; `apply_acknowledge_remainder` accepts any line (silent no-op corrections) and duplicate group ids are unguarded at the engine boundary (unreachable via UI) — `reconciliation.rs`; bare unstyled checkboxes — `ReconciliationList.tsx` / `CandidateList.tsx`; `text-m3-on-success-container` used without its container background — `ReconciliationView.tsx`; list has no busy affordance during recompute (BAS-064's busy state is suppress-only).
+
+**Observation:** batch these when the reconciliation UI is next reworked; individually none justifies a PR.
 
 ---
 

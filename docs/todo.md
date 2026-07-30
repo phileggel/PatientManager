@@ -2,6 +2,54 @@
 
 ---
 
+## (backend/bank) — Validate silently swallows lock/status write failures
+
+`orchestrator.rs:162-172, 206-229`: `update_group_status` / `update_procedures_batch` failures are `tracing::warn!`-only while `created_count` still increments — a group can stay unlocked after its transfer is created, and the next import re-matches it (duplicate transfer). Fix: propagate the failures; never report a success count on partial failure. Atomicity itself stays deferred (ADR-003).
+
+---
+
+## (frontend/bank) — Correction errors invisible behind the dialog top layer
+
+`ReconciliationView.tsx`: `void applyCorrection(...)` + immediate `setActiveLine(null)` closes the modal before the result is known, and the page-body `ErrorStep` renders behind the native `<dialog>`. The wizard has no error/busy surface at all. Fix: await the correction, close only on success, render the error inside the open dialog; guard wizard Apply while in flight.
+
+---
+
+## (frontend/bank) — Current assignment not seeded; Partial lines dead-end on RemainderModal
+
+`AssignGroupsModal.tsx` / `ReconciliationWizard.tsx` start with an empty selection, so applying on a partial line replaces (drops) the existing groups and the balance reads "Covered 0.00". `ReconciliationView.tsx:145-159` routes `Partial` only to `RemainderModal` — adding groups is unreachable. Fix: seed `selected` with `assigned_group_ids`; route `Partial` to `AssignGroupsModal` with an acknowledge-remainder affordance.
+
+---
+
+## (backend/bank) — Broadened cross-fund selection always rejected on submit
+
+`reconciliation.rs:379-381` rejects any group whose fund differs from the line's fund, so every broadened selection fails with `GroupNotEligible`. Per amended BAS-090: drop the fund-equality check for manual assignment (keep lock/consumed/overflow + add the date-window guard); test spanning broadened selection → successful submit.
+
+---
+
+## (backend+frontend/bank) — BAS-022: unparsed count hardcoded to 0, warning never shown
+
+`parser.rs:30` emits `unparsed_count: 0` although `extract_credit_lines` measures the delta at `parser.rs:139-144`; no FE renders it. Fix: emit the real count; show a warning line in `BankStatementModal` when > 0. (Replaces the 2026-06-21 techdebt entry, whose "the data crosses the wire" claim was wrong — both halves were missing.)
+
+---
+
+## (backend+frontend/bank) — Mechanical batch: date guard, wizard suggestion, formatters
+
+`apply_assign_groups` lacks the BAS-051 date-window check (UI can't produce out-of-window ids, but validate is the trust boundary); the wizard's link-fund step omits the BAS-033 suggestion helper text that `LinkFundModal` shows; `toEuros` / raw ISO dates in the correction modals bypass `useFormatters` (list shows "1 234,50 €", modals "1234.50").
+
+---
+
+## (test/bank) — Four missing spec-rule tests
+
+BAS-051 boundary (D+7 accepted / D+8 rejected), BAS-052 oldest-line conflict priority, BAS-071 procedure terminal statuses on validate (no test seeds procedures), BAS-015 create-account in-flight disabled state.
+
+---
+
+## (e2e/bank) — One reconciliation smoke scenario
+
+`e2e/` has zero bank-statement coverage (plan doc PR 3 never delivered). Scope: one smoke following existing e2e patterns; the native file dialog is likely undrivable under WebDriver — scope to what is reachable and document the limitation.
+
+---
+
 ## (ci) — Windows E2E at the release gate
 
 Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.

@@ -79,13 +79,9 @@ Final step. For each confirmed match, creates one `BankEntry` (R19), updates all
 
 ---
 
-### `get_bank_statement_reconciliation_config` — R11
+### `get_bank_statement_reconciliation_config` — R11 — **SUPERSEDED**
 
-Returns the backend matching configuration. Used by the frontend for two purposes: display the date tolerance in the match-review column header (R15), and apply it client-side in the broadened search filter (R17). Infallible — driven by a compile-time constant.
-
-- **Args:** —
-- **Returns:** `BankStatementReconciliationConfig`
-- **Errors:** —
+Superseded by the draft-UX rework (BAS-060–102): broadening moved server-side (`broadened_candidates` on each line), so no frontend consumer of the config remains. The command was never implemented. _(Marked 2026-07-30 — spec-checker found it listed active with zero implementation.)_
 
 ---
 
@@ -233,6 +229,7 @@ enum BankStatementLineStatus {
 struct BankStatementCandidate {
     group_id: String,
     fund_id: String,
+    fund_name: String,          // resolved for display — identifies the row in the broadened (cross-fund) view
     payment_date: String,
     total_amount: i64,
     is_exact_amount: bool,      // exact match against the line's outstanding amount (ranked first)
@@ -253,4 +250,5 @@ struct BankStatementCandidate {
 - 2026-04-29 — Deep review applied: added per-command intent and spec rule tracing, UL discrepancy note on create_bank_transfers_from_statement, GroupNotFound and InvalidDateFormat errors, ConfirmedMatch field origins, get_bank_statement_reconciliation_config frontend usage documented
 - 2026-05-04 — Inline create flow (BAS-011..017): resolve_bank_account_from_iban description updated — `None` now drives the frontend inline create form rather than a dead-end. Rule reference R1 → BAS-010. No new commands; uses existing `create_bank_account` (see bank-contract.md).
 - 2026-06-09 — Typed-error migration: per-command Errors columns now list the real wire-visible `BankStatementReconciliationError` variant codes (`BankError`/`FundError`/`BankStatementReconciliationTask`), replacing the pre-implementation aspirational names. `NoVirSepaLines` → `NoSepaCreditLines`.
+- 2026-07-30 — Post-v0.20.0 audit closure: added `fund_name` to `BankStatementCandidate` (shipped in v0.20.0, contract lagged); marked `get_bank_statement_reconciliation_config` SUPERSEDED (never implemented, no consumer since broadening moved server-side); BAS-090 amended — manual assignment may reference a cross-fund (broadened) group, the fund criterion binds auto-match only.
 - 2026-06-20 — Draft-UX rework (BAS-060–102): added `compute_bank_statement_reconciliation` and `validate_bank_statement_reconciliation`; superseded `resolve_bank_fund_labels`, `save_bank_fund_label_mappings`, `match_bank_statement_lines`, `create_bank_transfers_from_statement` (absorbed into the two new commands — collapse confirmed by user). Added reconciliation types (`BankStatementCorrection`, `BankStatementReconciliation`, `BankStatementLine`, `BankStatementLineStatus`, `BankStatementCandidate`), new error variants (`AssignmentOverflow`, `GroupNotEligible`, `GroupAlreadyConsumed`), and `FundPaymentGroupUpdated` event. Validate recomputes server-side from `corrections[]`; writes non-atomic (deferred UoW). `LinkFund` uses a typed `FundAssignment` (`Fund | Rejected`) instead of a `"REJECTED"` string sentinel; `AssignGroups` with an empty set means unassign / override an auto-match (BAS-062).
