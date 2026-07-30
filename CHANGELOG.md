@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.1] - 2026-07-30
+
+### Fixed
+
+- apply review findings, clear stale dialog errors, busy guards
+- auto-match nearest-offset order; cover BAS-015/051/052/071
+- date-window guard, wizard suggestion text, locale formatters
+- emit real unparsed count and warn in the import modal
+- allow manual cross-fund group assignment per amended BAS-090
+- seed current assignment and fold remainder into assign modal
+- show correction errors inside the open dialog
+- validate fails loudly when lock or status writes fail
+
 ## [0.20.0] - 2026-07-29
 
 ### Added
