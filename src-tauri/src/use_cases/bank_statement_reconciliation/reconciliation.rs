@@ -282,7 +282,10 @@ fn auto_match(
     let dates: Vec<Option<NaiveDate>> = lines.iter().map(|l| l.line_date).collect();
     order.sort_by(|&a, &b| dates.get(a).cmp(&dates.get(b)));
 
-    for offset in (0..=MAX_DATE_OFFSET_DAYS).rev() {
+    // Nearest offset first: a group settles the line closest to its date, and
+    // within one offset pass the oldest line goes first (BAS-052). Descending
+    // offsets would let a farther line steal a group from an older nearer one.
+    for offset in 0..=MAX_DATE_OFFSET_DAYS {
         for &idx in &order {
             let Some(line) = lines.get(idx) else {
                 continue;
@@ -815,6 +818,100 @@ mod tests {
             line.suggested_fund_name.as_deref(),
             Some("CPAM Seine-Saint-Denis")
         );
+    }
+
+    // BAS-051 — the auto-match tolerance boundary: a group at D+7 (bank date 7
+    // days after the group's date) auto-matches; at D+8 it does not.
+    #[test]
+    fn auto_match_accepts_d7_and_rejects_d8() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "map-1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-93".to_string()),
+        }];
+        let funds = vec![fund("fund-93", "93", "CPAM Seine-Saint-Denis")];
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+
+        // D+7 (2026-01-08) — inside the window: auto-matched.
+        let groups_d7 = vec![group("grp-d7", "fund-93", "2026-01-08", 100_000)];
+        let repos_d7 = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups_d7,
+            funds: &funds,
+        };
+        let recon = compute_reconciliation(&parse_result, &repos_d7, &[]).unwrap();
+        assert_eq!(recon.lines[0].status, BankStatementLineStatus::Matched);
+
+        // D+8 (2026-01-07) — one day beyond: no auto-match, no candidate.
+        let groups_d8 = vec![group("grp-d8", "fund-93", "2026-01-07", 100_000)];
+        let repos_d8 = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups_d8,
+            funds: &funds,
+        };
+        let recon = compute_reconciliation(&parse_result, &repos_d8, &[]).unwrap();
+        assert_eq!(recon.lines[0].status, BankStatementLineStatus::Unresolved);
+    }
+
+    // BAS-052 — when two lines compete for the same group, the OLDEST line
+    // (by bank date, not document order) wins the auto-match.
+    #[test]
+    fn auto_match_gives_conflicting_group_to_oldest_line() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "map-1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-93".to_string()),
+        }];
+        let funds = vec![fund("fund-93", "93", "CPAM Seine-Saint-Denis")];
+        // Document order puts the NEWER line first — sorting must still give
+        // the group to the older 2026-01-16 line.
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![
+                BankStatementCreditLine {
+                    date: "2026-01-20".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 100_000,
+                },
+                BankStatementCreditLine {
+                    date: "2026-01-16".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 100_000,
+                },
+            ],
+            total_credits: 200_000,
+            unparsed_count: 0,
+        };
+        // In-window for both lines (D+2 and D+6).
+        let groups = vec![group("grp-1", "fund-93", "2026-01-14", 100_000)];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+        };
+
+        let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
+        // lines stay in document order: index 0 = 2026-01-20, index 1 = 2026-01-16.
+        assert_eq!(
+            recon.lines[1].assigned_group_ids,
+            vec!["grp-1".to_string()],
+            "the oldest line wins the conflicting group (BAS-052)"
+        );
+        assert_eq!(recon.lines[1].status, BankStatementLineStatus::Matched);
+        assert!(recon.lines[0].assigned_group_ids.is_empty());
     }
 
     // BAS-051/BAS-090 — an assignment referencing a group outside the 0..7-day
