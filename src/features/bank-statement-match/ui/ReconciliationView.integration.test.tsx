@@ -559,6 +559,49 @@ describe("ReconciliationView — applyCorrection from modal (BAS-064)", () => {
     });
   });
 
+  // BAS-064 — a rejected correction keeps the dialog open and shows the error
+  // INSIDE it (the page-body ErrorStep sits behind the <dialog> top layer).
+  it("keeps the modal open and shows the error inside it when the correction is rejected", async () => {
+    const user = userEvent.setup();
+
+    mockCompute
+      .mockResolvedValueOnce({ success: true, data: makeReconciliation([NEEDS_LINK_LINE]) })
+      .mockResolvedValueOnce({
+        success: false,
+        error: { code: "GroupNotEligible" } as never,
+      });
+
+    render(
+      <ReconciliationView
+        bankAccountId={BANK_ACCOUNT_ID}
+        parseResult={PARSE_RESULT}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(document.getElementById("reconciliation-line-row-line-needs-link")).not.toBeNull();
+    });
+
+    const lineEl = document.getElementById("reconciliation-line-row-line-needs-link");
+    if (!lineEl) throw new Error("line row element missing");
+    await user.dblClick(lineEl);
+
+    const fundSelect = document.getElementById("link-fund-modal-fund-select");
+    if (!fundSelect) throw new Error("fund select missing");
+    await userEvent.selectOptions(fundSelect, "fund-1");
+
+    const submitBtn = document.getElementById("link-fund-modal-submit");
+    if (!submitBtn) throw new Error("submit button missing");
+    await user.click(submitBtn);
+
+    // Modal stays open and carries the error message.
+    await waitFor(() => {
+      expect(document.getElementById("link-fund-modal-error")).not.toBeNull();
+    });
+    expect(document.getElementById("link-fund-modal-fund-select")).not.toBeNull();
+  });
+
   // BAS-065 — applied corrections are listed, each with a revert button that
   // drops it and recomputes.
   it("lists an applied correction and reverts it on revert-button click (BAS-065)", async () => {

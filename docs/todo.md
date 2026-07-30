@@ -2,12 +2,6 @@
 
 ---
 
-## (frontend/bank) — Correction errors invisible behind the dialog top layer
-
-`ReconciliationView.tsx`: `void applyCorrection(...)` + immediate `setActiveLine(null)` closes the modal before the result is known, and the page-body `ErrorStep` renders behind the native `<dialog>`. The wizard has no error/busy surface at all. Fix: await the correction, close only on success, render the error inside the open dialog; guard wizard Apply while in flight.
-
----
-
 ## (frontend/bank) — Current assignment not seeded; Partial lines dead-end on RemainderModal
 
 `AssignGroupsModal.tsx` / `ReconciliationWizard.tsx` start with an empty selection, so applying on a partial line replaces (drops) the existing groups and the balance reads "Covered 0.00". `ReconciliationView.tsx:145-159` routes `Partial` only to `RemainderModal` — adding groups is unreachable. Fix: seed `selected` with `assigned_group_ids`; route `Partial` to `AssignGroupsModal` with an acknowledge-remainder affordance.

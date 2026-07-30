@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BankStatementLine, BankStatementParseResult } from "@/bindings";
+import type {
+  BankStatementCorrection,
+  BankStatementLine,
+  BankStatementParseResult,
+} from "@/bindings";
 import { Button } from "@/ui/components/button";
 import { presentCorrection, presentReconciliationError } from "../shared/reconciliationPresenter";
 import { AssignGroupsModal } from "./AssignGroupsModal";
@@ -77,6 +81,19 @@ export function ReconciliationView({
     }
   };
 
+  // Rendered INSIDE the open dialog — the page-body ErrorStep below sits behind
+  // the native <dialog> top layer and is invisible while a modal is open.
+  const correctionErrorText = error ? t(presentReconciliationError(error).key) : null;
+
+  // Close the dialog only when the correction was accepted; on rejection the
+  // dialog stays open and shows the error (BAS-064 — "the frontend signals it").
+  const submitAndCloseOnSuccess = async (correction: BankStatementCorrection) => {
+    const ok = await applyCorrection(correction);
+    if (ok) {
+      setActiveLine(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <ReconciliationList
@@ -134,10 +151,8 @@ export function ReconciliationView({
         <LinkFundModal
           line={activeLine}
           isOpen={true}
-          onSubmit={(correction) => {
-            void applyCorrection(correction);
-            setActiveLine(null);
-          }}
+          errorText={correctionErrorText}
+          onSubmit={(correction) => void submitAndCloseOnSuccess(correction)}
           onCancel={() => setActiveLine(null)}
         />
       )}
@@ -146,10 +161,8 @@ export function ReconciliationView({
         <RemainderModal
           line={activeLine}
           isOpen={true}
-          onSubmit={(correction) => {
-            void applyCorrection(correction);
-            setActiveLine(null);
-          }}
+          errorText={correctionErrorText}
+          onSubmit={(correction) => void submitAndCloseOnSuccess(correction)}
           onCancel={() => setActiveLine(null)}
         />
       )}
@@ -160,10 +173,8 @@ export function ReconciliationView({
           <AssignGroupsModal
             line={activeLine}
             isOpen={true}
-            onSubmit={(correction) => {
-              void applyCorrection(correction);
-              setActiveLine(null);
-            }}
+            errorText={correctionErrorText}
+            onSubmit={(correction) => void submitAndCloseOnSuccess(correction)}
             onCancel={() => setActiveLine(null)}
           />
         )}
@@ -172,6 +183,8 @@ export function ReconciliationView({
         <ReconciliationWizard
           reconciliation={reconciliation}
           isOpen={true}
+          errorText={correctionErrorText}
+          isBusy={isBusy}
           onApplyCorrection={(correction) => void applyCorrection(correction)}
           onComplete={() => setIsWizardOpen(false)}
           onAbandon={() => setIsWizardOpen(false)}

@@ -11,6 +11,8 @@ interface AssignGroupsModalProps {
   isOpen: boolean;
   onSubmit: (correction: BankStatementCorrection) => void;
   onCancel: () => void;
+  /** Rejection message from the last correction attempt, shown inside the dialog. */
+  errorText?: string | null;
 }
 
 /**
@@ -21,7 +23,13 @@ interface AssignGroupsModalProps {
  * is disabled. Submitting an empty selection is a valid unassign / override
  * (BAS-062).
  */
-export function AssignGroupsModal({ line, isOpen, onSubmit, onCancel }: AssignGroupsModalProps) {
+export function AssignGroupsModal({
+  line,
+  isOpen,
+  onSubmit,
+  onCancel,
+  errorText,
+}: AssignGroupsModalProps) {
   const { t } = useTranslation("bank");
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -45,6 +53,12 @@ export function AssignGroupsModal({ line, isOpen, onSubmit, onCancel }: AssignGr
           selected={selected}
           onSelectionChange={setSelected}
         />
+
+        {errorText && (
+          <p id="assign-groups-error" role="alert" className="text-sm text-m3-error">
+            {errorText}
+          </p>
+        )}
 
         <div className="flex items-center justify-end gap-2">
           <Button id="assign-groups-cancel" variant="secondary" onClick={onCancel}>
