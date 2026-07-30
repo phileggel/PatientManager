@@ -2,12 +2,6 @@
 
 ---
 
-## (e2e/bank) — One reconciliation smoke scenario
-
-`e2e/` has zero bank-statement coverage (plan doc PR 3 never delivered). Scope: one smoke following existing e2e patterns; the native file dialog is likely undrivable under WebDriver — scope to what is reachable and document the limitation.
-
----
-
 ## (ci) — Windows E2E at the release gate
 
 Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.
