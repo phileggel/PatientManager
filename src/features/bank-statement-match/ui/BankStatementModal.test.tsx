@@ -133,6 +133,35 @@ describe("BankStatementModal — inline create-account gate (BAS-011..014)", () 
     expect(mockCreateBankAccount).not.toHaveBeenCalled();
   });
 
+  // BAS-015 — while the create call is in flight, the form fields and submit
+  // button are disabled so the user cannot resubmit.
+  it("disables the form while the account creation is in flight (BAS-015)", async () => {
+    const user = userEvent.setup();
+    // Never-resolving create call → the in-flight state persists.
+    mockCreateBankAccount.mockReturnValue(new Promise(() => {}));
+
+    render(<BankStatementModal filePath={FILE_PATH} onClose={() => {}} />);
+
+    await waitFor(() => {
+      expect(document.getElementById("create-account-form")).not.toBeNull();
+    });
+
+    const nameInput = document.getElementById("create-account-name") as HTMLInputElement | null;
+    if (!nameInput) throw new Error("name input missing");
+    await user.type(nameInput, "Cabinet principal");
+
+    const submitBtn = document.querySelector(
+      'button[type="submit"][form="create-account-form"]',
+    ) as HTMLButtonElement | null;
+    if (!submitBtn) throw new Error("submit button missing");
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(submitBtn.disabled).toBe(true);
+    });
+    expect(nameInput.disabled).toBe(true);
+  });
+
   // BAS-022 — the unparsed-line count renders as a header warning; absent at 0.
   it("shows the unparsed-lines warning when the parser dropped lines (BAS-022)", async () => {
     mockParse.mockResolvedValue({

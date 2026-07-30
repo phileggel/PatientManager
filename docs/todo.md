@@ -2,12 +2,6 @@
 
 ---
 
-## (test/bank) — Four missing spec-rule tests
-
-BAS-051 boundary (D+7 accepted / D+8 rejected), BAS-052 oldest-line conflict priority, BAS-071 procedure terminal statuses on validate (no test seeds procedures), BAS-015 create-account in-flight disabled state.
-
----
-
 ## (e2e/bank) — One reconciliation smoke scenario
 
 `e2e/` has zero bank-statement coverage (plan doc PR 3 never delivered). Scope: one smoke following existing e2e patterns; the native file dialog is likely undrivable under WebDriver — scope to what is reachable and document the limitation.

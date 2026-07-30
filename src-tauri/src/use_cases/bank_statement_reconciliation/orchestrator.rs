@@ -636,6 +636,153 @@ mod tests {
         assert!(result.is_none());
     }
 
+    // BAS-071 — on validate, every procedure in a settled group reaches its
+    // terminal status: Reconciled → FundPaid (paid = billed) and
+    // PartiallyReconciled → PartiallyFundPaid (paid preserved), both stamped
+    // with the bank transfer date and BankTransfer method.
+    #[tokio::test]
+    async fn validate_reconciliation_moves_procedures_to_terminal_statuses() {
+        use crate::context::procedure::{PaymentMethod, Procedure};
+
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let line_full = crate::context::fund::FundPaymentLine::new(
+            "group-a".to_string(),
+            "proc-full".to_string(),
+        )
+        .unwrap();
+        let line_partial = crate::context::fund::FundPaymentLine::new(
+            "group-a".to_string(),
+            "proc-partial".to_string(),
+        )
+        .unwrap();
+        let group = FundPaymentGroup::restore(
+            "group-a".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            100_000,
+            vec![line_full, line_partial],
+            FundPaymentGroupStatus::Active,
+        );
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+
+        let proc_full = Procedure::restore(
+            "proc-full".to_string(),
+            "patient-1".to_string(),
+            Some("fund-1".to_string()),
+            "type-1".to_string(),
+            NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(),
+            60_000,
+            PaymentMethod::default(),
+            None,
+            None,
+            None,
+            ProcedureStatus::Reconciled,
+        );
+        let proc_partial = Procedure::restore(
+            "proc-partial".to_string(),
+            "patient-1".to_string(),
+            Some("fund-1".to_string()),
+            "type-1".to_string(),
+            NaiveDate::from_ymd_opt(2025, 12, 2).unwrap(),
+            40_000,
+            PaymentMethod::default(),
+            None,
+            None,
+            Some(30_000),
+            ProcedureStatus::PartiallyReconciled,
+        );
+
+        let captured: Arc<std::sync::Mutex<Vec<Procedure>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured_writer = captured.clone();
+        let mut proc_repo = MockProcedureRepository::new();
+        let seeded = vec![proc_full, proc_partial];
+        proc_repo
+            .expect_read_procedures_by_ids()
+            .returning(move |_| Ok(seeded.clone()));
+        proc_repo.expect_update_batch().returning(move |procs| {
+            captured_writer.lock().unwrap().extend(procs.clone());
+            Ok(procs)
+        });
+
+        let event_bus = Arc::new(EventBus::new());
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(bank_account_repo_returning(Some(account)));
+        let orchestrator = BankStatementOrchestrator::new(
+            Arc::new(BankAccountService::new(
+                bank_account_repo.clone(),
+                event_bus.clone(),
+            )),
+            Arc::new(FundService::new(
+                Arc::new(fund_repo_returning(vec![])),
+                event_bus.clone(),
+            )),
+            Arc::new(FundPaymentService::new(
+                Arc::new(fund_payment_repo_returning_groups(vec![group])),
+                event_bus.clone(),
+            )),
+            Arc::new(BankEntryService::new(
+                Arc::new(bank_entry_repo_noop()),
+                bank_account_repo,
+                event_bus.clone(),
+            )),
+            Arc::new(bank_link_repo_noop()),
+            Arc::new(ProcedureService::new(
+                Arc::new(proc_repo),
+                event_bus.clone(),
+            )),
+            Arc::new(label_mapping_repo_returning(vec![mapping])),
+            event_bus,
+        );
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+
+        let count = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &[])
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+
+        let updated = captured.lock().unwrap();
+        assert_eq!(updated.len(), 2);
+        let transfer_date = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
+
+        let full = updated.iter().find(|p| p.id == "proc-full").unwrap();
+        assert_eq!(full.payment_status, ProcedureStatus::FundPaid);
+        assert_eq!(full.paid_amount, Some(60_000), "paid = billed (BAS-071)");
+        assert_eq!(full.confirmed_payment_date, Some(transfer_date));
+        assert_eq!(full.payment_method, PaymentMethod::BankTransfer);
+
+        let partial = updated.iter().find(|p| p.id == "proc-partial").unwrap();
+        assert_eq!(partial.payment_status, ProcedureStatus::PartiallyFundPaid);
+        assert_eq!(
+            partial.paid_amount,
+            Some(30_000),
+            "paid preserved (BAS-071)"
+        );
+        assert_eq!(partial.confirmed_payment_date, Some(transfer_date));
+        assert_eq!(partial.payment_method, PaymentMethod::BankTransfer);
+    }
+
     // --- create_transfers ---
 
     #[tokio::test]
