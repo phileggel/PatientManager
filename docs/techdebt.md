@@ -8,6 +8,16 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-07-30 — Prune findings: unused codec constant + redundant FE candidate re-sort
+
+**Found by:** /prune (post-v0.20.1 lean check, report `tmp/prune-2026-07-30-01.md`; user routed both to techdebt).
+
+**Where:** (1) `src-tauri/src/use_cases/bank_statement_reconciliation/bank_pdf_codec.rs:24` — `IBAN_HEADER_MARKER` has zero consumers; `extract_iban` (`parser.rs:38`) builds its regex inline while every sibling codec constant IS consumed. (2) `src/features/bank-statement-match/shared/candidateSelection.ts:5` — `rankCandidates` stable-re-sorts by `is_exact_amount`, a no-op on backend data already ordered per BAS-068 (exact-first, nearest-date); consumed via `useMemo` in `CandidateList.tsx`.
+
+**Observation:** both are risk-free, covered/compile-checked, ≤15 LOC combined. Resolution direction: wire `extract_iban` to the constant (codec symmetry) rather than deleting it, and drop the FE re-sort + `useMemo` (trust the wire contract). Resolution commit type: `refactor:`. Fold into the next task touching either file, or a micro-PR when convenient.
+
+---
+
 ## 2026-07-30 — Deep bank-statement E2E via ADR-007 (fixture PDF + full flow)
 
 **Found by:** reviewer-e2e (branch `next`, batch 2) — user confirmed techdebt routing.
