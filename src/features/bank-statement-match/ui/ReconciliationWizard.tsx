@@ -69,7 +69,10 @@ export function ReconciliationWizard({
   const current = queue[0] ?? null;
 
   const [selectedFundId, setSelectedFundId] = useState("");
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  // Seeded with the line's current assignment — apply recomposes the set (BAS-068).
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(
+    current?.assigned_group_ids ?? [],
+  );
 
   // A recompute can advance the step without a local apply (e.g. a link-fund
   // correction resolving several lines) — never carry a selection across lines.
@@ -78,7 +81,7 @@ export function ReconciliationWizard({
   if (lastLineId !== currentLineId) {
     setLastLineId(currentLineId);
     setSelectedFundId("");
-    setSelectedGroupIds([]);
+    setSelectedGroupIds(current?.assigned_group_ids ?? []);
   }
 
   const isLinkFundPhase = current?.status === "NeedsLink";

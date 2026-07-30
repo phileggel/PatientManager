@@ -337,8 +337,6 @@ describe("ReconciliationView — modal routing by line status (BAS-062)", () => 
     expect(document.getElementById("link-fund-modal-fund-select")).not.toBeNull();
     // AssignGroupsModal must NOT be open
     expect(document.getElementById("assign-groups-submit")).toBeNull();
-    // RemainderModal must NOT be open
-    expect(document.getElementById("remainder-modal-confirm")).toBeNull();
   });
 
   // BAS-033 — the heuristic suggestion populated on a needs-link line flows
@@ -409,11 +407,12 @@ describe("ReconciliationView — modal routing by line status (BAS-062)", () => 
     if (!lineEl) throw new Error("line row element missing");
     await user.dblClick(lineEl);
 
-    // RemainderModal has a stable confirm button (F25)
-    expect(document.getElementById("remainder-modal-confirm")).not.toBeNull();
-    // LinkFundModal and AssignGroupsModal must NOT be open
+    // BAS-062/092 — a Partial line opens AssignGroupsModal (seeded) with the
+    // acknowledge-remainder affordance inside it.
+    expect(document.getElementById("assign-groups-submit")).not.toBeNull();
+    expect(document.getElementById("assign-groups-acknowledge-remainder")).not.toBeNull();
+    // LinkFundModal must NOT be open
     expect(document.getElementById("link-fund-modal-fund-select")).toBeNull();
-    expect(document.getElementById("assign-groups-submit")).toBeNull();
   });
 
   it("opens AssignGroupsModal when a NeedsGroup line is double-clicked (BAS-062)", async () => {
@@ -441,7 +440,8 @@ describe("ReconciliationView — modal routing by line status (BAS-062)", () => 
 
     expect(document.getElementById("assign-groups-submit")).not.toBeNull();
     expect(document.getElementById("link-fund-modal-fund-select")).toBeNull();
-    expect(document.getElementById("remainder-modal-confirm")).toBeNull();
+    // No remainder affordance on a NeedsGroup line (Partial only, BAS-092)
+    expect(document.getElementById("assign-groups-acknowledge-remainder")).toBeNull();
   });
 
   it("opens AssignGroupsModal when an Unresolved line is double-clicked (BAS-062)", async () => {
@@ -689,8 +689,8 @@ describe("ReconciliationView — applyCorrection from modal (BAS-064)", () => {
     if (!lineEl) throw new Error("line row element missing");
     await user.dblClick(lineEl);
 
-    const confirmBtn = document.getElementById("remainder-modal-confirm");
-    if (!confirmBtn) throw new Error("confirm button missing");
+    const confirmBtn = document.getElementById("assign-groups-acknowledge-remainder");
+    if (!confirmBtn) throw new Error("acknowledge-remainder button missing");
     await user.click(confirmBtn);
 
     await waitFor(() => {
@@ -701,9 +701,9 @@ describe("ReconciliationView — applyCorrection from modal (BAS-064)", () => {
       expect(correctionCall).toBeDefined();
     });
 
-    // RemainderModal closes
+    // Modal closes on success
     await waitFor(() => {
-      expect(document.getElementById("remainder-modal-confirm")).toBeNull();
+      expect(document.getElementById("assign-groups-acknowledge-remainder")).toBeNull();
     });
   });
 
@@ -1147,12 +1147,12 @@ describe("ReconciliationView — modal cancel closes the modal (BAS-062)", () =>
     const callCountAfterMount = mockCompute.mock.calls.length;
 
     await user.dblClick(document.getElementById("reconciliation-line-row-line-partial")!);
-    expect(document.getElementById("remainder-modal-confirm")).not.toBeNull();
+    expect(document.getElementById("assign-groups-acknowledge-remainder")).not.toBeNull();
 
-    await user.click(document.getElementById("remainder-modal-cancel")!);
+    await user.click(document.getElementById("assign-groups-cancel")!);
 
     await waitFor(() => {
-      expect(document.getElementById("remainder-modal-confirm")).toBeNull();
+      expect(document.getElementById("assign-groups-acknowledge-remainder")).toBeNull();
     });
     expect(mockCompute).toHaveBeenCalledTimes(callCountAfterMount);
   });

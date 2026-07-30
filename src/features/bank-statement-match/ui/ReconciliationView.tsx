@@ -13,7 +13,6 @@ import { LinkFundModal } from "./LinkFundModal";
 import { LoadingStep } from "./LoadingStep";
 import { ReconciliationList } from "./ReconciliationList";
 import { ReconciliationWizard } from "./ReconciliationWizard";
-import { RemainderModal } from "./RemainderModal";
 import { useBankStatementReconciliation } from "./useBankStatementReconciliation";
 
 interface ReconciliationViewProps {
@@ -157,8 +156,10 @@ export function ReconciliationView({
         />
       )}
 
-      {activeLine?.status === "Partial" && (
-        <RemainderModal
+      {/* Partial included — the assign modal seeds the current groups and
+          carries the acknowledge-remainder affordance (BAS-062/092). */}
+      {activeLine !== null && activeLine.status !== "NeedsLink" && (
+        <AssignGroupsModal
           line={activeLine}
           isOpen={true}
           errorText={correctionErrorText}
@@ -166,18 +167,6 @@ export function ReconciliationView({
           onCancel={() => setActiveLine(null)}
         />
       )}
-
-      {activeLine !== null &&
-        activeLine.status !== "NeedsLink" &&
-        activeLine.status !== "Partial" && (
-          <AssignGroupsModal
-            line={activeLine}
-            isOpen={true}
-            errorText={correctionErrorText}
-            onSubmit={(correction) => void submitAndCloseOnSuccess(correction)}
-            onCancel={() => setActiveLine(null)}
-          />
-        )}
 
       {isWizardOpen && (
         <ReconciliationWizard

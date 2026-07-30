@@ -193,8 +193,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     expect(submitBtn?.disabled).toBe(true);
   });
 
-  // BAS-062 override — submitting empty group_ids (unassign) is valid
-  it("calls onSubmit with empty group_ids when no groups selected (unassign override, BAS-062)", async () => {
+  // BAS-062 override — the seeded assignment can be unchecked and submitted
+  // empty (explicit unassign).
+  it("submits empty group_ids after unchecking the seeded assignment (unassign override, BAS-062)", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     // A line that already has an assignment — user opens it to unassign
@@ -205,6 +206,11 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     });
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    // The current assignment is seeded (BAS-068) — uncheck it to unassign.
+    const seeded = document.getElementById("assign-groups-check-group-1") as HTMLInputElement;
+    expect(seeded?.checked).toBe(true);
+    await user.click(seeded);
 
     const submitBtn = document.getElementById("assign-groups-submit");
     expect(submitBtn).not.toBeNull();
@@ -294,6 +300,25 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       line_id: "line-needs-group",
       group_ids: [],
     });
+  });
+
+  // BAS-068 — the selection is seeded with the line's current assignment so
+  // submitting recomposes rather than silently dropping existing groups.
+  it("pre-selects the line's currently assigned groups", () => {
+    const line = makeNeedsGroupLine({
+      status: "Partial",
+      assigned_group_ids: ["group-2"],
+      covered_amount: 80000,
+    });
+
+    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+    const seeded = document.getElementById("assign-groups-check-group-2") as HTMLInputElement;
+    expect(seeded?.checked).toBe(true);
+    const other = document.getElementById("assign-groups-check-group-1") as HTMLInputElement;
+    expect(other?.checked).toBe(false);
+    // Partial line carries the acknowledge-remainder affordance (BAS-092)
+    expect(document.getElementById("assign-groups-acknowledge-remainder")).not.toBeNull();
   });
 
   // BAS-090 — unchecking a selected candidate removes it from the submission.
