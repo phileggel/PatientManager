@@ -2,12 +2,6 @@
 
 ---
 
-## (backend/bank) — Validate silently swallows lock/status write failures
-
-`orchestrator.rs:162-172, 206-229`: `update_group_status` / `update_procedures_batch` failures are `tracing::warn!`-only while `created_count` still increments — a group can stay unlocked after its transfer is created, and the next import re-matches it (duplicate transfer). Fix: propagate the failures; never report a success count on partial failure. Atomicity itself stays deferred (ADR-003).
-
----
-
 ## (frontend/bank) — Correction errors invisible behind the dialog top layer
 
 `ReconciliationView.tsx`: `void applyCorrection(...)` + immediate `setActiveLine(null)` closes the modal before the result is known, and the page-body `ErrorStep` renders behind the native `<dialog>`. The wizard has no error/busy surface at all. Fix: await the correction, close only on success, render the error inside the open dialog; guard wizard Apply while in flight.

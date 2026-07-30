@@ -158,81 +158,74 @@ impl BankStatementOrchestrator {
                 "Bank transfer created"
             );
 
-            // Step 3: Update group status to BankPaid
-            if let Err(e) = self
-                .fund_payment_service
+            // Step 3: Update group status to BankPaid. A swallowed failure here
+            // leaves the group unlocked after its transfer exists — the next
+            // statement import would re-match it and create a duplicate
+            // transfer — so the whole validate fails loudly instead.
+            self.fund_payment_service
                 .update_group_status(&m.group_id, FundPaymentGroupStatus::BankPaid)
-                .await
-            {
-                tracing::warn!(
-                    group_id = %m.group_id,
-                    error = %e,
-                    "Failed to update group status to BankPaid"
-                );
-            }
+                .await?;
 
             // Step 4: Update associated procedures to Payed status (silent - orchestrator will publish once)
-            if let Ok(Some(group)) = self.fund_payment_service.read_group(&m.group_id).await {
-                let procedure_ids: Vec<String> =
-                    group.lines.iter().map(|l| l.procedure_id.clone()).collect();
-
-                if let Ok(procedures_to_update) = self
-                    .procedure_service
-                    .read_procedures_by_ids(procedure_ids)
-                    .await
-                {
-                    let updated_procedures: Vec<_> = procedures_to_update
-                        .into_iter()
-                        .map(|mut procedure| {
-                            // Contested procedures keep their paid_amount (pdf amount)
-                            // and transition to PartiallyFundPaid instead of FundPaid.
-                            let (new_status, paid_amount) = if procedure.payment_status
-                                == ProcedureStatus::PartiallyReconciled
-                            {
-                                (ProcedureStatus::PartiallyFundPaid, procedure.paid_amount)
-                            } else {
-                                (ProcedureStatus::FundPaid, Some(procedure.billed_amount))
-                            };
-                            procedure.payment_status = new_status;
-                            procedure = procedure.with_payment_info(
-                                crate::context::procedure::PaymentMethod::BankTransfer,
-                                Some(confirmed_date),
-                                paid_amount,
-                            );
-                            procedure
-                        })
-                        .collect();
-
-                    if let Err(e) = self
-                        .procedure_service
-                        .update_procedures_batch(updated_procedures, true)
-                        .await
-                    {
-                        tracing::warn!(
-                            group_id = %m.group_id,
-                            error = %e,
-                            "Failed to update procedures batch for bank transfer"
-                        );
-                    } else {
-                        tracing::info!(
-                            group_id = %m.group_id,
-                            procedure_count = group.lines.len(),
-                            transfer_date = %m.date,
-                            "Updated procedures to Payed status with bank transfer date (batch)"
-                        );
-                    }
-                } else {
-                    tracing::warn!(
+            let group = self
+                .fund_payment_service
+                .read_group(&m.group_id)
+                .await?
+                .ok_or_else(|| {
+                    tracing::error!(
                         group_id = %m.group_id,
-                        "Failed to read procedures for batch update"
+                        "Fund payment group vanished while updating procedures for bank transfer"
                     );
-                }
-            } else {
-                tracing::warn!(
-                    group_id = %m.group_id,
-                    "Fund payment group not found while updating procedures for bank transfer"
-                );
-            }
+                    BankStatementReconciliationTask::DatabaseError
+                })?;
+
+            let procedure_ids: Vec<String> =
+                group.lines.iter().map(|l| l.procedure_id.clone()).collect();
+
+            let procedures_to_update = self
+                .procedure_service
+                .read_procedures_by_ids(procedure_ids)
+                .await
+                .map_err(|e| {
+                    tracing::error!(group_id = %m.group_id, error = %e, "Failed to read procedures for batch update");
+                    BankStatementReconciliationTask::DatabaseError
+                })?;
+
+            let updated_procedures: Vec<_> = procedures_to_update
+                .into_iter()
+                .map(|mut procedure| {
+                    // Contested procedures keep their paid_amount (pdf amount)
+                    // and transition to PartiallyFundPaid instead of FundPaid.
+                    let (new_status, paid_amount) =
+                        if procedure.payment_status == ProcedureStatus::PartiallyReconciled {
+                            (ProcedureStatus::PartiallyFundPaid, procedure.paid_amount)
+                        } else {
+                            (ProcedureStatus::FundPaid, Some(procedure.billed_amount))
+                        };
+                    procedure.payment_status = new_status;
+                    procedure = procedure.with_payment_info(
+                        crate::context::procedure::PaymentMethod::BankTransfer,
+                        Some(confirmed_date),
+                        paid_amount,
+                    );
+                    procedure
+                })
+                .collect();
+
+            self.procedure_service
+                .update_procedures_batch(updated_procedures, true)
+                .await
+                .map_err(|e| {
+                    tracing::error!(group_id = %m.group_id, error = %e, "Failed to update procedures batch for bank transfer");
+                    BankStatementReconciliationTask::DatabaseError
+                })?;
+
+            tracing::info!(
+                group_id = %m.group_id,
+                procedure_count = group.lines.len(),
+                transfer_date = %m.date,
+                "Updated procedures to Payed status with bank transfer date (batch)"
+            );
 
             created_count += 1;
         }
@@ -1674,6 +1667,99 @@ mod tests {
             .unwrap();
 
         assert_eq!(count, 0, "unresolved lines must be skipped (BAS-063)");
+    }
+
+    // A failed group-status write must fail the whole validate — a silently
+    // unlocked group would be re-matched by the next import and produce a
+    // duplicate transfer.
+    #[tokio::test]
+    async fn validate_reconciliation_fails_when_group_lock_write_fails() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group = FundPaymentGroup::restore(
+            "group-a".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+        );
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        let groups = vec![group];
+        let groups_for_read_one = groups.clone();
+        fund_payment_repo
+            .expect_read_all_groups()
+            .returning(move || Ok(groups.clone()));
+        fund_payment_repo
+            .expect_read_group()
+            .returning(move |id| Ok(groups_for_read_one.iter().find(|g| g.id == id).cloned()));
+        fund_payment_repo
+            .expect_read_lines_by_group()
+            .returning(|_| Ok(vec![]));
+        fund_payment_repo
+            .expect_update_group_status()
+            .returning(|_, _| Err(anyhow::anyhow!("disk full")));
+
+        let event_bus = Arc::new(EventBus::new());
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(bank_account_repo_returning(Some(account)));
+        let orchestrator = BankStatementOrchestrator::new(
+            Arc::new(BankAccountService::new(
+                bank_account_repo.clone(),
+                event_bus.clone(),
+            )),
+            Arc::new(FundService::new(
+                Arc::new(fund_repo_returning(vec![])),
+                event_bus.clone(),
+            )),
+            Arc::new(FundPaymentService::new(
+                Arc::new(fund_payment_repo),
+                event_bus.clone(),
+            )),
+            Arc::new(BankEntryService::new(
+                Arc::new(bank_entry_repo_noop()),
+                bank_account_repo,
+                event_bus.clone(),
+            )),
+            Arc::new(bank_link_repo_noop()),
+            Arc::new(ProcedureService::new(
+                Arc::new(proc_repo_noop()),
+                event_bus.clone(),
+            )),
+            Arc::new(label_mapping_repo_returning(vec![mapping])),
+            event_bus,
+        );
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+
+        let result = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &[])
+            .await;
+
+        assert!(
+            result.is_err(),
+            "a swallowed lock failure must not report success"
+        );
     }
 
     // BAS-093: validate with a matched line that has N assigned groups creates
