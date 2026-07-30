@@ -388,6 +388,16 @@ fn apply_assign_groups(
             return Err(BankStatementReconciliationTask::GroupNotEligible.into());
         }
 
+        // BAS-051/BAS-090 — the date-tolerance window also binds manual
+        // assignment. The candidate lists already filter by it; this guards
+        // the raw correction ids at the validate trust boundary.
+        let in_window = line.line_date.is_some_and(|d| {
+            (0..=MAX_DATE_OFFSET_DAYS).contains(&(d - group.payment_date).num_days())
+        });
+        if !in_window {
+            return Err(BankStatementReconciliationTask::GroupNotEligible.into());
+        }
+
         // BAS-067: a group consumed by another line cannot be reassigned here.
         if consumed.contains(gid) && !currently_assigned.contains(gid) {
             return Err(BankStatementReconciliationTask::GroupAlreadyConsumed.into());
@@ -805,6 +815,51 @@ mod tests {
             line.suggested_fund_name.as_deref(),
             Some("CPAM Seine-Saint-Denis")
         );
+    }
+
+    // BAS-051/BAS-090 — an assignment referencing a group outside the 0..7-day
+    // window is rejected at the trust boundary (the UI never offers one, but
+    // validate replays raw client-supplied ids).
+    #[test]
+    fn out_of_window_manual_assignment_is_rejected() {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let mappings = vec![BankFundLabelMapping {
+            id: "map-1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-93".to_string()),
+        }];
+        // 2026-01-07 → offset D+8, one day beyond the tolerance window.
+        let groups = vec![group("grp-old", "fund-93", "2026-01-07", 100_000)];
+        let funds = vec![fund("fund-93", "93", "CPAM Seine-Saint-Denis")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+        };
+        let corrections = vec![BankStatementCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec!["grp-old".to_string()],
+        }];
+
+        let err = compute_reconciliation(&parse_result, &repos, &corrections)
+            .expect_err("a D+8 group must be rejected (BAS-051)");
+        assert!(matches!(
+            err,
+            BankStatementReconciliationError::Task(
+                BankStatementReconciliationTask::GroupNotEligible
+            )
+        ));
     }
 
     // BAS-090 — a broadened (cross-fund) candidate is assignable: the fund

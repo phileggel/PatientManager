@@ -4,11 +4,6 @@ import type {
   BankStatementReconciliationError,
 } from "@/bindings";
 
-/** Euros (two decimals) from a thousandths-of-a-euro amount, for inline display. */
-export function toEuros(thousandths: number): string {
-  return (thousandths / 1000).toFixed(2);
-}
-
 /**
  * Pure presenters for the draft-UX reconciliation flow (F27 layer 3).
  *

@@ -133,6 +133,15 @@ export function ReconciliationWizard({
               {t("reconciliation.wizard.step_label", { label: current.credit_line.label })}
             </p>
 
+            {/* BAS-033 — same helper text as LinkFundModal; never pre-selected. */}
+            {isLinkFundPhase && current.suggested_fund_id && current.suggested_fund_name && (
+              <p id="wizard-suggestion" className="text-xs text-m3-on-surface-variant">
+                {t("reconciliation.link_fund.suggestion", {
+                  name: current.suggested_fund_name,
+                })}
+              </p>
+            )}
+
             {isLinkFundPhase ? (
               <SelectField
                 id="wizard-fund-select"

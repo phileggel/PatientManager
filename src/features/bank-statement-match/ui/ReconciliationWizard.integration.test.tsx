@@ -21,6 +21,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
       opts ? `${key}:${JSON.stringify(opts)}` : key,
+    i18n: { language: "fr" },
   }),
 }));
 
@@ -159,6 +160,31 @@ describe("ReconciliationWizard — BAS-100–103", () => {
         assignment: { type: "Fund", fund_id: "fund-1" },
       }),
     );
+  });
+
+  // BAS-033/101 — the wizard's link-fund step shows the heuristic suggestion
+  // helper text, mirroring LinkFundModal; never pre-selected.
+  it("renders the heuristic suggestion in the link-fund step (BAS-033)", () => {
+    const line = {
+      ...makeNeedsLinkLine("line-nl-1", "MGEN"),
+      suggested_fund_id: "fund-1",
+      suggested_fund_name: "CPAM 75",
+    };
+
+    render(
+      <ReconciliationWizard
+        reconciliation={makeReconciliation([line])}
+        isOpen={true}
+        onApplyCorrection={vi.fn()}
+        onComplete={vi.fn()}
+        onAbandon={vi.fn()}
+      />,
+    );
+
+    expect(document.getElementById("wizard-suggestion")).not.toBeNull();
+    // Never pre-selected (BAS-033): the select still shows the placeholder.
+    const select = document.getElementById("wizard-fund-select") as HTMLSelectElement | null;
+    expect(select?.value).toBe("");
   });
 
   // BAS-101 — the apply button never submits with the placeholder selected;

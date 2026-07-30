@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankStatementLine } from "@/bindings";
 import { Button } from "@/ui/components/button";
+import { useFormatters } from "@/ui/format/formatters";
 import { coveredAmount, rankCandidates } from "../shared/candidateSelection";
-import { toEuros } from "../shared/reconciliationPresenter";
 
 interface CandidateListProps {
   line: BankStatementLine;
@@ -21,6 +21,7 @@ interface CandidateListProps {
  */
 export function CandidateList({ line, idPrefix, selected, onSelectionChange }: CandidateListProps) {
   const { t } = useTranslation("bank");
+  const { formatCurrency, formatDate } = useFormatters();
   const [broadened, setBroadened] = useState(false);
   // BAS-068 — default to the fund-filtered set; broadening swaps in the
   // fund-agnostic superset (same date tolerance) the backend provides.
@@ -49,8 +50,8 @@ export function CandidateList({ line, idPrefix, selected, onSelectionChange }: C
     <>
       <output id={`${idPrefix}-balance`} className="text-sm text-m3-on-surface-variant">
         {t("reconciliation.assign_groups.balance", {
-          covered: toEuros(coveredAmount(line, selected)),
-          total: toEuros(line.credit_line.amount),
+          covered: formatCurrency(coveredAmount(line, selected)),
+          total: formatCurrency(line.credit_line.amount),
         })}
       </output>
 
@@ -87,9 +88,11 @@ export function CandidateList({ line, idPrefix, selected, onSelectionChange }: C
                 onChange={() => toggle(candidate.group_id)}
               />
               <span className="text-sm text-m3-on-surface">{candidate.fund_name}</span>
-              <span className="text-sm text-m3-on-surface-variant">{candidate.payment_date}</span>
+              <span className="text-sm text-m3-on-surface-variant">
+                {formatDate(candidate.payment_date)}
+              </span>
               <span className="ml-auto text-sm font-medium text-m3-on-surface">
-                {toEuros(candidate.total_amount)}
+                {formatCurrency(candidate.total_amount)}
               </span>
             </label>
           </li>
