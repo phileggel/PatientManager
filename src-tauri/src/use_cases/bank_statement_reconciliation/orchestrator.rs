@@ -173,6 +173,7 @@ impl BankStatementOrchestrator {
                 .await?
                 .ok_or_else(|| {
                     tracing::error!(
+                        target: BACKEND,
                         group_id = %m.group_id,
                         "Fund payment group vanished while updating procedures for bank transfer"
                     );
@@ -187,7 +188,7 @@ impl BankStatementOrchestrator {
                 .read_procedures_by_ids(procedure_ids)
                 .await
                 .map_err(|e| {
-                    tracing::error!(group_id = %m.group_id, error = %e, "Failed to read procedures for batch update");
+                    tracing::error!(target: BACKEND, group_id = %m.group_id, error = %e, "Failed to read procedures for batch update");
                     BankStatementReconciliationTask::DatabaseError
                 })?;
 
@@ -216,7 +217,7 @@ impl BankStatementOrchestrator {
                 .update_procedures_batch(updated_procedures, true)
                 .await
                 .map_err(|e| {
-                    tracing::error!(group_id = %m.group_id, error = %e, "Failed to update procedures batch for bank transfer");
+                    tracing::error!(target: BACKEND, group_id = %m.group_id, error = %e, "Failed to update procedures batch for bank transfer");
                     BankStatementReconciliationTask::DatabaseError
                 })?;
 

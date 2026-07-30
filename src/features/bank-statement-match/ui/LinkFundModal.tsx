@@ -16,6 +16,8 @@ interface LinkFundModalProps {
   funds?: Fund[];
   /** Rejection message from the last correction attempt, shown inside the dialog. */
   errorText?: string | null;
+  /** True while a recompute is in flight — action buttons are disabled (BAS-064). */
+  isBusy?: boolean;
 }
 
 /**
@@ -32,6 +34,7 @@ export function LinkFundModal({
   onCancel,
   funds,
   errorText,
+  isBusy = false,
 }: LinkFundModalProps) {
   const { t } = useTranslation("bank");
   const cacheFunds = useCacheStore((state) => state.funds);
@@ -82,6 +85,7 @@ export function LinkFundModal({
           <Button
             id="link-fund-modal-reject"
             variant="danger"
+            disabled={isBusy}
             onClick={() =>
               onSubmit({
                 type: "LinkFund",
@@ -99,7 +103,7 @@ export function LinkFundModal({
             <Button
               id="link-fund-modal-submit"
               variant="primary"
-              disabled={selectedFundId === ""}
+              disabled={isBusy || selectedFundId === ""}
               onClick={() =>
                 onSubmit({
                   type: "LinkFund",

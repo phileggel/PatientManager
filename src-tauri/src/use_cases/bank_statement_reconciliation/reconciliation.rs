@@ -259,13 +259,20 @@ pub fn compute_reconciliation(
     })
 }
 
+/// BAS-051 — the bank line's date may sit 0..=MAX_DATE_OFFSET_DAYS days after
+/// the group's payment date. Single source for auto-match candidates and the
+/// manual-assignment guard.
+fn is_within_date_window(line_date: NaiveDate, group_date: NaiveDate) -> bool {
+    (0..=MAX_DATE_OFFSET_DAYS).contains(&(line_date - group_date).num_days())
+}
+
 /// BAS-050–054 — auto-match resolved (fund-known, not rejected, unassigned)
 /// lines against eligible unsettled groups. Exact fund + exact amount + date
 /// tolerance, exclusive (a matched line and group are both locked).
 ///
-/// Lines are processed oldest-first (BAS-052) with the date tolerance
-/// tightened from the widest offset down to exact-day to favour broader
-/// matches on the oldest lines first.
+/// Offsets are scanned nearest-first (exact-day outward to the tolerance
+/// edge) so a group settles the line closest to its date; within one offset
+/// pass, lines are processed oldest-first (BAS-052).
 fn auto_match(
     lines: &mut [WorkingLine],
     groups: &[FundPaymentGroup],
@@ -394,9 +401,9 @@ fn apply_assign_groups(
         // BAS-051/BAS-090 — the date-tolerance window also binds manual
         // assignment. The candidate lists already filter by it; this guards
         // the raw correction ids at the validate trust boundary.
-        let in_window = line.line_date.is_some_and(|d| {
-            (0..=MAX_DATE_OFFSET_DAYS).contains(&(d - group.payment_date).num_days())
-        });
+        let in_window = line
+            .line_date
+            .is_some_and(|d| is_within_date_window(d, group.payment_date));
         if !in_window {
             return Err(BankStatementReconciliationTask::GroupNotEligible.into());
         }
@@ -470,8 +477,8 @@ fn finalize_line(
     } else {
         // Fund known, no groups assigned: NeedsGroup if a candidate exists,
         // else Unresolved (BAS-061).
-        let outstanding = line_amount - covered_amount;
-        let has_candidate = !candidate_groups(wl, groups, funds, consumed, outstanding).is_empty();
+        // No groups assigned in this branch, so the ceiling is the line amount.
+        let has_candidate = !candidate_groups(wl, groups, funds, consumed, line_amount).is_empty();
         if has_candidate {
             BankStatementLineStatus::NeedsGroup
         } else {
@@ -511,19 +518,20 @@ fn finalize_line(
 }
 
 /// BAS-068 — rank eligible candidate groups for a line: same fund, not
-/// locked/consumed, within date tolerance, amount ≤ outstanding (BAS-090).
+/// locked/consumed, within date tolerance, amount ≤ `amount_ceiling` (the full
+/// line amount — the recomposition basis, see `finalize_line`).
 /// Ordered exact-amount first, then by date proximity (the default view).
 fn candidate_groups(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
     funds: &[Fund],
     consumed: &HashSet<String>,
-    outstanding: i64,
+    amount_ceiling: i64,
 ) -> Vec<BankStatementCandidate> {
     let Some(fund_id) = wl.fund_id.as_deref() else {
         return Vec::new();
     };
-    rank_candidates(wl, groups, funds, consumed, outstanding, |g| {
+    rank_candidates(wl, groups, funds, consumed, amount_ceiling, |g| {
         g.fund_id == fund_id
     })
 }
@@ -536,21 +544,21 @@ fn broadened_candidates(
     groups: &[FundPaymentGroup],
     funds: &[Fund],
     consumed: &HashSet<String>,
-    outstanding: i64,
+    amount_ceiling: i64,
 ) -> Vec<BankStatementCandidate> {
-    rank_candidates(wl, groups, funds, consumed, outstanding, |_| true)
+    rank_candidates(wl, groups, funds, consumed, amount_ceiling, |_| true)
 }
 
 /// Shared eligibility filter + ranking for candidate proposals (BAS-068). A
 /// group is eligible when it is not locked, not already consumed, within the
-/// date tolerance window, amount ≤ outstanding (BAS-090), and passes the
+/// date tolerance window, amount ≤ `amount_ceiling` (BAS-090), and passes the
 /// caller-supplied `fund_filter`. Ordered exact-amount first, then nearest date.
 fn rank_candidates(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
     funds: &[Fund],
     consumed: &HashSet<String>,
-    outstanding: i64,
+    amount_ceiling: i64,
     fund_filter: impl Fn(&FundPaymentGroup) -> bool,
 ) -> Vec<BankStatementCandidate> {
     let Some(line_date) = wl.line_date else {
@@ -568,13 +576,13 @@ fn rank_candidates(
             !g.is_locked
                 && !consumed.contains(&g.id)
                 && fund_filter(g)
-                && g.total_amount <= outstanding
+                && g.total_amount <= amount_ceiling
         })
         .filter_map(|g| {
-            let offset = (line_date - g.payment_date).num_days();
-            if !(0..=MAX_DATE_OFFSET_DAYS).contains(&offset) {
+            if !is_within_date_window(line_date, g.payment_date) {
                 return None;
             }
+            let offset = (line_date - g.payment_date).num_days();
             Some((
                 offset,
                 BankStatementCandidate {
@@ -588,7 +596,7 @@ fn rank_candidates(
                         .unwrap_or_default(),
                     payment_date: g.payment_date.format("%Y-%m-%d").to_string(),
                     total_amount: g.total_amount,
-                    is_exact_amount: g.total_amount == outstanding,
+                    is_exact_amount: g.total_amount == amount_ceiling,
                 },
             ))
         })

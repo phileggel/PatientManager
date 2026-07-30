@@ -20,6 +20,8 @@ export interface UseBankStatementReconciliationReturn {
   error: BankStatementReconciliationError | null;
   /** Resolves true when the correction was accepted (hosts close their dialog on success only). */
   applyCorrection: (correction: BankStatementCorrection) => Promise<boolean>;
+  /** Drop the last rejection message — hosts call it when a dialog is dismissed or changes line. */
+  clearError: () => void;
   revertCorrection: (index: number) => Promise<void>;
   validate: () => Promise<number | null>;
 }
@@ -103,6 +105,8 @@ export function useBankStatementReconciliation(
     [recompute],
   );
 
+  const clearError = useCallback(() => setError(null), []);
+
   const validate = useCallback(async (): Promise<number | null> => {
     setIsBusy(true);
     setError(null);
@@ -129,6 +133,7 @@ export function useBankStatementReconciliation(
     isBusy,
     error,
     applyCorrection,
+    clearError,
     revertCorrection,
     validate,
   };

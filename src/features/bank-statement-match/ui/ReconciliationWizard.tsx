@@ -21,6 +21,8 @@ interface ReconciliationWizardProps {
   onAbandon: () => void;
   /** Rejection message from the last correction attempt, shown inside the dialog. */
   errorText?: string | null;
+  /** Called when the step advances without a successful apply (skip / cascade) so a stale rejection is not shown on the next step. */
+  onErrorDismiss?: () => void;
   /** True while a recompute is in flight — apply/reject are disabled (BAS-064). */
   isBusy?: boolean;
 }
@@ -56,6 +58,7 @@ export function ReconciliationWizard({
   onComplete,
   onAbandon,
   errorText,
+  onErrorDismiss,
   isBusy = false,
 }: ReconciliationWizardProps) {
   const { t } = useTranslation("bank");
@@ -82,6 +85,8 @@ export function ReconciliationWizard({
     setLastLineId(currentLineId);
     setSelectedFundId("");
     setSelectedGroupIds(current?.assigned_group_ids ?? []);
+    // A rejection message belongs to the step it happened in.
+    onErrorDismiss?.();
   }
 
   const isLinkFundPhase = current?.status === "NeedsLink";
@@ -196,7 +201,10 @@ export function ReconciliationWizard({
                   id="wizard-skip-step"
                   variant="secondary"
                   disabled={isBusy}
-                  onClick={() => setSkippedLineIds((prev) => [...prev, current.line_id])}
+                  onClick={() => {
+                    onErrorDismiss?.();
+                    setSkippedLineIds((prev) => [...prev, current.line_id]);
+                  }}
                 >
                   {t("reconciliation.wizard.skip")}
                 </Button>
