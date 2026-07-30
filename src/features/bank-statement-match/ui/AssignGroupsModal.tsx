@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import type { BankStatementCorrection, BankStatementLine } from "@/bindings";
 import { Button } from "@/ui/components/button";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
+import { useFormatters } from "@/ui/format/formatters";
 import { coveredAmount } from "../shared/candidateSelection";
-import { toEuros } from "../shared/reconciliationPresenter";
 import { CandidateList } from "./CandidateList";
 
 interface AssignGroupsModalProps {
@@ -32,6 +32,7 @@ export function AssignGroupsModal({
   errorText,
 }: AssignGroupsModalProps) {
   const { t } = useTranslation("bank");
+  const { formatCurrency } = useFormatters();
   // Seeded with the current assignment — submitting recomposes (replaces) the
   // set, so an unseeded selection would silently drop existing groups (BAS-068).
   const [selected, setSelected] = useState<string[]>(line.assigned_group_ids);
@@ -68,7 +69,7 @@ export function AssignGroupsModal({
         {line.status === "Partial" && (
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm text-m3-on-surface-variant">
-              {t("reconciliation.remainder.amount", { amount: toEuros(remainder) })}
+              {t("reconciliation.remainder.amount", { amount: formatCurrency(remainder) })}
             </span>
             <Button
               id="assign-groups-acknowledge-remainder"

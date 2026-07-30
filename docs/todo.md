@@ -2,12 +2,6 @@
 
 ---
 
-## (backend+frontend/bank) — Mechanical batch: date guard, wizard suggestion, formatters
-
-`apply_assign_groups` lacks the BAS-051 date-window check (UI can't produce out-of-window ids, but validate is the trust boundary); the wizard's link-fund step omits the BAS-033 suggestion helper text that `LinkFundModal` shows; `toEuros` / raw ISO dates in the correction modals bypass `useFormatters` (list shows "1 234,50 €", modals "1234.50").
-
----
-
 ## (test/bank) — Four missing spec-rule tests
 
 BAS-051 boundary (D+7 accepted / D+8 rejected), BAS-052 oldest-line conflict priority, BAS-071 procedure terminal statuses on validate (no test seeds procedures), BAS-015 create-account in-flight disabled state.
