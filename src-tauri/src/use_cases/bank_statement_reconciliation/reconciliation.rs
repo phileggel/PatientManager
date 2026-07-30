@@ -364,8 +364,13 @@ fn apply_assign_groups(
         .find(|l| l.line_id == line_id)
         .ok_or(BankStatementReconciliationTask::LineNotFound)?;
 
+    // A label must be linked before groups can be assigned (BAS-066 ordering);
+    // an unlinked line would stay NeedsLink with dangling assignments.
+    if line.fund_id.is_none() && !group_ids.is_empty() {
+        return Err(BankStatementReconciliationTask::GroupNotEligible.into());
+    }
+
     let line_amount = line.credit_line.amount;
-    let line_fund = line.fund_id.clone();
     let currently_assigned: HashSet<String> = line.assigned_group_ids.iter().cloned().collect();
 
     // Validate the whole requested set before mutating anything.
@@ -376,8 +381,10 @@ fn apply_assign_groups(
             .find(|g| &g.id == gid)
             .ok_or(BankStatementReconciliationTask::GroupNotEligible)?;
 
-        // BAS-090 eligibility: same fund as the line, not locked / settled.
-        if group.is_locked || line_fund.as_deref() != Some(group.fund_id.as_str()) {
+        // BAS-090 eligibility: not locked / settled. The fund criterion binds
+        // auto-match only — a manual assignment may cross funds (the broadened
+        // view is the human override for an imperfect label mapping).
+        if group.is_locked {
             return Err(BankStatementReconciliationTask::GroupNotEligible.into());
         }
 
@@ -797,6 +804,53 @@ mod tests {
         assert_eq!(
             line.suggested_fund_name.as_deref(),
             Some("CPAM Seine-Saint-Denis")
+        );
+    }
+
+    // BAS-090 — a broadened (cross-fund) candidate is assignable: the fund
+    // criterion binds auto-match only, so the manual override must succeed and
+    // fully cover the line.
+    #[test]
+    fn cross_fund_manual_assignment_is_accepted() {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        // Line linked to fund-93; the only matching group belongs to fund-75.
+        let mappings = vec![BankFundLabelMapping {
+            id: "map-1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-93".to_string()),
+        }];
+        let groups = vec![group("grp-75", "fund-75", "2026-01-15", 100_000)];
+        let funds = vec![
+            fund("fund-93", "93", "CPAM Seine-Saint-Denis"),
+            fund("fund-75", "75", "CPAM Paris"),
+        ];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+        };
+        let corrections = vec![BankStatementCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec!["grp-75".to_string()],
+        }];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections)
+            .expect("cross-fund manual assignment must be accepted (amended BAS-090)");
+        assert_eq!(recon.lines[0].status, BankStatementLineStatus::Matched);
+        assert_eq!(
+            recon.lines[0].assigned_group_ids,
+            vec!["grp-75".to_string()]
         );
     }
 

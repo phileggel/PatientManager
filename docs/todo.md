@@ -2,12 +2,6 @@
 
 ---
 
-## (backend/bank) — Broadened cross-fund selection always rejected on submit
-
-`reconciliation.rs:379-381` rejects any group whose fund differs from the line's fund, so every broadened selection fails with `GroupNotEligible`. Per amended BAS-090: drop the fund-equality check for manual assignment (keep lock/consumed/overflow + add the date-window guard); test spanning broadened selection → successful submit.
-
----
-
 ## (backend+frontend/bank) — BAS-022: unparsed count hardcoded to 0, warning never shown
 
 `parser.rs:30` emits `unparsed_count: 0` although `extract_credit_lines` measures the delta at `parser.rs:139-144`; no FE renders it. Fix: emit the real count; show a warning line in `BankStatementModal` when > 0. (Replaces the 2026-06-21 techdebt entry, whose "the data crosses the wire" claim was wrong — both halves were missing.)
