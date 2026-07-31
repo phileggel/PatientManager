@@ -88,7 +88,7 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
   beforeEach(() => vi.clearAllMocks());
 
   // BAS-068 — candidate groups rendered, exact-amount first
-  it("renders candidate groups with stable ids, exact-match group first (BAS-068)", () => {
+  it("renders candidates in wire order with stable ids and exact-amount flag (BAS-068)", () => {
     const line = makeNeedsGroupLine();
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
@@ -102,9 +102,15 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     // Each row identifies its fund by name (BAS-068)
     expect(candidateRow1?.textContent).toContain("CPAM Paris");
 
-    // Exact-amount candidate appears before the partial candidate in DOM order
+    // The wire order (backend: most recent payment first) renders as-is —
+    // no client-side re-sort.
     const allRows = document.querySelectorAll("[id^='assign-groups-candidate-']");
     expect(allRows[0]?.id).toBe("assign-groups-candidate-group-1");
+    expect(allRows[1]?.id).toBe("assign-groups-candidate-group-2");
+
+    // The exact-amount candidate carries the flag; the partial one does not.
+    expect(document.getElementById("assign-groups-exact-group-1")).not.toBeNull();
+    expect(document.getElementById("assign-groups-exact-group-2")).toBeNull();
   });
 
   // BAS-090 — selecting a group and submitting produces AssignGroups correction

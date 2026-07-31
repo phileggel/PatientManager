@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankStatementLine } from "@/bindings";
 import { Button } from "@/ui/components/button";
 import { useFormatters } from "@/ui/format/formatters";
-import { coveredAmount, rankCandidates } from "../shared/candidateSelection";
+import { coveredAmount } from "../shared/candidateSelection";
 
 interface CandidateListProps {
   line: BankStatementLine;
@@ -24,9 +24,9 @@ export function CandidateList({ line, idPrefix, selected, onSelectionChange }: C
   const { formatCurrency, formatDate } = useFormatters();
   const [broadened, setBroadened] = useState(false);
   // BAS-068 — default to the fund-filtered set; broadening swaps in the
-  // fund-agnostic superset (same date tolerance) the backend provides.
-  const source = broadened ? line.broadened_candidates : line.candidate_groups;
-  const ranked = useMemo(() => rankCandidates(source), [source]);
+  // fund-agnostic superset. The wire order (most recent payment first) is
+  // rendered as-is.
+  const ranked = broadened ? line.broadened_candidates : line.candidate_groups;
 
   const toggle = (groupId: string) => {
     onSelectionChange(
@@ -91,6 +91,15 @@ export function CandidateList({ line, idPrefix, selected, onSelectionChange }: C
               <span className="text-sm text-m3-on-surface-variant">
                 {formatDate(candidate.payment_date)}
               </span>
+              {/* BAS-068 — flag the strongest match signal for the picker. */}
+              {candidate.is_exact_amount && (
+                <span
+                  id={`${idPrefix}-exact-${candidate.group_id}`}
+                  className="text-xs font-medium text-m3-primary"
+                >
+                  {t("reconciliation.assign_groups.exact_amount")}
+                </span>
+              )}
               <span className="ml-auto text-sm font-medium text-m3-on-surface">
                 {formatCurrency(candidate.total_amount)}
               </span>

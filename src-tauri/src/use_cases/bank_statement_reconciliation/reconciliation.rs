@@ -486,7 +486,7 @@ fn finalize_line(
     // BAS-068 — broadened set: same date tolerance + eligibility, but across all
     // funds (no fund filter). Superset shown when the user broadens the search.
     let broadened_candidates =
-        broadened_candidates(wl, groups, funds, &consumed_by_others, line_amount);
+        broadened_candidates(groups, funds, &consumed_by_others, line_amount);
 
     BankStatementLine {
         line_id: wl.line_id.clone(),
@@ -503,10 +503,10 @@ fn finalize_line(
     }
 }
 
-/// BAS-068 — rank eligible candidate groups for a line: same fund, not
+/// BAS-068 — eligible candidate groups for a line: same fund, not
 /// locked/consumed, amount ≤ `amount_ceiling` (the full line amount — the
 /// recomposition basis, see `finalize_line`); NOT date-bounded (BAS-051
-/// manual path). Ordered exact-amount first, then by date proximity.
+/// manual path). Ordered most recent payment first.
 fn candidate_groups(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
@@ -517,46 +517,40 @@ fn candidate_groups(
     let Some(fund_id) = wl.fund_id.as_deref() else {
         return Vec::new();
     };
-    rank_candidates(wl, groups, funds, consumed, amount_ceiling, |g| {
+    rank_candidates(groups, funds, consumed, amount_ceiling, |g| {
         g.fund_id == fund_id
     })
 }
 
-/// BAS-068 — the broadened set: identical eligibility and ranking to
+/// BAS-068 — the broadened set: identical eligibility and ordering to
 /// `candidate_groups` but WITHOUT the fund filter (all funds), shown when the
 /// user broadens the search beyond the line's fund.
 fn broadened_candidates(
-    wl: &WorkingLine,
     groups: &[FundPaymentGroup],
     funds: &[Fund],
     consumed: &HashSet<String>,
     amount_ceiling: i64,
 ) -> Vec<BankStatementCandidate> {
-    rank_candidates(wl, groups, funds, consumed, amount_ceiling, |_| true)
+    rank_candidates(groups, funds, consumed, amount_ceiling, |_| true)
 }
 
-/// Shared eligibility filter + ranking for candidate proposals (BAS-068). A
-/// group is eligible when it is not locked, not already consumed, within the
-/// date tolerance window, amount ≤ `amount_ceiling` (BAS-090), and passes the
-/// caller-supplied `fund_filter`. Ordered exact-amount first, then nearest date.
+/// Shared eligibility filter + ordering for candidate proposals (BAS-068). A
+/// group is eligible when it is not locked, not already consumed, amount ≤
+/// `amount_ceiling` (BAS-090), and passes the caller-supplied `fund_filter`.
+/// Ordered most recent payment first (2026-07-30 field report).
 fn rank_candidates(
-    wl: &WorkingLine,
     groups: &[FundPaymentGroup],
     funds: &[Fund],
     consumed: &HashSet<String>,
     amount_ceiling: i64,
     fund_filter: impl Fn(&FundPaymentGroup) -> bool,
 ) -> Vec<BankStatementCandidate> {
-    let Some(line_date) = wl.line_date else {
-        return Vec::new();
-    };
-
     let fund_names: HashMap<&str, &str> = funds
         .iter()
         .map(|f| (f.id.as_str(), f.name.as_str()))
         .collect();
 
-    let mut candidates: Vec<(i64, BankStatementCandidate)> = groups
+    let mut candidates: Vec<BankStatementCandidate> = groups
         .iter()
         .filter(|g| {
             !g.is_locked
@@ -564,37 +558,25 @@ fn rank_candidates(
                 && fund_filter(g)
                 && g.total_amount <= amount_ceiling
         })
-        .map(|g| {
-            // BAS-051/068 — the manual path is not date-bounded; the offset's
-            // ABSOLUTE value only drives the nearest-date ranking below.
-            let offset = (line_date - g.payment_date).num_days().abs();
-            (
-                offset,
-                BankStatementCandidate {
-                    group_id: g.id.clone(),
-                    fund_id: g.fund_id.clone(),
-                    // `repos.funds` is the complete fund list, so every group's
-                    // fund_id resolves; "" would mean an orphaned reference.
-                    fund_name: fund_names
-                        .get(g.fund_id.as_str())
-                        .map(|n| (*n).to_string())
-                        .unwrap_or_default(),
-                    payment_date: g.payment_date.format("%Y-%m-%d").to_string(),
-                    total_amount: g.total_amount,
-                    is_exact_amount: g.total_amount == amount_ceiling,
-                },
-            )
+        .map(|g| BankStatementCandidate {
+            group_id: g.id.clone(),
+            fund_id: g.fund_id.clone(),
+            // `repos.funds` is the complete fund list, so every group's
+            // fund_id resolves; "" would mean an orphaned reference.
+            fund_name: fund_names
+                .get(g.fund_id.as_str())
+                .map(|n| (*n).to_string())
+                .unwrap_or_default(),
+            payment_date: g.payment_date.format("%Y-%m-%d").to_string(),
+            total_amount: g.total_amount,
+            is_exact_amount: g.total_amount == amount_ceiling,
         })
         .collect();
 
-    // Exact-amount first, then nearest date (smallest offset).
-    candidates.sort_by(|(off_a, ca), (off_b, cb)| {
-        cb.is_exact_amount
-            .cmp(&ca.is_exact_amount)
-            .then(off_a.cmp(off_b))
-    });
+    // BAS-068 — most recent payment first; ISO dates compare chronologically.
+    candidates.sort_by(|a, b| b.payment_date.cmp(&a.payment_date));
 
-    candidates.into_iter().map(|(_, c)| c).collect()
+    candidates
 }
 
 /// BAS-032 — heuristic fund suggestion for an unmapped label, in priority order:
@@ -1048,8 +1030,10 @@ mod tests {
         assert!(ids.contains(&"grp-60"), "own assigned group is a candidate");
         assert!(
             ids.contains(&"grp-40"),
-            "other in-window group qualifies against the full line amount"
+            "other group qualifies against the full line amount"
         );
+        // BAS-068 — most recent payment first (grp-40 is 01-13, grp-60 is 01-12).
+        assert_eq!(ids, vec!["grp-40", "grp-60"]);
     }
 
     // BAS-068 — broadened_candidates surfaces an eligible group from a DIFFERENT
