@@ -52,7 +52,7 @@ describe("presentLineStatus — BAS-061", () => {
 
 describe("lineStatusTone — BAS-061 badge tone", () => {
   const resolved: BankStatementLineStatus[] = ["Matched", "Rejected"];
-  const attention: BankStatementLineStatus[] = ["NeedsLink", "NeedsGroup", "Partial", "Unresolved"];
+  const attention: BankStatementLineStatus[] = ["NeedsGroup", "Partial", "Unresolved"];
 
   for (const status of resolved) {
     it(`maps ${status} to "resolved"`, () => {
@@ -65,6 +65,12 @@ describe("lineStatusTone — BAS-061 badge tone", () => {
       expect(lineStatusTone(status)).toBe("attention");
     });
   }
+
+  // Fund-unknown must be distinguishable from transaction-missing (field
+  // report 2026-07-30) — NeedsLink gets its own tone.
+  it('maps NeedsLink to "link"', () => {
+    expect(lineStatusTone("NeedsLink")).toBe("link");
+  });
 });
 
 // ---------------------------------------------------------------------------

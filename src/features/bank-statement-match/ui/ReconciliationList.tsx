@@ -41,11 +41,16 @@ export function ReconciliationList({
     ? reconciliation.lines.filter((line) => lineStatusTone(line.status) !== "resolved")
     : reconciliation.lines;
 
-  // Resolved fund name once linked; the raw bank label while still needs-link.
-  const fundName = (line: BankStatementLine): string =>
-    line.fund_id
-      ? (funds.find((f) => f.id === line.fund_id)?.name ?? line.fund_id)
-      : line.credit_line.label;
+  // Resolved fund name once linked; the raw bank label while still needs-link
+  // (rendered muted+italic so it cannot be mistaken for a fund name).
+  const fundCell = (line: BankStatementLine) =>
+    line.fund_id ? (
+      <span className="font-medium text-m3-on-surface">
+        {funds.find((f) => f.id === line.fund_id)?.name ?? line.fund_id}
+      </span>
+    ) : (
+      <span className="italic text-m3-on-surface-variant">{line.credit_line.label}</span>
+    );
 
   return (
     <div id="reconciliation-list">
@@ -93,7 +98,15 @@ export function ReconciliationList({
         </thead>
         <tbody>
           {visibleLines.map((line) => {
-            const attention = lineStatusTone(line.status) === "attention";
+            const tone = lineStatusTone(line.status);
+            // Three visually distinct badge families: fund unknown (link, primary),
+            // transaction missing (attention, gold), resolved (subdued).
+            const badgeClass =
+              tone === "link"
+                ? "bg-m3-primary-container text-m3-on-primary-container"
+                : tone === "attention"
+                  ? "bg-m3-tertiary-container text-m3-on-tertiary-container"
+                  : "bg-m3-surface-container-high text-m3-on-surface-variant";
             return (
               <tr
                 key={line.line_id}
@@ -107,18 +120,14 @@ export function ReconciliationList({
                 <td className="px-4 py-3 text-m3-on-surface-variant tabular-nums whitespace-nowrap">
                   {formatDate(line.credit_line.date)}
                 </td>
-                <td className="px-4 py-3 font-medium text-m3-on-surface">{fundName(line)}</td>
+                <td className="px-4 py-3">{fundCell(line)}</td>
                 <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap text-m3-on-surface">
                   {formatCurrency(line.credit_line.amount)}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <span
                     id={`reconciliation-line-status-${line.line_id}`}
-                    className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${
-                      attention
-                        ? "bg-m3-tertiary-container text-m3-on-tertiary-container"
-                        : "bg-m3-surface-container-high text-m3-on-surface-variant"
-                    }`}
+                    className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${badgeClass}`}
                   >
                     {t(presentLineStatus(line.status))}
                   </span>

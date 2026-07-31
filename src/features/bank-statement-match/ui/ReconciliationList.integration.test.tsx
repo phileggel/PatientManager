@@ -194,6 +194,36 @@ describe("ReconciliationList — per-line status (BAS-061)", () => {
     const statusEl = document.getElementById("reconciliation-line-status-line-2");
     expect(statusEl).not.toBeNull();
   });
+
+  // Field report 2026-07-30 — "fund unknown" must be visually distinct from
+  // "transaction missing": NeedsLink badge uses the primary-container family,
+  // NeedsGroup keeps the gold attention family, and the unlinked raw bank
+  // label renders italic so it cannot pass for a fund name.
+  it("distinguishes NeedsLink (fund unknown) from NeedsGroup (transaction missing)", () => {
+    const reconciliation = makeReconciliation([NEEDS_LINK_LINE, NEEDS_GROUP_LINE], 0, 2);
+
+    render(
+      <ReconciliationList
+        reconciliation={reconciliation}
+        onApplyCorrection={vi.fn()}
+        isBusy={false}
+      />,
+    );
+
+    const linkBadge = document.getElementById(
+      `reconciliation-line-status-${NEEDS_LINK_LINE.line_id}`,
+    );
+    const groupBadge = document.getElementById(
+      `reconciliation-line-status-${NEEDS_GROUP_LINE.line_id}`,
+    );
+    expect(linkBadge?.className).toContain("bg-m3-primary-container");
+    expect(groupBadge?.className).toContain("bg-m3-tertiary-container");
+
+    // Unlinked raw label is styled muted+italic.
+    const linkRow = document.getElementById(`reconciliation-line-row-${NEEDS_LINK_LINE.line_id}`);
+    const rawLabel = linkRow?.querySelector("span.italic");
+    expect(rawLabel?.textContent).toBe(NEEDS_LINK_LINE.credit_line.label);
+  });
 });
 
 // ---------------------------------------------------------------------------

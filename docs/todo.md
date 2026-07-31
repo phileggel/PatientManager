@@ -2,12 +2,6 @@
 
 ---
 
-## (frontend/bank) — "Fund unknown" and "transaction missing" look alike in the list
-
-Field report 2026-07-30: raw bank labels render like resolved fund names and all attention badges share one tone. Fix: muted italic style for unlinked raw labels in the fund column; distinct badge tone for À associer (NeedsLink) vs the transaction-missing states — `ReconciliationList.tsx` + `lineStatusTone`.
-
----
-
 ## (ci) — Windows E2E at the release gate
 
 Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.
