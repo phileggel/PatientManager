@@ -2,6 +2,24 @@
 
 ---
 
+## (backend/bank) — Auto-match window 7 → 15 days
+
+`orchestrator.rs:23` `MAX_DATE_OFFSET_DAYS = 7` is too tight for real fund delays (field report 2026-07-30). Per amended BAS-051: 15 days for auto-match; boundary test moves to D+15/D+16.
+
+---
+
+## (backend/bank) — Manual candidate search unbounded by date
+
+`reconciliation.rs`: `rank_candidates` filters candidates to the auto-match window and `apply_assign_groups` guards assignment with it — old payments are invisible even to manual search, indistinguishable from missing transactions. Per amended BAS-051/068/090: drop both date bounds on the manual path, rank by absolute date offset; a formerly Non-résolue line with an old payment becomes Groupe à choisir.
+
+---
+
+## (frontend/bank) — "Fund unknown" and "transaction missing" look alike in the list
+
+Field report 2026-07-30: raw bank labels render like resolved fund names and all attention badges share one tone. Fix: muted italic style for unlinked raw labels in the fund column; distinct badge tone for À associer (NeedsLink) vs the transaction-missing states — `ReconciliationList.tsx` + `lineStatusTone`.
+
+---
+
 ## (ci) — Windows E2E at the release gate
 
 Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.
