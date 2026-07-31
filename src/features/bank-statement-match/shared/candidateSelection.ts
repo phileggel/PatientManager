@@ -1,10 +1,5 @@
 import type { BankStatementCandidate, BankStatementLine } from "@/bindings";
 
-/** Exact-amount candidates first, preserving relative order otherwise (BAS-068). */
-export function rankCandidates(candidates: BankStatementCandidate[]): BankStatementCandidate[] {
-  return candidates.toSorted((a, b) => Number(b.is_exact_amount) - Number(a.is_exact_amount));
-}
-
 /** Union of the fund-filtered and broadened candidate views, deduplicated by group id. */
 function allCandidates(line: BankStatementLine): BankStatementCandidate[] {
   const seen = new Set<string>();

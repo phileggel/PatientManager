@@ -31,7 +31,8 @@
       "broaden_on": "Chercher dans toutes les caisses",
       "broaden_off": "Limiter à cette caisse",
       "cancel": "Annuler",
-      "submit": "Affecter"
+      "submit": "Affecter",
+      "exact_amount": "montant exact"
     },
     "remainder": {
       "amount": "Reliquat non couvert : {{amount}}",

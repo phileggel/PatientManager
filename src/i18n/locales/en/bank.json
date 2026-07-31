@@ -31,7 +31,8 @@
       "broaden_on": "Search all funds",
       "broaden_off": "Limit to this fund",
       "cancel": "Cancel",
-      "submit": "Assign"
+      "submit": "Assign",
+      "exact_amount": "exact amount"
     },
     "remainder": {
       "amount": "Uncovered remainder: {{amount}}",
