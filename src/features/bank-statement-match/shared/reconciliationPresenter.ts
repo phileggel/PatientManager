@@ -33,16 +33,20 @@ export function presentLineStatus(status: BankStatementLineStatus): string {
 }
 
 /**
- * Visual tone for a line's status badge: `attention` (gold) for the four
- * correction-needed states so they stand out, `resolved` (subdued) for the two
- * done states (Matched / Rejected). Exhaustive over BAS-061.
+ * Visual tone for a line's status badge: `link` for the fund-unknown state
+ * (NeedsLink — the label itself is unrecognized), `attention` (gold) for the
+ * transaction-missing states, `resolved` (subdued) for the two done states
+ * (Matched / Rejected). Three tones so "fund unknown" and "transaction
+ * missing" are distinguishable at a glance (field report 2026-07-30).
+ * Exhaustive over BAS-061.
  */
-export function lineStatusTone(status: BankStatementLineStatus): "attention" | "resolved" {
+export function lineStatusTone(status: BankStatementLineStatus): "link" | "attention" | "resolved" {
   switch (status) {
     case "Matched":
     case "Rejected":
       return "resolved";
     case "NeedsLink":
+      return "link";
     case "NeedsGroup":
     case "Partial":
     case "Unresolved":
