@@ -71,34 +71,6 @@
   },
   "statement": {
     "title": "Bank Reconciliation",
-    "match_results": {
-      "matched": "Matched lines",
-      "unmatched": "To validate",
-      "columns": {
-        "line": "Statement line",
-        "group": "Group to reconcile (± {{days}} days)",
-        "status": "Status"
-      },
-      "select": {
-        "placeholder": "-- No group selected --"
-      },
-      "option": {
-        "exact_amount": " (Exact amount)",
-        "already_used": " [Already used]"
-      },
-      "search": {
-        "active": "Expanded search active (All funds)",
-        "expand": "Wrong fund? Search everywhere"
-      },
-      "match": {
-        "confirmed": "Reconciliation confirmed with group from {{date}}"
-      },
-      "candidates": {
-        "found": "{{count}} candidate(s) found within ± {{days}} days.",
-        "found_all_funds": "{{count}} candidate(s) found across all funds within ± {{days}} days.",
-        "none": "No unsettled group found within ± {{days}} days."
-      }
-    },
     "upload_aria_label": "Upload bank statement PDF",
     "modal": {
       "loading": "Analysing bank statement...",

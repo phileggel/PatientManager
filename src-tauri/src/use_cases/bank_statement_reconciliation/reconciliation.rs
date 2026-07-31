@@ -483,8 +483,8 @@ fn finalize_line(
         .cloned()
         .collect();
     let candidate_groups = candidate_groups(wl, groups, funds, &consumed_by_others, line_amount);
-    // BAS-068 — broadened set: same date tolerance + eligibility, but across all
-    // funds (no fund filter). Superset shown when the user broadens the search.
+    // BAS-068 — broadened set: same eligibility as candidate_groups, but across
+    // all funds (no fund filter). Superset shown when the user broadens the search.
     let broadened_candidates =
         broadened_candidates(groups, funds, &consumed_by_others, line_amount);
 
@@ -1037,8 +1037,7 @@ mod tests {
     }
 
     // BAS-068 — broadened_candidates surfaces an eligible group from a DIFFERENT
-    // fund (within date tolerance) that the fund-filtered candidate_groups set
-    // excludes.
+    // fund that the fund-filtered candidate_groups set excludes.
     #[test]
     fn broadened_candidates_include_other_fund_group() {
         let parse_result = BankStatementParseResult {
@@ -1053,7 +1052,7 @@ mod tests {
             unparsed_count: 0,
         };
         // Line is linked to fund-93 via a saved mapping, but the only eligible
-        // group within date tolerance belongs to fund-75.
+        // group belongs to fund-75.
         let mappings = vec![BankFundLabelMapping {
             id: "map-1".to_string(),
             bank_account_id: "acc-1".to_string(),
