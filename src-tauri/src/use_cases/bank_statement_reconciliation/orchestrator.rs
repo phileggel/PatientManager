@@ -18,9 +18,11 @@ use super::error::{BankStatementReconciliationError, BankStatementReconciliation
 use super::label_mapping_repo::BankFundLabelMappingRepository;
 use super::parser;
 
-/// Maximum number of days between a fund payment group date and the bank statement credit line date.
-/// A group dated on D may appear on the bank statement up to D+7 (R11).
-pub const MAX_DATE_OFFSET_DAYS: i64 = 7;
+/// Maximum number of days between a fund payment group date and the bank
+/// statement credit line date for AUTO-match: a group dated on D may appear on
+/// the bank statement up to D+15 (BAS-051). Manual candidate search and
+/// assignment are not date-bounded.
+pub const MAX_DATE_OFFSET_DAYS: i64 = 15;
 
 /// A confirmed match ready for bank transfer creation
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
