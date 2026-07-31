@@ -18,9 +18,10 @@ interface ReconciliationListProps {
  * order as a table row (date · fund · amount · status), with a running summary and
  * a wizard launcher.
  *
- * The status renders as a badge: gold (`attention`) for the four correction-needed
- * states so they stand out at a glance, subdued for resolved lines (Matched /
- * Rejected). Double-clicking any row opens it for correction (BAS-062) — including
+ * The status renders as a badge in three tones: `link` (primary) for the
+ * fund-unknown state, gold (`attention`) for the three transaction-missing
+ * states, subdued for resolved lines (Matched / Rejected); unlinked raw bank
+ * labels render muted+italic. Double-clicking any row opens it for correction (BAS-062) — including
  * Matched rows, which can be overridden. Interaction is suppressed while a recompute
  * is in flight (BAS-064 busy state).
  */

@@ -14,7 +14,8 @@ interface CandidateListProps {
 }
 
 /**
- * BAS-068/090/091 — ranked candidate selector with live balance and broaden
+ * BAS-068/090/091 — candidate selector (wire order: most recent payment
+ * first) with live balance and broaden
  * toggle, shared by AssignGroupsModal and the wizard's assign-group step
  * (BAS-101). Selection state is controlled by the host; the broaden state is
  * local and hosts reset it by keying the component on the line id.
@@ -26,7 +27,7 @@ export function CandidateList({ line, idPrefix, selected, onSelectionChange }: C
   // BAS-068 — default to the fund-filtered set; broadening swaps in the
   // fund-agnostic superset. The wire order (most recent payment first) is
   // rendered as-is.
-  const ranked = broadened ? line.broadened_candidates : line.candidate_groups;
+  const candidates = broadened ? line.broadened_candidates : line.candidate_groups;
 
   const toggle = (groupId: string) => {
     onSelectionChange(
@@ -71,7 +72,7 @@ export function CandidateList({ line, idPrefix, selected, onSelectionChange }: C
       </div>
 
       <ul className="flex flex-col gap-1">
-        {ranked.map((candidate) => (
+        {candidates.map((candidate) => (
           <li
             key={candidate.group_id}
             id={`${idPrefix}-candidate-${candidate.group_id}`}

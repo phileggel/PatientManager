@@ -71,34 +71,6 @@
   },
   "statement": {
     "title": "Rapprochement Bancaire",
-    "match_results": {
-      "matched": "Lignes rapprochées",
-      "unmatched": "À valider",
-      "columns": {
-        "line": "Ligne du relevé",
-        "group": "Groupe à rapprocher (± {{days}} jours)",
-        "status": "Statut"
-      },
-      "select": {
-        "placeholder": "-- Aucun groupe sélectionné --"
-      },
-      "option": {
-        "exact_amount": " (Montant exact)",
-        "already_used": " [Déjà utilisé]"
-      },
-      "search": {
-        "active": "Recherche étendue active (Toutes caisses)",
-        "expand": "Pas la bonne caisse ? Chercher partout"
-      },
-      "match": {
-        "confirmed": "Rapprochement validé avec le groupe du {{date}}"
-      },
-      "candidates": {
-        "found": "{{count}} candidat(s) trouvé(s) à ± {{days}} jours.",
-        "found_all_funds": "{{count}} candidat(s) trouvé(s) sur toutes les caisses à ± {{days}} jours.",
-        "none": "Aucun groupe non réglé trouvé à ± {{days}} jours."
-      }
-    },
     "upload_aria_label": "Télécharger un relevé bancaire PDF",
     "modal": {
       "loading": "Analyse du relevé bancaire...",
