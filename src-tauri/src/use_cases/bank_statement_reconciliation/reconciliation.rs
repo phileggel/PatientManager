@@ -813,10 +813,10 @@ mod tests {
         );
     }
 
-    // BAS-051 — the auto-match tolerance boundary: a group at D+7 (bank date 7
-    // days after the group's date) auto-matches; at D+8 it does not.
+    // BAS-051 — the auto-match tolerance boundary: a group at D+15 (bank date
+    // 15 days after the group's date) auto-matches; at D+16 it does not.
     #[test]
-    fn auto_match_accepts_d7_and_rejects_d8() {
+    fn auto_match_accepts_d15_and_rejects_d16() {
         let mappings = vec![BankFundLabelMapping {
             id: "map-1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -836,26 +836,26 @@ mod tests {
             unparsed_count: 0,
         };
 
-        // D+7 (2026-01-08) — inside the window: auto-matched.
-        let groups_d7 = vec![group("grp-d7", "fund-93", "2026-01-08", 100_000)];
-        let repos_d7 = BankStatementReconciliationRepos {
+        // D+15 (2025-12-31) — inside the window: auto-matched.
+        let groups_d15 = vec![group("grp-d15", "fund-93", "2025-12-31", 100_000)];
+        let repos_d15 = BankStatementReconciliationRepos {
             mappings: &mappings,
-            groups: &groups_d7,
+            groups: &groups_d15,
             funds: &funds,
         };
-        let recon = compute_reconciliation(&parse_result, &repos_d7, &[]).unwrap();
+        let recon = compute_reconciliation(&parse_result, &repos_d15, &[]).unwrap();
         assert_eq!(recon.lines[0].status, BankStatementLineStatus::Matched);
 
-        // D+8 (2026-01-07) — beyond the auto window: no auto-match, but the
+        // D+16 (2025-12-30) — beyond the auto window: no auto-match, but the
         // group IS offered as a manual candidate (BAS-051 manual path is not
         // date-bounded) → NeedsGroup, not Unresolved.
-        let groups_d8 = vec![group("grp-d8", "fund-93", "2026-01-07", 100_000)];
-        let repos_d8 = BankStatementReconciliationRepos {
+        let groups_d16 = vec![group("grp-d16", "fund-93", "2025-12-30", 100_000)];
+        let repos_d16 = BankStatementReconciliationRepos {
             mappings: &mappings,
-            groups: &groups_d8,
+            groups: &groups_d16,
             funds: &funds,
         };
-        let recon = compute_reconciliation(&parse_result, &repos_d8, &[]).unwrap();
+        let recon = compute_reconciliation(&parse_result, &repos_d16, &[]).unwrap();
         assert_eq!(recon.lines[0].status, BankStatementLineStatus::NeedsGroup);
         assert!(recon.lines[0].assigned_group_ids.is_empty());
     }
