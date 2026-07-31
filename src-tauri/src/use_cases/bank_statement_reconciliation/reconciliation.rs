@@ -80,10 +80,10 @@ pub struct BankStatementLine {
     /// BAS-092 — true when the user acknowledged the remainder.
     pub remainder_acknowledged: bool,
     /// BAS-068 — ranked candidate groups for needs-group / partial,
-    /// filtered to the line's fund (the default view).
+    /// filtered to the line's fund (the default view); not date-bounded.
     pub candidate_groups: Vec<BankStatementCandidate>,
-    /// BAS-068 — ranked candidate groups across ALL funds (same date
-    /// tolerance, not locked/consumed); shown when the user broadens the search.
+    /// BAS-068 — ranked candidate groups across ALL funds (not locked or
+    /// consumed, any age); shown when the user broadens the search.
     pub broadened_candidates: Vec<BankStatementCandidate>,
     /// BAS-032/066 — heuristic suggestion for the link-fund modal.
     pub suggested_fund_id: Option<String>,
@@ -259,13 +259,6 @@ pub fn compute_reconciliation(
     })
 }
 
-/// BAS-051 — the bank line's date may sit 0..=MAX_DATE_OFFSET_DAYS days after
-/// the group's payment date. Single source for auto-match candidates and the
-/// manual-assignment guard.
-fn is_within_date_window(line_date: NaiveDate, group_date: NaiveDate) -> bool {
-    (0..=MAX_DATE_OFFSET_DAYS).contains(&(line_date - group_date).num_days())
-}
-
 /// BAS-050–054 — auto-match resolved (fund-known, not rejected, unassigned)
 /// lines against eligible unsettled groups. Exact fund + exact amount + date
 /// tolerance, exclusive (a matched line and group are both locked).
@@ -398,15 +391,8 @@ fn apply_assign_groups(
             return Err(BankStatementReconciliationTask::GroupNotEligible.into());
         }
 
-        // BAS-051/BAS-090 — the date-tolerance window also binds manual
-        // assignment. The candidate lists already filter by it; this guards
-        // the raw correction ids at the validate trust boundary.
-        let in_window = line
-            .line_date
-            .is_some_and(|d| is_within_date_window(d, group.payment_date));
-        if !in_window {
-            return Err(BankStatementReconciliationTask::GroupNotEligible.into());
-        }
+        // BAS-051/BAS-090 — no date bound on manual assignment: the human
+        // making the correction may pick a group of any age (slow funds).
 
         // BAS-067: a group consumed by another line cannot be reassigned here.
         if consumed.contains(gid) && !currently_assigned.contains(gid) {
@@ -518,9 +504,9 @@ fn finalize_line(
 }
 
 /// BAS-068 — rank eligible candidate groups for a line: same fund, not
-/// locked/consumed, within date tolerance, amount ≤ `amount_ceiling` (the full
-/// line amount — the recomposition basis, see `finalize_line`).
-/// Ordered exact-amount first, then by date proximity (the default view).
+/// locked/consumed, amount ≤ `amount_ceiling` (the full line amount — the
+/// recomposition basis, see `finalize_line`); NOT date-bounded (BAS-051
+/// manual path). Ordered exact-amount first, then by date proximity.
 fn candidate_groups(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
@@ -538,7 +524,7 @@ fn candidate_groups(
 
 /// BAS-068 — the broadened set: identical eligibility and ranking to
 /// `candidate_groups` but WITHOUT the fund filter (all funds), shown when the
-/// user broadens the search beyond the line's fund. Same date tolerance applies.
+/// user broadens the search beyond the line's fund.
 fn broadened_candidates(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
@@ -578,12 +564,11 @@ fn rank_candidates(
                 && fund_filter(g)
                 && g.total_amount <= amount_ceiling
         })
-        .filter_map(|g| {
-            if !is_within_date_window(line_date, g.payment_date) {
-                return None;
-            }
-            let offset = (line_date - g.payment_date).num_days();
-            Some((
+        .map(|g| {
+            // BAS-051/068 — the manual path is not date-bounded; the offset's
+            // ABSOLUTE value only drives the nearest-date ranking below.
+            let offset = (line_date - g.payment_date).num_days().abs();
+            (
                 offset,
                 BankStatementCandidate {
                     group_id: g.id.clone(),
@@ -598,7 +583,7 @@ fn rank_candidates(
                     total_amount: g.total_amount,
                     is_exact_amount: g.total_amount == amount_ceiling,
                 },
-            ))
+            )
         })
         .collect();
 
@@ -861,7 +846,9 @@ mod tests {
         let recon = compute_reconciliation(&parse_result, &repos_d7, &[]).unwrap();
         assert_eq!(recon.lines[0].status, BankStatementLineStatus::Matched);
 
-        // D+8 (2026-01-07) — one day beyond: no auto-match, no candidate.
+        // D+8 (2026-01-07) — beyond the auto window: no auto-match, but the
+        // group IS offered as a manual candidate (BAS-051 manual path is not
+        // date-bounded) → NeedsGroup, not Unresolved.
         let groups_d8 = vec![group("grp-d8", "fund-93", "2026-01-07", 100_000)];
         let repos_d8 = BankStatementReconciliationRepos {
             mappings: &mappings,
@@ -869,7 +856,51 @@ mod tests {
             funds: &funds,
         };
         let recon = compute_reconciliation(&parse_result, &repos_d8, &[]).unwrap();
-        assert_eq!(recon.lines[0].status, BankStatementLineStatus::Unresolved);
+        assert_eq!(recon.lines[0].status, BankStatementLineStatus::NeedsGroup);
+        assert!(recon.lines[0].assigned_group_ids.is_empty());
+    }
+
+    // BAS-051/068/090 — an old payment (far beyond the auto window) is offered
+    // as a manual candidate and assignable; the human is the judge.
+    #[test]
+    fn old_payment_is_offered_and_assignable() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "map-1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-93".to_string()),
+        }];
+        let funds = vec![fund("fund-93", "93", "CPAM Seine-Saint-Denis")];
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-02-20".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        // Paid 40 days before the bank credit.
+        let groups = vec![group("grp-old", "fund-93", "2026-01-11", 100_000)];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+        };
+
+        let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
+        assert_eq!(recon.lines[0].status, BankStatementLineStatus::NeedsGroup);
+        assert_eq!(recon.lines[0].candidate_groups[0].group_id, "grp-old");
+
+        let corrections = vec![BankStatementCorrection::AssignGroups {
+            line_id: "line-0".to_string(),
+            group_ids: vec!["grp-old".to_string()],
+        }];
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections)
+            .expect("an old payment must be manually assignable (amended BAS-051)");
+        assert_eq!(recon.lines[0].status, BankStatementLineStatus::Matched);
     }
 
     // BAS-052 — when two lines compete for the same group, the OLDEST line
@@ -920,51 +951,6 @@ mod tests {
         );
         assert_eq!(recon.lines[1].status, BankStatementLineStatus::Matched);
         assert!(recon.lines[0].assigned_group_ids.is_empty());
-    }
-
-    // BAS-051/BAS-090 — an assignment referencing a group outside the 0..7-day
-    // window is rejected at the trust boundary (the UI never offers one, but
-    // validate replays raw client-supplied ids).
-    #[test]
-    fn out_of_window_manual_assignment_is_rejected() {
-        let parse_result = BankStatementParseResult {
-            iban: None,
-            period: None,
-            credit_lines: vec![BankStatementCreditLine {
-                date: "2026-01-15".to_string(),
-                label: "CPAM93".to_string(),
-                amount: 100_000,
-            }],
-            total_credits: 100_000,
-            unparsed_count: 0,
-        };
-        let mappings = vec![BankFundLabelMapping {
-            id: "map-1".to_string(),
-            bank_account_id: "acc-1".to_string(),
-            bank_label: "CPAM93".to_string(),
-            fund_id: Some("fund-93".to_string()),
-        }];
-        // 2026-01-07 → offset D+8, one day beyond the tolerance window.
-        let groups = vec![group("grp-old", "fund-93", "2026-01-07", 100_000)];
-        let funds = vec![fund("fund-93", "93", "CPAM Seine-Saint-Denis")];
-        let repos = BankStatementReconciliationRepos {
-            mappings: &mappings,
-            groups: &groups,
-            funds: &funds,
-        };
-        let corrections = vec![BankStatementCorrection::AssignGroups {
-            line_id: "line-0".to_string(),
-            group_ids: vec!["grp-old".to_string()],
-        }];
-
-        let err = compute_reconciliation(&parse_result, &repos, &corrections)
-            .expect_err("a D+8 group must be rejected (BAS-051)");
-        assert!(matches!(
-            err,
-            BankStatementReconciliationError::Task(
-                BankStatementReconciliationTask::GroupNotEligible
-            )
-        ));
     }
 
     // BAS-090 — a broadened (cross-fund) candidate is assignable: the fund
