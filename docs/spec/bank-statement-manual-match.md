@@ -19,6 +19,8 @@ This document covers exclusively the **manual flow**: direct entry of transactio
 
 A fund-payment group becomes locked as soon as one of its procedures reaches Stage 2 of the fund lifecycle — it can no longer be edited or deleted. Unlocking can only be performed by deleting the associated transfer (see R8).
 
+> **Declared exception (2026-07-31)** — bank-born groups (`bank-statement-auto-match` BAS-115) fold Stage 1 into the bank validate (`Created` → `FundPaid` in one step). After validate they are ordinary groups: deleting their transfer (R8) reverts them like any other (procedures → `Reconciled`, group `Active`).
+
 ### Rules common to all transactions
 
 **R2 — Transaction types (backend)**: Four types are supported: `FUND` (fund transfer), `CHECK` (check), `CREDIT_CARD` (credit card), `CASH` (cash). The `OutgoingWire` type is exclusively reserved for the overpayment-refund flow and cannot be created via this flow (see REF-080).

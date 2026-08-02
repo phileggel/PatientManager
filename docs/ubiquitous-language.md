@@ -93,6 +93,12 @@ The aggregate root of the procedure context. Represents a single healthcare proc
 - `payment_method`, `confirmed_payment_date`, `payment_status` — payment and reconciliation state.
   > Status: confirmed
 
+### Open procedure
+
+A procedure eligible for direct settlement from the bank reconciliation (`bank-statement-auto-match` BAS-112): its fund is known, its `payment_status` is `Created`, it belongs to no active fund-payment-group line, and it carries a positive `billed_amount`. Used by the bank-born-group flow (BAS-115) for funds that never issue a bordereau.
+
+> Status: confirmed (2026-07-31)
+
 ### ProcedureType
 
 An aggregate root in the procedure context. Represents a category of healthcare service
