@@ -92,14 +92,14 @@ The suggestion, if any, is sent to the frontend as informational (see BAS-033).
 
 **BAS-061 — Per-line status (frontend + backend)**: The backend draft assigns each line exactly one status:
 
-- **matched** — fully covered: either auto-matched 1:1 to a group, or assigned one or more groups whose totals plus any acknowledged remainder equal the line amount exactly (BAS-091). "Matched" denotes full coverage regardless of how it was reached (1:1 or multi-group).
+- **matched** — fully covered: either auto-matched 1:1 to a group, or assigned one or more settlement items whose totals plus any acknowledged remainder equal the line amount exactly (BAS-091). "Matched" denotes full coverage regardless of how it was reached (1:1, multi-group, or procedures — BAS-113).
 - **needs-link** — its label is not yet linked to a fund.
-- **needs-group** — fund known, zero groups assigned, at least one eligible candidate group exists.
-- **partial** — one or more groups assigned but the line is not yet fully covered (and no remainder acknowledged).
+- **needs-group** — fund known, zero settlement items assigned, at least one eligible candidate exists (a candidate group, BAS-068, **or** an open-procedure candidate, BAS-112).
+- **partial** — one or more settlement items assigned but the line is not yet fully covered (and no remainder acknowledged).
 - **rejected** — its label is marked not-a-fund-payment (BAS-030).
-- **unresolved** — linked to a fund but zero groups assigned, no eligible candidate group, and not acknowledged.
+- **unresolved** — linked to a fund, zero settlement items assigned, no eligible candidate of either kind, and not acknowledged.
 
-A line counts as **resolved** when its status is **matched** or **rejected**. `needs-link`, `needs-group`, `partial`, and `unresolved` are not resolved. The distinction between `partial` and `unresolved` is precise: `partial` always has ≥1 assigned group, `unresolved` always has zero.
+A line counts as **resolved** when its status is **matched** or **rejected**. `needs-link`, `needs-group`, `partial`, and `unresolved` are not resolved. The distinction between `partial` and `unresolved` is precise: `partial` always has ≥1 assigned settlement item, `unresolved` always has zero. _(2026-07-31 — "settlement item" = an assigned group or an assigned open procedure; a line carries items of at most one kind, BAS-113.)_
 
 **BAS-062 — Per-line correction entry (frontend + backend)**: Double-clicking any line opens a correction modal scoped to that single line, offering the corrections valid for its current state (link-fund, assign-group(s), remainder acknowledgment). A line that is already matched or assigned can also be opened to **override** it — reassign to a different group, or unassign it. An explicit group-assignment correction on a line (including assigning an empty set to unassign) takes precedence over the line's auto-match for the rest of the recompute; reverting that correction (BAS-065) restores the auto-match. This preserves the former manual-override capability within the pure-recompute model (BAS-064). The override flows through the same correction commands and cascade (BAS-066–067).
 
@@ -109,11 +109,11 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 
 **BAS-065 — Revert a correction (frontend + backend)**: Any applied correction can be reverted. Reverting removes it from the correction list and recomputes the draft, undoing its cascade (e.g. a group it consumed becomes available again, lines it resolved revert to their prior status). Nothing reverted before validate is persisted.
 
-**BAS-066 — Link-fund correction and cascade (frontend + backend)**: Linking a label to a fund — or marking it rejected (BAS-030) — resolves **all** lines sharing that label in one action. Lines that, once their fund is known, match an eligible group (BAS-050–054) auto-resolve to **matched**; the rest are re-flagged **needs-group** or **unresolved**. The heuristic suggestion (BAS-032) and empty-field-for-unknown rule (BAS-036) apply within the link-fund modal.
+**BAS-066 — Link-fund correction and cascade (frontend + backend)**: Linking a label to a fund — or marking it rejected (BAS-030) — resolves **all** lines sharing that label in one action. Lines that, once their fund is known, match an eligible group (BAS-050–054) auto-resolve to **matched**; the rest are re-flagged **needs-group** or **unresolved**. The heuristic suggestion (BAS-032) and empty-field-for-unknown rule (BAS-036) apply within the link-fund modal. Re-linking a label to a **different** fund — or **reverting** the link-fund correction itself (BAS-065) — drops any procedure assignment (BAS-113) on the affected lines: the dependent `AssignProcedures` corrections are removed from the correction list (their procedures return to the open pool) and those lines re-flag per this rule; procedures never cross funds (BAS-111), and a link revert must never be blocked by a dependent assignment.
 
 **BAS-067 — Group consumption (backend)**: Assigning a group to a line removes that group from every other line's candidate proposals (a group settles at most one line; BAS-054). Reverting the assignment (BAS-065) restores the group to the candidate pool.
 
-**BAS-068 — Candidate proposals and broadened search (frontend)**: For a line needing a group, the draft offers candidate groups ordered **most recent payment date first**, filtered to the line's fund but **not date-bounded** (BAS-051 manual path); an exact-amount candidate is visually flagged. _(2026-07-30 field report — the former exact-first/nearest-date ranking was invisible in the UI and read as unordered.)_ A "broaden" affordance shows all candidate groups beyond the fund filter; a broadened candidate is selectable and assignable (manual cross-fund override, BAS-090). For a line that already has assigned groups, the candidate lists include those groups — the correction hosts pre-select them — and the amount filter applies against the **full line amount**: an assign-group correction recomposes (replaces) the assignment (BAS-062), with the overflow guard (BAS-094) bounding the total. _(Replaces former BAS-062.)_
+**BAS-068 — Candidate proposals and broadened search (frontend + backend)**: For a line needing a group, the draft offers candidate groups ordered **most recent payment date first**, filtered to the line's fund but **not date-bounded** (BAS-051 manual path); an exact-amount candidate is visually flagged. _(2026-07-30 field report — the former exact-first/nearest-date ranking was invisible in the UI and read as unordered.)_ The "broaden" affordance shows all candidate groups beyond the fund filter; a broadened candidate is selectable and assignable (manual cross-fund override, BAS-090). _(Presentation superseded 2026-07-31: the standalone broaden button became the second of the three explicit search scopes, BAS-111 — behavior unchanged.)_ For a line that already has assigned groups, the candidate lists include those groups — the correction hosts pre-select them — and the amount filter applies against the **full line amount**: an assign-group correction recomposes (replaces) the assignment (BAS-062), with the overflow guard (BAS-094) bounding the total. _(Replaces former BAS-062.)_
 
 **BAS-069 — Summary and filter (frontend)**: The list shows a running count of resolved vs needs-correction lines and offers a filter to hide resolved lines. Filtering never changes the underlying document order (BAS-060).
 
@@ -151,7 +151,7 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 
 **BAS-090 — Multi-group assignment (frontend + backend)**: A line can be assigned to one **or several** groups. Each assigned group must not be already reconciled (BAS-053), with three relaxations relative to auto-match: exact-amount equality (BAS-050 condition 2) is relaxed — a group qualifies if its amount is less than or equal to the line's outstanding (yet-uncovered) amount — and the fund criterion (BAS-050 condition 1) and the date tolerance (BAS-051) bind **auto-match only**. An explicit manual assignment may reference a group from another fund (the broadened view, BAS-068) or of any age: the user making a manual correction is the human override for an imperfect label mapping or a slow-paying fund. _(2026-07-30 — previously cross-fund and, later the same day, out-of-window manual assignments were rejected with `GroupNotEligible`; both resolved in favor of the human override.)_
 
-**BAS-091 — Line balance (backend)**: The draft tracks, per line, the running balance `Σ(assigned group amounts) + acknowledged remainder` against the line amount. A multi-group line is fully covered — and therefore status **matched** (BAS-061) — only when that sum equals the line amount exactly. While the sum is below the line amount it is **partial**.
+**BAS-091 — Line balance (backend)**: The draft tracks, per line, the running balance `Σ(assigned settlement-item amounts) + acknowledged remainder` against the line amount — group totals when groups are assigned, procedure billed amounts when procedures are (BAS-113). A multi-item line is fully covered — and therefore status **matched** (BAS-061) — only when that sum equals the line amount exactly. While the sum is below the line amount it is **partial**.
 
 **BAS-092 — Remainder acknowledgment (frontend + backend)**: When the assigned groups sum to **less** than the line amount, the user may acknowledge the difference as an untracked remainder (a credit portion the application does not model). Acknowledging it marks the line resolved. The remainder is **informational only** — it creates no bank transfer, no persisted record, and exists only within the ephemeral draft.
 
@@ -168,6 +168,50 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 **BAS-102 — Wizard shares the correction model (frontend + backend)**: Each wizard step applies the same typed correction command as the equivalent manual per-line correction (BAS-062), triggering the same draft recompute and cascade (BAS-064, BAS-066, BAS-067). A correction made via the wizard is revertable identically (BAS-065); there is one correction model, not two.
 
 **BAS-103 — Wizard completion and abandonment (frontend)**: Reaching the end of the wizard (both phases done, or no more correction-needed items) returns the user to the unified list with all applied corrections reflected. The wizard can be abandoned at any step; abandoning returns to the list and **keeps** every correction already applied (they live in the same draft, BAS-102) — abandonment is not a revert. Validation remains a separate explicit action (BAS-063); the wizard never auto-validates.
+
+### Correction context and bank-born groups (110–119)
+
+> Field reports 2026-07-31: (a) the correction dialogs never restate WHICH bank
+> line is being corrected; (b) some funds (e.g. RATP) never send a PDF
+> bordereau, so no `FundPaymentGroup` ever exists for their credits and the
+> line dead-ends as unresolved. Resolution: settle such credits by selecting
+> the fund's open procedures directly — the missing group is **born at
+> validate** and then settled through the standard path. Scope cuts are
+> normative in BAS-117. This block uses the UL-canonical spellings (`FundPaid`,
+> `BankPaid`, `Reconciled`); older rules in this spec carry the tracked code
+> discrepancies (`FundPayed`, `BankPayed`, `Reconciliated`) — same statuses.
+
+**BAS-110 — Correction context header (frontend)**: Every correction dialog (link-fund, assign, and each wizard step) displays the bank line being corrected as `date · amount · raw label` on a **single line** — date and amount locale-formatted, the raw bank label in the muted-italic bank-text style (the same treatment the unified list gives unlinked labels) so it is never mistaken for a fund name. The header is clearly separated from the resolution controls by dedicated vertical spacing (2026-07-31 wireframe review — reference: the validated wireframe), and an over-long label truncates with an ellipsis rather than wrapping (the full label remains visible in the list).
+
+**BAS-111 — Search scopes and procedure-scope prerequisite (frontend)**: The assign dialog offers three search scopes via one explicit selector: **groups — this fund** (default, BAS-068), **groups — all funds** (the broadened view, BAS-068), and **procedures — this fund**. The procedure scope exists only for a line whose label is linked to a known fund; a still-unlinked or rejected label offers no procedure scope — linking always comes first — and it lists only that fund's open procedures (no cross-fund procedure picking, ever). When the fund-filtered group scope is empty and at least one open-procedure candidate exists, the dialog opens on the procedure scope (the no-bordereau case); otherwise it opens on the default group scope. A line that already has assigned procedures reopens on the procedure scope with them pre-checked (the seeding mirror of BAS-068). Switching scope always clears the visible selection — the selection never silently spans scopes.
+
+**BAS-112 — Open-procedure candidates (backend)**: For a linked line, the draft offers the fund's **open procedures**. A procedure is _open_ exactly when ALL hold: its fund is the line's fund; its `payment_status` is `Created`; it belongs to no fund-payment-group line (active, non-deleted); and it has a positive billed amount (`billed_amount` > 0 — excludes zero-amount procedures and negative `OverpaymentRefund` mirrors by construction, which carry other statuses anyway); soft-deleted procedures are never candidates. Candidates are ordered **oldest procedure date first**, ties broken by procedure id (stable). Each candidate carries the procedure date, the patient's display name, the billed amount (the only amount this flow knows), and an exact-amount flag (billed == line amount). Not date-bounded, mirroring the manual group search (BAS-051).
+
+**BAS-113 — AssignProcedures correction (frontend + backend)**: A new correction assigns 1..N open procedures to a line; an empty set is a valid unassign (BAS-062 override semantics, including precedence over the line's auto-match). Balance, overflow guard, and remainder acknowledgment reuse the group semantics verbatim (BAS-091/092/094), each procedure counted at its billed amount. Group- and procedure-assignment are **mutually exclusive per line**, resolved at the correction-list level: applying an `AssignProcedures` correction **removes** any earlier `AssignGroups` correction targeting the same line from the ordered list (and vice versa) before the replay — the dialog needs no warning because its scope switch already clears the visible selection, and reverting the surviving correction restores the line's auto-match per BAS-062 (never the removed correction). Applying either assignment kind also removes a previously applied `AcknowledgeRemainder` correction for the line from the list (BAS-092 — its implied size changed; reverting the assignment does NOT restore the acknowledgment). A procedure assigned to one line is consumed for every other line's proposals (mirror of BAS-067); reverting restores it. A correction referencing a procedure that is unknown, not open, or not of the line's fund is rejected and the draft is unchanged (BAS-064); one already consumed by another line is likewise rejected with its own distinct error.
+
+**Dialog actions (2026-07-31 wireframe review)**: the assign dialog exposes exactly three actions in any scope — **Annuler** (close, nothing applied), **Rapprocher avec reliquat** (submits the selection AND acknowledges the uncovered remainder in one step — the composition of the assignment correction and BAS-092; shown enabled only when the selection is non-empty and leaves a remainder), and **Rapprocher** (submits the selection alone; a not-fully-covered line becomes _partial_). The verb matches the resolved badge (« Rapprochée ») — UL alignment, 2026-07-31. The remainder line itself (`Reliquat non couvert : X`) is informational text, never a button — the former standalone "accept" affordance was judged not understandable.
+
+**BAS-114 — Auto-selection helper — NOT RETAINED**: An "auto-select oldest until covered" convenience was considered and cut by user decision before implementation (2026-07-31, wireframe review) — manual selection only. Number reserved.
+
+**BAS-115 — Group born at validate (backend)**: On validate, a line resolved via procedures creates a `FundPaymentGroup` and settles it in the same pass. Field mapping, an explicit exception to the two-stage fund lifecycle (FPM-010 / BSM R1 — the fund never issued a bordereau, so stage 1 is folded into validate):
+
+| Entity     | Field                                       | Value                                                                                                  |
+| ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Group      | `fund_id`                                   | the line's fund                                                                                        |
+| Group      | `payment_date`                              | the bank line date                                                                                     |
+| Group      | `total_amount`                              | Σ billed amounts (= Σ `actual_payment_amount`, preserving FPM-210)                                     |
+| Group      | `status` / `is_locked`                      | born `Active`, then `BankPaid` + locked via the standard settle step (BAS-072–073) — write order below |
+| Group line | one per procedure                           | —                                                                                                      |
+| Procedure  | `payment_status`                            | `Created` → `FundPaid` (single step)                                                                   |
+| Procedure  | `actual_payment_amount`                     | = billed amount                                                                                        |
+| Procedure  | `fund_reconciliation_date`                  | = bank line date                                                                                       |
+| Procedure  | `payment_method` / `confirmed_payment_date` | `BankTransfer` / bank line date (as BAS-070–073)                                                       |
+
+One bank transfer is created and linked as for any group (BAS-070/093). **Write order per line**: group + lines first, then transfer + link, then lock (`BankPaid`), procedures flipped **last** — so a crash always leaves either an `Active` group without transfer (deletable via the fund flows) or a settled pair, never an unrepairable locked orphan (transiently breaching REF-120's `BankPayed`⇒link invariant only inside this window). Precedent: REF-100 (overpayment) already births a `FundPaymentGroup` outside the fund-PDF flow without an ADR — this rule follows it. Nothing is persisted before validate (ephemeral draft, BAS-064); reverting before validate leaves no trace. A failure during group creation or settling aborts the validate loudly with a typed error — never a silent success count (see Accepted limitations for the widened non-atomic window). **After validate the born group is an ordinary group**: deleting its bank transfer later (BSM R8) reverts it like any other (procedures → `Reconciled`, group `Active`, editable through the fund flows) — accepted, since by then the payment reality it records did happen. Origin stamping (`GroupSource`) is intentionally deferred to its tracked techdebt entry — no schema change in this feature.
+
+**BAS-116 — Modal-only for now (frontend)**: The procedure scope is offered in the assign dialog only. The guided wizard's phase 2 (BAS-101) **walks past** (a) lines with no group candidate (only procedure candidates or nothing) and (b) lines that already have assigned procedures — presenting the group selector there would silently discard staged procedure work (BAS-113's removal is not revert-restorable). They stay correctable from the list. Deliberate scope cut. The needs-group badge text is settlement-kind-agnostic (« À rapprocher ») so a procedure-only line is not labeled with "group" vocabulary.
+
+**BAS-117 — Procedure-path scope cuts (frontend + backend)**: The procedure path knows billed amounts only. The assign dialog offers no per-procedure amount input, no dispute/contest affordance, and offers no creation or editing of patients or procedures — those capabilities belong exclusively to the fund-PDF reconciliation flow. Consequently a credit smaller than every single open procedure's billed amount cannot be settled through this path (nothing fits under the overflow guard) — such a line remains needs-correction; this dead-end is accepted.
 
 ---
 
@@ -204,6 +248,7 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
   ├─ Correct a line (double-click, BAS-062) ──┐
   │     link-fund (cascade, BAS-066)          │   each correction →
   │     assign-group(s) (1..N, BAS-090)       │   recompute draft (BAS-064)
+  │     assign-procedure(s) (1..N, BAS-113)   │
   │     acknowledge remainder (BAS-092)       │   → status/proposals update
   │     revert (BAS-065)                      │
   ├─ Guided wizard (BAS-100–102) ─────────────┘
@@ -212,8 +257,9 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
           ▼
 [Validate] (backend, BAS-063)
   → Persist label mappings (upsert, BAS-035)
+  → Birth bank-born groups from assigned procedures (BAS-115)
   → Create bank transfers (N per multi-group line, BAS-093)
-  → Procedures → FundPayed / PartiallyFundPayed; groups locked → BankPayed
+  → Procedures → FundPayed / PartiallyFundPayed (or Created → FundPaid, BAS-115); groups locked → BankPayed
   → Unresolved lines skipped; acknowledged remainders create nothing
           │
           ▼
@@ -224,7 +270,8 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 
 ## Accepted limitations
 
-- **Non-atomic validate (deferred UoW)**: validate commits multiple bank transfers and group/procedure status updates across more than one transaction (no enclosing unit of work). A process crash mid-validate can leave a partial commit. Accepted for now — single-user desktop makes the window practically unobservable (see `docs/techdebt.md` 2026-05-19 "Non-atomic bank-reconciliation writes" and ADR-003). To be revisited when UoW infrastructure lands.
+- **Non-atomic validate (deferred UoW)**: validate commits multiple bank transfers and group/procedure status updates across more than one transaction (no enclosing unit of work). A process crash mid-validate can leave a partial commit. BAS-115 widens this window: a bank-born group is created in its own writes before its transfer, so a crash can leave a settled-looking group with no transfer (visible in the fund flows, repairable there). Accepted for now — single-user desktop makes the window practically unobservable, and failures are loud, never silent (see `docs/techdebt.md` 2026-05-19 "Non-atomic bank-reconciliation writes" and ADR-003). To be revisited when UoW infrastructure lands.
+- **Unbilled procedures are not settleable from the bank flow**: BAS-112 requires a positive billed amount, so a procedure whose amount was never entered cannot be selected — enter its amount (or use the fund-PDF flow) first. Accepted.
 - **Remainder is not recorded**: an acknowledged remainder (BAS-092) leaves no trace after the flow closes — it is a session-only acknowledgment, not an audit record. A persisted "aid payment" concept is intentionally out of scope (deferred).
 
 ## Open questions

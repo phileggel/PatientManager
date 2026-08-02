@@ -19,6 +19,8 @@ This document covers exclusively the **manual flow**: creating, editing, and del
 
 A group becomes locked as soon as one of its procedures reaches Stage 2 (see FPM-330).
 
+> **Declared exception (2026-07-31)** — bank-born groups (`bank-statement-auto-match` BAS-115): for a fund that never issues a bordereau, Stage 1 is folded into the bank validate — the procedure moves `Created` → `FundPaid` in one step, with `fund_reconciliation_date` and `actual_payment_amount` populated at that moment, and the group is born already at Stage 2 (locked, `BankPayed`).
+
 ### Procedure eligibility (100–110)
 
 **FPM-100 (R1) — Procedures eligible for selection (backend)**: Only procedures in `Created` status can be added to a group, whether at creation or edit time. On edit, the picker shows two distinct sections: procedures already in the group (`Reconciliated` or `PartiallyReconciled`, removable) and available procedures (`Created`, addable). Procedures in any other status (`FundPayed`, `PartiallyFundPayed`, etc.) are excluded.
