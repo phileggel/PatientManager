@@ -6,6 +6,7 @@ import { Button } from "@/ui/components/button";
 import { SelectField } from "@/ui/components/field/SelectField";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { sortFundsByName } from "../shared/fundOptions";
+import { LineContextHeader } from "./LineContextHeader";
 
 interface LinkFundModalProps {
   line: BankStatementLine;
@@ -54,6 +55,8 @@ export function LinkFundModal({
         <h2 id="link-fund-modal-title" className="text-base font-semibold text-m3-on-surface">
           {t("reconciliation.link_fund.title", { label: bankLabel })}
         </h2>
+
+        <LineContextHeader id="link-fund-modal-context" creditLine={line.credit_line} />
 
         {line.suggested_fund_id && line.suggested_fund_name && (
           <p id="link-fund-modal-suggestion" className="text-xs text-m3-on-surface-variant">

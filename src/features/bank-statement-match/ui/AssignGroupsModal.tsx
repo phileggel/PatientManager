@@ -5,12 +5,18 @@ import { Button } from "@/ui/components/button";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { useFormatters } from "@/ui/format/formatters";
 import { coveredAmount } from "../shared/candidateSelection";
-import { CandidateList } from "./CandidateList";
+import { GroupCandidateRows } from "./CandidateList";
+import { LineContextHeader } from "./LineContextHeader";
+import { ProcedureCandidateList } from "./ProcedureCandidateList";
+
+/** BAS-111 — the three search scopes of the assign dialog. */
+type AssignScope = "fund" | "all" | "procedures";
 
 interface AssignGroupsModalProps {
   line: BankStatementLine;
   isOpen: boolean;
-  onSubmit: (correction: BankStatementCorrection) => void;
+  /** May return a promise — « Rapprocher avec reliquat » awaits it to post its two corrections in order. */
+  onSubmit: (correction: BankStatementCorrection) => void | Promise<unknown>;
   onCancel: () => void;
   /** Rejection message from the last correction attempt, shown inside the dialog. */
   errorText?: string | null;
@@ -19,12 +25,20 @@ interface AssignGroupsModalProps {
 }
 
 /**
- * BAS-068/090/091/094 — assign 1..N candidate groups to a line.
+ * BAS-068/090/091/094/111/113 — assign 1..N settlement items to a line.
  *
- * The ranked candidate list, balance, and broaden toggle live in CandidateList.
- * If the selection would overflow the line amount (BAS-094) the submit button
- * is disabled. Submitting an empty selection is a valid unassign / override
- * (BAS-062).
+ * One explicit scope selector drives the candidate source: groups of the
+ * line's fund (default), groups across all funds, or the fund's open
+ * procedures (BAS-111 — offered only for a linked line). Switching scope
+ * always clears the selection; group and procedure selections never mix
+ * (BAS-113). If the selection would overflow the line amount (BAS-094) the
+ * submit actions are disabled. Submitting an empty group selection is a valid
+ * unassign / override (BAS-062).
+ *
+ * Footer per the 2026-07-31 wireframe review: « Rapprocher avec reliquat »
+ * (left, warning tone — submits the assignment then acknowledges the
+ * remainder, BAS-092) and Annuler / « Rapprocher » (right). The remainder
+ * itself is informational text, never a button.
  */
 export function AssignGroupsModal({
   line,
@@ -36,12 +50,83 @@ export function AssignGroupsModal({
 }: AssignGroupsModalProps) {
   const { t } = useTranslation("bank");
   const { formatCurrency } = useFormatters();
-  // Seeded with the current assignment — submitting recomposes (replaces) the
-  // set, so an unseeded selection would silently drop existing groups (BAS-068).
-  const [selected, setSelected] = useState<string[]>(line.assigned_group_ids);
 
-  const isOverflow = coveredAmount(line, selected) > line.credit_line.amount;
-  const remainder = line.credit_line.amount - line.covered_amount;
+  // BAS-111 — the procedure scope exists only for a linked line.
+  const canUseProcedures = line.fund_id !== null;
+  // Default-scope rule: a line reopening with assigned procedures seeds the
+  // procedure scope (takes precedence); otherwise the procedure scope opens
+  // only when the fund-filtered group scope is empty and open procedures
+  // exist (the no-bordereau case).
+  const initialScope: AssignScope =
+    canUseProcedures &&
+    (line.assigned_procedure_ids.length > 0 ||
+      (line.candidate_groups.length === 0 && line.candidate_procedures.length > 0))
+      ? "procedures"
+      : "fund";
+
+  const [scope, setScope] = useState<AssignScope>(initialScope);
+  // Split selections (BAS-113) — seeded with the current assignment so
+  // submitting recomposes (replaces) the set rather than silently dropping it
+  // (BAS-068); only the initial scope's selection is seeded.
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(
+    initialScope === "procedures" ? [] : line.assigned_group_ids,
+  );
+  const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>(
+    initialScope === "procedures" ? line.assigned_procedure_ids : [],
+  );
+
+  // BAS-111 — switching scope always clears the visible selection; it never
+  // silently spans scopes (and is not re-seeded when switching back).
+  const switchScope = (next: AssignScope) => {
+    if (next === scope) return;
+    setScope(next);
+    setSelectedGroupIds([]);
+    setSelectedProcedureIds([]);
+  };
+
+  const toggleGroup = (groupId: string) => {
+    setSelectedGroupIds((prev) =>
+      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId],
+    );
+  };
+  const toggleProcedure = (procedureId: string) => {
+    setSelectedProcedureIds((prev) =>
+      prev.includes(procedureId) ? prev.filter((id) => id !== procedureId) : [...prev, procedureId],
+    );
+  };
+
+  const lineAmount = line.credit_line.amount;
+  const selected = scope === "procedures" ? selectedProcedureIds : selectedGroupIds;
+  const covered = coveredAmount(line, selected, scope === "procedures" ? "procedures" : "groups");
+  const isOverflow = covered > lineAmount;
+  // « Rapprocher avec reliquat » — enabled iff the selection is non-empty and
+  // leaves a remainder (BAS-113 dialog actions).
+  const leavesRemainder = selected.length > 0 && covered < lineAmount;
+  const remainder = lineAmount - line.covered_amount;
+
+  const assignmentCorrection = (): BankStatementCorrection =>
+    scope === "procedures"
+      ? { type: "AssignProcedures", line_id: line.line_id, procedure_ids: selectedProcedureIds }
+      : { type: "AssignGroups", line_id: line.line_id, group_ids: selectedGroupIds };
+
+  // The composition of the assignment and BAS-092 — two corrections, one
+  // click; awaited so they are applied in order.
+  const submitWithRemainder = async () => {
+    await onSubmit(assignmentCorrection());
+    await onSubmit({ type: "AcknowledgeRemainder", line_id: line.line_id });
+  };
+
+  const scopeButton = (id: AssignScope, labelKey: string) => (
+    <Button
+      id={`assign-groups-scope-${id}`}
+      variant={scope === id ? "tonal" : "ghost"}
+      size="sm"
+      aria-pressed={scope === id}
+      onClick={() => switchScope(id)}
+    >
+      {t(labelKey)}
+    </Button>
+  );
 
   return (
     <ModalContainer
@@ -55,12 +140,38 @@ export function AssignGroupsModal({
           {t("reconciliation.assign_groups.title", { label: line.credit_line.label })}
         </h2>
 
-        <CandidateList
-          line={line}
-          idPrefix="assign-groups"
-          selected={selected}
-          onSelectionChange={setSelected}
-        />
+        <LineContextHeader id="assign-groups-context" creditLine={line.credit_line} />
+
+        {/* BAS-111 — one explicit scope selector for the three search scopes. */}
+        <div className="flex items-center gap-1 self-start rounded-xl border border-m3-outline/30 p-1">
+          {scopeButton("fund", "reconciliation.assign_groups.scope_fund")}
+          {scopeButton("all", "reconciliation.assign_groups.scope_all")}
+          {canUseProcedures &&
+            scopeButton("procedures", "reconciliation.assign_groups.scope_procedures")}
+        </div>
+
+        <output id="assign-groups-balance" className="text-sm text-m3-on-surface-variant">
+          {t("reconciliation.assign_groups.balance", {
+            covered: formatCurrency(covered),
+            total: formatCurrency(lineAmount),
+          })}
+        </output>
+
+        {scope === "procedures" ? (
+          <ProcedureCandidateList
+            candidates={line.candidate_procedures}
+            idPrefix="assign-groups"
+            selected={selectedProcedureIds}
+            onToggle={toggleProcedure}
+          />
+        ) : (
+          <GroupCandidateRows
+            candidates={scope === "all" ? line.broadened_candidates : line.candidate_groups}
+            idPrefix="assign-groups"
+            selected={selectedGroupIds}
+            onToggle={toggleGroup}
+          />
+        )}
 
         {errorText && (
           <p id="assign-groups-error" role="alert" className="text-sm text-m3-error">
@@ -68,41 +179,37 @@ export function AssignGroupsModal({
           </p>
         )}
 
-        {/* BAS-092 — a partial line can acknowledge its uncovered remainder here. */}
+        {/* BAS-092 — the uncovered remainder is informational text only; the
+            former standalone acknowledge button was judged not understandable
+            (2026-07-31 wireframe review). */}
         {line.status === "Partial" && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm text-m3-on-surface-variant">
-              {t("reconciliation.remainder.amount", { amount: formatCurrency(remainder) })}
-            </span>
-            <Button
-              id="assign-groups-acknowledge-remainder"
-              variant="secondary"
-              disabled={isBusy}
-              onClick={() => onSubmit({ type: "AcknowledgeRemainder", line_id: line.line_id })}
-            >
-              {t("reconciliation.remainder.confirm")}
-            </Button>
-          </div>
+          <p id="assign-groups-remainder-info" className="text-sm text-m3-on-surface-variant">
+            {t("reconciliation.remainder.amount", { amount: formatCurrency(remainder) })}
+          </p>
         )}
 
-        <div className="flex items-center justify-end gap-2">
-          <Button id="assign-groups-cancel" variant="secondary" onClick={onCancel}>
-            {t("reconciliation.assign_groups.cancel")}
-          </Button>
+        <div className="flex items-center justify-between gap-2">
           <Button
-            id="assign-groups-submit"
-            variant="primary"
-            disabled={isBusy || isOverflow}
-            onClick={() =>
-              onSubmit({
-                type: "AssignGroups",
-                line_id: line.line_id,
-                group_ids: selected,
-              })
-            }
+            id="assign-groups-submit-with-remainder"
+            variant="warning"
+            disabled={isBusy || !leavesRemainder}
+            onClick={() => void submitWithRemainder()}
           >
-            {t("reconciliation.assign_groups.submit")}
+            {t("reconciliation.assign_groups.submit_with_remainder")}
           </Button>
+          <div className="flex items-center gap-2">
+            <Button id="assign-groups-cancel" variant="secondary" onClick={onCancel}>
+              {t("reconciliation.assign_groups.cancel")}
+            </Button>
+            <Button
+              id="assign-groups-submit"
+              variant="primary"
+              disabled={isBusy || isOverflow}
+              onClick={() => void onSubmit(assignmentCorrection())}
+            >
+              {t("reconciliation.assign_groups.submit")}
+            </Button>
+          </div>
         </div>
       </div>
     </ModalContainer>

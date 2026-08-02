@@ -86,6 +86,16 @@ export function presentCorrection(correction: BankStatementCorrection): {
             key: "bank:reconciliation.correction.assign_groups",
             params: { line: correction.line_id, count: correction.group_ids.length },
           };
+    case "AssignProcedures":
+      return correction.procedure_ids.length === 0
+        ? {
+            key: "bank:reconciliation.correction.unassign_procedures",
+            params: { line: correction.line_id },
+          }
+        : {
+            key: "bank:reconciliation.correction.assign_procedures",
+            params: { line: correction.line_id, count: correction.procedure_ids.length },
+          };
     case "AcknowledgeRemainder":
       return {
         key: "bank:reconciliation.correction.acknowledge_remainder",
@@ -108,6 +118,10 @@ export function presentReconciliationError(err: BankStatementReconciliationError
       return { key: "bank:reconciliation.error.group_not_eligible" };
     case "GroupAlreadyConsumed":
       return { key: "bank:reconciliation.error.group_already_consumed" };
+    case "ProcedureNotEligible":
+      return { key: "bank:reconciliation.error.procedure_not_eligible" };
+    case "ProcedureAlreadyConsumed":
+      return { key: "bank:reconciliation.error.procedure_already_consumed" };
 
     // --- BankStatementReconciliationTask (other use-case guards) ---
     case "NoSepaCreditLines":

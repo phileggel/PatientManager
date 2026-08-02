@@ -5,7 +5,7 @@
     "status": {
       "matched": "Matched",
       "needs_link": "Needs link",
-      "needs_group": "Needs group",
+      "needs_group": "To reconcile",
       "partial": "Partial",
       "rejected": "Rejected",
       "unresolved": "Unresolved"
@@ -14,29 +14,34 @@
       "assignment_overflow": "The selected groups exceed the line amount.",
       "group_not_eligible": "This group is not eligible for the line.",
       "group_already_consumed": "This group is already assigned to another line.",
+      "procedure_not_eligible": "This procedure is not eligible for this line.",
+      "procedure_already_consumed": "This procedure is already assigned to another line.",
       "unknown": "An unexpected error occurred."
     },
     "link_fund": {
-      "title": "Link \"{{label}}\" to a fund",
+      "title": "Link the label \"{{label}}\" to a fund",
       "suggestion": "Suggestion: {{name}}",
       "fund_label": "Fund",
       "select_placeholder": "-- Select a fund --",
-      "reject": "Not a fund",
+      "reject": "Ignore this label",
       "cancel": "Cancel",
       "submit": "Link fund"
     },
     "assign_groups": {
-      "title": "Assign groups to \"{{label}}\"",
+      "title": "Reconcile \"{{label}}\"",
       "balance": "Covered {{covered}} of {{total}}",
       "broaden_on": "Search all funds",
       "broaden_off": "Limit to this fund",
+      "scope_fund": "This fund",
+      "scope_all": "All funds",
+      "scope_procedures": "Fund procedures",
       "cancel": "Cancel",
-      "submit": "Assign",
+      "submit": "Reconcile",
+      "submit_with_remainder": "Reconcile with remainder",
       "exact_amount": "exact amount"
     },
     "remainder": {
-      "amount": "Uncovered remainder: {{amount}}",
-      "confirm": "Acknowledge"
+      "amount": "Uncovered remainder: {{amount}}"
     },
     "applied_corrections": {
       "title": "Applied corrections",
@@ -48,6 +53,8 @@
       "link_fund_rejected": "Marked \"{{label}}\" as not a fund",
       "assign_groups": "Assigned {{count}} group(s) to line {{line}}",
       "unassign_groups": "Unassigned line {{line}}",
+      "assign_procedures": "Assigned {{count}} procedure(s) to line {{line}}",
+      "unassign_procedures": "Unassigned procedures from line {{line}}",
       "acknowledge_remainder": "Acknowledged remainder on line {{line}}"
     },
     "wizard": {

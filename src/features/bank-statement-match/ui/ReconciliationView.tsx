@@ -178,7 +178,7 @@ export function ReconciliationView({
           isOpen={true}
           errorText={correctionErrorText}
           isBusy={isBusy}
-          onSubmit={(correction) => void submitAndCloseOnSuccess(correction)}
+          onSubmit={submitAndCloseOnSuccess}
           onCancel={closeDialog}
         />
       )}

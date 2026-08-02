@@ -48,6 +48,8 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "AssignmentOverflow":
     case "GroupNotEligible":
     case "GroupAlreadyConsumed":
+    case "ProcedureNotEligible":
+    case "ProcedureAlreadyConsumed":
     case "LineNotFound":
     case "FundNotFound":
       return { key: "bank:statement.modal.unknown_error" };
