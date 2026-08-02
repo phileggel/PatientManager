@@ -44,10 +44,12 @@ function makeNeedsLinkLine(id: string, label: string): BankStatementLine {
     status: "NeedsLink",
     fund_id: null,
     assigned_group_ids: [],
+    assigned_procedure_ids: [],
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [],
     broadened_candidates: [],
+    candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
   };
@@ -60,6 +62,7 @@ function makeNeedsGroupLine(id: string): BankStatementLine {
     status: "NeedsGroup",
     fund_id: "fund-1",
     assigned_group_ids: [],
+    assigned_procedure_ids: [],
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [
@@ -73,6 +76,62 @@ function makeNeedsGroupLine(id: string): BankStatementLine {
       },
     ],
     broadened_candidates: [],
+    candidate_procedures: [],
+    suggested_fund_id: null,
+    suggested_fund_name: null,
+  };
+}
+
+/** BAS-116 — a line resolvable only via procedures (no group candidate at all). */
+function makeProcedureOnlyLine(id: string): BankStatementLine {
+  return {
+    line_id: id,
+    credit_line: { date: "2026-04-12", label: "RATP", amount: 60000 },
+    status: "NeedsGroup",
+    fund_id: "fund-2",
+    assigned_group_ids: [],
+    assigned_procedure_ids: [],
+    covered_amount: 0,
+    remainder_acknowledged: false,
+    candidate_groups: [],
+    broadened_candidates: [],
+    candidate_procedures: [
+      {
+        procedure_id: "proc-1",
+        patient_name: "Jean Dupont",
+        procedure_date: "2026-03-01",
+        billed_amount: 60000,
+        is_exact_amount: true,
+      },
+    ],
+    suggested_fund_id: null,
+    suggested_fund_name: null,
+  };
+}
+
+/** BAS-116 — a line that already has staged procedure assignments. */
+function makeProcedureAssignedLine(id: string): BankStatementLine {
+  return {
+    line_id: id,
+    credit_line: { date: "2026-04-13", label: "CPAM75", amount: 60000 },
+    status: "Partial",
+    fund_id: "fund-1",
+    assigned_group_ids: [],
+    assigned_procedure_ids: ["proc-2"],
+    covered_amount: 60000,
+    remainder_acknowledged: false,
+    candidate_groups: [
+      {
+        group_id: "group-9",
+        fund_id: "fund-1",
+        fund_name: "CPAM Paris",
+        payment_date: "2026-04-08",
+        total_amount: 60000,
+        is_exact_amount: true,
+      },
+    ],
+    broadened_candidates: [],
+    candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
   };
@@ -343,10 +402,12 @@ describe("ReconciliationWizard — BAS-100–103", () => {
         status: "Matched",
         fund_id: "fund-1",
         assigned_group_ids: ["group-1"],
+        assigned_procedure_ids: [],
         covered_amount: 150000,
         remainder_acknowledged: false,
         candidate_groups: [],
         broadened_candidates: [],
+        candidate_procedures: [],
         suggested_fund_id: null,
         suggested_fund_name: null,
       },
@@ -374,5 +435,104 @@ describe("ReconciliationWizard — BAS-100–103", () => {
     // Validate must NEVER be triggered by the wizard
     // (gateway mock not needed — the test simply confirms onComplete fires and
     // does not assert any gateway call)
+  });
+
+  // ---------------------------------------------------------------------------
+  // BAS-116 — phase-2 queue walks past group-less and procedure-assigned lines
+  // ---------------------------------------------------------------------------
+
+  it("walks past a phase-2 line with zero group candidates (procedure-only line, BAS-116a)", () => {
+    const onApplyCorrection = vi.fn();
+    const procedureOnly = makeProcedureOnlyLine("line-proc-only");
+    const reconciliation = makeReconciliation([procedureOnly]);
+
+    render(
+      <ReconciliationWizard
+        reconciliation={reconciliation}
+        isOpen={true}
+        onApplyCorrection={onApplyCorrection}
+        onComplete={vi.fn()}
+        onAbandon={vi.fn()}
+      />,
+    );
+
+    // The only correction-needed line has no group candidate at all — the
+    // wizard must walk past it straight to the done state, never presenting
+    // the group selector over it (staying correctable only from the list).
+    expect(document.getElementById("wizard-done")).not.toBeNull();
+    expect(document.getElementById("wizard-phase-assign-group")).toBeNull();
+  });
+
+  it("walks past a phase-2 line that already has assigned procedures (BAS-116b)", () => {
+    const onApplyCorrection = vi.fn();
+    const procedureAssigned = makeProcedureAssignedLine("line-proc-assigned");
+    const reconciliation = makeReconciliation([procedureAssigned]);
+
+    render(
+      <ReconciliationWizard
+        reconciliation={reconciliation}
+        isOpen={true}
+        onApplyCorrection={onApplyCorrection}
+        onComplete={vi.fn()}
+        onAbandon={vi.fn()}
+      />,
+    );
+
+    // Even though this line DOES carry a group candidate, presenting the
+    // group selector here would silently discard the staged procedure work
+    // (BAS-113's removal is not revert-restorable) — walk past it too.
+    expect(document.getElementById("wizard-done")).not.toBeNull();
+    expect(document.getElementById("wizard-phase-assign-group")).toBeNull();
+  });
+
+  it("still presents an ordinary needs-group line while walking past the group-less/procedure-assigned ones (BAS-116)", () => {
+    const onApplyCorrection = vi.fn();
+    const procedureOnly = makeProcedureOnlyLine("line-proc-only");
+    const procedureAssigned = makeProcedureAssignedLine("line-proc-assigned");
+    const ordinary = makeNeedsGroupLine("line-ng-ordinary");
+    const reconciliation = makeReconciliation([procedureOnly, procedureAssigned, ordinary]);
+
+    render(
+      <ReconciliationWizard
+        reconciliation={reconciliation}
+        isOpen={true}
+        onApplyCorrection={onApplyCorrection}
+        onComplete={vi.fn()}
+        onAbandon={vi.fn()}
+      />,
+    );
+
+    // The wizard lands on the one line that is still a legitimate phase-2
+    // stop — not on the two walked-past lines.
+    expect(document.getElementById("wizard-phase-assign-group")).not.toBeNull();
+    const candidateCheck = document.getElementById("wizard-assign-check-group-1");
+    expect(candidateCheck).not.toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  // BAS-110 — the wizard's link-fund step reuses LinkFundModal's title key
+  // ---------------------------------------------------------------------------
+
+  it("shows the same link-fund title key as LinkFundModal for its link-fund step (BAS-110)", () => {
+    const needsLink = makeNeedsLinkLine("line-nl-1", "MGEN");
+    const reconciliation = makeReconciliation([needsLink]);
+
+    render(
+      <ReconciliationWizard
+        reconciliation={reconciliation}
+        isOpen={true}
+        onApplyCorrection={vi.fn()}
+        onComplete={vi.fn()}
+        onAbandon={vi.fn()}
+      />,
+    );
+
+    // The mocked t() renders `key:{"opts":...}` — the wizard's link-fund step
+    // must use the SAME `reconciliation.link_fund.title` key LinkFundModal
+    // uses (mirrored context, BAS-110), not a bespoke wizard-only key.
+    const step = document.getElementById("wizard-current-step");
+    expect(step?.textContent).toContain(
+      `reconciliation.link_fund.title:${JSON.stringify({ label: "MGEN" })}`,
+    );
   });
 });

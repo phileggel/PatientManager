@@ -136,6 +136,31 @@ describe("presentCorrection — BAS-065 applied-correction descriptions", () => 
       params: { line: "line-2" },
     });
   });
+
+  // BAS-113 — AssignProcedures mirrors the AssignGroups presentation exactly.
+  it("maps a non-empty AssignProcedures correction to the assign-procedures key with line + count (BAS-113)", () => {
+    const correction: BankStatementCorrection = {
+      type: "AssignProcedures",
+      line_id: "line-3",
+      procedure_ids: ["proc-1", "proc-2"],
+    };
+    expect(presentCorrection(correction)).toEqual({
+      key: "bank:reconciliation.correction.assign_procedures",
+      params: { line: "line-3", count: 2 },
+    });
+  });
+
+  it("maps an empty AssignProcedures correction to the unassign-procedures key (BAS-113 override)", () => {
+    const correction: BankStatementCorrection = {
+      type: "AssignProcedures",
+      line_id: "line-3",
+      procedure_ids: [],
+    };
+    expect(presentCorrection(correction)).toEqual({
+      key: "bank:reconciliation.correction.unassign_procedures",
+      params: { line: "line-3" },
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -161,6 +186,21 @@ describe("presentReconciliationError — draft-engine correction guards", () => 
     const err: BankStatementReconciliationError = { code: "GroupAlreadyConsumed" };
     expect(presentReconciliationError(err).key).toBe(
       "bank:reconciliation.error.group_already_consumed",
+    );
+  });
+
+  // BAS-113 — procedure-path mirrors of the group-path guards.
+  it("maps ProcedureNotEligible to a dedicated eligibility key (BAS-113)", () => {
+    const err: BankStatementReconciliationError = { code: "ProcedureNotEligible" };
+    expect(presentReconciliationError(err).key).toBe(
+      "bank:reconciliation.error.procedure_not_eligible",
+    );
+  });
+
+  it("maps ProcedureAlreadyConsumed to a dedicated consumed key (BAS-113)", () => {
+    const err: BankStatementReconciliationError = { code: "ProcedureAlreadyConsumed" };
+    expect(presentReconciliationError(err).key).toBe(
+      "bank:reconciliation.error.procedure_already_consumed",
     );
   });
 

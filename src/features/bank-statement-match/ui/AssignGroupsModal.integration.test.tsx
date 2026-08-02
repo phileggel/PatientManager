@@ -12,10 +12,15 @@
  * These tests fail until ui/AssignGroupsModal.tsx is created.
  */
 
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BankStatementCandidate, BankStatementLine } from "@/bindings";
+import type {
+  BankStatementCandidate,
+  BankStatementCorrection,
+  BankStatementLine,
+  BankStatementProcedureCandidate,
+} from "@/bindings";
 
 vi.mock("../gateway", () => ({
   computeBankStatementReconciliation: vi.fn(),
@@ -63,6 +68,22 @@ const CANDIDATE_PARTIAL_2: BankStatementCandidate = {
   is_exact_amount: false,
 };
 
+const PROCEDURE_CANDIDATE_1: BankStatementProcedureCandidate = {
+  procedure_id: "proc-1",
+  patient_name: "Jean Dupont",
+  procedure_date: "2026-03-01",
+  billed_amount: 60000,
+  is_exact_amount: false,
+};
+
+const PROCEDURE_CANDIDATE_2: BankStatementProcedureCandidate = {
+  procedure_id: "proc-2",
+  patient_name: "Marie Curie",
+  procedure_date: "2026-03-10",
+  billed_amount: 90000,
+  is_exact_amount: false,
+};
+
 function makeNeedsGroupLine(overrides: Partial<BankStatementLine> = {}): BankStatementLine {
   return {
     line_id: "line-needs-group",
@@ -70,10 +91,12 @@ function makeNeedsGroupLine(overrides: Partial<BankStatementLine> = {}): BankSta
     status: "NeedsGroup",
     fund_id: "fund-1",
     assigned_group_ids: [],
+    assigned_procedure_ids: [],
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [CANDIDATE_EXACT, CANDIDATE_PARTIAL],
     broadened_candidates: [],
+    candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
     ...overrides,
@@ -232,9 +255,11 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     });
   });
 
-  // BAS-068 — the broaden toggle swaps the fund-filtered set for the fund-agnostic
-  // superset, revealing a candidate from a different fund not in the default list.
-  it("reveals a different-fund candidate when the broaden toggle is on (BAS-068)", async () => {
+  // BAS-068/111 — the "all funds" scope swaps the fund-filtered set for the
+  // fund-agnostic superset, revealing a candidate from a different fund not in
+  // the default ("this fund") scope. The former standalone broaden button is
+  // now the second of the three explicit scopes (BAS-111).
+  it("reveals a different-fund candidate when the all-funds scope is selected (BAS-111)", async () => {
     const user = userEvent.setup();
     const OTHER_FUND_CANDIDATE: BankStatementCandidate = {
       group_id: "group-other-fund",
@@ -251,26 +276,28 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    // Default (fund-filtered): the other-fund candidate is NOT shown.
+    // Default ("this fund") scope: the other-fund candidate is NOT shown.
     expect(document.getElementById("assign-groups-candidate-group-other-fund")).toBeNull();
 
-    const broadenBtn = document.getElementById("assign-groups-broaden");
-    expect(broadenBtn).not.toBeNull();
-    if (!broadenBtn) throw new Error("broaden toggle missing");
+    const allFundsScope = document.getElementById("assign-groups-scope-all");
+    expect(allFundsScope).not.toBeNull();
+    if (!allFundsScope) throw new Error("all-funds scope control missing");
 
-    await user.click(broadenBtn);
+    await user.click(allFundsScope);
 
-    // Broadened: the other-fund candidate now appears.
+    // "All funds" scope: the other-fund candidate now appears.
     expect(document.getElementById("assign-groups-candidate-group-other-fund")).not.toBeNull();
 
-    // Toggling off restores the fund-filtered set.
-    await user.click(broadenBtn);
+    // Switching back to "this fund" restores the fund-filtered set.
+    const fundScope = document.getElementById("assign-groups-scope-fund");
+    if (!fundScope) throw new Error("fund scope control missing");
+    await user.click(fundScope);
     expect(document.getElementById("assign-groups-candidate-group-other-fund")).toBeNull();
   });
 
-  // A selection made in the broadened set must not survive invisibly after the
-  // user narrows back — submit must only carry visible selections.
-  it("drops a broadened-only selection when the broaden toggle is turned off", async () => {
+  // BAS-111 — switching scope ALWAYS clears the visible selection (never
+  // silently spans scopes), regardless of whether the new scope is a superset.
+  it("clears the selection when switching from the all-funds scope back to this fund (BAS-111)", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     const OTHER_FUND_CANDIDATE: BankStatementCandidate = {
@@ -288,15 +315,18 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
 
-    const broadenBtn = document.getElementById("assign-groups-broaden");
-    if (!broadenBtn) throw new Error("broaden toggle missing");
+    const allFundsScope = document.getElementById("assign-groups-scope-all");
+    if (!allFundsScope) throw new Error("all-funds scope control missing");
 
-    // Broaden, select the other-fund candidate, then narrow back.
-    await user.click(broadenBtn);
+    // Switch to all-funds, select the other-fund candidate, then switch back.
+    await user.click(allFundsScope);
     const otherFundCheck = document.getElementById("assign-groups-check-group-other-fund");
     if (!otherFundCheck) throw new Error("broadened candidate checkbox missing");
     await user.click(otherFundCheck);
-    await user.click(broadenBtn);
+
+    const fundScope = document.getElementById("assign-groups-scope-fund");
+    if (!fundScope) throw new Error("fund scope control missing");
+    await user.click(fundScope);
 
     const submitBtn = document.getElementById("assign-groups-submit");
     if (!submitBtn) throw new Error("submit button missing");
@@ -324,8 +354,11 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     expect(seeded?.checked).toBe(true);
     const other = document.getElementById("assign-groups-check-group-1") as HTMLInputElement;
     expect(other?.checked).toBe(false);
-    // Partial line carries the acknowledge-remainder affordance (BAS-092)
-    expect(document.getElementById("assign-groups-acknowledge-remainder")).not.toBeNull();
+    // The former standalone acknowledge affordance is removed (2026-07-31
+    // wireframe review) — the remainder is informational text only, and
+    // acknowledging happens via the "Rapprocher avec reliquat" footer action.
+    expect(document.getElementById("assign-groups-acknowledge-remainder")).toBeNull();
+    expect(document.getElementById("assign-groups-remainder-info")).not.toBeNull();
   });
 
   // BAS-090 — unchecking a selected candidate removes it from the submission.
@@ -368,5 +401,334 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // BAS-111 — three-scope segmented control + default-scope rule
+  // ---------------------------------------------------------------------------
+
+  describe("BAS-111 — search scopes", () => {
+    it("offers all three scopes for a linked line with group AND procedure candidates", () => {
+      const line = makeNeedsGroupLine({ candidate_procedures: [PROCEDURE_CANDIDATE_1] });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      expect(document.getElementById("assign-groups-scope-fund")).not.toBeNull();
+      expect(document.getElementById("assign-groups-scope-all")).not.toBeNull();
+      expect(document.getElementById("assign-groups-scope-procedures")).not.toBeNull();
+    });
+
+    it("does not offer the procedure scope when the line's fund is unknown (rejected/unlinked label)", () => {
+      const line = makeNeedsGroupLine({
+        status: "Rejected",
+        fund_id: null,
+        candidate_groups: [],
+        candidate_procedures: [PROCEDURE_CANDIDATE_1],
+      });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      expect(document.getElementById("assign-groups-scope-procedures")).toBeNull();
+    });
+
+    it("defaults to the fund-filtered group scope when group candidates exist", () => {
+      const line = makeNeedsGroupLine({ candidate_procedures: [PROCEDURE_CANDIDATE_1] });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      expect(document.getElementById("assign-groups-scope-fund")?.getAttribute("aria-pressed")).toBe(
+        "true",
+      );
+      // Group candidates render immediately, procedure candidates do not.
+      expect(document.getElementById("assign-groups-candidate-group-1")).not.toBeNull();
+      expect(document.getElementById("assign-groups-candidate-proc-proc-1")).toBeNull();
+    });
+
+    it("defaults to the procedure scope when the fund-filtered group scope is empty and procedure candidates exist (no-bordereau case)", () => {
+      const line = makeNeedsGroupLine({
+        candidate_groups: [],
+        candidate_procedures: [PROCEDURE_CANDIDATE_1],
+      });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      expect(
+        document.getElementById("assign-groups-scope-procedures")?.getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(document.getElementById("assign-groups-candidate-proc-proc-1")).not.toBeNull();
+    });
+
+    it("reopens on the procedure scope with assigned procedures pre-checked", () => {
+      const line = makeNeedsGroupLine({
+        status: "Partial",
+        assigned_procedure_ids: ["proc-1"],
+        covered_amount: 60000,
+        // Group candidates are non-empty too — the seeding rule takes
+        // precedence over the "empty group scope" default rule.
+        candidate_groups: [CANDIDATE_EXACT],
+        candidate_procedures: [PROCEDURE_CANDIDATE_1, PROCEDURE_CANDIDATE_2],
+      });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      expect(
+        document.getElementById("assign-groups-scope-procedures")?.getAttribute("aria-pressed"),
+      ).toBe("true");
+      const seeded = document.getElementById("assign-groups-check-proc-proc-1") as HTMLInputElement;
+      expect(seeded?.checked).toBe(true);
+      const other = document.getElementById("assign-groups-check-proc-proc-2") as HTMLInputElement;
+      expect(other?.checked).toBe(false);
+    });
+
+    it("clears the selection when switching from the fund scope to the procedure scope and back", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      const line = makeNeedsGroupLine({ candidate_procedures: [PROCEDURE_CANDIDATE_1] });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+      const groupCheck = document.getElementById("assign-groups-check-group-1");
+      if (!groupCheck) throw new Error("group checkbox missing");
+      await user.click(groupCheck);
+
+      const procScope = document.getElementById("assign-groups-scope-procedures");
+      if (!procScope) throw new Error("procedure scope control missing");
+      await user.click(procScope);
+
+      const fundScope = document.getElementById("assign-groups-scope-fund");
+      if (!fundScope) throw new Error("fund scope control missing");
+      await user.click(fundScope);
+
+      const submitBtn = document.getElementById("assign-groups-submit");
+      if (!submitBtn) throw new Error("submit button missing");
+      await user.click(submitBtn);
+
+      // Selection made before switching away must not silently survive.
+      expect(onSubmit).toHaveBeenCalledWith({
+        type: "AssignGroups",
+        line_id: "line-needs-group",
+        group_ids: [],
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // BAS-113 — AssignProcedures submit branch
+  // ---------------------------------------------------------------------------
+
+  describe("BAS-113 — procedure assignment", () => {
+    it("renders procedure candidates with patient name, date, and billed amount in the procedure scope", async () => {
+      const user = userEvent.setup();
+      const line = makeNeedsGroupLine({
+        candidate_procedures: [PROCEDURE_CANDIDATE_1, PROCEDURE_CANDIDATE_2],
+      });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      const procScope = document.getElementById("assign-groups-scope-procedures");
+      if (!procScope) throw new Error("procedure scope control missing");
+      await user.click(procScope);
+
+      const row1 = document.getElementById("assign-groups-candidate-proc-proc-1");
+      expect(row1).not.toBeNull();
+      expect(row1?.textContent).toContain("Jean Dupont");
+
+      const row2 = document.getElementById("assign-groups-candidate-proc-proc-2");
+      expect(row2).not.toBeNull();
+      expect(row2?.textContent).toContain("Marie Curie");
+    });
+
+    it("submits an AssignProcedures correction when procedures are selected in the procedure scope (BAS-113)", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      const line = makeNeedsGroupLine({
+        candidate_procedures: [PROCEDURE_CANDIDATE_1, PROCEDURE_CANDIDATE_2],
+      });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+      const procScope = document.getElementById("assign-groups-scope-procedures");
+      if (!procScope) throw new Error("procedure scope control missing");
+      await user.click(procScope);
+
+      const check1 = document.getElementById("assign-groups-check-proc-proc-1");
+      if (!check1) throw new Error("procedure checkbox missing");
+      await user.click(check1);
+
+      const submitBtn = document.getElementById("assign-groups-submit");
+      if (!submitBtn) throw new Error("submit button missing");
+      await user.click(submitBtn);
+
+      expect(onSubmit).toHaveBeenCalledWith({
+        type: "AssignProcedures",
+        line_id: "line-needs-group",
+        procedure_ids: ["proc-1"],
+      });
+    });
+
+    it("flags the exact-amount procedure candidate", async () => {
+      const user = userEvent.setup();
+      const exactProc: BankStatementProcedureCandidate = { ...PROCEDURE_CANDIDATE_1, is_exact_amount: true };
+      const line = makeNeedsGroupLine({ candidate_procedures: [exactProc, PROCEDURE_CANDIDATE_2] });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      const procScope = document.getElementById("assign-groups-scope-procedures");
+      if (!procScope) throw new Error("procedure scope control missing");
+      await user.click(procScope);
+
+      expect(document.getElementById("assign-groups-exact-proc-proc-1")).not.toBeNull();
+      expect(document.getElementById("assign-groups-exact-proc-proc-2")).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Dialog actions (2026-07-31 wireframe review) — three-action footer
+  // ---------------------------------------------------------------------------
+
+  describe("Dialog actions — three-action footer", () => {
+    it("disables the with-remainder action when nothing is selected", () => {
+      const line = makeNeedsGroupLine();
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      const withRemainder = document.getElementById(
+        "assign-groups-submit-with-remainder",
+      ) as HTMLButtonElement | null;
+      expect(withRemainder).not.toBeNull();
+      expect(withRemainder?.disabled).toBe(true);
+    });
+
+    it("disables the with-remainder action when the selection fully covers the line amount", async () => {
+      const user = userEvent.setup();
+      const line = makeNeedsGroupLine();
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      // CANDIDATE_EXACT (150000) exactly covers the 150000 line amount — no
+      // remainder, so "with remainder" must stay disabled.
+      const exactCheck = document.getElementById("assign-groups-check-group-1");
+      if (!exactCheck) throw new Error("candidate checkbox missing");
+      await user.click(exactCheck);
+
+      const withRemainder = document.getElementById(
+        "assign-groups-submit-with-remainder",
+      ) as HTMLButtonElement | null;
+      expect(withRemainder?.disabled).toBe(true);
+    });
+
+    it("enables the with-remainder action when the selection is non-empty and leaves a remainder", async () => {
+      const user = userEvent.setup();
+      const line = makeNeedsGroupLine();
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      // CANDIDATE_PARTIAL (80000) is below the 150000 line amount.
+      const partialCheck = document.getElementById("assign-groups-check-group-2");
+      if (!partialCheck) throw new Error("candidate checkbox missing");
+      await user.click(partialCheck);
+
+      const withRemainder = document.getElementById(
+        "assign-groups-submit-with-remainder",
+      ) as HTMLButtonElement | null;
+      expect(withRemainder?.disabled).toBe(false);
+    });
+
+    it("submits the group assignment then acknowledges the remainder in one click (BAS-113 dialog actions)", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      const line = makeNeedsGroupLine();
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+      const partialCheck = document.getElementById("assign-groups-check-group-2");
+      if (!partialCheck) throw new Error("candidate checkbox missing");
+      await user.click(partialCheck);
+
+      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
+      if (!withRemainder) throw new Error("with-remainder button missing");
+      await user.click(withRemainder);
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+
+      const calls = onSubmit.mock.calls.map((call) => call[0] as BankStatementCorrection);
+      expect(calls[0]).toEqual({
+        type: "AssignGroups",
+        line_id: "line-needs-group",
+        group_ids: ["group-2"],
+      });
+      expect(calls[1]).toEqual({ type: "AcknowledgeRemainder", line_id: "line-needs-group" });
+    });
+
+    it("submits the procedure assignment then acknowledges the remainder in one click (BAS-113 dialog actions)", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      const line = makeNeedsGroupLine({
+        candidate_procedures: [PROCEDURE_CANDIDATE_1, PROCEDURE_CANDIDATE_2],
+      });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+      const procScope = document.getElementById("assign-groups-scope-procedures");
+      if (!procScope) throw new Error("procedure scope control missing");
+      await user.click(procScope);
+
+      const check1 = document.getElementById("assign-groups-check-proc-proc-1");
+      if (!check1) throw new Error("procedure checkbox missing");
+      await user.click(check1);
+
+      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
+      if (!withRemainder) throw new Error("with-remainder button missing");
+      await user.click(withRemainder);
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+
+      const calls = onSubmit.mock.calls.map((call) => call[0] as BankStatementCorrection);
+      expect(calls[0]).toEqual({
+        type: "AssignProcedures",
+        line_id: "line-needs-group",
+        procedure_ids: ["proc-1"],
+      });
+      expect(calls[1]).toEqual({ type: "AcknowledgeRemainder", line_id: "line-needs-group" });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // BAS-117 — procedure-path scope cuts (negative assertions)
+  // ---------------------------------------------------------------------------
+
+  describe("BAS-117 — procedure-path scope cuts", () => {
+    it("offers no per-procedure amount input in the procedure scope", async () => {
+      const user = userEvent.setup();
+      const line = makeNeedsGroupLine({
+        candidate_procedures: [PROCEDURE_CANDIDATE_1, PROCEDURE_CANDIDATE_2],
+      });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      const procScope = document.getElementById("assign-groups-scope-procedures");
+      if (!procScope) throw new Error("procedure scope control missing");
+      await user.click(procScope);
+
+      expect(document.querySelectorAll('input[type="number"]').length).toBe(0);
+    });
+
+    it("offers no patient/procedure creation or dispute affordance in the procedure scope", async () => {
+      const user = userEvent.setup();
+      const line = makeNeedsGroupLine({
+        candidate_procedures: [PROCEDURE_CANDIDATE_1, PROCEDURE_CANDIDATE_2],
+      });
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      const procScope = document.getElementById("assign-groups-scope-procedures");
+      if (!procScope) throw new Error("procedure scope control missing");
+      await user.click(procScope);
+
+      const allIds = Array.from(document.querySelectorAll("[id]")).map((el) => el.id);
+      expect(allIds.some((id) => /create-patient|create-procedure|dispute|contest/.test(id))).toBe(
+        false,
+      );
+    });
   });
 });
