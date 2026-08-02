@@ -176,6 +176,21 @@ impl ProcedureService {
         })
     }
 
+    /// The fund's open procedures with patient display names (BAS-112),
+    /// oldest first — the bank-reconciliation candidate read (D2).
+    pub async fn find_open_by_fund_with_patient(
+        &self,
+        fund_id: &str,
+    ) -> Result<Vec<super::domain::OpenProcedureCandidate>, ProcedureError> {
+        self.repository
+            .find_open_by_fund_with_patient(fund_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "find_open_by_fund_with_patient: repository failed");
+                ProcedureError::DatabaseError
+            })
+    }
+
     /// Get all procedures for a given patient (uses idx_procedure_patient)
     pub async fn read_procedures_by_patient_id(
         &self,

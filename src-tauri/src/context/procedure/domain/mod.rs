@@ -3,7 +3,8 @@ pub mod procedure_refund;
 pub mod procedure_type;
 
 pub use procedure::{
-    PaymentMethod, Procedure, ProcedureRepository, ProcedureStatus, UnreconciledProcedure,
+    OpenProcedureCandidate, PaymentMethod, Procedure, ProcedureRepository, ProcedureStatus,
+    UnreconciledProcedure,
 };
 pub use procedure_refund::{ProcedureRefund, ProcedureRefundRepository};
 pub use procedure_type::{ProcedureType, ProcedureTypeRepository};

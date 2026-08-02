@@ -58,6 +58,18 @@ pub enum BankStatementReconciliationTask {
     #[error("Group has already been consumed by another line")]
     GroupAlreadyConsumed,
 
+    /// BAS-113 — a procedure referenced by an `AssignProcedures` correction is
+    /// not an open candidate for the line: unknown, soft-deleted, not
+    /// `Created`, already in a group line, or not of the line's fund.
+    /// The correction is rejected.
+    #[error("Procedure is not eligible for this line")]
+    ProcedureNotEligible,
+
+    /// BAS-113 — a procedure has already been consumed by another line and
+    /// cannot be assigned a second time (mirror of BAS-067).
+    #[error("Procedure has already been consumed by another line")]
+    ProcedureAlreadyConsumed,
+
     /// The `line_id` supplied in a correction does not match any line in the
     /// current reconciliation (stale or malformed client state).
     #[error("Line not found in the current reconciliation")]
@@ -136,6 +148,14 @@ mod tests {
             (
                 BankStatementReconciliationTask::GroupAlreadyConsumed,
                 "GroupAlreadyConsumed",
+            ),
+            (
+                BankStatementReconciliationTask::ProcedureNotEligible,
+                "ProcedureNotEligible",
+            ),
+            (
+                BankStatementReconciliationTask::ProcedureAlreadyConsumed,
+                "ProcedureAlreadyConsumed",
             ),
             (
                 BankStatementReconciliationTask::LineNotFound,

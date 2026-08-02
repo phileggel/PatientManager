@@ -226,6 +226,12 @@ mod tests {
         ) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
+        async fn find_open_by_fund_with_patient(
+            &self,
+            _: &str,
+        ) -> anyhow::Result<Vec<crate::context::procedure::OpenProcedureCandidate>> {
+            unimplemented!()
+        }
     }
 
     fn create_pdf_line(ssn: &str) -> NormalizedPdfLine {

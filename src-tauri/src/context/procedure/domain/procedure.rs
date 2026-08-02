@@ -403,6 +403,17 @@ pub struct UnreconciledProcedure {
     pub amount: Option<i64>,
 }
 
+/// Domain projection: an *open* procedure (BAS-112) — `Created`, positive
+/// billed amount, in no active fund-payment-group line — enriched with the
+/// patient display name for the bank-reconciliation candidate list.
+#[derive(Debug, Clone)]
+pub struct OpenProcedureCandidate {
+    pub procedure_id: String,
+    pub procedure_date: NaiveDate,
+    pub billed_amount: i64,
+    pub patient_name: Option<String>,
+}
+
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait ProcedureRepository: Send + Sync {
@@ -490,6 +501,13 @@ pub trait ProcedureRepository: Send + Sync {
         fund_id: &str,
         date: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>>;
+
+    /// Find the fund's open procedures (BAS-112) with the patient display name,
+    /// ordered oldest `procedure_date` first, id ascending as the tiebreak.
+    async fn find_open_by_fund_with_patient(
+        &self,
+        fund_id: &str,
+    ) -> anyhow::Result<Vec<OpenProcedureCandidate>>;
 }
 
 #[cfg(test)]

@@ -3,7 +3,8 @@ use chrono::NaiveDate;
 use sqlx::SqlitePool;
 
 use crate::context::procedure::domain::{
-    PaymentMethod, Procedure, ProcedureRepository, ProcedureStatus, UnreconciledProcedure,
+    OpenProcedureCandidate, PaymentMethod, Procedure, ProcedureRepository, ProcedureStatus,
+    UnreconciledProcedure,
 };
 
 /// Internal row type for procedure database mapping
@@ -61,6 +62,26 @@ impl From<UnreconciledProcedureRow> for UnreconciledProcedure {
             patient_ssn: row.patient_ssn,
             procedure_date: row.procedure_date,
             amount: row.amount,
+        }
+    }
+}
+
+/// Internal row type for open-procedure candidate queries (BAS-112)
+#[derive(sqlx::FromRow)]
+struct OpenProcedureCandidateRow {
+    procedure_id: String,
+    procedure_date: NaiveDate,
+    billed_amount: i64,
+    patient_name: Option<String>,
+}
+
+impl From<OpenProcedureCandidateRow> for OpenProcedureCandidate {
+    fn from(row: OpenProcedureCandidateRow) -> Self {
+        OpenProcedureCandidate {
+            procedure_id: row.procedure_id,
+            procedure_date: row.procedure_date,
+            billed_amount: row.billed_amount,
+            patient_name: row.patient_name,
         }
     }
 }
@@ -699,6 +720,41 @@ impl ProcedureRepository for SqliteProcedureRepository {
         .context("Failed to find Created procedures by fund before date")?;
 
         Ok(rows.into_iter().map(Procedure::from).collect())
+    }
+
+    async fn find_open_by_fund_with_patient(
+        &self,
+        fund_id: &str,
+    ) -> anyhow::Result<Vec<OpenProcedureCandidate>> {
+        tracing::debug!(fund_id = %fund_id, "Finding open procedures by fund (BAS-112)");
+
+        // The anti-join is mandatory: group creation and the status flip are
+        // separate, non-atomic writes (same rationale as
+        // find_unreconciled_by_date_range).
+        let rows = sqlx::query_as!(
+            OpenProcedureCandidateRow,
+            r#"
+            SELECT p.id AS procedure_id,
+                   p.procedure_date AS "procedure_date: NaiveDate",
+                   p.billed_amount, pat.name AS patient_name
+            FROM "procedure" p
+            JOIN patient pat ON p.patient_id = pat.id
+            WHERE p.fund_id = $1
+              AND p.is_deleted = 0
+              AND p.payment_status = 'CREATED'
+              AND p.billed_amount > 0
+              AND p.id NOT IN (
+                  SELECT procedure_id FROM fund_payment_line WHERE is_deleted = 0
+              )
+            ORDER BY p.procedure_date ASC, p.id ASC
+            "#,
+            fund_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to find open procedures by fund")?;
+
+        Ok(rows.into_iter().map(OpenProcedureCandidate::from).collect())
     }
 }
 
@@ -1612,12 +1668,13 @@ mod tests {
         .await
         .unwrap();
 
-        let result = repo
-            .find_open_by_fund_with_patient("fund-1")
-            .await
-            .unwrap();
+        let result = repo.find_open_by_fund_with_patient("fund-1").await.unwrap();
 
-        assert_eq!(result.len(), 1, "only the fund-1/CREATED/billed>0 row qualifies (D1)");
+        assert_eq!(
+            result.len(),
+            1,
+            "only the fund-1/CREATED/billed>0 row qualifies (D1)"
+        );
         assert_eq!(result[0].procedure_id, eligible.id);
         assert_eq!(result[0].billed_amount, 50_000);
         assert_eq!(result[0].patient_name, Some("Jean Dupont".to_string()));
@@ -1669,10 +1726,7 @@ mod tests {
         .await
         .unwrap();
 
-        let result = repo
-            .find_open_by_fund_with_patient("fund-1")
-            .await
-            .unwrap();
+        let result = repo.find_open_by_fund_with_patient("fund-1").await.unwrap();
 
         assert!(
             result.is_empty(),
@@ -1732,18 +1786,19 @@ mod tests {
             .await
             .unwrap();
 
-        let mut same_date_ids = vec![same_date_a.id.clone(), same_date_b.id.clone()];
+        let mut same_date_ids = [same_date_a.id.clone(), same_date_b.id.clone()];
         same_date_ids.sort();
 
-        let result = repo
-            .find_open_by_fund_with_patient("fund-1")
-            .await
-            .unwrap();
+        let result = repo.find_open_by_fund_with_patient("fund-1").await.unwrap();
         let ids: Vec<String> = result.iter().map(|c| c.procedure_id.clone()).collect();
 
         assert_eq!(
             ids,
-            vec![earliest.id.clone(), same_date_ids[0].clone(), same_date_ids[1].clone()],
+            vec![
+                earliest.id.clone(),
+                same_date_ids[0].clone(),
+                same_date_ids[1].clone()
+            ],
             "oldest procedure_date first; id ascending as the tiebreak (BAS-112)"
         );
     }
