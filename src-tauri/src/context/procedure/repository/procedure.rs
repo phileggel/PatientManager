@@ -1522,4 +1522,229 @@ mod tests {
             repo.delete_procedure(&created.id).await.unwrap();
         }
     }
+
+    // =========================================================================
+    // find_open_by_fund_with_patient (BAS-112, plan decisions D1/D2)
+    // =========================================================================
+
+    /// Seeds a patient row WITH a display name (unlike `seed_patient`, which
+    /// leaves `name` NULL) — needed to assert the patient-name JOIN.
+    async fn seed_named_patient(pool: &sqlx::SqlitePool, id: &str, name: &str) {
+        sqlx::query!(
+            "INSERT INTO patient (id, is_anonymous, name, is_deleted) VALUES (?, 0, ?, 0)",
+            id,
+            name
+        )
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    // D1 — the predicate: fund_id matches, payment_status == CREATED,
+    // billed_amount > 0. Wrong fund, non-CREATED, and zero-billed procedures
+    // are all excluded; the patient name resolves via the JOIN.
+    #[tokio::test]
+    async fn find_open_by_fund_with_patient_matches_the_d1_predicate() {
+        let repo = setup().await;
+        seed_named_patient(&repo.pool, "patient-1", "Jean Dupont").await;
+
+        let eligible = repo
+            .create_procedure(
+                "patient-1".into(),
+                Some("fund-1".into()),
+                "t1".into(),
+                d("2026-01-10"),
+                50_000,
+                PaymentMethod::None,
+                None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+
+        // Wrong fund — excluded.
+        repo.create_procedure(
+            "patient-1".into(),
+            Some("fund-2".into()),
+            "t1".into(),
+            d("2026-01-11"),
+            50_000,
+            PaymentMethod::None,
+            None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+
+        // Not CREATED (already reconciled) — excluded.
+        repo.create_procedure(
+            "patient-1".into(),
+            Some("fund-1".into()),
+            "t1".into(),
+            d("2026-01-12"),
+            50_000,
+            PaymentMethod::None,
+            None,
+            None,
+            None,
+            ProcedureStatus::Reconciled,
+        )
+        .await
+        .unwrap();
+
+        // Zero billed amount — excluded.
+        repo.create_procedure(
+            "patient-1".into(),
+            Some("fund-1".into()),
+            "t1".into(),
+            d("2026-01-13"),
+            0,
+            PaymentMethod::None,
+            None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+
+        let result = repo
+            .find_open_by_fund_with_patient("fund-1")
+            .await
+            .unwrap();
+
+        assert_eq!(result.len(), 1, "only the fund-1/CREATED/billed>0 row qualifies (D1)");
+        assert_eq!(result[0].procedure_id, eligible.id);
+        assert_eq!(result[0].billed_amount, 50_000);
+        assert_eq!(result[0].patient_name, Some("Jean Dupont".to_string()));
+    }
+
+    // D1 anti-join — a CREATED procedure of the right fund with billed > 0 is
+    // still excluded once it belongs to a (non-deleted) fund_payment_line: the
+    // anti-join is mandatory because group creation and the status flip are
+    // separate, non-atomic writes (same rationale as
+    // find_unreconciled_by_date_range).
+    #[tokio::test]
+    async fn find_open_by_fund_with_patient_excludes_procedure_already_in_a_group_line() {
+        let repo = setup().await;
+        seed_named_patient(&repo.pool, "patient-1", "Jean Dupont").await;
+
+        let grouped = repo
+            .create_procedure(
+                "patient-1".into(),
+                Some("fund-1".into()),
+                "t1".into(),
+                d("2026-01-10"),
+                50_000,
+                PaymentMethod::None,
+                None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+
+        sqlx::query!(
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, is_deleted) VALUES (?, ?, ?, ?, 0)",
+            "grp-1",
+            "fund-1",
+            "2026-01-05",
+            50_000
+        )
+        .execute(&repo.pool)
+        .await
+        .unwrap();
+        sqlx::query!(
+            "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id, is_deleted) VALUES (?, ?, ?, 0)",
+            "line-1",
+            "grp-1",
+            grouped.id
+        )
+        .execute(&repo.pool)
+        .await
+        .unwrap();
+
+        let result = repo
+            .find_open_by_fund_with_patient("fund-1")
+            .await
+            .unwrap();
+
+        assert!(
+            result.is_empty(),
+            "a procedure already referenced by a fund_payment_line must be excluded (D1 anti-join)"
+        );
+    }
+
+    // BAS-112 — ordered oldest procedure_date first, id tiebreak on equal dates.
+    #[tokio::test]
+    async fn find_open_by_fund_with_patient_orders_oldest_first_with_id_tiebreak() {
+        let repo = setup().await;
+        seed_named_patient(&repo.pool, "patient-1", "Jean Dupont").await;
+
+        let earliest = repo
+            .create_procedure(
+                "patient-1".into(),
+                Some("fund-1".into()),
+                "t1".into(),
+                d("2026-01-05"),
+                10_000,
+                PaymentMethod::None,
+                None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+        let same_date_a = repo
+            .create_procedure(
+                "patient-1".into(),
+                Some("fund-1".into()),
+                "t1".into(),
+                d("2026-01-10"),
+                20_000,
+                PaymentMethod::None,
+                None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+        let same_date_b = repo
+            .create_procedure(
+                "patient-1".into(),
+                Some("fund-1".into()),
+                "t1".into(),
+                d("2026-01-10"),
+                30_000,
+                PaymentMethod::None,
+                None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+
+        let mut same_date_ids = vec![same_date_a.id.clone(), same_date_b.id.clone()];
+        same_date_ids.sort();
+
+        let result = repo
+            .find_open_by_fund_with_patient("fund-1")
+            .await
+            .unwrap();
+        let ids: Vec<String> = result.iter().map(|c| c.procedure_id.clone()).collect();
+
+        assert_eq!(
+            ids,
+            vec![earliest.id.clone(), same_date_ids[0].clone(), same_date_ids[1].clone()],
+            "oldest procedure_date first; id ascending as the tiebreak (BAS-112)"
+        );
+    }
 }
