@@ -1080,4 +1080,709 @@ mod tests {
         assert_eq!(line.broadened_candidates[0].fund_id, "fund-75");
         assert_eq!(line.broadened_candidates[0].fund_name, "CPAM Paris");
     }
+
+    // =========================================================================
+    // Bank-born groups (BAS-110–117) — AssignProcedures correction, D1/D2 open
+    // procedure candidates, group/procedure mutual exclusion, BAS-066 drop.
+    //
+    // `BankStatementReconciliationRepos.open_procedures` is a
+    // `HashMap<fund_id, Vec<OpenProcedureCandidate>>` — the orchestrator reads
+    // one page per known fund via `ProcedureRepository::find_open_by_fund_with_patient`
+    // (D2) and passes the aggregate in, mirroring how `funds`/`groups` are
+    // supplied in full and filtered inside the engine. `OpenProcedureCandidate`
+    // (procedure id, date, billed amount, patient name) is the sibling read
+    // model of `UnreconciledProcedure` pinned by plan decision D2.
+    // =========================================================================
+
+    fn open_procedure(
+        id: &str,
+        date: &str,
+        billed: i64,
+        patient_name: &str,
+    ) -> crate::context::procedure::OpenProcedureCandidate {
+        crate::context::procedure::OpenProcedureCandidate {
+            procedure_id: id.to_string(),
+            procedure_date: NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
+            billed_amount: billed,
+            patient_name: Some(patient_name.to_string()),
+        }
+    }
+
+    fn one_fund_open_procedures(
+        fund_id: &str,
+        procs: Vec<crate::context::procedure::OpenProcedureCandidate>,
+    ) -> HashMap<String, Vec<crate::context::procedure::OpenProcedureCandidate>> {
+        HashMap::from([(fund_id.to_string(), procs)])
+    }
+
+    // BAS-112 — an unlinked (NeedsLink) line must not surface procedure
+    // candidates: they are scoped to the linked fund, which is not yet known.
+    #[test]
+    fn candidate_procedures_is_empty_while_needs_link() {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "UNKNOWN".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let funds = vec![fund("fund-1", "1", "CPAM Paris")];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+        );
+        let repos = BankStatementReconciliationRepos {
+            mappings: &[],
+            groups: &[],
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+
+        let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
+        let line = &recon.lines[0];
+        assert_eq!(line.status, BankStatementLineStatus::NeedsLink);
+        assert!(
+            line.candidate_procedures.is_empty(),
+            "an unlinked line must not surface procedure candidates (BAS-112)"
+        );
+    }
+
+    // BAS-113 — assigning an open procedure whose billed amount exactly covers
+    // the line resolves it to Matched, mirroring the group-assignment path.
+    #[test]
+    fn assign_procedures_exact_amount_gives_matched() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM Seine-Saint-Denis")];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &[],
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![BankStatementCorrection::AssignProcedures {
+            line_id: "line-0".to_string(),
+            procedure_ids: vec!["proc-1".to_string()],
+        }];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
+        assert_eq!(line.status, BankStatementLineStatus::Matched);
+        assert_eq!(line.assigned_procedure_ids, vec!["proc-1".to_string()]);
+        assert_eq!(line.covered_amount, 100_000);
+    }
+
+    // BAS-094/113 — the sum of assigned procedures' billed amounts may never
+    // exceed the line amount, exactly like group assignment.
+    #[test]
+    fn assign_procedures_overflow_returns_assignment_overflow() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure("proc-1", "2026-01-01", 150_000, "Jean Dupont")],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &[],
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![BankStatementCorrection::AssignProcedures {
+            line_id: "line-0".to_string(),
+            procedure_ids: vec!["proc-1".to_string()],
+        }];
+
+        let result = compute_reconciliation(&parse_result, &repos, &corrections);
+        assert!(
+            matches!(
+                result,
+                Err(BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::AssignmentOverflow
+                ))
+            ),
+            "billed amount exceeding the line amount must be rejected (BAS-094)"
+        );
+    }
+
+    // BAS-113 — a procedure id that does not belong to the line's linked fund
+    // (or does not exist as an open candidate at all) is rejected with
+    // ProcedureNotEligible (subsumes unknown/not-open/wrong-fund).
+    #[test]
+    fn assign_procedures_wrong_fund_returns_procedure_not_eligible() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![
+            fund("fund-1", "93", "CPAM 93"),
+            fund("fund-2", "75", "CPAM Paris"),
+        ];
+        // proc-2 is an open procedure of fund-2, not the line's linked fund-1.
+        let open_procedures = one_fund_open_procedures(
+            "fund-2",
+            vec![open_procedure("proc-2", "2026-01-01", 100_000, "Jean Dupont")],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &[],
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![BankStatementCorrection::AssignProcedures {
+            line_id: "line-0".to_string(),
+            procedure_ids: vec!["proc-2".to_string()],
+        }];
+
+        let result = compute_reconciliation(&parse_result, &repos, &corrections);
+        assert!(
+            matches!(
+                result,
+                Err(BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::ProcedureNotEligible
+                ))
+            ),
+            "a procedure of a different fund (or unknown) must be rejected (BAS-113)"
+        );
+    }
+
+    // BAS-113 — a procedure already consumed by another line cannot be
+    // reassigned, mirroring BAS-067 for groups.
+    #[test]
+    fn assign_procedures_already_consumed_returns_procedure_already_consumed() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure(
+                "proc-shared",
+                "2026-01-01",
+                80_000,
+                "Jean Dupont",
+            )],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![
+                BankStatementCreditLine {
+                    date: "2026-01-15".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 80_000,
+                },
+                BankStatementCreditLine {
+                    date: "2026-01-16".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 80_000,
+                },
+            ],
+            total_credits: 160_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &[],
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![
+            BankStatementCorrection::AssignProcedures {
+                line_id: "line-0".to_string(),
+                procedure_ids: vec!["proc-shared".to_string()],
+            },
+            BankStatementCorrection::AssignProcedures {
+                line_id: "line-1".to_string(),
+                procedure_ids: vec!["proc-shared".to_string()],
+            },
+        ];
+
+        let result = compute_reconciliation(&parse_result, &repos, &corrections);
+        assert!(
+            matches!(
+                result,
+                Err(BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::ProcedureAlreadyConsumed
+                ))
+            ),
+            "double-assigning the same procedure must yield ProcedureAlreadyConsumed (BAS-113)"
+        );
+    }
+
+    // BAS-113 — group/procedure mutual exclusion, direction 1: assigning
+    // procedures after groups drops the group assignment (cascade, never an
+    // error) and releases the group back to the candidate pool.
+    #[test]
+    fn assign_procedures_after_groups_drops_the_group_assignment() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        let groups = vec![group("group-a", "fund-1", "2026-01-10", 100_000)];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![
+            BankStatementCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: vec!["group-a".to_string()],
+            },
+            BankStatementCorrection::AssignProcedures {
+                line_id: "line-0".to_string(),
+                procedure_ids: vec!["proc-1".to_string()],
+            },
+        ];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
+        assert!(
+            line.assigned_group_ids.is_empty(),
+            "AssignProcedures must supersede a prior AssignGroups on the same line (BAS-113)"
+        );
+        assert_eq!(line.assigned_procedure_ids, vec!["proc-1".to_string()]);
+        assert!(
+            line.candidate_groups.iter().any(|c| c.group_id == "group-a"),
+            "the superseded group must be released back to the candidate pool, not stranded as consumed"
+        );
+    }
+
+    // BAS-113 — group/procedure mutual exclusion, direction 2: assigning
+    // groups after procedures drops the procedure assignment.
+    #[test]
+    fn assign_groups_after_procedures_drops_the_procedure_assignment() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        let groups = vec![group("group-a", "fund-1", "2026-01-10", 100_000)];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![
+            BankStatementCorrection::AssignProcedures {
+                line_id: "line-0".to_string(),
+                procedure_ids: vec!["proc-1".to_string()],
+            },
+            BankStatementCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: vec!["group-a".to_string()],
+            },
+        ];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
+        assert!(
+            line.assigned_procedure_ids.is_empty(),
+            "AssignGroups must supersede a prior AssignProcedures on the same line (BAS-113)"
+        );
+        assert_eq!(line.assigned_group_ids, vec!["group-a".to_string()]);
+        assert!(
+            line.candidate_procedures
+                .iter()
+                .any(|c| c.procedure_id == "proc-1"),
+            "the superseded procedure must be released back to the candidate pool, not stranded as consumed"
+        );
+    }
+
+    // BAS-065/113 — reverting the correction that caused an exclusion cascade
+    // (dropping it from the correction list and recomputing) must restore the
+    // pre-exclusion state (here: the original auto-match), never resurrect the
+    // correction that the cascade removed.
+    #[test]
+    fn exclusion_revert_restores_pre_exclusion_auto_match_state() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        // Exact fund + exact amount + same date as the credit line → auto-matches.
+        let groups = vec![group("group-auto", "fund-1", "2026-01-15", 100_000)];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+
+        let before = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
+        assert_eq!(before.lines[0].status, BankStatementLineStatus::Matched);
+        assert_eq!(
+            before.lines[0].assigned_group_ids,
+            vec!["group-auto".to_string()]
+        );
+
+        let corrections = vec![BankStatementCorrection::AssignProcedures {
+            line_id: "line-0".to_string(),
+            procedure_ids: vec!["proc-1".to_string()],
+        }];
+        let with_procedure = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        assert!(with_procedure.lines[0].assigned_group_ids.is_empty());
+
+        // Revert: drop the correction and recompute.
+        let reverted = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
+        assert_eq!(
+            reverted.lines[0].assigned_group_ids, before.lines[0].assigned_group_ids,
+            "revert must restore the auto-match, never the removed correction (BAS-065/113)"
+        );
+        assert_eq!(reverted.lines[0].status, BankStatementLineStatus::Matched);
+    }
+
+    // BAS-066 amendment — re-linking a label to a different fund drops any
+    // procedure assignment made under the old fund (it would otherwise become
+    // wrong-fund ineligible under the new link).
+    #[test]
+    fn relink_label_to_different_fund_drops_assigned_procedures() {
+        let funds = vec![
+            fund("fund-a", "93", "CPAM 93"),
+            fund("fund-b", "75", "CPAM Paris"),
+        ];
+        let open_procedures = one_fund_open_procedures(
+            "fund-a",
+            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &[],
+            groups: &[],
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![
+            BankStatementCorrection::LinkFund {
+                bank_label: "CPAM93".to_string(),
+                assignment: FundAssignment::Fund {
+                    fund_id: "fund-a".to_string(),
+                },
+            },
+            BankStatementCorrection::AssignProcedures {
+                line_id: "line-0".to_string(),
+                procedure_ids: vec!["proc-1".to_string()],
+            },
+            BankStatementCorrection::LinkFund {
+                bank_label: "CPAM93".to_string(),
+                assignment: FundAssignment::Fund {
+                    fund_id: "fund-b".to_string(),
+                },
+            },
+        ];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
+        assert_eq!(line.fund_id.as_deref(), Some("fund-b"));
+        assert!(
+            line.assigned_procedure_ids.is_empty(),
+            "re-linking to a different fund must drop stale procedure assignments (BAS-066 amendment)"
+        );
+    }
+
+    // BAS-117 — a credit smaller than every open procedure of the linked fund
+    // is an accepted dead-end: no combination can ever settle it without
+    // overflowing, and BAS-114 (auto-select) was not retained.
+    #[test]
+    fn credit_smaller_than_every_open_procedure_stays_needs_correction() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![
+                open_procedure("proc-1", "2026-01-01", 60_000, "Jean Dupont"),
+                open_procedure("proc-2", "2026-01-02", 80_000, "Marie Curie"),
+            ],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 50_000,
+            }],
+            total_credits: 50_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &[],
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+
+        let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
+        assert_ne!(
+            recon.lines[0].status,
+            BankStatementLineStatus::Matched,
+            "no auto-select of procedures (BAS-114 not retained)"
+        );
+
+        // Even the cheapest open procedure exceeds the line amount.
+        let corrections = vec![BankStatementCorrection::AssignProcedures {
+            line_id: "line-0".to_string(),
+            procedure_ids: vec!["proc-1".to_string()],
+        }];
+        let result = compute_reconciliation(&parse_result, &repos, &corrections);
+        assert!(
+            matches!(
+                result,
+                Err(BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::AssignmentOverflow
+                ))
+            ),
+            "a credit smaller than every open procedure is an accepted dead-end (BAS-117)"
+        );
+    }
+
+    // BAS-113 — applying a new assignment (either kind) resets a previously
+    // acknowledged remainder, since its implied uncovered size changed.
+    #[test]
+    fn assign_procedures_resets_previously_acknowledged_remainder() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        let groups = vec![group("group-a", "fund-1", "2026-01-10", 60_000)];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure("proc-1", "2026-01-01", 40_000, "Jean Dupont")],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![
+            BankStatementCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: vec!["group-a".to_string()],
+            },
+            BankStatementCorrection::AcknowledgeRemainder {
+                line_id: "line-0".to_string(),
+            },
+            BankStatementCorrection::AssignProcedures {
+                line_id: "line-0".to_string(),
+                procedure_ids: vec!["proc-1".to_string()],
+            },
+        ];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
+        assert!(
+            !line.remainder_acknowledged,
+            "a new assignment of either kind resets a previously acknowledged remainder (BAS-113)"
+        );
+        assert_eq!(line.status, BankStatementLineStatus::Partial);
+    }
+
+    // BAS-113 — reverting the reassignment that reset the acknowledgment must
+    // NOT resurrect it: the exclusion cascade drops the superseded
+    // AcknowledgeRemainder from the effective replay, not just the runtime
+    // flag, so a shortened correction list cannot bring it back.
+    #[test]
+    fn assign_procedures_reassignment_reset_is_not_resurrected_by_reverting() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        let groups = vec![group("group-a", "fund-1", "2026-01-10", 60_000)];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure("proc-1", "2026-01-01", 40_000, "Jean Dupont")],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+
+        let full_corrections = vec![
+            BankStatementCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: vec!["group-a".to_string()],
+            },
+            BankStatementCorrection::AcknowledgeRemainder {
+                line_id: "line-0".to_string(),
+            },
+            BankStatementCorrection::AssignProcedures {
+                line_id: "line-0".to_string(),
+                procedure_ids: vec!["proc-1".to_string()],
+            },
+        ];
+        let full = compute_reconciliation(&parse_result, &repos, &full_corrections).unwrap();
+        assert!(!full.lines[0].remainder_acknowledged);
+
+        // "Revert" the last correction (AssignProcedures) by dropping it.
+        let reverted_corrections = vec![
+            BankStatementCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: vec!["group-a".to_string()],
+            },
+            BankStatementCorrection::AcknowledgeRemainder {
+                line_id: "line-0".to_string(),
+            },
+        ];
+        let reverted = compute_reconciliation(&parse_result, &repos, &reverted_corrections).unwrap();
+        assert!(
+            !reverted.lines[0].remainder_acknowledged,
+            "reverting the reassignment must NOT resurrect the acknowledgment it superseded (BAS-113)"
+        );
+    }
 }

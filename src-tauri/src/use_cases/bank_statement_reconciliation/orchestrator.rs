@@ -2064,4 +2064,418 @@ mod tests {
         // Rejected line produces no entry, but validate must not error.
         assert_eq!(count, 0);
     }
+
+    // =========================================================================
+    // validate_reconciliation — bank-born groups (BAS-110–117, BAS-115)
+    //
+    // For a line resolved via `AssignProcedures`, validate must birth the
+    // missing `FundPaymentGroup` (BAS-115 field mapping) before settling it
+    // through the standard BAS-070–073 path. `MockProcedureRepository`'s
+    // `find_open_by_fund_with_patient` is the D2 fund-scoped read the
+    // orchestrator calls (per known fund) to build `compute_reconciliation`'s
+    // `open_procedures` map.
+    // =========================================================================
+
+    use crate::shared::event_bus::FundPaymentGroupUpdated;
+
+    fn born_group_mapping_and_funds() -> (BankFundLabelMapping, Vec<Fund>) {
+        (
+            BankFundLabelMapping {
+                id: "m1".to_string(),
+                bank_account_id: "acc-1".to_string(),
+                bank_label: "CPAM93".to_string(),
+                fund_id: Some("fund-1".to_string()),
+            },
+            vec![Fund::restore(
+                "fund-1".to_string(),
+                "93".to_string(),
+                "CPAM 93".to_string(),
+            )],
+        )
+    }
+
+    fn born_group_parse_result_and_corrections(
+    ) -> (BankStatementParseResult, Vec<BankStatementCorrection>) {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![BankStatementCorrection::AssignProcedures {
+            line_id: "line-0".to_string(),
+            procedure_ids: vec!["proc-1".to_string()],
+        }];
+        (parse_result, corrections)
+    }
+
+    fn proc_repo_with_open_procedure_and_capture(
+    ) -> (MockProcedureRepository, Arc<std::sync::Mutex<Vec<Procedure>>>) {
+        use crate::context::procedure::{OpenProcedureCandidate, PaymentMethod};
+
+        let captured: Arc<std::sync::Mutex<Vec<Procedure>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
+        let update_writer = captured.clone();
+
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_open_by_fund_with_patient()
+            .returning(|fund_id| {
+                if fund_id == "fund-1" {
+                    Ok(vec![OpenProcedureCandidate {
+                        procedure_id: "proc-1".to_string(),
+                        procedure_date: NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(),
+                        billed_amount: 100_000,
+                        patient_name: Some("Jean Dupont".to_string()),
+                    }])
+                } else {
+                    Ok(vec![])
+                }
+            });
+        let seed_proc = Procedure::restore(
+            "proc-1".to_string(),
+            "patient-1".to_string(),
+            Some("fund-1".to_string()),
+            "type-1".to_string(),
+            NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(),
+            100_000,
+            PaymentMethod::default(),
+            None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        );
+        proc_repo
+            .expect_read_procedures_by_ids()
+            .returning(move |_| Ok(vec![seed_proc.clone()]));
+        proc_repo.expect_update_batch().returning(move |procs| {
+            update_writer.lock().unwrap().extend(procs.clone());
+            Ok(procs)
+        });
+
+        (proc_repo, captured)
+    }
+
+    /// Builds an orchestrator wired for the born-group happy path: `fund-1` has
+    /// exactly one open procedure (`proc-1`, billed 100_000), which
+    /// `create_group` is expected to birth into a new `BankPaid` + locked group.
+    /// Returns the orchestrator plus spies for `create_group`'s captured args
+    /// and the procedures ultimately batch-updated.
+    #[allow(clippy::type_complexity)]
+    fn build_born_group_orchestrator(
+        event_bus: Arc<EventBus>,
+    ) -> (
+        BankStatementOrchestrator,
+        Arc<std::sync::Mutex<Vec<(String, String, i64, Vec<String>)>>>,
+        Arc<std::sync::Mutex<Vec<Procedure>>>,
+    ) {
+        let (mapping, funds) = born_group_mapping_and_funds();
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+
+        let captured_create_group: Arc<std::sync::Mutex<Vec<(String, String, i64, Vec<String>)>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
+        let create_group_writer = captured_create_group.clone();
+
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        fund_payment_repo.expect_read_all_groups().returning(|| Ok(vec![]));
+        fund_payment_repo
+            .expect_create_group()
+            .returning(move |fund_id, payment_date, total_amount, procedure_ids| {
+                create_group_writer.lock().unwrap().push((
+                    fund_id.clone(),
+                    payment_date.clone(),
+                    total_amount,
+                    procedure_ids.clone(),
+                ));
+                let lines: Vec<crate::context::fund::FundPaymentLine> = procedure_ids
+                    .iter()
+                    .map(|id| {
+                        crate::context::fund::FundPaymentLine::new(
+                            "born-group-1".to_string(),
+                            id.clone(),
+                        )
+                        .unwrap()
+                    })
+                    .collect();
+                let date = chrono::NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").unwrap();
+                Ok(FundPaymentGroup::restore(
+                    "born-group-1".to_string(),
+                    fund_id,
+                    date,
+                    total_amount,
+                    lines,
+                    FundPaymentGroupStatus::BankPaid,
+                ))
+            });
+        fund_payment_repo.expect_read_group().returning(|id| {
+            if id == "born-group-1" {
+                let line = crate::context::fund::FundPaymentLine::new(
+                    "born-group-1".to_string(),
+                    "proc-1".to_string(),
+                )
+                .unwrap();
+                Ok(Some(FundPaymentGroup::restore(
+                    "born-group-1".to_string(),
+                    "fund-1".to_string(),
+                    NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                    100_000,
+                    vec![line],
+                    FundPaymentGroupStatus::BankPaid,
+                )))
+            } else {
+                Ok(None)
+            }
+        });
+        fund_payment_repo
+            .expect_read_lines_by_group()
+            .returning(|_| Ok(vec![]));
+        fund_payment_repo
+            .expect_update_group_status()
+            .returning(|_, _| Ok(()));
+
+        let (proc_repo, captured_procs) = proc_repo_with_open_procedure_and_capture();
+
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(bank_account_repo_returning(Some(account)));
+        let orchestrator = BankStatementOrchestrator::new(
+            Arc::new(BankAccountService::new(
+                bank_account_repo.clone(),
+                event_bus.clone(),
+            )),
+            Arc::new(FundService::new(
+                Arc::new(fund_repo_returning(funds)),
+                event_bus.clone(),
+            )),
+            Arc::new(FundPaymentService::new(
+                Arc::new(fund_payment_repo),
+                event_bus.clone(),
+            )),
+            Arc::new(BankEntryService::new(
+                Arc::new(bank_entry_repo_noop()),
+                bank_account_repo,
+                event_bus.clone(),
+            )),
+            Arc::new(bank_link_repo_noop()),
+            Arc::new(ProcedureService::new(Arc::new(proc_repo), event_bus.clone())),
+            Arc::new(label_mapping_repo_returning(vec![mapping])),
+            event_bus,
+        );
+
+        (orchestrator, captured_create_group, captured_procs)
+    }
+
+    // BAS-115 — validate births the FundPaymentGroup per the field-mapping
+    // table: fund = line fund, payment date = bank line date, total = Σ billed,
+    // one group line per procedure, born BankPaid + locked; then settles it
+    // through the standard BAS-070–073 path (procedure Created → FundPaid,
+    // paid_amount = billed, confirmed_payment_date = line date, PLUS
+    // fund_reconciliation_date = line date — the born path has no earlier
+    // fund-payment-match step to have set it).
+    #[tokio::test]
+    async fn validate_reconciliation_births_group_from_assigned_procedures_per_bas115() {
+        let event_bus = Arc::new(EventBus::new());
+        let (orchestrator, captured_create_group, captured_procs) =
+            build_born_group_orchestrator(event_bus);
+        let (parse_result, corrections) = born_group_parse_result_and_corrections();
+
+        let count = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        assert_eq!(count, 1, "exactly one BankEntry for a born group (BAS-115)");
+
+        let create_group_calls = captured_create_group.lock().unwrap();
+        assert_eq!(create_group_calls.len(), 1);
+        let (fund_id, payment_date, total_amount, procedure_ids) = &create_group_calls[0];
+        assert_eq!(fund_id, "fund-1", "born group fund = line fund (BAS-115)");
+        assert_eq!(
+            payment_date, "2026-01-15",
+            "born group payment date = bank line date (BAS-115)"
+        );
+        assert_eq!(*total_amount, 100_000, "born group total = Σ billed (BAS-115)");
+        assert_eq!(procedure_ids, &vec!["proc-1".to_string()]);
+
+        let updated = captured_procs.lock().unwrap();
+        assert_eq!(updated.len(), 1);
+        let proc = &updated[0];
+        let line_date = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
+        assert_eq!(proc.payment_status, ProcedureStatus::FundPaid);
+        assert_eq!(proc.paid_amount, Some(100_000), "paid = billed (BAS-115)");
+        assert_eq!(proc.confirmed_payment_date, Some(line_date));
+        assert_eq!(
+            proc.fund_reconciliation_date,
+            Some(line_date),
+            "the born path has no earlier fund-payment-match step, so validate must \
+             set fund_reconciliation_date itself (BAS-115)"
+        );
+        assert_eq!(
+            proc.payment_method,
+            crate::context::procedure::PaymentMethod::BankTransfer
+        );
+    }
+
+    // BAS-115 — validate recomputes server-side; a procedure that was open in
+    // the draft but is no longer open by validate time (stale draft) must be
+    // rejected, never silently birth an invalid group.
+    #[tokio::test]
+    async fn validate_reconciliation_stale_procedure_since_draft_returns_procedure_not_eligible() {
+        let (mapping, funds) = born_group_mapping_and_funds();
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+
+        let mut proc_repo = MockProcedureRepository::new();
+        // The procedure is no longer open by the time validate recomputes
+        // server-side (e.g. consumed by a concurrent write since the draft was
+        // shown) — validate must re-derive eligibility, never trust the stale
+        // client-side draft.
+        proc_repo
+            .expect_find_open_by_fund_with_patient()
+            .returning(|_| Ok(vec![]));
+
+        let event_bus = Arc::new(EventBus::new());
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(bank_account_repo_returning(Some(account)));
+        let orchestrator = BankStatementOrchestrator::new(
+            Arc::new(BankAccountService::new(
+                bank_account_repo.clone(),
+                event_bus.clone(),
+            )),
+            Arc::new(FundService::new(
+                Arc::new(fund_repo_returning(funds)),
+                event_bus.clone(),
+            )),
+            Arc::new(FundPaymentService::new(
+                Arc::new(fund_payment_repo_returning_groups(vec![])),
+                event_bus.clone(),
+            )),
+            Arc::new(BankEntryService::new(
+                Arc::new(bank_entry_repo_noop()),
+                bank_account_repo,
+                event_bus.clone(),
+            )),
+            Arc::new(bank_link_repo_noop()),
+            Arc::new(ProcedureService::new(Arc::new(proc_repo), event_bus.clone())),
+            Arc::new(label_mapping_repo_returning(vec![mapping])),
+            event_bus,
+        );
+
+        let (parse_result, corrections) = born_group_parse_result_and_corrections();
+
+        let result = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::ProcedureNotEligible
+                ))
+            ),
+            "validate must recompute server-side and reject a procedure that went \
+             stale since the draft (BAS-115)"
+        );
+    }
+
+    // ADR-002/003 — a failed born-group creation must fail the whole validate
+    // loudly. A swallowed failure here would leave no group at all while the
+    // procedures stay Created — silent data loss, not merely an unlocked group.
+    #[tokio::test]
+    async fn validate_reconciliation_propagates_error_when_born_group_creation_fails() {
+        let (mapping, funds) = born_group_mapping_and_funds();
+        let account = crate::context::bank::BankAccount::restore(
+            "acc-1".to_string(),
+            "My Bank".to_string(),
+            None,
+        );
+
+        let (proc_repo, _captured) = proc_repo_with_open_procedure_and_capture();
+
+        let mut fund_payment_repo = MockFundPaymentRepository::new();
+        fund_payment_repo.expect_read_all_groups().returning(|| Ok(vec![]));
+        fund_payment_repo
+            .expect_create_group()
+            .returning(|_, _, _, _| Err(anyhow::anyhow!("disk full")));
+
+        let event_bus = Arc::new(EventBus::new());
+        let bank_account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(bank_account_repo_returning(Some(account)));
+        let orchestrator = BankStatementOrchestrator::new(
+            Arc::new(BankAccountService::new(
+                bank_account_repo.clone(),
+                event_bus.clone(),
+            )),
+            Arc::new(FundService::new(
+                Arc::new(fund_repo_returning(funds)),
+                event_bus.clone(),
+            )),
+            Arc::new(FundPaymentService::new(
+                Arc::new(fund_payment_repo),
+                event_bus.clone(),
+            )),
+            Arc::new(BankEntryService::new(
+                Arc::new(bank_entry_repo_noop()),
+                bank_account_repo,
+                event_bus.clone(),
+            )),
+            Arc::new(bank_link_repo_noop()),
+            Arc::new(ProcedureService::new(Arc::new(proc_repo), event_bus.clone())),
+            Arc::new(label_mapping_repo_returning(vec![mapping])),
+            event_bus,
+        );
+
+        let (parse_result, corrections) = born_group_parse_result_and_corrections();
+
+        let result = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await;
+
+        assert!(
+            result.is_err(),
+            "a swallowed born-group creation failure must not report success (ADR-002/003)"
+        );
+    }
+
+    // BAS-115 — `create_group` is called `is_silent=true` (no new publish); the
+    // born group's single `FundPaymentGroupUpdated` event comes from the
+    // EXISTING `update_group_status` publish in the settle step. Exactly one
+    // event per settled group, not two.
+    #[tokio::test]
+    async fn validate_reconciliation_born_group_emits_fund_payment_group_updated_once() {
+        let event_bus = Arc::new(EventBus::new());
+        let mut rx = event_bus.subscribe::<FundPaymentGroupUpdated>().unwrap();
+        let (orchestrator, _captured_create_group, _captured_procs) =
+            build_born_group_orchestrator(event_bus);
+        let (parse_result, corrections) = born_group_parse_result_and_corrections();
+
+        let count = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+        assert_eq!(count, 1);
+
+        assert!(
+            rx.try_recv().is_ok(),
+            "the born group's settle step must publish FundPaymentGroupUpdated \
+             (via the existing update_group_status call)"
+        );
+        assert!(
+            rx.try_recv().is_err(),
+            "create_group(is_silent=true) must not ALSO publish — exactly one \
+             event per settled group (BAS-115)"
+        );
+    }
 }
