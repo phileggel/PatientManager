@@ -436,9 +436,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-      expect(document.getElementById("assign-groups-scope-fund")?.getAttribute("aria-pressed")).toBe(
-        "true",
-      );
+      expect(
+        document.getElementById("assign-groups-scope-fund")?.getAttribute("aria-pressed"),
+      ).toBe("true");
       // Group candidates render immediately, procedure candidates do not.
       expect(document.getElementById("assign-groups-candidate-group-1")).not.toBeNull();
       expect(document.getElementById("assign-groups-candidate-proc-proc-1")).toBeNull();
@@ -485,7 +485,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       const onSubmit = vi.fn();
       const line = makeNeedsGroupLine({ candidate_procedures: [PROCEDURE_CANDIDATE_1] });
 
-      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+      render(
+        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
+      );
 
       const groupCheck = document.getElementById("assign-groups-check-group-1");
       if (!groupCheck) throw new Error("group checkbox missing");
@@ -545,7 +547,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         candidate_procedures: [PROCEDURE_CANDIDATE_1, PROCEDURE_CANDIDATE_2],
       });
 
-      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+      render(
+        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
+      );
 
       const procScope = document.getElementById("assign-groups-scope-procedures");
       if (!procScope) throw new Error("procedure scope control missing");
@@ -568,7 +572,10 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     it("flags the exact-amount procedure candidate", async () => {
       const user = userEvent.setup();
-      const exactProc: BankStatementProcedureCandidate = { ...PROCEDURE_CANDIDATE_1, is_exact_amount: true };
+      const exactProc: BankStatementProcedureCandidate = {
+        ...PROCEDURE_CANDIDATE_1,
+        is_exact_amount: true,
+      };
       const line = makeNeedsGroupLine({ candidate_procedures: [exactProc, PROCEDURE_CANDIDATE_2] });
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
@@ -639,7 +646,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       const onSubmit = vi.fn();
       const line = makeNeedsGroupLine();
 
-      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+      render(
+        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
+      );
 
       const partialCheck = document.getElementById("assign-groups-check-group-2");
       if (!partialCheck) throw new Error("candidate checkbox missing");
@@ -667,7 +676,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         candidate_procedures: [PROCEDURE_CANDIDATE_1, PROCEDURE_CANDIDATE_2],
       });
 
-      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+      render(
+        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
+      );
 
       const procScope = document.getElementById("assign-groups-scope-procedures");
       if (!procScope) throw new Error("procedure scope control missing");

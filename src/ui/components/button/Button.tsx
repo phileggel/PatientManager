@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "tonal";
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "tonal" | "warning";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -45,8 +45,11 @@ export function Button({
   };
 
   const variantClasses = {
+    // Disabled primary swaps the filled treatment for surface+muted — a 50%
+    // opacity over the primary fill is near-illegible in dark mode
+    // (2026-07-31 wireframe review).
     primary:
-      "bg-m3-primary text-m3-on-primary border-transparent hover:enabled:bg-m3-primary-container active:enabled:bg-m3-primary-container",
+      "bg-m3-primary text-m3-on-primary border-transparent hover:enabled:bg-m3-primary-container active:enabled:bg-m3-primary-container disabled:bg-m3-surface-variant disabled:text-m3-on-surface-variant",
     secondary:
       "bg-m3-secondary-container text-m3-on-secondary-container border-m3-secondary-container hover:enabled:bg-m3-secondary-container/90",
     outline:
@@ -57,6 +60,11 @@ export function Button({
       "bg-m3-error text-m3-on-error border-m3-error hover:enabled:bg-m3-error/90 active:enabled:bg-m3-error",
     tonal:
       "bg-m3-tertiary-container text-m3-on-tertiary-container border-transparent hover:enabled:brightness-110",
+    // Gold/tertiary outline — visually distinct from danger (red) and primary
+    // (filled); used for "proceed, but with a caveat" actions like
+    // « Rapprocher avec reliquat » (2026-07-31 wireframe review).
+    warning:
+      "bg-transparent text-m3-tertiary border-m3-tertiary hover:enabled:bg-m3-tertiary-container/30",
   };
 
   return (

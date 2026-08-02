@@ -5,7 +5,7 @@
     "status": {
       "matched": "Rapprochée",
       "needs_link": "À associer",
-      "needs_group": "Groupe à choisir",
+      "needs_group": "À rapprocher",
       "partial": "Partielle",
       "rejected": "Rejetée",
       "unresolved": "Non résolue"
@@ -14,29 +14,34 @@
       "assignment_overflow": "Les groupes sélectionnés dépassent le montant de la ligne.",
       "group_not_eligible": "Ce groupe n'est pas éligible pour cette ligne.",
       "group_already_consumed": "Ce groupe est déjà affecté à une autre ligne.",
+      "procedure_not_eligible": "Cet acte n'est pas éligible pour cette ligne.",
+      "procedure_already_consumed": "Cet acte est déjà affecté à une autre ligne.",
       "unknown": "Une erreur inattendue s'est produite."
     },
     "link_fund": {
-      "title": "Associer « {{label}} » à une caisse",
+      "title": "Associer le libellé « {{label}} » à une caisse",
       "suggestion": "Suggestion : {{name}}",
       "fund_label": "Caisse",
       "select_placeholder": "-- Sélectionner une caisse --",
-      "reject": "Pas une caisse",
+      "reject": "Ignorer ce libellé",
       "cancel": "Annuler",
       "submit": "Associer la caisse"
     },
     "assign_groups": {
-      "title": "Affecter des groupes à « {{label}} »",
+      "title": "Rapprocher « {{label}} »",
       "balance": "Couvert {{covered}} sur {{total}}",
       "broaden_on": "Chercher dans toutes les caisses",
       "broaden_off": "Limiter à cette caisse",
+      "scope_fund": "Cette caisse",
+      "scope_all": "Toutes les caisses",
+      "scope_procedures": "Actes de la caisse",
       "cancel": "Annuler",
-      "submit": "Affecter",
+      "submit": "Rapprocher",
+      "submit_with_remainder": "Rapprocher avec reliquat",
       "exact_amount": "montant exact"
     },
     "remainder": {
-      "amount": "Reliquat non couvert : {{amount}}",
-      "confirm": "Accepter"
+      "amount": "Reliquat non couvert : {{amount}}"
     },
     "applied_corrections": {
       "title": "Corrections appliquées",
@@ -48,6 +53,8 @@
       "link_fund_rejected": "« {{label}} » marqué comme non-caisse",
       "assign_groups": "{{count}} groupe(s) affecté(s) à la ligne {{line}}",
       "unassign_groups": "Ligne {{line}} désaffectée",
+      "assign_procedures": "{{count}} acte(s) affecté(s) à la ligne {{line}}",
+      "unassign_procedures": "Actes désaffectés de la ligne {{line}}",
       "acknowledge_remainder": "Reliquat accepté sur la ligne {{line}}"
     },
     "wizard": {

@@ -12,6 +12,7 @@ import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { coveredAmount } from "../shared/candidateSelection";
 import { sortFundsByName } from "../shared/fundOptions";
 import { CandidateList } from "./CandidateList";
+import { LineContextHeader } from "./LineContextHeader";
 
 interface ReconciliationWizardProps {
   reconciliation: BankStatementReconciliation;
@@ -34,11 +35,21 @@ function needsCorrection(line: BankStatementLine): boolean {
 
 /**
  * Ordered walkthrough queue: phase 1 = all NeedsLink lines (in document order),
- * phase 2 = every other correction-needed line (BAS-101).
+ * phase 2 = every other correction-needed line (BAS-101). Phase 2 walks past
+ * (a) lines with no group candidate (only procedure candidates or nothing) and
+ * (b) lines that already have assigned procedures — presenting the group
+ * selector there would silently discard staged procedure work (BAS-116); they
+ * stay correctable from the list.
  */
 function buildQueue(lines: BankStatementLine[]): BankStatementLine[] {
   const linkFund = lines.filter((l) => l.status === "NeedsLink");
-  const rest = lines.filter((l) => needsCorrection(l) && l.status !== "NeedsLink");
+  const rest = lines.filter(
+    (l) =>
+      needsCorrection(l) &&
+      l.status !== "NeedsLink" &&
+      l.candidate_groups.length > 0 &&
+      l.assigned_procedure_ids.length === 0,
+  );
   return [...linkFund, ...rest];
 }
 
@@ -135,8 +146,13 @@ export function ReconciliationWizard({
             )}
 
             <p className="text-sm text-m3-on-surface">
-              {t("reconciliation.wizard.step_label", { label: current.credit_line.label })}
+              {isLinkFundPhase
+                ? // BAS-110 — same title key as LinkFundModal (mirrored context).
+                  t("reconciliation.link_fund.title", { label: current.credit_line.label })
+                : t("reconciliation.wizard.step_label", { label: current.credit_line.label })}
             </p>
+
+            <LineContextHeader id="wizard-step-context" creditLine={current.credit_line} />
 
             {/* BAS-033 — same helper text as LinkFundModal; never pre-selected. */}
             {isLinkFundPhase && current.suggested_fund_id && current.suggested_fund_name && (

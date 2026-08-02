@@ -81,10 +81,12 @@ function makeLine(overrides: Partial<BankStatementLine>): BankStatementLine {
     status: "Matched",
     fund_id: "fund-1",
     assigned_group_ids: ["group-1"],
+    assigned_procedure_ids: [],
     covered_amount: 150000,
     remainder_acknowledged: false,
     candidate_groups: [],
     broadened_candidates: [],
+    candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
     ...overrides,
@@ -407,10 +409,13 @@ describe("ReconciliationView — modal routing by line status (BAS-062)", () => 
     if (!lineEl) throw new Error("line row element missing");
     await user.dblClick(lineEl);
 
-    // BAS-062/092 — a Partial line opens AssignGroupsModal (seeded) with the
-    // acknowledge-remainder affordance inside it.
+    // BAS-062/092 — a Partial line opens AssignGroupsModal (seeded); the
+    // remainder is informational text and the acknowledge action lives in the
+    // « Rapprocher avec reliquat » footer button (2026-07-31 wireframe review).
     expect(document.getElementById("assign-groups-submit")).not.toBeNull();
-    expect(document.getElementById("assign-groups-acknowledge-remainder")).not.toBeNull();
+    expect(document.getElementById("assign-groups-submit-with-remainder")).not.toBeNull();
+    expect(document.getElementById("assign-groups-remainder-info")).not.toBeNull();
+    expect(document.getElementById("assign-groups-acknowledge-remainder")).toBeNull();
     // LinkFundModal must NOT be open
     expect(document.getElementById("link-fund-modal-fund-select")).toBeNull();
   });
@@ -698,21 +703,23 @@ describe("ReconciliationView — applyCorrection from modal (BAS-064)", () => {
     if (!lineEl) throw new Error("line row element missing");
     await user.dblClick(lineEl);
 
-    const confirmBtn = document.getElementById("assign-groups-acknowledge-remainder");
-    if (!confirmBtn) throw new Error("acknowledge-remainder button missing");
-    await user.click(confirmBtn);
+    // « Rapprocher avec reliquat » posts the (seeded) assignment then the
+    // acknowledgment — two corrections, one click (BAS-113 dialog actions).
+    const withRemainderBtn = document.getElementById("assign-groups-submit-with-remainder");
+    if (!withRemainderBtn) throw new Error("with-remainder button missing");
+    await user.click(withRemainderBtn);
 
     await waitFor(() => {
       const calls = mockCompute.mock.calls;
-      const correctionCall = calls.find(
-        (c) => c[2].length > 0 && c[2][0]?.type === "AcknowledgeRemainder",
+      const correctionCall = calls.find((c) =>
+        c[2].some((correction: { type: string }) => correction.type === "AcknowledgeRemainder"),
       );
       expect(correctionCall).toBeDefined();
     });
 
     // Modal closes on success
     await waitFor(() => {
-      expect(document.getElementById("assign-groups-acknowledge-remainder")).toBeNull();
+      expect(document.getElementById("assign-groups-submit-with-remainder")).toBeNull();
     });
   });
 
@@ -1156,12 +1163,12 @@ describe("ReconciliationView — modal cancel closes the modal (BAS-062)", () =>
     const callCountAfterMount = mockCompute.mock.calls.length;
 
     await user.dblClick(document.getElementById("reconciliation-line-row-line-partial")!);
-    expect(document.getElementById("assign-groups-acknowledge-remainder")).not.toBeNull();
+    expect(document.getElementById("assign-groups-remainder-info")).not.toBeNull();
 
     await user.click(document.getElementById("assign-groups-cancel")!);
 
     await waitFor(() => {
-      expect(document.getElementById("assign-groups-acknowledge-remainder")).toBeNull();
+      expect(document.getElementById("assign-groups-remainder-info")).toBeNull();
     });
     expect(mockCompute).toHaveBeenCalledTimes(callCountAfterMount);
   });
