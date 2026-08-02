@@ -1027,7 +1027,8 @@ export type BankStatementCandidate = { group_id: string; fund_id: string;
  */
 fund_name: string; payment_date: string; total_amount: number; 
 /**
- * True if this group's amount exactly matches the line's outstanding amount.
+ * True if this group's amount exactly matches the line amount (the
+ * recomposition basis — see `finalize_line`).
  */
 is_exact_amount: boolean }
 /**
@@ -1043,6 +1044,11 @@ export type BankStatementCorrection =
  * BAS-090 — assign 1..N groups to a line (empty = unassign).
  */
 { type: "AssignGroups"; line_id: string; group_ids: string[] } | 
+/**
+ * BAS-113 — assign 1..N open procedures to a line (empty = unassign).
+ * Mutually exclusive with `AssignGroups` per line (correction-list cascade).
+ */
+{ type: "AssignProcedures"; line_id: string; procedure_ids: string[] } | 
 /**
  * BAS-092 — acknowledge the uncovered remainder on a partial line.
  */
@@ -1080,7 +1086,13 @@ fund_id: string | null;
  */
 assigned_group_ids: string[]; 
 /**
- * Σ assigned group amounts (BAS-091).
+ * 0..N assigned open-procedure ids (BAS-113); mutually exclusive with
+ * `assigned_group_ids` per line.
+ */
+assigned_procedure_ids: string[]; 
+/**
+ * Σ assigned settlement-item amounts — group totals or procedure billed
+ * amounts (BAS-091/113).
  */
 covered_amount: number; 
 /**
@@ -1089,14 +1101,19 @@ covered_amount: number;
 remainder_acknowledged: boolean; 
 /**
  * BAS-068 — ranked candidate groups for needs-group / partial,
- * filtered to the line's fund (the default view).
+ * filtered to the line's fund (the default view); not date-bounded.
  */
 candidate_groups: BankStatementCandidate[]; 
 /**
- * BAS-068 — ranked candidate groups across ALL funds (same date
- * tolerance, not locked/consumed); shown when the user broadens the search.
+ * BAS-068 — ranked candidate groups across ALL funds (not locked or
+ * consumed, any age); shown when the user broadens the search.
  */
 broadened_candidates: BankStatementCandidate[]; 
+/**
+ * BAS-112 — the linked fund's open procedures, oldest first; empty while
+ * needs-link (the pool is scoped to the linked fund).
+ */
+candidate_procedures: BankStatementProcedureCandidate[]; 
 /**
  * BAS-032/066 — heuristic suggestion for the link-fund modal.
  */
@@ -1153,6 +1170,23 @@ total_credits: number;
  * Number of lines that couldn't be parsed
  */
 unparsed_count: number }
+/**
+ * BAS-112 — one open-procedure candidate for a linked line's procedure scope.
+ */
+export type BankStatementProcedureCandidate = { procedure_id: string; 
+/**
+ * Patient display name, resolved for the candidate row; empty when the
+ * patient is anonymous.
+ */
+patient_name: string; procedure_date: string; 
+/**
+ * The billed amount — the only amount this flow knows (BAS-117).
+ */
+billed_amount: number; 
+/**
+ * True if the billed amount exactly matches the line amount.
+ */
+is_exact_amount: boolean }
 /**
  * The recomputed reconciliation state: every statement line with its status
  * (BAS-061), candidate proposals, and running coverage totals.
@@ -1225,8 +1259,10 @@ export type BankStatementReconciliationTask =
  */
 { code: "AssignmentOverflow" } | 
 /**
- * BAS-090 — a group does not meet the fund/date/already-settled eligibility
- * criteria for the target line. The correction is rejected.
+ * BAS-090 — a group is not assignable to the target line (locked/settled,
+ * or the line's label is not linked yet). The fund criterion binds
+ * auto-match only; manual cross-fund assignment is allowed.
+ * The correction is rejected.
  */
 { code: "GroupNotEligible" } | 
 /**
@@ -1234,6 +1270,18 @@ export type BankStatementReconciliationTask =
  * be assigned a second time.
  */
 { code: "GroupAlreadyConsumed" } | 
+/**
+ * BAS-113 — a procedure referenced by an `AssignProcedures` correction is
+ * not an open candidate for the line: unknown, soft-deleted, not
+ * `Created`, already in a group line, or not of the line's fund.
+ * The correction is rejected.
+ */
+{ code: "ProcedureNotEligible" } | 
+/**
+ * BAS-113 — a procedure has already been consumed by another line and
+ * cannot be assigned a second time (mirror of BAS-067).
+ */
+{ code: "ProcedureAlreadyConsumed" } | 
 /**
  * The `line_id` supplied in a correction does not match any line in the
  * current reconciliation (stale or malformed client state).

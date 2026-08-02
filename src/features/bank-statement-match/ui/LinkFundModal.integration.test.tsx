@@ -29,6 +29,9 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
       opts ? `${key}:${JSON.stringify(opts)}` : key,
+    // BAS-110 — LinkFundModal now mounts LineContextHeader, which formats the
+    // line date/amount via useFormatters() → useTranslation().i18n.language.
+    i18n: { language: "fr" },
   }),
 }));
 
@@ -50,10 +53,12 @@ function makeNeedsLinkLine(overrides: Partial<BankStatementLine> = {}): BankStat
     status: "NeedsLink",
     fund_id: null,
     assigned_group_ids: [],
+    assigned_procedure_ids: [],
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [],
     broadened_candidates: [],
+    candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
     ...overrides,
@@ -168,5 +173,55 @@ describe("LinkFundModal — BAS-030/032/036/066", () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // BAS-110 — correction context header (date · amount · raw label)
+  // ---------------------------------------------------------------------------
+
+  it("mounts a context header showing the bank line's date, amount, and raw label on one line (BAS-110)", () => {
+    const line = makeNeedsLinkLine({
+      credit_line: { date: "2026-04-11", label: "MGEN", amount: 75000 },
+    });
+
+    render(<LinkFundModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+    const header = document.getElementById("link-fund-modal-context");
+    expect(header).not.toBeNull();
+    // Locale-formatted date + amount + the raw bank label all appear together.
+    expect(header?.textContent).toContain("2026");
+    expect(header?.textContent).toContain("75");
+    expect(header?.textContent).toContain("MGEN");
+  });
+
+  it("renders the raw label in the muted-italic bank-text style, not the fund-name style (BAS-110)", () => {
+    const line = makeNeedsLinkLine({
+      credit_line: { date: "2026-04-11", label: "MGEN", amount: 75000 },
+    });
+
+    render(<LinkFundModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+    const header = document.getElementById("link-fund-modal-context");
+    expect(header).not.toBeNull();
+    const labelEl = header?.querySelector(".italic");
+    expect(labelEl).not.toBeNull();
+    expect(labelEl?.textContent).toBe("MGEN");
+  });
+
+  it("truncates an over-long label with an ellipsis instead of wrapping (BAS-110)", () => {
+    const longLabel = "MUTUELLEGENERALEEDUCATIONNATIONALEETDELAFONCTIONPUBLIQUE";
+    const line = makeNeedsLinkLine({
+      credit_line: { date: "2026-04-11", label: longLabel, amount: 75000 },
+    });
+
+    render(<LinkFundModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+    const header = document.getElementById("link-fund-modal-context");
+    const labelEl = header?.querySelector(".italic");
+    expect(labelEl).not.toBeNull();
+    // Truncation is applied via a `truncate` utility class (ellipsis, no wrap) —
+    // the full label stays in the DOM (still selectable/inspectable), only
+    // visually truncated by CSS.
+    expect(labelEl?.className).toContain("truncate");
   });
 });

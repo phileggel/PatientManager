@@ -17,6 +17,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   BankStatementCorrection,
+  BankStatementLine,
   BankStatementParseResult,
   BankStatementReconciliation,
 } from "@/bindings";
@@ -392,5 +393,246 @@ describe("useBankStatementReconciliation — validate (BAS-063/093)", () => {
     });
 
     expect(mockValidate).toHaveBeenCalledWith(BANK_ACCOUNT_ID, PARSE_RESULT, []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BAS-113/066 — correction-list compaction of the STORED list
+//
+// The engine's pre-replay filter (BAS-113/066) already drops superseded
+// corrections before REPLAYING them server-side, but that alone cannot make
+// `revertCorrection` safe: if the stored list still carries a superseded
+// correction, reverting a LATER correction can resurrect it. `applyCorrection`
+// and `revertCorrection` must therefore compact the STORED corrections[]
+// themselves, before appending / before recomputing.
+// ---------------------------------------------------------------------------
+
+describe("useBankStatementReconciliation — correction-list compaction (BAS-113/066)", () => {
+  const LINE_ID = "line-1";
+
+  const ASSIGN_GROUPS: BankStatementCorrection = {
+    type: "AssignGroups",
+    line_id: LINE_ID,
+    group_ids: ["group-1"],
+  };
+
+  const ASSIGN_PROCEDURES: BankStatementCorrection = {
+    type: "AssignProcedures",
+    line_id: LINE_ID,
+    procedure_ids: ["proc-1"],
+  };
+
+  const ACKNOWLEDGE: BankStatementCorrection = {
+    type: "AcknowledgeRemainder",
+    line_id: LINE_ID,
+  };
+
+  const OTHER_LINE_ASSIGN_GROUPS: BankStatementCorrection = {
+    type: "AssignGroups",
+    line_id: "line-other",
+    group_ids: ["group-9"],
+  };
+
+  const LINK_FUND_A: BankStatementCorrection = {
+    type: "LinkFund",
+    bank_label: "RATP",
+    assignment: { type: "Fund", fund_id: "fund-A" },
+  };
+
+  const LINK_FUND_B: BankStatementCorrection = {
+    type: "LinkFund",
+    bank_label: "RATP",
+    assignment: { type: "Fund", fund_id: "fund-B" },
+  };
+
+  /** A resolved RATP line — used so the hook can map bank_label → line_id for the LinkFund cascade. */
+  function makeRatpLine(overrides: Partial<BankStatementLine> = {}): BankStatementLine {
+    return {
+      line_id: LINE_ID,
+      credit_line: { date: "2026-04-12", label: "RATP", amount: 60000 },
+      status: "Matched",
+      fund_id: "fund-A",
+      assigned_group_ids: [],
+      assigned_procedure_ids: ["proc-1"],
+      covered_amount: 60000,
+      remainder_acknowledged: false,
+      candidate_groups: [],
+      broadened_candidates: [],
+      candidate_procedures: [],
+      suggested_fund_id: null,
+      suggested_fund_name: null,
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCompute.mockResolvedValue({ success: true, data: INITIAL_RECONCILIATION });
+  });
+
+  it("applying AssignProcedures removes a prior AssignGroups correction for the same line", async () => {
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_GROUPS);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_PROCEDURES);
+    });
+
+    expect(result.current.corrections).toEqual([ASSIGN_PROCEDURES]);
+    expect(mockCompute.mock.calls.at(-1)?.[2]).toEqual([ASSIGN_PROCEDURES]);
+  });
+
+  it("applying AssignGroups removes a prior AssignProcedures correction for the same line", async () => {
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_PROCEDURES);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_GROUPS);
+    });
+
+    expect(result.current.corrections).toEqual([ASSIGN_GROUPS]);
+  });
+
+  it("applying an assignment correction removes a prior AcknowledgeRemainder for the same line (BAS-092)", async () => {
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_GROUPS);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ACKNOWLEDGE);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_PROCEDURES);
+    });
+
+    // AssignGroups AND the AcknowledgeRemainder are both superseded — only
+    // the new AssignProcedures survives.
+    expect(result.current.corrections).toEqual([ASSIGN_PROCEDURES]);
+  });
+
+  it("does not remove assignment corrections belonging to a DIFFERENT line", async () => {
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(OTHER_LINE_ASSIGN_GROUPS);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_PROCEDURES);
+    });
+
+    expect(result.current.corrections).toEqual([OTHER_LINE_ASSIGN_GROUPS, ASSIGN_PROCEDURES]);
+  });
+
+  it("re-linking a label to a different fund removes dependent AssignProcedures corrections for lines of that label (BAS-066)", async () => {
+    const afterAssign: BankStatementReconciliation = makeReconciliation({
+      lines: [makeRatpLine()],
+    });
+    mockCompute
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION }) // mount
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION }) // after LinkFund(A)
+      .mockResolvedValueOnce({ success: true, data: afterAssign }) // after AssignProcedures — RATP line now known
+      .mockResolvedValueOnce({ success: true, data: afterAssign }); // after LinkFund(B)
+
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(LINK_FUND_A);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_PROCEDURES);
+    });
+
+    expect(result.current.corrections).toEqual([LINK_FUND_A, ASSIGN_PROCEDURES]);
+
+    await act(async () => {
+      await result.current.applyCorrection(LINK_FUND_B);
+    });
+
+    // The dependent AssignProcedures for the RATP line is dropped; only the
+    // two LinkFund corrections remain.
+    expect(result.current.corrections).toEqual([LINK_FUND_A, LINK_FUND_B]);
+    expect(mockCompute.mock.calls.at(-1)?.[2]).toEqual([LINK_FUND_A, LINK_FUND_B]);
+  });
+
+  it("reverting a LinkFund correction removes dependent AssignProcedures corrections for lines of that label (BAS-066) — revert-safety", async () => {
+    const afterAssign: BankStatementReconciliation = makeReconciliation({
+      lines: [makeRatpLine()],
+    });
+    mockCompute
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION }) // mount
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION }) // after LinkFund(A)
+      .mockResolvedValueOnce({ success: true, data: afterAssign }) // after AssignProcedures
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION }); // after revert
+
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(LINK_FUND_A);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_PROCEDURES);
+    });
+
+    // Revert the LinkFund correction (index 0).
+    await act(async () => {
+      await result.current.revertCorrection(0);
+    });
+
+    // The dependent AssignProcedures must be gone too — never resurrected by
+    // a later revert of a DIFFERENT correction (revert-safety).
+    expect(result.current.corrections).toEqual([]);
+    expect(mockCompute.mock.calls.at(-1)?.[2]).toEqual([]);
+  });
+
+  it("revert-safety: assign-groups → acknowledge → assign-procedures → revert(assign-procedures) recomputes with an empty list, never resurrecting the removed acknowledge (BAS-113)", async () => {
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_GROUPS);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ACKNOWLEDGE);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_PROCEDURES);
+    });
+
+    // Only the AssignProcedures survives the compaction cascade above.
+    expect(result.current.corrections).toEqual([ASSIGN_PROCEDURES]);
+
+    await act(async () => {
+      await result.current.revertCorrection(0);
+    });
+
+    // Auto-match state: nothing left, and critically the removed
+    // AcknowledgeRemainder never resurfaces.
+    expect(result.current.corrections).toEqual([]);
+    expect(mockCompute.mock.calls.at(-1)?.[2]).toEqual([]);
   });
 });
