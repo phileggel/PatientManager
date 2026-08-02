@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -215,9 +216,9 @@ impl BankStatementOrchestrator {
                     // fund-payment-match step, so Stage 1 is still unset; fold
                     // it into validate (= the bank line date). Procedures from
                     // the fund-PDF flow keep their existing Stage 1 date.
-                    procedure
-                        .fund_reconciliation_date
-                        .get_or_insert(confirmed_date);
+                    if procedure.fund_reconciliation_date.is_none() {
+                        procedure = procedure.with_fund_reconciliation_date(Some(confirmed_date));
+                    }
                     procedure
                 })
                 .collect();
@@ -279,7 +280,7 @@ impl BankStatementOrchestrator {
         let funds = self.fund_service.read_all_funds().await?;
         // BAS-112 (D2) — one fund-scoped open-procedure read per known fund;
         // the engine filters per line, mirroring how funds/groups are supplied.
-        let mut open_procedures = std::collections::HashMap::new();
+        let mut open_procedures = HashMap::new();
         for fund in &funds {
             let candidates = self
                 .procedure_service
@@ -2223,6 +2224,7 @@ mod tests {
     /// `create_group` is expected to birth into a new `BankPaid` + locked group.
     /// Returns the orchestrator plus spies for `create_group`'s captured args
     /// and the procedures ultimately batch-updated.
+    // Test spy tuple: returning by value avoids a throwaway struct for 3 call sites.
     #[allow(clippy::type_complexity)]
     fn build_born_group_orchestrator(
         event_bus: Arc<EventBus>,

@@ -6,6 +6,7 @@ use crate::context::procedure::domain::{
     OpenProcedureCandidate, PaymentMethod, Procedure, ProcedureRepository, ProcedureStatus,
     UnreconciledProcedure,
 };
+use crate::shared::logger::BACKEND;
 
 /// Internal row type for procedure database mapping
 #[derive(sqlx::FromRow)]
@@ -726,7 +727,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         &self,
         fund_id: &str,
     ) -> anyhow::Result<Vec<OpenProcedureCandidate>> {
-        tracing::debug!(fund_id = %fund_id, "Finding open procedures by fund (BAS-112)");
+        tracing::debug!(target: BACKEND, fund_id = %fund_id, "Finding open procedures by fund (BAS-112)");
 
         // The anti-join is mandatory: group creation and the status flip are
         // separate, non-atomic writes (same rationale as
