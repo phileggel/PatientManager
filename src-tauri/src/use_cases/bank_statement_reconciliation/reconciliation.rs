@@ -880,6 +880,8 @@ mod tests {
     }
 
     /// Shared empty pool for tests where open procedures play no role.
+    // reviewer-backend FP: the OnceLock's 'static borrow keeps 9 struct-literal
+    // call sites binding-free — per-site `let`s add ceremony, not clarity.
     fn no_open_procedures(
     ) -> &'static HashMap<String, Vec<crate::context::procedure::OpenProcedureCandidate>> {
         static EMPTY: std::sync::OnceLock<
