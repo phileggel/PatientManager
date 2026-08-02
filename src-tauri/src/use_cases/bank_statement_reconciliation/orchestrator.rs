@@ -211,6 +211,13 @@ impl BankStatementOrchestrator {
                         Some(confirmed_date),
                         paid_amount,
                     );
+                    // BAS-115 — a born-group procedure went through no earlier
+                    // fund-payment-match step, so Stage 1 is still unset; fold
+                    // it into validate (= the bank line date). Procedures from
+                    // the fund-PDF flow keep their existing Stage 1 date.
+                    procedure
+                        .fund_reconciliation_date
+                        .get_or_insert(confirmed_date);
                     procedure
                 })
                 .collect();
@@ -270,10 +277,25 @@ impl BankStatementOrchestrator {
         // service layer logs the error; propagate typed
         let groups = self.fund_payment_service.read_all_groups().await?;
         let funds = self.fund_service.read_all_funds().await?;
+        // BAS-112 (D2) — one fund-scoped open-procedure read per known fund;
+        // the engine filters per line, mirroring how funds/groups are supplied.
+        let mut open_procedures = std::collections::HashMap::new();
+        for fund in &funds {
+            let candidates = self
+                .procedure_service
+                .find_open_by_fund_with_patient(&fund.id)
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "compute_reconciliation: find_open_by_fund_with_patient failed");
+                    BankStatementReconciliationTask::DatabaseError
+                })?;
+            open_procedures.insert(fund.id.clone(), candidates);
+        }
         let repos = super::reconciliation::BankStatementReconciliationRepos {
             mappings: &mappings,
             groups: &groups,
             funds: &funds,
+            open_procedures: &open_procedures,
         };
         super::reconciliation::compute_reconciliation(parse_result, &repos, corrections)
     }
@@ -350,6 +372,37 @@ impl BankStatementOrchestrator {
                     group_id: group_id.clone(),
                     date: line.credit_line.date.clone(),
                     amount,
+                });
+            }
+
+            // BAS-115 — a line resolved via procedures births its missing
+            // FundPaymentGroup here (fund = line fund, payment date = bank
+            // line date, total = Σ billed = covered_amount, one group line per
+            // procedure), then settles it through the standard BAS-070–073
+            // path below — write order: group first, then transfer + link,
+            // then lock, procedures last. Created silent: the single
+            // FundPaymentGroupUpdated per settled group comes from the
+            // existing update_group_status publish in the settle step.
+            if !line.assigned_procedure_ids.is_empty() {
+                // Engine invariant: an assignment requires a linked fund.
+                let fund_id = line.fund_id.clone().ok_or_else(|| {
+                    tracing::error!(target: BACKEND, line_id = %line.line_id, "validate_reconciliation: procedure-resolved line without a linked fund");
+                    BankStatementReconciliationTask::ProcedureNotEligible
+                })?;
+                let born = self
+                    .fund_payment_service
+                    .create_group(
+                        fund_id,
+                        line.credit_line.date.clone(),
+                        line.covered_amount,
+                        line.assigned_procedure_ids.clone(),
+                        true,
+                    )
+                    .await?;
+                confirmed_matches.push(ConfirmedMatch {
+                    group_id: born.id,
+                    date: line.credit_line.date.clone(),
+                    amount: born.total_amount,
                 });
             }
         }
@@ -557,6 +610,8 @@ mod tests {
             .returning(|_, _| Ok(vec![]));
         mock.expect_find_created_by_fund_before_date()
             .returning(|_, _| Ok(vec![]));
+        mock.expect_find_open_by_fund_with_patient()
+            .returning(|_| Ok(vec![]));
         mock
     }
 
@@ -2114,8 +2169,10 @@ mod tests {
         (parse_result, corrections)
     }
 
-    fn proc_repo_with_open_procedure_and_capture(
-    ) -> (MockProcedureRepository, Arc<std::sync::Mutex<Vec<Procedure>>>) {
+    fn proc_repo_with_open_procedure_and_capture() -> (
+        MockProcedureRepository,
+        Arc<std::sync::Mutex<Vec<Procedure>>>,
+    ) {
         use crate::context::procedure::{OpenProcedureCandidate, PaymentMethod};
 
         let captured: Arc<std::sync::Mutex<Vec<Procedure>>> =
@@ -2186,10 +2243,11 @@ mod tests {
         let create_group_writer = captured_create_group.clone();
 
         let mut fund_payment_repo = MockFundPaymentRepository::new();
-        fund_payment_repo.expect_read_all_groups().returning(|| Ok(vec![]));
         fund_payment_repo
-            .expect_create_group()
-            .returning(move |fund_id, payment_date, total_amount, procedure_ids| {
+            .expect_read_all_groups()
+            .returning(|| Ok(vec![]));
+        fund_payment_repo.expect_create_group().returning(
+            move |fund_id, payment_date, total_amount, procedure_ids| {
                 create_group_writer.lock().unwrap().push((
                     fund_id.clone(),
                     payment_date.clone(),
@@ -2215,7 +2273,8 @@ mod tests {
                     lines,
                     FundPaymentGroupStatus::BankPaid,
                 ))
-            });
+            },
+        );
         fund_payment_repo.expect_read_group().returning(|id| {
             if id == "born-group-1" {
                 let line = crate::context::fund::FundPaymentLine::new(
@@ -2265,7 +2324,10 @@ mod tests {
                 event_bus.clone(),
             )),
             Arc::new(bank_link_repo_noop()),
-            Arc::new(ProcedureService::new(Arc::new(proc_repo), event_bus.clone())),
+            Arc::new(ProcedureService::new(
+                Arc::new(proc_repo),
+                event_bus.clone(),
+            )),
             Arc::new(label_mapping_repo_returning(vec![mapping])),
             event_bus,
         );
@@ -2302,7 +2364,10 @@ mod tests {
             payment_date, "2026-01-15",
             "born group payment date = bank line date (BAS-115)"
         );
-        assert_eq!(*total_amount, 100_000, "born group total = Σ billed (BAS-115)");
+        assert_eq!(
+            *total_amount, 100_000,
+            "born group total = Σ billed (BAS-115)"
+        );
         assert_eq!(procedure_ids, &vec!["proc-1".to_string()]);
 
         let updated = captured_procs.lock().unwrap();
@@ -2367,7 +2432,10 @@ mod tests {
                 event_bus.clone(),
             )),
             Arc::new(bank_link_repo_noop()),
-            Arc::new(ProcedureService::new(Arc::new(proc_repo), event_bus.clone())),
+            Arc::new(ProcedureService::new(
+                Arc::new(proc_repo),
+                event_bus.clone(),
+            )),
             Arc::new(label_mapping_repo_returning(vec![mapping])),
             event_bus,
         );
@@ -2405,7 +2473,9 @@ mod tests {
         let (proc_repo, _captured) = proc_repo_with_open_procedure_and_capture();
 
         let mut fund_payment_repo = MockFundPaymentRepository::new();
-        fund_payment_repo.expect_read_all_groups().returning(|| Ok(vec![]));
+        fund_payment_repo
+            .expect_read_all_groups()
+            .returning(|| Ok(vec![]));
         fund_payment_repo
             .expect_create_group()
             .returning(|_, _, _, _| Err(anyhow::anyhow!("disk full")));
@@ -2432,7 +2502,10 @@ mod tests {
                 event_bus.clone(),
             )),
             Arc::new(bank_link_repo_noop()),
-            Arc::new(ProcedureService::new(Arc::new(proc_repo), event_bus.clone())),
+            Arc::new(ProcedureService::new(
+                Arc::new(proc_repo),
+                event_bus.clone(),
+            )),
             Arc::new(label_mapping_repo_returning(vec![mapping])),
             event_bus,
         );

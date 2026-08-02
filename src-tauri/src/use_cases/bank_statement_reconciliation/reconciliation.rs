@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::context::fund::{Fund, FundPaymentGroup};
+use crate::context::procedure::OpenProcedureCandidate;
 use crate::use_cases::bank_statement_reconciliation::{
     bank_pdf_codec::{BankStatementCreditLine, BankStatementParseResult},
     error::{BankStatementReconciliationError, BankStatementReconciliationTask},
@@ -38,6 +39,12 @@ pub enum BankStatementCorrection {
     AssignGroups {
         line_id: String,
         group_ids: Vec<String>,
+    },
+    /// BAS-113 — assign 1..N open procedures to a line (empty = unassign).
+    /// Mutually exclusive with `AssignGroups` per line (correction-list cascade).
+    AssignProcedures {
+        line_id: String,
+        procedure_ids: Vec<String>,
     },
     /// BAS-092 — acknowledge the uncovered remainder on a partial line.
     AcknowledgeRemainder { line_id: String },
@@ -75,7 +82,11 @@ pub struct BankStatementLine {
     pub fund_id: Option<String>,
     /// 0..N assigned group ids (BAS-090).
     pub assigned_group_ids: Vec<String>,
-    /// Σ assigned group amounts (BAS-091).
+    /// 0..N assigned open-procedure ids (BAS-113); mutually exclusive with
+    /// `assigned_group_ids` per line.
+    pub assigned_procedure_ids: Vec<String>,
+    /// Σ assigned settlement-item amounts — group totals or procedure billed
+    /// amounts (BAS-091/113).
     pub covered_amount: i64,
     /// BAS-092 — true when the user acknowledged the remainder.
     pub remainder_acknowledged: bool,
@@ -85,6 +96,9 @@ pub struct BankStatementLine {
     /// BAS-068 — ranked candidate groups across ALL funds (not locked or
     /// consumed, any age); shown when the user broadens the search.
     pub broadened_candidates: Vec<BankStatementCandidate>,
+    /// BAS-112 — the linked fund's open procedures, oldest first; empty while
+    /// needs-link (the pool is scoped to the linked fund).
+    pub candidate_procedures: Vec<BankStatementProcedureCandidate>,
     /// BAS-032/066 — heuristic suggestion for the link-fund modal.
     pub suggested_fund_id: Option<String>,
     pub suggested_fund_name: Option<String>,
@@ -122,6 +136,20 @@ pub struct BankStatementCandidate {
     pub is_exact_amount: bool,
 }
 
+/// BAS-112 — one open-procedure candidate for a linked line's procedure scope.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BankStatementProcedureCandidate {
+    pub procedure_id: String,
+    /// Patient display name, resolved for the candidate row; empty when the
+    /// patient is anonymous.
+    pub patient_name: String,
+    pub procedure_date: String,
+    /// The billed amount — the only amount this flow knows (BAS-117).
+    pub billed_amount: i64,
+    /// True if the billed amount exactly matches the line amount.
+    pub is_exact_amount: bool,
+}
+
 // =============================================================================
 // Repositories needed by compute_reconciliation (read-only)
 // =============================================================================
@@ -135,6 +163,9 @@ pub struct BankStatementReconciliationRepos<'a> {
     /// fund that does not exist (`FundNotFound`) and to drive the heuristic
     /// fund suggestion on unmapped labels (BAS-032).
     pub funds: &'a [Fund],
+    /// The open procedures of every known fund keyed by fund id (BAS-112) —
+    /// the procedure-scope candidate pool for linked lines.
+    pub open_procedures: &'a HashMap<String, Vec<OpenProcedureCandidate>>,
 }
 
 // =============================================================================
@@ -150,6 +181,7 @@ struct WorkingLine {
     /// True when the label was explicitly rejected (BAS-030).
     rejected: bool,
     assigned_group_ids: Vec<String>,
+    assigned_procedure_ids: Vec<String>,
     remainder_acknowledged: bool,
     /// Parsed credit-line date (None when the date string is malformed).
     line_date: Option<NaiveDate>,
@@ -193,6 +225,7 @@ pub fn compute_reconciliation(
                 fund_id,
                 rejected,
                 assigned_group_ids: Vec::new(),
+                assigned_procedure_ids: Vec::new(),
                 remainder_acknowledged: false,
                 suggested_fund_id,
                 suggested_fund_name,
@@ -200,14 +233,17 @@ pub fn compute_reconciliation(
         })
         .collect();
 
-    // `consumed` tracks every group already assigned to a line (BAS-067).
+    // `consumed` tracks every group already assigned to a line (BAS-067);
+    // `consumed_procedures` mirrors it for open procedures (BAS-113).
     let mut consumed: HashSet<String> = HashSet::new();
+    let mut consumed_procedures: HashSet<String> = HashSet::new();
 
     // --- 2. Initial auto-match (BAS-050–054). ---
     auto_match(&mut lines, repos.groups, &mut consumed);
 
-    // --- 3. Replay corrections in order (BAS-064). ---
-    for correction in corrections {
+    // --- 3. Replay corrections in order (BAS-064), after the BAS-113
+    //        correction-list cascade removed superseded entries. ---
+    for correction in effective_corrections(corrections) {
         match correction {
             BankStatementCorrection::LinkFund {
                 bank_label,
@@ -222,6 +258,7 @@ pub fn compute_reconciliation(
                     &mut lines,
                     repos.groups,
                     &mut consumed,
+                    &mut consumed_procedures,
                     bank_label,
                     assignment,
                 );
@@ -229,16 +266,38 @@ pub fn compute_reconciliation(
             BankStatementCorrection::AssignGroups { line_id, group_ids } => {
                 apply_assign_groups(&mut lines, repos.groups, &mut consumed, line_id, group_ids)?;
             }
+            BankStatementCorrection::AssignProcedures {
+                line_id,
+                procedure_ids,
+            } => {
+                apply_assign_procedures(
+                    &mut lines,
+                    repos.open_procedures,
+                    &mut consumed,
+                    &mut consumed_procedures,
+                    line_id,
+                    procedure_ids,
+                )?;
+            }
             BankStatementCorrection::AcknowledgeRemainder { line_id } => {
                 apply_acknowledge_remainder(&mut lines, line_id)?;
             }
         }
     }
 
-    // --- 4. Derive per-line status + candidates (BAS-061, BAS-068). ---
+    // --- 4. Derive per-line status + candidates (BAS-061, BAS-068, BAS-112). ---
     let reconciliation_lines: Vec<BankStatementLine> = lines
         .iter()
-        .map(|wl| finalize_line(wl, repos.groups, repos.funds, &consumed))
+        .map(|wl| {
+            finalize_line(
+                wl,
+                repos.groups,
+                repos.funds,
+                repos.open_procedures,
+                &consumed,
+                &consumed_procedures,
+            )
+        })
         .collect();
 
     let resolved_count = reconciliation_lines
@@ -259,6 +318,38 @@ pub fn compute_reconciliation(
     })
 }
 
+/// BAS-113 — the correction-list cascade, applied before the replay: an
+/// assignment correction supersedes, for its line, any earlier assignment of
+/// the OTHER kind (group/procedure mutual exclusion — a cascade, never an
+/// error) and any earlier `AcknowledgeRemainder` (its implied size changed).
+/// An acknowledgment placed AFTER the line's last assignment sticks — that is
+/// the « Rapprocher avec reliquat » composition (BAS-092).
+fn effective_corrections(corrections: &[BankStatementCorrection]) -> Vec<&BankStatementCorrection> {
+    let superseded_by = |c: &BankStatementCorrection, later: &BankStatementCorrection| -> bool {
+        use BankStatementCorrection::{AcknowledgeRemainder, AssignGroups, AssignProcedures};
+        match (c, later) {
+            (AssignGroups { line_id, .. }, AssignProcedures { line_id: l, .. })
+            | (AssignProcedures { line_id, .. }, AssignGroups { line_id: l, .. })
+            | (
+                AcknowledgeRemainder { line_id },
+                AssignGroups { line_id: l, .. } | AssignProcedures { line_id: l, .. },
+            ) => l == line_id,
+            _ => false,
+        }
+    };
+    corrections
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| {
+            !corrections
+                .iter()
+                .skip(i + 1)
+                .any(|later| superseded_by(c, later))
+        })
+        .map(|(_, c)| c)
+        .collect()
+}
+
 /// BAS-050–054 — auto-match resolved (fund-known, not rejected, unassigned)
 /// lines against eligible unsettled groups. Exact fund + exact amount + date
 /// tolerance, exclusive (a matched line and group are both locked).
@@ -271,11 +362,18 @@ fn auto_match(
     groups: &[FundPaymentGroup],
     consumed: &mut HashSet<String>,
 ) {
-    // Candidate line indices: fund known, not rejected, no groups yet.
+    // Candidate line indices: fund known, not rejected, no settlement items
+    // yet — a procedure-assigned line must not be re-auto-matched on the
+    // post-LinkFund re-run (BAS-113 mutual exclusion).
     let mut order: Vec<usize> = lines
         .iter()
         .enumerate()
-        .filter(|(_, l)| l.fund_id.is_some() && !l.rejected && l.assigned_group_ids.is_empty())
+        .filter(|(_, l)| {
+            l.fund_id.is_some()
+                && !l.rejected
+                && l.assigned_group_ids.is_empty()
+                && l.assigned_procedure_ids.is_empty()
+        })
         .map(|(i, _)| i)
         .collect();
     // Oldest line first (BAS-052); lines with an unparseable date sort last.
@@ -324,6 +422,7 @@ fn apply_link_fund(
     lines: &mut [WorkingLine],
     groups: &[FundPaymentGroup],
     consumed: &mut HashSet<String>,
+    consumed_procedures: &mut HashSet<String>,
     bank_label: &str,
     assignment: &FundAssignment,
 ) {
@@ -333,13 +432,26 @@ fn apply_link_fund(
         }
         match assignment {
             FundAssignment::Fund { fund_id } => {
+                // BAS-066 amendment — re-linking to a DIFFERENT fund drops any
+                // procedure assignment made under the old fund (it would be
+                // wrong-fund ineligible under the new link); the procedures
+                // return to the open pool.
+                if line.fund_id.as_ref() != Some(fund_id) {
+                    for pid in line.assigned_procedure_ids.drain(..) {
+                        consumed_procedures.remove(&pid);
+                    }
+                }
                 line.fund_id = Some(fund_id.clone());
                 line.rejected = false;
             }
             FundAssignment::Rejected => {
-                // Release any previously assigned groups and reject the line.
+                // Release any previously assigned settlement items and reject
+                // the line.
                 for gid in line.assigned_group_ids.drain(..) {
                     consumed.remove(&gid);
+                }
+                for pid in line.assigned_procedure_ids.drain(..) {
+                    consumed_procedures.remove(&pid);
                 }
                 line.fund_id = None;
                 line.rejected = true;
@@ -408,6 +520,8 @@ fn apply_assign_groups(
     }
 
     // Commit: release the line's previous groups, then claim the new set.
+    // A prior remainder acknowledgment was already removed by the BAS-113
+    // correction-list cascade (`effective_corrections`), never at replay time.
     for gid in line.assigned_group_ids.drain(..) {
         consumed.remove(&gid);
     }
@@ -415,8 +529,79 @@ fn apply_assign_groups(
         consumed.insert(gid.clone());
     }
     line.assigned_group_ids = group_ids.to_vec();
-    // Re-assigning resets a prior remainder acknowledgment so it cannot dangle.
-    line.remainder_acknowledged = false;
+
+    Ok(())
+}
+
+/// BAS-113/094 — assign an explicit set of open procedures to one line. Empty
+/// `procedure_ids` unassigns (BAS-062 override semantics, including precedence
+/// over the line's auto-match). Rejects ineligible, already-consumed, or
+/// overflowing assignments with a typed error; the reconciliation is left
+/// unchanged on rejection (validation precedes mutation).
+fn apply_assign_procedures(
+    lines: &mut [WorkingLine],
+    open_procedures: &HashMap<String, Vec<OpenProcedureCandidate>>,
+    consumed_groups: &mut HashSet<String>,
+    consumed_procedures: &mut HashSet<String>,
+    line_id: &str,
+    procedure_ids: &[String],
+) -> Result<(), BankStatementReconciliationError> {
+    let line = lines
+        .iter_mut()
+        .find(|l| l.line_id == line_id)
+        .ok_or(BankStatementReconciliationTask::LineNotFound)?;
+
+    // Procedures are scoped to the linked fund (BAS-111/112): an unlinked
+    // line has no candidate pool at all.
+    if line.fund_id.is_none() && !procedure_ids.is_empty() {
+        return Err(BankStatementReconciliationTask::ProcedureNotEligible.into());
+    }
+    let pool: &[OpenProcedureCandidate] = line
+        .fund_id
+        .as_ref()
+        .and_then(|fund_id| open_procedures.get(fund_id))
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+
+    let line_amount = line.credit_line.amount;
+    let currently_assigned: HashSet<String> = line.assigned_procedure_ids.iter().cloned().collect();
+
+    // Validate the whole requested set before mutating anything.
+    let mut total: i64 = 0;
+    for pid in procedure_ids {
+        // BAS-113 eligibility: unknown / not-open / wrong-fund all reduce to
+        // "not in the line's fund pool" (the pool already applies BAS-112).
+        let candidate = pool
+            .iter()
+            .find(|c| &c.procedure_id == pid)
+            .ok_or(BankStatementReconciliationTask::ProcedureNotEligible)?;
+
+        // BAS-113: a procedure consumed by another line cannot be reassigned here.
+        if consumed_procedures.contains(pid) && !currently_assigned.contains(pid) {
+            return Err(BankStatementReconciliationTask::ProcedureAlreadyConsumed.into());
+        }
+
+        total += candidate.billed_amount;
+    }
+
+    // BAS-094 (reused verbatim): the assigned total may never exceed the line amount.
+    if total > line_amount {
+        return Err(BankStatementReconciliationTask::AssignmentOverflow.into());
+    }
+
+    // Commit: release the line's previous settlement items of BOTH kinds —
+    // the group release covers the auto-match, which the correction-list
+    // cascade cannot see — then claim the new set.
+    for gid in line.assigned_group_ids.drain(..) {
+        consumed_groups.remove(&gid);
+    }
+    for pid in line.assigned_procedure_ids.drain(..) {
+        consumed_procedures.remove(&pid);
+    }
+    for pid in procedure_ids {
+        consumed_procedures.insert(pid.clone());
+    }
+    line.assigned_procedure_ids = procedure_ids.to_vec();
 
     Ok(())
 }
@@ -440,43 +625,37 @@ fn finalize_line(
     wl: &WorkingLine,
     groups: &[FundPaymentGroup],
     funds: &[Fund],
+    open_procedures: &HashMap<String, Vec<OpenProcedureCandidate>>,
     consumed: &HashSet<String>,
+    consumed_procedures: &HashSet<String>,
 ) -> BankStatementLine {
     let line_amount = wl.credit_line.amount;
+    // BAS-091/113 — settlement-item-agnostic balance: group totals when groups
+    // are assigned, procedure billed amounts when procedures are. At most one
+    // kind is non-empty per line (BAS-113 mutual exclusion).
+    let procedure_pool: &[OpenProcedureCandidate] = wl
+        .fund_id
+        .as_ref()
+        .and_then(|fund_id| open_procedures.get(fund_id))
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
     let covered_amount: i64 = wl
         .assigned_group_ids
         .iter()
         .filter_map(|gid| groups.iter().find(|g| &g.id == gid))
         .map(|g| g.total_amount)
-        .sum();
-
-    let status = if wl.rejected {
-        BankStatementLineStatus::Rejected
-    } else if wl.fund_id.is_none() {
-        BankStatementLineStatus::NeedsLink
-    } else if !wl.assigned_group_ids.is_empty() {
-        if covered_amount == line_amount || wl.remainder_acknowledged {
-            BankStatementLineStatus::Matched
-        } else {
-            BankStatementLineStatus::Partial
-        }
-    } else {
-        // Fund known, no groups assigned: NeedsGroup if a candidate exists,
-        // else Unresolved (BAS-061).
-        // No groups assigned in this branch, so the ceiling is the line amount.
-        let has_candidate = !candidate_groups(wl, groups, funds, consumed, line_amount).is_empty();
-        if has_candidate {
-            BankStatementLineStatus::NeedsGroup
-        } else {
-            BankStatementLineStatus::Unresolved
-        }
-    };
+        .sum::<i64>()
+        + wl.assigned_procedure_ids
+            .iter()
+            .filter_map(|pid| procedure_pool.iter().find(|c| &c.procedure_id == pid))
+            .map(|c| c.billed_amount)
+            .sum::<i64>();
 
     // BAS-068 — the candidate lists support RECOMPOSING the assignment: the
-    // line's own assigned groups reappear (hosts pre-select them) and the
+    // line's own assigned items reappear (hosts pre-select them) and the
     // amount filter runs against the full line amount, not the yet-uncovered
-    // remainder. AssignGroups replaces the set (BAS-062); the overflow guard
-    // (BAS-094) bounds the recomposed total.
+    // remainder. Assignment corrections replace the set (BAS-062); the
+    // overflow guard (BAS-094) bounds the recomposed total.
     let consumed_by_others: HashSet<String> = consumed
         .iter()
         .filter(|id| !wl.assigned_group_ids.contains(id))
@@ -487,6 +666,45 @@ fn finalize_line(
     // all funds (no fund filter). Superset shown when the user broadens the search.
     let broadened_candidates =
         broadened_candidates(groups, funds, &consumed_by_others, line_amount);
+    // BAS-112 — the linked fund's open procedures, repo order preserved
+    // (oldest first, id tiebreak); minus those consumed by OTHER lines. Not
+    // ceiling-filtered: the billed amount is what it is, and the exact flag +
+    // overflow guard carry the amount semantics (BAS-117 accepted dead-end).
+    let candidate_procedures: Vec<BankStatementProcedureCandidate> = procedure_pool
+        .iter()
+        .filter(|c| {
+            !consumed_procedures.contains(&c.procedure_id)
+                || wl.assigned_procedure_ids.contains(&c.procedure_id)
+        })
+        .map(|c| BankStatementProcedureCandidate {
+            procedure_id: c.procedure_id.clone(),
+            patient_name: c.patient_name.clone().unwrap_or_default(),
+            procedure_date: c.procedure_date.format("%Y-%m-%d").to_string(),
+            billed_amount: c.billed_amount,
+            is_exact_amount: c.billed_amount == line_amount,
+        })
+        .collect();
+
+    let has_assignment = !wl.assigned_group_ids.is_empty() || !wl.assigned_procedure_ids.is_empty();
+    let status = if wl.rejected {
+        BankStatementLineStatus::Rejected
+    } else if wl.fund_id.is_none() {
+        BankStatementLineStatus::NeedsLink
+    } else if has_assignment {
+        if covered_amount == line_amount || wl.remainder_acknowledged {
+            BankStatementLineStatus::Matched
+        } else {
+            BankStatementLineStatus::Partial
+        }
+    } else {
+        // Fund known, nothing assigned: NeedsGroup if a candidate of EITHER
+        // kind exists (settlement-item-agnostic, BAS-061/116), else Unresolved.
+        if candidate_groups.is_empty() && candidate_procedures.is_empty() {
+            BankStatementLineStatus::Unresolved
+        } else {
+            BankStatementLineStatus::NeedsGroup
+        }
+    };
 
     BankStatementLine {
         line_id: wl.line_id.clone(),
@@ -494,10 +712,12 @@ fn finalize_line(
         status,
         fund_id: wl.fund_id.clone(),
         assigned_group_ids: wl.assigned_group_ids.clone(),
+        assigned_procedure_ids: wl.assigned_procedure_ids.clone(),
         covered_amount,
         remainder_acknowledged: wl.remainder_acknowledged,
         candidate_groups,
         broadened_candidates,
+        candidate_procedures,
         suggested_fund_id: wl.suggested_fund_id.clone(),
         suggested_fund_name: wl.suggested_fund_name.clone(),
     }
@@ -659,6 +879,15 @@ mod tests {
         }
     }
 
+    /// Shared empty pool for tests where open procedures play no role.
+    fn no_open_procedures(
+    ) -> &'static HashMap<String, Vec<crate::context::procedure::OpenProcedureCandidate>> {
+        static EMPTY: std::sync::OnceLock<
+            HashMap<String, Vec<crate::context::procedure::OpenProcedureCandidate>>,
+        > = std::sync::OnceLock::new();
+        EMPTY.get_or_init(HashMap::new)
+    }
+
     // A `LinkFund` correction referencing a fund id absent from the known funds
     // is rejected with `FundNotFound`, leaving compute_reconciliation to surface the
     // typed error rather than silently linking a phantom fund.
@@ -680,6 +909,7 @@ mod tests {
             mappings: &[],
             groups: &[],
             funds: &funds,
+            open_procedures: no_open_procedures(),
         };
         let corrections = vec![BankStatementCorrection::LinkFund {
             bank_label: "CPAM93".to_string(),
@@ -783,6 +1013,7 @@ mod tests {
             mappings: &[],
             groups: &[],
             funds: &funds,
+            open_procedures: no_open_procedures(),
         };
 
         let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
@@ -824,6 +1055,7 @@ mod tests {
             mappings: &mappings,
             groups: &groups_d15,
             funds: &funds,
+            open_procedures: no_open_procedures(),
         };
         let recon = compute_reconciliation(&parse_result, &repos_d15, &[]).unwrap();
         assert_eq!(recon.lines[0].status, BankStatementLineStatus::Matched);
@@ -836,6 +1068,7 @@ mod tests {
             mappings: &mappings,
             groups: &groups_d16,
             funds: &funds,
+            open_procedures: no_open_procedures(),
         };
         let recon = compute_reconciliation(&parse_result, &repos_d16, &[]).unwrap();
         assert_eq!(recon.lines[0].status, BankStatementLineStatus::NeedsGroup);
@@ -870,6 +1103,7 @@ mod tests {
             mappings: &mappings,
             groups: &groups,
             funds: &funds,
+            open_procedures: no_open_procedures(),
         };
 
         let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
@@ -922,6 +1156,7 @@ mod tests {
             mappings: &mappings,
             groups: &groups,
             funds: &funds,
+            open_procedures: no_open_procedures(),
         };
 
         let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
@@ -967,6 +1202,7 @@ mod tests {
             mappings: &mappings,
             groups: &groups,
             funds: &funds,
+            open_procedures: no_open_procedures(),
         };
         let corrections = vec![BankStatementCorrection::AssignGroups {
             line_id: "line-0".to_string(),
@@ -1013,6 +1249,7 @@ mod tests {
             mappings: &mappings,
             groups: &groups,
             funds: &funds,
+            open_procedures: no_open_procedures(),
         };
         let corrections = vec![BankStatementCorrection::AssignGroups {
             line_id: "line-0".to_string(),
@@ -1068,6 +1305,7 @@ mod tests {
             mappings: &mappings,
             groups: &groups,
             funds: &funds,
+            open_procedures: no_open_procedures(),
         };
 
         let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
@@ -1133,7 +1371,12 @@ mod tests {
         let funds = vec![fund("fund-1", "1", "CPAM Paris")];
         let open_procedures = one_fund_open_procedures(
             "fund-1",
-            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                100_000,
+                "Jean Dupont",
+            )],
         );
         let repos = BankStatementReconciliationRepos {
             mappings: &[],
@@ -1164,7 +1407,12 @@ mod tests {
         let funds = vec![fund("fund-1", "93", "CPAM Seine-Saint-Denis")];
         let open_procedures = one_fund_open_procedures(
             "fund-1",
-            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                100_000,
+                "Jean Dupont",
+            )],
         );
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1208,7 +1456,12 @@ mod tests {
         let funds = vec![fund("fund-1", "93", "CPAM 93")];
         let open_procedures = one_fund_open_procedures(
             "fund-1",
-            vec![open_procedure("proc-1", "2026-01-01", 150_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                150_000,
+                "Jean Dupont",
+            )],
         );
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1262,7 +1515,12 @@ mod tests {
         // proc-2 is an open procedure of fund-2, not the line's linked fund-1.
         let open_procedures = one_fund_open_procedures(
             "fund-2",
-            vec![open_procedure("proc-2", "2026-01-01", 100_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-2",
+                "2026-01-01",
+                100_000,
+                "Jean Dupont",
+            )],
         );
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1380,7 +1638,12 @@ mod tests {
         let groups = vec![group("group-a", "fund-1", "2026-01-10", 100_000)];
         let open_procedures = one_fund_open_procedures(
             "fund-1",
-            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                100_000,
+                "Jean Dupont",
+            )],
         );
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1437,7 +1700,12 @@ mod tests {
         let groups = vec![group("group-a", "fund-1", "2026-01-10", 100_000)];
         let open_procedures = one_fund_open_procedures(
             "fund-1",
-            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                100_000,
+                "Jean Dupont",
+            )],
         );
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1499,7 +1767,12 @@ mod tests {
         let groups = vec![group("group-auto", "fund-1", "2026-01-15", 100_000)];
         let open_procedures = one_fund_open_procedures(
             "fund-1",
-            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                100_000,
+                "Jean Dupont",
+            )],
         );
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1553,7 +1826,12 @@ mod tests {
         ];
         let open_procedures = one_fund_open_procedures(
             "fund-a",
-            vec![open_procedure("proc-1", "2026-01-01", 100_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                100_000,
+                "Jean Dupont",
+            )],
         );
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1675,7 +1953,12 @@ mod tests {
         let groups = vec![group("group-a", "fund-1", "2026-01-10", 60_000)];
         let open_procedures = one_fund_open_procedures(
             "fund-1",
-            vec![open_procedure("proc-1", "2026-01-01", 40_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                40_000,
+                "Jean Dupont",
+            )],
         );
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1717,12 +2000,16 @@ mod tests {
         assert_eq!(line.status, BankStatementLineStatus::Partial);
     }
 
-    // BAS-113 — reverting the reassignment that reset the acknowledgment must
-    // NOT resurrect it: the exclusion cascade drops the superseded
-    // AcknowledgeRemainder from the effective replay, not just the runtime
-    // flag, so a shortened correction list cannot bring it back.
+    // BAS-092/113 — the « Rapprocher avec reliquat » composition posts the
+    // assignment immediately followed by the acknowledgment: an
+    // AcknowledgeRemainder placed AFTER the line's last assignment survives
+    // the BAS-113 cascade and resolves the line. (The cascade only removes an
+    // acknowledgment that PRECEDES a later assignment — see
+    // assign_procedures_resets_previously_acknowledged_remainder; revert
+    // safety comes from the stored correction list being compacted at apply
+    // time, a frontend concern pinned by the P4/P5 tests.)
     #[test]
-    fn assign_procedures_reassignment_reset_is_not_resurrected_by_reverting() {
+    fn acknowledge_after_procedure_assignment_survives_and_resolves_the_line() {
         let mappings = vec![BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -1733,7 +2020,12 @@ mod tests {
         let groups = vec![group("group-a", "fund-1", "2026-01-10", 60_000)];
         let open_procedures = one_fund_open_procedures(
             "fund-1",
-            vec![open_procedure("proc-1", "2026-01-01", 40_000, "Jean Dupont")],
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                40_000,
+                "Jean Dupont",
+            )],
         );
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -1753,36 +2045,26 @@ mod tests {
             open_procedures: &open_procedures,
         };
 
-        let full_corrections = vec![
-            BankStatementCorrection::AssignGroups {
-                line_id: "line-0".to_string(),
-                group_ids: vec!["group-a".to_string()],
-            },
-            BankStatementCorrection::AcknowledgeRemainder {
-                line_id: "line-0".to_string(),
-            },
+        let corrections = vec![
             BankStatementCorrection::AssignProcedures {
                 line_id: "line-0".to_string(),
                 procedure_ids: vec!["proc-1".to_string()],
             },
-        ];
-        let full = compute_reconciliation(&parse_result, &repos, &full_corrections).unwrap();
-        assert!(!full.lines[0].remainder_acknowledged);
-
-        // "Revert" the last correction (AssignProcedures) by dropping it.
-        let reverted_corrections = vec![
-            BankStatementCorrection::AssignGroups {
-                line_id: "line-0".to_string(),
-                group_ids: vec!["group-a".to_string()],
-            },
             BankStatementCorrection::AcknowledgeRemainder {
                 line_id: "line-0".to_string(),
             },
         ];
-        let reverted = compute_reconciliation(&parse_result, &repos, &reverted_corrections).unwrap();
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
         assert!(
-            !reverted.lines[0].remainder_acknowledged,
-            "reverting the reassignment must NOT resurrect the acknowledgment it superseded (BAS-113)"
+            line.remainder_acknowledged,
+            "an acknowledgment after the line's last assignment must stick (BAS-092)"
         );
+        assert_eq!(
+            line.status,
+            BankStatementLineStatus::Matched,
+            "assignment + acknowledged remainder resolves the line (BAS-092/113)"
+        );
+        assert_eq!(line.covered_amount, 40_000);
     }
 }
