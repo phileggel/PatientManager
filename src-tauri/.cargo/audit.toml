@@ -1,0 +1,14 @@
+# cargo-audit configuration — read by the scheduled Security Audit workflow
+# (.github/workflows/security-audit.yml runs `cargo audit` in src-tauri/).
+
+[advisories]
+ignore = [
+    # RUSTSEC-2026-0187 — lopdf < 0.42: stack overflow when PARSING deeply
+    # nested PDF objects. The remaining in-tree instance is lopdf 0.39 via
+    # printpdf 0.9, which only WRITES report PDFs — untrusted input never
+    # flows through it — plus the dev-only test parser for our own generated
+    # output. The untrusted-input path (pdf-extract, bank/fund statements)
+    # is on lopdf 0.42 (fixed). Removal of this ignore is tracked in
+    # docs/techdebt.md — "printpdf 0.9 pins a RUSTSEC-flagged lopdf".
+    "RUSTSEC-2026-0187",
+]
