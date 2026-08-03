@@ -1598,8 +1598,9 @@ mod tests {
     }
 
     // D1 — the predicate: fund_id matches, payment_status == CREATED,
-    // billed_amount > 0. Wrong fund, non-CREATED, and zero-billed procedures
-    // are all excluded; the patient name resolves via the JOIN.
+    // billed_amount > 0, not soft-deleted. Wrong fund, non-CREATED,
+    // zero-billed, and soft-deleted procedures are all excluded; the patient
+    // name resolves via the JOIN.
     #[tokio::test]
     async fn find_open_by_fund_with_patient_matches_the_d1_predicate() {
         let repo = setup().await;
@@ -1620,6 +1621,30 @@ mod tests {
             )
             .await
             .unwrap();
+
+        // Soft-deleted (otherwise fully eligible) — excluded (BAS-112).
+        let soft_deleted = repo
+            .create_procedure(
+                "patient-1".into(),
+                Some("fund-1".into()),
+                "t1".into(),
+                d("2026-01-09"),
+                50_000,
+                PaymentMethod::None,
+                None,
+                None,
+                None,
+                ProcedureStatus::Created,
+            )
+            .await
+            .unwrap();
+        sqlx::query!(
+            "UPDATE procedure SET is_deleted = 1 WHERE id = ?",
+            soft_deleted.id
+        )
+        .execute(&repo.pool)
+        .await
+        .unwrap();
 
         // Wrong fund — excluded.
         repo.create_procedure(

@@ -173,8 +173,9 @@ export function ReconciliationView({
         />
       )}
 
-      {/* Partial included — the assign modal seeds the current groups and
-          carries the acknowledge-remainder affordance (BAS-062/092). */}
+      {/* Partial included — the assign modal seeds the current settlement
+          items; acknowledging the remainder happens via its
+          « Rapprocher avec reliquat » footer action (BAS-062/092/113). */}
       {activeLine !== null && activeLine.status !== "NeedsLink" && (
         <AssignGroupsModal
           line={activeLine}

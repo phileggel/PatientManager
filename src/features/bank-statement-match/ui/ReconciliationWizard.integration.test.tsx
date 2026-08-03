@@ -534,5 +534,10 @@ describe("ReconciliationWizard — BAS-100–103", () => {
     expect(step?.textContent).toContain(
       `reconciliation.link_fund.title:${JSON.stringify({ label: "MGEN" })}`,
     );
+
+    // BAS-110 — every wizard step mounts the correction context header.
+    const header = document.getElementById("wizard-step-context");
+    expect(header).not.toBeNull();
+    expect(header?.textContent).toContain("MGEN");
   });
 });

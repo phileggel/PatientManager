@@ -106,7 +106,9 @@ export function AssignGroupsModal({
   // « Rapprocher avec reliquat » — enabled iff the selection is non-empty and
   // leaves a remainder (BAS-113 dialog actions).
   const leavesRemainder = selected.length > 0 && covered < lineAmount;
-  const remainder = lineAmount - line.covered_amount;
+  // Live: tracks the current selection like the balance above it, not the
+  // committed draft (spec-checker 2026-08-02).
+  const remainder = lineAmount - covered;
 
   const assignmentCorrection = (): BankStatementCorrection =>
     scope === "procedures"
@@ -189,7 +191,7 @@ export function AssignGroupsModal({
         {/* BAS-092 — the uncovered remainder is informational text only; the
             former standalone acknowledge button was judged not understandable
             (2026-07-31 wireframe review). */}
-        {line.status === "Partial" && (
+        {line.status === "Partial" && remainder > 0 && (
           <p id="assign-groups-remainder-info" className="text-sm text-m3-on-surface-variant">
             {t("reconciliation.remainder.amount", { amount: formatCurrency(remainder) })}
           </p>
