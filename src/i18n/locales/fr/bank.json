@@ -42,8 +42,6 @@
     "assign_groups": {
       "title": "Rapprocher « {{label}} »",
       "balance": "Couvert {{covered}} sur {{total}}",
-      "broaden_on": "Chercher dans toutes les caisses",
-      "broaden_off": "Limiter à cette caisse",
       "scope_fund": "Cette caisse",
       "scope_all": "Toutes les caisses",
       "scope_procedures": "Actes de la caisse",

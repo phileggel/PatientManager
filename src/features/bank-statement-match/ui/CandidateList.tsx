@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankStatementCandidate, BankStatementLine } from "@/bindings";
-import { Button } from "@/ui/components/button";
 import { useFormatters } from "@/ui/format/formatters";
 import { coveredAmount } from "../shared/candidateSelection";
 
@@ -77,37 +75,20 @@ interface CandidateListProps {
 }
 
 /**
- * BAS-068/090/091 — candidate selector (wire order: most recent payment
- * first) with live balance and broaden
- * toggle, shared by AssignGroupsModal and the wizard's assign-group step
- * (BAS-101). Selection state is controlled by the host; the broaden state is
- * local and hosts reset it by keying the component on the line id.
+ * BAS-068/090/091/116 — the wizard group step's candidate selector (wire
+ * order: most recent payment first) with live balance, over the fund-scoped
+ * set only — the broadened/scope switching is dialog-only (BAS-116; the
+ * former standalone broaden toggle was superseded by the BAS-111 scopes).
+ * Selection state is controlled by the host.
  */
 export function CandidateList({ line, idPrefix, selected, onSelectionChange }: CandidateListProps) {
   const { t } = useTranslation("bank");
   const { formatCurrency } = useFormatters();
-  const [broadened, setBroadened] = useState(false);
-  // BAS-068 — default to the fund-filtered set; broadening swaps in the
-  // fund-agnostic superset. The wire order (most recent payment first) is
-  // rendered as-is.
-  const candidates = broadened ? line.broadened_candidates : line.candidate_groups;
 
   const toggle = (groupId: string) => {
     onSelectionChange(
       selected.includes(groupId) ? selected.filter((id) => id !== groupId) : [...selected, groupId],
     );
-  };
-
-  // Swapping the candidate source must drop selections that are no longer
-  // visible — otherwise a broadened-only selection would be submitted (and
-  // counted nowhere in the balance) after the user narrows back.
-  const toggleBroadened = () => {
-    const next = !broadened;
-    const visible = new Set(
-      (next ? line.broadened_candidates : line.candidate_groups).map((c) => c.group_id),
-    );
-    onSelectionChange(selected.filter((id) => visible.has(id)));
-    setBroadened(next);
   };
 
   return (
@@ -119,23 +100,8 @@ export function CandidateList({ line, idPrefix, selected, onSelectionChange }: C
         })}
       </output>
 
-      <div className="flex justify-end">
-        <Button
-          id={`${idPrefix}-broaden`}
-          variant="secondary"
-          aria-pressed={broadened}
-          onClick={toggleBroadened}
-        >
-          {t(
-            broadened
-              ? "reconciliation.assign_groups.broaden_off"
-              : "reconciliation.assign_groups.broaden_on",
-          )}
-        </Button>
-      </div>
-
       <GroupCandidateRows
-        candidates={candidates}
+        candidates={line.candidate_groups}
         idPrefix={idPrefix}
         selected={selected}
         onToggle={toggle}

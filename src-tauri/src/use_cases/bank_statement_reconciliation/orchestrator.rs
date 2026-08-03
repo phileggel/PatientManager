@@ -2524,6 +2524,43 @@ mod tests {
         );
     }
 
+    // BAS-123C — a left-aside line (Matched with zero settlement items and an
+    // acknowledged remainder) writes NOTHING at validate: no BankEntry and no
+    // born group. The mocks carry no `create_group`/`create_transfer`
+    // expectations, so any write here would panic the test.
+    #[tokio::test]
+    async fn validate_reconciliation_left_aside_line_creates_nothing() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![BankStatementCorrection::AcknowledgeRemainder {
+            line_id: "line-0".to_string(),
+        }];
+
+        let count = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        assert_eq!(count, 0, "a left-aside line must create nothing (BAS-123C)");
+    }
+
     // BAS-115 — `create_group` is called `is_silent=true` (no new publish); the
     // born group's single `FundPaymentGroupUpdated` event comes from the
     // EXISTING `update_group_status` publish in the settle step. Exactly one
