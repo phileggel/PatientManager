@@ -113,7 +113,10 @@ describe("LabelAssociationScreen — BAS-120–121", () => {
   it("renders one row per distinct label, ordered by first occurrence", () => {
     const lines = [
       makeLine({ line_id: "l1", credit_line: { date: "2026-04-10", label: "MGEN", amount: 1000 } }),
-      makeLine({ line_id: "l2", credit_line: { date: "2026-04-11", label: "CPAM75", amount: 2000 } }),
+      makeLine({
+        line_id: "l2",
+        credit_line: { date: "2026-04-11", label: "CPAM75", amount: 2000 },
+      }),
       makeLine({ line_id: "l3", credit_line: { date: "2026-04-12", label: "MGEN", amount: 500 } }),
     ];
 
@@ -197,7 +200,9 @@ describe("LabelAssociationScreen — BAS-120–121", () => {
   // -------------------------------------------------------------------------
 
   it("shows the 'to associate' chip and an Ignorer action for an undecided label", () => {
-    const lines = [makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } })];
+    const lines = [
+      makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } }),
+    ];
 
     renderScreen(lines);
 
@@ -239,13 +244,17 @@ describe("LabelAssociationScreen — BAS-120–121", () => {
     );
     const action = document.getElementById("label-assoc-ignore-SALAIRE");
     expect(action?.textContent).toBe("bank:label_association.restore");
-    const select = document.getElementById("label-assoc-select-SALAIRE") as HTMLSelectElement | null;
+    const select = document.getElementById(
+      "label-assoc-select-SALAIRE",
+    ) as HTMLSelectElement | null;
     expect(select?.disabled).toBe(true);
   });
 
   it("applies LinkFund/Rejected directly when Ignorer is clicked on a label with no assigned items", async () => {
     const onApplyCorrection = vi.fn().mockResolvedValue(true);
-    const lines = [makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } })];
+    const lines = [
+      makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } }),
+    ];
 
     renderScreen(lines, { onApplyCorrection });
 
@@ -361,7 +370,9 @@ describe("LabelAssociationScreen — BAS-120–121", () => {
 
     renderScreen(lines, { corrections: [], onRevertCorrection });
 
-    const select = document.getElementById("label-assoc-select-SALAIRE") as HTMLSelectElement | null;
+    const select = document.getElementById(
+      "label-assoc-select-SALAIRE",
+    ) as HTMLSelectElement | null;
     expect(select?.disabled).toBe(true);
 
     const restoreBtn = document.getElementById("label-assoc-ignore-SALAIRE");
@@ -439,7 +450,9 @@ describe("LabelAssociationScreen — BAS-120–121", () => {
 
   it("calls onCancel when Annuler is clicked, abandoning the import", async () => {
     const onCancel = vi.fn();
-    const lines = [makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } })];
+    const lines = [
+      makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } }),
+    ];
 
     renderScreen(lines, { onCancel });
 
@@ -451,12 +464,16 @@ describe("LabelAssociationScreen — BAS-120–121", () => {
   });
 
   it("disables the fund selects and action buttons while isBusy", () => {
-    const lines = [makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } })];
+    const lines = [
+      makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } }),
+    ];
 
     renderScreen(lines, { isBusy: true });
 
     const select = document.getElementById("label-assoc-select-CPAM75") as HTMLSelectElement | null;
-    const ignoreBtn = document.getElementById("label-assoc-ignore-CPAM75") as HTMLButtonElement | null;
+    const ignoreBtn = document.getElementById(
+      "label-assoc-ignore-CPAM75",
+    ) as HTMLButtonElement | null;
     expect(select?.disabled).toBe(true);
     expect(ignoreBtn?.disabled).toBe(true);
   });

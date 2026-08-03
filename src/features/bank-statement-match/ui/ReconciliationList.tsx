@@ -4,7 +4,7 @@ import type { BankStatementLine, BankStatementReconciliation } from "@/bindings"
 import { useCacheStore } from "@/infra/cache/store";
 import { Button } from "@/ui/components/button";
 import { useFormatters } from "@/ui/format/formatters";
-import { lineStatusTone, presentLineStatus } from "../shared/reconciliationPresenter";
+import { lineStatusTone, presentLineBadge } from "../shared/reconciliationPresenter";
 
 interface ReconciliationListProps {
   reconciliation: BankStatementReconciliation;
@@ -42,6 +42,14 @@ export function ReconciliationList({
     ? reconciliation.lines.filter((line) => lineStatusTone(line.status) !== "resolved")
     : reconciliation.lines;
 
+  // BAS-122 — the summary is computed over the lines actually shown, never
+  // from the wire's whole-document counters (unconsumed since the two-screen
+  // split; the settlement screen passes only the linked labels' lines).
+  const resolvedCount = reconciliation.lines.filter(
+    (line) => lineStatusTone(line.status) === "resolved",
+  ).length;
+  const needsCorrectionCount = reconciliation.lines.length - resolvedCount;
+
   // Resolved fund name once linked; the raw bank label while still needs-link
   // (rendered muted+italic so it cannot be mistaken for a fund name).
   const fundCell = (line: BankStatementLine) =>
@@ -58,8 +66,8 @@ export function ReconciliationList({
       <div className="flex items-center justify-between mb-3">
         <output id="reconciliation-summary" className="text-sm text-m3-on-surface-variant">
           {t("reconciliation.summary", {
-            resolved: reconciliation.resolved_count,
-            needsCorrection: reconciliation.needs_correction_count,
+            resolved: resolvedCount,
+            needsCorrection: needsCorrectionCount,
           })}
         </output>
         <div className="flex items-center gap-3">
@@ -88,56 +96,59 @@ export function ReconciliationList({
         </div>
       </div>
 
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="text-xs text-m3-on-surface-variant">
-            <th className="text-left font-medium px-4 py-2">{t("reconciliation.col.date")}</th>
-            <th className="text-left font-medium px-4 py-2">{t("reconciliation.col.fund")}</th>
-            <th className="text-right font-medium px-4 py-2">{t("reconciliation.col.amount")}</th>
-            <th className="text-right font-medium px-4 py-2">{t("reconciliation.col.status")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {visibleLines.map((line) => {
-            const tone = lineStatusTone(line.status);
-            // Three visually distinct badge families: fund unknown (link, primary),
-            // transaction missing (attention, gold), resolved (subdued).
-            const badgeClass =
-              tone === "link"
-                ? "bg-m3-primary-container text-m3-on-primary-container"
-                : tone === "attention"
-                  ? "bg-m3-tertiary-container text-m3-on-tertiary-container"
-                  : "bg-m3-surface-container-high text-m3-on-surface-variant";
-            return (
-              <tr
-                key={line.line_id}
-                id={`reconciliation-line-row-${line.line_id}`}
-                className="cursor-pointer border-b border-m3-outline/15 hover:bg-m3-surface-container-low"
-                onDoubleClick={() => {
-                  if (isBusy) return;
-                  onApplyCorrection(line);
-                }}
-              >
-                <td className="px-4 py-3 text-m3-on-surface-variant tabular-nums whitespace-nowrap">
-                  {formatDate(line.credit_line.date)}
-                </td>
-                <td className="px-4 py-3">{fundCell(line)}</td>
-                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap text-m3-on-surface">
-                  {formatCurrency(line.credit_line.amount)}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <span
-                    id={`reconciliation-line-status-${line.line_id}`}
-                    className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${badgeClass}`}
-                  >
-                    {t(presentLineStatus(line.status))}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      {/* BAS-119/122A — the line list is the screen's only scrollable region. */}
+      <div id="reconciliation-list-scrollzone" className="min-h-0 max-h-[55vh] overflow-y-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="text-xs text-m3-on-surface-variant">
+              <th className="text-left font-medium px-4 py-2">{t("reconciliation.col.date")}</th>
+              <th className="text-left font-medium px-4 py-2">{t("reconciliation.col.fund")}</th>
+              <th className="text-right font-medium px-4 py-2">{t("reconciliation.col.amount")}</th>
+              <th className="text-right font-medium px-4 py-2">{t("reconciliation.col.status")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleLines.map((line) => {
+              const tone = lineStatusTone(line.status);
+              // Three visually distinct badge families: fund unknown (link, primary),
+              // transaction missing (attention, gold), resolved (subdued).
+              const badgeClass =
+                tone === "link"
+                  ? "bg-m3-primary-container text-m3-on-primary-container"
+                  : tone === "attention"
+                    ? "bg-m3-tertiary-container text-m3-on-tertiary-container"
+                    : "bg-m3-surface-container-high text-m3-on-surface-variant";
+              return (
+                <tr
+                  key={line.line_id}
+                  id={`reconciliation-line-row-${line.line_id}`}
+                  className="cursor-pointer border-b border-m3-outline/15 hover:bg-m3-surface-container-low"
+                  onDoubleClick={() => {
+                    if (isBusy) return;
+                    onApplyCorrection(line);
+                  }}
+                >
+                  <td className="px-4 py-3 text-m3-on-surface-variant tabular-nums whitespace-nowrap">
+                    {formatDate(line.credit_line.date)}
+                  </td>
+                  <td className="px-4 py-3">{fundCell(line)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap text-m3-on-surface">
+                    {formatCurrency(line.credit_line.amount)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span
+                      id={`reconciliation-line-status-${line.line_id}`}
+                      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${badgeClass}`}
+                    >
+                      {t(presentLineBadge(line))}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

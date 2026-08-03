@@ -27,7 +27,8 @@
       "excel_import": "Upload an Excel file to import patients, funds, and procedures into the database.",
       "reconciliation": "Upload a PDF payment statement to reconcile with procedures in the database.",
       "bank_statement": "Upload a bank statement PDF to reconcile transfers with fund payment groups."
-    }
+    },
+    "settings": "Settings"
   },
   "action": {
     "add": "Add",
@@ -87,5 +88,14 @@
     "created": "Created",
     "reconciled": "Reconciled",
     "paid": "Paid"
+  },
+  "settings": {
+    "title": "Settings",
+    "window_days_label": "Procedure search window",
+    "window_days_unit": "days",
+    "window_days_help": "Bank-reconciliation procedure lists only show procedures newer than this limit.",
+    "window_days_invalid": "Enter a whole number of days greater than zero.",
+    "save": "Save",
+    "cancel": "Close"
   }
 }

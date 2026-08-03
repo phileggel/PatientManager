@@ -44,14 +44,23 @@ describe("filterProceduresByWindow — BAS-118", () => {
 
   it("keeps a procedure dated exactly at the window boundary (inclusive)", () => {
     // 2026-05-01 minus 90 days = 2026-01-31.
-    const candidate = makeCandidate({ procedure_id: "proc-boundary", procedure_date: "2026-01-31" });
+    const candidate = makeCandidate({
+      procedure_id: "proc-boundary",
+      procedure_date: "2026-01-31",
+    });
     const result = filterProceduresByWindow([candidate], 90, NOW, []);
     expect(result.map((c) => c.procedure_id)).toEqual(["proc-boundary"]);
   });
 
   it("respects a custom window size (7 days)", () => {
-    const withinSeven = makeCandidate({ procedure_id: "proc-within-7", procedure_date: "2026-04-26" });
-    const beyondSeven = makeCandidate({ procedure_id: "proc-beyond-7", procedure_date: "2026-04-20" });
+    const withinSeven = makeCandidate({
+      procedure_id: "proc-within-7",
+      procedure_date: "2026-04-26",
+    });
+    const beyondSeven = makeCandidate({
+      procedure_id: "proc-beyond-7",
+      procedure_date: "2026-04-20",
+    });
     const result = filterProceduresByWindow([withinSeven, beyondSeven], 7, NOW, []);
     expect(result.map((c) => c.procedure_id)).toEqual(["proc-within-7"]);
   });

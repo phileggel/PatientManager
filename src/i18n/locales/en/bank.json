@@ -1,4 +1,24 @@
 {
+  "label_association": {
+    "title": "Link each bank label to a fund",
+    "line_count": "{{count}} line(s)",
+    "select_placeholder": "-- Select a fund --",
+    "select_aria": "Fund for label {{label}}",
+    "suggestion": "Suggestion: {{name}}",
+    "chip": {
+      "linked": "Linked",
+      "todo": "To link",
+      "ignored": "Ignored"
+    },
+    "ignore": "Ignore",
+    "restore": "Restore",
+    "confirm_drop": "Staged selections on these lines will be lost.",
+    "confirm": "Confirm",
+    "confirm_cancel": "Cancel",
+    "progress": "{{decided}} / {{total}} labels decided",
+    "cancel": "Cancel",
+    "continue": "Continue"
+  },
   "reconciliation": {
     "summary": "{{resolved}} resolved, {{needsCorrection}} to correct",
     "hide_resolved": "Hide resolved lines",
@@ -8,7 +28,8 @@
       "needs_group": "To reconcile",
       "partial": "Partial",
       "rejected": "Rejected",
-      "unresolved": "Unresolved"
+      "unresolved": "Unresolved",
+      "left_aside": "Left aside"
     },
     "error": {
       "assignment_overflow": "The selected groups exceed the line amount.",
@@ -17,15 +38,6 @@
       "procedure_not_eligible": "This procedure is not eligible for this line.",
       "procedure_already_consumed": "This procedure is already assigned to another line.",
       "unknown": "An unexpected error occurred."
-    },
-    "link_fund": {
-      "title": "Link the label \"{{label}}\" to a fund",
-      "suggestion": "Suggestion: {{name}}",
-      "fund_label": "Fund",
-      "select_placeholder": "-- Select a fund --",
-      "reject": "Ignore this label",
-      "cancel": "Cancel",
-      "submit": "Link fund"
     },
     "assign_groups": {
       "title": "Reconcile \"{{label}}\"",
@@ -39,6 +51,9 @@
       "cancel": "Cancel",
       "submit": "Reconcile",
       "submit_with_remainder": "Reconcile with remainder",
+      "leave_aside": "Leave aside",
+      "window_empty": "No open procedure newer than {{days}} days for this fund.",
+      "show_older": "Show older procedures",
       "exact_amount": "exact amount"
     },
     "remainder": {
@@ -64,18 +79,19 @@
       "abandon": "Close",
       "done": "Done",
       "done_body": "All lines are resolved.",
-      "phase_link_fund": "Step 1 — Link funds",
       "step_label": "Line: {{label}}",
       "apply": "Apply",
       "skip": "Skip",
-      "phase_assign_group": "Step 2 — Assign groups"
+      "phase_assign_group": "Fund groups",
+      "phase_assign_procedure": "Fund procedures"
     },
     "col": {
       "date": "Date",
       "fund": "Fund",
       "amount": "Amount",
       "status": "Status"
-    }
+    },
+    "back_to_labels": "‹ Back to labels"
   },
   "statement": {
     "title": "Bank Reconciliation",
@@ -112,20 +128,6 @@
       "unparsed_warning_one": "{{count}} statement line could not be read and is not shown below.",
       "unparsed_warning_other": "{{count}} statement lines could not be read and are not shown below."
     }
-  },
-  "label_mapping": {
-    "title": "Label → fund associations",
-    "description": "The following labels appear on the statement. Saved associations are pre-filled — review them and complete the unknown labels before confirming.",
-    "suggestion": "Suggestion: {{name}}",
-    "select_placeholder": "-- Select --",
-    "rejected": "REJECTED (Not a fund)",
-    "funds_group": "Funds",
-    "fund_aria_label": "Fund for {{label}}",
-    "accept": "Accept",
-    "saving": "Saving...",
-    "section_unknown": "Unknown labels",
-    "section_confirmed": "Saved labels",
-    "empty": "No labels to display."
   },
   "transfer": {
     "date": "Transfer Date *",

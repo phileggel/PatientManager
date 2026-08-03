@@ -158,7 +158,11 @@ async function goToSettlement(user: ReturnType<typeof userEvent.setup>) {
 
 function renderView(onClose = vi.fn()) {
   return render(
-    <ReconciliationView bankAccountId={BANK_ACCOUNT_ID} parseResult={PARSE_RESULT} onClose={onClose} />,
+    <ReconciliationView
+      bankAccountId={BANK_ACCOUNT_ID}
+      parseResult={PARSE_RESULT}
+      onClose={onClose}
+    />,
   );
 }
 
@@ -259,9 +263,9 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     expect(document.getElementById("reconciliation-list")).toBeNull();
     // The label was already decided before navigating away — still decided
     // on return (no state reset, one correction model).
-    expect(
-      (document.getElementById("label-assoc-continue") as HTMLButtonElement).disabled,
-    ).toBe(false);
+    expect((document.getElementById("label-assoc-continue") as HTMLButtonElement).disabled).toBe(
+      false,
+    );
   });
 
   it("does not render the settlement Valider button on the label screen", async () => {
@@ -293,7 +297,9 @@ describe("ReconciliationView — validate gate (BAS-123)", () => {
     renderView();
     await goToSettlement(user);
 
-    const validateBtn = document.getElementById("reconciliation-validate") as HTMLButtonElement | null;
+    const validateBtn = document.getElementById(
+      "reconciliation-validate",
+    ) as HTMLButtonElement | null;
     expect(validateBtn).not.toBeNull();
     expect(validateBtn?.disabled).toBe(true);
   });
@@ -305,7 +311,9 @@ describe("ReconciliationView — validate gate (BAS-123)", () => {
     renderView();
     await goToSettlement(user);
 
-    const validateBtn = document.getElementById("reconciliation-validate") as HTMLButtonElement | null;
+    const validateBtn = document.getElementById(
+      "reconciliation-validate",
+    ) as HTMLButtonElement | null;
     expect(validateBtn?.disabled).toBe(false);
   });
 
@@ -319,7 +327,9 @@ describe("ReconciliationView — validate gate (BAS-123)", () => {
     await goToSettlement(user);
 
     expect(document.getElementById("reconciliation-line-row-line-rejected")).toBeNull();
-    const validateBtn = document.getElementById("reconciliation-validate") as HTMLButtonElement | null;
+    const validateBtn = document.getElementById(
+      "reconciliation-validate",
+    ) as HTMLButtonElement | null;
     expect(validateBtn?.disabled).toBe(false);
   });
 });
@@ -638,7 +648,9 @@ describe("ReconciliationView — isBusy disables buttons (BAS-064)", () => {
     await user.click(document.getElementById("assign-groups-submit")!);
 
     await waitFor(() => {
-      const validateBtn = document.getElementById("reconciliation-validate") as HTMLButtonElement | null;
+      const validateBtn = document.getElementById(
+        "reconciliation-validate",
+      ) as HTMLButtonElement | null;
       const backBtn = document.getElementById(
         "reconciliation-back-to-labels",
       ) as HTMLButtonElement | null;

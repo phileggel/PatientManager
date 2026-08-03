@@ -27,7 +27,8 @@
       "excel_import": "Importez un fichier Excel pour créer des patients, caisses et actes en base de données.",
       "reconciliation": "Téléchargez un relevé PDF de paiement pour rapprocher avec les actes en base de données.",
       "bank_statement": "Téléchargez un relevé bancaire PDF pour rapprocher les virements avec les groupes de paiement."
-    }
+    },
+    "settings": "Paramètres"
   },
   "action": {
     "add": "Ajouter",
@@ -87,5 +88,14 @@
     "created": "Créé",
     "reconciled": "Rapproché",
     "paid": "Payé"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "window_days_label": "Fenêtre de recherche des actes",
+    "window_days_unit": "jours",
+    "window_days_help": "Les listes d'actes du rapprochement bancaire n'affichent que les actes plus récents que cette limite.",
+    "window_days_invalid": "Saisir un nombre entier de jours supérieur à zéro.",
+    "save": "Enregistrer",
+    "cancel": "Fermer"
   }
 }

@@ -518,7 +518,11 @@ describe("ReconciliationList — FE-computed summary count (BAS-122)", () => {
     const reconciliation = makeReconciliation([MATCHED_LINE, NEEDS_GROUP_LINE], 99, 99);
 
     render(
-      <ReconciliationList reconciliation={reconciliation} onApplyCorrection={vi.fn()} isBusy={false} />,
+      <ReconciliationList
+        reconciliation={reconciliation}
+        onApplyCorrection={vi.fn()}
+        isBusy={false}
+      />,
     );
 
     const summary = document.getElementById("reconciliation-summary");
@@ -548,7 +552,11 @@ describe("ReconciliationList — scrollable region (BAS-119)", () => {
     const reconciliation = makeReconciliation([MATCHED_LINE], 1, 0);
 
     render(
-      <ReconciliationList reconciliation={reconciliation} onApplyCorrection={vi.fn()} isBusy={false} />,
+      <ReconciliationList
+        reconciliation={reconciliation}
+        onApplyCorrection={vi.fn()}
+        isBusy={false}
+      />,
     );
 
     const scrollzone = document.getElementById("reconciliation-list-scrollzone");
@@ -578,7 +586,11 @@ describe("ReconciliationList — left-aside badge (BAS-123C)", () => {
     const reconciliation = makeReconciliation([leftAsideLine], 1, 0);
 
     render(
-      <ReconciliationList reconciliation={reconciliation} onApplyCorrection={vi.fn()} isBusy={false} />,
+      <ReconciliationList
+        reconciliation={reconciliation}
+        onApplyCorrection={vi.fn()}
+        isBusy={false}
+      />,
     );
 
     const badge = document.getElementById("reconciliation-line-status-line-left-aside");
@@ -589,7 +601,11 @@ describe("ReconciliationList — left-aside badge (BAS-123C)", () => {
     const reconciliation = makeReconciliation([MATCHED_LINE], 1, 0);
 
     render(
-      <ReconciliationList reconciliation={reconciliation} onApplyCorrection={vi.fn()} isBusy={false} />,
+      <ReconciliationList
+        reconciliation={reconciliation}
+        onApplyCorrection={vi.fn()}
+        isBusy={false}
+      />,
     );
 
     const badge = document.getElementById("reconciliation-line-status-line-1");

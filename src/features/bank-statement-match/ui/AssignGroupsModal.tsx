@@ -5,6 +5,7 @@ import { Button } from "@/ui/components/button";
 import { ModalContainer } from "@/ui/components/modal/ModalContainer";
 import { useFormatters } from "@/ui/format/formatters";
 import { coveredAmount } from "../shared/candidateSelection";
+import { filterProceduresByWindow } from "../shared/procedureWindow";
 import { GroupCandidateRows } from "./CandidateList";
 import { LineContextHeader } from "./LineContextHeader";
 import { ProcedureCandidateList } from "./ProcedureCandidateList";
@@ -16,9 +17,9 @@ interface AssignGroupsModalProps {
   line: BankStatementLine;
   isOpen: boolean;
   /**
-   * May resolve to the correction's success flag — « Rapprocher avec
-   * reliquat » awaits it to post its two corrections in order and bails when
-   * the first is rejected (BAS-064).
+   * May resolve to the correction's success flag — the gold action awaits it
+   * to post its two corrections in order and bails when the first is
+   * rejected (BAS-064).
    */
   onSubmit: (correction: BankStatementCorrection) => void | boolean | Promise<void | boolean>;
   onCancel: () => void;
@@ -26,6 +27,11 @@ interface AssignGroupsModalProps {
   errorText?: string | null;
   /** True while a recompute is in flight — action buttons are disabled (BAS-064). */
   isBusy?: boolean;
+  /** BAS-118 — display window over the procedure pool, in days; the host
+   * supplies the persisted setting. Omitted = no filtering. */
+  procedureWindowDays?: number;
+  /** Injected clock for the BAS-118 filter (tests); defaults to the real one. */
+  now?: Date;
 }
 
 /**
@@ -51,9 +57,23 @@ export function AssignGroupsModal({
   onCancel,
   errorText,
   isBusy = false,
+  procedureWindowDays,
+  now,
 }: AssignGroupsModalProps) {
   const { t } = useTranslation("bank");
   const { formatCurrency } = useFormatters();
+  // BAS-118A — per-dialog override revealing procedures older than the window.
+  const [showOlderProcedures, setShowOlderProcedures] = useState(false);
+  const windowedProcedures =
+    procedureWindowDays === undefined
+      ? line.candidate_procedures
+      : filterProceduresByWindow(
+          line.candidate_procedures,
+          procedureWindowDays,
+          now ?? new Date(),
+          line.assigned_procedure_ids,
+        );
+  const visibleProcedures = showOlderProcedures ? line.candidate_procedures : windowedProcedures;
 
   // BAS-111 — the procedure scope exists only for a linked line.
   const canUseProcedures = line.fund_id !== null;
@@ -103,11 +123,11 @@ export function AssignGroupsModal({
   const selected = scope === "procedures" ? selectedProcedureIds : selectedGroupIds;
   const covered = coveredAmount(line, selected, scope === "procedures" ? "procedures" : "groups");
   const isOverflow = covered > lineAmount;
-  // « Rapprocher avec reliquat » — enabled iff the selection is non-empty and
-  // leaves a remainder (BAS-113 dialog actions).
-  const leavesRemainder = selected.length > 0 && covered < lineAmount;
-  // Live: tracks the current selection like the balance above it, not the
-  // committed draft (spec-checker 2026-08-02).
+  // The gold action (BAS-113A/123A) — enabled whenever coverage is incomplete,
+  // including an empty selection (leave-aside); disabled only at exact coverage.
+  const goldActionEnabled = covered < lineAmount;
+  const isLeaveAside = selected.length === 0;
+  // Live: tracks the current selection like the balance above it.
   const remainder = lineAmount - covered;
 
   const assignmentCorrection = (): BankStatementCorrection =>
@@ -166,21 +186,46 @@ export function AssignGroupsModal({
           })}
         </output>
 
-        {scope === "procedures" ? (
-          <ProcedureCandidateList
-            candidates={line.candidate_procedures}
-            idPrefix="assign-groups"
-            selected={selectedProcedureIds}
-            onToggle={toggleProcedure}
-          />
-        ) : (
-          <GroupCandidateRows
-            candidates={scope === "all" ? line.broadened_candidates : line.candidate_groups}
-            idPrefix="assign-groups"
-            selected={selectedGroupIds}
-            onToggle={toggleGroup}
-          />
-        )}
+        {/* BAS-119 — the candidate list is the dialog's only scrollable region. */}
+        <div id="assign-groups-scrollzone" className="min-h-0 max-h-[45vh] overflow-y-auto">
+          {scope === "procedures" ? (
+            visibleProcedures.length === 0 && line.candidate_procedures.length > 0 ? (
+              // BAS-118A — every open procedure is older than the window.
+              <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed border-m3-outline p-4">
+                <p
+                  id="assign-groups-procedures-windowed-empty"
+                  className="text-sm text-m3-on-surface-variant"
+                >
+                  {t("reconciliation.assign_groups.window_empty", {
+                    days: procedureWindowDays,
+                  })}
+                </p>
+                <Button
+                  id="assign-groups-show-older"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowOlderProcedures(true)}
+                >
+                  {t("reconciliation.assign_groups.show_older")}
+                </Button>
+              </div>
+            ) : (
+              <ProcedureCandidateList
+                candidates={visibleProcedures}
+                idPrefix="assign-groups"
+                selected={selectedProcedureIds}
+                onToggle={toggleProcedure}
+              />
+            )
+          ) : (
+            <GroupCandidateRows
+              candidates={scope === "all" ? line.broadened_candidates : line.candidate_groups}
+              idPrefix="assign-groups"
+              selected={selectedGroupIds}
+              onToggle={toggleGroup}
+            />
+          )}
+        </div>
 
         {errorText && (
           <p id="assign-groups-error" role="alert" className="text-sm text-m3-error">
@@ -201,10 +246,12 @@ export function AssignGroupsModal({
           <Button
             id="assign-groups-submit-with-remainder"
             variant="warning"
-            disabled={isBusy || !leavesRemainder}
+            disabled={isBusy || !goldActionEnabled}
             onClick={() => void submitWithRemainder()}
           >
-            {t("reconciliation.assign_groups.submit_with_remainder")}
+            {isLeaveAside
+              ? t("reconciliation.assign_groups.leave_aside")
+              : t("reconciliation.assign_groups.submit_with_remainder")}
           </Button>
           <div className="flex items-center gap-2">
             <Button id="assign-groups-cancel" variant="secondary" onClick={onCancel}>
