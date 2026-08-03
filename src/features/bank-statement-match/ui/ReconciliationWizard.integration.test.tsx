@@ -1,21 +1,30 @@
 /**
- * RTL component integration tests — ReconciliationWizard (BAS-100–103).
+ * RTL component integration tests — ReconciliationWizard (BAS-116 revised).
  *
- * Tests:
- *   - phase 1 (link-fund items) shown first in document order (BAS-101)
- *   - completing a wizard step calls onApplyCorrection (BAS-102 — same model as manual)
- *   - wizard completion returns to list (BAS-103) — modelled as onComplete callback
- *   - abandon mid-wizard calls onAbandon which keeps applied corrections (BAS-103)
+ * BAS-116 rework: the wizard is now SETTLEMENT-ONLY — there is no link-fund
+ * phase (screen 1 / LabelAssociationScreen owns label association, BAS-120).
+ * For each to-decide line the wizard presents:
+ *   - the GROUP selector when the line has fund-scoped group candidates, else
+ *   - the PROCEDURE selector over the line's WINDOW-FILTERED (BAS-118) open
+ *     procedures (the no-bordereau case) — this is new: the former wizard
+ *     walked past every group-less line, the revised one visits it via the
+ *     procedure selector instead.
+ * The wizard still walks past (a) a line with neither group candidates nor
+ * window-filtered procedure candidates, and (b) a line that already carries
+ * assigned procedures (finishing partial procedure work needs the dialog's
+ * remainder/leave-aside actions the wizard doesn't have).
  *
- * Wizard never auto-validates (BAS-103). Stable id selectors (F25).
- * These tests fail until ui/ReconciliationWizard.tsx is created.
+ * Design pin: the component takes `procedureWindowDays` + an optional `now`
+ * (defaults to `new Date()`) so the BAS-118 filter is deterministic in tests
+ * — mirrors the injected-clock pattern used for `filterProceduresByWindow`.
+ *
+ * These tests fail until ui/ReconciliationWizard.tsx is reworked.
  */
 
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BankStatementLine, BankStatementReconciliation, Fund } from "@/bindings";
-import { useCacheStore } from "@/infra/cache/store";
+import type { BankStatementLine, BankStatementReconciliation } from "@/bindings";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -27,35 +36,13 @@ vi.mock("react-i18next", () => ({
 
 import { ReconciliationWizard } from "./ReconciliationWizard";
 
-// The wizard's embedded link-fund step sources fund options from the shared
-// cache store (same pattern as LinkFundModal); seed it so `fund-1` is selectable.
-const MOCK_FUNDS: Fund[] = [
-  { id: "fund-1", fund_identifier: "75", name: "CPAM 75", temp_id: null },
-];
+const NOW = new Date("2026-05-01T00:00:00.000Z");
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeNeedsLinkLine(id: string, label: string): BankStatementLine {
-  return {
-    line_id: id,
-    credit_line: { date: "2026-04-10", label, amount: 150000 },
-    status: "NeedsLink",
-    fund_id: null,
-    assigned_group_ids: [],
-    assigned_procedure_ids: [],
-    covered_amount: 0,
-    remainder_acknowledged: false,
-    candidate_groups: [],
-    broadened_candidates: [],
-    candidate_procedures: [],
-    suggested_fund_id: null,
-    suggested_fund_name: null,
-  };
-}
-
-function makeNeedsGroupLine(id: string): BankStatementLine {
+function makeNeedsGroupLine(id: string, overrides: Partial<BankStatementLine> = {}): BankStatementLine {
   return {
     line_id: id,
     credit_line: { date: "2026-04-11", label: "CPAM75", amount: 200000 },
@@ -79,11 +66,12 @@ function makeNeedsGroupLine(id: string): BankStatementLine {
     candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
+    ...overrides,
   };
 }
 
 /** BAS-116 — a line resolvable only via procedures (no group candidate at all). */
-function makeProcedureOnlyLine(id: string): BankStatementLine {
+function makeProcedureOnlyLine(id: string, overrides: Partial<BankStatementLine> = {}): BankStatementLine {
   return {
     line_id: id,
     credit_line: { date: "2026-04-12", label: "RATP", amount: 60000 },
@@ -99,17 +87,18 @@ function makeProcedureOnlyLine(id: string): BankStatementLine {
       {
         procedure_id: "proc-1",
         patient_name: "Jean Dupont",
-        procedure_date: "2026-03-01",
+        procedure_date: "2026-04-20",
         billed_amount: 60000,
         is_exact_amount: true,
       },
     ],
     suggested_fund_id: null,
     suggested_fund_name: null,
+    ...overrides,
   };
 }
 
-/** BAS-116 — a line that already has staged procedure assignments. */
+/** BAS-116 — a line that already has staged procedure assignments (walked past). */
 function makeProcedureAssignedLine(id: string): BankStatementLine {
   return {
     line_id: id,
@@ -146,188 +135,133 @@ function makeReconciliation(lines: BankStatementLine[]): BankStatementReconcilia
   };
 }
 
+function renderWizard(
+  lines: BankStatementLine[],
+  overrides: {
+    onApplyCorrection?: (c: unknown) => void;
+    onComplete?: () => void;
+    onAbandon?: () => void;
+    procedureWindowDays?: number;
+  } = {},
+) {
+  return render(
+    <ReconciliationWizard
+      reconciliation={makeReconciliation(lines)}
+      isOpen={true}
+      onApplyCorrection={overrides.onApplyCorrection ?? vi.fn()}
+      onComplete={overrides.onComplete ?? vi.fn()}
+      onAbandon={overrides.onAbandon ?? vi.fn()}
+      procedureWindowDays={overrides.procedureWindowDays ?? 90}
+      now={NOW}
+    />,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("ReconciliationWizard — BAS-100–103", () => {
+describe("ReconciliationWizard — BAS-116 settlement-only", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useCacheStore.setState({ funds: MOCK_FUNDS });
   });
 
-  // BAS-101 — phase 1: all link-fund items first (in document order)
-  it("presents NeedsLink lines before NeedsGroup lines in phase order (BAS-101)", () => {
-    const needsLink1 = makeNeedsLinkLine("line-nl-1", "MGEN");
-    const needsGroup1 = makeNeedsGroupLine("line-ng-1");
-    const needsLink2 = makeNeedsLinkLine("line-nl-2", "MUTUELLE");
-    const reconciliation = makeReconciliation([needsGroup1, needsLink1, needsLink2]);
+  it("presents the group selector for a line with group candidates (BAS-116)", () => {
+    renderWizard([makeNeedsGroupLine("line-ng-1")]);
 
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={vi.fn()}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
-
-    // The wizard must be showing a phase-1 (link-fund) item first
-    const currentStep = document.getElementById("wizard-current-step");
-    expect(currentStep).not.toBeNull();
-
-    // The wizard's current item should be a NeedsLink line (phase 1)
-    const phase1Indicator = document.getElementById("wizard-phase-link-fund");
-    expect(phase1Indicator).not.toBeNull();
+    expect(document.getElementById("wizard-phase-assign-group")).not.toBeNull();
+    expect(document.getElementById("wizard-assign-check-group-1")).not.toBeNull();
   });
 
-  // BAS-102 — applying a wizard step calls onApplyCorrection (same correction model)
-  it("calls onApplyCorrection with a LinkFund correction when wizard step is submitted (BAS-102)", async () => {
+  it("presents the procedure selector for a group-less line with procedure candidates (BAS-116 revised — no more walk-past)", () => {
+    renderWizard([makeProcedureOnlyLine("line-proc-only")]);
+
+    expect(document.getElementById("wizard-phase-assign-procedure")).not.toBeNull();
+    expect(document.getElementById("wizard-assign-check-proc-proc-1")).not.toBeNull();
+  });
+
+  it("walks past a line with neither group candidates nor window-filtered procedure candidates", () => {
+    const noCandidatesAtAll = makeProcedureOnlyLine("line-none", { candidate_procedures: [] });
+
+    renderWizard([noCandidatesAtAll]);
+
+    expect(document.getElementById("wizard-done")).not.toBeNull();
+  });
+
+  it("walks past a line whose only procedure candidate is outside the display window (BAS-118)", () => {
+    // 2026-05-01 minus 90 days = 2026-01-31; this candidate is from 2025-12-01.
+    const outOfWindow = makeProcedureOnlyLine("line-out-of-window", {
+      candidate_procedures: [
+        {
+          procedure_id: "proc-old",
+          patient_name: "Old Patient",
+          procedure_date: "2025-12-01",
+          billed_amount: 60000,
+          is_exact_amount: true,
+        },
+      ],
+    });
+
+    renderWizard([outOfWindow], { procedureWindowDays: 90 });
+
+    expect(document.getElementById("wizard-done")).not.toBeNull();
+  });
+
+  it("filters the procedure step's candidates by the display window (BAS-118)", () => {
+    const withinWindow = {
+      procedure_id: "proc-recent",
+      patient_name: "Recent Patient",
+      procedure_date: "2026-04-20",
+      billed_amount: 30000,
+      is_exact_amount: false,
+    };
+    const outsideWindow = {
+      procedure_id: "proc-old",
+      patient_name: "Old Patient",
+      procedure_date: "2025-12-01",
+      billed_amount: 30000,
+      is_exact_amount: false,
+    };
+    const line = makeProcedureOnlyLine("line-mixed", {
+      candidate_procedures: [withinWindow, outsideWindow],
+    });
+
+    renderWizard([line], { procedureWindowDays: 90 });
+
+    expect(document.getElementById("wizard-assign-check-proc-proc-recent")).not.toBeNull();
+    expect(document.getElementById("wizard-assign-check-proc-proc-old")).toBeNull();
+  });
+
+  it("walks past a line that already carries assigned procedures, even though it has group candidates (BAS-116)", () => {
+    renderWizard([makeProcedureAssignedLine("line-proc-assigned")]);
+
+    expect(document.getElementById("wizard-done")).not.toBeNull();
+    expect(document.getElementById("wizard-phase-assign-group")).toBeNull();
+  });
+
+  it("still presents an ordinary needs-group line while walking past group-less and procedure-assigned ones", () => {
+    const procedureOnly = makeProcedureOnlyLine("line-proc-only", { candidate_procedures: [] });
+    const procedureAssigned = makeProcedureAssignedLine("line-proc-assigned");
+    const ordinary = makeNeedsGroupLine("line-ng-ordinary");
+
+    renderWizard([procedureOnly, procedureAssigned, ordinary]);
+
+    expect(document.getElementById("wizard-phase-assign-group")).not.toBeNull();
+    expect(document.getElementById("wizard-assign-check-group-1")).not.toBeNull();
+  });
+
+  it("submits an AssignGroups correction when the group step is applied (BAS-102)", async () => {
     const user = userEvent.setup();
     const onApplyCorrection = vi.fn();
-    const needsLink = makeNeedsLinkLine("line-nl-1", "MGEN");
-    const reconciliation = makeReconciliation([needsLink]);
 
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={onApplyCorrection}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
+    renderWizard([makeNeedsGroupLine("line-ng-1")], { onApplyCorrection });
 
-    // Select a fund in the embedded link-fund step
-    const fundSelect = document.getElementById("wizard-fund-select");
-    expect(fundSelect).not.toBeNull();
-    if (!fundSelect) throw new Error("fund select missing in wizard");
-
-    await userEvent.selectOptions(fundSelect, "fund-1");
+    const check = document.getElementById("wizard-assign-check-group-1");
+    if (!check) throw new Error("candidate checkbox missing");
+    await user.click(check);
 
     const applyBtn = document.getElementById("wizard-apply-step");
-    expect(applyBtn).not.toBeNull();
-    if (!applyBtn) throw new Error("wizard apply button missing");
-
-    await user.click(applyBtn);
-
-    expect(onApplyCorrection).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "LinkFund",
-        bank_label: "MGEN",
-        assignment: { type: "Fund", fund_id: "fund-1" },
-      }),
-    );
-  });
-
-  // BAS-033/101 — the wizard's link-fund step shows the heuristic suggestion
-  // helper text, mirroring LinkFundModal; never pre-selected.
-  it("renders the heuristic suggestion in the link-fund step (BAS-033)", () => {
-    const line = {
-      ...makeNeedsLinkLine("line-nl-1", "MGEN"),
-      suggested_fund_id: "fund-1",
-      suggested_fund_name: "CPAM 75",
-    };
-
-    render(
-      <ReconciliationWizard
-        reconciliation={makeReconciliation([line])}
-        isOpen={true}
-        onApplyCorrection={vi.fn()}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
-
-    expect(document.getElementById("wizard-suggestion")).not.toBeNull();
-    // Never pre-selected (BAS-033): the select still shows the placeholder.
-    const select = document.getElementById("wizard-fund-select") as HTMLSelectElement | null;
-    expect(select?.value).toBe("");
-  });
-
-  // BAS-101 — the apply button never submits with the placeholder selected;
-  // an empty selection must not imply rejection.
-  it("disables apply while no fund is selected in the link-fund step (BAS-101)", () => {
-    const onApplyCorrection = vi.fn();
-    const reconciliation = makeReconciliation([makeNeedsLinkLine("line-nl-1", "MGEN")]);
-
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={onApplyCorrection}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
-
-    const applyBtn = document.getElementById("wizard-apply-step") as HTMLButtonElement | null;
-    expect(applyBtn).not.toBeNull();
-    expect(applyBtn?.disabled).toBe(true);
-    expect(onApplyCorrection).not.toHaveBeenCalled();
-  });
-
-  // BAS-101/BAS-030 — rejection is an explicit affordance, mirroring LinkFundModal.
-  it("submits a Rejected assignment only via the explicit reject button (BAS-101)", async () => {
-    const user = userEvent.setup();
-    const onApplyCorrection = vi.fn();
-    const reconciliation = makeReconciliation([makeNeedsLinkLine("line-nl-1", "MGEN")]);
-
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={onApplyCorrection}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
-
-    const rejectBtn = document.getElementById("wizard-reject-step");
-    expect(rejectBtn).not.toBeNull();
-    if (!rejectBtn) throw new Error("wizard reject button missing");
-
-    await user.click(rejectBtn);
-
-    expect(onApplyCorrection).toHaveBeenCalledWith({
-      type: "LinkFund",
-      bank_label: "MGEN",
-      assignment: { type: "Rejected" },
-    });
-  });
-
-  // BAS-101 — phase 2 presents the ranked candidate selector; apply carries the
-  // explicit selection (never an implicit empty assignment).
-  it("submits the selected candidate group from the assign-group step (BAS-101)", async () => {
-    const user = userEvent.setup();
-    const onApplyCorrection = vi.fn();
-    const reconciliation = makeReconciliation([makeNeedsGroupLine("line-ng-1")]);
-
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={onApplyCorrection}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
-
-    // Phase-2 indicator + candidate selector rendered with wizard-scoped ids.
-    expect(document.getElementById("wizard-phase-assign-group")).not.toBeNull();
-    const candidateCheck = document.getElementById("wizard-assign-check-group-1");
-    expect(candidateCheck).not.toBeNull();
-    if (!candidateCheck) throw new Error("wizard candidate checkbox missing");
-
-    // Apply is disabled until something is selected.
-    const applyBtn = document.getElementById("wizard-apply-step") as HTMLButtonElement | null;
-    expect(applyBtn?.disabled).toBe(true);
-    if (!applyBtn) throw new Error("wizard apply button missing");
-
-    await user.click(candidateCheck);
-    expect(applyBtn.disabled).toBe(false);
-
+    if (!applyBtn) throw new Error("apply button missing");
     await user.click(applyBtn);
 
     expect(onApplyCorrection).toHaveBeenCalledWith({
@@ -337,207 +271,104 @@ describe("ReconciliationWizard — BAS-100–103", () => {
     });
   });
 
-  // BAS-101 — skipping advances past the line without applying any correction.
+  it("submits an AssignProcedures correction when the procedure step is applied (BAS-116/113)", async () => {
+    const user = userEvent.setup();
+    const onApplyCorrection = vi.fn();
+
+    renderWizard([makeProcedureOnlyLine("line-proc-only")], { onApplyCorrection });
+
+    const check = document.getElementById("wizard-assign-check-proc-proc-1");
+    if (!check) throw new Error("candidate checkbox missing");
+    await user.click(check);
+
+    const applyBtn = document.getElementById("wizard-apply-step");
+    if (!applyBtn) throw new Error("apply button missing");
+    await user.click(applyBtn);
+
+    expect(onApplyCorrection).toHaveBeenCalledWith({
+      type: "AssignProcedures",
+      line_id: "line-proc-only",
+      procedure_ids: ["proc-1"],
+    });
+  });
+
+  it("disables apply until a selection is made on the procedure step", () => {
+    renderWizard([makeProcedureOnlyLine("line-proc-only")]);
+
+    const applyBtn = document.getElementById("wizard-apply-step") as HTMLButtonElement | null;
+    expect(applyBtn?.disabled).toBe(true);
+  });
+
   it("skips a step without applying a correction (BAS-101)", async () => {
     const user = userEvent.setup();
     const onApplyCorrection = vi.fn();
-    const reconciliation = makeReconciliation([makeNeedsGroupLine("line-ng-1")]);
 
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={onApplyCorrection}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
+    renderWizard([makeNeedsGroupLine("line-ng-1")], { onApplyCorrection });
 
     const skipBtn = document.getElementById("wizard-skip-step");
-    expect(skipBtn).not.toBeNull();
-    if (!skipBtn) throw new Error("wizard skip button missing");
-
+    if (!skipBtn) throw new Error("skip button missing");
     await user.click(skipBtn);
 
-    // The only line was skipped — the wizard reaches its done state.
     expect(onApplyCorrection).not.toHaveBeenCalled();
     expect(document.getElementById("wizard-done")).not.toBeNull();
   });
 
-  // BAS-103 — abandoning calls onAbandon (corrections already applied are kept — caller's concern)
-  it("calls onAbandon when the abandon/close button is clicked mid-wizard (BAS-103)", async () => {
+  it("calls onAbandon when the abandon button is clicked mid-wizard (BAS-103)", async () => {
     const user = userEvent.setup();
     const onAbandon = vi.fn();
-    const needsLink = makeNeedsLinkLine("line-nl-1", "MGEN");
-    const reconciliation = makeReconciliation([needsLink]);
 
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={vi.fn()}
-        onComplete={vi.fn()}
-        onAbandon={onAbandon}
-      />,
-    );
+    renderWizard([makeNeedsGroupLine("line-ng-1")], { onAbandon });
 
     const abandonBtn = document.getElementById("wizard-abandon");
-    expect(abandonBtn).not.toBeNull();
-    if (!abandonBtn) throw new Error("wizard abandon button missing");
-
+    if (!abandonBtn) throw new Error("abandon button missing");
     await user.click(abandonBtn);
 
     expect(onAbandon).toHaveBeenCalledTimes(1);
   });
 
-  // BAS-103 — wizard never auto-validates (no validate call on completion)
-  it("calls onComplete (not validate) when all steps are done — wizard never auto-validates (BAS-103)", async () => {
+  it("calls onComplete (never validate) when the queue is empty from the start (BAS-103)", async () => {
     const onComplete = vi.fn();
-    const onApplyCorrection = vi.fn();
-    // Reconciliation with zero correction-needed lines — wizard is immediately done
-    const reconciliation = makeReconciliation([
-      {
-        line_id: "line-matched",
-        credit_line: { date: "2026-04-10", label: "CPAM75", amount: 150000 },
-        status: "Matched",
-        fund_id: "fund-1",
-        assigned_group_ids: ["group-1"],
-        assigned_procedure_ids: [],
-        covered_amount: 150000,
-        remainder_acknowledged: false,
-        candidate_groups: [],
-        broadened_candidates: [],
-        candidate_procedures: [],
-        suggested_fund_id: null,
-        suggested_fund_name: null,
-      },
-    ]);
+    const matchedLine: BankStatementLine = {
+      line_id: "line-matched",
+      credit_line: { date: "2026-04-10", label: "CPAM75", amount: 150000 },
+      status: "Matched",
+      fund_id: "fund-1",
+      assigned_group_ids: ["group-1"],
+      assigned_procedure_ids: [],
+      covered_amount: 150000,
+      remainder_acknowledged: false,
+      candidate_groups: [],
+      broadened_candidates: [],
+      candidate_procedures: [],
+      suggested_fund_id: null,
+      suggested_fund_name: null,
+    };
 
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={onApplyCorrection}
-        onComplete={onComplete}
-        onAbandon={vi.fn()}
-      />,
-    );
+    renderWizard([matchedLine], { onComplete });
 
-    // When there are no correction-needed lines the wizard shows a "done" state
-    // and the done/complete button calls onComplete (not validate)
     const doneBtn = document.getElementById("wizard-done");
-    expect(doneBtn).not.toBeNull();
     if (!doneBtn) throw new Error("wizard done button missing");
-
     await userEvent.click(doneBtn);
 
     expect(onComplete).toHaveBeenCalledTimes(1);
-    // Validate must NEVER be triggered by the wizard
-    // (gateway mock not needed — the test simply confirms onComplete fires and
-    // does not assert any gateway call)
   });
 
-  // ---------------------------------------------------------------------------
-  // BAS-116 — phase-2 queue walks past group-less and procedure-assigned lines
-  // ---------------------------------------------------------------------------
+  // BAS-110 — every step (group or procedure) mounts the correction context header.
+  it("mounts the correction context header for both a group step and a procedure step (BAS-110)", () => {
+    const { unmount } = renderWizard([makeNeedsGroupLine("line-ng-1")]);
+    expect(document.getElementById("wizard-step-context")?.textContent).toContain("CPAM75");
+    unmount();
 
-  it("walks past a phase-2 line with zero group candidates (procedure-only line, BAS-116a)", () => {
-    const onApplyCorrection = vi.fn();
-    const procedureOnly = makeProcedureOnlyLine("line-proc-only");
-    const reconciliation = makeReconciliation([procedureOnly]);
-
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={onApplyCorrection}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
-
-    // The only correction-needed line has no group candidate at all — the
-    // wizard must walk past it straight to the done state, never presenting
-    // the group selector over it (staying correctable only from the list).
-    expect(document.getElementById("wizard-done")).not.toBeNull();
-    expect(document.getElementById("wizard-phase-assign-group")).toBeNull();
+    renderWizard([makeProcedureOnlyLine("line-proc-only")]);
+    expect(document.getElementById("wizard-step-context")?.textContent).toContain("RATP");
   });
 
-  it("walks past a phase-2 line that already has assigned procedures (BAS-116b)", () => {
-    const onApplyCorrection = vi.fn();
-    const procedureAssigned = makeProcedureAssignedLine("line-proc-assigned");
-    const reconciliation = makeReconciliation([procedureAssigned]);
+  // BAS-101 — the settlement-only queue no longer has a link-fund phase at all.
+  it("never renders a link-fund step or fund select (BAS-116 — no link phase)", () => {
+    renderWizard([makeNeedsGroupLine("line-ng-1"), makeProcedureOnlyLine("line-proc-only")]);
 
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={onApplyCorrection}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
-
-    // Even though this line DOES carry a group candidate, presenting the
-    // group selector here would silently discard the staged procedure work
-    // (BAS-113's removal is not revert-restorable) — walk past it too.
-    expect(document.getElementById("wizard-done")).not.toBeNull();
-    expect(document.getElementById("wizard-phase-assign-group")).toBeNull();
-  });
-
-  it("still presents an ordinary needs-group line while walking past the group-less/procedure-assigned ones (BAS-116)", () => {
-    const onApplyCorrection = vi.fn();
-    const procedureOnly = makeProcedureOnlyLine("line-proc-only");
-    const procedureAssigned = makeProcedureAssignedLine("line-proc-assigned");
-    const ordinary = makeNeedsGroupLine("line-ng-ordinary");
-    const reconciliation = makeReconciliation([procedureOnly, procedureAssigned, ordinary]);
-
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={onApplyCorrection}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
-
-    // The wizard lands on the one line that is still a legitimate phase-2
-    // stop — not on the two walked-past lines.
-    expect(document.getElementById("wizard-phase-assign-group")).not.toBeNull();
-    const candidateCheck = document.getElementById("wizard-assign-check-group-1");
-    expect(candidateCheck).not.toBeNull();
-  });
-
-  // ---------------------------------------------------------------------------
-  // BAS-110 — the wizard's link-fund step reuses LinkFundModal's title key
-  // ---------------------------------------------------------------------------
-
-  it("shows the same link-fund title key as LinkFundModal for its link-fund step (BAS-110)", () => {
-    const needsLink = makeNeedsLinkLine("line-nl-1", "MGEN");
-    const reconciliation = makeReconciliation([needsLink]);
-
-    render(
-      <ReconciliationWizard
-        reconciliation={reconciliation}
-        isOpen={true}
-        onApplyCorrection={vi.fn()}
-        onComplete={vi.fn()}
-        onAbandon={vi.fn()}
-      />,
-    );
-
-    // The mocked t() renders `key:{"opts":...}` — the wizard's link-fund step
-    // must use the SAME `reconciliation.link_fund.title` key LinkFundModal
-    // uses (mirrored context, BAS-110), not a bespoke wizard-only key.
-    const step = document.getElementById("wizard-current-step");
-    expect(step?.textContent).toContain(
-      `reconciliation.link_fund.title:${JSON.stringify({ label: "MGEN" })}`,
-    );
-
-    // BAS-110 — every wizard step mounts the correction context header.
-    const header = document.getElementById("wizard-step-context");
-    expect(header).not.toBeNull();
-    expect(header?.textContent).toContain("MGEN");
+    expect(document.getElementById("wizard-phase-link-fund")).toBeNull();
+    expect(document.getElementById("wizard-fund-select")).toBeNull();
+    expect(document.getElementById("wizard-reject-step")).toBeNull();
   });
 });

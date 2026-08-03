@@ -497,3 +497,103 @@ describe("ReconciliationList — hide-resolved filter (BAS-069)", () => {
     expect(shown[1]?.id).toBe("reconciliation-line-row-line-3");
   });
 });
+
+// ---------------------------------------------------------------------------
+// BAS-122 — the summary count is computed frontend-side over the lines array,
+// NOT from the wire's whole-document resolved_count/needs_correction_count
+// (settlement screen shows only linked labels' lines — the wire counts are
+// unconsumed and may not match the visible subset).
+// ---------------------------------------------------------------------------
+
+describe("ReconciliationList — FE-computed summary count (BAS-122)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ funds: MOCK_FUNDS });
+  });
+
+  it("computes the summary from the lines array, ignoring mismatched wire counts", () => {
+    // Deliberately wrong wire counts (as if the whole-document counters from a
+    // different, larger draft leaked in) — the rendered summary must reflect
+    // only the two lines actually passed in (1 resolved, 1 needs-correction).
+    const reconciliation = makeReconciliation([MATCHED_LINE, NEEDS_GROUP_LINE], 99, 99);
+
+    render(
+      <ReconciliationList reconciliation={reconciliation} onApplyCorrection={vi.fn()} isBusy={false} />,
+    );
+
+    const summary = document.getElementById("reconciliation-summary");
+    expect(summary?.textContent).not.toMatch(/99/);
+    expect(summary?.textContent).toMatch(/1/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BAS-123C — left-aside badge: a Matched line with zero settlement items and
+// an acknowledged remainder renders a distinct badge from an ordinary match.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// BAS-119 — the candidate/line-list region is the only scrollable area, so
+// the wizard button and validate footer stay pinned in view. Cheap structural
+// check only; the rest is visual proof (docs/frontend-visual-proof.md).
+// ---------------------------------------------------------------------------
+
+describe("ReconciliationList — scrollable region (BAS-119)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ funds: MOCK_FUNDS });
+  });
+
+  it("wraps the line table in a dedicated scrollable region", () => {
+    const reconciliation = makeReconciliation([MATCHED_LINE], 1, 0);
+
+    render(
+      <ReconciliationList reconciliation={reconciliation} onApplyCorrection={vi.fn()} isBusy={false} />,
+    );
+
+    const scrollzone = document.getElementById("reconciliation-list-scrollzone");
+    expect(scrollzone).not.toBeNull();
+    expect(scrollzone?.className).toContain("overflow-y-auto");
+    expect(scrollzone?.contains(document.getElementById("reconciliation-line-row-line-1"))).toBe(
+      true,
+    );
+  });
+});
+
+describe("ReconciliationList — left-aside badge (BAS-123C)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ funds: MOCK_FUNDS });
+  });
+
+  it("renders the left-aside key for a Matched line with zero items and an acknowledged remainder", () => {
+    const leftAsideLine = makeLine({
+      line_id: "line-left-aside",
+      status: "Matched",
+      assigned_group_ids: [],
+      assigned_procedure_ids: [],
+      covered_amount: 0,
+      remainder_acknowledged: true,
+    });
+    const reconciliation = makeReconciliation([leftAsideLine], 1, 0);
+
+    render(
+      <ReconciliationList reconciliation={reconciliation} onApplyCorrection={vi.fn()} isBusy={false} />,
+    );
+
+    const badge = document.getElementById("reconciliation-line-status-line-left-aside");
+    expect(badge?.textContent).toBe("bank:reconciliation.status.left_aside");
+  });
+
+  it("renders the ordinary matched key for a ordinary Matched line (distinct from left-aside)", () => {
+    const reconciliation = makeReconciliation([MATCHED_LINE], 1, 0);
+
+    render(
+      <ReconciliationList reconciliation={reconciliation} onApplyCorrection={vi.fn()} isBusy={false} />,
+    );
+
+    const badge = document.getElementById("reconciliation-line-status-line-1");
+    expect(badge?.textContent).toBe("bank:reconciliation.status.matched");
+    expect(badge?.textContent).not.toBe("bank:reconciliation.status.left_aside");
+  });
+});

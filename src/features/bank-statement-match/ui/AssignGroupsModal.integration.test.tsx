@@ -605,7 +605,10 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
   // ---------------------------------------------------------------------------
 
   describe("Dialog actions — three-action footer", () => {
-    it("disables the with-remainder action when nothing is selected", () => {
+    // BAS-123A — the gold action is enabled with an EMPTY selection too (it
+    // relabels to "leave aside" and acknowledges the whole amount); it is
+    // disabled only at exact coverage, never merely because nothing is picked.
+    it("enables the gold action with an empty selection, relabelled to leave-aside (BAS-123A)", () => {
       const line = makeNeedsGroupLine();
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
@@ -614,7 +617,8 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         "assign-groups-submit-with-remainder",
       ) as HTMLButtonElement | null;
       expect(withRemainder).not.toBeNull();
-      expect(withRemainder?.disabled).toBe(true);
+      expect(withRemainder?.disabled).toBe(false);
+      expect(withRemainder?.textContent).toContain("reconciliation.assign_groups.leave_aside");
     });
 
     it("disables the with-remainder action when the selection fully covers the line amount", async () => {
@@ -650,6 +654,11 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         "assign-groups-submit-with-remainder",
       ) as HTMLButtonElement | null;
       expect(withRemainder?.disabled).toBe(false);
+      // Non-empty selection → the "with remainder" label, not "leave aside" (BAS-123A).
+      expect(withRemainder?.textContent).toContain(
+        "reconciliation.assign_groups.submit_with_remainder",
+      );
+      expect(withRemainder?.textContent).not.toContain("reconciliation.assign_groups.leave_aside");
     });
 
     it("submits the group assignment then acknowledges the remainder in one click (BAS-113 dialog actions)", async () => {
@@ -778,6 +787,91 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       const allIds = Array.from(document.querySelectorAll("[id]")).map((el) => el.id);
       expect(allIds.some((id) => /create-patient|create-procedure|dispute|contest/.test(id))).toBe(
         false,
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // BAS-119 — the candidate zone is the only scrollable area in the dialog.
+  // Cheap structural check only; the rest is visual proof.
+  // ---------------------------------------------------------------------------
+
+  describe("BAS-119 — scrollable candidate zone", () => {
+    it("wraps the candidate list in a dedicated scrollable region", () => {
+      const line = makeNeedsGroupLine();
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      const scrollzone = document.getElementById("assign-groups-scrollzone");
+      expect(scrollzone).not.toBeNull();
+      expect(scrollzone?.className).toContain("overflow-y-auto");
+      expect(
+        scrollzone?.contains(document.getElementById("assign-groups-candidate-group-1")),
+      ).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // BAS-123A — leaving a line aside (empty-selection gold action)
+  // ---------------------------------------------------------------------------
+
+  describe("BAS-123A — leaving a line aside", () => {
+    it("submits the empty assignment then acknowledges the remainder when the gold action is clicked with nothing selected", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      const line = makeNeedsGroupLine();
+
+      render(
+        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
+      );
+
+      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
+      if (!withRemainder) throw new Error("gold action button missing");
+      await user.click(withRemainder);
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+
+      const calls = onSubmit.mock.calls.map((call) => call[0] as BankStatementCorrection);
+      expect(calls[0]).toEqual({
+        type: "AssignGroups",
+        line_id: "line-needs-group",
+        group_ids: [],
+      });
+      expect(calls[1]).toEqual({ type: "AcknowledgeRemainder", line_id: "line-needs-group" });
+    });
+
+    it("disables the gold action only at exact coverage (non-empty selection)", async () => {
+      const user = userEvent.setup();
+      const line = makeNeedsGroupLine();
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      // CANDIDATE_EXACT (150000) exactly covers the 150000 line amount.
+      const exactCheck = document.getElementById("assign-groups-check-group-1");
+      if (!exactCheck) throw new Error("candidate checkbox missing");
+      await user.click(exactCheck);
+
+      const withRemainder = document.getElementById(
+        "assign-groups-submit-with-remainder",
+      ) as HTMLButtonElement | null;
+      expect(withRemainder?.disabled).toBe(true);
+    });
+
+    it("relabels the gold action from leave-aside back to with-remainder as soon as a candidate is selected", async () => {
+      const user = userEvent.setup();
+      const line = makeNeedsGroupLine();
+
+      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
+      expect(withRemainder?.textContent).toContain("reconciliation.assign_groups.leave_aside");
+
+      const partialCheck = document.getElementById("assign-groups-check-group-2");
+      if (!partialCheck) throw new Error("candidate checkbox missing");
+      await user.click(partialCheck);
+
+      expect(document.getElementById("assign-groups-submit-with-remainder")?.textContent).toContain(
+        "reconciliation.assign_groups.submit_with_remainder",
       );
     });
   });
