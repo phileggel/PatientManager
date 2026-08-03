@@ -35,6 +35,7 @@
       "scope_fund": "This fund",
       "scope_all": "All funds",
       "scope_procedures": "Fund procedures",
+      "no_procedures": "No open procedures for this fund.",
       "cancel": "Cancel",
       "submit": "Reconcile",
       "submit_with_remainder": "Reconcile with remainder",

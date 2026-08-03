@@ -669,6 +669,34 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       expect(calls[1]).toEqual({ type: "AcknowledgeRemainder", line_id: "line-needs-group" });
     });
 
+    it("does not acknowledge the remainder when the assignment correction is rejected (BAS-064)", async () => {
+      const user = userEvent.setup();
+      // The host resolves false when the correction was rejected — the
+      // composition must bail instead of acknowledging against the unchanged
+      // prior draft.
+      const onSubmit = vi.fn().mockResolvedValue(false);
+      const line = makeNeedsGroupLine();
+
+      render(
+        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
+      );
+
+      const partialCheck = document.getElementById("assign-groups-check-group-2");
+      if (!partialCheck) throw new Error("candidate checkbox missing");
+      await user.click(partialCheck);
+
+      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
+      if (!withRemainder) throw new Error("with-remainder button missing");
+      await user.click(withRemainder);
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+        type: "AssignGroups",
+        line_id: "line-needs-group",
+        group_ids: ["group-2"],
+      });
+    });
+
     it("submits the procedure assignment then acknowledges the remainder in one click (BAS-113 dialog actions)", async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
