@@ -136,6 +136,17 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     expect(document.getElementById("assign-groups-exact-group-2")).toBeNull();
   });
 
+  // BAS-110 — the assign dialog mounts the correction context header.
+  it("mounts the context header showing the bank line being corrected (BAS-110)", () => {
+    const line = makeNeedsGroupLine();
+
+    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+
+    const header = document.getElementById("assign-groups-context");
+    expect(header).not.toBeNull();
+    expect(header?.textContent).toContain("CPAM75");
+  });
+
   // BAS-090 — selecting a group and submitting produces AssignGroups correction
   it("calls onSubmit with AssignGroups correction containing selected group id (BAS-090)", async () => {
     const user = userEvent.setup();

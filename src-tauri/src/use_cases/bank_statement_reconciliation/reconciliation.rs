@@ -1558,6 +1558,73 @@ mod tests {
         );
     }
 
+    // BAS-113 — a procedure assigned to one line is consumed for every OTHER
+    // line's proposals (mirror of BAS-067), while remaining in its own line's
+    // list (the recomposition seed).
+    #[test]
+    fn assigned_procedure_vanishes_from_other_lines_candidate_procedures() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure(
+                "proc-shared",
+                "2026-01-01",
+                80_000,
+                "Jean Dupont",
+            )],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![
+                BankStatementCreditLine {
+                    date: "2026-01-15".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 80_000,
+                },
+                BankStatementCreditLine {
+                    date: "2026-01-16".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 80_000,
+                },
+            ],
+            total_credits: 160_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &[],
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![BankStatementCorrection::AssignProcedures {
+            line_id: "line-0".to_string(),
+            procedure_ids: vec!["proc-shared".to_string()],
+        }];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        assert!(
+            recon.lines[0]
+                .candidate_procedures
+                .iter()
+                .any(|c| c.procedure_id == "proc-shared"),
+            "the assigning line keeps its own procedure in the list (recomposition seed)"
+        );
+        assert!(
+            !recon.lines[1]
+                .candidate_procedures
+                .iter()
+                .any(|c| c.procedure_id == "proc-shared"),
+            "a consumed procedure must vanish from every other line's proposals (BAS-113)"
+        );
+    }
+
     // BAS-113 — a procedure already consumed by another line cannot be
     // reassigned, mirroring BAS-067 for groups.
     #[test]
