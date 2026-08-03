@@ -635,4 +635,49 @@ describe("useBankStatementReconciliation — correction-list compaction (BAS-113
     expect(result.current.corrections).toEqual([]);
     expect(mockCompute.mock.calls.at(-1)?.[2]).toEqual([]);
   });
+
+  // BAS-123A — the gold action's two corrections revert INDEPENDENTLY (one
+  // correction model, no pair-revert).
+  it("reverts the acknowledgment alone, keeping the assignment (BAS-123A)", async () => {
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_GROUPS);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ACKNOWLEDGE);
+    });
+    expect(result.current.corrections).toEqual([ASSIGN_GROUPS, ACKNOWLEDGE]);
+
+    await act(async () => {
+      await result.current.revertCorrection(1);
+    });
+
+    expect(result.current.corrections).toEqual([ASSIGN_GROUPS]);
+    expect(mockCompute.mock.calls.at(-1)?.[2]).toEqual([ASSIGN_GROUPS]);
+  });
+
+  it("reverts the assignment alone, keeping the acknowledgment (BAS-123A)", async () => {
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(ASSIGN_GROUPS);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(ACKNOWLEDGE);
+    });
+
+    await act(async () => {
+      await result.current.revertCorrection(0);
+    });
+
+    expect(result.current.corrections).toEqual([ACKNOWLEDGE]);
+    expect(mockCompute.mock.calls.at(-1)?.[2]).toEqual([ACKNOWLEDGE]);
+  });
 });

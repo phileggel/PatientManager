@@ -371,55 +371,6 @@ describe("ReconciliationList — double-click opens correction modal (BAS-062)",
 });
 
 // ---------------------------------------------------------------------------
-// BAS-100 — wizard button present at the top of the list
-// ---------------------------------------------------------------------------
-
-describe("ReconciliationList — wizard button (BAS-100)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    useCacheStore.setState({ funds: MOCK_FUNDS });
-  });
-
-  it("renders the wizard launch button with stable id (BAS-100, F25)", () => {
-    const reconciliation = makeReconciliation([NEEDS_LINK_LINE], 0, 1);
-
-    render(
-      <ReconciliationList
-        reconciliation={reconciliation}
-        onApplyCorrection={vi.fn()}
-        isBusy={false}
-        onOpenWizard={vi.fn()}
-      />,
-    );
-
-    const wizardBtn = document.getElementById("reconciliation-wizard-btn");
-    expect(wizardBtn).not.toBeNull();
-  });
-
-  it("calls onOpenWizard when the wizard button is clicked (BAS-100)", async () => {
-    const user = userEvent.setup();
-    const onOpenWizard = vi.fn();
-    const reconciliation = makeReconciliation([NEEDS_LINK_LINE], 0, 1);
-
-    render(
-      <ReconciliationList
-        reconciliation={reconciliation}
-        onApplyCorrection={vi.fn()}
-        isBusy={false}
-        onOpenWizard={onOpenWizard}
-      />,
-    );
-
-    const wizardBtn = document.getElementById("reconciliation-wizard-btn");
-    if (!wizardBtn) throw new Error("wizard button missing");
-
-    await user.click(wizardBtn);
-
-    expect(onOpenWizard).toHaveBeenCalledTimes(1);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // BAS-069 — hide-resolved filter
 // ---------------------------------------------------------------------------
 

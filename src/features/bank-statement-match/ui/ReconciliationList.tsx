@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankStatementLine, BankStatementReconciliation } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
-import { Button } from "@/ui/components/button";
 import { useFormatters } from "@/ui/format/formatters";
 import { lineStatusTone, presentLineBadge } from "../shared/reconciliationPresenter";
 
@@ -10,7 +9,6 @@ interface ReconciliationListProps {
   reconciliation: BankStatementReconciliation;
   onApplyCorrection: (line: BankStatementLine) => void;
   isBusy: boolean;
-  onOpenWizard?: () => void;
 }
 
 /**
@@ -29,7 +27,6 @@ export function ReconciliationList({
   reconciliation,
   onApplyCorrection,
   isBusy,
-  onOpenWizard,
 }: ReconciliationListProps) {
   const { t } = useTranslation("bank");
   const { formatCurrency, formatDate } = useFormatters();
@@ -70,30 +67,18 @@ export function ReconciliationList({
             needsCorrection: needsCorrectionCount,
           })}
         </output>
-        <div className="flex items-center gap-3">
-          <label
-            htmlFor="reconciliation-hide-resolved"
-            className="flex items-center gap-2 text-sm text-m3-on-surface-variant cursor-pointer"
-          >
-            <input
-              id="reconciliation-hide-resolved"
-              type="checkbox"
-              checked={hideResolved}
-              onChange={(e) => setHideResolved(e.target.checked)}
-            />
-            {t("reconciliation.hide_resolved")}
-          </label>
-          {onOpenWizard && (
-            <Button
-              id="reconciliation-wizard-btn"
-              variant="primary"
-              onClick={onOpenWizard}
-              disabled={isBusy}
-            >
-              {t("reconciliation.wizard.open")}
-            </Button>
-          )}
-        </div>
+        <label
+          htmlFor="reconciliation-hide-resolved"
+          className="flex items-center gap-2 text-sm text-m3-on-surface-variant cursor-pointer"
+        >
+          <input
+            id="reconciliation-hide-resolved"
+            type="checkbox"
+            checked={hideResolved}
+            onChange={(e) => setHideResolved(e.target.checked)}
+          />
+          {t("reconciliation.hide_resolved")}
+        </label>
       </div>
 
       {/* BAS-119/122A — the line list is the screen's only scrollable region. */}

@@ -148,7 +148,6 @@ export function ReconciliationView({
         reconciliation={settlementReconciliation}
         onApplyCorrection={openLine}
         isBusy={isBusy}
-        onOpenWizard={() => setIsWizardOpen(true)}
       />
 
       {/* BAS-065 — applied corrections, each revertable. */}
@@ -198,15 +197,25 @@ export function ReconciliationView({
         >
           {t("reconciliation.back_to_labels")}
         </Button>
-        <Button
-          id="reconciliation-validate"
-          onClick={handleValidate}
-          variant="primary"
-          disabled={isBusy || !allLinesDecided}
-          loading={isBusy}
-        >
-          {t("statement.modal.validate")}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            id="reconciliation-wizard-btn"
+            variant="secondary"
+            disabled={isBusy}
+            onClick={() => setIsWizardOpen(true)}
+          >
+            {t("reconciliation.wizard.open")}
+          </Button>
+          <Button
+            id="reconciliation-validate"
+            onClick={handleValidate}
+            variant="primary"
+            disabled={isBusy || !allLinesDecided}
+            loading={isBusy}
+          >
+            {t("statement.modal.validate")}
+          </Button>
+        </div>
       </div>
 
       {/* Per-line settlement dialog (BAS-062/122B) — label linking lives on screen 1. */}

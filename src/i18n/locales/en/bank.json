@@ -42,8 +42,6 @@
     "assign_groups": {
       "title": "Reconcile \"{{label}}\"",
       "balance": "Covered {{covered}} of {{total}}",
-      "broaden_on": "Search all funds",
-      "broaden_off": "Limit to this fund",
       "scope_fund": "This fund",
       "scope_all": "All funds",
       "scope_procedures": "Fund procedures",

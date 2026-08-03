@@ -109,13 +109,17 @@ export function LabelAssociationScreen({
                   value={row.fundId ?? ""}
                   disabled={isBusy || selectLocked}
                   aria-label={t("bank:label_association.select_aria", { label: row.label })}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    // Re-selecting the placeholder is a no-op — an empty
+                    // fund_id is not a correction (BAS-120B defines choosing
+                    // a fund only).
+                    if (e.target.value === "") return;
                     submitOrConfirm(row, {
                       type: "LinkFund",
                       bank_label: row.label,
                       assignment: { type: "Fund", fund_id: e.target.value },
-                    })
-                  }
+                    });
+                  }}
                 >
                   <option value="">{t("bank:label_association.select_placeholder")}</option>
                   {sortFundsByName(funds).map((fund) => (
