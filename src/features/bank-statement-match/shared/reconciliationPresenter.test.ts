@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   BankStatementCorrection,
+  BankStatementLine,
   BankStatementLineStatus,
   BankStatementReconciliationError,
 } from "@/bindings";
@@ -21,9 +22,29 @@ import type {
 import {
   lineStatusTone,
   presentCorrection,
+  presentLineBadge,
   presentLineStatus,
   presentReconciliationError,
 } from "./reconciliationPresenter";
+
+function makeLine(overrides: Partial<BankStatementLine> = {}): BankStatementLine {
+  return {
+    line_id: "line-1",
+    credit_line: { date: "2026-04-10", label: "CPAM75", amount: 150000 },
+    status: "Matched",
+    fund_id: "fund-1",
+    assigned_group_ids: [],
+    assigned_procedure_ids: [],
+    covered_amount: 0,
+    remainder_acknowledged: false,
+    candidate_groups: [],
+    broadened_candidates: [],
+    candidate_procedures: [],
+    suggested_fund_id: null,
+    suggested_fund_name: null,
+    ...overrides,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // presentLineStatus — BAS-061 six-status set
@@ -232,5 +253,76 @@ describe("presentReconciliationError — draft-engine correction guards", () => 
   it("maps AmountNotPositive (BankError) to the generic unknown key", () => {
     const err: BankStatementReconciliationError = { code: "AmountNotPositive" };
     expect(presentReconciliationError(err).key).toBe("bank:reconciliation.error.unknown");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// presentLineBadge — BAS-123C left-aside badge derivation
+// ---------------------------------------------------------------------------
+
+describe("presentLineBadge — BAS-123C", () => {
+  it("maps a left-aside line (Matched, zero items, acknowledged remainder) to a distinct key", () => {
+    const line = makeLine({
+      status: "Matched",
+      assigned_group_ids: [],
+      assigned_procedure_ids: [],
+      remainder_acknowledged: true,
+    });
+
+    const key = presentLineBadge(line);
+
+    expect(key).toBe("bank:reconciliation.status.left_aside");
+    // Distinct from the ordinary "Rapprochée" key (BAS-123C).
+    expect(key).not.toBe(presentLineStatus("Matched"));
+  });
+
+  it("maps an ordinary matched line (assigned groups, no acknowledgment) to the matched key", () => {
+    const line = makeLine({
+      status: "Matched",
+      assigned_group_ids: ["group-1"],
+      assigned_procedure_ids: [],
+      remainder_acknowledged: false,
+    });
+
+    expect(presentLineBadge(line)).toBe(presentLineStatus("Matched"));
+  });
+
+  it("maps a matched-via-procedures line (assigned procedures, no acknowledgment) to the matched key", () => {
+    const line = makeLine({
+      status: "Matched",
+      assigned_group_ids: [],
+      assigned_procedure_ids: ["proc-1"],
+      remainder_acknowledged: false,
+    });
+
+    expect(presentLineBadge(line)).toBe(presentLineStatus("Matched"));
+  });
+
+  it("does not treat a Matched line with assigned groups AND an acknowledged remainder as left-aside", () => {
+    // Defensive: left-aside is specifically the ZERO-item form (BAS-123B) —
+    // a line with assigned items is never "left aside" even if somehow
+    // remainder_acknowledged is also set.
+    const line = makeLine({
+      status: "Matched",
+      assigned_group_ids: ["group-1"],
+      assigned_procedure_ids: [],
+      remainder_acknowledged: true,
+    });
+
+    expect(presentLineBadge(line)).toBe(presentLineStatus("Matched"));
+  });
+
+  it("falls back to presentLineStatus for every non-Matched status", () => {
+    const statuses: BankStatementLineStatus[] = [
+      "NeedsLink",
+      "NeedsGroup",
+      "Partial",
+      "Rejected",
+      "Unresolved",
+    ];
+    for (const status of statuses) {
+      const line = makeLine({ status, remainder_acknowledged: false });
+      expect(presentLineBadge(line)).toBe(presentLineStatus(status));
+    }
   });
 });
