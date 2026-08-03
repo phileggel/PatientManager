@@ -696,6 +696,10 @@ fn finalize_line(
         } else {
             BankStatementLineStatus::Partial
         }
+    } else if wl.remainder_acknowledged {
+        // BAS-123B — a zero-item acknowledged remainder resolves the line
+        // (left aside), even when candidates exist.
+        BankStatementLineStatus::Matched
     } else {
         // Fund known, nothing assigned: NeedsGroup if a candidate of EITHER
         // kind exists (settlement-item-agnostic, BAS-061/116), else Unresolved.
@@ -2135,5 +2139,180 @@ mod tests {
             "assignment + acknowledged remainder resolves the line (BAS-092/113)"
         );
         assert_eq!(line.covered_amount, 40_000);
+    }
+
+    // =========================================================================
+    // BAS-123B — zero-item acknowledgment resolves (engine amendment).
+    // Amended BAS-061 status set: "matched ... or left aside — fund known,
+    // zero items, remainder acknowledged (BAS-123B)"; the needs-group bullet
+    // is amended to require "no acknowledged remainder". Defensive invariant:
+    // an acknowledgment never resolves a line whose label is unlinked.
+    // =========================================================================
+
+    // BAS-123B — a linked line with zero assigned settlement items and an
+    // acknowledged remainder resolves to Matched, even when both a candidate
+    // group AND a candidate open procedure exist — the acknowledgment (the
+    // user's explicit "leave aside" decision, BAS-123A) overrides the
+    // needs-group default.
+    #[test]
+    fn zero_items_acknowledged_remainder_resolves_matched_even_with_candidates() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        // A candidate group exists (amount 50_000 != line amount, so it does
+        // NOT auto-match) — the line must still resolve once the remainder
+        // is acknowledged, per BAS-123B ("even when candidates exist").
+        let groups = vec![group("group-a", "fund-1", "2026-01-15", 50_000)];
+        let open_procedures = one_fund_open_procedures(
+            "fund-1",
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                30_000,
+                "Jean Dupont",
+            )],
+        );
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+        let corrections = vec![BankStatementCorrection::AcknowledgeRemainder {
+            line_id: "line-0".to_string(),
+        }];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
+        // Sanity: candidates of both kinds really are present, so a Matched
+        // outcome proves the acknowledgment — not an absence of candidates —
+        // resolved the line.
+        assert!(
+            !line.candidate_groups.is_empty(),
+            "a group candidate must exist for this to be a meaningful assertion"
+        );
+        assert!(
+            !line.candidate_procedures.is_empty(),
+            "a procedure candidate must exist for this to be a meaningful assertion"
+        );
+        assert!(line.assigned_group_ids.is_empty());
+        assert!(line.assigned_procedure_ids.is_empty());
+        assert_eq!(
+            line.status,
+            BankStatementLineStatus::Matched,
+            "zero items + acknowledged remainder resolves the line even when candidates exist (BAS-123B)"
+        );
+        assert_eq!(
+            line.covered_amount, 0,
+            "the acknowledged remainder is never folded into covered_amount (BAS-091)"
+        );
+        assert!(line.remainder_acknowledged);
+    }
+
+    // BAS-123A/123B — the dialog's « Laisser de côté » composition: an
+    // assignment correction with an EMPTY selection, immediately followed by
+    // AcknowledgeRemainder, resolves the line to Matched (the zero-item form
+    // of the gold-action composition, BAS-113A).
+    #[test]
+    fn empty_assign_groups_then_acknowledge_remainder_resolves_matched() {
+        let mappings = vec![BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        }];
+        let funds = vec![fund("fund-1", "93", "CPAM 93")];
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "CPAM93".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &[],
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+        let corrections = vec![
+            BankStatementCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: Vec::new(),
+            },
+            BankStatementCorrection::AcknowledgeRemainder {
+                line_id: "line-0".to_string(),
+            },
+        ];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
+        assert_eq!(
+            line.status,
+            BankStatementLineStatus::Matched,
+            "the leave-aside composition [empty AssignGroups, AcknowledgeRemainder] resolves the line (BAS-123A/BAS-123B)"
+        );
+        assert_eq!(line.covered_amount, 0);
+        assert!(line.remainder_acknowledged);
+    }
+
+    // BAS-123B defensive invariant — an acknowledgment never resolves a line
+    // whose label is unlinked: NeedsLink must win over any acknowledged
+    // remainder (unreachable from screen 2, but must not silently resolve if
+    // it ever occurs on the raw wire).
+    #[test]
+    fn acknowledge_remainder_on_unlinked_line_stays_needs_link() {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![BankStatementCreditLine {
+                date: "2026-01-15".to_string(),
+                label: "UNKNOWN".to_string(),
+                amount: 100_000,
+            }],
+            total_credits: 100_000,
+            unparsed_count: 0,
+        };
+        let funds = vec![fund("fund-1", "1", "CPAM Paris")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &[],
+            groups: &[],
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+        let corrections = vec![BankStatementCorrection::AcknowledgeRemainder {
+            line_id: "line-0".to_string(),
+        }];
+
+        let recon = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
+        let line = &recon.lines[0];
+        assert_eq!(
+            line.status,
+            BankStatementLineStatus::NeedsLink,
+            "an acknowledgment must never resolve a line whose label is unlinked (BAS-123B defensive invariant)"
+        );
+        assert!(
+            line.remainder_acknowledged,
+            "the acknowledgment itself still applies — the guard is status-only"
+        );
     }
 }
