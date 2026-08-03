@@ -38,7 +38,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       title={t("settings.title")}
       maxWidth="max-w-md"
     >
-      <div className="flex flex-col gap-4 pb-2">
+      <form
+        className="flex flex-col gap-4 pb-2"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSave();
+        }}
+      >
         <div className="flex items-center gap-3">
           <label htmlFor="settings-window-days-input" className="text-sm text-m3-on-surface flex-1">
             {t("settings.window_days_label")}
@@ -72,11 +79,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <Button id="settings-cancel" variant="secondary" onClick={onClose}>
             {t("settings.cancel")}
           </Button>
-          <Button id="settings-save" variant="primary" onClick={handleSave}>
+          <Button id="settings-save" variant="primary" type="submit">
             {t("settings.save")}
           </Button>
         </div>
-      </div>
+      </form>
     </Dialog>
   );
 }

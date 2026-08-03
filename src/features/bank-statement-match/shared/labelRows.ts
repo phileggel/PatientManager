@@ -56,6 +56,15 @@ export function deriveLabelRows(lines: BankStatementLine[]): LabelRow[] {
   return rows;
 }
 
+/**
+ * F25 — DOM-id-safe slug of a raw bank label: HTML ids must not contain
+ * whitespace, and real labels do (`SALAIRE KINE REMPL`). Whitespace runs
+ * collapse to `_`; everything else passes through (non-ASCII is id-legal).
+ */
+export function labelSlug(label: string): string {
+  return label.replace(/\s+/g, "_");
+}
+
 /** BAS-121 — the « Continuer » gate: every label linked or ignored. */
 export function allLabelsDecided(rows: LabelRow[]): boolean {
   return rows.every((row) => row.fundId !== null || row.isRejected);
