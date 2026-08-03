@@ -68,16 +68,6 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-07-30 — Rejected / mis-linked labels have no re-link route from the list
-
-**Found by:** post-v0.20.0 audit (branch `next`, batch 2).
-
-**Where:** `src/features/bank-statement-match/ui/ReconciliationView.tsx` (Rejected falls through to `AssignGroupsModal` and dead-ends — no path back to `LinkFundModal`); `src-tauri/src/use_cases/bank_statement_reconciliation/reconciliation.rs` `apply_link_fund` Fund branch (does not release groups assigned under the previous fund — latent until a re-link route exists; ship both together).
-
-**Observation:** a wrong rejection or wrong saved mapping cannot be corrected from the list; the fix needs a small routing design (which modal for which status) plus the release fix, so it deserves its own scoped task rather than a bolt-on.
-
----
-
 ## 2026-07-30 — Explicit unassign does not survive a later link-fund cascade
 
 **Found by:** post-v0.20.0 audit (spec-checker, BAS-062).

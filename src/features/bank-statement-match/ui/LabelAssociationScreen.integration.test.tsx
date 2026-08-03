@@ -15,11 +15,13 @@
  *   - Props: reconciliation, corrections, isBusy, errorText,
  *     onApplyCorrection (Promise<boolean>), onRevertCorrection(index),
  *     onContinue, onCancel.
- *   - Stable ids: label-assoc-row-{label}, label-assoc-select-{label},
- *     label-assoc-ignore-{label} (single state-dependent action),
- *     label-assoc-suggestion-{label}, label-assoc-chip-{label},
- *     label-assoc-confirm-{label} / label-assoc-confirm-cancel-{label}
- *     (BAS-120E inline guard), label-assoc-continue, label-assoc-cancel.
+ *   - Stable ids: label-assoc-row-{slug}, label-assoc-select-{slug},
+ *     label-assoc-ignore-{slug} (single state-dependent action),
+ *     label-assoc-suggestion-{slug}, label-assoc-chip-{slug},
+ *     label-assoc-confirm-{slug} / label-assoc-confirm-cancel-{slug}
+ *     (BAS-120E inline guard), label-assoc-continue, label-assoc-cancel —
+ *     where {slug} = labelSlug(label) (whitespace → "_", F25: HTML ids must
+ *     not contain spaces and real bank labels do).
  *
  * Mocks the gateway boundary is not needed here (pure props component); the
  * fund cache store is seeded directly (test_convention.md § Seeding Zustand
@@ -126,6 +128,23 @@ describe("LabelAssociationScreen — BAS-120–121", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]?.id).toBe("label-assoc-row-MGEN");
     expect(rows[1]?.id).toBe("label-assoc-row-CPAM75");
+  });
+
+  // F25 — real bank labels contain spaces (`SALAIRE KINE REMPL`); an HTML id
+  // must not, so row-scoped ids use the whitespace-sanitized slug.
+  it("builds id-safe slugs for labels containing whitespace", () => {
+    const lines = [
+      makeLine({
+        line_id: "l1",
+        credit_line: { date: "2026-04-10", label: "SALAIRE KINE REMPL", amount: 1000 },
+      }),
+    ];
+
+    renderScreen(lines);
+
+    expect(document.getElementById("label-assoc-row-SALAIRE_KINE_REMPL")).not.toBeNull();
+    expect(document.getElementById("label-assoc-select-SALAIRE_KINE_REMPL")).not.toBeNull();
+    expect(document.querySelector("[id*=' ']")).toBeNull();
   });
 
   it("shows the credit-line count and total amount for the label", () => {

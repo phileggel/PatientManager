@@ -9,6 +9,7 @@ import {
   allLabelsDecided,
   deriveLabelRows,
   type LabelRow,
+  labelSlug,
   lastLinkFundCorrectionIndex,
 } from "../shared/labelRows";
 
@@ -92,7 +93,7 @@ export function LabelAssociationScreen({
           return (
             <div
               key={row.label}
-              id={`label-assoc-row-${row.label}`}
+              id={`label-assoc-row-${labelSlug(row.label)}`}
               className="grid grid-cols-[minmax(140px,180px)_max-content_1fr_max-content] items-center gap-3 rounded-xl border border-m3-outline/20 px-4 py-2.5"
             >
               <span className="italic text-m3-on-surface-variant truncate">{row.label}</span>
@@ -103,7 +104,7 @@ export function LabelAssociationScreen({
 
               <div className="flex flex-col gap-0.5 min-w-0">
                 <select
-                  id={`label-assoc-select-${row.label}`}
+                  id={`label-assoc-select-${labelSlug(row.label)}`}
                   className="w-full rounded-lg border border-m3-outline bg-m3-surface-container-high px-3 py-2 text-sm text-m3-on-surface disabled:opacity-50"
                   value={row.fundId ?? ""}
                   disabled={isBusy || selectLocked}
@@ -125,7 +126,7 @@ export function LabelAssociationScreen({
                 </select>
                 {!row.fundId && row.suggestedFundName && (
                   <span
-                    id={`label-assoc-suggestion-${row.label}`}
+                    id={`label-assoc-suggestion-${labelSlug(row.label)}`}
                     className="text-xs text-m3-on-surface-variant"
                   >
                     {t("bank:label_association.suggestion", { name: row.suggestedFundName })}
@@ -141,7 +142,7 @@ export function LabelAssociationScreen({
                       {t("bank:label_association.confirm_drop")}
                     </span>
                     <Button
-                      id={`label-assoc-confirm-${row.label}`}
+                      id={`label-assoc-confirm-${labelSlug(row.label)}`}
                       variant="danger"
                       size="sm"
                       disabled={isBusy}
@@ -153,7 +154,7 @@ export function LabelAssociationScreen({
                       {t("bank:label_association.confirm")}
                     </Button>
                     <Button
-                      id={`label-assoc-confirm-cancel-${row.label}`}
+                      id={`label-assoc-confirm-cancel-${labelSlug(row.label)}`}
                       variant="secondary"
                       size="sm"
                       onClick={() => setPendingCorrection(null)}
@@ -164,7 +165,7 @@ export function LabelAssociationScreen({
                 ) : (
                   <>
                     <span
-                      id={`label-assoc-chip-${row.label}`}
+                      id={`label-assoc-chip-${labelSlug(row.label)}`}
                       className={`w-24 text-center text-xs font-semibold rounded-full px-2 py-1 ${
                         row.fundId
                           ? "bg-m3-success-container/60 text-m3-on-success-container"
@@ -176,7 +177,7 @@ export function LabelAssociationScreen({
                       {t(chipKey)}
                     </span>
                     <Button
-                      id={`label-assoc-ignore-${row.label}`}
+                      id={`label-assoc-ignore-${labelSlug(row.label)}`}
                       variant={row.isRejected ? "outline" : "danger"}
                       size="sm"
                       className="w-24"
