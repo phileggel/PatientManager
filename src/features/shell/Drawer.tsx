@@ -6,6 +6,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings2,
+  SlidersHorizontal,
   Upload,
 } from "lucide-react";
 import { useEffect } from "react";
@@ -23,6 +24,7 @@ interface DrawerProps {
   onOpenDbBackup?: () => void;
   onOpenImport?: () => void;
   onOpenManagement?: () => void;
+  onOpenSettings?: () => void;
 }
 
 export const Drawer = ({
@@ -33,6 +35,7 @@ export const Drawer = ({
   onOpenDbBackup,
   onOpenImport,
   onOpenManagement,
+  onOpenSettings,
 }: DrawerProps) => {
   const { t } = useTranslation("common");
 
@@ -149,6 +152,22 @@ export const Drawer = ({
               >
                 <Settings2 size={20} className="shrink-0" />
                 {isExpanded && <span>{t("nav.management")}</span>}
+              </button>
+            </li>
+          )}
+
+          {onOpenSettings && (
+            <li>
+              <button
+                id="nav-settings"
+                type="button"
+                className={navItemClasses}
+                onClick={onOpenSettings}
+                title={!isExpanded ? t("nav.settings") : undefined}
+                aria-label={t("nav.settings")}
+              >
+                <SlidersHorizontal size={20} className="shrink-0" />
+                {isExpanded && <span>{t("nav.settings")}</span>}
               </button>
             </li>
           )}

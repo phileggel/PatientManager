@@ -1,4 +1,24 @@
 {
+  "label_association": {
+    "title": "Associer chaque libellé bancaire à une caisse",
+    "line_count": "{{count}} ligne(s)",
+    "select_placeholder": "-- Sélectionner une caisse --",
+    "select_aria": "Caisse pour le libellé {{label}}",
+    "suggestion": "Suggestion : {{name}}",
+    "chip": {
+      "linked": "Associé",
+      "todo": "À associer",
+      "ignored": "Ignoré"
+    },
+    "ignore": "Ignorer",
+    "restore": "Rétablir",
+    "confirm_drop": "Les sélections en cours sur ces lignes seront perdues.",
+    "confirm": "Confirmer",
+    "confirm_cancel": "Annuler",
+    "progress": "{{decided}} / {{total}} libellés décidés",
+    "cancel": "Annuler",
+    "continue": "Continuer"
+  },
   "reconciliation": {
     "summary": "{{resolved}} résolue(s), {{needsCorrection}} à corriger",
     "hide_resolved": "Masquer les lignes résolues",
@@ -8,7 +28,8 @@
       "needs_group": "À rapprocher",
       "partial": "Partielle",
       "rejected": "Rejetée",
-      "unresolved": "Non résolue"
+      "unresolved": "Non résolue",
+      "left_aside": "Laissée de côté"
     },
     "error": {
       "assignment_overflow": "Les groupes sélectionnés dépassent le montant de la ligne.",
@@ -17,15 +38,6 @@
       "procedure_not_eligible": "Cet acte n'est pas éligible pour cette ligne.",
       "procedure_already_consumed": "Cet acte est déjà affecté à une autre ligne.",
       "unknown": "Une erreur inattendue s'est produite."
-    },
-    "link_fund": {
-      "title": "Associer le libellé « {{label}} » à une caisse",
-      "suggestion": "Suggestion : {{name}}",
-      "fund_label": "Caisse",
-      "select_placeholder": "-- Sélectionner une caisse --",
-      "reject": "Ignorer ce libellé",
-      "cancel": "Annuler",
-      "submit": "Associer la caisse"
     },
     "assign_groups": {
       "title": "Rapprocher « {{label}} »",
@@ -39,6 +51,9 @@
       "cancel": "Annuler",
       "submit": "Rapprocher",
       "submit_with_remainder": "Rapprocher avec reliquat",
+      "leave_aside": "Laisser de côté",
+      "window_empty": "Aucun acte ouvert de moins de {{days}} jours pour cette caisse.",
+      "show_older": "Afficher les actes plus anciens",
       "exact_amount": "montant exact"
     },
     "remainder": {
@@ -64,18 +79,19 @@
       "abandon": "Fermer",
       "done": "Terminer",
       "done_body": "Toutes les lignes sont résolues.",
-      "phase_link_fund": "Étape 1 — Associer les caisses",
       "step_label": "Ligne : {{label}}",
       "apply": "Appliquer",
       "skip": "Passer",
-      "phase_assign_group": "Étape 2 — Affecter les groupes"
+      "phase_assign_group": "Groupes de la caisse",
+      "phase_assign_procedure": "Actes de la caisse"
     },
     "col": {
       "date": "Date",
       "fund": "Fonds",
       "amount": "Montant",
       "status": "Statut"
-    }
+    },
+    "back_to_labels": "‹ Retour aux libellés"
   },
   "statement": {
     "title": "Rapprochement Bancaire",
@@ -112,20 +128,6 @@
       "unparsed_warning_one": "{{count}} ligne du relevé n'a pas pu être lue et n'apparaît pas ci-dessous.",
       "unparsed_warning_other": "{{count}} lignes du relevé n'ont pas pu être lues et n'apparaissent pas ci-dessous."
     }
-  },
-  "label_mapping": {
-    "title": "Associations labels → organismes",
-    "description": "Les labels suivants apparaissent sur le relevé. Les associations déjà enregistrées sont pré-remplies — vérifiez-les et complétez les labels inconnus avant de valider.",
-    "suggestion": "Suggestion : {{name}}",
-    "select_placeholder": "-- Sélectionner --",
-    "rejected": "REJETÉ (Pas un organisme)",
-    "funds_group": "Organismes",
-    "fund_aria_label": "Organisme pour {{label}}",
-    "accept": "Accepter",
-    "saving": "Enregistrement...",
-    "section_unknown": "Labels inconnus",
-    "section_confirmed": "Labels déjà enregistrés",
-    "empty": "Aucun label à afficher."
   },
   "transfer": {
     "date": "Date du virement *",

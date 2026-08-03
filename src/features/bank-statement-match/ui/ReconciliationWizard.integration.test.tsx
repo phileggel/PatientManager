@@ -42,7 +42,10 @@ const NOW = new Date("2026-05-01T00:00:00.000Z");
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeNeedsGroupLine(id: string, overrides: Partial<BankStatementLine> = {}): BankStatementLine {
+function makeNeedsGroupLine(
+  id: string,
+  overrides: Partial<BankStatementLine> = {},
+): BankStatementLine {
   return {
     line_id: id,
     credit_line: { date: "2026-04-11", label: "CPAM75", amount: 200000 },
@@ -71,7 +74,10 @@ function makeNeedsGroupLine(id: string, overrides: Partial<BankStatementLine> = 
 }
 
 /** BAS-116 — a line resolvable only via procedures (no group candidate at all). */
-function makeProcedureOnlyLine(id: string, overrides: Partial<BankStatementLine> = {}): BankStatementLine {
+function makeProcedureOnlyLine(
+  id: string,
+  overrides: Partial<BankStatementLine> = {},
+): BankStatementLine {
   return {
     line_id: id,
     credit_line: { date: "2026-04-12", label: "RATP", amount: 60000 },

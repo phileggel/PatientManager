@@ -1,5 +1,6 @@
 import type {
   BankStatementCorrection,
+  BankStatementLine,
   BankStatementLineStatus,
   BankStatementReconciliationError,
 } from "@/bindings";
@@ -30,6 +31,20 @@ export function presentLineStatus(status: BankStatementLineStatus): string {
     case "Unresolved":
       return "bank:reconciliation.status.unresolved";
   }
+}
+
+/**
+ * BAS-123C — badge key for a line: a left-aside line (matched with zero
+ * assigned settlement items and an acknowledged remainder) gets its own badge
+ * so it never reads as a real match; every other line badges by status.
+ */
+export function presentLineBadge(line: BankStatementLine): string {
+  const leftAside =
+    line.status === "Matched" &&
+    line.assigned_group_ids.length === 0 &&
+    line.assigned_procedure_ids.length === 0 &&
+    line.remainder_acknowledged;
+  return leftAside ? "bank:reconciliation.status.left_aside" : presentLineStatus(line.status);
 }
 
 /**

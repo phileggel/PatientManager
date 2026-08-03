@@ -805,9 +805,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       const scrollzone = document.getElementById("assign-groups-scrollzone");
       expect(scrollzone).not.toBeNull();
       expect(scrollzone?.className).toContain("overflow-y-auto");
-      expect(
-        scrollzone?.contains(document.getElementById("assign-groups-candidate-group-1")),
-      ).toBe(true);
+      expect(scrollzone?.contains(document.getElementById("assign-groups-candidate-group-1"))).toBe(
+        true,
+      );
     });
   });
 
@@ -873,6 +873,84 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       expect(document.getElementById("assign-groups-submit-with-remainder")?.textContent).toContain(
         "reconciliation.assign_groups.submit_with_remainder",
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // BAS-118/118A — display window in the procedure scope
+  // ---------------------------------------------------------------------------
+
+  describe("BAS-118/118A — procedure display window", () => {
+    const NOW = new Date("2026-05-01T00:00:00.000Z");
+
+    it("shows the windowed empty state with a show-older override when every procedure is older than the window", async () => {
+      const user = userEvent.setup();
+      const oldProcedure: BankStatementProcedureCandidate = {
+        ...PROCEDURE_CANDIDATE_1,
+        procedure_id: "proc-old",
+        procedure_date: "2025-11-01",
+      };
+      const line = makeNeedsGroupLine({
+        candidate_groups: [],
+        candidate_procedures: [oldProcedure],
+      });
+
+      render(
+        <AssignGroupsModal
+          line={line}
+          isOpen={true}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+          procedureWindowDays={90}
+          now={NOW}
+        />,
+      );
+
+      // Default scope evaluates the UNFILTERED pool (BAS-118A) — the dialog
+      // opens on the procedure scope even though the filtered list is empty.
+      expect(
+        document.getElementById("assign-groups-scope-procedures")?.getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(document.getElementById("assign-groups-candidate-proc-proc-old")).toBeNull();
+      expect(document.getElementById("assign-groups-procedures-windowed-empty")).not.toBeNull();
+
+      const showOlder = document.getElementById("assign-groups-show-older");
+      if (!showOlder) throw new Error("show-older override missing");
+      await user.click(showOlder);
+
+      // The override reveals the full pool for this dialog instance only.
+      expect(document.getElementById("assign-groups-candidate-proc-proc-old")).not.toBeNull();
+    });
+
+    it("filters the procedure list by the window while keeping in-window candidates", () => {
+      const recent: BankStatementProcedureCandidate = {
+        ...PROCEDURE_CANDIDATE_1,
+        procedure_id: "proc-recent",
+        procedure_date: "2026-04-20",
+      };
+      const old: BankStatementProcedureCandidate = {
+        ...PROCEDURE_CANDIDATE_2,
+        procedure_id: "proc-old",
+        procedure_date: "2025-11-01",
+      };
+      const line = makeNeedsGroupLine({
+        candidate_groups: [],
+        candidate_procedures: [recent, old],
+      });
+
+      render(
+        <AssignGroupsModal
+          line={line}
+          isOpen={true}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+          procedureWindowDays={90}
+          now={NOW}
+        />,
+      );
+
+      expect(document.getElementById("assign-groups-candidate-proc-proc-recent")).not.toBeNull();
+      expect(document.getElementById("assign-groups-candidate-proc-proc-old")).toBeNull();
     });
   });
 });

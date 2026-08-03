@@ -42,7 +42,10 @@ describe("deriveLabelRows — BAS-120", () => {
   it("produces one row per distinct label, ordered by first occurrence (not alphabetical)", () => {
     const lines = [
       makeLine({ line_id: "l1", credit_line: { date: "2026-04-10", label: "MGEN", amount: 1000 } }),
-      makeLine({ line_id: "l2", credit_line: { date: "2026-04-11", label: "CPAM75", amount: 2000 } }),
+      makeLine({
+        line_id: "l2",
+        credit_line: { date: "2026-04-11", label: "CPAM75", amount: 2000 },
+      }),
       makeLine({ line_id: "l3", credit_line: { date: "2026-04-12", label: "MGEN", amount: 500 } }),
     ];
 

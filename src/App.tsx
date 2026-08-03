@@ -19,6 +19,7 @@ import {
   Header,
   ImportModal,
   ManagementModal,
+  SettingsModal,
   useDrawerController,
 } from "@/features/shell";
 import { DesignSystemPage } from "@/features/shell/DesignSystemPage";
@@ -39,6 +40,7 @@ function AppContent() {
   const [isDbBackupOpen, setIsDbBackupOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isManagementOpen, setIsManagementOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [pendingFilePath, setPendingFilePath] = useState<string | null>(null);
 
   // Initialize app data and event listeners
@@ -121,6 +123,7 @@ function AppContent() {
         onOpenDbBackup={() => setIsDbBackupOpen(true)}
         onOpenImport={() => setIsImportOpen(true)}
         onOpenManagement={() => setIsManagementOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -184,6 +187,9 @@ function AppContent() {
         onClose={() => setIsManagementOpen(false)}
         onNavigate={handleNavigate}
       />
+      {isSettingsOpen && (
+        <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      )}
     </div>
   );
 }
