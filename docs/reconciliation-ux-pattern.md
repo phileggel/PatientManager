@@ -40,7 +40,10 @@ Every reconciliation flow MUST follow these six rules.
 
 1. **Whole-document list.** Show **every** line of the imported document at once
    — never bit-by-bit / one-card-at-a-time. The user sees the full scope before
-   acting.
+   acting. _(2026-08-03 — a flow MAY split the list across sequential dedicated
+   screens when the document carries two distinct decision kinds; each screen
+   still shows its full scope at once. BAS does: labels on screen 1, their
+   lines on screen 2, BAS-120/122.)_
 2. **Status per line.** Each row shows its identity columns plus a **status**:
    `OK`, or `correction needed` labelled with the correction _type_.
 3. **Exception-first emphasis.** The lines needing action must stand out. This
@@ -162,4 +165,4 @@ These are deliberately left to per-feature `/spec-writer` work:
 - **Uncovered amount** — lightweight **remainder annotation** (no new aggregate,
   ships fast) vs a first-class **aid-payment entity**. _(BAS chose **remainder
   annotation**, BAS-092.)_
-- **Batch** — auto-apply vs guided walkthrough (per [§ Batch semantics](#batch-semantics)). _(BAS chose **guided walkthrough**, phased link-fund → assign-group, BAS-100–103.)_
+- **Batch** — auto-apply vs guided walkthrough (per [§ Batch semantics](#batch-semantics)). _(BAS chose **guided walkthrough**, settlement-only since the label screen split off — BAS-100–103, BAS-116/120.)_

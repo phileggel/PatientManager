@@ -1,0 +1,343 @@
+<title>Rapprochement bancaire — maquette deux écrans</title>
+<style>
+  :root {
+    --surface: #faf8fd;
+    --surface-container: #ffffff;
+    --surface-high: #f1ecf6;
+    --on-surface: #1c1b20;
+    --muted: #49454e;
+    --outline: #c9c4d0;
+    --primary: #5b3fa8;
+    --on-primary: #ffffff;
+    --primary-container: #e8def8;
+    --gold: #765b00;
+    --gold-container: #c9a74d;
+    --danger: #b3261e;
+    --chip-ok-bg: #e6efe0;
+    --chip-ok-fg: #3d5d2f;
+    --shadow: 0 6px 24px rgba(30, 20, 60, 0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #17161b;
+      --surface-container: #211f26;
+      --surface-high: #2b2930;
+      --on-surface: #e6e1e9;
+      --muted: #aca6b4;
+      --outline: #49454e;
+      --primary: #a789e8;
+      --on-primary: #22105a;
+      --primary-container: #4a3a80;
+      --gold: #c9a74d;
+      --gold-container: #7a5c10;
+      --danger: #f2726b;
+      --chip-ok-bg: #2e4024;
+      --chip-ok-fg: #b4d3a2;
+      --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface: #17161b;
+    --surface-container: #211f26;
+    --surface-high: #2b2930;
+    --on-surface: #e6e1e9;
+    --muted: #aca6b4;
+    --outline: #49454e;
+    --primary: #a789e8;
+    --on-primary: #22105a;
+    --primary-container: #4a3a80;
+    --gold: #c9a74d;
+    --gold-container: #7a5c10;
+    --danger: #f2726b;
+    --chip-ok-bg: #2e4024;
+    --chip-ok-fg: #b4d3a2;
+    --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  }
+  :root[data-theme="light"] {
+    --surface: #faf8fd;
+    --surface-container: #ffffff;
+    --surface-high: #f1ecf6;
+    --on-surface: #1c1b20;
+    --muted: #49454e;
+    --outline: #c9c4d0;
+    --primary: #5b3fa8;
+    --on-primary: #ffffff;
+    --primary-container: #e8def8;
+    --gold: #765b00;
+    --gold-container: #c9a74d;
+    --danger: #b3261e;
+    --chip-ok-bg: #e6efe0;
+    --chip-ok-fg: #3d5d2f;
+    --shadow: 0 6px 24px rgba(30, 20, 60, 0.10);
+  }
+
+  body {
+    background: var(--surface);
+    color: var(--on-surface);
+    font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+    margin: 0;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; }
+  .topbar h1 { font-size: 18px; margin: 0; }
+  .themebtn {
+    border: 1px solid var(--outline); background: var(--surface-container); color: var(--on-surface);
+    border-radius: 20px; padding: 6px 16px; cursor: pointer; font-size: 13px;
+  }
+  .frame-label {
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    margin: 0 0 8px 4px;
+  }
+  .note { font-size: 12px; color: var(--muted); margin: 6px 4px 0; }
+  .card {
+    background: var(--surface-container); border-radius: 24px; box-shadow: var(--shadow);
+    padding: 24px; display: flex; flex-direction: column; gap: 16px;
+  }
+  .card h2 { font-size: 16px; margin: 0; }
+  .ctx { font-size: 13px; color: var(--muted); margin: 0; }
+
+  /* rows — screen 1 */
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    display: grid; grid-template-columns: 170px max-content 1fr max-content; align-items: center; gap: 14px;
+    border: 1px solid color-mix(in srgb, var(--outline) 45%, transparent);
+    border-radius: 12px; padding: 10px 14px;
+  }
+  .lbl { font-style: italic; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cnt { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  select {
+    background: var(--surface-high); color: var(--on-surface);
+    border: 1px solid var(--outline); border-radius: 10px; padding: 7px 10px; font-size: 13px; width: 100%; box-sizing: border-box;
+  }
+  .hint { font-size: 11px; color: var(--muted); }
+  .chip { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  .chip.ok { background: var(--chip-ok-bg); color: var(--chip-ok-fg); }
+  .chip.todo { background: color-mix(in srgb, var(--gold-container) 30%, transparent); color: var(--gold); }
+  .chip.off { background: var(--surface-high); color: var(--muted); }
+  .rowaction { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .rowaction .chip { width: 74px; text-align: center; box-sizing: border-box; }
+  .rowaction .btn { width: 92px; padding: 6px 0; font-size: 12px; text-align: center; }
+
+  button { font: inherit; cursor: pointer; }
+  .btn { border-radius: 12px; padding: 9px 20px; font-size: 13px; font-weight: 600; border: 1px solid transparent; }
+  .btn.primary { background: var(--primary); color: var(--on-primary); }
+  .btn.primary:disabled { background: var(--surface-high); color: var(--muted); cursor: not-allowed; }
+  .btn.secondary { background: var(--primary-container); color: var(--on-surface); }
+  .btn.ghost { background: transparent; color: var(--on-surface); border-color: var(--outline); }
+  .btn.warn { background: transparent; color: var(--gold); border-color: var(--gold); }
+  .btn.danger-sm { background: transparent; color: var(--danger); border-color: currentcolor; border-radius: 10px; padding: 6px 12px; font-size: 12px; }
+
+  .footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid color-mix(in srgb, var(--outline) 40%, transparent); padding-top: 16px; }
+  .footer .right { display: flex; gap: 8px; margin-left: auto; }
+  .progress { font-size: 12px; color: var(--muted); }
+
+  /* screen 2 table */
+  .t2 { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .t2 th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 10px; }
+  .t2 td { padding: 9px 10px; border-top: 1px solid color-mix(in srgb, var(--outline) 35%, transparent); font-variant-numeric: tabular-nums; }
+  .amount { text-align: right; font-weight: 600; }
+
+  /* scrollable list demo */
+  .scrollzone {
+    max-height: 180px; overflow-y: auto; border: 1px solid color-mix(in srgb, var(--outline) 45%, transparent);
+    border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .cand { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--surface-high); }
+  .cand input { accent-color: var(--primary); }
+  .cand .who { min-width: 110px; }
+  .cand .when { color: var(--muted); font-size: 12px; }
+  .cand .amt { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .exact { color: var(--primary); font-size: 11px; font-weight: 600; }
+  .scopebar { display: flex; gap: 4px; border: 1px solid color-mix(in srgb, var(--outline) 45%, transparent); border-radius: 14px; padding: 4px; align-self: flex-start; }
+  .scope { border: 0; background: transparent; color: var(--on-surface); border-radius: 10px; padding: 6px 14px; font-size: 12px; }
+  .scope.active { background: var(--gold-container); color: var(--surface-container); font-weight: 700; }
+  .emptystate { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; padding: 14px; border: 1px dashed var(--outline); border-radius: 12px; }
+  .settings-row { display: flex; align-items: center; gap: 12px; }
+  .settings-row input[type="number"] { width: 80px; background: var(--surface-high); color: var(--on-surface); border: 1px solid var(--outline); border-radius: 10px; padding: 7px 10px; font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <h1>Rapprochement bancaire — flux en deux écrans</h1>
+    <button class="themebtn" id="themeToggle" type="button">Nuit</button>
+  </div>
+
+  <!-- ============ ÉCRAN 1 ============ -->
+  <section>
+    <p class="frame-label">Écran 1 — Association des libellés</p>
+    <div class="card">
+      <h2>Associer chaque libellé bancaire à une caisse</h2>
+      <p class="ctx">Relevé du 01/05/2025 au 31/05/2025 · 6 lignes de crédit · 3 libellés distincts</p>
+
+      <div class="rows">
+        <div class="row">
+          <span class="lbl">CPAM75</span>
+          <span class="cnt">3 lignes · 312,00 €</span>
+          <select><option>CPAM Paris</option></select>
+          <div class="rowaction">
+            <span class="chip ok">Associé</span>
+            <button class="btn danger-sm" type="button">Ignorer</button>
+          </div>
+        </div>
+        <div class="row">
+          <span class="lbl">MUTUELLEGENERALE</span>
+          <span class="cnt">2 lignes · 145,80 €</span>
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <select><option>-- Sélectionner une caisse --</option><option>Mutuelle Générale</option></select>
+            <span class="hint">Suggestion : Mutuelle Générale</span>
+          </div>
+          <div class="rowaction">
+            <span class="chip todo">À associer</span>
+            <button class="btn danger-sm" type="button">Ignorer</button>
+          </div>
+        </div>
+        <div class="row">
+          <span class="lbl">SALAIRE KINE REMPL</span>
+          <span class="cnt">1 ligne · 850,00 €</span>
+          <select disabled><option>—</option></select>
+          <div class="rowaction">
+            <span class="chip off">Ignoré</span>
+            <button class="btn ghost" type="button">Rétablir</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <span class="progress">2 / 3 libellés décidés</span>
+        <div class="right">
+          <button class="btn secondary" type="button">Annuler</button>
+          <button class="btn primary" type="button" disabled>Continuer</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Une ligne par libellé distinct (le lien s'applique à toutes ses lignes). « Continuer » s'active quand chaque libellé est associé ou ignoré.</p>
+  </section>
+
+  <!-- ============ ÉCRAN 2 ============ -->
+  <section>
+    <p class="frame-label">Écran 2 — Rapprochement</p>
+    <div class="card">
+      <h2>Rapprocher les lignes de crédit</h2>
+      <p class="ctx">2 rapprochées · 4 à décider — double-clic sur une ligne pour corriger</p>
+
+      <div class="scrollzone" style="max-height:210px; padding:0;">
+        <table class="t2">
+          <thead><tr><th>Date</th><th>Caisse</th><th>Statut</th><th style="text-align:right">Montant</th></tr></thead>
+          <tbody>
+            <tr><td>05/05/2025</td><td>CPAM Paris</td><td><span class="chip ok">Rapprochée</span></td><td class="amount">104,00 €</td></tr>
+            <tr><td>06/05/2025</td><td>CPAM Paris</td><td><span class="chip todo">À rapprocher</span></td><td class="amount">150,00 €</td></tr>
+            <tr><td>06/05/2025</td><td>Mutuelle Générale</td><td><span class="chip todo">À rapprocher</span></td><td class="amount">88,50 €</td></tr>
+            <tr><td>12/05/2025</td><td>CPAM Paris</td><td><span class="chip ok">Rapprochée</span></td><td class="amount">58,00 €</td></tr>
+            <tr><td>19/05/2025</td><td>Mutuelle Générale</td><td><span class="chip todo">Partielle</span></td><td class="amount">57,30 €</td></tr>
+            <tr><td>22/05/2025</td><td>CPAM Paris</td><td><span class="chip off">Laissée de côté</span></td><td class="amount">12,00 €</td></tr>
+            <tr><td>26/05/2025</td><td>CPAM Paris</td><td><span class="chip todo">À rapprocher</span></td><td class="amount">33,00 €</td></tr>
+            <tr><td>28/05/2025</td><td>Mutuelle Générale</td><td><span class="chip todo">À rapprocher</span></td><td class="amount">21,90 €</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="footer">
+        <button class="btn ghost" type="button">‹ Retour aux libellés</button>
+        <div class="right">
+          <button class="btn secondary" type="button">Correction guidée</button>
+          <button class="btn primary" type="button" disabled>Valider le rapprochement</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Plus aucune notion de libellé ici : uniquement le rapprochement (groupes / actes). Seule la liste défile ; les boutons restent en bas. « Valider » ne s'active que lorsque chaque ligne est décidée : rapprochée, ou reliquat accepté. « Laissée de côté » = reliquat accepté sur la totalité du montant, obtenu depuis le dialogue via « Rapprocher avec reliquat » avec une sélection vide (réversible depuis le journal des corrections ; rien n'est écrit en base pour cette ligne). La correction guidée parcourt les lignes à décider une par une — y compris les caisses sans bordereau (liste d'actes).</p>
+  </section>
+
+  <!-- ============ DIALOG : liste défilante + fenêtre 90 j ============ -->
+  <section>
+    <p class="frame-label">Dialogue de rapprochement — liste défilante, boutons épinglés</p>
+    <div class="card" style="max-width:560px;">
+      <h2 style="font-size:15px;">Rapprocher « RATP »</h2>
+      <p class="ctx">06/05/2025 · <strong>88,50 €</strong> · <em>RATP</em></p>
+      <div class="scopebar">
+        <button class="scope" type="button">Cette caisse</button>
+        <button class="scope" type="button">Toutes les caisses</button>
+        <button class="scope active" type="button">Actes de la caisse</button>
+      </div>
+      <p class="ctx">Couvert 44,25 € sur 88,50 €</p>
+
+      <div class="scrollzone">
+        <label class="cand"><input type="checkbox" checked><span class="who">Jean Dupont</span><span class="when">02/04/2025</span><span class="amt">44,25 €</span></label>
+        <label class="cand"><input type="checkbox"><span class="who">Marie Curie</span><span class="when">10/04/2025</span><span class="exact">montant exact</span><span class="amt">88,50 €</span></label>
+        <label class="cand"><input type="checkbox"><span class="who">Paul Martin</span><span class="when">15/04/2025</span><span class="amt">30,00 €</span></label>
+        <label class="cand"><input type="checkbox"><span class="who">Louise Bernard</span><span class="when">18/04/2025</span><span class="amt">22,60 €</span></label>
+        <label class="cand"><input type="checkbox"><span class="who">Ahmed Ziani</span><span class="when">22/04/2025</span><span class="amt">44,25 €</span></label>
+        <label class="cand"><input type="checkbox"><span class="who">Nina Rossi</span><span class="when">28/04/2025</span><span class="amt">88,50 €</span></label>
+        <label class="cand"><input type="checkbox"><span class="who">Hugo Blanc</span><span class="when">30/04/2025</span><span class="amt">15,00 €</span></label>
+      </div>
+
+      <div class="footer">
+        <button class="btn warn" type="button">Rapprocher avec reliquat</button>
+        <div class="right">
+          <button class="btn secondary" type="button">Annuler</button>
+          <button class="btn primary" type="button">Rapprocher</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Seule la liste défile (essayez !) ; titre, en-tête, sélecteur et boutons restent visibles. La liste n'affiche que les actes de moins de 90 jours (réglable). « Rapprocher avec reliquat » est actif tant que la sélection ne couvre pas tout le montant ; il est désactivé à couverture exacte.</p>
+
+    <div class="card" style="max-width:560px; margin-top:16px;">
+      <h2 style="font-size:15px;">Rapprocher « RATP » — cas fenêtre vide</h2>
+      <p class="ctx">06/05/2025 · <strong>88,50 €</strong> · <em>RATP</em></p>
+      <div class="scopebar">
+        <button class="scope" type="button">Cette caisse</button>
+        <button class="scope" type="button">Toutes les caisses</button>
+        <button class="scope active" type="button">Actes de la caisse</button>
+      </div>
+      <p class="ctx">Couvert 0,00 € sur 88,50 €</p>
+      <div class="emptystate">
+        <span class="ctx">Aucun acte ouvert de moins de 90 jours pour cette caisse.</span>
+        <button class="btn ghost" type="button">Afficher les actes plus anciens</button>
+      </div>
+      <div class="footer">
+        <button class="btn warn" type="button">Laisser de côté</button>
+        <div class="right">
+          <button class="btn secondary" type="button">Annuler</button>
+          <button class="btn primary" type="button" disabled>Rapprocher</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">Même dialogue que ci-dessus — le bouton doré change d'étiquette selon la sélection : sélection partielle → « Rapprocher avec reliquat » ; sélection vide → « Laisser de côté » (tout le montant accepté en reliquat, réversible depuis le journal des corrections). Désactivé uniquement à couverture exacte.</p>
+  </section>
+
+  <!-- ============ PARAMÈTRES ============ -->
+  <section>
+    <p class="frame-label">Paramètres — écran à créer (n'existe pas encore dans l'app)</p>
+    <div class="card" style="max-width:460px;">
+      <h2 style="font-size:15px;">Paramètres</h2>
+      <div class="settings-row">
+        <label for="win">Fenêtre de recherche des actes</label>
+        <input id="win" type="number" value="90" min="1"> <span class="ctx">jours</span>
+      </div>
+      <p class="ctx">Les listes d'actes du rapprochement bancaire n'affichent que les actes plus récents que cette limite.</p>
+      <div class="footer">
+        <div class="right">
+          <button class="btn secondary" type="button">Fermer</button>
+          <button class="btn primary" type="button">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  const btn = document.getElementById("themeToggle");
+  const root = document.documentElement;
+  function label() {
+    const dark = root.dataset.theme === "dark" ||
+      (!root.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+    btn.textContent = dark ? "Jour" : "Nuit";
+  }
+  btn.addEventListener("click", () => {
+    const dark = root.dataset.theme === "dark" ||
+      (!root.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+    root.dataset.theme = dark ? "light" : "dark";
+    label();
+  });
+  label();
+</script>

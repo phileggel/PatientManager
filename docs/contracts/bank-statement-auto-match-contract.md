@@ -87,7 +87,7 @@ Superseded by the draft-UX rework (BAS-060–102): broadening moved server-side 
 
 ### `compute_bank_statement_reconciliation` — BAS-060–069, BAS-090–092, BAS-094, BAS-111–113
 
-The reconciliation engine. Computes the full bank-statement reconciliation as a pure function of the parsed statement plus an ordered list of correction commands. Reads live unsettled `FundPaymentGroup`s, saved label mappings, and — for linked lines — the fund's **open procedures with patient display names** (BAS-112 predicate: line's fund, `payment_status == Created`, in no active fund-payment-group line, positive billed amount; ordered oldest procedure date first, id tiebreak). Applies heuristic suggestions, runs the auto-match (BAS-050–054), then **replays every correction in order** — link-fund cascade incl. procedure-assignment drop on re-link (BAS-066), group assignment with consumption (BAS-067, BAS-090), procedure assignment with consumption and per-line group/procedure mutual exclusion resolved by correction-list removal (BAS-113 — the exclusion is a cascade, never an error), remainder acknowledgment (BAS-092; applying either assignment kind resets a previously acknowledged remainder — its implied size changed, BAS-113) — re-deriving each line's status, candidate groups, and candidate procedures. Read-only: no DB writes; the reconciliation is never persisted (ephemeral, BAS-064). The frontend re-calls this on every correction and every revert (BAS-065 = drop a command and recompute).
+The reconciliation engine. Computes the full bank-statement reconciliation as a pure function of the parsed statement plus an ordered list of correction commands. Reads live unsettled `FundPaymentGroup`s, saved label mappings, and — for linked lines — the fund's **open procedures with patient display names** (BAS-112 predicate: line's fund, `payment_status == Created`, in no active fund-payment-group line, positive billed amount; ordered oldest procedure date first, id tiebreak). Applies heuristic suggestions, runs the auto-match (BAS-050–054), then **replays every correction in order** — link-fund cascade incl. procedure-assignment drop on re-link (BAS-066), group assignment with consumption (BAS-067, BAS-090), procedure assignment with consumption and per-line group/procedure mutual exclusion resolved by correction-list removal (BAS-113 — the exclusion is a cascade, never an error), remainder acknowledgment (BAS-092; applying either assignment kind resets a previously acknowledged remainder — its implied size changed, BAS-113; a zero-item acknowledgment resolves the line as left aside, BAS-123B) — re-deriving each line's status, candidate groups, and candidate procedures. Read-only: no DB writes; the reconciliation is never persisted (ephemeral, BAS-064). The frontend re-calls this on every correction and every revert (BAS-065 = drop a command and recompute).
 
 - **Args:** `bank_account_id: String, parse_result: BankStatementParseResult, corrections: Vec<BankStatementCorrection>`
 - **Returns:** `BankStatementReconciliation`
@@ -197,8 +197,8 @@ enum FundAssignment {
 // The recomputed reconciliation state: every statement line with its resolved status.
 struct BankStatementReconciliation {
     lines: Vec<BankStatementLine>,
-    resolved_count: u32,        // BAS-069 — running summary
-    needs_correction_count: u32,
+    resolved_count: u32,        // BAS-069 — whole-document totals; unconsumed since BAS-122 (screen 2 derives
+    needs_correction_count: u32, // its counts frontend-side) — removal deferred to the next wire change (techdebt)
 }
 
 // One bank credit line within the reconciliation, in document order (BAS-060).
@@ -214,15 +214,15 @@ struct BankStatementLine {
     candidate_groups: Vec<BankStatementCandidate>, // BAS-068 — proposals for needs-group/partial, fund-filtered (default view), most recent first
     broadened_candidates: Vec<BankStatementCandidate>, // BAS-068 — same proposals across ALL funds; shown on "broaden"
     candidate_procedures: Vec<BankStatementProcedureCandidate>, // BAS-112 — the linked fund's open procedures, oldest first; empty while needs-link
-    suggested_fund_id: Option<String>,     // BAS-066/032 — heuristic, for the link-fund modal
+    suggested_fund_id: Option<String>,     // BAS-066/032 — heuristic, for the screen-1 label row (BAS-120B)
     suggested_fund_name: Option<String>,
 }
 
 // BAS-061 — the per-line status set
 enum BankStatementLineStatus {
-    Matched,     // auto-matched or fully assigned (covered == line amount; groups OR procedures, BAS-061/113)
+    Matched,     // auto-matched, fully assigned (covered == line amount; groups OR procedures, BAS-061/113), or left aside (zero items + acknowledged remainder, BAS-123B)
     NeedsLink,   // label not yet linked to a fund
-    NeedsGroup,  // fund known, no settlement item assigned, ≥1 eligible candidate (group OR open procedure)
+    NeedsGroup,  // fund known, no settlement item assigned, no acknowledged remainder (BAS-123B), ≥1 eligible candidate (group OR open procedure)
     Partial,     // some settlement items assigned, line not yet fully covered
     Rejected,    // label marked not-a-fund-payment (BAS-030)
     Unresolved,  // linked, zero items, no eligible candidate of either kind, not acknowledged
@@ -265,4 +265,5 @@ struct BankStatementProcedureCandidate {
 - 2026-06-09 — Typed-error migration: per-command Errors columns now list the real wire-visible `BankStatementReconciliationError` variant codes (`BankError`/`FundError`/`BankStatementReconciliationTask`), replacing the pre-implementation aspirational names. `NoVirSepaLines` → `NoSepaCreditLines`.
 - 2026-06-20 — Draft-UX rework (BAS-060–102): added `compute_bank_statement_reconciliation` and `validate_bank_statement_reconciliation`; superseded `resolve_bank_fund_labels`, `save_bank_fund_label_mappings`, `match_bank_statement_lines`, `create_bank_transfers_from_statement` (absorbed into the two new commands — collapse confirmed by user). Added reconciliation types (`BankStatementCorrection`, `BankStatementReconciliation`, `BankStatementLine`, `BankStatementLineStatus`, `BankStatementCandidate`), new error variants (`AssignmentOverflow`, `GroupNotEligible`, `GroupAlreadyConsumed`), and `FundPaymentGroupUpdated` event. Validate recomputes server-side from `corrections[]`; writes non-atomic (deferred UoW). `LinkFund` uses a typed `FundAssignment` (`Fund | Rejected`) instead of a `"REJECTED"` string sentinel; `AssignGroups` with an empty set means unassign / override an auto-match (BAS-062).
 - 2026-07-30 — Post-v0.20.0 audit closure: added `fund_name` to `BankStatementCandidate` (shipped in v0.20.0, contract lagged); marked `get_bank_statement_reconciliation_config` SUPERSEDED (never implemented, no consumer since broadening moved server-side); BAS-090 amended — manual assignment may reference a cross-fund (broadened) group, the fund criterion binds auto-match only.
+- 2026-08-03 — Two-screen flow + display window (BAS-116 rev, BAS-118–123): **comment-only refresh — no signature, type, or error change.** The single behavioral delta is engine status derivation: a zero-item acknowledged remainder now resolves the line (`Matched`, left aside, BAS-123B); `NeedsGroup` gains the "no acknowledged remainder" conjunct. Screen 1 (label association) and all BAS-118 window filtering are frontend-derived from the existing wire shape.
 - 2026-07-31 — Bank-born groups (BAS-110–117): added `AssignProcedures` correction variant, `assigned_procedure_ids` + `candidate_procedures` on `BankStatementLine`, and `BankStatementProcedureCandidate`; new error codes `ProcedureNotEligible` (subsumes not-found) / `ProcedureAlreadyConsumed` on both live commands. `compute_bank_statement_reconciliation` additionally reads open procedures (BAS-112 predicate) + patient names for linked lines; `validate_bank_statement_reconciliation` births the `FundPaymentGroup` from assigned procedures (BAS-115 field mapping, stale-draft recheck) before settling it through the standard BAS-070–073 path. Group/procedure mutual exclusion per line resolved as a correction-list cascade (never an error); procedure consumption mirrors BAS-067. BAS-114 auto-select NOT RETAINED. `FundPaymentGroupUpdated` also fires for born groups (new record, not a status flip).

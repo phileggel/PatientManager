@@ -4,6 +4,7 @@ All business rules in feature specs use a consistent numbering scheme: **`TRIG-N
 
 - **TRIG**: 3-letter code identifying the feature/context
 - **NNN**: 3-digit index (010, 020, 030...) with gaps for extensibility
+- **Letter suffix** (`TRIG-NNNA`, `TRIG-NNNB`, …): sub-rules of `TRIG-NNN`, used when a rule needs surgical sub-parts or a full block runs out of indices (ratified 2026-08-03; first use: BAS-113A/118A/120A–E)
 
 ---
 
