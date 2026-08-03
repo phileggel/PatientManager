@@ -8,6 +8,16 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-08-03 — printpdf 0.9 pins a RUSTSEC-flagged lopdf
+
+**Found by:** scheduled Security Audit run (cargo audit, branch `fix/cargo-audit-rustsec-bumps`)
+
+**Where:** `src-tauri/Cargo.toml` (`printpdf = "0.9"`, dev-dep `lopdf = "0.39"`); ignore documented in `src-tauri/.cargo/audit.toml`
+
+**Observation:** printpdf 0.9 pulls lopdf 0.39, which carries RUSTSEC-2026-0187 (stack overflow parsing deeply nested PDF objects). Our printpdf usage is write-only (fund-payment report generation, `renderer.rs` ~667 LOC), so untrusted input never reaches the vulnerable parse path — the advisory is ignored in audit.toml with that justification. printpdf ≥0.10 redesigned its API, so moving to 0.12 (lopdf ≥0.44) is a renderer rewrite, not a version bump; the dev-only `lopdf` test parser is version-coupled to printpdf's output format and moves with it. Doing that migration removes the audit ignore entirely.
+
+---
+
 ## 2026-08-02 — Logging target absent across procedure repository
 
 **Found by:** reviewer-backend (branch `feat/bank-born-groups` @ `ed6f214`, severity 🔵)
