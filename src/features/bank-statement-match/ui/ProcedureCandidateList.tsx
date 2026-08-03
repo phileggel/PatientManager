@@ -25,6 +25,16 @@ export function ProcedureCandidateList({
   const { t } = useTranslation("bank");
   const { formatCurrency, formatDate } = useFormatters();
 
+  // BAS-111 — the scope tab is reachable whenever the line is linked, even
+  // with zero open procedures; a bare list would read as a rendering bug.
+  if (candidates.length === 0) {
+    return (
+      <p id={`${idPrefix}-procedures-empty`} className="text-sm text-m3-on-surface-variant">
+        {t("reconciliation.assign_groups.no_procedures")}
+      </p>
+    );
+  }
+
   return (
     <ul className="flex flex-col gap-1">
       {candidates.map((candidate) => (

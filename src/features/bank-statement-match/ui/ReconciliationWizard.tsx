@@ -41,6 +41,10 @@ function needsCorrection(line: BankStatementLine): boolean {
  * selector there would silently discard staged procedure work (BAS-116); they
  * stay correctable from the list.
  */
+// reviewer-frontend FP: the guard intentionally checks the fund-scoped
+// candidate_groups only — broadened_candidates holds near-universal cross-fund
+// matches, so including them would put the group selector back over
+// procedure-only lines, defeating BAS-116 (see red test BAS-116a).
 function buildQueue(lines: BankStatementLine[]): BankStatementLine[] {
   const linkFund = lines.filter((l) => l.status === "NeedsLink");
   const rest = lines.filter(

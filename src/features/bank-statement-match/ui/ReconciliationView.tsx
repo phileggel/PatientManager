@@ -99,11 +99,14 @@ export function ReconciliationView({
 
   // Close the dialog only when the correction was accepted; on rejection the
   // dialog stays open and shows the error (BAS-064 — "the frontend signals it").
-  const submitAndCloseOnSuccess = async (correction: BankStatementCorrection) => {
+  // Returns the outcome so a composed submit (« Rapprocher avec reliquat »)
+  // can bail out after a rejected first correction.
+  const submitAndCloseOnSuccess = async (correction: BankStatementCorrection): Promise<boolean> => {
     const ok = await applyCorrection(correction);
     if (ok) {
       setActiveLine(null);
     }
+    return ok;
   };
 
   return (

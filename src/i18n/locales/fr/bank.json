@@ -35,6 +35,7 @@
       "scope_fund": "Cette caisse",
       "scope_all": "Toutes les caisses",
       "scope_procedures": "Actes de la caisse",
+      "no_procedures": "Aucun acte ouvert pour cette caisse.",
       "cancel": "Annuler",
       "submit": "Rapprocher",
       "submit_with_remainder": "Rapprocher avec reliquat",

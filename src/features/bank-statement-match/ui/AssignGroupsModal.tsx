@@ -15,8 +15,12 @@ type AssignScope = "fund" | "all" | "procedures";
 interface AssignGroupsModalProps {
   line: BankStatementLine;
   isOpen: boolean;
-  /** May return a promise — « Rapprocher avec reliquat » awaits it to post its two corrections in order. */
-  onSubmit: (correction: BankStatementCorrection) => void | Promise<unknown>;
+  /**
+   * May resolve to the correction's success flag — « Rapprocher avec
+   * reliquat » awaits it to post its two corrections in order and bails when
+   * the first is rejected (BAS-064).
+   */
+  onSubmit: (correction: BankStatementCorrection) => void | boolean | Promise<void | boolean>;
   onCancel: () => void;
   /** Rejection message from the last correction attempt, shown inside the dialog. */
   errorText?: string | null;
@@ -110,9 +114,12 @@ export function AssignGroupsModal({
       : { type: "AssignGroups", line_id: line.line_id, group_ids: selectedGroupIds };
 
   // The composition of the assignment and BAS-092 — two corrections, one
-  // click; awaited so they are applied in order.
+  // click; awaited so they are applied in order. A rejected assignment aborts
+  // the composition: acknowledging against the unchanged prior draft would
+  // resolve the line without the intended assignment (BAS-064).
   const submitWithRemainder = async () => {
-    await onSubmit(assignmentCorrection());
+    const ok = await onSubmit(assignmentCorrection());
+    if (ok === false) return;
     await onSubmit({ type: "AcknowledgeRemainder", line_id: line.line_id });
   };
 
