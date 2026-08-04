@@ -94,7 +94,10 @@ export function LabelAssociationScreen({
             <div
               key={row.label}
               id={`label-assoc-row-${labelSlug(row.label)}`}
-              className="grid grid-cols-[minmax(140px,180px)_max-content_1fr_max-content] items-center gap-3 rounded-xl border border-m3-outline/20 px-4 py-2.5"
+              // The select track carries a floor so the start of a fund name
+              // stays readable (~12 characters) instead of collapsing to the
+              // space the other columns leave over.
+              className="grid grid-cols-[minmax(140px,180px)_max-content_minmax(12rem,1fr)_max-content] items-center gap-3 rounded-xl border border-m3-outline/20 px-4 py-2.5"
             >
               <span className="italic text-m3-on-surface-variant truncate">{row.label}</span>
               <span className="text-xs text-m3-on-surface-variant whitespace-nowrap">

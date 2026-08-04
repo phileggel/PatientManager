@@ -41,7 +41,7 @@ export function BankStatementModal({ filePath, onClose }: BankStatementModalProp
       id="bank-statement-modal"
       isOpen={true}
       onClose={onClose}
-      maxWidth="max-w-2xl"
+      maxWidth="max-w-4xl"
       titleId="bank-statement-modal-title"
     >
       {/* Header */}
