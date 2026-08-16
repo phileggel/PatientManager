@@ -144,14 +144,14 @@ jobs:
         with:
           components: rustfmt, clippy
       - name: Cache Rust
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2.9.1
+        uses: Swatinem/rust-cache@258712b0b7b1ddf8bddc9fc3b0faca682b2736c3  # v2.9.1
         with:
           workspaces: src-tauri
           prefix-key: linux-rust
       - name: Install sqlx-cli
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk.
         # sqlx-cli version matches `sqlx` in Cargo.lock (0.8.6).
-        uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf
+        uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1
         with:
           tool: sqlx-cli@0.8.6
       - name: Setup sqlx-check DB
@@ -163,7 +163,7 @@ jobs:
         run: python3 scripts/check.py --backend
       - name: Install cargo-tarpaulin and just
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
-        uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf
+        uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1
         with:
           tool: cargo-tarpaulin,just
       # Single source of truth: `just coverage-be` is the same recipe developers
