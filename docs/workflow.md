@@ -91,7 +91,7 @@ tags and pushes; CI builds the draft; the human publishes it.
 Before **any** change to what the user sees — a new screen, a moved or added control, a
 changed layout or wording pattern — the agent renders mocks of the target state with
 the real components and tokens (`/design-proposal`):
-`screenshots/design/{id}-{state}-{light|dark}.png` plus a five-line note (what moves,
+`screenshots/design/{id}-{light|dark}-{state}.png` plus a five-line note (what moves,
 is added, is removed, stays).
 
 - **In chat:** the mocks are shown; nothing is built until the human says yes. The yes

@@ -70,7 +70,7 @@ tmp/
 preview.html
 src/__preview__/
 .visual-proof-capture.mjs
-screenshots/.console-errors.json
+screenshots/**/.console-errors.json
 
 # E2E failure screenshots — written by wdio.conf.ts afterTest hook, uploaded as
 # CI artifacts on failure (see .github/workflows/e2e.yml). Never committed.

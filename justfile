@@ -39,6 +39,10 @@ harness:
 privacy-check:
     python3 scripts/privacy-check.py
 
+# Run the first ready entry of docs/todo.md § Next headless (docs/workflow.md § 9); logs under logs/next-todo/
+next-todo:
+    bash scripts/next-todo.sh
+
 # Architecture rules A1–A7 (scripts/arch-check.py); --write-allowlist only lowers the frozen debt
 arch-check *ARGS:
     python3 scripts/arch-check.py {{ARGS}}

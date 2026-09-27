@@ -6,6 +6,16 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-09-27 — DEBT-016 — No reviewer lane covers agent and skill prompts
+
+**Found by:** reviewer-infra (step 4b review, branch `chore/next-todo-skills`)
+
+**Where:** `scripts/review-lanes.sh`, `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`
+
+**Observation:** `docs/workflow.md`'s "no compound shell in agent / skill prompts" rule targets exactly these files, yet no lane fires when only they change, so a prompt that breaks the rule reaches `main` unreviewed. `reviewer-infra`'s scope list does not name them either.
+
+---
+
 ## 2026-09-27 — DEBT-015 — Fork PRs cannot post the reviewer's "no report" comment
 
 **Found by:** reviewer-infra (CI run on PR #121, branch `ci/reviewers-in-ci`)
