@@ -37,10 +37,10 @@ permissions:
 # release are the gates against that.
 
 env:
-  # Advisory while the reviewer prompts on main learn the agent-workflow rules
-  # (bootstrap, PR #121): criticals are reported, not failed. The next PR sets
-  # this to "true" and is itself reviewed by the updated prompts.
-  REVIEW_BLOCKING: "false"
+  # Any 🔴 fails the check. Set to "false" only to bootstrap prompts that the
+  # reviewers on main do not know yet (as PR #121 did), then set it back to
+  # "true" in the next PR.
+  REVIEW_BLOCKING: "true"
 
 jobs:
   lanes:
