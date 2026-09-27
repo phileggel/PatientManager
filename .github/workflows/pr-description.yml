@@ -1,0 +1,31 @@
+name: PR description
+
+# The PR description is published text the agent writes: it must carry no
+# patient data (scripts/privacy-check.py --stdin). It runs on its own so that
+# editing a description re-runs this 10-second check, not the Quality suite.
+# `synchronize` keeps a run on every head commit: `just merge` reads the checks
+# of the head it lands.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: pr-description-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  privacy:
+    name: PR description — no patient data
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: No SSN or IBAN in the description
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$PR_BODY" | python3 scripts/privacy-check.py --stdin

@@ -3,7 +3,7 @@ name: Quality
 on:
   pull_request:
     branches: [main]
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, synchronize, reopened]
   push:
     branches: [main]
   # Manual trigger: `gh workflow run Quality --ref <branch>` or via Actions tab.
@@ -96,15 +96,11 @@ jobs:
             echo "::error::src-tauri/src/bin/ must be empty — Tauri's NSIS bundler walks it and fails on phantom .exe candidates. Move dev tools to src-tauri/dev/."
             exit 1
           fi
-      - name: No patient data in the tree or the PR description
+      - name: No patient data in the tree
         # scripts/privacy-check.py: SSN / IBAN with valid check digits, private
-        # values handed to a log call, real data files. The body re-runs on
-        # every `edited` event.
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: |
-          python3 scripts/privacy-check.py
-          printf '%s' "$PR_BODY" | python3 scripts/privacy-check.py --stdin
+        # values handed to a log call, real data files. The PR description is
+        # checked by pr-description.yml, which re-runs on every edit.
+        run: python3 scripts/privacy-check.py
       - name: Unit tests of the repository scripts
         # Same command as `just test-scripts`; the merge guard in scripts/merge.py is under test.
         run: python3 -m unittest discover -s scripts/tests -p "test_*.py"

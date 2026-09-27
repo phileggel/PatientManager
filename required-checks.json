@@ -3,6 +3,7 @@
     "PR checks (commit-msg hygiene + repo invariants)",
     "Frontend — quality + coverage",
     "Backend — quality + coverage",
-    "E2E — headless WebDriver"
+    "E2E — headless WebDriver",
+    "PR description — no patient data"
   ]
 }
