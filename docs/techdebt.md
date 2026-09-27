@@ -1,12 +1,12 @@
 # Tech Debt
 
-Observations of code smells, inconsistencies, and brittle patterns. Not commitments — tech-debt entries describe _what's odd_, not _what to do_. For action items see `docs/todo.md`.
+Observations of code smells, inconsistencies, and brittle patterns — agent-owned (`docs/workflow.md` § 2). Not commitments: an entry becomes work when the owner queues its `DEBT-NNN` in `docs/todo.md` § Next. Ids are permanent and never reused; newest entries first.
 
 ---
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-09-27 — Fork PRs cannot post the reviewer's "no report" comment
+## 2026-09-27 — DEBT-015 — Fork PRs cannot post the reviewer's "no report" comment
 
 **Found by:** reviewer-infra (CI run on PR #121, branch `ci/reviewers-in-ci`)
 
@@ -16,7 +16,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-09-27 — CI reviewer sessions can still reach the network
+## 2026-09-27 — DEBT-014 — CI reviewer sessions can still reach the network
 
 **Found by:** reviewer-infra (CI run on PR #121, branch `ci/reviewers-in-ci`)
 
@@ -26,7 +26,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-08-03 — Wire counters orphaned by the two-screen split
+## 2026-08-03 — DEBT-013 — Wire counters orphaned by the two-screen split
 
 **Found by:** spec-reviewer (BAS-120–123 amendment pass, branch `feat/bank-wizard-procedures-and-window`)
 
@@ -36,7 +36,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-08-03 — printpdf 0.9 pins a RUSTSEC-flagged lopdf
+## 2026-08-03 — DEBT-012 — printpdf 0.9 pins a RUSTSEC-flagged lopdf
 
 **Found by:** scheduled Security Audit run (cargo audit, branch `fix/cargo-audit-rustsec-bumps`)
 
@@ -46,7 +46,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-08-02 — Logging target absent across procedure repository
+## 2026-08-02 — DEBT-011 — Logging target absent across procedure repository
 
 **Found by:** reviewer-backend (branch `feat/bank-born-groups` @ `ed6f214`, severity 🔵)
 
@@ -56,7 +56,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-07-30 — Prune finding: unused codec constant
+## 2026-07-30 — DEBT-010 — Prune finding: unused codec constant
 
 **Found by:** /prune (post-v0.20.1 lean check, report `tmp/prune-2026-07-30-01.md`; user routed to techdebt). _(The second prune finding — the redundant FE candidate re-sort — was resolved by the most-recent-first ordering change on branch `next`, 2026-07-30.)_
 
@@ -66,7 +66,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-07-30 — Deep bank-statement E2E via ADR-007 (fixture PDF + full flow)
+## 2026-07-30 — DEBT-009 — Deep bank-statement E2E via ADR-007 (fixture PDF + full flow)
 
 **Found by:** reviewer-e2e (branch `next`, batch 2) — user confirmed techdebt routing.
 
@@ -76,7 +76,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-07-29 — `read_all_funds` has no ORDER BY; every consumer inherits insertion order
+## 2026-07-29 — DEBT-008 — `read_all_funds` has no ORDER BY; every consumer inherits insertion order
 
 **Found by:** manual audit (bank reconciliation UX, branch `next`).
 
@@ -86,7 +86,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-07-30 — Explicit unassign does not survive a later link-fund cascade
+## 2026-07-30 — DEBT-007 — Explicit unassign does not survive a later link-fund cascade
 
 **Found by:** post-v0.20.0 audit (spec-checker, BAS-062).
 
@@ -96,7 +96,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-07-30 — Reconciliation polish backlog (grouped)
+## 2026-07-30 — DEBT-006 — Reconciliation polish backlog (grouped)
 
 **Found by:** post-v0.20.0 audit (branch `next`, batch 2) — items deliberately deferred under KISS/YAGNI; none affects correctness of the main flow.
 
@@ -106,7 +106,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-06-19 — Two i18n key sets intentionally exempt from §31 snake_case
+## 2026-06-19 — DEBT-005 — Two i18n key sets intentionally exempt from §31 snake_case
 
 **Found by:** the snake_case migration (PR #91 — resolved the `docs/todo.md` "Migrate i18n keys" entry).
 
@@ -116,7 +116,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-05-27 — `formatBankError` ownership: presenter lives in `bank-account` but two features consume it
+## 2026-05-27 — DEBT-004 — `formatBankError` ownership: presenter lives in `bank-account` but two features consume it
 
 **Found by:** reviewer-arch (`refactor/typed-errors-fund-bank` @ `ea606ad`)
 
@@ -126,7 +126,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-05-19 — REF-240 enforced at command layer via dual-orchestrator injection
+## 2026-05-19 — DEBT-003 — REF-240 enforced at command layer via dual-orchestrator injection
 
 **Found by:** manual (`refactor/fund-payment-manual-management`)
 
@@ -142,7 +142,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-05-19 — Non-atomic bank-reconciliation writes leave a partial-crash window for `is_locked`
+## 2026-05-19 — DEBT-002 — Non-atomic bank-reconciliation writes leave a partial-crash window for `is_locked`
 
 **Where:** `src-tauri/src/use_cases/bank_statement_reconciliation/orchestrator.rs:393–402`, `src-tauri/src/use_cases/bank_manual_match/orchestrator.rs:126,528` — multi-step writes update procedure statuses (tx 1) then group status (tx 2) sequentially, with no enclosing transaction.
 
@@ -150,7 +150,7 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 ---
 
-## 2026-05-16 — RTL coverage gap on currency-display components
+## 2026-05-16 — DEBT-001 — RTL coverage gap on currency-display components
 
 **Where:** Components with `formatCurrency` calls but no RTL test:
 `SelectProceduresPanel`, `SelectFundGroupsPanel`, `BankTransferList`,

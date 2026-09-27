@@ -1,8 +1,18 @@
 # TODO
 
+Owned by the human (`docs/workflow.md` § 2). The agent only sets `Design`, adds open
+questions, and removes an entry in the PR that ships it.
+
+## Next
+
+<!-- The queue: TODO-NNN / DEBT-NNN references in the order to work them. The agent takes -->
+<!-- the first ready one, never edits this list, and stops when it is empty. -->
+
+Nothing queued.
+
 ---
 
-## (ci) — Windows E2E at the release gate
+## TODO-001 — (ci) — Windows E2E at the release gate
 
 Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.
 
@@ -15,33 +25,73 @@ Scope:
 
 Cost: probably half a day of setup + ongoing maintenance burden. Defer until release cadence makes the gap actively painful.
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## (frontend+backend/data-quality) — Patient deduplication assistant
+## TODO-002 — (frontend+backend/data-quality) — Patient deduplication assistant
 
 The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN row reuses a same-name DB patient (SSN-bearing first, blank-SSN otherwise) to avoid stacking duplicates on re-imports. Two real-world risks remain: (a) two genuinely different patients sharing the same name will be merged the first time, and (b) when SSN is added manually to an existing patient between two imports, a future blank-SSN row still merges instead of staying separate. A UI assistant should surface candidate duplicates (same name, overlapping procedure history, etc.), let the user confirm pair-by-pair, and merge — preserving procedure attachments under the surviving patient. Priority: low.
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## (frontend/db-index) — IBAN uniqueness DB constraint follow-up
+## TODO-003 — (frontend/db-index) — IBAN uniqueness DB constraint follow-up
 
 `bank-account` R5 (IBAN uniqueness across soft-deleted accounts) is enforced at the service layer (`BankAccountService::create_account` + `update_account` + `find_by_iban_including_deleted`). The existing partial unique index `idx_bank_account_iban_active` covers active rows only. Reconsider whether a DB-level CHECK / trigger / non-partial unique index would be preferable once SQLite version is upgraded — would close the (currently negligible) TOCTOU window between the service-layer guard and the INSERT.
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## (backend/procedure) — Review procedure projections and read models
+## TODO-004 — (backend/procedure) — Review procedure projections and read models
 
 `UnreconciledProcedure` is a domain projection introduced when moving `ProcedureRepository` to the domain layer. It sits alongside `Procedure` (the aggregate root) and other procedure-related structures. Before adding more projections, review whether these are genuinely distinct domain concepts or whether `Procedure` should be enriched to cover these cases. Key question: is `UnreconciledProcedure` a real ubiquitous-language concept, or just a query convenience that should be folded into `Procedure` with a different fetch strategy?
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## (domain/procedure) — Review `ProcedureStatus`: de-conflate workflow status and payment/result status
+## TODO-005 — (domain/procedure) — Review `ProcedureStatus`: de-conflate workflow status and payment/result status
 
 `ProcedureStatus` has grown into a denormalized cross-product of two distinct axes baked into one column: the **workflow stage** (`Created` → `Reconciled` → bank-confirmed) and the **payment/result outcome** (full vs partial, fund vs direct, overpaid/refunded). That is why variants like `PartiallyReconciled` / `PartiallyFundPayed` exist — each is `(stage × result)`. The set is now 11 variants and growing, and every new payment situation added as a flat variant forces all `payment_status` queries + match sites to treat near-synonyms alike (e.g. "eligible for reconciliation" = `Created` and anything that behaves like it). The PRO-310 **Overdue** concept was deliberately kept _derived_ (frontend-only, not a 12th variant) precisely to avoid feeding this conflation — but the underlying tension remains. Genuinely review whether the two axes should be normalized into separate fields (a workflow-stage status + an orthogonal payment-result / annotation), or whether the flat enum stays and is simply documented as such. This is an architectural call (likely an ADR), done deliberately — **not** a sweep and not a side-effect of a feature. Surfaced during the procedure-overdue work (2026-06-21).
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## DDD Convergence — Major refactors (structural, plan carefully)
+## TODO-006 — DDD Convergence — Major refactors (structural, plan carefully)
 
 - **Folder restructure**: migrate all bounded contexts to per-aggregate sub-folders per B0/B0d (`context/{domain}/{aggregate}/domain.rs`, `repository.rs`, `service.rs`)
 - **Extract aggregate root methods on `Procedure`**: `reconcile()`, `unreconcile()`, `dispute()`, `record_payment()`, `revert_payment()`, `clear_payment()`, `correct_billed_amount()`, `correct_fund()`, `correct_date()` — currently all direct field mutations in orchestrators
@@ -50,31 +100,73 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 - **Introduce `FundPayment` aggregate root**: currently missing — `FundPaymentGroup` is incorrectly the top-level object; `FundPayment` is the monthly document wrapping all groups
 - **Implement UoW pattern**: `core/uow.rs` per ADR-003 — needed for atomic cross-aggregate writes in reconciliation
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## (backend/frontend) — Specta: convert domain objects to camelCase at the boundary
+## TODO-007 — (backend/frontend) — Specta: convert domain objects to camelCase at the boundary
 
 Convert domain objects to camelCase when crossing into the frontend.
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## (frontend/fund-payment-match) — Create multiple procedures during auto-correction
+## TODO-008 — (frontend/fund-payment-match) — Create multiple procedures during auto-correction
 
 Currently, the auto-correction flow only allows creating a single procedure. It should support creating multiple procedures in the same operation.
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## F10 — Extract logic to dedicated hooks (procedure feature)
+## TODO-009 — F10 — Extract logic to dedicated hooks (procedure feature)
 
 Multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. Deferred — large architectural refactors with no functional impact.
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## (backend/arch) — Introduce a DI container for orchestrator wiring
+## TODO-010 — (backend/arch) — Introduce a DI container for orchestrator wiring
 
 Production orchestrators are currently wired manually in `lib.rs` via explicit `Arc<dyn Trait>` constructor injection. This works but doesn't scale well as the number of dependencies grows: adding a dep means touching `lib.rs`, the orchestrator `new()`, and every integration test `Ctx`. A DI container (e.g. `shaku`) would centralize registration and resolve dependencies automatically, reducing wiring boilerplate and making the `new()` signature irrelevant to callers. Evaluate once the orchestrator count or dep count becomes a maintenance burden.
 
-## (frontend+backend/support) — Secure support diagnostics (Tier 1 report + Tier 2 encrypted bundle)
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
+---
+
+## TODO-011 — (frontend+backend/support) — Secure support diagnostics (Tier 1 report + Tier 2 encrypted bundle)
 
 Streamline how a user sends support data to the maintainer. Today it's a manual file copy (see gh#67, where a real DB had to be hand-copied to diagnose a migration crash). Two tiers; the security lives in the **artifact**, not the channel, so transport can be chosen for fluidity.
 
@@ -96,8 +188,26 @@ Streamline how a user sends support data to the maintainer. Today it's a manual 
 
 Deferred decisions: exact diagnostic field list, log-line count, support-code format, Tier-2 transport (drop-link vs gated R2), retention window. Spec via `/spec-writer` when scheduled.
 
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
 ---
 
-## (frontend/bank) — Standalone bank label-mapping review surface
+## TODO-012 — (frontend/bank) — Standalone bank label-mapping review surface
 
 Saved `BankFundLabelMapping` records (bank label → fund, per ADR-001) are today **only** editable inside the bank-statement import flow — there is no standalone management surface (the `ManagementModal` covers patients, funds, procedure types, bank accounts, fund payments, but not label mappings; no list/delete command is exposed). Surfaced during the bank-reconciliation draft-UX rework (`feat/bank-reconciliation-draft-ux`), where the in-flow mapping step folds into the unified list — in-flow revision is preserved, but there's still no way to proactively review/fix a wrong mapping without re-importing. Add a `ManagementModal` "Bank label mappings" section: list saved mappings per account, edit the fund (or rejected) assignment, delete a mapping. Backend repo already supports listing (`label_mapping_repo` "find all active mappings"); needs list + delete commands + UI. Priority: low — convenience, no functional gap (in-flow revision works).
+
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** Done when not written yet.
+
+---
