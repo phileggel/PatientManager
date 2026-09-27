@@ -101,6 +101,10 @@ jobs:
         # values handed to a log call, real data files. The PR description is
         # checked by pr-description.yml, which re-runs on every edit.
         run: python3 scripts/privacy-check.py
+      - name: Architecture rules
+        # scripts/arch-check.py: A1–A7; today's debt is frozen in
+        # arch-allowlist.json and may only shrink.
+        run: python3 scripts/arch-check.py
       - name: Unit tests of the repository scripts
         # Same command as `just test-scripts`; the merge guard in scripts/merge.py is under test.
         run: python3 -m unittest discover -s scripts/tests -p "test_*.py"

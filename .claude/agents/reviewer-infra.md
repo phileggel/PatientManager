@@ -123,6 +123,7 @@ Skip silently any file or directory below that does not exist in the project (v4
 - `.githooks/*` — internal quality AND hook wiring/CI consistency
 - `justfile` — Command runner recipes (task aliases for scripts and dev commands)
 - `required-checks.json` — the checks `just merge` requires; every name must match a job `name:` in `.github/workflows/`
+- `arch-allowlist.json` — frozen architecture debt (`scripts/arch-check.py`); entries may only disappear or shrink, never appear or grow
 
 ---
 

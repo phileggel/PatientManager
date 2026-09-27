@@ -36,6 +36,7 @@ scope=$(printf '%s\n' "$changed" | bash scripts/changed-scope.sh)
 echo -e "${BLUE}🔍 Harness scope: ${scope}${NC}"
 
 python3 scripts/privacy-check.py
+python3 scripts/arch-check.py
 python3 -m unittest discover -s scripts/tests -p "test_*.py"
 
 case "$scope" in

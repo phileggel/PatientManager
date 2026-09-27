@@ -3,7 +3,8 @@
 #
 # Reads changed paths on stdin (one per line) and runs:
 #   - Prettier on the Markdown among them (still on disk);
-#   - `check.py --fast` for the layers they touch (scripts/changed-scope.sh):
+#   - the architecture rules (scripts/arch-check.py) and `check.py --fast`
+#     for the layers they touch (scripts/changed-scope.sh):
 #     frontend, backend, or both. Docs and tooling pay no code check here —
 #     CI runs the full suite on every pull request.
 #
@@ -47,6 +48,11 @@ case "$SCOPE" in
     both) FLAGS=(--fast) ;;
     *) echo -e "${YELLOW}⚠  Unknown scope: ${SCOPE}${NC}"; exit 1 ;;
 esac
+
+if ! python3 scripts/arch-check.py; then
+    echo -e "${RED}❌ Architecture rules failed.${NC}"
+    exit 1
+fi
 
 echo -e "${BLUE}🔍 Scope ${SCOPE}: fast checks (${FLAGS[*]}).${NC}"
 if ! python3 scripts/check.py "${FLAGS[@]}"; then

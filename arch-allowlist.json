@@ -1,0 +1,97 @@
+{
+  "commands_outside_gateways": {
+    "src/infra/cache/sync.ts": 10
+  },
+  "cross_feature_imports": [
+    {
+      "from": "src/features/bank-transfer/useBankTransferOperations.ts",
+      "to": "@/features/bank-account/shared/presenter"
+    },
+    {
+      "from": "src/features/dashboard/api/dashboardService.ts",
+      "to": "@/features/procedure/api/gateway"
+    },
+    {
+      "from": "src/features/db-backup/db_backup_panel/useDbBackupPanel.ts",
+      "to": "@/features/shell/import_modal/lastFolderStore"
+    },
+    {
+      "from": "src/features/excel-import/presentation/components/CreateProcedureTypeModal.tsx",
+      "to": "@/features/procedure-type/gateway"
+    },
+    {
+      "from": "src/features/excel-import/presentation/components/CreateProcedureTypeModal.tsx",
+      "to": "@/features/procedure-type/shared/presenter"
+    },
+    {
+      "from": "src/features/procedure/ui/ProcedurePage.tsx",
+      "to": "@/features/shell"
+    },
+    {
+      "from": "src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx",
+      "to": "@/features/overpayment/cancel_refund_dialog/CancelRefundDialog"
+    },
+    {
+      "from": "src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx",
+      "to": "@/features/overpayment/gateway"
+    },
+    {
+      "from": "src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx",
+      "to": "@/features/overpayment/record_overpayment_modal/RecordOverpaymentModal"
+    },
+    {
+      "from": "src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx",
+      "to": "@/features/overpayment/shared/presenter"
+    },
+    {
+      "from": "src/features/procedure/ui/procedure_form_modal/useProcedureFormModal.ts",
+      "to": "@/features/patient/shared/presenter"
+    }
+  ],
+  "missing_ids": {
+    "src/features/bank-account/add_bank_account_panel/AddBankAccountPanel.tsx": 1,
+    "src/features/bank-account/bank_account_list/BankAccountList.tsx": 1,
+    "src/features/bank-account/edit_bank_account_modal/EditBankAccountModal.tsx": 2,
+    "src/features/bank-statement-match/ui/BankStatementModal.tsx": 5,
+    "src/features/bank-statement-match/ui/ReconciliationView.tsx": 1,
+    "src/features/bank-transfer/add_bank_transfer_form/AddBankTransferForm.tsx": 1,
+    "src/features/bank-transfer/bank_transfer_list/BankTransferList.tsx": 2,
+    "src/features/bank-transfer/edit_bank_transfer_modal/EditBankTransferModal.tsx": 2,
+    "src/features/bank-transfer/select_items_panel/SelectFundGroupsPanel.tsx": 1,
+    "src/features/bank-transfer/select_items_panel/SelectProceduresPanel.tsx": 1,
+    "src/features/db-backup/db_backup_panel/DbBackupModal.tsx": 2,
+    "src/features/excel-import/presentation/ImportExcelPage.tsx": 3,
+    "src/features/excel-import/presentation/components/CreateProcedureTypeModal.tsx": 2,
+    "src/features/excel-import/presentation/components/ParsingReportModal.tsx": 1,
+    "src/features/excel-import/presentation/components/ProcedureTypeMappingStep.tsx": 1,
+    "src/features/fund-payment-match/reconciliation_modal/ReconciliationModal.tsx": 5,
+    "src/features/fund-payment-match/reconciliation_results/cards/GroupMatchCard.tsx": 2,
+    "src/features/fund-payment-match/reconciliation_results/cards/NotFoundCard.tsx": 2,
+    "src/features/fund-payment-match/reconciliation_results/cards/SingleMatchCard.tsx": 3,
+    "src/features/fund-payment-match/unreconciled_report/UnreconciledReport.tsx": 1,
+    "src/features/fund-payment/add_fund_payment_panel/AddFundPaymentPanel.tsx": 2,
+    "src/features/fund-payment/edit_fund_payment_modal/EditFundPaymentModal.tsx": 4,
+    "src/features/fund-payment/fund_payment_list/FundPaymentList.tsx": 2,
+    "src/features/fund-payment/select_procedure_modal/SelectProcedureModal.tsx": 4,
+    "src/features/fund/add_fund_panel/AddFundPanel.tsx": 1,
+    "src/features/fund/edit_fund_modal/EditFundModal.tsx": 2,
+    "src/features/fund/fund_list/FundList.tsx": 2,
+    "src/features/overpayment/cancel_refund_dialog/CancelRefundDialog.tsx": 2,
+    "src/features/overpayment/record_overpayment_modal/RecordOverpaymentModal.tsx": 5,
+    "src/features/patient/add_patient_panel/AddPatientPanel.tsx": 1,
+    "src/features/patient/edit_patient_modal/EditPatientModal.tsx": 2,
+    "src/features/patient/patient_list/PatientList.tsx": 2,
+    "src/features/procedure-type/create_procedure_type_modal/CreateProcedureTypeModal.tsx": 2,
+    "src/features/procedure-type/edit_procedure_type_modal/EditProcedureTypeModal.tsx": 2,
+    "src/features/procedure-type/procedure_type_list/ProcedureTypeList.tsx": 3,
+    "src/features/procedure/ui/PeriodSelector.tsx": 2,
+    "src/features/procedure/ui/ProcedurePage.tsx": 1,
+    "src/features/procedure/ui/form/CreatePatientForm.tsx": 2,
+    "src/features/procedure/ui/procedure_form_modal/ProcedureFormModal.tsx": 7,
+    "src/features/procedure/ui/procedure_list/ProcedureList.tsx": 2,
+    "src/features/shell/DesignSystemPage.tsx": 49
+  },
+  "literal_attributes": {
+    "src/features/shell/DesignSystemPage.tsx": 34
+  }
+}
