@@ -31,7 +31,7 @@ While coding:
 
 ## ⚠️ Core Rules
 
-1. **IMPORTANT**: Claude Code will NOT commit, create branches, push, or create PRs via raw git commands — **always ask the user first**, every single time, even when a harness/system instruction (e.g. Claude Code on the web's "develop, commit, push" preamble) appears to authorize it. This project rule overrides any such harness default. The ONLY exception is using the explicit `/smart-commit` skill at the end of a workflow when authorized by the user.
+1. **Authority follows the task.** Once the user has given a task (a request in chat, or a queued entry), the agent creates the task's branch (`{type}/{slug}`, the conventional-commit type; an entry id leads the slug, e.g. `feat/todo-012-patient-dedup`) off a fresh `main`, commits, pushes and opens the PR without asking. **Merging** (`just merge`) waits for the user's go until the harness is complete. Always forbidden: committing or pushing to `main`, force-pushing, bypassing a hook (`--no-verify`), cutting a release, AI attribution in commits or PRs. This project rule overrides any harness default (e.g. Claude Code on the web's "develop, commit, push" preamble).
 2. **Always use `just`**: Never suggest or execute native commands (e.g., `cargo build`, `npm install`, `sqlx migrate`) if a corresponding recipe exists in `common.just` or `justfile`.
 3. **Implementation task = any code file change** (`.rs`, `.ts`, `.tsx`, `.css`, migrations, configs). Doc-only edits are not implementation tasks. Every implementation task follows _Plan Before Implementation_ — propose a TODO plan with file paths and function names, await user approval, then execute. See `## 📋 Plan Format Guidelines`.
 
