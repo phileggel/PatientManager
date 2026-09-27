@@ -27,6 +27,11 @@ ITEM_LINE = re.compile(
 )
 
 
+# A char literal: one character or one escape ('\'', '\n', '\x7b', '\u{7b}').
+# A lifetime ('a) has no closing quote and does not match.
+CHAR_LITERAL = re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]+\}|.)|[^'\\])'")
+
+
 def _brace_end(lines: list[str], start: int) -> int:
     """0-based index of the line closing the block opened on `lines[start]`.
 
@@ -56,8 +61,9 @@ def _brace_end(lines: list[str], start: int) -> int:
             if rest.startswith('"') or re.match(r'r#*"', rest):
                 position += _string_length(rest)
                 continue
-            if rest[0] == "'" and len(rest) > 2 and rest[2] == "'":
-                position += 3  # a char literal such as '{'
+            char = CHAR_LITERAL.match(rest)
+            if char:
+                position += char.end()  # a char literal such as '{' or '\''
                 continue
             if rest[0] == "{":
                 depth += 1
@@ -135,6 +141,9 @@ def _inside(number: int, ranges: list[tuple[int, int]]) -> bool:
     return any(first <= number <= last for first, last in ranges)
 
 
+TOTALS = ("FNF", "FNH", "LF", "LH", "BRF", "BRH")
+
+
 def _strip_record(record: list[str], ranges: list[tuple[int, int]]) -> tuple[list[str], int]:
     """Rewrite one SF record; return (lines, DA records dropped)."""
     kept: list[str] = []
@@ -169,16 +178,16 @@ def _strip_record(record: list[str], ranges: list[tuple[int, int]]) -> tuple[lis
                 continue
             branches_found += 1
             branches_hit += taken not in ("-", "0")
-        elif key in ("LF", "LH", "FNF", "FNH", "BRF", "BRH"):
+        elif key in TOTALS:
+            kept.append(key)  # placeholder: the recomputed total goes back where it was
             continue
-        elif key == "end_of_record":
-            kept.extend(
-                [f"FNF:{functions_found}", f"FNH:{functions_hit}", f"LF:{lines_found}", f"LH:{lines_hit}"]
-            )
-            if branches_found:
-                kept.extend([f"BRF:{branches_found}", f"BRH:{branches_hit}"])
         kept.append(line)
-    return kept, dropped
+    totals = {
+        "FNF": functions_found, "FNH": functions_hit,
+        "LF": lines_found, "LH": lines_hit,
+        "BRF": branches_found, "BRH": branches_hit,
+    }
+    return [f"{line}:{totals[line]}" if line in TOTALS else line for line in kept], dropped
 
 
 def strip(report: Path) -> tuple[int, int]:

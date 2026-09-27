@@ -118,7 +118,7 @@ coverage-fe:
 # never count as covered logic.
 coverage-be:
     mkdir -p coverage/backend
-    cd src-tauri && SQLX_OFFLINE=true cargo llvm-cov --lib --tests --features dev-fixtures --lcov --output-path ../coverage/backend/lcov.info --ignore-filename-regex '(^|/)build\.rs$|/dev/generate_(bindings|fixtures)\.rs$|/dev/fixtures_excel/|/src/use_cases/overpayment/api\.rs$|/src-tauri/tests/'
+    cd src-tauri && SQLX_OFFLINE=true cargo llvm-cov --lib --tests --features dev-fixtures --lcov --output-path ../coverage/backend/lcov.info --ignore-filename-regex '(^|/)build\.rs$|/dev/generate_(bindings|fixtures)\.rs$|/dev/fixtures_(excel|fund_pdf|bank_pdf)/|/src/use_cases/overpayment/api\.rs$|/src-tauri/tests/'
     python3 scripts/coverage-strip-tests.py coverage/backend/lcov.info
 
 # Generate both coverage reports (run before /prune)

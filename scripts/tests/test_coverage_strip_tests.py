@@ -58,6 +58,25 @@ class StripInlineTests(unittest.TestCase):
         self.assertIn("DA:15,1", text)  # code after the test module stays, despite the "}" literal
         self.assertIn("LF:4", text)
 
+    def test_char_literals_with_braces_or_escaped_quotes_do_not_shift_the_range(self):
+        self.source.write_text(
+            "#[cfg(test)]\nmod tests {\n    const Q: char = '\\'';\n    const B: char = '}';\n}\n\npub fn kept() {}\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(strip_tests.test_module_ranges(self.source), [(1, 5)])
+
+    def test_recomputed_totals_stay_where_they_were(self):
+        path = self.root / "lcov.info"
+        path.write_text(
+            f"SF:{self.source}\nFN:1,add\nFNDA:1,add\nFNF:1\nFNH:1\nDA:1,1\nDA:10,1\nLF:2\nLH:2\nend_of_record\n",
+            encoding="utf-8",
+        )
+        strip_tests.strip(path)
+        self.assertEqual(
+            path.read_text(encoding="utf-8").splitlines()[1:],
+            ["FN:1,add", "FNDA:1,add", "FNF:1", "FNH:1", "DA:1,1", "LF:1", "LH:1", "end_of_record"],
+        )
+
     def test_a_file_without_tests_is_left_as_it_was(self):
         self.source.write_text("pub fn one() -> i32 {\n    1\n}\n", encoding="utf-8")
         report = self.report([1, 2])

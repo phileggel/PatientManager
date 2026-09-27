@@ -107,10 +107,13 @@ jobs:
         # Same command as `just test-scripts`; the merge guard in scripts/merge.py is under test.
         run: python3 -m unittest discover -s scripts/tests -p "test_*.py"
 
-  frontend:
-    name: Frontend — quality + coverage
+  scope:
+    name: Which layers the change touches
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 2
+    outputs:
+      frontend: ${{ steps.scope.outputs.frontend }}
+      backend: ${{ steps.scope.outputs.backend }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -136,6 +139,15 @@ jobs:
           echo "scope=$scope"
           echo "frontend=$([[ "$scope" == frontend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "backend=$([[ "$scope" == backend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  frontend:
+    name: Frontend — quality + coverage
+    needs: scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
@@ -147,10 +159,10 @@ jobs:
         # --skip-tests: the suite runs once, under coverage, in the next step.
         run: python3 scripts/check.py --frontend --skip-tests
       - name: Tests with coverage (instrumented)
-        if: steps.scope.outputs.frontend == 'true'
+        if: needs.scope.outputs.frontend == 'true'
         run: npm run test:coverage
       - name: Upload to Codecov
-        if: steps.scope.outputs.frontend == 'true'
+        if: needs.scope.outputs.frontend == 'true'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -160,6 +172,7 @@ jobs:
 
   backend:
     name: Backend — quality + coverage
+    needs: scope
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -172,28 +185,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          fetch-depth: 0
-      - name: Which layers the change touches
-        # A pull request runs a layer's tests (with coverage) only when it
-        # touched that layer; docs-only runs none; tooling/workflow changes run
-        # both. Lint, types and the build run on every job; a push to main
-        # measures both layers.
-        id: scope
-        shell: bash
-        env:
-          BASE: ${{ github.base_ref }}
-          EVENT: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-          if [[ "$EVENT" == "pull_request" ]]; then
-            scope=$(git diff --name-only "origin/$BASE...HEAD" | bash scripts/changed-scope.sh)
-          else
-            scope=both
-          fi
-          echo "scope=$scope"
-          echo "frontend=$([[ "$scope" == frontend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "backend=$([[ "$scope" == backend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
@@ -232,7 +223,7 @@ jobs:
         run: python3 scripts/check.py --backend --skip-tests
       - name: Install cargo-llvm-cov and just
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
-        if: steps.scope.outputs.backend == 'true'
+        if: needs.scope.outputs.backend == 'true'
         uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf
         with:
           tool: cargo-llvm-cov@0.8.7,just
@@ -242,10 +233,10 @@ jobs:
       # drift. The binaries are instrumented at compile time and the suite runs
       # as usual, so the run costs about the tests' own time once warm.
       - name: Tests with coverage (llvm-cov)
-        if: steps.scope.outputs.backend == 'true'
+        if: needs.scope.outputs.backend == 'true'
         run: just coverage-be
       - name: Upload to Codecov
-        if: steps.scope.outputs.backend == 'true'
+        if: needs.scope.outputs.backend == 'true'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
