@@ -26,7 +26,9 @@ A3, A4 and A5 hold everywhere and fail on the first violation.
 
 Known blind spots (line-based matching): a `Result<…, String>` wrapped over
 several lines (A4); a test gate other than a bare `#[cfg(test)]` line, e.g.
-`#[cfg(any(test, …))]` (A3); a tag carrying a spread `{...props}` (A6). A5 and
+`#[cfg(any(test, …))]` (A3); a tag carrying a spread `{...props}` (A6); an
+apostrophe in JSX text or a Rust lifetime (`'a`) opens a false quote, so a `//`
+comment later on that line is kept rather than stripped (errs towards counting). A5 and
 A7 read string literals on purpose (A7 flags their text); a `<button` inside a
 string would be flagged by A5. The composition root is `features/shell/`, the
 current layout — moving `shell/` to the top-level bucket (F0) must update
@@ -66,16 +68,46 @@ IMPORT = re.compile(r'(?:from\s+|import\()\s*"([^"]+)"')
 
 
 def without_comments(line: str) -> str:
-    """Drop a trailing `//` comment and whole-line block-comment continuations."""
+    """Drop a trailing `//` comment and whole-line block-comment continuations.
+
+    A `//` inside a string literal (a URL in a `title="…"`) is not a comment:
+    the line is scanned quote by quote, so what follows the string stays.
+    """
     stripped = line.lstrip()
     if stripped.startswith(("//", "/*", "*")):
         return ""
-    return re.sub(r"//.*$", "", line)
+    quote = None
+    index = 0
+    while index < len(line):
+        char = line[index]
+        if quote:
+            if char == "\\":
+                index += 2
+                continue
+            if char == quote:
+                quote = None
+        elif char in "\"'`":
+            quote = char
+        elif line.startswith("//", index):
+            return line[:index]
+        index += 1
+    return line
 
 
 def without_strings(line: str) -> str:
     """Blank the contents of string literals so their characters are not counted."""
     return re.sub(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|`(?:[^`\\]|\\.)*`', '""', line)
+
+
+def code_only(source: str) -> str:
+    """The source with `//` and block-comment lines blanked, line count kept.
+
+    A2 and A6 read whole files through this; the other rules call
+    `without_comments` per line. Either way a commented-out import, tag or path
+    never counts. String literals stay: import paths and attribute texts live
+    in them.
+    """
+    return "\n".join(without_comments(line) for line in source.splitlines())
 
 
 def rel(path: Path) -> str:
@@ -148,7 +180,7 @@ def a2_cross_feature() -> list[dict]:
         feature = feature_of(path)
         if feature == COMPOSITION_ROOT:
             continue
-        for target in IMPORT.findall(path.read_text(encoding="utf-8")):
+        for target in IMPORT.findall(code_only(path.read_text(encoding="utf-8"))):
             other = None
             if target.startswith("@/features/"):
                 other = target.split("/")[2]
@@ -168,7 +200,7 @@ def a3_cross_context() -> list[str]:
     for path in sorted(CONTEXTS.rglob("*.rs")):
         context = path.relative_to(CONTEXTS).parts[0]
         for number, line in production_lines(path.read_text(encoding="utf-8")):
-            for other in re.findall(r"crate::context::(\w+)", line):
+            for other in re.findall(r"crate::context::(\w+)", without_comments(line)):
                 if other != context:
                     hits.append(f"A3 {rel(path)}:{number}: reaches into context `{other}`")
     return hits
@@ -244,7 +276,7 @@ def a6_missing_ids() -> dict[str, int]:
     for path in frontend_sources(FEATURES):
         if path.suffix != ".tsx":
             continue
-        source = path.read_text(encoding="utf-8")
+        source = code_only(path.read_text(encoding="utf-8"))
         for _, _, tag in opening_tags(source, INTERACTIVE_COMPONENTS):
             if not re.search(r"\bid=", tag) and "{..." not in tag:
                 counts[rel(path)] = counts.get(rel(path), 0) + 1

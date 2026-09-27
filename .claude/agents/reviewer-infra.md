@@ -334,6 +334,7 @@ Always perform these checks across files together:
 - 🔴 Scripts that modify files must validate input before writing — bad regex or empty match must abort
 - 🟡 Regex patterns for structured content (e.g. `version = "x.y.z"`) must be anchored to avoid unintended matches
 - 🟡 Interactive prompts must handle `KeyboardInterrupt` and `EOFError` gracefully
+- 🟡 A script that scans source code (e.g. `scripts/arch-check.py`, `scripts/privacy-check.py`) must strip comments the same way in every rule before matching — one rule reading the raw text while its siblings strip comments lets a commented-out import, tag or path count as real, or freeze into an allowlist
 
 ---
 

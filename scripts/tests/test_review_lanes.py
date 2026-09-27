@@ -39,6 +39,8 @@ class ReviewLanes(unittest.TestCase):
 
     def test_the_merge_gate_list_is_infra(self):
         self.assertEqual(lanes("required-checks.json"), ["infra"])
+
+    def test_the_frozen_architecture_debt_is_infra(self):
         self.assertEqual(lanes("arch-allowlist.json"), ["infra"])
 
     def test_files_outside_the_infra_reviewers_scope_do_not_fire_it(self):

@@ -1,7 +1,9 @@
 """Tests for scripts/arch-check.py — run with `just test-scripts`."""
 
 import importlib.util
+import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 SPEC = importlib.util.spec_from_file_location("arch_check", Path(__file__).resolve().parents[1] / "arch-check.py")
@@ -43,6 +45,30 @@ class Source(unittest.TestCase):
     def test_comments_and_strings_do_not_count(self):
         self.assertEqual(arch.without_comments("  // commands.getFunds()"), "")
         self.assertNotIn("commands.", arch.without_strings('log("commands.getFunds")'))
+
+    def test_code_only_blanks_comments_and_keeps_lines_and_strings(self):
+        src = 'import { a } from "@/features/x/y";\n// import { b } from "@/features/z/w";\n'
+        self.assertEqual(arch.IMPORT.findall(arch.code_only(src)), ["@/features/x/y"])
+        self.assertEqual(arch.code_only("a\n// b\nc").count("\n"), 2)
+
+    def test_a_url_in_a_string_is_not_a_comment(self):
+        tag = '<Button title="See https://example.org" id="fund-list-add" />'
+        self.assertEqual(arch.without_comments(tag), tag)
+        self.assertEqual(arch.without_comments('x = "a//b"; // note'), 'x = "a//b"; ')
+        tags = list(arch.opening_tags(arch.code_only(tag), arch.INTERACTIVE_COMPONENTS))
+        self.assertIn('id="fund-list-add"', tags[0][2])
+
+    def test_a_commented_out_cross_context_import_is_not_a_violation(self):
+        with tempfile.TemporaryDirectory() as root:
+            contexts = Path(root) / "src-tauri" / "src" / "context"
+            (contexts / "fund").mkdir(parents=True)
+            (contexts / "fund" / "domain.rs").write_text(
+                "// use crate::context::bank::domain;\nuse crate::context::bank::api;\n", encoding="utf-8"
+            )
+            with unittest.mock.patch.object(arch, "ROOT", Path(root)), unittest.mock.patch.object(arch, "CONTEXTS", contexts):
+                hits = arch.a3_cross_context()
+        self.assertEqual(len(hits), 1)
+        self.assertIn("domain.rs:2", hits[0])
 
     def test_a_cfg_test_module_is_not_production(self):
         rust = "use crate::context::fund;\n#[cfg(test)]\nmod tests {\n    use crate::context::bank;\n}\n"
