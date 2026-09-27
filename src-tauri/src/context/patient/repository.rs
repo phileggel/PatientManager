@@ -65,7 +65,7 @@ impl SqlitePatientRepository {
 #[async_trait::async_trait]
 impl PatientRepository for SqlitePatientRepository {
     async fn create_patient(&self, patient: Patient) -> anyhow::Result<Patient> {
-        tracing::trace!(patient_id = %patient.id, name = ?patient.name, "Inserting patient into database");
+        tracing::trace!(patient_id = %patient.id, "Inserting patient into database");
 
         sqlx::query!(
             r#"
@@ -132,7 +132,7 @@ impl PatientRepository for SqlitePatientRepository {
     async fn update_patient(&self, patient: Patient) -> anyhow::Result<Patient> {
         let patient_id = &patient.id;
 
-        tracing::trace!(patient_id = %patient_id, name = ?patient.name, "Updating patient in database");
+        tracing::trace!(patient_id = %patient_id, "Updating patient in database");
 
         sqlx::query!(
             r#"
@@ -216,7 +216,6 @@ impl PatientRepository for SqlitePatientRepository {
         for patient in patients {
             tracing::trace!(
                 patient_id = %patient.id,
-                name = ?patient.name,
                 "Inserting patient into database within transaction"
             );
 

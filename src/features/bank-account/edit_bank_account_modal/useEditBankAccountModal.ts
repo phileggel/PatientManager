@@ -62,7 +62,7 @@ export function useEditBankAccountModal(bankAccount: BankAccount | null, onClose
     logger.debug("Submitting update bank account form", {
       id: bankAccount.id,
       name,
-      iban,
+      hasIban: iban !== null,
     });
     setLoading(true);
 

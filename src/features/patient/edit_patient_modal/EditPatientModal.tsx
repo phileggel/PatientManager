@@ -55,7 +55,6 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
     if (isOpen && patient) {
       logger.info("[EditPatientModal] Modal opened", {
         patientId: patient.id,
-        patientName: patient.name,
       });
     }
   }, [patient, isOpen]);

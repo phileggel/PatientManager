@@ -28,6 +28,12 @@ if [ "$CURRENT_BRANCH" = "main" ]; then
     exit 1
 fi
 
+# Patient data (SSN, IBAN, names in logs, real data files) never enters the repository.
+if ! python3 "$PROJECT_ROOT/scripts/privacy-check.py" --staged; then
+    echo -e "${RED}❌ Privacy check failed. Commit blocked.${NC}"
+    exit 1
+fi
+
 echo -e "${BLUE}🔍 Pre-commit checks running (Fast Mode)...${NC}"
 
 if [ ! -f "$CHECK_SCRIPT" ]; then

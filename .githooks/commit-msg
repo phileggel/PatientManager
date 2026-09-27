@@ -64,6 +64,12 @@ if grep -i "^Co-Authored-By:" "$COMMIT_MSG_FILE" >/dev/null; then
     ERRORS=$((ERRORS + 1))
 fi
 
+# RULE 7: No SSN or IBAN in the message (scripts/privacy-check.py)
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+if ! python3 "$PROJECT_ROOT/scripts/privacy-check.py" --message "$COMMIT_MSG_FILE"; then
+    ERRORS=$((ERRORS + 1))
+fi
+
 # --- VERDICT ---
 if [ $ERRORS -gt 0 ]; then
     echo -e "${RED}❌ Commit blocked: $ERRORS error(s)${NC}"

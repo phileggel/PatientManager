@@ -220,6 +220,8 @@ Full rules: `docs/frontend-rules.md`. Project-wide essentials:
 
 ### Logging hygiene — no PII values in `tracing!` calls
 
+Enforced by `scripts/privacy-check.py` (pre-commit, commit-msg, CI) for Rust `tracing::*!` and TS `logger.*` / `console.*` calls; it also rejects SSN / IBAN values with valid check digits anywhere in the repo, commit messages and PR descriptions (synthetic ones go in `privacy-allowlist.json`).
+
 PII MUST NOT appear as field values in `tracing::*!` calls — in scope for this codebase: SSN (French numéro de sécurité sociale), IBAN, patient full name. The literal field name in the message string (`"Fetching patient by SSN"`) is fine; only the VALUE interpolation leaks. Replace with a presence boolean (`has_ssn = ssn.is_some()`), a trailing token (`iban_tail = &iban[iban.len().saturating_sub(4)..]`), or omit the field. Intentional exceptions belong in spec — e.g. EXI-030 stores invalid SSNs in the `name` field for traceability, which is a data-model exception, not a log.
 
 ---

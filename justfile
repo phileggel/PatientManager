@@ -30,6 +30,10 @@ clean-branches:
 stat:
     cloc . --vcs=git
 
+# Patient data check over every tracked file (SSN, IBAN, names in logs, real data files)
+privacy-check:
+    python3 scripts/privacy-check.py
+
 # Unit tests of the repository's own scripts
 test-scripts:
     python3 -m unittest discover -s scripts/tests -p "test_*.py"

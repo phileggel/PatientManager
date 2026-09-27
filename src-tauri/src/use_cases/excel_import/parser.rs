@@ -687,7 +687,6 @@ impl ExcelParserService {
                         tracing::trace!(
                             month = canonical_month,
                             row = row_number,
-                            patient = %patient_name,
                             fund_id = %fund_identifier,
                             amount = amount,
                             date = %procedure_date,
