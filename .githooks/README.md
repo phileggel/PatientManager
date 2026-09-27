@@ -22,9 +22,11 @@ changed.
 - **`pre-merge-commit`** — refuses any merge commit (linear history).
 
 `scripts/scoped-checks.sh` pays only for what a change touches
-(`scripts/changed-scope.sh`): Prettier on Markdown, the script unit tests when
-`scripts/` changed, and `check.py --fast` for the frontend, the backend, or
-both. Docs and tooling changes pay no code check locally.
+(`scripts/changed-scope.sh`): Prettier on Markdown and `check.py --fast` for
+the frontend, the backend, or both. Docs and tooling changes pay no code check
+locally. The script unit tests never run in a hook — hooks export `GIT_DIR`,
+which the tests' throwaway repositories must not inherit; they run in CI,
+`just test-scripts` and `just harness`.
 
 Bypassing a hook (`--no-verify`) is forbidden for the agent and meant for
 emergencies only.

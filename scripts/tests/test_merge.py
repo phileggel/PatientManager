@@ -14,6 +14,26 @@ SPEC = importlib.util.spec_from_file_location("merge", Path(__file__).resolve().
 merge = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(merge)
 
+# Git hooks run with GIT_DIR (and GIT_INDEX_FILE, GIT_WORK_TREE…) set, and the
+# hooks run these tests (scripts/scoped-checks.sh). Every `git` below — the
+# helpers here and merge.py's own calls — would then act on the real repository
+# instead of the throwaway one. The variables are removed while this module runs.
+_SAVED_GIT_ENV: dict[str, str] = {}
+
+
+def setUpModule():
+    for key in [k for k in os.environ if k.startswith("GIT_")]:
+        _SAVED_GIT_ENV[key] = os.environ.pop(key)
+
+
+def tearDownModule():
+    os.environ.update(_SAVED_GIT_ENV)
+
+
+class NoRealRepository(unittest.TestCase):
+    def test_no_git_variable_reaches_the_tests(self):
+        self.assertEqual([k for k in os.environ if k.startswith("GIT_")], [])
+
 
 class FoldingFixups(unittest.TestCase):
     """A repository with `main` and a checked-out `work` branch, in a temporary folder."""

@@ -3,10 +3,13 @@
 #
 # Reads changed paths on stdin (one per line) and runs:
 #   - Prettier on the Markdown among them (still on disk);
-#   - the script unit tests when scripts/ changed;
 #   - `check.py --fast` for the layers they touch (scripts/changed-scope.sh):
 #     frontend, backend, or both. Docs and tooling pay no code check here —
 #     CI runs the full suite on every pull request.
+#
+# The script unit tests never run here: a hook exports GIT_DIR, and tests that
+# build throwaway repositories must not inherit it. They run in CI, in
+# `just test-scripts` and in `just harness`.
 #
 # Shared by the pre-commit and pre-push hooks. Exit 1 on the first failure.
 #
@@ -33,15 +36,6 @@ if [ -n "$MD_FILES" ]; then
         echo -e "${GREEN}✓ Prettier: Markdown formatted.${NC}"
     else
         echo -e "${RED}❌ Prettier failed on Markdown. Run: just format${NC}"
-        exit 1
-    fi
-fi
-
-if printf '%s\n' "$CHANGED" | grep -q '^scripts/'; then
-    if python3 -m unittest discover -s scripts/tests -p "test_*.py" >/dev/null 2>&1; then
-        echo -e "${GREEN}✓ Script unit tests passed.${NC}"
-    else
-        echo -e "${RED}❌ Script unit tests failed. Run: just test-scripts${NC}"
         exit 1
     fi
 fi
