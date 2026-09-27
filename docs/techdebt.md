@@ -6,6 +6,26 @@ Observations of code smells, inconsistencies, and brittle patterns. Not commitme
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-09-27 — Fork PRs cannot post the reviewer's "no report" comment
+
+**Found by:** reviewer-infra (CI run on PR #121, branch `ci/reviewers-in-ci`)
+
+**Where:** `.github/workflows/review.yml`, step "Post the report and fail on criticals"
+
+**Observation:** a fork PR gets a read-only `GITHUB_TOKEN`, so the `gh` calls that post the sticky comment error out. The job has already failed closed at "Require the subscription token" (forks get no secrets), so nothing passes unreviewed; only the explanatory comment is missing, and the step ends on a raw `gh` error instead of a stated reason.
+
+---
+
+## 2026-09-27 — CI reviewer sessions can still reach the network
+
+**Found by:** reviewer-infra (CI run on PR #121, branch `ci/reviewers-in-ci`)
+
+**Where:** `.github/workflows/review.yml`, `claude_args` of the reviewer step
+
+**Observation:** the session's Bash is allowed broadly with a denylist (`gh`, `git push`, `curl`, `wget`, `ssh`, web tools); `python3 -c`, `node -e` or `nc` could still reach the network, so a prompt injection in a reviewed diff could send the token's value out. Today the exposure is small: fork PRs get no secrets and Dependabot PRs skip the lanes, so only diffs the owner or the agent wrote are reviewed. Closing it means an allowlist of the commands the reviewers actually run (`bash scripts/branch.sh`, `bash scripts/review-path.sh`, `git`, `grep`, `shellcheck`, `python3 -m unittest`) — a design call on what the reviewers may execute.
+
+---
+
 ## 2026-08-03 — Wire counters orphaned by the two-screen split
 
 **Found by:** spec-reviewer (BAS-120–123 amendment pass, branch `feat/bank-wizard-procedures-and-window`)

@@ -1,0 +1,263 @@
+name: Review
+
+# The reviewer prompts under .claude/agents/ run on every pull request, one job
+# per lane the diff touches (scripts/review-lanes.sh — the same map the agent
+# uses locally before opening the PR). Each posts its report as a sticky
+# comment and fails the check on any 🔴 critical. Runs on the owner's Claude
+# subscription through the CLAUDE_CODE_OAUTH_TOKEN repository secret (minted
+# with `claude setup-token`); the check fails closed without it rather than
+# reporting a review that did not happen. Dependabot PRs get no repository
+# secrets: their lanes are skipped, every other check still gates them. PRs
+# from forks get no secrets either: their lanes fail closed, and the owner
+# decides whether the contribution is reviewed and taken over on a branch here.
+
+on:
+  pull_request:
+    branches: [main]
+  # Re-run by hand on an open pull request when GitHub drops the event
+  # (`gh workflow run Review --ref <branch> -f pr=<number>`).
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "Pull request number to review"
+        required: true
+
+concurrency:
+  # Per pull request, so manual re-runs of two PRs never cancel each other.
+  group: review-${{ github.event.pull_request.number || github.event.inputs.pr }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# reviewer-infra FP (CI, PR #121): a `pull_request` workflow runs its own YAML
+# from the PR by GitHub's design. `pull_request_target` (base YAML) would hand
+# the secrets to fork code — worse. Write access is the boundary: whoever can
+# push a branch here can change any workflow; the merge guard and the owner's
+# release are the gates against that.
+
+env:
+  # Advisory while the reviewer prompts on main learn the agent-workflow rules
+  # (bootstrap, PR #121): criticals are reported, not failed. The next PR sets
+  # this to "true" and is itself reviewed by the updated prompts.
+  REVIEW_BLOCKING: "false"
+
+jobs:
+  lanes:
+    name: Lanes touched by the diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      lanes: ${{ steps.detect.outputs.lanes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # reviewer-infra FP (CI run on PR #121): both actions really are v7.0.1 —
+      # checked with `git ls-remote --tags` on 2026-09-27; newer than its training data.
+      - name: Map changed files to reviewer lanes
+        # The lane map comes from the base branch when it has one, so a pull
+        # request cannot switch its own reviewers off by editing the script.
+        id: detect
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref || 'main' }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          if [[ "$ACTOR" == "dependabot[bot]" ]]; then
+            lanes='{}'  # a missing lane reads as false: every lane skipped
+          else
+            if [[ -z "$(git ls-tree --name-only "origin/$BASE" -- scripts/review-lanes.sh)" ]]; then
+              # Only while the base branch has no lane map yet (the PR adding it).
+              cp scripts/review-lanes.sh "$RUNNER_TEMP/review-lanes.sh"
+            else
+              git show "origin/$BASE:scripts/review-lanes.sh" > "$RUNNER_TEMP/review-lanes.sh"
+            fi
+            lanes=$(git diff --name-only "origin/$BASE...HEAD" | bash "$RUNNER_TEMP/review-lanes.sh" --json)
+          fi
+          echo "lanes=$lanes" >> "$GITHUB_OUTPUT"
+          echo "$lanes"
+
+  review:
+    name: reviewer-${{ matrix.reviewer }}
+    needs: lanes
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      # The report is a sticky comment on the pull request.
+      pull-requests: write
+    env:
+      # Where the pinned action writes the session's execution log (verified
+      # against v1 @ 9cdae7f in folioneer; re-check when the pin moves).
+      SESSION_LOG: /home/runner/work/_temp/claude-execution-output.json
+    strategy:
+      fail-fast: false
+      matrix:
+        reviewer: [backend, arch, frontend, sql, infra, security, e2e]
+    steps:
+      - name: Skip lanes the diff does not touch
+        id: gate
+        shell: bash
+        env:
+          LANES: ${{ needs.lanes.outputs.lanes }}
+          REVIEWER: ${{ matrix.reviewer }}
+        run: |
+          set -euo pipefail
+          if [[ "$(jq -r --arg r "$REVIEWER" '.[$r]' <<<"$LANES")" == "true" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "reviewer-$REVIEWER: no file in its lane changed"
+          fi
+
+      - name: Require the subscription token
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$TOKEN" ]]; then
+            echo "::error::CLAUDE_CODE_OAUTH_TOKEN is not set on the repository (mint one with \`claude setup-token\`, store it with \`gh secret set CLAUDE_CODE_OAUTH_TOKEN\`) — the reviewer cannot run, and a review that did not happen must not pass."
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        if: steps.gate.outputs.run == 'true'
+        with:
+          fetch-depth: 0
+          # The session gets a broad shell over untrusted diff content: no job
+          # token may sit in .git/config for it to read (the redaction below
+          # does not match the checkout's AUTHORIZATION header shape).
+          persist-credentials: false
+
+      - name: Give the branch helper a local main and trusted prompts and helpers
+        # scripts/branch.sh resolves the diff base as merge-base(HEAD, main).
+        # The reviewer prompts and the two helpers the session runs come from the
+        # base branch, not from the pull request, so a PR can neither soften the
+        # criteria that grade it nor change what the reviewer runs; a PR that
+        # edits them still has that edit in its diff, and the new prompt applies
+        # once merged.
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          git branch -f main "origin/$BASE"
+          git checkout "origin/$BASE" -- .claude/agents scripts/branch.sh scripts/review-path.sh
+
+      - name: Run the reviewer prompt
+        # The runner is disposable, so the shell is allowed broadly and only
+        # the calls that reach out are denied (denials win over allowances):
+        # no GitHub CLI, no push, no network clients. Nothing leaves the runner
+        # except the report and the session log, both redacted below first.
+        if: steps.gate.outputs.run == 'true'
+        uses: anthropics/claude-code-action@9cdae7f0d995e3ba7c33f226087fdf82a59cd520  # v1.0.223
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The workflow token is enough: the session gets no GitHub tool.
+          # reviewer-infra FP (CI, PR #121): with a custom prompt the action posts
+          # nothing itself — two runs left only the step below's sticky comment.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            You are the `reviewer-${{ matrix.reviewer }}` agent of this repository.
+            Read `.claude/agents/reviewer-${{ matrix.reviewer }}.md` and follow it
+            exactly, in its default diff-scoped mode, against the current branch
+            (the pull request's merge commit; `bash scripts/branch.sh files` and
+            `bash scripts/branch.sh diff <path> [<path> ...]` give the changed set and
+            the whole diff in one call).
+            Include `docs/ubiquitous-language.md` in your term checks. Save the
+            full report where the agent file says (`bash scripts/review-path.sh
+            reviewer-${{ matrix.reviewer }}`). Do not post comments or reviews
+            on GitHub yourself; the workflow does that from the saved file.
+            Be concise: one line per finding (location, claim, fix); no
+            restating of the diff, no narrative, no unrequested alternatives.
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 40
+            --allowedTools "Read" "Grep" "Glob" "Write(.review/**)" "Edit(.review/**)" "Bash"
+            --disallowedTools "Bash(gh *)" "Bash(git push*)" "Bash(git remote*)" "Bash(curl *)" "Bash(wget *)" "Bash(ssh *)" "WebFetch" "WebSearch"
+
+      - name: Redact secret-shaped strings from what leaves the runner
+        # A prompt injection in a reviewed diff could steer the session into
+        # echoing a token into the report. The report becomes a public comment
+        # and the log an artifact, so both are scrubbed of token shapes first.
+        if: ${{ steps.gate.outputs.run == 'true' && !cancelled() }}
+        shell: bash
+        env:
+          # Every secret live in this job is scrubbed by its exact value too,
+          # whatever its shape.
+          SCRUB_1: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          SCRUB_2: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          literal() { python3 -c 'import os,sys
+          d = sys.stdin.read()
+          for k in ("SCRUB_1", "SCRUB_2"):
+              t = os.environ.get(k, "")
+              if t:
+                  d = d.replace(t, "[redacted-token]")
+          sys.stdout.write(d)'; }
+          scrub() { literal | sed -E 's/sk-ant-[A-Za-z0-9_-]{8,}/[redacted-token]/g; s/gh[pousr]_[A-Za-z0-9]{20,}/[redacted-token]/g; s/(ANTHROPIC_API_KEY|CLAUDE_CODE_OAUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|CODECOV_TOKEN)=[^ "]+/\1=[redacted]/g'; }
+          for f in .review/reviewer-*.md; do [[ -e "$f" ]] && { scrub < "$f" > "$f.tmp" && mv "$f.tmp" "$f"; }; done
+          if [[ -f "$SESSION_LOG" ]]; then
+            scrub < "$SESSION_LOG" > review-session.json
+          else
+            echo "::warning::No session log at $SESSION_LOG — the pinned action may write it elsewhere now; re-check SESSION_LOG."
+          fi
+          echo "redaction pass done"
+
+      - name: Keep the session log for diagnosis
+        if: ${{ steps.gate.outputs.run == 'true' && !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: review-session-${{ matrix.reviewer }}
+          path: review-session.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Post the report and fail on criticals
+        # Runs even when the reviewer step failed, so the sticky comment never
+        # shows a stale verdict next to a red check.
+        if: ${{ steps.gate.outputs.run == 'true' && !cancelled() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+          REVIEWER: ${{ matrix.reviewer }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          report=$(ls -t .review/reviewer-"$REVIEWER"-*.md 2>/dev/null | head -n 1 || true)
+          MARKER="<!-- review:$REVIEWER -->"
+          if [[ -z "$report" ]]; then
+            last=$(jq -r 'if type=="array" then .[] else . end | select(.type=="result") | .result // empty' \
+              review-session.json 2>/dev/null | tail -c 1500 || true)
+            body=$(printf '%s\n## reviewer-%s — no report\n\nThe reviewer produced no report ([run](%s)); the check fails until it does.\n\nSession said:\n\n> %s\n' \
+              "$MARKER" "$REVIEWER" "$RUN_URL" "${last:-(no final message)}")
+            criticals=1
+          else
+            criticals=$( { grep -Eo '🔴 [0-9]+ critical' "$report" || true; } | grep -Eo '[0-9]+' | head -n 1 || true)
+            criticals=${criticals:-0}
+            # GitHub caps a comment at 65 536 characters; keep the head of a long report.
+            body=$(printf '%s\n%s\n\n[run](%s)\n' "$MARKER" "$(head -c 60000 "$report")" "$RUN_URL")
+          fi
+          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" | head -n 1)
+          if [[ -n "$existing" ]]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" > /dev/null
+          else
+            gh pr comment "$PR_NUMBER" --body "$body"
+          fi
+          if [[ "$criticals" != "0" ]]; then
+            if [[ "$REVIEW_BLOCKING" == "true" ]]; then
+              echo "::error::reviewer-$REVIEWER reported $criticals critical finding(s) — see the PR comment."
+              exit 1
+            fi
+            echo "::warning::reviewer-$REVIEWER reported $criticals critical finding(s) — see the PR comment (advisory: REVIEW_BLOCKING is off)."
+          fi
+          echo "reviewer-$REVIEWER: no critical"

@@ -37,8 +37,11 @@ class ReviewLanes(unittest.TestCase):
     def test_tooling_is_infra(self):
         self.assertEqual(lanes(".github/workflows/e2e.yml", "justfile", "scripts/harness.sh"), ["infra"])
 
+    def test_the_merge_gate_list_is_infra(self):
+        self.assertEqual(lanes("required-checks.json"), ["infra"])
+
     def test_files_outside_the_infra_reviewers_scope_do_not_fire_it(self):
-        self.assertEqual(lanes("required-checks.json", "scripts/tests/test_merge.py", "scripts/visual-proof-capture.mjs"), [])
+        self.assertEqual(lanes("scripts/tests/test_merge.py", "scripts/visual-proof-capture.mjs"), [])
 
     def test_json_lists_every_lane(self):
         self.assertEqual(

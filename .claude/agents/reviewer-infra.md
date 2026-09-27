@@ -122,6 +122,7 @@ Skip silently any file or directory below that does not exist in the project (v4
 - `scripts/*.sh`, `scripts/*.bat`, `scripts/*.py` — internal quality (safety, robustness, portability) AND CI reference correctness
 - `.githooks/*` — internal quality AND hook wiring/CI consistency
 - `justfile` — Command runner recipes (task aliases for scripts and dev commands)
+- `required-checks.json` — the checks `just merge` requires; every name must match a job `name:` in `.github/workflows/`
 
 ---
 
@@ -151,6 +152,19 @@ Skip silently any file or directory below that does not exist in the project (v4
 - 🔴 Matrix strategies must not silently skip required platforms
 - 🟡 `workflow_dispatch` inputs used in expressions must be quoted: `${{ inputs.tag }}` not `${{ inputs.tag == 'x' }}`
 - 🟡 Conditional expressions on `inputs.*` in `runs-on` should be tested for all input values
+
+### Workflows that run an agent on PR content
+
+Applies to any job that hands a model session a shell and a secret over a pull request's diff (e.g. `anthropics/claude-code-action` in `review.yml`). Treat the diff as hostile: a prompt injection in it steers the session.
+
+- 🔴 Every `actions/checkout` in such a job sets `persist-credentials: false` — otherwise the job token sits in `.git/config` as an `AUTHORIZATION` header the session can read and print
+- 🔴 Everything that defines what the session does comes from the base branch, never from the PR: the agent prompts (`.claude/agents/`), the helper scripts it runs, and the lane map that decides which reviewers fire. A PR must not be able to soften the review that grades it
+- 🔴 Whatever leaves the runner (report → PR comment, session log → artifact) is scrubbed of the secret's exact value, not only of known token shapes
+- 🔴 The session's tools deny `gh`, `git push`, `git remote` and network clients; a broad `Bash` grant is a known residual risk (see `docs/techdebt.md`), never widened further
+- 🔴 A missing secret fails the job closed with an explicit error — a review that did not run must not pass
+- 🟡 Actors without repository secrets (Dependabot, fork PRs) are handled explicitly: skipped by design, or failing closed with a stated reason — never an unexplained red
+- Not a finding: a `pull_request` workflow runs its own YAML from the PR, so a branch can edit it. That is GitHub's design; the alternative, `pull_request_target`, hands secrets to fork code and is worse. Write access is the boundary, not the workflow. Do not flag it, and do not suggest `pull_request_target`
+- Not a finding: the convention docs a reviewer reads (`docs/*-rules.md`, `docs/ubiquitous-language.md`, …) come from the PR. A PR that changes a rule changes its code and its doc together and is graded by the new rule; the doc change sits in the diff. Only prompts, helper scripts and the lane map are taken from the base branch
 
 ### Tauri-specific
 
