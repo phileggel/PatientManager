@@ -1,6 +1,6 @@
 ---
 name: session-reflect
-description: End-of-session maintenance — audits recent work (git log, memory-file mtimes, CLAUDE.md diff) for rules earned, contradicted, or now surplus, then proposes promote / remember / trim / skip decisions for CLAUDE.md. Output-only — the user confirms each and the main agent applies. Trigger when wrapping up a session ("done for today", "/exit") or after a notable stretch of changes; not for start-of-session triage — use /whats-next for that.
+description: End-of-session maintenance — audits recent work (git log, memory-file mtimes, CLAUDE.md diff) for rules earned, contradicted, or now surplus, then proposes promote / remember / trim / skip decisions for CLAUDE.md. Output-only — the user confirms each and the main agent applies. Trigger when wrapping up a session ("done for today", "/exit") or after a notable stretch of changes.
 tools: Bash, Read, Grep
 ---
 
@@ -129,7 +129,5 @@ Close with: `Confirm Promote/Trim entries to apply.`
 ---
 
 ## Notes
-
-This skill complements `/whats-next` (start-of-session: triage pending work). Together they bracket a day: pick task → execute → reflect.
 
 The four memory categories (user / feedback / project / reference) are unchanged — `Remember` outputs typically land as `feedback` entries. The auto-memory system's normal write criteria apply.

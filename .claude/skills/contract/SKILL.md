@@ -1,6 +1,6 @@
 ---
 name: contract
-description: Derives or updates a domain contract (docs/contracts/{domain}-contract.md) from a validated feature spec. Upsert-aware — adds commands without overwriting. Run after spec-reviewer approves, before contract-reviewer and `/feature-planner`. Not for validating an existing contract — use `contract-reviewer` instead.
+description: Derives or updates a domain contract (docs/contracts/{domain}-contract.md) from a validated feature spec. Upsert-aware — adds commands without overwriting. Run after spec-reviewer approves, before contract-reviewer. Not for validating an existing contract — use `contract-reviewer` instead.
 tools: Read, Glob, Write, Edit, AskUserQuestion
 model: opus
 ---
@@ -19,7 +19,7 @@ Produce or update a domain contract from a validated feature spec. The contract 
 
 ## When to use
 
-- **Third step of Workflow A** — after `spec-reviewer` green-lights the spec, before `contract-reviewer` validates the contract
+- **After `spec-reviewer`** green-lights the spec, before `contract-reviewer` validates the contract
 - **When introducing a new bounded-context aggregate** — first-time contract for a domain
 - **When extending an existing contract** — adding commands to an aggregate that already has a contract (this skill is upsert-aware and patches in place)
 
@@ -30,7 +30,6 @@ Produce or update a domain contract from a validated feature spec. The contract 
 - **Validating an existing contract** — use the `contract-reviewer` agent; this skill produces, it does not validate
 - **Producing the spec** — use `spec-writer` first; the contract is derived from the spec
 - **Amending a single field** — edit `docs/contracts/{domain}-contract.md` directly; do not re-run the skill for trivial fixes
-- **Generating the implementation plan** — `/feature-planner` consumes the contract; this skill stops at the contract
 
 ---
 
@@ -85,7 +84,7 @@ For each command identify:
 
 **Shared Types** — every entity struct involved in args or return values. Use Rust field naming
 (`snake_case` fields, `PascalCase` struct names). Describe business meaning only — no storage
-types, no `Option<>`, no derives. Those are implementation details for `/feature-planner`.
+types, no `Option<>`, no derives. Those are implementation details.
 
 **Events** — any named events implied by state-transition rules.
 
@@ -154,7 +153,7 @@ Report using this shape:
 ```
 ✅ Contract written — docs/contracts/{domain}-contract.md
    Commands: create_user, update_user, delete_user
-   Next: run `contract-reviewer` to validate, then `/feature-planner` for the implementation plan.
+   Next: run `contract-reviewer` to validate, then implement.
 ```
 
 For an upsert (existing contract patched), prefix `Updated` instead of `Written` and list only the new/modified commands.

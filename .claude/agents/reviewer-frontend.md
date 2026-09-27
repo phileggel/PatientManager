@@ -29,7 +29,6 @@ Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for
 - `reviewer-backend` — owns `.rs`; this agent ignores Rust code
 - `reviewer-sql` — owns `migrations/*.sql`; this agent ignores them
 - `reviewer-security` — owns Tauri commands, capabilities, IPC boundaries; this agent skips security-sensitive surfaces
-- `test-writer-frontend` — writes failing tests before implementation; this agent reviews code after implementation
 - `/visual-proof` — captures screenshots, not code review
 
 ---
@@ -49,7 +48,7 @@ Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for
 - **Reviewing migrations** — use `reviewer-sql`
 - **Reviewing security surfaces** (Tauri commands, capabilities, IPC) — use `reviewer-security`
 - **Reviewing DDD layering or architecture** — use `reviewer-arch`
-- **Pre-implementation work** — there is no code yet to review; use `test-writer-frontend` to establish a red baseline first
+- **Pre-implementation work** — there is no code yet to review
 
 ---
 

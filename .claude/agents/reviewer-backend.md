@@ -28,7 +28,6 @@ Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for
 - `reviewer-sql` — owns `migrations/*.sql`; this agent ignores migration files
 - `reviewer-security` — owns Tauri commands, capabilities, IPC boundaries, unsafe Rust; this agent skips security-sensitive surfaces
 - `reviewer-frontend` — owns `.ts` / `.tsx`; this agent ignores frontend code
-- `test-writer-backend` — writes failing tests before implementation; this agent reviews code after implementation
 
 ---
 
@@ -46,7 +45,7 @@ Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for
 - **Reviewing security surfaces** (auth, crypto, Tauri commands, capabilities) — use `reviewer-security`
 - **Reviewing DDD layering or architecture** — use `reviewer-arch`
 - **Reviewing frontend code** (`.ts` / `.tsx`) — use `reviewer-frontend`
-- **Pre-implementation work** — there is no code yet to review; use `test-writer-backend` to establish a red baseline first
+- **Pre-implementation work** — there is no code yet to review
 
 ---
 

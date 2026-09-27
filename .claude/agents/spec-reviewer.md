@@ -15,7 +15,7 @@ Given a spec document, verify it is complete, consistent, and implementable befo
 
 ## Not to be confused with
 
-- **`spec-checker`** — runs at the end of Workflow A to verify every TRIGRAM-NNN rule is covered by at least one test. This agent (`spec-reviewer`) runs at the start, on the spec document itself, before `/contract`.
+- **`spec-checker`** — runs once implementation is done to verify every TRIGRAM-NNN rule is covered by at least one test. This agent (`spec-reviewer`) runs at the start, on the spec document itself, before `/contract`.
 - **`spec-writer`** — the upstream skill that produces the spec. This agent never rewrites the spec; it reports issues for the user to correct via `spec-writer`.
 
 ---
@@ -166,8 +166,8 @@ Ready for /contract: yes — 0 critical findings (incl. contractability). / no �
 
 ## Critical Rules
 
-1. Never suggest implementation details (file names, functions) — that's /feature-planner's job
-2. Every 🔴 finding must block the spec from going to /feature-planner
+1. Never suggest implementation details (file names, functions) — that's the implementation's job
+2. Every 🔴 finding must block the spec from going to implementation
 3. Report findings against rule identifiers (e.g. "REF-020 — scope missing") not against lines
 4. Trigram must be registered in `docs/spec-index.md` before sign-off (handled by spec-writer's trigram-registration step)
 5. Do not rewrite the spec — report issues only, the user corrects via spec-writer

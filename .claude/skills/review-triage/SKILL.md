@@ -1,6 +1,6 @@
 ---
 name: review-triage
-description: Triages reviewer-* findings against the (a)/(b)/(c) per-task discipline before any are applied. Reads `.review/` reports, grades each finding, emits a per-row Follow-up table, and halts for user confirmation on any (b) or (c) row. Auto-invoked at the end of every reviewer batch by `/start`; also usable standalone after ad-hoc reviewer runs. Routes (b) rows to `/techdebt` — does not replace it.
+description: Triages reviewer-* findings against the (a)/(b)/(c) per-task discipline before any are applied. Reads `.review/` reports, grades each finding, emits a per-row Follow-up table, and halts for user confirmation on any (b) or (c) row. Run at the end of every reviewer batch. Routes (b) rows to `/techdebt` — does not replace it.
 tools: Read, Glob, Bash, Write, AskUserQuestion
 ---
 
@@ -18,7 +18,7 @@ Reviewer-\* agents persist their full output to `.review/{slug}-DATE-NN.md` (via
 
 ## When to use
 
-- **After every reviewer-\* agent batch** — the standard auto-invoke point. A "batch" is all reviewer-\* agents run since the last commit; the reset boundary is `/smart-commit`.
+- **After every reviewer-\* agent batch** — the standard auto-invoke point. A "batch" is all reviewer-\* agents run since the last commit; the reset boundary is the commit.
 - **Before applying any finding** — even on a single-reviewer run.
 - **Whenever you'd be tempted to silently apply or silently defer a finding** — exactly the failure mode this skill prevents.
 
@@ -195,8 +195,6 @@ When the batch is clean, the saved report is one line: `## review-triage — {da
 **Scope is PR, not commit.** The (a)/(b)/(c) decision treats the PR (cumulative diff against the PR's base branch) as the scope unit. A wording fix that fans across 10 files all touched by the same PR is (a) if mechanical — fold it into the PR, don't defer. The boyscout test in Q2 and the fanout test in Q3 both use PR scope. Per-commit framing would create artificial splits ("fix the wording" vs "ship the wording" as separate PRs) that produce churn without value.
 
 The (a)/(b)/(c) discipline this skill encodes is per-task rule 5 in the downstream project's CLAUDE.md (§ Per-task Discipline). The skill is self-contained — it works in projects whose CLAUDE.md doesn't carry the rule, because the grading axes live in Step 3 above.
-
-The skill complements `/start`: when `/start`'s Workflow A/B reaches a reviewer-batch step, reviewer-\* agents save reports to `.review/`; the next checkbox is `/review-triage`; only after this skill's table is emitted (and any (b)/(c) rows confirmed) does the main agent proceed to apply Follow-ups + `/smart-commit`.
 
 If the user picks "Adjust grades" in Step 5, the skill exits without applying anything; the user responds in chat with grade corrections, then re-runs the skill (or the main agent applies the corrected grades manually). The consolidated halt is the design trade — per-row prompting would create 4-12 questions per batch.
 

@@ -357,7 +357,7 @@ The main agent only sees your terminal message; the file ensures `/review-triage
 
 1. **Read-only on reviewed files.** The `Write` grant is reserved for the `.review/` report path per `## Save report` — never `Write` to any other path (source files, configs, capabilities, tests, docs including `docs/todo.md`, or tooling). Pre-existing tech-debt notes are reported in the output for the main agent to file, not written here.
 2. **Severity labels apply only to changed lines.** Issues on unchanged lines go under `Pre-existing tech debt` without severity labels — pre-existing issues do not block the branch.
-3. **Doc reads are best-effort.** Never halt on absent `docs/security-rules.md`, plan, or contract files. Workflow B (no plan / no contract) must remain reachable.
+3. **Doc reads are best-effort.** Never halt on absent `docs/security-rules.md`, plan, or contract files. A change with no plan or contract must still be reviewable.
 4. **One pass across all files.** Do not request a follow-up turn to finish.
 5. **Lead with the headline summary.** The consumer reads the verdict first; per-file detail follows.
 6. **Project rules win.** When `docs/security-rules.md` defines a rule that conflicts with this file, follow the project doc.

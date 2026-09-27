@@ -302,7 +302,7 @@ All commits go through automated checks:
 - ✅ Linters must report no critical errors
 - ✅ Commit format must be valid
 
-These checks are enforced before commits can be created via the smart-commit tool.
+These checks are enforced by the git hooks before a commit is created.
 
 ## Troubleshooting
 

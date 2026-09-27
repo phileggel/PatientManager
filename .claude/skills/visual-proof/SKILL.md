@@ -19,7 +19,7 @@ Automate the visual proof workflow defined in `docs/frontend-visual-proof.md` �
 ## When to use
 
 - **After frontend implementation** — any change touching `.tsx` or `.css` files
-- **Before `/smart-commit`** — screenshots get staged with the commit
+- **Before committing** — screenshots get staged with the commit
 - **For bug discovery on existing components** — provide an unmodified component path; the console-error capture will surface latent rendering issues even when nothing has changed
 
 ## When NOT to use
@@ -240,7 +240,7 @@ Screenshots staged ({count}):
 
 No console errors detected during capture.
 
-⚠️  Before /smart-commit — delete the preview files (never committed):
+⚠️  Before committing — delete the preview files (never committed):
     rm -f preview.html
     rm -rf src/__preview__/
 ```
@@ -259,7 +259,7 @@ Screenshots staged ({count}):
 
 The .console-errors.json file has been unstaged and deleted.
 
-⚠️  Before /smart-commit — delete the preview files (never committed):
+⚠️  Before committing — delete the preview files (never committed):
     rm -f preview.html
     rm -rf src/__preview__/
 ```

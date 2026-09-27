@@ -56,12 +56,11 @@ Each task ships under these constraints (in priority order):
 
 ## 🔄 Workflows & Planning
 
-Run `/whats-next` first to triage pending work, then `/start` to pick the right workflow for the task at hand.
 See `docs/workflow.md` for the conventions agents and skills rely on.
 
-Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/feature-planner` (translate spec to plan), `/adr-writer` (Architecture Decision Records), `/smart-commit` (commit), `/create-pr` (push + open PR), `/review-triage` (triage reviewer findings against (a)/(b)/(c)), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
+Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-writer` (Architecture Decision Records), `/review-triage` (triage reviewer findings against (a)/(b)/(c)), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
 Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (auto-rebase onto target, fast-forward, push, delete branch), `just release` (full quality validation → conventional-commit semver bump → version-file sync across `package.json` + `Cargo.toml` + `tauri.conf.json` + `Cargo.lock` → CHANGELOG regen → commit + tag + push, all in one shot; use `--dry-run` to preview the version bump, `-y` for non-TTY contexts).
-Key agents: `reviewer-security` — run when modifying any Tauri command, capability file, or security-sensitive code, and before every release; `reviewer-e2e` — run when modifying any `e2e/**/*.test.ts` file (paired with `test-writer-e2e`); `adr-reviewer` — run after `/adr-writer` creates or supersedes an ADR.
+Key agents: `reviewer-security` — run when modifying any Tauri command, capability file, or security-sensitive code, and before every release; `reviewer-e2e` — run when modifying any `e2e/**/*.test.ts` file; `adr-reviewer` — run after `/adr-writer` creates or supersedes an ADR.
 
 ### Mandatory pre-read by task type
 
@@ -74,7 +73,7 @@ Before implementing, read the relevant convention docs:
 
 ### After completion — update the source doc
 
-When work resolves a TODO entry, an open question, a plan step, or a tech-debt observation, update the source doc immediately — don't wait for the next `/whats-next` run. Use `/techdebt` for non-actionable code smells, `/spec-writer` + `spec-reviewer` for new business rules, `/contract` + `contract-reviewer` for the matching contract, `/adr-writer` + `adr-reviewer` for architectural decisions.
+When work resolves a TODO entry, an open question, a plan step, or a tech-debt observation, update the source doc immediately. Use `/techdebt` for non-actionable code smells, `/spec-writer` + `spec-reviewer` for new business rules, `/contract` + `contract-reviewer` for the matching contract, `/adr-writer` + `adr-reviewer` for architectural decisions.
 
 ### Task tracking (within a conversation)
 
@@ -93,15 +92,13 @@ When splitting, the order is **BE → FE → E2E**:
 2. **Frontend gateway / hooks / presenter / components / i18n** — second PR, branched off the merged BE branch.
 3. **E2E tests + ARCHITECTURE / todo / spec-checker closure** — third PR.
 
-`/feature-planner` should output a "PR plan" section listing which commits land in which PR; run `plan-reviewer` after the plan lands to validate it before any test-writer runs.
-
 ---
 
 ## 📖 Ubiquitous Language
 
 `docs/ubiquitous-language.md` is the authoritative dictionary of domain terms.
 
-- **All automation** (agents like `reviewer-arch`; skills like `/spec-writer`, `/feature-planner`) MUST read it before naming or reviewing any domain concept.
+- **All automation** (agents like `reviewer-arch`; skills like `/spec-writer`) MUST read it before naming or reviewing any domain concept.
 - Confirmed terms MUST be used consistently in code, specs, comments, and logs — even when existing code still uses a discrepant name (those are tracked as `⚠️ Code discrepancy` in the UL doc and are known migration targets).
 - New code MUST use the UL name; do not extend usage of a discrepant term.
 

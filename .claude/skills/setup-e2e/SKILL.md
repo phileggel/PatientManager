@@ -1,6 +1,6 @@
 ---
 name: setup-e2e
-description: One-time setup of the Tauri WebDriver E2E infrastructure. Installs npm packages, generates wdio.conf.ts from the project binary, adds test:e2e / test:e2e:ci npm scripts. Run once before the first test-writer-e2e invocation. Safe to re-run — skips steps already done.
+description: One-time setup of the Tauri WebDriver E2E infrastructure. Installs npm packages, generates wdio.conf.ts from the project binary, adds test:e2e / test:e2e:ci npm scripts. Run once before the first E2E test. Safe to re-run — skips steps already done.
 tools: Read, Grep, Glob, Bash, Edit, Write
 ---
 
@@ -12,18 +12,17 @@ Sets up the Tauri WebDriver E2E infrastructure for this project.
 Safe to re-run — completed steps are detected and skipped where possible
 (Step 2 reinstalls the full npm set if any package is missing).
 
-After this skill completes, the `test-writer-e2e` agent can be used to write tests
+After this skill completes, E2E tests can be written
 without any further infrastructure work.
 
 ---
 
 ## When to use
 
-- **Before the first E2E test** — once per project, to stand up the WebDriver infrastructure `test-writer-e2e` depends on
+- **Before the first E2E test** — once per project, to stand up the WebDriver infrastructure E2E tests depend on
 - **When `wdio.conf.ts` is missing or the suite won't start** — safe to re-run; every step skips work already done
-- **In Workflow A Phase 4** — the `/start` template calls it before `test-writer-e2e` if E2E isn't set up yet
 
-Not for writing or running tests — that's `test-writer-e2e` and `npm run test:e2e`. This skill only provisions the infrastructure.
+Not for writing or running tests — that's `docs/e2e-rules.md` and `npm run test:e2e`. This skill only provisions the infrastructure.
 
 ---
 
@@ -384,6 +383,5 @@ Binary: {binary-name}  (from src-tauri/Cargo.toml [[bin]])
 Next steps:
 1. Install tauri-driver if not yet done:  cargo install tauri-driver
 2. On Linux, install WebKitWebDriver:     sudo apt-get install -y webkit2gtk-driver
-3. Run the test writer:                   use test-writer-e2e agent with a contract
-4. Run the suite:                         npm run test:e2e
+3. Run the suite:                         npm run test:e2e
 ```

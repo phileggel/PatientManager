@@ -29,7 +29,6 @@ Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for
 - `reviewer-e2e` — owns `e2e/**/*.test.ts`; this agent excludes E2E test files (scenarios are not DDD-architecture surfaces)
 - `reviewer-sql` — owns `migrations/*.sql`; this agent ignores migration files
 - `reviewer-security` — owns Tauri commands, capabilities, IPC boundaries, unsafe Rust; skip security-sensitive surfaces here
-- `/feature-planner` — translates spec to plan; this agent reviews implementation, not the plan
 
 ---
 
@@ -47,7 +46,6 @@ Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for
 - **Reviewing security surfaces** (auth, crypto, Tauri commands, capabilities) — use `reviewer-security`
 - **Rust code quality (anyhow, unwrap, async correctness)** — use `reviewer-backend`
 - **Frontend code-quality concerns (idioms, colocation, M3 design tokens)** — use `reviewer-frontend`
-- **Validating the implementation plan** — use `plan-reviewer`; this agent reviews code, not plans
 - **Pre-implementation work** — there is no code yet to review
 
 ---

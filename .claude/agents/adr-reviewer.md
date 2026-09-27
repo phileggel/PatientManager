@@ -17,13 +17,12 @@ Given an ADR file (or all ADRs in `docs/adr/`), surface findings against the pro
 
 - `adr-writer` — authors and supersedes ADRs; this agent only reviews
 - `spec-reviewer` — validates spec rules; flags 🔵 _Possible ADR candidate_ but does not check ADR structure
-- `plan-reviewer` (Section D — ADR adherence) — validates that the implementation plan surfaces ADR constraints in tasks; does not validate the ADRs themselves
 
 ---
 
 ## When to use
 
-- **After `adr-writer` creates or supersedes an ADR** — green-light is required before downstream consumers (`/feature-planner`, `reviewer-arch`) cite the ADR as a constraint
+- **After `adr-writer` creates or supersedes an ADR** — green-light is required before downstream consumers (`reviewer-arch`) cite the ADR as a constraint
 - **Before a release sweep** — pass with no argument to review every ADR in `docs/adr/` and the index in one pass
 - **After importing or hand-editing an ADR** — manual edits skip `adr-writer`'s gate; this agent catches the drift
 
@@ -120,7 +119,7 @@ The canonical gate lives in the `adr-writer` skill (`## The 3-criteria gate` sec
 
 #### F — Cross-spec consistency
 
-ADR ↔ spec alignment is also enforced downstream by `spec-reviewer` (rule-vs-ADR check) and `plan-reviewer` Section D (ADR-adherence in tasks). This agent runs _first_, at ADR-edit time, so contradictions get caught before they propagate to the spec or plan. If a finding here matches one a downstream reviewer will also raise, that is expected — the user fixes once, all three pass.
+ADR ↔ spec alignment is also enforced downstream by `spec-reviewer` (rule-vs-ADR check). This agent runs _first_, at ADR-edit time, so contradictions get caught before they propagate to the spec. If a finding here matches one a downstream reviewer will also raise, that is expected — the user fixes once, both pass.
 
 - 🔴 ADR contradicts an active spec rule. Example: ADR mandates `i64` for amounts but spec rule REF-020 specifies `f64`. State both sides; do not pick a winner (Critical Rule 5).
 - 🟡 ADR's referenced feature, entity, or context no longer appears in `docs/spec/*.md` or `ARCHITECTURE.md` — the decision may have outlived its subject.

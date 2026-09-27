@@ -20,7 +20,7 @@ Works even if the feature is fuzzy — use the interview phase to clarify it.
 
 ## When to use
 
-- **First step of Workflow A (Full Feature Workflow)** — new feature with unknown or partially-known business rules
+- **New feature** with unknown or partially-known business rules
 - **When you have an intent but no spec yet** — even if the intent is fuzzy; the interview phase clarifies it
 - **Before `/contract`** — the contract is derived from the spec, so the spec must exist first
 
@@ -74,7 +74,7 @@ If the user's answers reveal new unknowns, continue with additional rounds — u
 After round 3 (or earlier if all blocking uncertainties are resolved), draft the spec with what you have and move any remaining unknowns into `## Open Questions` for step 5.
 
 - Only ask what you genuinely cannot infer from the codebase
-- Never ask about file names, function names, or implementation choices (that's `/feature-planner`'s job)
+- Never ask about file names, function names, or implementation choices (that's the implementation's job)
 - For a simple feature, a single round is sufficient — never ask more than the feature's complexity warrants
 
 ---
@@ -240,7 +240,7 @@ After drafting the rules, grade each dimension **Clear / Partial / Missing**:
 
 **The rule:** every **Partial**/**Missing** cell touching a rule (or a behaviour that should have one) becomes a mandatory `[ ]` item in `## Open Questions` — _unless_ an existing project pattern already answers it, which you still infer silently per Rule 12. The override is narrow: it forces a question only for a genuine business decision that no doc or pattern settles. This also differs from Rule 13 — there you _add_ a rule for behaviour you already know; here you _ask_ because the behaviour's content is undecided. Do not pre-answer; these feed the step-5 loop. Order them by impact (scope > data integrity > UX > minor edge cases). A **Clear** cell produces no question.
 
-Keep the taxonomy business-scoped (Rule 7): no non-functional, integration, or data-format cells — those are `/contract` and `/feature-planner` territory.
+Keep the taxonomy business-scoped (Rule 7): no non-functional, integration, or data-format cells — those are `/contract` and implementation territory.
 
 ---
 
@@ -308,7 +308,6 @@ Next steps after validation:
 1. Run `spec-reviewer` agent to quality-check the spec
 2. Run `/contract` skill to derive the domain contract
 3. Run `contract-reviewer` agent to validate the contract
-4. Run `/feature-planner` skill to generate the implementation plan
 
 ---
 
@@ -329,7 +328,7 @@ Next steps after validation:
    | "Results are signaled via a background job posting events" | "Results are signaled asynchronously via the `{Entity}Updated` event"    |
    | "The setting is stored in the frontend store"              | "The setting persists across sessions on the current device"             |
 
-   Implementation is `/feature-planner`'s job; contract framing is `/contract`'s.
+   Implementation is the implementer's job; contract framing is `/contract`'s.
 
 8. **Entity section mandatory when an entity is involved** — names in English Rust convention, field descriptions in English, business meaning only
 9. Each `{TRIGRAM}-NNN` rule must be independently verifiable by a test
