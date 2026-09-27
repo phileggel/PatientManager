@@ -1,6 +1,8 @@
 """Tests for scripts/merge.py — one entry lands as one commit — run with `just test-scripts`."""
 
+import contextlib
 import importlib.util
+import io
 import os
 import subprocess
 import tempfile
@@ -154,6 +156,44 @@ class ChecksGreen(unittest.TestCase):
         runs["Codec"] = ("completed", "failure")
         with self.assertRaises(SystemExit):
             self.guard(runs)
+
+
+class DeletingTheRemoteBranch(unittest.TestCase):
+    """`delete_remote_branch` against a bare repository standing in for origin."""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.addCleanup(os.chdir, os.getcwd())
+        root = Path(self.folder.name)
+        self.origin = root / "origin.git"
+        self.run_git("init", "--quiet", "--bare", str(self.origin))
+        os.chdir(root)
+        self.run_git("init", "--quiet", "--initial-branch", "main", "work")
+        os.chdir(root / "work")
+        self.run_git("config", "user.name", "test")
+        self.run_git("config", "user.email", "test@example.invalid")
+        self.run_git("config", "core.hooksPath", os.devnull)
+        self.run_git("remote", "add", "origin", str(self.origin))
+        self.run_git("commit", "--quiet", "--allow-empty", "-m", "chore: start")
+        self.run_git("push", "--quiet", "origin", "main:main", "main:feature")
+
+    def run_git(self, *args):
+        return subprocess.run(["git", *args], capture_output=True, text=True, check=True).stdout.strip()
+
+    def test_an_existing_branch_is_deleted(self):
+        self.assertEqual(merge.delete_remote_branch("feature"), "deleted")
+
+    def test_a_branch_the_remote_already_deleted_is_gone_not_failed(self):
+        subprocess.run(["git", "--git-dir", str(self.origin), "branch", "-D", "feature"], check=True, capture_output=True)
+        self.assertEqual(merge.delete_remote_branch("feature"), "gone")
+
+    def test_a_refused_delete_that_leaves_the_branch_fails(self):
+        hook = self.origin / "hooks" / "pre-receive"
+        hook.write_text("#!/bin/sh\necho 'protected' >&2\nexit 1\n", encoding="utf-8")
+        hook.chmod(0o755)
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(merge.delete_remote_branch("feature"), "failed")
 
 
 if __name__ == "__main__":

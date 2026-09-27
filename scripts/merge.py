@@ -243,6 +243,29 @@ def ensure_checks_green(branch: str, target: str, before: str, after: str) -> No
     print(f"{GREEN}✓ PR #{number}: every check green on {head[:7]}{landing}.{NC}", file=sys.stderr)
 
 
+def delete_remote_branch(branch: str) -> str:
+    """Delete `origin/<branch>`: "deleted", "gone" (already removed elsewhere) or "failed".
+
+    A failed delete is re-checked against the remote rather than parsed: GitHub
+    deletes a merged branch itself (delete_branch_on_merge), and racing it
+    rejects the push with a message that varies.
+    """
+    result = git("push", "--delete", "origin", branch, check=False)
+    if result.returncode == 0:
+        return "deleted"
+    still_there = git("ls-remote", "--exit-code", "--heads", "origin", branch, check=False)
+    if still_there.returncode == 2:  # --exit-code: no matching ref on the remote
+        return "gone"
+    print(f"{RED}❌ Failed to delete origin/{branch}:{NC}", file=sys.stderr)
+    for line in (result.stderr or "no stderr").strip().splitlines():
+        print(f"{BLUE}   {line}{NC}", file=sys.stderr)
+    print(
+        f"{BLUE}   Retry manually once unblocked: git push --delete origin {branch}{NC}",
+        file=sys.stderr,
+    )
+    return "failed"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -449,12 +472,8 @@ def main() -> int:
     # "merged-in-upstream" check that would refuse if the feature branch was
     # ahead of its origin counterpart.
     #
-    # Failure modes we distinguish:
-    #   - Remote ref doesn't exist (race: someone else deleted it). Benign,
-    #     fall through to local cleanup as if it had never been there.
-    #   - Protected branch / pre-receive hook declined. The user needs to
-    #     know — partial state on the remote, fix-forward required.
-    #   - Network / auth failure. Same surface as the protected case.
+    # A branch already gone from the remote (GitHub deleted it on merge) is
+    # benign; any other failure leaves the remote branch behind and is shown.
     remote_state = "skipped"  # one of: skipped, deleted, gone, failed
     if has_origin_target:
         has_origin_branch = (
@@ -464,24 +483,7 @@ def main() -> int:
             == 0
         )
         if has_origin_branch:
-            result = git("push", "--delete", "origin", branch, check=False)
-            if result.returncode == 0:
-                remote_state = "deleted"
-            elif "remote ref does not exist" in (result.stderr or "").lower():
-                remote_state = "gone"  # race — already removed elsewhere
-            else:
-                remote_state = "failed"
-                stderr_excerpt = (result.stderr or "").strip().splitlines()
-                detail = stderr_excerpt[-1] if stderr_excerpt else "no stderr"
-                print(
-                    f"{RED}❌ Failed to delete origin/{branch}: {detail}{NC}",
-                    file=sys.stderr,
-                )
-                print(
-                    f"{BLUE}   Retry manually once unblocked: "
-                    f"git push --delete origin {branch}{NC}",
-                    file=sys.stderr,
-                )
+            remote_state = delete_remote_branch(branch)
 
     # Step 6 — delete the local branch.
     result = git("branch", "-d", branch, check=False)
