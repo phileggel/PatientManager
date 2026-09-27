@@ -166,7 +166,7 @@ jobs:
       - name: Upload to Codecov
         # Before the floor, so a drop still reaches Codecov's trend.
         if: needs.scope.outputs.frontend == 'true'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/frontend/lcov.info
@@ -202,7 +202,7 @@ jobs:
           # llvm-tools-preview: the profiler runtime cargo llvm-cov drives.
           components: rustfmt, clippy, llvm-tools-preview
       - name: Cache Rust
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2.9.1
+        uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16  # v2.9.1
         with:
           workspaces: src-tauri
           prefix-key: linux-rust
@@ -221,7 +221,7 @@ jobs:
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk.
         # sqlx-cli version matches `sqlx` in Cargo.lock (0.8.6).
         if: steps.cache-sqlx-cli.outputs.cache-hit != 'true'
-        uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf
+        uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172
         with:
           tool: sqlx-cli@0.8.6
       - name: Setup sqlx-check DB
@@ -235,7 +235,7 @@ jobs:
       - name: Install cargo-llvm-cov and just
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
         if: needs.scope.outputs.backend == 'true'
-        uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf
+        uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172
         with:
           tool: cargo-llvm-cov@0.8.7,just
       # Single source of truth: `just coverage-be` is the same recipe developers
@@ -249,7 +249,7 @@ jobs:
       - name: Upload to Codecov
         # Before the floor, so a drop still reaches Codecov's trend.
         if: needs.scope.outputs.backend == 'true'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/backend/lcov.info
