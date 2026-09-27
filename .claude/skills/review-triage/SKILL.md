@@ -1,7 +1,6 @@
 ---
 name: review-triage
-description: Triages reviewer-* findings against the (a)/(b)/(c) per-task discipline before any are applied. Reads `.review/` reports, grades each finding, emits a per-row Follow-up table, and halts for user confirmation on any (b) or (c) row. Run at the end of every reviewer batch. Routes (b) rows to `/techdebt` — does not replace it.
-tools: Read, Glob, Bash, Write, AskUserQuestion
+description: Triages reviewer-* findings against the (a)/(b)/(c) per-task discipline before any are applied. Reads `.review/` reports, grades each finding, emits a per-row Follow-up table, and applies the workflow's policy per grade without halting. Applied after every reviewer batch under the workflow; also usable standalone after ad-hoc reviewer runs. Routes (b) rows to `/techdebt` — does not replace it.
 ---
 
 # Skill — `review-triage`
@@ -12,13 +11,13 @@ Reviewer-\* agents persist their full output to `.review/{slug}-DATE-NN.md` (via
 
 ## Required tools
 
-`Read`, `Glob`, `Bash`, `Write`, `AskUserQuestion`.
+`Read`, `Glob`, `Bash`, `Write`.
 
 ---
 
 ## When to use
 
-- **After every reviewer-\* agent batch** — the standard auto-invoke point. A "batch" is all reviewer-\* agents run since the last commit; the reset boundary is the commit.
+- **After every reviewer-\* agent batch** — the standard auto-invoke point. A "batch" is all reviewer-\* agents run since the last commit; the reset boundary is the commit that follows the batch.
 - **Before applying any finding** — even on a single-reviewer run.
 - **Whenever you'd be tempted to silently apply or silently defer a finding** — exactly the failure mode this skill prevents.
 
@@ -91,17 +90,13 @@ Format per `## Output format` below. Every row carries:
 - **Rationale** — which question above settled the grade; one sentence
 - **Follow-up** — mechanical action from the table in `## Follow-up shapes` below
 
-### Step 5 — Halt for user confirmation on (b)/(c) rows
+### Step 5 — Apply the policy per grade
 
-If any row is (b) or (c), use `AskUserQuestion`:
-
-> "Triage table emitted. {N_b} (b) → /techdebt; {N_c1} (c) one-off → inline FP comments; {N_cp} (c) pattern → ADR decision. Proceed, or adjust grades?"
-
-Options: **Proceed (recommended)** / **Adjust grades**
-
-If "Adjust grades" → exit without applying; let the user respond with corrections.
-
-If all rows are (a) → no halt; proceed directly to Step 6.
+No halt. Under the workflow (`docs/workflow.md` § 7) every grade has a mechanical
+follow-up: (a) fix in the PR, (b) `DEBT-NNN` entry in `docs/techdebt.md`, (c) one-off
+inline `// <reviewer> FP: <reason> — see PR #NN`, (c) pattern → edit the reviewer
+prompt in the same PR. A `[DECISION]` critical becomes an open question on the entry.
+The table goes into the PR body; the human reads it there, never in a prompt.
 
 ### Step 6 — Save report and signal
 
@@ -122,7 +117,7 @@ Per per-task rule 5's tracking conventions:
 | (a)         | `Apply fix; commit captures it.` Append `Add Addresses <source>: <gist> to commit body only if <source> is invisible on PR page (e.g. local reviewer-agent run pre-merge).` |
 | (b)         | `/techdebt where=<path> obs="<one-line observation>" found-by=<reviewer> severity=<emoji>`                                                                                  |
 | (c) one-off | `Add inline comment at <file:line>: // <source> FP: <reason> — see PR #NN`                                                                                                  |
-| (c) pattern | `Main agent runs AskUserQuestion: "Is this rejection ADR-worthy?" If yes → /adr-writer; if no → apply the (c) one-off Follow-up template above (inline FP comment).`        |
+| (c) pattern | `Edit the reviewer prompt in the same PR so the finding stops recurring; note it in the PR body.`                                                                           |
 
 ---
 
@@ -142,7 +137,7 @@ Source files: {comma-separated paths under .review/}
 | 1 | reviewer-backend | src/foo.rs:42 | 🔴 unwrap() in prod path | (a) | Introduced by diff; mechanical fix (Q1 yes) | Apply fix; commit captures it |
 | 2 | reviewer-arch | src/foo.rs:1-50 | 🔴 cross-context import | (b) | Pre-existing, 8 files, multi-file refactor (Q2 fails locality) | /techdebt where=src/foo.rs:1-50 obs="Cross-context import" found-by=reviewer-arch severity=🔴 |
 | 3 | reviewer-frontend | src/qux.tsx:30 | 🟡 i18n key fallback | (c) one-off | Key is fallback for unreachable branch (Q4: empirically wrong) | Add inline at src/qux.tsx:30: // reviewer-frontend FP: unreachable fallback — see PR #NN |
-| 4 | reviewer-frontend | src/quux.tsx:1-200 | 🟡 component >200 LOC | (c) pattern | Convention not codified (Q4: stylistic without rule basis); recurs in 3 components | Halt + ask user: ADR-worthy? If yes /adr-writer; if no treat as (c) one-off |
+| 4 | reviewer-frontend | src/quux.tsx:1-200 | 🟡 component >200 LOC | (c) pattern | Convention not codified (Q4: stylistic without rule basis); recurs in 3 components | Edit reviewer-frontend's prompt so the 200-LOC heuristic stops firing; note it in the PR body |
 
 Main agent: apply each row's Follow-up in order. Do NOT apply any finding outside this table.
 ```
@@ -181,7 +176,7 @@ When the batch is clean, the saved report is one line: `## review-triage — {da
 ## Critical Rules
 
 1. **Challenge is the grading test, not a separate step.** Each finding's grade comes from answering Q1–Q4 in Step 3. "Looks like (a)" is not a grade — name the question that settled it in the Rationale column.
-2. **Surface (b) and (c) to the user before applying.** Per-task rule 5: "don't silently defer or silently apply". The `AskUserQuestion` in Step 5 is mandatory whenever any row is (b) or (c).
+2. **Record (b) and (c) in the PR body.** Per-task rule 5: "don't silently defer or silently apply" — the table in the PR body is the record; no prompt to the human.
 3. **(c) pattern is rare by default.** Default to (c) one-off when in doubt. Pattern-level rejections only fire when the rationale genuinely binds future sessions or applies repo-wide.
 4. **Pre-existing tech-debt findings are excluded.** Reviewer's own `### ℹ️ Pre-existing tech debt` section already routes those via `/techdebt`; do not re-process here.
 5. **Skill is output-only.** The tools grant excludes any slash-command invocation tool by design — it has no way to invoke `/techdebt`, `/adr-writer`, or any other skill. The table is the artifact; the main agent owns execution of each Follow-up.
@@ -195,6 +190,8 @@ When the batch is clean, the saved report is one line: `## review-triage — {da
 **Scope is PR, not commit.** The (a)/(b)/(c) decision treats the PR (cumulative diff against the PR's base branch) as the scope unit. A wording fix that fans across 10 files all touched by the same PR is (a) if mechanical — fold it into the PR, don't defer. The boyscout test in Q2 and the fanout test in Q3 both use PR scope. Per-commit framing would create artificial splits ("fix the wording" vs "ship the wording" as separate PRs) that produce churn without value.
 
 The (a)/(b)/(c) discipline this skill encodes is per-task rule 5 in the downstream project's CLAUDE.md (§ Per-task Discipline). The skill is self-contained — it works in projects whose CLAUDE.md doesn't carry the rule, because the grading axes live in Step 3 above.
+
+Under the workflow (`docs/workflow.md` § 7), after a reviewer batch reviewer-\* agents save reports to `.review/`; the next checkbox is `/review-triage`; the agent applies the policy per grade — no halt — and records the table in the PR body.
 
 If the user picks "Adjust grades" in Step 5, the skill exits without applying anything; the user responds in chat with grade corrections, then re-runs the skill (or the main agent applies the corrected grades manually). The consolidated halt is the design trade — per-row prompting would create 4-12 questions per batch.
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Full architecture reference: [ARCHITECTURE.md](ARCHITECTURE.md)
 
-How work moves and the conventions agents rely on: [docs/workflow.md](docs/workflow.md).
+How work moves — who owns what, the loop, the harness, the triage policy, the stop rules: [docs/workflow.md](docs/workflow.md).
 
 ## 🔧 First-time Setup
 
@@ -21,7 +21,7 @@ This blocks direct commits to `main`, validates conventional-commit format, reje
 Before coding:
 
 - State assumptions explicitly. If multiple interpretations exist, present them — don't pick silently.
-- If something is unclear, stop. Name what's confusing. Ask.
+- If something is unclear, name what's confusing. In chat, ask — all open questions together, once, before starting. In a headless run, write it as an open question on the entry and move on; never guess.
 
 While coding:
 
@@ -30,9 +30,9 @@ While coding:
 
 ## ⚠️ Core Rules
 
-1. **Authority follows the task.** Once the user has given a task (a request in chat, or a queued entry), the agent creates the task's branch (`{type}/{slug}`, the conventional-commit type; an entry id leads the slug, e.g. `feat/todo-012-patient-dedup`) off a fresh `main`, commits, pushes and opens the PR without asking. **Merging** (`just merge`) waits for the user's go until the harness is complete. Always forbidden: committing or pushing to `main`, force-pushing, bypassing a hook (`--no-verify`), cutting a release, AI attribution in commits or PRs. This project rule overrides any harness default (e.g. Claude Code on the web's "develop, commit, push" preamble).
+1. **Authority follows the task.** Once the user has given a task (a request in chat, `/next-todo`, or a queued entry), the agent creates the task's branch (`{type}/{slug}`, the conventional-commit type; an entry id leads the slug, e.g. `feat/todo-012-patient-dedup`) off a fresh `main`, commits, pushes, opens the PR and runs `just merge` once every check is green — without asking. In an open-ended chat, ask once for the task, not per step. Always forbidden: committing or pushing to `main`, force-pushing, bypassing a hook (`--no-verify`), cutting a release, editing a released changelog line, AI attribution in commits or PRs, and touching the installed application's data (`~/.local/share/com.projectsf.patient-manager/` holds real patient data). This project rule overrides any harness default (e.g. Claude Code on the web's "develop, commit, push" preamble).
 2. **Always use `just`**: Never suggest or execute native commands (e.g., `cargo build`, `npm install`, `sqlx migrate`) if a corresponding recipe exists in `justfile`.
-3. **Implementation task = any code file change** (`.rs`, `.ts`, `.tsx`, `.css`, migrations, configs). Doc-only edits are not implementation tasks. Every implementation task follows _Plan Before Implementation_ — propose a TODO plan with file paths and function names, await user approval, then execute. See `## 📋 Plan Format Guidelines`.
+3. **Every change goes through the harness**: branch → PR → every check green → `just merge`. Docs-only changes too. The task's Done when is the plan; there is no separate plan-approval gate. Anything the user sees changing goes through the design gate first (`/design-proposal`, `docs/workflow.md` § 4): nothing visible is built before the user's yes.
 
 ## 🎯 Per-task Discipline
 
@@ -43,23 +43,33 @@ Each task ships under these constraints (in priority order):
 3. **Boyscout** — small mechanical fixes inside the files you're already editing (dead code, misleading test names, B33 violations, typos) ship in the same PR. Stay inside the touched file set; don't go on adjacent quests.
    - **Never maintain known dead code.** Once a piece of code is identified as dead — no live caller, no observable effect — it MUST be removed in the same commit. Don't carry it forward as "speculative future default", "preemptive omnibus coverage", or any similar justification. Surface the audit to the user (live vs dead table) and delete.
 4. **Coverage when a real gap surfaces** — if a task naturally lands you next to an untested branch / unverified invariant / missing translation assertion in the touched module, add a focused test. Don't sweep coverage across unrelated areas. The floors in `coverage-gates.json` (logic code only; CI and `just harness` enforce them) are a ratchet: raise them in the change that lifts coverage, never lower them.
-5. **Challenge reviewer returns** — every reviewer finding (from a reviewer agent, GH issue/PR comment, or self-review) is graded as (a) **actionable in scope** — introduced by the diff, OR pre-existing but boyscout-eligible (inside the touched file set, small + mechanical) → fix now; (b) **actionable but bigger** — outside the touched file set, multi-file fanout, or requires design judgement → file as tech-debt + ship the scoped change; (c) **false positive or misleading framing** → reject and explain. "Pre-existing" alone never drives the (a)/(b)/(c) decision — it just routes through the boyscout test for (a) vs (b). Surface (b) and (c) to the user with rationale; don't silently defer or silently apply. **Track each outcome:**
-   - **(a) Accepted** — the commit IS the record. Add `Addresses <source>: <gist>` (≤1 line) to the commit body ONLY when the source isn't visible on the PR page (e.g. a local reviewer-agent fixup before merge). No separate ledger.
-   - **(b) Out-of-scope** — file via `/techdebt` in the same PR.
-   - **(c) Rejected** — split by recurrence. **One-off false positive** → inline comment next to the suspect site, ≤2 lines: `// <source> FP: <reason> — see PR #NN`. **Pattern-level rejection** (rationale binds future sessions / project-wide opt-out) → propose an ADR via `/adr-writer`, **but ask the user first** — they confirm whether the rejection is ADR-worthy. Never write the ADR silently.
-
-   > Use `/review-triage` to automate the per-finding (a)/(b)/(c) grading and halt for confirmation on (b)/(c) rows. Reviewer agents save their full reports to `.review/` (gitignored).
+5. **Challenge reviewer returns** — every finding (reviewer agent, CI lane comment, PR comment, self-review) is graded on `/review-triage`'s axes and the outcome recorded in the PR body (`docs/workflow.md` § 7): (a) **actionable in scope** — introduced by the diff, or pre-existing but boyscout-eligible → fix now; (b) **actionable but bigger** → `DEBT-NNN` in `docs/techdebt.md`, ship the scoped change; (c) **false positive** → one-off: inline `<reviewer> FP: <reason> — see PR #NN`; pattern: a "not a finding" rule in the reviewer's prompt, same PR. A CI finding the local run missed becomes a rule in that reviewer's prompt, same PR. A `[DECISION]` critical is never fixed unilaterally: an open question on the entry (or to the user in chat), then an ADR. "Pre-existing" alone never decides the grade. No halt for the user on (b)/(c): the PR body records them.
 
 6. **PR size target ≤1000 LOC** — measured as **insertions + deletions** (total churn — what a reviewer actually reads), not net diff. Not a hard cap, but split when a PR crosses it OR tells two stories. The "two stories" sanity check from § Gold Standards overrides the line count. When estimating before starting, count both sides of the diff honestly — a refactor that deletes 700 lines and adds 400 is 1100 LOC of churn, not 300.
 
 ---
 
-## 🔄 Workflows & Planning
+## 🧾 Opening and closing a piece of work
 
-See `docs/workflow.md` for the conventions agents and skills rely on.
+**Opening brief** — four lines before the first edit (chat: the first message; headless: the top of the PR body), so the shape is fixed while nothing is at stake:
 
-Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-writer` (Architecture Decision Records), `/review-triage` (triage reviewer findings against (a)/(b)/(c)), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
-Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (rebase folding `fixup!` commits, refuse unless every check on the PR is green and every check in `required-checks.json` is present, fast-forward, push, delete branch), `just test-scripts` (unit tests of `scripts/`), `just arch-check` (architecture rules A1–A7, run by the hooks, `just harness` and CI; today's debt is frozen in `arch-allowlist.json` — fix the code, never raise an entry; `--write-allowlist` only lowers it), `just harness` (CI's gate locally, scoped to the layers the branch touched; E2E stays in CI), `just release` (full quality validation → conventional-commit semver bump → version-file sync across `package.json` + `Cargo.toml` + `tauri.conf.json` + `Cargo.lock` → CHANGELOG regen → commit + tag + push, all in one shot; use `--dry-run` to preview the version bump, `-y` for non-TTY contexts).
+    **Task**     — the entry (TODO-NNN / DEBT-NNN) or the request, in one line
+    **Scope**    — the commit type and the layers (backend / frontend / E2E / docs / CI)
+    **Design**   — none, validated, or needed (then the mocks come before anything else)
+    **Touching** — the paths, so the reviewer lanes are known before the diff exists
+
+**Closing brief** — the last message of a piece of work (and the PR body's first lines), two parts: (1) what changed for whoever reads this next — for `feat` / `fix`, what a user notices, or "nothing — internal"; otherwise, what can now be done or trusted that could not before; (2) what the project accumulated — tests added and coverage moved, or the guarantee a harness change buys and how we know it can fail. What is still owed goes in `docs/techdebt.md`, not here.
+
+---
+
+## 🔄 Workflows
+
+**The workflow** (`docs/workflow.md`): `/next-todo` runs one task end to end — the first ready entry of `docs/todo.md` § Next (headless), a named `TODO-NNN` / `DEBT-NNN`, or a plain request in chat — through branch, design gate, acceptance tests first, implementation, `just harness`, reviewers, PR, merge on green, closure. `docs/todo.md` is the user's; `docs/techdebt.md` is the agent's.
+
+**Only prescribed agents.** Launch only the agents this file, a skill or `docs/workflow.md` names. Implementation and review fixes are done by the main agent directly — never a general-purpose "implementer" or "fix" agent.
+
+Key skills: `/next-todo` (run a task end to end), `/design-proposal` (mocks for the user to validate), `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-writer` (Architecture Decision Records), `/review-triage` (triage reviewer findings against (a)/(b)/(c)), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
+Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (rebase folding `fixup!` commits, refuse unless every check on the PR is green and every check in `required-checks.json` is present, fast-forward, push, delete branch), `just test-scripts` (unit tests of `scripts/`), `just arch-check` (architecture rules A1–A7, run by the hooks, `just harness` and CI; today's debt is frozen in `arch-allowlist.json` — fix the code, never raise an entry; `--write-allowlist` only lowers it), `just harness` (CI's gate locally, scoped to the layers the branch touched; E2E stays in CI), `just next-todo` (one ready entry, headless), `just coverage-gate` (the coverage floors), `just privacy-check` (patient data), `just release` (full quality validation → conventional-commit semver bump → version-file sync across `package.json` + `Cargo.toml` + `tauri.conf.json` + `Cargo.lock` → CHANGELOG regen → commit + tag + push, all in one shot; use `--dry-run` to preview the version bump, `-y` for non-TTY contexts).
 Key agents: before every PR, launch exactly the reviewer lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints — none for a docs-only change, never a lane it did not print (`reviewer-security` also runs in `release-sweep` mode before every release); re-run them on the fixes until no 🔴 remains, then push. CI runs the same lanes on every PR (`.github/workflows/review.yml`, a sticky comment per lane, any 🔴 fails the check) as the last net: a finding CI raises that the local run missed becomes a rule in that reviewer's prompt, in the same PR; `adr-reviewer` — run after `/adr-writer` creates or supersedes an ADR; `spec-reviewer` / `contract-reviewer` when those documents change.
 
 ### Mandatory pre-read by task type
@@ -73,7 +83,7 @@ Before implementing, read the relevant convention docs:
 
 ### After completion — update the source doc
 
-When work resolves a TODO entry, an open question, a plan step, or a tech-debt observation, update the source doc immediately. Use `/techdebt` for non-actionable code smells, `/spec-writer` + `spec-reviewer` for new business rules, `/contract` + `contract-reviewer` for the matching contract, `/adr-writer` + `adr-reviewer` for architectural decisions.
+When work resolves a todo entry, an open question, or a tech-debt observation, update the source doc in the same PR. Use `/techdebt` for non-actionable code smells, `/spec-writer` + `spec-reviewer` for new business rules, `/contract` + `contract-reviewer` for the matching contract, `/adr-writer` + `adr-reviewer` for architectural decisions.
 
 ### Task tracking (within a conversation)
 
@@ -150,11 +160,14 @@ If any of the three fails, **DO NOT refactor** — match the current project sta
 
 **Consistency is not the goal**: if a touched area is currently using the OLD project standard and the surrounding code is OLD, KEEP IT OLD when conformance would breach the 50-LOC threshold. Mixed-standard codebase is acceptable during the bit-by-bit migration; pure gold conformance is acceptable too. What is NOT acceptable is partial-mid-flight refactors that leave neither standard intact.
 
-**When in doubt** about whether something crosses the 50-LOC threshold: estimate, mention it in the task plan, ask the user. Don't silently drift into a big refactor.
+**When in doubt** about whether something crosses the 50-LOC threshold: estimate it in the opening brief and defer. Don't silently drift into a big refactor.
 
 ## 📏 Standards
 
-- **Commits**: Conventional commits (`feat:`, `fix:`, etc.). Type classification edges: dead-code removal in production code is `refactor:` (NOT `chore:`); test-only deletion (mock stubs, fixtures with no production surface in the same diff) is `test:`; techdebt entries get pre-classified by what type their resolution commit would carry — `fix:` items go to dedicated `fix/...` PRs, not refactor sweep branches.
+- **Commits** (`COMMIT_POLICY.md`): conventional, **title only** (no body), at most 72 characters. **Titles target the user, not the developer** — `feat` / `fix` titles become changelog lines: describe the user-visible outcome in plain words, no layer tags, rule ids, code identifiers or abbreviations. Type by what the change touches: dead-code removal in production code is `refactor:`, test-only deletion is `test:`, tooling is `chore:`, workflows and the harness are `ci:`.
+- **One task, one commit.** A task lands on `main` as one commit: review fixes, coverage top-ups and closure edits belong inside it — amended before the first push, a `git commit --fixup <sha>` after it (`just merge` folds it). Never force-push by hand.
+- **One changelog line per user-visible change.** A `feat` / `fix` commit adds user-visible value of its own; a commit that doesn't is folded into its feature commit or typed `refactor` / `chore` / `ci` / `test` / `docs`.
+- **Concise by default.** Everything written for a reader — PR bodies (under 20 lines), techdebt entries, reports, chat — states each fact once, in the fewest words that keep it verifiable.
 - **Style**: React functional components, Rust traits for repositories.
 - **Lints**: Oxlint & Biome (FE), Clippy (BE). All must pass.
 
@@ -226,13 +239,6 @@ PII MUST NOT appear as field values in `tracing::*!` calls — in scope for this
 
 ---
 
-## 📋 Plan Format Guidelines
+## 📋 When the user asks for a plan
 
-When proposing a TODO plan, Claude Code MUST:
-
-- List exact file paths, not abstract locations.
-- Name the specific functions/methods/components to create or modify.
-- Separate clearly by architectural layer (backend / frontend / E2E / docs).
-- Call out any gold-standard conformance work explicitly with its LOC estimate; if it's >50 LOC or fails the locality/mechanical gates, defer it and say so.
-- Include validation and testing steps.
-- Wait for explicit user approval before implementing.
+In a chat conversation (a feature being designed, a batch being scoped), a plan lists exact file paths and the functions/components to create or modify, separates layers (backend / frontend / E2E / docs), calls out any gold-conformance work with its LOC estimate, and includes the tests that will prove each clause. Once the user says go, the plan is the authority for the whole batch — no per-step confirmation.

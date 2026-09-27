@@ -58,24 +58,17 @@ Test report showing all checks pass:
 
 ## Quality Requirements
 
-Before creating a PR, ensure:
-
-1. All tests pass (`npm run test`, `cargo test`)
-2. Linters pass (`npm run lint`, `cargo clippy`)
-3. Build succeeds (`npm run build`)
-4. Follow [Commit Policy](./COMMIT_POLICY.md)
-
-**Do not bypass pre-push hook** with `--no-verify`.
+The harness is the gate (`docs/workflow.md` § 5): `just harness` runs it locally, and
+every check in `required-checks.json` must be green on the pull request. Commits follow
+the [Commit Policy](./COMMIT_POLICY.md). **Never bypass a hook** with `--no-verify`.
 
 ## Workflow
 
-1. Create feature branch
-2. Make commits following commit policy
-3. Push branch
-4. Create PR with 3-section description
-5. Ensure CI checks pass
-6. Merge when approved (squash merge preferred)
-7. Delete feature branch
+The full loop is `docs/workflow.md` § 3. In short: a `<type>/<slug>` branch off a fresh
+`main`, one commit (later fixes as `fixup!` commits), the PR opened for the record, and
+`just merge` once every check is green — it folds the fixups, fast-forwards `main` and
+deletes the branch. No pull request waits for a human approval; the design gate comes
+before the work, not at the PR.
 
 ## Example
 

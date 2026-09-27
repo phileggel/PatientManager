@@ -6,13 +6,21 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-09-27 — DEBT-017 — The contributor guide describes recipes that do not exist
+
+**Found by:** manual (step 4c, branch `docs/autonomy-switch`)
+
+**Where:** `CONTRIBUTING.md`, `README.md`
+
+## **Observation:** `CONTRIBUTING.md` sends a contributor to `just start`, `just test`, `just test-rust`, `just lint` and `just format-fix`, none of which exist, and never mentions the harness, the reviewers or `just merge`. Harmless while only the owner and the agent work on the repository; it is the first thing an outside contributor reads.
+
 ## 2026-09-27 — DEBT-016 — No reviewer lane covers agent and skill prompts
 
 **Found by:** reviewer-infra (step 4b review, branch `chore/next-todo-skills`)
 
-**Where:** `scripts/review-lanes.sh`, `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`
+**Where:** `scripts/review-lanes.sh`, `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`, `.claude/settings.json`
 
-**Observation:** `docs/workflow.md`'s "no compound shell in agent / skill prompts" rule targets exactly these files, yet no lane fires when only they change, so a prompt that breaks the rule reaches `main` unreviewed. `reviewer-infra`'s scope list does not name them either.
+**Observation:** `docs/workflow.md`'s "no compound shell in agent / skill prompts" rule targets exactly these files, yet no lane fires when only they change, so a prompt that breaks the rule reaches `main` unreviewed. `reviewer-infra`'s scope list does not name them either. The same holds for `.claude/settings.json`, whose allow/deny lists bound every headless run.
 
 ---
 
