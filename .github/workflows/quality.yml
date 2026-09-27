@@ -160,6 +160,7 @@ jobs:
         if: needs.scope.outputs.frontend == 'true'
         run: npm run test:coverage
       - name: Upload to Codecov
+        # Before the floor, so a drop still reaches Codecov's trend.
         if: needs.scope.outputs.frontend == 'true'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
@@ -167,6 +168,10 @@ jobs:
           files: ./coverage/frontend/lcov.info
           flags: frontend
           fail_ci_if_error: false
+      - name: Coverage floor — feature code
+        # coverage-gates.json: a ratchet, raised with the coverage, never lowered.
+        if: needs.scope.outputs.frontend == 'true'
+        run: python3 scripts/coverage-gate.py --frontend
 
   backend:
     name: Backend — quality + coverage
@@ -234,6 +239,7 @@ jobs:
         if: needs.scope.outputs.backend == 'true'
         run: just coverage-be
       - name: Upload to Codecov
+        # Before the floor, so a drop still reaches Codecov's trend.
         if: needs.scope.outputs.backend == 'true'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
@@ -241,3 +247,8 @@ jobs:
           files: ./coverage/backend/lcov.info
           flags: backend
           fail_ci_if_error: false
+      - name: Coverage floor — logic code
+        # coverage-gates.json: domain, services and use cases; wire adapters
+        # (api.rs) do not count. A ratchet, raised with the coverage, never lowered.
+        if: needs.scope.outputs.backend == 'true'
+        run: python3 scripts/coverage-gate.py --backend

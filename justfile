@@ -126,6 +126,10 @@ coverage-be:
     cd src-tauri && SQLX_OFFLINE=true cargo llvm-cov --lib --tests --features dev-fixtures --lcov --output-path ../coverage/backend/lcov.info --ignore-filename-regex '(^|/)build\.rs$|/dev/generate_(bindings|fixtures)\.rs$|/dev/fixtures_(excel|fund_pdf|bank_pdf)/|/src/use_cases/overpayment/api\.rs$|/src-tauri/tests/'
     python3 scripts/coverage-strip-tests.py coverage/backend/lcov.info
 
+# Check the coverage reports against the floors in coverage-gates.json (run coverage-fe / coverage-be first); --frontend or --backend for one layer
+coverage-gate *ARGS:
+    python3 scripts/coverage-gate.py {{ARGS}}
+
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be
 

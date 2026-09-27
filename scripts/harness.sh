@@ -5,7 +5,8 @@
 # files) is classified by scripts/changed-scope.sh with the same rule as the
 # Quality workflow (reviewer-infra FP: quality.yml gains this rule in PR #117,
 # merged before this one): a layer runs its tests with coverage only when the change
-# touched it; tooling changes run both; docs-only runs none. The privacy check
+# touched it, then its floor in coverage-gates.json is enforced; tooling
+# changes run both; docs-only runs none. The privacy check
 # and the script unit tests always run. E2E stays CI's job (it needs the built
 # app under Xvfb).
 #
@@ -44,15 +45,18 @@ case "$scope" in
     frontend)
         python3 scripts/check.py --frontend --skip-tests
         just coverage-fe
+        python3 scripts/coverage-gate.py --frontend
         ;;
     backend)
         python3 scripts/check.py --backend --skip-tests
         just coverage-be
+        python3 scripts/coverage-gate.py --backend
         ;;
     both|none)
         python3 scripts/check.py --skip-tests
         just coverage-fe
         just coverage-be
+        python3 scripts/coverage-gate.py
         ;;
     *)
         echo "unknown scope: $scope" >&2
