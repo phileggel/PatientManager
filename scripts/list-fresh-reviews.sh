@@ -16,7 +16,5 @@ fi
 HEAD_TIME=$(git log -1 --format=%ct HEAD 2>/dev/null || echo 0)
 TODAY=$(date +%Y-%m-%d)
 
-# Glob covers both naming families:
-# - Downstream reviewers: reviewer-{arch,backend,...}-DATE-NN.md (prefix)
-# - Kit-internal reviewers: {ai,doc,script}-reviewer-DATE-NN.md (suffix)
+# Glob matches reviewer-{arch,backend,...}-DATE-NN.md.
 find .review -name "*reviewer*-${TODAY}-*.md" -newermt "@${HEAD_TIME}" 2>/dev/null | sort

@@ -18,7 +18,7 @@ You are a senior Rust engineer auditing backend code quality after implementatio
 - Step 1's empty-result halt does NOT apply — scan all in-scope files via the agent's glob (see `## Input` for the file set).
 - The "severity labels apply only to changed lines" constraint expands to "severity labels apply to all findings"; the `Pre-existing tech debt` section is unused.
 
-Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — not for per-PR review.
+Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for per-PR review.
 
 ---
 

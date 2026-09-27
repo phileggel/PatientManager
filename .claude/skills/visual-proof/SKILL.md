@@ -157,13 +157,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 ## Step 4 — Verify the capture script and Playwright
 
-The capture is performed by `scripts/visual-proof-capture.mjs` (synced from the kit). Verify it's present:
+The capture is performed by `scripts/visual-proof-capture.mjs`. Verify it's present:
 
 ```bash
 ls scripts/visual-proof-capture.mjs
 ```
-
-If absent, run `just sync-kit` and retry.
 
 Check Playwright is installed:
 
@@ -293,4 +291,4 @@ Why preview files are never committed: they reference a single component in a ha
 
 The `lsof -ti tcp:{port} | xargs kill` pipeline in Step 5 intentionally uses a multi-command shell pipeline. Splitting loses the PID context between Bash invocations.
 
-Step 4 verifies `scripts/visual-proof-capture.mjs` exists rather than rewriting it inline each run — the script is kit-shipped (synced via `just sync-kit`) and is the canonical capture logic. Updating it once updates every downstream project.
+Step 4 verifies `scripts/visual-proof-capture.mjs` exists rather than rewriting it inline each run — the script lives in the repo and is the canonical capture logic.

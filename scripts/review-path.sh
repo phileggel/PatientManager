@@ -3,7 +3,7 @@
 # Usage: bash scripts/review-path.sh <reviewer-slug>
 # Output: .review/<slug>-YYYY-MM-DD-NN.md  (NN is zero-padded, auto-incremented)
 #
-# Reviewer agents (kit/agents/reviewer-*.md) call this before responding so
+# Reviewer agents (.claude/agents/reviewer-*.md) call this before responding so
 # their full report is preserved across the sub-agent → main-agent boundary
 # (where only the agent's terminal message would otherwise be visible). The
 # main agent reads the file(s) when executing /review-triage.

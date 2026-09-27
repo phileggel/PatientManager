@@ -8,7 +8,7 @@ tools: Bash
 
 Produces a normalized tech-debt entry. Output-only — the skill never writes to disk.
 
-The kit owns the **format**; the main agent (governed by the downstream `CLAUDE.md`) owns the **destination**. Convention: append to `docs/techdebt.md`, sibling to `docs/todo.md`. Format consistency across projects is the value the skill provides; `whats-next` reads from the conventional location.
+This skill owns the **format**; the main agent (governed by `CLAUDE.md`) owns the **destination**. Convention: append to `docs/techdebt.md`, sibling to `docs/todo.md`; `whats-next` reads from the conventional location.
 
 ---
 
@@ -36,7 +36,7 @@ Not for action items the user is committing to today — those belong in `docs/t
 
 - `where` — file path with optional line/range (`src/foo.ts:42`, `src-tauri/capabilities/`), or a non-file scope (`across the IPC layer`)
 - `obs` — one-line observation: the smell, the surprise, the inconsistency. **Not** the fix
-- `found-by` — source: a reviewer name (`reviewer-arch`, `reviewer-security`), `kit-discover`, or `manual`
+- `found-by` — source: a reviewer name (`reviewer-arch`, `reviewer-security`) or `manual`
 
 **Optional:**
 
@@ -102,6 +102,6 @@ Do not write to any file. Do not ask the user where to put it — that's the mai
 
 ## Notes
 
-This skill complements the `[DECISION]` reviewer tag (see `kit-readme.md` § "Handling [DECISION] Criticals"). Reviewers flag; the main agent decides; this skill normalizes the persisted record.
+This skill complements the `[DECISION]` reviewer tag (see `docs/workflow.md` § `[DECISION]` criticals). Reviewers flag; the main agent decides; this skill normalizes the persisted record.
 
 `whats-next` reads `docs/techdebt.md` (when present) and surfaces entries as work candidates alongside TODOs, plans, and specs — with the source labelled `docs/techdebt.md (DATE)` so the user can tell observations from explicit todos. The "observation, not fix" framing applies to _how entries are written_ (capture the smell, not the prescription); once captured, an entry is fair game for triage and scoring like any other backlog item.

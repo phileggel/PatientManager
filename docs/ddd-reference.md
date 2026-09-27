@@ -70,7 +70,7 @@ A record of something that happened. Raised by aggregates after a state change. 
 
 Orchestrates domain objects to fulfill use cases that belong entirely to one BC. Contains no business rules — it delegates all logic to the domain.
 
-> In the kit's Rust convention, the application layer lives in `context/{bc}/application/` per BC. See `backend-rules.md` § Folder Structure for the gold layout.
+> In the project's Rust convention, the application layer lives in `context/{bc}/application/` per BC. See `backend-rules.md` § Folder Structure for the gold layout.
 
 ### Application Service (`service.rs`)
 
@@ -132,7 +132,7 @@ A deliberately-shared subset of the domain between two or more BCs. The Shared K
 
 **Where in the layout**
 
-Per the kit's Rust convention (`backend-rules.md` § Folder Structure): `shared/domain/`. Files here are the only place outside an individual BC's `domain/` where domain code may live.
+Per the project's Rust convention (`backend-rules.md` § Folder Structure): `shared/domain/`. Files here are the only place outside an individual BC's `domain/` where domain code may live.
 
 **Discipline**
 

@@ -1,6 +1,6 @@
 # ARCHITECTURE.md
 
-> Project-specific architecture overview for **PatientManager**. Complements the kit-generic rule docs (`docs/backend-rules.md`, `docs/frontend-rules.md`, `docs/ddd-reference.md`, `docs/error-model.md`, `docs/test_convention.md`, `docs/i18n-rules.md`, `docs/e2e-rules.md`) and the tool inventory in `.claude/kit-tools.md`. This doc is the **conceptual map**; the rule docs cover the **conventions**.
+> Project-specific architecture overview for **PatientManager**. Complements the rule docs (`docs/backend-rules.md`, `docs/frontend-rules.md`, `docs/ddd-reference.md`, `docs/error-model.md`, `docs/test_convention.md`, `docs/i18n-rules.md`, `docs/e2e-rules.md`). This doc is the **conceptual map**; the rule docs cover the **conventions**.
 
 > **Read this when** you need to understand WHAT PatientManager does and HOW its pieces fit together.
 > **Read the rule docs when** you need to know HOW we structure code.
@@ -211,6 +211,3 @@ features/{domain}/
 | Architecture decisions           | `docs/adr/*.md`                 |
 | Recorded code smells             | `docs/techdebt.md`              |
 | Backlog                          | `docs/todo.md`                  |
-| Kit tools / agents / skills      | `.claude/kit-tools.md`          |
-| Kit version                      | `.claude/kit-version.md`        |
-| Kit sync manifest                | `.claude/kit-manifest.txt`      |

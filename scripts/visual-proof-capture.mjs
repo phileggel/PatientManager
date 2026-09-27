@@ -5,7 +5,7 @@
  *
  * Reads environment variables, opens the project's Vite preview at light+dark,
  * screenshots one element per state, records any console errors. Invoked from
- * `kit/skills/visual-proof/SKILL.md` Step 5; not intended for direct CLI use.
+ * `.claude/skills/visual-proof/SKILL.md` Step 5; not intended for direct CLI use.
  *
  * Env contract:
  *   VP_PORT   — Vite preview port (required)

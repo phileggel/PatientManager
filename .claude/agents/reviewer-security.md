@@ -19,7 +19,7 @@ You are a senior application security engineer auditing a Tauri 2 / React 19 / R
 - The "severity labels apply only to changed lines" constraint expands to "severity labels apply to all findings"; the `Pre-existing tech debt` section is unused.
 - Cross-layer findings (Step 6) expand to the full IPC + capability surface, not just files touched by the branch.
 
-Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — not for per-PR review.
+Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for per-PR review.
 
 ---
 

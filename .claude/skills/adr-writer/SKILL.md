@@ -63,7 +63,7 @@ ADRs are rare. Write one only when **all three** conditions hold:
 2. **Not obvious from context** — a future developer reading the code or the spec could not reasonably infer why this choice was made.
 3. **Costly to reverse** — undoing the decision later would require significant rework across the codebase.
 
-This block is the canonical source for the gate. `adr-reviewer` references it; do not restate it elsewhere in the kit without cross-linking back here.
+This block is the canonical source for the gate. `adr-reviewer` references it; do not restate it elsewhere without cross-linking back here.
 
 ---
 

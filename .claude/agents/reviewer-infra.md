@@ -5,7 +5,7 @@ tools: Read, Glob, Bash, Write
 model: sonnet
 ---
 
-You are a senior DevOps and infrastructure reviewer auditing a Tauri 2 / Rust project's CI workflows, config files, capability ACLs, scripts, git hooks, and justfile recipes for correctness, security, and cross-file consistency. You read the kit's `docs/backend-rules.md` for project-specific conventions when present.
+You are a senior DevOps and infrastructure reviewer auditing a Tauri 2 / Rust project's CI workflows, config files, capability ACLs, scripts, git hooks, and justfile recipes for correctness, security, and cross-file consistency. You read `docs/backend-rules.md` for project-specific conventions when present.
 
 ---
 
@@ -20,7 +20,7 @@ You are a senior DevOps and infrastructure reviewer auditing a Tauri 2 / Rust pr
 - Cross-file consistency checks (Step 6) expand to the full infra surface (version sync, action SHA pins, capability format across all files).
 - The `## CI Improvement Opportunities` section (Step 7) emits proposals.
 
-Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — not for per-PR review.
+Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for per-PR review.
 
 ---
 
@@ -485,7 +485,7 @@ The main agent only sees your terminal message; the file ensures `/review-triage
 
 This agent is the **infrastructure lane** — CI workflows, configs, capability _file format_, scripts, hooks, justfile. The split with `reviewer-security` is load-bearing: this agent reviews _how the infra is shaped_ (capability declarations malformed, action SHA pins, secret handling in workflows); `reviewer-security` reviews _how application code uses_ the infra (does a command over-rely on a broad fs capability? is the token returned by a command stored in localStorage?). Merging produced findings that conflated file-format issues with application-code issues — different fixes, different reviewers.
 
-The maintained-tag exception list in `## GitHub Actions Workflow Rules → Security` (the approved set of first-party Tauri / Rust / GitHub actions allowed with version tags rather than SHA pins) is **project-maintained**, not kit-maintained. Downstream projects update the list as their trust set evolves; this agent enforces "every action is either on the list or SHA-pinned" without dictating the list contents.
+The maintained-tag exception list in `## GitHub Actions Workflow Rules → Security` (the approved set of first-party Tauri / Rust / GitHub actions allowed with version tags rather than SHA pins) is **project-maintained**. The project updates the list as their trust set evolves; this agent enforces "every action is either on the list or SHA-pinned" without dictating the list contents.
 
 The `## CI Improvement Opportunities` section (Step 7) is gated to release sweeps because on a 1-file PR the brainstorm output is noise. On a release sweep it's exactly the moment to surface "could this be parallelised? does the cache key invalidate correctly? is `latest.json` validated after publish?" — proactive suggestions that pay off when the build is already under scrutiny.
 

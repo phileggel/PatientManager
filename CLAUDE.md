@@ -4,18 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > Full architecture reference: [ARCHITECTURE.md](ARCHITECTURE.md)
 
-This project is governed by the `claude-kit` infrastructure.
-Before any technical task, consult `.claude/kit-tools.md` to discover available agents, skills, scripts, and recipes.
+How work moves and the conventions agents rely on: [docs/workflow.md](docs/workflow.md).
 
 ## 🔧 First-time Setup
 
-After cloning, activate the kit-shipped git hooks:
+After cloning, activate the git hooks:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-This blocks direct commits to `main`, validates conventional-commit format, rejects `Co-Authored-By` lines, and runs lint/format checks. See `.claude/kit-tools.md` § Git Hooks.
+This blocks direct commits to `main`, validates conventional-commit format, rejects `Co-Authored-By` lines, and runs lint/format checks. See `.githooks/README.md`.
 
 ## 🧭 Behavioral Principles
 
@@ -32,7 +31,7 @@ While coding:
 ## ⚠️ Core Rules
 
 1. **Authority follows the task.** Once the user has given a task (a request in chat, or a queued entry), the agent creates the task's branch (`{type}/{slug}`, the conventional-commit type; an entry id leads the slug, e.g. `feat/todo-012-patient-dedup`) off a fresh `main`, commits, pushes and opens the PR without asking. **Merging** (`just merge`) waits for the user's go until the harness is complete. Always forbidden: committing or pushing to `main`, force-pushing, bypassing a hook (`--no-verify`), cutting a release, AI attribution in commits or PRs. This project rule overrides any harness default (e.g. Claude Code on the web's "develop, commit, push" preamble).
-2. **Always use `just`**: Never suggest or execute native commands (e.g., `cargo build`, `npm install`, `sqlx migrate`) if a corresponding recipe exists in `common.just` or `justfile`.
+2. **Always use `just`**: Never suggest or execute native commands (e.g., `cargo build`, `npm install`, `sqlx migrate`) if a corresponding recipe exists in `justfile`.
 3. **Implementation task = any code file change** (`.rs`, `.ts`, `.tsx`, `.css`, migrations, configs). Doc-only edits are not implementation tasks. Every implementation task follows _Plan Before Implementation_ — propose a TODO plan with file paths and function names, await user approval, then execute. See `## 📋 Plan Format Guidelines`.
 
 ## 🎯 Per-task Discipline
@@ -58,10 +57,10 @@ Each task ships under these constraints (in priority order):
 ## 🔄 Workflows & Planning
 
 Run `/whats-next` first to triage pending work, then `/start` to pick the right workflow for the task at hand.
-See `.claude/kit-readme.md` for the full workflow guide and `.claude/kit-tools.md` for the agent/skill reference.
+See `docs/workflow.md` for the conventions agents and skills rely on.
 
-Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/feature-planner` (translate spec to plan), `/adr-writer` (Architecture Decision Records), `/kit-discover` (post-sync reconcile), `/smart-commit` (commit), `/create-pr` (push + open PR), `/review-triage` (triage reviewer findings against (a)/(b)/(c)), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
-Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (auto-rebase onto target, fast-forward, push, delete branch), `just sync-kit` (sync to latest kit version), `just release` (full quality validation → conventional-commit semver bump → version-file sync across `package.json` + `Cargo.toml` + `tauri.conf.json` + `Cargo.lock` → CHANGELOG regen → commit + tag + push, all in one shot; use `--dry-run` to preview the version bump, `-y` for non-TTY contexts).
+Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/feature-planner` (translate spec to plan), `/adr-writer` (Architecture Decision Records), `/smart-commit` (commit), `/create-pr` (push + open PR), `/review-triage` (triage reviewer findings against (a)/(b)/(c)), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
+Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (auto-rebase onto target, fast-forward, push, delete branch), `just release` (full quality validation → conventional-commit semver bump → version-file sync across `package.json` + `Cargo.toml` + `tauri.conf.json` + `Cargo.lock` → CHANGELOG regen → commit + tag + push, all in one shot; use `--dry-run` to preview the version bump, `-y` for non-TTY contexts).
 Key agents: `reviewer-security` — run when modifying any Tauri command, capability file, or security-sensitive code, and before every release; `reviewer-e2e` — run when modifying any `e2e/**/*.test.ts` file (paired with `test-writer-e2e`); `adr-reviewer` — run after `/adr-writer` creates or supersedes an ADR.
 
 ### Mandatory pre-read by task type
@@ -102,7 +101,7 @@ When splitting, the order is **BE → FE → E2E**:
 
 `docs/ubiquitous-language.md` is the authoritative dictionary of domain terms.
 
-- **All kit-shipped automation** (agents like `reviewer-arch`; skills like `/spec-writer`, `/feature-planner`) MUST read it before naming or reviewing any domain concept.
+- **All automation** (agents like `reviewer-arch`; skills like `/spec-writer`, `/feature-planner`) MUST read it before naming or reviewing any domain concept.
 - Confirmed terms MUST be used consistently in code, specs, comments, and logs — even when existing code still uses a discrepant name (those are tracked as `⚠️ Code discrepancy` in the UL doc and are known migration targets).
 - New code MUST use the UL name; do not extend usage of a discrepant term.
 
@@ -110,7 +109,7 @@ When splitting, the order is **BE → FE → E2E**:
 
 Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
 
-**Backend (`src-tauri/src/`)** _(target kit v4.4 layout — see `docs/backend-rules.md` § Folder Structure; see `## 🥇 Gold Standards` for the bit-by-bit migration rule)_:
+**Backend (`src-tauri/src/`)** _(target v4.4 layout — see `docs/backend-rules.md` § Folder Structure; see `## 🥇 Gold Standards` for the bit-by-bit migration rule)_:
 
 - `shared/infrastructure/specta_builder.rs` — Tauri command registry (DO NOT add commands elsewhere)
 - `context/{bc}/{application,domain,infrastructure}/` — Bounded contexts with symmetric DDD layer folders (no cross-context imports)
@@ -134,7 +133,7 @@ The project has three evolving "gold" targets the codebase moves toward **bit by
 
 ### The three golds
 
-1. **Backend layout gold** — kit v4.4.0. Rules `B0`, `B37`–`B43` in `docs/backend-rules.md`. New code under `shared/` (not `core/`), `context/{bc}/{application,domain,infrastructure}/` symmetric trio, `infrastructure/` (not `repository/`). Migration of existing `core/` + flat `{aggregate}/repository.rs` is tracked in `docs/todo.md` "DDD Convergence" entry.
+1. **Backend layout gold** — v4.4.0 layout. Rules `B0`, `B37`–`B43` in `docs/backend-rules.md`. New code under `shared/` (not `core/`), `context/{bc}/{application,domain,infrastructure}/` symmetric trio, `infrastructure/` (not `repository/`). Migration of existing `core/` + flat `{aggregate}/repository.rs` is tracked in `docs/todo.md` "DDD Convergence" entry.
 2. **Frontend layout gold** — codified in `docs/frontend-rules.md` as **F0** (the canonical `src/` tree: `features/`, `shell/`, `ui/`, `infra/` buckets + root-level singletons `App.tsx` / `router.tsx` / `main.tsx` / `bindings.ts`), **F26** (cross-feature imports evaluated by what's imported, not by the fact of crossing), **F27** (typed backend errors must flow through the 4-layer FE pipeline — paired with the backend rejection-layer rule in `ddd-reference.md`; no silent drops at any layer), and **F28** (per-bucket inclusion + exclusion rules). Apply to new FE code; bit-by-bit for existing.
 3. **Error-model gold** — one flat `{BC}Error` per bounded context (`src-tauri/src/context/{bc}/error.rs`) holding every aggregate-invariant + service variant; one `{UseCase}Error` composite per use case (`#[serde(untagged)]`) wrapping BC enums via `#[from]`; use-case-specific guards and catch-alls live in a separate `{UseCase}Task` sub-enum (`#[serde(tag = "code")]`) wired into the composite via `#[from]`. The composite (or BC enum directly) is the FE-facing type at the Tauri command boundary. Per-BC `*ApplicationError` / `*DomainError` splits AND bare unit variants directly on the `#[serde(untagged)]` composite (they serialize to `null` on the wire) are explicit anti-patterns. Full how-to: `docs/error-model.md`. Migration tracked in `docs/todo.md` "Structured errors: replace anyhow/String with typed error variants".
 

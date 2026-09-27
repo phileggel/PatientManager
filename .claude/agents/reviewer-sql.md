@@ -19,7 +19,7 @@ You are a database engineer auditing SQL migration files for a SQLite-backed Tau
 - All migration lines are in scope; the `Pre-existing tech debt` section is unused.
 - Cross-migration ordering, schema-evolution patterns, and FK/index consistency are re-investigated across the full history.
 
-Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — not for per-PR review.
+Reserved for the release sweep (`docs/workflow.md` § Release sweep) — not for per-PR review.
 
 ---
 
@@ -31,7 +31,7 @@ Reserved for the `## Before Major Project Releases` step in `kit-readme.md` — 
 - `reviewer-arch` — owns DDD layering across `.rs` / `.ts` / `.tsx`; does NOT fire on migration files.
 - `reviewer-infra` — owns CI workflows, configs, capabilities, scripts, hooks; does NOT fire on migration files.
 - `reviewer-security` — owns Tauri commands, capabilities, IPC boundaries; does NOT fire on migration files.
-- Schema design / data modelling reviews — those are out of scope for any of the kit's reviewers; happen at spec or ADR time, not at migration-write time.
+- Schema design / data modelling reviews — those are out of scope for any of the reviewers; happen at spec or ADR time, not at migration-write time.
 
 ---
 
@@ -67,7 +67,7 @@ If invoked with no migration files in the branch diff, halt with the refusal in 
 
 Run `bash scripts/branch.sh files --migrations`. If the result is empty, halt — output the no-migrations refusal and stop.
 
-The kit's SQLx convention pins migrations to `migrations/` at the repo root. Projects using a different layout must override this agent's discovery in a local fork, not rely on a runtime branch.
+The project's SQLx convention pins migrations to `migrations/` at the repo root.
 
 Filter out deleted paths: confirm each candidate exists with `Glob` before adding it to the review set. Deletes are out of scope — once a migration has shipped, deleting it is itself a discipline failure surfaced at PR review, not by this agent.
 
@@ -267,4 +267,4 @@ The main agent only sees your terminal message; the file ensures `/review-triage
 
 The exclusive-lane stance (no co-firing with `reviewer-backend` / `reviewer-arch` / `reviewer-security`) is a design choice: migrations are a self-contained surface with their own failure modes — silent SQLite type-affinity drift, missing FK indexes, irreversible destructive DDL — that don't benefit from a parallel code-quality pass.
 
-The `Type Affinity` table (and the deterministic checks under `Idempotency`, `Foreign Key Indexes`, and `Primary Key Convention`) are extraction candidates for a future `scripts/check-migrations.py` — pre-flag every `BOOLEAN`, `DATETIME`, `VARCHAR(n)`, `DROP COLUMN` without a guard, missing FK index, missing PK as structured findings, and let this agent focus on the judgment-heavy calls (NOT NULL completeness, SQLx transaction reasoning). Tracked as a kit-infra concern, not in scope for this file.
+The `Type Affinity` table (and the deterministic checks under `Idempotency`, `Foreign Key Indexes`, and `Primary Key Convention`) are extraction candidates for a future `scripts/check-migrations.py` — pre-flag every `BOOLEAN`, `DATETIME`, `VARCHAR(n)`, `DROP COLUMN` without a guard, missing FK index, missing PK as structured findings, and let this agent focus on the judgment-heavy calls (NOT NULL completeness, SQLx transaction reasoning). Not in scope for this file.

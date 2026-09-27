@@ -94,7 +94,7 @@ Widget-local runtime state (e.g. snackbar mount internals) stays colocated with 
 
 These directories MAY exist alongside the 4 buckets and are not subject to the reject-each-other rules. They contain resources, not code.
 
-> **Rename note:** projects pre-v4.5 used `src/lib/` as a catch-all. `lib/` is a JS tradition with no semantic content; `infra/` carries a clear meaning (_talks to a platform we depend on_) that lets a reader decide at a glance whether a file belongs. Migration is a one-time rename per project — sort the existing `lib/` contents into the four buckets above, then delete `lib/`. The kit ships forward with `infra/`.
+> **Rename note:** projects pre-v4.5 used `src/lib/` as a catch-all. `lib/` is a JS tradition with no semantic content; `infra/` carries a clear meaning (_talks to a platform we depend on_) that lets a reader decide at a glance whether a file belongs. Migration is a one-time rename per project — sort the existing `lib/` contents into the four buckets above, then delete `lib/`.
 
 ## Feature Structure
 

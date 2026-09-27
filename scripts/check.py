@@ -33,7 +33,7 @@ STATUS_UNCOMMITTED = "Uncommitted"
 #                                    (strict-mode marker absent — see
 #                                    `_maybe_skip_for_stack`)
 
-# Backend root directory. Default to the kit's `src-tauri/` convention;
+# Backend root directory. Default to the `src-tauri/` convention;
 # downstream forks with a different layout (e.g. `app/`, `tauri/`,
 # multi-crate workspace at `crates/api/`) override this single constant
 # to point check.py at their Rust root.
@@ -163,7 +163,7 @@ class QualityChecker:
         self.failures: dict[str, str] = {}
 
         # Stack markers — presence-of-file gates each check.
-        # Partial-stack projects (e.g. no-DB Tauri, FE-only, kit-only bootstrap)
+        # Partial-stack projects (e.g. no-DB Tauri, FE-only)
         # skip the gated checks instead of failing.
         self.package_json = self.repo_root / "package.json"
         self.cargo_toml = self.repo_root / BACKEND_DIR / "Cargo.toml"
@@ -644,7 +644,7 @@ class QualityChecker:
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Kit quality check — runs lint, format, tests, and build.",
+        description="Quality check — runs lint, format, tests, and build.",
     )
     parser.add_argument(
         "--fast",

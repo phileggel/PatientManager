@@ -36,7 +36,7 @@ Then screenshot at least one screen that _consumes_ the modified code as a non-r
 ## Project config
 
 On first run, `/visual-proof` discovers and writes `.claude/visual-proof.json` — owned by the
-downstream project and never overridden by the kit:
+project:
 
 ```json
 {

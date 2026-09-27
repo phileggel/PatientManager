@@ -83,7 +83,7 @@ For every signal, decide:
 - **Trim (→ CLAUDE.md)** — existing rule was contradicted this session, redundant with another rule, replaced by a hook/lint/agent, or unexercised this session despite clear opportunities. Evidence required.
 - **Skip** — routine signal, no action. Default outcome.
 
-If your project sets a CLAUDE.md length budget (the kit targets ~250 lines) and CLAUDE.md is above it, additionally include a per-section line count (`grep -n '^## ' CLAUDE.md`) and flag the largest sections as trim candidates even without specific contradiction signals.
+If your project sets a CLAUDE.md length budget (e.g. ~250 lines) and CLAUDE.md is above it, additionally include a per-section line count (`grep -n '^## ' CLAUDE.md`) and flag the largest sections as trim candidates even without specific contradiction signals.
 
 ### Step 3 — Emit proposals
 
@@ -124,7 +124,7 @@ Close with: `Confirm Promote/Trim entries to apply.`
 3. **Brief output** — one line when nothing applies. Short table otherwise. No prose preamble.
 4. **Honor promotion criteria** — Promote proposals require evidence in ≥2 sessions AND project-wide generality. Single-session signals go to Remember.
 5. **Compact-resilient signals only for Promote** — if the only evidence is conversation context (no commit, no memory entry, no CLAUDE.md diff), downgrade Promote proposals to Remember. A rule promoted to CLAUDE.md must be visible in persistent artifacts so a future audit can verify its origin.
-6. **Length budget as proactive trim signal** — when CLAUDE.md exceeds the project's length budget (the kit targets ~250 lines), surface a per-section line distribution and propose trim candidates even without contradiction evidence.
+6. **Length budget as proactive trim signal** — when CLAUDE.md exceeds the project's length budget, surface a per-section line distribution and propose trim candidates even without contradiction evidence.
 
 ---
 

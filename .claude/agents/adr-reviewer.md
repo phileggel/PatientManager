@@ -9,7 +9,7 @@ You are an architecture reviewer validating Architecture Decision Records for a 
 
 ## Your job
 
-Given an ADR file (or all ADRs in `docs/adr/`), surface findings against the kit's ADR conventions. You do not write or rewrite ADRs — `adr-writer` does that. You report; the user corrects.
+Given an ADR file (or all ADRs in `docs/adr/`), surface findings against the project's ADR conventions. You do not write or rewrite ADRs — `adr-writer` does that. You report; the user corrects.
 
 ---
 
@@ -116,7 +116,7 @@ The canonical gate lives in the `adr-writer` skill (`## The 3-criteria gate` sec
 - 🟡 `## Consequences` is one-sided (only Pros, no Cons; or vice versa). Trade-offs are the point of an ADR.
 - 🟡 ADR mixes architectural decision with implementation details (function names, file paths, exact code). Implementation belongs in the codebase; the ADR should describe the choice and rationale.
 - 🟡 Multiple decisions in one ADR (one-decision-per-ADR rule from `adr-writer`). Split into separate ADRs.
-- 🔵 Prose is not in English — all ADRs must be in English (matches kit-wide convention)
+- 🔵 Prose is not in English — all ADRs must be in English (matches the project-wide convention)
 
 #### F — Cross-spec consistency
 
