@@ -94,6 +94,9 @@ jobs:
             echo "::error::src-tauri/src/bin/ must be empty — Tauri's NSIS bundler walks it and fails on phantom .exe candidates. Move dev tools to src-tauri/dev/."
             exit 1
           fi
+      - name: Unit tests of the repository scripts
+        # Same command as `just test-scripts`; the merge guard in scripts/merge.py is under test.
+        run: python3 -m unittest discover -s scripts/tests -p "test_*.py"
 
   frontend:
     name: Frontend — quality + coverage

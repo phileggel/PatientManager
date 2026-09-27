@@ -30,9 +30,13 @@ clean-branches:
 stat:
     cloc . --vcs=git
 
+# Unit tests of the repository's own scripts
+test-scripts:
+    python3 -m unittest discover -s scripts/tests -p "test_*.py"
+
 # Fast-forward merge the current feature branch into main and delete it.
-# Refuses with a specific diagnostic + recovery command if FF is not safe
-# (squash/rebase merge on GitHub, divergence, dirty tree, etc.).
+# Refuses unless the branch is the head of an open PR with every check green
+# (required-checks.json), or if FF is not safe (divergence, dirty tree, etc.).
 merge:
     python3 scripts/merge.py
 

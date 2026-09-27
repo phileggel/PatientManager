@@ -1,0 +1,7 @@
+{
+  "checks": [
+    "PR checks (commit-msg hygiene + repo invariants)",
+    "Frontend — quality + coverage",
+    "Backend — quality + coverage"
+  ]
+}

@@ -6,13 +6,23 @@ FF-merge into the target, push, and delete the feature branch both locally
 and on origin. Fails fast with a clear recovery hint at any step that can't
 proceed cleanly (rebase conflict, divergent push, dirty tree, etc.).
 
-If your project needs a different merge policy (e.g. preserve merge commits,
-no rebase), override the `merge` recipe in the downstream justfile.
+The merge guard: the branch must be the head of an open pull request whose
+every check run is green, and every check named in `required-checks.json`
+must be among them. When the rebase moved the commits (the target advanced),
+the rebased branch is pushed and the merge stops until CI has run on it, unless
+the rebase changed record files only (todo, techdebt, ADRs) or nothing at
+all.
+
+One entry lands as one commit: a fix pushed after the first push is a
+`fixup!` commit (`git commit --fixup <sha>`), and the rebase folds it into the
+commit it names. Folding rewrites commits and leaves the tree as CI tested it,
+so the checks stand.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -47,6 +57,190 @@ def _rebase_in_progress() -> bool:
     """True if a rebase was started but not yet finished or aborted."""
     gdir = _git_dir()
     return (gdir / "rebase-merge").is_dir() or (gdir / "rebase-apply").is_dir()
+
+
+def gh(*args: str) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            ["gh", *args], capture_output=True, text=True, check=False, timeout=60
+        )
+    except FileNotFoundError:
+        fail("gh is not installed — the merge guard cannot read the checks.")
+    except subprocess.TimeoutExpired:
+        fail(f"gh {args[0]} {args[1]} did not answer within 60 s — is GitHub reachable?")
+
+
+PASSING = {"success", "skipped", "neutral"}
+
+
+def _required_checks() -> list[str]:
+    path = Path(git("rev-parse", "--show-toplevel").stdout.strip()) / "required-checks.json"
+    try:
+        return list(json.loads(path.read_text(encoding="utf-8"))["checks"])
+    except (OSError, ValueError, KeyError) as exc:
+        fail(f"Could not read {path.name}: {exc}")
+
+
+def _open_pull_request(branch: str, target: str) -> tuple[int, str]:
+    """Number and head sha of the open pull request from `branch` into `target`."""
+    result = gh(
+        "pr", "list", "--head", branch, "--base", target, "--state", "open",
+        "--json", "number,headRefOid", "--limit", "1",
+    )
+    if result.returncode != 0:
+        fail("Could not list pull requests.", (result.stderr or "").strip())
+    prs = json.loads(result.stdout or "[]")
+    if not prs:
+        fail(
+            f"No open pull request from {branch} into {target}.",
+            "Every change goes through the harness — open one and let it run:",
+            f"  git push -u origin {branch} && gh pr create --fill",
+        )
+    return int(prs[0]["number"]), str(prs[0]["headRefOid"])
+
+
+def _check_runs(sha: str) -> dict[str, tuple[str, str]]:
+    """Latest check run per name on `sha`: name -> (status, conclusion).
+
+    A re-run creates a new run with the same name and a higher id; the
+    highest id wins whatever order the API lists them in.
+    """
+    result = gh(
+        "api", f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs?filter=latest",
+        "--paginate",
+        "--jq", '.check_runs[] | [.id, .name, .status, (.conclusion // "")] | @tsv',
+    )
+    if result.returncode != 0:
+        fail(f"Could not read the check runs of {sha[:7]}.", (result.stderr or "").strip())
+    latest: dict[str, tuple[int, str, str]] = {}
+    for line in result.stdout.splitlines():
+        run_id, name, status, conclusion = (line.split("\t") + ["", "", ""])[:4]
+        if name not in latest or int(run_id) > latest[name][0]:
+            latest[name] = (int(run_id), status, conclusion)
+    return {name: (status, conclusion) for name, (_, status, conclusion) in latest.items()}
+
+
+# The record files: what closure commits and queue edits move. None is read by
+# a check or a reviewer, so a move of `main` made only of them cannot change what
+# the checks proved. Everything else — code, workflows, convention docs, prompts —
+# re-runs the checks.
+RECORD_FILES = {"docs/todo.md", "docs/techdebt.md"}
+RECORD_DIRS = ("docs/adr/",)
+
+
+def _record_files_only(files: list[str]) -> bool:
+    return all(f in RECORD_FILES or (f.endswith(".md") and f.startswith(RECORD_DIRS)) for f in files)
+
+
+def _rebase_left_the_checks_standing(before: str, after: str) -> bool:
+    """True when the tree the checks ran on and the tree about to land are identical, or differ by record files only.
+
+    Comparing the two trees, not the target's history, means a branch stacked
+    on commits that have since merged, or one whose `fixup!` commits were just
+    folded, is not sent for a re-run: what CI tested is what lands.
+    """
+    diff = git("diff", "--name-only", before, after, check=False)
+    if diff.returncode != 0:
+        fail(f"Could not compare {before[:7]} with {after[:7]}.", (diff.stderr or "").strip())
+    return _record_files_only([f for f in diff.stdout.splitlines() if f])
+
+
+FOLD_PREFIXES = ("fixup! ", "squash! ", "amend! ")
+
+
+def _fold_commits(target: str, branch: str) -> list[str]:
+    """Titles of the commits of `branch` not in `target` that ask to be folded into another."""
+    log = git("log", "--format=%s", f"{target}..{branch}", check=False)
+    if log.returncode != 0:
+        fail(f"Could not list the commits of {branch}.", (log.stderr or "").strip())
+    return [title for title in log.stdout.splitlines() if title.startswith(FOLD_PREFIXES)]
+
+
+def refuse_unreadable_folds(target: str, branch: str) -> None:
+    """Stop before the rebase on a `squash!` or `amend!` commit: it would land a message no check has read."""
+    unreadable = [t for t in _fold_commits(target, branch) if not t.startswith("fixup! ")]
+    if unreadable:
+        fail(
+            f"`{branch}` carries squash!/amend! commits; only fixup! commits are folded.",
+            *(f"  {title}" for title in unreadable),
+            "Drop or reword each one (git rebase), carry its change as `git commit --fixup <sha>` instead,",
+            "push, let CI run, then re-run.",
+        )
+
+
+def refuse_unfolded_fixups(target: str, branch: str, before: str) -> None:
+    """Stop after the rebase on a `fixup!` commit that named no commit of the branch.
+
+    It was not folded, and must not reach the target: its title would become a
+    changelog line. The branch goes back to `before`, its head before the rebase.
+    """
+    unfolded = _fold_commits(target, branch)
+    if unfolded:
+        # The rebase has just completed, so the tree is clean: this only moves the branch back.
+        restored = git("reset", "--hard", before, check=False).returncode == 0
+        fail(
+            f"`{branch}` carries fixup! commits that name no commit of the branch.",
+            *(f"  {title}" for title in unfolded),
+            "Branch was restored to its original state (no rewrite)."
+            if restored
+            else f"Branch is rebased; its original head was {before[:7]}.",
+            "Give each the exact title of the commit it fixes (`git commit --fixup <sha>` does), then re-run.",
+        )
+
+
+def rebase_folding_fixups(target: str) -> subprocess.CompletedProcess[str]:
+    """Rebase the current branch onto `target`, folding each `fixup!` commit into the commit it names."""
+    return subprocess.run(
+        ["git", "rebase", "--interactive", "--autosquash", target],
+        capture_output=True,
+        text=True,
+        check=False,
+        # The todo list git proposes is taken as it is: nobody edits it.
+        env={**os.environ, "GIT_SEQUENCE_EDITOR": "true"},
+    )
+
+
+def ensure_checks_green(branch: str, target: str, before: str, after: str) -> None:
+    """Refuse the merge unless CI is green on exactly the commits about to land."""
+    number, head = _open_pull_request(branch, target)
+    if after != head:
+        push = git("push", "--force-with-lease", "origin", branch, check=False)
+        if push.returncode != 0:
+            fail(
+                f"Local {branch} ({after[:7]}) is not the head of PR #{number} ({head[:7]}) and the push failed.",
+                (push.stderr or "").strip(),
+            )
+        # The checks are then read on `head`, which the push above left without
+        # a ref: GitHub keeps a commit's check runs regardless (verified: a
+        # pre-rebase head answered with its 14 runs after the force push).
+        if before == head and _rebase_left_the_checks_standing(before, after):
+            print(
+                f"{BLUE}ℹ The rebase left the tested tree as it was, record files aside; the checks of {head[:7]} stand.{NC}",
+                file=sys.stderr,
+            )
+        else:
+            why = "the rebase moved the commits" if before == head else "the local branch was ahead of the pull request"
+            fail(
+                f"{branch} pushed as {after[:7]} — {why}.",
+                f"CI runs on it now: gh pr checks {number} --watch",
+                "Re-run `just merge` when every check is green.",
+            )
+    runs = _check_runs(head)
+    missing = [name for name in _required_checks() if name not in runs]
+    not_green = sorted(
+        f"{name}: {status if status != 'completed' else conclusion}"
+        for name, (status, conclusion) in runs.items()
+        if status != "completed" or conclusion not in PASSING
+    )
+    if missing or not_green:
+        fail(
+            f"PR #{number} is not green on {head[:7]}.",
+            *(f"  missing: {name}" for name in missing),
+            *(f"  {line}" for line in not_green),
+            f"Watch: gh pr checks {number} --watch — then re-run `just merge`.",
+        )
+    landing = "" if after == head else f", merging {after[:7]}"
+    print(f"{GREEN}✓ PR #{number}: every check green on {head[:7]}{landing}.{NC}", file=sys.stderr)
 
 
 def main() -> int:
@@ -184,7 +378,9 @@ def main() -> int:
             f"detail: {detail}",
             "Inspect: git status",
         )
-    result = git("rebase", target, check=False)
+    before = git("rev-parse", branch).stdout.strip()
+    refuse_unreadable_folds(target, branch)
+    result = rebase_folding_fixups(target)
     if result.returncode != 0:
         abort_result = git("rebase", "--abort", check=False)
         if abort_result.returncode != 0:
@@ -205,6 +401,11 @@ def main() -> int:
                 "  # ...fix conflicting files, then git add + git rebase --continue",
                 "  just merge              # finishes the merge",
             )
+
+    refuse_unfolded_fixups(target, branch, before)
+
+    # Step 2b — the merge guard: green checks on exactly these commits.
+    ensure_checks_green(branch, target, before, git("rev-parse", branch).stdout.strip())
 
     # Step 3 — fast-forward merge target onto the rebased branch.
     # After step 2 this is guaranteed to FF; we still pass --ff-only for safety.
