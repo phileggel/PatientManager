@@ -2,18 +2,16 @@
 set -euo pipefail
 
 # Pre-commit hook
-# Runs quality checks (FAST MODE: lint/format only)
-# Blocks commit on failure
+# Blocks commits to main, patient data (privacy-check.py), and runs the fast
+# checks for the layers the staged files touch. Blocks the commit on failure.
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
-CHECK_SCRIPT="$PROJECT_ROOT/scripts/check.py"
 
 # Colors (respect NO_COLOR=1)
 if [ -n "${NO_COLOR:-}" ]; then
-    RED='' YELLOW='' GREEN='' BLUE='' NC=''
+    RED='' GREEN='' BLUE='' NC=''
 else
     RED='\033[0;31m'
-    YELLOW='\033[0;33m'
     GREEN='\033[0;32m'
     BLUE='\033[0;34m'
     NC='\033[0m'
@@ -34,18 +32,10 @@ if ! python3 "$PROJECT_ROOT/scripts/privacy-check.py" --staged; then
     exit 1
 fi
 
-echo -e "${BLUE}🔍 Pre-commit checks running (Fast Mode)...${NC}"
-
-if [ ! -f "$CHECK_SCRIPT" ]; then
-    echo -e "${YELLOW}⚠  $CHECK_SCRIPT not found. Skipping full validation.${NC}"
-    exit 0
-fi
-
-# Fast mode: skip expensive checks (tests, full formatting)
-if python3 "$CHECK_SCRIPT" --fast; then
-    echo -e "${GREEN}✨ Fast checks passed. Commit allowed.${NC}"
-    exit 0
+# Fast checks for the layers the staged files touch (scripts/scoped-checks.sh).
+if git diff --cached --name-only --diff-filter=ACMRD | bash "$PROJECT_ROOT/scripts/scoped-checks.sh"; then
+    echo -e "${GREEN}✨ Checks passed. Commit allowed.${NC}"
 else
-    echo -e "${RED}❌ Quality checks failed. Commit blocked.${NC}"
+    echo -e "${RED}❌ Commit blocked.${NC}"
     exit 1
 fi

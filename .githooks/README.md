@@ -1,94 +1,30 @@
-# Git Hooks Setup
+# Git hooks
 
-This directory contains git hooks that enforce code quality standards.
-
-## Available Hooks
-
-### commit-msg
-
-- **Purpose:** Validate commit message format and policy compliance
-- **Validates:**
-  - Conventional commit format (`type: description`)
-  - Valid types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`
-  - Title under 72 characters
-  - No co-author lines (not allowed per COMMIT_POLICY.md)
-  - No test results in commit messages (those go in PRs)
-  - Proper lowercase and no periods in title
-- **Action:** Rejects commit if message violates COMMIT_POLICY.md
-
-### pre-commit
-
-- **Purpose:** Prevent commits that fail quality checks
-- **Runs:** `python3 ./scripts/check.py --fast` (lint/format only)
-- **Action:** Rejects commit if any linting or formatting checks fail
-
-## Setup Instructions
-
-### One-time Setup
-
-Configure git to use the hooks directory:
+Activate once after cloning:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-Or globally (for all repos):
+The hooks are the fast local net. The full gate — tests with coverage, the
+build, E2E — runs in CI on every pull request, and `just merge` refuses until it
+is green. `just harness` runs that gate locally, scoped to what the branch
+changed.
 
-```bash
-git config --global core.hooksPath .githooks
-```
+- **`pre-commit`** — refuses a commit on `main`; runs
+  `scripts/privacy-check.py --staged`, then `scripts/scoped-checks.sh` on the
+  staged files.
+- **`commit-msg`** — conventional-commit title (`feat`, `fix`, `docs`, `test`,
+  `chore`, `refactor`, `ci`), ≤ 72 characters, no trailing period; body ≤ 5
+  lines; no `Co-Authored-By`; no SSN or IBAN in the message.
+- **`pre-push`** — `scripts/scoped-checks.sh` on the files the pushed commits
+  changed; a delete-only push is skipped.
+- **`pre-merge-commit`** — refuses any merge commit (linear history).
 
-### Verify Setup
+`scripts/scoped-checks.sh` pays only for what a change touches
+(`scripts/changed-scope.sh`): Prettier on Markdown, the script unit tests when
+`scripts/` changed, and `check.py --fast` for the frontend, the backend, or
+both. Docs and tooling changes pay no code check locally.
 
-```bash
-# Check that hooks are configured
-git config core.hooksPath
-# Should output: .githooks
-```
-
-### Test the Hook
-
-Try making a commit while a check fails (e.g., add a console.log). The commit will be rejected.
-
-## Bypass Hooks (Not Recommended)
-
-If you absolutely need to bypass hooks:
-
-```bash
-git commit --no-verify
-```
-
-## Hook Behavior
-
-When you run `git commit`:
-
-1. **commit-msg hook runs** → Validates message format and policy
-   - Message invalid? → Commit rejected ❌
-   - Message valid? → Continue to next hook
-
-2. **pre-commit hook runs** → `python3 ./scripts/check.py --fast` (lint, format)
-   - Any checks fail? → Commit rejected ❌
-   - All checks pass? → Commit succeeds ✅
-
-### If Rejected by commit-msg
-
-- Fix the commit message (see error output)
-- Re-run `git commit` with corrected message
-
-### If Rejected by pre-commit
-
-- Fix the issues (see error output)
-- Run `python3 scripts/check.py` for the full check with details
-- Re-run `git commit`
-
-## Disabling Hooks Temporarily
-
-```bash
-# Run check script manually first
-python3 scripts/check.py
-
-# Then commit
-git commit --no-verify
-```
-
-But this defeats the purpose! Hooks exist to maintain quality standards.
+Bypassing a hook (`--no-verify`) is forbidden for the agent and meant for
+emergencies only.

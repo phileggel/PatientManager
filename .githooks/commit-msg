@@ -21,6 +21,10 @@ if [ -z "$(echo "$TITLE" | tr -d '[:space:]')" ]; then
     exit 0
 fi
 
+# A `fixup! <title>` commit (git commit --fixup) is folded into <title> by
+# `just merge`; the rules apply to the title it names.
+TITLE="${TITLE#fixup! }"
+
 ERRORS=0
 
 # --- TITLE RULES ---

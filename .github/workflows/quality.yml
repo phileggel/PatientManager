@@ -41,6 +41,8 @@ jobs:
           # like if this PR merged" — not a real PR commit).
           for sha in $(git rev-list --no-merges "$BASE..HEAD"); do
             TITLE=$(git log -1 --pretty=%s "$sha")
+            # `just merge` folds a `fixup! <title>` commit into <title>; check the title it names.
+            TITLE="${TITLE#fixup! }"
             BODY=$(git log -1 --pretty=%b "$sha")
             AUTHOR_EMAIL=$(git log -1 --pretty=%ae "$sha")
 

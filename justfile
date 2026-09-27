@@ -30,6 +30,11 @@ clean-branches:
 stat:
     cloc . --vcs=git
 
+# CI's merge gate, locally, scoped to what the branch changed (scripts/harness.sh):
+# privacy + script tests always; lint, build and tests with coverage for the touched layers
+harness:
+    bash scripts/harness.sh
+
 # Patient data check over every tracked file (SSN, IBAN, names in logs, real data files)
 privacy-check:
     python3 scripts/privacy-check.py

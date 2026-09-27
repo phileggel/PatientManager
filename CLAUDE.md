@@ -14,7 +14,7 @@ After cloning, activate the git hooks:
 git config core.hooksPath .githooks
 ```
 
-This blocks direct commits to `main`, validates conventional-commit format, rejects `Co-Authored-By` lines, and runs lint/format checks. See `.githooks/README.md`.
+This blocks direct commits to `main`, validates conventional-commit format, rejects `Co-Authored-By` lines and patient data, and runs the fast checks for the layers a commit or push touches (`scripts/scoped-checks.sh`). Tests, coverage, the build and E2E are CI's job on the pull request. See `.githooks/README.md`.
 
 ## 🧭 Behavioral Principles
 
@@ -59,7 +59,7 @@ Each task ships under these constraints (in priority order):
 See `docs/workflow.md` for the conventions agents and skills rely on.
 
 Key skills: `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-writer` (Architecture Decision Records), `/review-triage` (triage reviewer findings against (a)/(b)/(c)), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
-Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (rebase folding `fixup!` commits, refuse unless every check on the PR is green and every check in `required-checks.json` is present, fast-forward, push, delete branch), `just test-scripts` (unit tests of `scripts/`), `just release` (full quality validation → conventional-commit semver bump → version-file sync across `package.json` + `Cargo.toml` + `tauri.conf.json` + `Cargo.lock` → CHANGELOG regen → commit + tag + push, all in one shot; use `--dry-run` to preview the version bump, `-y` for non-TTY contexts).
+Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (rebase folding `fixup!` commits, refuse unless every check on the PR is green and every check in `required-checks.json` is present, fast-forward, push, delete branch), `just test-scripts` (unit tests of `scripts/`), `just harness` (CI's gate locally, scoped to the layers the branch touched; E2E stays in CI), `just release` (full quality validation → conventional-commit semver bump → version-file sync across `package.json` + `Cargo.toml` + `tauri.conf.json` + `Cargo.lock` → CHANGELOG regen → commit + tag + push, all in one shot; use `--dry-run` to preview the version bump, `-y` for non-TTY contexts).
 Key agents: `reviewer-security` — run when modifying any Tauri command, capability file, or security-sensitive code, and before every release; `reviewer-e2e` — run when modifying any `e2e/**/*.test.ts` file; `adr-reviewer` — run after `/adr-writer` creates or supersedes an ADR.
 
 ### Mandatory pre-read by task type
