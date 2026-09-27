@@ -1,12 +1,18 @@
 name: E2E
 
 on:
-  # E2E runs on push to main only — same cadence as backend coverage.
-  # PRs skip the ~20-min Tauri build; regressions surface within minutes
-  # of merge (cleaner main vs faster PR cycles trade-off).
+  # Every pull request runs E2E: it is a required check (required-checks.json),
+  # so `just merge` refuses until the real app has passed. No path filter on
+  # pull requests — a filtered-out run leaves the required check missing and the
+  # PR can never merge; the job instead ends green early when the diff is
+  # docs-only (scripts/changed-scope.sh). Pushes to main keep the filter.
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
     paths-ignore: ["**/*.md", "docs/**"]
+  # GitHub can silently drop a pull_request event; re-run by hand when it does.
+  workflow_dispatch:
 
 concurrency:
   group: e2e-${{ github.ref }}
@@ -31,8 +37,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Scope of the change
+        # A docs-only pull request cannot change what the app does: the job
+        # ends green here. Anything else (code, tooling, workflows) runs E2E.
+        id: scope
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            scope=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" | bash scripts/changed-scope.sh)
+          else
+            scope=full
+          fi
+          echo "Scope: $scope"
+          if [ "$scope" = "docs" ]; then run=false; else run=true; fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
 
       - name: Install Linux dependencies
+        if: steps.scope.outputs.run == 'true'
         # webkit2gtk-driver provides WebKitWebDriver (used by tauri-driver on Linux);
         # xvfb provides the virtual framebuffer for headless rendering.
         shell: bash
@@ -43,21 +70,25 @@ jobs:
             webkit2gtk-driver xvfb
 
       - name: Setup Node.js
+        if: steps.scope.outputs.run == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: 22
           cache: npm
 
       - name: Setup Rust
+        if: steps.scope.outputs.run == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust
+        if: steps.scope.outputs.run == 'true'
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2.9.1
         with:
           workspaces: src-tauri
           prefix-key: linux-e2e-rust-${{ hashFiles('src-tauri/Cargo.lock') }}
 
       - name: Cache tauri-driver binary
+        if: steps.scope.outputs.run == 'true'
         id: cache-tauri-driver
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
@@ -65,15 +96,17 @@ jobs:
           key: tauri-driver-2.0.5-${{ runner.os }}
 
       - name: Install tauri-driver
-        if: steps.cache-tauri-driver.outputs.cache-hit != 'true'
+        if: steps.scope.outputs.run == 'true' && steps.cache-tauri-driver.outputs.cache-hit != 'true'
         shell: bash
         run: cargo install tauri-driver --version 2.0.5 --locked
 
       - name: Install frontend dependencies
+        if: steps.scope.outputs.run == 'true'
         shell: bash
         run: npm ci
 
       - name: Run E2E (headless via Xvfb)
+        if: steps.scope.outputs.run == 'true'
         # `test:e2e:ci` is the project's xvfb wrapper around `test:e2e` (see package.json).
         shell: bash
         run: npm run test:e2e:ci
