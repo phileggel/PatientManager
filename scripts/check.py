@@ -136,7 +136,7 @@ class QualityChecker:
         # --skip-tests skips ONLY test execution (vitest, cargo test). Build,
         # lint, biome, tsc, sqlx, clippy, fmt still run. Use case: CI that
         # computes coverage separately (e.g. `npm run test:coverage` or
-        # `cargo tarpaulin`) — avoids running tests twice. Contrast with
+        # `cargo llvm-cov`) — avoids running tests twice. Contrast with
         # --fast which also skips build.
         self.skip_tests = skip_tests
         # Two distinct locks: `_lock` guards mutations to shared state

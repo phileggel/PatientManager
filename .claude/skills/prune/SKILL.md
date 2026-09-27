@@ -44,7 +44,6 @@ ignoring any hit under `node_modules/` or `target/`:
 - `**/lcov.info`
 - `**/coverage-final.json`
 - `**/cobertura.xml`
-- `**/tarpaulin-report.html`
 
 (A `Glob` call keeps discovery on the auto-allow path; a `find | grep | grep`
 pipeline would prompt for permission on every invocation.)
@@ -55,9 +54,7 @@ pipeline would prompt for permission on every invocation.)
 ❌ No coverage report found. /prune cannot safely suggest simplifications without one.
 
 Generate a report first:
-  Rust:    cargo install cargo-tarpaulin && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir coverage/rust --lib --exclude-files "build.rs"
-  Jest:    jest --coverage
-  Vitest:  vitest run --coverage
+  just coverage   (backend via cargo llvm-cov, frontend via vitest; writes coverage/{backend,frontend}/lcov.info)
 
 Re-run /prune after generating a report.
 ```
@@ -173,10 +170,6 @@ awk -v file="src/foo.ts" '
 ' lcov.info
 # Output: "hits/total" — if hits == total → ✅; if hits == 0 → ❌; otherwise → ❓
 ```
-
-#### tarpaulin HTML (`tarpaulin-report.html`)
-
-Human-readable report only — no machine-parseable coverage data. When this is the only Rust report present alongside `lcov.info`, use the lcov section above for per-file coverage. The HTML is for manual inspection.
 
 #### Jest JSON (`coverage-final.json`)
 

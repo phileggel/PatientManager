@@ -114,6 +114,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Which layers the change touches
+        # A pull request runs a layer's tests (with coverage) only when it
+        # touched that layer; docs-only runs none; tooling/workflow changes run
+        # both. Lint, types and the build run on every job; a push to main
+        # measures both layers.
+        id: scope
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == "pull_request" ]]; then
+            scope=$(git diff --name-only "origin/$BASE...HEAD" | bash scripts/changed-scope.sh)
+          else
+            scope=both
+          fi
+          echo "scope=$scope"
+          echo "frontend=$([[ "$scope" == frontend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "backend=$([[ "$scope" == backend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
@@ -121,11 +143,14 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Quality checks
-        run: python3 scripts/check.py --frontend
+      - name: Quality checks (lint + biome + tsc + build)
+        # --skip-tests: the suite runs once, under coverage, in the next step.
+        run: python3 scripts/check.py --frontend --skip-tests
       - name: Tests with coverage (instrumented)
+        if: steps.scope.outputs.frontend == 'true'
         run: npm run test:coverage
       - name: Upload to Codecov
+        if: steps.scope.outputs.frontend == 'true'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -147,6 +172,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Which layers the change touches
+        # A pull request runs a layer's tests (with coverage) only when it
+        # touched that layer; docs-only runs none; tooling/workflow changes run
+        # both. Lint, types and the build run on every job; a push to main
+        # measures both layers.
+        id: scope
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == "pull_request" ]]; then
+            scope=$(git diff --name-only "origin/$BASE...HEAD" | bash scripts/changed-scope.sh)
+          else
+            scope=both
+          fi
+          echo "scope=$scope"
+          echo "frontend=$([[ "$scope" == frontend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "backend=$([[ "$scope" == backend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
@@ -154,15 +201,24 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          # llvm-tools-preview: the profiler runtime cargo llvm-cov drives.
+          components: rustfmt, clippy, llvm-tools-preview
       - name: Cache Rust
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2.9.1
         with:
           workspaces: src-tauri
           prefix-key: linux-rust
+      - name: Cache sqlx-cli binary
+        # sqlx-cli has no prebuilt binary: install-action compiles it (~2 min).
+        id: cache-sqlx-cli
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cargo/bin/sqlx
+          key: sqlx-cli-0.8.6-${{ runner.os }}
       - name: Install sqlx-cli
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk.
         # sqlx-cli version matches `sqlx` in Cargo.lock (0.8.6).
+        if: steps.cache-sqlx-cli.outputs.cache-hit != 'true'
         uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf
         with:
           tool: sqlx-cli@0.8.6
@@ -171,20 +227,25 @@ jobs:
         run: |
           mkdir -p .local
           sqlx database setup
-      - name: Quality checks
-        run: python3 scripts/check.py --backend
-      - name: Install cargo-tarpaulin and just
+      - name: Quality checks (sqlx + clippy + fmt)
+        # --skip-tests: the suite runs once, under llvm-cov, two steps below.
+        run: python3 scripts/check.py --backend --skip-tests
+      - name: Install cargo-llvm-cov and just
         # Pinned to full SHA for v2.75.30 — mutable tags are a supply-chain risk
+        if: steps.scope.outputs.backend == 'true'
         uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf
         with:
-          tool: cargo-tarpaulin,just
+          tool: cargo-llvm-cov@0.8.7,just
       # Single source of truth: `just coverage-be` is the same recipe developers
-      # run locally (--lib --tests + the shared exclude list), so CI/Codecov and
-      # local coverage can never drift. Runs from repo root — the recipe cd's
-      # into src-tauri itself and writes to repo-root coverage/backend/.
-      - name: Coverage with tarpaulin
+      # run locally (--lib --tests --features dev-fixtures + the shared ignore
+      # list + inline test stripping), so CI/Codecov and local coverage cannot
+      # drift. The binaries are instrumented at compile time and the suite runs
+      # as usual, so the run costs about the tests' own time once warm.
+      - name: Tests with coverage (llvm-cov)
+        if: steps.scope.outputs.backend == 'true'
         run: just coverage-be
       - name: Upload to Codecov
+        if: steps.scope.outputs.backend == 'true'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

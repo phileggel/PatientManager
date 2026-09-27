@@ -109,13 +109,17 @@ preview-screenshot COMPONENT:
 coverage-fe:
     npm run test:coverage
 
-# Generate backend coverage report (outputs coverage/backend/)
-# Requires: cargo install cargo-tarpaulin
+# Generate backend coverage report (outputs coverage/backend/lcov.info)
+# Requires: cargo install cargo-llvm-cov + rustup component add llvm-tools-preview
 # --features dev-fixtures compiles the codec round-trip integration tests in,
 # so the workbook-coupled parser logic they exercise is measured instead of
 # reported as uncovered (the fixtures live in src-tauri/tests/fixtures/).
+# Inline #[cfg(test)] code is then stripped from the report: a file's own tests
+# never count as covered logic.
 coverage-be:
-    mkdir -p coverage/backend && cd src-tauri && SQLX_OFFLINE=true cargo tarpaulin --out Lcov Html --output-dir ../coverage/backend --lib --tests --features dev-fixtures --exclude-files "build.rs" --exclude-files "dev/generate_bindings.rs" --exclude-files "dev/generate_fixtures.rs" --exclude-files "dev/fixtures_excel/*" --exclude-files "src/use_cases/overpayment/api.rs"
+    mkdir -p coverage/backend
+    cd src-tauri && SQLX_OFFLINE=true cargo llvm-cov --lib --tests --features dev-fixtures --lcov --output-path ../coverage/backend/lcov.info --ignore-filename-regex '(^|/)build\.rs$|/dev/generate_(bindings|fixtures)\.rs$|/dev/fixtures_excel/|/src/use_cases/overpayment/api\.rs$|/src-tauri/tests/'
+    python3 scripts/coverage-strip-tests.py coverage/backend/lcov.info
 
 # Generate both coverage reports (run before /prune)
 coverage: coverage-fe coverage-be
