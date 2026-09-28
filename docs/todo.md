@@ -211,3 +211,45 @@ Saved `BankFundLabelMapping` records (bank label → fund, per ADR-001) are toda
 **Open questions:** Done when not written yet.
 
 ---
+
+## TODO-013 — (backend) — Headless surface API
+
+A way to drive PatientManager's use cases without the window: the same Rust commands the UI calls, reachable from outside the UI.
+
+**User value:**
+
+**Done when:**
+
+**Design:** none
+
+**Open questions:** What is it for — (a) scripting or scheduled jobs (e.g. an Excel import or a fund-payment reconciliation from the command line), (b) letting an agent or another tool read and act on the data, or (c) E2E and diagnostics without the WebView? Which surface — a CLI binary, a local HTTP/IPC endpoint, or both? Read-only or also writes? How is access restricted, given the data is patients' health data? Done when not written yet.
+
+---
+
+## TODO-014 — (ci/release) — Linux release
+
+Releases ship only for Windows (`release-windows.yml`: installer + updater manifest); Linux users have no build. Folioneer's `release.yml` builds Windows then Linux — an AppImage that updates itself through the Tauri updater, and a `.deb` for manual install — on the same tag, and leaves one draft release with both.
+
+**User value:** PatientManager can be installed and kept up to date on Linux, like on Windows.
+
+**Done when:** (draft by the agent — owner to confirm) pushing a release tag builds the Windows installer and a Linux AppImage and `.deb`, all attached to the same draft release; `latest.json` carries a Linux entry so an installed AppImage updates itself; the Linux job reuses the E2E-proven Linux toolchain; a dry run on a test tag is attached to the PR.
+
+**Design:** none
+
+**Open questions:** Confirm the Done when above. AppImage only, or also `.deb`? Which Linux distributions must it run on?
+
+---
+
+## TODO-015 — (docs) — Documentation audit
+
+The claude-kit exit (2026-09-27, #109–#133) rewrote how work moves, but most documentation predates it. Known drift: `CONTRIBUTING.md` names recipes that do not exist (`DEBT-017`); `README.md` and `ARCHITECTURE.md` still describe the old setup in places; the convention docs (`docs/*-rules.md`, `ddd-reference.md`, `error-model.md`, `test_convention.md`, `tauri-lessons.md`) were written against the kit; 33 specs, contracts and ADRs have never been checked against the code they describe.
+
+**User value:** anyone reading the repository — the owner, the agent, a future contributor — finds instructions that are true today; the agent stops acting on stale rules.
+
+**Done when:** (draft by the agent — owner to confirm) every root and `docs/` document is either confirmed accurate, corrected, or deleted, each by one line in the PR body; every command, recipe, path and file it names exists; no document contradicts `CLAUDE.md` or `docs/workflow.md`; specs and contracts are checked with `spec-checker` / `contract-reviewer`, ADRs with `adr-reviewer`, and what cannot be fixed in the pass becomes `DEBT-NNN`. `DEBT-017` is closed by it.
+
+**Design:** none
+
+**Open questions:** Confirm the Done when above. One pass over everything, or split (root docs + conventions first, specs / contracts / ADRs second)?
+
+---
