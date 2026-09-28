@@ -12,28 +12,6 @@ Works even if the feature is fuzzy — use the interview phase to clarify it.
 
 ---
 
-## Required tools
-
-`Read`, `Glob`, `Write`, `AskUserQuestion`. Interactive — cannot complete in a non-interactive shell.
-
----
-
-## When to use
-
-- **New feature** with unknown or partially-known business rules
-- **When you have an intent but no spec yet** — even if the intent is fuzzy; the interview phase clarifies it
-- **Before `/contract`** — the contract is derived from the spec, so the spec must exist first
-
----
-
-## When NOT to use
-
-- **Documenting existing code** — this skill is for new features only; it interviews the user rather than reverse-engineering a spec from the codebase
-- **Amending an existing spec** — edit `docs/spec/{feature}.md` directly; do not re-run this skill on a feature that already has a spec
-- **Deriving the contract from a spec** — that's `/contract`'s job; this skill only produces the spec
-
----
-
 ## Output format
 
 Produces:
@@ -83,7 +61,7 @@ After round 3 (or earlier if all blocking uncertainties are resolved), draft the
 
 After Round 1, immediately:
 
-1. **Read or create** `docs/spec-index.md` in the downstream project:
+1. **Read or create** `docs/spec-index.md`:
    - If it exists, read all current registrations
    - If it does NOT exist, create it with a template (see "Spec Registry" section at end of this skill)
 2. **Register the trigram**: Add the assigned trigram, spec name, and description to the registry table
@@ -195,7 +173,7 @@ and the main entities involved.}
 - Each `{TRIGRAM}-NNN` rule must be atomic (one behavior per rule) and testable
 - Scope `(frontend + backend)`, `(frontend)`, or `(backend)` is mandatory on every rule
 - **Trigram declaration**: Header must include the trigram in parentheses (e.g., `# Business Rules — Feature Name (REF)`)
-- **Thematic numbering**: Group rules by operation type (010–019 initiation, 020–029 creation, 030–039 updates, 040–049 deletion, 050+ future).
+- **Numbering** follows `docs/spec-index.md`.
 - **Registry entry**: Trigram MUST be registered in `docs/spec-index.md` before writing the spec file (done in step 3).
 - Open Questions must list every assumption you made — do not silently decide
 - If a rule has a notable edge case, add it as a separate rule (not a sub-clause)
@@ -206,17 +184,7 @@ and the main entities involved.}
 
 ### 4.1 Architecture Decision (ADR) Detection
 
-ADRs are rare. Only flag one when **all three** conditions hold simultaneously:
-
-1. **Genuinely complex** — real trade-offs exist, not just a preference between two reasonable options.
-2. **Not obvious from context** — a future developer could not infer the reasoning from the spec or existing patterns.
-3. **Costly to reverse** — changing course later would require significant rework.
-
-If you believe a decision clears this bar, **do not mandate it** — add it as a suggested open question and let the user decide:
-
-- [ ] `ADR-SUGGESTED`: {Briefly describe the decision and why it may warrant an ADR — the user decides whether to proceed}.
-
-Do **not** flag an ADR for: minor preferences, standard framework patterns, choices already self-evident from the spec, or anything reversible with a normal refactor.
+Only a decision that passes `/adr-writer`'s 3-criteria gate is flagged, and never mandated: add `- [ ] ADR-SUGGESTED: {the decision and why}` to `## Open Questions` and let the user decide.
 
 ---
 
@@ -280,7 +248,7 @@ Before handoff, verify the following structural points and fix any that fail:
 
 - All required template sections are present: `## Context`, `## Entity Definition` (if entity exists), `## Business Rules`, `## Workflow` (if applicable), `## UX Draft`, `## Open Questions`
 - Spec header includes the trigram in parentheses (e.g., `# Business Rules — Refunds (REF)`)
-- Every rule ID matches `{TRIGRAM}-NNN` and the numbering is sequential within each theme block (010–019, 020–029, …) with no gaps
+- Every rule ID matches `{TRIGRAM}-NNN` and sits in its theme block per `docs/spec-index.md`
 - Every rule has a scope tag: `(frontend)`, `(backend)`, or `(frontend + backend)`
 - The trigram is registered in `docs/spec-index.md` (from step 3)
 - All `## Open Questions` items are either `[x]` or removed; the section ends with `None — all questions have been resolved.`
@@ -336,38 +304,5 @@ Next steps after validation:
 11. **Create in correct folder** — specs MUST be saved to `docs/spec/` folder (created automatically if missing).
 12. **Minimum friction** — do not ask about what the project's existing patterns already answer (navigation, success feedback, network error handling); generate a rule aligned with those patterns directly. Questions are reserved for genuinely new business decisions.
 13. **No implicit behaviour** — every observable behaviour must be covered by an explicit `{TRIGRAM}-NNN` rule. If a behaviour is described in the workflow or UX section but has no corresponding rule, add the rule. Common implicit gaps: default values in forms, sort toggle behaviour, modal-stays-open-on-error, empty-state vs no-search-results distinction.
-14. **Rule IDs are permanent** — once a rule number is assigned it never changes for the lifetime of the project. Tests reference rules by ID (e.g., `// REF-010 — ...`). If a rule is removed, leave the number vacant. New rules in the same theme increment by 1 (REF-010, REF-011, REF-012...). Never renumber existing rules.
+14. **Rule IDs are permanent** — per `docs/spec-index.md`: never renumbered, a removed rule leaves its number vacant.
 15. **ADR Consistency** — If a choice is already documented in `docs/adr/` (e.g., storing amounts in i64), you MUST apply it in the TRIGRAM-NNN rules without asking the user. You only ask if the new feature explicitly requires breaking a past ADR.
-
----
-
-## Notes
-
-The 3-round cap on the initial interview forces an early draft rather than endless clarification. For simple features one round is enough; the cap only kicks in for complex ones. Anything unresolved goes into `## Open Questions` as `[ ]` items. The step 4.2 coverage scan then grades the drafted rules and adds a `[ ]` item for every genuine gap — keeping questions honest rather than rare, since the model no longer has to _notice_ uncertainty to surface it. Step 5 then loops — interviewing the user until every `[ ]` is answered and the spec is fully closed. The spec must always end with "None — all questions have been resolved." before proceeding.
-
-Specs are written in English. Code identifiers (function names, file paths) remain in English as per the codebase convention.
-
-**Folder convention**: Specs always live in `docs/spec/` subfolder, not at `docs/` root.
-
----
-
-## Spec Registry (Mandatory per-project artifact)
-
-Every downstream project **MUST** maintain a `docs/spec-index.md` file to track all active trigrams and prevent collisions. This is created automatically by spec-writer during the first spec creation:
-
-```markdown
-# Trigram Registry
-
-| Trigram | Spec Name          | Description                    | Status   |
-| ------- | ------------------ | ------------------------------ | -------- |
-| REF     | Refund Management  | Recording overpayments/refunds | active   |
-| PAY     | Payment Processing | Payments and reconciliation    | active   |
-| INV     | Inventory Tracking | Stock levels and transfers     | planning |
-```
-
-This registry:
-
-- **Created and maintained locally** — Lives in `docs/spec-index.md` in your project
-- **Prevents trigram collisions** across all specs
-- **Mandatory** — spec-writer creates it automatically if missing (see step 3)
-- **Project-managed** — Updated when you write or archive specs

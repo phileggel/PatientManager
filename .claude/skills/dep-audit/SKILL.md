@@ -11,22 +11,6 @@ Uses **live web search** to verify real-world versions — never relies on model
 
 ---
 
-## Required tools
-
-This skill requires: `Bash`, `Read`, `WebSearch`.
-
-**Before starting**: verify that `WebSearch` is available. If it is not, stop and inform the user — without web search, version data would come from stale model knowledge and cannot be trusted.
-
----
-
-## When to use
-
-- **Before every release** — CVEs are a release blocker
-- **Start of a work session** (optional) — surface version drift early
-- **After a batch of dependency changes** — confirm no new vulnerabilities introduced
-
----
-
 ## Placement rules (applies always, no tools needed)
 
 | Finding                              | Rule                                                                                            |
@@ -148,7 +132,3 @@ If all clean: `✅ All dependencies up to date and no known CVEs.`
 5. Report `misplaced` deps even if versions are current — placement affects production bundle size
 
 ---
-
-## Notes
-
-Web search is mandatory because model training data can be months behind the actual package ecosystem. A missed CVE or a falsely "current" version is worse than not running the audit at all. The skill is designed to be trustworthy, not fast.

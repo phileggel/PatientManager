@@ -26,14 +26,6 @@ Audit the project for code that can be removed or collapsed without changing arc
 
 ---
 
-## When to use
-
-- After a feature ships — to trim bloat that accumulated during development
-- Before a refactor — to reduce surface area first
-- As a periodic KISS health check
-
----
-
 ## Execution steps
 
 ### Step 0 — Coverage gate (hard stop)

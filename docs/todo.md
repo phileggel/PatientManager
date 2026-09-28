@@ -9,13 +9,12 @@ questions, and removes an entry in the PR that ships it.
 <!-- the first ready one, never adds to or reorders this list, removes a reference only -->
 <!-- in the PR that ships its entry, and stops when the list is empty. -->
 
-1. TODO-015
-2. TODO-003
-3. DEBT-008
-4. TODO-014
-5. TODO-012
-6. TODO-016
-7. TODO-013
+1. TODO-003
+2. DEBT-008
+3. TODO-014
+4. TODO-012
+5. TODO-016
+6. TODO-013
 
 ---
 
@@ -240,20 +239,6 @@ Releases ship only for Windows (`release-windows.yml`: installer + updater manif
 **User value:** PatientManager can be installed and kept up to date on Linux, like on Windows.
 
 **Done when:** pushing a release tag builds the Windows installer and a Linux AppImage and `.deb`, all attached to the same draft release; `latest.json` carries a Linux entry so an installed AppImage updates itself; the Linux job reuses the E2E-proven Linux toolchain; proven on Ubuntu 24.04+; a dry run on a test tag is attached to the PR.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-015 — (docs) — Documentation audit
-
-The claude-kit exit (2026-09-27, #109–#133) rewrote how work moves, but most documentation predates it. Known drift: `CONTRIBUTING.md` names recipes that do not exist (`DEBT-017`); `README.md` and `ARCHITECTURE.md` still describe the old setup in places; the convention docs (`docs/*-rules.md`, `ddd-reference.md`, `error-model.md`, `test_convention.md`, `tauri-lessons.md`) were written against the kit; 33 specs, contracts and ADRs have never been checked against the code they describe.
-
-**User value:** an agent — or the owner — knows exactly where each kind of document lives, and documents never contradict each other.
-
-**Done when:** (1) a doc map lists every kind of document with its one location (README for humans, CLAUDE.md as the agent entry point, ARCHITECTURE.md, `docs/workflow.md` for process, code conventions, specs, contracts, ADRs, records, lessons); (2) every document sits in the location of its kind and each location holds only that kind — misplaced files moved, all references updated; (3) each topic has one source of truth and other documents link to it instead of restating it; (4) no two documents contradict each other; (5) duplicates merged or deleted; (6) every document is concise, the agent docs above all (CLAUDE.md, `docs/workflow.md`, skills, agent prompts): each rule stated once, no narrative — sizes before and after in the PR body; (7) a harness check fails when a document sits outside its kind's location or the doc map is stale. `DEBT-017` is closed by it. Port folioneer's result (`ab5f8e4`, `fc6c53d`) rather than designing anew: the `docs/README.md` map ("the home wins; the copy is removed", "where a new statement goes"), `*-rules.md` names (`COMMIT_POLICY.md` → `docs/commit-rules.md`), CLAUDE.md as a short index of pointers, `scripts/rule-homes.py` (one rule ID defined in one place) in the harness, and path-loaded rules in `.claude/rules/` replacing the mandatory pre-read list.
 
 **Design:** none
 

@@ -11,30 +11,6 @@ Produce or supersede an ADR — `docs/adr/{NNN}-{slug}.md` — and keep `docs/ad
 
 ---
 
-## Required tools
-
-`Read`, `Glob`, `Write`, `AskUserQuestion`. Interactive — cannot complete in a non-interactive shell.
-
----
-
-## When to use
-
-- **A decision passes the 3-criteria gate** (see below) — typically flagged via `ADR-SUGGESTED` in a spec's `## Open Questions` by `spec-writer` or `spec-reviewer`
-- **Superseding a past decision** — a prior ADR is no longer correct; the new one explains why
-- **Indexing existing ADRs** — refresh `docs/adr/README.md` after manual edits or imports
-
----
-
-## When NOT to use
-
-- **Tentative or unresolved decisions** — keep them in the spec's `## Open Questions` until a final choice is made; ADRs are ratified-only
-- **Coding standards or naming preferences** — these belong in convention docs (`docs/backend-rules.md`, `docs/frontend-rules.md`), not ADRs
-- **Decisions self-evident from the spec** — if the rule already states the choice and the rationale, an ADR adds noise
-- **Reversible single-function choices** — fail criterion 3 ("costly to reverse"); no ADR needed
-- **Validating an existing ADR** — use the `adr-reviewer` agent; this skill produces, it does not validate
-
----
-
 ## Output format
 
 On success, produces:
@@ -188,11 +164,3 @@ If `docs/adr/` does not exist, create it together with `README.md`.
 7. **Validate the 3-criteria gate before writing** — refuse explicitly if any criterion fails.
 
 ---
-
-## Notes
-
-ADRs are deliberately rare. Most decisions belong in the spec (rules), in convention docs (coding standards), or are obvious from the code itself. The 3-criteria gate exists to keep `docs/adr/` valuable: a directory with five real ADRs is a reference; a directory with fifty mixed-quality ADRs is noise.
-
-The interactive confirmation in Step 1.c is non-negotiable. `spec-writer` flags `ADR-SUGGESTED` candidates as part of its Open Questions output, but the user — not the agent chain — decides whether to elevate them. That gate prevents agents from filling `docs/adr/` with auto-generated decisions the user never ratified.
-
-`adr-reviewer` is the paired validator. It runs after this skill produces or supersedes a file, and it cross-references back to the canonical 3-criteria gate above. Edit the gate language here only — the reviewer follows.

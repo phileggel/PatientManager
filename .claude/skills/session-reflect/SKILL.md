@@ -12,22 +12,6 @@ Output-only. The skill proposes; the user confirms each edit, and the main agent
 
 ---
 
-## When to use
-
-- **End of session** — user signals `good night`, `done for today`, `next task tomorrow`, `/exit`, or otherwise wraps the day.
-- **After a notable stretch** — reviewer findings that produced new conventions, repeated user corrections, an emergent pattern across multiple PRs.
-- **Periodic** — once a week if not naturally triggered, or whenever CLAUDE.md crosses its length budget (~250 lines).
-
-**Bypass the skill entirely** when the session was routine and no rule shifts are visible in the artifacts (Step 1). Just say "No CLAUDE.md changes — routine session." and stop.
-
----
-
-## Required tools
-
-`Bash`, `Read`, `Grep`.
-
----
-
 ## Compact-resilience
 
 This skill is designed to survive an in-session `/compact`. After a compact, Claude loses verbatim user quotes and the texture of earlier reviewer findings, but persistent artifacts remain. **Signal priority order:**
@@ -127,7 +111,3 @@ Close with: `Confirm Promote/Trim entries to apply.`
 6. **Length budget as proactive trim signal** — when CLAUDE.md exceeds the project's length budget, surface a per-section line distribution and propose trim candidates even without contradiction evidence.
 
 ---
-
-## Notes
-
-The four memory categories (user / feedback / project / reference) are unchanged — `Remember` outputs typically land as `feedback` entries. The auto-memory system's normal write criteria apply.

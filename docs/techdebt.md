@@ -6,6 +6,16 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-09-28 — DEBT-018 — Specs, contracts and ADRs never checked against the code
+
+**Found by:** manual (TODO-015 closure, branch `docs/todo-015-skills`)
+
+**Where:** `docs/spec/`, `docs/contracts/`, `docs/adr/`
+
+**Observation:** the documentation audit fixed where each kind of document lives, removed duplicated rules and made the agent docs concise; it did not check the 33 specs, contracts and ADRs against the code they describe. `spec-checker` covers one spec at a time when an entry closes; no pass has run across all of them, so a rule or command that drifted since it was written goes unnoticed until someone relies on it.
+
+---
+
 ## 2026-09-27 — DEBT-015 — Fork PRs cannot post the reviewer's "no report" comment
 
 **Found by:** reviewer-infra (CI run on PR #121, branch `ci/reviewers-in-ci`)

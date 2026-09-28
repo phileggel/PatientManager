@@ -11,28 +11,6 @@ Produce or update a domain contract from a validated feature spec. The contract 
 
 ---
 
-## Required tools
-
-`Read`, `Glob`, `Write`, `Edit`, `AskUserQuestion`. Interactive — cannot complete in a non-interactive shell.
-
----
-
-## When to use
-
-- **After `spec-reviewer`** green-lights the spec, before `contract-reviewer` validates the contract
-- **When introducing a new bounded-context aggregate** — first-time contract for a domain
-- **When extending an existing contract** — adding commands to an aggregate that already has a contract (this skill is upsert-aware and patches in place)
-
----
-
-## When NOT to use
-
-- **Validating an existing contract** — use the `contract-reviewer` agent; this skill produces, it does not validate
-- **Producing the spec** — use `spec-writer` first; the contract is derived from the spec
-- **Amending a single field** — edit `docs/contracts/{domain}-contract.md` directly; do not re-run the skill for trivial fixes
-
----
-
 ## Output format
 
 Produces:

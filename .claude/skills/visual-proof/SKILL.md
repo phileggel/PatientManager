@@ -1,6 +1,6 @@
 ---
 name: visual-proof
-description: Captures and commits visual proof screenshots for any `.tsx` / `.css` change. Generates a full preview for every component state (idle/loading/results/empty/error) in both light and dark mode, captures with Playwright via `scripts/visual-proof-capture.mjs`, and reports any console errors found. Auto-discovers project config on first run.
+description: Captures and commits visual proof screenshots for any `.tsx` / `.css` change. Generates a full preview for every component state (idle/loading/results/empty/error) in both light and dark mode, captures with Playwright via `scripts/visual-proof-capture.mjs`, and reports any console errors found.
 tools: Read, Glob, Grep, Write, Bash, AskUserQuestion
 ---
 
@@ -10,51 +10,9 @@ Automate the visual proof workflow defined in `docs/visual-proof-rules.md` — t
 
 ---
 
-## Required tools
+## Step 0 — Load the config
 
-`Read`, `Glob`, `Grep`, `Write`, `Bash`, `AskUserQuestion`.
-
----
-
-## When to use
-
-- **After frontend implementation** — any change touching `.tsx` or `.css` files
-- **Before committing** — screenshots get staged with the commit
-- **For bug discovery on existing components** — provide an unmodified component path; the console-error capture will surface latent rendering issues even when nothing has changed
-
-## When NOT to use
-
-- **Non-visual refactors** (logic, naming, imports without UI changes) — state the exemption in the PR description per `docs/visual-proof-rules.md`
-- **Rust-only changes** — no rendered output to capture
-- **Config-only edits** (`vite.config.ts`, `tsconfig.json`) — no component output
-
----
-
-## Step 0 — Load or initialize config
-
-Read `.claude/visual-proof.json`.
-
-**If present**: load `vite_preview_port`, `vite_preview_host`, `global_css_import`, `i18n_import`. Proceed to Step 1.
-
-**If absent**, discover from the project:
-
-1. Read `vite.config.ts` — extract `server.port` if set; default to `1422` (avoids collision with Tauri on 1420). If `vite.config.ts` is absent, default to `1422`.
-2. `vite_preview_host` → default `127.0.0.1` (user edits config manually for WSL2/VM if needed).
-3. `global_css_import` → Glob `src/index.css`, `src/main.css`, `src/styles/global.css`. Use the single match. If multiple candidates: ask via `AskUserQuestion`. If zero matches: ask the user to provide the path.
-4. `i18n_import` → Glob `src/infra/i18n/index.ts` first (F0 gold layout), then `src/infra/i18n.ts`, `src/i18n/i18n.ts`, `src/i18n/index.ts`, `src/lib/i18n.ts` (last three are pre-F0 / pre-v4.5 fallbacks). Use the single match. If multiple candidates: ask. If zero matches: ask the user to provide the path or confirm the project has no i18n setup (skip the i18n initializer call in Step 3).
-
-Write `.claude/visual-proof.json`:
-
-```json
-{
-  "vite_preview_port": 1422,
-  "vite_preview_host": "127.0.0.1",
-  "global_css_import": "src/index.css",
-  "i18n_import": "src/infra/i18n/index.ts"
-}
-```
-
-**Never overwrite** this file once written — it is project-owned.
+Read `.claude/visual-proof.json` (project-owned, never overwritten): `vite_preview_port`, `vite_preview_host`, `global_css_import`, `i18n_import`.
 
 ---
 
@@ -92,7 +50,7 @@ Ask the user via `AskUserQuestion`:
 
 ## Step 3 — Build the complete preview
 
-Read the component file in full. Read `src/bindings.ts` for generated TypeScript types. If a domain contract exists (`docs/contracts/{domain}-contract.md`, inferred from the component path), read it for realistic data shapes. Read the `i18n_import` file (using the converted relative path) to discover the exported initializer function name.
+Read the component file in full. Read `src/bindings.ts` for generated TypeScript types. If a domain contract exists (`docs/contracts/{domain}-contract.md`, inferred from the component path), read it for realistic data shapes. Import `i18n_import` for its side effect (it initialises i18n on load).
 
 **Import path conversion**: config paths are relative to the project root (e.g. `src/infra/i18n/index.ts`). When importing from `src/__preview__/main.tsx`, strip the leading `src/` and prefix with `../` (e.g. `src/infra/i18n/index.ts` → `../infra/i18n`, `src/styles/index.css` → `../styles/index.css`).
 
@@ -116,7 +74,7 @@ Read the component file in full. Read `src/bindings.ts` for generated TypeScript
 **Write `src/__preview__/main.tsx`** — a complete, working preview using converted import paths:
 
 - Import the real component from its actual path (relative from `src/__preview__/`).
-- Import and initialise i18n from the converted `i18n_import` path.
+- Import the converted `i18n_import` path (it initialises i18n on load).
 - Import global CSS from the converted `global_css_import` path.
 - For each requested state, render the component with **hardcoded, realistic mock data** derived from the contract and bindings — no invented types.
 - Wrap each state in `<div id="state-{name}" style={{ padding: 24 }}>` for Playwright targeting (the `id` selector strategy here matches F25 / E4 — see Critical Rules).
@@ -128,15 +86,13 @@ Example (adapt to the real component interface):
 ```tsx
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "../styles/index.css";
-import { setupI18n } from "../infra/i18n";
+import "../ui/tailwind.css";
+import "../i18n/config";
 import { LoginForm } from "../features/auth/LoginForm";
 
 if (new URLSearchParams(window.location.search).get("theme") === "dark") {
   document.documentElement.classList.add("dark");
 }
-
-setupI18n();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -282,13 +238,3 @@ Add a `Video clips ({count}):` section listing each `.webm` file before the clea
 8. **Target preview elements by `id`, never by `aria-label` or text content** — locale-invariant and refactor-stable (see E4 in `docs/e2e-rules.md`, F25 in `docs/frontend-rules.md`).
 
 ---
-
-## Notes
-
-Two preview files (`preview.html` + `src/__preview__/main.tsx`) instead of one: `preview.html` lives at the project root so Vite can serve it without changing `vite.config.ts`; `main.tsx` lives under `src/` so Vite resolves it with the same module-graph rules as the real app (path aliases, env imports, HMR). The split is what lets the preview use the real component imports without altering the project's Vite config.
-
-Why preview files are never committed: they reference a single component in a hand-crafted state matrix — useful for capture, noise in the repo history. The `screenshots/` directory is the durable artifact.
-
-The `lsof -ti tcp:{port} | xargs kill` pipeline in Step 5 intentionally uses a multi-command shell pipeline. Splitting loses the PID context between Bash invocations.
-
-Step 4 verifies `scripts/visual-proof-capture.mjs` exists rather than rewriting it inline each run — the script lives in the repo and is the canonical capture logic.

@@ -17,15 +17,6 @@ without any further infrastructure work.
 
 ---
 
-## When to use
-
-- **Before the first E2E test** — once per project, to stand up the WebDriver infrastructure E2E tests depend on
-- **When `wdio.conf.ts` is missing or the suite won't start** — safe to re-run; every step skips work already done
-
-Not for writing or running tests — that's `docs/e2e-rules.md` and `npm run test:e2e`. This skill only provisions the infrastructure.
-
----
-
 ## Known Pitfalls (read before debugging a broken suite)
 
 These are real failures encountered when setting up Tauri v2 WebDriver on Linux/WSL2.

@@ -12,22 +12,6 @@ This skill owns the **format**; the main agent (governed by `CLAUDE.md`) owns th
 
 ---
 
-## Required tools
-
-`Bash` — for current date and git context (branch + short commit hash) auto-fill.
-
----
-
-## When to use
-
-- A reviewer emits a `[DECISION]` critical the main agent decides not to fix in this branch
-- A reviewer's `### ℹ️ Pre-existing tech debt` section flags something worth tracking
-- The main agent notices a non-actionable smell during work (cross-cutting issue, brittle pattern) and wants a normalized record
-
-Not for action items the user is committing to today — those belong in `docs/todo.md`. Tech-debt entries are **observations**, not commitments. They describe _what's odd_, not _what to do_.
-
----
-
 ## Execution Steps
 
 ### Step 1 — Collect inputs
@@ -98,7 +82,7 @@ After the block, append one short follow-up line:
 
 > Convention: insert at the top of `docs/techdebt.md`, under the entries marker (newest first), followed by `---`.
 
-Do not write to any file. Do not ask the user where to put it — that's the main agent's call, governed by the downstream `CLAUDE.md`.
+Do not write to any file. Do not ask the user where to put it — the main agent inserts it at the top of `docs/techdebt.md` (`docs/workflow.md` § 2).
 
 ---
 
@@ -111,9 +95,3 @@ Do not write to any file. Do not ask the user where to put it — that's the mai
 5. **One entry per invocation** — the skill produces one normalized block. Batches go through repeated invocations or a main-agent loop; this skill stays single-purpose.
 
 ---
-
-## Notes
-
-This skill complements the `[DECISION]` reviewer tag (see `docs/workflow.md` § `[DECISION]` criticals). Reviewers flag; the main agent decides; this skill normalizes the persisted record.
-
-The "observation, not fix" framing applies to _how entries are written_ (capture the smell, not the prescription); once captured, an entry is fair game for triage and scoring like any other backlog item.
