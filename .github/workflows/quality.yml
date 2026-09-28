@@ -116,6 +116,7 @@ jobs:
     outputs:
       frontend: ${{ steps.scope.outputs.frontend }}
       backend: ${{ steps.scope.outputs.backend }}
+      docs: ${{ steps.scope.outputs.docs }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -141,10 +142,14 @@ jobs:
           echo "scope=$scope"
           echo "frontend=$([[ "$scope" == frontend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "backend=$([[ "$scope" == backend || "$scope" == both || "$scope" == none ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "docs=$([[ "$scope" == docs ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
   frontend:
     name: Frontend — quality + coverage
     needs: scope
+    # A docs-only change (Markdown, docs/, screenshots/) cannot move lint, types
+    # or the build: the job is skipped, which `just merge` counts as passing.
+    if: needs.scope.outputs.docs != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -180,6 +185,9 @@ jobs:
   backend:
     name: Backend — quality + coverage
     needs: scope
+    # A docs-only change (Markdown, docs/, screenshots/) cannot move lint, types
+    # or the build: the job is skipped, which `just merge` counts as passing.
+    if: needs.scope.outputs.docs != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
