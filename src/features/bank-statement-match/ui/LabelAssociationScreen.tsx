@@ -4,7 +4,6 @@ import type { BankStatementCorrection, BankStatementReconciliation } from "@/bin
 import { useCacheStore } from "@/infra/cache/store";
 import { Button } from "@/ui/components/button";
 import { useFormatters } from "@/ui/format/formatters";
-import { sortFundsByName } from "../shared/fundOptions";
 import {
   allLabelsDecided,
   deriveLabelRows,
@@ -125,7 +124,7 @@ export function LabelAssociationScreen({
                   }}
                 >
                   <option value="">{t("bank:label_association.select_placeholder")}</option>
-                  {sortFundsByName(funds).map((fund) => (
+                  {funds.map((fund) => (
                     <option key={fund.id} value={fund.id}>
                       {fund.name}
                     </option>

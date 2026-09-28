@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context};
 use sqlx::SqlitePool;
+use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 use super::{
     Fund, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine, FundPaymentRepository,
@@ -35,6 +36,15 @@ pub trait FundRepository: Send + Sync {
     async fn find_fund_by_identifier(&self, identifier: &str) -> anyhow::Result<Option<Fund>>;
     async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>>;
     async fn delete_fund(&self, id: &str) -> anyhow::Result<()>;
+}
+
+/// Alphabetical order a user expects: case and accents ignored ("Élan" sits with the E's).
+/// SQLite's NOCASE folds ASCII only, so the sort happens here.
+fn name_sort_key(name: &str) -> String {
+    name.nfd()
+        .filter(|c| !is_combining_mark(*c))
+        .collect::<String>()
+        .to_lowercase()
 }
 
 pub struct SqliteFundRepository {
@@ -93,7 +103,9 @@ impl FundRepository for SqliteFundRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(Fund::from).collect())
+        let mut funds: Vec<Fund> = rows.into_iter().map(Fund::from).collect();
+        funds.sort_by_cached_key(|f| (name_sort_key(&f.name), f.fund_identifier.clone()));
+        Ok(funds)
     }
 
     async fn read_fund(&self, id: &str) -> anyhow::Result<Option<Fund>> {
@@ -780,6 +792,37 @@ mod tests {
         repo.create_fund("59", "CPAM 59").await.unwrap();
         let all = repo.read_all_funds().await.unwrap();
         assert_eq!(all.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_debt_008_read_all_funds_sorted_by_name_ignoring_case_and_accents() {
+        let repo = setup_fund_repo().await;
+        for (identifier, name) in [
+            ("1", "mutuelle b"),
+            ("2", "Élan"),
+            ("3", "Zenith"),
+            ("4", "caisse"),
+            ("6", "Mutuelle A"),
+            ("5", "Mutuelle A"),
+        ] {
+            repo.create_fund(identifier, name).await.unwrap();
+        }
+        let order: Vec<(String, String)> = repo
+            .read_all_funds()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|f| (f.name, f.fund_identifier))
+            .collect();
+        let expected = [
+            ("caisse", "4"),
+            ("Élan", "2"),
+            ("Mutuelle A", "5"),
+            ("Mutuelle A", "6"),
+            ("mutuelle b", "1"),
+            ("Zenith", "3"),
+        ];
+        assert_eq!(order, expected.map(|(n, i)| (n.to_string(), i.to_string())));
     }
 
     #[tokio::test]

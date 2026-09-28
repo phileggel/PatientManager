@@ -76,22 +76,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ---
 
-## 2026-07-29 — DEBT-008 — `read_all_funds` has no ORDER BY; every consumer inherits insertion order
-
-**Found by:** manual audit (bank reconciliation UX, branch `next`).
-
-**Where:** `src-tauri/src/context/fund/repository.rs:82-97` — `SELECT … FROM fund` without `ORDER BY`, so the funds cache (`infra/cache/store.ts`) and every dropdown consuming it render funds in DB-insertion order.
-
-**Observation:** the bank-statement fund selects get an FE-local `localeCompare` sort as the surgical fix; a backend `ORDER BY name COLLATE NOCASE` would fix all consumers at once but changes ordering everywhere (dashboard, excel-import mapping) and deserves its own pass. When next touching the fund repository, consider promoting the sort to SQL and dropping the FE-local sorts.
-
-**Done when:** `read_all_funds` returns funds sorted by name, case-insensitively, so every fund list (dashboard, Excel import mapping, bank matching) is alphabetical; the bank screen's local sort is removed; a test proves the order.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
 ## 2026-07-30 — DEBT-007 — Explicit unassign does not survive a later link-fund cascade
 
 **Found by:** post-v0.20.0 audit (spec-checker, BAS-062).

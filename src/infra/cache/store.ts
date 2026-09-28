@@ -29,15 +29,10 @@ interface AppState {
 
   // Actions
   setPatients: (patients: Patient[]) => void;
-  addPatients: (patients: Patient[]) => void;
   setFunds: (funds: Fund[]) => void;
-  addFunds: (funds: Fund[]) => void;
   setProcedureTypes: (procedureTypes: ProcedureType[]) => void;
-  addProcedureTypes: (procedureTypes: ProcedureType[]) => void;
   setBankAccounts: (accounts: BankAccount[]) => void;
-  addBankAccounts: (accounts: BankAccount[]) => void;
   setFundPaymentGroups: (groups: FundPaymentGroup[]) => void;
-  addFundPaymentGroups: (groups: FundPaymentGroup[]) => void;
   setProcedureTypesError: (error: ProcedureError | null) => void;
 
   setLoading: (
@@ -62,35 +57,15 @@ export const useCacheStore = create<AppState>((set) => ({
 
   // Actions
   setPatients: (patients) => set({ patients }),
-  addPatients: (patients) =>
-    set((state) => ({
-      patients: [...state.patients, ...patients],
-    })),
 
   setFunds: (funds) => set({ funds }),
-  addFunds: (funds) =>
-    set((state) => ({
-      funds: [...state.funds, ...funds],
-    })),
 
   setProcedureTypes: (procedureTypes) => set({ procedureTypes }),
-  addProcedureTypes: (procedureTypes) =>
-    set((state) => ({
-      procedureTypes: [...state.procedureTypes, ...procedureTypes],
-    })),
   setProcedureTypesError: (error) => set({ procedureTypesError: error }),
 
   setBankAccounts: (accounts) => set({ bankAccounts: accounts }),
-  addBankAccounts: (accounts) =>
-    set((state) => ({
-      bankAccounts: [...state.bankAccounts, ...accounts],
-    })),
 
   setFundPaymentGroups: (groups) => set({ fundPaymentGroups: groups }),
-  addFundPaymentGroups: (groups) =>
-    set((state) => ({
-      fundPaymentGroups: [...state.fundPaymentGroups, ...groups],
-    })),
 
   setLoading: (type, loading) => {
     if (type === "patients") {

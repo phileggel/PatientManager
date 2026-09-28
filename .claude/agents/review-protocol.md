@@ -45,3 +45,4 @@ One line per finding: location, claim, fix. Omit empty sections and clean files.
 2. **One pass.** Review every file in scope in one reply.
 3. **Stay in the lane.** A finding owned by another lane is left to it.
 4. **External claims need a source.** A version, deprecation or "current best practice" claim cites a link or is softened ("as of training cutoff — verify with …", naming the command or `/dep-audit`) and capped at 🟡.
+5. **Not a finding in any lane:** a test name carrying its entry id or spec rule (`test_todo_003_…`, `…_bas_120_…`) — `docs/workflow.md` § 3 asks for it.
