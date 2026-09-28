@@ -1,22 +1,12 @@
-## Objective
+<!-- Format: docs/workflow.md § 3, step 8. Under 20 lines. -->
 
-<!-- One or two sentences describing what this PR accomplishes -->
+**Task** — the entry (TODO-NNN / DEBT-NNN) or the request, in one line. **Scope** — commit type and layers. **Design** — mock approved, or none. **Touching** — the paths.
 
-## Feature
+What changes for the user (or "Nothing changes for a user — internal").
 
-<!-- User-facing description without technical details.
-Focus on what the user can do and how it solves the problem.
-Avoid implementation details, file paths, or architecture discussion. -->
+- Done when "…" → the test that proves it
+- Closure: entry removed from `docs/todo.md` / `docs/techdebt.md` and from `## Next`
 
-## Tests
+Reviewers (local): findings that changed something; techdebt filed.
 
-<!-- Provide a summary of test results -->
-
-- [ ] All React tests passing
-- [ ] All Rust tests passing
-- [ ] Build successful
-- [ ] Linters OK (oxlint, biome, clippy)
-
----
-
-**Reference:** See [PULL_REQUEST_POLICY.md](../PULL_REQUEST_POLICY.md) for guidelines.
+Screenshots: one per changed component, or "No visual impact" and the screen that consumes the change.

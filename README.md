@@ -160,7 +160,7 @@ Both linters catch issues early and maintain consistent code standards across fr
 ### Development & Technical
 
 - [Architecture](docs/development/architecture.md) - System design, structure, and data flow
-- [Commit Policy & Versioning](COMMIT_POLICY.md) - Commit standards, versioning, and release process
+- [Commit Policy & Versioning](docs/commit-rules.md) - Commit standards, versioning, and release process
 - [Contributing](CONTRIBUTING.md) - How to contribute
 - [Testing](docs/development/testing.md) - Testing strategy and guidelines
 

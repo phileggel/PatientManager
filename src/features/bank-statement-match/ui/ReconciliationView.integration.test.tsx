@@ -60,7 +60,7 @@ const mockCompute = vi.mocked(gateway.computeBankStatementReconciliation);
 const mockValidate = vi.mocked(gateway.validateBankStatementReconciliation);
 
 // ---------------------------------------------------------------------------
-// Fixtures — stable references (F19 / test_convention.md)
+// Fixtures — stable references (F19 / test-rules.md)
 // ---------------------------------------------------------------------------
 
 const BANK_ACCOUNT_ID = "acc-1";

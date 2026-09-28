@@ -1,6 +1,6 @@
 # ARCHITECTURE.md
 
-> Project-specific architecture overview for **PatientManager**. Complements the rule docs (`docs/backend-rules.md`, `docs/frontend-rules.md`, `docs/ddd-reference.md`, `docs/error-model.md`, `docs/test_convention.md`, `docs/i18n-rules.md`, `docs/e2e-rules.md`). This doc is the **conceptual map**; the rule docs cover the **conventions**.
+> Project-specific architecture overview for **PatientManager**. Complements the rule docs (`docs/backend-rules.md`, `docs/frontend-rules.md`, `docs/ddd-reference.md`, `docs/error-model.md`, `docs/test-rules.md`, `docs/i18n-rules.md`, `docs/e2e-rules.md`). This doc is the **conceptual map**; the rule docs cover the **conventions**.
 
 > **Read this when** you need to understand WHAT PatientManager does and HOW its pieces fit together.
 > **Read the rule docs when** you need to know HOW we structure code.
@@ -116,9 +116,9 @@ The non-obvious facts that constrain future work — things you'd never guess fr
 ### Frontend
 
 - **Locale**: fr-primary, en-secondary. Every visible string flows through `t()` (F24 covers `aria-label`, `placeholder`, `title`, etc. too).
-- **Currency / date rendering**: canonical helpers in `src/lib/formatters.ts` (`useFormatters().formatCurrency` / `formatDate`). Hand-rolled `Intl.NumberFormat("fr-FR", …)` is forbidden.
+- **Currency / date rendering**: canonical helpers in `src/ui/format/formatters.ts` (`useFormatters().formatCurrency` / `formatDate`). Hand-rolled `Intl.NumberFormat("fr-FR", …)` is forbidden.
 - **One `gateway.ts` per feature** is the ONLY place `commands.*` is called (F26). Sub-features import from it; never create their own.
-- **Three feature layout generations coexist** (Flat → Layer-first → Feature-first/gold). New features follow gold; existing features migrate bit-by-bit per CLAUDE.md § Gold Standards. See [Feature layout](#feature-layout) below.
+- **Three feature layout generations coexist** (Flat → Layer-first → Feature-first/gold). New features follow gold; existing features migrate bit-by-bit per `docs/workflow.md` § 10. See [Feature layout](#feature-layout) below.
 - **Event-driven state sync**: backend publishes `{Domain}Updated` events on every mutation; the FE listens via `useEffect` + the window event bus and updates `useCacheStore` (Zustand singleton at `src/infra/cache/store.ts`, bootstrapped by `useCacheSync()` in `src/infra/cache/sync.ts`). Grep `EventBus` (backend) or `useEffect.*addEventListener` (frontend) to find specific event names.
 
 ### Data & infra
@@ -166,48 +166,34 @@ Backend publishes {Domain}Updated event
 
 ## Feature layout
 
-Three generations coexist. The **bit-by-bit rule** applies (CLAUDE.md § Gold Standards): new features follow gold; existing features stay in their current generation unless a touched-file edit naturally folds the migration in under the 50-LOC / locality / mechanical gates.
+Three generations coexist. The **bit-by-bit rule** applies (`docs/workflow.md` § 10): new features follow gold; existing features stay in their current generation unless a touched-file edit naturally folds the migration in under the 50-LOC / locality / mechanical gates.
 
 - **Flat (old)** — everything at root (`gateway.ts`, component, hook, `shared/`).
-  Examples: `fund`, `patient`, `bank-account`, `fund-payment`, `bank-statement-match`, `fund-payment-match`, `procedure-type`.
+  Examples: `fund`, `patient`, `fund-payment`, `bank-statement-match`, `fund-payment-match`, `procedure-type`.
 - **Layer-first (middle, do not replicate)** — `api/` + `presentation/` split.
   Examples: `excel-import`, `procedure`.
 - **Feature-first (gold)** — `gateway.ts` at root + sub-feature directories with colocated component + hook + test.
-  Examples: `bank-transfer`, `db-backup`.
+  Examples: `bank-account` (the reference), `bank-transfer`, `db-backup`.
 
-Gold layout reference (`bank-transfer`):
-
-```
-features/{domain}/
-├── gateway.ts                     # ONLY file that calls commands.* for this domain
-├── store.ts                       # Feature-scoped Zustand store (if needed)
-├── {sub_feature}/
-│   ├── {SubFeature}.tsx           # Component
-│   ├── use{SubFeature}.ts         # Colocated hook
-│   └── use{SubFeature}.test.ts    # Colocated test
-├── shared/
-│   ├── presenter.ts               # Domain → UI transformations
-│   └── validate{Domain}.ts        # Pure validation logic
-└── index.ts                       # Public re-exports
-```
+The tree is **F0** in `docs/frontend-rules.md`.
 
 ---
 
 ## Where to find things
 
-| Need                             | Look at                         |
-| -------------------------------- | ------------------------------- |
-| Domain vocabulary                | `docs/ubiquitous-language.md`   |
-| Backend rules (DDD, layout)      | `docs/backend-rules.md`         |
-| DDD concepts + error categories  | `docs/ddd-reference.md`         |
-| Typed-error model how-to         | `docs/error-model.md`           |
-| Frontend rules (layout, F24–F28) | `docs/frontend-rules.md`        |
-| i18n conventions                 | `docs/i18n-rules.md`            |
-| Frontend visual proof            | `docs/frontend-visual-proof.md` |
-| Test conventions (unit, RTL)     | `docs/test_convention.md`       |
-| E2E conventions                  | `docs/e2e-rules.md`             |
-| Per-feature business rules       | `docs/spec/*.md`                |
-| Per-domain contracts             | `docs/contracts/*.md`           |
-| Architecture decisions           | `docs/adr/*.md`                 |
-| Recorded code smells             | `docs/techdebt.md`              |
-| Backlog                          | `docs/todo.md`                  |
+| Need                             | Look at                       |
+| -------------------------------- | ----------------------------- |
+| Domain vocabulary                | `docs/ubiquitous-language.md` |
+| Backend rules (DDD, layout)      | `docs/backend-rules.md`       |
+| DDD concepts + error categories  | `docs/ddd-reference.md`       |
+| Typed-error model how-to         | `docs/error-model.md`         |
+| Frontend rules (layout, F24–F28) | `docs/frontend-rules.md`      |
+| i18n conventions                 | `docs/i18n-rules.md`          |
+| Frontend visual proof            | `docs/visual-proof-rules.md`  |
+| Test conventions (unit, RTL)     | `docs/test-rules.md`          |
+| E2E conventions                  | `docs/e2e-rules.md`           |
+| Per-feature business rules       | `docs/spec/*.md`              |
+| Per-domain contracts             | `docs/contracts/*.md`         |
+| Architecture decisions           | `docs/adr/*.md`               |
+| Recorded code smells             | `docs/techdebt.md`            |
+| Backlog                          | `docs/todo.md`                |

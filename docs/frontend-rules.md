@@ -107,6 +107,8 @@ These directories MAY exist alongside the 4 buckets and are not subject to the r
 
 **F3** — `gateway.ts` or `store.ts` are the ONLY files allowed to call `commands.*`. Sub-features with a dedicated use case may have their own `gateway.ts` (e.g. `manual_match/gateway.ts`).
 
+**F29** — A gateway calls `commands.*` exactly as `src/bindings.ts` declares it: positional arguments, same count, order and names — `commands.addPatient(name, ssn, fundPatientName)`, never `commands.addPatient({ name, ssn, fundPatientName })`.
+
 **F4** — Shared utilities, types, and sub-components used by multiple sub-features MUST live in `shared/`.
 
 **F5** — SHOULD use a presenter (`shared/presenter.ts`) to transform domain data into view models.
@@ -250,7 +252,7 @@ Client-side validation (no backend round-trip) follows the same pipeline: valida
 - API call arguments and success/error handling
 - Do NOT write tests that only verify rendering or DOM structure
 
-> Visual changes additionally require committed screenshots — see [`frontend-visual-proof.md`](frontend-visual-proof.md).
+> Visual changes additionally require committed screenshots — see [`visual-proof-rules.md`](visual-proof-rules.md).
 
 **F19** — When using `renderHook`, NEVER create objects or functions inside the render callback. The callback runs on every render; inline factories produce new references each render. If used as a `useEffect` dependency, this causes an infinite loop → OOM crash. Always extract stable references before calling `renderHook`.
 

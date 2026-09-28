@@ -8,7 +8,7 @@ Rules (frontend under `src/`, backend under `src-tauri/src/`), each one a rule
 the project docs already state (CLAUDE.md, docs/frontend-rules.md):
 
   A1  only a gateway calls the Tauri bindings — `commands.` appears only in
-      files named `*gateway.ts` (CLAUDE.md § Architecture Summary)
+      files named `*gateway.ts` (frontend-rules F3)
   A2  a feature never imports a sibling feature; `features/shell/` is the
       composition root and may host any feature (F26)
   A3  a bounded context never reaches into another (`crate::context::<other>`)

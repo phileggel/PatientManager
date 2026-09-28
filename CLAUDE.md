@@ -1,244 +1,66 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code in this repository. It is an index: every rule lives in one home — [`docs/README.md`](docs/README.md) maps them — and this file points there. Code map: [`ARCHITECTURE.md`](ARCHITECTURE.md). How work moves: [`docs/workflow.md`](docs/workflow.md).
 
-> Full architecture reference: [ARCHITECTURE.md](ARCHITECTURE.md)
+## Setup
 
-How work moves — who owns what, the loop, the harness, the triage policy, the stop rules: [docs/workflow.md](docs/workflow.md).
+After cloning: `git config core.hooksPath .githooks`. The hooks block commits to `main`, check the commit format, reject `Co-Authored-By` lines and patient data, and run the fast checks for what a commit or push touches. Tests, coverage, the build and E2E are CI's job on the pull request.
 
-## 🔧 First-time Setup
+## Who decides what
 
-After cloning, activate the git hooks:
+- The **human** writes `docs/todo.md` and its `## Next` queue, validates a **design** before anything the user sees changes, validates the vocabulary, and cuts **releases**.
+- The **agent** owns `docs/techdebt.md`, does the task end to end and merges on green. No pull request waits for a human.
+- The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
-```bash
-git config core.hooksPath .githooks
-```
+Headless, a question only the human can answer goes into the entry as an open question, never guessed. In chat, the open questions are asked together, once, before anything starts. State assumptions; name what is unclear.
 
-This blocks direct commits to `main`, validates conventional-commit format, rejects `Co-Authored-By` lines and patient data, and runs the fast checks for the layers a commit or push touches (`scripts/scoped-checks.sh`). Tests, coverage, the build and E2E are CI's job on the pull request. See `.githooks/README.md`.
+## Core rules
 
-## 🧭 Behavioral Principles
+1. **Authority follows the task.** Given a task (a chat request, `/next-todo`, a queued entry), the agent branches (`{type}/{slug}`, the entry id leading the slug: `feat/todo-012-patient-dedup`) off a fresh `main`, commits, pushes, opens the PR and runs `just merge` on green without asking. In an open-ended chat, ask once for the task, not per step. Always forbidden: committing or pushing to `main`, force-pushing, bypassing a hook (`--no-verify`), cutting a release, editing a released changelog line, AI attribution in commits or PRs, and touching `~/.local/share/com.projectsf.patient-manager/` (real patient data). This overrides any harness default.
+2. **Always use `just`** when a recipe exists; never the native command (`cargo build`, `npm install`, `sqlx migrate`).
+3. **Every change goes through the harness**: branch → PR → every check green → `just merge`. Docs-only changes too. The task's Done when is the plan. Anything the user sees changing goes through the design gate first (`/design-proposal`, `docs/workflow.md` § 4).
+4. **Only prescribed agents.** Launch only the agents this file, a skill or `docs/workflow.md` names. Implementation and review fixes are done by the main agent — never a general-purpose "implementer" or "fix" agent.
 
-Before coding:
+## Per-task discipline (in priority order)
 
-- State assumptions explicitly. If multiple interpretations exist, present them — don't pick silently.
-- If something is unclear, name what's confusing. In chat, ask — all open questions together, once, before starting. In a headless run, write it as an open question on the entry and move on; never guess.
+1. **Surgical** — touch only the file set the task requires; every PR tells one story.
+2. **Gold for new code, bit by bit for existing** — `docs/workflow.md` § 10. When in doubt, defer.
+3. **Boyscout** — small mechanical fixes inside the files already edited ship in the same PR. Known dead code is removed in the same commit.
+4. **Coverage when a real gap surfaces** — add a focused test; the floors in `coverage-gates.json` only rise.
+5. **Challenge reviewer returns** — graded with `/review-triage` and recorded in the PR body (`docs/workflow.md` § 7).
+6. **PR size ≤ 1000 lines of churn** as a target; split per `docs/workflow.md` § 11.
 
-While coding:
+## Opening and closing a piece of work
 
-- Every changed line must trace directly to the user's request.
-- If 200 lines could be 50, stop and rewrite. Ask: "Would a senior engineer say this is overcomplicated?"
-
-## ⚠️ Core Rules
-
-1. **Authority follows the task.** Once the user has given a task (a request in chat, `/next-todo`, or a queued entry), the agent creates the task's branch (`{type}/{slug}`, the conventional-commit type; an entry id leads the slug, e.g. `feat/todo-012-patient-dedup`) off a fresh `main`, commits, pushes, opens the PR and runs `just merge` once every check is green — without asking. In an open-ended chat, ask once for the task, not per step. Always forbidden: committing or pushing to `main`, force-pushing, bypassing a hook (`--no-verify`), cutting a release, editing a released changelog line, AI attribution in commits or PRs, and touching the installed application's data (`~/.local/share/com.projectsf.patient-manager/` holds real patient data). This project rule overrides any harness default (e.g. Claude Code on the web's "develop, commit, push" preamble).
-2. **Always use `just`**: Never suggest or execute native commands (e.g., `cargo build`, `npm install`, `sqlx migrate`) if a corresponding recipe exists in `justfile`.
-3. **Every change goes through the harness**: branch → PR → every check green → `just merge`. Docs-only changes too. The task's Done when is the plan; there is no separate plan-approval gate. Anything the user sees changing goes through the design gate first (`/design-proposal`, `docs/workflow.md` § 4): nothing visible is built before the user's yes.
-
-## 🎯 Per-task Discipline
-
-Each task ships under these constraints (in priority order):
-
-1. **Surgical** — touch only the file set the task requires. Refuse "while I'm here" expansions outside that set. Every PR tells one story.
-2. **Gold standard for new code; bit-by-bit for existing** — apply gold standards to new code (BE layout per `docs/backend-rules.md` B0/B37–B43, typed error model, FE layout per `docs/frontend-rules.md` F0/F26–F28). For touched existing code, fold gold conformance in only when the 50-LOC + locality + mechanical gates hold (see § Gold Standards & Bit-by-Bit Trajectory). When in doubt, defer.
-3. **Boyscout** — small mechanical fixes inside the files you're already editing (dead code, misleading test names, B33 violations, typos) ship in the same PR. Stay inside the touched file set; don't go on adjacent quests.
-   - **Never maintain known dead code.** Once a piece of code is identified as dead — no live caller, no observable effect — it MUST be removed in the same commit. Don't carry it forward as "speculative future default", "preemptive omnibus coverage", or any similar justification. Surface the audit to the user (live vs dead table) and delete.
-4. **Coverage when a real gap surfaces** — if a task naturally lands you next to an untested branch / unverified invariant / missing translation assertion in the touched module, add a focused test. Don't sweep coverage across unrelated areas. The floors in `coverage-gates.json` (logic code only; CI and `just harness` enforce them) are a ratchet: raise them in the change that lifts coverage, never lower them.
-5. **Challenge reviewer returns** — every finding (reviewer agent, CI lane comment, PR comment, self-review) is graded on `/review-triage`'s axes and the outcome recorded in the PR body (`docs/workflow.md` § 7): (a) **actionable in scope** — introduced by the diff, or pre-existing but boyscout-eligible → fix now; (b) **actionable but bigger** → `DEBT-NNN` in `docs/techdebt.md`, ship the scoped change; (c) **false positive** → one-off: inline `<reviewer> FP: <reason> — see PR #NN`; pattern: a "not a finding" rule in the reviewer's prompt, same PR. A CI finding the local run missed becomes a rule in that reviewer's prompt, same PR. A `[DECISION]` critical is never fixed unilaterally: an open question on the entry (or to the user in chat), then an ADR. "Pre-existing" alone never decides the grade. No halt for the user on (b)/(c): the PR body records them.
-
-6. **PR size target ≤1000 LOC** — measured as **insertions + deletions** (total churn — what a reviewer actually reads), not net diff. Not a hard cap, but split when a PR crosses it OR tells two stories. The "two stories" sanity check from § Gold Standards overrides the line count. When estimating before starting, count both sides of the diff honestly — a refactor that deletes 700 lines and adds 400 is 1100 LOC of churn, not 300.
-
----
-
-## 🧾 Opening and closing a piece of work
-
-**Opening brief** — four lines before the first edit (chat: the first message; headless: the top of the PR body), so the shape is fixed while nothing is at stake:
+**Opening brief** — four lines before the first edit (first message in chat; top of the PR body headless):
 
     **Task**     — the entry (TODO-NNN / DEBT-NNN) or the request, in one line
     **Scope**    — the commit type and the layers (backend / frontend / E2E / docs / CI)
     **Design**   — none, validated, or needed (then the mocks come before anything else)
     **Touching** — the paths, so the reviewer lanes are known before the diff exists
 
-**Closing brief** — the last message of a piece of work (and the PR body's first lines), two parts: (1) what changed for whoever reads this next — for `feat` / `fix`, what a user notices, or "nothing — internal"; otherwise, what can now be done or trusted that could not before; (2) what the project accumulated — tests added and coverage moved, or the guarantee a harness change buys and how we know it can fail. What is still owed goes in `docs/techdebt.md`, not here.
-
----
-
-## 🔄 Workflows
-
-**The workflow** (`docs/workflow.md`): `/next-todo` runs one task end to end — the first ready entry of `docs/todo.md` § Next (headless), a named `TODO-NNN` / `DEBT-NNN`, or a plain request in chat — through branch, design gate, acceptance tests first, implementation, `just harness`, reviewers, PR, merge on green, closure. `docs/todo.md` is the user's; `docs/techdebt.md` is the agent's.
-
-**Only prescribed agents.** Launch only the agents this file, a skill or `docs/workflow.md` names. Implementation and review fixes are done by the main agent directly — never a general-purpose "implementer" or "fix" agent.
-
-Key skills: `/next-todo` (run a task end to end), `/design-proposal` (mocks for the user to validate), `/spec-writer` (draft spec), `/contract` (derive contract), `/adr-writer` (Architecture Decision Records), `/review-triage` (triage reviewer findings against (a)/(b)/(c)), `/prune` (dead-code audit), `/dep-audit` (dependency CVE check), `/setup-e2e` (one-time E2E setup), `/visual-proof` (capture frontend screenshots), `/techdebt` (record tech-debt entry), `/session-reflect` (end-of-session rule audit).
-Key recipes: `just check` (lint/format), `just check-full` (tests + build + lint), `just format` (auto-fix), `just generate-types` (regenerate Specta bindings), `just merge` (rebase folding `fixup!` commits, refuse unless every check on the PR is green and every check in `required-checks.json` is present, fast-forward, push, delete branch), `just test-scripts` (unit tests of `scripts/`), `just arch-check` (architecture rules A1–A7, run by the hooks, `just harness` and CI; today's debt is frozen in `arch-allowlist.json` — fix the code, never raise an entry; `--write-allowlist` only lowers it), `just harness` (CI's gate locally, scoped to the layers the branch touched; E2E stays in CI), `just next-todo` (one ready entry, headless), `just coverage-gate` (the coverage floors), `just privacy-check` (patient data), `just release` (full quality validation → conventional-commit semver bump → version-file sync across `package.json` + `Cargo.toml` + `tauri.conf.json` + `Cargo.lock` → CHANGELOG regen → commit + tag + push, all in one shot; use `--dry-run` to preview the version bump, `-y` for non-TTY contexts).
-Key agents: before every PR, launch exactly the reviewer lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints — none for a docs-only change, never a lane it did not print (`reviewer-security` also runs in `release-sweep` mode before every release); re-run them on the fixes until no 🔴 remains, then push. CI runs the same lanes on every PR (`.github/workflows/review.yml`, a sticky comment per lane, any 🔴 fails the check) as the last net: a finding CI raises that the local run missed becomes a rule in that reviewer's prompt, in the same PR; `adr-reviewer` — run after `/adr-writer` creates or supersedes an ADR; `spec-reviewer` / `contract-reviewer` when those documents change.
-
-### Mandatory pre-read by task type
-
-Before implementing, read the relevant convention docs:
-
-- **Backend changes** — `docs/backend-rules.md` + `docs/ddd-reference.md` (DDD concepts + error categories). When touching the error model, also read `docs/error-model.md` (typed-error how-to: BC enums, composites, anti-patterns).
-- **Frontend changes** — `docs/frontend-rules.md` + `docs/i18n-rules.md` + `docs/frontend-visual-proof.md`. Run `/visual-proof` after implementation to capture all states in light + dark mode.
-- **E2E changes** — `docs/e2e-rules.md`.
-- **Any test work** (unit / integration / E2E, BE or FE) — `docs/test_convention.md`.
-
-### After completion — update the source doc
-
-When work resolves a todo entry, an open question, or a tech-debt observation, update the source doc in the same PR. Use `/techdebt` for non-actionable code smells, `/spec-writer` + `spec-reviewer` for new business rules, `/contract` + `contract-reviewer` for the matching contract, `/adr-writer` + `adr-reviewer` for architectural decisions.
-
-### Task tracking (within a conversation)
-
-For every implementation task, use `TaskCreate` / `TaskUpdate`:
-
-- Create tasks before implementing anything non-trivial (>1 file or >1 step).
-- Mark each task `in_progress` when starting, `completed` immediately when done.
-
-### PR strategy — split per layer for non-trivial features
-
-For features that touch both backend and frontend, **default to one PR per layer** when either layer exceeds ~20 changed files or ~500 LOC. Below that threshold a single PR is fine.
-
-When splitting, the order is **BE → FE → E2E**:
-
-1. **Spec / contract / migration / backend domain + service + api + bindings** — first PR. Mergeable on its own (FE doesn't yet consume the new types but TS bindings are present and unused, no runtime impact).
-2. **Frontend gateway / hooks / presenter / components / i18n** — second PR, branched off the merged BE branch.
-3. **E2E tests + ARCHITECTURE / todo / spec-checker closure** — third PR.
-
----
-
-## 📖 Ubiquitous Language
-
-`docs/ubiquitous-language.md` is the authoritative dictionary of domain terms.
-
-- **All automation** (agents like `reviewer-arch`; skills like `/spec-writer`) MUST read it before naming or reviewing any domain concept.
-- Confirmed terms MUST be used consistently in code, specs, comments, and logs — even when existing code still uses a discrepant name (those are tracked as `⚠️ Code discrepancy` in the UL doc and are known migration targets).
-- New code MUST use the UL name; do not extend usage of a discrepant term.
-
-## 🏗 Architecture Summary
-
-Tauri 2 app (React 19 + Rust) using Domain-Driven Design.
-
-**Backend (`src-tauri/src/`)** _(target v4.4 layout — see `docs/backend-rules.md` § Folder Structure; see `## 🥇 Gold Standards` for the bit-by-bit migration rule)_:
-
-- `shared/infrastructure/specta_builder.rs` — Tauri command registry (DO NOT add commands elsewhere)
-- `context/{bc}/{application,domain,infrastructure}/` — Bounded contexts with symmetric DDD layer folders (no cross-context imports)
-- `use_cases/{flow}/` — Cross-context orchestrators
-
-The codebase still uses the pre-v4.4 layout (`core/`, flat `{aggregate}/repository.rs`) in many places. Follow the v4.4 layout for **new** modules; for surgical edits to old-layout files, follow the bit-by-bit rule (don't migrate the surrounding file unless the conformance fits the 50-LOC / locality / mechanical gates).
-
-**Frontend (`src/`)**:
-
-- `bindings.ts` — Auto-generated from Rust via Specta (DO NOT EDIT)
-- `features/{domain}/` — Feature modules (gold layout: `bank-account`):
-  - `gateway.ts` at root — only file allowed to call `commands.*`
-  - Sub-feature subdirectories with colocated component + hook + test
-  - `shared/presenter.ts` — domain → UI transformations; `shared/validate*.ts` — validation
-
-**Data Flow**: Component → Hook → Gateway → Tauri Command → Rust Service → Repository
-
-## 🥇 Gold Standards & Bit-by-Bit Trajectory
-
-The project has three evolving "gold" targets the codebase moves toward **bit by bit** over time. Future sessions follow them for **new code** and for **small surgical updates** to existing code, but **never trigger a big-bang refactor** to make existing code conformant.
-
-### The three golds
-
-1. **Backend layout gold** — v4.4.0 layout. Rules `B0`, `B37`–`B43` in `docs/backend-rules.md`. New code under `shared/` (not `core/`), `context/{bc}/{application,domain,infrastructure}/` symmetric trio, `infrastructure/` (not `repository/`). Migration of existing `core/` + flat `{aggregate}/repository.rs` is tracked in `docs/todo.md` "DDD Convergence" entry.
-2. **Frontend layout gold** — codified in `docs/frontend-rules.md` as **F0** (the canonical `src/` tree: `features/`, `shell/`, `ui/`, `infra/` buckets + root-level singletons `App.tsx` / `router.tsx` / `main.tsx` / `bindings.ts`), **F26** (cross-feature imports evaluated by what's imported, not by the fact of crossing), **F27** (typed backend errors must flow through the 4-layer FE pipeline — paired with the backend rejection-layer rule in `ddd-reference.md`; no silent drops at any layer), and **F28** (per-bucket inclusion + exclusion rules). Apply to new FE code; bit-by-bit for existing.
-3. **Error-model gold** — one flat `{BC}Error` per bounded context (`src-tauri/src/context/{bc}/error.rs`) holding every aggregate-invariant + service variant; one `{UseCase}Error` composite per use case (`#[serde(untagged)]`) wrapping BC enums via `#[from]`; use-case-specific guards and catch-alls live in a separate `{UseCase}Task` sub-enum (`#[serde(tag = "code")]`) wired into the composite via `#[from]`. The composite (or BC enum directly) is the FE-facing type at the Tauri command boundary. Per-BC `*ApplicationError` / `*DomainError` splits AND bare unit variants directly on the `#[serde(untagged)]` composite (they serialize to `null` on the wire) are explicit anti-patterns. Full how-to: `docs/error-model.md`. Migration tracked in `docs/todo.md` "Structured errors: replace anyhow/String with typed error variants".
-
-### Bit-by-bit update rule
-
-Apply gold to **new code** (new files, new commands, new error variants, new features). For **existing code that touches a gold-standard area** during a task, fold gold conformance into the current task ONLY when ALL three hold:
-
-- **Size**: ≤50 LOC of conformance changes (a checkpoint number, not a magic threshold — see "two stories" check below).
-- **Locality**: changes stay within the natural file set the task already touches. Don't pull unrelated files into the diff just to gold-conform them.
-- **Mechanical**: rename, import update, signature swap, type substitution. Any fresh **design judgement** ("which layer does this belong in?", "what should this variant be named?") triggers defer even if the line count is small — that's a design call that deserves its own PR + discussion.
-
-If any of the three fails, **DO NOT refactor** — match the current project standard in the touched area and continue. The bigger gold migrations are tracked in `docs/todo.md` / `docs/techdebt.md` and ratcheted in their own dedicated PRs when the user schedules them.
-
-**The "two stories" sanity check** (overrides the LOC number when in tension): would a reviewer say this PR is telling **one story** (the feature/fix) or **two stories** (the feature/fix + a layout migration)? If two, the gold conformance IS the second story — defer it. The LOC threshold is just a fast-path heuristic for catching this; "two stories" is the real test.
-
-**Why this rule**: gold consistency is a long-term ratchet, not a per-PR mandate. Refactor sprawl (touching unrelated files to make them gold-conformant) is the failure mode this policy prevents. The target of this app is shipping working features, not perfect layering. Each task pushes the codebase **a bit** closer to gold; never let "but it's not gold" block forward progress, and never let "while I'm here" balloon a task into a refactor.
-
-**Consistency is not the goal**: if a touched area is currently using the OLD project standard and the surrounding code is OLD, KEEP IT OLD when conformance would breach the 50-LOC threshold. Mixed-standard codebase is acceptable during the bit-by-bit migration; pure gold conformance is acceptable too. What is NOT acceptable is partial-mid-flight refactors that leave neither standard intact.
-
-**When in doubt** about whether something crosses the 50-LOC threshold: estimate it in the opening brief and defer. Don't silently drift into a big refactor.
-
-## 📏 Standards
-
-- **Commits** (`COMMIT_POLICY.md`): conventional, **title only** (no body), at most 72 characters. **Titles target the user, not the developer** — `feat` / `fix` titles become changelog lines: describe the user-visible outcome in plain words, no layer tags, rule ids, code identifiers or abbreviations. Type by what the change touches: dead-code removal in production code is `refactor:`, test-only deletion is `test:`, tooling is `chore:`, workflows and the harness are `ci:`.
-- **One task, one commit.** A task lands on `main` as one commit: review fixes, coverage top-ups and closure edits belong inside it — amended before the first push, a `git commit --fixup <sha>` after it (`just merge` folds it). Never force-push by hand.
-- **One changelog line per user-visible change.** A `feat` / `fix` commit adds user-visible value of its own; a commit that doesn't is folded into its feature commit or typed `refactor` / `chore` / `ci` / `test` / `docs`.
-- **Concise by default.** Everything written for a reader — PR bodies (under 20 lines), techdebt entries, reports, chat — states each fact once, in the fewest words that keep it verifiable.
-- **Style**: React functional components, Rust traits for repositories.
-- **Lints**: Oxlint & Biome (FE), Clippy (BE). All must pass.
-
-## 🖼 Frontend Visual Proof
-
-Full rules: `docs/frontend-visual-proof.md`
-
-Any `.tsx`, `.css`, or visual asset change **must** include a committed screenshot in `screenshots/` before merging.
-
-One-time setup: `npx playwright install chromium`
-
-Run `/visual-proof` after any frontend change — auto-discovers config on first run, generates previews for all component states in light + dark mode, captures with Playwright, and stages screenshots.
-
-> **No visual change**: write `No visual impact — internal refactor / Rust-only change.` at the top of the PR/commit, then screenshot a screen that _consumes_ the modified code as non-regression proof.
-
-## ⚠️ Critical Patterns
-
-### Tauri Service Layer - Gateway Pattern
-
-All Tauri invocations in services MUST match `bindings.ts` signatures EXACTLY:
-
-- ✅ `commands.addPatient(name, ssn, fundPatientName)` - positional parameters
-- ❌ `commands.addPatient({ name, ssn, fundPatientName })` - object wrap (WRONG)
-- **Rule**: Match parameter COUNT, ORDER, and NAMES from bindings.ts
-- When binding has 5 params: call with 5 args in correct order, never wrapped
-
-### Domain Entities — Factory & Aggregate-Root Methods
-
-Domain objects expose two distinct families. NEVER construct them via direct struct literals outside these conventions.
-
-**Factories** — produce a fresh aggregate. Static, do not take `self`:
-
-- `new()` — generates a new ID + validates input
-- `with_id()` — uses a caller-supplied ID + validates input (services / use cases / api)
-- `restore()` — reconstructs from the database, no validation (already validated at write time)
-
-The repository ONLY uses factories, never direct struct literals.
-
-**Mutating aggregate-root methods** — apply a state-dependent change to a loaded aggregate. Instance methods, take `self` (or `&mut self`):
-
-- `update_from(self, …fields) -> Result<Self, DomainError>` — applies an edit; enforces state invariants then validates input; returns the updated aggregate to persist
-- `archive(self) / unarchive(self) -> Result<Self, DomainError>` — flips a state flag; enforces invariants
-- `ensure_<predicate>(&self) -> Result<(), DomainError>` — fail-fast guard used when the rejection must precede an action that doesn't construct a new aggregate (e.g. delete)
-
-Rules for this family:
-
-- Use **domain/business vocabulary** (per `docs/backend-rules.md` B11) — name the business action (`reconcile`, `dispute`), not the mechanism (`set_status(...)`).
-- Return typed **domain errors** directly (per `docs/ddd-reference.md` § Errors) — never `anyhow`.
-- All **state-dependent rejections** (e.g. "already reconciled", "is locked") MUST live here — not in the service.
-
-> ⚠️ Most aggregates currently mutate fields directly in orchestrators rather than through these methods. Migration is tracked in `docs/todo.md` "DDD Convergence — Extract aggregate root methods on `Procedure` / `Patient` / `FundPaymentGroup`" entry. New domain methods MUST follow the gold convention; existing direct-mutation paths follow the bit-by-bit rule.
-
-### Frontend Gold Rules (F0, F24–F28)
-
-Full rules: `docs/frontend-rules.md`. Project-wide essentials:
-
-- **F0** — The frontend source tree MUST follow the canonical layout: four buckets (`features/`, `shell/`, `ui/`, `infra/`) carrying the per-bucket include/reject discipline (paired with F28), framework-resource folders (`assets/`, `styles/`, `public/`) outside the bucket discipline, and root-level singletons (`App.tsx`, `router.tsx`, `main.tsx`, `bindings.ts`) at `src/` root. `App.tsx` = provider tree; `shell/AppShell.tsx` = layout chrome.
-- **F24** — All `aria-label`, `aria-labelledby`, `aria-describedby`, `title`, and `placeholder` strings MUST flow through `t()`. Hardcoded English a11y strings ship untranslated to non-default-locale users.
-- **F25** — Primary interactive elements (buttons, inputs, list items, dialogs) MUST render a stable `id` of the form `{feature}-{component}-{role}`. Stable ids serve both `aria-labelledby` and E2E selectors; `aria-label` co-exists for translated screen-reader text.
-- **F26** — Cross-feature imports are evaluated by what is imported, not by the fact of crossing — see frontend-rules.md for the allowed/forbidden matrix.
-- **F27** — Typed backend errors MUST flow through the 4-layer FE pipeline; each layer has one job, silently dropping the error branch is forbidden at every layer. Paired with the backend rejection-layer rule in `ddd-reference.md`.
-- **F28** — The frontend source tree MUST follow the top-level bucket layout; each bucket has both an inclusion rule (what lives there) and an exclusion rule (what does NOT).
-
-### Logging hygiene — no PII values in `tracing!` calls
-
-Enforced by `scripts/privacy-check.py` (pre-commit, commit-msg, CI) for Rust `tracing::*!` and TS `logger.*` / `console.*` calls; it also rejects SSN / IBAN values with valid check digits anywhere in the repo, commit messages and PR descriptions (synthetic ones go in `privacy-allowlist.json`).
-
-PII MUST NOT appear as field values in `tracing::*!` calls — in scope for this codebase: SSN (French numéro de sécurité sociale), IBAN, patient full name. The literal field name in the message string (`"Fetching patient by SSN"`) is fine; only the VALUE interpolation leaks. Replace with a presence boolean (`has_ssn = ssn.is_some()`), a trailing token (`iban_tail = &iban[iban.len().saturating_sub(4)..]`), or omit the field. Intentional exceptions belong in spec — e.g. EXI-030 stores invalid SSNs in the `name` field for traceability, which is a data-model exception, not a log.
-
----
-
-## 📋 When the user asks for a plan
-
-In a chat conversation (a feature being designed, a batch being scoped), a plan lists exact file paths and the functions/components to create or modify, separates layers (backend / frontend / E2E / docs), calls out any gold-conformance work with its LOC estimate, and includes the tests that will prove each clause. Once the user says go, the plan is the authority for the whole batch — no per-step confirmation.
+**Closing brief** — the last message (and the PR body's first lines): (1) what changed for whoever reads this next — for `feat` / `fix`, what a user notices, or "nothing — internal"; otherwise what can now be done or trusted; (2) what the project accumulated — tests and coverage moved, or the guarantee a harness change buys and how we know it can fail. What is still owed goes in `docs/techdebt.md`.
+
+## Where things are
+
+- **Workflow**: `/next-todo` runs one task end to end (`docs/workflow.md` § 3); `just next-todo` does it headless.
+- **Before implementing**, read the rules for the layers touched (`.claude/rules/` brings them in when a matching file is read; a new file triggers nothing, so this list is the fallback) — backend (`backend-rules`, `error-model`, `ddd-reference`), frontend (`frontend-rules`, `i18n-rules`, `visual-proof-rules`), E2E (`e2e-rules`), any test (`test-rules`), commits (`commit-rules`). When a rule changes, its doc changes in the same PR.
+- **After completing**, update the source docs in the same PR: spec rules (+ `spec-reviewer`), the contract (+ `contract-reviewer`), an ADR for a technical choice (`/adr-writer` + `adr-reviewer`), `docs/lessons.md` for a failure worth teaching, `ARCHITECTURE.md` when a module appears.
+- **Vocabulary**: `docs/ubiquitous-language.md` — confirmed terms in code, specs, comments and logs; never extend a discrepant one. Give it to every reviewer you launch.
+- **Skills**: `/next-todo`, `/design-proposal`, `/visual-proof`, `/review-triage`, `/techdebt`, `/spec-writer`, `/contract`, `/adr-writer`, `/dep-audit`, `/prune`, `/setup-e2e`, `/session-reflect`.
+- **Agents**: exactly the reviewer lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for docs only), re-run on the fixes until no 🔴, then push; CI runs the same lanes. `reviewer-security` in `release-sweep` mode before every release; `spec-checker` before closing an entry with spec rules; `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change.
+- **Task tracking**: `TaskCreate` / `TaskUpdate` for any task of more than one file or step.
+- **Plans** (asked in chat): exact paths, functions and components per layer, gold work with its size, the tests for each clause. Once the user says go, the plan is the authority for the batch.
+
+## Commands
+
+- `just dev` · `just harness` (CI's gate locally, scoped to the touched layers) · `just check` · `just check-full` · `just format` · `just generate-types` · `just merge` (refuses until every check is green; folds `fixup!` commits).
+- `just arch-check` (A1–A7; `--write-allowlist` only lowers the frozen debt) · `just rule-homes` (the doc map) · `just coverage-gate` · `just privacy-check` · `just test-scripts`.
+- Release (human): `/dep-audit` → `just release [--dry-run] [-y]`.
+
+## Standards
+
+- **Patient data** never appears in logs, commits, fixtures or PR text (`backend-rules.md` B44, `scripts/privacy-check.py`).
+- **Concise by default** — each fact once, in the fewest words that keep it verifiable. A PR body is under 20 lines.
+- **Commits** — `docs/commit-rules.md`: conventional, title only, `feat` / `fix` titles are user-facing changelog lines; one task, one commit; fixes after a push are `--fixup` commits.
+- **Visual proof** — any `.tsx` / `.css` change carries screenshots (`/visual-proof`, `docs/visual-proof-rules.md`).

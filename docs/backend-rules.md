@@ -195,6 +195,8 @@ pub const BACKEND: &str = "backend";
 tracing::info!(target: BACKEND, field = value, "message");
 ```
 
+**B44** — No patient data as a field value in a log call: SSN, IBAN, patient full name. Naming the field in the message (`"Fetching patient by SSN"`) is fine; log a presence boolean (`has_ssn = ssn.is_some()`), the last four characters of an IBAN, or nothing. `scripts/privacy-check.py` enforces it for `tracing::*!`, `logger.*` and `console.*` in the hooks and CI.
+
 ## General
 
 **B31** — Application services and use-case orchestrators MUST return typed `Result<T, {BC}Error>` (BC-scoped) or `Result<T, {UseCase}Error>` (cross-BC composite) per [`error-model.md`](error-model.md) — one flat enum per BC, plus use-case composites via `#[serde(untagged)]` + `#[from]` wrapping each BC enum and a tagged `{UseCase}Task` sub-enum that carries any use-case-specific codes (bare unit variants directly on the untagged composite serialize to `null` and collapse on the wire). Repositories MAY use `anyhow::Error` as their trait error type; the application layer translates infra failures to the BC's `{BC}Error::DatabaseError` variant at the call site, logging the diagnostic chain via `tracing::error!`. Tauri commands return the typed enum / composite directly — no `Result<T, String>` boundary translation, no `anyhow::Result<T>` on a wire-visible signature.

@@ -18,8 +18,8 @@ pub enum PatientError {
     NonAnonymousRequiresName,
 
     /// SSN payload does not match the 13-ASCII-digit format. The SSN value is
-    /// intentionally NOT carried as a payload — see § Logging hygiene in
-    /// CLAUDE.md (PII must not appear on the wire).
+    /// intentionally NOT carried as a payload — see B44 in
+    /// docs/backend-rules.md (PII must not appear on the wire).
     #[error("SSN must be 13 numeric digits")]
     InvalidSsn,
 

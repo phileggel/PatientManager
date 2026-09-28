@@ -490,7 +490,7 @@ describe("ReconciliationList — FE-computed summary count (BAS-122)", () => {
 // ---------------------------------------------------------------------------
 // BAS-119 — the candidate/line-list region is the only scrollable area, so
 // the wizard button and validate footer stay pinned in view. Cheap structural
-// check only; the rest is visual proof (docs/frontend-visual-proof.md).
+// check only; the rest is visual proof (docs/visual-proof-rules.md).
 // ---------------------------------------------------------------------------
 
 describe("ReconciliationList — scrollable region (BAS-119)", () => {

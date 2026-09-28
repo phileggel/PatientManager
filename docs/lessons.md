@@ -55,4 +55,4 @@ useEffect(() => {
 
 **Lesson.** Always match the parameter count, order, and names exactly as declared in `bindings.ts`. Never object-wrap. If a command has many optional parameters and the call site is unreadable, the fix is to restructure the Rust signature (or wrap on the Rust side with a `#[derive(Type)]` struct that Specta serialises as a discrete TS interface), not to invent an object-wrap on the call site.
 
-**Reference.** CLAUDE.md § Tauri Service Layer - Gateway Pattern; `src/bindings.ts` is the authoritative reference for any command signature.
+**Reference.** `docs/frontend-rules.md` F29; `src/bindings.ts` is the authoritative reference for any command signature.

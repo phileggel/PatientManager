@@ -8,7 +8,7 @@
  *                    re-calls computeBankStatementReconciliation (BAS-065).
  *
  * Both use the mocked gateway boundary (F3). renderHook discipline per
- * docs/test_convention.md (stable references outside the callback).
+ * docs/test-rules.md (stable references outside the callback).
  *
  * These tests fail until ui/useBankStatementReconciliation.ts is created.
  */
@@ -23,7 +23,7 @@ import type {
 } from "@/bindings";
 
 // ---------------------------------------------------------------------------
-// Mock gateway BEFORE importing the hook (docs/test_convention.md §Mocking)
+// Mock gateway BEFORE importing the hook (docs/test-rules.md §Mocking)
 // ---------------------------------------------------------------------------
 
 vi.mock("../gateway", () => ({
@@ -40,7 +40,7 @@ import { useBankStatementReconciliation } from "./useBankStatementReconciliation
 const mockCompute = vi.mocked(gateway.computeBankStatementReconciliation);
 
 // ---------------------------------------------------------------------------
-// Fixtures (stable references — F19 / test_convention.md)
+// Fixtures (stable references — F19 / test-rules.md)
 // ---------------------------------------------------------------------------
 
 const BANK_ACCOUNT_ID = "acc-1";

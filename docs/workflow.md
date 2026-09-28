@@ -116,6 +116,8 @@ unit tests never run in a hook (hooks export `GIT_DIR`).
 - **Lint, format, types, build** — `scripts/check.py`, every PR.
 - **Architecture rules A1–A7** — `scripts/arch-check.py`; today's debt is frozen in
   `arch-allowlist.json` and may only shrink.
+- **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
+  location of `docs/README.md`, every rule, entry and lesson ID defined once.
 - **Tests with coverage** — Vitest and `cargo llvm-cov`, for the layers a PR touches;
   pushes to `main` run both.
 - **Coverage floors** — `scripts/coverage-gate.py` + `coverage-gates.json`, logic code
@@ -185,19 +187,34 @@ files.
 
 ---
 
+## 10. Gold for new code, bit by bit for existing
+
+Three golds: the backend layout (`backend-rules.md` B0, B37–B43), the frontend layout
+(`frontend-rules.md` F0, F26–F28; reference feature `bank-account`) and the error model
+(`error-model.md`). New code follows them. Existing code touched by a task is made
+conformant in the same PR only when all three hold:
+
+- **Size** — at most about 50 lines of conformance changes.
+- **Locality** — inside the files the task already touches.
+- **Mechanical** — a rename, an import, a signature or type swap; any design judgement
+  (which layer, what name) defers it.
+
+Otherwise the touched code keeps its current standard; a mixed codebase is fine, a
+half-migrated file is not. The deciding test is **two stories**: if a reviewer would
+read the PR as the task plus a migration, the migration is a separate entry.
+
+## 11. PR size and split
+
+Target at most 1000 lines of churn (insertions + deletions). Split when a PR crosses it
+or tells two stories. A feature whose backend or frontend exceeds about 20 files or 500
+lines ships as one PR per layer, in order: spec, contract, migration, backend and
+bindings; then the frontend; then E2E and closure. Each is mergeable on its own.
+
 ## Conventions
 
 ### Spec rule numbering (TRIGRAM-NNN)
 
-Specs use **TRIGRAM-NNN** for business rules (e.g. `REF-010`, `PAY-020`):
-
-- **TRIGRAM** — 3-letter identifier unique per feature domain, registered in
-  `docs/spec-index.md`.
-- **NNN** — 3-digit number, grouped by topic: 010–019 eligibility & initiation,
-  020–029 creation, 030–039 updates & status changes, 040–049 deletion, 050–059
-  extensions.
-
-Once assigned, a rule number never changes. A removed rule leaves its number vacant.
+The scheme and the registered trigrams live in [`spec-index.md`](spec-index.md).
 
 ### `[DECISION]` criticals
 

@@ -2,7 +2,8 @@
 # scoped-checks.sh — the fast checks a change needs, and nothing else.
 #
 # Reads changed paths on stdin (one per line) and runs:
-#   - Prettier on the Markdown among them (still on disk);
+#   - Prettier on the Markdown among them (still on disk), and the doc map
+#     and rule homes (scripts/rule-homes.py) when any Markdown moved;
 #   - the architecture rules (scripts/arch-check.py) and `check.py --fast`
 #     for the layers they touch (scripts/changed-scope.sh):
 #     frontend, backend, or both. Docs and tooling pay no code check here —
@@ -37,6 +38,13 @@ if [ -n "$MD_FILES" ]; then
         echo -e "${GREEN}✓ Prettier: Markdown formatted.${NC}"
     else
         echo -e "${RED}❌ Prettier failed on Markdown. Run: just format${NC}"
+        exit 1
+    fi
+fi
+
+if printf '%s\n' "$CHANGED" | grep -qE '\.md$'; then
+    if ! python3 scripts/rule-homes.py; then
+        echo -e "${RED}❌ Doc map or rule homes failed (docs/README.md).${NC}"
         exit 1
     fi
 fi

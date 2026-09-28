@@ -6,7 +6,7 @@ tools: Read, Glob, Grep, Write, Bash, AskUserQuestion
 
 # Skill — `visual-proof`
 
-Automate the visual proof workflow defined in `docs/frontend-visual-proof.md` — that doc owns the rules; this file owns the steps. Always captures both **light and dark mode** for every state. Console errors detected during capture are reported automatically — making this skill useful for bug discovery as well as visual proof.
+Automate the visual proof workflow defined in `docs/visual-proof-rules.md` — that doc owns the rules; this file owns the steps. Always captures both **light and dark mode** for every state. Console errors detected during capture are reported automatically — making this skill useful for bug discovery as well as visual proof.
 
 ---
 
@@ -24,7 +24,7 @@ Automate the visual proof workflow defined in `docs/frontend-visual-proof.md` �
 
 ## When NOT to use
 
-- **Non-visual refactors** (logic, naming, imports without UI changes) — state the exemption in the PR description per `docs/frontend-visual-proof.md`
+- **Non-visual refactors** (logic, naming, imports without UI changes) — state the exemption in the PR description per `docs/visual-proof-rules.md`
 - **Rust-only changes** — no rendered output to capture
 - **Config-only edits** (`vite.config.ts`, `tsconfig.json`) — no component output
 

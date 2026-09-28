@@ -6,8 +6,8 @@
 # Quality workflow (reviewer-infra FP: quality.yml gains this rule in PR #117,
 # merged before this one): a layer runs its tests with coverage only when the change
 # touched it, then its floor in coverage-gates.json is enforced; tooling
-# changes run both; docs-only runs none. The privacy check
-# and the script unit tests always run. E2E stays CI's job (it needs the built
+# changes run both; docs-only runs none. The privacy check, the
+# architecture rules, the doc map and the script unit tests always run. E2E stays CI's job (it needs the built
 # app under Xvfb).
 #
 # Use: just harness          (or: bash scripts/harness.sh)
@@ -37,11 +37,12 @@ echo -e "${BLUE}🔍 Harness scope: ${scope}${NC}"
 
 python3 scripts/privacy-check.py
 python3 scripts/arch-check.py
+python3 scripts/rule-homes.py
 python3 -m unittest discover -s scripts/tests -p "test_*.py"
 
 case "$scope" in
     docs)
-        echo -e "${GREEN}✅ Docs only — privacy and script tests are the whole gate.${NC}"
+        echo -e "${GREEN}✅ Docs only — privacy, architecture, doc map and script tests are the whole gate.${NC}"
         ;;
     frontend)
         python3 scripts/check.py --frontend --skip-tests

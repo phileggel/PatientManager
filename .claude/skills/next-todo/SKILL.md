@@ -47,7 +47,7 @@ If the task changes anything the user sees and `Design` is not `validated`: run
 
 ## Step 3 — Acceptance first
 
-- Read the convention docs the layers require (CLAUDE.md § Mandatory pre-read).
+- Read the convention docs the layers require (CLAUDE.md § Where things are).
 - Every Done-when clause becomes a failing test: Rust for logic, Vitest for rendering,
   E2E for what a user does. Test names carry the id or the spec rule; a new business
   rule goes into `docs/spec/<feature>.md`, a changed command into the domain contract,

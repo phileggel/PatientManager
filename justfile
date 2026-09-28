@@ -35,6 +35,10 @@ stat:
 harness:
     bash scripts/harness.sh
 
+# Doc map and rule homes: every Markdown file in a location of docs/README.md, every rule ID defined once
+rule-homes:
+    python3 scripts/rule-homes.py
+
 # Patient data check over every tracked file (SSN, IBAN, names in logs, real data files)
 privacy-check:
     python3 scripts/privacy-check.py
@@ -112,7 +116,7 @@ collect-logs:
 screenshot:
     ./scripts/screenshot.sh
 
-# Take a frontend visual proof screenshot for a component (see docs/frontend-visual-proof.md)
+# Take a frontend visual proof screenshot for a component (see docs/visual-proof-rules.md)
 # One-time setup: npx playwright install chromium
 # Requires: preview.html + src/__preview__/main.tsx (gitignored, create per task then delete)
 preview-screenshot COMPONENT:

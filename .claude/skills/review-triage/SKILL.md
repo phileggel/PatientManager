@@ -189,7 +189,7 @@ When the batch is clean, the saved report is one line: `## review-triage — {da
 
 **Scope is PR, not commit.** The (a)/(b)/(c) decision treats the PR (cumulative diff against the PR's base branch) as the scope unit. A wording fix that fans across 10 files all touched by the same PR is (a) if mechanical — fold it into the PR, don't defer. The boyscout test in Q2 and the fanout test in Q3 both use PR scope. Per-commit framing would create artificial splits ("fix the wording" vs "ship the wording" as separate PRs) that produce churn without value.
 
-The (a)/(b)/(c) discipline this skill encodes is per-task rule 5 in the downstream project's CLAUDE.md (§ Per-task Discipline). The skill is self-contained — it works in projects whose CLAUDE.md doesn't carry the rule, because the grading axes live in Step 3 above.
+The (a)/(b)/(c) discipline this skill encodes is the triage policy in `docs/workflow.md` § 7. The skill is self-contained — it works in projects whose CLAUDE.md doesn't carry the rule, because the grading axes live in Step 3 above.
 
 Under the workflow (`docs/workflow.md` § 7), after a reviewer batch reviewer-\* agents save reports to `.review/`; the next checkbox is `/review-triage`; the agent applies the policy per grade — no halt — and records the table in the PR body.
 

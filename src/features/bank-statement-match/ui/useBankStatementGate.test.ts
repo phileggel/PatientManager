@@ -17,7 +17,7 @@
  *   - handleCreateNameChange clears createError on each keystroke (BAS-016)
  *
  * Mocks gateway at the feature boundary (F3). renderHook stable-reference
- * discipline (F19 / docs/test_convention.md).
+ * discipline (F19 / docs/test-rules.md).
  */
 
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -25,7 +25,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankAccount, BankStatementParseResult } from "@/bindings";
 
 // ---------------------------------------------------------------------------
-// Mock gateway BEFORE importing the hook (docs/test_convention.md §Mocking)
+// Mock gateway BEFORE importing the hook (docs/test-rules.md §Mocking)
 // ---------------------------------------------------------------------------
 
 vi.mock("../gateway", () => ({

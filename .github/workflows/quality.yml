@@ -105,6 +105,10 @@ jobs:
         # scripts/arch-check.py: A1–A7; today's debt is frozen in
         # arch-allowlist.json and may only shrink.
         run: python3 scripts/arch-check.py
+      - name: Doc map and rule homes
+        # scripts/rule-homes.py: every Markdown file in a location of docs/README.md,
+        # every rule, entry and lesson ID defined once.
+        run: python3 scripts/rule-homes.py
       - name: Unit tests of the repository scripts
         # Same command as `just test-scripts`; the merge guard in scripts/merge.py is under test.
         run: python3 -m unittest discover -s scripts/tests -p "test_*.py"

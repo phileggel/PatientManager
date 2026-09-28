@@ -24,7 +24,7 @@
  *     not contain spaces and real bank labels do).
  *
  * Mocks the gateway boundary is not needed here (pure props component); the
- * fund cache store is seeded directly (test_convention.md § Seeding Zustand
+ * fund cache store is seeded directly (test-rules.md § Seeding Zustand
  * store). i18n mocked pass-through. Stable id selectors (F25).
  *
  * These tests fail until ui/LabelAssociationScreen.tsx is created.
