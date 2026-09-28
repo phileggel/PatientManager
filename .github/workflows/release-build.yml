@@ -1,0 +1,251 @@
+name: Release build
+
+# The Windows then Linux builds, shared by release.yml (a version tag: publish to
+# a draft release, signed) and release-dry-run.yml (a pull request: build only,
+# no secrets, read-only token). No permissions block: the caller's apply.
+on:
+  workflow_call:
+    inputs:
+      publish:
+        description: Publish to the draft release of `tag` (false = build only)
+        type: boolean
+        required: true
+      tag:
+        description: The version tag being released; empty for a dry run
+        type: string
+        default: ""
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # The build runs PR-supplied scripts on a dry run; the release upload
+          # uses GITHUB_TOKEN from the environment, not git credentials, and the
+          # public repository needs none to fetch main.
+          persist-credentials: false
+          # Full history so `git merge-base --is-ancestor` in the "Verify tag
+          # is on main" step can traverse parents; depth-1 silently misclassifies
+          # any tag not literally at main's tip.
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        if: inputs.publish
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main \
+            || { echo "Tag is not on main branch — aborting release"; exit 1; }
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
+        with:
+          workspaces: src-tauri
+          prefix-key: windows-rust-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Clear stale WiX artifacts
+        shell: powershell
+        run: Remove-Item -Recurse -Force "src-tauri\target\x86_64-pc-windows-msvc\release\wix" -ErrorAction SilentlyContinue
+
+      - name: Install frontend dependencies
+        shell: bash
+        run: npm ci
+
+      - name: Derive product name
+        # tauri.conf.json productName is the canonical display name; -e fails
+        # fast rather than releasing "null v1.2.3".
+        shell: bash
+        run: |
+          name=$(jq -er .productName src-tauri/tauri.conf.json) \
+            || { echo "::error::productName missing in src-tauri/tauri.conf.json"; exit 1; }
+          echo "PRODUCT_NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f  # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          SQLX_OFFLINE: true
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0"
+        with:
+          tauriScript: npm run tauri
+          args: --target x86_64-pc-windows-msvc ${{ !inputs.publish && '--config src-tauri/tauri.dry-run.conf.json' || '' }}
+          # Empty on a dry run: the pinned action then skips every release upload.
+          tagName: ${{ inputs.tag }}
+          releaseName: "${{ env.PRODUCT_NAME }} ${{ inputs.tag }}"
+          releaseBody: "See the release assets to download and install this version."
+          releaseDraft: true
+          prerelease: false
+          # reviewer-infra FP: `uploadUpdaterJson` is the pinned action's input (its action.yml);
+          # `includeUpdaterJson` is not one — see PR #145.
+          uploadUpdaterJson: true
+
+      - name: Upload the dry-run bundle
+        if: ${{ !inputs.publish }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: dry-run-windows
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Clear Rust cache on failure
+        # Needs actions: write, which only the tag run grants.
+        if: failure() && inputs.publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh cache delete --pattern "windows-rust-" --repo ${{ github.repository }} || true
+
+  linux:
+    # After the Windows job: tauri-action merges its platform entry into the
+    # release's existing latest.json, a read-modify-write that would race if
+    # both jobs uploaded the manifest at once.
+    needs: windows
+    # Pinned, not ubuntu-latest: the build host's glibc and WebKitGTK set the
+    # oldest system the AppImage runs on — Ubuntu 24.04 and later.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # The build runs PR-supplied scripts on a dry run; the release upload
+          # uses GITHUB_TOKEN from the environment, not git credentials, and the
+          # public repository needs none to fetch main.
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        if: inputs.publish
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main \
+            || { echo "Tag is not on main branch — aborting release"; exit 1; }
+
+      - name: Install Linux build dependencies
+        # The E2E job's toolchain (e2e.yml), without its test-only driver and Xvfb.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
+        with:
+          workspaces: src-tauri
+          prefix-key: linux-rust-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Derive product name
+        run: |
+          name=$(jq -er .productName src-tauri/tauri.conf.json) \
+            || { echo "::error::productName missing in src-tauri/tauri.conf.json"; exit 1; }
+          echo "PRODUCT_NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f  # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          SQLX_OFFLINE: true
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0"
+          # Runners have no FUSE, so the AppImage tooling unpacks itself
+          # instead of mounting.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        with:
+          tauriScript: npm run tauri
+          # The AppImage carries the updater signature; the deb is a
+          # manual-install artifact the updater never touches.
+          args: --target x86_64-unknown-linux-gnu --bundles appimage,deb ${{ !inputs.publish && '--config src-tauri/tauri.dry-run.conf.json' || '' }}
+          # Empty on a dry run: the pinned action then skips every release upload.
+          tagName: ${{ inputs.tag }}
+          releaseName: "${{ env.PRODUCT_NAME }} ${{ inputs.tag }}"
+          releaseBody: "See the release assets to download and install this version."
+          releaseDraft: true
+          prerelease: false
+          # reviewer-infra FP: `uploadUpdaterJson` is the pinned action's input (its action.yml);
+          # `includeUpdaterJson` is not one — see PR #145.
+          uploadUpdaterJson: true
+
+      - name: Upload the dry-run bundles
+        if: ${{ !inputs.publish }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: dry-run-linux
+          path: |
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage*
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Verify updater manifest covers both platforms
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Waiting for the merged updater manifest..."
+          for i in 1 2 3; do
+            sleep 10
+            ASSET_URL=$(gh release view "${{ inputs.tag }}" --repo "${{ github.repository }}" \
+              --json assets --jq '.assets[] | select(.name == "latest.json") | .apiUrl')
+            if [ -n "$ASSET_URL" ]; then
+              gh api -H "Accept: application/octet-stream" "$ASSET_URL" > latest.json
+              break
+            fi
+            if [ "$i" -eq 3 ]; then
+              echo "::error::latest.json is not attached to the release"
+              exit 1
+            fi
+            echo "Attempt $i: latest.json not yet available, retrying..."
+          done
+          MISSING=$(jq -r '(["linux-x86_64", "windows-x86_64"] - (.platforms | keys)) | join(", ")' latest.json)
+          if [ -n "$MISSING" ]; then
+            echo "::error::latest.json is missing updater platform(s): $MISSING"
+            exit 1
+          fi
+          echo "✓ latest.json covers linux-x86_64 and windows-x86_64"
+
+      - name: Clear Rust cache on failure
+        # Needs actions: write, which only the tag run grants.
+        if: failure() && inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh cache delete --pattern "linux-rust-" --repo ${{ github.repository }} || true

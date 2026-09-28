@@ -1,0 +1,26 @@
+name: Release
+
+# A version tag builds Windows, then Linux, into one draft release; the human
+# publishes it. The builds live in release-build.yml, shared with the dry run.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/release-build.yml
+    with:
+      publish: true
+      tag: ${{ github.ref_name }}
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

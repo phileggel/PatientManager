@@ -9,21 +9,20 @@ questions, and removes an entry in the PR that ships it.
 <!-- the first ready one, never adds to or reorders this list, removes a reference only -->
 <!-- in the PR that ships its entry, and stops when the list is empty. -->
 
-1. TODO-014
-2. TODO-012
-3. TODO-016
-4. TODO-013
+1. TODO-012
+2. TODO-016
+3. TODO-013
 
 ---
 
 ## TODO-001 — (ci) — Windows E2E at the release gate
 
-Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release-windows.yml` is the missing release-time safety net.
+Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release.yml` is the missing release-time safety net.
 
 Scope:
 
 - Make `wdio.conf.ts` platform-aware (Linux WebKitGTK driver vs Windows WebView2/EdgeDriver).
-- Add a job (or pre-step) in `release-windows.yml` that builds the MSVC binary, then runs the WDIO suite against it.
+- Add a job (or pre-step) in `release.yml` that builds the MSVC binary, then runs the WDIO suite against it.
 - Sequence: E2E gates the Windows bundle/draft-release step — no half-baked artifact on broken code.
 - Watch out for Windows runner flakiness; may need retry logic.
 
@@ -209,20 +208,6 @@ A way to drive PatientManager's use cases without the window: the same Rust comm
 **User value:** an agent (e.g. Claude) or another tool can read and act on the practice's data on this machine, through the same rules the app follows.
 
 **Done when:** a `patientmanager` command-line program and an MCP server (a thin layer over the same commands) expose the use cases the UI offers, read and write. Local only: stdio, no network listener. Every write needs an explicit confirmation (`--yes` on the CLI, a confirm step in MCP). Every call is written to an audit log (command, time, record ids — no patient data). A caller must present a credential created and revocable in the app (OS-keychain key or certificate, decided in the spec). Starts with `/spec-writer`; comes after TODO-016. Accepted by the owner: data an agent reads (names, SSNs) is sent to the model provider as conversation content.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-014 — (ci/release) — Linux release
-
-Releases ship only for Windows (`release-windows.yml`: installer + updater manifest); Linux users have no build. Folioneer's `release.yml` builds Windows then Linux — an AppImage that updates itself through the Tauri updater, and a `.deb` for manual install — on the same tag, and leaves one draft release with both.
-
-**User value:** PatientManager can be installed and kept up to date on Linux, like on Windows.
-
-**Done when:** pushing a release tag builds the Windows installer and a Linux AppImage and `.deb`, all attached to the same draft release; `latest.json` carries a Linux entry so an installed AppImage updates itself; the Linux job reuses the E2E-proven Linux toolchain; proven on Ubuntu 24.04+; a dry run on a test tag is attached to the PR.
 
 **Design:** none
 

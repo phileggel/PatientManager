@@ -18,7 +18,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 **Workflows**
 
 - A secret echoed or handed to an untrusted action 🔴; `contents: write` on a fork-triggered `pull_request` 🔴; a third-party action not pinned to a commit SHA 🔴 (`dtolnay/rust-toolchain@<channel>` is the exception); permissions wider than the job needs 🟡.
-- An env variable used where it is not declared 🔴; a step using an earlier step's output without handling that step's failure 🔴; a matrix silently dropping a required platform 🔴; `gh cache delete` without `actions: write` 🔴; a Windows step without an explicit `shell:` 🔴; a job without `timeout-minutes` 🟡; a cache key that ignores the lockfile 🟡; cleanup on `if: always()` when `if: failure()` is meant 🟡.
+- An env variable used where it is not declared 🔴; a step using an earlier step's output without handling that step's failure 🔴; a matrix silently dropping a required platform 🔴; `gh cache delete` without `actions: write` 🔴 (in a reusable workflow, check every caller's grant); a Windows step without an explicit `shell:` 🔴; a job without `timeout-minutes` 🟡; a cache key that ignores the lockfile 🟡; cleanup on `if: always()` when `if: failure()` is meant 🟡.
 - A required check (`required-checks.json`) whose name matches no job `name:` 🔴; a required job that can end neither green nor skipped on a legitimate change 🔴.
 - SQLx builds without `SQLX_OFFLINE: true` 🔴 (`cargo sqlx prepare` needs `false`); updater artifacts without `TAURI_SIGNING_PRIVATE_KEY` 🔴; a Rust CI build without `CARGO_INCREMENTAL: 0` 🔵.
 

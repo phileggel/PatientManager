@@ -1,0 +1,26 @@
+name: Release dry run
+
+# A pull request that changes the release builds runs them without publishing:
+# no tag, no release, no secrets, a read-only token. Updater artifacts are
+# turned off (they need the signing key); the bundles are uploaded as artifacts.
+on:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - .github/workflows/release-build.yml
+      - .github/workflows/release-dry-run.yml
+      - src-tauri/tauri.dry-run.conf.json
+      - src-tauri/tauri.conf.json
+
+concurrency:
+  group: release-dry-run-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/release-build.yml
+    with:
+      publish: false
