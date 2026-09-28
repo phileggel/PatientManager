@@ -9,12 +9,11 @@ questions, and removes an entry in the PR that ships it.
 <!-- the first ready one, never adds to or reorders this list, removes a reference only -->
 <!-- in the PR that ships its entry, and stops when the list is empty. -->
 
-1. TODO-003
-2. DEBT-008
-3. TODO-014
-4. TODO-012
-5. TODO-016
-6. TODO-013
+1. DEBT-008
+2. TODO-014
+3. TODO-012
+4. TODO-016
+5. TODO-013
 
 ---
 
@@ -52,20 +51,6 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 **Design:** none
 
 **Open questions:** Done when not written yet.
-
----
-
-## TODO-003 — (frontend/db-index) — IBAN uniqueness DB constraint follow-up
-
-`bank-account` R5 (IBAN uniqueness across soft-deleted accounts) is enforced at the service layer (`BankAccountService::create_account` + `update_account` + `find_by_iban_including_deleted`). The existing partial unique index `idx_bank_account_iban_active` covers active rows only. Reconsider whether a DB-level CHECK / trigger / non-partial unique index would be preferable once SQLite version is upgraded — would close the (currently negligible) TOCTOU window between the service-layer guard and the INSERT.
-
-**User value:** a duplicate IBAN can never reach the data, even through a bug in the service layer.
-
-**Done when:** inserting a second bank account with an IBAN already used by another account, active or soft-deleted, is refused by the database itself; the existing app flows still show today's duplicate-IBAN error; a migration test proves the constraint on a copy of the current schema.
-
-**Design:** none
-
-**Open questions:** none
 
 ---
 
