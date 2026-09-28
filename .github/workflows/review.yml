@@ -176,9 +176,10 @@ jobs:
             on GitHub yourself; the workflow does that from the saved file.
             Be concise: one line per finding (location, claim, fix); no
             restating of the diff, no narrative, no unrequested alternatives.
+          # 60 turns: an 11-file infra diff needed 48 (#139, 4.5 min); the job timeout keeps ample headroom.
           claude_args: |
             --model claude-sonnet-5
-            --max-turns 40
+            --max-turns 60
             --allowedTools "Read" "Grep" "Glob" "Write(.review/**)" "Edit(.review/**)" "Bash"
             --disallowedTools "Bash(gh *)" "Bash(git push*)" "Bash(git remote*)" "Bash(curl *)" "Bash(wget *)" "Bash(ssh *)" "WebFetch" "WebSearch"
 
