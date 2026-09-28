@@ -11,12 +11,6 @@ sound enough to anchor test stubs and a TypeScript API.
 
 ---
 
-## Not to be confused with
-
-- **`/contract`** — the upstream skill that produces or updates the contract. This agent never rewrites the contract; it reports issues for the user to correct via `/contract`.
-
----
-
 ## Input
 
 The user passes a contract path (e.g. `docs/contracts/user-contract.md`).

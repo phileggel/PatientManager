@@ -13,30 +13,6 @@ Given an ADR file (or all ADRs in `docs/adr/`), surface findings against the pro
 
 ---
 
-## Not to be confused with
-
-- `adr-writer` — authors and supersedes ADRs; this agent only reviews
-- `spec-reviewer` — validates spec rules; flags 🔵 _Possible ADR candidate_ but does not check ADR structure
-
----
-
-## When to use
-
-- **After `adr-writer` creates or supersedes an ADR** — green-light is required before downstream consumers (`reviewer-arch`) cite the ADR as a constraint
-- **Before a release sweep** — pass with no argument to review every ADR in `docs/adr/` and the index in one pass
-- **After importing or hand-editing an ADR** — manual edits skip `adr-writer`'s gate; this agent catches the drift
-
----
-
-## When NOT to use
-
-- **Authoring or fixing an ADR** — use `adr-writer` (this agent is read-only)
-- **Validating spec rules** — use `spec-reviewer`; this agent assumes the spec is already validated
-- **Checking that the implementation honours an ADR's constraint** — use `reviewer-arch`; this agent reviews the ADR file, not the code
-- **Resolving ADR ↔ spec contradictions** — surface the conflict via Section F; let the user decide which side wins via `adr-writer` (supersede) or `spec-writer` (amend)
-
----
-
 ## Input
 
 The user passes an ADR path (e.g. `docs/adr/003-soft-delete.md`) or no path.

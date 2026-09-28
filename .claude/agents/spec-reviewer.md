@@ -13,13 +13,6 @@ Given a spec document, verify it is complete, consistent, and implementable befo
 
 ---
 
-## Not to be confused with
-
-- **`spec-checker`** — runs once implementation is done to verify every TRIGRAM-NNN rule is covered by at least one test. This agent (`spec-reviewer`) runs at the start, on the spec document itself, before `/contract`.
-- **`spec-writer`** — the upstream skill that produces the spec. This agent never rewrites the spec; it reports issues for the user to correct via `spec-writer`.
-
----
-
 ## Input
 
 The user passes a spec path (e.g. `docs/spec/fund-payment.md`).

@@ -19,7 +19,7 @@ set -euo pipefail
 #   --frontend      *.ts / *.tsx, excluding e2e/
 #   --arch          *.rs / *.ts / *.tsx, excluding e2e/
 #   --e2e           e2e/**/*.test.ts
-#   --migrations    migrations/*
+#   --migrations    src-tauri/migrations/*.sql
 #   --security      *.rs / *.ts / *.tsx OR capabilities/**/*.json
 # `--uncommitted-only` drops the branch-diff source (in-flight files only). A
 # filter and --uncommitted-only compose, in either order.
@@ -82,7 +82,7 @@ files)
             EXCLUDE='^e2e/'
             ;;
         --e2e) FILTER='^e2e/.*\.test\.ts$' ;;
-        --migrations) FILTER='^migrations/' ;;
+        --migrations) FILTER='^src-tauri/migrations/.*\.sql$' ;;
         --security) FILTER='\.(rs|ts|tsx)$|capabilities/.*\.json$' ;;
         *)
             echo "usage: bash scripts/branch.sh files [--rust|--frontend|--arch|--e2e|--migrations|--security] [--uncommitted-only]" >&2

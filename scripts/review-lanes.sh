@@ -14,8 +14,9 @@
 #   infra     workflows, hooks, scripts, justfile,
 #             package.json, Cargo.toml, tauri.conf.json,
 #             capabilities, required-checks.json,
-#             arch-allowlist.json, agent and skill
-#             prompts, .claude/settings.json   reviewer-infra
+#             arch-allowlist.json, coverage-gates.json,
+#             agent, skill and path-rule prompts,
+#             .claude/settings.json            reviewer-infra
 #   security  the IPC boundary: api.rs, capabilities, the command registry,
 #             secure_path.rs                   reviewer-security
 #   e2e       e2e/**/*.test.ts                 reviewer-e2e
@@ -31,7 +32,7 @@ frontend=$( { grep -Ev '^e2e/' <<<"$files" || true; } | grep -Eq '\.(ts|tsx)$' &
 arch=false
 if [[ "$backend" == true || "$frontend" == true ]]; then arch=true; fi
 sql=$(has '^src-tauri/migrations/.*\.sql$')
-infra=$(has '^(\.github/workflows/[^/]*\.ya?ml|\.githooks/.*|scripts/[^/]*\.(sh|bat|py)|justfile|package\.json|required-checks\.json|arch-allowlist\.json|\.claude/agents/[^/]*\.md|\.claude/skills/[^/]+/SKILL\.md|\.claude/settings\.json|src-tauri/Cargo\.toml|src-tauri/tauri\.conf\.json|src-tauri/capabilities/.*\.json)$')
+infra=$(has '^(\.github/workflows/[^/]*\.ya?ml|\.githooks/.*|scripts/[^/]*\.(sh|bat|py)|justfile|package\.json|required-checks\.json|arch-allowlist\.json|coverage-gates\.json|\.claude/rules/[^/]*\.md|\.claude/agents/[^/]*\.md|\.claude/skills/[^/]+/SKILL\.md|\.claude/settings\.json|src-tauri/Cargo\.toml|src-tauri/tauri\.conf\.json|src-tauri/capabilities/.*\.json)$')
 security=$(has '^src-tauri/(src/.*/api\.rs|capabilities/.*\.json|src/shared/infrastructure/(specta_builder|secure_path)\.rs)$')
 e2e=$(has '^e2e/.*\.test\.ts$')
 

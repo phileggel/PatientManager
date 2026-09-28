@@ -46,6 +46,10 @@ class ReviewLanes(unittest.TestCase):
         self.assertEqual(lanes(".claude/settings.json"), ["infra"])
         self.assertEqual(lanes(".claude/agents/sub/reviewer-infra.md"), [])  # flat only
 
+    def test_the_coverage_floors_and_path_rules_are_infra(self):
+        self.assertEqual(lanes("coverage-gates.json"), ["infra"])
+        self.assertEqual(lanes(".claude/rules/backend.md"), ["infra"])
+
     def test_the_frozen_architecture_debt_is_infra(self):
         self.assertEqual(lanes("arch-allowlist.json"), ["infra"])
 
