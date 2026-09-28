@@ -22,6 +22,12 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 **Observation:** `docs/workflow.md`'s "no compound shell in agent / skill prompts" rule targets exactly these files, yet no lane fires when only they change, so a prompt that breaks the rule reaches `main` unreviewed. `reviewer-infra`'s scope list does not name them either. The same holds for `.claude/settings.json`, whose allow/deny lists bound every headless run.
 
+**Done when:** a change to `.claude/agents/`, `.claude/skills/` or `.claude/settings.json` fires the `reviewer-infra` lane (tests in `test_review_lanes.py`), and its checklist covers the no-compound-shell rule and the allow/deny lists.
+
+**Design:** none
+
+**Open questions:** none
+
 ---
 
 ## 2026-09-27 — DEBT-015 — Fork PRs cannot post the reviewer's "no report" comment
@@ -82,6 +88,12 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 **Observation:** risk-free, compile-checked, ≤5 LOC. Resolution direction: wire `extract_iban` to the constant (codec symmetry) rather than deleting it. Resolution commit type: `refactor:`. Fold into the next task touching the parser/codec.
 
+**Done when:** `extract_iban` reads `IBAN_HEADER_MARKER` instead of its own inline regex, and the bank-PDF round-trip tests still pass.
+
+**Design:** none
+
+**Open questions:** none
+
 ---
 
 ## 2026-07-30 — DEBT-009 — Deep bank-statement E2E via ADR-007 (fixture PDF + full flow)
@@ -101,6 +113,12 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 **Where:** `src-tauri/src/context/fund/repository.rs:82-97` — `SELECT … FROM fund` without `ORDER BY`, so the funds cache (`infra/cache/store.ts`) and every dropdown consuming it render funds in DB-insertion order.
 
 **Observation:** the bank-statement fund selects get an FE-local `localeCompare` sort as the surgical fix; a backend `ORDER BY name COLLATE NOCASE` would fix all consumers at once but changes ordering everywhere (dashboard, excel-import mapping) and deserves its own pass. When next touching the fund repository, consider promoting the sort to SQL and dropping the FE-local sorts.
+
+**Done when:** `read_all_funds` returns funds sorted by name, case-insensitively, so every fund list (dashboard, Excel import mapping, bank matching) is alphabetical; the bank screen's local sort is removed; a test proves the order.
+
+**Design:** none
+
+**Open questions:** none
 
 ---
 

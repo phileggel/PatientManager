@@ -8,7 +8,15 @@ questions, and removes an entry in the PR that ships it.
 <!-- The queue: TODO-NNN / DEBT-NNN references in the order to work them. The agent takes -->
 <!-- the first ready one, never edits this list, and stops when it is empty. -->
 
-Nothing queued.
+1. DEBT-010
+2. DEBT-016
+3. TODO-015
+4. TODO-003
+5. DEBT-008
+6. TODO-014
+7. TODO-012
+8. TODO-016
+9. TODO-013
 
 ---
 
@@ -53,13 +61,13 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 `bank-account` R5 (IBAN uniqueness across soft-deleted accounts) is enforced at the service layer (`BankAccountService::create_account` + `update_account` + `find_by_iban_including_deleted`). The existing partial unique index `idx_bank_account_iban_active` covers active rows only. Reconsider whether a DB-level CHECK / trigger / non-partial unique index would be preferable once SQLite version is upgraded — would close the (currently negligible) TOCTOU window between the service-layer guard and the INSERT.
 
-**User value:**
+**User value:** a duplicate IBAN can never reach the data, even through a bug in the service layer.
 
-**Done when:**
+**Done when:** inserting a second bank account with an IBAN already used by another account, active or soft-deleted, is refused by the database itself; the existing app flows still show today's duplicate-IBAN error; a migration test proves the constraint on a copy of the current schema.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:** none
 
 ---
 
@@ -202,13 +210,13 @@ Deferred decisions: exact diagnostic field list, log-line count, support-code fo
 
 Saved `BankFundLabelMapping` records (bank label → fund, per ADR-001) are today **only** editable inside the bank-statement import flow — there is no standalone management surface (the `ManagementModal` covers patients, funds, procedure types, bank accounts, fund payments, but not label mappings; no list/delete command is exposed). Surfaced during the bank-reconciliation draft-UX rework (`feat/bank-reconciliation-draft-ux`), where the in-flow mapping step folds into the unified list — in-flow revision is preserved, but there's still no way to proactively review/fix a wrong mapping without re-importing. Add a `ManagementModal` "Bank label mappings" section: list saved mappings per account, edit the fund (or rejected) assignment, delete a mapping. Backend repo already supports listing (`label_mapping_repo` "find all active mappings"); needs list + delete commands + UI. Priority: low — convenience, no functional gap (in-flow revision works).
 
-**User value:**
+**User value:** a wrong bank label → fund mapping can be seen, corrected or deleted without re-importing a statement.
 
-**Done when:**
+**Done when:** a "Bank label mappings" section in the management screen lists the saved mappings per bank account; each can be reassigned to another fund (or rejected) or deleted; list and delete commands exist with tests; an E2E scenario covers a delete.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:** none
 
 ---
 
@@ -216,13 +224,13 @@ Saved `BankFundLabelMapping` records (bank label → fund, per ADR-001) are toda
 
 A way to drive PatientManager's use cases without the window: the same Rust commands the UI calls, reachable from outside the UI.
 
-**User value:**
+**User value:** an agent (e.g. Claude) or another tool can read and act on the practice's data on this machine, through the same rules the app follows.
 
-**Done when:**
+**Done when:** a `patientmanager` command-line program and an MCP server (a thin layer over the same commands) expose the use cases the UI offers, read and write. Local only: stdio, no network listener. Every write needs an explicit confirmation (`--yes` on the CLI, a confirm step in MCP). Every call is written to an audit log (command, time, record ids — no patient data). A caller must present a credential created and revocable in the app (OS-keychain key or certificate, decided in the spec). Starts with `/spec-writer`; comes after TODO-016. Accepted by the owner: data an agent reads (names, SSNs) is sent to the model provider as conversation content.
 
 **Design:** none
 
-**Open questions:** What is it for — (a) scripting or scheduled jobs (e.g. an Excel import or a fund-payment reconciliation from the command line), (b) letting an agent or another tool read and act on the data, or (c) E2E and diagnostics without the WebView? Which surface — a CLI binary, a local HTTP/IPC endpoint, or both? Read-only or also writes? How is access restricted, given the data is patients' health data? Done when not written yet.
+**Open questions:** none
 
 ---
 
@@ -232,11 +240,11 @@ Releases ship only for Windows (`release-windows.yml`: installer + updater manif
 
 **User value:** PatientManager can be installed and kept up to date on Linux, like on Windows.
 
-**Done when:** (draft by the agent — owner to confirm) pushing a release tag builds the Windows installer and a Linux AppImage and `.deb`, all attached to the same draft release; `latest.json` carries a Linux entry so an installed AppImage updates itself; the Linux job reuses the E2E-proven Linux toolchain; a dry run on a test tag is attached to the PR.
+**Done when:** pushing a release tag builds the Windows installer and a Linux AppImage and `.deb`, all attached to the same draft release; `latest.json` carries a Linux entry so an installed AppImage updates itself; the Linux job reuses the E2E-proven Linux toolchain; proven on Ubuntu 24.04+; a dry run on a test tag is attached to the PR.
 
 **Design:** none
 
-**Open questions:** Confirm the Done when above. AppImage only, or also `.deb`? Which Linux distributions must it run on?
+**Open questions:** none
 
 ---
 
@@ -244,12 +252,26 @@ Releases ship only for Windows (`release-windows.yml`: installer + updater manif
 
 The claude-kit exit (2026-09-27, #109–#133) rewrote how work moves, but most documentation predates it. Known drift: `CONTRIBUTING.md` names recipes that do not exist (`DEBT-017`); `README.md` and `ARCHITECTURE.md` still describe the old setup in places; the convention docs (`docs/*-rules.md`, `ddd-reference.md`, `error-model.md`, `test_convention.md`, `tauri-lessons.md`) were written against the kit; 33 specs, contracts and ADRs have never been checked against the code they describe.
 
-**User value:** anyone reading the repository — the owner, the agent, a future contributor — finds instructions that are true today; the agent stops acting on stale rules.
+**User value:** an agent — or the owner — knows exactly where each kind of document lives, and documents never contradict each other.
 
-**Done when:** (draft by the agent — owner to confirm) every root and `docs/` document is either confirmed accurate, corrected, or deleted, each by one line in the PR body; every command, recipe, path and file it names exists; no document contradicts `CLAUDE.md` or `docs/workflow.md`; specs and contracts are checked with `spec-checker` / `contract-reviewer`, ADRs with `adr-reviewer`, and what cannot be fixed in the pass becomes `DEBT-NNN`. `DEBT-017` is closed by it.
+**Done when:** (1) a doc map lists every kind of document with its one location (README for humans, CLAUDE.md as the agent entry point, ARCHITECTURE.md, `docs/workflow.md` for process, code conventions, specs, contracts, ADRs, records, lessons); (2) every document sits in the location of its kind and each location holds only that kind — misplaced files moved, all references updated; (3) each topic has one source of truth and other documents link to it instead of restating it; (4) no two documents contradict each other; (5) duplicates merged or deleted; (6) every document is concise, the agent docs above all (CLAUDE.md, `docs/workflow.md`, skills, agent prompts): each rule stated once, no narrative — sizes before and after in the PR body; (7) a harness check fails when a document sits outside its kind's location or the doc map is stale. `DEBT-017` is closed by it.
 
 **Design:** none
 
-**Open questions:** Confirm the Done when above. One pass over everything, or split (root docs + conventions first, specs / contracts / ADRs second)?
+**Open questions:** none
+
+---
+
+## TODO-016 — (frontend+backend) — All logic in Rust
+
+Business rules, validations, aggregations and derivations still live in the frontend in places (sorting and filtering helpers, presenters that compute, hooks that decide). A second surface (TODO-013's CLI and MCP server) must follow the same rules as the app, so the rules must live where both can reach them: in Rust. Makes TODO-009 partly obsolete — logic that leaves the frontend needs no hook.
+
+**User value:** none directly — the app behaves the same; every rule has one implementation, which the CLI and MCP server reuse.
+
+**Done when:** every business rule, validation, aggregation and derivation in `src/` moves behind a Rust command; the frontend only renders, holds ephemeral UI state and maps error codes to i18n; the tests of that logic move to Rust; a new architecture rule freezes today's frontend logic in `arch-allowlist.json` and may only shrink; "logic in Rust, the frontend renders" joins `docs/workflow.md` § 6. Split per feature, one PR each, with an audit table (moved / kept as display-only) in each PR body.
+
+**Design:** none
+
+**Open questions:** none
 
 ---
