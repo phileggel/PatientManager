@@ -94,8 +94,9 @@ and names what a user notices.
 
 ## Step 9 — Closure
 
-In the same PR, before the merge: the entry removed from `docs/todo.md`, techdebt the
-work resolved removed, `ARCHITECTURE.md` if a module appeared, design proposal images
+In the same PR, before the merge: the entry removed from `docs/todo.md` (or
+`docs/techdebt.md`) together with its reference in § Next, techdebt the work resolved
+removed, `ARCHITECTURE.md` if a module appeared, design proposal images
 deleted. Then the closing brief: what changed for the user (or "nothing — internal"),
 what the project gained (tests, coverage); the PR number and where anything still owed
 was filed.

@@ -80,22 +80,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ---
 
-## 2026-07-30 — DEBT-010 — Prune finding: unused codec constant
-
-**Found by:** /prune (post-v0.20.1 lean check, report `tmp/prune-2026-07-30-01.md`; user routed to techdebt). _(The second prune finding — the redundant FE candidate re-sort — was resolved by the most-recent-first ordering change on branch `next`, 2026-07-30.)_
-
-**Where:** `src-tauri/src/use_cases/bank_statement_reconciliation/bank_pdf_codec.rs:24` — `IBAN_HEADER_MARKER` has zero consumers; `extract_iban` (`parser.rs:38`) builds its regex inline while every sibling codec constant IS consumed.
-
-**Observation:** risk-free, compile-checked, ≤5 LOC. Resolution direction: wire `extract_iban` to the constant (codec symmetry) rather than deleting it. Resolution commit type: `refactor:`. Fold into the next task touching the parser/codec.
-
-**Done when:** `extract_iban` reads `IBAN_HEADER_MARKER` instead of its own inline regex, and the bank-PDF round-trip tests still pass.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
 ## 2026-07-30 — DEBT-009 — Deep bank-statement E2E via ADR-007 (fixture PDF + full flow)
 
 **Found by:** reviewer-e2e (branch `next`, batch 2) — user confirmed techdebt routing.

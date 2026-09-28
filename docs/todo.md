@@ -6,17 +6,17 @@ questions, and removes an entry in the PR that ships it.
 ## Next
 
 <!-- The queue: TODO-NNN / DEBT-NNN references in the order to work them. The agent takes -->
-<!-- the first ready one, never edits this list, and stops when it is empty. -->
+<!-- the first ready one, never adds to or reorders this list, removes a reference only -->
+<!-- in the PR that ships its entry, and stops when the list is empty. -->
 
-1. DEBT-010
-2. DEBT-016
-3. TODO-015
-4. TODO-003
-5. DEBT-008
-6. TODO-014
-7. TODO-012
-8. TODO-016
-9. TODO-013
+1. DEBT-016
+2. TODO-015
+3. TODO-003
+4. DEBT-008
+5. TODO-014
+6. TODO-012
+7. TODO-016
+8. TODO-013
 
 ---
 

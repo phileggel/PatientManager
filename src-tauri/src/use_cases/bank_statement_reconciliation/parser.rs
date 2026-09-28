@@ -35,7 +35,13 @@ pub fn parse_bank_statement(text: &str) -> BankStatementParseResult {
 /// Expected format: `I.B.A.N. FR7600000000000000000000000`
 fn extract_iban(text: &str) -> Option<String> {
     let prefix = codec::IBAN_COUNTRY_PREFIX;
-    let re = Regex::new(&format!(r"I\.?B\.?A\.?N\.?\s*({prefix}\d[\d\s]*)")).ok()?;
+    // The header marker's letters, each dot optional: "I.B.A.N." and "IBAN" both match.
+    let marker: String = codec::IBAN_HEADER_MARKER
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|c| format!(r"{}\.?", regex::escape(&c.to_string())))
+        .collect();
+    let re = Regex::new(&format!(r"{marker}\s*({prefix}\d[\d\s]*)")).ok()?;
     let caps = re.captures(text)?;
     let raw = caps.get(1)?.as_str();
     let normalized = raw.replace(' ', "").trim().to_string();
@@ -197,8 +203,17 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_iban_with_spaces() {
+    fn test_extract_iban_with_spaces_is_normalized() {
         let text = "I.B.A.N. FR76 0000 0000 0000 0000 0000 000";
+        assert_eq!(
+            extract_iban(text),
+            Some("FR7600000000000000000000000".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_iban_without_dots_in_the_marker_is_found() {
+        let text = "IBAN FR7600000000000000000000000";
         assert_eq!(
             extract_iban(text),
             Some("FR7600000000000000000000000".to_string())

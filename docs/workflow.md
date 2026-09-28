@@ -34,14 +34,16 @@ job or a machine gate.
 ### `docs/todo.md` — human-owned
 
 - `## Next` at the top holds the queue: `TODO-NNN` and `DEBT-NNN` references in the
-  order to work them. The agent takes the first **ready** one and never edits the list.
+  order to work them. The agent takes the first **ready** one; it never adds to or
+  reorders the list, and removes a reference only in the PR that ships its entry.
 - Every entry is `## TODO-NNN — title` and ends with `**User value:**`,
   `**Done when:**`, `**Design:**` and `**Open questions:**`.
 - **Ready** means: queued, a Done when is written, `Open questions: none`, and
   `Design` is `none` or `validated`.
 - The agent writes to this file in three places only: it sets `Design` to
   `proposed (…)` or `validated`, it adds open questions, and it removes an entry in the
-  pull request that ships it. It never creates, rewrites or reorders entries.
+  pull request that ships it, together with its reference in `## Next`. It never
+  creates, rewrites or reorders entries.
 
 ### `docs/techdebt.md` — agent-owned
 
@@ -78,7 +80,8 @@ todo entry: the pull request body is its record.
    techdebt filed, screenshots.
 9. **Merge:** `just merge` — it refuses until every check is green and folds `fixup!`
    commits, so the task lands as one commit.
-10. **Closure** in the same PR: the entry removed from `docs/todo.md`, techdebt updated,
+10. **Closure** in the same PR: the entry removed from `docs/todo.md` or
+    `docs/techdebt.md`, and its reference from `## Next`; techdebt updated;
     `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
     brief says what changed for the user and what the project gained.
 
