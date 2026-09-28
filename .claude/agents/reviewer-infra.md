@@ -1,6 +1,6 @@
 ---
 name: reviewer-infra
-description: Infrastructure and CI reviewer for Tauri 2 / Rust projects. Reviews GitHub Actions workflows, config files (tauri.conf.json, capabilities/*.json, Cargo.toml, package.json, justfile), scripts, and git hooks. Checks CI/local consistency, script quality, capability file format. Delegates dependency audit to /dep-audit before releases. Use when any workflow, config, capability, script, or hook file is modified. Not for general `.rs` / `.ts` / `.tsx` code quality (use `reviewer-backend` / `reviewer-frontend`), DDD layering (`reviewer-arch`), migrations (`reviewer-sql`), or application-code security (`reviewer-security`). Default diff-scoped; opt-in release-sweep mode (full infra audit + CI Improvement Opportunities) when the invoking prompt contains `release-sweep`.
+description: Infrastructure and CI reviewer for Tauri 2 / Rust projects. Reviews GitHub Actions workflows, config files (tauri.conf.json, capabilities/*.json, Cargo.toml, package.json, justfile), scripts, git hooks, agent and skill prompts, and `.claude/settings.json`. Checks CI/local consistency, script quality, capability file format. Delegates dependency audit to /dep-audit before releases. Use when any workflow, config, capability, script, hook, prompt or settings file is modified. Not for general `.rs` / `.ts` / `.tsx` code quality (use `reviewer-backend` / `reviewer-frontend`), DDD layering (`reviewer-arch`), migrations (`reviewer-sql`), or application-code security (`reviewer-security`). Default diff-scoped; opt-in release-sweep mode (full infra audit + CI Improvement Opportunities) when the invoking prompt contains `release-sweep`.
 tools: Read, Glob, Bash, Write
 model: sonnet
 ---
@@ -124,6 +124,8 @@ Skip silently any file or directory below that does not exist in the project (v4
 - `justfile` — Command runner recipes (task aliases for scripts and dev commands)
 - `required-checks.json` — the checks `just merge` requires; every name must match a job `name:` in `.github/workflows/`
 - `arch-allowlist.json` — frozen architecture debt (`scripts/arch-check.py`); entries may only disappear or shrink, never appear or grow
+- `.claude/agents/*.md`, `.claude/skills/*/SKILL.md` — the shell the prompts run (see § Agent prompts, skills and settings)
+- `.claude/settings.json` — the allow / deny lists that bound every headless run
 
 ---
 
@@ -174,6 +176,16 @@ Applies to any job that hands a model session a shell and a secret over a pull r
 - 🟡 WiX bundle artifacts (`release/wix/`) should be cleared before each release build to prevent stale `.wixobj` cache issues
 - 🟡 `CARGO_INCREMENTAL: 0` is recommended in CI to reduce artifact size and avoid incremental build corruption
 - 🔵 `RUSTFLAGS: "-C debuginfo=0"` reduces binary size in CI — good practice for release builds
+
+---
+
+## Agent prompts, skills and settings Rules
+
+- 🔴 A bash block in an agent or skill prompt uses no compound shell — no `$(...)`, `&&`, `||`, `;`, or `cd X && cmd` (`docs/workflow.md` § Conventions): the allow list matches by literal prefix, so a compound line can never be allowlisted
+- 🟡 Every script, recipe, path or file a prompt tells the agent to run or read exists
+- 🔴 `.claude/settings.json`'s deny list keeps the absolute prohibitions: pushing to `main` (all spellings), force-push, `--no-verify` on commit and push, `just release`, `git tag`, `gh pr merge`, editing `.claude/settings.json` itself
+- 🔴 A new allow entry is never broader than one command family: no `Bash(*)`, `Bash(bash *)`, `Bash(rm *)`, `Bash(curl *)`, `Bash(sudo *)`. The existing `Bash(python3 -c *)` / `Bash(python3 - *)` entries are accepted (the agent's file edits go through them) and must not be widened further
+- 🟡 The `SessionStart` hook stays wired while cloud sessions depend on it
 
 ---
 

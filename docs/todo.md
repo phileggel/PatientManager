@@ -9,14 +9,13 @@ questions, and removes an entry in the PR that ships it.
 <!-- the first ready one, never adds to or reorders this list, removes a reference only -->
 <!-- in the PR that ships its entry, and stops when the list is empty. -->
 
-1. DEBT-016
-2. TODO-015
-3. TODO-003
-4. DEBT-008
-5. TODO-014
-6. TODO-012
-7. TODO-016
-8. TODO-013
+1. TODO-015
+2. TODO-003
+3. DEBT-008
+4. TODO-014
+5. TODO-012
+6. TODO-016
+7. TODO-013
 
 ---
 

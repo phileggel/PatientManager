@@ -40,6 +40,12 @@ class ReviewLanes(unittest.TestCase):
     def test_the_merge_gate_list_is_infra(self):
         self.assertEqual(lanes("required-checks.json"), ["infra"])
 
+    def test_agent_and_skill_prompts_and_the_settings_are_infra(self):
+        self.assertEqual(lanes(".claude/agents/reviewer-sql.md"), ["infra"])
+        self.assertEqual(lanes(".claude/skills/next-todo/SKILL.md"), ["infra"])
+        self.assertEqual(lanes(".claude/settings.json"), ["infra"])
+        self.assertEqual(lanes(".claude/agents/sub/reviewer-infra.md"), [])  # flat only
+
     def test_the_frozen_architecture_debt_is_infra(self):
         self.assertEqual(lanes("arch-allowlist.json"), ["infra"])
 
