@@ -49,7 +49,7 @@ export function ImportModal({ isOpen, onClose, onNavigate, onFileSelected }: Imp
       id="import-modal"
       isOpen={isOpen}
       onClose={onClose}
-      title={t("modalTitle")}
+      title={t("modal_title")}
       maxWidth="max-w-lg"
     >
       <div className="flex flex-col gap-3 pb-2">

@@ -49,7 +49,7 @@ export function DbBackupModal({ isOpen, onClose }: DbBackupModalProps) {
         id="db-backup-modal"
         isOpen={isOpen}
         onClose={onClose}
-        title={t("modalTitle")}
+        title={t("modal_title")}
         maxWidth="max-w-lg"
         disableClose={isBusy}
       >

@@ -47,7 +47,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
       id="management-modal"
       isOpen={isOpen}
       onClose={onClose}
-      title={t("modalTitle")}
+      title={t("modal_title")}
       maxWidth="max-w-lg"
     >
       <div className="flex flex-col gap-3 pb-2">
