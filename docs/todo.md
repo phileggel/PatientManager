@@ -9,9 +9,8 @@ questions, and removes an entry in the PR that ships it.
 <!-- the first ready one, never adds to or reorders this list, removes a reference only -->
 <!-- in the PR that ships its entry, and stops when the list is empty. -->
 
-1. TODO-012
-2. TODO-016
-3. TODO-013
+1. TODO-016
+2. TODO-013
 
 ---
 
@@ -184,20 +183,6 @@ Deferred decisions: exact diagnostic field list, log-line count, support-code fo
 **Design:** none
 
 **Open questions:** Done when not written yet.
-
----
-
-## TODO-012 — (frontend/bank) — Standalone bank label-mapping review surface
-
-Saved `BankFundLabelMapping` records (bank label → fund, per ADR-001) are today **only** editable inside the bank-statement import flow — there is no standalone management surface (the `ManagementModal` covers patients, funds, procedure types, bank accounts, fund payments, but not label mappings; no list/delete command is exposed). Surfaced during the bank-reconciliation draft-UX rework (`feat/bank-reconciliation-draft-ux`), where the in-flow mapping step folds into the unified list — in-flow revision is preserved, but there's still no way to proactively review/fix a wrong mapping without re-importing. Add a `ManagementModal` "Bank label mappings" section: list saved mappings per account, edit the fund (or rejected) assignment, delete a mapping. Backend repo already supports listing (`label_mapping_repo` "find all active mappings"); needs list + delete commands + UI. Priority: low — convenience, no functional gap (in-flow revision works).
-
-**User value:** a wrong bank label → fund mapping can be seen, corrected or deleted without re-importing a statement.
-
-**Done when:** a "Bank label mappings" section in the management screen lists the saved mappings per bank account; each can be reassigned to another fund (or rejected) or deleted; list and delete commands exist with tests; an E2E scenario covers a delete.
-
-**Design:** none
-
-**Open questions:** none
 
 ---
 
