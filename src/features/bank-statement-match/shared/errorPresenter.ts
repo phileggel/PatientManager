@@ -23,6 +23,8 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "PathRejected":
     case "PdfExtractionFailed":
     case "InvalidConfirmedMatchDate":
+    // BAS-044 — reached only from the label-mapping review screen
+    case "LabelMappingNotFound":
     case "DatabaseError":
     // --- BankError (reachable via create_transfer / find_account_by_iban) ---
     case "BankAccountNameEmpty":

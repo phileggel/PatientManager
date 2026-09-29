@@ -16,8 +16,9 @@ use crate::shared::secure_path::{self, PathPolicy};
 
 use super::bank_pdf_codec::BankStatementParseResult;
 use super::error::{BankStatementReconciliationError, BankStatementReconciliationTask};
-use super::label_mapping_repo::BankFundLabelMappingRepository;
+use super::label_mapping_repo::{BankFundLabelMapping, BankFundLabelMappingRepository};
 use super::parser;
+use super::reconciliation::FundAssignment;
 
 /// Maximum number of days between a fund payment group date and the bank
 /// statement credit line date for AUTO-match: a group dated on D may appear on
@@ -320,9 +321,7 @@ impl BankStatementOrchestrator {
         parse_result: &super::bank_pdf_codec::BankStatementParseResult,
         corrections: &[super::reconciliation::BankStatementCorrection],
     ) -> Result<u32, BankStatementReconciliationError> {
-        use super::reconciliation::{
-            BankStatementCorrection, BankStatementLineStatus, FundAssignment,
-        };
+        use super::reconciliation::{BankStatementCorrection, BankStatementLineStatus};
 
         // Recompute server-side — never trust FE-supplied reconciliation state (BAS-064).
         let reconciliation = self
@@ -410,6 +409,58 @@ impl BankStatementOrchestrator {
 
         self.create_transfers(bank_account_id, confirmed_matches)
             .await
+    }
+
+    /// BAS-041 — every saved label mapping, all accounts.
+    pub async fn list_label_mappings(
+        &self,
+    ) -> Result<Vec<BankFundLabelMapping>, BankStatementReconciliationError> {
+        self.label_mapping_repo.find_all_mappings().await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "list_label_mappings: find_all_mappings failed");
+            BankStatementReconciliationTask::DatabaseError.into()
+        })
+    }
+
+    /// BAS-042 — reassign a saved mapping to another fund or to rejected.
+    /// An unknown fund is `FundNotFound`; a missing mapping is BAS-044.
+    pub async fn reassign_label_mapping(
+        &self,
+        id: &str,
+        assignment: FundAssignment,
+    ) -> Result<BankFundLabelMapping, BankStatementReconciliationError> {
+        let fund_id = match &assignment {
+            FundAssignment::Fund { fund_id } => {
+                if self.fund_service.read_fund(fund_id).await?.is_none() {
+                    return Err(BankStatementReconciliationTask::FundNotFound.into());
+                }
+                Some(fund_id.clone())
+            }
+            FundAssignment::Rejected => None,
+        };
+        self.label_mapping_repo
+            .reassign_mapping(id, fund_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "reassign_label_mapping: reassign_mapping failed");
+                BankStatementReconciliationError::from(BankStatementReconciliationTask::DatabaseError)
+            })?
+            .ok_or_else(|| BankStatementReconciliationTask::LabelMappingNotFound.into())
+    }
+
+    /// BAS-043 — delete a saved mapping; a missing one is BAS-044.
+    pub async fn delete_label_mapping(
+        &self,
+        id: &str,
+    ) -> Result<(), BankStatementReconciliationError> {
+        let deleted = self.label_mapping_repo.delete_mapping(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_label_mapping: delete_mapping failed");
+            BankStatementReconciliationError::from(BankStatementReconciliationTask::DatabaseError)
+        })?;
+        if deleted {
+            Ok(())
+        } else {
+            Err(BankStatementReconciliationTask::LabelMappingNotFound.into())
+        }
     }
 
     /// Load the saved label mappings for an account (BAS-035 read path).

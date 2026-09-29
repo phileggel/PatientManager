@@ -392,3 +392,201 @@ async fn validate_reconciliation_multi_group_n_entries() {
         "two groups on one line → 2 BankEntry records (BAS-093)"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Integration tests — label mapping review (BAS-041–043)
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn test_bas_041_list_returns_the_mappings_of_every_account() {
+    let pool = setup_pool().await;
+    insert_bank_account(&pool, "acc-1").await;
+    // The seed helper names every account "Test Bank"; names are unique.
+    sqlx::query(
+        "INSERT INTO bank_account (id, name, is_deleted) VALUES ('acc-2', 'Second Bank', 0)",
+    )
+    .execute(&pool)
+    .await
+    .expect("insert second bank_account");
+    insert_fund(&pool, "fund-1", "75", "CPAM 75").await;
+    insert_label_mapping(&pool, "map-1", "acc-1", "VIR CPAM 75", Some("fund-1")).await;
+    insert_label_mapping(&pool, "map-2", "acc-2", "REMISE CHEQUES", None).await;
+    let ctx = build_ctx(&pool);
+
+    let mut listed: Vec<(String, Option<String>)> = ctx
+        .orchestrator
+        .list_label_mappings()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|m| (m.id, m.fund_id))
+        .collect();
+    listed.sort();
+
+    assert_eq!(
+        listed,
+        vec![
+            ("map-1".to_string(), Some("fund-1".to_string())),
+            ("map-2".to_string(), None),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn test_bas_042_reassign_sets_another_fund_or_rejected() {
+    let pool = setup_pool().await;
+    insert_bank_account(&pool, "acc-1").await;
+    insert_fund(&pool, "fund-1", "75", "CPAM 75").await;
+    insert_fund(&pool, "fund-2", "93", "CPAM 93").await;
+    insert_label_mapping(&pool, "map-1", "acc-1", "VIR CPAM", Some("fund-1")).await;
+    let ctx = build_ctx(&pool);
+
+    let moved = ctx
+        .orchestrator
+        .reassign_label_mapping(
+            "map-1",
+            FundAssignment::Fund {
+                fund_id: "fund-2".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(moved.fund_id.as_deref(), Some("fund-2"));
+    assert_eq!(moved.bank_label, "VIR CPAM");
+
+    let rejected = ctx
+        .orchestrator
+        .reassign_label_mapping("map-1", FundAssignment::Rejected)
+        .await
+        .unwrap();
+    assert_eq!(rejected.fund_id, None);
+}
+
+#[tokio::test]
+async fn test_bas_042_reassign_to_an_unknown_fund_is_refused() {
+    let pool = setup_pool().await;
+    insert_bank_account(&pool, "acc-1").await;
+    insert_label_mapping(&pool, "map-1", "acc-1", "VIR CPAM", None).await;
+    let ctx = build_ctx(&pool);
+
+    let err = ctx
+        .orchestrator
+        .reassign_label_mapping(
+            "map-1",
+            FundAssignment::Fund {
+                fund_id: "no-such-fund".to_string(),
+            },
+        )
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BankStatementReconciliationError::Task(BankStatementReconciliationTask::FundNotFound)
+        ),
+        "{err:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_bas_043_delete_makes_the_label_unknown_again() {
+    let pool = setup_pool().await;
+    insert_bank_account(&pool, "acc-1").await;
+    insert_fund(&pool, "fund-1", "75", "CPAM 75").await;
+    insert_label_mapping(&pool, "map-1", "acc-1", "VIR CPAM", Some("fund-1")).await;
+    let ctx = build_ctx(&pool);
+
+    ctx.orchestrator
+        .delete_label_mapping("map-1")
+        .await
+        .unwrap();
+
+    assert!(ctx
+        .orchestrator
+        .list_label_mappings()
+        .await
+        .unwrap()
+        .is_empty());
+    // The next import may save the same label again (active-row unique index).
+    insert_label_mapping(&pool, "map-2", "acc-1", "VIR CPAM", Some("fund-1")).await;
+}
+
+#[tokio::test]
+async fn test_bas_044_reassign_or_delete_of_a_missing_mapping_is_refused() {
+    let pool = setup_pool().await;
+    let ctx = build_ctx(&pool);
+
+    let reassign = ctx
+        .orchestrator
+        .reassign_label_mapping("no-such-mapping", FundAssignment::Rejected)
+        .await
+        .unwrap_err();
+    let delete = ctx
+        .orchestrator
+        .delete_label_mapping("no-such-mapping")
+        .await
+        .unwrap_err();
+    for err in [reassign, delete] {
+        assert!(
+            matches!(
+                err,
+                BankStatementReconciliationError::Task(
+                    BankStatementReconciliationTask::LabelMappingNotFound
+                )
+            ),
+            "{err:?}"
+        );
+    }
+}
+
+const LABEL_CASCADE_MIGRATION: &str =
+    include_str!("../migrations/20260929_bank_statement_label_cascade.sql");
+
+#[tokio::test]
+async fn test_bas_046_deleting_a_bank_account_deletes_its_labels() {
+    let pool = setup_pool().await;
+    insert_bank_account(&pool, "acc-1").await;
+    insert_label_mapping(&pool, "map-1", "acc-1", "VIR CPAM", None).await;
+    let ctx = build_ctx(&pool);
+
+    // The bank account repository's soft delete.
+    sqlx::query("UPDATE bank_account SET is_deleted = 1 WHERE id = 'acc-1'")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    assert!(ctx
+        .orchestrator
+        .list_label_mappings()
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+#[tokio::test]
+async fn test_bas_046_labels_of_accounts_deleted_before_the_upgrade_are_deleted() {
+    let pool = setup_pool().await;
+    sqlx::raw_sql("DROP TRIGGER IF EXISTS trg_bank_account_delete_labels")
+        .execute(&pool)
+        .await
+        .unwrap();
+    insert_bank_account(&pool, "acc-1").await;
+    insert_label_mapping(&pool, "map-1", "acc-1", "VIR CPAM", None).await;
+    sqlx::query("UPDATE bank_account SET is_deleted = 1 WHERE id = 'acc-1'")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    sqlx::raw_sql(LABEL_CASCADE_MIGRATION)
+        .execute(&pool)
+        .await
+        .expect("migration applies");
+
+    let ctx = build_ctx(&pool);
+    assert!(ctx
+        .orchestrator
+        .list_label_mappings()
+        .await
+        .unwrap()
+        .is_empty());
+}

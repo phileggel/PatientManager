@@ -562,6 +562,39 @@ async validateBankStatementReconciliation(bankAccountId: string, parseResult: Ba
 }
 },
 /**
+ * BAS-041 — every saved bank label → fund mapping, all accounts.
+ */
+async listBankLabelMappings() : Promise<Result<BankFundLabelMapping[], BankStatementReconciliationError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_bank_label_mappings") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * BAS-042 — reassign a saved mapping to another fund or to rejected.
+ */
+async reassignBankLabelMapping(id: string, assignment: FundAssignment) : Promise<Result<BankFundLabelMapping, BankStatementReconciliationError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("reassign_bank_label_mapping", { id, assignment }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * BAS-043 — delete a saved mapping; the label is unknown at the next import.
+ */
+async deleteBankLabelMapping(id: string) : Promise<Result<null, BankStatementReconciliationError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_bank_label_mapping", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * R6 — Return Active fund payment groups within the 7-day window of transfer_date.
  */
 async getUnsettledFundGroups(transferDate: string) : Promise<Result<FundGroupCandidate[], BankManualMatchError>> {
@@ -1292,6 +1325,11 @@ export type BankStatementReconciliationTask =
  * any known fund.
  */
 { code: "FundNotFound" } | 
+/**
+ * BAS-044 — the label mapping to reassign or delete does not exist (or was
+ * already deleted). Nothing is written.
+ */
+{ code: "LabelMappingNotFound" } | 
 /**
  * Failure from the use-case-owned label-mapping repository. Logged at the
  * call site via `tracing::error!`; the wire carries no detail.

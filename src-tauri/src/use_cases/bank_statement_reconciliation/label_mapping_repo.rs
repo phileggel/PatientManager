@@ -23,6 +23,20 @@ pub trait BankFundLabelMappingRepository: Send + Sync {
         bank_account_id: &str,
     ) -> anyhow::Result<Vec<BankFundLabelMapping>>;
 
+    /// BAS-041 — every active mapping, all accounts, ordered by account then label.
+    async fn find_all_mappings(&self) -> anyhow::Result<Vec<BankFundLabelMapping>>;
+
+    /// BAS-042 — set an active mapping's fund (`None` = rejected, BAS-030).
+    /// `None` when no active mapping has this id.
+    async fn reassign_mapping(
+        &self,
+        id: &str,
+        fund_id: Option<String>,
+    ) -> anyhow::Result<Option<BankFundLabelMapping>>;
+
+    /// BAS-043 — soft-delete an active mapping; `false` when none has this id.
+    async fn delete_mapping(&self, id: &str) -> anyhow::Result<bool>;
+
     /// Save a new mapping (or update if label already mapped for this account)
     async fn save_mapping(
         &self,
@@ -69,6 +83,69 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
                 fund_id: r.fund_id,
             })
             .collect())
+    }
+
+    async fn find_all_mappings(&self) -> anyhow::Result<Vec<BankFundLabelMapping>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT id, bank_account_id, bank_label, fund_id
+            FROM bank_fund_label_mapping
+            WHERE is_deleted = 0
+            ORDER BY bank_account_id, bank_label
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to fetch all label mappings")?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| BankFundLabelMapping {
+                id: r.id,
+                bank_account_id: r.bank_account_id,
+                bank_label: r.bank_label,
+                fund_id: r.fund_id,
+            })
+            .collect())
+    }
+
+    async fn reassign_mapping(
+        &self,
+        id: &str,
+        fund_id: Option<String>,
+    ) -> anyhow::Result<Option<BankFundLabelMapping>> {
+        let updated = sqlx::query!(
+            r#"
+            UPDATE bank_fund_label_mapping
+            SET fund_id = $1
+            WHERE id = $2 AND is_deleted = 0
+            RETURNING id AS "id!", bank_account_id AS "bank_account_id!", bank_label AS "bank_label!", fund_id AS "fund_id?"
+            "#,
+            fund_id,
+            id,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("Failed to reassign label mapping")?;
+
+        Ok(updated.map(|r| BankFundLabelMapping {
+            id: r.id,
+            bank_account_id: r.bank_account_id,
+            bank_label: r.bank_label,
+            fund_id: r.fund_id,
+        }))
+    }
+
+    async fn delete_mapping(&self, id: &str) -> anyhow::Result<bool> {
+        let result = sqlx::query!(
+            "UPDATE bank_fund_label_mapping SET is_deleted = 1 WHERE id = $1 AND is_deleted = 0",
+            id,
+        )
+        .execute(&self.pool)
+        .await
+        .context("Failed to delete label mapping")?;
+
+        Ok(result.rows_affected() > 0)
     }
 
     async fn save_mapping(

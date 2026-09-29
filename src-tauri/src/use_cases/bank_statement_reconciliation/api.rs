@@ -7,8 +7,9 @@ use crate::context::bank::BankAccount;
 
 use super::bank_pdf_codec::BankStatementParseResult;
 use super::error::BankStatementReconciliationError;
+use super::label_mapping_repo::BankFundLabelMapping;
 use super::orchestrator::BankStatementOrchestrator;
-use super::reconciliation::{BankStatementCorrection, BankStatementReconciliation};
+use super::reconciliation::{BankStatementCorrection, BankStatementReconciliation, FundAssignment};
 
 /// Parse a bank statement PDF and return structured data
 #[tauri::command]
@@ -64,4 +65,36 @@ pub async fn validate_bank_statement_reconciliation(
     orchestrator
         .validate_reconciliation(&bank_account_id, &parse_result, &corrections)
         .await
+}
+
+/// BAS-041 — every saved bank label → fund mapping, all accounts.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_bank_label_mappings(
+    orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
+) -> Result<Vec<BankFundLabelMapping>, BankStatementReconciliationError> {
+    orchestrator.list_label_mappings().await
+}
+
+/// BAS-042 — reassign a saved mapping to another fund or to rejected.
+#[tauri::command]
+#[specta::specta]
+pub async fn reassign_bank_label_mapping(
+    id: String,
+    assignment: FundAssignment,
+    orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
+) -> Result<BankFundLabelMapping, BankStatementReconciliationError> {
+    tracing::info!(target: BACKEND, mapping_id = %id, "Reassigning bank label mapping");
+    orchestrator.reassign_label_mapping(&id, assignment).await
+}
+
+/// BAS-043 — delete a saved mapping; the label is unknown at the next import.
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_bank_label_mapping(
+    id: String,
+    orchestrator: State<'_, Arc<BankStatementOrchestrator>>,
+) -> Result<(), BankStatementReconciliationError> {
+    tracing::info!(target: BACKEND, mapping_id = %id, "Deleting bank label mapping");
+    orchestrator.delete_label_mapping(&id).await
 }

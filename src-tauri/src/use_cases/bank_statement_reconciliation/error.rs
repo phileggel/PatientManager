@@ -80,6 +80,11 @@ pub enum BankStatementReconciliationTask {
     #[error("Fund not found")]
     FundNotFound,
 
+    /// BAS-044 — the label mapping to reassign or delete does not exist (or was
+    /// already deleted). Nothing is written.
+    #[error("Label mapping not found")]
+    LabelMappingNotFound,
+
     /// Failure from the use-case-owned label-mapping repository. Logged at the
     /// call site via `tracing::error!`; the wire carries no detail.
     #[error("An unexpected database error occurred")]
@@ -164,6 +169,10 @@ mod tests {
             (
                 BankStatementReconciliationTask::FundNotFound,
                 "FundNotFound",
+            ),
+            (
+                BankStatementReconciliationTask::LabelMappingNotFound,
+                "LabelMappingNotFound",
             ),
             (
                 BankStatementReconciliationTask::DatabaseError,

@@ -4,7 +4,18 @@
 
 A practitioner receives bank statements (PDF) issued by their bank, listing transfers received from health-insurance funds. This feature **automatically reconciles** these transfers with existing fund-payment groups, completing the procedure-payment lifecycle (Stage 2).
 
-This document covers exclusively the **automatic flow**: PDF parsing, fund-label resolution, mandatory user review of mappings, matching algorithm, user review, and creation of bank transfers.
+This document covers the **automatic flow** — PDF parsing, fund-label resolution, mandatory user review of mappings, matching algorithm, user review, and creation of bank transfers — and the **review of saved bank statement labels** outside that flow (BAS-041–046).
+
+## Entity Definition
+
+**Bank statement label** (`BankFundLabelMapping` in code; ADR-001) — unique per bank account and label among live rows.
+
+| Field        | Business meaning                                        |
+| ------------ | ------------------------------------------------------- |
+| bank account | The account whose statements carry the label            |
+| label        | The label text of a bank statement line, as imported    |
+| assignment   | A fund, or ignored (BAS-030); stored as no fund         |
+| deleted      | Soft-deleted by BAS-043 or BAS-046; never shown or used |
 
 ---
 
@@ -39,7 +50,7 @@ This document covers exclusively the **automatic flow**: PDF parsing, fund-label
 
 **BAS-022 (R4) — Unparsed lines (backend + frontend)**: The number of lines not recognized by the parser is shown as a warning.
 
-### Fund-label resolution (030–049)
+### Fund-label resolution (030–040)
 
 **BAS-030 (R8) — Rejecting a label (frontend + backend)**: A label can be marked as rejected — it identifies a transfer that is not a fund payment. A rejected label is excluded from matching. Rejection is a valid assignment, on par with a fund.
 
@@ -56,7 +67,7 @@ The suggestion, if any, is sent to the frontend as informational (see BAS-033).
 
 **BAS-034 (R7) — Mapping step always required (frontend)** — **SUPERSEDED by BAS-120.**
 
-**BAS-035 (R9) — Mapping persistence (frontend + backend)**: Linking a label to a fund (or marking it rejected) persists the assignment on **validate** — never before. The backend saves each assignment (fund or rejected, see BAS-030) via an upsert, the unique key being the combination `(bank account, label)`. Saved values serve as pre-fill for the next imports of the same account. A correction reverted before validate (BAS-065) is never persisted. (Validate is not transactionally atomic across all its writes — see Accepted limitations.)
+**BAS-035 (R9) — Mapping persistence (frontend + backend)**: In the import flow, linking a label to a fund (or marking it rejected) persists the assignment on **validate** — never before. The backend saves each assignment (fund or rejected, see BAS-030) via an upsert, the unique key being the combination `(bank account, label)`. Saved values serve as pre-fill for the next imports of the same account. A correction reverted before validate (BAS-065) is never persisted. (Validate is not transactionally atomic across all its writes — see Accepted limitations.)
 
 **BAS-036 (R23) — Empty field for unknown label (frontend)**: For a label with no saved mapping, the selection field is shown empty — no default value or suggestion is pre-selected. The user must make an explicit choice (fund or reject).
 
@@ -67,6 +78,32 @@ The suggestion, if any, is sent to the frontend as informational (see BAS-033).
 **BAS-039 (R26) — No VIR SEPA lines (backend + frontend)**: If the statement contains no VIR SEPA line after filtering (see BAS-021), the backend returns a structured error distinct from an empty result. The frontend displays an explicit error message and stops the workflow — no further step is reachable.
 
 **BAS-040 (R27) — Display order of labels in the mapping step (frontend)** — **SUPERSEDED by BAS-120.**
+
+### Bank statement label review (041–049)
+
+A **bank statement label** is the label of a bank statement line, remembered per bank account with its assignment: a fund, or ignored (BAS-030). The import flow creates and updates them (BAS-031, BAS-035); these rules let the user review them outside that flow. Changes here are saved immediately — there is no validate step.
+
+**BAS-041 — Review list (frontend + backend)**: The management screen has a « Libellés de relevé » card opening one flat list of the saved bank statement labels of every bank account, one row each: account name, label, and the assigned fund's name or « Ignoré ». Nothing is added from this screen.
+
+**BAS-041A — Default order and sorting (frontend)**: The list opens sorted by account name, then label. Each column (account, label, fund) sorts ascending or descending on click.
+
+**BAS-041B — Search (frontend)**: One search field filters the rows whose account name, label or fund name contains the text, ignoring case and accents.
+
+**BAS-041C — List states (frontend)**: While loading, the list shows a loading line. With no saved label, it says that labels are saved during a bank statement import. A load failure shows an error message in place of the rows.
+
+**BAS-041D — Deleted fund (frontend + backend)**: A label whose fund has been deleted stays in the list, its fund shown as « Caisse supprimée », so it can be reassigned or deleted.
+
+**BAS-042 — Reassigning (frontend + backend)**: A label can be reassigned to another fund or to « Ignoré ». Its account and label cannot change. The change is saved immediately, the list shows it, and it pre-fills the next import of that account (BAS-031); past reconciliations are unaffected. A deleted or unknown fund is refused and nothing is written.
+
+**BAS-042A — Fund picker (frontend)**: The picker offers « Ignoré » first, then the active funds in the order every fund list uses.
+
+**BAS-043 — Deleting (frontend + backend)**: Deleting a label asks for confirmation, whatever its past use. Afterwards the label is unknown again: the next import of that account shows it with an empty field (BAS-036) and, if one exists, a suggestion (BAS-032). Nothing cascades: bank transfers and groups reconciled while it existed are unaffected.
+
+**BAS-044 — Label gone (frontend + backend)**: Reassigning or deleting a deleted or unknown label is refused and nothing is written; the screen says so and reloads the list.
+
+**BAS-045 — Action feedback (frontend)**: A successful reassign or delete shows a confirmation message; any other failure shows an error message and leaves the list unchanged.
+
+**BAS-046 — Deleted bank account (backend)**: Deleting a bank account deletes its bank statement labels. Bank accounts are never restored, so they never come back. Labels of accounts deleted before this rule existed are deleted once, on upgrade. A deleted account is never resolved from an IBAN (BAS-010), so no import can add labels to it; the list therefore holds live accounts only.
 
 ### Matching algorithm (050–059)
 
@@ -240,7 +277,7 @@ One bank transfer is created and linked as for any group (BAS-070/093). **Write 
 
 **BAS-120C — Ignore and restore (frontend)**: « Ignorer » applies `LinkFund/Rejected` (BAS-030) and disables the row's select. « Rétablir » re-enables the select; for an in-session rejection it also reverts the correction (BAS-065). A row whose SAVED mapping is rejected renders « Ignoré » with the select disabled too — « Rétablir » unlocks it (no correction to revert; choosing a fund then overrides the saved rejection, BAS-030).
 
-**BAS-120D — Corrections all the way down (frontend)**: Every screen-1 decision is an ordinary correction: revertable before validate (BAS-065), persisted only at validate (BAS-035).
+**BAS-120D — Corrections all the way down (frontend)**: Every screen-1 decision is an ordinary correction: revertable before validate (BAS-065), persisted only at validate (BAS-035); the review screen (BAS-041–046) is outside this flow.
 
 **BAS-120E — Destructive re-link guard (frontend)**: Re-linking or ignoring a label whose lines carry **assigned settlement items** asks for inline confirmation before applying — the BAS-066 cascade drops staged procedure assignments (not revert-restorable, BAS-113) and an ignore releases staged group selections.
 

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE bank_fund_label_mapping SET is_deleted = 1 WHERE id = $1 AND is_deleted = 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "6580e1daea2999ec5f0e407ad7c6b4fe15ffd2f59055a0315b7ee026926731f3"
+}
