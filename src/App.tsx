@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BankAccountManager } from "@/features/bank-account";
+import { BankStatementLabelManager } from "@/features/bank-statement-label";
 import { BankStatementPage } from "@/features/bank-statement-match";
 import { BankTransferManager } from "@/features/bank-transfer";
 import DashboardPage from "@/features/dashboard/presentation/DashboardPage";
@@ -89,6 +90,8 @@ function AppContent() {
         return t("nav.bank_transfer");
       case "bank-account":
         return t("nav.bank_account");
+      case "bank-statement-label":
+        return t("nav.bank_statement_label");
       case "bank-statement-match":
         return t("nav.bank_statement");
       case "dashboard":
@@ -147,6 +150,7 @@ function AppContent() {
           )}
           {currentPage === "bank-transfer" && <BankTransferManager />}
           {currentPage === "bank-account" && <BankAccountManager />}
+          {currentPage === "bank-statement-label" && <BankStatementLabelManager />}
           {currentPage === "bank-statement-match" && pendingFilePath && (
             <BankStatementPage filePath={pendingFilePath} onClose={handleCloseImportPage} />
           )}

@@ -305,5 +305,47 @@
     "payment_group_not_found": "Fund payment group not found (id: {{id}})",
     "unexpected": "An unexpected error occurred",
     "database_error": "An unexpected database error occurred"
+  },
+  "statement_label": {
+    "manager": {
+      "title": "Statement labels",
+      "search_placeholder": "Search an account, a label or a fund…",
+      "panel_title": "Where do they come from?",
+      "panel_description": "Each label is saved while importing a statement.",
+      "panel_body": "At the next import, a label saved here is recognised and linked to its fund automatically; an ignored label is set aside. Deleting a label asks the question again at the next import."
+    },
+    "columns": {
+      "account": "Account",
+      "label": "Label",
+      "fund": "Fund",
+      "actions": "Actions"
+    },
+    "ignored": "Ignored",
+    "deleted_fund": "Deleted fund",
+    "loading": "Loading labels…",
+    "empty": "No saved label. Labels are saved when a bank statement is imported.",
+    "load_error": "The labels could not be loaded.",
+    "double_click_to_edit": "Double-click to edit",
+    "edit_aria_label": "Edit label {{label}}",
+    "delete_aria_label": "Delete label {{label}}",
+    "edit": {
+      "title": "Edit label",
+      "ignore_option": "— Ignore this label —",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "delete": {
+      "title": "Delete the label?",
+      "message": "“{{label}}” will be forgotten. The next import will ask for its fund again.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "reassigned": "Label updated.",
+    "deleted": "Label deleted.",
+    "error": {
+      "gone": "This label no longer exists; the list was reloaded.",
+      "fund_gone": "This fund no longer exists.",
+      "unknown": "An unexpected error occurred."
+    }
   }
 }

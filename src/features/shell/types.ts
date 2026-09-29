@@ -9,5 +9,6 @@ export type Page =
   | "fund-payment-match"
   | "bank-transfer"
   | "bank-account"
+  | "bank-statement-label"
   | "bank-statement-match"
   | "design-system";

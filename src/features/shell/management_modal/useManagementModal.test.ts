@@ -104,4 +104,13 @@ describe("useManagementModal", () => {
     expect(onNavigate).toHaveBeenCalledWith("bank-account");
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("test_bas_041_the_labels_card_opens_the_review_page_and_closes", () => {
+    const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
+
+    result.current.handleBankStatementLabels();
+
+    expect(onNavigate).toHaveBeenCalledWith("bank-statement-label");
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 });

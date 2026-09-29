@@ -27,5 +27,9 @@
   "bank_account": {
     "title": "Comptes Bancaires",
     "description": "Gérez les comptes bancaires utilisés pour les rapprochements."
+  },
+  "bank_statement_label": {
+    "title": "Libellés de relevé",
+    "description": "Consultez, corrigez ou supprimez la caisse associée à un libellé de relevé bancaire."
   }
 }

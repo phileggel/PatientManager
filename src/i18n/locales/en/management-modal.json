@@ -27,5 +27,9 @@
   "bank_account": {
     "title": "Bank Accounts",
     "description": "Manage bank accounts used for reconciliation."
+  },
+  "bank_statement_label": {
+    "title": "Statement labels",
+    "description": "Review, correct or delete the fund linked to a bank statement label."
   }
 }

@@ -305,5 +305,47 @@
     "payment_group_not_found": "Groupe de paiement de caisse introuvable (id : {{id}})",
     "unexpected": "Une erreur inattendue est survenue",
     "database_error": "Une erreur de base de données est survenue"
+  },
+  "statement_label": {
+    "manager": {
+      "title": "Libellés de relevé",
+      "search_placeholder": "Rechercher un compte, un libellé ou une caisse…",
+      "panel_title": "D'où viennent-ils ?",
+      "panel_description": "Chaque libellé est enregistré pendant l'import d'un relevé.",
+      "panel_body": "Au prochain import, un libellé enregistré ici est reconnu et rattaché à sa caisse automatiquement ; un libellé ignoré est écarté. Supprimer un libellé fait reposer la question au prochain import."
+    },
+    "columns": {
+      "account": "Compte",
+      "label": "Libellé",
+      "fund": "Caisse",
+      "actions": "Actions"
+    },
+    "ignored": "Ignoré",
+    "deleted_fund": "Caisse supprimée",
+    "loading": "Chargement des libellés…",
+    "empty": "Aucun libellé enregistré. Les libellés sont enregistrés lors de l'import d'un relevé bancaire.",
+    "load_error": "Impossible de charger les libellés.",
+    "double_click_to_edit": "Double-cliquez pour modifier",
+    "edit_aria_label": "Modifier le libellé {{label}}",
+    "delete_aria_label": "Supprimer le libellé {{label}}",
+    "edit": {
+      "title": "Modifier le libellé",
+      "ignore_option": "— Ignorer ce libellé —",
+      "cancel": "Annuler",
+      "save": "Enregistrer"
+    },
+    "delete": {
+      "title": "Supprimer le libellé ?",
+      "message": "« {{label}} » sera oublié. Au prochain import, sa caisse vous sera redemandée.",
+      "confirm": "Supprimer",
+      "cancel": "Annuler"
+    },
+    "reassigned": "Libellé modifié.",
+    "deleted": "Libellé supprimé.",
+    "error": {
+      "gone": "Ce libellé n'existe plus ; la liste a été rechargée.",
+      "fund_gone": "Cette caisse n'existe plus.",
+      "unknown": "Une erreur inattendue s'est produite."
+    }
   }
 }

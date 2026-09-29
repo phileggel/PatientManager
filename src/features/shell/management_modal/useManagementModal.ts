@@ -16,6 +16,7 @@ interface UseManagementModalReturn {
   handleFundPayment: () => void;
   handleBankTransfer: () => void;
   handleBankAccount: () => void;
+  handleBankStatementLabels: () => void;
 }
 
 /**
@@ -70,6 +71,11 @@ export function useManagementModal({
     onClose();
   }, [onNavigate, onClose]);
 
+  const handleBankStatementLabels = useCallback(() => {
+    onNavigate("bank-statement-label");
+    onClose();
+  }, [onNavigate, onClose]);
+
   return {
     handlePatient,
     handleFunds,
@@ -77,5 +83,6 @@ export function useManagementModal({
     handleFundPayment,
     handleBankTransfer,
     handleBankAccount,
+    handleBankStatementLabels,
   };
 }

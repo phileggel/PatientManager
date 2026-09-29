@@ -1,0 +1,1 @@
+export { BankStatementLabelManager } from "./BankStatementLabelManager";

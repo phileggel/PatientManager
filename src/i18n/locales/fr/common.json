@@ -28,7 +28,8 @@
       "reconciliation": "Téléchargez un relevé PDF de paiement pour rapprocher avec les actes en base de données.",
       "bank_statement": "Téléchargez un relevé bancaire PDF pour rapprocher les virements avec les groupes de paiement."
     },
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "bank_statement_label": "Libellés de relevé"
   },
   "action": {
     "add": "Ajouter",

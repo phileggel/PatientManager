@@ -28,7 +28,8 @@
       "reconciliation": "Upload a PDF payment statement to reconcile with procedures in the database.",
       "bank_statement": "Upload a bank statement PDF to reconcile transfers with fund payment groups."
     },
-    "settings": "Settings"
+    "settings": "Settings",
+    "bank_statement_label": "Statement labels"
   },
   "action": {
     "add": "Add",

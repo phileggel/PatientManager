@@ -15,7 +15,7 @@ interface ManagementModalProps {
 }
 
 /**
- * Management modal — presents the six list management entry points.
+ * Management modal — presents the seven list management entry points.
  * Opened from the single "Management" entry in the navigation drawer.
  */
 export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModalProps) {
@@ -27,6 +27,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
     handleFundPayment,
     handleBankTransfer,
     handleBankAccount,
+    handleBankStatementLabels,
   } = useManagementModal({ onNavigate, onClose });
 
   useEffect(() => {
@@ -134,6 +135,22 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
           <span className="text-sm font-medium text-m3-on-surface">{t("bank_account.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
             {t("bank_account.description")}
+          </p>
+        </button>
+
+        {/* Bank statement labels (BAS-041) */}
+        <button
+          id="mgmt-card-bank-statement-labels"
+          type="button"
+          className={cardClasses}
+          onClick={handleBankStatementLabels}
+          aria-label={t("bank_statement_label.title")}
+        >
+          <span className="text-sm font-medium text-m3-on-surface">
+            {t("bank_statement_label.title")}
+          </span>
+          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
+            {t("bank_statement_label.description")}
           </p>
         </button>
       </div>
