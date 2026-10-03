@@ -43,11 +43,11 @@ Headless, a question only the human can answer goes into the entry as an open qu
 
 ## Where things are
 
-- **Workflow**: `/next-todo` runs one task end to end (`docs/workflow.md` § 3); `just next-todo` does it headless.
+- **Workflow**: `/next-todo` runs one task end to end (`docs/workflow.md` § 3); `just next-todo` does it headless. `/whats-next` proposes the queue; the human validates it in chat or edits it by hand.
 - **Before implementing**, read the rules for the layers touched (`.claude/rules/` brings them in when a matching file is read; a new file triggers nothing, so this list is the fallback) — backend (`backend-rules`, `error-model`, `ddd-reference`), frontend (`frontend-rules`, `i18n-rules`, `visual-proof-rules`), E2E (`e2e-rules`), any test (`test-rules`), commits (`commit-rules`). When a rule changes, its doc changes in the same PR.
 - **After completing**, update the source docs in the same PR: spec rules (+ `spec-reviewer`), the contract (+ `contract-reviewer`), an ADR for a technical choice (`/adr-writer` + `adr-reviewer`), `docs/lessons.md` for a failure worth teaching, `ARCHITECTURE.md` when a module appears.
 - **Vocabulary**: `docs/ubiquitous-language.md` — confirmed terms in code, specs, comments and logs; never extend a discrepant one. Give it to every reviewer you launch.
-- **Skills**: `/next-todo`, `/design-proposal`, `/visual-proof`, `/review-triage`, `/techdebt`, `/spec-writer`, `/contract`, `/adr-writer`, `/dep-audit`, `/prune`, `/setup-e2e`, `/session-reflect`.
+- **Skills**: `/next-todo`, `/whats-next`, `/design-proposal`, `/visual-proof`, `/review-triage`, `/techdebt`, `/spec-writer`, `/contract`, `/adr-writer`, `/dep-audit`, `/prune`, `/setup-e2e`, `/session-reflect`.
 - **Agents**: exactly the reviewer lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for docs only), re-run on the fixes until no 🔴, then push; CI runs the same lanes. `reviewer-security` in `release-sweep` mode before every release; `spec-checker` before closing an entry with spec rules; `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change.
 - **Task tracking**: `TaskCreate` / `TaskUpdate` for any task of more than one file or step.
 - **Plans** (asked in chat): exact paths, functions and components per layer, gold work with its size, the tests for each clause. Once the user says go, the plan is the authority for the batch.

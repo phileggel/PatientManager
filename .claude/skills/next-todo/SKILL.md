@@ -106,6 +106,6 @@ was filed.
 1. Headless never asks the human; questions are lines in the entry.
 2. Never lower a floor, raise an allowlist, bypass a hook, force-push, push to `main`,
    touch the installed app's data, cut a release, edit a released changelog line,
-   or edit Next.
+   or edit Next beyond removing the shipped reference.
 3. One task per invocation. Stop after Step 9.
 4. Three hours of wall clock per task; over that, open question and stop.

@@ -1,13 +1,15 @@
 # TODO
 
 Owned by the human (`docs/workflow.md` § 2). The agent only sets `Design`, adds open
-questions, and removes an entry in the PR that ships it.
+questions, removes an entry in the PR that ships it, and writes what the human validated
+in `/whats-next`.
 
 ## Next
 
 <!-- The queue: TODO-NNN / DEBT-NNN references in the order to work them. The agent takes -->
-<!-- the first ready one, never adds to or reorders this list, removes a reference only -->
-<!-- in the PR that ships its entry, and stops when the list is empty. -->
+<!-- the first ready one, removes a reference only in the PR that ships its entry, and -->
+<!-- stops when the list is empty. It reorders or adds only what the human validated in -->
+<!-- /whats-next. -->
 
 1. TODO-016
 2. TODO-013

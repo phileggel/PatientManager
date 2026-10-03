@@ -43,6 +43,10 @@ rule-homes:
 privacy-check:
     python3 scripts/privacy-check.py
 
+# Where the queue stands: queued, ready, blocked, debt, open pull requests (/whats-next proposes the order)
+whats-next:
+    python3 scripts/whats-next.py
+
 # Run the first ready entry of docs/todo.md § Next headless (docs/workflow.md § 9); logs under logs/next-todo/
 next-todo:
     bash scripts/next-todo.sh

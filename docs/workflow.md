@@ -34,16 +34,18 @@ job or a machine gate.
 ### `docs/todo.md` — human-owned
 
 - `## Next` at the top holds the queue: `TODO-NNN` and `DEBT-NNN` references in the
-  order to work them. The agent takes the first **ready** one; it never adds to or
-  reorders the list, and removes a reference only in the PR that ships its entry.
+  order to work them. The agent takes the first **ready** one and removes a reference
+  only in the PR that ships its entry. It adds to or reorders the list only in
+  `/whats-next`, in chat, writing the order the human validated.
 - Every entry is `## TODO-NNN — title` and ends with `**User value:**`,
   `**Done when:**`, `**Design:**` and `**Open questions:**`.
 - **Ready** means: queued, a Done when is written, `Open questions: none`, and
   `Design` is `none` or `validated`.
-- The agent writes to this file in three places only: it sets `Design` to
-  `proposed (…)` or `validated`, it adds open questions, and it removes an entry in the
-  pull request that ships it, together with its reference in `## Next`. It never
-  creates, rewrites or reorders entries.
+- The agent writes to this file in four places only: it sets `Design` to
+  `proposed (…)` or `validated`, it adds open questions, it removes an entry in the
+  pull request that ships it, together with its reference in `## Next`, and in
+  `/whats-next` it writes the queue and the User value and Done when the human
+  validated in chat. It never creates, renumbers or reorders entries.
 
 ### `docs/techdebt.md` — agent-owned
 
@@ -52,7 +54,7 @@ job or a machine gate.
 - The agent files here: reviewer findings it did not fix, smells met on the way,
   proposals for new work, coverage holes, frozen architecture debt.
 - Entries are observations, not commitments. The human promotes one by queuing its
-  `DEBT-NNN` in Next.
+  `DEBT-NNN` in Next; `/whats-next` proposes debt entries beside todo entries.
 
 ## 3. The loop — one run, one task
 
@@ -170,8 +172,8 @@ Every finding, local or from CI, is graded and the outcome recorded in the PR bo
   continues.
 - **Never:** touch the installed application's data
   (`~/.local/share/com.projectsf.patient-manager/` holds real patient data), push to
-  `main`, force-push, bypass a hook, edit a released changelog line, reorder Next, cut
-  a release.
+  `main`, force-push, bypass a hook, edit a released changelog line, change Next
+  without the human's yes (§ 2), cut a release.
 
 ## 9. Where the loop runs
 
