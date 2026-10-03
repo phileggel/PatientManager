@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2026-10-03
+
+### Added
+
+- review, reassign and delete saved bank statement labels
+- ship PatientManager for Linux as an AppImage and a deb
+- list insurance funds alphabetically everywhere
+
+### Fixed
+
+- give confirmation dialogs the same cancel button as other dialogs
+- show the title of the management, import and backup dialogs
+
 ## [0.22.1] - 2026-08-04
 
 ### Fixed
