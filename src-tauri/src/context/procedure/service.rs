@@ -46,7 +46,7 @@ impl ProcedureTypeService {
         default_amount: i64,
         category: Option<String>,
     ) -> Result<ProcedureType, ProcedureError> {
-        tracing::info!(target: BACKEND, procedure_name = %name, default_amount, "Adding procedure type");
+        tracing::info!(target: BACKEND, default_amount, "Adding procedure type");
         if name.trim().is_empty() {
             return Err(ProcedureError::ProcedureTypeNameEmpty);
         }
@@ -80,7 +80,7 @@ impl ProcedureTypeService {
         &self,
         procedure_type: ProcedureType,
     ) -> Result<ProcedureType, ProcedureError> {
-        tracing::info!(target: BACKEND, id = %procedure_type.id, procedure_name = %procedure_type.name, "Updating procedure type");
+        tracing::info!(target: BACKEND, id = %procedure_type.id, "Updating procedure type");
         if procedure_type.id == "import-pdf" {
             return Err(ProcedureError::ReservedTypeNotMutable);
         }

@@ -6,16 +6,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-10-03 — DEBT-022 — Hardening left open by the release sweep
-
-**Found by:** reviewer-security (`release-sweep` before the release after v0.22.1, branch `refactor/excel-import-path-validation`)
-
-**Where:** `src-tauri/capabilities/default.json`, `src-tauri/tauri.conf.json` (`"csp": null`), `src-tauri/Cargo.toml` (`tauri-plugin-opener`), `context/fund/api.rs`, `context/procedure/{api,service}.rs`
-
-**Observation:** four points, none exploitable today. The capability applies to every window and webview (`"*"`) and lists `dialog:allow-open` / `dialog:allow-save`, which `dialog:default` already grants. No content security policy is set. `tauri-plugin-opener` is a dependency no code calls and no capability grants. Fund and procedure type names are logged at info level: not patient data under B44, so a consistency point only.
-
----
-
 ## 2026-10-03 — DEBT-021 — The import picker offers `.xls` and `.csv`, which the parser cannot read
 
 **Found by:** manual (path validation of `parse_excel_file`, branch `refactor/excel-import-path-validation`)

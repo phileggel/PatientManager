@@ -46,7 +46,7 @@ pub async fn add_fund(
     fund_name: String,
     service: State<'_, Arc<FundService>>,
 ) -> Result<Fund, FundError> {
-    tracing::info!(target: BACKEND, fund_identifier = %fund_identifier, fund_name = %fund_name, "Processing add fund request");
+    tracing::info!(target: BACKEND, fund_identifier = %fund_identifier, "Processing add fund request");
 
     service
         .create_fund(fund_identifier, fund_name)

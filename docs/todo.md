@@ -11,26 +11,25 @@ in `/whats-next`.
 <!-- stops when the list is empty. It reorders or adds only what the human validated in -->
 <!-- /whats-next. -->
 
-1. DEBT-022
-2. DEBT-014
-3. DEBT-021
-4. DEBT-020
-5. TODO-001
-6. DEBT-009
-7. TODO-017
-8. TODO-002
-9. TODO-011
-10. TODO-016
-11. TODO-013
-12. TODO-008
-13. TODO-005
-14. TODO-004
-15. TODO-018
-16. DEBT-011
-17. TODO-019
-18. DEBT-003
-19. TODO-020
-20. TODO-021
+1. DEBT-014
+2. DEBT-021
+3. DEBT-020
+4. TODO-001
+5. DEBT-009
+6. TODO-017
+7. TODO-002
+8. TODO-011
+9. TODO-016
+10. TODO-013
+11. TODO-008
+12. TODO-005
+13. TODO-004
+14. TODO-018
+15. DEBT-011
+16. TODO-019
+17. DEBT-003
+18. TODO-020
+19. TODO-021
 
 ---
 
