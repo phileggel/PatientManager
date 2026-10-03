@@ -11,41 +11,17 @@ in `/whats-next`.
 <!-- stops when the list is empty. It reorders or adds only what the human validated in -->
 <!-- /whats-next. -->
 
-1. TODO-001
-2. TODO-016
-3. TODO-013
-4. TODO-008
-5. TODO-005
-6. TODO-004
-7. TODO-018
-8. DEBT-011
-9. TODO-019
-10. DEBT-003
-11. TODO-020
-12. TODO-021
-
----
-
-## TODO-001 — (ci) — Windows E2E at the release gate
-
-Linux E2E (CI via `.github/workflows/e2e.yml`) covers ~95% of regressions but doesn't validate the Windows binary that ships. A proper Windows E2E job gating `release.yml` is the missing release-time safety net.
-
-Scope:
-
-- Make `wdio.conf.ts` platform-aware (Linux WebKitGTK driver vs Windows WebView2/EdgeDriver).
-- Add a job (or pre-step) in `release.yml` that builds the MSVC binary, then runs the WDIO suite against it.
-- Sequence: E2E gates the Windows bundle/draft-release step — no half-baked artifact on broken code.
-- Watch out for Windows runner flakiness; may need retry logic.
-
-Cost: probably half a day of setup + ongoing maintenance burden. Defer until release cadence makes the gap actively painful.
-
-**User value:** none directly — a release cannot ship a Windows build that fails the flows the Linux E2E suite already checks.
-
-**Done when:** the release workflow builds the Windows binary and runs the E2E suite against it before the bundle step; a failing suite stops the release before any draft exists; `wdio.conf.ts` picks its driver per platform; the release dry run on a pull request runs the same job.
-
-**Design:** none
-
-**Open questions:** none
+1. TODO-016
+2. TODO-013
+3. TODO-008
+4. TODO-005
+5. TODO-004
+6. TODO-018
+7. DEBT-011
+8. TODO-019
+9. DEBT-003
+10. TODO-020
+11. TODO-021
 
 ---
 

@@ -6,9 +6,11 @@
 //               @wdio/spec-reporter webdriverio @wdio/globals
 //   cargo install tauri-driver
 //   sudo apt-get install -y webkit2gtk-driver   # Linux: provides WebKitWebDriver
+//   Windows: the msedgedriver matching the WebView2 runtime, on PATH or named
+//   in TAURI_NATIVE_DRIVER (release-build.yml downloads it).
 //
 // Run:
-//   npm run test:e2e          # local (headed window)
+//   npm run test:e2e          # local (headed window); Windows CI (release gate)
 //   npm run test:e2e:ci       # Linux CI (xvfb virtual display)
 import os from "os";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
@@ -23,7 +25,9 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 // Must use `tauri build --debug --no-bundle`, NOT plain `cargo build`:
 // plain cargo build produces a binary that connects to the Vite dev server (devUrl).
 // Only the Tauri CLI build embeds the frontend dist into the binary.
-const BINARY_NAME = "patient_manager_app";
+const IS_WINDOWS = process.platform === "win32";
+const EXE = IS_WINDOWS ? ".exe" : "";
+const BINARY_NAME = `patient_manager_app${EXE}`;
 // Anchor on `__dirname` (this file's location) rather than the Node process
 // cwd so the path stays correct if `npm run test:e2e` is invoked from a
 // non-default cwd (e.g. a CI step with `working-directory: src-tauri`).
@@ -37,8 +41,8 @@ const E2E_DB_PATH = resolve(os.tmpdir(), "patient_manager_e2e.db");
 
 // Failure-screenshot output. The `afterTest` hook below writes a PNG for every
 // failed test so CI runs can be diagnosed without re-running locally. The
-// directory is git-ignored; the E2E workflow uploads it as an artifact on
-// failure (.github/workflows/e2e.yml).
+// directory is git-ignored; the E2E workflows upload it as an artifact on
+// failure (.github/workflows/e2e.yml, and release-build.yml on Windows).
 const SCREENSHOT_DIR = resolve(__dirname, "screenshots/e2e-failures");
 
 let tauriDriver: ChildProcess;
@@ -54,6 +58,8 @@ export const config: Options.Testrunner = {
 
   framework: "mocha",
   specs: ["./e2e/**/*.test.ts"],
+  // E2E_BAIL=1 stops the run at the first failing file (the Windows release gate).
+  bail: process.env.E2E_BAIL === "1" ? 1 : 0,
   maxInstances: 1,
   capabilities: [
     {
@@ -95,6 +101,8 @@ export const config: Options.Testrunner = {
     // `mode='production'`. That keeps the `e2eOverride` branch (gated
     // by the dev/test/e2e mode allowlist) alive in the binary WebDriver
     // drives. See ADR-007.
+    // The overlay also makes the Windows webview open its debugging port,
+    // which msedgedriver cannot obtain on its own (docs/lessons.md TL-004).
     const tauriConfPath = resolve(__dirname, "src-tauri", "tauri.e2e.conf.json");
     if (!existsSync(tauriConfPath)) {
       throw new Error(
@@ -132,9 +140,14 @@ export const config: Options.Testrunner = {
 
     // tauri-driver is expected at ~/.cargo/bin/tauri-driver (installed via `cargo install tauri-driver`).
     // In CI, ensure Rust toolchain installs to the default cargo home or adjust this path.
+    // Linux finds WebKitWebDriver on PATH. Windows needs the msedgedriver that
+    // matches the WebView2 runtime: named in TAURI_NATIVE_DRIVER, else on PATH.
+    const nativeDriver = process.env.TAURI_NATIVE_DRIVER
+      ? ["--native-driver", process.env.TAURI_NATIVE_DRIVER]
+      : [];
     tauriDriver = spawn(
-      resolve(os.homedir(), ".cargo", "bin", "tauri-driver"),
-      ["--port", "4446", "--native-port", "4447"],
+      resolve(os.homedir(), ".cargo", "bin", `tauri-driver${EXE}`),
+      ["--port", "4446", "--native-port", "4447", ...nativeDriver],
       { stdio: [null, process.stdout, process.stderr] },
     );
     tauriDriver.on("error", (error) => {

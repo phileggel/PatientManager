@@ -56,3 +56,15 @@ useEffect(() => {
 **Lesson.** Always match the parameter count, order, and names exactly as declared in `bindings.ts`. Never object-wrap. If a command has many optional parameters and the call site is unreadable, the fix is to restructure the Rust signature (or wrap on the Rust side with a `#[derive(Type)]` struct that Specta serialises as a discrete TS interface), not to invent an object-wrap on the call site.
 
 **Reference.** `docs/frontend-rules.md` F29; `src/bindings.ts` is the authoritative reference for any command signature.
+
+---
+
+## E2E on Windows
+
+### TL-004 — The E2E build opens the WebView2 debugging port itself
+
+**Problem.** On Windows, `tauri-driver` drives the app through `msedgedriver`, which starts the app and waits for its WebView2 to write a `DevToolsActivePort` file. It asks for the port through the `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` environment variable. The webview library sets its own browser arguments, and the WebView2 runtime then drops the ones from the environment (seen on runtime 153): the port is never opened, and every session fails after 60 seconds with `session not created: DevToolsActivePort file doesn't exist`. The message is the same when the driver and the runtime versions differ, so the version is the first suspect and the wrong one. The app itself starts normally.
+
+**Lesson.** The E2E build asks for the port itself: `tauri.e2e.conf.json` sets `additionalBrowserArgs` to the library's defaults plus `--remote-debugging-port=0`. No shipped configuration carries that argument. When a session cannot be created, start the app by hand with `WEBVIEW2_USER_DATA_FOLDER` set and look at the `msedgewebview2.exe` command line before changing anything else.
+
+**Reference.** `src-tauri/tauri.e2e.conf.json`; the step "Check the app starts and its webview can be driven" in `.github/workflows/release-build.yml`; `scripts/tests/test_e2e_conf.py`.

@@ -11,6 +11,9 @@ on:
       - .github/workflows/release-dry-run.yml
       - src-tauri/tauri.dry-run.conf.json
       - src-tauri/tauri.conf.json
+      # What the Windows E2E gate of the build runs.
+      - src-tauri/tauri.e2e.conf.json
+      - wdio.conf.ts
 
 concurrency:
   group: release-dry-run-${{ github.ref }}
