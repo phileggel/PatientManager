@@ -89,6 +89,7 @@ Use cases may import from contexts; never from another use case. No domain event
 - **`bank_manual_match`** — BankTransfer ↔ FundPaymentGroup (Fund flow) / Procedure (Direct flow). ([spec](docs/spec/bank-statement-manual-match.md))
 - **`overpayment`** — Refund cascade across Procedure + Fund + Bank. ([spec](docs/spec/overpayment.md))
 - **`db_backup`** — SQLite `VACUUM INTO` + gzip; pending-import for Windows file-locking. ([spec](docs/spec/db-backup.md))
+- **`diagnostic_report`** — a text report on the installation (version, migrations, database checks, row counts, last log lines) with no patient data; the log is emptied when the version changes. ([spec](docs/spec/diagnostic-report.md))
 
 ---
 

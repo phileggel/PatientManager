@@ -4,15 +4,27 @@ const mockOpen = vi.hoisted(() => vi.fn());
 const mockSave = vi.hoisted(() => vi.fn());
 const mockExport = vi.hoisted(() => vi.fn());
 const mockImport = vi.hoisted(() => vi.fn());
+const mockReport = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mockOpen, save: mockSave }));
 vi.mock("@/bindings", () => ({
-  commands: { exportDatabase: mockExport, importDatabase: mockImport },
+  commands: {
+    exportDatabase: mockExport,
+    importDatabase: mockImport,
+    generateDiagnosticReport: mockReport,
+  },
 }));
 vi.mock("@/infra/logger", () => ({
   logger: { info: vi.fn(), error: vi.fn(), debug: vi.fn(), warn: vi.fn() },
 }));
 
-import { exportDatabase, importDatabase, pickExportPath, pickImportPath } from "./gateway";
+import {
+  exportDatabase,
+  generateDiagnosticReport,
+  importDatabase,
+  pickDiagnosticReportPath,
+  pickExportPath,
+  pickImportPath,
+} from "./gateway";
 
 describe("db-backup/gateway — pickExportPath", () => {
   beforeEach(() => {
@@ -108,6 +120,48 @@ describe("db-backup/gateway — typed ServiceResult pass-through", () => {
     expect(await importDatabase("/tmp/in.gz")).toEqual({
       success: false,
       error: { code: "BackupCorrupted" },
+    });
+  });
+});
+
+describe("db-backup/gateway — diagnostic report", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete (window as Window).__e2e;
+  });
+
+  it("test_dgr_011_calls_save_with_the_txt_filter_and_the_default_name", async () => {
+    mockSave.mockResolvedValue("/home/u/diagnostic.txt");
+    const result = await pickDiagnosticReportPath("Save the report", "diagnostic-20260101.txt");
+    expect(mockSave).toHaveBeenCalledWith({
+      title: "Save the report",
+      defaultPath: "diagnostic-20260101.txt",
+      filters: [{ name: "Diagnostic report", extensions: ["txt"] }],
+    });
+    expect(result).toBe("/home/u/diagnostic.txt");
+  });
+
+  // ADR-007: e2e override
+  it("returns the override and skips save() when window.__e2e.pickDiagnosticReportPath is set", async () => {
+    window.__e2e = { pickDiagnosticReportPath: "/fixture/diagnostic.txt" };
+    expect(await pickDiagnosticReportPath("t", "d.txt")).toBe("/fixture/diagnostic.txt");
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it("test_dgr_020_passes_the_destination_and_gives_back_the_support_code", async () => {
+    mockReport.mockResolvedValue({ status: "ok", data: { support_code: "K7QF-2M4X" } });
+    expect(await generateDiagnosticReport("/home/u/diagnostic.txt")).toEqual({
+      success: true,
+      data: { support_code: "K7QF-2M4X" },
+    });
+    expect(mockReport).toHaveBeenCalledWith("/home/u/diagnostic.txt");
+  });
+
+  it("test_dgr_015_passes_a_typed_error_through", async () => {
+    mockReport.mockResolvedValue({ status: "error", error: { code: "PathRejected" } });
+    expect(await generateDiagnosticReport("/elsewhere/diagnostic.txt")).toEqual({
+      success: false,
+      error: { code: "PathRejected" },
     });
   });
 });

@@ -20,6 +20,7 @@ You review layering, not code quality. Follow `.claude/agents/review-protocol.md
 - `use crate::context::<other>::…` inside a context 🔴 `[DECISION]`: cross-context work goes through `use_cases/`, with a trait or port so the importing context never names the other.
 - A service calling another service 🔴 `[DECISION]` (a use case orchestrates both); a repository calling a service 🔴; any other inversion 🔴.
 - A use case importing another use case (`crate::use_cases::<other>`) 🔴 `[DECISION]` (B18). An import that already exists elsewhere is debt, never a precedent.
+- A use case file other than `sqlx_uow.rs` naming a sqlx type or the concrete `Database` (`sqlx::`, `SqlitePool`, `get_pool()`), tests included 🔴 `[DECISION]` (B24). A read-only query is no exception; one that already exists elsewhere is debt, never a precedent.
 - `commands.*` outside the feature's gateway 🔴 (F3); a gateway calling another feature's command 🔴; business logic in an `api.rs` command handler 🟡.
 
 **Factories** (B7, B11, B37)

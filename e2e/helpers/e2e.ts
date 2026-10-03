@@ -36,6 +36,7 @@ export interface E2eOverrides {
   pickPdfFilePath?: string | null;
   pickExportPath?: string | null;
   pickImportPath?: string | null;
+  pickDiagnosticReportPath?: string | null;
 }
 
 /**

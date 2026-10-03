@@ -202,6 +202,18 @@ The label of a bank statement line, remembered per bank account together with it
 > ⚠️ Code discrepancy: `BankFundLabelMapping` (table `bank_fund_label_mapping`) — keep the code name; use this term in specs, screens and new prose.
 > Status: confirmed (2026-09-29)
 
+### Diagnostic report (« Rapport de diagnostic »)
+
+A text file the user saves from the database backup dialog and sends to support: the state of the installation (version, migrations, database checks, row counts, backend log lines) and no practice data (DGR-020 to DGR-026).
+
+> Status: confirmed (2026-10-03)
+
+### Support code (« Code support »)
+
+The eight-character code (`XXXX-XXXX`) written in a diagnostic report and shown to the user once it is saved, so a report can be matched to the person quoting it (DGR-020).
+
+> Status: confirmed (2026-10-03)
+
 ### BankStatementReconciliation
 
 The in-progress, ephemeral reconciliation of one imported bank statement: the set of

@@ -23,12 +23,21 @@
       "cancel": "Annuler"
     }
   },
+  "diagnostic": {
+    "title": "Rapport de diagnostic",
+    "description": "En cas de problème, enregistrez un rapport à envoyer au support. Il ne contient aucune donnée de patient : uniquement la version, l'état de la base et les derniers messages techniques.",
+    "button": "Générer le rapport",
+    "dialog_title": "Enregistrer le rapport de diagnostic",
+    "saved": "Rapport enregistré :",
+    "send": "Envoyez ce fichier au support et indiquez le code"
+  },
   "errors": {
     "home_unresolved": "Impossible de localiser votre dossier personnel. Veuillez réessayer.",
     "path_rejected": "L'emplacement sélectionné n'est pas autorisé. Choisissez un dossier dans votre répertoire personnel.",
     "export_failed": "L'export de la base de données a échoué. Veuillez réessayer.",
     "import_failed": "La sauvegarde n'a pas pu être restaurée. Veuillez réessayer.",
     "backup_corrupted": "Ce fichier n'est pas une sauvegarde valide ou il est corrompu. Choisissez un autre fichier.",
+    "report_failed": "Le rapport n'a pas pu être enregistré. Veuillez réessayer.",
     "unexpected": "Une erreur inattendue s'est produite. Veuillez réessayer."
   }
 }

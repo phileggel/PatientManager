@@ -1,4 +1,4 @@
-import type { DbBackupError } from "@/bindings";
+import type { DbBackupError, DiagnosticReportError } from "@/bindings";
 
 /**
  * Layer 3 of the F27 typed-error pipeline for the database-backup use case.
@@ -20,5 +20,17 @@ export function formatDbBackupError(err: DbBackupError): { key: string } {
       return { key: "db-backup:errors.import_failed" };
     case "BackupCorrupted":
       return { key: "db-backup:errors.backup_corrupted" };
+  }
+}
+
+/** F27 layer 3 for the diagnostic report (DGR-015). Exhaustive over the union. */
+export function formatDiagnosticReportError(err: DiagnosticReportError): { key: string } {
+  switch (err.code) {
+    case "HomeUnresolved":
+      return { key: "db-backup:errors.home_unresolved" };
+    case "PathRejected":
+      return { key: "db-backup:errors.path_rejected" };
+    case "ReportFailed":
+      return { key: "db-backup:errors.report_failed" };
   }
 }

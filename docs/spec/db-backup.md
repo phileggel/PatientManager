@@ -15,7 +15,8 @@ gzip format (`.db.gz`).
 
 **R1 — Dedicated modal**: The feature is reachable from a "Maintenance" entry in the
 navigation drawer, visually separated from the rest of the navigation. Clicking this entry
-opens a modal containing both actions (export and import).
+opens a modal containing both actions (export and import), and the diagnostic report section
+(`diagnostic-report.md`, DGR-010).
 
 **R2 — Export: destination file selection**: The user triggers the export through a
 dedicated button. A native file-selection dialog opens (type `save`), pre-filtered to

@@ -1,4 +1,5 @@
 mod db;
+pub mod db_diagnostics;
 pub mod event_bus;
 pub mod logger;
 pub mod pdf_extractor;

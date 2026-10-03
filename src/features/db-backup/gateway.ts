@@ -1,5 +1,10 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { commands, type DbBackupError } from "@/bindings";
+import {
+  commands,
+  type DbBackupError,
+  type DiagnosticReportError,
+  type DiagnosticReportResult,
+} from "@/bindings";
 import { logger } from "@/infra/logger";
 import { e2eOverride } from "@/lib/e2e";
 import type { ServiceResult } from "@/types/api";
@@ -27,6 +32,20 @@ export async function pickImportPath(title: string, defaultPath?: string): Promi
     if (typeof result !== "string") return null;
     return result;
   });
+}
+
+/** DGR-011 — where to save the diagnostic report. */
+export async function pickDiagnosticReportPath(
+  title: string,
+  defaultPath: string,
+): Promise<string | null> {
+  return e2eOverride("pickDiagnosticReportPath", async () =>
+    save({
+      title,
+      defaultPath,
+      filters: [{ name: "Diagnostic report", extensions: ["txt"] }],
+    }),
+  );
 }
 
 // ── Database Backup ──────────────────────────────────────────────────────────
@@ -66,4 +85,24 @@ export async function importDatabase(
     return { success: false, error: result.error };
   }
   return { success: true, data: undefined };
+}
+
+// ── Diagnostic report ────────────────────────────────────────────────────────
+
+/**
+ * DGR-020 — writes the diagnostic report to `destPath` and returns its support
+ * code. The path comes from a native save dialog.
+ *
+ * @returns the typed error on failure (F27 pass-through — never throws).
+ */
+export async function generateDiagnosticReport(
+  destPath: string,
+): Promise<ServiceResult<DiagnosticReportResult, DiagnosticReportError>> {
+  logger.info("[db-backup] generateDiagnosticReport");
+  const result = await commands.generateDiagnosticReport(destPath);
+  if (result.status === "error") {
+    logger.error("[db-backup] generateDiagnosticReport failed", result.error);
+    return { success: false, error: result.error };
+  }
+  return { success: true, data: result.data };
 }

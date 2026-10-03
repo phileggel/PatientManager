@@ -178,6 +178,7 @@ export const Drawer = ({
           </li>
           <li>
             <button
+              id="nav-db-backup"
               type="button"
               className={navItemClasses}
               onClick={() => onOpenDbBackup?.()}

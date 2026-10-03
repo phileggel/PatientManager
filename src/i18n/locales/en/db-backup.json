@@ -23,12 +23,21 @@
       "cancel": "Cancel"
     }
   },
+  "diagnostic": {
+    "title": "Diagnostic report",
+    "description": "If something goes wrong, save a report to send to support. It holds no patient data: only the version, the state of the database and the latest technical messages.",
+    "button": "Generate the report",
+    "dialog_title": "Save the diagnostic report",
+    "saved": "Report saved:",
+    "send": "Send this file to support and quote the code"
+  },
   "errors": {
     "home_unresolved": "Could not locate your home folder. Please try again.",
     "path_rejected": "The selected location is not allowed. Choose a folder inside your home directory.",
     "export_failed": "The database export failed. Please try again.",
     "import_failed": "The backup could not be restored. Please try again.",
     "backup_corrupted": "This file is not a valid backup, or it is corrupt. Choose a different file.",
+    "report_failed": "The report could not be saved. Please try again.",
     "unexpected": "An unexpected error occurred. Please try again."
   }
 }

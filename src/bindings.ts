@@ -786,6 +786,22 @@ async importDatabase(sourcePath: string) : Promise<Result<null, DbBackupError>> 
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Writes a diagnostic report to `dest_path` (DGR-020 to DGR-025) and returns
+ * its support code.
+ * 
+ * The frontend-supplied `dest_path` comes from a native save dialog; it is
+ * validated as a new `.txt` file in an existing directory under the user's
+ * home (DGR-023), so a crafted IPC call cannot write elsewhere.
+ */
+async generateDiagnosticReport(destPath: string) : Promise<Result<DiagnosticReportResult, DiagnosticReportError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("generate_diagnostic_report", { destPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async logFrontend(level: string, message: string) : Promise<void> {
     await TAURI_INVOKE("log_frontend", { level, message });
 },
@@ -1430,6 +1446,29 @@ export type DbBackupError =
  * A single DB procedure match within an issue
  */
 export type DbMatch = { procedure_id: string; procedure_date: string; fund_id: string | null; amount: number | null; anomalies: AnomalyType[] }
+/**
+ * Typed error for the diagnostic report use case (DGR-012). It orchestrates no
+ * bounded context, so it is one flat enum, tagged with `code`. Variants carry
+ * no payload: the detail is logged at the failure site and never crosses the
+ * wire (it can hold an absolute path).
+ */
+export type DiagnosticReportError = 
+/**
+ * The user's home directory could not be resolved.
+ */
+{ code: "HomeUnresolved" } | 
+/**
+ * The destination was rejected by the secure-path validator (DGR-023).
+ */
+{ code: "PathRejected" } | 
+/**
+ * The report could not be written to the destination.
+ */
+{ code: "ReportFailed" }
+/**
+ * What the frontend shows once the report is written (DGR-012).
+ */
+export type DiagnosticReportResult = { support_code: string }
 /**
  * A procedure candidate for a direct payment (R14)
  */

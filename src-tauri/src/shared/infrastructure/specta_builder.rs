@@ -2,9 +2,9 @@ use crate::{
     context::{bank, fund, patient, procedure},
     shared::logger,
     use_cases::{
-        bank_manual_match, bank_statement_reconciliation, db_backup, excel_import,
-        fund_payment_manual_management, fund_payment_reconciliation, fund_payment_report_pdf,
-        overpayment, procedure_orchestration as use_cases_procedure,
+        bank_manual_match, bank_statement_reconciliation, db_backup, diagnostic_report,
+        excel_import, fund_payment_manual_management, fund_payment_reconciliation,
+        fund_payment_report_pdf, overpayment, procedure_orchestration as use_cases_procedure,
     },
 };
 
@@ -125,6 +125,7 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             bank_manual_match::get_procedures_by_ids,
             db_backup::export_database,
             db_backup::import_database,
+            diagnostic_report::generate_diagnostic_report,
             logger::log_frontend,
             overpayment::create_overpayment,
             overpayment::cancel_overpayment,

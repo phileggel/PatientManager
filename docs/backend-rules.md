@@ -180,7 +180,7 @@ UoW — the aggregate's own repository handles atomicity internally via its `sav
 
 ## Repository
 
-**B27** — MUST use sqlx macros for queries. Use your project's DB reset command to wipe and re-migrate if needed.
+**B27** — MUST use sqlx macros for queries, except where a macro cannot check the statement: PRAGMAs, reads of SQLite's own catalogue, and identifiers only known at run time (wrapped in `AssertSqlSafe`, never built from user input). Use your project's DB reset command to wipe and re-migrate if needed.
 
 ## Logging
 

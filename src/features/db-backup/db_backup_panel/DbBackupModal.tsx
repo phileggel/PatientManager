@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { logger } from "@/infra/logger";
 import { Button, ConfirmationDialog, Dialog } from "@/ui/components";
+import { DiagnosticReportSection } from "../diagnostic_report_section/DiagnosticReportSection";
 import { useDbBackupPanel } from "./useDbBackupPanel";
 
 const TAG = "[DbBackupModal]";
@@ -93,6 +94,9 @@ export function DbBackupModal({ isOpen, onClose }: DbBackupModalProps) {
               </Button>
             </div>
           </div>
+
+          {/* Diagnostic report (DGR-010) */}
+          <DiagnosticReportSection disabled={isBusy} />
 
           {/* Progress indicator — visible during export, import, and relaunch wait */}
           {isBusy && (

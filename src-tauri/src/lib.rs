@@ -34,6 +34,7 @@ use crate::context::procedure::{
 };
 
 use crate::context::fund::{FundPaymentService, SqliteFundPaymentRepository};
+use crate::shared::db_diagnostics::SqliteDatabaseDiagnostics;
 use crate::shared::event_bus::*;
 use crate::shared::logger::*;
 use crate::shared::uow::SqlxTransactionManager;
@@ -42,6 +43,9 @@ use crate::use_cases::bank_statement_reconciliation::{
     BankStatementOrchestrator, SqliteBankFundLabelMappingRepository,
 };
 use crate::use_cases::db_backup::DbBackupOrchestrator;
+use crate::use_cases::diagnostic_report::{
+    reset_log_on_version_change, DiagnosticReportOrchestrator,
+};
 use crate::use_cases::excel_import::{ExcelImportOrchestrator, SqliteExcelAmountMappingRepository};
 use crate::use_cases::fund_payment_manual_management::FundPaymentManualManagementOrchestrator;
 use crate::use_cases::fund_payment_reconciliation::{
@@ -58,8 +62,15 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     // Create app directories
     let dirs = create_app_dirs(app)?;
 
+    // DGR-030 — a log written by another version is emptied before logging
+    // starts. A failure here must not stop the app: the old log is kept.
+    let log_reset = reset_log_on_version_change(&dirs.log_dir, env!("CARGO_PKG_VERSION"));
+
     // Initialize tracing with file logging
     initialize_tracing(&dirs.log_dir)?;
+    if let Err(e) = log_reset {
+        tracing::warn!(target: BACKEND, err = ?e, "Could not reset the log of a previous version");
+    }
     tracing::info!(
         target: BACKEND,
         version = env!("CARGO_PKG_VERSION"),
@@ -274,6 +285,12 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     let db_backup_orchestrator = Arc::new(DbBackupOrchestrator::new(db.clone()));
     tracing::info!(target: BACKEND, "Database backup orchestrator created");
 
+    let diagnostic_report_orchestrator = Arc::new(DiagnosticReportOrchestrator::new(
+        Arc::new(SqliteDatabaseDiagnostics::new(db.get_pool().clone())),
+        dirs.log_dir.join("app.log"),
+    ));
+    tracing::info!(target: BACKEND, "Diagnostic report orchestrator created");
+
     // Register services with Tauri state management
     app.manage(patient_service);
     app.manage(fund_service);
@@ -292,6 +309,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     app.manage(bank_manual_match_orchestrator);
     app.manage(overpayment_orchestrator);
     app.manage(db_backup_orchestrator);
+    app.manage(diagnostic_report_orchestrator);
     tracing::info!(target: BACKEND, "Application backend initialized successfully");
     Ok(())
 }
