@@ -21,7 +21,7 @@ You review E2E tests against the running Tauri app. Follow `.claude/agents/revie
 
 **Inputs** — `setValue()` / `clearValue()` on a controlled input 🔴 (E6, use `setReactInputValue`); an ISO date typed into a DateField 🔴 (E7, use `isoToDisplayDate`).
 
-**Independence** — today's date as data 🔴 (E9, fixed past `DATES`); a value that depends on another test's outcome 🔴; an assertion on store or context state instead of the DOM 🔴; seeding inside `it()` instead of `before()` 🟡.
+**Independence** — today's date as data 🔴 (E9, fixed past `DATES`); a value that depends on another test's outcome 🔴; an `it()` that starts from the screen a previous `it()` left open 🔴 (one scenario, or each `it()` navigates on its own); an assertion on store or context state instead of the DOM 🔴; seeding inside `it()` instead of `before()` 🟡.
 
 **No mocks** — `vi.mock`, `sinon.stub` or any module mock 🔴; an `assert.fail("stub")` body with no comment on what is missing 🟡.
 

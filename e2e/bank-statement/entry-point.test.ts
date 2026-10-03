@@ -2,11 +2,8 @@
  * E2E — bank-statement reconciliation entry point + IPC smoke
  *
  * Scope (deliberate, KISS): entry-point wiring + one real-IPC recompute. The
- * deeper flow (card click → file pick → BankStatementModal → correction →
- * validate) IS drivable — ADR-007's `setE2eOverrides({ pickPdfFilePath })`
- * exists precisely to bypass the native file dialog — but needs a committed
- * fixture bank-statement PDF and its own scenario budget; tracked in
- * docs/techdebt.md (2026-07-30, "Deep bank-statement E2E via ADR-007").
+ * whole flow from a statement PDF (file pick → label step → settlement →
+ * validate) is driven by `full-flow.test.ts`.
  *
  * What this suite covers:
  *   - The Import nav button opens the import modal and the bank-reconciliation
