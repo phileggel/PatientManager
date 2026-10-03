@@ -11,14 +11,14 @@ describe("shell/gateway — pickExcelFilePath", () => {
     delete (window as Window).__e2e;
   });
 
-  it("calls open() with xlsx/xls/csv filters and the provided title", async () => {
+  it("calls open() with the xlsx filter only and the provided title", async () => {
     mockOpen.mockResolvedValue(null);
     await pickExcelFilePath("Select an Excel file");
     expect(mockOpen).toHaveBeenCalledWith({
       title: "Select an Excel file",
       multiple: false,
       defaultPath: undefined,
-      filters: [{ name: "Excel Files", extensions: ["xlsx", "xls", "csv"] }],
+      filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
     });
   });
 

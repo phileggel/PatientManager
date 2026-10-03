@@ -1,15 +1,4 @@
 {
-  "step1": {
-    "title": "Step 1: Select File"
-  },
-  "dropzone": {
-    "aria_label": "File drop zone",
-    "text": "Drag and drop your Excel file here",
-    "or": "or",
-    "select": "Select File",
-    "processing": "Processing...",
-    "formats": "Supported formats: .xlsx, .xls, .csv"
-  },
   "create_type_modal": {
     "title": "Create New Procedure Type",
     "name_label": "Name",

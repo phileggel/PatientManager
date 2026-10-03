@@ -17,7 +17,7 @@ export async function pickExcelFilePath(
         title,
         multiple: false,
         defaultPath,
-        filters: [{ name: "Excel Files", extensions: ["xlsx", "xls", "csv"] }],
+        filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
       }),
     ),
   );

@@ -1,15 +1,4 @@
 {
-  "step1": {
-    "title": "Étape 1 : Sélectionner un fichier"
-  },
-  "dropzone": {
-    "aria_label": "Zone de dépôt de fichier",
-    "text": "Glissez-déposez votre fichier Excel ici",
-    "or": "ou",
-    "select": "Sélectionner un fichier",
-    "processing": "Traitement...",
-    "formats": "Formats supportés : .xlsx, .xls, .csv"
-  },
   "create_type_modal": {
     "title": "Créer un nouveau type d'acte",
     "name_label": "Nom",

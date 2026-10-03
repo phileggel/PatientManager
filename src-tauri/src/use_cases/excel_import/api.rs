@@ -66,8 +66,8 @@ pub struct ImportExecutionResult {
 
 // ============ Tauri Commands ============
 
-/// Extensions the import file picker offers.
-const EXCEL_EXTENSIONS: &[&str] = &["xlsx", "xls", "csv"];
+/// The one format the parser reads; the import file picker offers the same.
+const EXCEL_EXTENSIONS: &[&str] = &["xlsx"];
 
 /// Tauri command: Parse Excel file (preview step — no DB writes)
 ///
@@ -215,12 +215,13 @@ mod tests {
         );
     }
 
-    /// A file inside the home directory with another extension is rejected.
+    /// A file inside the home directory with another extension is rejected,
+    /// the old Excel format included: the parser reads `.xlsx` only.
     #[tokio::test]
     async fn parse_excel_file_rejects_another_extension() {
         let home = secure_path::user_home().expect("home directory");
         let dir = tempfile::tempdir_in(home).expect("tempdir in home");
-        let path = dir.path().join("notes.txt");
+        let path = dir.path().join("book.xls");
         std::fs::write(&path, b"x").expect("write file");
 
         let result = parse_excel_file(path.to_string_lossy().into_owned()).await;

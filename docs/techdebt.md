@@ -6,18 +6,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-10-03 — DEBT-021 — The import picker offers `.xls` and `.csv`, which the parser cannot read
-
-**Found by:** manual (path validation of `parse_excel_file`, branch `refactor/excel-import-path-validation`)
-
-**Where:** `src/features/shell/gateway.ts` (dialog filter), `excel-import:` « Formats supportés : .xlsx, .xls, .csv », `src-tauri/src/use_cases/excel_import/parser.rs` (`Xlsx::new`)
-
-**Observation:** the file picker and the screen announce three formats; the parser opens the file as an xlsx workbook only, so a `.xls` or `.csv` file ends on « Le fichier n'est pas un classeur Excel lisible ». The path validation accepts the three extensions to keep that behaviour. Either the picker and the text drop the two formats, or the parser learns them: a visible change, so the owner's call.
-
-**Decided by the owner (2026-10-03):** offer `.xlsx` only — remove `.xls` and `.csv` from the picker and from the text.
-
----
-
 ## 2026-10-03 — DEBT-020 — The reconciliation report prints a box instead of the period arrow
 
 **Found by:** manual (render check of the printpdf bump, branch `chore/dep-audit-blockers`)
