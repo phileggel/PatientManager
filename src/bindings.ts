@@ -208,6 +208,9 @@ async deleteProcedureType(id: string) : Promise<Result<null, ProcedureError>> {
 },
 /**
  * Tauri command: Parse Excel file (preview step — no DB writes)
+ * 
+ * The frontend-supplied `file_path` is validated as an existing regular file
+ * under the user's home directory before the parser opens it.
  */
 async parseExcelFile(filePath: string) : Promise<Result<ParseExcelResponse, ExcelImportError>> {
     try {
@@ -1454,9 +1457,11 @@ export type ExcelFund = { temp_id: string; fund_identifier: string; fund_name: s
  */
 export type ExcelImportError = 
 /**
- * `parse_excel_file` — the path does not exist on disk.
+ * `parse_excel_file` — the frontend-supplied path was rejected by the
+ * secure-path validator (missing, outside the allowed root, wrong
+ * extension, or not a regular file) or the home directory is unresolved.
  */
-{ code: "FileNotFound"; path: string } | 
+{ code: "PathRejected" } | 
 /**
  * `parse_excel_file` — the file exists but cannot be opened or read as an
  * xlsx workbook.

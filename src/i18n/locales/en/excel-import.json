@@ -82,7 +82,7 @@
     "import_failed": "Import failed"
   },
   "errors": {
-    "file_not_found": "The selected file could not be found.",
+    "path_rejected": "Could not open this file. Choose a file inside your home directory.",
     "invalid_format": "The file is not a readable Excel workbook.",
     "parse_error": "The Excel file could not be parsed.",
     "import_failed": "The import could not be completed. Please try again.",

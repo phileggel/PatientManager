@@ -1,4 +1,5 @@
 use crate::shared::logger::BACKEND;
+use crate::shared::secure_path::{self, PathPolicy};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -65,13 +66,35 @@ pub struct ImportExecutionResult {
 
 // ============ Tauri Commands ============
 
+/// Extensions the import file picker offers.
+const EXCEL_EXTENSIONS: &[&str] = &["xlsx", "xls", "csv"];
+
 /// Tauri command: Parse Excel file (preview step — no DB writes)
+///
+/// The frontend-supplied `file_path` is validated as an existing regular file
+/// under the user's home directory before the parser opens it.
 #[tauri::command]
 #[specta::specta]
 pub async fn parse_excel_file(file_path: String) -> Result<ParseExcelResponse, ExcelImportError> {
     tracing::debug!(target: BACKEND, "Processing parse_excel_file request");
 
-    let data = ExcelParserService::parse_excel(&file_path).await?;
+    let allowed_root = secure_path::user_home().ok_or_else(|| {
+        tracing::error!(target: BACKEND, "Cannot resolve user home directory");
+        ExcelImportError::PathRejected
+    })?;
+    let canonical = secure_path::validate_user_path(
+        &file_path,
+        &allowed_root,
+        PathPolicy::ExistingFile {
+            extensions: EXCEL_EXTENSIONS,
+        },
+    )
+    .map_err(|e| {
+        tracing::warn!(target: BACKEND, error = %e, "Excel path rejected by validator");
+        ExcelImportError::PathRejected
+    })?;
+
+    let data = ExcelParserService::parse_excel(&canonical).await?;
     let response = ParseExcelResponse::from(data);
     tracing::info!(
         target: BACKEND,
@@ -156,4 +179,56 @@ pub async fn save_excel_amount_mappings(
         tracing::error!(target: BACKEND, err = ?e, "Failed to save excel amount mappings");
         ExcelImportError::DatabaseError
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A path that does not exist is rejected before the parser runs.
+    #[tokio::test]
+    async fn parse_excel_file_rejects_a_missing_file() {
+        let result = parse_excel_file("/no/such/file/at/all.xlsx".to_string()).await;
+
+        assert!(
+            matches!(result, Err(ExcelImportError::PathRejected)),
+            "a missing file must return PathRejected, got: {:?}",
+            result.err(),
+        );
+    }
+
+    /// An existing file outside the home directory is never opened. Unix
+    /// only: the Windows temp directory sits inside the user profile.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn parse_excel_file_rejects_a_file_outside_the_home_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("book.xlsx");
+        std::fs::write(&path, b"x").expect("write file");
+
+        let result = parse_excel_file(path.to_string_lossy().into_owned()).await;
+
+        assert!(
+            matches!(result, Err(ExcelImportError::PathRejected)),
+            "a file outside the home directory must return PathRejected, got: {:?}",
+            result.err(),
+        );
+    }
+
+    /// A file inside the home directory with another extension is rejected.
+    #[tokio::test]
+    async fn parse_excel_file_rejects_another_extension() {
+        let home = secure_path::user_home().expect("home directory");
+        let dir = tempfile::tempdir_in(home).expect("tempdir in home");
+        let path = dir.path().join("notes.txt");
+        std::fs::write(&path, b"x").expect("write file");
+
+        let result = parse_excel_file(path.to_string_lossy().into_owned()).await;
+
+        assert!(
+            matches!(result, Err(ExcelImportError::PathRejected)),
+            "another extension must return PathRejected, got: {:?}",
+            result.err(),
+        );
+    }
 }

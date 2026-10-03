@@ -7,11 +7,11 @@
 
 ### `parse_excel_file` — R1, R2, R3, R4, R5, R6
 
-Parses the Excel file at the given path. Reads `Patiente`, `Secu`, and monthly sheets. Assigns `temp_id` UUIDs to each entity (R5) and groups procedures by amount to derive `procedure_type_tmp_id` (R6). Validates SSNs (R3) and fund identifiers (R4). Returns skipped lines and missing sheets in `parsing_issues` (R2, R21). The returned `ParseExcelResponse` must be kept in memory — re-parsing would produce different `procedure_type_tmp_id` UUIDs, invalidating any existing type mapping (R7).
+Parses the Excel file at the given path, which must be an existing `.xlsx`, `.xls` or `.csv` file under the user's home directory. Reads `Patiente`, `Secu`, and monthly sheets. Assigns `temp_id` UUIDs to each entity (R5) and groups procedures by amount to derive `procedure_type_tmp_id` (R6). Validates SSNs (R3) and fund identifiers (R4). Returns skipped lines and missing sheets in `parsing_issues` (R2, R21). The returned `ParseExcelResponse` must be kept in memory — re-parsing would produce different `procedure_type_tmp_id` UUIDs, invalidating any existing type mapping (R7).
 
 - **Args:** `file_path: String`
 - **Returns:** `ParseExcelResponse`
-- **Errors:** `FileNotFound`, `InvalidFormat`, `ParseError`
+- **Errors:** `PathRejected` (missing, outside the home directory, wrong extension or not a regular file), `InvalidFormat`, `ParseError`
 
 ---
 

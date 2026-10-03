@@ -98,17 +98,11 @@ impl ExcelParserService {
     /// Parse an Excel file and extract patients, funds, and procedures.
     ///
     /// Per-row issues are collected into `ParsingIssues`; only structural
-    /// failures (missing file, unreadable workbook, sheet parse failure) are
-    /// returned as a typed [`ExcelImportError`].
-    pub async fn parse_excel(file_path: &str) -> Result<ParsedExcelData, ExcelImportError> {
+    /// failures (unopenable file, unreadable workbook, sheet parse failure)
+    /// are returned as a typed [`ExcelImportError`]. `file_path` is the
+    /// canonical path the command layer validated.
+    pub async fn parse_excel(file_path: &Path) -> Result<ParsedExcelData, ExcelImportError> {
         tracing::debug!("Starting Excel file parse");
-
-        let path = Path::new(file_path);
-        if !path.exists() {
-            return Err(ExcelImportError::FileNotFound {
-                path: file_path.to_string(),
-            });
-        }
 
         let file = File::open(file_path).map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "Failed to open Excel file");
@@ -838,11 +832,12 @@ mod tests {
     // --- ExcelParserService::parse_excel (integration: file system) ---
 
     #[tokio::test]
-    async fn parse_excel_returns_error_for_nonexistent_file() {
-        let result = ExcelParserService::parse_excel("/path/to/nonexistent/file.xlsx").await;
+    async fn parse_excel_returns_invalid_format_for_nonexistent_file() {
+        let result =
+            ExcelParserService::parse_excel(Path::new("/path/to/nonexistent/file.xlsx")).await;
         assert!(matches!(
             result.unwrap_err(),
-            ExcelImportError::FileNotFound { .. }
+            ExcelImportError::InvalidFormat
         ));
     }
 
@@ -850,7 +845,7 @@ mod tests {
     async fn parse_excel_returns_invalid_format_for_non_xlsx_file() {
         // Cargo.toml exists but is not an xlsx workbook: File::open succeeds,
         // Xlsx::new fails → InvalidFormat.
-        let result = ExcelParserService::parse_excel("Cargo.toml").await;
+        let result = ExcelParserService::parse_excel(Path::new("Cargo.toml")).await;
         assert!(matches!(
             result.unwrap_err(),
             ExcelImportError::InvalidFormat

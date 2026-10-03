@@ -82,7 +82,7 @@
     "import_failed": "L'import a échoué"
   },
   "errors": {
-    "file_not_found": "Le fichier sélectionné est introuvable.",
+    "path_rejected": "Impossible d'ouvrir ce fichier. Choisissez un fichier dans votre répertoire personnel.",
     "invalid_format": "Le fichier n'est pas un classeur Excel lisible.",
     "parse_error": "Le fichier Excel n'a pas pu être analysé.",
     "import_failed": "L'import n'a pas pu être effectué. Veuillez réessayer.",

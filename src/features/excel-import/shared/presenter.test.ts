@@ -7,10 +7,10 @@ import { formatExcelImportError } from "./presenter";
  * excel-import use case. No runtime dependency on i18next.
  */
 describe("formatExcelImportError", () => {
-  it("maps FileNotFound to its key (path payload dropped — not user-actionable)", () => {
-    const err: ExcelImportError = { code: "FileNotFound", path: "/tmp/x.xlsx" };
+  it("maps PathRejected to its key", () => {
+    const err: ExcelImportError = { code: "PathRejected" };
     expect(formatExcelImportError(err)).toEqual({
-      key: "excel-import:errors.file_not_found",
+      key: "excel-import:errors.path_rejected",
     });
   });
 

@@ -191,11 +191,7 @@ fn sort_for_comparison(v: &mut Value) {
 async fn excel_happy_path_3_patients_2_funds_round_trips() {
     let (fixture_path, expected) = common::fixtures::excel::happy_path();
 
-    let fixture_path_str = fixture_path
-        .to_str()
-        .expect("fixture path must be valid UTF-8");
-
-    let parsed = ExcelParserService::parse_excel(fixture_path_str)
+    let parsed = ExcelParserService::parse_excel(&fixture_path)
         .await
         .expect("parser must succeed on a valid fixture file");
 
@@ -246,11 +242,7 @@ async fn excel_happy_path_3_patients_2_funds_round_trips() {
 async fn excel_skipped_rows_invalid_dates_round_trips() {
     let (fixture_path, expected) = common::fixtures::excel::skipped_rows_invalid_dates();
 
-    let fixture_path_str = fixture_path
-        .to_str()
-        .expect("fixture path must be valid UTF-8");
-
-    let parsed = ExcelParserService::parse_excel(fixture_path_str)
+    let parsed = ExcelParserService::parse_excel(&fixture_path)
         .await
         .expect("parser must succeed on a fixture file (even one with intentional bad rows)");
 

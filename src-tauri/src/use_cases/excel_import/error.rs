@@ -16,9 +16,11 @@ use thiserror::Error;
 #[derive(Debug, Clone, PartialEq, Error, Serialize, Type)]
 #[serde(tag = "code")]
 pub enum ExcelImportError {
-    /// `parse_excel_file` — the path does not exist on disk.
-    #[error("File not found: {path}")]
-    FileNotFound { path: String },
+    /// `parse_excel_file` — the frontend-supplied path was rejected by the
+    /// secure-path validator (missing, outside the allowed root, wrong
+    /// extension, or not a regular file) or the home directory is unresolved.
+    #[error("The selected path was rejected")]
+    PathRejected,
 
     /// `parse_excel_file` — the file exists but cannot be opened or read as an
     /// xlsx workbook.
@@ -53,17 +55,9 @@ mod tests {
     // overpayment/error.rs and patient/error.rs — intentional (see PR #59).
     #[test]
     fn each_variant_emits_a_code() {
-        // Payload-bearing variant.
-        let not_found = ExcelImportError::FileNotFound {
-            path: "/tmp/x.xlsx".into(),
-        };
-        assert_eq!(
-            to_value(&not_found).unwrap(),
-            json!({ "code": "FileNotFound", "path": "/tmp/x.xlsx" }),
-        );
-
         // Unit variants must still emit their code (never null).
         let cases: &[(&str, ExcelImportError)] = &[
+            ("PathRejected", ExcelImportError::PathRejected),
             ("InvalidFormat", ExcelImportError::InvalidFormat),
             ("ParseError", ExcelImportError::ParseError),
             ("ImportFailed", ExcelImportError::ImportFailed),

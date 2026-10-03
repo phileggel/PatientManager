@@ -6,6 +6,26 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-03 — DEBT-022 — Hardening left open by the release sweep
+
+**Found by:** reviewer-security (`release-sweep` before the release after v0.22.1, branch `refactor/excel-import-path-validation`)
+
+**Where:** `src-tauri/capabilities/default.json`, `src-tauri/tauri.conf.json` (`"csp": null`), `src-tauri/Cargo.toml` (`tauri-plugin-opener`), `context/fund/api.rs`, `context/procedure/{api,service}.rs`
+
+**Observation:** four points, none exploitable today. The capability applies to every window and webview (`"*"`) and lists `dialog:allow-open` / `dialog:allow-save`, which `dialog:default` already grants. No content security policy is set. `tauri-plugin-opener` is a dependency no code calls and no capability grants. Fund and procedure type names are logged at info level: not patient data under B44, so a consistency point only.
+
+---
+
+## 2026-10-03 — DEBT-021 — The import picker offers `.xls` and `.csv`, which the parser cannot read
+
+**Found by:** manual (path validation of `parse_excel_file`, branch `refactor/excel-import-path-validation`)
+
+**Where:** `src/features/shell/gateway.ts` (dialog filter), `excel-import:` « Formats supportés : .xlsx, .xls, .csv », `src-tauri/src/use_cases/excel_import/parser.rs` (`Xlsx::new`)
+
+**Observation:** the file picker and the screen announce three formats; the parser opens the file as an xlsx workbook only, so a `.xls` or `.csv` file ends on « Le fichier n'est pas un classeur Excel lisible ». The path validation accepts the three extensions to keep that behaviour. Either the picker and the text drop the two formats, or the parser learns them: a visible change, so the owner's call.
+
+---
+
 ## 2026-10-03 — DEBT-020 — The reconciliation report prints a box instead of the period arrow
 
 **Found by:** manual (render check of the printpdf bump, branch `chore/dep-audit-blockers`)
