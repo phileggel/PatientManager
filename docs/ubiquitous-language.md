@@ -23,6 +23,29 @@ defaults (type, fund, date, amount) to pre-populate new procedure forms.
 
 ---
 
+### Candidate pair (« Doublon »)
+
+Two patients, neither deleted nor anonymous, that carry the same name once spaces, case and
+accents are ignored, and that the user has not dismissed. Proposed on the patient duplicates page.
+
+> Status: proposed (PDU) — awaiting the owner's validation
+
+### Merge (« Fusionner »)
+
+Making one patient of a candidate pair: the **kept patient** receives every procedure of the
+other, which is deleted. Not reversible from the app.
+
+> Status: proposed (PDU) — awaiting the owner's validation
+
+### Duplicate dismissal (« Pas un doublon »)
+
+The user's statement that the two patients of a pair are different people. The pair is not
+proposed again. Owned by the patient context; removed only with one of its patients.
+
+> Status: proposed (PDU) — awaiting the owner's validation
+
+---
+
 ## Fund Context
 
 ### Fund
@@ -267,8 +290,8 @@ from code and proposed for confirmation.
 | `revert_bank_payment()`               | Bank transfer removed — group is back to active                                                                       | → `Active`        | confirmed |
 | `update(payment_date, procedure_ids)` | Edit the group — changes payment date and procedure lines; `total_amount` is recalculated internally as a side effect | —                 | confirmed |
 
-> ⚠️ Code discrepancy: `confirm_bank_payment`/`revert_bank_payment` are done via
-> `FundPaymentService::update_group_status()` directly to repository. `update()` is a direct
+> ⚠️ Code discrepancy: `confirm_bank_payment`/`revert_bank_payment` are done by the group
+> settlement unit of work writing the status (`update_group_status_in`). `update()` is a direct
 > field mutation in `FundService::update_group()` — to be extracted to the aggregate root.
 
 ---

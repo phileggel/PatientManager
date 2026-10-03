@@ -95,6 +95,26 @@ impl Patient {
         })
     }
 
+    /// PDU-022, PDU-023 — what this patient becomes when `other` is merged into
+    /// it: it takes the other's INS when it has none, and the other's
+    /// latest-procedure defaults when those are more recent.
+    pub fn absorb(mut self, other: &Patient) -> Self {
+        let has_ssn = self
+            .ssn
+            .as_deref()
+            .is_some_and(|ssn| !ssn.trim().is_empty());
+        if !has_ssn {
+            self.ssn = other.ssn.clone();
+        }
+        if other.latest_date > self.latest_date {
+            self.latest_date = other.latest_date;
+            self.latest_procedure_type = other.latest_procedure_type.clone();
+            self.latest_fund = other.latest_fund.clone();
+            self.latest_procedure_amount = other.latest_procedure_amount;
+        }
+        self
+    }
+
     /// Restores a Patient from database storage (no validation).
     /// Data from storage is already validated.
     #[allow(clippy::too_many_arguments)]
@@ -148,6 +168,53 @@ impl Patient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn patient_with(ssn: Option<&str>, latest: Option<(&str, i64)>) -> Patient {
+        Patient::restore(
+            "p".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            ssn.map(str::to_string),
+            latest.map(|_| "type".to_string()),
+            latest.map(|_| "fund".to_string()),
+            latest.and_then(|(date, _)| date.parse().ok()),
+            latest.map(|(_, amount)| amount),
+        )
+    }
+
+    #[test]
+    fn test_pdu_022_a_kept_patient_without_ssn_takes_the_other_one() {
+        let merged = patient_with(None, None).absorb(&patient_with(Some("1234567890123"), None));
+        assert_eq!(merged.ssn.as_deref(), Some("1234567890123"));
+    }
+
+    #[test]
+    fn test_pdu_022_a_kept_patient_with_an_ssn_keeps_it() {
+        let merged = patient_with(Some("1111111111111"), None)
+            .absorb(&patient_with(Some("2222222222222"), None));
+        assert_eq!(merged.ssn.as_deref(), Some("1111111111111"));
+    }
+
+    #[test]
+    fn test_pdu_023_the_more_recent_tracking_fields_win() {
+        let older = patient_with(None, Some(("2026-01-10", 100)));
+        let newer = patient_with(None, Some(("2026-03-10", 300)));
+
+        let merged = older.clone().absorb(&newer);
+        assert_eq!(merged.latest_date, newer.latest_date);
+        assert_eq!(merged.latest_procedure_amount, Some(300));
+
+        let unchanged = newer.clone().absorb(&older);
+        assert_eq!(unchanged.latest_procedure_amount, Some(300));
+    }
+
+    #[test]
+    fn test_pdu_023_a_kept_patient_with_no_latest_date_takes_the_other_one() {
+        let merged =
+            patient_with(None, None).absorb(&patient_with(None, Some(("2026-03-10", 300))));
+        assert_eq!(merged.latest_procedure_amount, Some(300));
+        assert!(merged.latest_date.is_some());
+    }
 
     #[test]
     fn new_rejects_empty_name_on_non_anonymous() {

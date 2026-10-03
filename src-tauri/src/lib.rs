@@ -52,6 +52,7 @@ use crate::use_cases::fund_payment_reconciliation::{
     FundPaymentReconciliationOrchestrator, ReconciliationService,
 };
 use crate::use_cases::overpayment::OverpaymentOrchestrator;
+use crate::use_cases::patient_duplicates::PatientDuplicatesOrchestrator;
 use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 
 /// Initialize the application backend
@@ -270,6 +271,14 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     ));
     tracing::info!(target: BACKEND, "Bank manual match orchestrator created");
 
+    // Create patient duplicates orchestrator (use_cases/patient_duplicates, PDU).
+    // The merge writes patients and procedures in one transaction (ADR-003).
+    let patient_duplicates_orchestrator = Arc::new(PatientDuplicatesOrchestrator::new(
+        patient_service.clone(),
+        context_procedure_service.clone(),
+        Arc::new(SqlxTransactionManager::new(db.get_pool().clone())),
+    ));
+
     // Create overpayment orchestrator (use_cases/overpayment, REF)
     let overpayment_orchestrator = Arc::new(OverpaymentOrchestrator::new(
         context_procedure_service.clone(),
@@ -308,6 +317,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     app.manage(excel_amount_mapping_repo);
     app.manage(bank_manual_match_orchestrator);
     app.manage(overpayment_orchestrator);
+    app.manage(patient_duplicates_orchestrator);
     app.manage(db_backup_orchestrator);
     app.manage(diagnostic_report_orchestrator);
     tracing::info!(target: BACKEND, "Application backend initialized successfully");

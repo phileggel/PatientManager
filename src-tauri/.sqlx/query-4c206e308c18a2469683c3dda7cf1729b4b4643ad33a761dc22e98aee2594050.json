@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT patient_a_id AS \"a!\", patient_b_id AS \"b!\" FROM patient_duplicate_dismissal",
+  "describe": {
+    "columns": [
+      {
+        "name": "a!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patient_duplicate_dismissal",
+            "name": "patient_a_id"
+          }
+        }
+      },
+      {
+        "name": "b!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "patient_duplicate_dismissal",
+            "name": "patient_b_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "4c206e308c18a2469683c3dda7cf1729b4b4643ad33a761dc22e98aee2594050"
+}

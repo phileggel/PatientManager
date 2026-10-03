@@ -86,6 +86,39 @@ impl PatientService {
         Ok(result)
     }
 
+    /// Tell listeners patients changed, after a unit of work that wrote them
+    /// committed (ADR-003).
+    pub fn notify_patients_updated(&self) {
+        let _ = self.event_bus.publish::<PatientUpdated>(PatientUpdated);
+    }
+
+    /// PDU-030 — the dismissed pairs, smaller identifier first.
+    pub async fn read_duplicate_dismissals(&self) -> Result<Vec<(String, String)>, PatientError> {
+        self.repository
+            .read_duplicate_dismissals()
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "read_duplicate_dismissals: repository failed");
+                PatientError::DatabaseError
+            })
+    }
+
+    /// PDU-030 — record that two patients are different people. No event:
+    /// no patient changes.
+    pub async fn dismiss_duplicate(
+        &self,
+        first_id: &str,
+        second_id: &str,
+    ) -> Result<(), PatientError> {
+        self.repository
+            .save_duplicate_dismissal(first_id, second_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "dismiss_duplicate: repository failed");
+                PatientError::DatabaseError
+            })
+    }
+
     /// Delete an existing patient (soft delete)
     pub async fn delete_patient(&self, id: &str) -> Result<(), PatientError> {
         self.repository.delete_patient(id).await.map_err(|e| {

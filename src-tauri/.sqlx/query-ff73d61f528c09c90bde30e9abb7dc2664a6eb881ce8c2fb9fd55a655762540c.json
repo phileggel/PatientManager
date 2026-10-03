@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM patient_duplicate_dismissal WHERE patient_a_id = $1 OR patient_b_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "ff73d61f528c09c90bde30e9abb7dc2664a6eb881ce8c2fb9fd55a655762540c"
+}

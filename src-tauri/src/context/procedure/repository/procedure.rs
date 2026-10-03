@@ -171,6 +171,28 @@ impl SqliteProcedureRepository {
     }
 }
 
+impl SqliteProcedureRepository {
+    /// PDU-021 — attach every procedure of one patient, deleted ones included,
+    /// to another, on a connection the caller owns (a unit of work, ADR-003).
+    /// Returns how many moved.
+    pub async fn reassign_patient_in(
+        conn: &mut sqlx::SqliteConnection,
+        from_patient_id: &str,
+        to_patient_id: &str,
+    ) -> anyhow::Result<u64> {
+        let result = sqlx::query!(
+            r#"UPDATE "procedure" SET patient_id = $2 WHERE patient_id = $1"#,
+            from_patient_id,
+            to_patient_id,
+        )
+        .execute(conn)
+        .await
+        .with_context(|| "Failed to move procedures to another patient")?;
+
+        Ok(result.rows_affected())
+    }
+}
+
 #[async_trait::async_trait]
 impl ProcedureRepository for SqliteProcedureRepository {
     #[allow(clippy::too_many_arguments)]

@@ -4,7 +4,8 @@ use crate::{
     use_cases::{
         bank_manual_match, bank_statement_reconciliation, db_backup, diagnostic_report,
         excel_import, fund_payment_manual_management, fund_payment_reconciliation,
-        fund_payment_report_pdf, overpayment, procedure_orchestration as use_cases_procedure,
+        fund_payment_report_pdf, overpayment, patient_duplicates,
+        procedure_orchestration as use_cases_procedure,
     },
 };
 
@@ -49,6 +50,7 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<bank_manual_match::FundGroupCandidate>()
         .typ::<bank_manual_match::DirectPaymentProcedureCandidate>()
         .typ::<bank_manual_match::BankManualMatchResult>()
+        .typ::<patient_duplicates::DuplicatePair>()
         .typ::<overpayment::CreateOverpaymentRequest>()
         .typ::<overpayment::CancelOverpaymentRequest>()
         .typ::<overpayment::ProcedureRefundInfo>()
@@ -127,6 +129,9 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             db_backup::import_database,
             diagnostic_report::generate_diagnostic_report,
             logger::log_frontend,
+            patient_duplicates::list_patient_duplicates,
+            patient_duplicates::merge_patients,
+            patient_duplicates::dismiss_patient_duplicate,
             overpayment::create_overpayment,
             overpayment::cancel_overpayment,
             overpayment::get_procedure_refund_by_source,

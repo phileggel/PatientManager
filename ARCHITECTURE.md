@@ -88,6 +88,7 @@ Use cases may import from contexts; never from another use case. No domain event
 - **`bank_statement_reconciliation`** — BankTransfer ← bank PDF ↔ FundPaymentGroup. ([spec](docs/spec/bank-statement-auto-match.md))
 - **`bank_manual_match`** — BankTransfer ↔ FundPaymentGroup (Fund flow) / Procedure (Direct flow). ([spec](docs/spec/bank-statement-manual-match.md))
 - **`overpayment`** — Refund cascade across Procedure + Fund + Bank. ([spec](docs/spec/overpayment.md))
+- **`patient_duplicates`** — Same-name patients listed as pairs; a merge moves the procedures and deletes the other patient in one unit of work (ADR-003); a dismissal is kept by the patient context. ([spec](docs/spec/patient-duplicates.md))
 - **`db_backup`** — SQLite `VACUUM INTO` + gzip; pending-import for Windows file-locking. ([spec](docs/spec/db-backup.md))
 - **`diagnostic_report`** — a text report on the installation (version, migrations, database checks, row counts, last log lines) with no patient data; the log is emptied when the version changes. ([spec](docs/spec/diagnostic-report.md))
 

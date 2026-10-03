@@ -6,6 +6,16 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-03 — DEBT-025 — Four use-case files name sqlx outside a unit of work
+
+**Found by:** reviewer-arch (CI run on PR #166, branch `feat/todo-011-diagnostic-report`)
+
+**Where:** `src-tauri/src/use_cases/db_backup/orchestrator.rs`, `src-tauri/src/use_cases/bank_manual_match/orchestrator.rs`, `src-tauri/src/use_cases/bank_statement_reconciliation/label_mapping_repo.rs`, `src-tauri/src/use_cases/excel_import/amount_mapping_repo.rs`
+
+**Observation:** B24 forbids sqlx types in a use case outside its `sqlx_uow.rs`. These four predate the check; the two `*_repo.rs` files are whole repositories living in a use case. `just arch-check` does not test B24.
+
+---
+
 ## 2026-10-03 — DEBT-024 — Support diagnostics: the encrypted bundle and the upload are not built
 
 **Found by:** manual (TODO-011 closure, branch `feat/todo-011-diagnostic-report`)

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO patient_duplicate_dismissal (id, patient_a_id, patient_b_id)\n            VALUES ($1, $2, $3)\n            ON CONFLICT (patient_a_id, patient_b_id) DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "168e1fa6f7b4e723907fae7c28a1877bd8e55f25686948295e0939ee87e5aa86"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE \"procedure\" SET patient_id = $2 WHERE patient_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f536f716d1e08b0df64fe382425d7f70d5dbc37e3e9c70c06de45773364d83a3"
+}

@@ -7,4 +7,5 @@ pub mod fund_payment_manual_management;
 pub mod fund_payment_reconciliation;
 pub mod fund_payment_report_pdf;
 pub mod overpayment;
+pub mod patient_duplicates;
 pub mod procedure_orchestration;

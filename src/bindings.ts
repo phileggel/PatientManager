@@ -806,6 +806,39 @@ async logFrontend(level: string, message: string) : Promise<void> {
     await TAURI_INVOKE("log_frontend", { level, message });
 },
 /**
+ * PDU-010 to PDU-013 — the candidate pairs, in order.
+ */
+async listPatientDuplicates() : Promise<Result<DuplicatePair[], PatientDuplicatesError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_patient_duplicates") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * PDU-021 to PDU-026 — merge `other_patient_id` into `kept_patient_id`.
+ */
+async mergePatients(keptPatientId: string, otherPatientId: string) : Promise<Result<null, PatientDuplicatesError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("merge_patients", { keptPatientId, otherPatientId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * PDU-030 to PDU-032 — record that two patients are different people.
+ */
+async dismissPatientDuplicate(firstPatientId: string, secondPatientId: string) : Promise<Result<null, PatientDuplicatesError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("dismiss_patient_duplicate", { firstPatientId, secondPatientId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * REF-050/REF-090-REF-160 — Create an overpayment refund for the given source procedure.
  */
 async createOverpayment(request: CreateOverpaymentRequest) : Promise<Result<null, OverpaymentError>> {
@@ -1447,7 +1480,7 @@ export type DbBackupError =
  */
 export type DbMatch = { procedure_id: string; procedure_date: string; fund_id: string | null; amount: number | null; anomalies: AnomalyType[] }
 /**
- * Typed error for the diagnostic report use case (DGR-012). It orchestrates no
+ * Typed error for the diagnostic report use case (DGR-015). It orchestrates no
  * bounded context, so it is one flat enum, tagged with `code`. Variants carry
  * no payload: the detail is logged at the failure site and never crosses the
  * wire (it can hold an absolute path).
@@ -1466,13 +1499,21 @@ export type DiagnosticReportError =
  */
 { code: "ReportFailed" }
 /**
- * What the frontend shows once the report is written (DGR-012).
+ * What the frontend shows once the report is written (DGR-014).
  */
 export type DiagnosticReportResult = { support_code: string }
 /**
  * A procedure candidate for a direct payment (R14)
  */
 export type DirectPaymentProcedureCandidate = { procedure_id: string; patient_id: string; procedure_date: string; billed_amount: number }
+/**
+ * PDU-010 — two patients that carry the same name.
+ */
+export type DuplicatePair = { 
+/**
+ * The name as recorded on the first patient (PDU-012).
+ */
+name: string; first: PatientSummary; second: PatientSummary }
 /**
  * A saved mapping between a procedure amount (thousandths of a euro) and a procedure type id
  */
@@ -1945,6 +1986,33 @@ temp_id?: string | null;
  */
 latest_procedure_type: string | null; latest_fund: string | null; latest_date: string; latest_procedure_amount: number | null }
 /**
+ * Composite for the patient duplicates use case: the wrappers disappear on
+ * the wire and every variant emits `{ "code": "..." }`.
+ */
+export type PatientDuplicatesError = PatientError | ProcedureError | PatientDuplicatesTask
+/**
+ * Guards and catch-all of the patient duplicates use case. Tagged with `code`;
+ * no variant carries a payload (B44).
+ */
+export type PatientDuplicatesTask = 
+/**
+ * PDU-025, PDU-032 — the two identifiers name the same patient.
+ */
+{ code: "SamePatient" } | 
+/**
+ * PDU-025, PDU-032 — a patient does not exist or is deleted.
+ */
+{ code: "PatientNotFound" } | 
+/**
+ * PDU-025 — a patient is anonymous, or the two do not carry the same name.
+ */
+{ code: "NotACandidatePair" } | 
+/**
+ * PDU-024 — the merge's unit of work failed and wrote nothing; the detail
+ * is logged at the call site.
+ */
+{ code: "MergeFailed" }
+/**
  * Errors raised by the Patient bounded context.
  * 
  * Wire shape: each variant serializes as `{ "code": "<VariantName>", ... }`
@@ -1971,6 +2039,14 @@ export type PatientError =
  * carries no detail to avoid leaking implementation specifics.
  */
 { code: "DatabaseError" }
+/**
+ * PDU-012 — what the list shows of one patient of a pair.
+ */
+export type PatientSummary = { id: string; name: string; ssn: string | null; 
+/**
+ * Procedures that are not deleted.
+ */
+procedure_count: number; latest_procedure_date: string | null }
 /**
  * Payment method for a healthcare procedure
  * 

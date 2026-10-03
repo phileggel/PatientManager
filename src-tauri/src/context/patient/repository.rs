@@ -50,6 +50,12 @@ pub trait PatientRepository: Send + Sync {
     async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>>;
     async fn create_batch(&self, patients: Vec<Patient>) -> anyhow::Result<Vec<Patient>>;
     async fn delete_patient(&self, id: &str) -> anyhow::Result<()>;
+    /// PDU-030 — the pairs of patients the user declared different people,
+    /// smaller identifier first.
+    async fn read_duplicate_dismissals(&self) -> anyhow::Result<Vec<(String, String)>>;
+    /// PDU-030, PDU-031 — record a dismissal; a pair already dismissed is left as is.
+    async fn save_duplicate_dismissal(&self, first_id: &str, second_id: &str)
+        -> anyhow::Result<()>;
 }
 
 pub struct SqlitePatientRepository {
@@ -59,6 +65,75 @@ pub struct SqlitePatientRepository {
 impl SqlitePatientRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
+    }
+}
+
+impl SqlitePatientRepository {
+    /// Update one patient on a connection the caller owns — the write behind
+    /// `update_patient`, also used by a unit of work (ADR-003).
+    pub async fn update_in(
+        conn: &mut sqlx::SqliteConnection,
+        patient: &Patient,
+    ) -> anyhow::Result<()> {
+        let patient_id = &patient.id;
+        tracing::trace!(patient_id = %patient_id, "Updating patient in database");
+
+        sqlx::query!(
+            r#"
+            UPDATE patient
+            SET
+                is_anonymous = $2,
+                name = $3,
+                ssn = $4,
+                latest_procedure_type = $5,
+                latest_fund = $6,
+                latest_date = $7,
+                latest_procedure_amount = $8
+            WHERE id = $1
+            "#,
+            patient_id,
+            patient.is_anonymous,
+            patient.name,
+            patient.ssn,
+            patient.latest_procedure_type,
+            patient.latest_fund,
+            patient.latest_date,
+            patient.latest_procedure_amount,
+        )
+        .execute(conn)
+        .await
+        .with_context(|| format!("Failed to update patient {}", patient_id))?;
+
+        Ok(())
+    }
+
+    /// PDU-026 — remove the dismissals that involve a patient, on a connection
+    /// the caller owns (a unit of work, ADR-003).
+    pub async fn delete_duplicate_dismissals_of_in(
+        conn: &mut sqlx::SqliteConnection,
+        patient_id: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"DELETE FROM patient_duplicate_dismissal WHERE patient_a_id = $1 OR patient_b_id = $1"#,
+            patient_id,
+        )
+        .execute(conn)
+        .await
+        .with_context(|| "Failed to delete duplicate dismissals")?;
+        Ok(())
+    }
+
+    /// Soft-delete one patient on a connection the caller owns — the write
+    /// behind `delete_patient`, also used by a unit of work (ADR-003).
+    pub async fn soft_delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
+        tracing::trace!(patient_id = %id, "Soft-deleting patient from database");
+
+        sqlx::query!(r#"UPDATE patient SET is_deleted = 1 WHERE id = ?"#, id)
+            .execute(conn)
+            .await
+            .with_context(|| format!("Failed to soft-delete patient {}", id))?;
+
+        Ok(())
     }
 }
 
@@ -130,38 +205,13 @@ impl PatientRepository for SqlitePatientRepository {
     }
 
     async fn update_patient(&self, patient: Patient) -> anyhow::Result<Patient> {
-        let patient_id = &patient.id;
-
-        tracing::trace!(patient_id = %patient_id, "Updating patient in database");
-
-        sqlx::query!(
-            r#"
-            UPDATE patient
-            SET
-                is_anonymous = $2,
-                name = $3,
-                ssn = $4,
-                latest_procedure_type = $5,
-                latest_fund = $6,
-                latest_date = $7,
-                latest_procedure_amount = $8
-            WHERE id = $1
-            "#,
-            patient_id,
-            patient.is_anonymous,
-            patient.name,
-            patient.ssn,
-            patient.latest_procedure_type,
-            patient.latest_fund,
-            patient.latest_date,
-            patient.latest_procedure_amount,
-        )
-        .execute(&self.pool)
-        .await
-        .with_context(|| format!("Failed to update patient {}", patient_id))?;
-
-        tracing::trace!("Patient {patient_id} updated.");
-        Ok(patient.clone())
+        let mut conn = self
+            .pool
+            .acquire()
+            .await
+            .with_context(|| "Failed to acquire a connection to update a patient")?;
+        Self::update_in(&mut conn, &patient).await?;
+        Ok(patient)
     }
 
     async fn find_patient_by_ssn(&self, ssn: &str) -> anyhow::Result<Option<Patient>> {
@@ -245,14 +295,49 @@ impl PatientRepository for SqlitePatientRepository {
     }
 
     async fn delete_patient(&self, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(patient_id = %id, "Soft-deleting patient from database");
-
-        sqlx::query!(r#"UPDATE patient SET is_deleted = 1 WHERE id = ?"#, id)
-            .execute(&self.pool)
+        let mut conn = self
+            .pool
+            .acquire()
             .await
-            .with_context(|| format!("Failed to soft-delete patient {}", id))?;
+            .with_context(|| "Failed to acquire a connection to delete a patient")?;
+        Self::soft_delete_in(&mut conn, id).await
+    }
 
-        tracing::trace!(patient_id = %id, "Patient soft-deleted successfully");
+    async fn read_duplicate_dismissals(&self) -> anyhow::Result<Vec<(String, String)>> {
+        let rows = sqlx::query!(
+            r#"SELECT patient_a_id AS "a!", patient_b_id AS "b!" FROM patient_duplicate_dismissal"#
+        )
+        .fetch_all(&self.pool)
+        .await
+        .with_context(|| "Failed to read duplicate dismissals")?;
+        Ok(rows.into_iter().map(|row| (row.a, row.b)).collect())
+    }
+
+    async fn save_duplicate_dismissal(
+        &self,
+        first_id: &str,
+        second_id: &str,
+    ) -> anyhow::Result<()> {
+        // A pair has no direction: stored once, smaller identifier first.
+        let (a, b) = if first_id <= second_id {
+            (first_id, second_id)
+        } else {
+            (second_id, first_id)
+        };
+        let id = uuid::Uuid::new_v4().to_string();
+        sqlx::query!(
+            r#"
+            INSERT INTO patient_duplicate_dismissal (id, patient_a_id, patient_b_id)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (patient_a_id, patient_b_id) DO NOTHING
+            "#,
+            id,
+            a,
+            b,
+        )
+        .execute(&self.pool)
+        .await
+        .with_context(|| "Failed to save a duplicate dismissal")?;
         Ok(())
     }
 }
@@ -277,6 +362,48 @@ mod tests {
             .expect("Failed to run migrations");
 
         SqlitePatientRepository { pool }
+    }
+
+    async fn two_patients(db: &SqlitePatientRepository) -> anyhow::Result<()> {
+        db.create_patient(make_patient_with_id("a")).await?;
+        db.create_patient(make_patient_with_id("b")).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_pdu_030_a_dismissal_is_stored_once_whatever_the_direction() -> anyhow::Result<()>
+    {
+        let db = setup_test_repo().await;
+        two_patients(&db).await?;
+
+        db.save_duplicate_dismissal("b", "a").await?;
+        // PDU-031 — a second dismissal, in the other direction, changes nothing.
+        db.save_duplicate_dismissal("a", "b").await?;
+
+        assert_eq!(
+            db.read_duplicate_dismissals().await?,
+            vec![("a".to_string(), "b".to_string())]
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_pdu_026_the_dismissals_of_a_patient_are_removed() -> anyhow::Result<()> {
+        let db = setup_test_repo().await;
+        two_patients(&db).await?;
+        db.create_patient(make_patient_with_id("c")).await?;
+        db.save_duplicate_dismissal("a", "b").await?;
+        db.save_duplicate_dismissal("a", "c").await?;
+
+        let mut conn = db.pool.acquire().await?;
+        SqlitePatientRepository::delete_duplicate_dismissals_of_in(&mut conn, "b").await?;
+        drop(conn);
+
+        assert_eq!(
+            db.read_duplicate_dismissals().await?,
+            vec![("a".to_string(), "c".to_string())]
+        );
+        Ok(())
     }
 
     #[tokio::test]
