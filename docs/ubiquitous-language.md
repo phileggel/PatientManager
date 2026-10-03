@@ -17,32 +17,40 @@ The authoritative dictionary of domain terms for this project.
 
 The aggregate root of the patient context. Represents an individual receiving healthcare
 procedures. May be anonymous (no name/SSN) or identified. Tracks the most recent procedure
-defaults (type, fund, date, amount) to pre-populate new procedure forms.
+defaults (type, fund, date, amount) to pre-populate new procedure forms. The SSN is shown on
+screen as « INS ».
 
 > Status: confirmed
 
 ---
+
+### Record (« Fiche »)
+
+The screen word for one patient where two are shown side by side: « Fiche 1 », « Fiche 2 » on the
+patient duplicates page. A word of the interface only; code and specs say patient.
+
+> Status: confirmed
 
 ### Candidate pair (« Doublon »)
 
 Two patients, neither deleted nor anonymous, that carry the same name once spaces, case and
 accents are ignored, and that the user has not dismissed. Proposed on the patient duplicates page.
 
-> Status: proposed (PDU) — awaiting the owner's validation
+> Status: confirmed
 
 ### Merge (« Fusionner »)
 
 Making one patient of a candidate pair: the **kept patient** receives every procedure of the
 other, which is deleted. Not reversible from the app.
 
-> Status: proposed (PDU) — awaiting the owner's validation
+> Status: confirmed
 
 ### Duplicate dismissal (« Pas un doublon »)
 
 The user's statement that the two patients of a pair are different people. The pair is not
 proposed again. Owned by the patient context; removed only with one of its patients.
 
-> Status: proposed (PDU) — awaiting the owner's validation
+> Status: confirmed
 
 ---
 
