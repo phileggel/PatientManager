@@ -49,6 +49,7 @@ You review React 19 / TypeScript code with a Material Design 3 system. Follow `.
 **i18n**
 
 - User-visible text outside `t()` 🔴; a `t()` key missing from a locale file 🔴; a new key nothing uses 🟡; a key in one locale only 🟡.
+- A new string that names a field with another word than that locale's own label for it (French « INS » in an English string whose locale says "SSN") 🔴: grep the locale file for the field's label before accepting the string.
 
 ## Not a finding
 

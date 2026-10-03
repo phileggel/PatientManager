@@ -90,7 +90,8 @@
       "consequence_second_other": "The {{count}} procedures of record 2 will move to record 1, then record 2 will be deleted. This cannot be undone.",
       "consequence_first_zero": "Record 1 has no procedure: it will be deleted. This cannot be undone.",
       "consequence_first_one": "The procedure of record 1 will move to record 2, then record 1 will be deleted. This cannot be undone.",
-      "consequence_first_other": "The {{count}} procedures of record 1 will move to record 2, then record 1 will be deleted. This cannot be undone."
+      "consequence_first_other": "The {{count}} procedures of record 1 will move to record 2, then record 1 will be deleted. This cannot be undone.",
+      "different_ssn": "These two records have a different SSN: they may be two different people. The SSN of record {{record}} will not be kept."
     },
     "error": {
       "gone": "One of the two records no longer exists. The list has been updated.",

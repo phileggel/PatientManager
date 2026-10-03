@@ -1,9 +1,10 @@
-import { Check } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { DuplicatePair, PatientSummary } from "@/bindings";
 import { Button, Dialog } from "@/ui/components";
 import { PatientActivity } from "../shared/PatientSummaryText";
+import { hasDifferentSsn } from "../shared/presenter";
 
 type Choice = "first" | "second";
 
@@ -68,8 +69,9 @@ function PatientChoice({ choice, patient, selected, disabled, onSelect }: Patien
 }
 
 /**
- * PDU-020, PDU-027 — pick the patient to keep (the first of the pair by
- * default), read what the merge does, confirm. Stays open when the merge fails.
+ * PDU-020, PDU-027, PDU-029 — pick the patient to keep (the first of the pair
+ * by default), read what the merge does, confirm. Warns when the two patients
+ * have a different SSN. Stays open when the merge fails.
  */
 export function MergePatientsModal({ pair, onMerge, onClose }: MergePatientsModalProps) {
   const { t } = useTranslation("patient");
@@ -138,6 +140,17 @@ export function MergePatientsModal({ pair, onMerge, onClose }: MergePatientsModa
           disabled={merging}
           onSelect={setKept}
         />
+        {hasDifferentSsn(pair) && (
+          <div
+            id="patient-duplicate-merge-ssn-warning"
+            className="flex items-start gap-3 rounded-xl bg-m3-warning-container p-3 text-sm text-m3-on-warning-container"
+          >
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span>
+              {t("duplicates.merge_dialog.different_ssn", { record: other === "first" ? 1 : 2 })}
+            </span>
+          </div>
+        )}
         <p id="patient-duplicate-merge-consequence" className="text-sm text-m3-on-surface-variant">
           {t(`duplicates.merge_dialog.consequence_${other}`, {
             count: pair[other].procedure_count,

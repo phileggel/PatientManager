@@ -104,6 +104,13 @@ reloads.
 **PDU-028 — Other screens after a merge (backend)**: A merge publishes `PatientUpdated` and
 `ProcedureUpdated`, so every screen showing patients or procedures reflects it.
 
+**PDU-029 — Different SSN notice (frontend)**: When both patients of the pair have an SSN and the
+two differ, the merge dialog shows the notice « Ces deux fiches ont un INS différent : il s'agit
+peut-être de deux personnes. L'INS de la fiche N ne sera pas conservé. », N being the patient that
+is not the kept patient; it follows the choice of PDU-020. That SSN is not carried to the kept
+patient and stays on the deleted patient (PDU-021, PDU-022). The merge stays allowed (PDU-025). No
+notice when an SSN is missing or the two are equal.
+
 ### Dismissal (030–039)
 
 **PDU-030 — Not a duplicate (backend)**: « Pas un doublon » records a dismissal for the pair
@@ -129,7 +136,8 @@ management dialog → « Doublons de patients » → list of pairs
         │
         ├── « Pas un doublon » ─→ dismissal recorded ─→ the pair leaves the list (PDU-030, PDU-033)
         │
-        └── « Fusionner » ─→ dialog: which patient to keep (PDU-020)
+        └── « Fusionner » ─→ dialog: which patient to keep (PDU-020),
+                  │             a notice if the two SSN differ (PDU-029)
                   ├── « Annuler » ─→ nothing
                   └── « Fusionner » ─→ procedures move, SSN and defaults carried, other patient
                                        deleted (PDU-021 to PDU-026) ─→ toast, list reloads (PDU-027)
@@ -154,8 +162,9 @@ patient, and the actions « Pas un doublon » and « Fusionner ».
 ### States
 
 - **Loading / empty / error**: one message row (PDU-015).
-- **Merge dialog**: two selectable cards, the consequence sentence, « Annuler » and a danger
-  « Fusionner » (PDU-020).
+- **Merge dialog**: two selectable cards, the different-SSN notice when it applies (PDU-029), the
+  consequence sentence, « Annuler » and a danger « Fusionner » (PDU-020). The notice was validated by
+  the owner from a mock on 2026-10-04.
 
 ### User Flow
 
@@ -172,8 +181,9 @@ patient, and the actions « Pas un doublon » and « Fusionner ».
       2026-10-03: the kept patient takes the other's SSN (PDU-022).
 - [x] What happens to the patient that is not kept? — Decided by the owner on 2026-10-03: hidden
       and kept in the database (PDU-021).
-- [x] Two patients that each have an SSN? — Decided by the owner on 2026-10-03: the kept patient's
-      SSN stays and the merge is not refused (PDU-022, Context).
+- [x] Two patients that each have an SSN? — Decided by the owner on 2026-10-03, completed on
+      2026-10-04: the kept patient's SSN stays, the merge is not refused (PDU-022), and the dialog
+      warns when the two differ (PDU-029).
 - [x] Which pairs are proposed? — Decided by the owner on 2026-10-03: same name only (PDU-010).
 
 None — all questions have been resolved.

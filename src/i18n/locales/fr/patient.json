@@ -90,7 +90,8 @@
       "consequence_second_other": "Les {{count}} actes de la fiche 2 seront rattachés à la fiche 1, puis la fiche 2 sera supprimée. Cette action est définitive.",
       "consequence_first_zero": "La fiche 1 n'a aucun acte : elle sera supprimée. Cette action est définitive.",
       "consequence_first_one": "L'acte de la fiche 1 sera rattaché à la fiche 2, puis la fiche 1 sera supprimée. Cette action est définitive.",
-      "consequence_first_other": "Les {{count}} actes de la fiche 1 seront rattachés à la fiche 2, puis la fiche 1 sera supprimée. Cette action est définitive."
+      "consequence_first_other": "Les {{count}} actes de la fiche 1 seront rattachés à la fiche 2, puis la fiche 1 sera supprimée. Cette action est définitive.",
+      "different_ssn": "Ces deux fiches ont un INS différent : il s'agit peut-être de deux personnes. L'INS de la fiche {{record}} ne sera pas conservé."
     },
     "error": {
       "gone": "Une des deux fiches n'existe plus. La liste a été mise à jour.",

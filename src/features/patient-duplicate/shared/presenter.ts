@@ -17,6 +17,13 @@ export function filterPairs(pairs: DuplicatePair[], searchTerm: string): Duplica
   return pairs.filter((pair) => fold(pair.name).includes(term));
 }
 
+/** PDU-029 — both patients have an SSN and the two are not the same. */
+export function hasDifferentSsn(pair: DuplicatePair): boolean {
+  const first = pair.first.ssn?.trim();
+  const second = pair.second.ssn?.trim();
+  return !!first && !!second && first !== second;
+}
+
 /** PDU-027 — the pair is no longer what the list showed: reload it. */
 export function isStalePair(err: PatientDuplicatesError): boolean {
   return err.code === "PatientNotFound" || err.code === "NotACandidatePair";

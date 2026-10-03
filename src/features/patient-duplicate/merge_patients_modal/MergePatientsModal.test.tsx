@@ -88,6 +88,33 @@ describe("MergePatientsModal", () => {
     finish(true);
   });
 
+  it("test_pdu_029_warns_when_the_two_ssn_differ_and_names_the_patient_not_kept", async () => {
+    const both = { ...PAIR, second: { ...PAIR.second, ssn: "2222222222222" } };
+    const user = userEvent.setup();
+    render(<MergePatientsModal pair={both} onMerge={vi.fn()} onClose={vi.fn()} />);
+
+    expect(byId("patient-duplicate-merge-ssn-warning").textContent).toContain(
+      "The SSN of record 2 will not be kept",
+    );
+
+    await user.click(byId("patient-duplicate-merge-choice-second"));
+    expect(byId("patient-duplicate-merge-ssn-warning").textContent).toContain(
+      "The SSN of record 1 will not be kept",
+    );
+  });
+
+  it("test_pdu_029_no_warning_when_an_ssn_is_missing_or_both_are_equal", () => {
+    const { unmount } = render(
+      <MergePatientsModal pair={PAIR} onMerge={vi.fn()} onClose={vi.fn()} />,
+    );
+    expect(document.getElementById("patient-duplicate-merge-ssn-warning")).toBeNull();
+    unmount();
+
+    const same = { ...PAIR, second: { ...PAIR.second, ssn: PAIR.first.ssn } };
+    render(<MergePatientsModal pair={same} onMerge={vi.fn()} onClose={vi.fn()} />);
+    expect(document.getElementById("patient-duplicate-merge-ssn-warning")).toBeNull();
+  });
+
   it("says a patient without procedures is only deleted", async () => {
     const empty = {
       ...PAIR,
