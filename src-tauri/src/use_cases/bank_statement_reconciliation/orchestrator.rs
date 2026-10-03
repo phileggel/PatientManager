@@ -19,6 +19,7 @@ use super::error::{BankStatementReconciliationError, BankStatementReconciliation
 use super::label_mapping_repo::{BankFundLabelMapping, BankFundLabelMappingRepository};
 use super::parser;
 use super::reconciliation::FundAssignment;
+use super::uow::{settle_group, GroupSettlementTransactionManager};
 
 /// Maximum number of days between a fund payment group date and the bank
 /// statement credit line date for AUTO-match: a group dated on D may appear on
@@ -44,6 +45,7 @@ pub struct BankStatementOrchestrator {
     procedure_service: Arc<ProcedureService>,
     label_mapping_repo: Arc<dyn BankFundLabelMappingRepository>,
     event_bus: Arc<EventBus>,
+    group_settlement: Arc<dyn GroupSettlementTransactionManager>,
 }
 
 impl BankStatementOrchestrator {
@@ -57,6 +59,7 @@ impl BankStatementOrchestrator {
         procedure_service: Arc<ProcedureService>,
         label_mapping_repo: Arc<dyn BankFundLabelMappingRepository>,
         event_bus: Arc<EventBus>,
+        group_settlement: Arc<dyn GroupSettlementTransactionManager>,
     ) -> Self {
         Self {
             bank_account_service,
@@ -67,6 +70,7 @@ impl BankStatementOrchestrator {
             procedure_service,
             label_mapping_repo,
             event_bus,
+            group_settlement,
         }
     }
 
@@ -162,15 +166,7 @@ impl BankStatementOrchestrator {
                 "Bank transfer created"
             );
 
-            // Step 3: Update group status to BankPaid. A swallowed failure here
-            // leaves the group unlocked after its transfer exists — the next
-            // statement import would re-match it and create a duplicate
-            // transfer — so the whole validate fails loudly instead.
-            self.fund_payment_service
-                .update_group_status(&m.group_id, FundPaymentGroupStatus::BankPaid)
-                .await?;
-
-            // Step 4: Update associated procedures to Payed status (silent - orchestrator will publish once)
+            // Step 3: Load the group's procedures and compute their paid state.
             let group = self
                 .fund_payment_service
                 .read_group(&m.group_id)
@@ -224,13 +220,24 @@ impl BankStatementOrchestrator {
                 })
                 .collect();
 
-            self.procedure_service
-                .update_procedures_batch(updated_procedures, true)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, group_id = %m.group_id, error = %e, "Failed to update procedures batch for bank transfer");
-                    BankStatementReconciliationTask::DatabaseError
-                })?;
+            // Step 4: Write the procedures and the group's BankPaid status in one
+            // transaction (ADR-003). A failure leaves neither written and fails
+            // the whole validate loudly: a group left unlocked after its
+            // transfer exists would be re-matched by the next statement import
+            // and get a duplicate transfer. ProcedureUpdated is published once
+            // at the end; the group event goes out per group, as before.
+            settle_group(
+                self.group_settlement.as_ref(),
+                updated_procedures,
+                &m.group_id,
+                FundPaymentGroupStatus::BankPaid,
+            )
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, group_id = %m.group_id, err = ?e, "Failed to settle group for bank transfer");
+                BankStatementReconciliationTask::DatabaseError
+            })?;
+            self.fund_payment_service.notify_group_updated();
 
             tracing::info!(
                 group_id = %m.group_id,
@@ -382,7 +389,7 @@ impl BankStatementOrchestrator {
             // path below — write order: group first, then transfer + link,
             // then lock, procedures last. Created silent: the single
             // FundPaymentGroupUpdated per settled group comes from the
-            // existing update_group_status publish in the settle step.
+            // notify_group_updated call that follows the settle step.
             if !line.assigned_procedure_ids.is_empty() {
                 // Engine invariant: an assignment requires a linked fund.
                 let fund_id = line.fund_id.clone().ok_or_else(|| {
@@ -502,12 +509,14 @@ mod tests {
         BankAccount, BankAccountRepository, MockBankAccountRepository, MockBankEntryLinkRepository,
         MockBankEntryRepository,
     };
+    use crate::context::fund::FundPaymentRepository;
     use crate::context::fund::{
         Fund, FundPaymentGroup, FundPaymentGroupStatus, MockFundPaymentRepository,
         MockFundRepository,
     };
-    use crate::context::procedure::{MockProcedureRepository, Procedure};
+    use crate::context::procedure::{MockProcedureRepository, Procedure, ProcedureRepository};
     use crate::shared::event_bus::EventBus;
+    use crate::use_cases::bank_statement_reconciliation::uow::RepositoryGroupSettlement;
     use crate::use_cases::bank_statement_reconciliation::{
         bank_pdf_codec::BankStatementCreditLine,
         error::BankStatementReconciliationTask,
@@ -694,6 +703,9 @@ mod tests {
         let event_bus = Arc::new(EventBus::new());
         let bank_account_repo: Arc<dyn BankAccountRepository> =
             Arc::new(bank_account_repo_returning(account));
+        let settlement_groups: Arc<dyn FundPaymentRepository> =
+            Arc::new(fund_payment_repo_returning_groups(groups));
+        let settlement_procedures: Arc<dyn ProcedureRepository> = Arc::new(proc_repo_noop());
         BankStatementOrchestrator::new(
             Arc::new(BankAccountService::new(
                 bank_account_repo.clone(),
@@ -704,7 +716,7 @@ mod tests {
                 event_bus.clone(),
             )),
             Arc::new(FundPaymentService::new(
-                Arc::new(fund_payment_repo_returning_groups(groups)),
+                settlement_groups.clone(),
                 event_bus.clone(),
             )),
             Arc::new(BankEntryService::new(
@@ -714,11 +726,15 @@ mod tests {
             )),
             Arc::new(bank_link_repo_noop()),
             Arc::new(ProcedureService::new(
-                Arc::new(proc_repo_noop()),
+                settlement_procedures.clone(),
                 event_bus.clone(),
             )),
             Arc::new(label_mapping_repo_returning(mappings)),
             event_bus,
+            Arc::new(RepositoryGroupSettlement {
+                procedures: settlement_procedures,
+                groups: settlement_groups,
+            }),
         )
     }
 
@@ -827,6 +843,9 @@ mod tests {
         let event_bus = Arc::new(EventBus::new());
         let bank_account_repo: Arc<dyn BankAccountRepository> =
             Arc::new(bank_account_repo_returning(Some(account)));
+        let settlement_groups: Arc<dyn FundPaymentRepository> =
+            Arc::new(fund_payment_repo_returning_groups(vec![group]));
+        let settlement_procedures: Arc<dyn ProcedureRepository> = Arc::new(proc_repo);
         let orchestrator = BankStatementOrchestrator::new(
             Arc::new(BankAccountService::new(
                 bank_account_repo.clone(),
@@ -837,7 +856,7 @@ mod tests {
                 event_bus.clone(),
             )),
             Arc::new(FundPaymentService::new(
-                Arc::new(fund_payment_repo_returning_groups(vec![group])),
+                settlement_groups.clone(),
                 event_bus.clone(),
             )),
             Arc::new(BankEntryService::new(
@@ -847,11 +866,15 @@ mod tests {
             )),
             Arc::new(bank_link_repo_noop()),
             Arc::new(ProcedureService::new(
-                Arc::new(proc_repo),
+                settlement_procedures.clone(),
                 event_bus.clone(),
             )),
             Arc::new(label_mapping_repo_returning(vec![mapping])),
             event_bus,
+            Arc::new(RepositoryGroupSettlement {
+                procedures: settlement_procedures,
+                groups: settlement_groups,
+            }),
         );
 
         let parse_result = BankStatementParseResult {
@@ -1904,6 +1927,8 @@ mod tests {
         let event_bus = Arc::new(EventBus::new());
         let bank_account_repo: Arc<dyn BankAccountRepository> =
             Arc::new(bank_account_repo_returning(Some(account)));
+        let settlement_groups: Arc<dyn FundPaymentRepository> = Arc::new(fund_payment_repo);
+        let settlement_procedures: Arc<dyn ProcedureRepository> = Arc::new(proc_repo_noop());
         let orchestrator = BankStatementOrchestrator::new(
             Arc::new(BankAccountService::new(
                 bank_account_repo.clone(),
@@ -1914,7 +1939,7 @@ mod tests {
                 event_bus.clone(),
             )),
             Arc::new(FundPaymentService::new(
-                Arc::new(fund_payment_repo),
+                settlement_groups.clone(),
                 event_bus.clone(),
             )),
             Arc::new(BankEntryService::new(
@@ -1924,11 +1949,15 @@ mod tests {
             )),
             Arc::new(bank_link_repo_noop()),
             Arc::new(ProcedureService::new(
-                Arc::new(proc_repo_noop()),
+                settlement_procedures.clone(),
                 event_bus.clone(),
             )),
             Arc::new(label_mapping_repo_returning(vec![mapping])),
             event_bus,
+            Arc::new(RepositoryGroupSettlement {
+                procedures: settlement_procedures,
+                groups: settlement_groups,
+            }),
         );
 
         let parse_result = BankStatementParseResult {
@@ -2358,6 +2387,8 @@ mod tests {
 
         let bank_account_repo: Arc<dyn BankAccountRepository> =
             Arc::new(bank_account_repo_returning(Some(account)));
+        let settlement_groups: Arc<dyn FundPaymentRepository> = Arc::new(fund_payment_repo);
+        let settlement_procedures: Arc<dyn ProcedureRepository> = Arc::new(proc_repo);
         let orchestrator = BankStatementOrchestrator::new(
             Arc::new(BankAccountService::new(
                 bank_account_repo.clone(),
@@ -2368,7 +2399,7 @@ mod tests {
                 event_bus.clone(),
             )),
             Arc::new(FundPaymentService::new(
-                Arc::new(fund_payment_repo),
+                settlement_groups.clone(),
                 event_bus.clone(),
             )),
             Arc::new(BankEntryService::new(
@@ -2378,11 +2409,15 @@ mod tests {
             )),
             Arc::new(bank_link_repo_noop()),
             Arc::new(ProcedureService::new(
-                Arc::new(proc_repo),
+                settlement_procedures.clone(),
                 event_bus.clone(),
             )),
             Arc::new(label_mapping_repo_returning(vec![mapping])),
             event_bus,
+            Arc::new(RepositoryGroupSettlement {
+                procedures: settlement_procedures,
+                groups: settlement_groups,
+            }),
         );
 
         (orchestrator, captured_create_group, captured_procs)
@@ -2466,6 +2501,9 @@ mod tests {
         let event_bus = Arc::new(EventBus::new());
         let bank_account_repo: Arc<dyn BankAccountRepository> =
             Arc::new(bank_account_repo_returning(Some(account)));
+        let settlement_groups: Arc<dyn FundPaymentRepository> =
+            Arc::new(fund_payment_repo_returning_groups(vec![]));
+        let settlement_procedures: Arc<dyn ProcedureRepository> = Arc::new(proc_repo);
         let orchestrator = BankStatementOrchestrator::new(
             Arc::new(BankAccountService::new(
                 bank_account_repo.clone(),
@@ -2476,7 +2514,7 @@ mod tests {
                 event_bus.clone(),
             )),
             Arc::new(FundPaymentService::new(
-                Arc::new(fund_payment_repo_returning_groups(vec![])),
+                settlement_groups.clone(),
                 event_bus.clone(),
             )),
             Arc::new(BankEntryService::new(
@@ -2486,11 +2524,15 @@ mod tests {
             )),
             Arc::new(bank_link_repo_noop()),
             Arc::new(ProcedureService::new(
-                Arc::new(proc_repo),
+                settlement_procedures.clone(),
                 event_bus.clone(),
             )),
             Arc::new(label_mapping_repo_returning(vec![mapping])),
             event_bus,
+            Arc::new(RepositoryGroupSettlement {
+                procedures: settlement_procedures,
+                groups: settlement_groups,
+            }),
         );
 
         let (parse_result, corrections) = born_group_parse_result_and_corrections();
@@ -2536,6 +2578,8 @@ mod tests {
         let event_bus = Arc::new(EventBus::new());
         let bank_account_repo: Arc<dyn BankAccountRepository> =
             Arc::new(bank_account_repo_returning(Some(account)));
+        let settlement_groups: Arc<dyn FundPaymentRepository> = Arc::new(fund_payment_repo);
+        let settlement_procedures: Arc<dyn ProcedureRepository> = Arc::new(proc_repo);
         let orchestrator = BankStatementOrchestrator::new(
             Arc::new(BankAccountService::new(
                 bank_account_repo.clone(),
@@ -2546,7 +2590,7 @@ mod tests {
                 event_bus.clone(),
             )),
             Arc::new(FundPaymentService::new(
-                Arc::new(fund_payment_repo),
+                settlement_groups.clone(),
                 event_bus.clone(),
             )),
             Arc::new(BankEntryService::new(
@@ -2556,11 +2600,15 @@ mod tests {
             )),
             Arc::new(bank_link_repo_noop()),
             Arc::new(ProcedureService::new(
-                Arc::new(proc_repo),
+                settlement_procedures.clone(),
                 event_bus.clone(),
             )),
             Arc::new(label_mapping_repo_returning(vec![mapping])),
             event_bus,
+            Arc::new(RepositoryGroupSettlement {
+                procedures: settlement_procedures,
+                groups: settlement_groups,
+            }),
         );
 
         let (parse_result, corrections) = born_group_parse_result_and_corrections();
@@ -2614,7 +2662,7 @@ mod tests {
 
     // BAS-115 — `create_group` is called `is_silent=true` (no new publish); the
     // born group's single `FundPaymentGroupUpdated` event comes from the
-    // EXISTING `update_group_status` publish in the settle step. Exactly one
+    // `notify_group_updated` call that follows the settle step. Exactly one
     // event per settled group, not two.
     #[tokio::test]
     async fn validate_reconciliation_born_group_emits_fund_payment_group_updated_once() {
@@ -2633,7 +2681,7 @@ mod tests {
         assert!(
             rx.try_recv().is_ok(),
             "the born group's settle step must publish FundPaymentGroupUpdated \
-             (via the existing update_group_status call)"
+             (via notify_group_updated)"
         );
         assert!(
             rx.try_recv().is_err(),

@@ -13,20 +13,19 @@ in `/whats-next`.
 
 1. TODO-001
 2. DEBT-009
-3. TODO-017
-4. TODO-002
-5. TODO-011
-6. TODO-016
-7. TODO-013
-8. TODO-008
-9. TODO-005
-10. TODO-004
-11. TODO-018
-12. DEBT-011
-13. TODO-019
-14. DEBT-003
-15. TODO-020
-16. TODO-021
+3. TODO-002
+4. TODO-011
+5. TODO-016
+6. TODO-013
+7. TODO-008
+8. TODO-005
+9. TODO-004
+10. TODO-018
+11. DEBT-011
+12. TODO-019
+13. DEBT-003
+14. TODO-020
+15. TODO-021
 
 ---
 
@@ -88,20 +87,6 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 **User value:** none directly — a recorded decision on splitting workflow stage from payment result, so a new payment situation no longer means a new status touching every query.
 
 **Done when:** an ADR decides between two fields (workflow stage and payment result) and the flat enum, and documents each of the 11 variants as a stage and a result. If the split is chosen, the migration becomes its own entry.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-017 — (backend) — Unit of work: atomic writes across aggregates
-
-First of five entries split from TODO-006 (DDD convergence). Reconciliation writes update procedure statuses in one transaction and the group status in another; ADR-003 chose a unit of work (`core/uow.rs`) for writes that span aggregates.
-
-**User value:** a crash in the middle of a reconciliation can no longer leave it half applied.
-
-**Done when:** the unit of work of ADR-003 exists; the bank reconciliation and manual bank match writes named in DEBT-002 run in one transaction each; a Rust test forces a failure between the two writes and finds neither applied; DEBT-002 is removed.
 
 **Design:** none
 

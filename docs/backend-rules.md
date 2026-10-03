@@ -166,14 +166,17 @@ sqlx types in its public signature.
 
 **B24** — Use cases MAY depend on any domain abstraction: repository traits, domain entities,
 or bounded context services. They MUST NOT depend on infrastructure: concrete repository
-implementations, `sqlx::Pool`, `sqlx::Transaction`, `sqlx::query!`, or any other sqlx type.
+implementations, `sqlx::Pool`, `sqlx::Transaction`, `sqlx::query!`, or any other sqlx type
+(one exception: a unit of work's SQLite file, B26).
 
 **B25** — For write operations that must emit an event, use cases SHOULD go through the BC Application Service rather than the repository trait directly to ensure the event is properly fired.
 
 **B26** — For cross-aggregate writes (operations that must write to more than one aggregate
-atomically), the use case orchestrator MUST use the UnitOfWork pattern (`TransactionManager`
-from `shared/infrastructure/uow.rs`). Single-aggregate writes do NOT use UoW — the aggregate's own repository
-handles atomicity internally via its `save()` method.
+atomically), the use case orchestrator MUST use the UnitOfWork pattern (ADR-003): it depends on
+the unit of work and transaction manager traits declared in its use case folder, implemented over
+`SqlxTransactionManager` from `shared/infrastructure/uow.rs` in a file beside them — the one place
+under `use_cases/` where B24's ban on sqlx types does not apply. Single-aggregate writes do NOT use
+UoW — the aggregate's own repository handles atomicity internally via its `save()` method.
 
 ## Repository
 

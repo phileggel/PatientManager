@@ -145,17 +145,18 @@ Shared Kernel is a tightly-coupled relationship — every change requires agreem
 A pattern for cross-aggregate atomicity. Used when a single operation must write to multiple
 aggregates in one DB transaction.
 
-### TransactionManager
+### The shared transaction manager
 
-A shared application infrastructure trait (lives in `shared/infrastructure/`). Wraps the DB pool and provides
-a closure-based API: `run(|uow| { ... })` — begins a transaction, executes the closure, commits
-on success, rolls back on failure.
+`SqlxTransactionManager` (`shared/infrastructure/uow.rs`) wraps the DB pool and opens a
+transaction. It knows no aggregate.
 
-### AppUnitOfWork
+### A unit of work per atomic operation
 
-A use-case-specific super-trait combining the repository traits needed for one atomic operation.
-e.g. `AppUnitOfWork: OrderRepository + InventoryRepository`. Lives in the use case folder.
-Implemented by `SqlxUnitOfWork` in infrastructure (holds a shared `sqlx::Transaction`).
+The use case folder declares two traits (ADR-003): the unit of work, which names the writes
+the operation makes (e.g. `update_procedures`, `update_group_status`), and its transaction
+manager, whose `run(operation)` commits on success and rolls back on failure. Orchestrators
+see only these traits. The SQLite implementation sits beside them and calls the row writers
+the repositories own.
 
 ### When to use
 
@@ -165,7 +166,7 @@ aggregate's own repository handles atomicity internally via its `save()` method.
 
 ### Event emission with UoW
 
-After `tx_manager.run()` returns `Ok`, the use case delegates notification to each BC
+After the manager's `run()` returns `Ok`, the use case delegates notification to each BC
 service's notify method — it does not publish events directly (use cases do not own state).
 
 ---

@@ -1,121 +1,117 @@
-# ADR-003: Unit of Work Pattern for Cross-Aggregate Atomicity
+# ADR 003 — Unit of Work for cross-aggregate atomicity
 
-## Status
-
-Accepted — **not yet implemented** (`core/uow.rs` does not exist yet).
+**Date**: 2026-04-28
+**Status**: Accepted
 
 ## Context
 
 Some operations must write to more than one aggregate in a single atomic DB transaction.
-A naive approach — injecting `sqlx::Pool` directly into use cases — violates B19 (use cases
-must not depend on infrastructure types) and makes atomicity untestable (no way to simulate
-a mid-transaction failure without a real DB).
+Injecting `sqlx::Pool` into use cases would violate B24 (use cases must not depend on
+infrastructure types) and would make atomicity untestable without a real database.
 
-The project uses DDD bounded contexts (`patient`, `fund`, `procedure`, `bank`, etc.) each
-with their own repository traits and SQLite implementations. Today, cross-BC orchestrators
-(e.g. `use_cases/fund_payment_reconciliation/`) perform multi-aggregate writes as sequential
-individual calls with no atomicity guarantee — a failure mid-way leaves data in a partially
-written state. The UoW pattern is the clean solution.
+The bounded contexts (`patient`, `fund`, `procedure`, `bank`) each own their repository
+traits and SQLite implementations. Cross-context orchestrators that write several aggregates
+as sequential calls have no atomicity guarantee: a failure mid-way leaves the data partly
+written. Settling a fund payment group against the bank was the first such case (the
+procedures of the group, then the group's status).
 
 ## Decision
 
-Adopt the **Unit of Work pattern** via two abstractions:
+Adopt the **Unit of Work pattern**: a shared, domain-blind transaction manager, and one unit
+of work per atomic operation.
 
-### 1. `TransactionManager` — `core/uow.rs`
+### 1. `SqlxTransactionManager` — `shared/infrastructure/uow.rs`
 
-A shared application infrastructure trait. Lives in `core/` alongside `event_bus/` — same
-role: cross-cutting application tool with no domain knowledge.
+Created once at startup in `lib.rs`. It opens a transaction and knows no aggregate. A
+transaction is committed explicitly; dropped without a commit, it rolls back.
+
+### 2. A unit of work per atomic operation — `use_cases/{flow}/uow.rs`
+
+The use case folder declares two traits, which is all an orchestrator sees:
 
 ```rust
-pub type UoWFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;
+/// The writes the operation makes, on one transaction.
+pub trait GroupSettlementUnitOfWork: Send {
+    async fn update_procedures(&mut self, procedures: Vec<Procedure>) -> Result<()>;
+    async fn update_group_status(&mut self, group_id: &str, status: FundPaymentGroupStatus) -> Result<()>;
+}
 
-pub trait TransactionManager: Send + Sync {
-    async fn run<T, F>(&self, operation: F) -> Result<T>
-    where
-        F: for<'a> FnOnce(&'a mut dyn AppUnitOfWork) -> UoWFuture<'a, T> + Send;
+/// Runs an operation: committed on `Ok`, rolled back on `Err`.
+pub trait GroupSettlementTransactionManager: Send + Sync {
+    async fn run(&self, operation: GroupSettlementOperation) -> Result<()>;
 }
 ```
 
-`SqlxTransactionManager` implements this by beginning a `sqlx::Transaction`, running the
-closure, committing on `Ok`, rolling back on `Err`.
+The unit of work names the writes it needs; it does not inherit whole repository traits. The
+manager trait is object-safe (`run` takes a boxed operation), so an orchestrator holds
+`Arc<dyn …TransactionManager>`.
 
-`SqlxTransactionManager` is created once at startup in `lib.rs` and injected only into
-use cases that require cross-aggregate atomicity.
+A use case imports no other use case (B18), so two flows that make the same writes — the
+bank statement validation and the manual bank match both settle a group — each declare the
+unit of work in their own folder.
 
-### 2. `AppUnitOfWork` — `use_cases/{uc}/uow.rs`
-
-A use-case-specific super-trait combining the repository traits needed for that operation.
-Lives in the use case folder — it is operation-specific and not globally reusable.
-
-```rust
-// Example for fund payment reconciliation (writes payment group + procedures atomically):
-pub trait AppUnitOfWork: FundPaymentGroupRepository + ProcedureRepository + Send {}
-```
-
-`SqlxUnitOfWork` in infrastructure implements all combined traits over a shared
-`sqlx::Transaction<'_, Sqlite>`.
+The SQLite implementation sits beside the traits, in `use_cases/{flow}/sqlx_uow.rs`. It
+implements the manager trait for `SqlxTransactionManager` and calls the row writers the
+repositories already own, so no SQL is duplicated. This file is the one place under
+`use_cases/` that names sqlx and concrete repositories (B26): `shared/` cannot import a
+bounded context, and a bounded context cannot import a use case, so the implementation that
+joins two contexts on one transaction has no other home.
 
 ### Execution flow
 
 ```
-orchestrator.execute()
-  │
-  ├── load aggregates (reads, outside UoW)
-  ├── apply domain logic (pure, no DB)
-  │
-  └── tx_manager.run(|uow| {
-          uow.save_fund_payment_group(&group)   // FundPaymentGroupRepository::save()
-          uow.update_procedures_batch(&procs)   // ProcedureRepository::update_batch()
-      })
-      │
-      ├── Ok  → commit → delegate event notification to BC service notify methods
-      └── Err → rollback → propagate error
+orchestrator
+  ├── load aggregates            (reads, outside the unit of work)
+  ├── apply domain logic         (pure, no DB)
+  └── manager.run(|uow| { uow.update_procedures(..); uow.update_group_status(..) })
+        ├── Ok  → commit   → notify through each owning service
+        └── Err → rollback → propagate the error
 ```
+
+Reads stay outside `run`: the transaction holds a connection, and a read through the pool
+inside it would wait on a single-connection pool.
 
 ### Event emission
 
-After `tx_manager.run()` returns `Ok`, the use case calls each BC service's notify method.
-The use case MUST NOT publish events directly (B12) — it delegates to the service that owns
-the event:
-
-```rust
-let result = tx_manager.run(|uow| { ... }).await?;
-fund_payment_service.notify_updated();
-procedure_service.notify_updated();
-```
+After `run` returns `Ok`, the use case calls the notify method of each service that owns an
+event. It does not publish those events itself (B25).
 
 ## Alternatives Considered
 
-**1. Inject `sqlx::Pool` into use cases directly**
-Rejected — violates B19 (infrastructure dependency in application layer). Makes unit
-testing impossible without a real database.
+**1. Inject `sqlx::Pool` into use cases directly.** Rejected: an infrastructure dependency in
+the orchestrator (B24), and no unit test without a real database.
 
-**2. Event-driven (eventual consistency)**
-Rejected for cases where atomicity is required by spec. If a future operation explicitly
-allows best-effort recording, event-driven is the preferred approach — simpler and
-more DDD-correct for that case.
+**2. Event-driven, eventual consistency.** Rejected where the spec requires atomicity. Where
+an operation explicitly allows best-effort recording, it is the simpler choice.
 
-**3. Single global `AppUnitOfWork` combining all repos**
-Rejected — couples all bounded contexts together. Each use case defines only the repo
-combination it needs.
+**3. One global unit of work combining every repository.** Rejected: it couples all bounded
+contexts. Each operation declares only the writes it needs.
+
+**4. A generic `TransactionManager::run<T, F>` trait shared by every use case.** Rejected: a
+generic method is not object-safe, so orchestrators could not hold it as `Arc<dyn …>` without
+becoming generic themselves.
 
 ## Consequences
 
 **Positive:**
 
-- Use cases have no sqlx dependency — fully testable with `MockTransactionManager`
-- Atomicity failure can be simulated in tests via fault injection
-- `TransactionManager` is reusable across any future cross-aggregate use case
-- Commit/rollback logic centralized in one place
+- Orchestrators have no sqlx dependency and are testable with a test double of the manager.
+- A failure between two writes can be forced in a test and is proven to apply neither
+  (`use_cases/bank_manual_match/sqlx_uow.rs`, `test_todo_017_*`).
+- Opening, committing and rolling back are in one place.
+- No SQL is duplicated: repositories expose the row writers a unit of work reuses.
 
 **Negative:**
 
-- HRTB lifetime bound (`for<'a> FnOnce(...)`) adds Rust complexity
-- Each cross-aggregate use case must define its own `AppUnitOfWork` super-trait
-- `SqlxUnitOfWork` must implement all combined repo traits — SQL may be duplicated
-  from existing repo implementations
+- Each use case declares its own unit of work and manager trait, even when two use cases
+  make the same writes: the traits and their thin SQLite glue are repeated, the SQL is not.
+- The boxed operation carries a higher-ranked lifetime bound, which is harder to read than a
+  plain closure.
+- A repository's row writer takes a connection: a second way into the same SQL beside the
+  repository trait.
+- One sqlx file lives under `use_cases/`, an exception B26 has to name.
 
 ## References
 
-- `docs/ddd-reference.md` — Unit of Work section
-- `docs/backend-rules.md` — B22
+- `docs/ddd-reference.md` § Unit of Work
+- `docs/backend-rules.md` — B24, B25, B26

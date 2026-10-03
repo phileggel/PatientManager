@@ -36,6 +36,7 @@ use crate::context::procedure::{
 use crate::context::fund::{FundPaymentService, SqliteFundPaymentRepository};
 use crate::shared::event_bus::*;
 use crate::shared::logger::*;
+use crate::shared::uow::SqlxTransactionManager;
 use crate::use_cases::bank_manual_match::BankManualMatchOrchestrator;
 use crate::use_cases::bank_statement_reconciliation::{
     BankStatementOrchestrator, SqliteBankFundLabelMappingRepository,
@@ -199,6 +200,8 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     let label_mapping_repo = Arc::new(SqliteBankFundLabelMappingRepository::new(
         db.get_pool().clone(),
     ));
+    // One transaction for a group's procedures and its status (ADR-003)
+    let group_settlement = Arc::new(SqlxTransactionManager::new(db.get_pool().clone()));
     let bank_statement_orchestrator = Arc::new(BankStatementOrchestrator::new(
         bank_account_service.clone(),
         fund_service.clone(),
@@ -208,6 +211,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         context_procedure_service.clone(),
         label_mapping_repo,
         event_bus.clone(),
+        group_settlement.clone(),
     ));
     tracing::info!(target: BACKEND, "Bank statement orchestrator created");
 
@@ -251,6 +255,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         transfer_link_repo.clone(),
         fund_payment_service.clone(),
         context_procedure_service.clone(),
+        group_settlement,
     ));
     tracing::info!(target: BACKEND, "Bank manual match orchestrator created");
 

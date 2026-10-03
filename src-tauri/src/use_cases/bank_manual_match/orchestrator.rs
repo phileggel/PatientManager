@@ -13,6 +13,7 @@ use crate::context::procedure::{
 };
 
 use super::error::{BankManualMatchError, BankManualMatchTask};
+use super::uow::{settle_group, GroupSettlementTransactionManager};
 use crate::BACKEND;
 
 /// Number of days before the transfer/payment date within which to search for eligible items (R6, R14).
@@ -60,6 +61,7 @@ pub struct BankManualMatchOrchestrator {
     transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
     fund_payment_service: Arc<FundPaymentService>,
     procedure_service: Arc<ProcedureService>,
+    group_settlement: Arc<dyn GroupSettlementTransactionManager>,
 }
 
 impl BankManualMatchOrchestrator {
@@ -68,13 +70,39 @@ impl BankManualMatchOrchestrator {
         transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
         fund_payment_service: Arc<FundPaymentService>,
         procedure_service: Arc<ProcedureService>,
+        group_settlement: Arc<dyn GroupSettlementTransactionManager>,
     ) -> Self {
         Self {
             bank_transfer_service,
             transfer_link_repo,
             fund_payment_service,
             procedure_service,
+            group_settlement,
         }
+    }
+
+    /// Write a group's procedures and its status in one transaction (ADR-003),
+    /// then notify through the owning services.
+    async fn settle_group(
+        &self,
+        procedures: Option<Vec<Procedure>>,
+        group_id: &str,
+        status: FundPaymentGroupStatus,
+    ) -> Result<(), BankManualMatchError> {
+        // `None`: the group was not found, so no procedure is written or announced.
+        let procedures_changed = procedures.is_some();
+        let procedures = procedures.unwrap_or_default();
+        settle_group(self.group_settlement.as_ref(), procedures, group_id, status)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, group_id = %group_id, "settle_group: unit of work failed");
+                FundError::DatabaseError
+            })?;
+        if procedures_changed {
+            self.procedure_service.notify_procedures_updated();
+        }
+        self.fund_payment_service.notify_group_updated();
+        Ok(())
     }
 
     // ======================================================================
@@ -601,6 +629,7 @@ impl BankManualMatchOrchestrator {
                 tracing::error!(target: BACKEND, err = ?e, "apply_fund_transfer_to_group: read_group failed");
                 FundError::DatabaseError
             })?;
+        let mut updated: Option<Vec<Procedure>> = None;
         if let Some(group) = group {
             let procedure_ids: Vec<String> =
                 group.lines.iter().map(|l| l.procedure_id.clone()).collect();
@@ -610,7 +639,7 @@ impl BankManualMatchOrchestrator {
                 .read_procedures_by_ids(procedure_ids)
                 .await?;
 
-            let updated: Vec<Procedure> = procedures
+            let settled = procedures
                 .into_iter()
                 .map(|mut p| {
                     let new_status = if p.payment_status == ProcedureStatus::PartiallyReconciled {
@@ -624,17 +653,11 @@ impl BankManualMatchOrchestrator {
                     p.with_payment_info(PaymentMethod::BankTransfer, Some(confirmed_date), amount)
                 })
                 .collect();
-
-            self.procedure_service
-                .update_procedures_batch(updated, false)
-                .await?;
+            updated = Some(settled);
         }
 
-        self.fund_payment_service
-            .update_group_status(group_id, FundPaymentGroupStatus::BankPaid)
-            .await?;
-
-        Ok(())
+        self.settle_group(updated, group_id, FundPaymentGroupStatus::BankPaid)
+            .await
     }
 
     /// R8 — Revert procedures of a group to Reconciled/PartiallyReconciled
@@ -651,6 +674,7 @@ impl BankManualMatchOrchestrator {
                 tracing::error!(target: BACKEND, err = ?e, "revert_fund_transfer_from_group: read_group failed");
                 FundError::DatabaseError
             })?;
+        let mut updated: Option<Vec<Procedure>> = None;
         if let Some(group) = group {
             let procedure_ids: Vec<String> =
                 group.lines.iter().map(|l| l.procedure_id.clone()).collect();
@@ -660,7 +684,7 @@ impl BankManualMatchOrchestrator {
                 .read_procedures_by_ids(procedure_ids)
                 .await?;
 
-            let updated: Vec<Procedure> = procedures
+            let settled = procedures
                 .into_iter()
                 .map(|mut p| {
                     p.payment_status = match p.payment_status {
@@ -673,17 +697,11 @@ impl BankManualMatchOrchestrator {
                     p.revert_fund_payment()
                 })
                 .collect();
-
-            self.procedure_service
-                .update_procedures_batch(updated, false)
-                .await?;
+            updated = Some(settled);
         }
 
-        self.fund_payment_service
-            .update_group_status(group_id, FundPaymentGroupStatus::Active)
-            .await?;
-
-        Ok(())
+        self.settle_group(updated, group_id, FundPaymentGroupStatus::Active)
+            .await
     }
 
     /// R15 — Set procedures to DirectlyPaid with payment info.
@@ -813,6 +831,7 @@ mod tests {
     };
     use crate::context::procedure::{ProcedureService, ProcedureStatus, SqliteProcedureRepository};
     use crate::shared::event_bus::EventBus;
+    use crate::shared::uow::SqlxTransactionManager;
 
     async fn setup_db() -> SqlitePool {
         let pool = SqlitePoolOptions::new()
@@ -855,6 +874,7 @@ mod tests {
             link_repo,
             fund_svc.clone(),
             proc_svc.clone(),
+            Arc::new(SqlxTransactionManager::new(pool.clone())),
         );
         (orchestrator, fund_svc, proc_svc)
     }

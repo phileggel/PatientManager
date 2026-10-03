@@ -5,10 +5,15 @@
 mod api;
 mod error;
 mod orchestrator;
+mod sqlx_uow;
+mod uow;
 
 pub use api::*;
 pub use error::{BankManualMatchError, BankManualMatchTask};
 pub use orchestrator::{
     BankManualMatchOrchestrator, BankManualMatchResult, DirectPaymentProcedureCandidate,
     FundGroupCandidate,
+};
+pub use uow::{
+    GroupSettlementOperation, GroupSettlementTransactionManager, GroupSettlementUnitOfWork,
 };

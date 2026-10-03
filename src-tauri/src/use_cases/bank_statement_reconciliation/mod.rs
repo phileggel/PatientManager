@@ -5,6 +5,8 @@ mod label_mapping_repo;
 mod orchestrator;
 pub mod parser;
 pub mod reconciliation;
+mod sqlx_uow;
+mod uow;
 
 pub use api::*;
 pub use bank_pdf_codec::{BankStatementCreditLine, BankStatementParseResult};
@@ -16,4 +18,7 @@ pub use orchestrator::*;
 pub use reconciliation::{
     BankStatementCandidate, BankStatementCorrection, BankStatementLine, BankStatementLineStatus,
     BankStatementReconciliation, FundAssignment,
+};
+pub use uow::{
+    GroupSettlementOperation, GroupSettlementTransactionManager, GroupSettlementUnitOfWork,
 };

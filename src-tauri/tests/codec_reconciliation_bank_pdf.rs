@@ -137,6 +137,7 @@ fn build_ctx(pool: &SqlitePool) -> Ctx {
         procedure_service,
         label_mapping_repo,
         bus,
+        Arc::new(patient_manager_app::shared::uow::SqlxTransactionManager::new(pool.clone())),
     ));
 
     Ctx { orchestrator }

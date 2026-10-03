@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use crate::{
     context::fund::{
-        Fund, FundCandidate, FundError, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine,
-        FundPaymentRepository, FundRepository,
+        Fund, FundCandidate, FundError, FundPaymentGroup, FundPaymentLine, FundPaymentRepository,
+        FundRepository,
     },
     shared::{
         event_bus::{EventBus, FundPaymentGroupUpdated, FundUpdated},
@@ -378,24 +378,12 @@ impl FundPaymentService {
         Ok(created_groups)
     }
 
-    /// Update the bank reconciliation status of a fund payment group.
-    /// Called by bank reconciliation use-cases when a bank transfer is created or deleted.
-    pub async fn update_group_status(
-        &self,
-        group_id: &str,
-        status: FundPaymentGroupStatus,
-    ) -> Result<(), FundError> {
-        self.repository
-            .update_group_status(group_id, status)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "update_group_status: repository failed");
-                FundError::DatabaseError
-            })?;
+    /// Tell listeners a group changed, after a unit of work that wrote it
+    /// committed (ADR-003). The bank flows set a group's status that way.
+    pub fn notify_group_updated(&self) {
         let _ = self
             .event_bus
             .publish::<FundPaymentGroupUpdated>(FundPaymentGroupUpdated);
-        Ok(())
     }
 
     /// Persist a fully-constructed FundPaymentGroup directly, preserving status and amount.
@@ -440,7 +428,7 @@ impl FundPaymentService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::fund::MockFundRepository;
+    use crate::context::fund::{FundPaymentGroupStatus, MockFundRepository};
     use anyhow::anyhow;
 
     fn fund_repo_create_ok() -> MockFundRepository {
@@ -773,16 +761,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn fund_payment_service_update_group_status_delegates() {
-        let service =
-            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
-        let result = service
-            .update_group_status("group-1", FundPaymentGroupStatus::BankPaid)
-            .await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
     async fn fund_payment_service_persist_refund_group_delegates() {
         let service =
             FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
@@ -796,18 +774,6 @@ mod tests {
         );
         let result = service.persist_refund_group(group).await.unwrap();
         assert_eq!(result.fund_id, "fund-1");
-    }
-
-    #[tokio::test]
-    async fn fund_payment_service_update_group_status_db_error_returns_database_error() {
-        let mut mock = MockFundPaymentRepository::new();
-        mock.expect_update_group_status()
-            .returning(|_, _| Err(anyhow!("Mock repository error")));
-        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
-        let result = service
-            .update_group_status("group-1", FundPaymentGroupStatus::BankPaid)
-            .await;
-        assert!(matches!(result, Err(FundError::DatabaseError)));
     }
 
     #[tokio::test]

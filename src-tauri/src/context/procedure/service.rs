@@ -343,6 +343,12 @@ impl ProcedureService {
         Ok(result)
     }
 
+    /// Tell listeners procedures changed, after a unit of work that wrote
+    /// them committed (ADR-003).
+    pub fn notify_procedures_updated(&self) {
+        let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
+    }
+
     /// Delete a procedure (soft-delete)
     pub async fn delete_procedure(&self, id: &str) -> Result<(), ProcedureError> {
         self.repository.delete_procedure(id).await.map_err(|e| {

@@ -5,4 +5,5 @@ pub use infrastructure::event_bus;
 pub use infrastructure::logger;
 pub use infrastructure::pdf_extractor;
 pub use infrastructure::secure_path;
+pub use infrastructure::uow;
 pub use infrastructure::Database;

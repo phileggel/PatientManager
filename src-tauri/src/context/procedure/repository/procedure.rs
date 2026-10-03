@@ -128,6 +128,49 @@ impl SqliteProcedureRepository {
     }
 }
 
+impl SqliteProcedureRepository {
+    /// Update one procedure on a connection the caller owns — the write
+    /// `update_batch` loops over, also used by a unit of work that spans
+    /// aggregates (ADR-003).
+    pub async fn update_in(
+        conn: &mut sqlx::SqliteConnection,
+        procedure: &Procedure,
+    ) -> anyhow::Result<()> {
+        let payment_method_str = procedure.payment_method.as_db_str();
+        let payment_status_str = procedure.payment_status.as_db_str();
+
+        tracing::trace!(
+            target: BACKEND,
+            procedure_id = %procedure.id,
+            "Updating procedure in database"
+        );
+
+        sqlx::query!(
+            r#"
+            UPDATE procedure
+            SET patient_id = $1, fund_id = $2, procedure_type_id = $3, procedure_date = $4, billed_amount = $5, payment_method = $6, fund_reconciliation_date = $7, confirmed_payment_date = $8, paid_amount = $9, payment_status = $10
+            WHERE id = $11
+            "#,
+            procedure.patient_id,
+            procedure.fund_id,
+            procedure.procedure_type_id,
+            procedure.procedure_date,
+            procedure.billed_amount,
+            payment_method_str,
+            procedure.fund_reconciliation_date,
+            procedure.confirmed_payment_date,
+            procedure.paid_amount,
+            payment_status_str,
+            procedure.id,
+        )
+        .execute(conn)
+        .await
+        .with_context(|| format!("Failed to update procedure {}", procedure.id))?;
+
+        Ok(())
+    }
+}
+
 #[async_trait::async_trait]
 impl ProcedureRepository for SqliteProcedureRepository {
     #[allow(clippy::too_many_arguments)]
@@ -527,36 +570,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let mut updated_procedures = Vec::new();
 
         for procedure in procedures {
-            let payment_method_str = procedure.payment_method.as_db_str();
-            let payment_status_str = procedure.payment_status.as_db_str();
-
-            tracing::trace!(
-                procedure_id = %procedure.id,
-                "Updating procedure in database (batch)"
-            );
-
-            sqlx::query!(
-                r#"
-                UPDATE procedure
-                SET patient_id = $1, fund_id = $2, procedure_type_id = $3, procedure_date = $4, billed_amount = $5, payment_method = $6, fund_reconciliation_date = $7, confirmed_payment_date = $8, paid_amount = $9, payment_status = $10
-                WHERE id = $11
-                "#,
-                procedure.patient_id,
-                procedure.fund_id,
-                procedure.procedure_type_id,
-                procedure.procedure_date,
-                procedure.billed_amount,
-                payment_method_str,
-                procedure.fund_reconciliation_date,
-                procedure.confirmed_payment_date,
-                procedure.paid_amount,
-                payment_status_str,
-                procedure.id,
-            )
-            .execute(&mut *tx)
-            .await?;
-
-            updated_procedures.push(procedure.clone());
+            Self::update_in(&mut tx, &procedure).await?;
+            updated_procedures.push(procedure);
         }
 
         tx.commit().await?;

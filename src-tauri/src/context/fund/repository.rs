@@ -288,6 +288,36 @@ impl SqliteFundPaymentRepository {
     }
 }
 
+impl SqliteFundPaymentRepository {
+    /// Set a group's status on a connection the caller owns — the write behind
+    /// `update_group_status`, also used by a unit of work that spans
+    /// aggregates (ADR-003).
+    pub async fn update_group_status_in(
+        conn: &mut sqlx::SqliteConnection,
+        group_id: &str,
+        status: FundPaymentGroupStatus,
+    ) -> anyhow::Result<()> {
+        let status_str = group_status_to_str(status);
+        tracing::info!(group_id = %group_id, status = %status_str, "Updating fund payment group status");
+
+        sqlx::query!(
+            r#"UPDATE fund_payment_group SET status = ? WHERE id = ?"#,
+            status_str,
+            group_id,
+        )
+        .execute(conn)
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to update status for fund payment group {}",
+                group_id
+            )
+        })?;
+
+        Ok(())
+    }
+}
+
 #[async_trait::async_trait]
 impl FundPaymentRepository for SqliteFundPaymentRepository {
     async fn create_group(
@@ -599,24 +629,8 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         group_id: &str,
         status: FundPaymentGroupStatus,
     ) -> anyhow::Result<()> {
-        let status_str = group_status_to_str(status);
-        tracing::info!(group_id = %group_id, status = %status_str, "Updating fund payment group status");
-
-        sqlx::query!(
-            r#"UPDATE fund_payment_group SET status = ? WHERE id = ?"#,
-            status_str,
-            group_id,
-        )
-        .execute(&self.pool)
-        .await
-        .with_context(|| {
-            format!(
-                "Failed to update status for fund payment group {}",
-                group_id
-            )
-        })?;
-
-        Ok(())
+        let mut conn = self.pool.acquire().await?;
+        Self::update_group_status_in(&mut conn, group_id, status).await
     }
 
     async fn delete_lines_by_group(&self, group_id: &str) -> anyhow::Result<()> {
