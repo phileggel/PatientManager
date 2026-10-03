@@ -55,13 +55,13 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-opener = "2"
 sha2 = "0.10"
-printpdf = "0.9"
+printpdf = "0.12"
 rust_xlsxwriter = { version = "0.94", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
 mockall = "0.13"
-lopdf = "0.39"
+lopdf = "0.44"
 
 [features]
 # by default Tauri runs in strict mode where all net requests are blocked

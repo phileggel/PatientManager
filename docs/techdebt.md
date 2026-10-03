@@ -6,6 +6,26 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-03 — DEBT-020 — The reconciliation report prints a box instead of the period arrow
+
+**Found by:** manual (render check of the printpdf bump, branch `chore/dep-audit-blockers`)
+
+**Where:** `src-tauri/resources/fonts/Roboto-Regular.ttf`, `src/features/fund-payment-match/shared/reportPresenter.ts`
+
+**Observation:** the report's period line and its correction rows carry a « → »; the embedded Roboto has no glyph for it, so the PDF shows an empty box. It predates the printpdf bump (0.9 and 0.12 render the same). Fixing it changes what the user sees (another separator, or a font that has the glyph), so it needs the owner's yes.
+
+---
+
+## 2026-10-03 — DEBT-019 — WebdriverIO pulls three advisories that have no patched release
+
+**Found by:** `/dep-audit` (npm audit, branch `chore/dep-audit-blockers`)
+
+**Where:** `package-lock.json` — `basic-ftp`, `braces`, `extract-zip` under `@wdio/*` 9.32
+
+**Observation:** `npm audit` still reports 19 high advisories, all through these three packages, which the E2E tooling pulls and none of which ships in the app (`npm audit --omit=dev`, the weekly Security Audit gate, is clean). `braces` and `extract-zip` have no patched release; `basic-ftp` is pinned by `get-uri`. The only fix npm offers is a downgrade to WebdriverIO 5. Re-check when WebdriverIO 10 is stable.
+
+---
+
 ## 2026-09-28 — DEBT-018 — Specs, contracts and ADRs never checked against the code
 
 **Found by:** manual (TODO-015 closure, branch `docs/todo-015-skills`)
@@ -43,16 +63,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 **Where:** `BankStatementReconciliation.resolved_count` / `needs_correction_count` (`src-tauri/src/use_cases/bank_statement_reconciliation/reconciliation.rs`, contract § Shared Types)
 
 **Observation:** the settlement screen derives its counts frontend-side over visible lines (BAS-122), leaving the wire's whole-document counters without a consumer. Removing them is a wire change deliberately not folded into the comment-only 2026-08-03 contract refresh; fold into the next PR that reshapes this wire surface.
-
----
-
-## 2026-08-03 — DEBT-012 — printpdf 0.9 pins a RUSTSEC-flagged lopdf
-
-**Found by:** scheduled Security Audit run (cargo audit, branch `fix/cargo-audit-rustsec-bumps`)
-
-**Where:** `src-tauri/Cargo.toml` (`printpdf = "0.9"`, dev-dep `lopdf = "0.39"`); ignore documented in `src-tauri/.cargo/audit.toml`
-
-**Observation:** printpdf 0.9 pulls lopdf 0.39, which carries RUSTSEC-2026-0187 (stack overflow parsing deeply nested PDF objects). Our printpdf usage is write-only (fund-payment report generation, `renderer.rs` ~667 LOC), so untrusted input never reaches the vulnerable parse path — the advisory is ignored in audit.toml with that justification. printpdf ≥0.10 redesigned its API, so moving to 0.12 (lopdf ≥0.44) is a renderer rewrite, not a version bump; the dev-only `lopdf` test parser is version-coupled to printpdf's output format and moves with it. Doing that migration removes the audit ignore entirely.
 
 ---
 
