@@ -29,7 +29,7 @@ Scope:
 
 Cost: probably half a day of setup + ongoing maintenance burden. Defer until release cadence makes the gap actively painful.
 
-**User value:**
+**User value:** none directly — a release cannot ship a Windows build that fails the flows the Linux E2E suite already checks.
 
 **Done when:**
 
@@ -43,7 +43,7 @@ Cost: probably half a day of setup + ongoing maintenance burden. Defer until rel
 
 The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN row reuses a same-name DB patient (SSN-bearing first, blank-SSN otherwise) to avoid stacking duplicates on re-imports. Two real-world risks remain: (a) two genuinely different patients sharing the same name will be merged the first time, and (b) when SSN is added manually to an existing patient between two imports, a future blank-SSN row still merges instead of staying separate. A UI assistant should surface candidate duplicates (same name, overlapping procedure history, etc.), let the user confirm pair-by-pair, and merge — preserving procedure attachments under the surviving patient. Priority: low.
 
-**User value:**
+**User value:** the user sees the patients that look like duplicates and merges each pair in one step, keeping all their procedures.
 
 **Done when:**
 
@@ -57,7 +57,7 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 `UnreconciledProcedure` is a domain projection introduced when moving `ProcedureRepository` to the domain layer. It sits alongside `Procedure` (the aggregate root) and other procedure-related structures. Before adding more projections, review whether these are genuinely distinct domain concepts or whether `Procedure` should be enriched to cover these cases. Key question: is `UnreconciledProcedure` a real ubiquitous-language concept, or just a query convenience that should be folded into `Procedure` with a different fetch strategy?
 
-**User value:**
+**User value:** none directly — a decision on whether `UnreconciledProcedure` is a real domain concept, so later features stop adding projections case by case.
 
 **Done when:**
 
@@ -71,7 +71,7 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 `ProcedureStatus` has grown into a denormalized cross-product of two distinct axes baked into one column: the **workflow stage** (`Created` → `Reconciled` → bank-confirmed) and the **payment/result outcome** (full vs partial, fund vs direct, overpaid/refunded). That is why variants like `PartiallyReconciled` / `PartiallyFundPayed` exist — each is `(stage × result)`. The set is now 11 variants and growing, and every new payment situation added as a flat variant forces all `payment_status` queries + match sites to treat near-synonyms alike (e.g. "eligible for reconciliation" = `Created` and anything that behaves like it). The PRO-310 **Overdue** concept was deliberately kept _derived_ (frontend-only, not a 12th variant) precisely to avoid feeding this conflation — but the underlying tension remains. Genuinely review whether the two axes should be normalized into separate fields (a workflow-stage status + an orthogonal payment-result / annotation), or whether the flat enum stays and is simply documented as such. This is an architectural call (likely an ADR), done deliberately — **not** a sweep and not a side-effect of a feature. Surfaced during the procedure-overdue work (2026-06-21).
 
-**User value:**
+**User value:** none directly — a recorded decision on splitting workflow stage from payment result, so a new payment situation no longer means a new status touching every query.
 
 **Done when:**
 
@@ -90,21 +90,7 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 - **Introduce `FundPayment` aggregate root**: currently missing — `FundPaymentGroup` is incorrectly the top-level object; `FundPayment` is the monthly document wrapping all groups
 - **Implement UoW pattern**: `core/uow.rs` per ADR-003 — needed for atomic cross-aggregate writes in reconciliation
 
-**User value:**
-
-**Done when:**
-
-**Design:** none
-
-**Open questions:** Done when not written yet.
-
----
-
-## TODO-007 — (backend/frontend) — Specta: convert domain objects to camelCase at the boundary
-
-Convert domain objects to camelCase when crossing into the frontend.
-
-**User value:**
+**User value:** none directly — each business rule lives on its aggregate and is changed in one place; atomic writes mean a crash cannot leave a reconciliation half applied.
 
 **Done when:**
 
@@ -118,21 +104,7 @@ Convert domain objects to camelCase when crossing into the frontend.
 
 Currently, the auto-correction flow only allows creating a single procedure. It should support creating multiple procedures in the same operation.
 
-**User value:**
-
-**Done when:**
-
-**Design:** none
-
-**Open questions:** Done when not written yet.
-
----
-
-## TODO-009 — F10 — Extract logic to dedicated hooks (procedure feature)
-
-Multiple F10 violations in the procedure feature: business logic (state, memos, callbacks) lives directly in component files instead of colocated hook files. Deferred — large architectural refactors with no functional impact.
-
-**User value:**
+**User value:** the user creates every missing procedure of a fund payment line in one correction, not just one.
 
 **Done when:**
 
@@ -146,7 +118,7 @@ Multiple F10 violations in the procedure feature: business logic (state, memos, 
 
 Production orchestrators are currently wired manually in `lib.rs` via explicit `Arc<dyn Trait>` constructor injection. This works but doesn't scale well as the number of dependencies grows: adding a dep means touching `lib.rs`, the orchestrator `new()`, and every integration test `Ctx`. A DI container (e.g. `shaku`) would centralize registration and resolve dependencies automatically, reducing wiring boilerplate and making the `new()` signature irrelevant to callers. Evaluate once the orchestrator count or dep count becomes a maintenance burden.
 
-**User value:**
+**User value:** none directly — adding a dependency to an orchestrator touches one place instead of three.
 
 **Done when:**
 
@@ -178,7 +150,7 @@ Streamline how a user sends support data to the maintainer. Today it's a manual 
 
 Deferred decisions: exact diagnostic field list, log-line count, support-code format, Tier-2 transport (drop-link vs gated R2), retention window. Spec via `/spec-writer` when scheduled.
 
-**User value:**
+**User value:** when something breaks, the user sends a diagnostic report in one click; the maintainer diagnoses without a copy of the database, so patient data stays on the machine by default.
 
 **Done when:**
 
@@ -204,7 +176,7 @@ A way to drive PatientManager's use cases without the window: the same Rust comm
 
 ## TODO-016 — (frontend+backend) — All logic in Rust
 
-Business rules, validations, aggregations and derivations still live in the frontend in places (sorting and filtering helpers, presenters that compute, hooks that decide). A second surface (TODO-013's CLI and MCP server) must follow the same rules as the app, so the rules must live where both can reach them: in Rust. Makes TODO-009 partly obsolete — logic that leaves the frontend needs no hook.
+Business rules, validations, aggregations and derivations still live in the frontend in places (sorting and filtering helpers, presenters that compute, hooks that decide). A second surface (TODO-013's CLI and MCP server) must follow the same rules as the app, so the rules must live where both can reach them: in Rust.
 
 **User value:** none directly — the app behaves the same; every rule has one implementation, which the CLI and MCP server reuse.
 
