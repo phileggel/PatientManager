@@ -27,7 +27,8 @@ use std::path::{Path, PathBuf};
 
 use super::scenarios;
 
-// Reuse the same Roboto regular font shipped with the prod FPR renderer.
+// Roboto regular, kept for the fixture writers only (the report renderer uses
+// Liberation Sans).
 const FONT_REGULAR: &[u8] = include_bytes!("../../resources/fonts/Roboto-Regular.ttf");
 
 // A4 portrait — same geometry as the FPR renderer.

@@ -15,8 +15,10 @@ use super::request::{
 // the frontend before calling the command. The renderer only places strings.
 // ────────────────────────────────────────────────────────────────────────────
 
-const FONT_REGULAR: &[u8] = include_bytes!("../../../resources/fonts/Roboto-Regular.ttf");
-const FONT_BOLD: &[u8] = include_bytes!("../../../resources/fonts/Roboto-Bold.ttf");
+// Liberation Sans: it has the « → » the report's period and correction lines
+// carry, which Roboto lacks.
+const FONT_REGULAR: &[u8] = include_bytes!("../../../resources/fonts/LiberationSans-Regular.ttf");
+const FONT_BOLD: &[u8] = include_bytes!("../../../resources/fonts/LiberationSans-Bold.ttf");
 
 // ────────────────────────────────────────────────────────────────────────────
 // Page geometry (A4 portrait)
@@ -59,8 +61,8 @@ pub fn render(req: &ReportGenerationRequest) -> Result<Vec<u8>, ReportPdfError> 
 /// Build the `PdfDocument` (with fonts registered) and the assembled pages,
 /// stopping just short of serialisation. Production calls this through `render`
 /// to produce bytes; tests call it to walk the `Op` tree directly — printpdf's
-/// own deserializer decodes glyph IDs (not text) and `lopdf 0.39` cannot parse
-/// printpdf 0.9's ToUnicode CMaps, so the only reliable way to assert that a
+/// own deserializer decodes glyph IDs (not text) and `lopdf` could not parse
+/// printpdf's ToUnicode CMaps when this was written, so the only reliable way to assert that a
 /// supplied string was emitted is to inspect the pre-serialisation `Op` list.
 fn build_document(
     req: &ReportGenerationRequest,
@@ -508,7 +510,7 @@ mod tests {
     // The assertion runs against the pre-serialisation `Op` tree because:
     // - printpdf's own deserializer rebuilds `Op::ShowText` with glyph IDs,
     //   not the original `String`s.
-    // - `lopdf 0.39` cannot parse printpdf 0.9's ToUnicode CMaps.
+    // - `lopdf` could not parse printpdf's ToUnicode CMaps when this was written.
     // The hairy CMap + glyph-ID encoding is delegated to printpdf; we verify
     // only that our renderer pipeline emits the right strings into the right
     // pages.

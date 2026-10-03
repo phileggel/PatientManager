@@ -6,18 +6,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-10-03 — DEBT-020 — The reconciliation report prints a box instead of the period arrow
-
-**Found by:** manual (render check of the printpdf bump, branch `chore/dep-audit-blockers`)
-
-**Where:** `src-tauri/resources/fonts/Roboto-Regular.ttf`, `src/features/fund-payment-match/shared/reportPresenter.ts`
-
-**Observation:** the report's period line and its correction rows carry a « → »; the embedded Roboto has no glyph for it, so the PDF shows an empty box. It predates the printpdf bump (0.9 and 0.12 render the same). Fixing it changes what the user sees (another separator, or a font that has the glyph), so it needs the owner's yes.
-
-**Decided by the owner (2026-10-03):** embed a font that has the arrow, so the report reads as designed; check the glyph renders before choosing the font.
-
----
-
 ## 2026-10-03 — DEBT-019 — WebdriverIO pulls three advisories that have no patched release
 
 **Found by:** `/dep-audit` (npm audit, branch `chore/dep-audit-blockers`)
