@@ -94,7 +94,7 @@ export function ConfirmationDialog({
 }: ConfirmationDialogProps) {
   const actions = (
     <div className="flex items-center justify-end gap-3">
-      <Button id={`${id}-cancel`} variant="ghost" onClick={onCancel}>
+      <Button id={`${id}-cancel`} variant="secondary" onClick={onCancel}>
         {cancelLabel}
       </Button>
       <Button
