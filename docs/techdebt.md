@@ -60,18 +60,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ---
 
-## 2026-09-27 — DEBT-014 — CI reviewer sessions can still reach the network
-
-**Found by:** reviewer-infra (CI run on PR #121, branch `ci/reviewers-in-ci`)
-
-**Where:** `.github/workflows/review.yml`, `claude_args` of the reviewer step
-
-**Observation:** the session's Bash is allowed broadly with a denylist (`gh`, `git push`, `curl`, `wget`, `ssh`, web tools); `python3 -c`, `node -e` or `nc` could still reach the network, so a prompt injection in a reviewed diff could send the token's value out. Today the exposure is small: fork PRs get no secrets and Dependabot PRs skip the lanes, so only diffs the owner or the agent wrote are reviewed. Closing it means an allowlist of the commands the reviewers actually run (`bash scripts/branch.sh`, `bash scripts/review-path.sh`, `git`, `grep`, `shellcheck`, `python3 -m unittest`) — a design call on what the reviewers may execute.
-
-**Decided by the owner (2026-10-03):** grant the reviewers named commands only — the review scripts, `git` read commands, `grep`, `shellcheck`, `python3 -m unittest` — and drop the refused list; a reviewer that needs another command fails visibly and the list is extended. Same change filed for folioneer (folioneer/folioneer issue 79).
-
----
-
 ## 2026-08-03 — DEBT-013 — Wire counters orphaned by the two-screen split
 
 **Found by:** spec-reviewer (BAS-120–123 amendment pass, branch `feat/bank-wizard-procedures-and-window`)

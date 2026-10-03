@@ -129,9 +129,9 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         with:
           fetch-depth: 0
-          # The session gets a broad shell over untrusted diff content: no job
-          # token may sit in .git/config for it to read (the redaction below
-          # does not match the checkout's AUTHORIZATION header shape).
+          # The session reads untrusted diff content: no job token may sit in
+          # .git/config for it to read (the redaction below does not match the
+          # checkout's AUTHORIZATION header shape).
           persist-credentials: false
 
       - name: Give the branch helper a local main and trusted prompts and helpers
@@ -151,10 +151,15 @@ jobs:
           git checkout "origin/$BASE" -- .claude/agents scripts/branch.sh scripts/review-path.sh
 
       - name: Run the reviewer prompt
-        # The runner is disposable, so the shell is allowed broadly and only
-        # the calls that reach out are denied (denials win over allowances):
-        # no GitHub CLI, no push, no network clients. Nothing leaves the runner
-        # except the report and the session log, both redacted below first.
+        # The session reads a diff nobody has reviewed yet, so its shell is a
+        # list of named commands, not `Bash` minus a refused list: the two
+        # trusted helpers (they give the diff and the log), three git reads,
+        # grep, ls, wc and shellcheck. None runs code from the pull request,
+        # reaches the network or writes a file: `git diff|log|show` are left
+        # out because their `--output` option writes anywhere. A reviewer
+        # that needs another command is refused it visibly; extend the list
+        # on purpose. Nothing leaves the runner except the report and the
+        # session log, both redacted below first.
         if: steps.gate.outputs.run == 'true'
         uses: anthropics/claude-code-action@9171db3e57d6a3140a37ddc2ba92788584e0ead6  # v1.0.234
         with:
@@ -180,8 +185,8 @@ jobs:
           claude_args: |
             --model claude-sonnet-5
             --max-turns 60
-            --allowedTools "Read" "Grep" "Glob" "Write(.review/**)" "Edit(.review/**)" "Bash"
-            --disallowedTools "Bash(gh *)" "Bash(git push*)" "Bash(git remote*)" "Bash(curl *)" "Bash(wget *)" "Bash(ssh *)" "WebFetch" "WebSearch"
+            --allowedTools "Read" "Grep" "Glob" "Write(.review/**)" "Edit(.review/**)" "Bash(bash scripts/branch.sh *)" "Bash(bash scripts/review-path.sh *)" "Bash(git status)" "Bash(git rev-parse *)" "Bash(git ls-files)" "Bash(git ls-files *)" "Bash(grep *)" "Bash(ls *)" "Bash(wc *)" "Bash(shellcheck *)"
+            --disallowedTools "WebFetch" "WebSearch"
 
       - name: Redact secret-shaped strings from what leaves the runner
         # A prompt injection in a reviewed diff could steer the session into

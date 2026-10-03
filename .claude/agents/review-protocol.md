@@ -11,7 +11,7 @@ Each `reviewer-*` prompt names its lane: the files it owns, the rules docs it lo
 
 1. **Files** — `bash scripts/branch.sh files` with the lane's filter (it includes uncommitted work). Drop deleted paths. None in the lane: reply `ℹ️ No {lane} files modified — review skipped.` and stop.
 2. **Rules** — read the rules docs the lane names, and `docs/ubiquitous-language.md` for any name. The docs win over the lane prompt when they disagree.
-3. **Diff** — `bash scripts/branch.sh diff <path> [<path> …]` for committed work; `git diff HEAD -- <path>` adds what is not committed yet.
+3. **Diff** — `bash scripts/branch.sh diff <path> [<path> …]` for committed work; locally, `git diff HEAD -- <path>` adds what is not committed yet (CI has no uncommitted work and does not grant it).
 4. **Context** — read each changed file in full, plus the neighbours the diff ties to (the trait for an impl, the presenter for a component). At most 10 files beyond the diff; when the diff is larger, take the largest changes first and say so in the headline.
 5. **Check** — apply the lane's checks with their default severity; move it only when the surrounding code clearly warrants. Drop anything the lane's "not a finding" list names. Cite the rule ID when one exists.
 

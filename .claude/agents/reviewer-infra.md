@@ -27,7 +27,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 - A checkout without `persist-credentials: false` 🔴.
 - Prompts, helper scripts or the lane map taken from the PR instead of the base branch 🔴.
 - A report or log leaving the runner without the secret's exact value scrubbed 🔴.
-- Session tools that allow `gh`, `git push`, `git remote` or network clients, or a wider `Bash` grant 🔴.
+- Session tools with a general `Bash` grant, or a named command that runs code from the pull request (`python3`, `node`, `npm`, `cargo`, `just`), reaches the network, writes a file outside `.review/` (`git diff|log|show` take `--output`), or is `gh`, `git push` or `git remote` 🔴 — CI reviewers get named read-only commands.
 - A missing secret that passes instead of failing closed 🔴; Dependabot or fork runs failing without a stated reason 🟡.
 
 **Prompts, skills, settings**

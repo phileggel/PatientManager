@@ -9,7 +9,7 @@ set -euo pipefail
 # Use:
 #   bash scripts/branch.sh base                      # print resolved BASE
 #   bash scripts/branch.sh diff <path> [<path>...]   # git diff BASE..HEAD -- paths
-#   bash scripts/branch.sh log [git-log-flags]       # git log --oneline BASE..HEAD
+#   bash scripts/branch.sh log                       # git log --oneline BASE..HEAD
 #   bash scripts/branch.sh files [filter] [--uncommitted-only]
 #
 # `files` prints a sort-unique list of paths changed on the branch — the branch
@@ -61,8 +61,14 @@ diff)
     ;;
 log)
     shift
+    # No pass-through flags: a CI reviewer may run this helper, and git log
+    # takes options that write files (--output).
+    if [ "$#" -gt 0 ]; then
+        echo "usage: bash scripts/branch.sh log" >&2
+        exit 2
+    fi
     BASE=$(resolve_base)
-    git log --oneline "$@" "$BASE"..HEAD
+    git log --oneline "$BASE"..HEAD
     ;;
 files)
     shift
@@ -109,7 +115,7 @@ files)
     fi
     ;;
 *)
-    echo "usage: bash scripts/branch.sh {base|diff <paths>|log [flags]|files [filter] [--uncommitted-only]}" >&2
+    echo "usage: bash scripts/branch.sh {base|diff <paths>|log|files [filter] [--uncommitted-only]}" >&2
     exit 2
     ;;
 esac
