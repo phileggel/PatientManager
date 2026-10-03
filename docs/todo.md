@@ -31,11 +31,11 @@ Cost: probably half a day of setup + ongoing maintenance burden. Defer until rel
 
 **User value:** none directly — a release cannot ship a Windows build that fails the flows the Linux E2E suite already checks.
 
-**Done when:**
+**Done when:** the release workflow builds the Windows binary and runs the E2E suite against it before the bundle step; a failing suite stops the release before any draft exists; `wdio.conf.ts` picks its driver per platform; the release dry run on a pull request runs the same job.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:** none
 
 ---
 
@@ -45,11 +45,11 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 **User value:** the user sees the patients that look like duplicates and merges each pair in one step, keeping all their procedures.
 
-**Done when:**
+**Done when:** a screen lists the pairs of patients whose names are equal once case and accents are ignored; for a pair the user picks the patient to keep and merges: the other's procedures move to the kept patient and the other is deleted; a pair marked as not a duplicate is not proposed again. The rules go in a spec (`/spec-writer`); Rust tests cover the pairing and the merge, one E2E the flow. Out of scope: similar-name matching, and splitting a patient that was wrongly merged.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:** none
 
 ---
 
@@ -59,11 +59,11 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 **User value:** none directly — a decision on whether `UnreconciledProcedure` is a real domain concept, so later features stop adding projections case by case.
 
-**Done when:**
+**Done when:** an ADR records whether `UnreconciledProcedure` stays a projection or folds into `Procedure`, with the rule for adding any future projection; if it folds, the code changes in the same PR; `docs/ubiquitous-language.md` follows the decision.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:** none
 
 ---
 
@@ -73,11 +73,11 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 **User value:** none directly — a recorded decision on splitting workflow stage from payment result, so a new payment situation no longer means a new status touching every query.
 
-**Done when:**
+**Done when:** an ADR decides between two fields (workflow stage and payment result) and the flat enum, and documents each of the 11 variants as a stage and a result. If the split is chosen, the migration becomes its own entry.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:** none
 
 ---
 
@@ -106,11 +106,11 @@ Currently, the auto-correction flow only allows creating a single procedure. It 
 
 **User value:** the user creates every missing procedure of a fund payment line in one correction, not just one.
 
-**Done when:**
+**Done when:** in the correction of a fund payment line with no matching procedure, the user can add several procedures, each with its date and amount; the correction is accepted only when the amounts add up to the line's amount; every created procedure joins the fund payment group and ends `Reconciliated` after confirmation, as FPA-250 does for one. The spec and the contract carry the rule; Rust tests cover the sum check and the creation, one E2E the flow.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:** none
 
 ---
 
@@ -120,11 +120,13 @@ Production orchestrators are currently wired manually in `lib.rs` via explicit `
 
 **User value:** none directly — adding a dependency to an orchestrator touches one place instead of three.
 
-**Done when:**
+**Done when:** every orchestrator is registered in a container; `lib.rs` no longer builds them by hand; integration tests build their context from the same container; adding a dependency touches the orchestrator and its registration only.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:**
+
+- [ ] Not started until wiring a dependency actually hurts — the owner says when.
 
 ---
 
@@ -152,11 +154,11 @@ Deferred decisions: exact diagnostic field list, log-line count, support-code fo
 
 **User value:** when something breaks, the user sends a diagnostic report in one click; the maintainer diagnoses without a copy of the database, so patient data stays on the machine by default.
 
-**Done when:**
+**Done when:** Tier 1 only: an action in the app writes a diagnostic report to a file the user chooses — app and schema version, applied migrations, integrity and foreign-key checks, row counts per table, the last log lines, a support code. The report holds no patient data, proven by a test over a database seeded with patients. Nothing is sent anywhere: the user sends the file. The upload to a server and the encrypted bundle (Tier 2) are not part of this entry.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:** none
 
 ---
 
