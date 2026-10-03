@@ -24,6 +24,8 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 **Observation:** the file picker and the screen announce three formats; the parser opens the file as an xlsx workbook only, so a `.xls` or `.csv` file ends on « Le fichier n'est pas un classeur Excel lisible ». The path validation accepts the three extensions to keep that behaviour. Either the picker and the text drop the two formats, or the parser learns them: a visible change, so the owner's call.
 
+**Decided by the owner (2026-10-03):** offer `.xlsx` only — remove `.xls` and `.csv` from the picker and from the text.
+
 ---
 
 ## 2026-10-03 — DEBT-020 — The reconciliation report prints a box instead of the period arrow
@@ -33,6 +35,8 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 **Where:** `src-tauri/resources/fonts/Roboto-Regular.ttf`, `src/features/fund-payment-match/shared/reportPresenter.ts`
 
 **Observation:** the report's period line and its correction rows carry a « → »; the embedded Roboto has no glyph for it, so the PDF shows an empty box. It predates the printpdf bump (0.9 and 0.12 render the same). Fixing it changes what the user sees (another separator, or a font that has the glyph), so it needs the owner's yes.
+
+**Decided by the owner (2026-10-03):** embed a font that has the arrow, so the report reads as designed; check the glyph renders before choosing the font.
 
 ---
 
@@ -73,6 +77,8 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 **Where:** `.github/workflows/review.yml`, `claude_args` of the reviewer step
 
 **Observation:** the session's Bash is allowed broadly with a denylist (`gh`, `git push`, `curl`, `wget`, `ssh`, web tools); `python3 -c`, `node -e` or `nc` could still reach the network, so a prompt injection in a reviewed diff could send the token's value out. Today the exposure is small: fork PRs get no secrets and Dependabot PRs skip the lanes, so only diffs the owner or the agent wrote are reviewed. Closing it means an allowlist of the commands the reviewers actually run (`bash scripts/branch.sh`, `bash scripts/review-path.sh`, `git`, `grep`, `shellcheck`, `python3 -m unittest`) — a design call on what the reviewers may execute.
+
+**Decided by the owner (2026-10-03):** grant the reviewers named commands only — the review scripts, `git` read commands, `grep`, `shellcheck`, `python3 -m unittest` — and drop the refused list; a reviewer that needs another command fails visibly and the list is extended. Same change filed for folioneer (folioneer/folioneer issue 79).
 
 ---
 
