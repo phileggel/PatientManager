@@ -155,7 +155,7 @@ mod tests {
     use crate::context::procedure::{
         MockProcedureRepository, PaymentMethod, Procedure, ProcedureStatus,
     };
-    use crate::shared::event_bus::EventBus;
+    use crate::shared::event_bus::{EventBus, PatientUpdated, ProcedureUpdated};
 
     fn patient(id: &str, name: &str, ssn: Option<&str>) -> Patient {
         Patient::restore(
@@ -242,7 +242,14 @@ mod tests {
         patients: MockPatientRepository,
         procedures: MockProcedureRepository,
     ) -> (PatientDuplicatesOrchestrator, Arc<Mutex<Vec<String>>>) {
-        let bus = Arc::new(EventBus::new());
+        orchestrator_on(Arc::new(EventBus::new()), patients, procedures)
+    }
+
+    fn orchestrator_on(
+        bus: Arc<EventBus>,
+        patients: MockPatientRepository,
+        procedures: MockProcedureRepository,
+    ) -> (PatientDuplicatesOrchestrator, Arc<Mutex<Vec<String>>>) {
         let merge = RecordingMerge::default();
         let calls = merge.calls.clone();
         (
@@ -377,6 +384,63 @@ mod tests {
             assert_eq!(task(orchestrator.merge(kept, other).await), Some(expected));
             assert!(recorded(&calls).is_empty());
         }
+    }
+
+    #[tokio::test]
+    async fn test_pdu_028_a_merge_publishes_both_events_and_a_refused_one_none() {
+        let bus = Arc::new(EventBus::new());
+        let mut patients_changed = bus.subscribe::<PatientUpdated>().expect("subscribe");
+        let mut procedures_changed = bus.subscribe::<ProcedureUpdated>().expect("subscribe");
+        let stored = vec![
+            patient("kept", "Marie Dupont", None),
+            patient("other", "Marie Dupont", None),
+            patient("else", "Jean Martin", None),
+        ];
+        let (orchestrator, _) =
+            orchestrator_on(bus, patients_by_id(stored), MockProcedureRepository::new());
+
+        assert!(orchestrator.merge("kept", "else").await.is_err());
+        assert!(patients_changed.try_recv().is_err());
+        assert!(procedures_changed.try_recv().is_err());
+
+        orchestrator.merge("kept", "other").await.expect("merge");
+        assert!(patients_changed.try_recv().is_ok());
+        assert!(procedures_changed.try_recv().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_pdu_025_an_anonymous_patient_is_not_a_candidate() {
+        let mut anonymous = patient("b", "Marie Dupont", None);
+        anonymous.is_anonymous = true;
+        let stored = vec![patient("a", "Marie Dupont", None), anonymous];
+
+        let (orchestrator, calls) =
+            orchestrator(patients_by_id(stored), MockProcedureRepository::new());
+
+        assert_eq!(
+            task(orchestrator.merge("a", "b").await),
+            Some(PatientDuplicatesTask::NotACandidatePair)
+        );
+        assert!(recorded(&calls).is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_pdu_032_any_two_patients_can_be_dismissed_and_no_event_is_published() {
+        let bus = Arc::new(EventBus::new());
+        let mut patients_changed = bus.subscribe::<PatientUpdated>().expect("subscribe");
+        let mut patients = patients_by_id(vec![
+            patient("a", "Marie Dupont", None),
+            patient("b", "Jean Martin", None),
+        ]);
+        patients
+            .expect_save_duplicate_dismissal()
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let (orchestrator, _) = orchestrator_on(bus, patients, MockProcedureRepository::new());
+
+        assert!(orchestrator.dismiss("a", "b").await.is_ok());
+        assert!(patients_changed.try_recv().is_err());
     }
 
     #[tokio::test]

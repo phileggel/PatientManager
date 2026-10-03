@@ -1,6 +1,7 @@
 export type Page =
   | "dashboard"
   | "patient"
+  | "patient-duplicate"
   | "funds"
   | "procedures"
   | "procedure-types"

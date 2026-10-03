@@ -29,7 +29,8 @@
       "bank_statement": "Upload a bank statement PDF to reconcile transfers with fund payment groups."
     },
     "settings": "Settings",
-    "bank_statement_label": "Statement labels"
+    "bank_statement_label": "Statement labels",
+    "patient_duplicate": "Duplicate patients"
   },
   "action": {
     "add": "Add",

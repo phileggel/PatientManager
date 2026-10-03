@@ -11,6 +11,7 @@ import { FundsManager } from "@/features/fund";
 import { FundPaymentManager } from "@/features/fund-payment";
 import { ReconciliationPage } from "@/features/fund-payment-match";
 import { PatientsManager } from "@/features/patient";
+import { PatientDuplicateManager } from "@/features/patient-duplicate";
 import ProcedurePage from "@/features/procedure/ui/ProcedurePage";
 import { ProcedureTypeManager } from "@/features/procedure-type";
 import type { Page } from "@/features/shell";
@@ -76,6 +77,8 @@ function AppContent() {
         return t("nav.procedures");
       case "patient":
         return t("nav.patient");
+      case "patient-duplicate":
+        return t("nav.patient_duplicate");
       case "funds":
         return t("nav.funds");
       case "procedure-types":
@@ -138,6 +141,7 @@ function AppContent() {
         >
           {currentPage === "dashboard" && <DashboardPage />}
           {currentPage === "patient" && <PatientsManager />}
+          {currentPage === "patient-duplicate" && <PatientDuplicateManager />}
           {currentPage === "funds" && <FundsManager />}
           {currentPage === "procedures" && <ProcedurePage />}
           {currentPage === "procedure-types" && <ProcedureTypeManager />}

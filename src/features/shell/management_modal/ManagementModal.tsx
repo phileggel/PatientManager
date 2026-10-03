@@ -22,6 +22,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
   const { t } = useTranslation("management-modal");
   const {
     handlePatient,
+    handlePatientDuplicates,
     handleFunds,
     handleProcedureTypes,
     handleFundPayment,
@@ -63,6 +64,22 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
           <span className="text-sm font-medium text-m3-on-surface">{t("patient.title")}</span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
             {t("patient.description")}
+          </p>
+        </button>
+
+        {/* Patient duplicates (PDU-016) */}
+        <button
+          id="mgmt-card-patient-duplicates"
+          type="button"
+          className={cardClasses}
+          onClick={handlePatientDuplicates}
+          aria-label={t("patient_duplicates.title")}
+        >
+          <span className="text-sm font-medium text-m3-on-surface">
+            {t("patient_duplicates.title")}
+          </span>
+          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
+            {t("patient_duplicates.description")}
           </p>
         </button>
 

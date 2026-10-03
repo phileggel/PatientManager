@@ -12,18 +12,17 @@ in `/whats-next`.
 <!-- /whats-next. -->
 
 1. TODO-001
-2. TODO-002
-3. TODO-016
-4. TODO-013
-5. TODO-008
-6. TODO-005
-7. TODO-004
-8. TODO-018
-9. DEBT-011
-10. TODO-019
-11. DEBT-003
-12. TODO-020
-13. TODO-021
+2. TODO-016
+3. TODO-013
+4. TODO-008
+5. TODO-005
+6. TODO-004
+7. TODO-018
+8. DEBT-011
+9. TODO-019
+10. DEBT-003
+11. TODO-020
+12. TODO-021
 
 ---
 
@@ -43,20 +42,6 @@ Cost: probably half a day of setup + ongoing maintenance burden. Defer until rel
 **User value:** none directly — a release cannot ship a Windows build that fails the flows the Linux E2E suite already checks.
 
 **Done when:** the release workflow builds the Windows binary and runs the E2E suite against it before the bundle step; a failing suite stops the release before any draft exists; `wdio.conf.ts` picks its driver per platform; the release dry run on a pull request runs the same job.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-002 — (frontend+backend/data-quality) — Patient deduplication assistant
-
-The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN row reuses a same-name DB patient (SSN-bearing first, blank-SSN otherwise) to avoid stacking duplicates on re-imports. Two real-world risks remain: (a) two genuinely different patients sharing the same name will be merged the first time, and (b) when SSN is added manually to an existing patient between two imports, a future blank-SSN row still merges instead of staying separate. A UI assistant should surface candidate duplicates (same name, overlapping procedure history, etc.), let the user confirm pair-by-pair, and merge — preserving procedure attachments under the surviving patient. Priority: low.
-
-**User value:** the user sees the patients that look like duplicates and merges each pair in one step, keeping all their procedures.
-
-**Done when:** a screen lists the pairs of patients whose names are equal once case and accents are ignored; for a pair the user picks the patient to keep and merges: the other's procedures move to the kept patient and the other is deleted; a pair marked as not a duplicate is not proposed again. The rules go in a spec (`/spec-writer`); Rust tests cover the pairing and the merge, one E2E the flow. Out of scope: similar-name matching, and splitting a patient that was wrongly merged.
 
 **Design:** none
 

@@ -6,6 +6,16 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-03 — DEBT-026 — E2E suites each carry their own "open a management page" helper
+
+**Found by:** reviewer-e2e (local run, branch `feat/todo-002-patient-duplicates`)
+
+**Where:** `e2e/patient-duplicate/patient-duplicate.test.ts`, `e2e/bank-statement-label/bank-statement-label.test.ts`, `e2e/patient/`, `e2e/fund/`, `e2e/bank-account/`
+
+**Observation:** Opening the management dialog and clicking a card is written again in each suite. One helper in `e2e/helpers/` would replace the copies.
+
+---
+
 ## 2026-10-03 — DEBT-025 — Four use-case files name sqlx outside a unit of work
 
 **Found by:** reviewer-arch (CI run on PR #166, branch `feat/todo-011-diagnostic-report`)

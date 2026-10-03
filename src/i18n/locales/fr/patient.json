@@ -54,5 +54,50 @@
     "non_anonymous_requires_name": "Un patient non anonyme doit avoir un nom",
     "invalid_ssn": "Le numéro de sécurité sociale doit contenir 13 chiffres",
     "database_error": "Une erreur de base de données est survenue"
+  },
+  "duplicates": {
+    "manager": {
+      "title": "Doublons de patients",
+      "search_placeholder": "Rechercher un nom...",
+      "panel_title": "Doublons",
+      "panel_description": "Des fiches qui portent le même nom",
+      "panel_body": "Deux fiches sont proposées lorsqu'elles portent le même nom, sans tenir compte des majuscules ni des accents.",
+      "panel_actions": "« Fusionner » regroupe les actes sur la fiche que vous gardez et supprime l'autre. « Pas un doublon » retire la paire de cette liste."
+    },
+    "columns": {
+      "name": "Nom",
+      "first": "Fiche 1",
+      "second": "Fiche 2",
+      "actions": "Actions"
+    },
+    "loading": "Chargement des doublons...",
+    "load_error": "Les doublons n'ont pas pu être chargés.",
+    "empty": "Aucun doublon à examiner.",
+    "activity_one": "{{count}} acte · dernier le {{date}}",
+    "activity_other": "{{count}} actes · dernier le {{date}}",
+    "no_procedure": "Aucun acte",
+    "dismiss": "Pas un doublon",
+    "merge": "Fusionner",
+    "merged": "Les deux fiches ont été fusionnées.",
+    "merge_dialog": {
+      "title": "Fusionner « {{name}} »",
+      "question": "Quelle fiche voulez-vous garder ?",
+      "first": "Fiche 1",
+      "second": "Fiche 2",
+      "cancel": "Annuler",
+      "consequence_second_zero": "La fiche 2 n'a aucun acte : elle sera supprimée. Cette action est définitive.",
+      "consequence_second_one": "L'acte de la fiche 2 sera rattaché à la fiche 1, puis la fiche 2 sera supprimée. Cette action est définitive.",
+      "consequence_second_other": "Les {{count}} actes de la fiche 2 seront rattachés à la fiche 1, puis la fiche 2 sera supprimée. Cette action est définitive.",
+      "consequence_first_zero": "La fiche 1 n'a aucun acte : elle sera supprimée. Cette action est définitive.",
+      "consequence_first_one": "L'acte de la fiche 1 sera rattaché à la fiche 2, puis la fiche 1 sera supprimée. Cette action est définitive.",
+      "consequence_first_other": "Les {{count}} actes de la fiche 1 seront rattachés à la fiche 2, puis la fiche 1 sera supprimée. Cette action est définitive."
+    },
+    "error": {
+      "gone": "Une des deux fiches n'existe plus. La liste a été mise à jour.",
+      "not_a_pair": "Ces deux fiches ne portent plus le même nom. La liste a été mise à jour.",
+      "same_patient": "Les deux fiches sont la même.",
+      "merge_failed": "La fusion a échoué. Rien n'a été modifié.",
+      "unknown": "Une erreur inattendue s'est produite."
+    }
   }
 }

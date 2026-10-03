@@ -11,6 +11,7 @@ interface UseManagementModalProps {
 
 interface UseManagementModalReturn {
   handlePatient: () => void;
+  handlePatientDuplicates: () => void;
   handleFunds: () => void;
   handleProcedureTypes: () => void;
   handleFundPayment: () => void;
@@ -71,6 +72,11 @@ export function useManagementModal({
     onClose();
   }, [onNavigate, onClose]);
 
+  const handlePatientDuplicates = useCallback(() => {
+    onNavigate("patient-duplicate");
+    onClose();
+  }, [onNavigate, onClose]);
+
   const handleBankStatementLabels = useCallback(() => {
     onNavigate("bank-statement-label");
     onClose();
@@ -78,6 +84,7 @@ export function useManagementModal({
 
   return {
     handlePatient,
+    handlePatientDuplicates,
     handleFunds,
     handleProcedureTypes,
     handleFundPayment,

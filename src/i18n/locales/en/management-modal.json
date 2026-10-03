@@ -31,5 +31,9 @@
   "bank_statement_label": {
     "title": "Statement labels",
     "description": "Review, correct or delete the fund linked to a bank statement label."
+  },
+  "patient_duplicates": {
+    "title": "Duplicate patients",
+    "description": "Find patient records that carry the same name, and merge them or mark them as different people."
   }
 }

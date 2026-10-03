@@ -54,5 +54,50 @@
     "non_anonymous_requires_name": "A non-anonymous patient must have a name",
     "invalid_ssn": "SSN must be 13 numeric digits",
     "database_error": "An unexpected database error occurred"
+  },
+  "duplicates": {
+    "manager": {
+      "title": "Duplicate patients",
+      "search_placeholder": "Search a name...",
+      "panel_title": "Duplicates",
+      "panel_description": "Records that carry the same name",
+      "panel_body": "Two records are proposed when they carry the same name, ignoring case and accents.",
+      "panel_actions": "“Merge” moves the procedures to the record you keep and deletes the other. “Not a duplicate” removes the pair from this list."
+    },
+    "columns": {
+      "name": "Name",
+      "first": "Record 1",
+      "second": "Record 2",
+      "actions": "Actions"
+    },
+    "loading": "Loading duplicates...",
+    "load_error": "The duplicates could not be loaded.",
+    "empty": "No duplicate to review.",
+    "activity_one": "{{count}} procedure · last on {{date}}",
+    "activity_other": "{{count}} procedures · last on {{date}}",
+    "no_procedure": "No procedure",
+    "dismiss": "Not a duplicate",
+    "merge": "Merge",
+    "merged": "The two records have been merged.",
+    "merge_dialog": {
+      "title": "Merge “{{name}}”",
+      "question": "Which record do you want to keep?",
+      "first": "Record 1",
+      "second": "Record 2",
+      "cancel": "Cancel",
+      "consequence_second_zero": "Record 2 has no procedure: it will be deleted. This cannot be undone.",
+      "consequence_second_one": "The procedure of record 2 will move to record 1, then record 2 will be deleted. This cannot be undone.",
+      "consequence_second_other": "The {{count}} procedures of record 2 will move to record 1, then record 2 will be deleted. This cannot be undone.",
+      "consequence_first_zero": "Record 1 has no procedure: it will be deleted. This cannot be undone.",
+      "consequence_first_one": "The procedure of record 1 will move to record 2, then record 1 will be deleted. This cannot be undone.",
+      "consequence_first_other": "The {{count}} procedures of record 1 will move to record 2, then record 1 will be deleted. This cannot be undone."
+    },
+    "error": {
+      "gone": "One of the two records no longer exists. The list has been updated.",
+      "not_a_pair": "These two records no longer carry the same name. The list has been updated.",
+      "same_patient": "The two records are the same one.",
+      "merge_failed": "The merge failed. Nothing was changed.",
+      "unknown": "An unexpected error occurred."
+    }
   }
 }

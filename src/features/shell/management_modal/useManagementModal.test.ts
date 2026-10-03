@@ -105,6 +105,15 @@ describe("useManagementModal", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it("test_pdu_016_the_duplicates_card_opens_the_page_and_closes", () => {
+    const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
+
+    result.current.handlePatientDuplicates();
+
+    expect(onNavigate).toHaveBeenCalledWith("patient-duplicate");
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it("test_bas_041_the_labels_card_opens_the_review_page_and_closes", () => {
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 

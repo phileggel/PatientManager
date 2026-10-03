@@ -142,7 +142,7 @@ management dialog → « Doublons de patients » → list of pairs
 ### Entry Point
 
 A card « Doublons de patients » in the management dialog, after « Patients ». Validated by the
-owner from mocks on 2026-10-03 (`screenshots/design/TODO-002-*.png`).
+owner from mocks on 2026-10-03 (shipped screen: `screenshots/PatientDuplicateManager-*.png`).
 
 ### Main Component
 

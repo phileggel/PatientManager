@@ -31,5 +31,9 @@
   "bank_statement_label": {
     "title": "Libellés de relevé",
     "description": "Consultez, corrigez ou supprimez la caisse associée à un libellé de relevé bancaire."
+  },
+  "patient_duplicates": {
+    "title": "Doublons de patients",
+    "description": "Repérez les fiches patient qui portent le même nom, et fusionnez-les ou indiquez qu'il s'agit de personnes différentes."
   }
 }
