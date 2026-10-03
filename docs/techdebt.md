@@ -142,16 +142,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ---
 
-## 2026-05-27 — DEBT-004 — `formatBankError` ownership: presenter lives in `bank-account` but two features consume it
-
-**Found by:** reviewer-arch (`refactor/typed-errors-fund-bank` @ `ea606ad`)
-
-**Where:** `src/features/bank-account/shared/presenter.ts` (defines `formatBankError`); consumed by `src/features/bank-transfer/useBankTransferOperations.ts` and `src/features/bank-statement-match/ui/useBankStatementModal.ts` via cross-feature primitive imports.
-
-**Observation:** `BankError` is a BC type — it belongs to neither feature alone. The presenter sits in `bank-account/shared/` only by historical accident (first writer wins). F26 currently permits the cross-feature primitive import. When a third consumer appears, promote `formatBankError` to a location that reflects shared BC ownership — e.g. a `src/features/bank/shared/presenter.ts` feature-level surface, or an explicit re-export shape.
-
----
-
 ## 2026-05-19 — DEBT-003 — REF-240 enforced at command layer via dual-orchestrator injection
 
 **Found by:** manual (`refactor/fund-payment-manual-management`)
