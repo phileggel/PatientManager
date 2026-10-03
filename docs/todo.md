@@ -81,22 +81,73 @@ The excel-import dedup rule (EXI-080) is intentionally permissive: an empty-SSN 
 
 ---
 
-## TODO-006 — DDD Convergence — Major refactors (structural, plan carefully)
+## TODO-017 — (backend) — Unit of work: atomic writes across aggregates
 
-- **Folder restructure**: migrate all bounded contexts to per-aggregate sub-folders per B0/B0d (`context/{domain}/{aggregate}/domain.rs`, `repository.rs`, `service.rs`)
-- **Extract aggregate root methods on `Procedure`**: `reconcile()`, `unreconcile()`, `dispute()`, `record_payment()`, `revert_payment()`, `clear_payment()`, `correct_billed_amount()`, `correct_fund()`, `correct_date()` — currently all direct field mutations in orchestrators
-- **Extract aggregate root methods on `Patient`**: `correct_ssn()`
-- **Extract aggregate root methods on `FundPaymentGroup`**: `confirm_bank_payment()`, `revert_bank_payment()`, `update()`
-- **Introduce `FundPayment` aggregate root**: currently missing — `FundPaymentGroup` is incorrectly the top-level object; `FundPayment` is the monthly document wrapping all groups
-- **Implement UoW pattern**: `core/uow.rs` per ADR-003 — needed for atomic cross-aggregate writes in reconciliation
+First of five entries split from TODO-006 (DDD convergence). Reconciliation writes update procedure statuses in one transaction and the group status in another; ADR-003 chose a unit of work (`core/uow.rs`) for writes that span aggregates.
 
-**User value:** none directly — each business rule lives on its aggregate and is changed in one place; atomic writes mean a crash cannot leave a reconciliation half applied.
+**User value:** a crash in the middle of a reconciliation can no longer leave it half applied.
 
-**Done when:**
+**Done when:** the unit of work of ADR-003 exists; the bank reconciliation and manual bank match writes named in DEBT-002 run in one transaction each; a Rust test forces a failure between the two writes and finds neither applied; DEBT-002 is removed.
 
 **Design:** none
 
-**Open questions:** Done when not written yet.
+**Open questions:** none
+
+---
+
+## TODO-018 — (backend) — `Procedure` changes go through aggregate methods
+
+Second entry split from TODO-006. Orchestrators mutate the fields of `Procedure` directly; the transitions belong on the aggregate root: `reconcile()`, `unreconcile()`, `dispute()`, `record_payment()`, `revert_payment()`, `clear_payment()`, `correct_billed_amount()`, `correct_fund()`, `correct_date()`.
+
+**User value:** none directly — each rule of a procedure's lifecycle lives in one place and is tested there.
+
+**Done when:** each transition above is a method on `Procedure` with its own Rust tests, including the refused transitions; no orchestrator assigns a `Procedure` status or payment field directly; behaviour is unchanged, the existing tests pass untouched.
+
+**Design:** none
+
+**Open questions:** none
+
+---
+
+## TODO-019 — (backend) — `Patient` and `FundPaymentGroup` changes go through aggregate methods
+
+Third entry split from TODO-006. Same move as TODO-018 for the two smaller aggregates: `Patient::correct_ssn()`, and `confirm_bank_payment()`, `revert_bank_payment()`, `update()` on `FundPaymentGroup`.
+
+**User value:** none directly — the rules of these two aggregates live in one place and are tested there.
+
+**Done when:** each method above exists with its own Rust tests; no orchestrator assigns those fields directly; behaviour is unchanged, the existing tests pass untouched.
+
+**Design:** none
+
+**Open questions:** none
+
+---
+
+## TODO-020 — (backend) — `FundPayment` aggregate root above the groups
+
+Fourth entry split from TODO-006. `FundPaymentGroup` is treated as the top-level object; the monthly document that holds all the groups, `FundPayment`, has no aggregate of its own.
+
+**User value:** none directly — the fund payment document becomes a named concept the code and the specs share.
+
+**Done when:** an ADR records the `FundPayment` aggregate and what it owns; the aggregate exists and the groups are reached through it; `docs/ubiquitous-language.md` carries the term; behaviour is unchanged. Comes after TODO-019.
+
+**Design:** none
+
+**Open questions:** none
+
+---
+
+## TODO-021 — (backend) — Every bounded context follows the B0 folder layout
+
+Last entry split from TODO-006: it moves every file the four others edit, so it comes after them. The target is rule B0 in `docs/backend-rules.md` (`application/`, `domain/`, `infrastructure/` inside each context): `bank` follows it today; `fund`, `patient` and `procedure` do not.
+
+**User value:** none directly — every bounded context is laid out the same way, so code is found where the rule says.
+
+**Done when:** `fund`, `patient` and `procedure` follow B0 as `bank` does; `just arch-check` checks the layout; `ARCHITECTURE.md` matches; no behaviour changes — moves and import paths only. Comes after TODO-017 to TODO-020.
+
+**Design:** none
+
+**Open questions:** none
 
 ---
 
