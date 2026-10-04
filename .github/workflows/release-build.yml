@@ -425,6 +425,34 @@ jobs:
           fi
           echo "✓ latest.json covers linux-x86_64 and windows-x86_64"
 
+      - name: Take the release notes from the changelog
+        # The draft is created with one generic line; its notes become the
+        # version's section of CHANGELOG.md (FLOW-018). Two steps, so the script
+        # runs without the token. A changelog with no section for the tag keeps
+        # the generic line and warns: a missing note never fails a release.
+        id: notes
+        if: inputs.publish
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          code=0
+          python3 scripts/release-notes.py "$TAG" > release-notes.md || code=$?
+          if [[ "$code" == 0 ]]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$code" == 3 ]]; then  # the script's "no section for this version"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::CHANGELOG.md has no section for $TAG — the release notes keep their generic line."
+          else
+            exit "$code"
+          fi
+
+      - name: Put the notes on the draft release
+        if: inputs.publish && steps.notes.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file release-notes.md
+
       - name: Clear Rust cache on failure
         # Needs actions: write, which only the tag run grants.
         if: failure() && inputs.publish

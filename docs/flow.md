@@ -51,30 +51,6 @@ lane had missed locally (FLOW-001).
 
 ---
 
-## FLOW-011 — What the agent does before asking for a release
-
-- Kind: effort
-- Observed: the agent told the owner to run `/dep-audit`; the owner asked why the agent
-  had not. The owner also asked twice, in two releases, for the draft to be published
-  once the jobs were green. `just release` leaves the version in `package-lock.json`
-  behind (DEBT-029) and the release notes are one generic line.
-- Proposal: `docs/workflow.md` says the agent runs `/dep-audit` and the
-  `reviewer-security` release sweep, files what it finds, and only then asks for the
-  release. Owner's call: whether the agent publishes the draft when the release workflow
-  and `main` are green, without being asked each time. `scripts/release.py` also writes
-  the lockfile version.
-- Costs: one decision, a few lines. Protects: a release that waits on nobody's memory.
-- Decision (owner, 2026-10-04): the agent runs `/dep-audit` and the security release sweep before asking for a release; the owner cuts it; the agent publishes the draft when the release workflow and `main` are green, and stops if anything is red. `scripts/release.py` writes the lockfile version.
-
-## FLOW-018 — The release notes say nothing
-
-- Kind: quality
-- Observed: the published release reads "See the release assets to download and install
-  this version"; `CHANGELOG.md` holds the real list. Whether the app's updater shows the
-  notes to the user is not checked yet.
-- Decision (owner, 2026-10-04): the release workflow puts the version's changelog section
-  into the release notes; the notes of v0.24.0 are fixed by hand.
-
 ## FLOW-019 — The E2E tooling pulls advisories with no patched release (DEBT-019)
 
 - Kind: quality

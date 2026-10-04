@@ -9,7 +9,7 @@ Process:
   1. Run all quality checks via check.py (tests, lint, SQLx, build)
   2. Analyze git history since last tag
   3. Determine version bump using semver
-  4. Update version in package.json, Cargo.toml, and tauri.conf.json
+  4. Update version in package.json, package-lock.json, Cargo.toml, and tauri.conf.json
   5. Create/update CHANGELOG.md
   6. Format files via just format
   7. Create commit and git tag
@@ -56,6 +56,20 @@ CHANGELOG_INTRO = (
 # Default branch this release script targets. Override in a downstream fork
 # if the project uses `master` / `trunk` / etc.
 MAIN_BRANCH = "main"
+
+
+def lockfile_with_version(text: str, version: str) -> str:
+    """`package-lock.json` with the release version in its two places; nothing else moves.
+
+    Raises ValueError when either place is missing: a lockfile of another shape is not rewritten on a guess.
+    """
+    data = json.loads(text)
+    root = data.get("packages", {}).get("")
+    if "version" not in data or not isinstance(root, dict) or "version" not in root:
+        raise ValueError('package-lock.json carries no "version" at its top or under packages[""]')
+    data["version"] = version
+    root["version"] = version
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
 class Mode(Enum):
@@ -240,21 +254,33 @@ class ReleaseManager:
         """Update version in package.json, Cargo.toml, and tauri.conf.json.
 
         Raises:
-            RuntimeError: if the Cargo.toml [package].version regex matches != 1 site
-                (refuses to write a corrupted file). package.json is already mutated
-                at this point; the user must `git checkout --` to revert.
+            RuntimeError: if package-lock.json is missing or has another shape, or
+                if the Cargo.toml [package].version regex matches != 1 site
+                (refuses to write a corrupted file). package.json and package-lock.json
+                are already mutated at this point; the user must `git checkout --` to revert.
         """
         prefix = self._format_mode_prefix()
         print(f"{BLUE}{prefix}Updating version files...{NC}")
 
         if self.mode is Mode.DRY_RUN:
             print("  → package.json")
+            print("  → package-lock.json")
             print("  → src-tauri/Cargo.toml")
             print("  → src-tauri/tauri.conf.json")
             return
 
         self._update_json_file(self.repo_root / "package.json", "version")
         print("  ✓ package.json")
+
+        # npm writes the version in the lockfile too; left behind, the next `npm install` moves it in an unrelated commit.
+        lockfile = self.repo_root / "package-lock.json"
+        try:
+            lockfile.write_text(lockfile_with_version(lockfile.read_text(encoding="utf-8"), self.new_version), encoding="utf-8")
+        except (OSError, ValueError) as error:
+            print(f"{RED}❌ package-lock.json not updated: {error}{NC}", file=sys.stderr)
+            print(f"{BLUE}   package.json already edited; `git checkout -- package.json` to revert.{NC}", file=sys.stderr)
+            raise RuntimeError(f"package-lock.json not updated: {error}") from error
+        print("  ✓ package-lock.json")
 
         cargo_toml = self.repo_root / "src-tauri" / "Cargo.toml"
         content = cargo_toml.read_text(encoding="utf-8")
@@ -277,7 +303,7 @@ class ReleaseManager:
             )
             print(
                 f"{BLUE}   package.json already edited; "
-                f"`git checkout -- package.json` to revert.{NC}",
+                f"`git checkout -- package.json package-lock.json` to revert.{NC}",
                 file=sys.stderr,
             )
             raise RuntimeError(
@@ -313,7 +339,7 @@ class ReleaseManager:
                 print(f"{RED}{detail}{NC}", file=sys.stderr)
             print(
                 f"{BLUE}   Version files already edited; inspect Cargo.toml syntax or "
-                f"`git checkout -- package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json` to revert.{NC}",
+                f"`git checkout -- package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json` to revert.{NC}",
                 file=sys.stderr,
             )
             raise SystemExit(1) from e
@@ -422,6 +448,7 @@ class ReleaseManager:
                     "git",
                     "add",
                     "package.json",
+                    "package-lock.json",
                     "src-tauri/Cargo.toml",
                     "src-tauri/Cargo.lock",
                     "src-tauri/tauri.conf.json",

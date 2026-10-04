@@ -40,7 +40,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 **Scripts and hooks**
 
 - Bash without `#!/usr/bin/env bash` and `set -euo pipefail` 🔴; `eval` on variable input or `curl | bash` 🔴; a non-POSIX tool used without a `command -v` check 🟡; unquoted path variables 🟡; `mktemp` without a cleanup `trap` 🟡; `PROJECT_ROOT` from `$PWD` instead of `git rev-parse --show-toplevel` 🟡 (🔴 in a hook); `[ ]` instead of `[[ ]]`, backticks, unquoted `${arr[@]}`, no `local` in functions 🔵.
-- Python without `#!/usr/bin/env python3` 🔴; `eval` / `exec` or `shell=True` on variable input 🔴; `open()` without `encoding="utf-8"` 🟡; a bare `except:` 🟡; a file rewrite that does not abort on an empty or bad match 🔴; `subprocess` without `check=True`, paths built by string concatenation, unanchored regexes on structured text 🔵.
+- Python without `#!/usr/bin/env python3` 🔴; `eval` / `exec` or `shell=True` on variable input 🔴; `open()` without `encoding="utf-8"` 🟡; a bare `except:` 🟡; a file rewrite that does not abort on an empty or bad match 🔴; a script that gains a file it rewrites while a recovery hint or a staged-files list further down still names the old set 🔴; `subprocess` without `check=True`, paths built by string concatenation, unanchored regexes on structured text 🔵.
 - A source scanner (`arch-check.py`, `privacy-check.py`, `rule-homes.py`) stripping comments differently across its rules 🟡.
 - A script's unit tests run from a git hook 🔴 — hooks export `GIT_DIR`, and tests that build repositories corrupt the real one.
 - Local and CI running different checks for the same scope (`scripts/scoped-checks.sh`, `scripts/harness.sh`, `quality.yml`) 🟡 (🔴 when a hook skips a check CI requires for that scope).

@@ -98,9 +98,13 @@ todo entry: the pull request body is its record.
     `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
     brief says what changed for the user and what the project gained.
 
-**Release** — the human runs `just release` when they choose. It computes the version
-from the merged titles, writes the changelog (only `feat` → Added, `fix` → Fixed),
-tags and pushes; CI builds the draft; the human publishes it.
+**Release** — the agent prepares it: `/dep-audit` and the release sweep (Conventions),
+what they find filed as debt, and only then does it tell the human the release is
+ready. The human runs `just release` when they choose. It computes the version from
+the merged titles, writes the changelog (only `feat` → Added, `fix` → Fixed) and the
+version files, tags and pushes; CI builds the draft and puts the version's changelog
+section in its notes. The agent publishes the draft once the release workflow and
+`main` are green, and stops if anything is red.
 
 ## 4. Design proposal
 
