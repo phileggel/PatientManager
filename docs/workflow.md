@@ -36,7 +36,7 @@ job or a machine gate.
 
 ### `docs/todo.md` — human-owned
 
-- `## Next` at the top holds the queue: `TODO-NNN`, `DEBT-NNN` and `FLOW-NNN` references in the
+- `## Next` at the top holds the queue: `TODO-NNN`, `DEBT-NNN` and `FLOW-NNN` references, and `gh#NN` for a Dependabot pull request (§ Conventions), in the
   order to work them, one per line as a plain list (`- TODO-NNN`; no numbers, so
   pull requests that each close an entry do not conflict). The agent takes the first **ready** one and removes a reference
   only in the PR that ships its entry. It adds to or reorders the list only in
@@ -280,6 +280,21 @@ command substitution (`$(...)`), `&&`, `||`, `;`, or `cd X && cmd` chains: the
 permission allowlist matches a command by literal prefix, so a compound line prompts on
 every run. Move the logic into a script under `scripts/` and call it by name; for a
 multi-line payload, write a temp file and pass it (`gh pr create --body-file …`).
+
+### Dependabot pull requests
+
+`review.yml` skips every lane for Dependabot (its runs get no secrets), so the green
+reviewer checks of such a pull request are skips, not reviews. It is handled like an
+entry: `/whats-next` lists the open ones and proposes each for the queue as `gh#NN`;
+the human orders it with the rest. Once queued, the agent:
+
+1. reads the diff, and checks each pinned commit against the upstream tag it names;
+2. checks out the branch and runs `just merge`: the rebase and push are the agent's,
+   so CI runs the reviewers for real, and the merge stops until they have;
+3. reads that review, grades every finding (§ 7) — a warning is not merged past;
+4. removes the reference with `just whats-next close gh#NN` in a docs pull request of
+   its own (the Dependabot branch is not the agent's to add commits to), then runs
+   `just merge` again on the Dependabot branch once every check is green.
 
 ### Tools the flow needs, and the usage log
 

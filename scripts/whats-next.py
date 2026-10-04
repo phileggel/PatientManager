@@ -32,7 +32,11 @@ TODO_HEADING = re.compile(r"^## (TODO-\d{3}) — (.+?)\s*$", re.MULTILINE)
 DEBT_HEADING = re.compile(r"^## (\d{4}-\d{2}-\d{2}) — (DEBT-\d{3}) — (.+?)\s*$", re.MULTILINE)
 # One reference per line, as a plain list item. A numbered item is still read, so a
 # hand-edited queue is never silently empty.
-QUEUE_LINE = re.compile(r"^(?:-|\d+\.)\s+((?:TODO|DEBT|FLOW)-\d{3})\b", re.MULTILINE)
+# A `gh#NN` reference is a pull request worked like an entry: a Dependabot one (FLOW-024).
+QUEUE_LINE = re.compile(r"^(?:-|\d+\.)\s+((?:TODO|DEBT|FLOW)-\d{3}|gh#\d+)\b", re.MULTILINE)
+PULL_REF = re.compile(r"gh#\d+")
+# The bot's login as `gh` and the API give it; an exact match, so no account that merely contains the word counts.
+DEPENDABOT_LOGINS = ("app/dependabot", "dependabot[bot]")
 FLOW_HEADING = re.compile(r"^## (FLOW-\d{3}) — (.+?)\s*$", re.MULTILINE)
 FIELD = re.compile(r"^\*\*(" + "|".join(FIELDS) + r"):\*\*", re.MULTILINE)
 
@@ -50,6 +54,13 @@ class Debt:
     date: str
     title: str
     where: str
+
+
+@dataclass
+class Pull:
+    id: str
+    title: str
+    dependabot: bool
 
 
 @dataclass
@@ -145,9 +156,28 @@ def _waits(entry) -> list[str]:
     return []
 
 
-def classify(refs: list[str], todos: list[Todo], debts: list[Debt], flows: Sequence[Flow] = ()) -> dict:
-    by_id: dict[str, Todo | Debt | Flow] = {e.id: e for e in [*todos, *debts, *flows]}
-    queued = [(ref, by_id.get(ref), _waits(by_id.get(ref))) for ref in refs]
+def pull_requests(pulls: Sequence[dict]) -> list[Pull]:
+    return [
+        Pull(f"gh#{pull['number']}", pull.get("title", ""), (pull.get("author") or {}).get("login") in DEPENDABOT_LOGINS)
+        for pull in pulls
+    ]
+
+
+def classify(
+    refs: list[str], todos: list[Todo], debts: list[Debt], flows: Sequence[Flow] = (), pulls: Sequence[dict] | None = ()
+) -> dict:
+    """Sort every entry into its bucket. `pulls` is None when GitHub could not be asked: unknown, never none."""
+    opened = None if pulls is None else pull_requests(pulls)
+    by_id: dict[str, Todo | Debt | Flow | Pull] = {e.id: e for e in [*todos, *debts, *flows, *(opened or [])]}
+
+    def waits(ref: str) -> list[str]:
+        if PULL_REF.fullmatch(ref):
+            if opened is None:
+                return ["unknown: GitHub could not be asked"]
+            return [] if ref in by_id else ["no such open pull request"]
+        return _waits(by_id.get(ref))
+
+    queued = [(ref, by_id.get(ref), waits(ref)) for ref in refs]
     loose = [t for t in todos if t.id not in refs]
     return {
         "queued": queued,
@@ -155,6 +185,7 @@ def classify(refs: list[str], todos: list[Todo], debts: list[Debt], flows: Seque
         "blocked": [(t, waits_on(t)) for t in loose if waits_on(t)],
         "debt": [d for d in debts if d.id not in refs],
         "flow": [f for f in flows if f.id not in refs],
+        "dependabot": None if opened is None else [pull for pull in opened if pull.dependabot and pull.id not in refs],
     }
 
 
@@ -179,7 +210,7 @@ def open_pull_requests() -> list[dict] | None:
     """Open pull requests, or None when GitHub cannot be asked (unknown, not empty)."""
     try:
         result = subprocess.run(
-            ["gh", "pr", "list", "--state", "open", "--json", "number,title,headRefName,statusCheckRollup"],
+            ["gh", "pr", "list", "--state", "open", "--json", "number,title,headRefName,author,statusCheckRollup"],
             capture_output=True, text=True, check=True, timeout=20, cwd=ROOT,
         )
         return json.loads(result.stdout)
@@ -216,6 +247,14 @@ def render(buckets: dict, pulls: list[dict] | None, exists) -> str:
         + (" — watch" if flow.watch else "" if flow.decided else " — waits on: the owner's decision")
         for flow in buckets.get("flow", [])
     ] or ["(none)"]
+
+    # Their reviewer checks are skips (no secrets): each is proposed for the queue, to be reviewed for real.
+    lines.append("")
+    if pulls is None:
+        lines.append("Dependabot pull requests, not queued: unknown (GitHub could not be asked)")
+    else:
+        lines.append("Dependabot pull requests, not queued:")
+        lines += [f"- {pull.id} — {pull.title}" for pull in buckets.get("dependabot") or []] or ["(none)"]
 
     lines.append("")
     if pulls is None:
@@ -266,9 +305,18 @@ def close(refs: list[str], read, write) -> list[str]:
     texts: dict[str, str] = {}
     said = []
     for ref in refs:
+        if PULL_REF.fullmatch(ref):  # a pull request has no entry: only its queue line goes
+            if QUEUE_HOME not in texts:
+                texts[QUEUE_HOME] = read(QUEUE_HOME)
+            unqueued = without_queue_line(texts[QUEUE_HOME], ref)
+            if unqueued == texts[QUEUE_HOME]:
+                raise NoSuchEntry(f"{ref}: not in the queue")
+            texts[QUEUE_HOME] = unqueued
+            said.append(f"{ref}: removed from the queue")
+            continue
         home = ENTRY_HOMES.get(ref.split("-", 1)[0]) if re.fullmatch(r"(?:TODO|DEBT|FLOW)-\d{3}", ref) else None
         if home is None:
-            raise NoSuchEntry(f"{ref}: not an entry id (TODO-NNN, DEBT-NNN or FLOW-NNN)")
+            raise NoSuchEntry(f"{ref}: not an entry id (TODO-NNN, DEBT-NNN, FLOW-NNN or gh#NN)")
         for path in (home, QUEUE_HOME):
             if path not in texts:
                 texts[path] = read(path)
@@ -289,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["close"]:
         if len(argv) < 2:
-            print("usage: whats-next.py close <TODO-NNN | DEBT-NNN | FLOW-NNN>...", file=sys.stderr)
+            print("usage: whats-next.py close <TODO-NNN | DEBT-NNN | FLOW-NNN | gh#NN>...", file=sys.stderr)
             return 2
         def read(path: str) -> str:
             try:
@@ -308,8 +356,9 @@ def main(argv: list[str] | None = None) -> int:
     debt_text = (ROOT / "docs/techdebt.md").read_text(encoding="utf-8")
     flow_file = ROOT / "docs/flow.md"
     flow_text = flow_file.read_text(encoding="utf-8") if flow_file.exists() else ""
-    buckets = classify(queue(todo_text), todo_entries(todo_text), debt_entries(debt_text), flow_entries(flow_text))
-    print(render(buckets, open_pull_requests(), lambda path: (ROOT / path).exists()))
+    pulls = open_pull_requests()
+    buckets = classify(queue(todo_text), todo_entries(todo_text), debt_entries(debt_text), flow_entries(flow_text), pulls)
+    print(render(buckets, pulls, lambda path: (ROOT / path).exists()))
     return 0
 
 

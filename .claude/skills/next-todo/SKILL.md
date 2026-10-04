@@ -18,6 +18,10 @@ this file is the checklist.
 - **Chat, named entry** (`TODO-NNN` / `DEBT-NNN` / `FLOW-NNN`): load it (`## TODO-NNN — …`
   in `docs/todo.md`, `## … — DEBT-NNN — …` in `docs/techdebt.md`, `## FLOW-NNN — …` in
   `docs/flow.md`).
+- **A pull request reference** (`gh#NN`, queued or named): a Dependabot pull request.
+  Follow `docs/workflow.md` § Dependabot pull requests instead of Steps 1 to 9: read the
+  diff, check each pinned commit, `just merge` on its branch for a real review, grade
+  it, close the reference, merge.
 - **Chat, plain request**: the request is the task; no todo entry is created — the PR
   body is its record. Write its Done when into the opening brief.
 - **Ready** = a Done when exists, `**Open questions:** none`, and `**Design:**` is

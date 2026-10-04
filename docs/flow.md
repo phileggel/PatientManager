@@ -96,22 +96,6 @@ lane had missed locally (FLOW-001).
   in five ways.
 - Decision (owner, 2026-10-04): one shared helper in `e2e/helpers/`, used by the five suites.
 
-## FLOW-024 — Nobody reviews a Dependabot pull request, and nobody announces one
-
-- Kind: quality
-- Observed: gh#171 sat open through the session unnoticed. Its reviewer checks were
-  green because `review.yml` skips every lane for Dependabot (its runs get no secrets): a
-  skip, not a review. Checked out and passed through `just merge`, the branch is rebased
-  and pushed by the agent, and CI then runs the reviewers for real; a warning they left
-  was merged past.
-- Decision (owner, 2026-10-04): a Dependabot pull request is handled like a GitHub issue.
-  `/whats-next` lists the open ones and proposes each for the queue as `gh#NN`; the owner
-  orders it with the rest. Once queued, the agent works it: it reads the diff, checks
-  each pinned commit against the upstream tag, runs `just merge` to get a real review,
-  reads that review, and merges. The queue and its readers accept `gh#NN`.
-- Costs: about ten minutes per pull request. Protects: a dependency bump merged on checks
-  that never ran, or left to rot.
-
 ## FLOW-025 — Rules that live only in the agent's private memory
 
 - Kind: quality

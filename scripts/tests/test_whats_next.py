@@ -316,7 +316,57 @@ class Close(unittest.TestCase):
 
     def test_a_reference_that_is_not_an_entry_id_is_refused(self):
         with self.assertRaises(plan.NoSuchEntry):
-            self.close("gh#12")
+            self.close("PR-12")
+
+    def test_flow_024_a_pull_request_reference_leaves_the_queue_and_touches_no_entry_file(self):
+        todo = "## Next\n\n- gh#171\n- TODO-001\n\n---\n\n## TODO-001 — a\n\nbody\n\n---\n"
+        said = self.close("gh#171", files={"docs/todo.md": todo})
+        self.assertEqual(plan.queue(self.files["docs/todo.md"]), ["TODO-001"])
+        self.assertEqual(said, ["gh#171: removed from the queue"])
+        with self.assertRaises(plan.NoSuchEntry) as raised:
+            self.close("gh#999", files={"docs/todo.md": todo})
+        self.assertEqual(str(raised.exception), "gh#999: not in the queue")
+
+
+DEPENDABOT = {"number": 171, "title": "chore(deps): bump the all-actions group", "headRefName": "dependabot/x", "author": {"login": "app/dependabot"}, "statusCheckRollup": []}
+OWNERS = {"number": 180, "title": "ci: something", "headRefName": "ci/x", "author": {"login": "phileggel"}, "statusCheckRollup": []}
+
+
+class DependabotPullRequests(unittest.TestCase):
+    """FLOW-024: a Dependabot pull request is queued and worked like an entry, as `gh#NN`."""
+
+    def test_flow_024_a_pull_request_reference_is_read_from_the_queue(self):
+        self.assertEqual(plan.queue("## Next\n\n- gh#171\n- TODO-002\n- gh#7\n\n---\n"), ["gh#171", "TODO-002", "gh#7"])
+
+    def test_flow_024_a_queued_pull_request_is_ready_while_it_is_open(self):
+        queued = plan.classify(["gh#171", "gh#5"], [], [], [], [DEPENDABOT, OWNERS])["queued"]
+        self.assertEqual([(ref, waits) for ref, _, waits in queued], [("gh#171", []), ("gh#5", ["no such open pull request"])])
+
+    def test_flow_024_a_queued_pull_request_is_unknown_when_github_cannot_be_asked(self):
+        queued = plan.classify(["gh#171"], [], [], [], None)["queued"]
+        self.assertEqual(queued[0][2], ["unknown: GitHub could not be asked"])
+
+    def test_flow_024_open_dependabot_pull_requests_not_queued_are_proposed(self):
+        buckets = plan.classify([], [], [], [], [DEPENDABOT, OWNERS])
+        text = plan.render(buckets, [DEPENDABOT, OWNERS], lambda path: True)
+        self.assertIn("Dependabot pull requests, not queued:\n- gh#171 — chore(deps): bump the all-actions group", text)
+        self.assertNotIn("- gh#180 — ci: something\n\n", text.split("Dependabot pull requests, not queued:")[1].split("Open pull requests:")[0])
+
+    def test_flow_024_only_the_bot_itself_counts_as_dependabot(self):
+        human = dict(DEPENDABOT, number=9, author={"login": "dependabot-fan"})
+        api_form = dict(DEPENDABOT, number=10, author={"login": "dependabot[bot]"})
+        buckets = plan.classify([], [], [], [], [human, api_form])
+        self.assertEqual([pull.id for pull in buckets["dependabot"]], ["gh#10"])
+
+    def test_flow_024_a_queued_dependabot_pull_request_is_not_proposed_again(self):
+        buckets = plan.classify(["gh#171"], [], [], [], [DEPENDABOT])
+        text = plan.render(buckets, [DEPENDABOT], lambda path: True)
+        self.assertIn("1. gh#171 — chore(deps): bump the all-actions group — ready", text)
+        self.assertIn("Dependabot pull requests, not queued:\n(none)", text)
+
+    def test_flow_024_unknown_is_never_none(self):
+        text = plan.render(plan.classify([], [], [], [], None), None, lambda path: True)
+        self.assertIn("Dependabot pull requests, not queued: unknown (GitHub could not be asked)", text)
 
 
 class Render(unittest.TestCase):

@@ -12,8 +12,8 @@ it shows where every entry stands and proposes an order. It never decides.
 
 `python3 scripts/whats-next.py` (`just whats-next`). It classifies and nothing more:
 queued in order, ready but not queued, blocked with what each entry waits on, debt not
-queued, flow entries not queued (decided, waiting on the owner, or a watch), open pull
-requests with their checks. "unknown" means GitHub could not be
+queued, flow entries not queued (decided, waiting on the owner, or a watch), open
+Dependabot pull requests not queued, open pull requests with their checks. "unknown" means GitHub could not be
 asked — report it as unknown, never as none.
 
 ## Step 2 — Check the debt
@@ -46,7 +46,8 @@ Print, in this order:
 
 1. **In flight** — open pull requests and their checks; the queue as it stands.
 2. **Proposed queue** — references in order (written to `## Next` as a plain list,
-   `- TODO-NNN`), todo, debt and decided flow entries together, one reason per line: what it unblocks, what it depends on, what it should ship with.
+   `- TODO-NNN`), todo, debt, decided flow entries and every open Dependabot pull request
+   (`- gh#NN`: its green reviewer checks are skips, `docs/workflow.md` § Conventions) together, one reason per line: what it unblocks, what it depends on, what it should ship with.
    Dependencies first; an entry waiting on the owner is not in the queue.
 3. **Needs you** — the decisions and the drafts from Steps 2 and 3, one line each; they
    are asked one at a time in Step 5.
