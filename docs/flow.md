@@ -12,12 +12,12 @@ How an entry is written (owner, 2026-10-04):
 3. "Keep" is a verdict. Where nothing should change, the entry says so and why.
 4. A tool nobody used is named, with a verdict: keep, fold, or remove.
 
-Each entry has a permanent `FLOW-NNN` id (never reused; next free: FLOW-021). The owner
+Each entry has a permanent `FLOW-NNN` id (never reused; next free: FLOW-026). The owner
 picks what to do; a `Watch` line marks an entry with nothing to do but re-check; a decided entry carries a
 `Decision` line and can be queued in
 `docs/todo.md` § Next; an entry is removed once done, or once the verdict is to keep things
-as they are (FLOW-004, FLOW-012 and FLOW-016 were closed that way on 2026-10-04; FLOW-017 was done
-the same day). Entries that came from `techdebt.md`
+as they are (FLOW-004, FLOW-012 and FLOW-016 were closed that way on 2026-10-04; FLOW-017 and
+FLOW-015 were done the same day). Entries that came from `techdebt.md`
 keep their old id in the title.
 
 ---
@@ -217,17 +217,6 @@ lane had missed locally (FLOW-001).
 - Costs: about 80 lines. Protects: each session rewriting them, slightly differently.
 - Decision (owner, 2026-10-04): both helpers become tested scripts. Standing rule: a tool the flow needs is added for good and judged again at each release audit. With them, a usage log: one local file, not committed, one line per run of a script or recipe (time, tool, duration, result), emptied at each audit once its figures are in this file, and capped at about 5 000 lines. Skills and agents are counted from the session transcript until the owner adds a hook.
 
-## FLOW-015 — The real-data folder is protected by a sentence only
-
-- Kind: quality
-- Observed: the agent read the real application's log folder once, to see a line format
-  that was in the source. It returned nothing, and it should not have been possible.
-- Proposal: a deny rule in `.claude/settings.json` on the folder's path. The agent cannot
-  edit permission lists; the owner adds it.
-- Costs: one line, by the owner. Protects: patient data from a careless command.
-- Waits on the owner: three deny lines to paste into `.claude/settings.json` (the settings
-  deny the agent any edit of that file).
-
 ## FLOW-018 — The release notes say nothing
 
 - Kind: quality
@@ -257,3 +246,77 @@ lane had missed locally (FLOW-001).
 - Costs: one small pull request. Protects: a change of the dialog breaking five suites
   in five ways.
 - Decision (owner, 2026-10-04): one shared helper in `e2e/helpers/`, used by the five suites.
+
+## FLOW-021 — A CI reviewer read the base branch's skills as a revert
+
+- Kind: quality
+- Observed once, on gh#175: `reviewer-infra` raised two criticals saying two skill files
+  had "uncommitted changes reverting the branch's own commit". The branch held the text.
+  Likely cause, not confirmed: in CI the `.claude/` folder is the base branch's, so a
+  pull request cannot soften its own reviewer, and the reviewer took that state for a
+  revert. The next run did not repeat it.
+- Watch (agent, 2026-10-04): if it comes back, `review-protocol.md` says that `.claude/`
+  in CI is the base branch's by design and that the branch's version is read from the
+  diff.
+
+## FLOW-022 — Questions to the owner come one at a time, with their context
+
+- Kind: quality
+- Observed: `CLAUDE.md` and `docs/workflow.md` say that in chat "the open questions are
+  asked together, once". In this batch a list of five "decisions for you" at the end of a
+  summary got no answer, and a form of four questions got short answers; the same points
+  asked one by one, each with what happened, what every option changes and what it costs,
+  were all answered, two of them with a better rule than the one proposed (FLOW-002,
+  FLOW-013).
+- Decision (owner, 2026-10-04): a question to the owner is asked alone, with enough
+  context to answer it cold, and the next one waits for the answer. The agent asks during
+  the work rather than guess, for a spec point as for a vocabulary term. `CLAUDE.md` and
+  `docs/workflow.md` are changed to say so. Headless is unchanged: a question becomes an
+  open question on the entry.
+
+## FLOW-023 — The flow audit is not a written step
+
+- Kind: quality
+- Observed: this file exists because the owner asked for an audit after the 0.24.0
+  release. `docs/workflow.md` says only that the file is "audited at the end of a batch";
+  what the audit reads, counts and produces is written nowhere but in the agent's private
+  memory.
+- Decision (owner, 2026-10-04): the audit becomes a step of `docs/workflow.md`, after a
+  release and its cleanup. It measures the batch (pull requests, time to merge, CI rounds,
+  failures per workflow, what reviewers caught and got wrong); says which scripts,
+  recipes, skills and agents were used or not, each with keep, fold or remove; turns every
+  hard point met into an entry; and moves here any todo or debt entry that is about the
+  flow. Quality is the goal, weighed against speed and effort.
+
+## FLOW-024 — Nobody reviews a Dependabot pull request, and nobody announces one
+
+- Kind: quality
+- Observed: gh#171 sat open through the session unnoticed. Its reviewer checks were
+  green because `review.yml` skips every lane for Dependabot (its runs get no secrets): a
+  skip, not a review. Checked out and passed through `just merge`, the branch is rebased
+  and pushed by the agent, and CI then runs the reviewers for real; a warning they left
+  was merged past.
+- Decision (owner, 2026-10-04): a Dependabot pull request is handled like a GitHub issue.
+  `/whats-next` lists the open ones and proposes each for the queue as `gh#NN`; the owner
+  orders it with the rest. Once queued, the agent works it: it reads the diff, checks
+  each pinned commit against the upstream tag, runs `just merge` to get a real review,
+  reads that review, and merges. The queue and its readers accept `gh#NN`.
+- Costs: about ten minutes per pull request. Protects: a dependency bump merged on checks
+  that never ran, or left to rot.
+
+## FLOW-025 — Rules that live only in the agent's private memory
+
+- Kind: quality
+- Observed: the agent keeps about forty notes outside the repository, most of them rules
+  the owner gave in chat (how to brief a reviewer, never to pre-run checks, how to watch
+  a pull request, what a commit title is). Five were added in this session alone: the
+  release steps, the questions rule, this audit, how to work under the new deny rule on
+  the data folder, how to handle a Dependabot pull request. A rule kept there binds one
+  agent on one machine; a headless run, a CI reviewer or another session never sees it,
+  and the owner cannot read or correct it.
+- Decision (owner, 2026-10-04): a rule about how we work belongs in the repository. This
+  file records it first; working the entry writes it into its home (`CLAUDE.md`,
+  `docs/workflow.md` or a rules document). One pass goes through the existing notes: each
+  becomes repository text, or is dropped as already said there, or stays private because
+  it is about this machine only. From then on a new rule is written here in the same
+  session it is given.

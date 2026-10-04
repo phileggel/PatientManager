@@ -87,7 +87,11 @@
       "Bash(just release*)",
       "Bash(git tag *)",
       "Bash(gh pr merge *)",
-      "Edit(.claude/settings.json)"
+      "Edit(.claude/settings.json)",
+      "Bash(*com.projectsf.patient-manager*)",
+      "Read(~/.local/share/com.projectsf.patient-manager/**)",
+      "Edit(~/.local/share/com.projectsf.patient-manager/**)",
+      "Write(~/.local/share/com.projectsf.patient-manager/**)"
     ]
   },
   "hooks": {
