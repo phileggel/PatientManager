@@ -24,8 +24,17 @@
  * Exit codes: 0 ok, 2 usage error (missing env), 1 runtime/Playwright error.
  */
 
+import { spawnSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+
+// One line in the usage log when the capture ends (scripts/usage_log.py).
+const USAGE_START = Date.now() / 1000;
+process.on("exit", (code) => {
+  const logger = fileURLToPath(new URL("./usage_log.py", import.meta.url));
+  spawnSync("python3", [logger, "record", "visual-proof-capture.mjs", String(USAGE_START), String(code)]);
+});
 
 const PORT = process.env.VP_PORT;
 const HOST = process.env.VP_HOST;

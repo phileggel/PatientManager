@@ -266,6 +266,59 @@ class PullRequests(unittest.TestCase):
         self.assertIn("Open pull requests: none", text)
 
 
+class Close(unittest.TestCase):
+    """`whats-next.py close <id>`: the entry and its queue line leave together."""
+
+    def close(self, *refs, files=None):
+        self.files = dict(files or {"docs/todo.md": TODO, "docs/techdebt.md": DEBT, "docs/flow.md": FLOW})
+        return plan.close(list(refs), self.files.__getitem__, self.files.__setitem__)
+
+    def test_flow_014_a_todo_entry_leaves_with_its_queue_line(self):
+        said = self.close("TODO-002")
+        todo = self.files["docs/todo.md"]
+        self.assertEqual(plan.queue(todo), ["DEBT-005", "TODO-404"])
+        self.assertEqual([e.id for e in plan.todo_entries(todo)], ["TODO-001", "TODO-003", "TODO-004"])
+        self.assertIn("**Open questions:** none\n\n---\n\n## TODO-003 — Nothing written", todo)
+        self.assertIn("<!-- - TODO-999 in a comment is not queued -->", todo)
+        self.assertEqual(said, ["TODO-002: removed from docs/todo.md and from the queue"])
+
+    def test_flow_014_a_debt_entry_leaves_its_file_and_the_queue(self):
+        said = self.close("DEBT-005")
+        self.assertEqual(plan.queue(self.files["docs/todo.md"]), ["TODO-002", "TODO-404"])
+        debt = self.files["docs/techdebt.md"]
+        self.assertEqual([d.id for d in plan.debt_entries(debt)], ["DEBT-006"])
+        self.assertTrue(debt.endswith("**Observation:** something.\n"), "the separator before the last entry goes with it")
+        self.assertEqual(said, ["DEBT-005: removed from docs/techdebt.md and from the queue"])
+
+    def test_flow_014_a_flow_entry_not_queued_is_removed_and_said_so(self):
+        said = self.close("FLOW-002")
+        flow = self.files["docs/flow.md"]
+        self.assertEqual([f.id for f in plan.flow_entries(flow)], ["FLOW-001", "FLOW-003"])
+        self.assertIn("- Decision (owner, 2026-10-04): do it.\n\n## FLOW-003 — Decided, not queued", flow)
+        self.assertEqual(self.files["docs/todo.md"], TODO)
+        self.assertEqual(said, ["FLOW-002: removed from docs/flow.md (it was not queued)"])
+
+    def test_flow_014_the_last_todo_entry_keeps_the_file_ending_on_its_separator(self):
+        todo = "## Next\n\n- TODO-001\n- TODO-002\n\n---\n\n## TODO-001 — a\n\nbody\n\n---\n\n## TODO-002 — b\n\nbody\n\n---\n"
+        self.close("TODO-002", files={"docs/todo.md": todo})
+        self.assertEqual(self.files["docs/todo.md"], "## Next\n\n- TODO-001\n\n---\n\n## TODO-001 — a\n\nbody\n\n---\n")
+
+    def test_flow_014_several_entries_close_in_one_run(self):
+        self.close("FLOW-001", "FLOW-003", "TODO-001")
+        self.assertEqual([f.id for f in plan.flow_entries(self.files["docs/flow.md"])], ["FLOW-002"])
+        self.assertEqual([e.id for e in plan.todo_entries(self.files["docs/todo.md"])], ["TODO-002", "TODO-003", "TODO-004"])
+
+    def test_flow_014_an_unknown_entry_changes_nothing(self):
+        with self.assertRaises(plan.NoSuchEntry) as raised:
+            self.close("FLOW-001", "TODO-404")
+        self.assertEqual(str(raised.exception), "TODO-404: no such entry in docs/todo.md")
+        self.assertEqual(self.files, {"docs/todo.md": TODO, "docs/techdebt.md": DEBT, "docs/flow.md": FLOW})
+
+    def test_a_reference_that_is_not_an_entry_id_is_refused(self):
+        with self.assertRaises(plan.NoSuchEntry):
+            self.close("gh#12")
+
+
 class Render(unittest.TestCase):
     def test_the_report_names_every_bucket_and_stale_paths(self):
         buckets = plan.classify(plan.queue(TODO), plan.todo_entries(TODO), plan.debt_entries(DEBT))

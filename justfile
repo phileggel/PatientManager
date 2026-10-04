@@ -18,7 +18,7 @@ release *ARGS:
     python3 scripts/release.py {{ARGS}}
 
 # ⚠️  Destructive: removes stale remote-tracking branches
-clean-branches:
+clean-branches: (_used "clean-branches")
     #!/usr/bin/env bash
     set -euo pipefail
     git fetch --prune
@@ -27,7 +27,7 @@ clean-branches:
     stale=$(git branch -vv | grep ': gone]' | awk '{print $1}')
     [ -n "$stale" ] && echo "$stale" | xargs git branch -D || true
 
-stat:
+stat: (_used "stat")
     cloc . --vcs=git
 
 # CI's merge gate, locally, scoped to what the branch changed (scripts/harness.sh):
@@ -43,9 +43,18 @@ rule-homes:
 privacy-check:
     python3 scripts/privacy-check.py
 
-# Where the queue stands: queued, ready, blocked, debt, open pull requests (/whats-next proposes the order)
-whats-next:
-    python3 scripts/whats-next.py
+# Where the queue stands: queued, ready, blocked, debt, open pull requests (/whats-next proposes the order);
+# `just whats-next close TODO-NNN` removes a shipped entry and its queue line
+whats-next *ARGS:
+    python3 scripts/whats-next.py {{ARGS}}
+
+# Wait for a pull request's checks and say how they ended (default: the current branch's); exit 0 green, 1 failed
+watch-pr *ARGS:
+    python3 scripts/watch-pr.py {{ARGS}}
+
+# One line in the usage log (logs/usage.log) for a recipe that runs no script of its own; scripts log themselves
+_used RECIPE:
+    @python3 scripts/usage_log.py used {{RECIPE}}
 
 # Run the first ready entry of docs/todo.md § Next headless (docs/workflow.md § 9); logs under logs/next-todo/
 next-todo:
@@ -56,8 +65,8 @@ arch-check *ARGS:
     python3 scripts/arch-check.py {{ARGS}}
 
 # Unit tests of the repository's own scripts
-test-scripts:
-    python3 -m unittest discover -s scripts/tests -p "test_*.py"
+test-scripts: (_used "test-scripts")
+    USAGE_LOG=off python3 -m unittest discover -s scripts/tests -p "test_*.py"
 
 # Fast-forward merge the current feature branch into main and delete it.
 # Refuses unless the branch is the head of an open PR with every check green
@@ -67,7 +76,7 @@ merge:
 
 # Run pending database migrations
 # Prerequisites: sqlx must be on $PATH and DATABASE_URL must be set
-migrate:
+migrate: (_used "migrate")
     @if [ -d src-tauri ]; then cd src-tauri && sqlx migrate run; else echo "ℹ skipping migrate (no src-tauri/)"; fi
 
 # Regenerate SQLx offline query cache (run after schema or query changes).
@@ -75,18 +84,18 @@ migrate:
 # globally (in their .cargo/config.toml) still let `prepare` hit the live DB,
 # which is its whole purpose. No-op for projects that haven't set SQLX_OFFLINE.
 # Edit `DATABASE_URL` below if your dev DB lives elsewhere.
-prepare-sqlx:
+prepare-sqlx: (_used "prepare-sqlx")
     @if [ -d src-tauri ]; then cd src-tauri && SQLX_OFFLINE=false DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests; else echo "ℹ skipping prepare-sqlx (no src-tauri/)"; fi
 
 # Auto-fix formatting and linting
-format:
+format: (_used "format")
     @if [ -d src-tauri ]; then cd src-tauri && cargo fmt; else echo "ℹ skipping cargo fmt (no src-tauri/)"; fi
     @if [ -d src-tauri ]; then cd src-tauri && cargo clippy --fix --allow-dirty --quiet; else echo "ℹ skipping clippy (no src-tauri/)"; fi
     @if [ -f package.json ]; then npm run format:fix; else echo "ℹ skipping format:fix (no package.json)"; fi
     @if [ -f package.json ]; then npm run format:docs; else echo "ℹ skipping format:docs (no package.json)"; fi
 
 # ⚠️  Destructive: deletes local database and recreates schema
-clean-db:
+clean-db: (_used "clean-db")
     #!/usr/bin/env bash
     set -euo pipefail
     if [ ! -d src-tauri ]; then
@@ -103,13 +112,13 @@ dev *ARGS:
 # Regenerate Specta bindings: the project uses a dedicated binary for binding generation.
 # The binary lives at `src-tauri/dev/generate_bindings.rs` (out of src/bin/ per
 # gh#41 — Tauri's NSIS bundler walks src/bin/ and fails on phantom .exe entries).
-generate-types:
+generate-types: (_used "generate-types")
     cd src-tauri && cargo run --bin generate_bindings
 
 # Regenerate dev fixture files for the import codec (IFC-033)
 # Writes src-tauri/tests/fixtures/{surface}/{scenario}.{ext} + .expected.json.
 # Optional SCENARIO arg: regenerate only that scenario.
-regen-fixtures SURFACE='excel' SCENARIO='':
+regen-fixtures SURFACE='excel' SCENARIO='': (_used "regen-fixtures")
     cd src-tauri && cargo run --features dev-fixtures --bin generate_fixtures -- {{SURFACE}} {{SCENARIO}}
 
 # Collect logs for debugging
@@ -127,7 +136,7 @@ preview-screenshot COMPONENT:
     node scripts/preview-screenshot.mjs {{COMPONENT}}
 
 # Generate frontend coverage report (outputs coverage/frontend/lcov.info)
-coverage-fe:
+coverage-fe: (_used "coverage-fe")
     npm run test:coverage
 
 # Generate backend coverage report (outputs coverage/backend/lcov.info)
@@ -137,7 +146,7 @@ coverage-fe:
 # reported as uncovered (the fixtures live in src-tauri/tests/fixtures/).
 # Inline #[cfg(test)] code is then stripped from the report: a file's own tests
 # never count as covered logic.
-coverage-be:
+coverage-be: (_used "coverage-be")
     mkdir -p coverage/backend
     cd src-tauri && SQLX_OFFLINE=true cargo llvm-cov --lib --tests --features dev-fixtures --lcov --output-path ../coverage/backend/lcov.info --ignore-filename-regex '(^|/)build\.rs$|/dev/generate_(bindings|fixtures)\.rs$|/dev/fixtures_(excel|fund_pdf|bank_pdf)/|/src/use_cases/overpayment/api\.rs$|/src-tauri/tests/'
     python3 scripts/coverage-strip-tests.py coverage/backend/lcov.info

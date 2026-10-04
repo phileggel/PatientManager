@@ -85,8 +85,9 @@ and names what a user notices.
 - Push, `gh pr create --body-file`. Body under 20 lines: the task, each Done-when clause
   with the test that proves it, findings that changed something, techdebt filed,
   screenshots.
-- Watch the checks with a `Monitor` on the head commit's check runs (newest run per
-  name; flag a check stuck in `in_progress` with a completion time set).
+- Watch the checks with `just watch-pr`, in the background: it prints a failure when
+  it lands, a stuck check, and the verdict (exit 0 green, 1 failed, 2 GitHub
+  unreachable, 3 timed out).
 - A red reviewer lane: read its sticky comment, grade, apply, push. A CI finding the
   local run missed also becomes a rule in that reviewer's prompt, same PR.
 - Any other red: fix with `git commit --fixup <sha>` (never a new titled commit, never a
@@ -96,9 +97,9 @@ and names what a user notices.
 
 ## Step 9 — Closure
 
-In the same PR, before the merge: the entry removed from `docs/todo.md` (or
-`docs/techdebt.md`, or `docs/flow.md`) together with its reference in § Next, techdebt the work resolved
-removed, `ARCHITECTURE.md` if a module appeared, design proposal images
+In the same PR, before the merge: `just whats-next close <id>` removes the entry from
+`docs/todo.md` (or `docs/techdebt.md`, or `docs/flow.md`) together with its reference in § Next; techdebt the work resolved
+is closed the same way, `ARCHITECTURE.md` if a module appeared, design proposal images
 deleted. Then the closing brief: what changed for the user (or "nothing — internal"),
 what the project gained (tests, coverage); the PR number and where anything still owed
 was filed.

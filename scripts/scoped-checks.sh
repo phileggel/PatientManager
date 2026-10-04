@@ -18,6 +18,7 @@
 # Use:
 #   git diff --cached --name-only --diff-filter=ACMRD | bash scripts/scoped-checks.sh
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 cd "$PROJECT_ROOT"

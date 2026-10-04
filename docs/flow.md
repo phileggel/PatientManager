@@ -204,19 +204,6 @@ lane had missed locally (FLOW-001).
 - Costs: one sentence in `docs/workflow.md` § 11. Protects: nothing but attention.
 - Decision (owner, 2026-10-04): one story per pull request; a target of about 400 hand-written lines per reviewer lane, a split above about 800; generated files, lockfiles, screenshots and spec documents not counted; no limit on the total. The 400 is the figure measured on human reviewers (SmartBear at Cisco); nothing measured exists for agent reviewers, so the next audit checks it against what CI found.
 
-## FLOW-014 — Session helpers that disappear with the session
-
-- Kind: effort
-- Observed: two helpers written in the session's scratch folder were used about twenty
-  times each: one that waits for a pull request's checks and prints failures, one that
-  removes a closed entry and its queue line. The local `gh` lacks `pr checks --json`,
-  `gh pr edit` fails on this repository, and the status poll hit several network
-  errors.
-- Proposal: both become scripts with tests (`scripts/watch-pr.sh`, a `close` mode in
-  `scripts/whats-next.py`), the first one retrying on a network error.
-- Costs: about 80 lines. Protects: each session rewriting them, slightly differently.
-- Decision (owner, 2026-10-04): both helpers become tested scripts. Standing rule: a tool the flow needs is added for good and judged again at each release audit. With them, a usage log: one local file, not committed, one line per run of a script or recipe (time, tool, duration, result), emptied at each audit once its figures are in this file, and capped at about 5 000 lines. Skills and agents are counted from the session transcript until the owner adds a hook.
-
 ## FLOW-018 — The release notes say nothing
 
 - Kind: quality

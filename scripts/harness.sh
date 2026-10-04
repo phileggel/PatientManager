@@ -12,6 +12,7 @@
 #
 # Use: just harness          (or: bash scripts/harness.sh)
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 cd "$PROJECT_ROOT"
@@ -38,7 +39,7 @@ echo -e "${BLUE}🔍 Harness scope: ${scope}${NC}"
 python3 scripts/privacy-check.py
 python3 scripts/arch-check.py
 python3 scripts/rule-homes.py
-python3 -m unittest discover -s scripts/tests -p "test_*.py"
+USAGE_LOG=off python3 -m unittest discover -s scripts/tests -p "test_*.py"
 
 case "$scope" in
     docs)

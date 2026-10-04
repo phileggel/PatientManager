@@ -1,4 +1,5 @@
 #!/bin/bash
+. "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"
 
 # Configuration
 # 1. Try to get the title from tauri.conf.json (v2)

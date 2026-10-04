@@ -8,6 +8,7 @@
 #
 # Exit code 0 either way (empty output is a valid signal — clean batch).
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"
 
 if [[ ! -d .review ]]; then
     exit 0

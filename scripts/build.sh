@@ -6,6 +6,7 @@
 # Creates a distributable binary for your operating system.
 
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 

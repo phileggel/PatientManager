@@ -84,10 +84,11 @@ todo entry: the pull request body is its record.
 8. **PR**, opened for the record, not for approval. Body under 20 lines: the task, each
    Done-when clause with the test that proves it, findings that changed something,
    techdebt filed, screenshots.
-9. **Merge:** `just merge` — it refuses until every check is green and folds `fixup!`
-   commits, so the task lands as one commit.
-10. **Closure** in the same PR: the entry removed from `docs/todo.md`,
-    `docs/techdebt.md` or `docs/flow.md`, and its reference from `## Next`; techdebt updated;
+9. **Merge:** `just watch-pr` waits for the checks and says how they ended; then
+   `just merge` — it refuses until every check is green and folds `fixup!` commits, so
+   the task lands as one commit.
+10. **Closure** in the same PR: `just whats-next close <id>` removes the entry from
+    `docs/todo.md`, `docs/techdebt.md` or `docs/flow.md`, and its reference from `## Next`; techdebt updated;
     `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
     brief says what changed for the user and what the project gained.
 
@@ -242,6 +243,19 @@ command substitution (`$(...)`), `&&`, `||`, `;`, or `cd X && cmd` chains: the
 permission allowlist matches a command by literal prefix, so a compound line prompts on
 every run. Move the logic into a script under `scripts/` and call it by name; for a
 multi-line payload, write a temp file and pass it (`gh pr create --body-file …`).
+
+### Tools the flow needs, and the usage log
+
+A tool the flow needs is added for good — a script under `scripts/` with its tests, a
+recipe in the `justfile` — never rewritten in a session's scratch folder. Each is
+judged again at the audit that follows a release: keep, fold or remove.
+
+The audit reads `logs/usage.log`: one line per run of a script or a recipe (time, tool,
+duration, result), written by `scripts/usage_log.py`. The file is local, never
+committed, capped at 5 000 lines, and emptied once its figures are in `docs/flow.md`.
+A new script logs itself (`usage_log.start()` in Python, `. scripts/usage-log.sh` in
+shell); a recipe that runs no script depends on `(_used "<recipe>")`. Nothing is
+logged in CI. Skills and agents are counted from the session transcript.
 
 ### Release sweep
 

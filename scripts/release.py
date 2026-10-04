@@ -675,6 +675,9 @@ def _semver_str(value: str) -> str:
 
 
 if __name__ == "__main__":
+    import usage_log
+
+    usage_log.start()
     parser = argparse.ArgumentParser(description="Release manager.")
     # --dry-run and --preview are mutually exclusive: they're two distinct
     # modes (DRY_RUN edits files locally but skips push; PREVIEW is fully

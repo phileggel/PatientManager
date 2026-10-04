@@ -11,6 +11,7 @@
 # Exit: 0 done or nothing to do · 1 preconditions · 2 the run failed or timed out
 # Linux only: `flock` and `timeout` come from util-linux / coreutils.
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 cd "$PROJECT_ROOT" || exit 1

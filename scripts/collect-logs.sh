@@ -2,6 +2,7 @@
 # Collect logs from app directory to project logs folder
 # Usage: ./collect-logs.sh [--dry-run]
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRY_RUN=false

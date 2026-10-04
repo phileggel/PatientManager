@@ -222,7 +222,7 @@ def ensure_checks_green(branch: str, target: str, before: str, after: str) -> No
             why = "the rebase moved the commits" if before == head else "the local branch was ahead of the pull request"
             fail(
                 f"{branch} pushed as {after[:7]} — {why}.",
-                f"CI runs on it now: gh pr checks {number} --watch",
+                f"CI runs on it now: just watch-pr {number}",
                 "Re-run `just merge` when every check is green.",
             )
     runs = _check_runs(head)
@@ -237,7 +237,7 @@ def ensure_checks_green(branch: str, target: str, before: str, after: str) -> No
             f"PR #{number} is not green on {head[:7]}.",
             *(f"  missing: {name}" for name in missing),
             *(f"  {line}" for line in not_green),
-            f"Watch: gh pr checks {number} --watch — then re-run `just merge`.",
+            f"Watch: just watch-pr {number} — then re-run `just merge`.",
         )
     landing = "" if after == head else f", merging {after[:7]}"
     print(f"{GREEN}✓ PR #{number}: every check green on {head[:7]}{landing}.{NC}", file=sys.stderr)
@@ -514,4 +514,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    import usage_log
+
+    usage_log.start()
     sys.exit(main())

@@ -12,6 +12,7 @@
 # Use:
 #   git diff --name-only BASE...HEAD | bash scripts/changed-scope.sh
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"
 
 frontend=0
 backend=0

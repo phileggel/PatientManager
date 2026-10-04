@@ -23,6 +23,7 @@
 #
 # Use (local, before a PR):  bash scripts/branch.sh files | bash scripts/review-lanes.sh
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"
 
 files=$(cat)
 has() { grep -Eq "$1" <<<"$files" && echo true || echo false; }
