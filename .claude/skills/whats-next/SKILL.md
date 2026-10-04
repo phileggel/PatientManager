@@ -48,8 +48,8 @@ Print, in this order:
 2. **Proposed queue** — references in order (written to `## Next` as a plain list,
    `- TODO-NNN`), todo, debt and decided flow entries together, one reason per line: what it unblocks, what it depends on, what it should ship with.
    Dependencies first; an entry waiting on the owner is not in the queue.
-3. **Needs you** — the decisions and the drafts from Steps 2 and 3, each as a question
-   with a recommended answer.
+3. **Needs you** — the decisions and the drafts from Steps 2 and 3, one line each; they
+   are asked one at a time in Step 5.
 4. **Left out** — one line per theme, with why (blocked, low value now, obsolete).
 
 No value scores, no hour estimates, no "do now" verdict: the reason on each line is
@@ -57,7 +57,9 @@ the argument, and the owner weighs it.
 
 ## Step 5 — Write what the owner validates
 
-Ask once: accept, or edit. The owner may also edit `docs/todo.md` by hand instead.
+Ask for the queue first: accept, or edit. Then put each decision to the owner alone,
+with its context, what each option changes and a recommended answer; the next one waits
+for the answer. The owner may also edit `docs/todo.md` by hand instead.
 On a yes, write exactly what was validated, as a docs change through the harness
 (branch `docs/queue-<date>`, PR, `just merge`):
 

@@ -13,7 +13,7 @@ was built.
 - **Agent** — `docs/techdebt.md`: every observation, smell and proposal about the code.
   The human queues from it.
 - **Agent** — `docs/flow.md`: the same about the workflow itself (checks, waits, tools,
-  the human's part), audited at the end of a batch.
+  the human's part), audited after each release (§ 12).
 - **Agent** — the task, end to end: tests, code, review, merge. **No pull request is
   validated by a human.**
 - **Harness** — proving it, mechanically, on every pull request. Nothing merges that
@@ -66,8 +66,13 @@ A task is a queued entry (`/next-todo`, headless), an entry the human names
 (`/next-todo TODO-NNN`), or a request typed in chat ("do X"). A chat request leaves no
 todo entry: the pull request body is its record.
 
-1. **Pick and brief.** Open questions are asked together, once, before anything starts
-   (in chat), or written into the entry and the run moves on (headless). The opening
+1. **Pick and brief.** In chat, a question to the human is asked alone, with the context
+   to answer it cold — what happened, what each option changes, what it costs — and the
+   next one waits for the answer. The agent asks during the work rather than guess, for
+   a spec point as for a vocabulary term. For an entry with a spec the order is: spec
+   draft, `spec-reviewer`, then the questions, new vocabulary included, so a decision is
+   taken once, knowing its consequences. Headless, a question is written into the entry
+   and the run moves on. The opening
    brief states Task, Scope, Design, Touching. Branch `<type>/todo-NNN-slug`,
    `<type>/debt-NNN-slug`, or `<type>/slug` off a fresh `main`, where `<type>` is the
    commit type the change will carry.
@@ -155,7 +160,10 @@ unit tests never run in a hook (hooks export `GIT_DIR`).
 Before the PR, run exactly the lanes
 `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints — none for a
 docs-only change — and again on the fixes until no 🔴 remains. CI runs the same lanes
-on every push as the last net, with the prompts taken from `main`. Also:
+on every push as the last net, with the prompts taken from `main`. A local reviewer is
+given the branch, the spec and the vocabulary, never a description of the change: a
+brief that explains the change steers the read, and CI then finds what the same lane
+missed. Criticals that only CI found are counted at the audit (§ 12). Also:
 `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change,
 `spec-checker` before closing an entry that carries spec rules.
 
@@ -172,6 +180,10 @@ Every finding, local or from CI, is graded and the outcome recorded in the PR bo
 
 - One task, one run, three hours of wall clock. Over budget → open question "larger
   than estimated: split?", stop.
+- A gate fails → read its log. If the log shows the cause, fix it. If it does not, the
+  next push adds observation and makes the failure cheap to reproduce (the cache kept
+  on failure, a stop at the first failing file), never a fix. This holds from the first
+  failure, for every gate.
 - The same gate failing three times on one task → open question, stop.
 - An E2E failure that passes on re-run → the flake is filed as `DEBT-NNN`, the run
   continues.
@@ -212,10 +224,30 @@ read the PR as the task plus a migration, the migration is a separate entry.
 
 ## 11. PR size and split
 
-Target at most 1000 lines of churn (insertions + deletions). Split when a PR crosses it
-or tells two stories. A feature whose backend or frontend exceeds about 20 files or 500
+One story per pull request. The target is about 400 hand-written lines per reviewer
+lane; above about 800 in a lane, split. Generated files, lockfiles, screenshots and spec
+documents are not counted, and the total has no limit: a mechanical change that one
+check proves is one story whatever its size. The 400 is the figure measured on human
+reviewers; each audit (§ 12) checks it against what CI found that the local lanes
+missed. A feature whose backend or frontend exceeds about 20 files or 500
 lines ships as one PR per layer, in order: spec, contract, migration, backend and
 bindings; then the frontend; then E2E and closure. Each is mergeable on its own.
+
+## 12. The flow audit
+
+After a release and its cleanup, the agent audits the batch and writes the result in
+`docs/flow.md`. Quality is the goal, weighed against speed and effort.
+
+- **Measures** — pull requests merged, time from opening to merging, CI rounds, failed
+  runs per workflow, what the reviewers caught, what they got wrong, and the criticals
+  only CI found.
+- **Tools** — which scripts, recipes, skills and agents ran, and which did not
+  (`logs/usage.log`, the session transcript); each gets a verdict: keep, fold or remove.
+- **Hard points** — every difficulty met becomes a `FLOW-NNN` entry with its evidence
+  and a proposal; where nothing should change, the entry says keep and why.
+- **Moves** — a todo or debt entry that is about the flow moves to `docs/flow.md`.
+
+The human decides each entry; a decided entry can be queued (§ 2).
 
 ## Conventions
 
@@ -260,4 +292,5 @@ logged in CI. Skills and agents are counted from the session transcript.
 ### Release sweep
 
 Before a release, run the reviewer agents in `release-sweep` mode (the invoking prompt
-contains `release-sweep`) alongside `/dep-audit`.
+contains `release-sweep`) alongside `/dep-audit`, and `spec-checker` on every spec the
+batch touched. What they find is filed as `DEBT-NNN`, not fixed in the release.

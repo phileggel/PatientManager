@@ -51,35 +51,6 @@ lane had missed locally (FLOW-001).
 
 ---
 
-## FLOW-001 — The same lane finds in CI what it missed locally
-
-- Kind: quality + speed
-- Observed: 4 critical findings came from CI after the same lane had passed locally:
-  B18 (#164), dependent `it()` blocks (#165), B24 (#166), an English string with a
-  French label (#169). Each cost a fix, a push and a CI round; each time the missing
-  check went into that reviewer's prompt.
-- Likely cause, not proven: locally the agent writes the reviewer's brief and describes
-  its own change, which steers the read; CI gives the lane the diff and nothing else.
-- Proposal: launch a local reviewer with the branch, the spec and the vocabulary only —
-  no summary of what the change does. Count CI-only criticals in the next batch; if the
-  count does not fall, the local run is not worth its minute and CI alone reviews.
-- Costs: nothing. Protects: one CI round (about 8 min) per miss.
-- Decision (owner, 2026-10-04): a local reviewer gets the branch, the spec and the vocabulary, never a description of the change; CI-only criticals are counted in the next batch.
-
-## FLOW-002 — A CI-only failure was fixed blind three times
-
-- Kind: speed
-- Observed: the Windows E2E job failed with one error message. Three attempts changed
-  something plausible and waited 40 min each. A step that started the app by hand and
-  printed the webview's command line found the cause in four runs of 3 to 8 min
-  (lesson TL-004).
-- Proposal: add to the stop rules in `docs/workflow.md` § 8: when a gate fails a second
-  time for a reason the log does not show, the next push adds observation, not a fix,
-  and first makes the failure cheap (cache kept on failure, stop at the first failing
-  file).
-- Costs: one sentence. Protects: about two hours on the next blind failure.
-- Decision (owner, 2026-10-04): after any failure of a gate, read the log; if it shows the cause, fix it; if not, the next push adds observation and makes the failure cheap, never a fix. From the first failure, for every gate. Stop and ask stays at three.
-
 ## FLOW-005 — Skills nobody invoked
 
 - Kind: effort
@@ -141,32 +112,6 @@ lane had missed locally (FLOW-001).
   re-running.
 - Decision (owner, 2026-10-04): print the stop reason and the last error, retry the reviewer once, and fail only if the second try also writes nothing.
 
-## FLOW-009 — Specs are checked one at a time, at closure (DEBT-018)
-
-- Kind: quality
-- Observed: `spec-checker` ran twice in this batch, on the two specs being written, and
-  found real gaps both times (an untested rule, a code whose spec said otherwise). The
-  33 specs, contracts and ADRs written before have never been read against the code.
-- Proposal: before a release, `spec-checker` runs on every spec the batch touched; its
-  findings are filed as debt, not fixed in the release. The 33 older documents: one pass,
-  as an entry the owner queues.
-- Costs: one agent run per touched spec (about 2 min). Protects: the specs' claim to
-  describe the application.
-- Decision (owner, 2026-10-04): before each release, `spec-checker` on every spec the batch touched; findings filed as debt. No pass over the older documents.
-
-## FLOW-010 — The owner was asked twice about one decision
-
-- Kind: quality + effort
-- Observed: the question on merging two patients was asked before the spec review. The
-  review then showed a consequence the question had not stated (the lost INS returns
-  with the next import); the owner was asked again the next day, and the answer became a
-  second pull request (#169). Three glossary terms also shipped as "proposed".
-- Proposal: for an entry with a spec, the order is spec draft → `spec-reviewer` → one
-  block of questions to the owner, each with its consequences, the new vocabulary in the
-  same block.
-- Costs: the questions come some minutes later. Protects: a decision taken once.
-- Decision (owner, 2026-10-04): spec draft, then `spec-reviewer`, then the owner's questions — one at a time, each with its context and consequences, new vocabulary included. The agent asks during the work rather than guess.
-
 ## FLOW-011 — What the agent does before asking for a release
 
 - Kind: effort
@@ -181,16 +126,6 @@ lane had missed locally (FLOW-001).
   the lockfile version.
 - Costs: one decision, a few lines. Protects: a release that waits on nobody's memory.
 - Decision (owner, 2026-10-04): the agent runs `/dep-audit` and the security release sweep before asking for a release; the owner cuts it; the agent publishes the draft when the release workflow and `main` are green, and stops if anything is red. `scripts/release.py` writes the lockfile version.
-
-## FLOW-013 — The pull-request size target counts generated files
-
-- Kind: effort
-- Observed: #166, #167 and #168 are 1 263 to 1 721 lines against a target of 1 000.
-  Query data, generated bindings, screenshots and the spec make up about a third.
-- Proposal: the target counts hand-written code and tests only. No pull request in this
-  batch would then have needed a note.
-- Costs: one sentence in `docs/workflow.md` § 11. Protects: nothing but attention.
-- Decision (owner, 2026-10-04): one story per pull request; a target of about 400 hand-written lines per reviewer lane, a split above about 800; generated files, lockfiles, screenshots and spec documents not counted; no limit on the total. The 400 is the figure measured on human reviewers (SmartBear at Cisco); nothing measured exists for agent reviewers, so the next audit checks it against what CI found.
 
 ## FLOW-018 — The release notes say nothing
 
@@ -221,35 +156,6 @@ lane had missed locally (FLOW-001).
 - Costs: one small pull request. Protects: a change of the dialog breaking five suites
   in five ways.
 - Decision (owner, 2026-10-04): one shared helper in `e2e/helpers/`, used by the five suites.
-
-## FLOW-022 — Questions to the owner come one at a time, with their context
-
-- Kind: quality
-- Observed: `CLAUDE.md` and `docs/workflow.md` say that in chat "the open questions are
-  asked together, once". In this batch a list of five "decisions for you" at the end of a
-  summary got no answer, and a form of four questions got short answers; the same points
-  asked one by one, each with what happened, what every option changes and what it costs,
-  were all answered, two of them with a better rule than the one proposed (FLOW-002,
-  FLOW-013).
-- Decision (owner, 2026-10-04): a question to the owner is asked alone, with enough
-  context to answer it cold, and the next one waits for the answer. The agent asks during
-  the work rather than guess, for a spec point as for a vocabulary term. `CLAUDE.md` and
-  `docs/workflow.md` are changed to say so. Headless is unchanged: a question becomes an
-  open question on the entry.
-
-## FLOW-023 — The flow audit is not a written step
-
-- Kind: quality
-- Observed: this file exists because the owner asked for an audit after the 0.24.0
-  release. `docs/workflow.md` says only that the file is "audited at the end of a batch";
-  what the audit reads, counts and produces is written nowhere but in the agent's private
-  memory.
-- Decision (owner, 2026-10-04): the audit becomes a step of `docs/workflow.md`, after a
-  release and its cleanup. It measures the batch (pull requests, time to merge, CI rounds,
-  failures per workflow, what reviewers caught and got wrong); says which scripts,
-  recipes, skills and agents were used or not, each with keep, fold or remove; turns every
-  hard point met into an entry; and moves here any todo or debt entry that is about the
-  flow. Quality is the goal, weighed against speed and effort.
 
 ## FLOW-024 — Nobody reviews a Dependabot pull request, and nobody announces one
 

@@ -12,7 +12,7 @@ After cloning: `git config core.hooksPath .githooks`. The hooks block commits to
 - The **agent** owns `docs/techdebt.md` and `docs/flow.md`, does the task end to end and merges on green. No pull request waits for a human.
 - The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
-Headless, a question only the human can answer goes into the entry as an open question, never guessed. In chat, the open questions are asked together, once, before anything starts. State assumptions; name what is unclear.
+Headless, a question only the human can answer goes into the entry as an open question, never guessed. In chat, a question is asked alone, with the context to answer it cold (what happened, what each option changes, what it costs), and the next one waits for the answer; ask during the work rather than guess, for a spec point as for a vocabulary term. State assumptions; name what is unclear.
 
 ## Core rules
 
@@ -28,7 +28,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
 3. **Boyscout** — small mechanical fixes inside the files already edited ship in the same PR. Known dead code is removed in the same commit.
 4. **Coverage when a real gap surfaces** — add a focused test; the floors in `coverage-gates.json` only rise.
 5. **Challenge reviewer returns** — graded with `/review-triage` and recorded in the PR body (`docs/workflow.md` § 7).
-6. **PR size ≤ 1000 lines of churn** as a target; split per `docs/workflow.md` § 11.
+6. **PR size** — one story per pull request; about 400 hand-written lines per reviewer lane, a split above about 800 (`docs/workflow.md` § 11).
 
 ## Opening and closing a piece of work
 
@@ -46,9 +46,9 @@ Headless, a question only the human can answer goes into the entry as an open qu
 - **Workflow**: `/next-todo` runs one task end to end (`docs/workflow.md` § 3); `just next-todo` does it headless. `/whats-next` proposes the queue; the human validates it in chat or edits it by hand.
 - **Before implementing**, read the rules for the layers touched (`.claude/rules/` brings them in when a matching file is read; a new file triggers nothing, so this list is the fallback) — backend (`backend-rules`, `error-model`, `ddd-reference`), frontend (`frontend-rules`, `i18n-rules`, `visual-proof-rules`), E2E (`e2e-rules`), any test (`test-rules`), commits (`commit-rules`). When a rule changes, its doc changes in the same PR.
 - **After completing**, update the source docs in the same PR: spec rules (+ `spec-reviewer`), the contract (+ `contract-reviewer`), an ADR for a technical choice (`/adr-writer` + `adr-reviewer`), `docs/lessons.md` for a failure worth teaching, `ARCHITECTURE.md` when a module appears.
-- **Vocabulary**: `docs/ubiquitous-language.md` — confirmed terms in code, specs, comments and logs; never extend a discrepant one. Give it to every reviewer you launch.
+- **Vocabulary**: `docs/ubiquitous-language.md` — confirmed terms in code, specs, comments and logs; never extend a discrepant one. Give it to every reviewer you launch, with the branch and the spec — never a description of the change.
 - **Skills**: `/next-todo`, `/whats-next`, `/design-proposal`, `/visual-proof`, `/review-triage`, `/techdebt`, `/spec-writer`, `/contract`, `/adr-writer`, `/dep-audit`, `/prune`, `/setup-e2e`, `/session-reflect`.
-- **Agents**: exactly the reviewer lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for docs only), re-run on the fixes until no 🔴, then push; CI runs the same lanes. `reviewer-security` in `release-sweep` mode before every release; `spec-checker` before closing an entry with spec rules; `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change.
+- **Agents**: exactly the reviewer lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for docs only), re-run on the fixes until no 🔴, then push; CI runs the same lanes. `reviewer-security` in `release-sweep` mode before every release; `spec-checker` before closing an entry with spec rules, and on every spec the batch touched before a release; `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change.
 - **Task tracking**: `TaskCreate` / `TaskUpdate` for any task of more than one file or step.
 - **Plans** (asked in chat): exact paths, functions and components per layer, gold work with its size, the tests for each clause. Once the user says go, the plan is the authority for the batch.
 
