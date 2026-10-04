@@ -16,11 +16,11 @@ TODO = """# TODO
 
 ## Next
 
-<!-- 9. TODO-999 in a comment is not queued -->
+<!-- - TODO-999 in a comment is not queued -->
 
-1. TODO-002
-2. DEBT-005
-3. TODO-404
+- TODO-002
+- DEBT-005
+- TODO-404
 
 ---
 
@@ -101,6 +101,9 @@ DEBT = """# Tech Debt
 class Queue(unittest.TestCase):
     def test_the_queue_is_read_in_order_and_ignores_comments(self):
         self.assertEqual(plan.queue(TODO), ["TODO-002", "DEBT-005", "TODO-404"])
+
+    def test_a_numbered_queue_is_still_read(self):
+        self.assertEqual(plan.queue("## Next\n\n1. TODO-002\n2. DEBT-005\n\n---\n"), ["TODO-002", "DEBT-005"])
 
     def test_no_next_section_is_an_empty_queue(self):
         self.assertEqual(plan.queue("# TODO\n\n## TODO-001 — x\n"), [])

@@ -24,7 +24,9 @@ PASSING = ("SUCCESS", "NEUTRAL", "SKIPPED")
 
 TODO_HEADING = re.compile(r"^## (TODO-\d{3}) — (.+?)\s*$", re.MULTILINE)
 DEBT_HEADING = re.compile(r"^## (\d{4}-\d{2}-\d{2}) — (DEBT-\d{3}) — (.+?)\s*$", re.MULTILINE)
-QUEUE_LINE = re.compile(r"^\d+\.\s+((?:TODO|DEBT)-\d{3})\b", re.MULTILINE)
+# One reference per line, as a plain list item. A numbered item is still read, so a
+# hand-edited queue is never silently empty.
+QUEUE_LINE = re.compile(r"^(?:-|\d+\.)\s+((?:TODO|DEBT)-\d{3})\b", re.MULTILINE)
 FIELD = re.compile(r"^\*\*(" + "|".join(FIELDS) + r"):\*\*", re.MULTILINE)
 
 

@@ -41,8 +41,8 @@ say what is missing instead.
 Print, in this order:
 
 1. **In flight** — open pull requests and their checks; the queue as it stands.
-2. **Proposed queue** — numbered references, todo and debt entries together, one
-   reason per line: what it unblocks, what it depends on, what it should ship with.
+2. **Proposed queue** — references in order (written to `## Next` as a plain list,
+   `- TODO-NNN`), todo and debt entries together, one reason per line: what it unblocks, what it depends on, what it should ship with.
    Dependencies first; an entry waiting on the owner is not in the queue.
 3. **Needs you** — the decisions and the drafts from Steps 2 and 3, each as a question
    with a recommended answer.

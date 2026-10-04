@@ -9,19 +9,20 @@ in `/whats-next`.
 <!-- The queue: TODO-NNN / DEBT-NNN references in the order to work them. The agent takes -->
 <!-- the first ready one, removes a reference only in the PR that ships its entry, and -->
 <!-- stops when the list is empty. It reorders or adds only what the human validated in -->
-<!-- /whats-next. -->
+<!-- /whats-next. A plain list, in order: no numbers, so two pull requests that each -->
+<!-- close an entry do not conflict on renumbering. -->
 
-1. TODO-016
-2. TODO-013
-3. TODO-008
-4. TODO-005
-5. TODO-004
-6. TODO-018
-7. DEBT-011
-8. TODO-019
-9. DEBT-003
-10. TODO-020
-11. TODO-021
+- TODO-016
+- TODO-013
+- TODO-008
+- TODO-005
+- TODO-004
+- TODO-018
+- DEBT-011
+- TODO-019
+- DEBT-003
+- TODO-020
+- TODO-021
 
 ---
 

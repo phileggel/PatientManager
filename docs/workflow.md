@@ -34,7 +34,8 @@ job or a machine gate.
 ### `docs/todo.md` — human-owned
 
 - `## Next` at the top holds the queue: `TODO-NNN` and `DEBT-NNN` references in the
-  order to work them. The agent takes the first **ready** one and removes a reference
+  order to work them, one per line as a plain list (`- TODO-NNN`; no numbers, so
+  pull requests that each close an entry do not conflict). The agent takes the first **ready** one and removes a reference
   only in the PR that ships its entry. It adds to or reorders the list only in
   `/whats-next`, in chat, writing the order the human validated.
 - Every entry is `## TODO-NNN — title` and ends with `**User value:**`,
