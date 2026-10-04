@@ -12,8 +12,33 @@ in `/whats-next`.
 <!-- /whats-next. A plain list, in order: no numbers, so two pull requests that each -->
 <!-- close an entry do not conflict on renumbering. -->
 
+<!-- Exception (owner, 2026-10-04): the flow entries of this queue ship as bundles, one -->
+<!-- pull request per bundle, each one story: FLOW-022 to FLOW-023 (the decided rules -->
+<!-- written into `docs/workflow.md` and `CLAUDE.md`); FLOW-005 to FLOW-007 (the tools -->
+<!-- nobody used are removed); FLOW-011 with FLOW-018 (the release path). Every other -->
+<!-- entry ships alone. -->
+
+- FLOW-014
+- FLOW-003
+- FLOW-022
+- FLOW-010
+- FLOW-002
+- FLOW-001
+- FLOW-013
+- FLOW-009
+- FLOW-023
+- FLOW-005
+- FLOW-006
+- FLOW-007
+- FLOW-008
+- FLOW-024
+- FLOW-011
+- FLOW-018
+- FLOW-025
+- DEBT-028
 - TODO-016
 - TODO-013
+- FLOW-020
 - TODO-008
 - TODO-005
 - TODO-004
