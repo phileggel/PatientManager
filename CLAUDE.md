@@ -9,7 +9,7 @@ After cloning: `git config core.hooksPath .githooks`. The hooks block commits to
 ## Who decides what
 
 - The **human** writes `docs/todo.md` and its `## Next` queue, validates a **design** before anything the user sees changes, validates the vocabulary, and cuts **releases**.
-- The **agent** owns `docs/techdebt.md`, does the task end to end and merges on green. No pull request waits for a human.
+- The **agent** owns `docs/techdebt.md` and `docs/flow.md`, does the task end to end and merges on green. No pull request waits for a human.
 - The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
 Headless, a question only the human can answer goes into the entry as an open question, never guessed. In chat, the open questions are asked together, once, before anything starts. State assumptions; name what is unclear.

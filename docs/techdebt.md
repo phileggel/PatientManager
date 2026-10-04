@@ -6,16 +6,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-10-04 — DEBT-029 — `just release` leaves the version in `package-lock.json` behind
-
-**Found by:** `/dep-audit` (`npm audit fix`, branch `chore/dep-audit-lockfile`)
-
-**Where:** `scripts/release.py` (`update_version_files`), `package-lock.json`
-
-**Observation:** The release script writes the new version to `package.json`, `Cargo.toml` and `tauri.conf.json`, not to `package-lock.json`: at tag v0.23.0 the lockfile still says 0.22.1. `npm ci` accepts it; any `npm install` rewrites the two lines as an unrelated diff.
-
----
-
 ## 2026-10-04 — DEBT-028 — `PATIENT_MANAGER_E2E_DB` redirects the database in release builds too
 
 **Found by:** reviewer-security (release-sweep on `main` 9c7f767)
@@ -83,26 +73,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 **Where:** `package-lock.json` — `basic-ftp`, `braces`, `extract-zip` under `@wdio/*` 9.32
 
 **Observation:** `npm audit` still reports 19 high advisories, all through these three packages, which the E2E tooling pulls and none of which ships in the app (`npm audit --omit=dev`, the weekly Security Audit gate, is clean). `braces` and `extract-zip` have no patched release; `basic-ftp` is pinned by `get-uri`. The only fix npm offers is a downgrade to WebdriverIO 5. Re-check when WebdriverIO 10 is stable.
-
----
-
-## 2026-09-28 — DEBT-018 — Specs, contracts and ADRs never checked against the code
-
-**Found by:** manual (TODO-015 closure, branch `docs/todo-015-skills`)
-
-**Where:** `docs/spec/`, `docs/contracts/`, `docs/adr/`
-
-**Observation:** the documentation audit fixed where each kind of document lives, removed duplicated rules and made the agent docs concise; it did not check the 33 specs, contracts and ADRs against the code they describe. `spec-checker` covers one spec at a time when an entry closes; no pass has run across all of them, so a rule or command that drifted since it was written goes unnoticed until someone relies on it.
-
----
-
-## 2026-09-27 — DEBT-015 — Fork PRs cannot post the reviewer's "no report" comment
-
-**Found by:** reviewer-infra (CI run on PR #121, branch `ci/reviewers-in-ci`)
-
-**Where:** `.github/workflows/review.yml`, step "Post the report and fail on criticals"
-
-**Observation:** a fork PR gets a read-only `GITHUB_TOKEN`, so the `gh` calls that post the sticky comment error out. The job has already failed closed at "Require the subscription token" (forks get no secrets), so nothing passes unreviewed; only the explanatory comment is missing, and the step ends on a raw `gh` error instead of a stated reason.
 
 ---
 

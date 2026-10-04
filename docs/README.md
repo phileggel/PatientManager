@@ -15,8 +15,9 @@ ID is defined twice.
 - **Decisions** — `adr/`: technical choices costly to reverse, each with its guard.
 - **Contracts** — `contracts/`: the wire record of each command.
 - **Workflow** — `workflow.md`: how work moves from an entry to `main`.
-- **Records** — `todo.md`, `techdebt.md`, `lessons.md` (`TL-NNN`), `../CHANGELOG.md`:
-  what is owed, known, learned or shipped.
+- **Records** — `todo.md`, `techdebt.md`, `flow.md` (`FLOW-NNN`), `lessons.md` (`TL-NNN`),
+  `../CHANGELOG.md`: what is owed to the user, to the code and to the workflow, and what
+  was learned or shipped.
 - **Reference** — `ddd-reference.md`: background an agent reads when a task needs it.
 - **Map** — `../ARCHITECTURE.md`: where code lives.
 - **Index** — `../CLAUDE.md`: authority, forbidden actions, and pointers to all of the

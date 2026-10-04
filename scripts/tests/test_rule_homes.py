@@ -19,10 +19,11 @@ class Definitions(unittest.TestCase):
             "## TODO-003 — An entry",
             "## 2026-07-29 — DEBT-008 — An observation",
             "### TL-001 — A lesson",
+            "## FLOW-004 — A flow entry",
         ])
         self.assertEqual(
             homes.defined_ids(text),
-            ["B7", "E1", "BAS-010", "BAS-113A", "TODO-003", "DEBT-008", "TL-001"],
+            ["B7", "E1", "BAS-010", "BAS-113A", "TODO-003", "DEBT-008", "TL-001", "FLOW-004"],
         )
 
     def test_a_mention_is_not_a_definition(self):

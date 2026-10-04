@@ -132,7 +132,7 @@ class FoldingFixups(unittest.TestCase):
 
     def test_the_checks_stand_for_record_files_and_fall_for_anything_else(self):
         tested = self.commit("feat: show the total", {"total.txt": "total\n"})
-        records = self.commit("docs: close the entry", {"docs/todo.md": "closed\n", "docs/adr/001-a-decision.md": "x\n"})
+        records = self.commit("docs: close the entry", {"docs/todo.md": "closed\n", "docs/flow.md": "settled\n", "docs/adr/001-a-decision.md": "x\n"})
         code = self.commit("fix: the total", {"total.txt": "other\n"})
 
         self.assertTrue(merge._rebase_left_the_checks_standing(tested, tested))

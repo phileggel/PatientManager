@@ -124,7 +124,7 @@ def _check_runs(sha: str) -> dict[str, tuple[str, str]]:
 # a check or a reviewer, so a move of `main` made only of them cannot change what
 # the checks proved. Everything else — code, workflows, convention docs, prompts —
 # re-runs the checks.
-RECORD_FILES = {"docs/todo.md", "docs/techdebt.md"}
+RECORD_FILES = {"docs/todo.md", "docs/techdebt.md", "docs/flow.md"}
 RECORD_DIRS = ("docs/adr/",)
 
 

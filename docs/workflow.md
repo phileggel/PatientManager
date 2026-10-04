@@ -10,8 +10,10 @@ was built.
   the **Next** queue.
 - **Human** — validating a **design** before anything the user sees changes.
 - **Human** — cutting a **release**; several merged branches may wait for one.
-- **Agent** — `docs/techdebt.md`: every observation, smell and proposal. The human
-  queues from it.
+- **Agent** — `docs/techdebt.md`: every observation, smell and proposal about the code.
+  The human queues from it.
+- **Agent** — `docs/flow.md`: the same about the workflow itself (checks, waits, tools,
+  the human's part), audited at the end of a batch.
 - **Agent** — the task, end to end: tests, code, review, merge. **No pull request is
   validated by a human.**
 - **Harness** — proving it, mechanically, on every pull request. Nothing merges that
@@ -26,6 +28,7 @@ job or a machine gate.
 | ---------- | ----------------------- |
 | `TODO-NNN` | an entry in todo.md     |
 | `DEBT-NNN` | an entry in techdebt.md |
+| `FLOW-NNN` | an entry in flow.md     |
 | `gh#NN`    | a GitHub issue or PR    |
 | `TRI-NNN`  | a spec rule (below)     |
 

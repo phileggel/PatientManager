@@ -9,7 +9,7 @@ Two checks against drift:
    exactly the `*-rules.md` files.
 2. Rule homes. A rule, entry or lesson is defined where its ID opens a line
    followed by an em dash — `**B24** —`, `## E11 —`, `**BAS-010 (R1) —`,
-   `## TODO-003 —`, `## 2026-09-27 — DEBT-008 —`, `### TL-001 —`. Anywhere else an
+   `## TODO-003 —`, `## 2026-09-27 — DEBT-008 —`, `## FLOW-001 —`, `### TL-001 —`. Anywhere else an
    ID is a mention. One ID defined in two places fails: the copy is removed and
    the other document links to the home.
 
@@ -28,7 +28,7 @@ DEFINITION = re.compile(
     r"^(?:\*\*([A-Z]{1,3}\d+)\*\* —"
     r"|#{2,3} ([A-Z]{1,3}\d+) —"
     r"|\*\*([A-Z]{3}-\d{3}[A-Z]?)(?: \([^)]*\))? —"
-    r"|#{2,3} ((?:TODO|TL)-\d{3}) —"
+    r"|#{2,3} ((?:TODO|TL|FLOW)-\d{3}) —"
     r"|## \d{4}-\d{2}-\d{2} — (DEBT-\d{3}) —)"
 )
 KIND = re.compile(r"^- \*\*([^*]+)\*\* — (.*)$")
