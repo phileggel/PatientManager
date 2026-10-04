@@ -75,5 +75,57 @@ class Source(unittest.TestCase):
         self.assertEqual([n for n, _ in arch.production_lines(rust)], [1])
 
 
+class UseCases(unittest.TestCase):
+    """B18 and B24 (FLOW-003): what only `reviewer-arch` used to catch."""
+
+    def counts(self, rule, files):
+        with tempfile.TemporaryDirectory() as root:
+            use_cases = Path(root) / "src-tauri" / "src" / "use_cases"
+            for name, source in files.items():
+                path = use_cases / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(source, encoding="utf-8")
+            with unittest.mock.patch.object(arch, "ROOT", Path(root)), unittest.mock.patch.object(arch, "USE_CASES", use_cases):
+                return rule()
+
+    def test_flow_003_b18_a_use_case_importing_another_is_counted(self):
+        counts = self.counts(
+            arch.b18_use_case_imports,
+            {
+                "excel_import/orchestrator.rs": (
+                    "use crate::use_cases::excel_import::error::ExcelImportError;\n"
+                    "use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;\n"
+                    "// use crate::use_cases::overpayment::X;\n"
+                    "#[cfg(test)]\nmod tests {\n    use crate::use_cases::overpayment::Fake;\n}\n"
+                ),
+                "overpayment/api.rs": "fn f(o: Arc<crate::use_cases::overpayment::OverpaymentOrchestrator>) {}\n",
+            },
+        )
+        self.assertEqual(counts, {"src-tauri/src/use_cases/excel_import/orchestrator.rs": 1})
+
+    def test_flow_003_b24_sqlx_in_a_use_case_is_counted_outside_its_unit_of_work(self):
+        counts = self.counts(
+            arch.b24_sqlx_in_use_cases,
+            {
+                "db_backup/orchestrator.rs": (
+                    "/// the `sqlx` detail is logged\n"
+                    'sqlx::query(sqlx::AssertSqlSafe(format!("VACUUM")))\n'
+                    'let label = "sqlx::query";\n'
+                    "#[cfg(test)]\nmod tests {\n    use sqlx::SqlitePool;\n}\n"
+                ),
+                "excel_import/amount_mapping_repo.rs": "use sqlx::SqlitePool;\nlet rows = sqlx::query!(\n",
+                "bank_manual_match/sqlx_uow.rs": "tx: sqlx::Transaction<'static, sqlx::Sqlite>,\n",
+                "bank_manual_match/mod.rs": "mod sqlx_uow;\n",
+            },
+        )
+        self.assertEqual(
+            counts,
+            {
+                "src-tauri/src/use_cases/db_backup/orchestrator.rs": 1,
+                "src-tauri/src/use_cases/excel_import/amount_mapping_repo.rs": 2,
+            },
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

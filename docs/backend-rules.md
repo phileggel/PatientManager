@@ -138,7 +138,7 @@ Cross-BC coordination belongs in a use case with its own `api.rs`.
 
 ## Use Cases (`/use_cases`)
 
-**B18** — MAY import from contexts, MUST NOT import from another use case.
+**B18** — MAY import from contexts, MUST NOT import from another use case. Checked by `just arch-check`.
 
 **B19** — MUST share its external API directly through its main `mod.rs`.
 
@@ -167,7 +167,7 @@ sqlx types in its public signature.
 **B24** — Use cases MAY depend on any domain abstraction: repository traits, domain entities,
 or bounded context services. They MUST NOT depend on infrastructure: concrete repository
 implementations, `sqlx::Pool`, `sqlx::Transaction`, `sqlx::query!`, or any other sqlx type
-(one exception: a unit of work's SQLite file, B26).
+(one exception: a unit of work's SQLite file, `sqlx_uow.rs`, B26). Checked by `just arch-check`.
 
 **B25** — For write operations that must emit an event, use cases SHOULD go through the BC Application Service rather than the repository trait directly to ensure the event is properly fired.
 

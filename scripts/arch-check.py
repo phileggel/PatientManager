@@ -20,13 +20,18 @@ the project docs already state (CLAUDE.md, docs/frontend-rules.md):
   A6  every interactive `ui/` component a feature renders carries an `id` (F25)
   A7  feature code carries no literal user-facing attribute text
       (`aria-label`, `placeholder`, `title`, `label`) — strings come from i18n (F24)
+  B18 a use case never imports another use case (`crate::use_cases::<other>`)
+      outside its test modules (docs/backend-rules.md)
+  B24 a use case names no sqlx type outside its test modules; its unit of work
+      file, `sqlx_uow.rs`, is the one exception (B26)
 
-A1, A2, A6 and A7 have debt today: it is frozen per file in the allowlist.
+A1, A2, A6, A7, B18 and B24 have debt today: it is frozen per file in the allowlist.
 A3, A4 and A5 hold everywhere and fail on the first violation.
 
 Known blind spots (line-based matching): a `Result<…, String>` wrapped over
 several lines (A4); a test gate other than a bare `#[cfg(test)]` line, e.g.
-`#[cfg(any(test, …))]` (A3); a tag carrying a spread `{...props}` (A6); an
+`#[cfg(any(test, …))]` (A3, B18, B24); a use case reached through `super::super::`
+rather than its `crate::` path (B18); a tag carrying a spread `{...props}` (A6); an
 apostrophe in JSX text or a Rust lifetime (`'a`) opens a false quote, so a `//`
 comment later on that line is kept rather than stripped (errs towards counting). A5 and
 A7 read string literals on purpose (A7 flags their text); a `<button` inside a
@@ -51,6 +56,8 @@ FRONTEND = ROOT / "src"
 FEATURES = FRONTEND / "features"
 BACKEND = ROOT / "src-tauri" / "src"
 CONTEXTS = BACKEND / "context"
+USE_CASES = BACKEND / "use_cases"
+UNIT_OF_WORK_FILE = "sqlx_uow.rs"
 
 COMPOSITION_ROOT = "shell"
 # F25 names buttons, inputs and dialogs.
@@ -206,6 +213,30 @@ def a3_cross_context() -> list[str]:
     return hits
 
 
+def b18_use_case_imports() -> dict[str, int]:
+    """Count the production lines of a use case that name another use case, per file."""
+    counts: dict[str, int] = {}
+    for path in sorted(USE_CASES.rglob("*.rs")):
+        use_case = path.relative_to(USE_CASES).parts[0]
+        for _, line in production_lines(path.read_text(encoding="utf-8")):
+            others = re.findall(r"crate::use_cases::(\w+)", without_strings(without_comments(line)))
+            if any(other != use_case for other in others):
+                counts[rel(path)] = counts.get(rel(path), 0) + 1
+    return counts
+
+
+def b24_sqlx_in_use_cases() -> dict[str, int]:
+    """Count the production lines of a use case that name sqlx, per file; its unit of work file is exempt."""
+    counts: dict[str, int] = {}
+    for path in sorted(USE_CASES.rglob("*.rs")):
+        if path.name == UNIT_OF_WORK_FILE:
+            continue
+        for _, line in production_lines(path.read_text(encoding="utf-8")):
+            if re.search(r"\bsqlx\b", without_strings(without_comments(line))):
+                counts[rel(path)] = counts.get(rel(path), 0) + 1
+    return counts
+
+
 def returns_string_error(line: str) -> bool:
     """True when a `Result<…>` on the line has `String` as its outermost error type."""
     for match in re.finditer(r"\bResult<", line):
@@ -297,7 +328,7 @@ def a7_literal_attributes() -> dict[str, int]:
 
 # --- allowlist ratchet -----------------------------------------------------
 
-COUNTED_SECTIONS = ("commands_outside_gateways", "missing_ids", "literal_attributes")
+COUNTED_SECTIONS = ("commands_outside_gateways", "missing_ids", "literal_attributes", "use_case_imports", "sqlx_in_use_cases")
 
 
 def ratchet_counts(rule: str, label: str, actual: dict[str, int], recorded: dict[str, int]) -> list[str]:
@@ -332,6 +363,8 @@ def current_state() -> dict:
         "cross_feature_imports": sorted(crossings, key=lambda item: (item["from"], item["to"])),
         "missing_ids": dict(sorted(a6_missing_ids().items())),
         "literal_attributes": dict(sorted(a7_literal_attributes().items())),
+        "use_case_imports": dict(sorted(b18_use_case_imports().items())),
+        "sqlx_in_use_cases": dict(sorted(b24_sqlx_in_use_cases().items())),
     }
 
 
@@ -383,6 +416,12 @@ def main() -> int:
     hits += ratchet_counts(
         "A7", "literal attribute texts", state["literal_attributes"], recorded.get("literal_attributes", {})
     )
+    hits += ratchet_counts(
+        "B18", "lines importing another use case", state["use_case_imports"], recorded.get("use_case_imports", {})
+    )
+    hits += ratchet_counts(
+        "B24", "lines naming sqlx outside a unit of work", state["sqlx_in_use_cases"], recorded.get("sqlx_in_use_cases", {})
+    )
 
     if hits:
         print(f"❌ architecture check: {len(hits)} violation(s)")
@@ -390,11 +429,13 @@ def main() -> int:
             print(f"   {hit}")
         return 1
     print(
-        "✅ architecture check: A1–A7 hold (frozen debt: "
+        "✅ architecture check: A1–A7, B18 and B24 hold (frozen debt: "
         f"{sum(recorded.get('commands_outside_gateways', {}).values())} gateway bypasses, "
         f"{len(recorded.get('cross_feature_imports', []))} cross-feature imports, "
         f"{sum(recorded.get('missing_ids', {}).values())} id-less tags, "
-        f"{sum(recorded.get('literal_attributes', {}).values())} literal attribute texts)"
+        f"{sum(recorded.get('literal_attributes', {}).values())} literal attribute texts, "
+        f"{sum(recorded.get('use_case_imports', {}).values())} use-case imports, "
+        f"{sum(recorded.get('sqlx_in_use_cases', {}).values())} sqlx lines in use cases)"
     )
     return 0
 

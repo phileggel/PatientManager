@@ -80,18 +80,6 @@ lane had missed locally (FLOW-001).
 - Costs: one sentence. Protects: about two hours on the next blind failure.
 - Decision (owner, 2026-10-04): after any failure of a gate, read the log; if it shows the cause, fix it; if not, the next push adds observation and makes the failure cheap, never a fix. From the first failure, for every gate. Stop and ask stays at three.
 
-## FLOW-003 — Rules only a reviewer enforces (from DEBT-023, DEBT-025)
-
-- Kind: quality + speed
-- Observed: B18 (a use case imports another) and B24 (sqlx outside a unit of work) are
-  checked by `reviewer-arch` alone. Both slipped past the local run and were caught in
-  CI. `just arch-check` runs in seconds and tests neither. Six existing files break the
-  two rules (DEBT-023, DEBT-025 stay in `techdebt.md` for the code).
-- Proposal: add both to `scripts/arch-check.py`, the six files frozen in the allowlist.
-- Costs: about 40 lines and their tests. Protects: the pre-commit hook catches what took
-  a CI round, and the reviewer stops being the only guard.
-- Decision (owner, 2026-10-04): add B18 and B24 to `scripts/arch-check.py`, the six existing files frozen in the allowlist.
-
 ## FLOW-005 — Skills nobody invoked
 
 - Kind: effort

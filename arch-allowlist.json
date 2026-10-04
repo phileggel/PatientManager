@@ -93,5 +93,14 @@
   },
   "literal_attributes": {
     "src/features/shell/DesignSystemPage.tsx": 34
+  },
+  "use_case_imports": {
+    "src-tauri/src/use_cases/excel_import/orchestrator.rs": 1,
+    "src-tauri/src/use_cases/fund_payment_manual_management/api.rs": 1
+  },
+  "sqlx_in_use_cases": {
+    "src-tauri/src/use_cases/bank_statement_reconciliation/label_mapping_repo.rs": 8,
+    "src-tauri/src/use_cases/db_backup/orchestrator.rs": 4,
+    "src-tauri/src/use_cases/excel_import/amount_mapping_repo.rs": 5
   }
 }

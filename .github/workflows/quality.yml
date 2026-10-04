@@ -102,7 +102,7 @@ jobs:
         # checked by pr-description.yml, which re-runs on every edit.
         run: python3 scripts/privacy-check.py
       - name: Architecture rules
-        # scripts/arch-check.py: A1–A7; today's debt is frozen in
+        # scripts/arch-check.py: A1–A7, B18, B24; today's debt is frozen in
         # arch-allowlist.json and may only shrink.
         run: python3 scripts/arch-check.py
       - name: Doc map and rule homes

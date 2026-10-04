@@ -121,7 +121,7 @@ refuses without them. The git hooks run only fast checks for the same scope; the
 unit tests never run in a hook (hooks export `GIT_DIR`).
 
 - **Lint, format, types, build** — `scripts/check.py`, every PR.
-- **Architecture rules A1–A7** — `scripts/arch-check.py`; today's debt is frozen in
+- **Architecture rules A1–A7, B18, B24** — `scripts/arch-check.py`; today's debt is frozen in
   `arch-allowlist.json` and may only shrink.
 - **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
   location of `docs/README.md`, every rule, entry and lesson ID defined once.
