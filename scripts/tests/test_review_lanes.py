@@ -1,7 +1,11 @@
 """Tests for scripts/review-lanes.sh — run with `just test-scripts`."""
 
 import json
+import os
+import re
+import shutil
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -12,6 +16,25 @@ def lanes(*paths, as_json=False):
     args = ["bash", str(SCRIPT)] + (["--json"] if as_json else [])
     out = subprocess.run(args, input="\n".join(paths) + "\n", capture_output=True, text=True, check=True).stdout
     return json.loads(out) if as_json else out.split()
+
+
+class RunFromACopy(unittest.TestCase):
+    """CI runs the base branch's lane map from a temp folder (review.yml): it must hold all the script needs."""
+
+    def test_the_lane_map_runs_from_the_files_the_review_workflow_copies(self):
+        workflow = (SCRIPT.parents[1] / ".github" / "workflows" / "review.yml").read_text(encoding="utf-8")
+        copied = re.search(r"for file in ([\w. -]+); do", workflow)
+        self.assertIsNotNone(copied, "review.yml no longer lists the files it copies beside the lane map")
+        with tempfile.TemporaryDirectory() as folder:
+            for name in copied.group(1).split():
+                shutil.copy(SCRIPT.parent / name, Path(folder) / name)
+            result = subprocess.run(
+                ["bash", str(Path(folder) / "review-lanes.sh"), "--json"],
+                input="justfile\n", capture_output=True, text=True, env=os.environ | {"USAGE_LOG": "off"},
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "", "a file the lane map needs is not in the list review.yml copies")
+        self.assertTrue(json.loads(result.stdout)["infra"])
 
 
 class ReviewLanes(unittest.TestCase):

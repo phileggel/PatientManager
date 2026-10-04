@@ -9,7 +9,9 @@ Exit: 0 every check green · 1 a check failed · 2 GitHub unreachable · 3 timed
 It reads the check runs of the head commit, the newest run per name, as
 `scripts/merge.py` does, and it is done only once every check named in
 `required-checks.json` has reported. A push moves the watch to the new head. A
-failed poll is retried: five in a row end the watch.
+failed poll is retried: five in a row end the watch. When a check has failed and
+the required ones still missing do not appear over four polls, the watch ends as
+failed: a job that starts others (the reviewer lanes) failed before starting them.
 
 Every line printed is something to act on (a failure when it lands, a stuck check,
 the verdict), so the script can run under a monitor without noise.
@@ -97,9 +99,10 @@ def watch(
     interval: float = 30,
     timeout: float = 1800,
     max_errors: int = 5,
+    patience: int = 4,
 ) -> int:
     deadline = clock() + timeout
-    head, errors, waiting = "", 0, ["the first answer"]
+    head, errors, stalled, waiting = "", 0, 0, ["the first answer"]
     told: set[tuple[str, str]] = set()
     while True:
         try:
@@ -116,7 +119,7 @@ def watch(
             if sha != head:
                 if head:
                     out(f"head moved to {sha[:7]}")
-                head, told = sha, set()
+                head, told, stalled = sha, set(), 0
             for run in runs:
                 kind = "stuck" if run.stuck else "failed" if run.done and run.conclusion not in PASSING else ""
                 if kind and (run.name, kind) not in told:
@@ -126,11 +129,14 @@ def watch(
             if state == "green":
                 out(f"ALL CHECKS GREEN on {sha[:7]}")
                 return 0
-            if state == "failing":
-                out(f"FINISHED WITH FAILURES on {sha[:7]}:")
-                for run in sorted(runs, key=lambda r: r.name):
-                    if run.name in names:
-                        out(f"  {_failure(run)}")
+            failed = [run for run in sorted(runs, key=lambda r: r.name) if run.done and run.conclusion not in PASSING]
+            # Everything that reported is done and something failed: what is still missing may never come.
+            stalled = stalled + 1 if failed and all(run.done for run in runs) else 0
+            if state == "failing" or stalled >= patience:
+                never = f" (never reported: {', '.join(names)})" if state == "running" else ""
+                out(f"FINISHED WITH FAILURES on {sha[:7]}{never}:")
+                for run in failed:
+                    out(f"  {_failure(run)}")
                 return 1
             waiting = names
         sleep(interval)

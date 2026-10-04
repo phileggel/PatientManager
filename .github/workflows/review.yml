@@ -69,12 +69,16 @@ jobs:
           if [[ "$ACTOR" == "dependabot[bot]" ]]; then
             lanes='{}'  # a missing lane reads as false: every lane skipped
           else
-            if [[ -z "$(git ls-tree --name-only "origin/$BASE" -- scripts/review-lanes.sh)" ]]; then
-              # Only while the base branch has no lane map yet (the PR adding it).
-              cp scripts/review-lanes.sh "$RUNNER_TEMP/review-lanes.sh"
-            else
-              git show "origin/$BASE:scripts/review-lanes.sh" > "$RUNNER_TEMP/review-lanes.sh"
-            fi
+            # The lane map and every file it sources: the copy runs outside scripts/
+            # (scripts/tests/test_review_lanes.py runs it from exactly this list).
+            for file in review-lanes.sh usage-log.sh usage_log.py; do
+              if [[ -z "$(git ls-tree --name-only "origin/$BASE" -- "scripts/$file")" ]]; then
+                # Only while the base branch does not have the file yet (the PR adding it).
+                cp "scripts/$file" "$RUNNER_TEMP/$file"
+              else
+                git show "origin/$BASE:scripts/$file" > "$RUNNER_TEMP/$file"
+              fi
+            done
             lanes=$(git diff --name-only "origin/$BASE...HEAD" | bash "$RUNNER_TEMP/review-lanes.sh" --json)
           fi
           echo "lanes=$lanes" >> "$GITHUB_OUTPUT"

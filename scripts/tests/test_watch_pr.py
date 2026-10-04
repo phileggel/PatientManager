@@ -126,6 +126,27 @@ class Watch(unittest.TestCase):
         self.assertEqual(self.out[:2], ["Backend: failure — https://x/1", "head moved to bbbbbbb"])
         self.assertEqual(code, 3)
 
+    def test_a_failure_that_keeps_required_checks_from_ever_reporting_ends_the_watch(self):
+        # gh#183: the job that starts the reviewer lanes failed, so the lanes never reported.
+        failed = [run("Lanes touched by the diff", "failure", run_id=5), run("Backend")]
+        code = self.watch([SHA], [failed] * 10, required=["Backend", "reviewer-infra", "reviewer-arch"])
+        self.assertEqual(code, 1)
+        self.assertEqual(
+            self.out,
+            [
+                "Lanes touched by the diff: failure — https://x/5",
+                "FINISHED WITH FAILURES on aaaaaaa (never reported: reviewer-infra, reviewer-arch):",
+                "  Lanes touched by the diff: failure — https://x/5",
+            ],
+        )
+
+    def test_a_failure_does_not_end_the_watch_while_another_check_still_runs(self):
+        running = [run("Frontend", "failure", run_id=5), run("Backend", status="in_progress")]
+        done = [run("Frontend", "failure", run_id=5), run("Backend")]
+        code = self.watch([SHA], [running] * 6 + [done] * 3, required=["Backend", "E2E"], patience=3)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.out[1], "FINISHED WITH FAILURES on aaaaaaa (never reported: E2E):")
+
     def test_the_watch_gives_up_at_its_timeout_and_names_what_runs(self):
         code = self.watch([SHA], [[run("Backend", status="in_progress")]] * 10, timeout=60, interval=30)
         self.assertEqual(code, 3)

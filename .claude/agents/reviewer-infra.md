@@ -58,6 +58,10 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 **Release sweep only** — end with `## CI improvement opportunities`: two to five proposals (build time, cost, observability, release, DX), each what, why and how.
 
+## Run from a copy
+
+`review.yml` runs the base branch's `scripts/review-lanes.sh` from a temp folder. A change that makes that script source or call a sibling file is a 🔴 unless the same diff adds the file to the list `review.yml` copies: the failure shows only on the pull requests that follow the merge (gh#183).
+
 ## Not a finding
 
 - A `pull_request` workflow runs its own YAML from the PR — GitHub's design; never suggest `pull_request_target`, which hands secrets to fork code.
