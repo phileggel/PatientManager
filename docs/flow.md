@@ -12,8 +12,12 @@ How an entry is written (owner, 2026-10-04):
 3. "Keep" is a verdict. Where nothing should change, the entry says so and why.
 4. A tool nobody used is named, with a verdict: keep, fold, or remove.
 
-Each entry has a permanent `FLOW-NNN` id (never reused; next free: FLOW-018). The owner
-picks what to do; an entry is removed once settled. Entries that came from `techdebt.md`
+Each entry has a permanent `FLOW-NNN` id (never reused; next free: FLOW-021). The owner
+picks what to do; a `Watch` line marks an entry with nothing to do but re-check; a decided entry carries a
+`Decision` line and can be queued in
+`docs/todo.md` § Next; an entry is removed once done, or once the verdict is to keep things
+as they are (FLOW-004, FLOW-012 and FLOW-016 were closed that way on 2026-10-04; FLOW-017 was done
+the same day). Entries that came from `techdebt.md`
 keep their old id in the title.
 
 ---
@@ -60,6 +64,7 @@ lane had missed locally (FLOW-001).
   no summary of what the change does. Count CI-only criticals in the next batch; if the
   count does not fall, the local run is not worth its minute and CI alone reviews.
 - Costs: nothing. Protects: one CI round (about 8 min) per miss.
+- Decision (owner, 2026-10-04): a local reviewer gets the branch, the spec and the vocabulary, never a description of the change; CI-only criticals are counted in the next batch.
 
 ## FLOW-002 — A CI-only failure was fixed blind three times
 
@@ -73,6 +78,7 @@ lane had missed locally (FLOW-001).
   and first makes the failure cheap (cache kept on failure, stop at the first failing
   file).
 - Costs: one sentence. Protects: about two hours on the next blind failure.
+- Decision (owner, 2026-10-04): after any failure of a gate, read the log; if it shows the cause, fix it; if not, the next push adds observation and makes the failure cheap, never a fix. From the first failure, for every gate. Stop and ask stays at three.
 
 ## FLOW-003 — Rules only a reviewer enforces (from DEBT-023, DEBT-025)
 
@@ -84,18 +90,7 @@ lane had missed locally (FLOW-001).
 - Proposal: add both to `scripts/arch-check.py`, the six files frozen in the allowlist.
 - Costs: about 40 lines and their tests. Protects: the pre-commit hook catches what took
   a CI round, and the reviewer stops being the only guard.
-
-## FLOW-004 — A merge sends every open pull request round again
-
-- Kind: speed
-- Observed: #169 ran 4 rounds and #170 ran 2 for changes of 93 and 12 lines; #161 ran a
-  last 18-min round after being green. `just merge` waives the round only when the
-  rebase moved record files. Merges were held back by hand to avoid more rounds.
-- Verdict: **keep, with one change.** The numbered queue forced closing pull requests to
-  merge one at a time; #173 removes that. Add `docs/flow.md` to the record files (done
-  with this file). A merge queue would rewrite `just merge` for a saving of minutes.
-- Habit that worked: one code pull request in CI at a time, the next built locally on
-  top of it and pushed after the merge.
+- Decision (owner, 2026-10-04): add B18 and B24 to `scripts/arch-check.py`, the six existing files frozen in the allowlist.
 
 ## FLOW-005 — Skills nobody invoked
 
@@ -115,6 +110,7 @@ lane had missed locally (FLOW-001).
   - `/setup-e2e` — **remove.** One-time setup, done.
   - `/prune` — **owner's call.** Not used in this session; no evidence either way.
 - Costs: the owner's decision. Protects: fewer prompts to keep true.
+- Decision (owner, 2026-10-04): remove `/techdebt`, `/session-reflect`, `/setup-e2e` and `/prune`; fold `/review-triage` into `docs/workflow.md` § 7; keep `/next-todo`; use `/spec-writer`, `/contract` and `/adr-writer` for every spec, contract and ADR.
 
 ## FLOW-006 — The review report files and their triage skill are bypassed
 
@@ -128,6 +124,7 @@ lane had missed locally (FLOW-001).
   CI keeps `scripts/review-path.sh`: its comment on the pull request is built from the
   file.
 - Costs: a prompt edit in `review-protocol.md`. Protects: one less path that half works.
+- Decision (owner, 2026-10-04): as proposed, with FLOW-005.
 
 ## FLOW-007 — Scripts and recipes nobody ran
 
@@ -141,6 +138,7 @@ lane had missed locally (FLOW-001).
     referenced by no document.
 - Verdict: **owner's call** for everything but `build.sh`: a recipe may be one the owner
   types by hand. Anything the owner does not use goes.
+- Decision (owner, 2026-10-04): remove `scripts/build.sh`, the `screenshot` and `preview-screenshot` recipes with their three scripts, `collect-logs` with its script, `check-safe` and `release-safe`. `stat` and `clean-branches` stay: the owner uses them.
 
 ## FLOW-008 — A reviewer job that ends without a report (with DEBT-015)
 
@@ -153,6 +151,7 @@ lane had missed locally (FLOW-001).
   exists, and says "fork: no token" instead of calling `gh`.
 - Costs: a few lines of workflow. Protects: a red check the agent can read instead of
   re-running.
+- Decision (owner, 2026-10-04): print the stop reason and the last error, retry the reviewer once, and fail only if the second try also writes nothing.
 
 ## FLOW-009 — Specs are checked one at a time, at closure (DEBT-018)
 
@@ -165,6 +164,7 @@ lane had missed locally (FLOW-001).
   as an entry the owner queues.
 - Costs: one agent run per touched spec (about 2 min). Protects: the specs' claim to
   describe the application.
+- Decision (owner, 2026-10-04): before each release, `spec-checker` on every spec the batch touched; findings filed as debt. No pass over the older documents.
 
 ## FLOW-010 — The owner was asked twice about one decision
 
@@ -177,6 +177,7 @@ lane had missed locally (FLOW-001).
   block of questions to the owner, each with its consequences, the new vocabulary in the
   same block.
 - Costs: the questions come some minutes later. Protects: a decision taken once.
+- Decision (owner, 2026-10-04): spec draft, then `spec-reviewer`, then the owner's questions — one at a time, each with its context and consequences, new vocabulary included. The agent asks during the work rather than guess.
 
 ## FLOW-011 — What the agent does before asking for a release
 
@@ -191,15 +192,7 @@ lane had missed locally (FLOW-001).
   and `main` are green, without being asked each time. `scripts/release.py` also writes
   the lockfile version.
 - Costs: one decision, a few lines. Protects: a release that waits on nobody's memory.
-
-## FLOW-012 — The release dry run builds one platform after the other
-
-- Kind: speed
-- Observed: 18 min. Building Linux beside Windows would save about 7 min, on the few
-  pull requests that touch the release workflows.
-- Verdict: **keep.** GitHub cannot make a job dependency conditional, so the Linux build
-  would move to a second reusable workflow, and its release path could only be proven by
-  the next real release.
+- Decision (owner, 2026-10-04): the agent runs `/dep-audit` and the security release sweep before asking for a release; the owner cuts it; the agent publishes the draft when the release workflow and `main` are green, and stops if anything is red. `scripts/release.py` writes the lockfile version.
 
 ## FLOW-013 — The pull-request size target counts generated files
 
@@ -209,6 +202,7 @@ lane had missed locally (FLOW-001).
 - Proposal: the target counts hand-written code and tests only. No pull request in this
   batch would then have needed a note.
 - Costs: one sentence in `docs/workflow.md` § 11. Protects: nothing but attention.
+- Decision (owner, 2026-10-04): one story per pull request; a target of about 400 hand-written lines per reviewer lane, a split above about 800; generated files, lockfiles, screenshots and spec documents not counted; no limit on the total. The 400 is the figure measured on human reviewers (SmartBear at Cisco); nothing measured exists for agent reviewers, so the next audit checks it against what CI found.
 
 ## FLOW-014 — Session helpers that disappear with the session
 
@@ -221,6 +215,7 @@ lane had missed locally (FLOW-001).
 - Proposal: both become scripts with tests (`scripts/watch-pr.sh`, a `close` mode in
   `scripts/whats-next.py`), the first one retrying on a network error.
 - Costs: about 80 lines. Protects: each session rewriting them, slightly differently.
+- Decision (owner, 2026-10-04): both helpers become tested scripts. Standing rule: a tool the flow needs is added for good and judged again at each release audit. With them, a usage log: one local file, not committed, one line per run of a script or recipe (time, tool, duration, result), emptied at each audit once its figures are in this file, and capped at about 5 000 lines. Skills and agents are counted from the session transcript until the owner adds a hook.
 
 ## FLOW-015 — The real-data folder is protected by a sentence only
 
@@ -230,21 +225,35 @@ lane had missed locally (FLOW-001).
 - Proposal: a deny rule in `.claude/settings.json` on the folder's path. The agent cannot
   edit permission lists; the owner adds it.
 - Costs: one line, by the owner. Protects: patient data from a careless command.
+- Waits on the owner: three deny lines to paste into `.claude/settings.json` (the settings
+  deny the agent any edit of that file).
 
-## FLOW-016 — The local harness before every push
+## FLOW-018 — The release notes say nothing
 
-- Kind: speed
-- Observed: `just harness` ran before each code push (3 to 5 min) and CI's Quality ran
-  the same checks again. No harness run failed on a defect in this batch: the hooks had
-  caught what there was. Two runs overlapped an edit and proved nothing.
-- Verdict: **keep for code, and re-measure.** It is the only local run of coverage and
-  of the build. If the next batch again shows no failure the hooks had not caught, the
-  harness becomes a tool for a doubt, not a step.
+- Kind: quality
+- Observed: the published release reads "See the release assets to download and install
+  this version"; `CHANGELOG.md` holds the real list. Whether the app's updater shows the
+  notes to the user is not checked yet.
+- Decision (owner, 2026-10-04): the release workflow puts the version's changelog section
+  into the release notes; the notes of v0.24.0 are fixed by hand.
 
-## FLOW-017 — A flow entry cannot be queued yet
+## FLOW-019 — The E2E tooling pulls advisories with no patched release (DEBT-019)
+
+- Kind: quality
+- Observed: `npm audit` reports 19 high advisories, all through `basic-ftp`, `braces` and
+  `extract-zip` under `@wdio/*` 9.32. None ships in the app: `npm audit --omit=dev`, the
+  weekly Security Audit gate, is clean. `braces` and `extract-zip` have no patched
+  release; the only fix npm offers is a downgrade to WebdriverIO 5.
+- Watch (owner, 2026-10-04): nothing to do until a fixed release exists; each `/dep-audit`
+  before a release re-checks it and the agent reports when one does.
+
+## FLOW-020 — Each E2E suite writes its own "open a management page" helper (DEBT-026)
 
 - Kind: effort
-- Observed: `scripts/whats-next.py` and `scripts/next-todo.sh` read `TODO-NNN` and
-  `DEBT-NNN` only.
-- Proposal: they read `FLOW-NNN` too, and `/whats-next` lists this file beside the debt.
-- Costs: a regex and its tests. Protects: the owner queuing a flow change like any other.
+- Observed: opening the management dialog and clicking a card is written again in
+  `e2e/patient-duplicate/`, `e2e/bank-statement-label/`, `e2e/patient/`, `e2e/fund/` and
+  `e2e/bank-account/`.
+- Proposal: one helper in `e2e/helpers/` replaces the copies.
+- Costs: one small pull request. Protects: a change of the dialog breaking five suites
+  in five ways.
+- Decision (owner, 2026-10-04): one shared helper in `e2e/helpers/`, used by the five suites.

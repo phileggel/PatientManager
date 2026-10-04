@@ -169,6 +169,57 @@ class Classification(unittest.TestCase):
         self.assertEqual([e.id for e in self.plan["debt"]], ["DEBT-006"])
 
 
+FLOW = """# Flow
+
+## FLOW-001 — Decided
+
+- Kind: speed
+- Decision (owner, 2026-10-04): do it.
+
+## FLOW-002 — Not decided
+
+- Kind: quality
+- Proposal: something.
+
+## FLOW-003 — Decided, not queued
+
+- Decision (owner, 2026-10-04): do it.
+"""
+
+
+class FlowEntries(unittest.TestCase):
+    def test_an_entry_is_workable_once_its_decision_is_written(self):
+        self.assertEqual(
+            [(f.id, f.title, f.decided) for f in plan.flow_entries(FLOW)],
+            [("FLOW-001", "Decided", True), ("FLOW-002", "Not decided", False), ("FLOW-003", "Decided, not queued", True)],
+        )
+
+    def test_a_flow_id_is_read_from_the_queue(self):
+        self.assertEqual(plan.queue("## Next\n\n- FLOW-001\n- TODO-002\n\n---\n"), ["FLOW-001", "TODO-002"])
+
+    def test_a_queued_flow_entry_waits_on_the_owner_until_decided(self):
+        buckets = plan.classify(["FLOW-001", "FLOW-002"], [], [], plan.flow_entries(FLOW))
+        self.assertEqual(
+            [(ref, waits) for ref, _, waits in buckets["queued"]],
+            [("FLOW-001", []), ("FLOW-002", ["the owner's decision"])],
+        )
+        self.assertEqual([f.id for f in buckets["flow"]], ["FLOW-003"])
+
+    def test_a_watch_entry_is_listed_as_such_and_never_ready_when_queued(self):
+        flows = plan.flow_entries("## FLOW-009 — Watched\n\n- Watch (owner, 2026-10-04): wait for upstream.\n")
+        self.assertTrue(flows[0].watch)
+        queued = plan.classify(["FLOW-009"], [], [], flows)["queued"]
+        self.assertEqual(queued[0][2], ["nothing to do: a watch entry"])
+        text = plan.render(plan.classify([], [], [], flows), [], lambda path: True)
+        self.assertIn("- FLOW-009 — Watched — watch", text)
+
+    def test_flow_entries_not_queued_are_listed(self):
+        buckets = plan.classify([], [], [], plan.flow_entries(FLOW))
+        text = plan.render(buckets, [], lambda path: True)
+        self.assertIn("- FLOW-001 — Decided", text)
+        self.assertIn("- FLOW-002 — Not decided — waits on: the owner's decision", text)
+
+
 class PullRequests(unittest.TestCase):
     def test_checks_are_summarised_worst_first(self):
         rollup = [

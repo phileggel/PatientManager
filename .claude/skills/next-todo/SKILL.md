@@ -1,7 +1,7 @@
 ---
 name: next-todo
-description: Runs one task end to end under docs/workflow.md — branch, design gate, acceptance tests, implementation, harness, reviewers, PR, merge on green, closure. The task is the first ready entry of docs/todo.md § Next (headless, no argument), an entry the human names (TODO-NNN / DEBT-NNN), or a plain request typed in chat. One task per invocation.
-argument-hint: "[TODO-NNN | DEBT-NNN | a request]"
+description: Runs one task end to end under docs/workflow.md — branch, design gate, acceptance tests, implementation, harness, reviewers, PR, merge on green, closure. The task is the first ready entry of docs/todo.md § Next (headless, no argument), an entry the human names (TODO-NNN / DEBT-NNN / FLOW-NNN), or a plain request typed in chat. One task per invocation.
+argument-hint: "[TODO-NNN | DEBT-NNN | FLOW-NNN | a request]"
 ---
 
 # Skill — `next-todo`
@@ -15,12 +15,14 @@ this file is the checklist.
   stop and report; never work on a dirty tree.
 - **Headless** (no argument): read `docs/todo.md` § Next and take the references in
   order. Nobody to ask: a question becomes a line in the entry's `**Open questions:**`.
-- **Chat, named entry** (`TODO-NNN` / `DEBT-NNN`): load it (`## TODO-NNN — …` in
-  `docs/todo.md`, `## … — DEBT-NNN — …` in `docs/techdebt.md`).
+- **Chat, named entry** (`TODO-NNN` / `DEBT-NNN` / `FLOW-NNN`): load it (`## TODO-NNN — …`
+  in `docs/todo.md`, `## … — DEBT-NNN — …` in `docs/techdebt.md`, `## FLOW-NNN — …` in
+  `docs/flow.md`).
 - **Chat, plain request**: the request is the task; no todo entry is created — the PR
   body is its record. Write its Done when into the opening brief.
 - **Ready** = a Done when exists, `**Open questions:** none`, and `**Design:**` is
-  `none` or `validated`. Headless: skip what is not ready; if nothing is, print which
+  `none` or `validated`. A flow entry is ready once it carries a `Decision` line; that
+  line is its Done when. Headless: skip what is not ready; if nothing is, print which
   questions block which entries and stop. Chat: ask all open questions together, once,
   before anything else; write the answers into the entry (they land in the same PR).
 
@@ -29,7 +31,7 @@ this file is the checklist.
 - Opening brief (chat: first message; headless: top of the PR body):
   **Task** — the entry or the request in one line · **Scope** — commit type and layers ·
   **Design** — none / validated / needed · **Touching** — the paths.
-- `git checkout -b <type>/todo-NNN-<slug>` (`<type>/debt-NNN-<slug>`, or
+- `git checkout -b <type>/todo-NNN-<slug>` (`<type>/debt-NNN-<slug>`, `<type>/flow-NNN-<slug>`, or
   `<type>/<slug>` for a plain request), `<type>` being the commit type the change will
   carry.
 - `TaskCreate` one task per step below; mark each `in_progress` / `completed`.
@@ -95,7 +97,7 @@ and names what a user notices.
 ## Step 9 — Closure
 
 In the same PR, before the merge: the entry removed from `docs/todo.md` (or
-`docs/techdebt.md`) together with its reference in § Next, techdebt the work resolved
+`docs/techdebt.md`, or `docs/flow.md`) together with its reference in § Next, techdebt the work resolved
 removed, `ARCHITECTURE.md` if a module appeared, design proposal images
 deleted. Then the closing brief: what changed for the user (or "nothing — internal"),
 what the project gained (tests, coverage); the PR number and where anything still owed

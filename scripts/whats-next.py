@@ -13,6 +13,7 @@ import json
 import re
 import subprocess
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,7 +27,8 @@ TODO_HEADING = re.compile(r"^## (TODO-\d{3}) — (.+?)\s*$", re.MULTILINE)
 DEBT_HEADING = re.compile(r"^## (\d{4}-\d{2}-\d{2}) — (DEBT-\d{3}) — (.+?)\s*$", re.MULTILINE)
 # One reference per line, as a plain list item. A numbered item is still read, so a
 # hand-edited queue is never silently empty.
-QUEUE_LINE = re.compile(r"^(?:-|\d+\.)\s+((?:TODO|DEBT)-\d{3})\b", re.MULTILINE)
+QUEUE_LINE = re.compile(r"^(?:-|\d+\.)\s+((?:TODO|DEBT|FLOW)-\d{3})\b", re.MULTILINE)
+FLOW_HEADING = re.compile(r"^## (FLOW-\d{3}) — (.+?)\s*$", re.MULTILINE)
 FIELD = re.compile(r"^\*\*(" + "|".join(FIELDS) + r"):\*\*", re.MULTILINE)
 
 
@@ -43,6 +45,14 @@ class Debt:
     date: str
     title: str
     where: str
+
+
+@dataclass
+class Flow:
+    id: str
+    title: str
+    decided: bool
+    watch: bool = False
 
 
 def queue(todo_text: str) -> list[str]:
@@ -77,6 +87,26 @@ def debt_entries(debt_text: str) -> list[Debt]:
     return entries
 
 
+def flow_entries(flow_text: str) -> list[Flow]:
+    """The entries of docs/flow.md; one is workable once the owner's decision is written."""
+    return [
+        Flow(
+            match.group(1),
+            match.group(2),
+            bool(re.search(r"^- Decision \(", body, re.MULTILINE)),
+            bool(re.search(r"^- Watch \(", body, re.MULTILINE)),
+        )
+        for match, body in _bodies(flow_text, FLOW_HEADING)
+    ]
+
+
+def flow_waits(flow: Flow) -> list[str]:
+    """Why a flow entry cannot be worked: a watch has nothing to do, an undecided one waits on the owner."""
+    if flow.watch:
+        return ["nothing to do: a watch entry"]
+    return [] if flow.decided else ["the owner's decision"]
+
+
 def waits_on(entry: Todo) -> list[str]:
     """What keeps an entry from being ready (docs/workflow.md § 2); empty when ready."""
     waits = [name for name in ("User value", "Done when") if not entry.fields.get(name)]
@@ -100,19 +130,26 @@ def missing_paths(where: str, exists) -> list[str]:
     return gone
 
 
-def classify(refs: list[str], todos: list[Todo], debts: list[Debt]) -> dict:
-    by_id: dict[str, Todo | Debt] = {e.id: e for e in [*todos, *debts]}
-    queued = []
-    for ref in refs:
-        entry = by_id.get(ref)
-        waits = ["no such entry"] if entry is None else waits_on(entry) if isinstance(entry, Todo) else []
-        queued.append((ref, entry, waits))
+def _waits(entry) -> list[str]:
+    if entry is None:
+        return ["no such entry"]
+    if isinstance(entry, Todo):
+        return waits_on(entry)
+    if isinstance(entry, Flow):
+        return flow_waits(entry)
+    return []
+
+
+def classify(refs: list[str], todos: list[Todo], debts: list[Debt], flows: Sequence[Flow] = ()) -> dict:
+    by_id: dict[str, Todo | Debt | Flow] = {e.id: e for e in [*todos, *debts, *flows]}
+    queued = [(ref, by_id.get(ref), _waits(by_id.get(ref))) for ref in refs]
     loose = [t for t in todos if t.id not in refs]
     return {
         "queued": queued,
         "ready": [t for t in loose if not waits_on(t)],
         "blocked": [(t, waits_on(t)) for t in loose if waits_on(t)],
         "debt": [d for d in debts if d.id not in refs],
+        "flow": [f for f in flows if f.id not in refs],
     }
 
 
@@ -168,6 +205,13 @@ def render(buckets: dict, pulls: list[dict] | None, exists) -> str:
     if not buckets["debt"]:
         lines.append("(none)")
 
+    lines += ["", "Flow, not queued (docs/flow.md):"]
+    lines += [
+        f"- {flow.id} — {flow.title}"
+        + (" — watch" if flow.watch else "" if flow.decided else " — waits on: the owner's decision")
+        for flow in buckets.get("flow", [])
+    ] or ["(none)"]
+
     lines.append("")
     if pulls is None:
         lines.append("Open pull requests: unknown (GitHub could not be asked)")
@@ -184,7 +228,9 @@ def render(buckets: dict, pulls: list[dict] | None, exists) -> str:
 def main() -> int:
     todo_text = (ROOT / "docs/todo.md").read_text(encoding="utf-8")
     debt_text = (ROOT / "docs/techdebt.md").read_text(encoding="utf-8")
-    buckets = classify(queue(todo_text), todo_entries(todo_text), debt_entries(debt_text))
+    flow_file = ROOT / "docs/flow.md"
+    flow_text = flow_file.read_text(encoding="utf-8") if flow_file.exists() else ""
+    buckets = classify(queue(todo_text), todo_entries(todo_text), debt_entries(debt_text), flow_entries(flow_text))
     print(render(buckets, open_pull_requests(), lambda path: (ROOT / path).exists()))
     return 0
 

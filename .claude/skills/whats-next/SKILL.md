@@ -12,7 +12,8 @@ it shows where every entry stands and proposes an order. It never decides.
 
 `python3 scripts/whats-next.py` (`just whats-next`). It classifies and nothing more:
 queued in order, ready but not queued, blocked with what each entry waits on, debt not
-queued, open pull requests with their checks. "unknown" means GitHub could not be
+queued, flow entries not queued (decided, waiting on the owner, or a watch), open pull
+requests with their checks. "unknown" means GitHub could not be
 asked — report it as unknown, never as none.
 
 ## Step 2 — Check the debt
@@ -28,6 +29,9 @@ Read `docs/techdebt.md`. For each entry not queued:
 
 Group entries that are one theme (same feature, same file, same cause) into one line.
 
+Read `docs/flow.md` the same way: an entry with a `Decision` line is workable; one
+without waits on the owner, and its question goes to them.
+
 ## Step 3 — Draft what blocks an entry
 
 An entry without a User value or a Done when cannot be queued. For each one the owner
@@ -42,7 +46,7 @@ Print, in this order:
 
 1. **In flight** — open pull requests and their checks; the queue as it stands.
 2. **Proposed queue** — references in order (written to `## Next` as a plain list,
-   `- TODO-NNN`), todo and debt entries together, one reason per line: what it unblocks, what it depends on, what it should ship with.
+   `- TODO-NNN`), todo, debt and decided flow entries together, one reason per line: what it unblocks, what it depends on, what it should ship with.
    Dependencies first; an entry waiting on the owner is not in the queue.
 3. **Needs you** — the decisions and the drafts from Steps 2 and 3, each as a question
    with a recommended answer.

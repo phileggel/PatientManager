@@ -26,16 +26,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ---
 
-## 2026-10-03 — DEBT-026 — E2E suites each carry their own "open a management page" helper
-
-**Found by:** reviewer-e2e (local run, branch `feat/todo-002-patient-duplicates`)
-
-**Where:** `e2e/patient-duplicate/patient-duplicate.test.ts`, `e2e/bank-statement-label/bank-statement-label.test.ts`, `e2e/patient/`, `e2e/fund/`, `e2e/bank-account/`
-
-**Observation:** Opening the management dialog and clicking a card is written again in each suite. One helper in `e2e/helpers/` would replace the copies.
-
----
-
 ## 2026-10-03 — DEBT-025 — Four use-case files name sqlx outside a unit of work
 
 **Found by:** reviewer-arch (CI run on PR #166, branch `feat/todo-011-diagnostic-report`)
@@ -63,16 +53,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 **Where:** `src-tauri/src/use_cases/excel_import/orchestrator.rs` (imports `procedure_orchestration::ProcedureOrchestrationService`), `src-tauri/src/use_cases/fund_payment_manual_management/api.rs` (injects `overpayment::OverpaymentOrchestrator`; see DEBT-003)
 
 **Observation:** B18 forbids a use case importing another use case. These two imports predate the check and were read as a precedent during TODO-017's local review, which let the same violation through until CI caught it. `just arch-check` does not test B18.
-
----
-
-## 2026-10-03 — DEBT-019 — WebdriverIO pulls three advisories that have no patched release
-
-**Found by:** `/dep-audit` (npm audit, branch `chore/dep-audit-blockers`)
-
-**Where:** `package-lock.json` — `basic-ftp`, `braces`, `extract-zip` under `@wdio/*` 9.32
-
-**Observation:** `npm audit` still reports 19 high advisories, all through these three packages, which the E2E tooling pulls and none of which ships in the app (`npm audit --omit=dev`, the weekly Security Audit gate, is clean). `braces` and `extract-zip` have no patched release; `basic-ftp` is pinned by `get-uri`. The only fix npm offers is a downgrade to WebdriverIO 5. Re-check when WebdriverIO 10 is stable.
 
 ---
 

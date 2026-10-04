@@ -6,7 +6,7 @@ in `/whats-next`.
 
 ## Next
 
-<!-- The queue: TODO-NNN / DEBT-NNN references in the order to work them. The agent takes -->
+<!-- The queue: TODO-NNN / DEBT-NNN / FLOW-NNN references in the order to work them. The agent takes -->
 <!-- the first ready one, removes a reference only in the PR that ships its entry, and -->
 <!-- stops when the list is empty. It reorders or adds only what the human validated in -->
 <!-- /whats-next. A plain list, in order: no numbers, so two pull requests that each -->
