@@ -222,18 +222,6 @@ lane had missed locally (FLOW-001).
   in five ways.
 - Decision (owner, 2026-10-04): one shared helper in `e2e/helpers/`, used by the five suites.
 
-## FLOW-021 — A CI reviewer read the base branch's skills as a revert
-
-- Kind: quality
-- Observed once, on gh#175: `reviewer-infra` raised two criticals saying two skill files
-  had "uncommitted changes reverting the branch's own commit". The branch held the text.
-  Likely cause, not confirmed: in CI the `.claude/` folder is the base branch's, so a
-  pull request cannot soften its own reviewer, and the reviewer took that state for a
-  revert. The next run did not repeat it.
-- Watch (agent, 2026-10-04): if it comes back, `review-protocol.md` says that `.claude/`
-  in CI is the base branch's by design and that the branch's version is read from the
-  diff.
-
 ## FLOW-022 — Questions to the owner come one at a time, with their context
 
 - Kind: quality
