@@ -67,7 +67,6 @@
       "Bash(sed -n *)",
       "Bash(awk *)",
       "Bash(command -v *)",
-      "Write(.review/**)",
       "Edit(.review/**)"
     ],
     "deny": [
@@ -90,8 +89,7 @@
       "Edit(.claude/settings.json)",
       "Bash(*com.projectsf.patient-manager*)",
       "Read(~/.local/share/com.projectsf.patient-manager/**)",
-      "Edit(~/.local/share/com.projectsf.patient-manager/**)",
-      "Write(~/.local/share/com.projectsf.patient-manager/**)"
+      "Edit(~/.local/share/com.projectsf.patient-manager/**)"
     ]
   },
   "hooks": {
