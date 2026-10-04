@@ -32,7 +32,7 @@ You review the security surface across `.rs`, `.ts`, `.tsx` and `capabilities/*.
 
 **Secrets** (any file) — a literal matching `sk-…`, `ghp_…`, `xox[baprs]-…`, `AKIA…` or a `PRIVATE KEY` block, a `password` / `secret` / `token` / `api_key` constant with a real value, or a committed `.env` 🔴; a secret-looking value formatted into a log 🟡.
 
-**Capabilities** (`src-tauri/capabilities/*.json`) — an unscoped shell-execute permission 🔴; an `http` allow-list of `*` 🔴; a permission nothing in `src/` uses 🟡; an `fs` scope wider than the app's reads and writes 🟡; a global clipboard write 🟡.
+**Capabilities** (`src-tauri/capabilities/*.json`) — an unscoped shell-execute permission 🔴; an `http` allow-list of `*` 🔴; a permission nothing in `src/` uses 🟡 (a plugin with no permission and no `src/` import is not unused when Rust calls it: grep `src-tauri/src` for `tauri_plugin_<name>::` before saying so); an `fs` scope wider than the app's reads and writes 🟡; a global clipboard write 🟡.
 
 **Cross-layer** — always a closing `## Cross-layer findings` section; in diff mode both layers must be in the diff. Look for: an unchecked path argument plus a broad `fs` scope; a token returned by a command and stored in `localStorage`; a gateway logging a result that holds credentials; a shell capability plus a command string built from input; a hardcoded secret that CI expects from a secret variable.
 

@@ -6,6 +6,36 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-04 — DEBT-029 — `just release` leaves the version in `package-lock.json` behind
+
+**Found by:** `/dep-audit` (`npm audit fix`, branch `chore/dep-audit-lockfile`)
+
+**Where:** `scripts/release.py` (`update_version_files`), `package-lock.json`
+
+**Observation:** The release script writes the new version to `package.json`, `Cargo.toml` and `tauri.conf.json`, not to `package-lock.json`: at tag v0.23.0 the lockfile still says 0.22.1. `npm ci` accepts it; any `npm install` rewrites the two lines as an unrelated diff.
+
+---
+
+## 2026-10-04 — DEBT-028 — `PATIENT_MANAGER_E2E_DB` redirects the database in release builds too
+
+**Found by:** reviewer-security (release-sweep on `main` 9c7f767)
+
+**Where:** `src-tauri/src/shared/infrastructure/db.rs` (`Database::new`)
+
+**Observation:** The environment variable the E2E suite uses to point the app at an ephemeral database is read by every build. Setting it needs control of the user's environment, so the risk is low; a `cfg` or feature gate would remove it from the shipped binary. The E2E build is a debug build, so `debug_assertions` would do.
+
+---
+
+## 2026-10-04 — DEBT-027 — The capability grants more than the screen uses
+
+**Found by:** reviewer-security (release-sweep on `main` 9c7f767)
+
+**Where:** `src-tauri/capabilities/default.json`
+
+**Observation:** `process:default` also grants exit, and `dialog:default` also grants message, ask and confirm; the screen only calls `relaunch`, `open` and `save`. Narrowing to `process:allow-restart`, `dialog:allow-open` and `dialog:allow-save` is a three-line change, but neither the relaunch after a restore nor the native dialogs are exercised by a test (the E2E suite overrides the dialogs, ADR-007): it needs a manual check on an installed build, so it was not done on the eve of a release.
+
+---
+
 ## 2026-10-03 — DEBT-026 — E2E suites each carry their own "open a management page" helper
 
 **Found by:** reviewer-e2e (local run, branch `feat/todo-002-patient-duplicates`)
