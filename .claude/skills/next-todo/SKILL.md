@@ -23,8 +23,10 @@ this file is the checklist.
 - **Ready** = a Done when exists, `**Open questions:** none`, and `**Design:**` is
   `none` or `validated`. A flow entry is ready once it carries a `Decision` line; that
   line is its Done when. Headless: skip what is not ready; if nothing is, print which
-  questions block which entries and stop. Chat: ask all open questions together, once,
-  before anything else; write the answers into the entry (they land in the same PR).
+  questions block which entries and stop. Chat: ask each open question alone, with the
+  context to answer it cold, and wait for the answer before the next; write the answers
+  into the entry (they land in the same PR). For an entry with a spec: spec draft,
+  `spec-reviewer`, then the questions.
 
 ## Step 1 — Opening brief, branch, task list
 
@@ -71,7 +73,8 @@ logs, fixtures, commits or PR text.
 ## Step 6 — Reviewers
 
 Launch exactly the lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh`
-prints, in one batch. Grade every finding (`docs/workflow.md` § 7) and apply the policy.
+prints, in one batch. Give each lane the branch, the spec and the vocabulary, never a
+description of the change. Grade every finding (`docs/workflow.md` § 7) and apply the policy.
 Run the lanes again on the fixes until no 🔴 remains.
 
 ## Step 7 — Evidence and commit
@@ -90,7 +93,9 @@ and names what a user notices.
   unreachable, 3 timed out).
 - A red reviewer lane: read its sticky comment, grade, apply, push. A CI finding the
   local run missed also becomes a rule in that reviewer's prompt, same PR.
-- Any other red: fix with `git commit --fixup <sha>` (never a new titled commit, never a
+- Any other red: read the log first. If it shows the cause, fix it; if not, the next
+  push adds observation and makes the failure cheap, never a fix (`docs/workflow.md`
+  § 8). Fix with `git commit --fixup <sha>` (never a new titled commit, never a
   force-push), push, watch again. The same gate red three times: open question, leave
   the PR open, stop.
 - All green: `just merge` — it folds the fixups, so the task lands as one commit.
