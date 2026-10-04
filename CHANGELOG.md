@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] - 2026-10-04
+
+### Added
+
+- warn before merging two patients whose INS differ
+- find same-name patients and merge them or mark them as different
+- save a diagnostic report with no patient data to send to support
+
+### Fixed
+
+- show the arrows in the reconciliation report instead of empty boxes
+- offer only Excel .xlsx files when importing
+
 ## [0.23.0] - 2026-10-03
 
 ### Added
