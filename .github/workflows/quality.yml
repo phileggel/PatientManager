@@ -233,7 +233,7 @@ jobs:
         # Pinned to full SHA for v2.87.20 — mutable tags are a supply-chain risk.
         # sqlx-cli version matches `sqlx` in Cargo.lock (0.8.6).
         if: steps.cache-sqlx-cli.outputs.cache-hit != 'true'
-        uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0
         with:
           tool: sqlx-cli@0.8.6
       - name: Setup sqlx-check DB
@@ -247,7 +247,7 @@ jobs:
       - name: Install cargo-llvm-cov and just
         # Pinned to full SHA for v2.87.20 — mutable tags are a supply-chain risk
         if: needs.scope.outputs.backend == 'true'
-        uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0
         with:
           tool: cargo-llvm-cov@0.8.7,just
       # Single source of truth: `just coverage-be` is the same recipe developers
