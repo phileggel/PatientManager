@@ -37,6 +37,20 @@ class RunFromACopy(unittest.TestCase):
         self.assertTrue(json.loads(result.stdout)["infra"])
 
 
+class TrustedHelpers(unittest.TestCase):
+    """The reviewer session runs helpers taken from the base branch (review.yml): so must be what they source."""
+
+    def test_every_file_a_trusted_helper_sources_is_taken_from_the_base_branch_too(self):
+        workflow = (SCRIPT.parents[1] / ".github" / "workflows" / "review.yml").read_text(encoding="utf-8")
+        trusted = re.search(r'git checkout "origin/\$BASE" -- ([^\n]+)', workflow)
+        self.assertIsNotNone(trusted, "review.yml no longer takes its helpers from the base branch")
+        paths = trusted.group(1).split()
+        for path in paths:
+            if path.endswith(".sh") and "usage-log.sh" in (SCRIPT.parents[1] / path).read_text(encoding="utf-8"):
+                self.assertIn("scripts/usage-log.sh", paths, f"{path} sources it")
+                self.assertIn("scripts/usage_log.py", paths, "usage-log.sh runs it")
+
+
 class ReviewLanes(unittest.TestCase):
     def test_docs_only_needs_no_reviewer(self):
         self.assertEqual(lanes("README.md", "docs/workflow.md", "screenshots/a.png"), [])

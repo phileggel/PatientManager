@@ -64,6 +64,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 ## Not a finding
 
+- A step `if:` with no status function (`success()`, `failure()`, `always()`, `cancelled()`) — GitHub adds `success() &&` to it, so the step is skipped once an earlier step failed. Only an `if:` that names a status function drops that guard.
 - A `pull_request` workflow runs its own YAML from the PR — GitHub's design; never suggest `pull_request_target`, which hands secrets to fork code.
 - The convention docs a reviewer reads come from the PR: a rule and its code change together, and the doc change is in the diff.
 - `app.security.csp: null` — a local desktop app; note it only when dynamic script appears (`reviewer-security`).

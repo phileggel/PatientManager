@@ -291,7 +291,7 @@ The audit reads `logs/usage.log`: one line per run of a script or a recipe (time
 duration, result), written by `scripts/usage_log.py`. The file is local, never
 committed, capped at 5 000 lines, and emptied once its figures are in `docs/flow.md`.
 A new script logs itself (`usage_log.start()` in Python, `. scripts/usage-log.sh` in
-shell); a recipe that runs no script depends on `(_used "<recipe>")`. Nothing is
+shell; a script that only CI runs does not); a recipe that runs no script depends on `(_used "<recipe>")`. Nothing is
 logged in CI. Skills and agents are counted from the session transcript.
 
 ### Release sweep

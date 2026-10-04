@@ -88,7 +88,8 @@ jobs:
     name: reviewer-${{ matrix.reviewer }}
     needs: lanes
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Two tries of a reviewer at worst (about 5 minutes each at 60 turns), with headroom.
+    timeout-minutes: 40
     permissions:
       contents: read
       # The report is a sticky comment on the pull request.
@@ -97,6 +98,27 @@ jobs:
       # Where the pinned action writes the session's execution log (verified
       # against v1 @ 9cdae7f in folioneer; re-check when the pin moves).
       SESSION_LOG: /home/runner/work/_temp/claude-execution-output.json
+      # What both tries of a reviewer are given (the second runs only when the
+      # first wrote no report).
+      REVIEW_PROMPT: |
+        You are the `reviewer-${{ matrix.reviewer }}` agent of this repository.
+        Read `.claude/agents/reviewer-${{ matrix.reviewer }}.md` and follow it
+        exactly, in its default diff-scoped mode, against the current branch
+        (the pull request's merge commit; `bash scripts/branch.sh files` and
+        `bash scripts/branch.sh diff <path> [<path> ...]` give the changed set and
+        the whole diff in one call).
+        Include `docs/ubiquitous-language.md` in your term checks. Save the
+        full report where the agent file says (`bash scripts/review-path.sh
+        reviewer-${{ matrix.reviewer }}`). Do not post comments or reviews
+        on GitHub yourself; the workflow does that from the saved file.
+        Be concise: one line per finding (location, claim, fix); no
+        restating of the diff, no narrative, no unrequested alternatives.
+      # 60 turns: an 11-file infra diff needed 48 (#139, 4.5 min); the job timeout keeps ample headroom.
+      REVIEW_ARGS: |
+        --model claude-sonnet-5
+        --max-turns 60
+        --allowedTools "Read" "Grep" "Glob" "Edit(.review/**)" "Bash(bash scripts/branch.sh *)" "Bash(bash scripts/review-path.sh *)" "Bash(git status)" "Bash(git rev-parse *)" "Bash(git ls-files)" "Bash(git ls-files *)" "Bash(grep *)" "Bash(ls *)" "Bash(wc *)" "Bash(shellcheck *)"
+        --disallowedTools "WebFetch" "WebSearch"
     strategy:
       fail-fast: false
       matrix:
@@ -139,8 +161,10 @@ jobs:
           persist-credentials: false
 
       - name: Give the branch helper a local main and trusted prompts and helpers
+        id: trusted
         # scripts/branch.sh resolves the diff base as merge-base(HEAD, main).
-        # The reviewer prompts and the two helpers the session runs come from the
+        # The reviewer prompts, the two helpers the session runs and the files
+        # those helpers source come from the
         # base branch, not from the pull request, so a PR can neither soften the
         # criteria that grade it nor change what the reviewer runs; a PR that
         # edits them still has that edit in its diff, and the new prompt applies
@@ -152,7 +176,14 @@ jobs:
         run: |
           set -euo pipefail
           git branch -f main "origin/$BASE"
-          git checkout "origin/$BASE" -- .claude/agents scripts/branch.sh scripts/review-path.sh
+          git checkout "origin/$BASE" -- .claude/agents scripts/branch.sh scripts/review-path.sh scripts/usage-log.sh scripts/usage_log.py
+          # The stop-reason helper runs beside a token (last step): the base
+          # branch's copy, or none at all on the pull request that adds it.
+          if git cat-file -e "origin/$BASE:scripts/review-stop-reason.py" 2>/dev/null; then
+            git checkout "origin/$BASE" -- scripts/review-stop-reason.py
+          else
+            rm -f scripts/review-stop-reason.py
+          fi
 
       - name: Run the reviewer prompt
         # The session reads a diff nobody has reviewed yet, so its shell is a
@@ -164,7 +195,12 @@ jobs:
         # that needs another command is refused it visibly; extend the list
         # on purpose. Nothing leaves the runner except the report and the
         # session log, both redacted below first.
-        if: steps.gate.outputs.run == 'true'
+        # Said outright, though an `if:` without a status function already implies
+        # success(): no session without the base branch's prompts and helpers.
+        if: steps.gate.outputs.run == 'true' && steps.trusted.outcome == 'success'
+        # A first try that fails or writes nothing is tried once more below; the
+        # last step fails the job when there is still no report.
+        continue-on-error: true
         uses: anthropics/claude-code-action@97c53473391bff1901034d4b454b5bac7ab7a029  # v1.0.239
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -172,25 +208,45 @@ jobs:
           # reviewer-infra FP (CI, PR #121): with a custom prompt the action posts
           # nothing itself — two runs left only the step below's sticky comment.
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: |
-            You are the `reviewer-${{ matrix.reviewer }}` agent of this repository.
-            Read `.claude/agents/reviewer-${{ matrix.reviewer }}.md` and follow it
-            exactly, in its default diff-scoped mode, against the current branch
-            (the pull request's merge commit; `bash scripts/branch.sh files` and
-            `bash scripts/branch.sh diff <path> [<path> ...]` give the changed set and
-            the whole diff in one call).
-            Include `docs/ubiquitous-language.md` in your term checks. Save the
-            full report where the agent file says (`bash scripts/review-path.sh
-            reviewer-${{ matrix.reviewer }}`). Do not post comments or reviews
-            on GitHub yourself; the workflow does that from the saved file.
-            Be concise: one line per finding (location, claim, fix); no
-            restating of the diff, no narrative, no unrequested alternatives.
-          # 60 turns: an 11-file infra diff needed 48 (#139, 4.5 min); the job timeout keeps ample headroom.
-          claude_args: |
-            --model claude-sonnet-5
-            --max-turns 60
-            --allowedTools "Read" "Grep" "Glob" "Edit(.review/**)" "Bash(bash scripts/branch.sh *)" "Bash(bash scripts/review-path.sh *)" "Bash(git status)" "Bash(git rev-parse *)" "Bash(git ls-files)" "Bash(git ls-files *)" "Bash(grep *)" "Bash(ls *)" "Bash(wc *)" "Bash(shellcheck *)"
-            --disallowedTools "WebFetch" "WebSearch"
+          prompt: ${{ env.REVIEW_PROMPT }}
+          claude_args: ${{ env.REVIEW_ARGS }}
+
+      - name: Say why the first try wrote no report
+        # A reviewer sometimes ends with nothing written and no cause in the log
+        # (FLOW-008). The reason is printed from named fields only: the session
+        # log is not redacted yet (scripts/review-stop-reason.py, the base branch's
+        # copy). A first try that crashed after writing its report is not retried:
+        # the report is what counts.
+        # Only after the trusted helpers are in place: a failed setup step is not
+        # retried, and never lets the pull request's copy of a helper run.
+        id: retry
+        if: ${{ steps.gate.outputs.run == 'true' && steps.trusted.outcome == 'success' && !cancelled() }}
+        shell: bash
+        env:
+          REVIEWER: ${{ matrix.reviewer }}
+        run: |
+          set -euo pipefail
+          if compgen -G ".review/reviewer-$REVIEWER-*.md" > /dev/null; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            why=$(python3 scripts/review-stop-reason.py "$SESSION_LOG" 2>/dev/null || echo "the stop reason is unavailable")
+            echo "::warning::reviewer-$REVIEWER wrote no report on its first try: $why. Trying once more."
+          fi
+
+      - name: Run the reviewer prompt again
+        if: ${{ steps.gate.outputs.run == 'true' && steps.retry.outputs.needed == 'true' && !cancelled() }}
+        # Like the first try: the last step decides, from the report.
+        continue-on-error: true
+        uses: anthropics/claude-code-action@97c53473391bff1901034d4b454b5bac7ab7a029  # v1.0.239
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The workflow token is enough: the session gets no GitHub tool.
+          # reviewer-infra FP (CI, PR #121): with a custom prompt the action posts
+          # nothing itself — two runs left only the step below's sticky comment.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: ${{ env.REVIEW_PROMPT }}
+          claude_args: ${{ env.REVIEW_ARGS }}
 
       - name: Redact secret-shaped strings from what leaves the runner
         # A prompt injection in a reviewed diff could steer the session into
@@ -240,6 +296,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
           REVIEWER: ${{ matrix.reviewer }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRUSTED: ${{ steps.trusted.outcome }}
         run: |
           set -euo pipefail
           report=$(ls -t .review/reviewer-"$REVIEWER"-*.md 2>/dev/null | head -n 1 || true)
@@ -247,8 +304,13 @@ jobs:
           if [[ -z "$report" ]]; then
             last=$(jq -r 'if type=="array" then .[] else . end | select(.type=="result") | .result // empty' \
               review-session.json 2>/dev/null | tail -c 1500 || true)
-            body=$(printf '%s\n## reviewer-%s — no report\n\nThe reviewer produced no report ([run](%s)); the check fails until it does.\n\nSession said:\n\n> %s\n' \
-              "$MARKER" "$REVIEWER" "$RUN_URL" "${last:-(no final message)}")
+            why="the stop reason is unavailable"
+            # This step holds a token: the helper runs only as the base branch's copy.
+            if [[ "$TRUSTED" == "success" ]]; then
+              why=$(python3 scripts/review-stop-reason.py review-session.json 2>/dev/null || echo "$why")
+            fi
+            body=$(printf '%s\n## reviewer-%s — no report\n\nThe reviewer produced no report in two tries ([run](%s)); the check fails until it does. On the second try %s.\n\nSession said:\n\n> %s\n' \
+              "$MARKER" "$REVIEWER" "$RUN_URL" "$why" "${last:-(no final message)}")
             criticals=1
           else
             criticals=$( { grep -Eo '🔴 [0-9]+ critical' "$report" || true; } | grep -Eo '[0-9]+' | head -n 1 || true)

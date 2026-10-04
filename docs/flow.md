@@ -51,19 +51,6 @@ lane had missed locally (FLOW-001).
 
 ---
 
-## FLOW-008 — A reviewer job that ends without a report (with DEBT-015)
-
-- Kind: quality
-- Observed: on #161 two CI reviewers ended with "no report" and "(no final message)";
-  the log gave no cause, and a re-run passed. Separately (DEBT-015): on a fork pull
-  request the step that posts the explanation fails on a raw `gh` error, because the
-  token is read-only; the job has already failed closed.
-- Proposal: `review.yml` prints the session's stop reason and last error when no report
-  exists, and says "fork: no token" instead of calling `gh`.
-- Costs: a few lines of workflow. Protects: a red check the agent can read instead of
-  re-running.
-- Decision (owner, 2026-10-04): print the stop reason and the last error, retry the reviewer once, and fail only if the second try also writes nothing.
-
 ## FLOW-011 — What the agent does before asking for a release
 
 - Kind: effort
