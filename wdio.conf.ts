@@ -1,7 +1,7 @@
 // wdio.conf.ts
 // Following the official tauri-apps/webdriver-example v2 pattern.
 //
-// Prerequisites (one-time setup — run /setup-e2e):
+// Prerequisites (one-time setup):
 //   npm install --save-dev @wdio/cli @wdio/local-runner @wdio/mocha-framework \
 //               @wdio/spec-reporter webdriverio @wdio/globals
 //   cargo install tauri-driver

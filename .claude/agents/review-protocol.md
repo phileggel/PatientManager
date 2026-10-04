@@ -33,11 +33,15 @@ Each `reviewer-*` prompt names its lane: the files it owns, the rules docs it lo
 
 One line per finding: location, claim, fix. Omit empty sections and clean files. Mark a critical `[DECISION]` only when its fix needs a domain or architecture choice nobody can make mechanically.
 
-## Save the report
+## The report
+
+Locally the reply is the report: write no file.
+
+In CI the invoking prompt asks for a saved report, because the workflow builds the pull request comment from it:
 
 1. `bash scripts/review-path.sh reviewer-{lane}` prints the report path.
 2. `Write` the full output there — the only path this reviewer ever writes.
-3. Reply with the same output, then one line: `Full report saved to {path}. Main agent: run /review-triage before applying any finding.`, or `All clean — report saved to {path}.`, or, when the write failed, `⚠️ Report not saved ({error}); the output above is the only copy.`
+3. Reply with the same output, then one line: `Full report saved to {path}.`, or `All clean — report saved to {path}.`, or, when the write failed, `⚠️ Report not saved ({error}); the output above is the only copy.`
 
 ## Rules for every lane
 

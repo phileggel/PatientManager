@@ -12,7 +12,7 @@ How an entry is written (owner, 2026-10-04):
 3. "Keep" is a verdict. Where nothing should change, the entry says so and why.
 4. A tool nobody used is named, with a verdict: keep, fold, or remove.
 
-Each entry has a permanent `FLOW-NNN` id (never reused; next free: FLOW-026). The owner
+Each entry has a permanent `FLOW-NNN` id (never reused; next free: FLOW-028). The owner
 picks what to do; a `Watch` line marks an entry with nothing to do but re-check; a decided entry carries a
 `Decision` line and can be queued in
 `docs/todo.md` § Next; an entry is removed once done, or once the verdict is to keep things
@@ -50,54 +50,6 @@ after a rebase that tested nothing new (FLOW-004), and findings CI made that the
 lane had missed locally (FLOW-001).
 
 ---
-
-## FLOW-005 — Skills nobody invoked
-
-- Kind: effort
-- Observed: of 13 skills, 4 were invoked (`/whats-next`, `/dep-audit`,
-  `/design-proposal`, `/visual-proof`). The agent did the work of the others by hand.
-- Verdicts:
-  - `/spec-writer`, `/contract`, `/adr-writer` — **keep, and use.** Two specs, two
-    contracts and one ADR were written by hand; the reviewers then raised 4 criticals on
-    spec format and 1 on ADR format, which the skills' templates prevent.
-  - `/techdebt` — **remove.** 9 entries written by hand with no finding on their form;
-    the format is three lines in `docs/workflow.md`.
-  - `/review-triage` — **fold into `docs/workflow.md` § 7** (FLOW-006).
-  - `/next-todo` — **keep.** The batch ran in chat straight from `docs/workflow.md`;
-    the skill is what the headless run reads.
-  - `/session-reflect` — **remove.** This file and its audit replace it.
-  - `/setup-e2e` — **remove.** One-time setup, done.
-  - `/prune` — **owner's call.** Not used in this session; no evidence either way.
-- Costs: the owner's decision. Protects: fewer prompts to keep true.
-- Decision (owner, 2026-10-04): remove `/techdebt`, `/session-reflect`, `/setup-e2e` and `/prune`; fold `/review-triage` into `docs/workflow.md` § 7; keep `/next-todo`; use `/spec-writer`, `/contract` and `/adr-writer` for every spec, contract and ADR.
-
-## FLOW-006 — The review report files and their triage skill are bypassed
-
-- Kind: effort
-- Observed: every finding was graded (a)/(b)/(c) in the pull request body, as § 7 asks.
-  `/review-triage` was never invoked, and it reads `.review/` files that several
-  local reviewers did not write ("report not saved"). `.review/` holds 167 files.
-  The reviewer's answer in the session is the report the agent works from.
-- Proposal: locally, the reviewer's answer is the report; drop the local write to
-  `.review/`, `scripts/list-fresh-reviews.sh`, `scripts/report-path.sh` and the skill.
-  CI keeps `scripts/review-path.sh`: its comment on the pull request is built from the
-  file.
-- Costs: a prompt edit in `review-protocol.md`. Protects: one less path that half works.
-- Decision (owner, 2026-10-04): as proposed, with FLOW-005.
-
-## FLOW-007 — Scripts and recipes nobody ran
-
-- Kind: effort
-- Observed in this session:
-  - `scripts/build.sh` — referenced by nothing. **Remove.**
-  - `scripts/collect-logs.sh`, `scripts/screenshot.sh`, `scripts/start-app.sh`,
-    `scripts/preview-screenshot.mjs` and their recipes — reached only from the
-    `justfile`, never run. `visual-proof-capture.mjs` does the screenshots.
-  - Recipes `check-safe`, `release-safe`, `stat`, `clean-branches` — never run,
-    referenced by no document.
-- Verdict: **owner's call** for everything but `build.sh`: a recipe may be one the owner
-  types by hand. Anything the owner does not use goes.
-- Decision (owner, 2026-10-04): remove `scripts/build.sh`, the `screenshot` and `preview-screenshot` recipes with their three scripts, `collect-logs` with its script, `check-safe` and `release-safe`. `stat` and `clean-branches` stay: the owner uses them.
 
 ## FLOW-008 — A reviewer job that ends without a report (with DEBT-015)
 
@@ -189,3 +141,32 @@ lane had missed locally (FLOW-001).
   becomes repository text, or is dropped as already said there, or stays private because
   it is about this machine only. From then on a new rule is written here in the same
   session it is given.
+
+## FLOW-026 — A rebase conflict on a pushed branch has no way through
+
+- Kind: speed
+- Observed: on 2026-10-04, gh#185 and gh#186 each removed an entry from `docs/flow.md`,
+  two neighbouring blocks. Once gh#186 merged, `just merge` on gh#185 stopped on the
+  conflict, as designed. Resolving it by hand rewrites the pushed commit, and the push
+  that follows is a force-push, which the rules forbid; `just merge` itself may
+  force-push after its own rebase, but refuses a branch rebased by hand. The way out was
+  a new branch and a replacement pull request (gh#187): one more CI round, one closed
+  pull request.
+- Proposal: `just merge` takes the resolution: on a conflict limited to record files
+  (`docs/todo.md`, `docs/techdebt.md`, `docs/flow.md`), it re-applies the entry removals
+  with the `close` mode instead of stopping; any other conflict still stops.
+- Costs: about 30 lines and their tests. Protects: one CI round and a duplicate pull
+  request each time two closures touch neighbouring entries, which a bundle makes likely.
+
+## FLOW-027 — The local harness runs both layers for a change to a script or a prompt
+
+- Kind: speed
+- Observed: on 2026-10-04, five pull requests that changed only `scripts/`, the
+  `justfile` or a skill prompt each waited about 12 minutes for `just harness`: the
+  frontend and backend suites with coverage, on code the change could not reach.
+  `scripts/changed-scope.sh` classes tooling as "run both", the same rule as CI.
+- Proposal: owner's call. Either keep it (a script such as `check.py` or `coverage-gate.py`
+  does decide what the layers run), or narrow "run both" to the scripts the layer checks
+  call, and let the others run the script tests only.
+- Costs: a rule to keep in step between `changed-scope.sh` and `quality.yml`. Protects:
+  about 10 minutes per tooling pull request.

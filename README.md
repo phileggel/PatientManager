@@ -96,8 +96,7 @@ App opens automatically with hot reload.
 ### Build
 
 ```bash
-./scripts/build.sh              # Linux/macOS
-npm run tauri:build             # Or directly
+npm run tauri:build
 ```
 
 Output: `src-tauri/target/release/bundle/`

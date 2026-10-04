@@ -54,7 +54,8 @@ job or a machine gate.
 ### `docs/techdebt.md` — agent-owned
 
 - Every entry carries a permanent id: `## YYYY-MM-DD — DEBT-NNN — title`. Numbers are
-  never reused.
+  never reused. Its body is three lines — `**Found by:**`, `**Where:**` (paths from the
+  repository root) and `**Observation:**` — and the newest entry goes first.
 - The agent files here: reviewer findings it did not fix, smells met on the way,
   proposals for new work, coverage holes, frozen architecture debt.
 - Entries are observations, not commitments. The human promotes one by queuing its
@@ -167,10 +168,13 @@ missed. Criticals that only CI found are counted at the audit (§ 12). Also:
 `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change,
 `spec-checker` before closing an entry that carries spec rules.
 
-Every finding, local or from CI, is graded and the outcome recorded in the PR body:
+Every finding, local or from CI, is graded before any is applied, and the outcome is
+recorded in the PR body, one line per finding that changed something or was rejected:
 
 - **(a)** in scope → fix in the PR.
 - **(b)** bigger, or outside the file set → `DEBT-NNN` entry, linked from the PR body.
+- **(c)** is never "pre-existing" alone: a rejection cites what overrides the finding —
+  a rule, a file, an ADR, a measurement, the owner's decision.
 - **(c) one-off** false positive → inline comment `<reviewer> FP: <reason> — see PR #NN`.
 - **(c) pattern** → a "not a finding" rule in the reviewer's prompt, same PR.
 - **A CI finding the local run missed** → a rule in that reviewer's prompt, same PR.
@@ -262,11 +266,12 @@ fix. It is never fixed unilaterally: it becomes an open question on the entry, o
 to the human in chat, and the PR stays open. Once the choice is made, record it with
 `/adr-writer` → `adr-reviewer` in `docs/adr/` before applying the fix.
 
-### Reviewer reports — `.review/`
+### Reviewer reports
 
-The `reviewer-*` agents save their full output to `.review/{slug}-{date}-{NN}.md` via
-`bash scripts/review-path.sh {slug}`; `/review-triage` reads them to grade findings.
-`.review/` is gitignored and safe to delete.
+Locally a reviewer's reply is its report; nothing is written. In CI the reviewer saves
+its output to `.review/{slug}-{date}-{NN}.md` (`bash scripts/review-path.sh {slug}`) and
+the workflow builds the pull request comment from that file. `.review/` is gitignored
+and safe to delete.
 
 ### Authoring rule — no compound shell in agent / skill prompts
 

@@ -121,20 +121,6 @@ generate-types: (_used "generate-types")
 regen-fixtures SURFACE='excel' SCENARIO='': (_used "regen-fixtures")
     cd src-tauri && cargo run --features dev-fixtures --bin generate_fixtures -- {{SURFACE}} {{SCENARIO}}
 
-# Collect logs for debugging
-collect-logs:
-    ./scripts/collect-logs.sh
-
-# Take a screenshot of the app
-screenshot:
-    ./scripts/screenshot.sh
-
-# Take a frontend visual proof screenshot for a component (see docs/visual-proof-rules.md)
-# One-time setup: npx playwright install chromium
-# Requires: preview.html + src/__preview__/main.tsx (gitignored, create per task then delete)
-preview-screenshot COMPONENT:
-    node scripts/preview-screenshot.mjs {{COMPONENT}}
-
 # Generate frontend coverage report (outputs coverage/frontend/lcov.info)
 coverage-fe: (_used "coverage-fe")
     npm run test:coverage
@@ -155,14 +141,5 @@ coverage-be: (_used "coverage-be")
 coverage-gate *ARGS:
     python3 scripts/coverage-gate.py {{ARGS}}
 
-# Generate both coverage reports (run before /prune)
+# Generate both coverage reports
 coverage: coverage-fe coverage-be
-
-# Resource-capped check-full: runs the full quality suite in a memory-throttled, low-priority
-# cgroup so heavy builds stay responsive on low-RAM machines (requires a systemd user session)
-check-safe:
-    systemd-run --user --scope -p MemoryHigh=4G -p CPUWeight=20 nice -n19 just check-full
-
-# Resource-capped release: same memory guard around the full release flow
-release-safe *ARGS:
-    systemd-run --user --scope -p MemoryHigh=4G -p CPUWeight=20 nice -n19 just release {{ARGS}}

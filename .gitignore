@@ -76,6 +76,6 @@ screenshots/**/.console-errors.json
 # CI artifacts on failure (see .github/workflows/e2e.yml). Never committed.
 screenshots/e2e-failures/
 
-# Reviewer agent reports — local outputs from reviewer-* agents,
-# consumed by /review-triage (see docs/workflow.md § Reviewer reports). Never committed.
+# Reviewer agent reports — written by the reviewer-* agents in CI, where the pull
+# request comment is built from them (docs/workflow.md § Reviewer reports). Never committed.
 .review/
