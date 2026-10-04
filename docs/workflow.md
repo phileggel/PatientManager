@@ -60,6 +60,9 @@ job or a machine gate.
   proposals for new work, coverage holes, frozen architecture debt.
 - Entries are observations, not commitments. The human promotes one by queuing its
   `DEBT-NNN` in Next; `/whats-next` proposes debt entries beside todo entries.
+- An entry may carry its own gate ("when next touched", "not as a sweep", "when a third
+  consumer appears"). Read the whole entry before proposing or working it: the gate is
+  honoured, or the override is put to the human — never swept silently.
 
 ## 3. The loop — one run, one task
 
@@ -128,7 +131,9 @@ proofs are the record.
 `just harness` runs it locally, scoped to the layers the branch touched; the same
 checks are required on every pull request (`required-checks.json`), and `just merge`
 refuses without them. The git hooks run only fast checks for the same scope; the script
-unit tests never run in a hook (hooks export `GIT_DIR`).
+unit tests never run in a hook (hooks export `GIT_DIR`). Nothing is run by hand just
+before a commit or a push: the hooks do it, and `just harness` is for wanting CI's
+answer before pushing.
 
 - **Lint, format, types, build** — `scripts/check.py`, every PR.
 - **Architecture rules A1–A7, B18, B24** — `scripts/arch-check.py`; today's debt is frozen in
@@ -138,7 +143,9 @@ unit tests never run in a hook (hooks export `GIT_DIR`).
 - **Tests with coverage** — Vitest and `cargo llvm-cov`, for the layers a PR touches;
   pushes to `main` run both.
 - **Coverage floors** — `scripts/coverage-gate.py` + `coverage-gates.json`, logic code
-  only; a ratchet, never lowered.
+  only; a ratchet, never lowered. A gap is closed with tests on real branches. A file
+  leaves the measure only when it is generated or holds no logic, never to reach a
+  number: an honest lower figure on untested pass-through code is accepted.
 - **Patient data** — `scripts/privacy-check.py`: no SSN or IBAN with valid check digits,
   no private value in a log call, no real data file; in the hooks, on the tree, and on
   the PR description (`pr-description.yml`).
@@ -159,6 +166,13 @@ unit tests never run in a hook (hooks export `GIT_DIR`).
 - **Ubiquitous language** in every identifier (`docs/ubiquitous-language.md`).
 - **No patient data** in logs, commits, fixtures or PR text.
 - **Surgical:** touch the file set the task needs; boyscout inside it, never beyond.
+- **Read the gold first.** Before changing a pattern that has a named reference (the
+  `bank-account` feature, B0, the error model), open and read it; if it contradicts
+  the design in mind, the gold wins.
+- **Check the ADRs before writing "cannot".** Before stating that something cannot be
+  done, tested or automated, grep `docs/adr/`: a solved constraint is recorded there.
+- **A moved or removed symbol** is searched by its bare name and by every `pub use`
+  that re-exports it, not by its canonical path alone (lesson TL-006).
 
 ## 7. Reviewers and the triage policy
 
@@ -183,6 +197,13 @@ recorded in the PR body, one line per finding that changed something or was reje
 - **(c) pattern** → a "not a finding" rule in the reviewer's prompt, same PR.
 - **A CI finding the local run missed** → a rule in that reviewer's prompt, same PR.
 - **`[DECISION]`** → see Conventions below.
+- **A 🔴 security finding on the agent's own change** is fixed, or put to the human with
+  its options. The agent never clears it with a "not a finding" rule it writes itself:
+  that would soften the gate that grades its own work.
+- **A 🔴 security finding that already exists on `main`**, outside the task: shown to the
+  human with that context and three options — file it as debt and ship the scoped
+  change (the default), widen this pull request, or block. Never deferred silently. A
+  finding the pull request introduces blocks.
 
 ## 8. Budget and stop rules
 
@@ -198,7 +219,8 @@ recorded in the PR body, one line per finding that changed something or was reje
 - **Never:** touch the installed application's data
   (`~/.local/share/com.projectsf.patient-manager/` holds real patient data), push to
   `main`, force-push, bypass a hook, edit a released changelog line, change Next
-  without the human's yes (§ 2), cut a release.
+  without the human's yes (§ 2), cut a release, edit `.claude/settings.json` (the human
+  edits it; the agent commits that edit through a pull request).
 
 ## 9. Where the loop runs
 
@@ -312,6 +334,23 @@ committed, capped at 5 000 lines, and emptied once its figures are in `docs/flow
 A new script logs itself (`usage_log.start()` in Python, `. scripts/usage-log.sh` in
 shell; a script that only CI runs does not); a recipe that runs no script depends on `(_used "<recipe>")`. Nothing is
 logged in CI. Skills and agents are counted from the session transcript.
+
+### Shell calls
+
+A headless run has nobody to approve a command, so every shell call is one command the
+allow list in `.claude/settings.json` names:
+
+- no `cd … &&`, no `&&` or `;` chain: `git -C <path>` or an absolute path reaches
+  another directory; a multi-line edit goes through `python3 - <<'EOF'`;
+- a message or a body goes in a file (`gh pr create --body-file`), never on the command
+  line;
+- calls that depend on each other run one after another, never in one parallel batch:
+  the first failure cancels the rest;
+- an empty result is read as a result, not probed again with `echo` or `pwd`;
+- a command whose text names the installed application's identifier is refused by the
+  deny list, even a `grep`: search for it with the search tool, and read paths and log
+  formats from the source;
+- a command the list lacks is named to the human, who adds it; the agent does not.
 
 ### Release sweep
 

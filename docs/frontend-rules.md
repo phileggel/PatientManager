@@ -82,6 +82,8 @@ Stateful UI state has three legitimate homes, distinguished by scope:
 | FE-persisted settings  | UI prefs (theme, locale, layout)     | `infra/settings/`       |
 | Feature-local UI state | Single-feature draft/modal state     | `features/{x}/store.ts` |
 
+No server-state library (TanStack Query, SWR): one user, one process and an in-process backend leave no cache to revalidate, so a Zustand store is the whole mechanism.
+
 The shared cache is seeded by initial fetches and updated via Tauri events. Cross-feature reads of the shared cache MUST go through each feature's own gateway (which reads selectors from the cache); direct cross-feature store imports remain a SHOULD-NOT per **F26**.
 
 Widget-local runtime state (e.g. snackbar mount internals) stays colocated with the widget in `ui/components/`. The `infra/` exclusion above refers only to that widget-local case — app-wide singletons are explicitly included.
@@ -116,6 +118,7 @@ These directories MAY exist alongside the 4 buckets and are not subject to the r
 - Maps raw backend types to display-ready structures (labels, formatted amounts, etc.)
 - Keeps hooks and components free of formatting/transformation logic
 - MUST be pure functions — easy to unit test independently
+- A `.tsx` file exports components only. A pure transformation — a comparator, a filter, a derivation, a formatter — lives in a colocated `.ts` (usually `shared/{topic}.ts`) with its own test, and the component imports it.
 
 ## Component
 

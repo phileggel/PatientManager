@@ -80,3 +80,15 @@ useEffect(() => {
 **Lesson.** A change to a script that CI runs from the base branch is not tested by its own pull request. Before merging one, run the script the way CI does: from a folder that holds only the files `review.yml` copies. `scripts/tests/test_review_lanes.py` now does exactly that, from the list in the workflow. When a watch shows a failed check and required checks that never appear, read the failed job first: it is the one that starts the others.
 
 **Reference.** `.github/workflows/review.yml` (step "Map changed files to reviewer lanes"); `scripts/tests/test_review_lanes.py::RunFromACopy`; `scripts/watch-pr.py` (`patience`).
+
+---
+
+## Refactoring
+
+### TL-006 — A moved symbol is reachable by more paths than its own
+
+**Problem.** A PDF text extractor moved from a use case to `shared/infrastructure/`. The impact check searched its canonical path only. The old module also re-exported the function (`pub use pdf_extractor::extract_pdf_text;` in its `mod.rs`), and two integration tests imported it by that flat path. They compile only with `--features dev-fixtures`, which the local full check does not enable, so everything was green until the Dev Fixtures workflow failed on `main` after the merge.
+
+**Lesson.** Before moving or removing a symbol: search its bare name, read the `mod.rs` of the module it leaves for `pub use` lines and search each re-exported path, and look at which surfaces only CI compiles (feature-gated tests, E2E). When a structural change touches one of those, compile it locally with the feature on (`cargo check --all-features`) before pushing.
+
+**Reference.** `docs/workflow.md` § 6; the Dev Fixtures job in `.github/workflows/`.

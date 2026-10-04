@@ -72,23 +72,6 @@ lane had missed locally (FLOW-001).
   in five ways.
 - Decision (owner, 2026-10-04): one shared helper in `e2e/helpers/`, used by the five suites.
 
-## FLOW-025 — Rules that live only in the agent's private memory
-
-- Kind: quality
-- Observed: the agent keeps about forty notes outside the repository, most of them rules
-  the owner gave in chat (how to brief a reviewer, never to pre-run checks, how to watch
-  a pull request, what a commit title is). Five were added in this session alone: the
-  release steps, the questions rule, this audit, how to work under the new deny rule on
-  the data folder, how to handle a Dependabot pull request. A rule kept there binds one
-  agent on one machine; a headless run, a CI reviewer or another session never sees it,
-  and the owner cannot read or correct it.
-- Decision (owner, 2026-10-04): a rule about how we work belongs in the repository. This
-  file records it first; working the entry writes it into its home (`CLAUDE.md`,
-  `docs/workflow.md` or a rules document). One pass goes through the existing notes: each
-  becomes repository text, or is dropped as already said there, or stays private because
-  it is about this machine only. From then on a new rule is written here in the same
-  session it is given.
-
 ## FLOW-026 — A rebase conflict on a pushed branch has no way through
 
 - Kind: speed

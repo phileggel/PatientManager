@@ -32,14 +32,20 @@ any AI attribution. No SSN, IBAN or patient name — the `commit-msg` hook refus
   layer tags, rule ids, code identifiers or abbreviations.
 - Pick the other types by **what the change touches**, not by how large it feels. A
   change to production code is never `chore`; a change to none is never `refactor`.
-  Removing dead production code is `refactor`.
+  Removing dead production code is `refactor`; removing only tests, mocks or fixtures
+  is `test`.
+- A change whose whole point is to make wrong behaviour right is a `fix`, however rare
+  the case and however small the diff. It never rides a `refactor` branch or sweep: it
+  gets its own pull request, and its changelog line.
 
 ## One task, one commit
 
 A task (a todo entry, a techdebt entry, a request) lands on `main` as **one** commit:
 review fixes, coverage top-ups and closure edits belong inside it.
 
-- Before the first push: fold locally (`git commit --amend`).
+- Before the first push: fold locally (`git commit --amend`). Fold only what
+  `git log origin/<branch>..HEAD` lists: a commit already on the remote is never
+  rewritten.
 - After a push: `git commit --fixup <sha>` and push. `just merge` folds every `fixup!`
   into the commit it names; the hook and CI accept `fixup! <valid title>`. Never
   force-push by hand, never `squash!` / `amend!`.
