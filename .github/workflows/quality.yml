@@ -230,7 +230,7 @@ jobs:
             ~/.cargo/bin/cargo-sqlx
           key: sqlx-cli-0.8.6-both-${{ runner.os }}
       - name: Install sqlx-cli
-        # Pinned to full SHA for v2.87.20 — mutable tags are a supply-chain risk.
+        # Pinned to a full SHA — mutable tags are a supply-chain risk.
         # sqlx-cli version matches `sqlx` in Cargo.lock (0.8.6).
         if: steps.cache-sqlx-cli.outputs.cache-hit != 'true'
         uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0
@@ -245,7 +245,7 @@ jobs:
         # --skip-tests: the suite runs once, under llvm-cov, two steps below.
         run: python3 scripts/check.py --backend --skip-tests
       - name: Install cargo-llvm-cov and just
-        # Pinned to full SHA for v2.87.20 — mutable tags are a supply-chain risk
+        # Pinned to a full SHA — mutable tags are a supply-chain risk
         if: needs.scope.outputs.backend == 'true'
         uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0
         with:

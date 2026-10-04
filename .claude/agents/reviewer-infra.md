@@ -65,3 +65,4 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 - `app.security.csp: null` — a local desktop app; note it only when dynamic script appears (`reviewer-security`).
 - A hook that fails when a script it calls is missing — failing closed is intended; never suggest `[ -f … ] || exit 0`.
 - GNU-only flags in `scripts/` — they run on Linux; Windows CI steps declare their own shell.
+- A deny rule in `.claude/settings.json` that starts with a wildcard — `Bash(*name*)` refuses any command whose text contains the name (tested on 2026-10-04: an `echo` naming the folder was refused, and so was a `Read` inside it). "Matches literal prefixes" is about the allow list.
