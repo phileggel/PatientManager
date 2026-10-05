@@ -111,6 +111,8 @@ Service-layer state-dependent pre-checks are an "anemic domain" anti-pattern: th
 - **State-mutating actions:** `aggregate.action_from(self, ...) -> Result<Self, {BC}Error>` consuming `self`, returning the new state for the caller to persist. The aggregate enforces its own invariants in the constructor of the result.
 - **Pre-conditions for non-constructive ops** (e.g. delete): `aggregate.ensure_<predicate>(&self) -> Result<(), {BC}Error>`. The service calls it just before invoking the destructive action.
 
+**B45** — A question about a group of an enum's variants is a method on the enum, in the domain (`ProcedureStatus::is_blocking`). A call site MUST NOT list the variants itself, and an SQL predicate MUST build its list from that method rather than write the stored strings. A workflow status with many values is normal; what breaks is two hand-written lists that answer the same question and drift apart (DEBT-031, DEBT-032).
+
 Service-layer checks are appropriate ONLY for cross-aggregate invariants (uniqueness across the BC) or application-layer concerns (`NotFound`, cross-BC preconditions). See the rejection-layer rule in `ddd-reference.md` § Errors for the disambiguation.
 
 ## Bounded Context (`/context`)

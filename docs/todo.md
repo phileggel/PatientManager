@@ -24,7 +24,6 @@ in `/whats-next`.
 - TODO-013
 - FLOW-020
 - TODO-008
-- TODO-005
 - TODO-004
 - TODO-018
 - DEBT-011
@@ -42,20 +41,6 @@ in `/whats-next`.
 **User value:** none directly — a decision on whether `UnreconciledProcedure` is a real domain concept, so later features stop adding projections case by case.
 
 **Done when:** an ADR records whether `UnreconciledProcedure` stays a projection or folds into `Procedure`, with the rule for adding any future projection; if it folds, the code changes in the same PR; `docs/ubiquitous-language.md` follows the decision.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-005 — (domain/procedure) — Review `ProcedureStatus`: de-conflate workflow status and payment/result status
-
-`ProcedureStatus` has grown into a denormalized cross-product of two distinct axes baked into one column: the **workflow stage** (`Created` → `Reconciled` → bank-confirmed) and the **payment/result outcome** (full vs partial, fund vs direct, overpaid/refunded). That is why variants like `PartiallyReconciled` / `PartiallyFundPayed` exist — each is `(stage × result)`. The set is now 11 variants and growing, and every new payment situation added as a flat variant forces all `payment_status` queries + match sites to treat near-synonyms alike (e.g. "eligible for reconciliation" = `Created` and anything that behaves like it). The PRO-310 **Overdue** concept was deliberately kept _derived_ (frontend-only, not a 12th variant) precisely to avoid feeding this conflation — but the underlying tension remains. Genuinely review whether the two axes should be normalized into separate fields (a workflow-stage status + an orthogonal payment-result / annotation), or whether the flat enum stays and is simply documented as such. This is an architectural call (likely an ADR), done deliberately — **not** a sweep and not a side-effect of a feature. Surfaced during the procedure-overdue work (2026-06-21).
-
-**User value:** none directly — a recorded decision on splitting workflow stage from payment result, so a new payment situation no longer means a new status touching every query.
-
-**Done when:** an ADR decides between two fields (workflow stage and payment result) and the flat enum, and documents each of the 11 variants as a stage and a result. If the split is chosen, the migration becomes its own entry.
 
 **Design:** none
 
