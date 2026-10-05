@@ -46,16 +46,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ---
 
-## 2026-10-04 — DEBT-028 — `PATIENT_MANAGER_E2E_DB` redirects the database in release builds too
-
-**Found by:** reviewer-security (release-sweep on `main` 9c7f767)
-
-**Where:** `src-tauri/src/shared/infrastructure/db.rs` (`Database::new`)
-
-**Observation:** The environment variable the E2E suite uses to point the app at an ephemeral database is read by every build. Setting it needs control of the user's environment, so the risk is low; a `cfg` or feature gate would remove it from the shipped binary. The E2E build is a debug build, so `debug_assertions` would do.
-
----
-
 ## 2026-10-04 — DEBT-027 — The capability grants more than the screen uses
 
 **Found by:** reviewer-security (release-sweep on `main` 9c7f767)

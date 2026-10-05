@@ -22,6 +22,18 @@ fn pending_path_for(db_path: &Path) -> PathBuf {
         .join(format!("{DATABASE_FILENAME}.pending"))
 }
 
+/// Where the database file lives. `e2e_override` is the value of
+/// `PATIENT_MANAGER_E2E_DB`, which the E2E suite sets to point the app at an
+/// ephemeral database. It is honoured in a debug build only: the E2E binary is
+/// one (`tauri build --debug`), and a shipped binary must not let an
+/// environment variable move the database away from the user's data.
+fn db_path_for(app_data_dir: &Path, e2e_override: Option<String>, debug_build: bool) -> PathBuf {
+    match e2e_override {
+        Some(e2e_path) if debug_build => PathBuf::from(e2e_path),
+        _ => app_data_dir.join(DATABASE_FILENAME),
+    }
+}
+
 /// Database manager for patient operations
 pub struct Database {
     pool: SqlitePool,
@@ -30,13 +42,11 @@ pub struct Database {
 
 impl Database {
     pub async fn new(app_data_dir: PathBuf, is_db_reset: bool) -> Result<Self> {
-        // E2E test suite sets this env var to redirect to an isolated ephemeral database,
-        // keeping test data fully separated from the developer's real app data.
-        let db_path = if let Ok(e2e_path) = std::env::var("PATIENT_MANAGER_E2E_DB") {
-            PathBuf::from(e2e_path)
-        } else {
-            app_data_dir.join(DATABASE_FILENAME)
-        };
+        let db_path = db_path_for(
+            &app_data_dir,
+            std::env::var("PATIENT_MANAGER_E2E_DB").ok(),
+            cfg!(debug_assertions),
+        );
 
         // Apply pending import if one was staged by import_database (R10/R11).
         let pending_path = pending_path_for(&db_path);
@@ -496,6 +506,38 @@ mod tests {
             pending_path_for(&e2e_db),
             PathBuf::from("/tmp/patient_manager.db.pending"),
         );
+    }
+
+    #[test]
+    fn debt_028_a_debug_build_follows_the_e2e_override() {
+        let app_data = PathBuf::from("/var/lib/PatientManager");
+
+        assert_eq!(
+            db_path_for(&app_data, Some("/tmp/e2e.db".to_string()), true),
+            PathBuf::from("/tmp/e2e.db"),
+        );
+    }
+
+    #[test]
+    fn debt_028_a_release_build_ignores_the_e2e_override() {
+        let app_data = PathBuf::from("/var/lib/PatientManager");
+
+        assert_eq!(
+            db_path_for(&app_data, Some("/tmp/e2e.db".to_string()), false),
+            app_data.join(DATABASE_FILENAME),
+        );
+    }
+
+    #[test]
+    fn debt_028_without_an_override_the_database_is_under_the_app_data_folder() {
+        let app_data = PathBuf::from("/var/lib/PatientManager");
+
+        for debug_build in [true, false] {
+            assert_eq!(
+                db_path_for(&app_data, None, debug_build),
+                app_data.join(DATABASE_FILENAME),
+            );
+        }
     }
 
     /// Edge: `db_path` without a parent (root-level) falls back to `.`,
