@@ -20,6 +20,8 @@ export function formatPatientError(err: PatientError): {
       return { key: "patient:errors.non_anonymous_requires_name" };
     case "InvalidSsn":
       return { key: "patient:errors.invalid_ssn" };
+    case "PatientNotFound":
+      return { key: "patient:errors.patient_not_found" };
     case "DatabaseError":
       return { key: "patient:errors.database_error" };
   }

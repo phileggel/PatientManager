@@ -53,6 +53,7 @@
     "name_empty": "Patient name cannot be empty",
     "non_anonymous_requires_name": "A non-anonymous patient must have a name",
     "invalid_ssn": "SSN must be 13 numeric digits",
+    "patient_not_found": "Patient not found",
     "database_error": "An unexpected database error occurred"
   },
   "duplicates": {

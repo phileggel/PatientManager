@@ -6,6 +6,16 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-05 — DEBT-037 — The patient feature has no spec
+
+**Found by:** contract-reviewer (branch `fix/patient-edit-is-validated`)
+
+**Where:** `docs/contracts/patient-contract.md`
+
+**Observation:** the patient contract was derived from the code; no `docs/spec/` document states the patient rules (a name is required unless anonymous, an SSN is 13 ASCII digits, an edit validates only what it changes), so they carry no rule id and no `spec-checker` reads them. Owner's decision: write a patient spec with `/spec-writer`, or keep the contract as the only record.
+
+---
+
 ## 2026-10-05 — DEBT-036 — `RESET_DATABASE` deletes the database in release builds too
 
 **Found by:** reviewer-security (a note on branch `refactor/todo-016-core-without-the-shell`; pre-existing)

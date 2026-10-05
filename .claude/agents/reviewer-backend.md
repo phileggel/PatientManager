@@ -21,6 +21,7 @@ You review Rust code quality. Follow `.claude/agents/review-protocol.md`; this f
 - A bare unit variant on a `#[serde(untagged)]` composite — it serialises to `null`; it belongs in the `{UseCase}Task` sub-enum 🔴.
 - A per-BC `*ApplicationError` / `*DomainError` split 🟡; two composite wrappers whose BC enums share a `code` 🟡.
 - An infra failure mapped to a `{BC}Error` without `tracing::error!(target: BACKEND, …)` at that call site 🟡; `anyhow` without `.context(…)` in infra code, or a bare `?` carrying an opaque error across the repository → service boundary 🟡.
+- A missing record (a service-layer not-found) answered with the infra catch-all `DatabaseError` instead of its own `{BC}Error` variant 🔴 — the frontend can no longer tell a caller's mistake from a database failure (decision tree of `error-model.md`).
 - `unwrap()` / `expect()` outside tests 🔴.
 
 **Repositories** (where a repository exists)
@@ -34,6 +35,10 @@ You review Rust code quality. Follow `.claude/agents/review-protocol.md`; this f
 **Idioms**
 
 - `#[allow(clippy::…)]` without a reason 🟡; a needless `.clone()` 🟡; a one-arm `match` that is an `if let` 🔵; repeated `push` with a known size instead of `with_capacity` 🔵.
+
+**Vocabulary** (`docs/ubiquitous-language.md`, B5/B6)
+
+- A new method on an aggregate root that the glossary's method table does not list 🟡 — the term is the owner's to confirm, and the table changes in the same pull request.
 
 **Tests** (`docs/test-rules.md`)
 

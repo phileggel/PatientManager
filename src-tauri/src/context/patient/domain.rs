@@ -115,6 +115,36 @@ impl Patient {
         self
     }
 
+    /// What this stored patient becomes when a user edits its name and SSN: the
+    /// name trimmed, a blank SSN read as none, everything else kept. Only a value
+    /// the edit changes is validated — one stored before a rule existed must not
+    /// block the correction of the other.
+    pub fn edit(&self, name: Option<String>, ssn: Option<String>) -> Result<Self, PatientError> {
+        let name = name.map(|name| name.trim().to_string());
+        let ssn = ssn
+            .map(|ssn| ssn.trim().to_string())
+            .filter(|ssn| !ssn.is_empty());
+        // The stored values are compared as the edit is read: trimmed, blank as none.
+        // Otherwise a stored value with a stray space would count as changed.
+        let stored_name = self.name.as_deref().map(str::trim);
+        let stored_ssn = self
+            .ssn
+            .as_deref()
+            .map(str::trim)
+            .filter(|ssn| !ssn.is_empty());
+        if name.as_deref() != stored_name {
+            Self::validate_name(&name, self.is_anonymous)?;
+        }
+        if ssn.as_deref() != stored_ssn {
+            Self::validate_ssn(&ssn)?;
+        }
+        Ok(Self {
+            name,
+            ssn,
+            ..self.clone()
+        })
+    }
+
     /// Restores a Patient from database storage (no validation).
     /// Data from storage is already validated.
     #[allow(clippy::too_many_arguments)]
@@ -147,6 +177,11 @@ impl Patient {
         is_anonymous: bool,
         ssn: &Option<String>,
     ) -> Result<(), PatientError> {
+        Self::validate_name(name, is_anonymous)?;
+        Self::validate_ssn(ssn)
+    }
+
+    fn validate_name(name: &Option<String>, is_anonymous: bool) -> Result<(), PatientError> {
         if !is_anonymous {
             match name {
                 Some(n) if n.trim().is_empty() => return Err(PatientError::NameEmpty),
@@ -154,13 +189,16 @@ impl Patient {
                 _ => {}
             }
         }
+        Ok(())
+    }
 
+    fn validate_ssn(ssn: &Option<String>) -> Result<(), PatientError> {
         if let Some(s) = ssn {
-            if s.len() != 13 || !s.chars().all(|c| c.is_numeric()) {
+            // 13 ASCII digits: `is_numeric` would also accept other scripts' digits.
+            if s.len() != 13 || !s.bytes().all(|b| b.is_ascii_digit()) {
                 return Err(PatientError::InvalidSsn);
             }
         }
-
         Ok(())
     }
 }
@@ -214,6 +252,97 @@ mod tests {
             patient_with(None, None).absorb(&patient_with(None, Some(("2026-03-10", 300))));
         assert_eq!(merged.latest_procedure_amount, Some(300));
         assert!(merged.latest_date.is_some());
+    }
+
+    #[test]
+    fn an_edit_refuses_an_ssn_that_is_not_13_digits() {
+        let stored = patient_with(Some("1234567890123"), None);
+        let result = stored.edit(stored.name.clone(), Some("12345".to_string()));
+        assert!(matches!(result, Err(PatientError::InvalidSsn)));
+    }
+
+    #[test]
+    fn an_ssn_is_13_ascii_digits_and_nothing_else() {
+        // Arabic-Indic digits are numeric but not ASCII; 13 bytes of them are fewer than 13 digits.
+        for refused in ["١٢٣٤٥٦٧٨٩٠١٢٣", "123456789012²", "12345678901٣"] {
+            let result = Patient::new(
+                false,
+                Some("Marie Dupont".to_string()),
+                Some(refused.to_string()),
+            );
+            assert!(matches!(result, Err(PatientError::InvalidSsn)), "{refused}");
+        }
+        assert!(Patient::new(
+            false,
+            Some("Marie Dupont".to_string()),
+            Some("1234567890123".to_string())
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn an_edit_refuses_a_blank_name() {
+        let stored = patient_with(None, None);
+        let result = stored.edit(Some("   ".to_string()), None);
+        assert!(matches!(result, Err(PatientError::NameEmpty)));
+        let result = stored.edit(None, None);
+        assert!(matches!(
+            result,
+            Err(PatientError::NonAnonymousRequiresName)
+        ));
+    }
+
+    #[test]
+    fn an_edit_validates_only_what_changed() {
+        // An SSN stored before the rule existed must not block a name correction.
+        let stored = patient_with(Some("legacy-ssn"), None);
+        let edited = stored
+            .edit(
+                Some("Marie Durand".to_string()),
+                Some("legacy-ssn".to_string()),
+            )
+            .expect("an unchanged SSN is not validated again");
+        assert_eq!(edited.name.as_deref(), Some("Marie Durand"));
+        assert_eq!(edited.ssn.as_deref(), Some("legacy-ssn"));
+    }
+
+    #[test]
+    fn an_edit_does_not_take_a_stray_space_in_a_stored_value_for_a_change() {
+        let stored = patient_with(Some(" legacy-ssn "), None);
+        let edited = stored.edit(
+            Some("Marie Durand".to_string()),
+            Some("legacy-ssn".to_string()),
+        );
+        assert!(
+            edited.is_ok(),
+            "the SSN is the stored one, trimmed: it is not validated again"
+        );
+    }
+
+    #[test]
+    fn an_edit_trims_the_name_and_reads_a_blank_ssn_as_none() {
+        let stored = patient_with(Some("1234567890123"), None);
+        let edited = stored
+            .edit(Some("  Marie Durand ".to_string()), Some("   ".to_string()))
+            .expect("valid edit");
+        assert_eq!(edited.name.as_deref(), Some("Marie Durand"));
+        assert_eq!(edited.ssn, None);
+
+        let edited = stored
+            .edit(stored.name.clone(), Some(" 9876543210987 ".to_string()))
+            .expect("valid edit");
+        assert_eq!(edited.ssn.as_deref(), Some("9876543210987"));
+    }
+
+    #[test]
+    fn an_edit_keeps_everything_but_the_name_and_the_ssn() {
+        let stored = patient_with(None, Some(("2026-03-10", 300)));
+        let edited = stored
+            .edit(Some("Marie Durand".to_string()), None)
+            .expect("valid edit");
+        assert_eq!(edited.id, stored.id);
+        assert_eq!(edited.latest_date, stored.latest_date);
+        assert_eq!(edited.latest_procedure_amount, Some(300));
     }
 
     #[test]

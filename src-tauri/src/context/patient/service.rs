@@ -76,7 +76,20 @@ impl PatientService {
         })
     }
 
-    /// Update an existing patient
+    /// Save a user's edit of a patient's name and SSN (the `update_patient`
+    /// command). The stored patient decides what the edit becomes
+    /// (`Patient::edit`): nothing else of what the caller sent is written.
+    pub async fn edit_patient(&self, patient: Patient) -> Result<Patient, PatientError> {
+        let stored = self.read_patient(&patient.id).await?.ok_or_else(|| {
+            tracing::warn!(target: BACKEND, patient_id = %patient.id, "edit_patient: no such patient");
+            PatientError::PatientNotFound
+        })?;
+        let edited = stored.edit(patient.name, patient.ssn)?;
+        self.update_patient(edited).await
+    }
+
+    /// Write a patient as given: the tracking fields the procedure flows
+    /// maintain. A user's edit goes through `edit_patient`.
     pub async fn update_patient(&self, patient: Patient) -> Result<Patient, PatientError> {
         let result = self.repository.update_patient(patient).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "update_patient: repository failed");
@@ -335,6 +348,62 @@ mod tests {
         let service = PatientService::new(Arc::new(mock), event_bus);
         let result = service.find_patient_by_name("Marie Dupont").await.unwrap();
         assert_eq!(result.map(|p| p.id), Some("patient-77".to_string()));
+    }
+
+    // --- edit_patient ---
+
+    fn stored_patient() -> Patient {
+        Patient::restore(
+            "patient-42".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            Some("1234567890123".to_string()),
+            None,
+            None,
+            None,
+            Some(4200),
+        )
+    }
+
+    fn service_with_stored(patient: Option<Patient>, saves: usize) -> PatientService {
+        let mut mock = MockPatientRepository::new();
+        mock.expect_read_patient()
+            .returning(move |_| Ok(patient.clone()));
+        mock.expect_update_patient().times(saves).returning(Ok);
+        PatientService::new(Arc::new(mock), Arc::new(EventBus::new()))
+    }
+
+    #[tokio::test]
+    async fn edit_patient_refuses_an_invalid_ssn_and_saves_nothing() {
+        let service = service_with_stored(Some(stored_patient()), 0);
+        let mut edit = stored_patient();
+        edit.ssn = Some("12345".to_string());
+
+        let result = service.edit_patient(edit).await;
+
+        assert!(matches!(result, Err(PatientError::InvalidSsn)));
+    }
+
+    #[tokio::test]
+    async fn edit_patient_saves_the_name_and_ssn_onto_the_stored_patient() {
+        let service = service_with_stored(Some(stored_patient()), 1);
+        let mut edit = stored_patient();
+        edit.name = Some(" Marie Durand ".to_string());
+        edit.latest_procedure_amount = Some(1); // a stale copy from the screen
+
+        let saved = service.edit_patient(edit).await.unwrap();
+
+        assert_eq!(saved.name.as_deref(), Some("Marie Durand"));
+        assert_eq!(saved.latest_procedure_amount, Some(4200));
+    }
+
+    #[tokio::test]
+    async fn edit_patient_of_an_unknown_patient_is_not_found() {
+        let service = service_with_stored(None, 0);
+
+        let result = service.edit_patient(stored_patient()).await;
+
+        assert!(matches!(result, Err(PatientError::PatientNotFound)));
     }
 
     // --- update_patient ---

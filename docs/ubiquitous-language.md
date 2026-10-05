@@ -286,6 +286,7 @@ from code and proposed for confirmation.
 | Method             | Domain intent                                                | Status transition | Status    |
 | ------------------ | ------------------------------------------------------------ | ----------------- | --------- |
 | `correct_ssn(ssn)` | Override SSN from PDF auto-correction (PDF is authoritative) | —                 | confirmed |
+| `edit(name, ssn)`  | A user changes the name and SSN in the edit form             | —                 | confirmed |
 
 > ⚠️ Code discrepancy: `patient.ssn = Some(pdf_ssn)` mutated directly in
 > `use_cases/fund_payment_reconciliation/orchestrator.rs:1103`.

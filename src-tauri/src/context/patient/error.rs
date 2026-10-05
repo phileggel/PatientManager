@@ -23,6 +23,10 @@ pub enum PatientError {
     #[error("SSN must be 13 numeric digits")]
     InvalidSsn,
 
+    /// The patient an edit names is not stored (deleted meanwhile, or never there).
+    #[error("Patient not found")]
+    PatientNotFound,
+
     /// Infra failure from the repository / sqlx layer. The underlying error
     /// is logged via `tracing::error!` at the call site; the wire surface
     /// carries no detail to avoid leaking implementation specifics.
@@ -48,6 +52,10 @@ mod tests {
         assert_eq!(
             to_value(PatientError::InvalidSsn).unwrap(),
             json!({ "code": "InvalidSsn" }),
+        );
+        assert_eq!(
+            to_value(PatientError::PatientNotFound).unwrap(),
+            json!({ "code": "PatientNotFound" }),
         );
         assert_eq!(
             to_value(PatientError::DatabaseError).unwrap(),

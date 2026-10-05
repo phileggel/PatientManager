@@ -2034,6 +2034,10 @@ export type PatientError =
  */
 { code: "InvalidSsn" } | 
 /**
+ * The patient an edit names is not stored (deleted meanwhile, or never there).
+ */
+{ code: "PatientNotFound" } | 
+/**
  * Infra failure from the repository / sqlx layer. The underlying error
  * is logged via `tracing::error!` at the call site; the wire surface
  * carries no detail to avoid leaking implementation specifics.

@@ -240,6 +240,11 @@ describe("PatientPresenter", () => {
       expect(result.params).toBeUndefined();
     });
 
+    it("maps PatientNotFound to its key", () => {
+      const err: PatientError = { code: "PatientNotFound" };
+      expect(formatPatientError(err)).toEqual({ key: "patient:errors.patient_not_found" });
+    });
+
     it("maps DatabaseError to the database_error key", () => {
       const err: PatientError = { code: "DatabaseError" };
       expect(formatPatientError(err)).toEqual({ key: "patient:errors.database_error" });

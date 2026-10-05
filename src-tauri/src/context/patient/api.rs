@@ -44,7 +44,7 @@ pub async fn update_patient(
 ) -> Result<Patient, PatientError> {
     tracing::info!(target: BACKEND, patient_id = ?patient.id, "Processing update patient request");
 
-    service.update_patient(patient).await.inspect(|patient| {
+    service.edit_patient(patient).await.inspect(|patient| {
         tracing::info!(target: BACKEND, patient_id = ?patient.id, "Patient updated successfully");
     })
 }

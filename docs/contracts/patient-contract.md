@@ -8,11 +8,11 @@
 
 ### `add_patient`
 
-Creates a new patient. Used both from the inline-creation form inside the procedure modal (POC R9) and from batch import flows. SSN is optional; if provided it must be valid (13 ASCII digits).
+Creates a new patient. Used both from the inline-creation form inside the procedure modal (POC R9) and from batch import flows. SSN is optional; if provided it must be valid (13 ASCII digits). A patient created here is never anonymous, so a name is required.
 
-- **Args:** `name: String, ssn: String`
+- **Args:** `name: Option<String>, ssn: Option<String>`
 - **Returns:** `Patient`
-- **Errors:** `InvalidSsn`
+- **Errors:** `NameEmpty`, `NonAnonymousRequiresName`, `InvalidSsn`, `DatabaseError`
 
 ---
 
@@ -22,27 +22,27 @@ Returns all patients. Used to populate the patient ComboboxField in the procedur
 
 - **Args:** —
 - **Returns:** `Vec<Patient>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
 ### `update_patient`
 
-Updates an existing patient's name and/or SSN.
+Saves a user's edit of a patient's name and SSN onto the stored patient. The name is trimmed and a blank SSN is read as none. Only a value the edit changes is validated: a name that became blank (for a patient who is not anonymous) or an SSN that is not 13 ASCII digits is refused, while a value stored before these rules existed does not block the correction of the other. Nothing else of the `Patient` sent is written — the tracking fields stay as stored.
 
 - **Args:** `patient: Patient`
 - **Returns:** `Patient`
-- **Errors:** `PatientNotFound`, `InvalidSsn`
+- **Errors:** `NameEmpty`, `NonAnonymousRequiresName`, `InvalidSsn`, `PatientNotFound`, `DatabaseError`
 
 ---
 
 ### `delete_patient`
 
-Hard-deletes a patient record.
+Soft-deletes a patient: the record is marked deleted and leaves every read. An unknown id is not an error.
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `PatientNotFound`
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -54,11 +54,15 @@ struct Patient {
     name: Option<String>,
     ssn: Option<String>,         // 13 ASCII digits when present
     is_anonymous: bool,
-    // tracking fields (updated by procedure_orchestration use case):
-    // latest_date, latest_procedure_type, latest_fund, latest_procedure_amount
+    temp_id: Option<String>,                // batch import only; absent on the wire otherwise
+    // tracking fields, written by the procedure flows, never by `update_patient`:
+    latest_procedure_type: Option<String>,  // procedure type id
+    latest_fund: Option<String>,            // fund id
+    latest_date: Option<NaiveDate>,
+    latest_procedure_amount: Option<i64>,   // thousandths of a euro
 }
 ```
 
 ## Events
 
-None — patient mutations do not emit domain events directly.
+`PatientUpdated` — published after `add_patient`, `update_patient` and `delete_patient` succeed; the frontend reloads its patients on it.
