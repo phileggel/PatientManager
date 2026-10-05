@@ -1,12 +1,13 @@
 {
   "version": 1,
   "identifier": "default",
-  "description": "Default capability allowing native dialogs, updater, and process control. The renderer no longer holds direct filesystem read/write capabilities — backend Tauri commands own all file I/O.",
+  "description": "Default capability allowing the open and save file dialogs, the updater, and a restart of the application. The renderer no longer holds direct filesystem read/write capabilities — backend Tauri commands own all file I/O.",
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
     "updater:default",
-    "process:default"
+    "process:allow-restart"
   ]
 }

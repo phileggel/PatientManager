@@ -46,16 +46,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ---
 
-## 2026-10-04 — DEBT-027 — The capability grants more than the screen uses
-
-**Found by:** reviewer-security (release-sweep on `main` 9c7f767)
-
-**Where:** `src-tauri/capabilities/default.json`
-
-**Observation:** `process:default` also grants exit, and `dialog:default` also grants message, ask and confirm; the screen only calls `relaunch`, `open` and `save`. Narrowing to `process:allow-restart`, `dialog:allow-open` and `dialog:allow-save` is a three-line change, but neither the relaunch after a restore nor the native dialogs are exercised by a test (the E2E suite overrides the dialogs, ADR-007): it needs a manual check on an installed build, so it was not done on the eve of a release.
-
----
-
 ## 2026-10-03 — DEBT-025 — Four use-case files name sqlx outside a unit of work
 
 **Found by:** reviewer-arch (CI run on PR #166, branch `feat/todo-011-diagnostic-report`)
