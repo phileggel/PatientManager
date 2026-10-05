@@ -116,7 +116,6 @@
     "src/features/fund-payment-match/shared/utils.ts",
     "src/features/fund-payment/shared/validatePayment.ts",
     "src/features/fund/shared/validateFund.ts",
-    "src/features/patient/shared/validatePatient.ts",
     "src/features/procedure-type/shared/validateProcedureType.ts",
     "src/features/procedure/model/date.logic.ts",
     "src/features/procedure/model/overdue.logic.ts",

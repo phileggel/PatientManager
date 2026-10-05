@@ -1,6 +1,11 @@
 import type { Fund, Patient, PatientError, ProcedureType } from "@/bindings";
 import type { PatientFormData, PatientRow } from "./types";
 
+/** Rust's two ways of saying the name is missing: shown under the name field, not as a toast. */
+export function isNameMissing(err: PatientError): boolean {
+  return err.code === "NameEmpty" || err.code === "NonAnonymousRequiresName";
+}
+
 /**
  * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping.
  * Returns `{ key, params }`; the caller (Layer 4) calls `t(key, params)`

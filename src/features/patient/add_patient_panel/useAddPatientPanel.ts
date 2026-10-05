@@ -3,9 +3,8 @@ import { useTranslation } from "react-i18next";
 import { addPatient } from "@/features/patient/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
-import { formatPatientError } from "../shared/presenter";
-import type { PatientFormData } from "../shared/types";
-import { type FormErrors, validatePatient } from "../shared/validatePatient";
+import { formatPatientError, isNameMissing } from "../shared/presenter";
+import type { FormErrors, PatientFormData } from "../shared/types";
 
 export function useAddPatientPanel() {
   const { t } = useTranslation("patient");
@@ -17,14 +16,6 @@ export function useAddPatientPanel() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
-
-  const validateForm = (): boolean => {
-    const newErrors = validatePatient(formData, {
-      nameRequired: t("form.name_required"),
-    });
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -44,24 +35,19 @@ export function useAddPatientPanel() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
-
-    logger.debug("Submitting add patient form", {
-      name: formData.name.trim(),
-      hasSsn: !!formData.ssn.trim(),
-    });
+    logger.debug("Submitting add patient form", { hasSsn: !!formData.ssn.trim() });
     setLoading(true);
 
     try {
-      const result = await addPatient(formData.name.trim(), formData.ssn.trim() || undefined);
+      const result = await addPatient(formData.name, formData.ssn);
 
       if (result.success) {
         logger.info("Patient added successfully");
         setFormData({ name: "", ssn: "" });
         setErrors({});
         toastService.show("success", t("action.add_success", { name: result.data?.name }));
+      } else if (isNameMissing(result.error)) {
+        setErrors({ name: t("form.name_required") });
       } else {
         const { key, params } = formatPatientError(result.error);
         logger.error("Failed to add patient", { code: result.error.code });

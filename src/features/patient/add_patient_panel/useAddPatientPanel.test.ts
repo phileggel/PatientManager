@@ -18,7 +18,11 @@ describe("useAddPatientPanel", () => {
     vi.clearAllMocks();
   });
 
-  it("sets name error and does not call gateway when name is empty", async () => {
+  it.each([
+    "NameEmpty",
+    "NonAnonymousRequiresName",
+  ] as const)("shows %s under the name field, without a toast", async (code) => {
+    mockAdd.mockResolvedValue({ success: false, error: { code } });
     const { result } = renderHook(() => useAddPatientPanel());
 
     await act(async () => {
@@ -28,10 +32,29 @@ describe("useAddPatientPanel", () => {
     });
 
     expect(result.current.errors.name).toBeTruthy();
-    expect(mockAdd).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalled();
+  });
+
+  it("sends what was typed as it is: reading it is the backend's", async () => {
+    mockAdd.mockResolvedValue({ success: true, data: makePatient() });
+    const { result } = renderHook(() => useAddPatientPanel());
+
+    act(() => {
+      result.current.handleChange({
+        target: { name: "name", value: "  Test Patient " },
+      } as React.ChangeEvent<HTMLInputElement>);
+    });
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as React.FormEvent);
+    });
+
+    expect(mockAdd).toHaveBeenCalledWith("  Test Patient ", "");
   });
 
   it("handleChange clears the error for the edited field", async () => {
+    mockAdd.mockResolvedValue({ success: false, error: { code: "NameEmpty" } });
     const { result } = renderHook(() => useAddPatientPanel());
 
     await act(async () => {

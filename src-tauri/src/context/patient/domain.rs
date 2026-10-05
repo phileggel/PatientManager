@@ -29,12 +29,14 @@ pub struct Patient {
 }
 
 impl Patient {
-    /// Creates a new Patient with validation and generates ID.
+    /// Creates a new Patient with validation and generates ID. The name is
+    /// trimmed and a blank SSN read as none, as for an edit.
     pub fn new(
         is_anonymous: bool,
         name: Option<String>,
         ssn: Option<String>,
     ) -> Result<Self, PatientError> {
+        let (name, ssn) = Self::read_input(name, ssn);
         Self::validate(&name, is_anonymous, &ssn)?;
 
         Ok(Self {
@@ -120,10 +122,7 @@ impl Patient {
     /// the edit changes is validated — one stored before a rule existed must not
     /// block the correction of the other.
     pub fn edit(&self, name: Option<String>, ssn: Option<String>) -> Result<Self, PatientError> {
-        let name = name.map(|name| name.trim().to_string());
-        let ssn = ssn
-            .map(|ssn| ssn.trim().to_string())
-            .filter(|ssn| !ssn.is_empty());
+        let (name, ssn) = Self::read_input(name, ssn);
         // The stored values are compared as the edit is read: trimmed, blank as none.
         // Otherwise a stored value with a stray space would count as changed.
         let stored_name = self.name.as_deref().map(str::trim);
@@ -169,6 +168,15 @@ impl Patient {
             latest_date,
             latest_procedure_amount,
         }
+    }
+
+    /// What a form sent, as the domain reads it: the name trimmed, a blank SSN as none.
+    fn read_input(name: Option<String>, ssn: Option<String>) -> (Option<String>, Option<String>) {
+        let name = name.map(|name| name.trim().to_string());
+        let ssn = ssn
+            .map(|ssn| ssn.trim().to_string())
+            .filter(|ssn| !ssn.is_empty());
+        (name, ssn)
     }
 
     /// Validates patient fields.
@@ -317,6 +325,29 @@ mod tests {
             edited.is_ok(),
             "the SSN is the stored one, trimmed: it is not validated again"
         );
+    }
+
+    #[test]
+    fn a_new_patient_has_its_name_trimmed_and_a_blank_ssn_read_as_none() {
+        let patient = Patient::new(
+            false,
+            Some("  Marie Durand ".to_string()),
+            Some("  ".to_string()),
+        )
+        .expect("a padded name and a blank SSN are valid input");
+        assert_eq!(patient.name.as_deref(), Some("Marie Durand"));
+        assert_eq!(patient.ssn, None);
+    }
+
+    #[test]
+    fn a_new_patient_with_a_padded_ssn_keeps_the_13_digits() {
+        let patient = Patient::new(
+            false,
+            Some("Marie Durand".to_string()),
+            Some(" 1234567890123 ".to_string()),
+        )
+        .expect("13 digits with spaces around are valid input");
+        assert_eq!(patient.ssn.as_deref(), Some("1234567890123"));
     }
 
     #[test]

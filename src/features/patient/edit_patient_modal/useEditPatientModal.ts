@@ -4,9 +4,8 @@ import type { Patient } from "@/bindings";
 import { updatePatient } from "@/features/patient/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
-import { formatPatientError, PatientPresenter } from "../shared/presenter";
-import type { PatientFormData } from "../shared/types";
-import { type FormErrors, validatePatient } from "../shared/validatePatient";
+import { formatPatientError, isNameMissing, PatientPresenter } from "../shared/presenter";
+import type { FormErrors, PatientFormData } from "../shared/types";
 
 export function useEditPatientModal(patient: Patient | null, onSuccess?: () => void) {
   const { t } = useTranslation("patient");
@@ -26,14 +25,6 @@ export function useEditPatientModal(patient: Patient | null, onSuccess?: () => v
     }
   }, [patient]);
 
-  const validateForm = (): boolean => {
-    const newErrors = validatePatient(formData, {
-      nameRequired: t("form.name_required"),
-    });
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -52,27 +43,26 @@ export function useEditPatientModal(patient: Patient | null, onSuccess?: () => v
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!patient || !validateForm()) {
+    if (!patient) {
       return;
     }
 
-    logger.debug("Submitting update patient form", {
-      id: patient.id,
-      name: formData.name.trim(),
-    });
+    logger.debug("Submitting update patient form", { id: patient.id });
     setLoading(true);
 
     try {
       const result = await updatePatient({
         ...patient,
-        name: formData.name.trim(),
-        ssn: formData.ssn.trim() || null,
+        name: formData.name,
+        ssn: formData.ssn,
       });
 
       if (result.success) {
         logger.info("Patient updated successfully");
         toastService.show("success", t("action.update_success", { name: result.data?.name }));
         onSuccess?.();
+      } else if (isNameMissing(result.error)) {
+        setErrors({ name: t("form.name_required") });
       } else {
         const { key, params } = formatPatientError(result.error);
         logger.error("Failed to update patient", { code: result.error.code });

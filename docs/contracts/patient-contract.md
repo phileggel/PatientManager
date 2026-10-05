@@ -8,7 +8,7 @@
 
 ### `add_patient`
 
-Creates a new patient. Used both from the inline-creation form inside the procedure modal (POC R9) and from batch import flows. SSN is optional; if provided it must be valid (13 ASCII digits). A patient created here is never anonymous, so a name is required.
+Creates a new patient. Used from the add-patient panel and from the inline-creation form inside the procedure modal (POC R9); the Excel import creates its patients in a batch, not through this command. SSN is optional; if provided it must be valid (13 ASCII digits). A patient created here is never anonymous, so a name is required. The name is trimmed and a blank SSN is read as none, as for `update_patient`: the screen sends what was typed.
 
 - **Args:** `name: Option<String>, ssn: Option<String>`
 - **Returns:** `Patient`

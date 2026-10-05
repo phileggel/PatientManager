@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Fund, Patient, PatientError } from "@/bindings";
-import { formatPatientError, PatientPresenter } from "./presenter";
+import { formatPatientError, isNameMissing, PatientPresenter } from "./presenter";
 
 /**
  * PatientPresenter - Gold Test Suite
@@ -238,6 +238,13 @@ describe("PatientPresenter", () => {
       const result = formatPatientError(err);
       expect(result).toEqual({ key: "patient:errors.invalid_ssn" });
       expect(result.params).toBeUndefined();
+    });
+
+    it("reads both name refusals, and only those, as a missing name", () => {
+      expect(isNameMissing({ code: "NameEmpty" })).toBe(true);
+      expect(isNameMissing({ code: "NonAnonymousRequiresName" })).toBe(true);
+      expect(isNameMissing({ code: "InvalidSsn" })).toBe(false);
+      expect(isNameMissing({ code: "DatabaseError" })).toBe(false);
     });
 
     it("maps PatientNotFound to its key", () => {

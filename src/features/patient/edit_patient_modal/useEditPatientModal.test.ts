@@ -55,6 +55,7 @@ describe("useEditPatientModal", () => {
 
   it("handleChange clears the error for the edited field", async () => {
     const patient = makeTestPatient("p-1", "", "111");
+    mockUpdate.mockResolvedValue({ success: false, error: { code: "NameEmpty" } });
     const { result } = renderHook(() => useEditPatientModal(patient, onSuccess));
 
     await act(async () => {
@@ -85,8 +86,9 @@ describe("useEditPatientModal", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("sets name error and does not call gateway when name is empty", async () => {
+  it("shows the backend's NameEmpty under the name field, without a toast", async () => {
     const patient = makeTestPatient("p-1", "", "111");
+    mockUpdate.mockResolvedValue({ success: false, error: { code: "NameEmpty" } });
     const { result } = renderHook(() => useEditPatientModal(patient, onSuccess));
 
     await act(async () => {
@@ -96,7 +98,8 @@ describe("useEditPatientModal", () => {
     });
 
     expect(result.current.errors.name).toBeTruthy();
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
   it("calls onSuccess and shows success toast when update succeeds", async () => {

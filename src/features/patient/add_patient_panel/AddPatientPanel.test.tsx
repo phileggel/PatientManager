@@ -19,22 +19,18 @@ describe("AddPatientPanel", () => {
     expect(screen.getByRole("button", { name: /Add Patient/i })).toBeInTheDocument();
   });
 
-  it("displays validation error when name is empty", async () => {
+  it("shows the backend's refusal of an empty name under the name field", async () => {
     const user = userEvent.setup();
+    vi.mocked(gateway.addPatient).mockResolvedValue({
+      success: false,
+      error: { code: "NonAnonymousRequiresName" },
+    });
 
     render(<AddPatientPanel />);
 
-    const submitButton = screen.getByRole("button", { name: /Add Patient/i });
-    await user.click(submitButton);
+    await user.click(screen.getByRole("button", { name: /Add Patient/i }));
 
-    // Validation runs synchronously, but error display might need a tick
-    await waitFor(
-      () => {
-        // The form should still be visible (no submission occurred)
-        expect(screen.getByRole("button", { name: /Add Patient/i })).toBeInTheDocument();
-      },
-      { timeout: 1000 },
-    );
+    expect(await screen.findByText("Patient name is required")).toBeInTheDocument();
   });
 
   it("submits form with name only", async () => {
@@ -66,7 +62,7 @@ describe("AddPatientPanel", () => {
 
     await waitFor(
       () => {
-        expect(gateway.addPatient).toHaveBeenCalledWith("Marie Dupont", undefined);
+        expect(gateway.addPatient).toHaveBeenCalledWith("Marie Dupont", "");
         expect(toastService.show).toHaveBeenCalledWith("success", expect.any(String));
       },
       { timeout: 1000 },
