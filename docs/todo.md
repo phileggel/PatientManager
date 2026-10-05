@@ -20,31 +20,18 @@ in `/whats-next`.
 
 - DEBT-028
 - DEBT-027
+- DEBT-031
+- DEBT-032
 - TODO-016
 - TODO-013
 - FLOW-020
 - TODO-008
-- TODO-004
 - TODO-018
 - DEBT-011
 - TODO-019
 - DEBT-003
 - TODO-020
 - TODO-021
-
----
-
-## TODO-004 — (backend/procedure) — Review procedure projections and read models
-
-`UnreconciledProcedure` is a domain projection introduced when moving `ProcedureRepository` to the domain layer. It sits alongside `Procedure` (the aggregate root) and other procedure-related structures. Before adding more projections, review whether these are genuinely distinct domain concepts or whether `Procedure` should be enriched to cover these cases. Key question: is `UnreconciledProcedure` a real ubiquitous-language concept, or just a query convenience that should be folded into `Procedure` with a different fetch strategy?
-
-**User value:** none directly — a decision on whether `UnreconciledProcedure` is a real domain concept, so later features stop adding projections case by case.
-
-**Done when:** an ADR records whether `UnreconciledProcedure` stays a projection or folds into `Procedure`, with the rule for adding any future projection; if it folds, the code changes in the same PR; `docs/ubiquitous-language.md` follows the decision.
-
-**Design:** none
-
-**Open questions:** none
 
 ---
 

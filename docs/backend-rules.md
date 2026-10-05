@@ -113,6 +113,8 @@ Service-layer state-dependent pre-checks are an "anemic domain" anti-pattern: th
 
 **B45** — A question about a group of an enum's variants is a method on the enum, in the domain (`ProcedureStatus::is_blocking`). A call site MUST NOT list the variants itself, and an SQL predicate MUST build its list from that method rather than write the stored strings. A workflow status with many values is normal; what breaks is two hand-written lists that answer the same question and drift apart (DEBT-031, DEBT-032).
 
+**B46** — A read model (a projection such as `UnreconciledProcedure`) MAY live in the domain when a list or a report needs data from more than one aggregate: a procedure with its patient's name. It is read-only, built by one query, never saved, and named for what it is read for. An aggregate MUST NOT carry another aggregate's data to avoid one. A read model is not a term of the ubiquitous language: the business concept it shows (the open procedure, BAS-112) is defined once, and every read model of it uses that definition (B45).
+
 Service-layer checks are appropriate ONLY for cross-aggregate invariants (uniqueness across the BC) or application-layer concerns (`NotFound`, cross-BC preconditions). See the rejection-layer rule in `ddd-reference.md` § Errors for the disambiguation.
 
 ## Bounded Context (`/context`)
