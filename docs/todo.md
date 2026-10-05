@@ -18,7 +18,6 @@ in `/whats-next`.
 <!-- nobody used are removed); FLOW-011 with FLOW-018 (the release path). Every other -->
 <!-- entry ships alone. -->
 
-- DEBT-031
 - DEBT-032
 - TODO-016
 - TODO-013

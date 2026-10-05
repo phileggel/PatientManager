@@ -215,7 +215,7 @@ impl ExcelImportOrchestrator {
                         ExcelImportError::ImportFailed
                     })?
                 {
-                    tracing::warn!(month = %month_key, sheet = %sheet, "Month blocked: contains reconciliated/fund-payed procedures");
+                    tracing::warn!(month = %month_key, sheet = %sheet, "Month blocked: it holds procedures with a blocking status");
                     blocked_months.push(month_key);
                 } else {
                     let deleted = self
@@ -736,6 +736,73 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.blocked_months, vec!["2026-01"]);
+    }
+
+    /// EXI-160: a row that would otherwise be imported (known patient, mapped type,
+    /// date in the sheet's month) is neither deleted nor recreated when its month is blocked.
+    #[tokio::test]
+    async fn debt_031_a_blocked_month_is_neither_deleted_nor_recreated() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(true));
+        proc_repo.expect_delete_procedures_by_month().times(0);
+
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_find_patient_by_ssn().returning(|_| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                "patient-1".to_string(),
+                false,
+                Some("Test".to_string()),
+                Some("1234".to_string()),
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut orch_proc_repo = MockProcedureRepository::new();
+        orch_proc_repo.expect_create_batch().times(0);
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: "1234".to_string(),
+            latest_fund: None,
+        }];
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: None,
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+
+        let mut type_mapping = HashMap::new();
+        type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            proc_repo,
+            orch_proc_repo,
+            ..Default::default()
+        });
+        let result = orchestrator
+            .execute_import(parse_result, type_mapping, vec!["Jan".to_string()])
+            .await
+            .unwrap();
+
+        assert_eq!(result.blocked_months, vec!["2026-01"]);
+        assert_eq!(result.procedures_deleted, 0);
+        assert_eq!(result.procedures_created, 0);
     }
 
     #[tokio::test]

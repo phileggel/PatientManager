@@ -75,7 +75,7 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 ### Reconciled-data protection
 
-**EXI-160 (R15) — Blocked month (backend)**: Before importing a selected sheet, the system checks the sheet's nominal month — whether procedures exist in the database with an advanced reconciliation status (`RECONCILIATED` or `FUND_PAYED`) for that month. If so, the entire month is **blocked**: no procedure for that month is deleted or recreated. Blocked months are reported in the result. EXI-281 guarantees that every accepted row's `procedure_date` falls in the sheet's nominal month, so per-month blocking remains consistent with per-sheet selection.
+**EXI-160 (R15) — Blocked month (backend)**: Before importing a selected sheet, the system checks the sheet's nominal month — whether procedures exist in the database with a blocking status for that month. The blocking statuses are those that block a deletion (PRO-030): each ties the procedure to a fund-payment group or a bank entry that deleting it would leave dangling. If so, the entire month is **blocked**: no procedure for that month is deleted or recreated. Blocked months are reported in the result. EXI-281 guarantees that every accepted row's `procedure_date` falls in the sheet's nominal month, so per-month blocking remains consistent with per-sheet selection.
 
 **EXI-170 (R16) — Pre-import deletion (backend)**: If a sheet's nominal month is not blocked (see EXI-160), **all** existing procedures for that month are permanently deleted before the new data is imported. This mechanism allows a corrected sheet to be re-imported without accumulating duplicates.
 

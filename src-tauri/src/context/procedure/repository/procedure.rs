@@ -664,14 +664,22 @@ impl ProcedureRepository for SqliteProcedureRepository {
 
     async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool> {
         let pattern = format!("{month}-%");
+        // The statuses come from the domain (B45): a JSON array, so the query stays checked at compile time.
+        let blocking = serde_json::to_string(
+            &ProcedureStatus::blocking()
+                .map(ProcedureStatus::as_db_str)
+                .collect::<Vec<_>>(),
+        )
+        .context("Failed to list the blocking statuses")?;
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM procedure
             WHERE procedure_date LIKE ?
-              AND payment_status IN ('RECONCILIATED', 'FUND_PAYED')
+              AND payment_status IN (SELECT value FROM json_each(?))
               AND is_deleted = 0
             "#,
-            pattern
+            pattern,
+            blocking
         )
         .fetch_one(&self.pool)
         .await
@@ -1018,6 +1026,34 @@ mod tests {
             .await
             .unwrap();
         assert!(result);
+    }
+
+    /// EXI-160: a month is blocked by every status `is_blocking` accepts, and by no other.
+    #[tokio::test]
+    async fn debt_031_a_month_is_blocked_by_every_blocking_status_and_no_other() {
+        for status in ProcedureStatus::ALL {
+            let repo = setup().await;
+            repo.create_procedure(
+                "p1".to_string(),
+                None,
+                "t1".to_string(),
+                d("2026-01-10"),
+                0,
+                PaymentMethod::None,
+                None,
+                None,
+                None,
+                status,
+            )
+            .await
+            .unwrap();
+
+            let blocked = repo
+                .has_blocking_procedures_in_month("2026-01")
+                .await
+                .unwrap();
+            assert_eq!(blocked, status.is_blocking(), "{status:?}");
+        }
     }
 
     #[tokio::test]

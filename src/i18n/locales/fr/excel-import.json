@@ -32,7 +32,7 @@
   },
   "sheet_selection": {
     "title": "Sélectionner les feuilles à importer",
-    "description": "Choisissez les feuilles à importer. Les actes existants pour les mois correspondants seront supprimés et remplacés. Les mois contenant des actes rapprochés ne peuvent pas être réimportés.",
+    "description": "Choisissez les feuilles à importer. Les actes existants pour les mois correspondants seront supprimés et remplacés. Les mois contenant des actes déjà rapprochés ou réglés ne peuvent pas être réimportés.",
     "select_all": "Tout sélectionner",
     "deselect_all": "Tout désélectionner",
     "sheets_selected": "feuilles sélectionnées",
@@ -62,7 +62,7 @@
     "deleted_before_reimport_other": "{{count}} supprimés avant réimport",
     "skipped_one": "{{count}} ignoré",
     "skipped_other": "{{count}} ignorés",
-    "blocked_months_title": "Mois non importés (actes rapprochés)",
+    "blocked_months_title": "Mois non importés (actes déjà rapprochés ou réglés)",
     "view_report": "Voir le rapport d'import"
   },
   "status": {

@@ -1827,7 +1827,7 @@ export type ImportExecutionResult = { patients_created: number; patients_reused:
  */
 procedures_skipped: number; procedures_deleted: number; 
 /**
- * Months (YYYY-MM) that were blocked because they contain reconciliated/fund-payed procedures.
+ * Months (YYYY-MM) that were blocked because they hold procedures with a blocking status (EXI-160).
  */
 blocked_months: string[]; 
 /**

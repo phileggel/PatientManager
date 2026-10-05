@@ -400,8 +400,8 @@ impl ProcedureService {
             })
     }
 
-    /// Check if a month (YYYY-MM) has any procedures with a blocking status
-    /// (RECONCILIATED or FUND_PAYED) that prevent re-import.
+    /// Check if a month (YYYY-MM) has any procedure with a blocking status
+    /// (`ProcedureStatus::is_blocking`), which prevents its re-import (EXI-160).
     pub async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool> {
         self.repository
             .has_blocking_procedures_in_month(month)

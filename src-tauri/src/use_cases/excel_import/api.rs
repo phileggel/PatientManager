@@ -56,7 +56,7 @@ pub struct ImportExecutionResult {
     /// itemised in `skipped_procedures` below.
     pub procedures_skipped: u32,
     pub procedures_deleted: u32,
-    /// Months (YYYY-MM) that were blocked because they contain reconciliated/fund-payed procedures.
+    /// Months (YYYY-MM) that were blocked because they hold procedures with a blocking status (EXI-160).
     pub blocked_months: Vec<String>,
     /// EXI-290 — per-row execute-time skip report (reuses the EXI-220 `SkippedRow` shape).
     /// Each entry: source sheet name + 1-based row number + human-readable reason

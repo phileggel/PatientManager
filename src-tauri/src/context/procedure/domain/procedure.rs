@@ -88,6 +88,27 @@ pub enum ProcedureStatus {
 }
 
 impl ProcedureStatus {
+    /// Every status. A question about a group of them is answered by filtering this
+    /// list with a predicate below, never by a list written at the call site (B45).
+    pub const ALL: [ProcedureStatus; 11] = [
+        ProcedureStatus::None,
+        ProcedureStatus::Created,
+        ProcedureStatus::Reconciled,
+        ProcedureStatus::PartiallyReconciled,
+        ProcedureStatus::DirectlyPaid,
+        ProcedureStatus::FundPaid,
+        ProcedureStatus::PartiallyFundPaid,
+        ProcedureStatus::ImportDirectlyPaid,
+        ProcedureStatus::ImportFundPaid,
+        ProcedureStatus::Overpaid,
+        ProcedureStatus::OverpaymentRefund,
+    ];
+
+    /// The statuses `is_blocking` accepts, for a query that must name them.
+    pub fn blocking() -> impl Iterator<Item = ProcedureStatus> {
+        Self::ALL.into_iter().filter(|status| status.is_blocking())
+    }
+
     /// True for statuses that block deletion and restrict editing
     /// (R5, R26, REF-220, REF-230).
     ///
@@ -478,7 +499,7 @@ pub trait ProcedureRepository: Send + Sync {
     ) -> anyhow::Result<Vec<UnreconciledProcedure>>;
 
     /// Returns true if any non-deleted procedure in the given month (YYYY-MM) has a
-    /// blocking status (Reconciled or FundPaid), preventing re-import.
+    /// blocking status (`ProcedureStatus::is_blocking`), preventing re-import (EXI-160).
     async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool>;
 
     /// Hard-deletes all procedures (including soft-deleted) for the given month (YYYY-MM).
@@ -531,6 +552,57 @@ mod tests {
                 "{status:?} must be classified as blocking"
             );
         }
+    }
+
+    /// No wildcard arm on purpose: a status added to the enum stops compiling here.
+    /// Add it to `ALL` in the same edit — this match is the reminder, not the proof:
+    /// nothing can iterate a status that `ALL` does not list.
+    fn is_listed(status: ProcedureStatus) -> bool {
+        match status {
+            ProcedureStatus::None
+            | ProcedureStatus::Created
+            | ProcedureStatus::Reconciled
+            | ProcedureStatus::PartiallyReconciled
+            | ProcedureStatus::DirectlyPaid
+            | ProcedureStatus::FundPaid
+            | ProcedureStatus::PartiallyFundPaid
+            | ProcedureStatus::ImportDirectlyPaid
+            | ProcedureStatus::ImportFundPaid
+            | ProcedureStatus::Overpaid
+            | ProcedureStatus::OverpaymentRefund => ProcedureStatus::ALL.contains(&status),
+        }
+    }
+
+    #[test]
+    fn debt_031_all_lists_every_status_once() {
+        let stored: std::collections::HashSet<&str> =
+            ProcedureStatus::ALL.iter().map(|s| s.as_db_str()).collect();
+        assert_eq!(
+            stored.len(),
+            ProcedureStatus::ALL.len(),
+            "a status is listed twice"
+        );
+        for status in ProcedureStatus::ALL {
+            assert!(is_listed(status));
+            assert_eq!(status.as_db_str().parse::<ProcedureStatus>(), Ok(status));
+        }
+    }
+
+    #[test]
+    fn debt_031_blocking_lists_the_seven_blocking_statuses() {
+        let blocking: Vec<ProcedureStatus> = ProcedureStatus::blocking().collect();
+        assert_eq!(
+            blocking,
+            [
+                ProcedureStatus::Reconciled,
+                ProcedureStatus::PartiallyReconciled,
+                ProcedureStatus::DirectlyPaid,
+                ProcedureStatus::FundPaid,
+                ProcedureStatus::PartiallyFundPaid,
+                ProcedureStatus::Overpaid,
+                ProcedureStatus::OverpaymentRefund,
+            ]
+        );
     }
 
     #[test]

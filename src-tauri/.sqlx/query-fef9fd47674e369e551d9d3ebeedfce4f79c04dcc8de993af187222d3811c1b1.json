@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT COUNT(*) FROM procedure\n            WHERE procedure_date LIKE ?\n              AND payment_status IN (SELECT value FROM json_each(?))\n              AND is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "COUNT(*)",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fef9fd47674e369e551d9d3ebeedfce4f79c04dcc8de993af187222d3811c1b1"
+}

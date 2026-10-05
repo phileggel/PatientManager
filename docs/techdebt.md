@@ -6,6 +6,26 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-05 — DEBT-035 — An SSN that is not 13 digits in the patient sheet may fail the whole import
+
+**Found by:** spec-checker (branch `fix/debt-031-block-month-on-every-blocking-status`; read in the code, not run)
+
+**Where:** `src-tauri/src/use_cases/excel_import/parser.rs` (the patient-sheet path), `src-tauri/src/use_cases/excel_import/orchestrator.rs`, `docs/spec/excel-import.md` (EXI-030)
+
+**Observation:** EXI-030's 13-digit check and its fallback name exist only where a patient is derived from a monthly sheet. A row of the patient sheet keeps its SSN as written; the orchestrator passes it to the patient batch creation, whose validation rejects it, and the error propagates as a failed import. To confirm with a test before fixing. A `fix`.
+
+---
+
+## 2026-10-05 — DEBT-034 — The Excel import spec has gaps its first review found
+
+**Found by:** spec-reviewer (branch `fix/debt-031-block-month-on-every-blocking-status`; the spec had never been reviewed)
+
+**Where:** `docs/spec/excel-import.md`
+
+**Observation:** none comes from the EXI-160 change. Possible behaviour gaps, to check against the code before anything else: (1) blocking and deletion work on a year-month, but EXI-160 and EXI-170 speak of the sheet's nominal month, and EXI-281 checks the month number only — a row dated another year is accepted into a year-month that was neither block-checked nor cleared, so EXI-160's closing "EXI-281 guarantees" sentence holds for the month number alone; (2) no rule says what state is left when an import fails after months were deleted and before their procedures are recreated; (3) no rule covers the tracking fields of a patient whose procedures were deleted and not recreated (PRO-270 covers a single deletion). Form: six rules bundle several behaviours (EXI-010, 020, 080, 110, 220, 260); EXI-230 and EXI-240 are tagged frontend but assert a database save with no backend rule; no `## Entity Definition`, no `## UX Draft`; legacy `(Rn)` labels, with `R25` used twice; discrepant status spellings in EXI-200 and the workflow block. The first spec check (same branch) counts 23 of 29 rules fully implemented and 14 tested: EXI-020, 050, 080, 090 and 220 are partial (skipped rows not reported, no in-file deduplication of patients and funds, `missing_sheets` also naming the two reference sheets), ten rules have no test, and the contract still declares the skip reason as text where the code sends a typed code.
+
+---
+
 ## 2026-10-05 — DEBT-033 — Two read models write the definition of an open procedure twice
 
 **Found by:** manual (TODO-004 review)
@@ -23,16 +43,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 **Where:** `src-tauri/src/use_cases/fund_payment_reconciliation/data/pool_builder.rs`, `docs/spec/fund-payment-auto-match.md` (FPA-010)
 
 **Observation:** FPA-010 excludes `PartiallyFundPayed` from the candidates of an automatic fund match; the pool builder lists four paid statuses by hand and leaves that one out, so such a procedure stays a candidate. A `fix`: the list becomes a helper on `ProcedureStatus` (B45), with a test per status. `Overpaid` and `OverpaymentRefund` are named by neither the rule nor the code: decide them in the same change.
-
----
-
-## 2026-10-05 — DEBT-031 — A month with partially reconciled procedures is not blocked on re-import
-
-**Found by:** manual (TODO-005 review)
-
-**Where:** `src-tauri/src/context/procedure/repository/procedure.rs` (`has_blocking_procedures_in_month`), `docs/spec/excel-import.md` (EXI-160)
-
-**Observation:** the blocked-month check of the Excel import looks for `RECONCILIATED` and `FUND_PAYED` only, in the rule and in the query. `ProcedureStatus::is_blocking` lists seven statuses (PRO-030): a month whose advanced procedures are partially reconciled, partially fund-paid, directly paid, overpaid or refund mirrors is re-imported, and its procedures are deleted while a fund-payment group or a bank transfer still refers to them. What the deletion then does (succeeds, or fails on the foreign key) is not verified. Owner's decision (2026-10-05): every blocking status blocks the month. A `fix`: EXI-160 is reworded to refer to PRO-030's list, and the query builds its list from `is_blocking` (B45).
 
 ---
 

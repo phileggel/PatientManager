@@ -32,7 +32,7 @@
   },
   "sheet_selection": {
     "title": "Select sheets to import",
-    "description": "Choose which sheets to import. Existing procedures for the corresponding months will be deleted and replaced. Months with reconciled procedures cannot be re-imported.",
+    "description": "Choose which sheets to import. Existing procedures for the corresponding months will be deleted and replaced. Months with procedures already reconciled or paid cannot be re-imported.",
     "select_all": "Select all",
     "deselect_all": "Deselect all",
     "sheets_selected": "sheets selected",
@@ -62,7 +62,7 @@
     "deleted_before_reimport_other": "{{count}} deleted before reimport",
     "skipped_one": "{{count}} skipped",
     "skipped_other": "{{count}} skipped",
-    "blocked_months_title": "Months not imported (reconciled procedures)",
+    "blocked_months_title": "Months not imported (procedures already reconciled or paid)",
     "view_report": "View import report"
   },
   "status": {

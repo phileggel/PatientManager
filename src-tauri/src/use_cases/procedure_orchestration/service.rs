@@ -275,7 +275,7 @@ impl ProcedureOrchestrationService {
                 procedure_id: id.to_string(),
             })?;
 
-        if Self::is_blocking_status(&procedure.payment_status) {
+        if procedure.payment_status.is_blocking() {
             tracing::warn!(
                 name = BACKEND,
                 procedure_id = %id,
@@ -492,27 +492,6 @@ impl ProcedureOrchestrationService {
             .context_procedure_service
             .find_unpaid_by_fund(fund_id)
             .await?)
-    }
-
-    /// Returns true if the procedure status prevents deletion and direct editing (R5, R6).
-    ///
-    /// Blocking statuses are those linked to a fund payment group or bank transaction.
-    /// Import statuses (ImportDirectlyPaid, ImportFundPaid) are intentionally excluded:
-    /// they represent non-blocking re-importable data and allow deletion with confirmation.
-    fn is_blocking_status(status: &ProcedureStatus) -> bool {
-        matches!(
-            status,
-            ProcedureStatus::Reconciled
-                | ProcedureStatus::PartiallyReconciled
-                | ProcedureStatus::FundPaid
-                | ProcedureStatus::PartiallyFundPaid
-                | ProcedureStatus::DirectlyPaid
-                // REF-220: Overpaid source procedures cannot be deleted directly.
-                // REF-230: OverpaymentRefund mirror procedures cannot be deleted directly.
-                // Deletion must go through the cancel_overpayment cascade.
-                | ProcedureStatus::Overpaid
-                | ProcedureStatus::OverpaymentRefund
-        )
     }
 
     /// Determine procedure status based on payment completeness and metadata.
