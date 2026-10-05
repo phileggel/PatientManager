@@ -127,5 +127,70 @@ class UseCases(unittest.TestCase):
         )
 
 
+class FrontendLogic(unittest.TestCase):
+    """A8 (TODO-016): logic lives in Rust; the frontend logic files of today are frozen."""
+
+    def files(self, *names):
+        with tempfile.TemporaryDirectory() as root:
+            features = Path(root) / "src" / "features"
+            for name in names:
+                path = features / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("export const x = 1;\n", encoding="utf-8")
+            with unittest.mock.patch.object(arch, "ROOT", Path(root)), unittest.mock.patch.object(arch, "FEATURES", features):
+                return arch.a8_frontend_logic_files()
+
+    def test_todo_016_a_file_that_renders_holds_state_or_talks_to_the_backend_is_not_logic(self):
+        display = [
+            "patient/PatientPage.tsx",
+            "patient/index.ts",
+            "patient/gateway.ts",
+            "patient/store.ts",
+            "patient/shared/types.ts",
+            "procedure/model/procedure-row.types.ts",
+            "procedure/ui/ui.styles.ts",
+            "patient/patient_list/usePatientList.ts",
+            "patient/patient_list/useSortPatientList.ts",
+            "patient/shared/presenter.ts",
+            "db-backup/shared/errorPresenter.ts",
+            "procedure/model/patient.presenter.ts",
+            "shell/import_modal/lastFolderStore.ts",
+            "patient/shared/validatePatient.test.ts",
+            "fund-payment-match/shared/__fixtures__/reportFixtures.ts",
+        ]
+        self.assertEqual(self.files(*display), [])
+
+    def test_todo_016_validators_rules_and_helpers_are_logic(self):
+        logic = [
+            "dashboard/utils/aggregation.ts",
+            "patient/shared/validatePatient.ts",
+            "procedure/model/overdue.logic.ts",
+        ]
+        self.assertEqual(self.files(*logic, "patient/gateway.ts"), [f"src/features/{name}" for name in logic])
+
+    def test_todo_016_a_new_logic_file_fails_and_a_removed_one_asks_for_a_rewrite(self):
+        recorded = ["src/features/patient/shared/validatePatient.ts"]
+        new = arch.ratchet_files("A8", ["src/features/fund/shared/rule.ts", *recorded], recorded)
+        self.assertEqual(len(new), 1)
+        self.assertIn("src/features/fund/shared/rule.ts", new[0])
+        self.assertIn("logic lives in Rust", new[0])
+        gone = arch.ratchet_files("A8", [], recorded)
+        self.assertIn("run --write-allowlist", gone[0])
+        self.assertEqual(arch.ratchet_files("A8", recorded, recorded), [])
+
+    def test_todo_016_the_allowlist_never_gains_a_logic_file(self):
+        with tempfile.TemporaryDirectory() as root:
+            allowlist = Path(root) / "arch-allowlist.json"
+            allowlist.write_text("{}", encoding="utf-8")
+            state = {
+                "commands_outside_gateways": {}, "cross_feature_imports": [], "missing_ids": {}, "literal_attributes": {},
+                "use_case_imports": {}, "sqlx_in_use_cases": {}, "frontend_logic_files": ["src/features/fund/shared/rule.ts"],
+            }
+            with unittest.mock.patch.object(arch, "ALLOWLIST", allowlist):
+                self.assertEqual(arch.write_allowlist(state, {"frontend_logic_files": []}), 1)
+                self.assertEqual(allowlist.read_text(encoding="utf-8"), "{}")
+                self.assertEqual(arch.write_allowlist({**state, "frontend_logic_files": []}, {"frontend_logic_files": ["src/features/x.ts"]}), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

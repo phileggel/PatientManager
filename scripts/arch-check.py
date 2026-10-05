@@ -20,17 +20,23 @@ the project docs already state (CLAUDE.md, docs/frontend-rules.md):
   A6  every interactive `ui/` component a feature renders carries an `id` (F25)
   A7  feature code carries no literal user-facing attribute text
       (`aria-label`, `placeholder`, `title`, `label`) — strings come from i18n (F24)
+  A8  business logic lives in Rust; the frontend renders (TODO-016). A feature
+      `.ts` file that is not a hook, a gateway, a store, a types file, a
+      presenter or a style file is a logic file: no new one may appear.
+      Sorting a list by a clicked column and filtering it by a search box are
+      display state and stay in hooks (owner, 2026-10-05)
   B18 a use case never imports another use case (`crate::use_cases::<other>`)
       outside its test modules (docs/backend-rules.md)
   B24 a use case names no sqlx type outside its test modules; its unit of work
       file, `sqlx_uow.rs`, is the one exception (B26)
 
-A1, A2, A6, A7, B18 and B24 have debt today: it is frozen per file in the allowlist.
+A1, A2, A6, A7, A8, B18 and B24 have debt today: it is frozen per file in the allowlist.
 A3, A4 and A5 hold everywhere and fail on the first violation.
 
 Known blind spots (line-based matching): a `Result<…, String>` wrapped over
 several lines (A4); a test gate other than a bare `#[cfg(test)]` line, e.g.
-`#[cfg(any(test, …))]` (A3, B18, B24); a use case reached through `super::super::`
+`#[cfg(any(test, …))]` (A3, B18, B24); logic written inside a hook, a presenter or a
+types file, which no file name reveals (A8: each feature's audit covers it); a use case reached through `super::super::`
 rather than its `crate::` path (B18); a tag carrying a spread `{...props}` (A6); an
 apostrophe in JSX text or a Rust lifetime (`'a`) opens a false quote, so a `//`
 comment later on that line is kept rather than stripped (errs towards counting). A5 and
@@ -72,6 +78,8 @@ RAW_INTERACTIVE = re.compile(r"<(button|input|select|textarea|a)[\s>/]")
 # components' visible-label prop.
 LITERAL_ATTRIBUTE = re.compile(r'(?<![\w-])(aria-label|placeholder|title|label)="[^"]*[A-Za-z]{3,}')
 IMPORT = re.compile(r'(?:from\s+|import\()\s*"([^"]+)"')
+# A8 — the kinds of feature `.ts` file that render, hold UI state or talk to the backend.
+DISPLAY_FILE = re.compile(r"^(index|gateway|types)\.ts$|[sS]tore\.ts$|\.types\.ts$|\.styles\.ts$|[pP]resenter\.ts$")
 
 
 def without_comments(line: str) -> str:
@@ -314,6 +322,20 @@ def a6_missing_ids() -> dict[str, int]:
     return counts
 
 
+def is_logic_file(path: Path) -> bool:
+    """True for a feature `.ts` file that is none of the display kinds (A8)."""
+    if path.suffix != ".ts" or is_test(path) or "__fixtures__" in path.parts:
+        return False
+    if path.name.startswith("use"):
+        return False  # a hook holds UI state, column sorting and search filtering included
+    return not DISPLAY_FILE.search(path.name)
+
+
+def a8_frontend_logic_files() -> list[str]:
+    """The feature files that hold logic by their kind; the allowlist freezes the list."""
+    return sorted(rel(path) for path in FEATURES.rglob("*.ts") if is_logic_file(path))
+
+
 def a7_literal_attributes() -> dict[str, int]:
     """Count literal user-facing attribute texts per file."""
     counts: dict[str, int] = {}
@@ -344,6 +366,15 @@ def ratchet_counts(rule: str, label: str, actual: dict[str, int], recorded: dict
     return hits
 
 
+def ratchet_files(rule: str, actual: list[str], recorded: list[str]) -> list[str]:
+    hits = [f"{rule} {file}: a new logic file in the frontend — logic lives in Rust" for file in sorted(set(actual) - set(recorded))]
+    hits += [
+        f"{rule} {file}: no longer a frontend logic file, allowlist still records it — run --write-allowlist"
+        for file in sorted(set(recorded) - set(actual))
+    ]
+    return hits
+
+
 def ratchet_pairs(actual: list[dict], recorded: list[dict]) -> list[str]:
     key = lambda item: (item["from"], item["to"])
     actual_keys = {key(item) for item in actual}
@@ -365,6 +396,7 @@ def current_state() -> dict:
         "literal_attributes": dict(sorted(a7_literal_attributes().items())),
         "use_case_imports": dict(sorted(b18_use_case_imports().items())),
         "sqlx_in_use_cases": dict(sorted(b24_sqlx_in_use_cases().items())),
+        "frontend_logic_files": a8_frontend_logic_files(),
     }
 
 
@@ -375,6 +407,7 @@ def write_allowlist(state: dict, recorded: dict) -> int:
     pair = lambda item: (item["from"], item["to"])
     known = {pair(item) for item in recorded.get("cross_feature_imports", [])}
     grew += [f"{f} → {t}" for f, t in sorted({pair(i) for i in state["cross_feature_imports"]} - known)]
+    grew += sorted(set(state["frontend_logic_files"]) - set(recorded.get("frontend_logic_files", [])))
     for section in COUNTED_SECTIONS:
         for file, count in state[section].items():
             if count > recorded.get(section, {}).get(file, 0):
@@ -416,6 +449,7 @@ def main() -> int:
     hits += ratchet_counts(
         "A7", "literal attribute texts", state["literal_attributes"], recorded.get("literal_attributes", {})
     )
+    hits += ratchet_files("A8", state["frontend_logic_files"], recorded.get("frontend_logic_files", []))
     hits += ratchet_counts(
         "B18", "lines importing another use case", state["use_case_imports"], recorded.get("use_case_imports", {})
     )
@@ -429,11 +463,12 @@ def main() -> int:
             print(f"   {hit}")
         return 1
     print(
-        "✅ architecture check: A1–A7, B18 and B24 hold (frozen debt: "
+        "✅ architecture check: A1–A8, B18 and B24 hold (frozen debt: "
         f"{sum(recorded.get('commands_outside_gateways', {}).values())} gateway bypasses, "
         f"{len(recorded.get('cross_feature_imports', []))} cross-feature imports, "
         f"{sum(recorded.get('missing_ids', {}).values())} id-less tags, "
         f"{sum(recorded.get('literal_attributes', {}).values())} literal attribute texts, "
+        f"{len(recorded.get('frontend_logic_files', []))} frontend logic files, "
         f"{sum(recorded.get('use_case_imports', {}).values())} use-case imports, "
         f"{sum(recorded.get('sqlx_in_use_cases', {}).values())} sqlx lines in use cases)"
     )

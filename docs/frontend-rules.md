@@ -118,7 +118,8 @@ These directories MAY exist alongside the 4 buckets and are not subject to the r
 - Maps raw backend types to display-ready structures (labels, formatted amounts, etc.)
 - Keeps hooks and components free of formatting/transformation logic
 - MUST be pure functions — easy to unit test independently
-- A `.tsx` file exports components only. A pure transformation — a comparator, a filter, a derivation, a formatter — lives in a colocated `.ts` (usually `shared/{topic}.ts`) with its own test, and the component imports it.
+- A `.tsx` file exports components only: a display transformation (a label, a formatted amount, an error code mapped to a translation key) lives in the presenter, with its own test.
+- Business logic does not live in the frontend at all — a validation, an aggregation, a derivation, the default order of a list when it is a rule (funds are alphabetical everywhere) is a Rust command (`docs/workflow.md` § 6). Sorting a list by the column the user clicked and filtering it by a search box are display state: they stay in a hook. `just arch-check` rule A8 fails on a new logic file under `src/features/`; the ones that remain are frozen in `arch-allowlist.json` and leave it feature by feature.
 
 ## Component
 

@@ -60,7 +60,7 @@ _used RECIPE:
 next-todo:
     bash scripts/next-todo.sh
 
-# Architecture rules A1–A7, B18 and B24 (scripts/arch-check.py); --write-allowlist only lowers the frozen debt
+# Architecture rules A1–A8, B18 and B24 (scripts/arch-check.py); --write-allowlist only lowers the frozen debt
 arch-check *ARGS:
     python3 scripts/arch-check.py {{ARGS}}
 

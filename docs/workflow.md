@@ -138,7 +138,7 @@ answer before pushing.
 - **Lint, format, types, build** — `scripts/check.py`, every PR.
 - **Core without the desktop shell** — `scripts/core-without-tauri.sh`, when the backend
   changes: the crate builds with no Tauri dependency (B47).
-- **Architecture rules A1–A7, B18, B24** — `scripts/arch-check.py`; today's debt is frozen in
+- **Architecture rules A1–A8, B18, B24** — `scripts/arch-check.py`; today's debt is frozen in
   `arch-allowlist.json` and may only shrink.
 - **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
   location of `docs/README.md`, every rule, entry and lesson ID defined once.
@@ -162,6 +162,11 @@ answer before pushing.
 
 - **Gold layouts** for new code (`docs/backend-rules.md` B0/B37–B43,
   `docs/frontend-rules.md` F0/F26–F28); bit-by-bit for existing code (CLAUDE.md).
+- **Logic in Rust, the frontend renders.** A business rule, a validation, an
+  aggregation or a derivation is a Rust command with its Rust tests, so every surface
+  (the window, the command line, an MCP server) follows the same rule. The frontend
+  renders, holds ephemeral UI state and maps error codes to translations. Rule A8
+  freezes the logic files that remain in `src/features/`; the list only shrinks.
 - **Typed errors** on the wire (`docs/error-model.md`); factories and aggregate-root
   methods on domain objects.
 - **Stable ids** on every interactive element; text from i18n.
