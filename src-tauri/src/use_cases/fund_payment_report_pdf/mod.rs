@@ -10,6 +10,7 @@
 ///   only places strings — translation, currency formatting, and date
 ///   formatting are all performed by the frontend before invocation.
 /// - `error.rs` — `ReportPdfError` enum
+#[cfg(feature = "app")]
 pub mod api;
 pub mod error;
 pub mod orchestrator;
@@ -19,6 +20,7 @@ pub mod request;
 // Glob re-export captures the specta-generated `__specta__fn__*` helpers
 // alongside the public command, matching the project convention used by
 // `fund_payment_reconciliation`.
+#[cfg(feature = "app")]
 pub use api::*;
 pub use error::ReportPdfError;
 pub use orchestrator::{generate, next_available_path, save};

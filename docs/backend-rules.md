@@ -140,6 +140,8 @@ Cross-BC coordination belongs in a use case with its own `api.rs`.
 
 **B17** — MUST declare its Tauri commands in the `api.rs` file.
 
+**B47** — Tauri lives only in the `app` feature of the crate (on by default): the `api.rs` adapters, `app.rs` (the composition root of the window), the command registry, the event forwarder to the window and the frontend log command. Everything else — contexts, use cases, persistence — is the application core and builds without it, so another adapter (the command line, an MCP server) links the same code. A type an adapter and the core both use lives in the core, in the module's `dto.rs`. `scripts/core-without-tauri.sh`, run by `just harness` and by CI, fails on a warning in the core-only build (code only the shell reaches) or on a Tauri crate in the core's dependency tree.
+
 ## Use Cases (`/use_cases`)
 
 **B18** — MAY import from contexts, MUST NOT import from another use case. Checked by `just arch-check`.

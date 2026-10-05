@@ -244,6 +244,10 @@ jobs:
       - name: Quality checks (sqlx + clippy + fmt)
         # --skip-tests: the suite runs once, under llvm-cov, two steps below.
         run: python3 scripts/check.py --backend --skip-tests
+      - name: Core builds without Tauri
+        # B47: without the `app` feature the crate still builds, warning-free, and
+        # no Tauri crate is in its dependency tree. Same script as `just harness`.
+        run: bash scripts/core-without-tauri.sh
       - name: Install cargo-llvm-cov and just
         # Pinned to a full SHA — mutable tags are a supply-chain risk
         if: needs.scope.outputs.backend == 'true'

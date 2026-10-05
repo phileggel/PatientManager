@@ -5,7 +5,10 @@
 /// this is an application use case that spans multiple bounded contexts,
 /// not a domain-specific context.
 mod amount_mapping_repo;
+#[cfg(feature = "app")]
 mod api;
+/// Types the core and the command adapters both use (B47).
+mod dto;
 pub mod error;
 pub mod excel_codec;
 mod orchestrator;
@@ -15,7 +18,9 @@ pub use amount_mapping_repo::{
     ExcelAmountMapping, ExcelAmountMappingRepository, SaveExcelAmountMappingRequest,
     SqliteExcelAmountMappingRepository,
 };
+#[cfg(feature = "app")]
 pub use api::*;
+pub use dto::*;
 pub use error::ExcelImportError;
 pub use orchestrator::ExcelImportOrchestrator;
 
@@ -30,10 +35,7 @@ pub use excel_codec::{
     ExcelFund, ExcelPatient, ExcelProcedure, ParsedExcelData, ParsingIssues, SkipReason, SkippedRow,
 };
 
-// `ExcelParserService` is reachable internally by `api.rs` and `orchestrator.rs`
-// via the in-module `parser::` path. The public re-export exists only so the
-// dev fixture binary and the round-trip integration tests can drive the
-// parser end-to-end. Both external callers of `ExcelParserService` are gated
-// by `dev-fixtures`, so the prod build's public API does not expose it.
-#[cfg(feature = "dev-fixtures")]
+// `ExcelParserService` is the parse step an adapter drives before the import: the
+// Tauri command today, the command line next, the dev fixture binary and the
+// round-trip tests. It is part of the core's surface (B47).
 pub use parser::ExcelParserService;

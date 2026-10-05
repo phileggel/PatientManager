@@ -1,10 +1,10 @@
 use super::anomaly_detector::AnomalyDetector;
 use crate::context::procedure::Procedure;
-use crate::use_cases::fund_payment_reconciliation::api::{AnomalyType, DbMatch, NormalizedPdfLine};
 use crate::use_cases::fund_payment_reconciliation::core::{
     InternalAmount, ReconciliationProcessor, MAX_GROUP_CANDIDATES,
 };
 use crate::use_cases::fund_payment_reconciliation::data::FundCache;
+use crate::use_cases::fund_payment_reconciliation::dto::{AnomalyType, DbMatch, NormalizedPdfLine};
 /// State machine for a single reconciliation pass
 use std::collections::{HashMap, HashSet};
 

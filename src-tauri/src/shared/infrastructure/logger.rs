@@ -1,3 +1,4 @@
+#[cfg(feature = "app")]
 #[tauri::command]
 #[specta::specta]
 pub fn log_frontend(level: String, message: String) {

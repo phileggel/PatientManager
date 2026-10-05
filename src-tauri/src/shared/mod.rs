@@ -1,5 +1,6 @@
 mod infrastructure;
 
+#[cfg(feature = "app")]
 pub use infrastructure::create_specta_builder;
 pub use infrastructure::db_diagnostics;
 pub use infrastructure::event_bus;

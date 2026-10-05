@@ -7,7 +7,7 @@ use crate::context::fund::FundService;
 use crate::context::patient::{PatientCandidate, PatientService};
 use crate::context::procedure::{ProcedureCandidate, ProcedureService};
 use crate::shared::logger::BACKEND;
-use crate::use_cases::excel_import::api::{ImportExecutionResult, ParseExcelResponse};
+use crate::use_cases::excel_import::dto::{ImportExecutionResult, ParseExcelResponse};
 use crate::use_cases::excel_import::error::ExcelImportError;
 use crate::use_cases::excel_import::excel_codec::{sheet_nominal_month, SkipReason, SkippedRow};
 use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;

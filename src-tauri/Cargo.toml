@@ -14,10 +14,12 @@ path = "src/lib.rs"
 [[bin]]
 name = "patient_manager_app"
 path = "src/main.rs"
+required-features = ["app"]
 
 [[bin]]
 name = "generate_bindings"
 path = "dev/generate_bindings.rs"
+required-features = ["app"]
 
 [[bin]]
 name = "generate_fixtures"
@@ -25,15 +27,15 @@ path = "dev/generate_fixtures.rs"
 required-features = ["dev-fixtures"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2", features = [], optional = true }
 
 [dependencies]
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
-tauri = { version = "2", features = [] }
-tauri-specta = { version = "2.0.0-rc.21", features = ["javascript", "typescript", "derive"] }
+tauri = { version = "2", features = [], optional = true }
+tauri-specta = { version = "2.0.0-rc.21", features = ["javascript", "typescript", "derive"], optional = true }
 specta = { version = "2.0.0-rc.22", features = ["derive"] }
-specta-typescript = "0.0.9"
+specta-typescript = { version = "0.0.9", optional = true }
 tokio = { version = "1", features = ["full"] }
 sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite", "chrono"] }
 unicode-normalization = "0.1"
@@ -49,11 +51,11 @@ regex = "1"
 csv = "1"
 calamine = "0.36"
 flate2 = "1"
-tauri-plugin-dialog = "2"
-tauri-plugin-window-state = "2"
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
-tauri-plugin-opener = "2"
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-window-state = { version = "2", optional = true }
+tauri-plugin-updater = { version = "2", optional = true }
+tauri-plugin-process = { version = "2", optional = true }
+tauri-plugin-opener = { version = "2", optional = true }
 sha2 = "0.10"
 printpdf = "0.12"
 rust_xlsxwriter = { version = "0.94", optional = true }
@@ -64,10 +66,25 @@ mockall = "0.13"
 lopdf = "0.44"
 
 [features]
+default = ["app"]
+# `app` is the Tauri shell: the window, the Tauri commands (`api.rs` adapters), the
+# command registry and the plugins. Without it the crate is the application core —
+# contexts, use cases and persistence — with no Tauri dependency (B47).
+app = [
+    "dep:tauri",
+    "dep:tauri-build",
+    "dep:tauri-specta",
+    "dep:specta-typescript",
+    "dep:tauri-plugin-dialog",
+    "dep:tauri-plugin-window-state",
+    "dep:tauri-plugin-updater",
+    "dep:tauri-plugin-process",
+    "dep:tauri-plugin-opener",
+]
 # by default Tauri runs in strict mode where all net requests are blocked
 # this flag allows you to build the project without this whitelist for debugging purposes
 # DO NOT use this flag in production
-custom-protocol = ["tauri/custom-protocol"]
+custom-protocol = ["app", "tauri/custom-protocol"]
 # Enable only for dev fixture generation and round-trip integration tests (IFC-011)
 # Production builds MUST NOT enable this feature.
 dev-fixtures = ["dep:rust_xlsxwriter"]

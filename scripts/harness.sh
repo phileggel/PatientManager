@@ -52,11 +52,13 @@ case "$scope" in
         ;;
     backend)
         python3 scripts/check.py --backend --skip-tests
+        bash scripts/core-without-tauri.sh
         just coverage-be
         python3 scripts/coverage-gate.py --backend
         ;;
     both|none)
         python3 scripts/check.py --skip-tests
+        bash scripts/core-without-tauri.sh
         just coverage-fe
         just coverage-be
         python3 scripts/coverage-gate.py

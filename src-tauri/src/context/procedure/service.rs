@@ -271,7 +271,7 @@ impl ProcedureService {
     /// should be controlled by the orchestrator, not the service.
     pub async fn create_procedures_batch_from_candidates(
         &self,
-        candidates: Vec<super::api::ProcedureCandidate>,
+        candidates: Vec<super::dto::ProcedureCandidate>,
         is_silent: bool,
     ) -> Result<Vec<Procedure>, ProcedureError> {
         // Create procedures from candidates using factory methods

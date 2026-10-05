@@ -6,7 +6,8 @@
 #     and rule homes (scripts/rule-homes.py) when any Markdown moved;
 #   - the architecture rules (scripts/arch-check.py) and `check.py --fast`
 #     for the layers they touch (scripts/changed-scope.sh):
-#     frontend, backend, or both. Docs and tooling pay no code check here —
+#     frontend, backend, or both, and the core-without-Tauri build
+#     (scripts/core-without-tauri.sh) when the backend moved. Docs and tooling pay no code check here —
 #     CI runs the full suite on every pull request.
 #
 # The script unit tests never run here: a hook exports GIT_DIR, and tests that
@@ -66,5 +67,11 @@ fi
 echo -e "${BLUE}🔍 Scope ${SCOPE}: fast checks (${FLAGS[*]}).${NC}"
 if ! python3 scripts/check.py "${FLAGS[@]}"; then
     echo -e "${RED}❌ Quality checks failed.${NC}"
+    exit 1
+fi
+
+# The core must build without the Tauri shell (B47): caught here, not in CI.
+if [ "$SCOPE" != "frontend" ] && ! bash scripts/core-without-tauri.sh; then
+    echo -e "${RED}❌ The core no longer builds without Tauri.${NC}"
     exit 1
 fi

@@ -1,5 +1,5 @@
 /// Group reconciliation results into fund payment candidates.
-use crate::use_cases::fund_payment_reconciliation::api::{
+use crate::use_cases::fund_payment_reconciliation::dto::{
     FundPaymentCandidateFromPdf, PdfProcedureGroup, ReconciliationMatch, ReconciliationResult,
 };
 use std::collections::HashMap;
@@ -109,7 +109,7 @@ impl PdfCandidateMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::use_cases::fund_payment_reconciliation::api::{
+    use crate::use_cases::fund_payment_reconciliation::dto::{
         AnomalyType, DbMatch, NormalizedPdfLine,
     };
     use chrono::NaiveDate;

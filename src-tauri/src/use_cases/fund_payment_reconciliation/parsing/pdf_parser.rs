@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use regex::Regex;
 
-use crate::use_cases::fund_payment_reconciliation::api::{
+use crate::use_cases::fund_payment_reconciliation::dto::{
     NormalizedPdfLine, PdfParseResult, PdfProcedureGroup,
 };
 use crate::use_cases::fund_payment_reconciliation::parsing::dates::{

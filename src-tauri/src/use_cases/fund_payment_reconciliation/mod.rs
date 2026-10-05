@@ -22,13 +22,18 @@ mod reconciliation;
 pub mod fund_pdf_codec;
 
 // Public API layer
+#[cfg(feature = "app")]
 pub mod api;
+/// Types the core and the command adapters both use (B47).
+mod dto;
 pub mod error;
 pub mod orchestrator;
 pub mod service;
 
 // Re-export commonly used types and services
+#[cfg(feature = "app")]
 pub use api::*;
+pub use dto::*;
 pub use error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 pub use orchestrator::FundPaymentReconciliationOrchestrator;
 pub use service::ReconciliationService;

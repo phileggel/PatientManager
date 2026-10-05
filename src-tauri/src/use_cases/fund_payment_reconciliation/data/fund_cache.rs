@@ -1,7 +1,7 @@
 /// Fund caching to eliminate N+1 queries
 use crate::context::fund::{Fund, FundRepository};
 use crate::context::procedure::Procedure;
-use crate::use_cases::fund_payment_reconciliation::api::{AnomalyType, NormalizedPdfLine};
+use crate::use_cases::fund_payment_reconciliation::dto::{AnomalyType, NormalizedPdfLine};
 use std::collections::HashMap;
 use std::sync::Arc;
 

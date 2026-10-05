@@ -3,7 +3,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
-use super::api::AutoCorrection;
+use super::dto::AutoCorrection;
 use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use crate::context::fund::{
     FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentService, FundService,
@@ -107,7 +107,7 @@ impl FundPaymentReconciliationOrchestrator {
     /// re-import before the user is shown the anomaly UI.
     pub async fn all_candidates_are_duplicates(
         &self,
-        candidates: &[super::api::FundPaymentCandidateFromPdf],
+        candidates: &[super::dto::FundPaymentCandidateFromPdf],
     ) -> Result<bool, FundPaymentReconciliationError> {
         if candidates.is_empty() {
             return Ok(false);
@@ -392,7 +392,7 @@ impl FundPaymentReconciliationOrchestrator {
     pub async fn create_multiple_with_auto_corrections(
         &self,
         candidates: Vec<FundPaymentGroupCandidate>,
-        auto_corrections: Vec<super::api::AutoCorrection>,
+        auto_corrections: Vec<super::dto::AutoCorrection>,
         patient_service: Arc<PatientService>,
     ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
         // Step 1: Check for duplicates BEFORE any DB writes
@@ -1090,8 +1090,8 @@ mod tests {
         fund_label: &str,
         payment_date: NaiveDate,
         total_amount: i64,
-    ) -> super::super::api::FundPaymentCandidateFromPdf {
-        super::super::api::FundPaymentCandidateFromPdf {
+    ) -> super::super::dto::FundPaymentCandidateFromPdf {
+        super::super::dto::FundPaymentCandidateFromPdf {
             fund_label: fund_label.to_string(),
             payment_date,
             total_amount,

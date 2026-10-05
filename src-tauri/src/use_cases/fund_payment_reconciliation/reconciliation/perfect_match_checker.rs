@@ -1,7 +1,7 @@
 use crate::context::procedure::Procedure;
-/// Check if a match is "perfect" (fully resolved)
-use crate::use_cases::fund_payment_reconciliation::api::{DbMatch, NormalizedPdfLine};
 use crate::use_cases::fund_payment_reconciliation::core::InternalAmount;
+/// Check if a match is "perfect" (fully resolved)
+use crate::use_cases::fund_payment_reconciliation::dto::{DbMatch, NormalizedPdfLine};
 use std::collections::{HashMap, HashSet};
 
 /// Determines if a reconciliation match is "perfect" (no further user action needed)
@@ -60,7 +60,7 @@ impl PerfectMatchChecker {
 mod tests {
     use super::*;
     use crate::context::procedure::{PaymentMethod, ProcedureStatus};
-    use crate::use_cases::fund_payment_reconciliation::api::AnomalyType;
+    use crate::use_cases::fund_payment_reconciliation::dto::AnomalyType;
     use chrono::NaiveDate;
 
     // ============================================================================

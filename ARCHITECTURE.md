@@ -102,6 +102,7 @@ The non-obvious facts that constrain future work — things you'd never guess fr
 
 - **`src/bindings.ts` is auto-generated** from Rust types via Specta. Never edit by hand. Regenerate with `just generate-types`.
 - **`src-tauri/src/shared/infrastructure/specta_builder.rs` is the ONLY Tauri command registry.** A `#[tauri::command]` not collected here is invisible to the FE.
+- **The application core builds without Tauri** (B47). Tauri is the `app` feature of the crate, on by default: the `api.rs` adapters, `src-tauri/src/app.rs` (the window's composition root) and the command registry. Contexts, use cases and persistence build without it (`bash scripts/core-without-tauri.sh`); a type both sides use lives in the module's `dto.rs`.
 - **`context/{bc}/api.rs` is the gateway for each BC** (B0). External callers go through `api.rs`; nothing reaches into `domain/` or `infrastructure/` from outside the BC.
 - **Procedure lifecycle**:
   `None → Created → {Reconciled, PartiallyReconciled, DirectlyPaid} → {FundPaid, PartiallyFundPaid}`,

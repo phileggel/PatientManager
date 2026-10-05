@@ -10,6 +10,7 @@
 //! no PDF, no matching algorithm, no anomaly detection — just user-selected
 //! procedures and a manual fund payment group.
 
+#[cfg(feature = "app")]
 pub mod api;
 pub mod error;
 pub mod orchestrator;

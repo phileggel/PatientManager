@@ -29,12 +29,10 @@ use patient_manager_app::{
     },
     shared::event_bus::EventBus,
     use_cases::fund_payment_reconciliation::{
-        api::{
-            create_fund_payment_with_auto_corrections_fn, reconcile_and_create_candidates_fn,
-            AutoCorrection, CreateFundPaymentWithAutoCorrectionsRequest, NormalizedPdfLine,
-            PdfParseResult, PdfProcedureGroup,
-        },
-        FundPaymentReconciliationOrchestrator, ReconciliationService,
+        api::{create_fund_payment_with_auto_corrections_fn, reconcile_and_create_candidates_fn},
+        AutoCorrection, CreateFundPaymentWithAutoCorrectionsRequest,
+        FundPaymentReconciliationOrchestrator, NormalizedPdfLine, PdfParseResult,
+        PdfProcedureGroup, ReconciliationService,
     },
 };
 use sqlx::sqlite::SqlitePoolOptions;
@@ -484,7 +482,7 @@ async fn test_full_chain_via_reconciliation_service() {
         .filter(|m| {
             matches!(
                 m,
-                patient_manager_app::use_cases::fund_payment_reconciliation::api::ReconciliationMatch::PerfectSingleMatch { .. }
+                patient_manager_app::use_cases::fund_payment_reconciliation::ReconciliationMatch::PerfectSingleMatch { .. }
             )
         })
         .count();

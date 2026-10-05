@@ -1,3 +1,4 @@
+#[cfg(feature = "app")]
 mod api;
 pub mod bank_pdf_codec;
 mod error;
@@ -8,6 +9,7 @@ pub mod reconciliation;
 mod sqlx_uow;
 mod uow;
 
+#[cfg(feature = "app")]
 pub use api::*;
 pub use bank_pdf_codec::{BankStatementCreditLine, BankStatementParseResult};
 pub use error::{BankStatementReconciliationError, BankStatementReconciliationTask};

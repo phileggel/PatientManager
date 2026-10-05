@@ -1,21 +1,9 @@
 use crate::shared::logger::BACKEND;
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-use specta::Type;
 use tauri::State;
 
 use crate::context::patient::{Patient, PatientError, PatientService};
-
-// ============ Domain-Relevant Types (Kept) ============
-
-/// Patient candidate for batch import - semantically different from Patient (lacks ID, created_at)
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct PatientCandidate {
-    pub temp_id: String,
-    pub name: Option<String>,
-    pub ssn: Option<String>,
-}
 
 // ============ Tauri Commands ============
 

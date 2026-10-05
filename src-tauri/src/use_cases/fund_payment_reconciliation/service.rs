@@ -6,12 +6,12 @@ use chrono::NaiveDate;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use super::api::{
+use super::core::InternalAmount;
+use super::data::{FundCache, ProcedurePoolBuilder};
+use super::dto::{
     NormalizedPdfLine, PdfParseResult, PdfProcedureGroup, ReconcileAndCandidatesResponse,
     ReconciliationMatch, ReconciliationResult,
 };
-use super::core::InternalAmount;
-use super::data::{FundCache, ProcedurePoolBuilder};
 use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use super::output::PdfCandidateMapper;
 use super::reconciliation::ReconciliationPass;
@@ -169,10 +169,10 @@ impl ReconciliationService {
                         .inspect_err(|e| tracing::warn!(target: BACKEND, error = %e, "Failed to fetch nearby candidates for NotFound line"))
                         .unwrap_or_default();
 
-                    let nearby_candidates: Vec<super::api::NotFoundCandidate> = candidate_rows
+                    let nearby_candidates: Vec<super::dto::NotFoundCandidate> = candidate_rows
                         .into_iter()
                         .filter(|r| !already_matched_ids.contains(&r.procedure_id))
-                        .map(|r| super::api::NotFoundCandidate {
+                        .map(|r| super::dto::NotFoundCandidate {
                             procedure_id: r.procedure_id,
                             patient_name: r.patient_name.unwrap_or_default(),
                             ssn: r.patient_ssn.unwrap_or_default(),
@@ -254,7 +254,7 @@ impl ReconciliationService {
         &self,
         start_date: NaiveDate,
         end_date: NaiveDate,
-    ) -> Result<Vec<super::api::UnreconciledProcedure>, FundPaymentReconciliationError> {
+    ) -> Result<Vec<super::dto::UnreconciledProcedure>, FundPaymentReconciliationError> {
         let rows = self
             .procedure_repository
             .find_unreconciled_by_date_range(start_date, end_date)
@@ -263,7 +263,7 @@ impl ReconciliationService {
 
         Ok(rows
             .into_iter()
-            .map(|r| super::api::UnreconciledProcedure {
+            .map(|r| super::dto::UnreconciledProcedure {
                 procedure_id: r.procedure_id,
                 patient_name: r.patient_name.unwrap_or_default(),
                 ssn: r.patient_ssn.unwrap_or_default(),
@@ -281,7 +281,7 @@ mod tests {
     use crate::context::procedure::{
         MockProcedureRepository, UnreconciledProcedure as DomainUnreconciled,
     };
-    use crate::use_cases::fund_payment_reconciliation::api::{
+    use crate::use_cases::fund_payment_reconciliation::dto::{
         NormalizedPdfLine, PdfParseResult, PdfProcedureGroup, ReconciliationMatch,
     };
     use chrono::NaiveDate;

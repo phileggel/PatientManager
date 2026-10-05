@@ -136,6 +136,8 @@ before a commit or a push: the hooks do it, and `just harness` is for wanting CI
 answer before pushing.
 
 - **Lint, format, types, build** — `scripts/check.py`, every PR.
+- **Core without the desktop shell** — `scripts/core-without-tauri.sh`, when the backend
+  changes: the crate builds with no Tauri dependency (B47).
 - **Architecture rules A1–A7, B18, B24** — `scripts/arch-check.py`; today's debt is frozen in
   `arch-allowlist.json` and may only shrink.
 - **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
