@@ -36,16 +36,6 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ---
 
-## 2026-10-05 — DEBT-032 — The matching pool keeps partially fund-paid procedures
-
-**Found by:** manual (TODO-005 review)
-
-**Where:** `src-tauri/src/use_cases/fund_payment_reconciliation/data/pool_builder.rs`, `docs/spec/fund-payment-auto-match.md` (FPA-010)
-
-**Observation:** FPA-010 excludes `PartiallyFundPayed` from the candidates of an automatic fund match; the pool builder lists four paid statuses by hand and leaves that one out, so such a procedure stays a candidate. A `fix`: the list becomes a helper on `ProcedureStatus` (B45), with a test per status. `Overpaid` and `OverpaymentRefund` are named by neither the rule nor the code: decide them in the same change.
-
----
-
 ## 2026-10-04 — DEBT-030 — The import entry-point E2E test timed out once on Windows
 
 **Found by:** CI (Windows E2E on gh#188, run 37228153025; green on the re-run of the same commit)

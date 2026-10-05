@@ -1,5 +1,5 @@
 /// Build a pool of unpaid procedures for reconciliation
-use crate::context::procedure::{Procedure, ProcedureRepository, ProcedureStatus};
+use crate::context::procedure::{Procedure, ProcedureRepository};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::fund_payment_reconciliation::api::NormalizedPdfLine;
 use crate::use_cases::fund_payment_reconciliation::parsing::dates::{
@@ -86,20 +86,14 @@ impl ProcedurePoolBuilder {
             "Fetched procedures from database"
         );
 
-        // Group by SSN and filter unpaid
-        // Build pool of procedures for reconciliation
-        // procedure_date is now NaiveDate, no conversion needed
+        // Group by SSN, keeping the candidates of an automatic fund match only (FPA-010).
         let mut pool: HashMap<String, Vec<Procedure>> = HashMap::new();
-        let mut paid_count = 0;
+        let mut excluded_count = 0;
         for (ssn, proc) in all_procedures {
-            if proc.payment_status != ProcedureStatus::DirectlyPaid
-                && proc.payment_status != ProcedureStatus::FundPaid
-                && proc.payment_status != ProcedureStatus::ImportDirectlyPaid
-                && proc.payment_status != ProcedureStatus::ImportFundPaid
-            {
+            if proc.payment_status.is_fund_match_candidate() {
                 pool.entry(ssn).or_default().push(proc);
             } else {
-                paid_count += 1;
+                excluded_count += 1;
             }
         }
 
@@ -108,7 +102,7 @@ impl ProcedurePoolBuilder {
             ssn_count = unique_ssns.len(),
             pool_count = pool.len(),
             procedures_total = pool.values().map(|v| v.len()).sum::<usize>(),
-            paid_procedures = paid_count,
+            excluded_procedures = excluded_count,
             "Pool built"
         );
 
@@ -295,6 +289,34 @@ mod tests {
         assert_eq!(pool.len(), 1);
         // Should have 2 procedures: None + Reconciled (DirectlyPaid and FundPaid are excluded)
         assert_eq!(pool["111111111"].len(), 2);
+    }
+
+    /// FPA-010: the pool holds a procedure of every candidate status and of no other.
+    #[tokio::test]
+    async fn debt_032_the_pool_holds_exactly_the_candidate_statuses() {
+        let procs = ProcedureStatus::ALL
+            .into_iter()
+            .map(|status| create_procedure("111111111", status))
+            .collect();
+        let repo = Arc::new(MockProcedureRepository { procedures: procs });
+        let builder = ProcedurePoolBuilder::new(repo);
+        let line = create_pdf_line("111111111");
+
+        let pool = builder.build(&[&line]).await.unwrap();
+
+        let pooled: Vec<ProcedureStatus> = pool["111111111"]
+            .iter()
+            .map(|procedure| procedure.payment_status)
+            .collect();
+        assert_eq!(
+            pooled,
+            [
+                ProcedureStatus::None,
+                ProcedureStatus::Created,
+                ProcedureStatus::Reconciled,
+                ProcedureStatus::PartiallyReconciled,
+            ]
+        );
     }
 
     #[tokio::test]

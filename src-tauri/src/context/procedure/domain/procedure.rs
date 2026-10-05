@@ -109,6 +109,24 @@ impl ProcedureStatus {
         Self::ALL.into_iter().filter(|status| status.is_blocking())
     }
 
+    /// True for a status that an automatic fund match may still pick up (FPA-010):
+    /// the non-final ones. No wildcard arm, so a new status must be decided here.
+    pub fn is_fund_match_candidate(self) -> bool {
+        match self {
+            ProcedureStatus::None
+            | ProcedureStatus::Created
+            | ProcedureStatus::Reconciled
+            | ProcedureStatus::PartiallyReconciled => true,
+            ProcedureStatus::DirectlyPaid
+            | ProcedureStatus::FundPaid
+            | ProcedureStatus::PartiallyFundPaid
+            | ProcedureStatus::ImportDirectlyPaid
+            | ProcedureStatus::ImportFundPaid
+            | ProcedureStatus::Overpaid
+            | ProcedureStatus::OverpaymentRefund => false,
+        }
+    }
+
     /// True for statuses that block deletion and restrict editing
     /// (R5, R26, REF-220, REF-230).
     ///
@@ -586,6 +604,24 @@ mod tests {
             assert!(is_listed(status));
             assert_eq!(status.as_db_str().parse::<ProcedureStatus>(), Ok(status));
         }
+    }
+
+    /// FPA-010: only a non-final status is a candidate for an automatic fund match.
+    #[test]
+    fn debt_032_fund_match_candidates_are_the_four_non_final_statuses() {
+        let candidates: Vec<ProcedureStatus> = ProcedureStatus::ALL
+            .into_iter()
+            .filter(|status| status.is_fund_match_candidate())
+            .collect();
+        assert_eq!(
+            candidates,
+            [
+                ProcedureStatus::None,
+                ProcedureStatus::Created,
+                ProcedureStatus::Reconciled,
+                ProcedureStatus::PartiallyReconciled,
+            ]
+        );
     }
 
     #[test]
