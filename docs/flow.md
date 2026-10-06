@@ -60,6 +60,12 @@ lane had missed locally (FLOW-001).
   release; the only fix npm offers is a downgrade to WebdriverIO 5.
 - Watch (owner, 2026-10-04): nothing to do until a fixed release exists; each `/dep-audit`
   before a release re-checks it and the agent reports when one does.
+- Re-checked 2026-10-06 (`/dep-audit`, 0.25.0): a fixed release exists. WebdriverIO 10.0.0,
+  published 2026-10-05, clears 18 of the 20 high advisories; `npm audit fix` clears the
+  other two (`source-map-js`, and `esbuild`, low) without a major upgrade. What ships is
+  still clean (`npm audit --omit=dev`, `cargo audit`).
+- Proposal: owner's call for the next batch — `npm audit fix` now, WebdriverIO 10 once the
+  major has a few weeks behind it; the E2E suites are its only user.
 
 ## FLOW-020 — Each E2E suite writes its own "open a management page" helper (DEBT-026)
 

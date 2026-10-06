@@ -6,6 +6,36 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-06 — DEBT-046 — The Excel import: findings of the 0.25.0 spec check not yet recorded
+
+**Found by:** spec-checker, release preparation of 0.25.0 (read in the code, not run); completes DEBT-034 and DEBT-035, which stay open
+
+**Where:** `src-tauri/src/use_cases/excel_import/parser.rs`, `dto.rs`, `src/features/excel-import/presentation/ImportExcelPage.tsx`, `src/features/excel-import/presentation/components/ProcedureTypeMappingStep.tsx`, `docs/spec/excel-import.md`
+
+**Observation:** 22 of 30 rules are fully implemented and 14 have a test of their own; none of it comes from this release. Not yet in the debt file: (1) EXI-090 — two rows of the fund sheet with the same identifier become two insert candidates, and the unique index would fail the whole import (traced, not run), the same shape as DEBT-035; EXI-080 has the same gap for the patient sheet, creating two patients. (2) EXI-070 — Retry after a failed execution parses the file again, with new ids, after the user mapped the types. (3) EXI-120 — Continue is not disabled while the saved mappings load: a click in that short window sends an empty mapping, skips every procedure and overwrites the saved preferences. (4) EXI-050 — a procedure gets no temporary id, though the rule says so. (5) The comment in `dto.rs` still describes the skip reason as a translated text; it is a typed code (EXI-290). Rules with no test at all: EXI-040, 050, 060, 100, 120, 130, 140, 240; the mapping step and the inline type creation have no test file.
+
+---
+
+## 2026-10-06 — DEBT-045 — The procedure type spec and its code have drifted apart
+
+**Found by:** spec-checker, release preparation of 0.25.0 (read in the code, not run)
+
+**Where:** `docs/spec/procedure-type.md`, `src-tauri/src/context/procedure/repository/procedure_type.rs` (`find_by_name`), `src/features/procedure-type/`
+
+**Observation:** 19 of 23 rules are fully implemented. One behaviour gap: R4's name uniqueness compares with SQLite's `LOWER()`, which folds ASCII only, so "Échographie" and "échographie" are both accepted (not run; every test of R4 uses a mock that lowercases in Rust) — compare in Rust, as the patient duplicates do. Spec text to realign with `/spec-writer`: R8 still says the screen blocks an empty name (since 0.25.0 the aggregate refuses it and the edit form shows the message; the creation form disables its button); R4 says the duplicate error is inline while R16 and R17 say a toast, which is what happens; R7 and R9 give a literal currency format and an en dash the screen does not use; the entry point is the management card, not the side rail. No test: R5 (the event), R6 and R21 (the repository has no test module), the delete confirmation and its two toasts (R19, R20), the creation form's disabled button, the manager hook's count.
+
+---
+
+## 2026-10-06 — DEBT-044 — Exporting the database follows a symbolic link at the destination
+
+**Found by:** reviewer-security, release sweep of 0.25.0; deferred by the owner (2026-10-06): low risk, predates the release
+
+**Where:** `src-tauri/src/use_cases/db_backup/orchestrator.rs` (`do_export`), `src-tauri/src/use_cases/db_backup/api.rs`, `src-tauri/src/shared/infrastructure/secure_path.rs`, `src-tauri/src/use_cases/fund_payment_report_pdf/api.rs`
+
+**Observation:** 🟡 the path validator canonicalises only the parent folder of a new file, so `File::create` follows a link already sitting at the chosen name. `generate_diagnostic_report` refuses it (`refuse_symlink`); `export_database` does not. Someone must first have planted the link under the home folder, and the path is confined to it and to a `.gz` name. Fix: the same refusal in `secure_path`, shared by both commands, with a test. Two 🔵 of the same sweep: the PDF report written to Downloads has the same gap; `VACUUM INTO` is built with `format!` from an internal path (a quote is rejected) where a bound parameter would do.
+
+---
+
 ## 2026-10-06 — DEBT-043 — Fourteen frontend logic files are still to move to Rust (rest of TODO-016)
 
 **Found by:** the owner's cut of TODO-016 for 0.25.0 (2026-10-06): the entry is closed on what shipped, the rest is this debt, for the next release
