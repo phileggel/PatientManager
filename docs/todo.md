@@ -18,7 +18,7 @@ in `/whats-next`.
 <!-- nobody used are removed); FLOW-011 with FLOW-018 (the release path). Every other -->
 <!-- entry ships alone. -->
 
-<!-- Cut (owner, 2026-10-05 and 06): 0.25.0 ships with TODO-016 closed on its first three -->
+<!-- Cut (owner, 2026-10-05 and 06): 0.24.1 ships with TODO-016 closed on its first three -->
 <!-- features; its remainder is DEBT-043, for the next release. Moved to the next -->
 <!-- batch, in the order they were queued, for `/whats-next` to propose again: -->
 <!-- TODO-013, FLOW-020, TODO-008, TODO-018, DEBT-011, TODO-019, DEBT-003, TODO-020, -->

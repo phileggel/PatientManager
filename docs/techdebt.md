@@ -6,9 +6,9 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
-## 2026-10-06 — DEBT-046 — The Excel import: findings of the 0.25.0 spec check not yet recorded
+## 2026-10-06 — DEBT-046 — The Excel import: findings of the 0.24.1 spec check not yet recorded
 
-**Found by:** spec-checker, release preparation of 0.25.0 (read in the code, not run); completes DEBT-034 and DEBT-035, which stay open
+**Found by:** spec-checker, release preparation of 0.24.1 (read in the code, not run); completes DEBT-034 and DEBT-035, which stay open
 
 **Where:** `src-tauri/src/use_cases/excel_import/parser.rs`, `dto.rs`, `src/features/excel-import/presentation/ImportExcelPage.tsx`, `src/features/excel-import/presentation/components/ProcedureTypeMappingStep.tsx`, `docs/spec/excel-import.md`
 
@@ -18,17 +18,17 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ## 2026-10-06 — DEBT-045 — The procedure type spec and its code have drifted apart
 
-**Found by:** spec-checker, release preparation of 0.25.0 (read in the code, not run)
+**Found by:** spec-checker, release preparation of 0.24.1 (read in the code, not run)
 
 **Where:** `docs/spec/procedure-type.md`, `src-tauri/src/context/procedure/repository/procedure_type.rs` (`find_by_name`), `src/features/procedure-type/`
 
-**Observation:** 19 of 23 rules are fully implemented. One behaviour gap: R4's name uniqueness compares with SQLite's `LOWER()`, which folds ASCII only, so "Échographie" and "échographie" are both accepted (not run; every test of R4 uses a mock that lowercases in Rust) — compare in Rust, as the patient duplicates do. Spec text to realign with `/spec-writer`: R8 still says the screen blocks an empty name (since 0.25.0 the aggregate refuses it and the edit form shows the message; the creation form disables its button); R4 says the duplicate error is inline while R16 and R17 say a toast, which is what happens; R7 and R9 give a literal currency format and an en dash the screen does not use; the entry point is the management card, not the side rail. No test: R5 (the event), R6 and R21 (the repository has no test module), the delete confirmation and its two toasts (R19, R20), the creation form's disabled button, the manager hook's count.
+**Observation:** 19 of 23 rules are fully implemented. One behaviour gap: R4's name uniqueness compares with SQLite's `LOWER()`, which folds ASCII only, so "Échographie" and "échographie" are both accepted (not run; every test of R4 uses a mock that lowercases in Rust) — compare in Rust, as the patient duplicates do. Spec text to realign with `/spec-writer`: R8 still says the screen blocks an empty name (since 0.24.1 the aggregate refuses it and the edit form shows the message; the creation form disables its button); R4 says the duplicate error is inline while R16 and R17 say a toast, which is what happens; R7 and R9 give a literal currency format and an en dash the screen does not use; the entry point is the management card, not the side rail. No test: R5 (the event), R6 and R21 (the repository has no test module), the delete confirmation and its two toasts (R19, R20), the creation form's disabled button, the manager hook's count.
 
 ---
 
 ## 2026-10-06 — DEBT-044 — Exporting the database follows a symbolic link at the destination
 
-**Found by:** reviewer-security, release sweep of 0.25.0; deferred by the owner (2026-10-06): low risk, predates the release
+**Found by:** reviewer-security, release sweep of 0.24.1; deferred by the owner (2026-10-06): low risk, predates the release
 
 **Where:** `src-tauri/src/use_cases/db_backup/orchestrator.rs` (`do_export`), `src-tauri/src/use_cases/db_backup/api.rs`, `src-tauri/src/shared/infrastructure/secure_path.rs`, `src-tauri/src/use_cases/fund_payment_report_pdf/api.rs`
 
@@ -38,7 +38,7 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 ## 2026-10-06 — DEBT-043 — Fourteen frontend logic files are still to move to Rust (rest of TODO-016)
 
-**Found by:** the owner's cut of TODO-016 for 0.25.0 (2026-10-06): the entry is closed on what shipped, the rest is this debt, for the next release
+**Found by:** the owner's cut of TODO-016 for 0.24.1 (2026-10-06): the entry is closed on what shipped, the rest is this debt, for the next release
 
 **Where:** `arch-allowlist.json` (`frontend_logic_files`, rule A8), the files below
 

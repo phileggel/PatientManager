@@ -12,13 +12,49 @@ How an entry is written (owner, 2026-10-04):
 3. "Keep" is a verdict. Where nothing should change, the entry says so and why.
 4. A tool nobody used is named, with a verdict: keep, fold, or remove.
 
-Each entry has a permanent `FLOW-NNN` id (never reused; next free: FLOW-028). The owner
+Each entry has a permanent `FLOW-NNN` id (never reused; next free: FLOW-035). The owner
 picks what to do; a `Watch` line marks an entry with nothing to do but re-check; a decided entry carries a
 `Decision` line and can be queued in
 `docs/todo.md` § Next; an entry is removed once done, or once the verdict is to keep things
 as they are (FLOW-004, FLOW-012 and FLOW-016 were closed that way on 2026-10-04; FLOW-017 and
 FLOW-015 were done the same day). Entries that came from `techdebt.md`
 keep their old id in the title.
+
+---
+
+## Measured — the 0.24.1 batch (2026-10-04 → 2026-10-06)
+
+- **Pull requests merged:** 33 (#173–#206; #185 closed and replaced), 4 909 lines added,
+  3 158 removed. One session, three working stretches.
+- **Opening to merging:** median 8 min (16 in the last batch), mean 75 min. The mean is
+  three pull requests that waited overnight or through a GitHub Actions incident (#192
+  506 min, #203 589 min, #202 647 min) and #201 (255 min, four watches — FLOW-028).
+- **CI rounds:** 64 Quality runs for 35 branches. Two branches took 7, one took 4.
+- **Run times (median of green runs):** Quality 2.6 min, Review 2.4 min, E2E 7.0 min.
+- **Failed runs on pull requests:** Review 12, Quality 1, E2E 1, PR description 1, release
+  dry run 1. Cancelled: 32, most of them on 2026-10-05 when jobs got no runner.
+- **Agent launches:** 56, all prescribed reviewers (infra 17, arch 10, backend 10,
+  frontend 6, security 5, contract 4, spec-checker 3, spec-reviewer 1). Not run locally:
+  `reviewer-sql`, `reviewer-e2e`, `adr-reviewer` — no migration, E2E test or ADR changed.
+- **Questions to the owner:** 14, one at a time. Skills run: `/whats-next` 1, `/next-todo`
+  2, `/dep-audit` 1. Not run: `/design-proposal`, `/visual-proof`, `/spec-writer`,
+  `/contract`, `/adr-writer` — nothing a user sees changed and no spec was written. Keep.
+- **Tools:** every recipe and script in the usage log ran at least once
+  (`logs/usage.log`, 792 lines). `watch-pr` 36 times, `merge` 27, `harness` 21. No tool
+  to remove.
+- **The queue:** 31 entries at its largest, on 2026-10-04; 9 moved to the next batch on
+  2026-10-05, and TODO-016 closed on 3 of its 9 features on 2026-10-06 (FLOW-029).
+- **Defects found before merge:** by reviewers, among others — a missing patient answered
+  as a database error, a stored value with a stray space read as a change, two cascades
+  the contracts promised and no command performs (DEBT-042), a rule the backend does not
+  enforce (FPM-200). By the audits TODO-016 asked for — editing a patient saved an
+  invalid SSN; editing a fund was not validated in Rust at all.
+- **Wrong statements by the agent, corrected within the hour:** 4 (FLOW-033).
+
+Reading: the mechanics held — a median of 8 minutes from opening to merging, and no tool
+left unused. The time went elsewhere: to a queue twice the size of what a session does
+(FLOW-029), to documents that had drifted and were paid for one feature at a time
+(FLOW-032), and to an hour of watches during an outage (FLOW-028).
 
 ---
 
@@ -60,7 +96,7 @@ lane had missed locally (FLOW-001).
   release; the only fix npm offers is a downgrade to WebdriverIO 5.
 - Watch (owner, 2026-10-04): nothing to do until a fixed release exists; each `/dep-audit`
   before a release re-checks it and the agent reports when one does.
-- Re-checked 2026-10-06 (`/dep-audit`, 0.25.0): a fixed release exists. WebdriverIO 10.0.0,
+- Re-checked 2026-10-06 (`/dep-audit`, 0.24.1): a fixed release exists. WebdriverIO 10.0.0,
   published 2026-10-05, clears 18 of the 20 high advisories; `npm audit fix` clears the
   other two (`source-map-js`, and `esbuild`, low) without a major upgrade. What ships is
   still clean (`npm audit --omit=dev`, `cargo audit`).
@@ -115,8 +151,98 @@ lane had missed locally (FLOW-001).
   later a job was cancelled after 15 minutes in the queue, no runner having taken it
   (zero steps). The watch reported each as a failure and stopped; nothing restarted the
   jobs until `gh run rerun <run> --failed`.
+- Again on 2026-10-05 and 06, during a GitHub Actions incident: #202 and #203 took three
+  watches each, every job cancelled after 15 minutes without a runner.
 - Proposal: owner's call. `watch-pr` re-runs once a job that was cancelled without
   running a step, and says so; a job that fails after running is still a failure. The
   description is edited before the push, not after, when the review outcome is known.
 - Costs: a watch that writes to GitHub (a re-run), where today it only reads. Protects:
   about 20 minutes and three manual re-runs on such a pull request.
+
+## FLOW-029 — The queue was sized by its number of entries, not by its work
+
+- Kind: quality
+- Observed: the queue held 31 entries at its largest, on 2026-10-04. The owner asked "is it not a lot?" at
+  the proposal, "this session is really long, what remains?" on 2026-10-05, and cut the
+  queue twice. TODO-016 was one line of the queue and seven pull requests (#199–#205) for
+  three of its nine features; its Done when already said "split per feature".
+- Proposal: owner's call. `/whats-next` names an entry whose Done when is a programme
+  (several features, "split per", "every … in `src/`") and proposes its first slice as
+  the entry; the proposal states how many pull requests the queue stands for, and stops
+  at what one batch has merged before (33 here, 13 the batch before).
+- Costs: an estimate in a skill that so far gives none (its Step 4 forbids hour
+  estimates; a count of pull requests is not one). Protects: a release date, and the
+  owner's two cuts mid-session.
+
+## FLOW-030 — The agent named the release before the release tool did
+
+- Kind: quality
+- Observed: the batch was called "0.25.0" in every status message and in four documents
+  (the queue comment, DEBT-043 to DEBT-046, FLOW-019, a pull request title). `just release`
+  proposed 0.24.1: no commit of the batch is a `feat`. Corrected in this pull request,
+  except the merged titles of #203 and #206, which stay.
+- Proposal: a batch is named by its dates until `just release --dry-run` has proposed a
+  version; `/whats-next` and the agent say "the next release". One line in
+  `docs/workflow.md` § release.
+- Costs: nothing. Protects: documents that name a release that never existed.
+
+## FLOW-031 — A manual check on an installed build has no place in the release path
+
+- Kind: quality
+- Observed: DEBT-027 (the permissions narrowed) left three checks only a person can do
+  on a real build. The agent told the owner to do them "before you run the release"; the
+  installed application was 0.24.0, with the old permissions, so the check would have
+  passed and proved nothing. The only build of the new code is the draft the release
+  workflow produces, and the release rule says the agent publishes that draft on green.
+- Proposal: owner's call. An entry that needs such a check says so in a line of its own
+  (`**Manual check:**`); the release preparation lists them; the agent publishes the draft
+  only after the owner's go when the list is not empty, and on green otherwise.
+- Costs: a release that waits for a person when a check is listed. Protects: the one
+  place where no test stands in for the user — the native dialogs are overridden in E2E
+  (ADR-007).
+
+## FLOW-032 — A contract or a spec read for the first time costs the feature that touches it
+
+- Kind: speed
+- Observed: `contract-reviewer` ran on three contracts because a feature changed one
+  command in each. It returned 4, 1 and 2 critical findings, none caused by the change
+  (wrong argument types, error codes that exist nowhere, "hard-deletes" for a soft
+  delete), and `spec-checker` found 8 of 30 and 4 of 23 rules partial before the release.
+  Each cost 20 to 30 minutes of triage, corrections and debt (DEBT-034, 037, 040, 042,
+  045, 046). The findings were real: two cascades and one rule are not enforced.
+- Proposal: owner's call. Keep the reviewers as they are, and pay the drift once: an entry
+  that regenerates the 13 contracts with `/contract` and runs `spec-checker` on every
+  spec, before the next feature work. Until then a feature corrects the commands it
+  touches and files the rest, as this batch did.
+- Costs: one batch-sized entry with nothing a user sees. Protects: about half an hour
+  per feature, and contracts a second surface (TODO-013) can be written against.
+
+## FLOW-033 — Four statements the agent made without having read what they rest on
+
+- Kind: quality
+- Observed: (1) "Rust does not validate a procedure type on edit" — it did, in the
+  command; only the service had been read; the commit was amended before its push.
+  (2) "The cancelled runs will be replaced on their own" — nothing restarted them; two
+  more watches. (3) A poll given a shortened commit id found no run and was reported as a
+  failed check. (4) "Do the three checks before you run the release" (FLOW-031). Each was
+  corrected and said to the owner within the hour; none reached `main`.
+- Proposal: fold into `CLAUDE.md` § Talking to the owner: a statement that the code does
+  not do something names what was read (command, service, aggregate); a statement about
+  what a system will do next is either checked or given as a guess.
+- Costs: a sentence. Protects: the owner's trust in a status line, which is what an
+  autonomous session runs on.
+
+## FLOW-034 — An unpushed branch stacked on a pushed one avoided the rebase dead end
+
+- Kind: speed
+- Observed: three features each removed a line from the same list in
+  `arch-allowlist.json`; two pull requests opened side by side would have conflicted, and
+  a conflict on a pushed branch has no way through (FLOW-026). The agent wrote each
+  feature on a local branch above the previous one, ran the harness and the reviewers
+  there, and pushed only after the one below had merged (a local rebase, never a
+  force-push). #202, #204 and #205 merged within 27 minutes of each other.
+- Proposal: keep, and write it down: `docs/workflow.md` § 11 allows a branch that is not
+  pushed yet to sit on a branch in review, rebased onto `main` before its first push;
+  the reviewers are given the last commit only.
+- Costs: a reviewer prompt that names a commit instead of a branch. Protects: the waiting
+  time of a queue of small pull requests on one file.
