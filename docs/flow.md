@@ -170,6 +170,9 @@ lane had missed locally (FLOW-001).
   (several features, "split per", "every … in `src/`") and proposes its first slice as
   the entry; the proposal states how many pull requests the queue stands for, and stops
   at what one batch has merged before (33 here, 13 the batch before).
+- Decision (owner, 2026-10-06): accepted. `/whats-next` names a programme-sized entry and
+  proposes its first slice; its proposal states the number of pull requests the queue
+  stands for.
 - Costs: an estimate in a skill that so far gives none (its Step 4 forbids hour
   estimates; a count of pull requests is not one). Protects: a release date, and the
   owner's two cuts mid-session.
@@ -184,6 +187,8 @@ lane had missed locally (FLOW-001).
 - Proposal: a batch is named by its dates until `just release --dry-run` has proposed a
   version; `/whats-next` and the agent say "the next release". One line in
   `docs/workflow.md` § release.
+- Decision (owner, 2026-10-06): accepted. A batch is named by its dates until
+  `just release --dry-run` has proposed a version; the line goes into `docs/workflow.md`.
 - Costs: nothing. Protects: documents that name a release that never existed.
 
 ## FLOW-031 — A release never waits for a manual check: a doubt is a gap in the harness
@@ -223,6 +228,8 @@ lane had missed locally (FLOW-001).
   that regenerates the 13 contracts with `/contract` and runs `spec-checker` on every
   spec, before the next feature work. Until then a feature corrects the commands it
   touches and files the rest, as this batch did.
+- Decision (owner, 2026-10-06): accepted. One entry regenerates the 13 contracts with
+  `/contract` and runs `spec-checker` on every spec, before the next feature work.
 - Costs: one batch-sized entry with nothing a user sees. Protects: about half an hour
   per feature, and contracts a second surface (TODO-013) can be written against.
 
@@ -238,6 +245,8 @@ lane had missed locally (FLOW-001).
 - Proposal: fold into `CLAUDE.md` § Talking to the owner: a statement that the code does
   not do something names what was read (command, service, aggregate); a statement about
   what a system will do next is either checked or given as a guess.
+- Decision (owner, 2026-10-06): accepted. The two sentences go into `CLAUDE.md`
+  § Talking to the owner.
 - Costs: a sentence. Protects: the owner's trust in a status line, which is what an
   autonomous session runs on.
 
@@ -253,5 +262,6 @@ lane had missed locally (FLOW-001).
 - Proposal: keep, and write it down: `docs/workflow.md` § 11 allows a branch that is not
   pushed yet to sit on a branch in review, rebased onto `main` before its first push;
   the reviewers are given the last commit only.
+- Decision (owner, 2026-10-06): accepted. The pattern goes into `docs/workflow.md` § 11.
 - Costs: a reviewer prompt that names a commit instead of a branch. Protects: the waiting
   time of a queue of small pull requests on one file.
