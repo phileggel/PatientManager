@@ -11,7 +11,7 @@ Returns all procedure types including the reserved `import-pdf` type. The fronte
 
 - **Args:** —
 - **Returns:** `Vec<ProcedureType>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -19,19 +19,19 @@ Returns all procedure types including the reserved `import-pdf` type. The fronte
 
 Creates a new procedure type. Validates: name non-empty after trim (R1), `default_amount` ≥ 0 (R2), category normalised to `null` if empty (R3), name uniqueness case-insensitively including the reserved name `"Import"` (R4, R21). Publishes `ProcedureTypeUpdated` event (R5).
 
-- **Args:** `name: String, default_amount: i64, category: String`
+- **Args:** `name: String, default_amount: i64, category: Option<String>`
 - **Returns:** `ProcedureType`
-- **Errors:** `EmptyName`, `NegativeAmount`, `DuplicateName`
+- **Errors:** `ProcedureTypeNameEmpty` (R1), `DefaultAmountNegative` (R2), `ProcedureTypeNameDuplicate` (R4, R21), `DatabaseError`
 
 ---
 
 ### `update_procedure_type` — R1, R2, R3, R4, R5, R22
 
-Updates an existing procedure type. Same field validations as creation (R1–R4). Rejects any attempt to edit the reserved `import-pdf` type (R22). Publishes `ProcedureTypeUpdated` event (R5).
+A user's edit of a procedure type, written onto the stored one. Same field validations as creation (R1–R4). Rejects any attempt to edit the reserved `import-pdf` type (R22). Publishes `ProcedureTypeUpdated` event (R5).
 
 - **Args:** `raw: RawProcedureType`
 - **Returns:** `ProcedureType`
-- **Errors:** `ProcedureTypeNotFound`, `EmptyName`, `NegativeAmount`, `DuplicateName`, `ReservedType`
+- **Errors:** `ReservedTypeNotMutable` (R22), `ProcedureTypeNotFound { procedure_type_id }`, `ProcedureTypeNameEmpty` (R1), `DefaultAmountNegative` (R2), `ProcedureTypeNameDuplicate` (R4), `DatabaseError`
 
 ---
 
@@ -39,11 +39,11 @@ Updates an existing procedure type. Same field validations as creation (R1–R4)
 
 Soft-deletes a procedure type. The type is marked deleted and no longer returned in reads (R6). Existing procedures that reference it keep their reference. Rejects deletion of the reserved `import-pdf` type (R22). Publishes `ProcedureTypeUpdated` event (R5).
 
-> Side effect: any patient whose `latest_procedure_type` references this type has `latest_procedure_type` and `latest_date` cleared (POC R21).
+An unknown id is not an error: the command succeeds and changes nothing. It does not clear the patients' latest procedure type (PRO-280 is not implemented — DEBT-042).
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `ProcedureTypeNotFound`, `ReservedType`
+- **Errors:** `ReservedTypeNotMutable` (R22), `DatabaseError`
 
 ---
 

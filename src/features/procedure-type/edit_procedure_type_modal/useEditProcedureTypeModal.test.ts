@@ -50,7 +50,11 @@ describe("useEditProcedureTypeModal", () => {
     expect(result.current.formData.name).toBe("Radiologie");
   });
 
-  it("shows validation error when name is empty", async () => {
+  it("shows the backend's refusal of the name under the name field", async () => {
+    mockUpdate.mockResolvedValue({
+      success: false,
+      error: { code: "ProcedureTypeNameEmpty" },
+    });
     const { result } = renderHook(() => useEditProcedureTypeModal(pt, onSuccess));
 
     act(() => {
@@ -64,7 +68,8 @@ describe("useEditProcedureTypeModal", () => {
     });
 
     expect(result.current.errors.name).toBeTruthy();
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
   it("shows validation error when defaultAmount is empty", async () => {
@@ -118,7 +123,7 @@ describe("useEditProcedureTypeModal", () => {
     expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ default_amount: 50500 }));
   });
 
-  it("converts empty category to null on submit", async () => {
+  it("sends the category as typed: reading a blank as none is the backend's", async () => {
     mockUpdate.mockResolvedValue({ success: true, data: pt });
     const { result } = renderHook(() => useEditProcedureTypeModal(pt, onSuccess));
 
@@ -132,7 +137,7 @@ describe("useEditProcedureTypeModal", () => {
       result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
     });
 
-    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ category: null }));
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ category: "  " }));
   });
 
   it("calls onSuccess and shows success toast on successful update", async () => {
@@ -163,7 +168,10 @@ describe("useEditProcedureTypeModal", () => {
   });
 
   it("resets form when procedureType prop changes", async () => {
-    mockUpdate.mockResolvedValue({ success: true, data: pt });
+    mockUpdate.mockResolvedValue({
+      success: false,
+      error: { code: "ProcedureTypeNameEmpty" },
+    });
     const { result, rerender } = renderHook(({ p }) => useEditProcedureTypeModal(p, onSuccess), {
       initialProps: { p: pt },
     });

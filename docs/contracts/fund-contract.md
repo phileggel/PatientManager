@@ -40,7 +40,7 @@ A user's edit of a fund: the identifier and the name, trimmed and validated, are
 
 ### `delete_fund`
 
-Soft-deletes a fund: it is marked deleted and leaves every read. An unknown id is not an error: the command succeeds and changes nothing. Side effect: any patient whose `latest_fund` references this fund has `latest_fund` cleared (POC R22).
+Soft-deletes a fund: it is marked deleted and leaves every read. An unknown id is not an error: the command succeeds and changes nothing. It does not clear the patients' latest fund (PRO-290 is not implemented — DEBT-042).
 
 - **Args:** `id: String`
 - **Returns:** `()`

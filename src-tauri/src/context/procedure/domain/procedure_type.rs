@@ -19,12 +19,14 @@ pub struct ProcedureType {
 }
 
 impl ProcedureType {
-    /// Creates a new ProcedureType with validation and generates ID.
+    /// Creates a new ProcedureType with validation and generates ID. The name
+    /// is trimmed and a blank category read as none, as for an edit.
     pub fn new(
         name: String,
         default_amount: i64,
         category: Option<String>,
     ) -> Result<Self, ProcedureError> {
+        let (name, category) = Self::read_input(name, category);
         Self::validate_fields(&name, default_amount)?;
 
         Ok(Self {
@@ -35,19 +37,18 @@ impl ProcedureType {
         })
     }
 
-    /// Creates a ProcedureType with an existing ID and validation.
-    /// Used when updating from external input (API, imports, etc.).
-    /// Does NOT generate a new ID.
-    pub fn with_id(
-        id: String,
+    /// What this stored procedure type becomes when a user edits it: the name
+    /// trimmed, a blank category read as none, all three validated, the id kept.
+    pub fn edit(
+        &self,
         name: String,
         default_amount: i64,
         category: Option<String>,
     ) -> Result<Self, ProcedureError> {
+        let (name, category) = Self::read_input(name, category);
         Self::validate_fields(&name, default_amount)?;
-
         Ok(Self {
-            id,
+            id: self.id.clone(),
             name,
             default_amount,
             category,
@@ -70,6 +71,14 @@ impl ProcedureType {
         }
     }
 
+    /// What a form sent, as the domain reads it: the name trimmed, a blank category as none.
+    fn read_input(name: String, category: Option<String>) -> (String, Option<String>) {
+        let category = category
+            .map(|category| category.trim().to_string())
+            .filter(|category| !category.is_empty());
+        (name.trim().to_string(), category)
+    }
+
     /// Validates procedure type fields.
     /// Used by factory methods to ensure domain invariants.
     fn validate_fields(name: &str, default_amount: i64) -> Result<(), ProcedureError> {
@@ -86,6 +95,49 @@ impl ProcedureType {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn stored() -> ProcedureType {
+        ProcedureType::restore(
+            "pt-1".to_string(),
+            "Consultation".to_string(),
+            100_000,
+            None,
+        )
+    }
+
+    #[test]
+    fn a_new_procedure_type_has_its_name_trimmed_and_a_blank_category_read_as_none() {
+        let created = ProcedureType::new(" Bilan ".to_string(), 50_000, Some("  ".to_string()))
+            .expect("padded values are valid input");
+        assert_eq!(created.name, "Bilan");
+        assert_eq!(created.category, None);
+    }
+
+    #[test]
+    fn an_edit_trims_and_keeps_the_id() {
+        let edited = stored()
+            .edit(" Bilan ".to_string(), 50_000, Some(" Soin ".to_string()))
+            .expect("padded values are valid input");
+        assert_eq!(edited.id, "pt-1");
+        assert_eq!(edited.name, "Bilan");
+        assert_eq!(edited.default_amount, 50_000);
+        assert_eq!(edited.category.as_deref(), Some("Soin"));
+    }
+
+    #[test]
+    fn an_edit_refuses_a_blank_name() {
+        let result = stored().edit("  ".to_string(), 50_000, None);
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ProcedureTypeNameEmpty)
+        ));
+    }
+
+    #[test]
+    fn an_edit_refuses_a_negative_amount() {
+        let result = stored().edit("Bilan".to_string(), -1, None);
+        assert!(matches!(result, Err(ProcedureError::DefaultAmountNegative)));
+    }
 
     #[test]
     fn new_rejects_empty_name() {
@@ -109,19 +161,6 @@ mod tests {
     fn new_rejects_negative_default_amount() {
         let result = ProcedureType::new("Consultation".to_string(), -1, None);
         assert!(matches!(result, Err(ProcedureError::DefaultAmountNegative)));
-    }
-
-    #[test]
-    fn with_id_validates_like_new() {
-        let bad = ProcedureType::with_id("pt-1".to_string(), "".to_string(), 100_000, None);
-        assert!(matches!(bad, Err(ProcedureError::ProcedureTypeNameEmpty)));
-        let ok = ProcedureType::with_id(
-            "pt-1".to_string(),
-            "Consultation".to_string(),
-            100_000,
-            None,
-        );
-        assert!(ok.is_ok());
     }
 }
 

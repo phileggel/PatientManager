@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProcedureError, ProcedureType } from "@/bindings";
-import { formatProcedureError, ProcedureTypePresenter } from "./presenter";
+import { formatProcedureError, isNameMissing, ProcedureTypePresenter } from "./presenter";
 
 /**
  * ProcedureTypePresenter - Gold Test Suite
@@ -169,6 +169,27 @@ describe("ProcedureTypePresenter", () => {
         category: "Radiology",
       });
       expect(result.rowId).toHaveLength(36); // UUID format
+    });
+  });
+
+  describe("reading the form", () => {
+    it("reads the amount field in thousandths", () => {
+      expect(ProcedureTypePresenter.toDefaultAmount("50")).toEqual({ thousandths: 50000 });
+      expect(ProcedureTypePresenter.toDefaultAmount("12.345")).toEqual({ thousandths: 12345 });
+    });
+
+    it("answers the key of the message for an empty or non-numeric amount", () => {
+      expect(ProcedureTypePresenter.toDefaultAmount("  ")).toEqual({
+        errorKey: "procedure-type:form.amount_required",
+      });
+      expect(ProcedureTypePresenter.toDefaultAmount("abc")).toEqual({
+        errorKey: "procedure-type:form.amount_invalid",
+      });
+    });
+
+    it("reads only the name refusal as a missing name", () => {
+      expect(isNameMissing({ code: "ProcedureTypeNameEmpty" })).toBe(true);
+      expect(isNameMissing({ code: "ProcedureTypeNameDuplicate" })).toBe(false);
     });
   });
 

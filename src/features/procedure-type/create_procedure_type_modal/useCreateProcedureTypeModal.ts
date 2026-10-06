@@ -3,9 +3,8 @@ import { useTranslation } from "react-i18next";
 import { addProcedureType } from "@/features/procedure-type/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
-import { formatProcedureError } from "../shared/presenter";
+import { formatProcedureError, isNameMissing, ProcedureTypePresenter } from "../shared/presenter";
 import type { FormErrors, ProcedureTypeFormData } from "../shared/types";
-import { validateProcedureType } from "../shared/validateProcedureType";
 
 const initialFormData: ProcedureTypeFormData = {
   name: "",
@@ -40,31 +39,24 @@ export function useCreateProcedureTypeModal(isOpen: boolean, onClose: () => void
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    const newErrors = validateProcedureType(formData, {
-      nameRequired: t("form.name_required"),
-      amountRequired: t("form.amount_required"),
-      amountInvalid: t("form.amount_invalid"),
-    });
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
+    const amount = ProcedureTypePresenter.toDefaultAmount(formData.defaultAmount);
+    if ("errorKey" in amount) {
+      setErrors({ defaultAmount: t(amount.errorKey) });
+      return;
+    }
 
-    logger.debug("Submitting create procedure type form", {
-      name: formData.name.trim(),
-      defaultAmount: Number(formData.defaultAmount),
-    });
+    logger.debug("Submitting create procedure type form");
     setLoading(true);
 
     try {
-      const result = await addProcedureType(
-        formData.name.trim(),
-        Math.round(Number(formData.defaultAmount) * 1000),
-        formData.category.trim() || undefined,
-      );
+      const result = await addProcedureType(formData.name, amount.thousandths, formData.category);
 
       if (result.success) {
         logger.info("Procedure type created successfully");
         toastService.show("success", t("action.add_success"));
         onClose();
+      } else if (isNameMissing(result.error)) {
+        setErrors({ name: t("form.name_required") });
       } else {
         const { key, params } = formatProcedureError(result.error);
         logger.error("Failed to create procedure type", { code: result.error.code });

@@ -6,6 +6,43 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-06 — DEBT-043 — Fourteen frontend logic files are still to move to Rust (rest of TODO-016)
+
+**Found by:** the owner's cut of TODO-016 for 0.25.0 (2026-10-06): the entry is closed on what shipped, the rest is this debt, for the next release
+
+**Where:** `arch-allowlist.json` (`frontend_logic_files`, rule A8), the files below
+
+**Observation:** TODO-016 shipped the rule (logic lives in Rust, A8 freezes the frontend logic files, the core builds without the desktop shell) and three features: patient, fund, procedure type. Fourteen files stay frozen; A8 keeps the list from growing. Each feature is one pull request with an audit table (moved / kept as display only); a form with several fields answers every refusal at once (`docs/error-model.md`); a user's change from a form is `edit(...)` on the aggregate. Expect a gap in Rust behind each screen check, as the first three had.
+
+- **Form validators** — `fund-payment/shared/validatePayment.ts`, `bank-transfer/shared/validateBankTransfer.ts`: a fund or an account, a date and at least one item are chosen. The backend does not enforce "at least one procedure" on a fund payment today (FPM-200); the check before opening the procedure picker is display state and stays.
+- **Dashboard** — `dashboard/utils/aggregation.ts`, `dashboard/api/dashboardService.ts`: the yearly metrics are aggregated on screen from every procedure; a Rust read model replaces them.
+- **Procedure list** — `procedure/model/overdue.logic.ts`, `date.logic.ts`, `procedure-row.mapper.ts`: the overdue rule and its high-water mark, day and month helpers, the row mapping with its euro conversion (DEBT-041).
+- **Bank statement matching** — `bank-statement-match/shared/candidateSelection.ts`, `labelRows.ts`, `procedureWindow.ts`: the covered amount of a selection, the label rows and whether all are decided, the date window of candidate procedures.
+- **Excel import** — `excel-import/shared/mappings.ts`, `sheets.ts`: the procedure type mappings derived from the parse result, the sheet order.
+- **Fund payment matching** — `fund-payment-match/shared/utils.ts`, `formatters.ts`: correction keys and builders, the PDF date range, the priority order of issues, the anomaly count; `formatters.ts` is display and may only need reclassifying.
+
+---
+
+## 2026-10-06 — DEBT-042 — Deleting a procedure type or a fund does not clear the patients' defaults (PRO-280, PRO-290)
+
+**Found by:** contract-reviewer (branch `refactor/todo-016-procedure-type-validator`)
+
+**Where:** `src-tauri/src/use_cases/procedure_orchestration/service.rs` (`clear_procedure_type_tracking`, `clear_fund_tracking`), `src-tauri/src/context/procedure/service.rs` (`delete_procedure_type`), `src-tauri/src/context/fund/service.rs` (`delete_fund`), `docs/spec/procedure-orchestration.md`
+
+**Observation:** PRO-280 and PRO-290 say a deleted procedure type or fund is cleared from every patient's latest-procedure defaults. The two functions that do it exist and are tested, but no command calls them: `delete_procedure_type` and `delete_fund` only soft-delete. A patient therefore keeps a default pointing at a deleted type or fund, which the procedure form then offers. The two contracts claimed the side effect; they now say it does not happen. Owner's choice: route both deletions through the `procedure_orchestration` use case so the rules hold, or withdraw the two rules from the spec.
+
+---
+
+## 2026-10-06 — DEBT-041 — The screens convert euros to thousandths, in about ten places
+
+**Found by:** the agent, during TODO-016's procedure type audit; kept on screen by the owner's decision (2026-10-06)
+
+**Where:** `src/features/procedure-type/shared/presenter.ts` (`toDefaultAmount`, `toFormData`), `src/features/procedure/ui/procedure_form_modal/useProcedureFormModal.ts`, `src/features/procedure/ui/ProcedurePage.tsx`, `src/features/procedure/ui/procedure_list/ProcedureList.tsx`, `src/features/procedure/shared/presenter.ts`, `src/features/procedure/model/procedure-row.mapper.ts`, `src/features/excel-import/presentation/components/CreateProcedureTypeModal.tsx`, `src/features/excel-import/presentation/components/ProcedureTypeMappingStep.tsx`, `src/features/fund-payment-match/reconciliation_results/cards/GroupMatchCard.tsx`
+
+**Observation:** each site multiplies or divides by 1000 and rounds on its own (`Math.round(x * 1000)`, `x / 1000`); the procedure rows carry amounts in euros as floating-point numbers and convert back on save. Reading what a user typed is input handling and stays on screen, but the rounding rule exists once per site, and a second caller (the CLI of TODO-013) would write it again. Options when it is taken up: one shared frontend helper for the conversion; or commands that take the typed text and let Rust parse and round it.
+
+---
+
 ## 2026-10-06 — DEBT-040 — The fund contract's payment-group section no longer describes the code
 
 **Found by:** contract-reviewer (branch `refactor/todo-016-fund-validator`)

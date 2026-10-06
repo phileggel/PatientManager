@@ -291,6 +291,12 @@ from code and proposed for confirmation.
 | ----------------------------- | ---------------------------------------- | ----------------- | --------- |
 | `edit(fund_identifier, name)` | A user edits the identifier and the name | —                 | confirmed |
 
+### ProcedureType
+
+| Method                                 | Domain intent                 | Status transition | Status    |
+| -------------------------------------- | ----------------------------- | ----------------- | --------- |
+| `edit(name, default_amount, category)` | A user edits a procedure type | —                 | confirmed |
+
 ### Patient
 
 | Method             | Domain intent                                                | Status transition | Status    |

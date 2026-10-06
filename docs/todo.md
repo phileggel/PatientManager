@@ -18,12 +18,11 @@ in `/whats-next`.
 <!-- nobody used are removed); FLOW-011 with FLOW-018 (the release path). Every other -->
 <!-- entry ships alone. -->
 
-<!-- Cut (owner, 2026-10-05): 0.25.0 ships once TODO-016 is done. Moved to the next -->
+<!-- Cut (owner, 2026-10-05 and 06): 0.25.0 ships with TODO-016 closed on its first three -->
+<!-- features; its remainder is DEBT-043, for the next release. Moved to the next -->
 <!-- batch, in the order they were queued, for `/whats-next` to propose again: -->
 <!-- TODO-013, FLOW-020, TODO-008, TODO-018, DEBT-011, TODO-019, DEBT-003, TODO-020, -->
 <!-- TODO-021. -->
-
-- TODO-016
 
 ---
 
@@ -120,20 +119,6 @@ A way to drive PatientManager's use cases without the window: the same Rust comm
 **User value:** an agent (e.g. Claude) or another tool can read and act on the practice's data on this machine, through the same rules the app follows.
 
 **Done when:** a `patientmanager` command-line program and an MCP server (a thin layer over the same commands) expose the use cases the UI offers, read and write. Local only: stdio, no network listener. Every write needs an explicit confirmation (`--yes` on the CLI, a confirm step in MCP). Every call is written to an audit log (command, time, record ids — no patient data). A caller must present a credential created and revocable in the app (OS-keychain key or certificate, decided in the spec). Starts with `/spec-writer`; comes after TODO-016. Accepted by the owner: data an agent reads (names, SSNs) is sent to the model provider as conversation content.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-016 — (frontend+backend) — All logic in Rust
-
-Business rules, validations, aggregations and derivations still live in the frontend in places (sorting and filtering helpers, presenters that compute, hooks that decide). A second surface (TODO-013's CLI and MCP server) must follow the same rules as the app, so the rules must live where both can reach them: in Rust.
-
-**User value:** none directly — the app behaves the same; every rule has one implementation, which the CLI and MCP server reuse.
-
-**Done when:** every business rule, validation, aggregation and derivation in `src/` moves behind a Rust command; the frontend only renders, holds ephemeral UI state and maps error codes to i18n; the tests of that logic move to Rust; a new architecture rule freezes today's frontend logic in `arch-allowlist.json` and may only shrink; "logic in Rust, the frontend renders" joins `docs/workflow.md` § 6; the application core builds without the desktop shell (no Tauri dependency), checked in CI, so TODO-013's CLI and MCP server can link it — as folioneer did in `e4dca5a`. Split per feature, one PR each, with an audit table (moved / kept as display-only) in each PR body.
 
 **Design:** none
 

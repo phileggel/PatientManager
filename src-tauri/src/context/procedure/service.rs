@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use super::domain::{Procedure, ProcedureRepository, ProcedureType, ProcedureTypeRepository};
+use super::dto::RawProcedureType;
 use super::error::ProcedureError;
 use crate::shared::event_bus::{EventBus, ProcedureTypeUpdated, ProcedureUpdated};
 use crate::shared::logger::BACKEND;
@@ -47,14 +48,8 @@ impl ProcedureTypeService {
         category: Option<String>,
     ) -> Result<ProcedureType, ProcedureError> {
         tracing::info!(target: BACKEND, default_amount, "Adding procedure type");
-        if name.trim().is_empty() {
-            return Err(ProcedureError::ProcedureTypeNameEmpty);
-        }
-        if default_amount < 0 {
-            return Err(ProcedureError::DefaultAmountNegative);
-        }
-        let category = category.filter(|s| !s.trim().is_empty());
-        let existing = self.repository.find_by_name(name.trim()).await.map_err(|e| {
+        let candidate = ProcedureType::new(name, default_amount, category)?;
+        let existing = self.repository.find_by_name(&candidate.name).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "add_procedure_type: find_by_name failed");
             ProcedureError::DatabaseError
         })?;
@@ -63,7 +58,7 @@ impl ProcedureTypeService {
         }
         let result = self
             .repository
-            .create_procedure_type(name.trim().to_string(), default_amount, category)
+            .create_procedure_type(candidate.name, candidate.default_amount, candidate.category)
             .await
             .map_err(|e| {
                 tracing::error!(target: BACKEND, err = ?e, "add_procedure_type: create failed");
@@ -75,18 +70,21 @@ impl ProcedureTypeService {
         Ok(result)
     }
 
-    /// Update an existing procedure type
+    /// A user's edit of a procedure type: it goes through the aggregate
+    /// (`ProcedureType::edit`) onto the stored one.
     pub async fn update_procedure_type(
         &self,
-        procedure_type: ProcedureType,
+        raw: RawProcedureType,
     ) -> Result<ProcedureType, ProcedureError> {
-        tracing::info!(target: BACKEND, id = %procedure_type.id, "Updating procedure type");
-        if procedure_type.id == "import-pdf" {
+        tracing::info!(target: BACKEND, id = %raw.id, "Updating procedure type");
+        if raw.id == "import-pdf" {
             return Err(ProcedureError::ReservedTypeNotMutable);
         }
+        let stored = self.read_procedure_type(&raw.id).await?;
+        let procedure_type = stored.edit(raw.name, raw.default_amount, raw.category)?;
         let conflict = self
             .repository
-            .find_by_name(procedure_type.name.trim())
+            .find_by_name(&procedure_type.name)
             .await
             .map_err(|e| {
                 tracing::error!(target: BACKEND, err = ?e, "update_procedure_type: find_by_name failed");
@@ -434,6 +432,16 @@ mod tests {
     use crate::context::procedure::{MockProcedureTypeRepository, PaymentMethod, ProcedureStatus};
     use anyhow::anyhow;
 
+    /// What the update command receives for this procedure type.
+    fn raw(pt: ProcedureType) -> RawProcedureType {
+        RawProcedureType {
+            id: pt.id,
+            name: pt.name,
+            default_amount: pt.default_amount,
+            category: pt.category,
+        }
+    }
+
     /// Mock that fails on every repository call exercised by the service-error tests.
     fn proc_type_repo_failing() -> MockProcedureTypeRepository {
         let mut mock = MockProcedureTypeRepository::new();
@@ -458,6 +466,14 @@ mod tests {
                     category,
                 ))
             });
+        mock.expect_read_procedure_type().returning(|id| {
+            Ok(Some(ProcedureType::restore(
+                id.to_string(),
+                "Stored".to_string(),
+                1,
+                None,
+            )))
+        });
         mock.expect_update_procedure_type().returning(Ok);
         mock
     }
@@ -481,6 +497,14 @@ mod tests {
             } else {
                 Ok(None)
             }
+        });
+        mock.expect_read_procedure_type().returning(|id| {
+            Ok(Some(ProcedureType::restore(
+                id.to_string(),
+                "Stored".to_string(),
+                1,
+                None,
+            )))
         });
         mock.expect_update_procedure_type().returning(Ok);
         mock
@@ -570,7 +594,7 @@ mod tests {
             Arc::new(EventBus::new()),
         );
         let pt = ProcedureType::restore("import-pdf".to_string(), "Import".to_string(), 0, None);
-        let result = service.update_procedure_type(pt).await;
+        let result = service.update_procedure_type(raw(pt)).await;
         assert!(matches!(
             result,
             Err(ProcedureError::ReservedTypeNotMutable)
@@ -602,11 +626,66 @@ mod tests {
             100000,
             None,
         );
-        let result = service.update_procedure_type(pt).await;
+        let result = service.update_procedure_type(raw(pt)).await;
         assert!(matches!(
             result,
             Err(ProcedureError::ProcedureTypeNameDuplicate)
         ));
+    }
+
+    #[tokio::test]
+    async fn update_procedure_type_refuses_a_blank_name_and_saves_nothing() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type().returning(|id| {
+            Ok(Some(ProcedureType::restore(
+                id.to_string(),
+                "Stored".to_string(),
+                1,
+                None,
+            )))
+        });
+        mock.expect_update_procedure_type().never();
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let pt = ProcedureType::restore("my-id".to_string(), "  ".to_string(), 100000, None);
+
+        let result = service.update_procedure_type(raw(pt)).await;
+
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ProcedureTypeNameEmpty)
+        ));
+    }
+
+    #[tokio::test]
+    async fn update_procedure_type_of_an_unknown_type_is_not_found() {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type().returning(|_| Ok(None));
+        mock.expect_update_procedure_type().never();
+        let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let pt = ProcedureType::restore("gone".to_string(), "Bilan".to_string(), 100000, None);
+
+        let result = service.update_procedure_type(raw(pt)).await;
+
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ProcedureTypeNotFound { procedure_type_id }) if procedure_type_id == "gone"
+        ));
+    }
+
+    #[tokio::test]
+    async fn update_procedure_type_trims_the_name_it_saves() {
+        let service = ProcedureTypeService::new(
+            Arc::new(proc_type_repo_no_existing()),
+            Arc::new(EventBus::new()),
+        );
+        let pt = ProcedureType::restore("my-id".to_string(), " Bilan ".to_string(), 100000, None);
+
+        let saved = service
+            .update_procedure_type(raw(pt))
+            .await
+            .expect("a padded name is valid input");
+
+        assert_eq!(saved.name, "Bilan");
     }
 
     #[tokio::test]
@@ -621,7 +700,7 @@ mod tests {
             100000,
             None,
         );
-        let result = service.update_procedure_type(pt).await;
+        let result = service.update_procedure_type(raw(pt)).await;
         assert!(result.is_ok());
     }
 
@@ -872,6 +951,14 @@ mod tests {
     #[tokio::test]
     async fn update_procedure_type_translates_find_by_name_failure_to_database_error() {
         let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type().returning(|id| {
+            Ok(Some(ProcedureType::restore(
+                id.to_string(),
+                "Stored".to_string(),
+                1,
+                None,
+            )))
+        });
         mock.expect_find_by_name()
             .returning(|_| Err(anyhow!("conn refused")));
         let service = ProcedureTypeService::new(Arc::new(mock), Arc::new(EventBus::new()));
@@ -881,13 +968,21 @@ mod tests {
             100_000,
             None,
         );
-        let result = service.update_procedure_type(pt).await;
+        let result = service.update_procedure_type(raw(pt)).await;
         assert!(matches!(result, Err(ProcedureError::DatabaseError)));
     }
 
     #[tokio::test]
     async fn update_procedure_type_translates_update_failure_to_database_error() {
         let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type().returning(|id| {
+            Ok(Some(ProcedureType::restore(
+                id.to_string(),
+                "Stored".to_string(),
+                1,
+                None,
+            )))
+        });
         mock.expect_find_by_name().returning(|_| Ok(None));
         mock.expect_update_procedure_type()
             .returning(|_| Err(anyhow!("conn refused")));
@@ -898,7 +993,7 @@ mod tests {
             100_000,
             None,
         );
-        let result = service.update_procedure_type(pt).await;
+        let result = service.update_procedure_type(raw(pt)).await;
         assert!(matches!(result, Err(ProcedureError::DatabaseError)));
     }
 

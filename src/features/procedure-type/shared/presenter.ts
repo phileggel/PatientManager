@@ -1,6 +1,11 @@
 import type { ProcedureError, ProcedureType } from "@/bindings";
 import type { ProcedureTypeFormData, ProcedureTypeRow } from "./types";
 
+/** The backend's refusal of the name: shown under the name field, not as a toast. */
+export function isNameMissing(err: ProcedureError): boolean {
+  return err.code === "ProcedureTypeNameEmpty";
+}
+
 /**
  * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping.
  * Returns `{ key, params }`; the caller (Layer 4) calls `t(key, params)`
@@ -85,5 +90,16 @@ export const ProcedureTypePresenter = {
       defaultAmount: ((procedureType.default_amount ?? 0) / 1000).toString(),
       category: procedureType.category || "",
     };
+  },
+
+  /**
+   * The reverse of `toFormData` for the amount: what the field holds, in
+   * thousandths, or the key of the message when it holds no number.
+   */
+  toDefaultAmount(text: string): { thousandths: number } | { errorKey: string } {
+    if (!text.trim()) return { errorKey: "procedure-type:form.amount_required" };
+    const euros = Number(text);
+    if (Number.isNaN(euros)) return { errorKey: "procedure-type:form.amount_invalid" };
+    return { thousandths: Math.round(euros * 1000) };
   },
 };

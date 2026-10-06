@@ -4,9 +4,8 @@ import type { ProcedureType } from "@/bindings";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import { updateProcedureType } from "../gateway";
-import { formatProcedureError, ProcedureTypePresenter } from "../shared/presenter";
+import { formatProcedureError, isNameMissing, ProcedureTypePresenter } from "../shared/presenter";
 import type { FormErrors, ProcedureTypeFormData } from "../shared/types";
-import { validateProcedureType } from "../shared/validateProcedureType";
 
 export function useEditProcedureTypeModal(
   procedureType: ProcedureType | null,
@@ -31,16 +30,6 @@ export function useEditProcedureTypeModal(
     }
   }, [procedureType]);
 
-  const validateForm = (): boolean => {
-    const newErrors = validateProcedureType(formData, {
-      nameRequired: t("form.name_required"),
-      amountRequired: t("form.amount_required"),
-      amountInvalid: t("form.amount_invalid"),
-    });
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -59,29 +48,33 @@ export function useEditProcedureTypeModal(
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!procedureType || !validateForm()) {
+    if (!procedureType) {
       return;
     }
 
-    logger.debug("Submitting update procedure type form", {
-      id: procedureType.id,
-      name: formData.name.trim(),
-      defaultAmount: Number(formData.defaultAmount),
-    });
+    const amount = ProcedureTypePresenter.toDefaultAmount(formData.defaultAmount);
+    if ("errorKey" in amount) {
+      setErrors({ defaultAmount: t(amount.errorKey) });
+      return;
+    }
+
+    logger.debug("Submitting update procedure type form", { id: procedureType.id });
     setLoading(true);
 
     try {
       const result = await updateProcedureType({
         ...procedureType,
-        name: formData.name.trim(),
-        default_amount: Math.round(Number(formData.defaultAmount) * 1000),
-        category: formData.category.trim() || null,
+        name: formData.name,
+        default_amount: amount.thousandths,
+        category: formData.category,
       });
 
       if (result.success) {
         logger.info("Procedure type updated successfully");
         toastService.show("success", t("action.update_success", { name: result.data?.name }));
         onSuccess?.();
+      } else if (isNameMissing(result.error)) {
+        setErrors({ name: t("form.name_required") });
       } else {
         const { key, params } = formatProcedureError(result.error);
         logger.error("Failed to update procedure type", { code: result.error.code });

@@ -31,7 +31,30 @@ describe("useCreateProcedureTypeModal", () => {
     expect(result.current.formData.name).toBe("Consultation");
   });
 
-  it("shows validation error when name is empty", async () => {
+  it("shows the backend's refusal of the name under the name field, without a toast", async () => {
+    mockAddProcedureType.mockResolvedValue({
+      success: false,
+      error: { code: "ProcedureTypeNameEmpty" },
+    });
+    const { result } = renderHook(() => useCreateProcedureTypeModal(true, onClose));
+
+    act(() => {
+      result.current.handleChange({
+        target: { name: "defaultAmount", value: "50" },
+      } as React.ChangeEvent<HTMLInputElement>);
+    });
+    await act(async () => {
+      result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as React.FormEvent);
+    });
+
+    expect(result.current.errors.name).toBeTruthy();
+    expect(mockToast).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("stops on an empty amount without calling the backend", async () => {
     const { result } = renderHook(() => useCreateProcedureTypeModal(true, onClose));
 
     await act(async () => {
@@ -40,7 +63,7 @@ describe("useCreateProcedureTypeModal", () => {
       } as unknown as React.FormEvent);
     });
 
-    expect(result.current.errors.name).toBeTruthy();
+    expect(result.current.errors.defaultAmount).toBeTruthy();
     expect(mockAddProcedureType).not.toHaveBeenCalled();
   });
 
@@ -64,7 +87,7 @@ describe("useCreateProcedureTypeModal", () => {
       } as unknown as React.FormEvent);
     });
 
-    expect(mockAddProcedureType).toHaveBeenCalledWith("Consultation", 50000, undefined);
+    expect(mockAddProcedureType).toHaveBeenCalledWith("Consultation", 50000, "");
     expect(mockToast).toHaveBeenCalledWith("success", expect.any(String));
     expect(onClose).toHaveBeenCalled();
   });

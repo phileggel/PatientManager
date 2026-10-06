@@ -55,14 +55,8 @@ pub async fn update_procedure_type(
 ) -> Result<ProcedureType, ProcedureError> {
     tracing::info!(target: BACKEND, procedure_type_id = %raw.id, "Processing update procedure type request");
 
-    // Construct valid domain object from raw data.
-    let procedure_type = ProcedureType::with_id(raw.id, raw.name, raw.default_amount, raw.category)
-        .inspect_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Invalid procedure type data");
-        })?;
-
     service
-        .update_procedure_type(procedure_type)
+        .update_procedure_type(raw)
         .await
         .inspect(|pt| {
             tracing::info!(target: BACKEND, procedure_type_id = ?pt.id, "Procedure type updated successfully");
