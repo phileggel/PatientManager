@@ -47,6 +47,13 @@ Reference for handling errors in this codebase. Directive, not historical. Conce
   { code: "OutOfStock"; available: number; requested: number }
   ```
 
+- **A form with several fields?**
+  → one struct variant carrying every reason at once, `{Aggregate}Invalid { reasons: Vec<{Aggregate}InvalidReason> }`, so the screen shows each message under its field after a single answer. The reasons are a plain enum (no `code` tag: they are values, not errors). An aggregate with a single user-entered rule keeps a unit variant.
+
+  ```rust
+  { code: "FundInvalid"; reasons: ("IdentifierEmpty" | "NameEmpty")[] }
+  ```
+
 ---
 
 ## Recipes

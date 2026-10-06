@@ -75,11 +75,6 @@ pub enum BankStatementReconciliationTask {
     #[error("Line not found in the current reconciliation")]
     LineNotFound,
 
-    /// The `fund_id` supplied in a `LinkFund` correction does not correspond to
-    /// any known fund.
-    #[error("Fund not found")]
-    FundNotFound,
-
     /// BAS-044 — the label mapping to reassign or delete does not exist (or was
     /// already deleted). Nothing is written.
     #[error("Label mapping not found")]
@@ -165,10 +160,6 @@ mod tests {
             (
                 BankStatementReconciliationTask::LineNotFound,
                 "LineNotFound",
-            ),
-            (
-                BankStatementReconciliationTask::FundNotFound,
-                "FundNotFound",
             ),
             (
                 BankStatementReconciliationTask::LabelMappingNotFound,

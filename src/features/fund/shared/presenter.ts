@@ -1,5 +1,19 @@
-import type { Fund, FundError } from "@/bindings";
-import type { FundFormData, FundRow } from "./types";
+import type { Fund, FundError, FundInvalidReason } from "@/bindings";
+import type { FormErrors, FundFormData, FundRow } from "./types";
+
+const FIELD_ERROR_KEYS: Record<FundInvalidReason, [keyof FundFormData, string]> = {
+  IdentifierEmpty: ["fund_identifier", "fund:form.identifier_required"],
+  NameEmpty: ["name", "fund:form.name_required"],
+};
+
+/**
+ * The i18n key to show under each field the backend refused, or null when the
+ * error is not about the form's fields (it then goes to a toast).
+ */
+export function fundFieldErrorKeys(err: FundError): FormErrors | null {
+  if (err.code !== "FundInvalid") return null;
+  return Object.fromEntries(err.reasons.map((reason) => FIELD_ERROR_KEYS[reason]));
+}
 
 /**
  * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping for
@@ -10,10 +24,14 @@ export function formatFundError(err: FundError): {
   params?: Record<string, string | number>;
 } {
   switch (err.code) {
-    case "FundIdentifierEmpty":
-      return { key: "fund:errors.fund_identifier_empty" };
-    case "FundNameEmpty":
-      return { key: "fund:errors.fund_name_empty" };
+    case "FundInvalid":
+      return {
+        key: err.reasons.includes("IdentifierEmpty")
+          ? "fund:errors.fund_identifier_empty"
+          : "fund:errors.fund_name_empty",
+      };
+    case "FundNotFound":
+      return { key: "fund:errors.fund_not_found" };
     case "FundIdEmpty":
       return { key: "fund:errors.fund_id_empty" };
     case "TotalAmountNotPositive":

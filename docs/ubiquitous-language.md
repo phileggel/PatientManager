@@ -281,6 +281,16 @@ from code and proposed for confirmation.
 > ⚠️ Bug: auto-reconciliation flow (fund_payment_reconciliation/orchestrator.rs:179, :297, :452)
 > does not set `confirmed_payment_date` on procedures — date is available but not passed through.
 
+> `edit(...)` is the confirmed term for a user changing an aggregate's fields from its
+> edit form, whatever the aggregate (owner, 2026-10-05). Another kind of change (a PDF
+> override, a status transition) takes its own term.
+
+### Fund
+
+| Method                        | Domain intent                            | Status transition | Status    |
+| ----------------------------- | ---------------------------------------- | ----------------- | --------- |
+| `edit(fund_identifier, name)` | A user edits the identifier and the name | —                 | confirmed |
+
 ### Patient
 
 | Method             | Domain intent                                                | Status transition | Status    |

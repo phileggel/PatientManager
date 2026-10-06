@@ -10,13 +10,10 @@ use thiserror::Error;
 #[serde(tag = "code")]
 pub enum FundError {
     // --- Fund aggregate domain invariants ---
-    /// `Fund::validate` rejected an empty fund identifier.
-    #[error("Fund identifier cannot be empty")]
-    FundIdentifierEmpty,
-
-    /// `Fund::validate` rejected an empty fund name.
-    #[error("Fund name cannot be empty")]
-    FundNameEmpty,
+    /// `Fund::validate` refused the fund: every reason at once, so a form
+    /// shows each one under its field in a single answer.
+    #[error("Fund is invalid")]
+    FundInvalid { reasons: Vec<FundInvalidReason> },
 
     // --- FundPaymentGroup aggregate domain invariants ---
     /// `FundPaymentGroup::validate` rejected an empty fund_id.
@@ -42,6 +39,10 @@ pub enum FundError {
     LineProcedureIdEmpty,
 
     // --- Service-layer lookup errors ---
+    /// The fund an edit names is not stored (deleted meanwhile, or never there).
+    #[error("Fund not found")]
+    FundNotFound,
+
     /// `FundPaymentGroupService` update-by-id lookup returned no row.
     #[error("Fund payment group not found: {fund_payment_group_id}")]
     PaymentGroupNotFound { fund_payment_group_id: String },
@@ -53,6 +54,13 @@ pub enum FundError {
     DatabaseError,
 }
 
+/// Why a fund is refused; one per invalid field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
+pub enum FundInvalidReason {
+    IdentifierEmpty,
+    NameEmpty,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -61,12 +69,18 @@ mod tests {
     #[test]
     fn each_variant_emits_a_code() {
         assert_eq!(
-            to_value(FundError::FundIdentifierEmpty).unwrap(),
-            json!({ "code": "FundIdentifierEmpty" }),
+            to_value(FundError::FundInvalid {
+                reasons: vec![
+                    FundInvalidReason::IdentifierEmpty,
+                    FundInvalidReason::NameEmpty
+                ]
+            })
+            .unwrap(),
+            json!({ "code": "FundInvalid", "reasons": ["IdentifierEmpty", "NameEmpty"] }),
         );
         assert_eq!(
-            to_value(FundError::FundNameEmpty).unwrap(),
-            json!({ "code": "FundNameEmpty" }),
+            to_value(FundError::FundNotFound).unwrap(),
+            json!({ "code": "FundNotFound" }),
         );
         assert_eq!(
             to_value(FundError::FundIdEmpty).unwrap(),

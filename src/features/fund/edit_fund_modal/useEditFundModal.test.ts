@@ -44,41 +44,39 @@ describe("useEditFundModal", () => {
     expect(result.current.formData.name).toBe("New Name");
   });
 
-  it("shows validation error when fund_identifier is empty", async () => {
-    const { result } = renderHook(() => useEditFundModal(fund, onSuccess));
-
-    act(() => {
-      result.current.handleChange({
-        target: { name: "fund_identifier", value: "" },
-      } as React.ChangeEvent<HTMLInputElement>);
+  it("shows every field the backend refused under its field, without a toast", async () => {
+    mockUpdate.mockResolvedValue({
+      success: false,
+      error: { code: "FundInvalid", reasons: ["IdentifierEmpty", "NameEmpty"] },
     });
+    const { result } = renderHook(() => useEditFundModal(fund, onSuccess));
 
     await act(async () => {
       result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
     });
 
     expect(result.current.errors.fund_identifier).toBeTruthy();
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(result.current.errors.name).toBeTruthy();
+    expect(mockToast).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it("shows validation error when name is empty", async () => {
-    const { result } = renderHook(() => useEditFundModal(fund, onSuccess));
-
-    act(() => {
-      result.current.handleChange({
-        target: { name: "name", value: "" },
-      } as React.ChangeEvent<HTMLInputElement>);
+  it("shows only the refused field", async () => {
+    mockUpdate.mockResolvedValue({
+      success: false,
+      error: { code: "FundInvalid", reasons: ["NameEmpty"] },
     });
+    const { result } = renderHook(() => useEditFundModal(fund, onSuccess));
 
     await act(async () => {
       result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
     });
 
     expect(result.current.errors.name).toBeTruthy();
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(result.current.errors.fund_identifier).toBeUndefined();
   });
 
-  it("calls updateFund with trimmed values on valid submit", async () => {
+  it("sends what was typed as it is: reading it is the backend's", async () => {
     mockUpdate.mockResolvedValue({ success: true, data: fund });
     const { result } = renderHook(() => useEditFundModal(fund, onSuccess));
 
@@ -93,7 +91,7 @@ describe("useEditFundModal", () => {
     });
 
     expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Trimmed Name", fund_identifier: "CPAM-75" }),
+      expect.objectContaining({ name: "  Trimmed Name  ", fund_identifier: "CPAM-75" }),
     );
   });
 
@@ -122,7 +120,10 @@ describe("useEditFundModal", () => {
   });
 
   it("resets form when fund prop changes", async () => {
-    mockUpdate.mockResolvedValue({ success: true, data: fund });
+    mockUpdate.mockResolvedValue({
+      success: false,
+      error: { code: "FundInvalid", reasons: ["IdentifierEmpty"] },
+    });
     const { result, rerender } = renderHook(({ f }) => useEditFundModal(f, onSuccess), {
       initialProps: { f: fund },
     });

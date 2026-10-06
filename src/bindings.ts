@@ -1373,11 +1373,6 @@ export type BankStatementReconciliationTask =
  */
 { code: "LineNotFound" } | 
 /**
- * The `fund_id` supplied in a `LinkFund` correction does not correspond to
- * any known fund.
- */
-{ code: "FundNotFound" } | 
-/**
  * BAS-044 — the label mapping to reassign or delete does not exist (or was
  * already deleted). Nothing is written.
  */
@@ -1606,13 +1601,10 @@ export type FundAssignment = { type: "Fund"; fund_id: string } | { type: "Reject
  */
 export type FundError = 
 /**
- * `Fund::validate` rejected an empty fund identifier.
+ * `Fund::validate` refused the fund: every reason at once, so a form
+ * shows each one under its field in a single answer.
  */
-{ code: "FundIdentifierEmpty" } | 
-/**
- * `Fund::validate` rejected an empty fund name.
- */
-{ code: "FundNameEmpty" } | 
+{ code: "FundInvalid"; reasons: FundInvalidReason[] } | 
 /**
  * `FundPaymentGroup::validate` rejected an empty fund_id.
  */
@@ -1635,6 +1627,10 @@ export type FundError =
  */
 { code: "LineProcedureIdEmpty" } | 
 /**
+ * The fund an edit names is not stored (deleted meanwhile, or never there).
+ */
+{ code: "FundNotFound" } | 
+/**
  * `FundPaymentGroupService` update-by-id lookup returned no row.
  */
 { code: "PaymentGroupNotFound"; fund_payment_group_id: string } | 
@@ -1647,6 +1643,10 @@ export type FundError =
  * A fund payment group candidate for a FUND transfer (R6)
  */
 export type FundGroupCandidate = { group_id: string; fund_id: string; payment_date: string; total_amount: number }
+/**
+ * Why a fund is refused; one per invalid field.
+ */
+export type FundInvalidReason = "IdentifierEmpty" | "NameEmpty"
 /**
  * Validation result for a fund payment candidate
  */

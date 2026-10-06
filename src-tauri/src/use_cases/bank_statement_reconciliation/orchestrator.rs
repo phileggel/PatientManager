@@ -7,7 +7,7 @@ use specta::Type;
 use crate::context::bank::{
     BankAccountService, BankEntryLinkRepository, BankEntryService, BankEntryType, BankError,
 };
-use crate::context::fund::{FundPaymentGroupStatus, FundPaymentService, FundService};
+use crate::context::fund::{FundError, FundPaymentGroupStatus, FundPaymentService, FundService};
 use crate::context::procedure::{ProcedureService, ProcedureStatus};
 use crate::shared::event_bus::{BankEntryUpdated, EventBus, ProcedureUpdated};
 use crate::shared::logger::BACKEND;
@@ -438,7 +438,7 @@ impl BankStatementOrchestrator {
         let fund_id = match &assignment {
             FundAssignment::Fund { fund_id } => {
                 if self.fund_service.read_fund(fund_id).await?.is_none() {
-                    return Err(BankStatementReconciliationTask::FundNotFound.into());
+                    return Err(FundError::FundNotFound.into());
                 }
                 Some(fund_id.clone())
             }

@@ -46,6 +46,7 @@
     "invalid_payment_date_format": "Format de date de paiement invalide (attendu : AAAA-MM-JJ)",
     "fund_payment_group_id_empty": "L'identifiant du groupe de paiement ne peut pas être vide",
     "line_procedure_id_empty": "L'identifiant de l'acte ne peut pas être vide",
+    "fund_not_found": "Caisse introuvable",
     "payment_group_not_found": "Groupe de paiement introuvable (id : {{id}})",
     "database_error": "Une erreur de base de données est survenue"
   }

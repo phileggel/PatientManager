@@ -145,7 +145,6 @@ export function presentReconciliationError(err: BankStatementReconciliationError
     case "PdfExtractionFailed":
     case "InvalidConfirmedMatchDate":
     case "LineNotFound":
-    case "FundNotFound":
     // BAS-044 — reached only from the label-mapping review screen
     case "LabelMappingNotFound":
     case "DatabaseError":
@@ -159,8 +158,8 @@ export function presentReconciliationError(err: BankStatementReconciliationError
     case "ProtectedCashAccount":
     case "TransferNotFound":
     // --- FundError ---
-    case "FundIdentifierEmpty":
-    case "FundNameEmpty":
+    case "FundInvalid":
+    case "FundNotFound":
     case "FundIdEmpty":
     case "TotalAmountNotPositive":
     case "InvalidPaymentDateFormat":

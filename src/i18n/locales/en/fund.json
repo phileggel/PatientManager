@@ -46,6 +46,7 @@
     "invalid_payment_date_format": "Invalid payment date format (expected YYYY-MM-DD)",
     "fund_payment_group_id_empty": "Fund payment group ID cannot be empty",
     "line_procedure_id_empty": "Procedure ID cannot be empty",
+    "fund_not_found": "Fund not found",
     "payment_group_not_found": "Fund payment group not found (id: {{id}})",
     "database_error": "An unexpected database error occurred"
   }

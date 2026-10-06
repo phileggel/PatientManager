@@ -38,15 +38,19 @@ describe("AddFundPanel", () => {
     expect(nameInput.value).toBe("Test Fund");
   });
 
-  it("prevents form submission with empty fields", async () => {
+  it("shows the backend's refusal of empty fields under each field", async () => {
+    const { addFund } = await import("@/features/fund/gateway");
+    vi.mocked(addFund).mockResolvedValueOnce({
+      success: false,
+      error: { code: "FundInvalid", reasons: ["IdentifierEmpty", "NameEmpty"] },
+    });
     const user = userEvent.setup();
     render(<AddFundPanel />);
 
-    const submitButton = screen.getByRole("button", { name: /Add Fund/i });
-    // Click submit with empty fields - button should still be present (no submission)
-    await user.click(submitButton);
+    await user.click(screen.getByRole("button", { name: /Add Fund/i }));
 
-    expect(screen.getByRole("button", { name: /Add Fund/i })).toBeInTheDocument();
+    expect(await screen.findByText("Fund identifier is required")).toBeInTheDocument();
+    expect(screen.getByText("Fund name is required")).toBeInTheDocument();
   });
 
   it("submits form with valid data", async () => {

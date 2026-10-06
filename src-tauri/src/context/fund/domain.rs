@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
-use crate::context::fund::error::FundError;
+use crate::context::fund::error::{FundError, FundInvalidReason};
 
 /// Fund aggregate root
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -22,8 +22,10 @@ pub struct Fund {
 }
 
 impl Fund {
-    /// Creates a new Fund with validation and generates ID.
+    /// Creates a new Fund with validation and generates ID. The identifier
+    /// and the name are trimmed, as for an edit.
     pub fn new(fund_identifier: String, name: String) -> Result<Self, FundError> {
+        let (fund_identifier, name) = Self::read_input(fund_identifier, name);
         Self::validate(&fund_identifier, &name)?;
 
         Ok(Self {
@@ -63,6 +65,18 @@ impl Fund {
         })
     }
 
+    /// What this stored fund becomes when a user edits its identifier and its
+    /// name: both trimmed and validated, everything else kept.
+    pub fn edit(&self, fund_identifier: String, name: String) -> Result<Self, FundError> {
+        let (fund_identifier, name) = Self::read_input(fund_identifier, name);
+        Self::validate(&fund_identifier, &name)?;
+        Ok(Self {
+            fund_identifier,
+            name,
+            ..self.clone()
+        })
+    }
+
     /// Restores an Fund from database storage (no validation).
     /// Data from storage is already validated.
     pub fn restore(id: String, fund_identifier: String, name: String) -> Self {
@@ -74,15 +88,25 @@ impl Fund {
         }
     }
 
-    /// Validates fund fields.
+    /// What a form sent, as the domain reads it: both values trimmed.
+    fn read_input(fund_identifier: String, name: String) -> (String, String) {
+        (fund_identifier.trim().to_string(), name.trim().to_string())
+    }
+
+    /// Validates fund fields: every reason for a refusal, not the first one.
     fn validate(fund_identifier: &str, name: &str) -> Result<(), FundError> {
+        let mut reasons = Vec::new();
         if fund_identifier.trim().is_empty() {
-            return Err(FundError::FundIdentifierEmpty);
+            reasons.push(FundInvalidReason::IdentifierEmpty);
         }
         if name.trim().is_empty() {
-            return Err(FundError::FundNameEmpty);
+            reasons.push(FundInvalidReason::NameEmpty);
         }
-        Ok(())
+        if reasons.is_empty() {
+            Ok(())
+        } else {
+            Err(FundError::FundInvalid { reasons })
+        }
     }
 }
 
@@ -319,6 +343,57 @@ mod tests {
     use super::*;
 
     // --- Fund ---
+
+    fn reasons(result: Result<Fund, FundError>) -> Vec<FundInvalidReason> {
+        match result {
+            Err(FundError::FundInvalid { reasons }) => reasons,
+            other => panic!("expected FundInvalid, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_fund_is_refused_for_every_empty_field_at_once() {
+        let result = Fund::new("  ".to_string(), "".to_string());
+        assert_eq!(
+            reasons(result),
+            vec![
+                FundInvalidReason::IdentifierEmpty,
+                FundInvalidReason::NameEmpty
+            ]
+        );
+    }
+
+    #[test]
+    fn a_fund_is_refused_for_its_empty_name_only() {
+        let result = Fund::new("75".to_string(), " ".to_string());
+        assert_eq!(reasons(result), vec![FundInvalidReason::NameEmpty]);
+    }
+
+    #[test]
+    fn a_new_fund_has_its_identifier_and_its_name_trimmed() {
+        let fund = Fund::new(" 75 ".to_string(), "  CPAM 75 ".to_string())
+            .expect("padded values are valid input");
+        assert_eq!(fund.fund_identifier, "75");
+        assert_eq!(fund.name, "CPAM 75");
+    }
+
+    #[test]
+    fn an_edit_trims_and_keeps_the_id() {
+        let stored = Fund::restore("f1".to_string(), "75".to_string(), "CPAM 75".to_string());
+        let edited = stored
+            .edit(" 59 ".to_string(), " CPAM 59".to_string())
+            .expect("padded values are valid input");
+        assert_eq!(edited.id, "f1");
+        assert_eq!(edited.fund_identifier, "59");
+        assert_eq!(edited.name, "CPAM 59");
+    }
+
+    #[test]
+    fn an_edit_is_refused_for_an_empty_identifier() {
+        let stored = Fund::restore("f1".to_string(), "75".to_string(), "CPAM 75".to_string());
+        let result = stored.edit("".to_string(), "CPAM 75".to_string());
+        assert_eq!(reasons(result), vec![FundInvalidReason::IdentifierEmpty]);
+    }
 
     #[test]
     fn fund_new_rejects_empty_identifier() {

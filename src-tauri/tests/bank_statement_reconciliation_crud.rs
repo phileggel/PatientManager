@@ -28,7 +28,8 @@ use patient_manager_app::{
             SqliteBankEntryLinkRepository, SqliteBankEntryRepository,
         },
         fund::{
-            FundPaymentService, FundService, SqliteFundPaymentRepository, SqliteFundRepository,
+            FundError, FundPaymentService, FundService, SqliteFundPaymentRepository,
+            SqliteFundRepository,
         },
         procedure::{ProcedureService, SqliteProcedureRepository},
     },
@@ -483,7 +484,7 @@ async fn test_bas_042_reassign_to_an_unknown_fund_is_refused() {
     assert!(
         matches!(
             err,
-            BankStatementReconciliationError::Task(BankStatementReconciliationTask::FundNotFound)
+            BankStatementReconciliationError::Fund(FundError::FundNotFound)
         ),
         "{err:?}"
     );

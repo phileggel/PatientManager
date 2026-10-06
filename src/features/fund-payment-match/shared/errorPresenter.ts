@@ -65,8 +65,8 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
       return { key: "fund-payment-match:errors.database_error" };
 
     // --- FundError domain invariants (not expected in this flow) ---
-    case "FundIdentifierEmpty":
-    case "FundNameEmpty":
+    case "FundInvalid":
+    case "FundNotFound":
     case "FundIdEmpty":
     case "TotalAmountNotPositive":
     case "InvalidPaymentDateFormat":

@@ -231,9 +231,7 @@ describe("presentReconciliationError — draft-engine correction guards", () => 
   });
 
   it("maps FundNotFound to the generic unknown key", () => {
-    // BankStatementReconciliationTask.FundNotFound has no payload (distinct from
-    // FundError.FundNotFound which does have fund_id — both map to the same generic key here)
-    const err: BankStatementReconciliationError = { code: "DatabaseError" };
+    const err: BankStatementReconciliationError = { code: "FundNotFound" };
     expect(presentReconciliationError(err).key).toBe("bank:reconciliation.error.unknown");
   });
 

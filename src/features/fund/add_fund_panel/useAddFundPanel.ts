@@ -3,9 +3,8 @@ import { useTranslation } from "react-i18next";
 import { addFund } from "@/features/fund/gateway";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
-import { formatFundError } from "../shared/presenter";
-import type { FundFormData } from "../shared/types";
-import { type FormErrors, validateFund } from "../shared/validateFund";
+import { formatFundError, fundFieldErrorKeys } from "../shared/presenter";
+import type { FormErrors, FundFormData } from "../shared/types";
 
 export function useAddFundPanel() {
   const { t } = useTranslation("fund");
@@ -17,15 +16,6 @@ export function useAddFundPanel() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
-
-  const validateForm = (): boolean => {
-    const newErrors = validateFund(formData, {
-      identifierRequired: t("form.identifier_required"),
-      nameRequired: t("form.name_required"),
-    });
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -45,18 +35,11 @@ export function useAddFundPanel() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
-
-    logger.debug("Submitting add fund form", {
-      fund_identifier: formData.fund_identifier.trim(),
-      name: formData.name.trim(),
-    });
+    logger.debug("Submitting add fund form");
     setLoading(true);
 
     try {
-      const result = await addFund(formData.fund_identifier.trim(), formData.name.trim());
+      const result = await addFund(formData.fund_identifier, formData.name);
 
       if (result.success) {
         logger.info("Fund added successfully");
@@ -64,6 +47,13 @@ export function useAddFundPanel() {
         setErrors({});
         toastService.show("success", t("action.add_success", { name: result.data?.name }));
       } else {
+        const fieldKeys = fundFieldErrorKeys(result.error);
+        if (fieldKeys) {
+          setErrors(
+            Object.fromEntries(Object.entries(fieldKeys).map(([field, key]) => [field, t(key)])),
+          );
+          return;
+        }
         const { key, params } = formatFundError(result.error);
         logger.error("Failed to add fund", { code: result.error.code });
         toastService.show("error", t("action.add_error", { error: t(key, params) }));

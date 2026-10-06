@@ -6,6 +6,26 @@ Observations of code smells, inconsistencies, and brittle patterns — agent-own
 
 <!-- entries removed when resolved; this file is otherwise the running observation log -->
 
+## 2026-10-06 — DEBT-040 — The fund contract's payment-group section no longer describes the code
+
+**Found by:** contract-reviewer (branch `refactor/todo-016-fund-validator`)
+
+**Where:** `docs/contracts/fund-contract.md` (Fund Payment Group CRUD, Shared Types), `docs/ubiquitous-language.md`
+
+**Observation:** the section lists error codes that exist nowhere (`GroupNotFound`, `DeletionForbidden`, `InvalidDateFormat`, `NoProceduresSelected`, `ProcedureNotInCreatedStatus`; the wire has `PaymentGroupNotFound`, `RefundGroupProtected`, `InvalidPaymentDateFormat`), names fields the code calls otherwise (`confirmed_payment_date` for `fund_reconciliation_date`, `actual_payment_amount` for `paid_amount`), spells `BankPayed` and `Reconciliated` where the confirmed terms are `BankPaid` and `Reconciled`, says "hard-deletes" for a soft delete, and omits the `FundPaymentGroupUpdated` event. The three group commands live in the `fund_payment_manual_management` use case, not in `context/fund`. `delete_fund` also claims to clear a patient's `latest_fund`, which nothing in the fund or patient context does. Two points are more than wording and are the owner's: nothing in the backend enforces FPM-100 and FPM-200 on these commands (procedures in `Created` status, at least one selected). The glossary still says the code spells `BankPayed` and names `Fund` `AffiliatedFund`; both are fixed in code. Fix: regenerate the section with `/contract`.
+
+---
+
+## 2026-10-05 — DEBT-039 — A fund identifier already used is reported as a database error
+
+**Found by:** the agent, during TODO-016's fund audit (branch `refactor/todo-016-fund-validator`)
+
+**Where:** `src-tauri/src/context/fund/repository.rs` (`create_fund`, `update_fund`), `src-tauri/src/context/fund/service.rs`
+
+**Observation:** creating a fund with an identifier another fund has makes the repository answer "Fund identifier already exists" as an `anyhow` error, which the service turns into `DatabaseError`: the user reads "a database error occurred". Editing a fund onto a used identifier fails the same way on the unique index. The fund contract used to promise a `DuplicateIdentifier` code that never existed. A code of its own shows a message under the identifier field — a visible change, so the wording is the owner's.
+
+---
+
 ## 2026-10-05 — DEBT-038 — A patient's latest procedure date is typed as never null in TypeScript
 
 **Found by:** contract-reviewer (branch `refactor/todo-016-patient-validator`)

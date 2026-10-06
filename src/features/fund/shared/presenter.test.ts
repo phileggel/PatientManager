@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Fund, FundError } from "@/bindings";
-import { FundPresenter, formatFundError } from "./presenter";
+import { FundPresenter, formatFundError, fundFieldErrorKeys } from "./presenter";
 
 /**
  * FundPresenter - Gold Test Suite
@@ -192,14 +192,34 @@ describe("FundPresenter", () => {
 });
 
 describe("formatFundError - F27 Layer 3 (pure code → key mapping)", () => {
-  it("maps FundIdentifierEmpty to its key, no params", () => {
-    const err: FundError = { code: "FundIdentifierEmpty" };
-    expect(formatFundError(err)).toEqual({ key: "fund:errors.fund_identifier_empty" });
+  it("maps FundInvalid to the key of its first reason", () => {
+    expect(
+      formatFundError({ code: "FundInvalid", reasons: ["IdentifierEmpty", "NameEmpty"] }),
+    ).toEqual({
+      key: "fund:errors.fund_identifier_empty",
+    });
+    expect(formatFundError({ code: "FundInvalid", reasons: ["NameEmpty"] })).toEqual({
+      key: "fund:errors.fund_name_empty",
+    });
   });
 
-  it("maps FundNameEmpty to its key", () => {
-    const err: FundError = { code: "FundNameEmpty" };
-    expect(formatFundError(err)).toEqual({ key: "fund:errors.fund_name_empty" });
+  it("maps FundNotFound to its key", () => {
+    expect(formatFundError({ code: "FundNotFound" })).toEqual({
+      key: "fund:errors.fund_not_found",
+    });
+  });
+
+  it("gives each refused field its form key, and null for any other error", () => {
+    expect(
+      fundFieldErrorKeys({ code: "FundInvalid", reasons: ["IdentifierEmpty", "NameEmpty"] }),
+    ).toEqual({
+      fund_identifier: "fund:form.identifier_required",
+      name: "fund:form.name_required",
+    });
+    expect(fundFieldErrorKeys({ code: "FundInvalid", reasons: ["NameEmpty"] })).toEqual({
+      name: "fund:form.name_required",
+    });
+    expect(fundFieldErrorKeys({ code: "DatabaseError" })).toBeNull();
   });
 
   it("maps FundIdEmpty to its key", () => {

@@ -34,9 +34,12 @@ impl FundService {
         fund_identifier: String,
         name: String,
     ) -> Result<Fund, FundError> {
+        // Validated here so that a refusal keeps its code: the repository's own
+        // construction answers `anyhow`, which reads as a database failure.
+        let fund = Fund::new(fund_identifier, name)?;
         let result = self
             .repository
-            .create_fund(&fund_identifier, &name)
+            .create_fund(&fund.fund_identifier, &fund.name)
             .await
             .map_err(|e| {
                 tracing::error!(target: BACKEND, err = ?e, "create_fund: repository failed");
@@ -73,7 +76,14 @@ impl FundService {
             })
     }
 
+    /// A user's edit of a fund: its identifier and its name go through the
+    /// aggregate (`Fund::edit`) onto the stored fund.
     pub async fn update_fund(&self, fund: Fund) -> Result<Fund, FundError> {
+        let stored = self.read_fund(&fund.id).await?.ok_or_else(|| {
+            tracing::warn!(target: BACKEND, fund_id = %fund.id, "update_fund: no such fund");
+            FundError::FundNotFound
+        })?;
+        let fund = stored.edit(fund.fund_identifier, fund.name)?;
         let result = self.repository.update_fund(fund).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "update_fund: repository failed");
             FundError::DatabaseError
@@ -712,10 +722,53 @@ mod tests {
     #[tokio::test]
     async fn fund_service_update_fund_returns_updated() {
         let mut mock = MockFundRepository::new();
+        mock.expect_read_fund().returning(|_| Ok(Some(make_fund())));
         mock.expect_update_fund().returning(Ok);
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
         let result = service.update_fund(make_fund()).await.unwrap();
         assert_eq!(result.id, "f1");
+    }
+
+    #[tokio::test]
+    async fn update_fund_refuses_empty_fields_and_saves_nothing() {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_fund().returning(|_| Ok(Some(make_fund())));
+        mock.expect_update_fund().never();
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+        let edit = Fund::restore("f1".to_string(), " ".to_string(), "".to_string());
+
+        let result = service.update_fund(edit).await;
+
+        assert!(matches!(
+            result,
+            Err(FundError::FundInvalid { reasons }) if reasons.len() == 2
+        ));
+    }
+
+    #[tokio::test]
+    async fn update_fund_of_an_unknown_fund_is_not_found() {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_fund().returning(|_| Ok(None));
+        mock.expect_update_fund().never();
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.update_fund(make_fund()).await;
+
+        assert!(matches!(result, Err(FundError::FundNotFound)));
+    }
+
+    #[tokio::test]
+    async fn create_fund_refuses_empty_fields_with_their_reasons() {
+        let mut mock = MockFundRepository::new();
+        mock.expect_create_fund().never();
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service.create_fund("75".to_string(), " ".to_string()).await;
+
+        assert!(matches!(
+            result,
+            Err(FundError::FundInvalid { reasons }) if reasons.len() == 1
+        ));
     }
 
     /// The service constructs `Fund` objects from candidates via
@@ -868,6 +921,7 @@ mod tests {
     #[tokio::test]
     async fn fund_service_update_fund_repository_error_translates() {
         let mut mock = MockFundRepository::new();
+        mock.expect_read_fund().returning(|_| Ok(Some(make_fund())));
         mock.expect_update_fund()
             .returning(|_| Err(anyhow!("Mock repository error")));
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));

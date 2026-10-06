@@ -10,11 +10,11 @@
 
 ### `add_fund`
 
-Creates a new fund with an identifier and a name.
+Creates a new fund with an identifier and a name. Both are trimmed: the screen sends what was typed.
 
 - **Args:** `fund_identifier: String, fund_name: String`
 - **Returns:** `Fund`
-- **Errors:** `EmptyIdentifier`, `EmptyName`, `DuplicateIdentifier`
+- **Errors:** `FundInvalid { reasons }` (every empty field at once: `IdentifierEmpty`, `NameEmpty`), `DatabaseError` (also for an identifier already used — DEBT-039)
 
 ---
 
@@ -24,27 +24,27 @@ Returns all funds. Used to populate the fund dropdown in the procedure form and 
 
 - **Args:** —
 - **Returns:** `Vec<Fund>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
 ### `update_fund`
 
-Updates an existing fund's identifier and/or name.
+A user's edit of a fund: the identifier and the name, trimmed and validated, are written onto the stored fund.
 
 - **Args:** `fund: Fund`
 - **Returns:** `Fund`
-- **Errors:** `FundNotFound`, `EmptyIdentifier`, `EmptyName`, `DuplicateIdentifier`
+- **Errors:** `FundInvalid { reasons }` (as `add_fund`), `FundNotFound`, `DatabaseError` (also for an identifier already used — DEBT-039)
 
 ---
 
 ### `delete_fund`
 
-Hard-deletes a fund. Side effect: any patient whose `latest_fund` references this fund has `latest_fund` cleared (POC R22).
+Soft-deletes a fund: it is marked deleted and leaves every read. An unknown id is not an error: the command succeeds and changes nothing. Side effect: any patient whose `latest_fund` references this fund has `latest_fund` cleared (POC R22).
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `FundNotFound`
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -97,7 +97,11 @@ struct Fund {
     id: String,
     fund_identifier: String,
     name: String,
+    temp_id: Option<String>,   // batch import only; absent on the wire otherwise
 }
+
+// One per invalid field of a fund form, inside `FundInvalid { reasons }`
+enum FundInvalidReason { IdentifierEmpty, NameEmpty }
 
 // FPM R10 — a fund-payment group aggregate
 struct FundPaymentGroup {
@@ -127,3 +131,4 @@ enum FundPaymentGroupStatus {
 | Event              | Trigger                                                                                                                                                    |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ProcedureUpdated` | After `create_fund_payment_group`, `update_fund_payment_group_with_procedures`, `delete_fund_payment_group` — procedure statuses and payment fields change |
+| `FundUpdated`      | After `add_fund`, `update_fund`, `delete_fund`                                                                                                             |

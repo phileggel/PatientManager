@@ -36,8 +36,7 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "ProtectedCashAccount":
     case "TransferNotFound":
     // --- FundError (reachable via read_all_funds / read_all_groups) ---
-    case "FundIdentifierEmpty":
-    case "FundNameEmpty":
+    case "FundInvalid":
     case "FundIdEmpty":
     case "TotalAmountNotPositive":
     case "InvalidPaymentDateFormat":

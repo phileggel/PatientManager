@@ -12,7 +12,7 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::context::fund::{Fund, FundPaymentGroup};
+use crate::context::fund::{Fund, FundError, FundPaymentGroup};
 use crate::context::procedure::OpenProcedureCandidate;
 use crate::use_cases::bank_statement_reconciliation::{
     bank_pdf_codec::{BankStatementCreditLine, BankStatementParseResult},
@@ -251,7 +251,7 @@ pub fn compute_reconciliation(
             } => {
                 if let FundAssignment::Fund { fund_id } = assignment {
                     if !repos.funds.iter().any(|f| &f.id == fund_id) {
-                        return Err(BankStatementReconciliationTask::FundNotFound.into());
+                        return Err(FundError::FundNotFound.into());
                     }
                 }
                 apply_link_fund(
@@ -928,7 +928,7 @@ mod tests {
             .expect_err("LinkFund to an unknown fund must be rejected");
         assert!(matches!(
             err,
-            BankStatementReconciliationError::Task(BankStatementReconciliationTask::FundNotFound)
+            BankStatementReconciliationError::Fund(FundError::FundNotFound)
         ));
     }
 
