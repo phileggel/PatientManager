@@ -1,0 +1,7 @@
+# 2026-10-10 — DEBT-053 — Release sweep of the batch of 2026-10-10: what the code lanes found
+
+**Found by:** reviewer-arch, reviewer-frontend, reviewer-infra, reviewer-backend in `release-sweep` mode (reviewer-security and reviewer-e2e: no finding)
+
+**Where:** `src-tauri/src/use_cases/fund_payment_reconciliation/api.rs`, `src/features/fund-payment-match/pdf_data_table/PdfDataTable.tsx`, `src/features/shell/DesignSystemPage.tsx`, `src/infra/logger.ts`, `scripts/start-app.sh`, `scripts/usage-log.sh`, `justfile`
+
+**Observation:** no 🔴. Arrived in this batch: 🟡 two rules are defined in a command-handler file (`ensure_has_text`, `ensure_something_to_reconcile`, FPA-060 and FPA-065) where the service or the orchestrator is their place; 🔵 the `flow-audit` recipe has no `_used` line, so the audit lists its own script as never run; 🔵 the FPA-065 refusal comes after a full reconciliation pass. Older: 🟡 `PdfDataTable.tsx` uses raw `slate-*` colours and is imported nowhere (see the spec check of the same day: it is also the only place that shows two warnings the spec promises); 🟡 `DesignSystemPage.tsx` carries literal `aria-label` and `title` texts outside `__preview__/`; 🟡 `start-app.sh` starts with `#!/bin/bash`; 🔵 `logger.ts` calls `invoke` outside a gateway, the one accepted exception, unstated; 🔵 `usage-log.sh` has no shell hint for linters. The security lane did not see the person's name a fund label can carry into the log (DEBT-051): its sweep reads log calls for patient fields, not what a field may hold.

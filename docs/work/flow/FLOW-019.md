@@ -11,5 +11,11 @@
   published 2026-10-05, clears 18 of the 20 high advisories; `npm audit fix` clears the
   other two (`source-map-js`, and `esbuild`, low) without a major upgrade. What ships is
   still clean (`npm audit --omit=dev`, `cargo audit`).
+- Re-checked 2026-10-10 (`/dep-audit`, the batch of that day): unchanged in kind. `npm audit` reports 21
+  advisories (20 high, 1 low), all under the E2E tooling; `npm audit --omit=dev` and `cargo audit` report no
+  vulnerability in what ships (14 allowed warnings: 10 unmaintained crates, 4 unsound, all transitive).
+  WebdriverIO 10.0.2 is out. Minor updates wait on most direct dependencies (Tauri 2.10 to 2.12 and its
+  plugins, tokio, serde, uuid), read from the registries; the web search did not confirm the latest Rust
+  and Tauri versions.
 - Proposal: owner's call for the next batch — `npm audit fix` now, WebdriverIO 10 once the
   major has a few weeks behind it; the E2E suites are its only user.
