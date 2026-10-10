@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """The state of the work queue, for the /whats-next skill and `just whats-next`.
 
-Reads docs/todo.md, docs/techdebt.md and the open pull requests and prints what
-is queued (in order), what is ready to queue, what is blocked and on what, and
-the debt entries not queued. It classifies; it never ranks or recommends —
-ordering is the owner's, proposed by the skill (docs/workflow.md § 2).
+Reads the entries of docs/work/ (one file each), the queue and the open pull
+requests and prints what is queued (in order), what is ready to queue, what is
+blocked and on what, and the debt entries not queued. It classifies; it never
+ranks or recommends — ordering is the owner's, proposed by the skill
+(docs/workflow.md § 2).
 
-`whats-next.py close <id>...` is the closure of a task: it removes each entry
-from its file and its reference from the queue, in the pull request that ships it.
+`whats-next.py close <id>...` is the closure of a task: it deletes each entry's
+file and removes its reference from the queue, in the pull request that ships it.
+`whats-next.py next-id <TODO|DEBT|FLOW>` prints the next free id of a kind.
 """
 
 from __future__ import annotations
@@ -26,10 +28,15 @@ FIELDS = ("User value", "Done when", "Design", "Open questions")
 PATH_ROOTS = ("src/", "src-tauri/", "docs/", "scripts/", "e2e/", ".github/", ".claude/")
 PASSING = ("SUCCESS", "NEUTRAL", "SKIPPED")
 QUEUE_HOME = "docs/todo.md"
-ENTRY_HOMES = {"TODO": QUEUE_HOME, "DEBT": "docs/techdebt.md", "FLOW": "docs/flow.md"}
+# An entry is one file named by its id, so two closures never touch the same file.
+ENTRY_DIRS = {"TODO": "docs/work/todo", "DEBT": "docs/work/debt", "FLOW": "docs/work/flow"}
+ENTRY_REF = re.compile(r"(TODO|DEBT|FLOW)-(\d{3})")
+# The highest id each kind had given when the entries moved to one file each
+# (2026-10-10): the ids of entries closed before the move are in no folder's history.
+ID_FLOORS = {"TODO": 21, "DEBT": 46, "FLOW": 35}
 
-TODO_HEADING = re.compile(r"^## (TODO-\d{3}) — (.+?)\s*$", re.MULTILINE)
-DEBT_HEADING = re.compile(r"^## (\d{4}-\d{2}-\d{2}) — (DEBT-\d{3}) — (.+?)\s*$", re.MULTILINE)
+TODO_HEADING = re.compile(r"^# (TODO-\d{3}) — (.+?)\s*$", re.MULTILINE)
+DEBT_HEADING = re.compile(r"^# (\d{4}-\d{2}-\d{2}) — (DEBT-\d{3}) — (.+?)\s*$", re.MULTILINE)
 # One reference per line, as a plain list item. A numbered item is still read, so a
 # hand-edited queue is never silently empty.
 # A `gh#NN` reference is a pull request worked like an entry: a Dependabot one (FLOW-024).
@@ -37,7 +44,7 @@ QUEUE_LINE = re.compile(r"^(?:-|\d+\.)\s+((?:TODO|DEBT|FLOW)-\d{3}|gh#\d+)\b", r
 PULL_REF = re.compile(r"gh#\d+")
 # The bot's login as `gh` and the API give it; an exact match, so no account that merely contains the word counts.
 DEPENDABOT_LOGINS = ("app/dependabot", "dependabot[bot]")
-FLOW_HEADING = re.compile(r"^## (FLOW-\d{3}) — (.+?)\s*$", re.MULTILINE)
+FLOW_HEADING = re.compile(r"^# (FLOW-\d{3}) — (.+?)\s*$", re.MULTILINE)
 FIELD = re.compile(r"^\*\*(" + "|".join(FIELDS) + r"):\*\*", re.MULTILINE)
 
 
@@ -71,9 +78,9 @@ class Flow:
     watch: bool = False
 
 
-def queue(todo_text: str) -> list[str]:
+def queue(queue_text: str) -> list[str]:
     """The references under `## Next`, in order."""
-    section = re.search(r"^## Next\s*$(.*?)(?=^## |\Z)", todo_text, re.MULTILINE | re.DOTALL)
+    section = re.search(r"^## Next\s*$(.*?)(?=^## |\Z)", queue_text, re.MULTILINE | re.DOTALL)
     if not section:
         return []
     return QUEUE_LINE.findall(re.sub(r"<!--.*?-->", "", section.group(1), flags=re.DOTALL))
@@ -86,11 +93,12 @@ def _bodies(text: str, heading: re.Pattern) -> list[tuple[re.Match, str]]:
 
 
 def todo_entries(todo_text: str) -> list[Todo]:
+    """The todo entries of `todo_text`: the files of a kind, one after the other."""
     entries = []
     for match, body in _bodies(todo_text, TODO_HEADING):
         marks = list(FIELD.finditer(body))
         ends = [m.start() for m in marks[1:]] + [len(body)]
-        fields = {m.group(1): body[m.end() : end].strip().removesuffix("---").strip() for m, end in zip(marks, ends)}
+        fields = {m.group(1): body[m.end() : end].strip() for m, end in zip(marks, ends)}
         entries.append(Todo(match.group(1), match.group(2), fields))
     return entries
 
@@ -104,7 +112,7 @@ def debt_entries(debt_text: str) -> list[Debt]:
 
 
 def flow_entries(flow_text: str) -> list[Flow]:
-    """The entries of docs/flow.md; one is workable once the owner's decision is written."""
+    """The flow entries; one is workable once the owner's decision is written."""
     return [
         Flow(
             match.group(1),
@@ -241,7 +249,7 @@ def render(buckets: dict, pulls: list[dict] | None, exists) -> str:
     if not buckets["debt"]:
         lines.append("(none)")
 
-    lines += ["", "Flow, not queued (docs/flow.md):"]
+    lines += ["", "Flow, not queued:"]
     lines += [
         f"- {flow.id} — {flow.title}"
         + (" — watch" if flow.watch else "" if flow.decided else " — waits on: the owner's decision")
@@ -273,64 +281,68 @@ class NoSuchEntry(Exception):
     """`close` was given a reference that names no entry."""
 
 
-def without_entry(text: str, ref: str) -> str | None:
-    """`text` without the entry `ref`, heading to next heading; None when it is not there."""
-    heading = re.search(rf"^## (?:\d{{4}}-\d{{2}}-\d{{2}} — )?{re.escape(ref)} — .*$", text, re.MULTILINE)
-    if not heading:
-        return None
-    following = re.compile(r"^## ", re.MULTILINE).search(text, heading.end())
-    if following:
-        return text[: heading.start()] + text[following.start() :]
-    before = text[: heading.start()].rstrip()
-    # The last entry: the separator above it separates nothing any more, unless the entry ended on its own.
-    if not text.rstrip().endswith("---"):
-        before = before.removesuffix("---").rstrip()
-    return before + "\n"
+def entry_path(ref: str) -> str | None:
+    """The file of the entry `ref`; None when `ref` is not an entry id."""
+    match = ENTRY_REF.fullmatch(ref)
+    return f"{ENTRY_DIRS[match.group(1)]}/{ref}.md" if match else None
 
 
-def without_queue_line(todo_text: str, ref: str) -> str:
-    """`todo_text` without the reference `ref` under `## Next`; unchanged when it is not queued."""
-    section = re.search(r"^## Next\s*$(.*?)(?=^## |\Z)", todo_text, re.MULTILINE | re.DOTALL)
+def without_queue_line(queue_text: str, ref: str) -> str:
+    """`queue_text` without the reference `ref` under `## Next`; unchanged when it is not queued."""
+    section = re.search(r"^## Next\s*$(.*?)(?=^## |\Z)", queue_text, re.MULTILINE | re.DOTALL)
     if not section:
-        return todo_text
+        return queue_text
     kept = re.sub(rf"^(?:-|\d+\.)\s+{re.escape(ref)}\b.*\n", "", section.group(1), flags=re.MULTILINE)
-    return todo_text[: section.start(1)] + kept + todo_text[section.end(1) :]
+    return queue_text[: section.start(1)] + kept + queue_text[section.end(1) :]
 
 
-def close(refs: list[str], read, write) -> list[str]:
-    """Remove each entry from its file and its reference from the queue (docs/workflow.md § 3, closure).
+def close(refs: list[str], queue_text: str, exists) -> tuple[list[str], str, list[str]]:
+    """What closing `refs` changes (docs/workflow.md § 3, closure): what to say, the queue, the files to delete.
 
-    Nothing is written unless every reference names an entry.
+    Raises before anything is decided unless every reference names an entry.
     """
-    texts: dict[str, str] = {}
-    said = []
+    said, gone = [], []
     for ref in refs:
+        unqueued = without_queue_line(queue_text, ref)
+        was_queued = unqueued != queue_text
         if PULL_REF.fullmatch(ref):  # a pull request has no entry: only its queue line goes
-            if QUEUE_HOME not in texts:
-                texts[QUEUE_HOME] = read(QUEUE_HOME)
-            unqueued = without_queue_line(texts[QUEUE_HOME], ref)
-            if unqueued == texts[QUEUE_HOME]:
+            if not was_queued:
                 raise NoSuchEntry(f"{ref}: not in the queue")
-            texts[QUEUE_HOME] = unqueued
             said.append(f"{ref}: removed from the queue")
-            continue
-        home = ENTRY_HOMES.get(ref.split("-", 1)[0]) if re.fullmatch(r"(?:TODO|DEBT|FLOW)-\d{3}", ref) else None
-        if home is None:
-            raise NoSuchEntry(f"{ref}: not an entry id (TODO-NNN, DEBT-NNN, FLOW-NNN or gh#NN)")
-        for path in (home, QUEUE_HOME):
-            if path not in texts:
-                texts[path] = read(path)
-        remaining = without_entry(texts[home], ref)
-        if remaining is None:
-            raise NoSuchEntry(f"{ref}: no such entry in {home}")
-        texts[home] = remaining
-        unqueued = without_queue_line(texts[QUEUE_HOME], ref)
-        was_queued = unqueued != texts[QUEUE_HOME]
-        texts[QUEUE_HOME] = unqueued
-        said.append(f"{ref}: removed from {home} " + ("and from the queue" if was_queued else "(it was not queued)"))
-    for path, text in texts.items():
-        write(path, text)
-    return said
+        else:
+            path = entry_path(ref)
+            if path is None:
+                raise NoSuchEntry(f"{ref}: not an entry id (TODO-NNN, DEBT-NNN, FLOW-NNN or gh#NN)")
+            if path in gone or not exists(path):
+                raise NoSuchEntry(f"{ref}: no such entry ({path})")
+            gone.append(path)
+            said.append(f"{ref}: {path} deleted, " + ("removed from the queue" if was_queued else "it was not queued"))
+        queue_text = unqueued
+    return said, queue_text, gone
+
+
+def next_id(kind: str, names: Sequence[str]) -> str:
+    """The next free id of `kind`, given every file name the kind has had: ids are never reused."""
+    given = [int(m.group(2)) for m in map(ENTRY_REF.search, names) if m and m.group(1) == kind]
+    return f"{kind}-{max([ID_FLOORS[kind], *given]) + 1:03d}"
+
+
+def names_ever(kind: str) -> list[str]:
+    """Every file the folder of `kind` holds or has held, from the working tree and the git history."""
+    folder = ROOT / ENTRY_DIRS[kind]
+    names = [path.name for path in folder.glob("*.md")] if folder.is_dir() else []
+    log = subprocess.run(
+        ["git", "log", "--all", "--diff-filter=A", "--name-only", "--format=", "--", ENTRY_DIRS[kind]],
+        capture_output=True, text=True, check=True, cwd=ROOT,
+    )
+    return names + log.stdout.split()
+
+
+def kind_text(kind: str) -> str:
+    """The entries of `kind`, one file after the other; debt newest first."""
+    folder = ROOT / ENTRY_DIRS[kind]
+    files = sorted(folder.glob(f"{kind}-*.md"), reverse=kind == "DEBT") if folder.is_dir() else []
+    return "\n".join(path.read_text(encoding="utf-8") for path in files)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -339,25 +351,34 @@ def main(argv: list[str] | None = None) -> int:
         if len(argv) < 2:
             print("usage: whats-next.py close <TODO-NNN | DEBT-NNN | FLOW-NNN | gh#NN>...", file=sys.stderr)
             return 2
-        def read(path: str) -> str:
-            try:
-                return (ROOT / path).read_text(encoding="utf-8")
-            except FileNotFoundError:
-                raise NoSuchEntry(f"{path} does not exist") from None
-
+        queue_file = ROOT / QUEUE_HOME
+        queue_text = queue_file.read_text(encoding="utf-8")
         try:
-            said = close(argv[1:], read, lambda path, text: (ROOT / path).write_text(text, encoding="utf-8"))
+            said, unqueued, gone = close(argv[1:], queue_text, lambda path: (ROOT / path).is_file())
         except NoSuchEntry as error:
             print(f"❌ {error} — nothing was changed", file=sys.stderr)
             return 1
+        if unqueued != queue_text:
+            queue_file.write_text(unqueued, encoding="utf-8")
+        for path in gone:
+            (ROOT / path).unlink()
         print("\n".join(said))
         return 0
-    todo_text = (ROOT / "docs/todo.md").read_text(encoding="utf-8")
-    debt_text = (ROOT / "docs/techdebt.md").read_text(encoding="utf-8")
-    flow_file = ROOT / "docs/flow.md"
-    flow_text = flow_file.read_text(encoding="utf-8") if flow_file.exists() else ""
+    if argv[:1] == ["next-id"]:
+        if len(argv) != 2 or argv[1] not in ENTRY_DIRS:
+            print("usage: whats-next.py next-id <TODO | DEBT | FLOW>", file=sys.stderr)
+            return 2
+        print(next_id(argv[1], names_ever(argv[1])))
+        return 0
+    queue_text = (ROOT / QUEUE_HOME).read_text(encoding="utf-8")
     pulls = open_pull_requests()
-    buckets = classify(queue(todo_text), todo_entries(todo_text), debt_entries(debt_text), flow_entries(flow_text), pulls)
+    buckets = classify(
+        queue(queue_text),
+        todo_entries(kind_text("TODO")),
+        debt_entries(kind_text("DEBT")),
+        flow_entries(kind_text("FLOW")),
+        pulls,
+    )
     print(render(buckets, pulls, lambda path: (ROOT / path).exists()))
     return 0
 

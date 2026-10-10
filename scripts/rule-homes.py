@@ -9,9 +9,11 @@ Two checks against drift:
    exactly the `*-rules.md` files.
 2. Rule homes. A rule, entry or lesson is defined where its ID opens a line
    followed by an em dash — `**B24** —`, `## E11 —`, `**BAS-010 (R1) —`,
-   `## TODO-003 —`, `## 2026-09-27 — DEBT-008 —`, `## FLOW-001 —`, `### TL-001 —`. Anywhere else an
+   `# TODO-003 —`, `# 2026-09-27 — DEBT-008 —`, `# FLOW-001 —`, `### TL-001 —`. Anywhere else an
    ID is a mention. One ID defined in two places fails: the copy is removed and
    the other document links to the home.
+3. Entry files. A todo, debt or flow entry is one file under `docs/work/`, named
+   by the one ID it defines (`docs/work/debt/DEBT-008.md`), in the folder of its kind.
 
 Use: python3 scripts/rule-homes.py
 """
@@ -28,11 +30,12 @@ DEFINITION = re.compile(
     r"^(?:\*\*([A-Z]{1,3}\d+)\*\* —"
     r"|#{2,3} ([A-Z]{1,3}\d+) —"
     r"|\*\*([A-Z]{3}-\d{3}[A-Z]?)(?: \([^)]*\))? —"
-    r"|#{2,3} ((?:TODO|TL|FLOW)-\d{3}) —"
-    r"|## \d{4}-\d{2}-\d{2} — (DEBT-\d{3}) —)"
+    r"|#{1,3} ((?:TODO|TL|FLOW)-\d{3}) —"
+    r"|#{1,2} \d{4}-\d{2}-\d{2} — (DEBT-\d{3}) —)"
 )
 KIND = re.compile(r"^- \*\*([^*]+)\*\* — (.*)$")
 PATH = re.compile(r"`([^`\s]+(?:\.md|/))`")
+ENTRY_FILE = re.compile(r"docs/work/(todo|debt|flow)/(.+)\.md")
 
 
 def defined_ids(text: str) -> list[str]:
@@ -92,6 +95,21 @@ def misfiled(found: dict[str, list[str]], files: list[str]) -> list[str]:
     return sorted(problems)
 
 
+def misnamed(found: dict[str, list[str]]) -> list[str]:
+    """Entry files whose name, folder and heading do not say the same ID."""
+    problems = []
+    for path, ids in sorted(found.items()):
+        entry = ENTRY_FILE.fullmatch(path)
+        if not entry:
+            continue
+        folder, name = entry.groups()
+        if not re.fullmatch(rf"{folder.upper()}-\d{{3}}", name):
+            problems.append(f"{path}: an entry of {folder}/ is named {folder.upper()}-NNN.md")
+        elif ids != [name]:
+            problems.append(f"{path}: defines {', '.join(ids) or 'no ID'}, not the one ID {name} it is named after")
+    return problems
+
+
 def tracked_markdown() -> list[str]:
     out = subprocess.run(["git", "ls-files", "*.md"], cwd=ROOT, capture_output=True, text=True, check=True)
     return [line for line in out.stdout.splitlines() if (ROOT / line).is_file()]
@@ -106,8 +124,9 @@ def main() -> int:
     problems += misfiled(found, files)
 
     documents = [f for f in files if f in ("CLAUDE.md", "ARCHITECTURE.md") or f.startswith(("docs/", ".claude/"))]
-    twice = duplicates({f: defined_ids((ROOT / f).read_text(encoding="utf-8")) for f in documents})
-    problems += [f"{rule_id}: defined in {', '.join(paths)}" for rule_id, paths in sorted(twice.items())]
+    defined = {f: defined_ids((ROOT / f).read_text(encoding="utf-8")) for f in documents}
+    problems += [f"{rule_id}: defined in {', '.join(paths)}" for rule_id, paths in sorted(duplicates(defined).items())]
+    problems += misnamed(defined)
 
     if problems:
         print(f"❌ rule homes: {len(problems)} problem(s)")

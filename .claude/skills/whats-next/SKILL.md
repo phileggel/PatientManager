@@ -18,7 +18,7 @@ asked — report it as unknown, never as none.
 
 ## Step 2 — Check the debt
 
-Read `docs/techdebt.md`. For each entry not queued:
+Read the debt entries (`docs/work/debt/`). For each one not queued:
 
 - **Obsolete** — "path gone", or the observation no longer holds (grep the code, read
   the git log): list it for removal. Removing it is a docs PR of its own, not part of
@@ -29,7 +29,7 @@ Read `docs/techdebt.md`. For each entry not queued:
 
 Group entries that are one theme (same feature, same file, same cause) into one line.
 
-Read `docs/flow.md` the same way: an entry with a `Decision` line is workable; one
+Read the flow entries (`docs/work/flow/`) the same way: an entry with a `Decision` line is workable; one
 without waits on the owner, and its question goes to them.
 
 ## Step 3 — Draft what blocks an entry

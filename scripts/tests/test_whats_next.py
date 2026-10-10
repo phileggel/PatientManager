@@ -12,7 +12,7 @@ plan = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = plan  # dataclasses resolve their module by name
 SPEC.loader.exec_module(plan)
 
-TODO = """# TODO
+QUEUE = """# Queue
 
 ## Next
 
@@ -21,10 +21,10 @@ TODO = """# TODO
 - TODO-002
 - DEBT-005
 - TODO-404
+"""
 
----
-
-## TODO-001 — (ci) — Ready, not queued
+# The entries of a kind as the script reads them: one file after the other.
+TODO = """# TODO-001 — (ci) — Ready, not queued
 
 Body mentioning **Done when:** nowhere near a line start.
 
@@ -36,9 +36,7 @@ Body mentioning **Done when:** nowhere near a line start.
 
 **Open questions:** none
 
----
-
-## TODO-002 — (frontend) — Queued, waits on a design
+# TODO-002 — (frontend) — Queued, waits on a design
 
 **User value:** a clearer list
 
@@ -48,9 +46,7 @@ Body mentioning **Done when:** nowhere near a line start.
 
 **Open questions:** none
 
----
-
-## TODO-003 — Nothing written
+# TODO-003 — Nothing written
 
 **User value:**
 
@@ -60,9 +56,7 @@ Body mentioning **Done when:** nowhere near a line start.
 
 **Open questions:** Done when not written yet.
 
----
-
-## TODO-004 — Two questions
+# TODO-004 — Two questions
 
 **User value:** x
 
@@ -76,9 +70,7 @@ Body mentioning **Done when:** nowhere near a line start.
 - [ ] Which screen?
 """
 
-DEBT = """# Tech Debt
-
-## 2026-10-03 — DEBT-006 — A newer observation
+DEBT = """# 2026-10-03 — DEBT-006 — A newer observation
 
 **Found by:** manual
 
@@ -86,9 +78,7 @@ DEBT = """# Tech Debt
 
 **Observation:** something.
 
----
-
-## 2026-09-01 — DEBT-005 — An older observation
+# 2026-09-01 — DEBT-005 — An older observation
 
 **Found by:** reviewer-arch
 
@@ -100,13 +90,13 @@ DEBT = """# Tech Debt
 
 class Queue(unittest.TestCase):
     def test_the_queue_is_read_in_order_and_ignores_comments(self):
-        self.assertEqual(plan.queue(TODO), ["TODO-002", "DEBT-005", "TODO-404"])
+        self.assertEqual(plan.queue(QUEUE), ["TODO-002", "DEBT-005", "TODO-404"])
 
     def test_a_numbered_queue_is_still_read(self):
         self.assertEqual(plan.queue("## Next\n\n1. TODO-002\n2. DEBT-005\n\n---\n"), ["TODO-002", "DEBT-005"])
 
     def test_no_next_section_is_an_empty_queue(self):
-        self.assertEqual(plan.queue("# TODO\n\n## TODO-001 — x\n"), [])
+        self.assertEqual(plan.queue("# Queue\n\nnothing queued yet\n"), [])
 
 
 class TodoEntries(unittest.TestCase):
@@ -155,7 +145,7 @@ class DebtEntries(unittest.TestCase):
 
 class Classification(unittest.TestCase):
     def setUp(self):
-        self.plan = plan.classify(plan.queue(TODO), plan.todo_entries(TODO), plan.debt_entries(DEBT))
+        self.plan = plan.classify(plan.queue(QUEUE), plan.todo_entries(TODO), plan.debt_entries(DEBT))
 
     def test_queued_keeps_the_order_and_says_what_each_waits_on(self):
         self.assertEqual(
@@ -169,19 +159,17 @@ class Classification(unittest.TestCase):
         self.assertEqual([e.id for e in self.plan["debt"]], ["DEBT-006"])
 
 
-FLOW = """# Flow
-
-## FLOW-001 — Decided
+FLOW = """# FLOW-001 — Decided
 
 - Kind: speed
 - Decision (owner, 2026-10-04): do it.
 
-## FLOW-002 — Not decided
+# FLOW-002 — Not decided
 
 - Kind: quality
 - Proposal: something.
 
-## FLOW-003 — Decided, not queued
+# FLOW-003 — Decided, not queued
 
 - Decision (owner, 2026-10-04): do it.
 """
@@ -206,7 +194,7 @@ class FlowEntries(unittest.TestCase):
         self.assertEqual([f.id for f in buckets["flow"]], ["FLOW-003"])
 
     def test_a_watch_entry_is_listed_as_such_and_never_ready_when_queued(self):
-        flows = plan.flow_entries("## FLOW-009 — Watched\n\n- Watch (owner, 2026-10-04): wait for upstream.\n")
+        flows = plan.flow_entries("# FLOW-009 — Watched\n\n- Watch (owner, 2026-10-04): wait for upstream.\n")
         self.assertTrue(flows[0].watch)
         queued = plan.classify(["FLOW-009"], [], [], flows)["queued"]
         self.assertEqual(queued[0][2], ["nothing to do: a watch entry"])
@@ -266,66 +254,86 @@ class PullRequests(unittest.TestCase):
         self.assertIn("Open pull requests: none", text)
 
 
-class Close(unittest.TestCase):
-    """`whats-next.py close <id>`: the entry and its queue line leave together."""
+FILES = {"docs/work/todo/TODO-001.md", "docs/work/todo/TODO-002.md", "docs/work/debt/DEBT-005.md", "docs/work/flow/FLOW-002.md"}
 
-    def close(self, *refs, files=None):
-        self.files = dict(files or {"docs/todo.md": TODO, "docs/techdebt.md": DEBT, "docs/flow.md": FLOW})
-        return plan.close(list(refs), self.files.__getitem__, self.files.__setitem__)
+
+class Close(unittest.TestCase):
+    """`whats-next.py close <id>`: the entry's file and its queue line leave together."""
+
+    def close(self, *refs, queue_text=QUEUE):
+        return plan.close(list(refs), queue_text, FILES.__contains__)
 
     def test_flow_014_a_todo_entry_leaves_with_its_queue_line(self):
-        said = self.close("TODO-002")
-        todo = self.files["docs/todo.md"]
-        self.assertEqual(plan.queue(todo), ["DEBT-005", "TODO-404"])
-        self.assertEqual([e.id for e in plan.todo_entries(todo)], ["TODO-001", "TODO-003", "TODO-004"])
-        self.assertIn("**Open questions:** none\n\n---\n\n## TODO-003 — Nothing written", todo)
-        self.assertIn("<!-- - TODO-999 in a comment is not queued -->", todo)
-        self.assertEqual(said, ["TODO-002: removed from docs/todo.md and from the queue"])
+        said, queue_text, gone = self.close("TODO-002")
+        self.assertEqual(gone, ["docs/work/todo/TODO-002.md"])
+        self.assertEqual(plan.queue(queue_text), ["DEBT-005", "TODO-404"])
+        self.assertIn("<!-- - TODO-999 in a comment is not queued -->", queue_text)
+        self.assertEqual(said, ["TODO-002: docs/work/todo/TODO-002.md deleted, removed from the queue"])
 
-    def test_flow_014_a_debt_entry_leaves_its_file_and_the_queue(self):
-        said = self.close("DEBT-005")
-        self.assertEqual(plan.queue(self.files["docs/todo.md"]), ["TODO-002", "TODO-404"])
-        debt = self.files["docs/techdebt.md"]
-        self.assertEqual([d.id for d in plan.debt_entries(debt)], ["DEBT-006"])
-        self.assertTrue(debt.endswith("**Observation:** something.\n"), "the separator before the last entry goes with it")
-        self.assertEqual(said, ["DEBT-005: removed from docs/techdebt.md and from the queue"])
+    def test_flow_014_a_debt_entry_leaves_its_folder_and_the_queue(self):
+        said, queue_text, gone = self.close("DEBT-005")
+        self.assertEqual(gone, ["docs/work/debt/DEBT-005.md"])
+        self.assertEqual(plan.queue(queue_text), ["TODO-002", "TODO-404"])
+        self.assertEqual(said, ["DEBT-005: docs/work/debt/DEBT-005.md deleted, removed from the queue"])
 
-    def test_flow_014_a_flow_entry_not_queued_is_removed_and_said_so(self):
-        said = self.close("FLOW-002")
-        flow = self.files["docs/flow.md"]
-        self.assertEqual([f.id for f in plan.flow_entries(flow)], ["FLOW-001", "FLOW-003"])
-        self.assertIn("- Decision (owner, 2026-10-04): do it.\n\n## FLOW-003 — Decided, not queued", flow)
-        self.assertEqual(self.files["docs/todo.md"], TODO)
-        self.assertEqual(said, ["FLOW-002: removed from docs/flow.md (it was not queued)"])
-
-    def test_flow_014_the_last_todo_entry_keeps_the_file_ending_on_its_separator(self):
-        todo = "## Next\n\n- TODO-001\n- TODO-002\n\n---\n\n## TODO-001 — a\n\nbody\n\n---\n\n## TODO-002 — b\n\nbody\n\n---\n"
-        self.close("TODO-002", files={"docs/todo.md": todo})
-        self.assertEqual(self.files["docs/todo.md"], "## Next\n\n- TODO-001\n\n---\n\n## TODO-001 — a\n\nbody\n\n---\n")
+    def test_flow_014_an_entry_not_queued_is_deleted_and_said_so(self):
+        said, queue_text, gone = self.close("FLOW-002")
+        self.assertEqual(gone, ["docs/work/flow/FLOW-002.md"])
+        self.assertEqual(queue_text, QUEUE)
+        self.assertEqual(said, ["FLOW-002: docs/work/flow/FLOW-002.md deleted, it was not queued"])
 
     def test_flow_014_several_entries_close_in_one_run(self):
-        self.close("FLOW-001", "FLOW-003", "TODO-001")
-        self.assertEqual([f.id for f in plan.flow_entries(self.files["docs/flow.md"])], ["FLOW-002"])
-        self.assertEqual([e.id for e in plan.todo_entries(self.files["docs/todo.md"])], ["TODO-002", "TODO-003", "TODO-004"])
+        _, queue_text, gone = self.close("FLOW-002", "TODO-002", "TODO-001")
+        self.assertEqual(gone, ["docs/work/flow/FLOW-002.md", "docs/work/todo/TODO-002.md", "docs/work/todo/TODO-001.md"])
+        self.assertEqual(plan.queue(queue_text), ["DEBT-005", "TODO-404"])
 
-    def test_flow_014_an_unknown_entry_changes_nothing(self):
+    def test_flow_014_an_unknown_entry_stops_the_whole_closure(self):
         with self.assertRaises(plan.NoSuchEntry) as raised:
-            self.close("FLOW-001", "TODO-404")
-        self.assertEqual(str(raised.exception), "TODO-404: no such entry in docs/todo.md")
-        self.assertEqual(self.files, {"docs/todo.md": TODO, "docs/techdebt.md": DEBT, "docs/flow.md": FLOW})
+            self.close("FLOW-002", "TODO-404")
+        self.assertEqual(str(raised.exception), "TODO-404: no such entry (docs/work/todo/TODO-404.md)")
+
+    def test_an_entry_named_twice_is_refused(self):
+        with self.assertRaises(plan.NoSuchEntry):
+            self.close("TODO-001", "TODO-001")
 
     def test_a_reference_that_is_not_an_entry_id_is_refused(self):
-        with self.assertRaises(plan.NoSuchEntry):
-            self.close("PR-12")
+        for ref in ("PR-12", "TODO-1", "../TODO-001", "TODO-001.md"):
+            with self.assertRaises(plan.NoSuchEntry, msg=ref):
+                self.close(ref)
 
-    def test_flow_024_a_pull_request_reference_leaves_the_queue_and_touches_no_entry_file(self):
-        todo = "## Next\n\n- gh#171\n- TODO-001\n\n---\n\n## TODO-001 — a\n\nbody\n\n---\n"
-        said = self.close("gh#171", files={"docs/todo.md": todo})
-        self.assertEqual(plan.queue(self.files["docs/todo.md"]), ["TODO-001"])
+    def test_flow_024_a_pull_request_reference_leaves_the_queue_and_deletes_no_file(self):
+        queued = "## Next\n\n- gh#171\n- TODO-001\n"
+        said, queue_text, gone = self.close("gh#171", queue_text=queued)
+        self.assertEqual((plan.queue(queue_text), gone), (["TODO-001"], []))
         self.assertEqual(said, ["gh#171: removed from the queue"])
         with self.assertRaises(plan.NoSuchEntry) as raised:
-            self.close("gh#999", files={"docs/todo.md": todo})
+            self.close("gh#999", queue_text=queued)
         self.assertEqual(str(raised.exception), "gh#999: not in the queue")
+
+
+class NextId(unittest.TestCase):
+    """Ids are never reused: the next one counts the entries already deleted."""
+
+    def test_the_next_id_follows_the_highest_ever_given(self):
+        self.assertEqual(plan.next_id("DEBT", ["DEBT-047.md", "docs/work/debt/DEBT-050.md", "DEBT-048.md"]), "DEBT-051")
+
+    def test_the_ids_given_before_the_move_are_never_given_again(self):
+        self.assertEqual(plan.next_id("FLOW", []), f"FLOW-{plan.ID_FLOORS['FLOW'] + 1:03d}")
+        self.assertEqual(plan.next_id("TODO", ["TODO-008.md"]), f"TODO-{plan.ID_FLOORS['TODO'] + 1:03d}")
+
+    def test_another_kind_s_files_do_not_count(self):
+        self.assertEqual(plan.next_id("TODO", ["DEBT-900.md", "README.md"]), f"TODO-{plan.ID_FLOORS['TODO'] + 1:03d}")
+
+
+class EntryFiles(unittest.TestCase):
+    """The entries as they stand in the repository: every file is read back under its own name."""
+
+    def test_every_entry_file_is_parsed_as_the_entry_it_is_named_after(self):
+        parsers = {"TODO": plan.todo_entries, "DEBT": plan.debt_entries, "FLOW": plan.flow_entries}
+        for kind, parse in parsers.items():
+            folder = plan.ROOT / plan.ENTRY_DIRS[kind]
+            names = sorted(path.stem for path in folder.glob("*.md")) if folder.is_dir() else []
+            self.assertEqual(sorted(entry.id for entry in parse(plan.kind_text(kind))), names, kind)
 
 
 DEPENDABOT = {"number": 171, "title": "chore(deps): bump the all-actions group", "headRefName": "dependabot/x", "author": {"login": "app/dependabot"}, "statusCheckRollup": []}
@@ -371,7 +379,7 @@ class DependabotPullRequests(unittest.TestCase):
 
 class Render(unittest.TestCase):
     def test_the_report_names_every_bucket_and_stale_paths(self):
-        buckets = plan.classify(plan.queue(TODO), plan.todo_entries(TODO), plan.debt_entries(DEBT))
+        buckets = plan.classify(plan.queue(QUEUE), plan.todo_entries(TODO), plan.debt_entries(DEBT))
         text = plan.render(buckets, [], lambda path: path == "docs/")
         self.assertIn("1. TODO-002 — (frontend) — Queued, waits on a design — waits on: design approval", text)
         self.assertIn("2. DEBT-005 — An older observation — ready", text)

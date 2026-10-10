@@ -8,8 +8,8 @@ After cloning: `git config core.hooksPath .githooks`. The hooks block commits to
 
 ## Who decides what
 
-- The **human** writes `docs/todo.md` and its `## Next` queue, validates a **design** before anything the user sees changes, validates the vocabulary, and cuts **releases**.
-- The **agent** owns `docs/techdebt.md` and `docs/flow.md`, does the task end to end and merges on green. No pull request waits for a human.
+- The **human** writes the todo entries (`docs/work/todo/`) and the `## Next` queue (`docs/todo.md`), validates a **design** before anything the user sees changes, validates the vocabulary, and cuts **releases**.
+- The **agent** owns the debt and flow entries (`docs/work/debt/`, `docs/work/flow/`), does the task end to end and merges on green. No pull request waits for a human.
 - The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
 Headless, a question only the human can answer goes into the entry as an open question, never guessed. In chat, a question is asked alone, with the context to answer it cold (what happened, what each option changes, what it costs), and the next one waits for the answer; ask during the work rather than guess, for a spec point as for a vocabulary term. State assumptions; name what is unclear.
@@ -39,7 +39,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
     **Design**   — none, validated, or needed (then the mocks come before anything else)
     **Touching** — the paths, so the reviewer lanes are known before the diff exists
 
-**Closing brief** — the last message (and the PR body's first lines): (1) what changed for whoever reads this next — for `feat` / `fix`, what a user notices, or "nothing — internal"; otherwise what can now be done or trusted; (2) what the project accumulated — tests and coverage moved, or the guarantee a harness change buys and how we know it can fail. What is still owed goes in `docs/techdebt.md`.
+**Closing brief** — the last message (and the PR body's first lines): (1) what changed for whoever reads this next — for `feat` / `fix`, what a user notices, or "nothing — internal"; otherwise what can now be done or trusted; (2) what the project accumulated — tests and coverage moved, or the guarantee a harness change buys and how we know it can fail. What is still owed becomes a debt entry (`docs/work/debt/`).
 
 ## Where things are
 
@@ -64,6 +64,6 @@ Headless, a question only the human can answer goes into the entry as an open qu
 - **Patient data** never appears in logs, commits, fixtures or PR text (`backend-rules.md` B44, `scripts/privacy-check.py`).
 - **Concise by default** — each fact once, in the fewest words that keep it verifiable. A PR body is under 20 lines. A Markdown table cell holds at most 40 characters: beyond that, split the row or use a list.
 - **Talking to the owner** — before acting on a claim, a proposed change or a reviewer finding, name the strongest counter-argument, then say whether it survives; no theatrical resistance, no rubber stamp. Every count comes with its nature (467 keys in the wrong style is not 467 bugs). A predicted coverage figure is a range unless the branches were traced. In chat a pull request is `PR #NN`, never `gh#NN`, which reads as an issue.
-- **Where a rule lives** — a rule about how we work is written in the repository (`docs/flow.md` first, then its home: this file, `docs/workflow.md` or a rules document), in the session it is given. The agent's private notes hold only what concerns one machine.
+- **Where a rule lives** — a rule about how we work is written in the repository (a flow entry in `docs/work/flow/` first, then its home: this file, `docs/workflow.md` or a rules document), in the session it is given. The agent's private notes hold only what concerns one machine.
 - **Commits** — `docs/commit-rules.md`: conventional, title only, `feat` / `fix` titles are user-facing changelog lines; one task, one commit; fixes after a push are `--fixup` commits.
 - **Visual proof** — any `.tsx` / `.css` change carries screenshots (`/visual-proof`, `docs/visual-proof-rules.md`).

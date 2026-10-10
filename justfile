@@ -50,7 +50,7 @@ privacy-check:
     python3 scripts/privacy-check.py
 
 # Where the queue stands: queued, ready, blocked, debt, open pull requests (/whats-next proposes the order);
-# `just whats-next close TODO-NNN` removes a shipped entry and its queue line
+# `just whats-next close TODO-NNN` deletes a shipped entry and its queue line; `next-id DEBT` prints the next free id
 whats-next *ARGS:
     python3 scripts/whats-next.py {{ARGS}}
 

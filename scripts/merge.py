@@ -120,12 +120,12 @@ def _check_runs(sha: str) -> dict[str, tuple[str, str]]:
     return {name: (status, conclusion) for name, (_, status, conclusion) in latest.items()}
 
 
-# The record files: what closure commits and queue edits move. None is read by
-# a check or a reviewer, so a move of `main` made only of them cannot change what
-# the checks proved. Everything else — code, workflows, convention docs, prompts —
-# re-runs the checks.
-RECORD_FILES = {"docs/todo.md", "docs/techdebt.md", "docs/flow.md"}
-RECORD_DIRS = ("docs/adr/",)
+# The record files: what closure commits and queue edits move. Each is checked in
+# the pull request that changes it (its ID, its name) and none is read against the
+# code, so a move of `main` made only of them cannot change what the checks proved.
+# Everything else — code, workflows, convention docs, prompts — re-runs the checks.
+RECORD_FILES = {"docs/todo.md"}
+RECORD_DIRS = ("docs/adr/", "docs/work/")
 
 
 def _record_files_only(files: list[str]) -> bool:

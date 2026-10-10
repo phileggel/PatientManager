@@ -5,7 +5,7 @@
 What changes for the user (or "Nothing changes for a user — internal").
 
 - Done when "…" → the test that proves it
-- Closure: entry removed from `docs/todo.md` / `docs/techdebt.md` and from `## Next`
+- Closure: the entry's file deleted (`docs/work/`) and its reference removed from `## Next`
 
 Reviewers (local): findings that changed something; techdebt filed.
 

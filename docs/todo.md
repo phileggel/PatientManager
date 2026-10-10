@@ -1,8 +1,7 @@
-# TODO
+# Queue
 
-Owned by the human (`docs/workflow.md` § 2). The agent only sets `Design`, adds open
-questions, removes an entry in the PR that ships it, and writes what the human validated
-in `/whats-next`.
+Owned by the human (`docs/workflow.md` § 2): the order the entries of `work/` are worked
+in. The agent writes here only what the human validated in `/whats-next`.
 
 ## Next
 
@@ -23,105 +22,3 @@ in `/whats-next`.
 <!-- batch, in the order they were queued, for `/whats-next` to propose again: -->
 <!-- TODO-013, FLOW-020, TODO-008, TODO-018, DEBT-011, TODO-019, DEBT-003, TODO-020, -->
 <!-- TODO-021. -->
-
----
-
-## TODO-018 — (backend) — `Procedure` changes go through aggregate methods
-
-Second entry split from TODO-006. Orchestrators mutate the fields of `Procedure` directly; the transitions belong on the aggregate root: `reconcile()`, `unreconcile()`, `dispute()`, `record_payment()`, `revert_payment()`, `clear_payment()`, `correct_billed_amount()`, `correct_fund()`, `correct_date()`.
-
-**User value:** none directly — each rule of a procedure's lifecycle lives in one place and is tested there.
-
-**Done when:** each transition above is a method on `Procedure` with its own Rust tests, including the refused transitions; no orchestrator assigns a `Procedure` status or payment field directly; behaviour is unchanged, the existing tests pass untouched.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-019 — (backend) — `Patient` and `FundPaymentGroup` changes go through aggregate methods
-
-Third entry split from TODO-006. Same move as TODO-018 for the two smaller aggregates: `Patient::correct_ssn()`, and `confirm_bank_payment()`, `revert_bank_payment()`, `update()` on `FundPaymentGroup`.
-
-**User value:** none directly — the rules of these two aggregates live in one place and are tested there.
-
-**Done when:** each method above exists with its own Rust tests; no orchestrator assigns those fields directly; behaviour is unchanged, the existing tests pass untouched.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-020 — (backend) — `FundPayment` aggregate root above the groups
-
-Fourth entry split from TODO-006. `FundPaymentGroup` is treated as the top-level object; the monthly document that holds all the groups, `FundPayment`, has no aggregate of its own.
-
-**User value:** none directly — the fund payment document becomes a named concept the code and the specs share.
-
-**Done when:** an ADR records the `FundPayment` aggregate and what it owns; the aggregate exists and the groups are reached through it; `docs/ubiquitous-language.md` carries the term; behaviour is unchanged. Comes after TODO-019.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-021 — (backend) — Every bounded context follows the B0 folder layout
-
-Last entry split from TODO-006: it moves every file the four others edit, so it comes after them. The target is rule B0 in `docs/backend-rules.md` (`application/`, `domain/`, `infrastructure/` inside each context): `bank` follows it today; `fund`, `patient` and `procedure` do not.
-
-**User value:** none directly — every bounded context is laid out the same way, so code is found where the rule says.
-
-**Done when:** `fund`, `patient` and `procedure` follow B0 as `bank` does; `just arch-check` checks the layout; `ARCHITECTURE.md` matches; no behaviour changes — moves and import paths only. Comes after TODO-017 to TODO-020.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-008 — (frontend/fund-payment-match) — Create multiple procedures during auto-correction
-
-Currently, the auto-correction flow only allows creating a single procedure. It should support creating multiple procedures in the same operation.
-
-**User value:** the user creates every missing procedure of a fund payment line in one correction, not just one.
-
-**Done when:** in the correction of a fund payment line with no matching procedure, the user can add several procedures, each with its date and amount; the correction is accepted only when the amounts add up to the line's amount; every created procedure joins the fund payment group and ends `Reconciliated` after confirmation, as FPA-250 does for one. The spec and the contract carry the rule; Rust tests cover the sum check and the creation, one E2E the flow.
-
-**Design:** none
-
-**Open questions:** none
-
----
-
-## TODO-010 — (backend/arch) — Introduce a DI container for orchestrator wiring
-
-Production orchestrators are currently wired manually in `lib.rs` via explicit `Arc<dyn Trait>` constructor injection. This works but doesn't scale well as the number of dependencies grows: adding a dep means touching `lib.rs`, the orchestrator `new()`, and every integration test `Ctx`. A DI container (e.g. `shaku`) would centralize registration and resolve dependencies automatically, reducing wiring boilerplate and making the `new()` signature irrelevant to callers. Evaluate once the orchestrator count or dep count becomes a maintenance burden.
-
-**User value:** none directly — adding a dependency to an orchestrator touches one place instead of three.
-
-**Done when:** every orchestrator is registered in a container; `lib.rs` no longer builds them by hand; integration tests build their context from the same container; adding a dependency touches the orchestrator and its registration only.
-
-**Design:** none
-
-**Open questions:**
-
-- [ ] Not started until wiring a dependency actually hurts — the owner says when.
-
----
-
-## TODO-013 — (backend) — Headless surface API
-
-A way to drive PatientManager's use cases without the window: the same Rust commands the UI calls, reachable from outside the UI.
-
-**User value:** an agent (e.g. Claude) or another tool can read and act on the practice's data on this machine, through the same rules the app follows.
-
-**Done when:** a `patientmanager` command-line program and an MCP server (a thin layer over the same commands) expose the use cases the UI offers, read and write. Local only: stdio, no network listener. Every write needs an explicit confirmation (`--yes` on the CLI, a confirm step in MCP). Every call is written to an audit log (command, time, record ids — no patient data). A caller must present a credential created and revocable in the app (OS-keychain key or certificate, decided in the spec). Starts with `/spec-writer`; comes after TODO-016. Accepted by the owner: data an agent reads (names, SSNs) is sent to the model provider as conversation content.
-
-**Design:** none
-
-**Open questions:** none
-
----

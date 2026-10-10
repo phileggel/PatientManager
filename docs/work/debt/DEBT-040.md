@@ -1,0 +1,7 @@
+# 2026-10-06 — DEBT-040 — The fund contract's payment-group section no longer describes the code
+
+**Found by:** contract-reviewer (branch `refactor/todo-016-fund-validator`)
+
+**Where:** `docs/contracts/fund-contract.md` (Fund Payment Group CRUD, Shared Types), `docs/ubiquitous-language.md`
+
+**Observation:** the section lists error codes that exist nowhere (`GroupNotFound`, `DeletionForbidden`, `InvalidDateFormat`, `NoProceduresSelected`, `ProcedureNotInCreatedStatus`; the wire has `PaymentGroupNotFound`, `RefundGroupProtected`, `InvalidPaymentDateFormat`), names fields the code calls otherwise (`confirmed_payment_date` for `fund_reconciliation_date`, `actual_payment_amount` for `paid_amount`), spells `BankPayed` and `Reconciliated` where the confirmed terms are `BankPaid` and `Reconciled`, says "hard-deletes" for a soft delete, and omits the `FundPaymentGroupUpdated` event. The three group commands live in the `fund_payment_manual_management` use case, not in `context/fund`. `delete_fund` also claims to clear a patient's `latest_fund`, which nothing in the fund or patient context does. Two points are more than wording and are the owner's: nothing in the backend enforces FPM-100 and FPM-200 on these commands (procedures in `Created` status, at least one selected). The glossary still says the code spells `BankPayed` and names `Fund` `AffiliatedFund`; both are fixed in code. Fix: regenerate the section with `/contract`.

@@ -1,0 +1,7 @@
+# 2026-10-06 — DEBT-046 — The Excel import: findings of the 0.24.1 spec check not yet recorded
+
+**Found by:** spec-checker, release preparation of 0.24.1 (read in the code, not run); completes DEBT-034 and DEBT-035, which stay open
+
+**Where:** `src-tauri/src/use_cases/excel_import/parser.rs`, `dto.rs`, `src/features/excel-import/presentation/ImportExcelPage.tsx`, `src/features/excel-import/presentation/components/ProcedureTypeMappingStep.tsx`, `docs/spec/excel-import.md`
+
+**Observation:** 22 of 30 rules are fully implemented and 14 have a test of their own; none of it comes from this release. Not yet in the debt file: (1) EXI-090 — two rows of the fund sheet with the same identifier become two insert candidates, and the unique index would fail the whole import (traced, not run), the same shape as DEBT-035; EXI-080 has the same gap for the patient sheet, creating two patients. (2) EXI-070 — Retry after a failed execution parses the file again, with new ids, after the user mapped the types. (3) EXI-120 — Continue is not disabled while the saved mappings load: a click in that short window sends an empty mapping, skips every procedure and overwrites the saved preferences. (4) EXI-050 — a procedure gets no temporary id, though the rule says so. (5) The comment in `dto.rs` still describes the skip reason as a translated text; it is a typed code (EXI-290). Rules with no test at all: EXI-040, 050, 060, 100, 120, 130, 140, 240; the mapping step and the inline type creation have no test file.

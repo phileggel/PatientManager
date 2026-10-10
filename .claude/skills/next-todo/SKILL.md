@@ -15,9 +15,9 @@ this file is the checklist.
   stop and report; never work on a dirty tree.
 - **Headless** (no argument): read `docs/todo.md` § Next and take the references in
   order. Nobody to ask: a question becomes a line in the entry's `**Open questions:**`.
-- **Chat, named entry** (`TODO-NNN` / `DEBT-NNN` / `FLOW-NNN`): load it (`## TODO-NNN — …`
-  in `docs/todo.md`, `## … — DEBT-NNN — …` in `docs/techdebt.md`, `## FLOW-NNN — …` in
-  `docs/flow.md`).
+- **Chat, named entry** (`TODO-NNN` / `DEBT-NNN` / `FLOW-NNN`): load its file
+  (`docs/work/todo/TODO-NNN.md`, `docs/work/debt/DEBT-NNN.md`,
+  `docs/work/flow/FLOW-NNN.md`).
 - **A pull request reference** (`gh#NN`, queued or named): a Dependabot pull request.
   Follow `docs/workflow.md` § Dependabot pull requests instead of Steps 1 to 9: read the
   diff, check each pinned commit, `just merge` on its branch for a real review, grade
@@ -106,8 +106,8 @@ and names what a user notices.
 
 ## Step 9 — Closure
 
-In the same PR, before the merge: `just whats-next close <id>` removes the entry from
-`docs/todo.md` (or `docs/techdebt.md`, or `docs/flow.md`) together with its reference in § Next; techdebt the work resolved
+In the same PR, before the merge: `just whats-next close <id>` deletes the entry's file
+(`docs/work/`) together with its reference in § Next; techdebt the work resolved
 is closed the same way, `ARCHITECTURE.md` if a module appeared, design proposal images
 deleted. Then the closing brief: what changed for the user (or "nothing — internal"),
 what the project gained (tests, coverage); the PR number and where anything still owed

@@ -1,19 +1,19 @@
 # Workflow — the human sets expectations, the harness holds the line
 
-How work moves from a request or `docs/todo.md` to a release, and the conventions the
+How work moves from a request or an entry of `docs/work/` to a release, and the conventions the
 agents and skills rely on. This document is the rule set; git history records how it
 was built.
 
 ## 1. Who owns what
 
-- **Human** — `docs/todo.md`: what is worth doing, its user value, its done-when, and
-  the **Next** queue.
+- **Human** — the todo entries (`docs/work/todo/`): what is worth doing, its user value,
+  its done-when; and the **Next** queue (`docs/todo.md`).
 - **Human** — validating a **design** before anything the user sees changes.
 - **Human** — cutting a **release**; several merged branches may wait for one.
-- **Agent** — `docs/techdebt.md`: every observation, smell and proposal about the code.
-  The human queues from it.
-- **Agent** — `docs/flow.md`: the same about the workflow itself (checks, waits, tools,
-  the human's part), audited after each release (§ 12).
+- **Agent** — the debt entries (`docs/work/debt/`): every observation, smell and proposal
+  about the code. The human queues from them.
+- **Agent** — the flow entries (`docs/work/flow/`): the same about the workflow itself
+  (checks, waits, tools, the human's part), audited after each release (§ 12).
 - **Agent** — the task, end to end: tests, code, review, merge. **No pull request is
   validated by a human.**
 - **Harness** — proving it, mechanically, on every pull request. Nothing merges that
@@ -22,40 +22,55 @@ was built.
 Three human touchpoints, plus answering open questions. Everything else is the agent's
 job or a machine gate.
 
-## 2. Ids and the two files
+## 2. Ids, entries and the queue
 
-| Id         | Names                   |
-| ---------- | ----------------------- |
-| `TODO-NNN` | an entry in todo.md     |
-| `DEBT-NNN` | an entry in techdebt.md |
-| `FLOW-NNN` | an entry in flow.md     |
-| `gh#NN`    | a GitHub issue or PR    |
-| `TRI-NNN`  | a spec rule (below)     |
+| Id         | Names                    |
+| ---------- | ------------------------ |
+| `TODO-NNN` | an entry in `work/todo/` |
+| `DEBT-NNN` | an entry in `work/debt/` |
+| `FLOW-NNN` | an entry in `work/flow/` |
+| `gh#NN`    | a GitHub issue or PR     |
+| `TRI-NNN`  | a spec rule (below)      |
 
 `#NNN` is never used for an entry: GitHub turns it into a link to PR NNN.
 
-### `docs/todo.md` — human-owned
+### Entries — one file each (owner, 2026-10-10)
 
-- `## Next` at the top holds the queue: `TODO-NNN`, `DEBT-NNN` and `FLOW-NNN` references, and `gh#NN` for a Dependabot pull request (§ Conventions), in the
+- An entry is one file named by its id, in the folder of its kind:
+  `docs/work/todo/TODO-NNN.md`, `docs/work/debt/DEBT-NNN.md`,
+  `docs/work/flow/FLOW-NNN.md`. Its first line is its heading; `just rule-homes` fails
+  when the name, the folder and the heading do not say the same id.
+- An entry that ships is deleted (`just whats-next close <id>`), so two pull requests
+  never meet in a file when each closes or files an entry.
+- Ids are permanent and never reused: `just whats-next next-id <TODO|DEBT|FLOW>` prints
+  the next free one, counting the entries already deleted. Two branches that take the
+  same id conflict at the merge; the later one takes the next id.
+- The overview is `just whats-next`, which lists every entry by kind.
+
+### Todo entries — human-owned
+
+- Every entry is `# TODO-NNN — title` and ends with `**User value:**`,
+  `**Done when:**`, `**Design:**` and `**Open questions:**`.
+- The agent writes to an entry in two places only: it sets `Design` to `proposed (…)` or
+  `validated`, and it adds open questions; in `/whats-next` it writes the User value and
+  Done when the human validated in chat. It deletes the entry in the pull request that
+  ships it. It never creates or renumbers one.
+
+### The queue — `docs/todo.md`, human-owned
+
+- `## Next` holds the queue: `TODO-NNN`, `DEBT-NNN` and `FLOW-NNN` references, and `gh#NN` for a Dependabot pull request (§ Conventions), in the
   order to work them, one per line as a plain list (`- TODO-NNN`; no numbers, so
   pull requests that each close an entry do not conflict). The agent takes the first **ready** one and removes a reference
   only in the PR that ships its entry. It adds to or reorders the list only in
   `/whats-next`, in chat, writing the order the human validated.
-- Every entry is `## TODO-NNN — title` and ends with `**User value:**`,
-  `**Done when:**`, `**Design:**` and `**Open questions:**`.
 - **Ready** means: queued, a Done when is written, `Open questions: none`, and
   `Design` is `none` or `validated`.
-- The agent writes to this file in four places only: it sets `Design` to
-  `proposed (…)` or `validated`, it adds open questions, it removes an entry in the
-  pull request that ships it, together with its reference in `## Next`, and in
-  `/whats-next` it writes the queue and the User value and Done when the human
-  validated in chat. It never creates, renumbers or reorders entries.
 
-### `docs/techdebt.md` — agent-owned
+### Debt entries — agent-owned
 
-- Every entry carries a permanent id: `## YYYY-MM-DD — DEBT-NNN — title`. Numbers are
-  never reused. Its body is three lines — `**Found by:**`, `**Where:**` (paths from the
-  repository root) and `**Observation:**` — and the newest entry goes first.
+- Every entry is `# YYYY-MM-DD — DEBT-NNN — title`. Its body is three lines —
+  `**Found by:**`, `**Where:**` (paths from the repository root) and
+  `**Observation:**`.
 - The agent files here: reviewer findings it did not fix, smells met on the way,
   proposals for new work, coverage holes, frozen architecture debt.
 - Entries are observations, not commitments. The human promotes one by queuing its
@@ -96,8 +111,8 @@ todo entry: the pull request body is its record.
 9. **Merge:** `just watch-pr` waits for the checks and says how they ended; then
    `just merge` — it refuses until every check is green and folds `fixup!` commits, so
    the task lands as one commit.
-10. **Closure** in the same PR: `just whats-next close <id>` removes the entry from
-    `docs/todo.md`, `docs/techdebt.md` or `docs/flow.md`, and its reference from `## Next`; techdebt updated;
+10. **Closure** in the same PR: `just whats-next close <id>` deletes the entry's file
+    and removes its reference from `## Next`; techdebt updated;
     `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
     brief says what changed for the user and what the project gained.
 
@@ -232,8 +247,8 @@ recorded in the PR body, one line per finding that changed something or was reje
 ## 9. Where the loop runs
 
 The chat session is for writing entries together, design conversations and answering
-open questions. The loop runs one task per run and keeps its state in git and the two
-files.
+open questions. The loop runs one task per run and keeps its state in git and the
+entries.
 
 - **In chat:** `/next-todo TODO-NNN`, or a plain request.
 - **Laptop:** `just next-todo` — one ready entry, headless, three hours of budget; a
@@ -273,7 +288,7 @@ bindings; then the frontend; then E2E and closure. Each is mergeable on its own.
 ## 12. The flow audit
 
 After a release and its cleanup, the agent audits the batch and writes the result in
-`docs/flow.md`. Quality is the goal, weighed against speed and effort.
+`docs/work/audits.md`. Quality is the goal, weighed against speed and effort.
 
 - **Measures** — pull requests merged, time from opening to merging, CI rounds, failed
   runs per workflow, what the reviewers caught, what they got wrong, and the criticals
@@ -282,9 +297,19 @@ After a release and its cleanup, the agent audits the batch and writes the resul
   (`logs/usage.log`, the session transcript); each gets a verdict: keep, fold or remove.
 - **Hard points** — every difficulty met becomes a `FLOW-NNN` entry with its evidence
   and a proposal; where nothing should change, the entry says keep and why.
-- **Moves** — a todo or debt entry that is about the flow moves to `docs/flow.md`.
+- **Moves** — a todo or debt entry that is about the flow becomes a flow entry and keeps
+  its old id in its title.
 
-The human decides each entry; a decided entry can be queued (§ 2).
+A flow entry is `# FLOW-NNN — title` and a list (owner, 2026-10-04): `Kind` (quality,
+speed or effort), `Observed` with its evidence — a count, a duration, a pull request —
+then a `Proposal` with what it `Costs` and what it `Protects`. A change that buys speed
+says what it risks; one that buys safety says what it costs. A tool nobody used is named,
+with a verdict: keep, fold or remove.
+
+The human decides each entry: a `Decision (owner, date)` line makes it workable and it
+can be queued (§ 2); a `Watch (owner, date)` line marks one with nothing to do but
+re-check. An entry is deleted once done, or once the verdict is to keep things as they
+are.
 
 ## Conventions
 
@@ -337,7 +362,7 @@ judged again at the audit that follows a release: keep, fold or remove.
 
 The audit reads `logs/usage.log`: one line per run of a script or a recipe (time, tool,
 duration, result), written by `scripts/usage_log.py`. The file is local, never
-committed, capped at 5 000 lines, and emptied once its figures are in `docs/flow.md`.
+committed, capped at 5 000 lines, and emptied once its figures are in `docs/work/audits.md`.
 A new script logs itself (`usage_log.start()` in Python, `. scripts/usage-log.sh` in
 shell; a script that only CI runs does not); a recipe that runs no script depends on `(_used "<recipe>")`. Nothing is
 logged in CI. Skills and agents are counted from the session transcript.
