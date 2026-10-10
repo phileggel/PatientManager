@@ -1,7 +1,5 @@
 mod infrastructure;
 
-#[cfg(feature = "app")]
-pub use infrastructure::create_specta_builder;
 pub use infrastructure::db_diagnostics;
 pub use infrastructure::event_bus;
 pub use infrastructure::logger;
@@ -9,3 +7,5 @@ pub use infrastructure::pdf_extractor;
 pub use infrastructure::secure_path;
 pub use infrastructure::uow;
 pub use infrastructure::Database;
+#[cfg(feature = "app")]
+pub use infrastructure::{bindings_path, create_specta_builder};

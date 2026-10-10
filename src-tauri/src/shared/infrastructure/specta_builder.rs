@@ -141,3 +141,24 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         ])
     //.events(tauri_specta::collect_events![Event])
 }
+
+/// Where the generated bindings go: `src/bindings.ts` at the repository root.
+/// Anchored on the crate directory, not the launch directory: the E2E run
+/// starts the binary from the repository root.
+pub fn bindings_path() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/bindings.ts")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bindings_path_is_the_tracked_file_whatever_the_launch_directory() {
+        let path = bindings_path();
+
+        assert!(path.is_absolute());
+        assert!(path.ends_with("src/bindings.ts"));
+        assert!(path.is_file());
+    }
+}

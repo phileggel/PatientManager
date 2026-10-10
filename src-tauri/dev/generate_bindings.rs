@@ -1,4 +1,4 @@
-use patient_manager_app::shared::create_specta_builder;
+use patient_manager_app::shared::{bindings_path, create_specta_builder};
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
 /// Generate TypeScript bindings for CI/release builds
@@ -11,10 +11,7 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 fn main() {
     println!("Generating TypeScript bindings...");
 
-    // Get the workspace root (parent of src-tauri)
-    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let workspace_root = manifest_dir.parent().expect("Failed to get workspace root");
-    let output_path = workspace_root.join("src/bindings.ts");
+    let output_path = bindings_path();
 
     // Use the same builder configuration as main.rs
     let builder = create_specta_builder();

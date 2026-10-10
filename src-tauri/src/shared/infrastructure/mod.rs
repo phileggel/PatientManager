@@ -10,4 +10,4 @@ pub mod uow;
 
 pub use db::Database;
 #[cfg(feature = "app")]
-pub use specta_builder::create_specta_builder;
+pub use specta_builder::{bindings_path, create_specta_builder};
