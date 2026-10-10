@@ -39,6 +39,9 @@ pub enum PathValidationError {
     },
     /// Raw path is malformed (no parent directory, empty file name, etc.).
     InvalidPath,
+    /// A symbolic link already sits at the name of a file to create: writing
+    /// there would follow it, possibly out of the allowed root.
+    SymlinkAtDestination,
 }
 
 impl fmt::Display for PathValidationError {
@@ -58,6 +61,7 @@ impl fmt::Display for PathValidationError {
                 None => write!(f, "File has no extension, expected one of {expected:?}"),
             },
             Self::InvalidPath => write!(f, "Path is malformed"),
+            Self::SymlinkAtDestination => write!(f, "Destination is a symbolic link"),
         }
     }
 }
@@ -77,7 +81,8 @@ pub enum PathPolicy {
     /// Used for read-side commands.
     ExistingFile { extensions: &'static [&'static str] },
     /// Parent must exist and resolve under the allowed root; the file leaf
-    /// itself may not yet exist. Used for write-side commands.
+    /// itself may not yet exist, or be a regular file the save dialog asked to
+    /// replace — never a symbolic link. Used for write-side commands.
     NewFileInExistingDir { extensions: &'static [&'static str] },
 }
 
@@ -129,7 +134,13 @@ pub fn validate_user_path(
                 .ok_or(PathValidationError::InvalidPath)?;
             let canonical_parent =
                 std::fs::canonicalize(parent).map_err(PathValidationError::Canonicalize)?;
-            (canonical_parent.join(leaf), extensions)
+            let destination = canonical_parent.join(leaf);
+            // Only the folder was canonicalised: a link at the leaf would be followed on write.
+            // A leaf that cannot be inspected is not refused here: the write fails on the same error.
+            if std::fs::symlink_metadata(&destination).is_ok_and(|m| m.file_type().is_symlink()) {
+                return Err(PathValidationError::SymlinkAtDestination);
+            }
+            (destination, extensions)
         }
     };
 
@@ -317,6 +328,55 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, PathValidationError::OutsideAllowedRoot));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_dgr_023_debt_044_new_file_destination_symlink_is_refused() {
+        use std::os::unix::fs::symlink;
+
+        let root = tempdir().expect("root");
+        let target = root.path().join("elsewhere.gz");
+        std::fs::write(&target, "kept").expect("write target");
+        let dangling = root.path().join("nowhere.gz");
+        for (name, points_at) in [("backup.gz", &target), ("other.gz", &dangling)] {
+            let link = root.path().join(name);
+            symlink(points_at, &link).expect("create symlink");
+
+            let err = validate_user_path(
+                link.to_str().expect("link utf-8"),
+                root.path(),
+                PathPolicy::NewFileInExistingDir {
+                    extensions: &["gz"],
+                },
+            )
+            .unwrap_err();
+            assert!(
+                matches!(err, PathValidationError::SymlinkAtDestination),
+                "{name}"
+            );
+        }
+        assert_eq!(
+            std::fs::read_to_string(&target).expect("read target"),
+            "kept"
+        );
+    }
+
+    #[test]
+    fn test_dgr_023_new_file_destination_existing_regular_file_is_accepted() {
+        let root = tempdir().expect("root");
+        let existing = root.path().join("report.txt");
+        std::fs::write(&existing, "old").expect("write file");
+
+        let canon = validate_user_path(
+            existing.to_str().expect("path utf-8"),
+            root.path(),
+            PathPolicy::NewFileInExistingDir {
+                extensions: &["txt"],
+            },
+        )
+        .expect("an existing regular file is replaced, as the save dialog asked");
+        assert!(canon.ends_with("report.txt"));
     }
 
     #[test]
