@@ -40,6 +40,14 @@
      misnamed file.
   5. A very small skill, `/file-entry`, holds these rules, so that the agent files an
      entry properly each time; `docs/workflow.md` § 2 stays their home.
+  6. Three kinds, no fourth (owner, 2026-10-11): a todo is what a user would notice, a debt
+     is about the application's code or documents, a flow entry is about how the work
+     moves. A bug has no kind of its own: it is a todo when a user would notice the fix,
+     a debt otherwise.
+  7. A GitHub issue is never worked directly (owner, 2026-10-11): it becomes a todo, a
+     debt or a flow entry first, which names it (`gh#NN`), and the pull request that ships
+     the entry closes the issue. A Dependabot pull request is not an issue: it is still
+     queued under its own number.
 - Costs: a line per entry; a few lines in the queue script and the audit script, with
   their tests; one pass over the backlog. A size is still a guess: only the audit's
   comparison makes it better. Protects: a queue cut twice by the owner in each of the
