@@ -1,6 +1,12 @@
 # PatientManager - Command Runner
 # Install just: https://github.com/casey/just
 
+# The throwaway database the SQLx tooling connects to (schema only, never the
+# application's database: the app reads no DATABASE_URL). Same path as
+# scripts/check.py (SQLX_CHECK_DB) and CI (quality.yml). Set DATABASE_URL to
+# point the recipes elsewhere.
+sqlx_db_url := env("DATABASE_URL", "sqlite:" + justfile_directory() + "/src-tauri/.local/dev_check.sqlite")
+
 # List all available commands
 default:
     @just --list
@@ -74,18 +80,17 @@ test-scripts: (_used "test-scripts")
 merge:
     python3 scripts/merge.py
 
-# Run pending database migrations
-# Prerequisites: sqlx must be on $PATH and DATABASE_URL must be set
+# Run pending migrations on the SQLx check database
+# Prerequisite: sqlx must be on $PATH
 migrate: (_used "migrate")
-    @if [ -d src-tauri ]; then cd src-tauri && sqlx migrate run; else echo "ℹ skipping migrate (no src-tauri/)"; fi
+    @if [ -d src-tauri ]; then cd src-tauri && DATABASE_URL="{{sqlx_db_url}}" sqlx migrate run; else echo "ℹ skipping migrate (no src-tauri/)"; fi
 
 # Regenerate SQLx offline query cache (run after schema or query changes).
 # SQLX_OFFLINE=false forces online mode — projects that set SQLX_OFFLINE=true
 # globally (in their .cargo/config.toml) still let `prepare` hit the live DB,
 # which is its whole purpose. No-op for projects that haven't set SQLX_OFFLINE.
-# Edit `DATABASE_URL` below if your dev DB lives elsewhere.
 prepare-sqlx: (_used "prepare-sqlx")
-    @if [ -d src-tauri ]; then cd src-tauri && SQLX_OFFLINE=false DATABASE_URL="sqlite:.local/dev_check.sqlite" cargo sqlx prepare -- --tests; else echo "ℹ skipping prepare-sqlx (no src-tauri/)"; fi
+    @if [ -d src-tauri ]; then cd src-tauri && SQLX_OFFLINE=false DATABASE_URL="{{sqlx_db_url}}" cargo sqlx prepare -- --tests; else echo "ℹ skipping prepare-sqlx (no src-tauri/)"; fi
 
 # Auto-fix formatting and linting
 format: (_used "format")
@@ -94,7 +99,7 @@ format: (_used "format")
     @if [ -f package.json ]; then npm run format:fix; else echo "ℹ skipping format:fix (no package.json)"; fi
     @if [ -f package.json ]; then npm run format:docs; else echo "ℹ skipping format:docs (no package.json)"; fi
 
-# ⚠️  Destructive: deletes local database and recreates schema
+# ⚠️  Destructive: deletes the SQLx check database and recreates its schema (never the application's data)
 clean-db: (_used "clean-db")
     #!/usr/bin/env bash
     set -euo pipefail
@@ -102,8 +107,9 @@ clean-db: (_used "clean-db")
         echo "ℹ skipping clean-db (no src-tauri/)"
         exit 0
     fi
+    mkdir -p src-tauri/.local
     rm -rf src-tauri/.local/*
-    cd src-tauri && sqlx database setup
+    cd src-tauri && DATABASE_URL="{{sqlx_db_url}}" sqlx database setup
 
 # Start the application with hot reload
 dev *ARGS:

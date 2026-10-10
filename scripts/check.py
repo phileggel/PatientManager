@@ -46,6 +46,24 @@ SKIP_FRONTEND_ABSENT = "package.json absent"
 SKIP_BACKEND_ABSENT = f"{BACKEND_DIR}/Cargo.toml absent"
 SKIP_SQLX_ABSENT = f"{BACKEND_DIR}/.sqlx/ absent"
 
+# The throwaway database `cargo sqlx prepare --check` connects to. It holds the
+# schema only and is never the application's database: the app opens its own
+# file in its data directory and reads no DATABASE_URL. Same path as the
+# justfile (`sqlx_db_url`) and CI (quality.yml); `just clean-db` creates it.
+SQLX_CHECK_DB = Path(BACKEND_DIR) / ".local" / "dev_check.sqlite"
+
+
+def sqlx_database_url(repo_root: Path, environ: dict) -> str:
+    """The database the SQLx check connects to: DATABASE_URL when the caller
+    set one (CI does), the check database of this clone otherwise."""
+    return environ.get("DATABASE_URL") or f"sqlite:{repo_root / SQLX_CHECK_DB}"
+
+
+def sqlx_check_db_missing(repo_root: Path, environ: dict) -> bool:
+    """True when the check falls back on this clone's check database and that
+    file was never created. A caller's own DATABASE_URL is left to sqlx."""
+    return not environ.get("DATABASE_URL") and not (repo_root / SQLX_CHECK_DB).exists()
+
 # Markdown drift gate (gh#68). Biome doesn't cover .md and
 # `npm run format:docs` is write-only — without this step, drift
 # slips through PRs and `just format` silently rewrites unrelated
@@ -368,10 +386,18 @@ class QualityChecker:
             )
             return False
 
+        if sqlx_check_db_missing(self.repo_root, os.environ):
+            message = f"{SQLX_CHECK_DB} is missing. Run 'just clean-db' to create it."
+            self._vprint(f"{FAILURE}✗ SQLx: {message}{RESET}")
+            self._set_metric("sqlx", STATUS_STALE)
+            self._record_failure("SQLx", message)
+            return False
+
         success = self.run_step(
             "SQLx Prepare Check",
             ["cargo", "sqlx", "prepare", "--check"],
             cwd=self.repo_root / BACKEND_DIR,
+            env_update={"DATABASE_URL": sqlx_database_url(self.repo_root, os.environ)},
         )
         self._set_metric("sqlx", STATUS_PASS if success else STATUS_STALE)
         return success

@@ -49,8 +49,12 @@ nvm use --lts
 ```bash
 git clone <repository-url>
 cd PatientManager
+git config core.hooksPath .githooks
 npm install
+just clean-db
 ```
+
+`just clean-db` creates the database the SQLx check connects to (`src-tauri/.local/dev_check.sqlite`, schema only). It is not the application's database, and no `DATABASE_URL` needs setting.
 
 **6. Verify**
 
