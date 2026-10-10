@@ -40,7 +40,10 @@ pub async fn reconcile_and_create_candidates_fn(
 fn ensure_something_to_reconcile(
     response: &ReconcileAndCandidatesResponse,
 ) -> Result<(), FundPaymentReconciliationError> {
-    if response.candidates.is_empty() && response.reconciliation.matches.is_empty() {
+    if response.candidates.is_empty()
+        && response.reconciliation.matches.is_empty()
+        && response.left_out_groups.is_empty()
+    {
         tracing::warn!(target: BACKEND, "PDF text yields no PDF line");
         return Err(FundPaymentReconciliationTask::PdfHasNoLine.into());
     }
@@ -311,6 +314,7 @@ mod tests {
             candidates: vec![],
             reconciliation: ReconciliationResult { matches: vec![] },
             already_imported: false,
+            left_out_groups: vec![],
         };
         let err = ensure_something_to_reconcile(&empty).expect_err("nothing to review");
         assert_eq!(
@@ -330,8 +334,24 @@ mod tests {
                 }],
             },
             already_imported: false,
+            left_out_groups: vec![],
         };
         assert!(ensure_something_to_reconcile(&with_issue).is_ok());
+    }
+
+    #[test]
+    fn test_fpa_070_a_pdf_with_only_left_out_groups_is_answered_not_rejected() {
+        let only_left_out = ReconcileAndCandidatesResponse {
+            candidates: vec![],
+            reconciliation: ReconciliationResult { matches: vec![] },
+            already_imported: false,
+            left_out_groups: vec![LeftOutPdfGroup {
+                fund_label: "taken-back".to_string(),
+                payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                total_amount: -26_500,
+            }],
+        };
+        assert!(ensure_something_to_reconcile(&only_left_out).is_ok());
     }
 
     #[test]

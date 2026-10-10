@@ -226,6 +226,12 @@ A bank-statement line consciously excluded from settlement during reconciliation
 
 > Status: confirmed (2026-08-03)
 
+### Group left out of the import (« Groupe non importé »)
+
+A group of a fund's PDF statement whose stated total is zero or negative — the fund takes money back — and which the statement import therefore leaves out before matching (FPA-070): none of its lines is matched, nothing is created for it, and it is named to the user. Not a stored concept. Distinct from a left-aside line, which the user sets aside on purpose during a bank reconciliation.
+
+> Status: proposed (2026-10-10) — awaiting the owner's confirmation
+
 ### Bank statement label (« Libellé de relevé »)
 
 The label of a bank statement line, remembered per bank account together with its assignment: a fund, or ignored (« rejected » in BAS-030–035 — same value). Saved by the import flow at validate (BAS-035) and reviewed from the management screen (BAS-041–046). Deleting the bank account deletes its labels.
@@ -314,6 +320,7 @@ from code and proposed for confirmation.
 | `confirm_bank_payment()`              | Bank transfer matched — group is now settled; prevents edits and deletion                                             | → `BankPaid`      | confirmed |
 | `revert_bank_payment()`               | Bank transfer removed — group is back to active                                                                       | → `Active`        | confirmed |
 | `update(payment_date, procedure_ids)` | Edit the group — changes payment date and procedure lines; `total_amount` is recalculated internally as a side effect | —                 | confirmed |
+| `accepts_total(total_amount)`         | Whether an amount can be a group's total: it must be positive                                                         | —                 | proposed  |
 
 > ⚠️ Code discrepancy: `confirm_bank_payment`/`revert_bank_payment` are done by the group
 > settlement unit of work writing the status (`update_group_status_in`). `update()` is a direct

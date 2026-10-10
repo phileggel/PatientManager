@@ -30,12 +30,12 @@ use patient_manager_app::{
     shared::event_bus::EventBus,
     use_cases::fund_payment_reconciliation::{
         api::{
-            create_fund_payment_with_auto_corrections_fn, reconcile_and_create_candidates_fn,
-            reconcile_pdf_procedures_fn,
+            create_fund_payment_from_candidates_fn, create_fund_payment_with_auto_corrections_fn,
+            reconcile_and_create_candidates_fn, reconcile_pdf_procedures_fn,
         },
-        AutoCorrection, CreateFundPaymentWithAutoCorrectionsRequest,
-        FundPaymentReconciliationOrchestrator, NormalizedPdfLine, PdfParseResult,
-        PdfProcedureGroup, ReconciliationService,
+        AutoCorrection, CreateFundPaymentFromCandidatesRequest,
+        CreateFundPaymentWithAutoCorrectionsRequest, FundPaymentReconciliationOrchestrator,
+        NormalizedPdfLine, PdfParseResult, PdfProcedureGroup, ReconciliationService,
     },
 };
 use sqlx::sqlite::SqlitePoolOptions;
@@ -758,4 +758,153 @@ async fn test_fpa_065_a_pdf_with_no_pdf_line_is_refused_by_both_reconcile_comman
         serde_json::to_value(&err).unwrap(),
         serde_json::json!({ "code": "PdfHasNoLine" }),
     );
+}
+
+// ---------------------------------------------------------------------------
+// A statement where the fund takes money back as a group of its own (total not
+// positive): the group leaves the import, the rest is reconciled, and a
+// validation that would still carry such a group writes nothing.
+// ---------------------------------------------------------------------------
+
+fn refund_statement_line(index: u32, fund: &str, amount: i64) -> NormalizedPdfLine {
+    let date = chrono::NaiveDate::from_ymd_opt(2026, 8, 26).unwrap();
+    NormalizedPdfLine {
+        line_index: index,
+        payment_date: date,
+        invoice_number: format!("{index:03}"),
+        fund_name: fund.to_string(),
+        patient_name: "DUPONT ALICE".to_string(),
+        ssn: "1111111111111".to_string(),
+        nature: "SF".to_string(),
+        procedure_start_date: date,
+        procedure_end_date: date,
+        is_period: false,
+        amount,
+    }
+}
+
+#[tokio::test]
+async fn test_fpa_070_a_group_taken_back_by_the_fund_is_left_out_and_named() {
+    let pool = setup_pool().await;
+    let ctx = build_ctx(&pool);
+    let payment_date = chrono::NaiveDate::from_ymd_opt(2026, 8, 26).unwrap();
+    let group = |label: &str, total_amount: i64, lines: Vec<NormalizedPdfLine>| PdfProcedureGroup {
+        fund_label: label.to_string(),
+        fund_full_name: label.to_string(),
+        payment_date,
+        total_amount,
+        is_total_valid: true,
+        lines,
+    };
+
+    let response = reconcile_and_create_candidates_fn(
+        PdfParseResult {
+            groups: vec![
+                group(
+                    "CPAM n° 941",
+                    38_400,
+                    vec![refund_statement_line(0, "CPAM n° 941", 38_400)],
+                ),
+                group(
+                    "CPAM n° 951",
+                    -26_500,
+                    vec![
+                        refund_statement_line(1, "CPAM n° 951", -23_000),
+                        refund_statement_line(2, "CPAM n° 951", -3_500),
+                    ],
+                ),
+            ],
+            unparsed_line_count: 0,
+            unparsed_lines: vec![],
+        },
+        ctx.reconciliation_service.clone(),
+        ctx.orchestrator.clone(),
+    )
+    .await
+    .expect("the statement is reconciled without its refund group");
+
+    assert_eq!(response.left_out_groups.len(), 1);
+    assert_eq!(response.left_out_groups[0].fund_label, "CPAM n° 951");
+    assert_eq!(response.left_out_groups[0].total_amount, -26_500);
+    assert_eq!(response.candidates.len(), 1);
+    assert_eq!(response.candidates[0].fund_label, "CPAM n° 941");
+    // Only the line of the kept group is matched: nothing of the refund group asks for a correction.
+    assert_eq!(response.reconciliation.matches.len(), 1);
+}
+
+#[tokio::test]
+async fn test_fpa_075_a_validation_that_cannot_complete_writes_nothing() {
+    let pool = setup_pool().await;
+    let ctx = build_ctx(&pool);
+    let payment_date = chrono::NaiveDate::from_ymd_opt(2026, 8, 26).unwrap();
+    let candidate = |label: &str, total_amount: i64| {
+        patient_manager_app::context::fund::FundPaymentGroupCandidate {
+            fund_label: label.to_string(),
+            payment_date,
+            total_amount,
+            procedure_ids: vec![],
+            matched_amount: 0,
+            is_fully_covered: false,
+        }
+    };
+    let request = || CreateFundPaymentWithAutoCorrectionsRequest {
+        candidates: vec![
+            candidate("CPAM n° 941", 38_400),
+            candidate("CPAM n° 951", -26_500),
+        ],
+        auto_corrections: vec![AutoCorrection::CreateProcedure {
+            ssn: "1111111111111".to_string(),
+            patient_name: "DUPONT ALICE".to_string(),
+            procedure_date: payment_date,
+            payment_date,
+            billed_amount: 38_400,
+            pdf_fund_label: "CPAM n° 941".to_string(),
+        }],
+    };
+
+    // Twice, as a user who clicks again: no attempt may leave anything behind.
+    for attempt in 1..=2 {
+        let err = create_fund_payment_with_auto_corrections_fn(
+            request(),
+            ctx.patient_service.clone(),
+            ctx.orchestrator.clone(),
+        )
+        .await
+        .expect_err("a group with a negative total cannot be created");
+        assert_eq!(
+            serde_json::to_value(&err).unwrap(),
+            serde_json::json!({ "code": "TotalAmountNotPositive" }),
+            "attempt {attempt}"
+        );
+        let procedures = ctx.procedure_service.read_all_procedures().await.unwrap();
+        assert!(
+            procedures.is_empty(),
+            "attempt {attempt} created {} procedure(s)",
+            procedures.len()
+        );
+        let funds = ctx.fund_service.read_all_funds().await.unwrap();
+        assert!(
+            funds.is_empty(),
+            "attempt {attempt} created {} fund(s)",
+            funds.len()
+        );
+    }
+
+    // The path without corrections is guarded the same way.
+    let err = create_fund_payment_from_candidates_fn(
+        CreateFundPaymentFromCandidatesRequest {
+            candidates: vec![
+                candidate("CPAM n° 941", 38_400),
+                candidate("CPAM n° 951", 0),
+            ],
+        },
+        ctx.orchestrator.clone(),
+    )
+    .await
+    .expect_err("a group with a zero total cannot be created");
+    assert_eq!(
+        serde_json::to_value(&err).unwrap(),
+        serde_json::json!({ "code": "TotalAmountNotPositive" }),
+    );
+    assert!(ctx.fund_service.read_all_funds().await.unwrap().is_empty());
 }

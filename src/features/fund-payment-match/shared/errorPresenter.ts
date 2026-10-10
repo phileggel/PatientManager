@@ -59,6 +59,9 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
       return { key: "fund-payment-match:errors.pdf_path_rejected" };
     case "PdfExtractionFailed":
       return { key: "fund-payment-match:errors.pdf_extraction_failed" };
+    // FPA-075 — the aggregate's own refusal, answered before anything is written.
+    case "TotalAmountNotPositive":
+      return { key: "fund-payment-match:errors.group_total_not_positive" };
     case "PdfHasNoText":
       return { key: "fund-payment-match:errors.pdf_has_no_text" };
     case "PdfHasNoLine":
@@ -72,7 +75,6 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     case "FundInvalid":
     case "FundNotFound":
     case "FundIdEmpty":
-    case "TotalAmountNotPositive":
     case "InvalidPaymentDateFormat":
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":

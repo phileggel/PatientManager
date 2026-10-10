@@ -1847,6 +1847,20 @@ blocked_months: string[];
  */
 skipped_procedures: SkippedRow[] }
 /**
+ * A group of the PDF the import leaves out because its stated total is not
+ * positive: the fund takes money back (FPA-070). It is named to the user, who
+ * records it by hand; nothing of it is matched or created.
+ */
+export type LeftOutPdfGroup = { 
+/**
+ * Fund label as the PDF states it
+ */
+fund_label: string; payment_date: string; 
+/**
+ * Total stated in the PDF (thousandths of a euro), zero or negative
+ */
+total_amount: number }
+/**
  * A normalized PDF procedure line — the ONE domain object for reconciliation.
  * 
  * All dates are NaiveDate (serialized as ISO YYYY-MM-DD via serde/specta).
@@ -2385,7 +2399,11 @@ reconciliation: ReconciliationResult;
  * silent partial mutation that would otherwise occur if the user
  * reached the auto-correction step.
  */
-already_imported: boolean }
+already_imported: boolean; 
+/**
+ * Groups left out of the import (FPA-070), in the order of the PDF.
+ */
+left_out_groups: LeftOutPdfGroup[] }
 /**
  * A reconciliation match result (unified discriminated union for all scenarios)
  */

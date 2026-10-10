@@ -109,6 +109,7 @@ const mockReconciliationNoAnomalies = {
       is_fully_covered: true,
     },
   ],
+  left_out_groups: [],
   reconciliation: {
     matches: [
       {
@@ -133,6 +134,7 @@ const mockReconciliationWithAnomaly = {
       is_fully_covered: false,
     },
   ],
+  left_out_groups: [],
   reconciliation: {
     matches: [
       {
@@ -445,5 +447,45 @@ describe("ReconciliationModal", () => {
     });
 
     expect(mockOnClose).not.toHaveBeenCalled();
+  });
+  // FPA-070 — a group the fund takes back is named, and the rest stays reviewable.
+  it("names the groups left out of the import", async () => {
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: {
+        ...mockReconciliationNoAnomalies,
+        left_out_groups: [
+          { fund_label: "CPAM n° 951", payment_date: "2026-08-26", total_amount: -26500 },
+        ],
+      },
+    });
+
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveAttribute("id", "reconciliation-modal-left-out-groups");
+    expect(notice).toHaveTextContent("1 group of this statement will not be imported");
+    expect(notice).toHaveTextContent("CPAM n° 951");
+    expect(screen.getByRole("button", { name: "Validate" })).toBeEnabled();
+  });
+
+  it("offers nothing to validate when every group was left out", async () => {
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: {
+        candidates: [],
+        reconciliation: { matches: [] },
+        already_imported: false,
+        left_out_groups: [
+          { fund_label: "CPAM n° 951", payment_date: "2026-08-26", total_amount: -26500 },
+        ],
+      },
+    });
+
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    await screen.findByRole("status");
+    expect(screen.queryByText(/no anomalies detected/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate" })).toBeDisabled();
   });
 });

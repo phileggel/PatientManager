@@ -1,4 +1,4 @@
-use crate::context::fund::FundRepository;
+use crate::context::fund::{FundPaymentGroup, FundRepository};
 use crate::context::procedure::ProcedureRepository;
 use crate::shared::logger::BACKEND;
 use chrono::NaiveDate;
@@ -9,8 +9,8 @@ use std::sync::Arc;
 use super::core::InternalAmount;
 use super::data::{FundCache, ProcedurePoolBuilder};
 use super::dto::{
-    NormalizedPdfLine, PdfParseResult, PdfProcedureGroup, ReconcileAndCandidatesResponse,
-    ReconciliationMatch, ReconciliationResult,
+    LeftOutPdfGroup, NormalizedPdfLine, PdfParseResult, PdfProcedureGroup,
+    ReconcileAndCandidatesResponse, ReconciliationMatch, ReconciliationResult,
 };
 use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use super::output::PdfCandidateMapper;
@@ -56,6 +56,9 @@ impl ReconciliationService {
             "Starting full reconciliation workflow"
         );
 
+        // FPA-070 — groups that can never become a fund-payment group leave before matching.
+        let (parse_result, left_out_groups) = split_out_groups_without_positive_total(parse_result);
+
         // Run matching algorithm
         let reconciliation = self.reconcile_groups(&parse_result.groups).await?;
 
@@ -67,6 +70,7 @@ impl ReconciliationService {
             candidates,
             reconciliation,
             already_imported: false,
+            left_out_groups,
         })
     }
 
@@ -274,6 +278,40 @@ impl ReconciliationService {
     }
 }
 
+/// A group whose stated total is not positive — the fund takes money back —
+/// cannot become a fund-payment group. It leaves the import before matching, so
+/// it blocks nothing, and is handed back to be named to the user (FPA-070).
+fn split_out_groups_without_positive_total(
+    parse_result: PdfParseResult,
+) -> (PdfParseResult, Vec<LeftOutPdfGroup>) {
+    let (groups, left_out): (Vec<_>, Vec<_>) = parse_result
+        .groups
+        .into_iter()
+        .partition(|group| FundPaymentGroup::accepts_total(group.total_amount));
+    if !left_out.is_empty() {
+        tracing::warn!(
+            target: BACKEND,
+            count = left_out.len(),
+            "PDF groups left out of the import: total not positive"
+        );
+    }
+    let left_out = left_out
+        .into_iter()
+        .map(|group| LeftOutPdfGroup {
+            fund_label: group.fund_label,
+            payment_date: group.payment_date,
+            total_amount: group.total_amount,
+        })
+        .collect();
+    (
+        PdfParseResult {
+            groups,
+            ..parse_result
+        },
+        left_out,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -291,6 +329,49 @@ mod tests {
         fund_repo: MockFundRepository,
     ) -> ReconciliationService {
         ReconciliationService::new(Arc::new(proc_repo), Arc::new(fund_repo))
+    }
+
+    fn pdf_group(label: &str, total_amount: i64) -> PdfProcedureGroup {
+        PdfProcedureGroup {
+            fund_label: label.to_string(),
+            fund_full_name: label.to_string(),
+            payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            total_amount,
+            is_total_valid: true,
+            lines: vec![],
+        }
+    }
+
+    #[test]
+    fn test_fpa_070_groups_without_a_positive_total_leave_the_import() {
+        let parse_result = PdfParseResult {
+            groups: vec![
+                pdf_group("paid", 100),
+                pdf_group("taken-back", -26_500),
+                pdf_group("nil", 0),
+                pdf_group("paid-too", 1),
+            ],
+            unparsed_line_count: 2,
+            unparsed_lines: vec!["x".to_string()],
+        };
+
+        let (kept, left_out) = split_out_groups_without_positive_total(parse_result);
+
+        let labels = |groups: &[PdfProcedureGroup]| -> Vec<String> {
+            groups.iter().map(|g| g.fund_label.clone()).collect()
+        };
+        assert_eq!(labels(&kept.groups), ["paid", "paid-too"]);
+        assert_eq!(
+            (kept.unparsed_line_count, kept.unparsed_lines.len()),
+            (2, 1)
+        );
+        assert_eq!(
+            left_out
+                .iter()
+                .map(|g| (g.fund_label.as_str(), g.total_amount))
+                .collect::<Vec<_>>(),
+            [("taken-back", -26_500), ("nil", 0)]
+        );
     }
 
     #[tokio::test]

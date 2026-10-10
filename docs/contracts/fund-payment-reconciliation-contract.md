@@ -36,33 +36,33 @@ Runs the 8-pass matching algorithm (R4) and classifies each PDF line into a `Rec
 
 ---
 
-### `reconcile_and_create_candidates` — R1, R3, R4, R5, R6, R7, R8, R9, R10, R29, FPA-065
+### `reconcile_and_create_candidates` — R1, R3, R4, R5, R6, R7, R8, R9, R10, R29, FPA-065, FPA-070, FPA-072
 
 Runs the 8-pass matching algorithm and groups results into `FundPaymentGroupCandidate`s for user review. Combines reconciliation and candidate creation in a single call. Negative-amount lines are classified as `NotFoundIssue` (R29). Sets the response flag `already_imported = true` when every candidate corresponds to an existing fund-payment group (same `fund_label` + `payment_date` + `total_amount`), so the frontend can short-circuit a re-import before showing the anomaly UI or dispatching any downstream command (R3, defensive).
 
 - **Args:** `parse_result: PdfParseResult`
-- **Returns:** `ReconcileAndCandidatesResponse` — includes `already_imported: bool`
+- **Returns:** `ReconcileAndCandidatesResponse` — includes `already_imported: bool` and `left_out_groups`, the PDF groups left out because their stated total is not positive (FPA-070): none of their lines is matched. A PDF whose every group is left out is answered, not rejected (FPA-072): `candidates` and `matches` are empty and `already_imported` is `false`
 - **Errors:** `PdfHasNoLine` (the PDF's text yields no PDF line, FPA-065), `DatabaseError`
 
 ---
 
-### `create_fund_payment_from_candidates` — R3, R18, R19
+### `create_fund_payment_from_candidates` — R3, R18, R19, FPA-075
 
 Creates fund-payment groups from validated candidates with no auto-corrections. Performs the duplicate check (R3) and rejects the batch if the PDF was already imported. Updates procedure statuses to `Reconciliated` / `PartiallyReconciled` with `confirmed_payment_date` and `actual_payment_amount` (R18).
 
 - **Args:** `candidates: Vec<FundPaymentGroupCandidate>`
 - **Returns:** `Vec<FundPaymentGroup>`
-- **Errors:** `DuplicatePdf`, `ProcedureNotFound`, `FundNotFound`
+- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `DuplicatePdf`, `ProcedureNotFound`, `FundNotFound`
 
 ---
 
-### `create_fund_payment_with_auto_corrections` — R3, R11, R12, R13, R14, R15, R16, R17, R18, R19, R29
+### `create_fund_payment_with_auto_corrections` — R3, R11, R12, R13, R14, R15, R16, R17, R18, R19, R29, FPA-075
 
 Creates fund-payment groups and applies user-validated auto-corrections atomically. Correction variants: `AmountMismatch` (R11), `ContestAmount` (R12), `FundMismatch` (R13), `DateMismatch` (R14), `LinkProcedure` (R15), `CreateProcedure` (R16). Unknown funds are resolved and created automatically (R17). Negative-amount procedures via `CreateProcedure` receive `Reconciliated` status directly (R29). Performs the duplicate check (R3).
 
 - **Args:** `candidates: Vec<FundPaymentGroupCandidate>, auto_corrections: Vec<AutoCorrection>`
 - **Returns:** `Vec<FundPaymentGroup>`
-- **Errors:** `DuplicatePdf`, `ProcedureNotFound`, `ProcedureAlreadyLinked`, `FundResolutionFailed`
+- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `DuplicatePdf`, `ProcedureNotFound`, `ProcedureAlreadyLinked`, `FundResolutionFailed`
 
 ---
 
@@ -196,6 +196,14 @@ struct ReconcileAndCandidatesResponse {
     candidates: Vec<FundPaymentGroupCandidate>,
     reconciliation: ReconciliationResult,
     already_imported: bool,        // R3 — every candidate maps to an existing group
+    left_out_groups: Vec<LeftOutPdfGroup>, // FPA-070 — left out of the import, in PDF order
+}
+
+// FPA-070 — a PDF group left out of the import: its stated total is zero or negative
+struct LeftOutPdfGroup {
+    fund_label: String,
+    payment_date: String,     // ISO date YYYY-MM-DD
+    total_amount: i64,
 }
 
 struct ReconciliationResult {
@@ -302,3 +310,4 @@ enum FundPaymentValidationStatus {
 - 2026-05-13 — Removed `save_fund_reconciliation_report_pdf`. Added `export_and_open_fund_reconciliation_report_pdf`: single command that renders, writes to the platform Downloads directory under a frontend-built locale-aware filename, and launches the system PDF viewer. Filename is validated as a leaf name; collisions use ` (N)` suffixing. Returns the absolute saved path. New error variant: `OpenFailed`.
 - 2026-05-16 — Removed `export_reconciliation_csv` and its `CsvExportFailed` error. The CSV export was never wired to a frontend caller and was superseded by `generate_fund_reconciliation_report_pdf` / `export_and_open_fund_reconciliation_report_pdf` (PDF report, ADR-006). Dead code cleanup.
 - 2026-10-10 — Modified by `fund-payment-auto-match` spec (FPA-060, FPA-065): extract_pdf_text gains `PdfHasNoText` (and lists `PdfPathRejected`, which it already returned); reconcile_and_create_candidates and reconcile_pdf_procedures gain `PdfHasNoLine` (and list `DatabaseError`, which they already returned). Removed `extract_pdf_text_from_bytes`: no such command is registered.
+- 2026-10-10 — Modified by `fund-payment-auto-match` spec (FPA-070, FPA-072, FPA-075): reconcile_and_create_candidates returns `left_out_groups` (new type `LeftOutPdfGroup`); create_fund_payment_from_candidates and create_fund_payment_with_auto_corrections list `TotalAmountNotPositive`, now answered before any write

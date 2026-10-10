@@ -108,7 +108,11 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
     [reconciliationData],
   );
 
-  const canValidate = reconciliationData !== null && resolvedCount === totalAnomalies;
+  // FPA-070 — a statement whose every group was left out has nothing to validate.
+  const canValidate =
+    reconciliationData !== null &&
+    reconciliationData.candidates.length > 0 &&
+    resolvedCount === totalAnomalies;
 
   const handleAcceptCorrection = useCallback((key: string, correction: AutoCorrection) => {
     setAcceptedKeys((prev) => new Set(prev).add(key));

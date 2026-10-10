@@ -141,6 +141,19 @@ pub struct FundPaymentCandidateValidation {
     pub error: Option<String>,
 }
 
+/// A group of the PDF the import leaves out because its stated total is not
+/// positive: the fund takes money back (FPA-070). It is named to the user, who
+/// records it by hand; nothing of it is matched or created.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct LeftOutPdfGroup {
+    /// Fund label as the PDF states it
+    pub fund_label: String,
+    #[specta(type = String)]
+    pub payment_date: NaiveDate,
+    /// Total stated in the PDF (thousandths of a euro), zero or negative
+    pub total_amount: i64,
+}
+
 /// Response from PDF reconciliation workflow
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ReconcileAndCandidatesResponse {
@@ -155,6 +168,8 @@ pub struct ReconcileAndCandidatesResponse {
     /// silent partial mutation that would otherwise occur if the user
     /// reached the auto-correction step.
     pub already_imported: bool,
+    /// Groups left out of the import (FPA-070), in the order of the PDF.
+    pub left_out_groups: Vec<LeftOutPdfGroup>,
 }
 
 /// Request to create fund payment groups from validated candidates

@@ -90,6 +90,7 @@ const mockReconciliationData: ReconcileAndCandidatesResponse = {
   candidates: [],
   reconciliation: { matches: [] },
   already_imported: false,
+  left_out_groups: [],
 };
 
 const baseArgs = {

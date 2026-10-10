@@ -61,6 +61,12 @@
     "blocking": {
       "banner": "{{count}} anomalie(s) bloquante(s) — la validation est impossible tant qu'elles ne sont pas résolues manuellement."
     },
+    "left_out_groups": {
+      "title_one": "{{count}} groupe de ce relevé ne sera pas importé",
+      "title_other": "{{count}} groupes de ce relevé ne seront pas importés",
+      "body_one": "Son total est négatif ou nul : la caisse reprend une somme. Notez ce montant, l'import ne l'enregistre pas.",
+      "body_other": "Leur total est négatif ou nul : la caisse reprend une somme. Notez ces montants, l'import ne les enregistre pas."
+    },
     "already_imported": {
       "title": "PDF déjà importé",
       "body": "Tous les paiements de ce PDF correspondent à des rapprochements déjà enregistrés. Aucune action n'est nécessaire."
@@ -195,6 +201,7 @@
     "invalid_date_range": "Plage de dates invalide.",
     "pdf_path_rejected": "Impossible d'ouvrir ce fichier PDF.",
     "pdf_extraction_failed": "Impossible de lire le contenu de ce PDF.",
+    "group_total_not_positive": "Un groupe du relevé a un total négatif ou nul et ne peut pas être importé. Fermez cette fenêtre et relancez le rapprochement du relevé.",
     "pdf_has_no_text": "Ce PDF ne contient aucun texte lisible : il a probablement été scanné ou « imprimé en PDF ». Téléchargez le relevé d'origine depuis le site de la caisse.",
     "database_error": "Une erreur de base de données s'est produite. Veuillez réessayer.",
     "unexpected": "Une erreur inattendue s'est produite lors du rapprochement."

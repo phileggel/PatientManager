@@ -20,7 +20,7 @@ This document covers exclusively the **automatic flow**: PDF parsing, matching a
 
 **FPA-030 (R28) — Unparsed lines (backend + frontend)**: Some PDF lines may not be recognized by the parser (unexpected format, comment lines, etc.). They are silently excluded from reconciliation. The number of unparsed lines and the first 5 as samples are displayed as a warning to the user.
 
-**FPA-040 (R29) — Negative-amount refunds (backend)**: The fund may emit lines with a negative amount (e.g. `-76,80 €`) to flag a refund. These lines are parsed normally and treated as a `NotFoundIssue` (no procedure in the database can match a negative amount). The user creates the procedure via the usual action (`CreateProcedure`) or via the global auto-correction. The creation follows the same behaviour as FPA-250: the procedure is added to the fund payment group and ends up `Reconciliated` after confirmation. The only distinction is that the `billed_amount` is negative.
+**FPA-040 (R29) — Negative-amount refunds (backend)**: The fund may emit lines with a negative amount (e.g. `-76,80 €`) to flag a refund. These lines are parsed normally and treated as a `NotFoundIssue` (no procedure in the database can match a negative amount). The user creates the procedure via the usual action (`CreateProcedure`) or via the global auto-correction. The creation follows the same behaviour as FPA-250: the procedure is added to the fund payment group and ends up `Reconciliated` after confirmation. The only distinction is that the `billed_amount` is negative. This holds when the stated total of the line's group is positive; a group whose stated total is not positive is left out (FPA-070).
 
 **FPA-050 (R3) — PDF duplicate detection (backend)**: When fund-payment groups are created, the system checks whether a group with the same (fund, date, total amount) already exists. If all candidates are duplicates, the processing is rejected entirely — the PDF was likely already imported.
 
@@ -29,6 +29,16 @@ This document covers exclusively the **automatic flow**: PDF parsing, matching a
 **FPA-060 — A PDF with no text is rejected (backend + frontend)**: A PDF that opens but whose extracted text is empty, or holds nothing but whitespace and page breaks — a scan, or a document printed to PDF with its letters drawn as shapes — is rejected when its text is extracted. The modal shows, in place of the results, a message saying that the PDF holds no readable text and to download the original statement from the fund's website; the user closes the modal to select another file.
 
 **FPA-065 — A PDF with no PDF line is rejected (backend + frontend)**: A PDF whose text yields no PDF line at all — nothing was recognised, every line was unparsed (FPA-030), or a group was recognised with no line in it — is rejected before matching. The modal shows, in place of the results, the message that there is no fund-payment group to process; no anomaly is shown, nothing can be validated, and neither the count nor the samples of unparsed lines (FPA-030) are shown. The user closes the modal to select another file.
+
+### Groups left out of the import (070–075)
+
+**FPA-070 — A group whose stated total is not positive is left out (backend)**: A PDF group whose stated total — the total amount declared by the fund (FPA-020) — is zero or negative is left out before matching: the fund takes money back, or a payment is exactly offset. None of its PDF lines is matched, shown as an anomaly or corrected, and no fund-payment group is created for it. Each group left out is made known with its fund label, its payment date and its stated total, in the order of the PDF. The other groups are reconciled as usual. The procedures its lines refer to are not touched: they keep their status, and when a validation follows they appear in the unreconciled-procedures report (FPA-500) like any other — the lines of a group left out count toward that report's date range.
+
+**FPA-071 — The groups left out are named (frontend)**: Above the anomalies, the modal names each group left out — fund label, payment date, stated total, in the order of the PDF — and says that their amounts are to be noted, because the import does not record them. The notice stays until the validation; it is not part of the report that follows, and it is not shown when the PDF is found already imported (FPA-050).
+
+**FPA-072 — A PDF with no group left to reconcile (backend + frontend)**: When groups were left out and nothing remains to reconcile — every group is left out, or the others hold no PDF line — the modal shows the notice of FPA-071 alone: no anomaly, nothing can be validated, and the user closes the modal to select another file. This takes precedence over FPA-065, which applies only when no group was left out. Such a PDF is never found already imported, since nothing of it is recorded.
+
+**FPA-075 — A validation holding a group whose stated total is not positive is rejected before anything is written (backend)**: A validation that includes a group whose stated total is not positive is rejected, and no correction, procedure, patient, fund or fund-payment group is written. This is a guard of the statement import only: the refund fund-payment group of an overpayment (REF-100) is created by another path.
 
 ### Matching algorithm (100–160)
 
@@ -147,6 +157,7 @@ Action applied per anomaly type:
           │
           ▼
 [Reconcile PDF lines ↔ DB procedures] (backend)
+  → Groups whose stated total is not positive: left out, named in the modal (FPA-070, FPA-071)
   → No PDF line: rejected, the modal shows why (FPA-065)
   → 8 sequential passes by SSN / date / amount
   → Classification: PerfectMatch / SingleIssue / GroupIssue / TooMany / NotFound
@@ -163,9 +174,11 @@ Action applied per anomaly type:
 [All anomalies resolved?]
   → No: the user continues correcting
   → Yes: explicit "Validate" action enabled (FPA-460)
+  → No group left to reconcile: the notice alone, nothing to validate (FPA-072)
           │
           ▼
 [User clicks Validate → apply corrections + create fund payment] (backend)
+  → A group whose stated total is not positive: rejected, nothing written (FPA-075)
   → Duplicate check: reject if the same PDF has already been imported
   → Update procedures per AutoCorrections
   → Resolve fund labels (creating funds if needed)
@@ -187,4 +200,4 @@ Action applied per anomaly type:
 
 ## Open questions
 
-None — all questions have been resolved.
+- **FPA-070** — a group left out is recorded nowhere in the application, and the positive lines it may hold stay unreconciled. How a group the fund takes back is recorded, reconciled with the bank and linked to the procedures it concerns is still to be specified (owner, 2026-10-10: a separate entry).

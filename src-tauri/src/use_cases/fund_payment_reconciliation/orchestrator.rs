@@ -6,11 +6,12 @@ use std::sync::{Arc, OnceLock};
 use super::dto::AutoCorrection;
 use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use crate::context::fund::{
-    FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentService, FundService,
+    FundError, FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentService, FundService,
 };
 use crate::context::patient::PatientService;
 use crate::context::procedure::{Procedure, ProcedureService, ProcedureStatus};
 use crate::shared::event_bus::{EventBus, FundPaymentGroupUpdated, ProcedureUpdated};
+use crate::shared::logger::BACKEND;
 
 /// Compile-time-constant fund-number pattern (e.g. "n° 931"), compiled once and
 /// cached. The literal is always valid, but the crate denies `expect_used`, so
@@ -30,6 +31,23 @@ struct CorrectionStats {
     date_corrections: usize,
     contest_corrections: usize,
     procedure_count: usize,
+}
+
+/// Refuse, before the first write, a batch holding a group that can never be
+/// created. The rule and its error are the aggregate's
+/// (`FundPaymentGroup::accepts_total`); it used to be met only when the groups
+/// were built, after the corrections had been saved (FPA-075).
+fn ensure_totals_are_positive(
+    candidates: &[FundPaymentGroupCandidate],
+) -> Result<(), FundPaymentReconciliationError> {
+    if candidates
+        .iter()
+        .any(|c| !FundPaymentGroup::accepts_total(c.total_amount))
+    {
+        tracing::warn!(target: BACKEND, "Validation refused: a group total is not positive");
+        return Err(FundError::TotalAmountNotPositive.into());
+    }
+    Ok(())
 }
 
 /// Orchestrator for creating fund payment groups from reconciliation candidates
@@ -257,6 +275,8 @@ impl FundPaymentReconciliationOrchestrator {
         &self,
         candidates: Vec<FundPaymentGroupCandidate>,
     ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
+        ensure_totals_are_positive(&candidates)?;
+
         // Step 1: Check for duplicates (single pass — results reused in Step 2)
         let mut duplicate_flags = Vec::with_capacity(candidates.len());
         for candidate in &candidates {
@@ -395,6 +415,8 @@ impl FundPaymentReconciliationOrchestrator {
         auto_corrections: Vec<super::dto::AutoCorrection>,
         patient_service: Arc<PatientService>,
     ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
+        ensure_totals_are_positive(&candidates)?;
+
         // Step 1: Check for duplicates BEFORE any DB writes
         let mut duplicate_flags = Vec::with_capacity(candidates.len());
         for candidate in &candidates {
@@ -943,6 +965,43 @@ impl FundPaymentReconciliationOrchestrator {
 mod tests {
     use super::*;
     use std::sync::Arc;
+
+    fn candidate_with_total(total_amount: i64) -> FundPaymentGroupCandidate {
+        FundPaymentGroupCandidate {
+            fund_label: "CPAM".to_string(),
+            payment_date: NaiveDate::from_ymd_opt(2026, 8, 26).unwrap(),
+            total_amount,
+            procedure_ids: vec![],
+            matched_amount: 0,
+            is_fully_covered: false,
+        }
+    }
+
+    #[test]
+    fn test_fpa_075_a_batch_of_positive_totals_passes_the_check() {
+        assert!(ensure_totals_are_positive(&[]).is_ok());
+        assert!(ensure_totals_are_positive(&[
+            candidate_with_total(1),
+            candidate_with_total(38_400)
+        ])
+        .is_ok());
+    }
+
+    #[test]
+    fn test_fpa_075_one_total_that_is_not_positive_rejects_the_batch() {
+        for total in [0, -26_500] {
+            let err = ensure_totals_are_positive(&[
+                candidate_with_total(38_400),
+                candidate_with_total(total),
+            ])
+            .expect_err("a total that is not positive");
+            assert_eq!(
+                serde_json::to_value(&err).expect("serialize"),
+                serde_json::json!({ "code": "TotalAmountNotPositive" }),
+                "{total}"
+            );
+        }
+    }
 
     use crate::context::fund::{
         Fund, FundPaymentGroupStatus, FundPaymentLine, FundRepository, FundService,

@@ -217,12 +217,19 @@ impl FundPaymentGroup {
         }
     }
 
+    /// Whether a total can be a fund-payment group's: it must be positive. The
+    /// one statement of the rule — callers that must know before building a
+    /// group (FPA-070, FPA-075) ask here.
+    pub fn accepts_total(total_amount: i64) -> bool {
+        total_amount > 0
+    }
+
     /// Validates fund payment group fields.
     fn validate(fund_id: &str, _payment_date: &str, total_amount: i64) -> Result<(), FundError> {
         if fund_id.trim().is_empty() {
             return Err(FundError::FundIdEmpty);
         }
-        if total_amount <= 0 {
+        if !Self::accepts_total(total_amount) {
             return Err(FundError::TotalAmountNotPositive);
         }
         Ok(())

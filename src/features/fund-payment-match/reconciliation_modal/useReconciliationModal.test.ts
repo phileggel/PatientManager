@@ -52,7 +52,17 @@ const PDF_NO_LINES = { groups: [], unparsed_line_count: 0, unparsed_lines: [] };
 
 // reconciliationData with a FundMismatch anomaly — totalAnomalies=1, canValidate=false initially
 const RECONCILE_WITH_ANOMALY = {
-  candidates: [],
+  candidates: [
+    {
+      fund_label: "CPAM",
+      payment_date: "2026-03-10",
+      total_amount: 50000,
+      procedure_ids: [],
+      matched_amount: 0,
+      is_fully_covered: false,
+    },
+  ],
+  left_out_groups: [],
   reconciliation: {
     matches: [
       {
@@ -86,7 +96,17 @@ const RECONCILE_WITH_ANOMALY = {
 
 // reconciliationData with no anomalies — totalAnomalies=0, canValidate=true immediately
 const RECONCILE_NO_ANOMALIES = {
-  candidates: [],
+  candidates: [
+    {
+      fund_label: "CPAM",
+      payment_date: "2026-03-10",
+      total_amount: 50000,
+      procedure_ids: [],
+      matched_amount: 0,
+      is_fully_covered: false,
+    },
+  ],
+  left_out_groups: [],
   reconciliation: { matches: [] },
 };
 
@@ -208,6 +228,7 @@ describe("useReconciliationModal — handleAutoCorrectAll with two shared-candid
 
   const RECONCILE_TWO_NOT_FOUND = {
     candidates: [],
+    left_out_groups: [],
     reconciliation: { matches: [makeNotFound(0, 23000), makeNotFound(1, 3500)] },
   };
 

@@ -25,6 +25,7 @@ describe("formatReconciliationError", () => {
       ["PdfPathRejected", "fund-payment-match:errors.pdf_path_rejected"],
       ["PdfExtractionFailed", "fund-payment-match:errors.pdf_extraction_failed"],
       ["PdfHasNoText", "fund-payment-match:errors.pdf_has_no_text"],
+      ["TotalAmountNotPositive", "fund-payment-match:errors.group_total_not_positive"],
       ["PdfHasNoLine", "fund-payment-match:errors.no_valid_candidates"],
     ];
     for (const [code, key] of cases) {
@@ -50,7 +51,7 @@ describe("formatReconciliationError", () => {
     ).toBe("fund-payment-match:errors.unexpected");
     expect(
       formatReconciliationError({
-        code: "TotalAmountNotPositive",
+        code: "FundIdEmpty",
       } as FundPaymentReconciliationError).key,
     ).toBe("fund-payment-match:errors.unexpected");
   });

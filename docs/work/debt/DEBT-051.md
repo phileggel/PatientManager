@@ -1,0 +1,7 @@
+# 2026-10-10 — DEBT-051 — A fund label read from a statement can carry a person's name into the log
+
+**Found by:** the agent, reading a production log of 0.24.1 the owner sent (the names are not repeated here)
+
+**Where:** `src-tauri/src/use_cases/fund_payment_reconciliation/reconciliation/reconciliation_pass.rs` (the `pdf_fund` field of the mismatch warnings), `src-tauri/src/use_cases/fund_payment_reconciliation/service.rs` ("Procedure not found in database", `pdf_fund`), `src-tauri/src/use_cases/fund_payment_reconciliation/orchestrator.rs` ("Resolved fund label to fund ID", `fund_label`), `src-tauri/src/use_cases/fund_payment_reconciliation/parsing/`
+
+**Observation:** B44 forbids patient data in a log. On some groups of a real statement — the ones where the fund takes money back from one person — the fund label the parser reads is the fund followed by that person's name, and three log calls write the label as it is: 2 of the 28 `pdf_fund` values of that log carried a name, and the debug line of the fund resolution carried it too. `scripts/privacy-check.py` reads the log calls for private field names and does not know a fund label can hold one. Two things to settle: whether the parser should keep the name out of the label (the fund is then resolved by its number, as it already is), and the three calls, which can log the fund's identifier instead of its label. The diagnostic report (DGR) ships log lines to support: check what it would have carried.

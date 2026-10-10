@@ -21,6 +21,7 @@ import {
 } from "../shared/errorPresenter";
 import { buildFundIdToLabel } from "../shared/reportPresenter";
 import { UnreconciledReportView } from "../unreconciled_report/UnreconciledReport";
+import { LeftOutGroupsNotice } from "./LeftOutGroupsNotice";
 import { useReconciliationModal } from "./useReconciliationModal";
 import { useReportGeneration } from "./useReportGeneration";
 
@@ -158,15 +159,21 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
                 <p className="text-sm text-center max-w-md">{t("modal.already_imported.body")}</p>
               </output>
             ) : reconciliationData ? (
-              <ReconciliationResultsView
-                result={reconciliationData.reconciliation}
-                acceptedKeys={acceptedKeys}
-                autoCorrections={autoCorrections}
-                onAcceptCorrection={handleAcceptCorrection}
-                onUnacceptCorrection={handleUnacceptCorrection}
-                onReportResolvedCount={handleReportResolvedCount}
-                onReportUnresolvedGroupCount={handleReportUnresolvedGroupCount}
-              />
+              <>
+                <LeftOutGroupsNotice groups={reconciliationData.left_out_groups} />
+                {/* FPA-070 — with every group left out there is nothing to review or validate. */}
+                {reconciliationData.candidates.length > 0 && (
+                  <ReconciliationResultsView
+                    result={reconciliationData.reconciliation}
+                    acceptedKeys={acceptedKeys}
+                    autoCorrections={autoCorrections}
+                    onAcceptCorrection={handleAcceptCorrection}
+                    onUnacceptCorrection={handleUnacceptCorrection}
+                    onReportResolvedCount={handleReportResolvedCount}
+                    onReportUnresolvedGroupCount={handleReportUnresolvedGroupCount}
+                  />
+                )}
+              </>
             ) : null}
           </div>
 

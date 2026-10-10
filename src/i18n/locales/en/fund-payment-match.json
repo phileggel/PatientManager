@@ -61,6 +61,12 @@
     "blocking": {
       "banner": "{{count}} blocking issue(s) — validation is impossible until they are resolved manually."
     },
+    "left_out_groups": {
+      "title_one": "{{count}} group of this statement will not be imported",
+      "title_other": "{{count}} groups of this statement will not be imported",
+      "body_one": "Its total is negative or zero: the fund is taking money back. Note this amount, the import does not record it.",
+      "body_other": "Their total is negative or zero: the fund is taking money back. Note these amounts, the import does not record them."
+    },
     "already_imported": {
       "title": "PDF already imported",
       "body": "Every payment in this PDF matches an existing reconciliation. No action is needed."
@@ -195,6 +201,7 @@
     "invalid_date_range": "Invalid date range.",
     "pdf_path_rejected": "Could not open this PDF file.",
     "pdf_extraction_failed": "Could not read the contents of this PDF.",
+    "group_total_not_positive": "A group of the statement has a negative or zero total and cannot be imported. Close this window and run the statement's reconciliation again.",
     "pdf_has_no_text": "This PDF contains no readable text: it was probably scanned or \"printed to PDF\". Download the original statement from the fund's website.",
     "database_error": "A database error occurred. Please try again.",
     "unexpected": "An unexpected error occurred during reconciliation."

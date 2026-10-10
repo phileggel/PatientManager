@@ -98,6 +98,7 @@ export const mockReconciliationData: ReconcileAndCandidatesResponse = {
   candidates: [],
   reconciliation: { matches: mockReconciliationMatches },
   already_imported: false,
+  left_out_groups: [],
 };
 
 // ── Corrections covering the six FPR-042 variants ──────────────────────────
