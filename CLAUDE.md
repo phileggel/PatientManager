@@ -12,7 +12,7 @@ After cloning: `git config core.hooksPath .githooks`. The hooks block commits to
 - The **agent** owns the debt and flow entries (`docs/work/debt/`, `docs/work/flow/`), does the task end to end and merges on green. No pull request waits for a human.
 - The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
-Headless, a question only the human can answer goes into the entry as an open question, never guessed. In chat, a question is asked alone, with the context to answer it cold (what happened, what each option changes, what it costs), and the next one waits for the answer; ask during the work rather than guess, for a spec point as for a vocabulary term. State assumptions; name what is unclear.
+Headless, a question only the human can answer goes into the entry as an open question, never guessed. In chat, a question is asked alone, with the context to answer it cold (what happened, what each option changes, what it costs), and the next one waits for the answer. An entry's questions are asked before its work starts (`docs/workflow.md` § 3); during the work, ask rather than guess for what that reading could not show, for a spec point as for a vocabulary term. State assumptions; name what is unclear.
 
 ## Core rules
 

@@ -69,6 +69,11 @@ job or a machine gate.
 - A queued reference whose entry file is gone has shipped: `just whats-next` shows what
   shipped and what remains. The agent takes the first remaining reference that is
   **ready**.
+- A queue is sized by its work, not by its number of entries (owner, 2026-10-06):
+  `/whats-next` states how many pull requests the queue stands for, beside what the last
+  batch merged. An entry whose Done when is a programme — several features, "split per",
+  "every … in" — enters as its first slice, written as a note in the queue file and a
+  line in the entry.
 - **Ready** means: queued, a Done when is written, `Open questions: none`, and
   `Design` is `none` or `validated`.
 
@@ -93,14 +98,28 @@ todo entry: the pull request body is its record.
 
 1. **Pick and brief.** In chat, a question to the human is asked alone, with the context
    to answer it cold — what happened, what each option changes, what it costs — and the
-   next one waits for the answer. The agent asks during the work rather than guess, for
-   a spec point as for a vocabulary term. For an entry with a spec the order is: spec
-   draft, `spec-reviewer`, then the questions, new vocabulary included, so a decision is
-   taken once, knowing its consequences. Headless, a question is written into the entry
-   and the run moves on. The opening
-   brief states Task, Scope, Design, Touching. Branch `<type>/todo-NNN-slug`,
-   `<type>/debt-NNN-slug`, or `<type>/slug` off a fresh `main`, where `<type>` is the
-   commit type the change will carry.
+   next one waits for the answer. Headless, a question is written into the entry and the
+   run moves on.
+   - **The questions come before the work — the decision scan** (owner, 2026-10-06):
+     before the branch exists, the agent reads the entry and the code it names, lists every choice that is
+     the owner's — what a user sees, a term, a rule's scope, where a programme stops —
+     and asks them then, each once and at its widest ("the term for every aggregate
+     edited from a form", not one aggregate at a time); the answers are written into the
+     entry.
+   - A choice with a standing answer is not asked: when one option keeps what a user
+     sees today, it is taken and stated in the pull request; a release-sweep finding
+     that is not critical and predates the release is filed and reported (Conventions).
+   - During the work, a question remains right for what that reading could not show — a
+     reviewer's finding, a failing machine, a behaviour found in the code — and the
+     agent asks rather than guess, for a spec point as for a vocabulary term.
+   - For an entry with a spec the order is: spec draft, `spec-reviewer`, then the
+     questions, new vocabulary included, so a decision is taken once, knowing its
+     consequences.
+
+   The opening brief states Task, Scope, Design, Touching. Branch
+   `<type>/todo-NNN-slug`, `<type>/debt-NNN-slug`, or `<type>/slug` off a fresh `main`,
+   where `<type>` is the commit type the change will carry.
+
 2. **Design gate** (§ 4) for anything the user sees.
 3. **Acceptance first.** Each Done-when clause becomes a failing test: Rust for logic,
    Vitest for rendering, E2E for what a user does. Test names carry the entry id or the
@@ -401,4 +420,6 @@ allow list in `.claude/settings.json` names:
 
 Before a release, run the reviewer agents in `release-sweep` mode (the invoking prompt
 contains `release-sweep`) alongside `/dep-audit`, and `spec-checker` on every spec the
-batch touched. What they find is filed as `DEBT-NNN`, not fixed in the release.
+batch touched. What they find is filed as `DEBT-NNN`, not fixed in the release. A
+finding that is not critical and predates the release is filed and reported, not put to
+the human as a question (§ 7 keeps a 🔴 security finding for them).

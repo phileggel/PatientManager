@@ -24,6 +24,10 @@ this file is the checklist.
   it, merge.
 - **Chat, plain request**: the request is the task; no todo entry is created — the PR
   body is its record. Write its Done when into the opening brief.
+- **Decision scan**, for an entry (a pull request reference has none), before the
+  branch exists: run it as `docs/workflow.md` § 3 states it. Chat: the questions it
+  leaves are asked then, and the answers written into the entry. Headless: each becomes
+  a line in `**Open questions:**`, and the entry is no longer ready.
 - **Ready** = a Done when exists, `**Open questions:** none`, and `**Design:**` is
   `none` or `validated`. A flow entry is ready once it carries a `Decision` line; that
   line is its Done when. Headless: skip what is not ready; if nothing is, print which

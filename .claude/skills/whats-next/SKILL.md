@@ -40,11 +40,20 @@ words (or "none directly — …" for internal work), the Done when as clauses a
 prove. Never draft for an entry whose description is too thin to tell what done means;
 say what is missing instead.
 
+Then, for every entry about to be proposed, run the decision scan as
+`docs/workflow.md` § 3 states it. The questions it leaves join **Needs you**, so an
+entry enters the queue with its questions answered.
+
+Name every entry that is a programme and propose its first slice, as
+`docs/workflow.md` § 2 states it.
+
 ## Step 4 — Propose
 
 Print, in this order:
 
 1. **In flight** — open pull requests and their checks; the queue as it stands.
+   Then the size of the proposal: how many pull requests it stands for (a range when a
+   programme is in it), beside what the last batch merged (`docs/work/audits.md`).
 2. **Proposed queue** — references in order (written to `docs/work/queue.md` as a plain
    list, `- TODO-NNN`), todo, debt, decided flow entries and every open Dependabot pull request
    (`- gh#NN`: its green reviewer checks are skips, `docs/workflow.md` § Conventions) together, one reason per line: what it unblocks, what it depends on, what it should ship with.
@@ -53,8 +62,8 @@ Print, in this order:
    are asked one at a time in Step 5.
 4. **Left out** — one line per theme, with why (blocked, low value now, obsolete).
 
-No value scores, no hour estimates, no "do now" verdict: the reason on each line is
-the argument, and the owner weighs it.
+No value scores, no hour estimates (a count of pull requests is not one), no "do now"
+verdict: the reason on each line is the argument, and the owner weighs it.
 
 ## Step 5 — Write what the owner validates
 
@@ -67,8 +76,10 @@ On a yes, write exactly what was validated, as a docs change through the harness
 - `docs/work/queue.md`, replaced by the validated list in its order — the references
   of the batch before, all shipped or left out, go; `just whats-next` must then show no
   queued reference as "no such entry";
-- the User value and Done when of each accepted draft, and `**Open questions:** none`
-  once nothing else is open.
+- the User value and Done when of each accepted draft, the answers of the decision
+  scan, and `**Open questions:** none` once nothing else is open;
+- the bundles and the first slices, as notes in the queue file; a slice also as a line
+  in its entry.
 
 ## Rules
 
