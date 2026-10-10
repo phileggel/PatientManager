@@ -23,3 +23,5 @@
   for the notes, with a test. Protects: a batch whose steps are loaded, not remembered; a
   bundle shipped as the owner validated it; the release preparation and the audit not
   forgotten at the end of a long session.
+- Decision (owner, 2026-10-10): accepted and queued. Until it ships, the agent follows these
+  steps by hand: the queue, the release preparation, the audit.

@@ -13,12 +13,14 @@ request that ships an entry touches it. `just whats-next` says what has shipped.
 <!-- `docs/workflow.md` and `CLAUDE.md`). Every other entry ships alone. -->
 <!-- FLOW-032: the fund contract first, then one pull request per contract. -->
 <!-- DEBT-043: the two form validators only; the entry says so. -->
+<!-- FLOW-037 added by the owner on 2026-10-10, after the flow bundles. -->
 
 - FLOW-029
 - FLOW-035
 - FLOW-030
 - FLOW-033
 - FLOW-034
+- FLOW-037
 - DEBT-036
 - DEBT-044
 - DEBT-038
