@@ -48,6 +48,11 @@
      debt or a flow entry first, which names it (`gh#NN`), and the pull request that ships
      the entry closes the issue. A Dependabot pull request is not an issue: it is still
      queued under its own number.
+  8. A bug is always filed, even when it is fixed in the same session (owner, 2026-10-11):
+     a first pull request files its entry, the fix closes it. The reference exists from
+     the start, the fix's branch and tests carry its id, and an id is never given twice
+     — an entry filed and closed in one commit would leave no trace. A request in chat
+     that is not a bug still needs no entry: the pull request is its record.
 - Costs: a line per entry; a few lines in the queue script and the audit script, with
   their tests; one pass over the backlog. A size is still a guess: only the audit's
   comparison makes it better. Protects: a queue cut twice by the owner in each of the
