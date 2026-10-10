@@ -79,7 +79,9 @@ fn normalize_data_line(raw: RawDataLine, patient_name: String) -> Option<Normali
 
 // --- Total line ---
 
-const TOTAL_LINE_PATTERN: &str = r"^Total réglé le (\d{2}/\d{2}/\d{4})\s+par\s+(.+?)\s*(?:\(n°\s*(\d+)\s*\))?\s+([\d\s]+,\d{2})\s*€?\s*$";
+/// The amount is signed: the total is negative when the fund takes money back
+/// (FPA-070), exactly as a data line's amount can be.
+const TOTAL_LINE_PATTERN: &str = r"^Total réglé le (\d{2}/\d{2}/\d{4})\s+par\s+(.+?)\s*(?:\(n°\s*(\d+)\s*\))?\s+(-?[\d\s]+,\d{2})\s*€?\s*$";
 
 struct ParsedTotal {
     payment_date: NaiveDate,
@@ -320,6 +322,50 @@ Total réglé le 02/05/2025 par la Caisse (n° 931) 40,00 €"#;
         assert_eq!(result.groups.len(), 1);
         assert_eq!(result.groups[0].lines.len(), 2);
         assert_eq!(result.groups[0].total_amount, 40000);
+    }
+
+    /// FPA-070 — the fund takes money back: the group's total line is negative.
+    /// It is still that group's total line; read as anything else, its lines
+    /// would join the next group under a fund label that is not theirs.
+    #[test]
+    fn test_fpa_070_a_negative_total_line_closes_its_own_group() {
+        let text = r#"
+18/08/2026 001 CPAM n° 951 PATIENT ONE 1111111111111 SF 02/07/2026 -23,00 €
+18/08/2026 002 CPAM n° 951 PATIENT ONE 1111111111111 SF 02/07/2026 -3,50 €
+Total réglé le 18/08/2026 par la Caisse d'assurance maladie du Val-d'Oise (n° 951 ) -26,50 €
+19/08/2026 003 CPAM n° 771 PATIENT TWO 2222222222222 SF 03/08/2026 24,00 €
+Total réglé le 19/08/2026 par la Caisse d'assurance maladie de Seine-et-Marne (n° 771 ) 24,00 €"#;
+
+        let result = parse_pdf_text(text);
+
+        let summary: Vec<(&str, i64, usize, bool)> = result
+            .groups
+            .iter()
+            .map(|g| {
+                (
+                    g.fund_label.as_str(),
+                    g.total_amount,
+                    g.lines.len(),
+                    g.is_total_valid,
+                )
+            })
+            .collect();
+        assert_eq!(
+            summary,
+            [
+                ("CPAM n° 951", -26_500, 2, true),
+                ("CPAM n° 771", 24_000, 1, true)
+            ]
+        );
+        for group in &result.groups {
+            for line in &group.lines {
+                assert_eq!(
+                    line.fund_name, group.fund_label,
+                    "a line keeps its group's fund"
+                );
+            }
+        }
+        assert_eq!(result.unparsed_line_count, 0);
     }
 
     #[test]
