@@ -53,7 +53,7 @@ privacy-check:
 flow-audit *ARGS:
     python3 scripts/flow-audit.py {{ARGS}}
 
-# Where the queue stands: queued, ready, blocked, debt, open pull requests (/whats-next proposes the order);
+# Where the queue stands: queued with its notes, ready, blocked, debt, open pull requests (/whats-next proposes the order);
 # `just whats-next close TODO-NNN` deletes a shipped entry's file; `just whats-next next-id DEBT` prints the next free id; `just whats-next remaining` the queued references not shipped yet
 whats-next *ARGS:
     python3 scripts/whats-next.py {{ARGS}}

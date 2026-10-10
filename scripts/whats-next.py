@@ -90,6 +90,15 @@ def queue(queue_text: str) -> list[str]:
     return QUEUE_LINE.findall(re.sub(r"<!--.*?-->", "", queue_text, flags=re.DOTALL))
 
 
+def notes(queue_text: str) -> list[str]:
+    """What the owner wrote beside the queue — its comments: the bundles, the slices."""
+    return [
+        " ".join(comment.split())
+        for comment in re.findall(r"<!--(.*?)-->", queue_text, flags=re.DOTALL)
+        if comment.strip()
+    ]
+
+
 def _bodies(text: str, heading: re.Pattern) -> list[tuple[re.Match, str]]:
     matches = list(heading.finditer(text))
     ends = [m.start() for m in matches[1:]] + [len(text)]
@@ -245,7 +254,7 @@ def open_pull_requests() -> list[dict] | None:
         return None
 
 
-def render(buckets: dict, pulls: list[dict] | None, exists) -> str:
+def render(buckets: dict, pulls: list[dict] | None, exists, queue_notes: Sequence[str] = ()) -> str:
     left = len(remaining(buckets["queued"]))
     lines = [f"Queued ({QUEUE_HOME}, in order; {left} of {len(buckets['queued'])} remaining):"]
     for position, (ref, entry, waits) in enumerate(buckets["queued"], start=1):
@@ -255,6 +264,8 @@ def render(buckets: dict, pulls: list[dict] | None, exists) -> str:
         lines.append(f"{position}. {ref}{title} — {state}")
     if not buckets["queued"]:
         lines.append("(empty)")
+    if queue_notes:
+        lines += ["", "Notes of the queue:"] + [f"  {note}" for note in queue_notes]
 
     lines += ["", "Ready, not queued:"]
     lines += [f"- {t.id} — {t.title}" for t in buckets["ready"]] or ["(none)"]
@@ -397,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
     if argv[:1] == ["remaining"]:
         print("\n".join(remaining(buckets["queued"])))
         return 0
-    print(render(buckets, pulls, lambda path: (ROOT / path).exists()))
+    print(render(buckets, pulls, lambda path: (ROOT / path).exists(), notes(queue_text)))
     return 0
 
 

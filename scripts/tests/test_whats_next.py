@@ -97,6 +97,22 @@ class Queue(unittest.TestCase):
         self.assertEqual(plan.queue("# Queue\n\nnothing queued yet\n"), [])
 
 
+class QueueNotes(unittest.TestCase):
+    """FLOW-037: the bundles and slices the owner wrote beside the queue are printed with it."""
+
+    def test_each_comment_is_a_note_on_one_line(self):
+        text = "# Queue\n\n<!-- Bundles: FLOW-001 with -->\n<!--   FLOW-002.\n     One pull request. -->\n<!-- -->\n\n- FLOW-001\n"
+        self.assertEqual(plan.notes(text), ["Bundles: FLOW-001 with", "FLOW-002. One pull request."])
+
+    def test_the_report_prints_the_notes_under_the_queue(self):
+        buckets = plan.classify(["TODO-001"], plan.todo_entries(TODO), [])
+        text = plan.render(buckets, [], lambda path: True, ["TODO-001 ships with TODO-002."])
+        self.assertIn("ready\n\nNotes of the queue:\n  TODO-001 ships with TODO-002.\n\nReady, not queued:", text)
+
+    def test_a_queue_without_notes_prints_no_heading(self):
+        self.assertNotIn("Notes of the queue", plan.render(plan.classify([], [], []), [], lambda path: True))
+
+
 class TodoEntries(unittest.TestCase):
     def setUp(self):
         self.entries = {e.id: e for e in plan.todo_entries(TODO)}

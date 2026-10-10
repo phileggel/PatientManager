@@ -277,7 +277,9 @@ The chat session is for writing entries together, design conversations and answe
 open questions. The loop runs one task per run and keeps its state in git and the
 entries.
 
-- **In chat:** `/next-todo TODO-NNN`, or a plain request.
+- **In chat:** `/next-todo TODO-NNN`, or a plain request; `/run-queue` for a whole batch:
+  the questions first, each remaining entry through `/next-todo`, the release
+  preparation, then `/flow-audit`.
 - **Laptop:** `just next-todo` — one ready entry, headless, three hours of budget; a
   command outside the allow list in `.claude/settings.json` is denied, so the run fails
   instead of waiting.
