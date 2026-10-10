@@ -10,3 +10,4 @@
 - Proposal: `started` counts as a run with no outcome; the report states outcomes for the
   tools that have one. A test with a `started` line.
 - Costs: a few lines. Protects: an audit whose first figures on tools were wrong.
+- Decision (owner, 2026-10-11): accepted and queued.

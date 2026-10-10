@@ -10,3 +10,4 @@
   waits until GitHub knows the pushed commit before it reads any check.
 - Costs: a few lines and a test in `scripts/watch-pr.py`. Protects: a "green" that means
   the commit before, read by an agent that then reports it.
+- Decision (owner, 2026-10-11): accepted and queued.

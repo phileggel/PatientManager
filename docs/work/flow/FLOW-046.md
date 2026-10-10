@@ -18,3 +18,4 @@
 - Costs: a question to the owner at the start of a production fix; one more agent on the
   entries that carry spec rules. Protects: a fix for the wrong cause, shipped to a user
   who is still blocked.
+- Decision (owner, 2026-10-11): accepted; ships with FLOW-042, which rewrites the skill it changes.
