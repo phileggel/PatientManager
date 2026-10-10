@@ -23,7 +23,7 @@ pub struct Patient {
     /// Updated when new procedures are created, used to pre-populate procedure form
     pub latest_procedure_type: Option<String>, // Procedure Type ID (UUID) for fast lookup
     pub latest_fund: Option<String>, // Fund ID (UUID) for fast lookup
-    #[specta(type = String)]
+    #[specta(type = Option<String>)]
     pub latest_date: Option<NaiveDate>, // Latest procedure date for chronological comparison
     pub latest_procedure_amount: Option<i64>, // Amount of latest procedure in thousandths of a euro
 }

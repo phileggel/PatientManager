@@ -792,7 +792,8 @@ async importDatabase(sourcePath: string) : Promise<Result<null, DbBackupError>> 
  * 
  * The frontend-supplied `dest_path` comes from a native save dialog; it is
  * validated as a new `.txt` file in an existing directory under the user's
- * home (DGR-023), so a crafted IPC call cannot write elsewhere.
+ * home, never a symbolic link (DGR-023), so a crafted IPC call cannot write
+ * elsewhere.
  */
 async generateDiagnosticReport(destPath: string) : Promise<Result<DiagnosticReportResult, DiagnosticReportError>> {
     try {
@@ -1993,7 +1994,7 @@ temp_id?: string | null;
  * Tracking fields for procedure defaults
  * Updated when new procedures are created, used to pre-populate procedure form
  */
-latest_procedure_type: string | null; latest_fund: string | null; latest_date: string; latest_procedure_amount: number | null }
+latest_procedure_type: string | null; latest_fund: string | null; latest_date: string | null; latest_procedure_amount: number | null }
 /**
  * Composite for the patient duplicates use case: the wrappers disappear on
  * the wire and every variant emits `{ "code": "..." }`.
