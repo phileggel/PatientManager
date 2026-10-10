@@ -7,14 +7,26 @@ request that ships an entry touches it. `just whats-next` says what has shipped.
 <!-- One reference per line, as a plain list: `- TODO-NNN`, `- DEBT-NNN`, `- FLOW-NNN`, -->
 <!-- or `- gh#NN` for a Dependabot pull request. -->
 
-<!-- Exception (owner, 2026-10-04): the flow entries of this queue ship as bundles, one -->
-<!-- pull request per bundle, each one story: FLOW-022 to FLOW-023 (the decided rules -->
-<!-- written into `docs/workflow.md` and `CLAUDE.md`); FLOW-005 to FLOW-007 (the tools -->
-<!-- nobody used are removed); FLOW-011 with FLOW-018 (the release path). Every other -->
-<!-- entry ships alone. -->
+<!-- Validated by the owner on 2026-10-10, for the batch after 0.24.1. -->
+<!-- Bundles, one pull request each: FLOW-029 with FLOW-035 (both change `/whats-next` -->
+<!-- and `/next-todo`); FLOW-030 with FLOW-033 and FLOW-034 (three decided sentences for -->
+<!-- `docs/workflow.md` and `CLAUDE.md`). Every other entry ships alone. -->
+<!-- FLOW-032: the fund contract first, then one pull request per contract. -->
+<!-- DEBT-043: the two form validators only; the entry says so. -->
 
-<!-- Cut (owner, 2026-10-05 and 06): 0.24.1 ships with TODO-016 closed on its first three -->
-<!-- features; its remainder is DEBT-043, for the next release. Moved to the next -->
-<!-- batch, in the order they were queued, for `/whats-next` to propose again: -->
-<!-- TODO-013, FLOW-020, TODO-008, TODO-018, DEBT-011, TODO-019, DEBT-003, TODO-020, -->
-<!-- TODO-021. -->
+- FLOW-029
+- FLOW-035
+- FLOW-030
+- FLOW-033
+- FLOW-034
+- DEBT-036
+- DEBT-044
+- DEBT-038
+- FLOW-032
+- FLOW-031
+- FLOW-020
+- TODO-018
+- DEBT-011
+- TODO-019
+- TODO-008
+- DEBT-043

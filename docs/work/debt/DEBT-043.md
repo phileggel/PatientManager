@@ -6,6 +6,8 @@
 
 **Observation:** TODO-016 shipped the rule (logic lives in Rust, A8 freezes the frontend logic files, the core builds without the desktop shell) and three features: patient, fund, procedure type. Fourteen files stay frozen; A8 keeps the list from growing. Each feature is one pull request with an audit table (moved / kept as display only); a form with several fields answers every refusal at once (`docs/error-model.md`); a user's change from a form is `edit(...)` on the aggregate. Expect a gap in Rust behind each screen check, as the first three had.
 
+**This batch (owner, 2026-10-10):** the two form validators only; the other twelve files wait for the next queue.
+
 - **Form validators** — `fund-payment/shared/validatePayment.ts`, `bank-transfer/shared/validateBankTransfer.ts`: a fund or an account, a date and at least one item are chosen. The backend does not enforce "at least one procedure" on a fund payment today (FPM-200); the check before opening the procedure picker is display state and stays.
 - **Dashboard** — `dashboard/utils/aggregation.ts`, `dashboard/api/dashboardService.ts`: the yearly metrics are aggregated on screen from every procedure; a Rust read model replaces them.
 - **Procedure list** — `procedure/model/overdue.logic.ts`, `date.logic.ts`, `procedure-row.mapper.ts`: the overdue rule and its high-water mark, day and month helpers, the row mapping with its euro conversion (DEBT-041).
