@@ -25,4 +25,10 @@
     the top. Where two of these disagree it says so in one line;
   - its result gives, for each line, the id and a concise summary of the task, with at most
     a clause on why it sits there; what needs the owner and what is left out come below.
+  - it forgets neither GitHub issues nor Dependabot pull requests (owner, 2026-10-11): the
+    queue script prints every open issue not yet filed as an entry, beside the open
+    Dependabot pull requests it prints today; each is queued — an issue through its entry
+    (FLOW-048), a Dependabot pull request under its number — or named as left out with its
+    reason, never passed over. The audit states how many of each were open when the batch
+    started and when it ended.
 - Decision (owner, 2026-10-11): accepted — "your naming propositions are clearly better".
