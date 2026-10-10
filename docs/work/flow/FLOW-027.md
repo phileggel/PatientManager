@@ -10,3 +10,6 @@
   call, and let the others run the script tests only.
 - Costs: a rule to keep in step between `changed-scope.sh` and `quality.yml`. Protects:
   about 10 minutes per tooling pull request.
+- Re-measured 2026-10-10 (audit of the 0.24.2 batch): on the new development machine `just harness` for a
+  tooling change takes about 2 minutes, where this entry measured about 12. The case for narrowing the scope is
+  weaker by that much; the proposal stands only if the old machine is used again.

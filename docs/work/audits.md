@@ -5,6 +5,66 @@ The hard points an audit finds are `FLOW-NNN` entries in `flow/`. Newest first.
 
 ---
 
+## Measured — the 0.24.2 batch (2026-10-06 → 2026-10-10)
+
+Figures from `just flow-audit v0.24.1 v0.24.2 --previous v0.24.0`, each beside the batch
+before. The last audit written by the agent that ran the batch (FLOW-043).
+
+- **Pull requests merged:** 27 (#208–#234 opened, #233 and #234 after the tag), was 35;
+  3 442 lines added, was 5 048. By type: 15 docs, 6 fix, 5 chore, 1 refactor. None closed
+  without merging, was 1.
+- **Opening to merging:** median 1.2 min, was 8.3; mean 12.7 min, was 87.6. The median is
+  the docs pull requests, opened once their checks were known to pass.
+- **The working day of 2026-10-10:** 23 pull requests, first opened 13:17 UTC, last merged
+  22:11 UTC: 8 h 54 min, one session.
+- **CI rounds:** 45 for 27 branches, was 65 for 36; 18 beyond the first, was 29. Of the
+  18: 5 on #220 (FLOW-040), about 6 from a merge moving `main` under an open pull request
+  (FLOW-039), the rest a fix after a review or a failed check.
+- **Run times (median of green runs):** Quality 2.5 min (2.6), Review 1.6 (2.3), E2E 6.5
+  (7.0), Codec Gate 1.8 (1.7). The local harness: about 2 min on the new machine, was 12.
+- **Failed runs on pull requests:** Review 1, was 12; nothing else, was 4. Cancelled: 12,
+  was 32 — 8 of them "PR description", restarted by an edit of the description.
+- **Entries:** 15 filed (DEBT-047 to DEBT-055, FLOW-036 to FLOW-041), 9 closed (DEBT-036,
+  038, 044; FLOW-029, 030, 033, 034, 035, 037). The queue: 16 references validated, 1
+  added, 8 cut to the next batch on the owner's decision; 9 shipped.
+- **Tools (`logs/usage.log`, from 2026-10-10 13:04, the day the project moved machines):**
+  1 032 runs; `rule-homes` 145, `changed-scope` 137, `privacy-check` 126, `scoped-checks`
+  111, `check` 59, `arch-check` 57, `whats-next` 48, `watch-pr` 41, `merge` 34, `harness` 26. Real failures: 27. Never run: `clean-branches`, `next-todo.sh`, `prepare-sqlx`,
+  `regen-fixtures`, `release-notes.py`, `review-path.sh`, `review-stop-reason.py`,
+  `start-app.sh`, `stat` — the three `review-*` and `release-notes` run in CI only; the
+  others had no occasion. Keep all. The script counted the 106 `started` lines of the
+  recipes as failures (FLOW-047).
+- **Agent launches (counted from the session):** 39, all prescribed: infra 7, backend 7,
+  arch 7, security 4, frontend 4, spec-reviewer 4, contract-reviewer 3, spec-checker 1,
+  e2e 1, sql 1. Skills run: `/whats-next` 1, `/next-todo` 1, `/contract` 1,
+  `/visual-proof` 1, `/dep-audit` 1. Not run: `/design-proposal`, `/spec-writer`,
+  `/adr-writer`; `/run-queue` and `/flow-audit` were written this batch and followed by
+  hand. Native commands where a recipe exists: `cargo check` once, `cargo test` twice.
+- **Guides:** 35 documents and prompts, 4 421 lines, was 4 155: `docs/workflow.md` 366 →
+  434, two new skills (179 lines), `/whats-next` 77 → 90. 17 documents name a path that
+  does not exist, unchanged; some are folders created at run time.
+- **Defects found before merge:** by local reviewers — an entry on an unmerged branch read
+  as shipped; a subcommand typo answered with the report; a command the contract listed
+  that does not exist; a reconcile command left unguarded; one rule written in two places
+  and one error code duplicated; a spec rule that contradicted another. By CI — a skill
+  still telling the agent to use a step the same pull request removed; a wrapper no test
+  reached (patch coverage). By the release sweep — the parser could not read a negative
+  total, so the hotfix already merged (#224) did not fix the statement it was written for
+  (#231 did).
+- **Wrong statement by the agent:** 1 that mattered — the cause of the blocked statement,
+  given as read when it was inferred from a log (FLOW-046). **A rule not followed:** no
+  `spec-checker` before closing #224, which carried spec rules.
+- **Questions to the owner:** not counted.
+
+Reading: the mechanics were fast — a median of a minute from opening to merging, one
+failed run where the batch before had sixteen — and the layout changes removed the
+conflicts between closures. The time went to CI rounds that tested nothing new (FLOW-039,
+FLOW-040) and to a production fault diagnosed from a log instead of from its input, which
+cost a hotfix that did not fix it (FLOW-046). The guides grew by 266 lines in one day
+with nothing to hold them (FLOW-044).
+
+---
+
 ## Measured — the 0.24.1 batch (2026-10-04 → 2026-10-06)
 
 - **Pull requests merged:** 33 (#173–#206; #185 closed and replaced), 4 909 lines added,
@@ -38,32 +98,3 @@ Reading: the mechanics held — a median of 8 minutes from opening to merging, a
 left unused. The time went elsewhere: to a queue twice the size of what a session does
 (FLOW-029), to documents that had drifted and were paid for one feature at a time
 (FLOW-032), and to an hour of watches during an outage (FLOW-028).
-
----
-
-## Measured — the 0.24.0 batch (2026-10-03 → 2026-10-04)
-
-- **Pull requests merged:** 13 code and docs pull requests (#159–#172, without #171),
-  about 6 300 lines added; #173 followed the release.
-- **Opening to merging:** median 16 min, mean 57 min. One pull request (#161, Windows
-  E2E) took 476 min; without it the mean is 22 min.
-- **CI rounds:** 47 Quality runs for 23 branches. #161 took 11 rounds, #169 took 4,
-  five others took 3.
-- **Run times (median of green runs):** Quality 2.3 min, Review 2.5 min, E2E 6.1 min,
-  release dry run 18.3 min. The release itself: 31 min.
-- **Failed runs on pull requests:** Review 7 (on 5 pull requests), release dry run 6
-  (all #161), Quality 0, E2E 0.
-- **Defects reviewers caught before merge:** at least 11. Among them: a use case reading
-  the database directly (B24), a use case imported by two others (B18), log lines that
-  could carry a file name into the diagnostic report, a support code with one character
-  drawn from half the alphabet, a CI grant that let a reviewer write anywhere, a release
-  job that ran a downloaded driver unverified.
-- **Wrong reviewer claims:** 3 ("the opener plugin is unused" twice; a `[DECISION]`
-  critical against a pattern ADR-003 ratifies).
-- **Agent launches in the session:** 114, all reviewers; every one of the 11 agents ran.
-
-Reading: the reviewers paid for themselves, and the mechanical checks (Quality, E2E)
-never failed on a pull request because the hooks and the local harness had already run.
-The time went to three things: one CI-only failure diagnosed blind (FLOW-002), CI rounds
-after a rebase that tested nothing new (FLOW-004), and findings CI made that the same
-lane had missed locally (FLOW-001).

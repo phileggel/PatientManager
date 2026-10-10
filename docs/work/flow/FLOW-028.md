@@ -13,3 +13,6 @@
   description is edited before the push, not after, when the review outcome is known.
 - Costs: a watch that writes to GitHub (a re-run), where today it only reads. Protects:
   about 20 minutes and three manual re-runs on such a pull request.
+- Re-measured 2026-10-10 (audit of the 0.24.2 batch): 12 cancelled runs, was 32; 8 of them are "PR description"
+  runs restarted by an edit of the description after the push. No job was left without a runner. The second half
+  of the proposal (edit the description before the push) would have avoided the 8.
