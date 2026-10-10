@@ -34,6 +34,14 @@ fn db_path_for(app_data_dir: &Path, e2e_override: Option<String>, debug_build: b
     }
 }
 
+/// Whether start-up deletes the database first. `requested` is what
+/// `RESET_DATABASE` asked (`just dev --reset-db` sets it). It is honoured in a
+/// debug build only: a shipped binary has no use for it, and the loss would be
+/// the user's data.
+fn reset_allowed(requested: bool, debug_build: bool) -> bool {
+    requested && debug_build
+}
+
 /// Database manager for patient operations
 pub struct Database {
     pool: SqlitePool,
@@ -60,7 +68,7 @@ impl Database {
             tracing::info!(target: BACKEND, "Pending database import applied successfully");
         }
 
-        if is_db_reset {
+        if reset_allowed(is_db_reset, cfg!(debug_assertions)) {
             tracing::warn!("RESET_DATABASE is set - deleting existing database");
             if db_path.exists() {
                 fs::remove_file(&db_path).with_context(|| "Failed to delete database")?;
@@ -506,6 +514,23 @@ mod tests {
             pending_path_for(&e2e_db),
             PathBuf::from("/tmp/patient_manager.db.pending"),
         );
+    }
+
+    #[test]
+    fn debt_036_a_debug_build_resets_when_asked() {
+        assert!(reset_allowed(true, true));
+    }
+
+    #[test]
+    fn debt_036_a_shipped_build_never_resets() {
+        assert!(!reset_allowed(true, false));
+    }
+
+    #[test]
+    fn debt_036_nothing_resets_unless_asked() {
+        for debug_build in [true, false] {
+            assert!(!reset_allowed(false, debug_build));
+        }
     }
 
     #[test]

@@ -67,10 +67,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     );
     tracing::trace!(target: BACKEND, data_dir = ?dirs.local_data_dir, log_dir = ?dirs.log_dir, "Application directories");
 
-    // Initialize database with proper path
-    // let db_path = dirs.local_data_dir.join("patient_management.db");
-
-    // Check if database reset is requested
+    // Check if database reset is requested (honoured in a debug build only, see `Database::new`)
     let is_db_reset = std::env::var("RESET_DATABASE")
         .map(|val| val.to_lowercase() == "true" || val == "1")
         .unwrap_or(false);
