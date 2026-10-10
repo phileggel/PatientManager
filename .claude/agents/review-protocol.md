@@ -45,7 +45,7 @@ In CI the invoking prompt asks for a saved report, because the workflow builds t
 
 ## Rules for every lane
 
-1. **Read-only.** Never edit reviewed files, docs or `docs/todo.md`; pre-existing debt is reported, not filed.
+1. **Read-only.** Never edit reviewed files, docs or the entries of `docs/work/`; pre-existing debt is reported, not filed.
 2. **One pass.** Review every file in scope in one reply.
 3. **Stay in the lane.** A finding owned by another lane is left to it.
 4. **External claims need a source.** A version, deprecation or "current best practice" claim cites a link or is softened ("as of training cutoff — verify with …", naming the command or `/dep-audit`) and capped at 🟡.

@@ -120,16 +120,15 @@ def _check_runs(sha: str) -> dict[str, tuple[str, str]]:
     return {name: (status, conclusion) for name, (_, status, conclusion) in latest.items()}
 
 
-# The record files: what closure commits and queue edits move. Each is checked in
+# The record files: what closure commits and a new queue move. Each is checked in
 # the pull request that changes it (its ID, its name) and none is read against the
 # code, so a move of `main` made only of them cannot change what the checks proved.
 # Everything else — code, workflows, convention docs, prompts — re-runs the checks.
-RECORD_FILES = {"docs/todo.md"}
 RECORD_DIRS = ("docs/adr/", "docs/work/")
 
 
 def _record_files_only(files: list[str]) -> bool:
-    return all(f in RECORD_FILES or (f.endswith(".md") and f.startswith(RECORD_DIRS)) for f in files)
+    return all(f.endswith(".md") and f.startswith(RECORD_DIRS) for f in files)
 
 
 def _rebase_left_the_checks_standing(before: str, after: str) -> bool:

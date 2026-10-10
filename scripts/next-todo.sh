@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# next-todo.sh — run one ready entry of docs/todo.md § Next headless.
+# next-todo.sh — run one ready entry of the queue (docs/work/queue.md) headless.
 #
 # The local form of the scheduled runner (docs/workflow.md § 9): one entry per
 # run, three hours of wall clock, nothing asked of a human. Edits are accepted
@@ -44,10 +44,10 @@ if [[ "$(git branch --show-current)" != "main" ]]; then
 fi
 git pull --ff-only --quiet origin main || { log "main could not be fast-forwarded"; exit 1; }
 
-# The queue: TODO-NNN / DEBT-NNN / FLOW-NNN / gh#NN references under § Next, comments ignored.
-queued=$(awk '/^## Next/{f=1; next} /^## /{f=0} f' docs/todo.md | grep -v '^<!--' | grep -Eo '(TODO|DEBT|FLOW)-[0-9]{3}|gh#[0-9]+' || true)
+# What is left of the queue: the references not shipped yet (the queue file itself is never edited by a run).
+queued=$(python3 scripts/whats-next.py remaining) || { log "the queue could not be read"; exit 1; }
 if [[ -z "$queued" ]]; then
-    log "nothing queued"
+    log "nothing left in the queue"
     exit 0
 fi
 log "queued: $(tr '\n' ' ' <<<"$queued")"

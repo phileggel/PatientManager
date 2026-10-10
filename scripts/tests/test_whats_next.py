@@ -14,8 +14,6 @@ SPEC.loader.exec_module(plan)
 
 QUEUE = """# Queue
 
-## Next
-
 <!-- - TODO-999 in a comment is not queued -->
 
 - TODO-002
@@ -93,9 +91,9 @@ class Queue(unittest.TestCase):
         self.assertEqual(plan.queue(QUEUE), ["TODO-002", "DEBT-005", "TODO-404"])
 
     def test_a_numbered_queue_is_still_read(self):
-        self.assertEqual(plan.queue("## Next\n\n1. TODO-002\n2. DEBT-005\n\n---\n"), ["TODO-002", "DEBT-005"])
+        self.assertEqual(plan.queue("# Queue\n\n1. TODO-002\n2. DEBT-005\n"), ["TODO-002", "DEBT-005"])
 
-    def test_no_next_section_is_an_empty_queue(self):
+    def test_a_file_with_no_reference_is_an_empty_queue(self):
         self.assertEqual(plan.queue("# Queue\n\nnothing queued yet\n"), [])
 
 
@@ -183,7 +181,7 @@ class FlowEntries(unittest.TestCase):
         )
 
     def test_a_flow_id_is_read_from_the_queue(self):
-        self.assertEqual(plan.queue("## Next\n\n- FLOW-001\n- TODO-002\n\n---\n"), ["FLOW-001", "TODO-002"])
+        self.assertEqual(plan.queue("- FLOW-001\n- TODO-002\n"), ["FLOW-001", "TODO-002"])
 
     def test_a_queued_flow_entry_waits_on_the_owner_until_decided(self):
         buckets = plan.classify(["FLOW-001", "FLOW-002"], [], [], plan.flow_entries(FLOW))
@@ -258,34 +256,20 @@ FILES = {"docs/work/todo/TODO-001.md", "docs/work/todo/TODO-002.md", "docs/work/
 
 
 class Close(unittest.TestCase):
-    """`whats-next.py close <id>`: the entry's file and its queue line leave together."""
+    """`whats-next.py close <id>`: the entry's file is deleted; the queue is left as written."""
 
-    def close(self, *refs, queue_text=QUEUE):
-        return plan.close(list(refs), queue_text, FILES.__contains__)
+    def close(self, *refs):
+        return plan.close(list(refs), FILES.__contains__)
 
-    def test_flow_014_a_todo_entry_leaves_with_its_queue_line(self):
-        said, queue_text, gone = self.close("TODO-002")
-        self.assertEqual(gone, ["docs/work/todo/TODO-002.md"])
-        self.assertEqual(plan.queue(queue_text), ["DEBT-005", "TODO-404"])
-        self.assertIn("<!-- - TODO-999 in a comment is not queued -->", queue_text)
-        self.assertEqual(said, ["TODO-002: docs/work/todo/TODO-002.md deleted, removed from the queue"])
-
-    def test_flow_014_a_debt_entry_leaves_its_folder_and_the_queue(self):
-        said, queue_text, gone = self.close("DEBT-005")
-        self.assertEqual(gone, ["docs/work/debt/DEBT-005.md"])
-        self.assertEqual(plan.queue(queue_text), ["TODO-002", "TODO-404"])
-        self.assertEqual(said, ["DEBT-005: docs/work/debt/DEBT-005.md deleted, removed from the queue"])
-
-    def test_flow_014_an_entry_not_queued_is_deleted_and_said_so(self):
-        said, queue_text, gone = self.close("FLOW-002")
-        self.assertEqual(gone, ["docs/work/flow/FLOW-002.md"])
-        self.assertEqual(queue_text, QUEUE)
-        self.assertEqual(said, ["FLOW-002: docs/work/flow/FLOW-002.md deleted, it was not queued"])
+    def test_flow_014_closing_an_entry_deletes_its_file(self):
+        self.assertEqual(self.close("TODO-002"), ["docs/work/todo/TODO-002.md"])
+        self.assertEqual(self.close("DEBT-005"), ["docs/work/debt/DEBT-005.md"])
 
     def test_flow_014_several_entries_close_in_one_run(self):
-        _, queue_text, gone = self.close("FLOW-002", "TODO-002", "TODO-001")
-        self.assertEqual(gone, ["docs/work/flow/FLOW-002.md", "docs/work/todo/TODO-002.md", "docs/work/todo/TODO-001.md"])
-        self.assertEqual(plan.queue(queue_text), ["DEBT-005", "TODO-404"])
+        self.assertEqual(
+            self.close("FLOW-002", "TODO-002", "TODO-001"),
+            ["docs/work/flow/FLOW-002.md", "docs/work/todo/TODO-002.md", "docs/work/todo/TODO-001.md"],
+        )
 
     def test_flow_014_an_unknown_entry_stops_the_whole_closure(self):
         with self.assertRaises(plan.NoSuchEntry) as raised:
@@ -297,18 +281,54 @@ class Close(unittest.TestCase):
             self.close("TODO-001", "TODO-001")
 
     def test_a_reference_that_is_not_an_entry_id_is_refused(self):
-        for ref in ("PR-12", "TODO-1", "../TODO-001", "TODO-001.md"):
+        for ref in ("PR-12", "TODO-1", "../TODO-001", "TODO-001.md", "gh#171"):
             with self.assertRaises(plan.NoSuchEntry, msg=ref):
                 self.close(ref)
 
-    def test_flow_024_a_pull_request_reference_leaves_the_queue_and_deletes_no_file(self):
-        queued = "## Next\n\n- gh#171\n- TODO-001\n"
-        said, queue_text, gone = self.close("gh#171", queue_text=queued)
-        self.assertEqual((plan.queue(queue_text), gone), (["TODO-001"], []))
-        self.assertEqual(said, ["gh#171: removed from the queue"])
-        with self.assertRaises(plan.NoSuchEntry) as raised:
-            self.close("gh#999", queue_text=queued)
-        self.assertEqual(str(raised.exception), "gh#999: not in the queue")
+
+class QueueWrittenOnce(unittest.TestCase):
+    """The queue is written once per batch: a reference whose entry file is gone has shipped."""
+
+    def setUp(self):
+        self.buckets = plan.classify(
+            ["TODO-900", "TODO-002", "DEBT-005", "TODO-404"],
+            plan.todo_entries(TODO),
+            plan.debt_entries(DEBT),
+            deleted=["TODO-900"],
+        )
+
+    def test_a_queued_entry_whose_file_was_deleted_has_shipped(self):
+        self.assertEqual(self.buckets["queued"][0][2], [plan.SHIPPED])
+
+    def test_a_queued_reference_that_never_had_a_file_is_no_entry(self):
+        self.assertEqual(self.buckets["queued"][3][2], ["no such entry"])
+
+    def test_what_remains_is_everything_not_shipped_in_order(self):
+        self.assertEqual(plan.remaining(self.buckets["queued"]), ["TODO-002", "DEBT-005", "TODO-404"])
+
+    def test_a_pull_request_no_longer_open_does_not_remain(self):
+        queued = plan.classify(["gh#171", "gh#5"], [], [], [], [DEPENDABOT])["queued"]
+        self.assertEqual(plan.remaining(queued), ["gh#171"])
+
+    def test_a_pull_request_remains_while_github_cannot_be_asked(self):
+        self.assertEqual(plan.remaining(plan.classify(["gh#171"], [], [], [], None)["queued"]), ["gh#171"])
+
+    def test_the_report_counts_what_remains_and_names_what_shipped(self):
+        text = plan.render(self.buckets, [], lambda path: True)
+        self.assertIn("Queued (docs/work/queue.md, in order; 3 of 4 remaining):", text)
+        self.assertIn("1. TODO-900 — shipped", text)
+        self.assertIn("2. TODO-002 — (frontend) — Queued, waits on a design — waits on: design approval", text)
+
+
+DEPENDABOT = {"number": 171, "title": "chore(deps): bump the all-actions group", "headRefName": "dependabot/x", "author": {"login": "app/dependabot"}, "statusCheckRollup": []}
+OWNERS = {"number": 180, "title": "ci: something", "headRefName": "ci/x", "author": {"login": "phileggel"}, "statusCheckRollup": []}
+
+
+class CommandLine(unittest.TestCase):
+    def test_an_unknown_subcommand_is_refused_not_answered_with_the_report(self):
+        for argv in (["remainin"], ["remaining", "now"], ["status"]):
+            with mock.patch.object(plan.sys, "stderr"):
+                self.assertEqual(plan.main(argv), 2, argv)
 
 
 class NextId(unittest.TestCase):
@@ -336,19 +356,15 @@ class EntryFiles(unittest.TestCase):
             self.assertEqual(sorted(entry.id for entry in parse(plan.kind_text(kind))), names, kind)
 
 
-DEPENDABOT = {"number": 171, "title": "chore(deps): bump the all-actions group", "headRefName": "dependabot/x", "author": {"login": "app/dependabot"}, "statusCheckRollup": []}
-OWNERS = {"number": 180, "title": "ci: something", "headRefName": "ci/x", "author": {"login": "phileggel"}, "statusCheckRollup": []}
-
-
 class DependabotPullRequests(unittest.TestCase):
     """FLOW-024: a Dependabot pull request is queued and worked like an entry, as `gh#NN`."""
 
     def test_flow_024_a_pull_request_reference_is_read_from_the_queue(self):
-        self.assertEqual(plan.queue("## Next\n\n- gh#171\n- TODO-002\n- gh#7\n\n---\n"), ["gh#171", "TODO-002", "gh#7"])
+        self.assertEqual(plan.queue("- gh#171\n- TODO-002\n- gh#7\n"), ["gh#171", "TODO-002", "gh#7"])
 
-    def test_flow_024_a_queued_pull_request_is_ready_while_it_is_open(self):
+    def test_flow_024_a_queued_pull_request_is_ready_while_it_is_open_and_done_after(self):
         queued = plan.classify(["gh#171", "gh#5"], [], [], [], [DEPENDABOT, OWNERS])["queued"]
-        self.assertEqual([(ref, waits) for ref, _, waits in queued], [("gh#171", []), ("gh#5", ["no such open pull request"])])
+        self.assertEqual([(ref, waits) for ref, _, waits in queued], [("gh#171", []), ("gh#5", [plan.CLOSED])])
 
     def test_flow_024_a_queued_pull_request_is_unknown_when_github_cannot_be_asked(self):
         queued = plan.classify(["gh#171"], [], [], [], None)["queued"]

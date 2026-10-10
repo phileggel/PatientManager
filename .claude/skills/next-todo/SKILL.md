@@ -1,6 +1,6 @@
 ---
 name: next-todo
-description: Runs one task end to end under docs/workflow.md — branch, design gate, acceptance tests, implementation, harness, reviewers, PR, merge on green, closure. The task is the first ready entry of docs/todo.md § Next (headless, no argument), an entry the human names (TODO-NNN / DEBT-NNN / FLOW-NNN), or a plain request typed in chat. One task per invocation.
+description: Runs one task end to end under docs/workflow.md — branch, design gate, acceptance tests, implementation, harness, reviewers, PR, merge on green, closure. The task is the first ready entry of the queue, docs/work/queue.md (headless, no argument), an entry the human names (TODO-NNN / DEBT-NNN / FLOW-NNN), or a plain request typed in chat. One task per invocation.
 argument-hint: "[TODO-NNN | DEBT-NNN | FLOW-NNN | a request]"
 ---
 
@@ -13,15 +13,15 @@ this file is the checklist.
 
 - `git status --short` is empty and `main` is fresh (`git pull --ff-only`). Otherwise
   stop and report; never work on a dirty tree.
-- **Headless** (no argument): read `docs/todo.md` § Next and take the references in
-  order. Nobody to ask: a question becomes a line in the entry's `**Open questions:**`.
+- **Headless** (no argument): `just whats-next` lists the queue (`docs/work/queue.md`);
+  take the first remaining reference that is ready. Nobody to ask: a question becomes a line in the entry's `**Open questions:**`.
 - **Chat, named entry** (`TODO-NNN` / `DEBT-NNN` / `FLOW-NNN`): load its file
   (`docs/work/todo/TODO-NNN.md`, `docs/work/debt/DEBT-NNN.md`,
   `docs/work/flow/FLOW-NNN.md`).
 - **A pull request reference** (`gh#NN`, queued or named): a Dependabot pull request.
   Follow `docs/workflow.md` § Dependabot pull requests instead of Steps 1 to 9: read the
   diff, check each pinned commit, `just merge` on its branch for a real review, grade
-  it, close the reference, merge.
+  it, merge.
 - **Chat, plain request**: the request is the task; no todo entry is created — the PR
   body is its record. Write its Done when into the opening brief.
 - **Ready** = a Done when exists, `**Open questions:** none`, and `**Design:**` is
@@ -107,7 +107,7 @@ and names what a user notices.
 ## Step 9 — Closure
 
 In the same PR, before the merge: `just whats-next close <id>` deletes the entry's file
-(`docs/work/`) together with its reference in § Next; techdebt the work resolved
+(`docs/work/`); the queue is not edited. Techdebt the work resolved
 is closed the same way, `ARCHITECTURE.md` if a module appeared, design proposal images
 deleted. Then the closing brief: what changed for the user (or "nothing — internal"),
 what the project gained (tests, coverage); the PR number and where anything still owed
@@ -118,6 +118,6 @@ was filed.
 1. Headless never asks the human; questions are lines in the entry.
 2. Never lower a floor, raise an allowlist, bypass a hook, force-push, push to `main`,
    touch the installed app's data, cut a release, edit a released changelog line,
-   or edit Next beyond removing the shipped reference.
+   or edit the queue.
 3. One task per invocation. Stop after Step 9.
 4. Three hours of wall clock per task; over that, open question and stop.

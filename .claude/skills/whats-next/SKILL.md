@@ -1,6 +1,6 @@
 ---
 name: whats-next
-description: Shows the state of the work queue (queued, ready, blocked, debt, open pull requests) and proposes the next `## Next` queue for the owner to validate in chat. Chat only. Use when the queue is empty or short, after a release, or when returning to the project.
+description: Shows the state of the work queue (queued, ready, blocked, debt, open pull requests) and proposes the next queue (docs/work/queue.md) for the owner to validate in chat. Chat only. Use when the queue is empty or short, after a release, or when returning to the project.
 ---
 
 # Skill — `whats-next`
@@ -45,8 +45,8 @@ say what is missing instead.
 Print, in this order:
 
 1. **In flight** — open pull requests and their checks; the queue as it stands.
-2. **Proposed queue** — references in order (written to `## Next` as a plain list,
-   `- TODO-NNN`), todo, debt, decided flow entries and every open Dependabot pull request
+2. **Proposed queue** — references in order (written to `docs/work/queue.md` as a plain
+   list, `- TODO-NNN`), todo, debt, decided flow entries and every open Dependabot pull request
    (`- gh#NN`: its green reviewer checks are skips, `docs/workflow.md` § Conventions) together, one reason per line: what it unblocks, what it depends on, what it should ship with.
    Dependencies first; an entry waiting on the owner is not in the queue.
 3. **Needs you** — the decisions and the drafts from Steps 2 and 3, one line each; they
@@ -60,17 +60,19 @@ the argument, and the owner weighs it.
 
 Ask for the queue first: accept, or edit. Then put each decision to the owner alone,
 with its context, what each option changes and a recommended answer; the next one waits
-for the answer. The owner may also edit `docs/todo.md` by hand instead.
+for the answer. The owner may also edit `docs/work/queue.md` by hand instead.
 On a yes, write exactly what was validated, as a docs change through the harness
 (branch `docs/queue-<date>`, PR, `just merge`):
 
-- the `## Next` list, in the validated order;
+- `docs/work/queue.md`, replaced by the validated list in its order — the references
+  of the batch before, all shipped or left out, go; `just whats-next` must then show no
+  queued reference as "no such entry";
 - the User value and Done when of each accepted draft, and `**Open questions:** none`
   once nothing else is open.
 
 ## Rules
 
-1. Chat only. A headless run never touches `## Next`.
+1. Chat only. A headless run never touches the queue.
 2. Nothing is written before the owner's yes, and nothing beyond what the yes covers.
 3. No entry is created, renumbered or deleted here; a new idea from the owner becomes
    an entry the owner dictates.

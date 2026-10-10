@@ -1,15 +1,11 @@
 # Queue
 
-Owned by the human (`docs/workflow.md` § 2): the order the entries of `work/` are worked
-in. The agent writes here only what the human validated in `/whats-next`.
+Owned by the human (`docs/workflow.md` § 2): the entries of one batch, in the order to
+work them. Written once per batch, in `/whats-next`, as the human validated it; no pull
+request that ships an entry touches it. `just whats-next` says what has shipped.
 
-## Next
-
-<!-- The queue: TODO-NNN / DEBT-NNN / FLOW-NNN references in the order to work them. The agent takes -->
-<!-- the first ready one, removes a reference only in the PR that ships its entry, and -->
-<!-- stops when the list is empty. It reorders or adds only what the human validated in -->
-<!-- /whats-next. A plain list, in order: no numbers, so two pull requests that each -->
-<!-- close an entry do not conflict on renumbering. -->
+<!-- One reference per line, as a plain list: `- TODO-NNN`, `- DEBT-NNN`, `- FLOW-NNN`, -->
+<!-- or `- gh#NN` for a Dependabot pull request. -->
 
 <!-- Exception (owner, 2026-10-04): the flow entries of this queue ship as bundles, one -->
 <!-- pull request per bundle, each one story: FLOW-022 to FLOW-023 (the decided rules -->

@@ -7,7 +7,7 @@ was built.
 ## 1. Who owns what
 
 - **Human** — the todo entries (`docs/work/todo/`): what is worth doing, its user value,
-  its done-when; and the **Next** queue (`docs/todo.md`).
+  its done-when; and the queue (`docs/work/queue.md`).
 - **Human** — validating a **design** before anything the user sees changes.
 - **Human** — cutting a **release**; several merged branches may wait for one.
 - **Agent** — the debt entries (`docs/work/debt/`): every observation, smell and proposal
@@ -56,13 +56,19 @@ job or a machine gate.
   Done when the human validated in chat. It deletes the entry in the pull request that
   ships it. It never creates or renumbers one.
 
-### The queue — `docs/todo.md`, human-owned
+### The queue — `docs/work/queue.md`, human-owned (owner, 2026-10-10)
 
-- `## Next` holds the queue: `TODO-NNN`, `DEBT-NNN` and `FLOW-NNN` references, and `gh#NN` for a Dependabot pull request (§ Conventions), in the
-  order to work them, one per line as a plain list (`- TODO-NNN`; no numbers, so
-  pull requests that each close an entry do not conflict). The agent takes the first **ready** one and removes a reference
-  only in the PR that ships its entry. It adds to or reorders the list only in
-  `/whats-next`, in chat, writing the order the human validated.
+- The file is the queue of one batch: `TODO-NNN`, `DEBT-NNN` and `FLOW-NNN` references,
+  and `gh#NN` for a Dependabot pull request (§ Conventions), in the order to work them,
+  one per line as a plain list (`- TODO-NNN`).
+- It is written once per batch, in `/whats-next`, in chat, as the order the human
+  validated; every reference names an existing entry or an open pull request. No pull
+  request that ships an entry edits it, so entries of every kind alternate in the queue
+  without two closures meeting in the file. A cut during a batch is an edit the human
+  validates.
+- A queued reference whose entry file is gone has shipped: `just whats-next` shows what
+  shipped and what remains. The agent takes the first remaining reference that is
+  **ready**.
 - **Ready** means: queued, a Done when is written, `Open questions: none`, and
   `Design` is `none` or `validated`.
 
@@ -74,7 +80,7 @@ job or a machine gate.
 - The agent files here: reviewer findings it did not fix, smells met on the way,
   proposals for new work, coverage holes, frozen architecture debt.
 - Entries are observations, not commitments. The human promotes one by queuing its
-  `DEBT-NNN` in Next; `/whats-next` proposes debt entries beside todo entries.
+  `DEBT-NNN`; `/whats-next` proposes debt entries beside todo entries.
 - An entry may carry its own gate ("when next touched", "not as a sweep", "when a third
   consumer appears"). Read the whole entry before proposing or working it: the gate is
   honoured, or the override is put to the human — never swept silently.
@@ -112,7 +118,7 @@ todo entry: the pull request body is its record.
    `just merge` — it refuses until every check is green and folds `fixup!` commits, so
    the task lands as one commit.
 10. **Closure** in the same PR: `just whats-next close <id>` deletes the entry's file
-    and removes its reference from `## Next`; techdebt updated;
+    (the queue is left as written); techdebt updated;
     `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
     brief says what changed for the user and what the project gained.
 
@@ -240,7 +246,7 @@ recorded in the PR body, one line per finding that changed something or was reje
   continues.
 - **Never:** touch the installed application's data
   (`~/.local/share/com.projectsf.patient-manager/` holds real patient data), push to
-  `main`, force-push, bypass a hook, edit a released changelog line, change Next
+  `main`, force-push, bypass a hook, edit a released changelog line, change the queue
   without the human's yes (§ 2), cut a release, edit `.claude/settings.json` (the human
   edits it; the agent commits that edit through a pull request).
 
@@ -350,9 +356,8 @@ the human orders it with the rest. Once queued, the agent:
 2. checks out the branch and runs `just merge`: the rebase and push are the agent's,
    so CI runs the reviewers for real, and the merge stops until they have;
 3. reads that review, grades every finding (§ 7) — a warning is not merged past;
-4. removes the reference with `just whats-next close gh#NN` in a docs pull request of
-   its own (the Dependabot branch is not the agent's to add commits to), then runs
-   `just merge` again on the Dependabot branch once every check is green.
+4. runs `just merge` again on the Dependabot branch once every check is green. Its
+   reference in the queue reads as done once the pull request is no longer open.
 
 ### Tools the flow needs, and the usage log
 

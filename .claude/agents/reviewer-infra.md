@@ -34,6 +34,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 - A bash block in a prompt with compound shell (`$(…)`, `&&`, `||`, `;`, `cd X && …`) 🔴 — the allow list matches literal prefixes.
 - A script, recipe, path or section a prompt names that does not exist 🟡.
+- A subcommand, recipe or step the diff removes or changes while a prompt or `docs/workflow.md` still tells the agent to use the old form 🔴 — search the name in every prompt, on the lines the diff did not touch too.
 - The deny list losing a prohibition: push to `main`, force-push, `--no-verify`, `just release`, `git tag`, `gh pr merge`, editing `.claude/settings.json` 🔴.
 - An allow entry broader than one command family (`Bash(*)`, `Bash(bash *)`, `Bash(rm *)`, `Bash(curl *)`, `Bash(sudo *)`) 🔴; `Bash(python3 -c *)` / `Bash(python3 - *)` are accepted, never widened.
 

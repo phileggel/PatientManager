@@ -50,7 +50,7 @@ privacy-check:
     python3 scripts/privacy-check.py
 
 # Where the queue stands: queued, ready, blocked, debt, open pull requests (/whats-next proposes the order);
-# `just whats-next close TODO-NNN` deletes a shipped entry and its queue line; `next-id DEBT` prints the next free id
+# `just whats-next close TODO-NNN` deletes a shipped entry's file; `just whats-next next-id DEBT` prints the next free id; `just whats-next remaining` the queued references not shipped yet
 whats-next *ARGS:
     python3 scripts/whats-next.py {{ARGS}}
 
@@ -62,7 +62,7 @@ watch-pr *ARGS:
 _used RECIPE:
     @python3 scripts/usage_log.py used {{RECIPE}}
 
-# Run the first ready entry of docs/todo.md § Next headless (docs/workflow.md § 9); logs under logs/next-todo/
+# Run the first ready entry of the queue (docs/work/queue.md) headless (docs/workflow.md § 9); logs under logs/next-todo/
 next-todo:
     bash scripts/next-todo.sh
 

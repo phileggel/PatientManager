@@ -7,8 +7,12 @@ blocked and on what, and the debt entries not queued. It classifies; it never
 ranks or recommends — ordering is the owner's, proposed by the skill
 (docs/workflow.md § 2).
 
+The queue (docs/work/queue.md) is written once per batch and no closure edits
+it: a queued reference whose entry file is gone has shipped.
+
 `whats-next.py close <id>...` is the closure of a task: it deletes each entry's
-file and removes its reference from the queue, in the pull request that ships it.
+file, in the pull request that ships it.
+`whats-next.py remaining` prints the queued references not shipped yet.
 `whats-next.py next-id <TODO|DEBT|FLOW>` prints the next free id of a kind.
 """
 
@@ -27,7 +31,10 @@ FIELDS = ("User value", "Done when", "Design", "Open questions")
 # A Where path is checked only when it starts at the repository root.
 PATH_ROOTS = ("src/", "src-tauri/", "docs/", "scripts/", "e2e/", ".github/", ".claude/")
 PASSING = ("SUCCESS", "NEUTRAL", "SKIPPED")
-QUEUE_HOME = "docs/todo.md"
+QUEUE_HOME = "docs/work/queue.md"
+# What a queued reference reads as once its work is done: the queue is not edited.
+SHIPPED = "shipped"
+CLOSED = "merged or closed"
 # An entry is one file named by its id, so two closures never touch the same file.
 ENTRY_DIRS = {"TODO": "docs/work/todo", "DEBT": "docs/work/debt", "FLOW": "docs/work/flow"}
 ENTRY_REF = re.compile(r"(TODO|DEBT|FLOW)-(\d{3})")
@@ -79,11 +86,8 @@ class Flow:
 
 
 def queue(queue_text: str) -> list[str]:
-    """The references under `## Next`, in order."""
-    section = re.search(r"^## Next\s*$(.*?)(?=^## |\Z)", queue_text, re.MULTILINE | re.DOTALL)
-    if not section:
-        return []
-    return QUEUE_LINE.findall(re.sub(r"<!--.*?-->", "", section.group(1), flags=re.DOTALL))
+    """The references of the queue file, in order; a comment queues nothing."""
+    return QUEUE_LINE.findall(re.sub(r"<!--.*?-->", "", queue_text, flags=re.DOTALL))
 
 
 def _bodies(text: str, heading: re.Pattern) -> list[tuple[re.Match, str]]:
@@ -172,9 +176,17 @@ def pull_requests(pulls: Sequence[dict]) -> list[Pull]:
 
 
 def classify(
-    refs: list[str], todos: list[Todo], debts: list[Debt], flows: Sequence[Flow] = (), pulls: Sequence[dict] | None = ()
+    refs: list[str],
+    todos: list[Todo],
+    debts: list[Debt],
+    flows: Sequence[Flow] = (),
+    pulls: Sequence[dict] | None = (),
+    deleted: Sequence[str] = (),
 ) -> dict:
-    """Sort every entry into its bucket. `pulls` is None when GitHub could not be asked: unknown, never none."""
+    """Sort every entry into its bucket. `pulls` is None when GitHub could not be asked: unknown, never none.
+
+    `deleted` names the entries that had a file and no longer do: queued, they have shipped.
+    """
     opened = None if pulls is None else pull_requests(pulls)
     by_id: dict[str, Todo | Debt | Flow | Pull] = {e.id: e for e in [*todos, *debts, *flows, *(opened or [])]}
 
@@ -182,7 +194,9 @@ def classify(
         if PULL_REF.fullmatch(ref):
             if opened is None:
                 return ["unknown: GitHub could not be asked"]
-            return [] if ref in by_id else ["no such open pull request"]
+            return [] if ref in by_id else [CLOSED]
+        if ref not in by_id and ref in deleted:
+            return [SHIPPED]
         return _waits(by_id.get(ref))
 
     queued = [(ref, by_id.get(ref), waits(ref)) for ref in refs]
@@ -195,6 +209,11 @@ def classify(
         "flow": [f for f in flows if f.id not in refs],
         "dependabot": None if opened is None else [pull for pull in opened if pull.dependabot and pull.id not in refs],
     }
+
+
+def remaining(queued: Sequence[tuple]) -> list[str]:
+    """The queued references still to work, in order: neither shipped nor a pull request no longer open."""
+    return [ref for ref, _, waits in queued if waits not in ([SHIPPED], [CLOSED])]
 
 
 def checks_state(rollup: list[dict]) -> str:
@@ -227,10 +246,12 @@ def open_pull_requests() -> list[dict] | None:
 
 
 def render(buckets: dict, pulls: list[dict] | None, exists) -> str:
-    lines = ["Queued (docs/todo.md § Next, in order):"]
+    left = len(remaining(buckets["queued"]))
+    lines = [f"Queued ({QUEUE_HOME}, in order; {left} of {len(buckets['queued'])} remaining):"]
     for position, (ref, entry, waits) in enumerate(buckets["queued"], start=1):
         title = f" — {entry.title}" if entry else ""
-        state = f"waits on: {'; '.join(waits)}" if waits else "ready"
+        done = waits in ([SHIPPED], [CLOSED])
+        state = waits[0] if done else f"waits on: {'; '.join(waits)}" if waits else "ready"
         lines.append(f"{position}. {ref}{title} — {state}")
     if not buckets["queued"]:
         lines.append("(empty)")
@@ -287,38 +308,20 @@ def entry_path(ref: str) -> str | None:
     return f"{ENTRY_DIRS[match.group(1)]}/{ref}.md" if match else None
 
 
-def without_queue_line(queue_text: str, ref: str) -> str:
-    """`queue_text` without the reference `ref` under `## Next`; unchanged when it is not queued."""
-    section = re.search(r"^## Next\s*$(.*?)(?=^## |\Z)", queue_text, re.MULTILINE | re.DOTALL)
-    if not section:
-        return queue_text
-    kept = re.sub(rf"^(?:-|\d+\.)\s+{re.escape(ref)}\b.*\n", "", section.group(1), flags=re.MULTILINE)
-    return queue_text[: section.start(1)] + kept + queue_text[section.end(1) :]
-
-
-def close(refs: list[str], queue_text: str, exists) -> tuple[list[str], str, list[str]]:
-    """What closing `refs` changes (docs/workflow.md § 3, closure): what to say, the queue, the files to delete.
+def close(refs: list[str], exists) -> list[str]:
+    """The files closing `refs` deletes (docs/workflow.md § 3, closure); the queue is left as written.
 
     Raises before anything is decided unless every reference names an entry.
     """
-    said, gone = [], []
+    gone: list[str] = []
     for ref in refs:
-        unqueued = without_queue_line(queue_text, ref)
-        was_queued = unqueued != queue_text
-        if PULL_REF.fullmatch(ref):  # a pull request has no entry: only its queue line goes
-            if not was_queued:
-                raise NoSuchEntry(f"{ref}: not in the queue")
-            said.append(f"{ref}: removed from the queue")
-        else:
-            path = entry_path(ref)
-            if path is None:
-                raise NoSuchEntry(f"{ref}: not an entry id (TODO-NNN, DEBT-NNN, FLOW-NNN or gh#NN)")
-            if path in gone or not exists(path):
-                raise NoSuchEntry(f"{ref}: no such entry ({path})")
-            gone.append(path)
-            said.append(f"{ref}: {path} deleted, " + ("removed from the queue" if was_queued else "it was not queued"))
-        queue_text = unqueued
-    return said, queue_text, gone
+        path = entry_path(ref)
+        if path is None:
+            raise NoSuchEntry(f"{ref}: not an entry id (TODO-NNN, DEBT-NNN or FLOW-NNN)")
+        if path in gone or not exists(path):
+            raise NoSuchEntry(f"{ref}: no such entry ({path})")
+        gone.append(path)
+    return gone
 
 
 def next_id(kind: str, names: Sequence[str]) -> str:
@@ -327,15 +330,27 @@ def next_id(kind: str, names: Sequence[str]) -> str:
     return f"{kind}-{max([ID_FLOORS[kind], *given]) + 1:03d}"
 
 
-def names_ever(kind: str) -> list[str]:
-    """Every file the folder of `kind` holds or has held, from the working tree and the git history."""
+def names_ever(kind: str, history: str = "--all") -> list[str]:
+    """Every file the folder of `kind` holds or has held, from the working tree and the git history.
+
+    `history` is every branch by default, so an id taken on a branch not merged yet is never given twice.
+    """
     folder = ROOT / ENTRY_DIRS[kind]
     names = [path.name for path in folder.glob("*.md")] if folder.is_dir() else []
     log = subprocess.run(
-        ["git", "log", "--all", "--diff-filter=A", "--name-only", "--format=", "--", ENTRY_DIRS[kind]],
+        ["git", "log", history, "--diff-filter=A", "--name-only", "--format=", "--", ENTRY_DIRS[kind]],
         capture_output=True, text=True, check=True, cwd=ROOT,
     )
     return names + log.stdout.split()
+
+
+def deleted_ids() -> set[str]:
+    """The entries that had a file on this branch and no longer do.
+
+    This branch's history only: an entry filed on a branch not merged yet has not shipped.
+    """
+    ever = {m.group(0) for kind in ENTRY_DIRS for m in map(ENTRY_REF.search, names_ever(kind, "HEAD")) if m}
+    return {ref for ref in ever if not (ROOT / str(entry_path(ref))).is_file()}
 
 
 def kind_text(kind: str) -> str:
@@ -349,20 +364,16 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["close"]:
         if len(argv) < 2:
-            print("usage: whats-next.py close <TODO-NNN | DEBT-NNN | FLOW-NNN | gh#NN>...", file=sys.stderr)
+            print("usage: whats-next.py close <TODO-NNN | DEBT-NNN | FLOW-NNN>...", file=sys.stderr)
             return 2
-        queue_file = ROOT / QUEUE_HOME
-        queue_text = queue_file.read_text(encoding="utf-8")
         try:
-            said, unqueued, gone = close(argv[1:], queue_text, lambda path: (ROOT / path).is_file())
+            gone = close(argv[1:], lambda path: (ROOT / path).is_file())
         except NoSuchEntry as error:
             print(f"❌ {error} — nothing was changed", file=sys.stderr)
             return 1
-        if unqueued != queue_text:
-            queue_file.write_text(unqueued, encoding="utf-8")
         for path in gone:
             (ROOT / path).unlink()
-        print("\n".join(said))
+            print(f"{path} deleted")
         return 0
     if argv[:1] == ["next-id"]:
         if len(argv) != 2 or argv[1] not in ENTRY_DIRS:
@@ -370,6 +381,9 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(next_id(argv[1], names_ever(argv[1])))
         return 0
+    if argv and argv != ["remaining"]:
+        print("usage: whats-next.py [remaining | close <id>... | next-id <TODO | DEBT | FLOW>]", file=sys.stderr)
+        return 2
     queue_text = (ROOT / QUEUE_HOME).read_text(encoding="utf-8")
     pulls = open_pull_requests()
     buckets = classify(
@@ -378,7 +392,11 @@ def main(argv: list[str] | None = None) -> int:
         debt_entries(kind_text("DEBT")),
         flow_entries(kind_text("FLOW")),
         pulls,
+        deleted_ids(),
     )
+    if argv[:1] == ["remaining"]:
+        print("\n".join(remaining(buckets["queued"])))
+        return 0
     print(render(buckets, pulls, lambda path: (ROOT / path).exists()))
     return 0
 

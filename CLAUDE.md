@@ -8,7 +8,7 @@ After cloning: `git config core.hooksPath .githooks`. The hooks block commits to
 
 ## Who decides what
 
-- The **human** writes the todo entries (`docs/work/todo/`) and the `## Next` queue (`docs/todo.md`), validates a **design** before anything the user sees changes, validates the vocabulary, and cuts **releases**.
+- The **human** writes the todo entries (`docs/work/todo/`) and the queue (`docs/work/queue.md`), validates a **design** before anything the user sees changes, validates the vocabulary, and cuts **releases**.
 - The **agent** owns the debt and flow entries (`docs/work/debt/`, `docs/work/flow/`), does the task end to end and merges on green. No pull request waits for a human.
 - The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
@@ -55,7 +55,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
 ## Commands
 
 - `just dev` · `just harness` (CI's gate locally, scoped to the touched layers) · `just check` · `just check-full` · `just format` · `just generate-types` · `just merge` (refuses until every check is green; folds `fixup!` commits).
-- `just watch-pr [NN]` (waits for a pull request's checks; exit 0 green) · `just whats-next close <id>` (removes a shipped entry and its queue line).
+- `just watch-pr [NN]` (waits for a pull request's checks; exit 0 green) · `just whats-next close <id>` (deletes a shipped entry's file) · `just whats-next next-id <KIND>` (the next free entry id).
 - `just arch-check` (A1–A8, B18, B24; `--write-allowlist` only lowers the frozen debt) · `just rule-homes` (the doc map) · `just coverage-gate` · `just privacy-check` · `just test-scripts`.
 - Release: the agent prepares it (`/dep-audit`, the security release sweep, `spec-checker` on the touched specs) and says when it is ready; the human runs `just release [--dry-run] [-y]`; the agent publishes the draft once the release workflow and `main` are green, and stops if anything is red.
 
