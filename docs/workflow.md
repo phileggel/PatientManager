@@ -147,7 +147,9 @@ ready. The human runs `just release` when they choose. It computes the version f
 the merged titles, writes the changelog (only `feat` → Added, `fix` → Fixed) and the
 version files, tags and pushes; CI builds the draft and puts the version's changelog
 section in its notes. The agent publishes the draft once the release workflow and
-`main` are green, and stops if anything is red; then it audits the batch (§ 12).
+`main` are green, and stops if anything is red; then it audits the batch (§ 12). A batch
+is named by its dates until `just release --dry-run` has proposed a version: until then
+`/whats-next` and the agent say "the next release", never a number.
 
 ## 4. Design proposal
 
@@ -309,6 +311,11 @@ reviewers; each audit (§ 12) checks it against what CI found that the local lan
 missed. A feature whose backend or frontend exceeds about 20 files or 500
 lines ships as one PR per layer, in order: spec, contract, migration, backend and
 bindings; then the frontend; then E2E and closure. Each is mergeable on its own.
+
+A branch that is not pushed yet may sit on a branch in review, so pull requests that
+change the same file do not conflict: its harness and reviewers run there, the reviewers
+given its last commit only, and it is rebased onto `main` before its first push — a
+local rebase, never a force-push.
 
 ## 12. The flow audit
 
