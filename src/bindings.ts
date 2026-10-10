@@ -1807,6 +1807,15 @@ export type FundPaymentReconciliationTask =
  */
 { code: "PdfExtractionFailed" } | 
 /**
+ * The PDF opened but holds no text: a scan, or a document printed to PDF
+ * with its letters drawn as shapes.
+ */
+{ code: "PdfHasNoText" } | 
+/**
+ * The PDF's text yields no PDF line to reconcile.
+ */
+{ code: "PdfHasNoLine" } | 
+/**
  * Failure from a repository the reconciliation service holds directly.
  * Logged at the call site via `tracing::error!`; the wire surface carries
  * no detail.

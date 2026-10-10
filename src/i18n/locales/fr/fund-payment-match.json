@@ -195,6 +195,7 @@
     "invalid_date_range": "Plage de dates invalide.",
     "pdf_path_rejected": "Impossible d'ouvrir ce fichier PDF.",
     "pdf_extraction_failed": "Impossible de lire le contenu de ce PDF.",
+    "pdf_has_no_text": "Ce PDF ne contient aucun texte lisible : il a probablement été scanné ou « imprimé en PDF ». Téléchargez le relevé d'origine depuis le site de la caisse.",
     "database_error": "Une erreur de base de données s'est produite. Veuillez réessayer.",
     "unexpected": "Une erreur inattendue s'est produite lors du rapprochement."
   }

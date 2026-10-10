@@ -24,6 +24,12 @@ This document covers exclusively the **automatic flow**: PDF parsing, matching a
 
 **FPA-050 (R3) — PDF duplicate detection (backend)**: When fund-payment groups are created, the system checks whether a group with the same (fund, date, total amount) already exists. If all candidates are duplicates, the processing is rejected entirely — the PDF was likely already imported.
 
+### Documents rejected before reconciliation (060–065)
+
+**FPA-060 — A PDF with no text is rejected (backend + frontend)**: A PDF that opens but whose extracted text is empty, or holds nothing but whitespace and page breaks — a scan, or a document printed to PDF with its letters drawn as shapes — is rejected when its text is extracted. The modal shows, in place of the results, a message saying that the PDF holds no readable text and to download the original statement from the fund's website; the user closes the modal to select another file.
+
+**FPA-065 — A PDF with no PDF line is rejected (backend + frontend)**: A PDF whose text yields no PDF line at all — nothing was recognised, every line was unparsed (FPA-030), or a group was recognised with no line in it — is rejected before matching. The modal shows, in place of the results, the message that there is no fund-payment group to process; no anomaly is shown, nothing can be validated, and neither the count nor the samples of unparsed lines (FPA-030) are shown. The user closes the modal to select another file.
+
 ### Matching algorithm (100–160)
 
 **FPA-100 (R4) — 8-pass algorithm (backend)**: Reconciliation runs in 8 sequential passes, each with different criteria. A PDF line not resolved in pass N is retried in pass N+1:
@@ -132,6 +138,7 @@ Action applied per anomaly type:
           │
           ▼
 [Extract PDF text] (backend)
+  → No text: rejected, the modal shows why (FPA-060)
           │
           ▼
 [Parse PDF into structured lines] (backend)
@@ -140,6 +147,7 @@ Action applied per anomaly type:
           │
           ▼
 [Reconcile PDF lines ↔ DB procedures] (backend)
+  → No PDF line: rejected, the modal shows why (FPA-065)
   → 8 sequential passes by SSN / date / amount
   → Classification: PerfectMatch / SingleIssue / GroupIssue / TooMany / NotFound
           │

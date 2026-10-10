@@ -29,7 +29,10 @@ use patient_manager_app::{
     },
     shared::event_bus::EventBus,
     use_cases::fund_payment_reconciliation::{
-        api::{create_fund_payment_with_auto_corrections_fn, reconcile_and_create_candidates_fn},
+        api::{
+            create_fund_payment_with_auto_corrections_fn, reconcile_and_create_candidates_fn,
+            reconcile_pdf_procedures_fn,
+        },
         AutoCorrection, CreateFundPaymentWithAutoCorrectionsRequest,
         FundPaymentReconciliationOrchestrator, NormalizedPdfLine, PdfParseResult,
         PdfProcedureGroup, ReconciliationService,
@@ -713,4 +716,46 @@ async fn create_multiple_from_candidates_all_duplicates_returns_error() {
 
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("already exist"));
+}
+
+// ---------------------------------------------------------------------------
+// A PDF whose text holds no payment line: the workflow refuses it instead of
+// answering an empty result that the screen would show as "no anomaly".
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn test_fpa_065_a_pdf_with_no_pdf_line_is_refused_by_both_reconcile_commands() {
+    let pool = setup_pool().await;
+    let ctx = build_ctx(&pool);
+
+    let err = reconcile_and_create_candidates_fn(
+        PdfParseResult {
+            groups: vec![],
+            unparsed_line_count: 0,
+            unparsed_lines: vec![],
+        },
+        ctx.reconciliation_service.clone(),
+        ctx.orchestrator.clone(),
+    )
+    .await
+    .expect_err("an empty PDF gives nothing to reconcile");
+    let raw_err = reconcile_pdf_procedures_fn(
+        PdfParseResult {
+            groups: vec![],
+            unparsed_line_count: 0,
+            unparsed_lines: vec![],
+        },
+        ctx.reconciliation_service.clone(),
+    )
+    .await
+    .expect_err("the raw reconciliation refuses it too");
+    assert_eq!(
+        serde_json::to_value(&raw_err).unwrap(),
+        serde_json::json!({ "code": "PdfHasNoLine" }),
+    );
+
+    assert_eq!(
+        serde_json::to_value(&err).unwrap(),
+        serde_json::json!({ "code": "PdfHasNoLine" }),
+    );
 }

@@ -2,27 +2,17 @@
 
 > Domain: fund-payment-reconciliation
 > Backend module: use_cases/fund_payment_reconciliation
-> Last updated by: fund-payment-report spec
+> Last updated by: fund-payment-auto-match spec
 
 ## Commands
 
-### `extract_pdf_text` — R2
+### `extract_pdf_text` — R2, FPA-060
 
-Extracts raw text from a PDF at the given file path. Used when the file is passed as a path (desktop flow). The extracted text is passed unchanged to `parse_pdf_text`.
+Extracts raw text from a PDF at the given file path. The extracted text is passed unchanged to `parse_pdf_text`.
 
 - **Args:** `file_path: String`
 - **Returns:** `String`
-- **Errors:** `PdfExtractionFailed`
-
----
-
-### `extract_pdf_text_from_bytes` — R2, R28
-
-Extracts raw text from a PDF supplied as raw bytes. Used when the file is opened via the browser file picker. The extracted text is passed unchanged to `parse_pdf_text`.
-
-- **Args:** `bytes: Vec<u8>`
-- **Returns:** `String`
-- **Errors:** `PdfExtractionFailed`
+- **Errors:** `PdfPathRejected`, `PdfExtractionFailed`, `PdfHasNoText` (the PDF opens but holds no text, FPA-060)
 
 ---
 
@@ -36,23 +26,23 @@ Parses raw PDF text into structured procedure groups. Groups are keyed on (fund,
 
 ---
 
-### `reconcile_pdf_procedures` — R1, R4, R5, R6, R7, R8, R9, R10, R29
+### `reconcile_pdf_procedures` — R1, R4, R5, R6, R7, R8, R9, R10, R29, FPA-065
 
 Runs the 8-pass matching algorithm (R4) and classifies each PDF line into a `ReconciliationMatch` variant (R6–R10). Returns the raw match results without creating any DB records. Used when the frontend needs the anomaly list before grouping into candidates.
 
 - **Args:** `parse_result: PdfParseResult`
 - **Returns:** `ReconciliationResult`
-- **Errors:** —
+- **Errors:** `PdfHasNoLine` (FPA-065), `DatabaseError`
 
 ---
 
-### `reconcile_and_create_candidates` — R1, R3, R4, R5, R6, R7, R8, R9, R10, R29
+### `reconcile_and_create_candidates` — R1, R3, R4, R5, R6, R7, R8, R9, R10, R29, FPA-065
 
 Runs the 8-pass matching algorithm and groups results into `FundPaymentGroupCandidate`s for user review. Combines reconciliation and candidate creation in a single call. Negative-amount lines are classified as `NotFoundIssue` (R29). Sets the response flag `already_imported = true` when every candidate corresponds to an existing fund-payment group (same `fund_label` + `payment_date` + `total_amount`), so the frontend can short-circuit a re-import before showing the anomaly UI or dispatching any downstream command (R3, defensive).
 
 - **Args:** `parse_result: PdfParseResult`
 - **Returns:** `ReconcileAndCandidatesResponse` — includes `already_imported: bool`
-- **Errors:** —
+- **Errors:** `PdfHasNoLine` (the PDF's text yields no PDF line, FPA-065), `DatabaseError`
 
 ---
 
@@ -125,6 +115,8 @@ Renders the report, writes it to the platform Downloads directory under the call
 ---
 
 ## Shared Types
+
+`FundPaymentGroup` is defined in `fund-contract.md`, `Procedure` in `procedure-orchestration-contract.md`.
 
 ```rust
 // R2, R28 — structured parse result from a PDF statement
@@ -309,3 +301,4 @@ enum FundPaymentValidationStatus {
 - 2026-05-07 — PR 2 i18n pivot: `ReportGenerationRequest` reshaped to carry pre-resolved strings only. Removed `locale`, `source_pdf_filename`, `period_start`, `period_end`, `generation_date`, `unreconciled_procedures`, `enriched_corrections`, `UnreconciledProcedureRow`, `EnrichedAutoCorrection`. Added `title`, `continuation_title`, `header_lines`, `unreconciled` (`UnreconciledSection` enum with `Empty` / `Rows` variants), `UnreconciledColumns`, `UnreconciledRow`, `correction_section_heading`, `correction_groups` (`CorrectionGroup` with pre-joined row strings), `page_label`. Backend is now a pure assembler with no translation or formatting logic; frontend resolves everything via i18next + `Intl.*` before invoking. Supersedes ADR-006.
 - 2026-05-13 — Removed `save_fund_reconciliation_report_pdf`. Added `export_and_open_fund_reconciliation_report_pdf`: single command that renders, writes to the platform Downloads directory under a frontend-built locale-aware filename, and launches the system PDF viewer. Filename is validated as a leaf name; collisions use ` (N)` suffixing. Returns the absolute saved path. New error variant: `OpenFailed`.
 - 2026-05-16 — Removed `export_reconciliation_csv` and its `CsvExportFailed` error. The CSV export was never wired to a frontend caller and was superseded by `generate_fund_reconciliation_report_pdf` / `export_and_open_fund_reconciliation_report_pdf` (PDF report, ADR-006). Dead code cleanup.
+- 2026-10-10 — Modified by `fund-payment-auto-match` spec (FPA-060, FPA-065): extract_pdf_text gains `PdfHasNoText` (and lists `PdfPathRejected`, which it already returned); reconcile_and_create_candidates and reconcile_pdf_procedures gain `PdfHasNoLine` (and list `DatabaseError`, which they already returned). Removed `extract_pdf_text_from_bytes`: no such command is registered.

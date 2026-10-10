@@ -195,6 +195,7 @@
     "invalid_date_range": "Invalid date range.",
     "pdf_path_rejected": "Could not open this PDF file.",
     "pdf_extraction_failed": "Could not read the contents of this PDF.",
+    "pdf_has_no_text": "This PDF contains no readable text: it was probably scanned or \"printed to PDF\". Download the original statement from the fund's website.",
     "database_error": "A database error occurred. Please try again.",
     "unexpected": "An unexpected error occurred during reconciliation."
   }

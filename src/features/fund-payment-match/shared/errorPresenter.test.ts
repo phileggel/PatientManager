@@ -24,6 +24,8 @@ describe("formatReconciliationError", () => {
       ["InvalidDateRange", "fund-payment-match:errors.invalid_date_range"],
       ["PdfPathRejected", "fund-payment-match:errors.pdf_path_rejected"],
       ["PdfExtractionFailed", "fund-payment-match:errors.pdf_extraction_failed"],
+      ["PdfHasNoText", "fund-payment-match:errors.pdf_has_no_text"],
+      ["PdfHasNoLine", "fund-payment-match:errors.no_valid_candidates"],
     ];
     for (const [code, key] of cases) {
       expect(formatReconciliationError({ code } as FundPaymentReconciliationError).key).toBe(key);

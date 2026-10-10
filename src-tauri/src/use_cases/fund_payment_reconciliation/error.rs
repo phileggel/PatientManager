@@ -41,6 +41,15 @@ pub enum FundPaymentReconciliationTask {
     #[error("Failed to extract text from PDF")]
     PdfExtractionFailed,
 
+    /// The PDF opened but holds no text: a scan, or a document printed to PDF
+    /// with its letters drawn as shapes.
+    #[error("PDF holds no extractable text")]
+    PdfHasNoText,
+
+    /// The PDF's text yields no PDF line to reconcile.
+    #[error("No PDF line found in the PDF")]
+    PdfHasNoLine,
+
     /// Failure from a repository the reconciliation service holds directly.
     /// Logged at the call site via `tracing::error!`; the wire surface carries
     /// no detail.
@@ -112,6 +121,8 @@ mod tests {
                 FundPaymentReconciliationTask::PdfExtractionFailed,
                 "PdfExtractionFailed",
             ),
+            (FundPaymentReconciliationTask::PdfHasNoText, "PdfHasNoText"),
+            (FundPaymentReconciliationTask::PdfHasNoLine, "PdfHasNoLine"),
             (
                 FundPaymentReconciliationTask::DatabaseError,
                 "DatabaseError",
