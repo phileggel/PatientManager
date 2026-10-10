@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.2] - 2026-10-10
+
+### Fixed
+
+- a fund statement with a negative total is read correctly
+- a statement with a refund group imports; a refusal writes nothing
+- a PDF with no readable text is refused with a clear message
+- exporting the database refuses a symbolic link at the destination
+- the installed app ignores the database reset variable
+- stop the development build writing a file outside the project
+
 ## [0.24.1] - 2026-10-06
 
 ### Fixed
