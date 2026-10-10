@@ -31,3 +31,5 @@
   tests, one step in `/flow-audit`. A responsibility is prose: only the audit's reading
   holds it. Protects: a tool whose role moves without anyone deciding it, and the hour of
   rediscovery each time two projects are compared.
+- Decision (owner, 2026-10-10): accepted, first in the next queue — the document is to be reused in other
+  repositories.

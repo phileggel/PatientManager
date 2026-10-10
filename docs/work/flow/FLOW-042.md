@@ -18,4 +18,11 @@
 - Costs: a wide mechanical change (two skills, one script and its tests, the recipe, the
   workflow document, the index, the headless runner). The folioneer project carries the
   old names until it is renamed too; the gold agentic document (FLOW-036) fixes them once.
+- What `/plan-queue` owes (owner, 2026-10-11):
+  - it orders the queue to optimise it: what changes the tools first; a dependency before
+    what depends on it; entries that touch the same files next to each other, so one can be
+    prepared on the other; small fixes a user notices early; what needs the owner flagged at
+    the top. Where two of these disagree it says so in one line;
+  - its result gives, for each line, the id and a concise summary of the task, with at most
+    a clause on why it sits there; what needs the owner and what is left out come below.
 - Decision (owner, 2026-10-11): accepted — "your naming propositions are clearly better".
