@@ -14,6 +14,10 @@ request that ships an entry touches it. `just whats-next` says what has shipped.
 <!-- FLOW-032: the fund contract first, then one pull request per contract. -->
 <!-- DEBT-043: the two form validators only; the entry says so. -->
 <!-- FLOW-037 added by the owner on 2026-10-10, after the flow bundles. -->
+<!-- Cut (owner, 2026-10-10): the batch is released on what shipped, with two fixes met -->
+<!-- in production (a PDF with no text; a statement with a refund-only group). Moved to -->
+<!-- the next batch, in the order they were queued, for `/whats-next` to propose again: -->
+<!-- FLOW-032, FLOW-031, FLOW-020, TODO-018, DEBT-011, TODO-019, TODO-008, DEBT-043. -->
 
 - FLOW-029
 - FLOW-035
@@ -24,11 +28,3 @@ request that ships an entry touches it. `just whats-next` says what has shipped.
 - DEBT-036
 - DEBT-044
 - DEBT-038
-- FLOW-032
-- FLOW-031
-- FLOW-020
-- TODO-018
-- DEBT-011
-- TODO-019
-- TODO-008
-- DEBT-043
