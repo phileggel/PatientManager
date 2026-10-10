@@ -26,8 +26,23 @@
   4. `just flow-audit` counts, for each entry, the pull requests and CI rounds its branches
      took (a branch name carries the entry id) beside its size; the audit names the
      entries that went past their size, and which kinds do so most.
+- Filing an entry (owner, 2026-10-11) — the same pull request, since the size is set there:
+  1. One command creates an entry, never a hand-written file:
+     `just queue new <todo|debt|flow> "<title>"` gives it the next id, the date and the
+     required lines of its kind.
+  2. Every entry carries, when filed: its evidence (what was seen, where, with a figure or
+     a pull request), one observation only, its size, and a line saying whether it waits
+     on the owner and for what — so the planning skill lists what needs the owner without
+     reading prose.
+  3. The agent files debt and flow entries; a todo entry is drafted from the owner's words
+     and is not queued before the owner confirms it.
+  4. `just rule-homes` fails on an entry that lacks a required line, as it does on a
+     misnamed file.
+  5. A very small skill, `/file-entry`, holds these rules, so that the agent files an
+     entry properly each time; `docs/workflow.md` § 2 stays their home.
 - Costs: a line per entry; a few lines in the queue script and the audit script, with
   their tests; one pass over the backlog. A size is still a guess: only the audit's
   comparison makes it better. Protects: a queue cut twice by the owner in each of the
   last two batches.
-- Decision (owner, 2026-10-11): accepted and queued, with the flow entries.
+- Decision (owner, 2026-10-11): accepted and queued, with the flow entries; the filing rules and their
+  small skill are part of it.
