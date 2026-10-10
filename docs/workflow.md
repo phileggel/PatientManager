@@ -128,7 +128,7 @@ ready. The human runs `just release` when they choose. It computes the version f
 the merged titles, writes the changelog (only `feat` → Added, `fix` → Fixed) and the
 version files, tags and pushes; CI builds the draft and puts the version's changelog
 section in its notes. The agent publishes the draft once the release workflow and
-`main` are green, and stops if anything is red.
+`main` are green, and stops if anything is red; then it audits the batch (§ 12).
 
 ## 4. Design proposal
 
@@ -293,14 +293,22 @@ bindings; then the frontend; then E2E and closure. Each is mergeable on its own.
 
 ## 12. The flow audit
 
-After a release and its cleanup, the agent audits the batch and writes the result in
-`docs/work/audits.md`. Quality is the goal, weighed against speed and effort.
+After a release and its cleanup, the agent audits the batch with `/flow-audit` and writes
+the result in `docs/work/audits.md`. Quality is the goal, weighed against speed and
+effort. The audit runs once per release; nothing of it runs during a batch, where only
+the mechanical records are kept (the usage log, GitHub's own history).
 
-- **Measures** — pull requests merged, time from opening to merging, CI rounds, failed
-  runs per workflow, what the reviewers caught, what they got wrong, and the criticals
-  only CI found.
-- **Tools** — which scripts, recipes, skills and agents ran, and which did not
-  (`logs/usage.log`, the session transcript); each gets a verdict: keep, fold or remove.
+- **Measures** — `just flow-audit` counts, beside the release before: pull requests
+  merged, time from opening to merging, CI rounds, failed runs per workflow, the tools
+  the usage log saw, the paths the documents name that no longer exist, and the length
+  of the guides (`CLAUDE.md`, this document, the rules docs, every prompt). The agent
+  adds what only the session knows: what the reviewers caught, what they got wrong, the
+  criticals only CI found.
+- **Five questions** (owner, 2026-10-10), asked of every batch: what would have avoided a
+  conflict; where the batch waited, and what would shorten it without costing quality;
+  what can be simplified; which script, recipe, skill or agent went unused — keep, fold
+  or remove; and where a guide was false, contradicted another, or grew without earning
+  it.
 - **Hard points** — every difficulty met becomes a `FLOW-NNN` entry with its evidence
   and a proposal; where nothing should change, the entry says keep and why.
 - **Moves** — a todo or debt entry that is about the flow becomes a flow entry and keeps

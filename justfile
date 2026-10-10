@@ -49,6 +49,10 @@ rule-homes:
 privacy-check:
     python3 scripts/privacy-check.py
 
+# The figures of a batch for /flow-audit: `just flow-audit v0.24.0 v0.24.1 --previous v0.23.0 --pretty`
+flow-audit *ARGS:
+    python3 scripts/flow-audit.py {{ARGS}}
+
 # Where the queue stands: queued, ready, blocked, debt, open pull requests (/whats-next proposes the order);
 # `just whats-next close TODO-NNN` deletes a shipped entry's file; `just whats-next next-id DEBT` prints the next free id; `just whats-next remaining` the queued references not shipped yet
 whats-next *ARGS:
