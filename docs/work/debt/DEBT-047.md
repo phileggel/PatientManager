@@ -6,6 +6,8 @@
 
 **Observation:** the glossary and the spec each send the reader to a todo note that exists nowhere, so nobody can tell whether the `ProcedureStatus` de-conflation and the `latest_fund` clearing are still owed. The second may be the cascade DEBT-042 describes. Owner's call for each: write the entry it promises, or drop the sentence. The two prompts carry a dead exclusion; removing it is mechanical.
 
+**Added 2026-10-11:** `ARCHITECTURE.md` (the `Procedure.billed_amount` bullet) cites two inline TODOs at `use_cases/fund_payment_reconciliation/orchestrator.rs:328,498` and an optional `billed_amount`; neither exists.
+
 **Size:** S
 
 **Waits on the owner:** for each dead pointer: write the entry it promises, or drop the sentence

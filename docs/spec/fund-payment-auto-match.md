@@ -40,6 +40,10 @@ This document covers exclusively the **automatic flow**: PDF parsing, matching a
 
 **FPA-075 — A validation holding a group whose stated total is not positive is rejected before anything is written (backend)**: A validation that includes a group whose stated total is not positive is rejected, and no correction, procedure, patient, fund or fund-payment group is written. This is a guard of the statement import only: the refund fund-payment group of an overpayment (REF-100) is created by another path.
 
+### A validation is written as a whole (076)
+
+**FPA-076 — A validation is written as a whole, or not at all (backend)**: Everything a validation writes is written together: the corrections of its procedures (date, fund, amount, contested amount), the procedures and the patients it creates, the SSN it gives a patient, the funds it creates, the fund-payment groups and the reconciliation of their procedures. A validation that is rejected keeps none of it, whatever the reason: a check that fails while the validation is prepared, or a write that fails. When a write fails, the validation is rejected with a database error and the database is as it was before. A rejected validation can be submitted again without creating anything twice.
+
 ### Matching algorithm (100–160)
 
 **FPA-100 (R4) — 8-pass algorithm (backend)**: Reconciliation runs in 8 sequential passes, each with different criteria. A PDF line not resolved in pass N is retried in pass N+1:
@@ -185,6 +189,7 @@ Action applied per anomaly type:
   → Create missing procedures / missing patients
   → Create fund-payment group
   → Update procedure statuses → Reconciliated / PartiallyReconciled
+  → The five writes above happen together or not at all (FPA-076)
   → Post-persistence consistency check (non-blocking)
           │
           ▼

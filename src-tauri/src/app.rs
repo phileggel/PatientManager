@@ -217,7 +217,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
             fund_service.clone(),
             context_procedure_service.clone(),
             fund_payment_service.clone(),
-            event_bus.clone(),
+            Arc::new(SqlxTransactionManager::new(db.get_pool().clone())),
         ));
     tracing::info!(target: BACKEND, "Fund payment reconciliation orchestrator created");
 

@@ -31,6 +31,10 @@ pub mod error;
 mod fund_label;
 pub mod orchestrator;
 pub mod service;
+/// The validation's unit of work over SQLite (ADR-003, B26).
+mod sqlx_uow;
+/// The validation's unit of work, as the orchestrator sees it (FPA-076).
+mod uow;
 
 // Re-export commonly used types and services
 #[cfg(feature = "app")]
@@ -39,3 +43,7 @@ pub use dto::*;
 pub use error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 pub use orchestrator::FundPaymentReconciliationOrchestrator;
 pub use service::ReconciliationService;
+pub use uow::{
+    StatementValidationOperation, StatementValidationTransactionManager,
+    StatementValidationUnitOfWork,
+};

@@ -25,7 +25,7 @@ You review layering, not code quality. Follow `.claude/agents/review-protocol.md
 
 **Factories** (B7, B11, B37)
 
-- A struct literal outside the factories 🔴; `new()` used to rebuild a persisted aggregate (a fresh id) 🔴; a repository not using `restore()` 🔴; a state-dependent rejection in a service instead of an aggregate method 🟡 (B37).
+- A struct literal outside the factories 🔴; `new()` used to rebuild a persisted aggregate (a fresh id) 🔴; a repository not using `restore()` 🔴; a state-dependent rejection in a service instead of an aggregate method 🟡 (B37); an internal entity built, or an aggregate's collection assigned, from a use case (`FundPaymentLine::new`, `group.lines = …`) 🟡 (B9).
 
 **Dead code** — unused imports, variables, functions, types or exports; commented-out code; unreachable branches 🟡. Exempt: `#[allow(dead_code)]` with a reason.
 

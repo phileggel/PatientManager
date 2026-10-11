@@ -27,7 +27,7 @@ use patient_manager_app::{
             SqliteProcedureRepository, SqliteProcedureTypeRepository,
         },
     },
-    shared::event_bus::EventBus,
+    shared::{event_bus::EventBus, uow::SqlxTransactionManager},
     use_cases::fund_payment_reconciliation::{
         api::{
             create_fund_payment_from_candidates_fn, create_fund_payment_with_auto_corrections_fn,
@@ -94,7 +94,7 @@ fn build_ctx(pool: &SqlitePool) -> Ctx {
         fund_service.clone(),
         procedure_service.clone(),
         fund_payment_service,
-        bus,
+        Arc::new(SqlxTransactionManager::new(pool.clone())),
     ));
 
     Ctx {
@@ -557,7 +557,7 @@ async fn test_full_chain_via_reconciliation_service() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn create_fund_payment_from_candidate_auto_creates_unknown_fund() {
+async fn create_multiple_from_candidates_auto_creates_unknown_fund() {
     let pool = setup_pool().await;
     let ctx = build_ctx(&pool);
 
@@ -593,15 +593,19 @@ async fn create_fund_payment_from_candidate_auto_creates_unknown_fund() {
 
     let group = ctx
         .orchestrator
-        .create_fund_payment_from_candidate(
-            "CPAM n° 75".to_string(),
-            chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-            100_000,
-            vec![proc.id.clone()],
-            Some(100_000),
-        )
+        .create_multiple_from_candidates(vec![
+            patient_manager_app::context::fund::FundPaymentGroupCandidate {
+                fund_label: "CPAM n° 75".to_string(),
+                payment_date: chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                total_amount: 100_000,
+                procedure_ids: vec![proc.id.clone()],
+                matched_amount: 100_000,
+                is_fully_covered: true,
+            },
+        ])
         .await
-        .unwrap();
+        .unwrap()
+        .remove(0);
 
     assert_eq!(group.total_amount, 100_000);
     assert_eq!(group.lines.len(), 1);
@@ -907,4 +911,177 @@ async fn test_fpa_075_a_validation_that_cannot_complete_writes_nothing() {
         serde_json::json!({ "code": "TotalAmountNotPositive" }),
     );
     assert!(ctx.fund_service.read_all_funds().await.unwrap().is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// FPA-076 — a validation is written as a whole, or not at all
+//
+// The group names a procedure that does not exist: its line is refused by the
+// database, after the corrections, the patient, the procedure and the fund of
+// the same validation were written on the same transaction.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn test_fpa_076_a_validation_whose_last_write_fails_keeps_nothing() {
+    let pool = setup_pool().await;
+    let ctx = build_ctx(&pool);
+    let payment_date = chrono::NaiveDate::from_ymd_opt(2026, 8, 26).unwrap();
+    let pt = ctx
+        .procedure_type_service
+        .add_procedure_type("Consultation".to_string(), 100_000, None)
+        .await
+        .unwrap();
+    let patient = ctx
+        .patient_service
+        .create_patient(
+            Some("Known PATIENT".to_string()),
+            Some("3333333333333".to_string()),
+        )
+        .await
+        .unwrap();
+    let existing = ctx
+        .procedure_service
+        .create_procedure(
+            patient.id.clone(),
+            None,
+            pt.id.clone(),
+            payment_date,
+            100_000,
+            PaymentMethod::None,
+            None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap();
+    let request = || CreateFundPaymentWithAutoCorrectionsRequest {
+        candidates: vec![
+            patient_manager_app::context::fund::FundPaymentGroupCandidate {
+                fund_label: "CPAM n° 941".to_string(),
+                payment_date,
+                total_amount: 98_400,
+                procedure_ids: vec![existing.id.clone(), "no-such-procedure".to_string()],
+                matched_amount: 98_400,
+                is_fully_covered: true,
+            },
+        ],
+        auto_corrections: vec![
+            AutoCorrection::AmountMismatch {
+                procedure_id: existing.id.clone(),
+                pdf_amount: 60_000,
+            },
+            AutoCorrection::CreateProcedure {
+                ssn: "1111111111111".to_string(),
+                patient_name: "NEW PATIENT".to_string(),
+                procedure_date: payment_date,
+                payment_date,
+                billed_amount: 38_400,
+                pdf_fund_label: "CPAM n° 941".to_string(),
+            },
+        ],
+    };
+
+    // Twice, as a user who clicks again: no attempt may leave anything behind.
+    for attempt in 1..=2 {
+        let err = create_fund_payment_with_auto_corrections_fn(
+            request(),
+            ctx.patient_service.clone(),
+            ctx.orchestrator.clone(),
+        )
+        .await
+        .expect_err("a line on a procedure that does not exist cannot be written");
+        assert_eq!(
+            serde_json::to_value(&err).unwrap(),
+            serde_json::json!({ "code": "DatabaseError" }),
+            "attempt {attempt}"
+        );
+
+        let procedures = ctx.procedure_service.read_all_procedures().await.unwrap();
+        assert_eq!(
+            procedures.len(),
+            1,
+            "attempt {attempt}: a procedure was created"
+        );
+        assert_eq!(
+            procedures[0].billed_amount, 100_000,
+            "attempt {attempt}: the amount correction was kept"
+        );
+        assert!(
+            matches!(procedures[0].payment_status, ProcedureStatus::Created),
+            "attempt {attempt}: the procedure was reconciled"
+        );
+        assert!(
+            ctx.fund_service.read_all_funds().await.unwrap().is_empty(),
+            "attempt {attempt}: a fund was created"
+        );
+        assert_eq!(
+            ctx.patient_service.get_all_patients().await.unwrap().len(),
+            1,
+            "attempt {attempt}: a patient was created"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FPA-250 + FPA-076 — a created procedure, its new patient and its new fund
+// are committed with their group
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn test_fpa_250_a_created_procedure_is_committed_with_its_patient_fund_and_group() {
+    let pool = setup_pool().await;
+    let ctx = build_ctx(&pool);
+    let payment_date = chrono::NaiveDate::from_ymd_opt(2026, 8, 26).unwrap();
+
+    let groups = create_fund_payment_with_auto_corrections_fn(
+        CreateFundPaymentWithAutoCorrectionsRequest {
+            candidates: vec![
+                patient_manager_app::context::fund::FundPaymentGroupCandidate {
+                    fund_label: "CPAM n° 941".to_string(),
+                    payment_date,
+                    total_amount: 38_400,
+                    procedure_ids: vec![],
+                    matched_amount: 0,
+                    is_fully_covered: false,
+                },
+            ],
+            auto_corrections: vec![AutoCorrection::CreateProcedure {
+                ssn: "1111111111111".to_string(),
+                patient_name: "NEW PATIENT".to_string(),
+                procedure_date: payment_date,
+                payment_date,
+                billed_amount: 38_400,
+                pdf_fund_label: "CPAM n° 941".to_string(),
+            }],
+        },
+        ctx.patient_service.clone(),
+        ctx.orchestrator.clone(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(groups.len(), 1);
+    let procedures = ctx.procedure_service.read_all_procedures().await.unwrap();
+    assert_eq!(procedures.len(), 1);
+    let created = &procedures[0];
+    assert_eq!(groups[0].lines[0].procedure_id, created.id);
+    assert_eq!(created.procedure_type_id, "import-pdf");
+    assert!(matches!(
+        created.payment_status,
+        ProcedureStatus::Reconciled
+    ));
+    assert_eq!(created.paid_amount, Some(38_400));
+    assert_eq!(created.fund_reconciliation_date, Some(payment_date));
+    let fund = ctx
+        .fund_service
+        .find_fund_by_identifier("941")
+        .await
+        .unwrap()
+        .expect("the fund of the statement");
+    assert_eq!(created.fund_id.as_deref(), Some(fund.id.as_str()));
+    assert_eq!(groups[0].fund_id, fund.id);
+    let patients = ctx.patient_service.get_all_patients().await.unwrap();
+    assert_eq!(patients.len(), 1);
+    assert_eq!(created.patient_id, patients[0].id);
 }

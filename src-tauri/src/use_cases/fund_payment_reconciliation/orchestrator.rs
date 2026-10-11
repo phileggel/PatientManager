@@ -5,13 +5,25 @@ use std::sync::Arc;
 use super::dto::AutoCorrection;
 use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use super::fund_label::{fund_identifier_of, loggable_fund_identifier};
+use super::uow::StatementValidationTransactionManager;
 use crate::context::fund::{
-    FundError, FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentService, FundService,
+    Fund, FundError, FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentLine,
+    FundPaymentService, FundService,
 };
-use crate::context::patient::PatientService;
-use crate::context::procedure::{Procedure, ProcedureService, ProcedureStatus};
-use crate::shared::event_bus::{EventBus, FundPaymentGroupUpdated, ProcedureUpdated};
+use crate::context::patient::{Patient, PatientService};
+use crate::context::procedure::{PaymentMethod, Procedure, ProcedureService, ProcedureStatus};
 use crate::shared::logger::BACKEND;
+
+/// Everything a validation will write, decided before the first write so that
+/// it is written on one transaction (FPA-076).
+#[derive(Default)]
+struct ValidationPlan {
+    new_funds: Vec<Fund>,
+    new_patients: Vec<Patient>,
+    patients_to_update: Vec<Patient>,
+    new_procedures: Vec<Procedure>,
+    procedures_to_update: HashMap<String, Procedure>,
+}
 
 /// Statistics from correction processing
 #[derive(Default, Debug)]
@@ -46,11 +58,14 @@ fn ensure_totals_are_positive(
 /// 1. Resolve fund labels (e.g., "CPAM n° 931") to fund IDs
 /// 2. Create FundPaymentGroups
 /// 3. Update procedures with reconciliation status
+///
+/// A validation reads, plans every write, then writes them on one unit of work
+/// (FPA-076, ADR-003).
 pub struct FundPaymentReconciliationOrchestrator {
     fund_service: Arc<FundService>,
     procedure_service: Arc<ProcedureService>,
     fund_payment_service: Arc<FundPaymentService>,
-    event_bus: Arc<EventBus>,
+    validation: Arc<dyn StatementValidationTransactionManager>,
 }
 
 impl FundPaymentReconciliationOrchestrator {
@@ -58,28 +73,28 @@ impl FundPaymentReconciliationOrchestrator {
         fund_service: Arc<FundService>,
         procedure_service: Arc<ProcedureService>,
         fund_payment_service: Arc<FundPaymentService>,
-        event_bus: Arc<EventBus>,
+        validation: Arc<dyn StatementValidationTransactionManager>,
     ) -> Self {
         Self {
             fund_service,
             procedure_service,
             fund_payment_service,
-            event_bus,
+            validation,
         }
     }
 
-    /// Resolve fund label (e.g., "CPAM n° 931") to fund ID, creating the fund if not found
+    /// The fund a label names (e.g., "CPAM n° 931"): the existing one, the one
+    /// this validation already plans to create, or a new one added to the plan.
     ///
-    /// Strategy: Extract the fund number from the label and match it against fund identifiers.
-    /// If no fund exists, create one automatically.
-    async fn resolve_fund_id(
+    /// The fund number of the label is matched against the fund identifiers; a
+    /// label without a number is its own identifier (e.g., "MGEN").
+    async fn plan_fund_id(
         &self,
+        plan: &mut ValidationPlan,
         fund_label: &str,
     ) -> Result<String, FundPaymentReconciliationError> {
-        // The fund number ("n° XXX"), or the full label when it carries none (e.g., "MGEN")
         let fund_identifier = fund_identifier_of(fund_label);
 
-        // Search for existing fund by identifier
         if let Some(fund) = self
             .fund_service
             .find_fund_by_identifier(&fund_identifier)
@@ -88,17 +103,22 @@ impl FundPaymentReconciliationOrchestrator {
             tracing::debug!(fund_identifier = loggable_fund_identifier(fund_label), fund_id = %fund.id, "Resolved fund label to fund ID");
             return Ok(fund.id);
         }
+        if let Some(fund) = plan
+            .new_funds
+            .iter()
+            .find(|fund| fund.fund_identifier == fund_identifier)
+        {
+            return Ok(fund.id.clone());
+        }
 
-        // Fund not found, create it
         tracing::info!(
             fund_identifier = loggable_fund_identifier(fund_label),
             "Fund not found by identifier, creating new fund"
         );
-        let fund = self
-            .fund_service
-            .create_fund(fund_identifier, fund_label.to_string())
-            .await?;
-        Ok(fund.id)
+        let fund = Fund::new(fund_identifier, fund_label.to_string())?;
+        let fund_id = fund.id.clone();
+        plan.new_funds.push(fund);
+        Ok(fund_id)
     }
 
     /// Return `true` iff every supplied candidate corresponds to an existing
@@ -170,98 +190,14 @@ impl FundPaymentReconciliationOrchestrator {
         Ok(None)
     }
 
-    /// Create fund payment group and update procedures with reconciliation data
-    ///
-    /// This method is called by batch reconciliation operations that manage event publishing.
-    /// Events are suppressed during processing and published once by the orchestrator at the end.
-    pub async fn create_fund_payment_from_candidate(
+    /// Which candidates already exist as a fund-payment group, in their order.
+    async fn duplicate_flags(
         &self,
-        fund_label: String,
-        payment_date: NaiveDate,
-        total_amount: i64,
-        procedure_ids: Vec<String>,
-        paid_amount: Option<i64>,
-    ) -> Result<FundPaymentGroup, FundPaymentReconciliationError> {
-        let payment_date_iso = payment_date.format("%Y-%m-%d").to_string();
-
-        tracing::info!(
-            fund_identifier = loggable_fund_identifier(&fund_label),
-            payment_date = %payment_date_iso,
-            procedure_count = procedure_ids.len(),
-            "Creating fund payment group from reconciliation candidate"
-        );
-
-        // Step 1: Resolve fund label to fund ID
-        let fund_id = self.resolve_fund_id(&fund_label).await?;
-
-        // Step 2: Create fund payment group (silent - orchestrator will batch publish)
-        let group = self
-            .fund_payment_service
-            .create_group(
-                fund_id.clone(),
-                payment_date_iso.clone(),
-                total_amount,
-                procedure_ids.clone(),
-                true,
-            )
-            .await?;
-
-        tracing::info!(group_id = %group.id, "Fund payment group created");
-
-        // Step 3: Update procedures with reconciliation status (silent - orchestrator will batch publish)
-        let procedures_to_update = self
-            .procedure_service
-            .read_procedures_by_ids(procedure_ids.clone())
-            .await?;
-
-        // FPA-300 — auto-reconciliation sets Stage 1 fund_reconciliation_date.
-        let updated_procedures: Vec<_> = procedures_to_update
-            .into_iter()
-            .map(|mut procedure| {
-                procedure.payment_status = ProcedureStatus::Reconciled;
-                procedure.paid_amount = paid_amount;
-                procedure.fund_reconciliation_date = Some(payment_date);
-                procedure
-            })
-            .collect();
-
-        self.procedure_service
-            .update_procedures_batch(updated_procedures, true)
-            .await?;
-
-        tracing::info!(
-            group_id = %group.id,
-            procedure_count = procedure_ids.len(),
-            "Updated procedures with reconciliation status (batch)"
-        );
-
-        tracing::info!(
-            group_id = %group.id,
-            procedure_count = group.lines.len(),
-            "Reconciliation orchestration complete"
-        );
-
-        Ok(group)
-    }
-
-    /// Create multiple fund payment groups from reconciliation candidates (batch operation)
-    ///
-    /// This method handles the complete batch workflow:
-    /// 1. Checks for duplicates
-    /// 2. Resolves all fund labels to fund IDs
-    /// 3. Creates all fund payment groups atomically (single transaction)
-    /// 4. Updates all procedures with reconciliation status (single batch)
-    /// 5. Publishes events once at the end
-    pub async fn create_multiple_from_candidates(
-        &self,
-        candidates: Vec<FundPaymentGroupCandidate>,
-    ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
-        ensure_totals_are_positive(&candidates)?;
-
-        // Step 1: Check for duplicates (single pass — results reused in Step 2)
-        let mut duplicate_flags = Vec::with_capacity(candidates.len());
-        for candidate in &candidates {
-            duplicate_flags.push(
+        candidates: &[FundPaymentGroupCandidate],
+    ) -> Result<Vec<bool>, FundPaymentReconciliationError> {
+        let mut flags = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            flags.push(
                 self.is_duplicate_candidate(
                     &candidate.fund_label,
                     candidate.payment_date,
@@ -270,59 +206,42 @@ impl FundPaymentReconciliationOrchestrator {
                 .await?,
             );
         }
+        Ok(flags)
+    }
 
-        let duplicate_count = duplicate_flags.iter().filter(|&&d| d).count();
-        if !candidates.is_empty() && duplicate_count == candidates.len() {
-            return Err(FundPaymentReconciliationTask::AllDuplicates {
-                count: duplicate_count,
-            }
-            .into());
-        }
-
-        // Step 2: Filter non-duplicates and resolve fund IDs
-        // duplicate_flags[i] corresponds to candidates[i] — both built in the same loop order above
-        let mut batch_data = Vec::new();
-        let mut all_procedure_ids = Vec::new();
-
+    /// Build the group of every candidate that is not a duplicate, and add the
+    /// reconciliation of their procedures to the plan. Nothing is written.
+    ///
+    /// `duplicate_flags[i]` is the flag of `candidates[i]`. With
+    /// `keep_contested`, a procedure a contest correction left
+    /// `PartiallyReconciled` keeps its status and its paid amount.
+    async fn plan_groups(
+        &self,
+        plan: &mut ValidationPlan,
+        candidates: Vec<FundPaymentGroupCandidate>,
+        duplicate_flags: Vec<bool>,
+        keep_contested: bool,
+    ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
+        let mut groups = Vec::new();
         for (candidate, is_duplicate) in candidates.into_iter().zip(duplicate_flags) {
             if is_duplicate {
                 continue;
             }
-
-            // Resolve fund label to fund ID
-            let fund_id = self.resolve_fund_id(&candidate.fund_label).await?;
-
+            let fund_id = self.plan_fund_id(plan, &candidate.fund_label).await?;
             let iso_date = candidate.payment_date.format("%Y-%m-%d").to_string();
-
-            // Track all procedures for status update
-            all_procedure_ids.extend(candidate.procedure_ids.iter().cloned());
-
-            // Collect batch data for atomic creation
-            batch_data.push((
-                fund_id,
-                iso_date,
-                candidate.total_amount,
-                candidate.procedure_ids,
-            ));
+            let mut group =
+                FundPaymentGroup::new(fund_id, iso_date, candidate.total_amount, vec![])?;
+            group.lines = candidate
+                .procedure_ids
+                .iter()
+                .map(|procedure_id| FundPaymentLine::new(group.id.clone(), procedure_id.clone()))
+                .collect::<Result<Vec<_>, _>>()?;
+            groups.push(group);
         }
 
-        if batch_data.is_empty() {
-            return Err(FundPaymentReconciliationTask::NoValidCandidates.into());
-        }
-
-        // Step 3: Create all groups atomically (single transaction)
-        let created_groups = self
-            .fund_payment_service
-            .create_groups_batch(batch_data, true) // is_silent=true, orchestrator will emit event
-            .await?;
-
-        tracing::info!(
-            count = created_groups.len(),
-            "Fund payment groups created atomically (batch)"
-        );
-
-        // Step 4: Update all procedures with reconciliation status (single batch)
-        let procedure_date_map: HashMap<String, NaiveDate> = created_groups
+        // FPA-300 — Stage 1 reconciliation sets fund_reconciliation_date (the
+        // group's payment_date), not the bank-side confirmed date.
+        let date_of: HashMap<String, NaiveDate> = groups
             .iter()
             .flat_map(|g| {
                 g.lines
@@ -331,86 +250,117 @@ impl FundPaymentReconciliationOrchestrator {
             })
             .collect();
 
-        let procedures_to_update = self
-            .procedure_service
-            .read_procedures_by_ids(all_procedure_ids)
-            .await?;
-
-        let updated_procedures: Vec<_> = procedures_to_update
-            .into_iter()
-            .map(|mut procedure| {
-                procedure.payment_status = ProcedureStatus::Reconciled;
-                procedure.paid_amount = Some(procedure.billed_amount);
-                // FPA-300 — Stage 1 reconciliation sets fund_reconciliation_date
-                // (the group's payment_date), not the bank-side confirmed date.
-                procedure.fund_reconciliation_date = procedure_date_map.get(&procedure.id).copied();
-                procedure
+        // The procedures the plan does not hold yet are read; the others carry
+        // their corrections, or are still to be created.
+        let to_read: Vec<String> = date_of
+            .keys()
+            .filter(|id| {
+                !plan.procedures_to_update.contains_key(*id)
+                    && !plan.new_procedures.iter().any(|p| &p.id == *id)
             })
+            .cloned()
             .collect();
-
-        self.procedure_service
-            .update_procedures_batch(updated_procedures, true)
-            .await?;
-
-        tracing::info!(
-            count = created_groups.len(),
-            procedure_count = created_groups.iter().map(|g| g.lines.len()).sum::<usize>(),
-            "Updated all procedures with reconciliation status (batch)"
-        );
-
-        // Step 5: Publish events (data already persisted to database)
-        if !created_groups.is_empty() {
-            let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
-            let _ = self
-                .event_bus
-                .publish::<FundPaymentGroupUpdated>(FundPaymentGroupUpdated);
+        if !to_read.is_empty() {
+            for procedure in self
+                .procedure_service
+                .read_procedures_by_ids(to_read)
+                .await?
+            {
+                plan.procedures_to_update
+                    .insert(procedure.id.clone(), procedure);
+            }
         }
 
-        // Step 6: Verify integrity of all created groups (SINGLE POINT OF TRUTH)
-        // Verification happens AFTER events are published, since data is already persisted
-        self.verify_created_groups(&created_groups).await;
+        for procedure in plan
+            .new_procedures
+            .iter_mut()
+            .chain(plan.procedures_to_update.values_mut())
+        {
+            let Some(payment_date) = date_of.get(&procedure.id) else {
+                continue; // corrected, in no group
+            };
+            procedure.fund_reconciliation_date = Some(*payment_date);
+            let contested = procedure.payment_status == ProcedureStatus::PartiallyReconciled;
+            if !(keep_contested && contested) {
+                procedure.payment_status = ProcedureStatus::Reconciled;
+                procedure.paid_amount = Some(procedure.billed_amount);
+            }
+        }
 
-        Ok(created_groups)
+        Ok(groups)
     }
 
-    /// Create multiple fund payment groups with auto-corrections (batch operation)
+    /// Write a plan and its groups on one unit of work: all of it, or none
+    /// (FPA-076). Listeners are told once it is committed.
+    async fn write(
+        &self,
+        plan: ValidationPlan,
+        groups: &[FundPaymentGroup],
+        patient_service: Option<&PatientService>,
+    ) -> Result<(), FundPaymentReconciliationError> {
+        let ValidationPlan {
+            new_funds,
+            new_patients,
+            patients_to_update,
+            new_procedures,
+            procedures_to_update,
+        } = plan;
+        let procedures_to_update: Vec<Procedure> = procedures_to_update.into_values().collect();
+        let funds_created = !new_funds.is_empty();
+        let patients_changed = !(new_patients.is_empty() && patients_to_update.is_empty());
+        let groups_to_write = groups.to_vec();
+
+        self.validation
+            .run(Box::new(move |uow| {
+                Box::pin(async move {
+                    uow.create_funds(&new_funds).await?;
+                    uow.create_patients(&new_patients).await?;
+                    uow.create_procedures(&new_procedures).await?;
+                    uow.update_procedures(&procedures_to_update).await?;
+                    uow.update_patients(&patients_to_update).await?;
+                    uow.create_groups(&groups_to_write).await
+                })
+            }))
+            .await
+            // The operation makes database writes only — every refusal of the
+            // domain was met while planning — so its failure is a database error.
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "statement validation: unit of work failed, nothing was written");
+                FundPaymentReconciliationTask::DatabaseError
+            })?;
+
+        tracing::info!(
+            count = groups.len(),
+            procedure_count = groups.iter().map(|g| g.lines.len()).sum::<usize>(),
+            "Fund payment groups created and their procedures reconciled (one unit of work)"
+        );
+
+        if funds_created {
+            self.fund_service.notify_funds_updated();
+        }
+        if patients_changed {
+            if let Some(patient_service) = patient_service {
+                patient_service.notify_patients_updated();
+            }
+        }
+        self.procedure_service.notify_procedures_updated();
+        self.fund_payment_service.notify_group_updated();
+        Ok(())
+    }
+
+    /// Create multiple fund payment groups from reconciliation candidates (batch operation)
     ///
-    /// This method handles the complete batch workflow with corrections:
-    /// 1. Checks for duplicate groups — bails with no DB writes if every
-    ///    candidate is a duplicate. Order matters: this runs BEFORE
-    ///    `apply_auto_corrections` so a re-imported PDF cannot silently
-    ///    mutate procedure rows (or create new patients/procedures) on its
-    ///    way to a guaranteed rejection.
-    /// 2. Applies auto-corrections to procedures
-    /// 3. Integrates newly created procedures into candidates
-    /// 4. Creates all fund payment groups atomically (single transaction)
-    /// 5. Updates procedures with reconciliation status (single batch)
-    /// 6. Publishes events once at the end
-    ///
-    /// Long-term, steps 2–5 should commit or roll back as a single Unit of
-    /// Work (per ADR-003 / the UoW item in `docs/todo.md` DDD Convergence),
-    /// closing the mixed-case + step-3-to-5 partial-failure surface.
-    pub async fn create_multiple_with_auto_corrections(
+    /// 1. Checks for duplicates
+    /// 2. Plans the funds to create, the groups and the reconciliation of
+    ///    their procedures
+    /// 3. Writes the plan on one unit of work (FPA-076), then tells listeners
+    pub async fn create_multiple_from_candidates(
         &self,
         candidates: Vec<FundPaymentGroupCandidate>,
-        auto_corrections: Vec<super::dto::AutoCorrection>,
-        patient_service: Arc<PatientService>,
     ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
         ensure_totals_are_positive(&candidates)?;
 
-        // Step 1: Check for duplicates BEFORE any DB writes
-        let mut duplicate_flags = Vec::with_capacity(candidates.len());
-        for candidate in &candidates {
-            duplicate_flags.push(
-                self.is_duplicate_candidate(
-                    &candidate.fund_label,
-                    candidate.payment_date,
-                    candidate.total_amount,
-                )
-                .await?,
-            );
-        }
-
+        let duplicate_flags = self.duplicate_flags(&candidates).await?;
         let duplicate_count = duplicate_flags.iter().filter(|&&d| d).count();
         if !candidates.is_empty() && duplicate_count == candidates.len() {
             return Err(FundPaymentReconciliationTask::AllDuplicates {
@@ -419,14 +369,55 @@ impl FundPaymentReconciliationOrchestrator {
             .into());
         }
 
-        // Step 2: Apply auto-corrections (only reachable when at least one
-        // non-duplicate candidate exists, so no writes happen on a fully
-        // duplicate batch).
+        let mut plan = ValidationPlan::default();
+        let groups = self
+            .plan_groups(&mut plan, candidates, duplicate_flags, false)
+            .await?;
+        if groups.is_empty() {
+            return Err(FundPaymentReconciliationTask::NoValidCandidates.into());
+        }
+
+        self.write(plan, &groups, None).await?;
+
+        // Verify integrity of all created groups (SINGLE POINT OF TRUTH), once
+        // the data is committed.
+        self.verify_created_groups(&groups).await;
+
+        Ok(groups)
+    }
+
+    /// Create multiple fund payment groups with auto-corrections (batch operation)
+    ///
+    /// 1. Checks for duplicate groups — bails if every candidate is a
+    ///    duplicate, so a re-imported PDF changes nothing.
+    /// 2. Plans the auto-corrections (corrected, created and linked
+    ///    procedures, created and corrected patients, created funds)
+    /// 3. Adds the created and linked procedures to their candidates
+    /// 4. Plans the groups and the reconciliation of their procedures
+    /// 5. Writes the plan on one unit of work — all of it, or none
+    ///    (FPA-076) — then tells listeners
+    pub async fn create_multiple_with_auto_corrections(
+        &self,
+        candidates: Vec<FundPaymentGroupCandidate>,
+        auto_corrections: Vec<super::dto::AutoCorrection>,
+        patient_service: Arc<PatientService>,
+    ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
+        ensure_totals_are_positive(&candidates)?;
+
+        let duplicate_flags = self.duplicate_flags(&candidates).await?;
+        let duplicate_count = duplicate_flags.iter().filter(|&&d| d).count();
+        if !candidates.is_empty() && duplicate_count == candidates.len() {
+            return Err(FundPaymentReconciliationTask::AllDuplicates {
+                count: duplicate_count,
+            }
+            .into());
+        }
+
+        let mut plan = ValidationPlan::default();
         let created_procs = self
-            .apply_auto_corrections(auto_corrections, patient_service)
+            .plan_auto_corrections(&mut plan, &auto_corrections, &patient_service)
             .await?;
 
-        // Step 3: Integrate newly created procedures into candidates
         let mut candidates = candidates;
         for (fund_label, payment_date, proc_id) in created_procs {
             if let Some(candidate) = candidates
@@ -443,102 +434,20 @@ impl FundPaymentReconciliationOrchestrator {
             }
         }
 
-        // Step 4: Filter non-duplicates and resolve fund IDs (build batch data)
-        // duplicate_flags[i] corresponds to candidates[i] — both built in the same loop order above
-        let mut batch_data = Vec::new();
-        let mut all_procedure_ids = Vec::new();
-
-        for (candidate, is_duplicate) in candidates.into_iter().zip(duplicate_flags) {
-            if is_duplicate {
-                continue;
-            }
-
-            // Resolve fund label to fund ID
-            let fund_id = self.resolve_fund_id(&candidate.fund_label).await?;
-
-            let iso_date = candidate.payment_date.format("%Y-%m-%d").to_string();
-
-            // Track all procedures for status update
-            all_procedure_ids.extend(candidate.procedure_ids.iter().cloned());
-
-            // Collect batch data for atomic creation
-            batch_data.push((
-                fund_id,
-                iso_date,
-                candidate.total_amount,
-                candidate.procedure_ids,
-            ));
-        }
-
-        if batch_data.is_empty() {
+        // Contested procedures (PartiallyReconciled) already carry their status
+        // and paid amount from the contest correction: they keep them.
+        let groups = self
+            .plan_groups(&mut plan, candidates, duplicate_flags, true)
+            .await?;
+        if groups.is_empty() {
             return Err(FundPaymentReconciliationTask::NoValidCandidatesAfterCorrections.into());
         }
 
-        // Step 5: Create all groups atomically (single transaction)
-        let created_groups = self
-            .fund_payment_service
-            .create_groups_batch(batch_data, true) // is_silent=true, orchestrator will emit event
-            .await?;
+        self.write(plan, &groups, Some(&patient_service)).await?;
 
-        tracing::info!(
-            count = created_groups.len(),
-            "Fund payment groups created atomically (batch) after auto-corrections"
-        );
+        self.verify_created_groups(&groups).await;
 
-        // Step 6: Update all procedures with reconciliation status (single batch)
-        // Contested procedures (PartiallyReconciled) already have status + paid_amount
-        // set by apply_update_corrections — preserve them; update all others normally.
-        let procedure_date_map: HashMap<String, NaiveDate> = created_groups
-            .iter()
-            .flat_map(|g| {
-                g.lines
-                    .iter()
-                    .map(move |l| (l.procedure_id.clone(), g.payment_date))
-            })
-            .collect();
-
-        let procedures_to_update = self
-            .procedure_service
-            .read_procedures_by_ids(all_procedure_ids)
-            .await?;
-
-        let updated_procedures: Vec<_> = procedures_to_update
-            .into_iter()
-            .map(|mut procedure| {
-                // FPA-300 — Stage 1 reconciliation sets fund_reconciliation_date.
-                procedure.fund_reconciliation_date = procedure_date_map.get(&procedure.id).copied();
-                if procedure.payment_status != ProcedureStatus::PartiallyReconciled {
-                    // Contest correction already set paid_amount and status — keep them
-                    procedure.payment_status = ProcedureStatus::Reconciled;
-                    procedure.paid_amount = Some(procedure.billed_amount);
-                }
-                procedure
-            })
-            .collect();
-
-        self.procedure_service
-            .update_procedures_batch(updated_procedures, true)
-            .await?;
-
-        tracing::info!(
-            count = created_groups.len(),
-            procedure_count = created_groups.iter().map(|g| g.lines.len()).sum::<usize>(),
-            "Updated all procedures with reconciliation status (batch)"
-        );
-
-        // Step 7: Publish events (data already persisted to database)
-        if !created_groups.is_empty() {
-            let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
-            let _ = self
-                .event_bus
-                .publish::<FundPaymentGroupUpdated>(FundPaymentGroupUpdated);
-        }
-
-        // Step 8: Verify integrity of all created groups (SINGLE POINT OF TRUTH)
-        // Verification happens AFTER events are published, since data is already persisted
-        self.verify_created_groups(&created_groups).await;
-
-        Ok(created_groups)
+        Ok(groups)
     }
 
     /// Verify integrity of created fund payment groups (non-blocking)
@@ -645,51 +554,39 @@ impl FundPaymentReconciliationOrchestrator {
         Ok(())
     }
 
-    /// Apply auto-corrections for reconciliation anomalies (batched)
+    /// Plan the auto-corrections of the anomalies: nothing is written here.
     ///
-    /// Orchestrates the application of all correction types:
-    /// 1. Apply update corrections (amount/fund/date) in a single batch
-    /// 2. Apply creation corrections (new procedures)
-    /// 3. Apply link corrections (existing procedures + SSN update)
-    /// 4. Log summary statistics
+    /// 1. Update corrections (amount, fund, date, contest)
+    /// 2. Creation corrections (new procedures, and their patient when unknown)
+    /// 3. Link corrections (existing procedures, their patient's SSN)
     ///
-    /// Returns a list of (fund_label, payment_date, procedure_id) for newly created/linked procedures
-    pub async fn apply_auto_corrections(
+    /// Returns (fund_label, payment_date, procedure_id) for each created or linked procedure.
+    async fn plan_auto_corrections(
         &self,
-        auto_corrections: Vec<AutoCorrection>,
-        patient_service: Arc<PatientService>,
+        plan: &mut ValidationPlan,
+        auto_corrections: &[AutoCorrection],
+        patient_service: &PatientService,
     ) -> Result<Vec<(String, NaiveDate, String)>, FundPaymentReconciliationError> {
         let total_corrections = auto_corrections.len();
-        tracing::info!(
-            correction_count = total_corrections,
-            "Starting to apply auto-corrections for anomalies"
-        );
 
-        // Step 1: Apply update corrections (amount/fund/date) in batch
-        let update_stats = self
-            .apply_update_corrections(auto_corrections.clone())
-            .await?;
-
-        // Step 2: Apply creation corrections (new procedures)
+        let update_stats = self.plan_update_corrections(plan, auto_corrections).await?;
         let created_procedures = self
-            .apply_create_corrections(auto_corrections.clone(), patient_service.clone())
+            .plan_create_corrections(plan, auto_corrections, patient_service)
             .await?;
-
-        // Step 3: Apply link corrections (existing procedures + SSN update)
         let linked_procedures = self
-            .apply_link_corrections(auto_corrections, patient_service)
+            .plan_link_corrections(plan, auto_corrections, patient_service)
             .await?;
 
-        // Step 4: Log summary
         tracing::info!(
             total_corrections = total_corrections,
             amount_corrections = update_stats.amount_corrections,
             fund_corrections = update_stats.fund_corrections,
             date_corrections = update_stats.date_corrections,
             contest_corrections = update_stats.contest_corrections,
+            corrected_procedures = update_stats.procedure_count,
             created_procedures = created_procedures.len(),
             linked_procedures = linked_procedures.len(),
-            "Auto-corrections completed"
+            "Auto-corrections planned"
         );
 
         let mut all_results = created_procedures;
@@ -697,62 +594,46 @@ impl FundPaymentReconciliationOrchestrator {
         Ok(all_results)
     }
 
-    /// Apply update corrections (amount, fund, date) in a single batch
-    ///
-    /// Strategy:
-    /// 1. Collect all procedure IDs that need updating
-    /// 2. Batch load all procedures with read_procedures_by_ids() (single DB call)
-    /// 3. Iterate corrections once, applying them directly to cached procedures
-    /// 4. Batch update procedures once with is_silent=true (no events emitted)
-    ///
-    /// Returns: Correction statistics
-    async fn apply_update_corrections(
+    /// Plan the update corrections (amount, fund, date, contest): the
+    /// procedures are read once and corrected in the plan.
+    async fn plan_update_corrections(
         &self,
-        auto_corrections: Vec<AutoCorrection>,
+        plan: &mut ValidationPlan,
+        auto_corrections: &[AutoCorrection],
     ) -> Result<CorrectionStats, FundPaymentReconciliationError> {
         use std::collections::HashSet;
 
-        // Step 1: Collect all procedure IDs that need updating
-        let mut procedure_ids_to_load = HashSet::new();
-
-        for correction in &auto_corrections {
-            match correction {
+        let procedure_ids: HashSet<String> = auto_corrections
+            .iter()
+            .filter_map(|correction| match correction {
                 AutoCorrection::AmountMismatch { procedure_id, .. }
                 | AutoCorrection::FundMismatch { procedure_id, .. }
                 | AutoCorrection::DateMismatch { procedure_id, .. }
-                | AutoCorrection::ContestAmount { procedure_id, .. } => {
-                    procedure_ids_to_load.insert(procedure_id.clone());
-                }
-                _ => {} // Skip other correction types
-            }
-        }
-
-        // Return early if no update corrections
-        if procedure_ids_to_load.is_empty() {
+                | AutoCorrection::ContestAmount { procedure_id, .. } => Some(procedure_id.clone()),
+                _ => None,
+            })
+            .collect();
+        if procedure_ids.is_empty() {
             return Ok(CorrectionStats::default());
         }
 
-        // Step 2: Batch load all procedures (single DB call)
-        let procedure_ids: Vec<String> = procedure_ids_to_load.into_iter().collect();
-        let mut procedures_to_update = self
+        let mut procedures: HashMap<String, Procedure> = self
             .procedure_service
-            .read_procedures_by_ids(procedure_ids)
+            .read_procedures_by_ids(procedure_ids.into_iter().collect())
             .await?
             .into_iter()
             .map(|proc| (proc.id.clone(), proc))
-            .collect::<std::collections::HashMap<_, _>>();
+            .collect();
 
         let mut stats = CorrectionStats::default();
-
-        // Step 3: Iterate corrections once and apply them directly to cached procedures
         for correction in auto_corrections {
             match correction {
                 AutoCorrection::AmountMismatch {
                     procedure_id,
                     pdf_amount,
                 } => {
-                    if let Some(procedure) = procedures_to_update.get_mut(&procedure_id) {
-                        procedure.billed_amount = pdf_amount;
+                    if let Some(procedure) = procedures.get_mut(procedure_id) {
+                        procedure.billed_amount = *pdf_amount;
                         stats.amount_corrections += 1;
                     }
                 }
@@ -761,8 +642,8 @@ impl FundPaymentReconciliationOrchestrator {
                     procedure_id,
                     pdf_fund_label,
                 } => {
-                    let fund_id = self.resolve_fund_id(&pdf_fund_label).await?;
-                    if let Some(procedure) = procedures_to_update.get_mut(&procedure_id) {
+                    let fund_id = self.plan_fund_id(plan, pdf_fund_label).await?;
+                    if let Some(procedure) = procedures.get_mut(procedure_id) {
                         procedure.fund_id = Some(fund_id);
                         stats.fund_corrections += 1;
                     }
@@ -772,8 +653,8 @@ impl FundPaymentReconciliationOrchestrator {
                     procedure_id,
                     pdf_date,
                 } => {
-                    if let Some(procedure) = procedures_to_update.get_mut(&procedure_id) {
-                        procedure.procedure_date = pdf_date;
+                    if let Some(procedure) = procedures.get_mut(procedure_id) {
+                        procedure.procedure_date = *pdf_date;
                         stats.date_corrections += 1;
                     }
                 }
@@ -782,8 +663,8 @@ impl FundPaymentReconciliationOrchestrator {
                     procedure_id,
                     paid_amount,
                 } => {
-                    if let Some(procedure) = procedures_to_update.get_mut(&procedure_id) {
-                        procedure.paid_amount = Some(paid_amount);
+                    if let Some(procedure) = procedures.get_mut(procedure_id) {
+                        procedure.paid_amount = Some(*paid_amount);
                         procedure.payment_status = ProcedureStatus::PartiallyReconciled;
                         stats.contest_corrections += 1;
                     }
@@ -793,33 +674,20 @@ impl FundPaymentReconciliationOrchestrator {
             }
         }
 
-        // Step 4: Batch update all procedures (silent mode - no events emitted)
-        if !procedures_to_update.is_empty() {
-            stats.procedure_count = procedures_to_update.len();
-            let procedures: Vec<Procedure> = procedures_to_update.into_values().collect();
-            self.procedure_service
-                .update_procedures_batch(procedures, true)
-                .await?;
-            tracing::info!(
-                amount_corrections = stats.amount_corrections,
-                fund_corrections = stats.fund_corrections,
-                date_corrections = stats.date_corrections,
-                contest_corrections = stats.contest_corrections,
-                procedure_count = stats.procedure_count,
-                "Procedure corrections applied (batched, silent)"
-            );
-        }
-
+        stats.procedure_count = procedures.len();
+        plan.procedures_to_update.extend(procedures);
         Ok(stats)
     }
 
-    /// Apply link corrections (link existing procedure + update patient SSN)
+    /// Plan the link corrections: the patient of a linked procedure takes the
+    /// SSN of the PDF (the PDF is always right).
     ///
-    /// Returns: List of (fund_label, payment_date, procedure_id) for linked procedures
-    async fn apply_link_corrections(
+    /// Returns (fund_label, payment_date, procedure_id) for each linked procedure.
+    async fn plan_link_corrections(
         &self,
-        auto_corrections: Vec<AutoCorrection>,
-        patient_service: Arc<PatientService>,
+        plan: &mut ValidationPlan,
+        auto_corrections: &[AutoCorrection],
+        patient_service: &PatientService,
     ) -> Result<Vec<(String, NaiveDate, String)>, FundPaymentReconciliationError> {
         let mut result = Vec::new();
 
@@ -831,7 +699,6 @@ impl FundPaymentReconciliationOrchestrator {
                 payment_date,
             } = correction
             {
-                // Update patient SSN to PDF SSN (PDF is always right)
                 let procedures = self
                     .procedure_service
                     .read_procedures_by_ids(vec![procedure_id.clone()])
@@ -841,43 +708,30 @@ impl FundPaymentReconciliationOrchestrator {
                     if let Some(mut patient) =
                         patient_service.read_patient(&procedure.patient_id).await?
                     {
-                        patient.ssn = Some(pdf_ssn);
-                        patient_service.update_patient(patient).await?;
-                        tracing::info!(
-                            procedure_id = %procedure_id,
-                            "Patient SSN updated from PDF during LinkProcedure correction"
-                        );
+                        patient.ssn = Some(pdf_ssn.clone());
+                        plan.patients_to_update.push(patient);
                     }
                 }
 
-                result.push((pdf_fund_label, payment_date, procedure_id));
+                result.push((pdf_fund_label.clone(), *payment_date, procedure_id.clone()));
             }
         }
 
         Ok(result)
     }
 
-    /// Apply creation corrections (new procedures)
+    /// Plan the creation corrections: a procedure for each, with its patient
+    /// (found by SSN, already planned, or new) and its fund.
     ///
-    /// Strategy:
-    /// 1. Collect procedure data for each CreateProcedure correction
-    /// 2. Handle patient resolution (find or create)
-    /// 3. Handle fund resolution
-    /// 4. Build ProcedureCandidate objects
-    /// 5. Batch create all procedures silently (no events until orchestrator publishes)
-    ///
-    /// Returns: List of (fund_label, payment_date, procedure_id) for newly created procedures
-    async fn apply_create_corrections(
+    /// Returns (fund_label, payment_date, procedure_id) for each planned procedure.
+    async fn plan_create_corrections(
         &self,
-        auto_corrections: Vec<AutoCorrection>,
-        patient_service: Arc<PatientService>,
+        plan: &mut ValidationPlan,
+        auto_corrections: &[AutoCorrection],
+        patient_service: &PatientService,
     ) -> Result<Vec<(String, NaiveDate, String)>, FundPaymentReconciliationError> {
-        use crate::context::procedure::ProcedureCandidate;
+        let mut result = Vec::new();
 
-        let mut candidates = Vec::new();
-        let mut created_info = Vec::new();
-
-        // Step 1: Collect procedure candidates and resolve patients/funds
         for correction in auto_corrections {
             if let AutoCorrection::CreateProcedure {
                 ssn,
@@ -888,53 +742,40 @@ impl FundPaymentReconciliationOrchestrator {
                 pdf_fund_label,
             } = correction
             {
-                // Find patient by SSN, or create if not found
-                let patient = match patient_service.find_patient_by_ssn(&ssn).await? {
-                    Some(p) => p,
-                    None => {
+                let known = patient_service.find_patient_by_ssn(ssn).await?;
+                let planned = plan
+                    .new_patients
+                    .iter()
+                    .find(|patient| patient.ssn.as_deref() == Some(ssn.as_str()));
+                let patient_id = match (known, planned) {
+                    (Some(patient), _) => patient.id,
+                    (None, Some(patient)) => patient.id.clone(),
+                    (None, None) => {
                         tracing::info!("Patient not found by SSN, creating new patient");
-                        patient_service
-                            .create_patient(Some(patient_name), Some(ssn.clone()))
-                            .await?
+                        let patient =
+                            Patient::new(false, Some(patient_name.clone()), Some(ssn.clone()))?;
+                        let patient_id = patient.id.clone();
+                        plan.new_patients.push(patient);
+                        patient_id
                     }
                 };
 
-                // Resolve fund label to fund ID
-                let fund_id = self.resolve_fund_id(&pdf_fund_label).await?;
+                let fund_id = self.plan_fund_id(plan, pdf_fund_label).await?;
 
-                // Build candidate for batch creation
-                let candidate = ProcedureCandidate {
-                    patient_id: patient.id.clone(),
-                    fund_id: Some(fund_id),
-                    procedure_type_id: "import-pdf".to_string(),
-                    procedure_date,
-                    billed_amount,
-                    payment_method: None,
-                    confirmed_payment_date: None,
-                    paid_amount: None,
-                    awaited_amount: None,
-                };
-
-                // Remember the fund label and payment date for the result
-                created_info.push((pdf_fund_label, payment_date));
-                candidates.push(candidate);
-            }
-        }
-
-        // Step 2: Batch create all procedures silently (no events)
-        let created_procedures = if !candidates.is_empty() {
-            self.procedure_service
-                .create_procedures_batch_from_candidates(candidates, true)
-                .await?
-        } else {
-            Vec::new()
-        };
-
-        // Step 3: Build result tuples with procedure IDs
-        let mut result = Vec::new();
-        for (i, (fund_label, payment_date)) in created_info.into_iter().enumerate() {
-            if let Some(procedure) = created_procedures.get(i) {
-                result.push((fund_label, payment_date, procedure.id.clone()));
+                let procedure = Procedure::new(
+                    patient_id,
+                    Some(fund_id),
+                    "import-pdf".to_string(),
+                    *procedure_date,
+                    *billed_amount,
+                    PaymentMethod::None,
+                    None, // fund_reconciliation_date — set with its group
+                    None,
+                    None,
+                    ProcedureStatus::None,
+                )?;
+                result.push((pdf_fund_label.clone(), *payment_date, procedure.id.clone()));
+                plan.new_procedures.push(procedure);
             }
         }
 
@@ -985,19 +826,92 @@ mod tests {
     }
 
     use crate::context::fund::{
-        Fund, FundPaymentGroupStatus, FundPaymentLine, FundRepository, FundService,
-        MockFundPaymentRepository, MockFundRepository,
+        Fund, FundRepository, FundService, MockFundPaymentRepository, MockFundRepository,
     };
     use crate::context::procedure::{
         MockProcedureRepository, PaymentMethod, Procedure, ProcedureRepository,
     };
     use crate::shared::event_bus::EventBus;
 
-    /// Build an orchestrator wired with the three repository mocks. Each test
-    /// configures only the methods it expects to hit — mockall panics on any
-    /// unconfigured call, which keeps the contract between orchestrator and
-    /// repositories explicit.
-    fn make_orchestrator(
+    use crate::context::patient::Patient;
+    use crate::use_cases::fund_payment_reconciliation::uow::{
+        StatementValidationOperation, StatementValidationUnitOfWork,
+    };
+    use std::sync::Mutex;
+
+    /// What a validation handed to its unit of work.
+    #[derive(Default, Clone)]
+    struct Written {
+        funds: Vec<Fund>,
+        patients: Vec<Patient>,
+        patients_updated: Vec<Patient>,
+        procedures: Vec<Procedure>,
+        procedures_updated: Vec<Procedure>,
+        groups: Vec<FundPaymentGroup>,
+    }
+
+    #[async_trait::async_trait]
+    impl StatementValidationUnitOfWork for Written {
+        async fn create_funds(&mut self, funds: &[Fund]) -> anyhow::Result<()> {
+            self.funds.extend_from_slice(funds);
+            Ok(())
+        }
+        async fn create_patients(&mut self, patients: &[Patient]) -> anyhow::Result<()> {
+            self.patients.extend_from_slice(patients);
+            Ok(())
+        }
+        async fn update_patients(&mut self, patients: &[Patient]) -> anyhow::Result<()> {
+            self.patients_updated.extend_from_slice(patients);
+            Ok(())
+        }
+        async fn create_procedures(&mut self, procedures: &[Procedure]) -> anyhow::Result<()> {
+            self.procedures.extend_from_slice(procedures);
+            Ok(())
+        }
+        async fn update_procedures(&mut self, procedures: &[Procedure]) -> anyhow::Result<()> {
+            self.procedures_updated.extend_from_slice(procedures);
+            Ok(())
+        }
+        async fn create_groups(&mut self, groups: &[FundPaymentGroup]) -> anyhow::Result<()> {
+            self.groups.extend_from_slice(groups);
+            Ok(())
+        }
+    }
+
+    /// A transaction manager without a database: what an operation wrote is
+    /// kept when it commits, and dropped when the commit is made to fail.
+    #[derive(Default)]
+    struct RecordingManager {
+        committed: Mutex<Option<Written>>,
+        fail_on_commit: bool,
+    }
+
+    impl RecordingManager {
+        fn committed(&self) -> Option<Written> {
+            self.committed.lock().expect("lock").clone()
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl StatementValidationTransactionManager for RecordingManager {
+        async fn run(&self, operation: StatementValidationOperation) -> anyhow::Result<()> {
+            let mut written = Written::default();
+            operation(&mut written).await?;
+            if self.fail_on_commit {
+                anyhow::bail!("the transaction did not commit");
+            }
+            *self.committed.lock().expect("lock") = Some(written);
+            Ok(())
+        }
+    }
+
+    /// Build an orchestrator wired with the three repository mocks and a
+    /// recording unit of work. Each test configures only the methods it
+    /// expects to hit — mockall panics on any unconfigured call, which keeps
+    /// the contract between orchestrator and repositories explicit: a
+    /// validation reads through them and writes through its unit of work only.
+    fn make_orchestrator_on(
+        manager: Arc<RecordingManager>,
         fund_repo: MockFundRepository,
         fund_payment_repo: MockFundPaymentRepository,
         procedure_repo: MockProcedureRepository,
@@ -1010,91 +924,103 @@ mod tests {
             bus.clone(),
         ));
         let procedure_repo_arc: Arc<dyn ProcedureRepository> = Arc::new(procedure_repo);
-        let procedure_service = Arc::new(ProcedureService::new(procedure_repo_arc, bus.clone()));
+        let procedure_service = Arc::new(ProcedureService::new(procedure_repo_arc, bus));
         FundPaymentReconciliationOrchestrator::new(
             fund_service,
             procedure_service,
             fund_payment_service,
-            bus,
+            manager,
         )
+    }
+
+    fn make_orchestrator(
+        fund_repo: MockFundRepository,
+        fund_payment_repo: MockFundPaymentRepository,
+        procedure_repo: MockProcedureRepository,
+    ) -> FundPaymentReconciliationOrchestrator {
+        make_orchestrator_on(
+            Arc::new(RecordingManager::default()),
+            fund_repo,
+            fund_payment_repo,
+            procedure_repo,
+        )
+    }
+
+    fn created_procedure(id: &str, billed_amount: i64) -> Procedure {
+        Procedure::restore(
+            id.to_string(),
+            "patient-1".to_string(),
+            Some("fund-1".to_string()),
+            "type-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            billed_amount,
+            PaymentMethod::None,
+            None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+    }
+
+    fn candidate(
+        fund_label: &str,
+        total_amount: i64,
+        procedure_ids: &[&str],
+    ) -> FundPaymentGroupCandidate {
+        FundPaymentGroupCandidate {
+            fund_label: fund_label.to_string(),
+            payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            total_amount,
+            procedure_ids: procedure_ids.iter().map(|id| id.to_string()).collect(),
+            matched_amount: total_amount,
+            is_fully_covered: true,
+        }
     }
 
     /// FPA-260 (R17) — when `fund_label` resolves to an already-existing fund
     /// (no `n°` extraction needed, exact identifier match), the orchestrator
-    /// reuses the fund and persists the group + reconciliation update.
+    /// reuses the fund: the group is the fund's and no fund is created.
     #[tokio::test]
-    async fn create_fund_payment_from_candidate_resolves_existing_fund() -> anyhow::Result<()> {
+    async fn create_multiple_from_candidates_resolves_existing_fund() -> anyhow::Result<()> {
         let mut fund_repo = MockFundRepository::new();
         fund_repo
             .expect_find_fund_by_identifier()
+            .withf(|identifier| identifier == "CPAM93")
             .returning(|identifier| {
                 Ok(Some(Fund::restore(
                     "fund-1".to_string(),
                     identifier.to_string(),
-                    "CPAM 93".to_string(),
+                    identifier.to_string(),
                 )))
             });
-
         let mut fund_payment_repo = MockFundPaymentRepository::new();
-        fund_payment_repo.expect_create_group().returning(
-            |fund_id, payment_date, total_amount, procedure_ids| {
-                let lines: Vec<FundPaymentLine> = procedure_ids
-                    .into_iter()
-                    .map(|pid| {
-                        FundPaymentLine::restore("line-1".to_string(), "group-1".to_string(), pid)
-                    })
-                    .collect();
-                Ok(FundPaymentGroup::restore(
-                    "group-1".to_string(),
-                    fund_id,
-                    NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d").unwrap(),
-                    total_amount,
-                    lines,
-                    FundPaymentGroupStatus::Active,
-                ))
-            },
-        );
-
+        fund_payment_repo
+            .expect_exists_group()
+            .returning(|_, _, _| Ok(false));
         let mut procedure_repo = MockProcedureRepository::new();
         procedure_repo
             .expect_read_procedures_by_ids()
-            .returning(|_| {
-                Ok(vec![Procedure::restore(
-                    "proc-1".to_string(),
-                    "patient-1".to_string(),
-                    Some("fund-1".to_string()),
-                    "type-1".to_string(),
-                    NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
-                    50_000,
-                    PaymentMethod::None,
-                    None,
-                    None,
-                    None,
-                    ProcedureStatus::Created,
-                )])
-            });
+            .returning(|_| Ok(vec![created_procedure("proc-1", 50_000)]));
         procedure_repo
-            .expect_update_batch()
-            .withf(|procs| {
-                procs
-                    .iter()
-                    .all(|p| matches!(p.payment_status, ProcedureStatus::Reconciled))
-            })
-            .returning(Ok);
+            .expect_read_procedure()
+            .returning(|_| Ok(None));
+        let manager = Arc::new(RecordingManager::default());
+        let orchestrator = make_orchestrator_on(
+            manager.clone(),
+            fund_repo,
+            fund_payment_repo,
+            procedure_repo,
+        );
 
-        let orchestrator = make_orchestrator(fund_repo, fund_payment_repo, procedure_repo);
-        let group = orchestrator
-            .create_fund_payment_from_candidate(
-                "CPAM93".to_string(),
-                NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
-                50_000,
-                vec!["proc-1".to_string()],
-                None,
-            )
+        let groups = orchestrator
+            .create_multiple_from_candidates(vec![candidate("CPAM93", 50_000, &["proc-1"])])
             .await?;
 
-        assert_eq!(group.total_amount, 50_000);
-        assert_eq!(group.fund_id, "fund-1");
+        assert_eq!(groups[0].total_amount, 50_000);
+        assert_eq!(groups[0].fund_id, "fund-1");
+        let written = manager.committed().expect("committed");
+        assert!(written.funds.is_empty());
+        assert_eq!(written.groups.len(), 1);
         Ok(())
     }
 
@@ -1253,101 +1179,335 @@ mod tests {
     }
 
     /// Batch happy path — `create_multiple_from_candidates` with one
-    /// non-duplicate candidate creates a group, sets the procedure to
-    /// `Reconciled`, and returns the persisted group.
+    /// non-duplicate candidate of an unknown fund hands its unit of work the
+    /// fund to create, the group, and the procedure set to `Reconciled`.
     #[tokio::test]
     async fn create_multiple_from_candidates_creates_groups() -> anyhow::Result<()> {
         let mut fund_repo = MockFundRepository::new();
         fund_repo
             .expect_find_fund_by_identifier()
             .returning(|_| Ok(None));
-        fund_repo
-            .expect_create_fund()
-            .returning(|identifier, name| {
-                Ok(Fund::restore(
-                    "fund-1".to_string(),
-                    identifier.to_string(),
-                    name.to_string(),
-                ))
-            });
-
-        let mut fund_payment_repo = MockFundPaymentRepository::new();
-        fund_payment_repo
-            .expect_create_batch_groups()
-            .withf(|groups| groups.len() == 1 && groups[0].fund_id == "fund-1")
-            .returning(Ok);
-
         let mut procedure_repo = MockProcedureRepository::new();
         procedure_repo
             .expect_read_procedures_by_ids()
-            .returning(|_| {
-                Ok(vec![Procedure::restore(
-                    "proc-1".to_string(),
-                    "patient-1".to_string(),
-                    Some("fund-1".to_string()),
-                    "type-1".to_string(),
-                    NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-                    75_000,
-                    PaymentMethod::None,
-                    None,
-                    None,
-                    None,
-                    ProcedureStatus::Created,
-                )])
-            });
-        // The orchestrator captures the updated batch via update_procedures_batch
-        // and returns it from verify_group_integrity's per-line read_procedure.
-        // Returning a Reconciled procedure here lets the integrity check pass
-        // (paid_amount sum equals group total).
+            .returning(|_| Ok(vec![created_procedure("proc-1", 75_000)]));
+        // verify_group_integrity reads each line's procedure once the data is committed.
         procedure_repo
-            .expect_update_batch()
-            .withf(|procs| {
-                procs
-                    .iter()
-                    .all(|p| matches!(p.payment_status, ProcedureStatus::Reconciled))
-            })
-            .returning(Ok);
-        procedure_repo.expect_read_procedure().returning(|_| {
-            Ok(Some(Procedure::restore(
-                "proc-1".to_string(),
-                "patient-1".to_string(),
-                Some("fund-1".to_string()),
-                "type-1".to_string(),
-                NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-                75_000,
-                PaymentMethod::None,
-                Some(NaiveDate::from_ymd_opt(2026, 1, 15).unwrap()),
-                None,
-                Some(75_000),
-                ProcedureStatus::Reconciled,
-            )))
-        });
+            .expect_read_procedure()
+            .returning(|_| Ok(None));
+        let manager = Arc::new(RecordingManager::default());
+        let orchestrator = make_orchestrator_on(
+            manager.clone(),
+            fund_repo,
+            MockFundPaymentRepository::new(),
+            procedure_repo,
+        );
 
-        let orchestrator = make_orchestrator(fund_repo, fund_payment_repo, procedure_repo);
         let groups = orchestrator
-            .create_multiple_from_candidates(vec![FundPaymentGroupCandidate {
-                fund_label: "CPAM n° 75".to_string(),
-                payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-                total_amount: 75_000,
-                procedure_ids: vec!["proc-1".to_string()],
-                matched_amount: 75_000,
-                is_fully_covered: true,
-            }])
+            .create_multiple_from_candidates(vec![candidate("CPAM n° 75", 75_000, &["proc-1"])])
             .await?;
 
+        let written = manager.committed().expect("committed");
+        assert_eq!(written.funds.len(), 1);
+        assert_eq!(written.funds[0].fund_identifier, "75");
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].total_amount, 75_000);
-        assert_eq!(groups[0].fund_id, "fund-1");
+        assert_eq!(groups[0].fund_id, written.funds[0].id);
+        assert_eq!(written.groups[0].id, groups[0].id);
+        assert_eq!(written.procedures_updated.len(), 1);
+        let reconciled = &written.procedures_updated[0];
+        assert_eq!(reconciled.payment_status, ProcedureStatus::Reconciled);
+        assert_eq!(reconciled.paid_amount, Some(75_000));
+        assert_eq!(
+            reconciled.fund_reconciliation_date,
+            NaiveDate::from_ymd_opt(2026, 1, 15)
+        );
         Ok(())
     }
 
-    /// Regression — `create_multiple_with_auto_corrections` MUST NOT mutate
-    /// procedure rows (or create new patients / procedures) when every
-    /// candidate is a duplicate of an existing fund-payment group. The
-    /// duplicate check runs FIRST; if it fires, `apply_auto_corrections`
-    /// never gets invoked. Mockall enforces the assertion via panic-on-
-    /// unexpected-call: the procedure-repo and patient-repo mocks have
-    /// zero expectations, so any DB-write attempt would crash the test.
+    fn patient_service_finding_nobody() -> Arc<crate::context::patient::PatientService> {
+        use crate::context::patient::{MockPatientRepository, PatientService};
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo
+            .expect_find_patient_by_ssn()
+            .returning(|_| Ok(None));
+        Arc::new(PatientService::new(
+            Arc::new(patient_repo),
+            Arc::new(EventBus::new()),
+        ))
+    }
+
+    fn validation_with_corrections() -> (
+        MockFundRepository,
+        MockProcedureRepository,
+        Vec<FundPaymentGroupCandidate>,
+        Vec<AutoCorrection>,
+    ) {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        let mut procedure_repo = MockProcedureRepository::new();
+        procedure_repo
+            .expect_read_procedures_by_ids()
+            .returning(|_| Ok(vec![created_procedure("proc-1", 75_000)]));
+        procedure_repo
+            .expect_read_procedure()
+            .returning(|_| Ok(None));
+        let corrections = vec![
+            AutoCorrection::AmountMismatch {
+                procedure_id: "proc-1".to_string(),
+                pdf_amount: 60_000,
+            },
+            AutoCorrection::CreateProcedure {
+                ssn: "1234567890123".to_string(),
+                patient_name: "Nom Prenom".to_string(),
+                procedure_date: NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+                payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                billed_amount: 40_000,
+                pdf_fund_label: "CPAM n° 75".to_string(),
+            },
+        ];
+        (
+            fund_repo,
+            procedure_repo,
+            vec![candidate("CPAM n° 75", 100_000, &["proc-1"])],
+            corrections,
+        )
+    }
+
+    /// FPA-076 — the corrections, the patient, fund and procedure they create,
+    /// the group and the reconciliation of its procedures reach one unit of
+    /// work together: the repositories (mocks without a write expectation)
+    /// are never written through.
+    #[tokio::test]
+    async fn test_fpa_076_a_validation_hands_every_write_to_one_unit_of_work() -> anyhow::Result<()>
+    {
+        let (fund_repo, procedure_repo, candidates, corrections) = validation_with_corrections();
+        let manager = Arc::new(RecordingManager::default());
+        let orchestrator = make_orchestrator_on(
+            manager.clone(),
+            fund_repo,
+            MockFundPaymentRepository::new(),
+            procedure_repo,
+        );
+
+        let groups = orchestrator
+            .create_multiple_with_auto_corrections(
+                candidates,
+                corrections,
+                patient_service_finding_nobody(),
+            )
+            .await?;
+
+        let written = manager.committed().expect("committed");
+        // One fund for the group and the created procedure, not two.
+        assert_eq!(written.funds.len(), 1);
+        assert_eq!(written.patients.len(), 1);
+        assert_eq!(written.procedures.len(), 1);
+        let created = &written.procedures[0];
+        assert_eq!(created.patient_id, written.patients[0].id);
+        assert_eq!(
+            created.fund_id.as_deref(),
+            Some(written.funds[0].id.as_str())
+        );
+        assert_eq!(created.payment_status, ProcedureStatus::Reconciled);
+        assert_eq!(created.paid_amount, Some(40_000));
+        assert_eq!(
+            created.fund_reconciliation_date,
+            NaiveDate::from_ymd_opt(2026, 1, 15)
+        );
+        // The corrected procedure carries its correction and its reconciliation.
+        assert_eq!(written.procedures_updated.len(), 1);
+        let corrected = &written.procedures_updated[0];
+        assert_eq!(corrected.billed_amount, 60_000);
+        assert_eq!(corrected.paid_amount, Some(60_000));
+        assert_eq!(corrected.payment_status, ProcedureStatus::Reconciled);
+        // The group holds both procedures.
+        assert_eq!(groups.len(), 1);
+        let lines: Vec<&str> = written.groups[0]
+            .lines
+            .iter()
+            .map(|line| line.procedure_id.as_str())
+            .collect();
+        assert_eq!(lines, vec!["proc-1", created.id.as_str()]);
+        Ok(())
+    }
+
+    /// FPA-250 — two procedures created for the same unknown SSN share one new
+    /// patient, and each is an "Import" procedure.
+    #[tokio::test]
+    async fn test_fpa_250_two_created_procedures_of_one_unknown_ssn_share_one_patient(
+    ) -> anyhow::Result<()> {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        let mut procedure_repo = MockProcedureRepository::new();
+        procedure_repo
+            .expect_read_procedure()
+            .returning(|_| Ok(None));
+        let create = |billed_amount: i64| AutoCorrection::CreateProcedure {
+            ssn: "1234567890123".to_string(),
+            patient_name: "Nom Prenom".to_string(),
+            procedure_date: NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            billed_amount,
+            pdf_fund_label: "CPAM n° 75".to_string(),
+        };
+        let manager = Arc::new(RecordingManager::default());
+        let orchestrator = make_orchestrator_on(
+            manager.clone(),
+            fund_repo,
+            MockFundPaymentRepository::new(),
+            procedure_repo,
+        );
+
+        orchestrator
+            .create_multiple_with_auto_corrections(
+                vec![candidate("CPAM n° 75", 70_000, &[])],
+                vec![create(40_000), create(30_000)],
+                patient_service_finding_nobody(),
+            )
+            .await?;
+
+        let written = manager.committed().expect("committed");
+        assert_eq!(written.patients.len(), 1);
+        assert_eq!(written.procedures.len(), 2);
+        for procedure in &written.procedures {
+            assert_eq!(procedure.patient_id, written.patients[0].id);
+            assert_eq!(procedure.procedure_type_id, "import-pdf");
+        }
+        assert_eq!(written.groups[0].lines.len(), 2);
+        Ok(())
+    }
+
+    /// FPA-240 and FPA-230 — a linked procedure joins its group and its
+    /// patient takes the SSN of the PDF; a date correction moves the procedure
+    /// to the date of the PDF.
+    #[tokio::test]
+    async fn test_fpa_240_fpa_230_a_link_gives_the_ssn_and_a_date_correction_the_date(
+    ) -> anyhow::Result<()> {
+        use crate::context::patient::{MockPatientRepository, PatientService};
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        let mut procedure_repo = MockProcedureRepository::new();
+        procedure_repo
+            .expect_read_procedures_by_ids()
+            .returning(|ids| Ok(ids.iter().map(|id| created_procedure(id, 50_000)).collect()));
+        procedure_repo
+            .expect_read_procedure()
+            .returning(|_| Ok(None));
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo.expect_read_patient().returning(|id| {
+            Ok(Some(Patient::restore(
+                id.to_string(),
+                false,
+                Some("Nom Prenom".to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+        let patient_service = Arc::new(PatientService::new(
+            Arc::new(patient_repo),
+            Arc::new(EventBus::new()),
+        ));
+        let manager = Arc::new(RecordingManager::default());
+        let orchestrator = make_orchestrator_on(
+            manager.clone(),
+            fund_repo,
+            MockFundPaymentRepository::new(),
+            procedure_repo,
+        );
+        let pdf_date = NaiveDate::from_ymd_opt(2026, 1, 12).unwrap();
+
+        orchestrator
+            .create_multiple_with_auto_corrections(
+                vec![candidate("CPAM n° 75", 100_000, &["dated"])],
+                vec![
+                    AutoCorrection::DateMismatch {
+                        procedure_id: "dated".to_string(),
+                        pdf_date,
+                    },
+                    AutoCorrection::LinkProcedure {
+                        procedure_id: "linked".to_string(),
+                        pdf_ssn: "1234567890123".to_string(),
+                        pdf_fund_label: "CPAM n° 75".to_string(),
+                        payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                    },
+                ],
+                patient_service,
+            )
+            .await?;
+
+        let written = manager.committed().expect("committed");
+        assert_eq!(written.patients_updated.len(), 1);
+        assert_eq!(
+            written.patients_updated[0].ssn.as_deref(),
+            Some("1234567890123")
+        );
+        let lines: Vec<&str> = written.groups[0]
+            .lines
+            .iter()
+            .map(|line| line.procedure_id.as_str())
+            .collect();
+        assert_eq!(lines, vec!["dated", "linked"]);
+        let dated = written
+            .procedures_updated
+            .iter()
+            .find(|procedure| procedure.id == "dated")
+            .expect("the corrected procedure");
+        assert_eq!(dated.procedure_date, pdf_date);
+        assert_eq!(dated.payment_status, ProcedureStatus::Reconciled);
+        Ok(())
+    }
+
+    /// FPA-076 — when the unit of work fails, the validation is refused as a
+    /// whole: nothing is committed, and the error is a database error.
+    #[tokio::test]
+    async fn test_fpa_076_a_validation_whose_unit_of_work_fails_writes_nothing() {
+        let (fund_repo, procedure_repo, candidates, corrections) = validation_with_corrections();
+        let manager = Arc::new(RecordingManager {
+            fail_on_commit: true,
+            ..RecordingManager::default()
+        });
+        let orchestrator = make_orchestrator_on(
+            manager.clone(),
+            fund_repo,
+            MockFundPaymentRepository::new(),
+            procedure_repo,
+        );
+
+        let result = orchestrator
+            .create_multiple_with_auto_corrections(
+                candidates,
+                corrections,
+                patient_service_finding_nobody(),
+            )
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(FundPaymentReconciliationError::Task(
+                    FundPaymentReconciliationTask::DatabaseError
+                ))
+            ),
+            "got: {result:?}"
+        );
+        assert!(manager.committed().is_none());
+    }
+
+    /// Regression — `create_multiple_with_auto_corrections` plans nothing and
+    /// writes nothing when every candidate is a duplicate of an existing
+    /// fund-payment group: the duplicate check comes first. The procedure and
+    /// patient mocks have no expectation, so the first read of a correction
+    /// would crash the test, and nothing reaches the unit of work.
     #[tokio::test]
     async fn create_multiple_with_auto_corrections_bails_before_writes_on_duplicates(
     ) -> anyhow::Result<()> {

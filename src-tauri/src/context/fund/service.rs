@@ -49,6 +49,12 @@ impl FundService {
         Ok(result)
     }
 
+    /// Tell listeners funds changed, after a unit of work that wrote them
+    /// committed (ADR-003).
+    pub fn notify_funds_updated(&self) {
+        let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
+    }
+
     pub async fn read_fund(&self, id: &str) -> Result<Option<Fund>, FundError> {
         self.repository.read_fund(id).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "read_fund: repository failed");
