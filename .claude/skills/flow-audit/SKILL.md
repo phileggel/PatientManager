@@ -55,7 +55,9 @@ From the session's transcript, for the batch only:
   should have caught;
 - every statement met in a document or a prompt that was false or contradicted another
   one: where it stands, and what it cost;
-- the skills and agents launched, and those that were not.
+- the skills and agents launched, and those that were not;
+- each generic piece of `docs/agentic-setup.md` read against its line: those that no
+  longer do what the line says, or do what it says never.
 
 State a count only when it was counted; otherwise write "not counted".
 

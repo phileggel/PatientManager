@@ -101,5 +101,67 @@ class DocMap(unittest.TestCase):
         )
 
 
+class AgenticSetup(unittest.TestCase):
+    """FLOW-036: every script, skill, agent prompt and hook has its line in the setup document."""
+
+    SETUP = "\n".join([
+        "## Generic",
+        "- `scripts/merge.py` — merges a green branch. Never: merges a red one.",
+        "- `.claude/skills/run-entry/` — runs one entry.",
+        "  It names `scripts/harness.sh` in its prose: not a listed piece.",
+        "- `docs/workflow.md` — how work moves.",
+        "## This project",
+        "- `.githooks/pre-push` — the fast checks.",
+    ])
+
+    def test_flow_036_a_piece_is_listed_where_its_path_opens_a_list_item(self):
+        self.assertEqual(
+            homes.listed_pieces(self.SETUP),
+            ["scripts/merge.py", ".claude/skills/run-entry/", "docs/workflow.md", ".githooks/pre-push"],
+        )
+
+    def test_flow_036_the_pieces_are_the_scripts_skills_agent_prompts_and_hooks(self):
+        files = [
+            "scripts/merge.py", "scripts/tests/test_merge.py", "scripts/usage-log.sh",
+            ".claude/skills/run-entry/SKILL.md", ".claude/skills/run-entry/template.md",
+            ".claude/agents/reviewer-infra.md", ".claude/rules/backend.md", ".claude/settings.json",
+            ".githooks/pre-push", ".githooks/README.md", "docs/workflow.md", "src/main.ts",
+        ]
+        self.assertEqual(
+            homes.setup_pieces(files),
+            [".claude/agents/reviewer-infra.md", ".claude/skills/run-entry/", ".githooks/pre-push",
+             "scripts/merge.py", "scripts/usage-log.sh"],
+        )
+
+    def test_flow_036_a_piece_that_exists_without_a_line_is_reported(self):
+        pieces = ["scripts/merge.py", "scripts/new-tool.py"]
+        self.assertEqual(
+            homes.setup_problems(pieces, ["scripts/merge.py"], exists=lambda path: True),
+            ["scripts/new-tool.py: exists but has no line in docs/agentic-setup.md"],
+        )
+
+    def test_flow_036_a_line_whose_piece_is_gone_is_reported(self):
+        listed = ["scripts/merge.py", "scripts/gone.py", "docs/workflow.md"]
+        self.assertEqual(
+            homes.setup_problems(["scripts/merge.py"], listed, exists=lambda path: path != "scripts/gone.py"),
+            ["scripts/gone.py: listed in docs/agentic-setup.md but missing"],
+        )
+
+    def test_flow_036_a_piece_listed_twice_is_reported(self):
+        listed = ["scripts/merge.py", "scripts/merge.py"]
+        self.assertEqual(
+            homes.setup_problems(["scripts/merge.py"], listed, exists=lambda path: True),
+            ["scripts/merge.py: listed twice in docs/agentic-setup.md"],
+        )
+
+    def test_flow_036_this_repository_lists_every_piece_it_holds(self):
+        text = (homes.ROOT / homes.SETUP).read_text(encoding="utf-8")
+        pieces = homes.setup_pieces(homes.tracked("scripts", ".claude", ".githooks"))
+        self.assertEqual(
+            homes.setup_problems(pieces, homes.listed_pieces(text), exists=lambda path: (homes.ROOT / path).exists()),
+            [],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

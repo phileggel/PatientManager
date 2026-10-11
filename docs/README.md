@@ -26,6 +26,8 @@ ID is defined twice.
   touched.
 - **Agents** — `../.claude/agents/`, `../.claude/skills/`: reviewer and skill prompts.
   They apply the rules docs and link to them; they never restate a rule.
+  `agentic-setup.md` gives each skill, agent prompt, script and hook its responsibility
+  in one line; the same script fails when one exists without its line.
 - **Onboarding** — `../README.md`, `../CONTRIBUTING.md`, `../.githooks/README.md`,
   `../.github/pull_request_template.md`: first steps for a human.
 

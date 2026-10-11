@@ -337,6 +337,8 @@ the mechanical records are kept (the usage log, GitHub's own history).
   what can be simplified; which script, recipe, skill or agent went unused — keep, fold
   or remove; and where a guide was false, contradicted another, or grew without earning
   it.
+- **Responsibilities** — each generic piece of `docs/agentic-setup.md` is read against
+  its line; one that no longer does what the line says is a finding.
 - **Hard points** — every difficulty met becomes a `FLOW-NNN` entry with its evidence
   and a proposal; where nothing should change, the entry says keep and why.
 - **Moves** — a todo or debt entry that is about the flow becomes a flow entry and keeps
