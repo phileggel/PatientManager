@@ -234,6 +234,12 @@ answer before pushing.
   `arch-allowlist.json` and may only shrink.
 - **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
   location of `docs/README.md`, every rule, entry and lesson ID defined once.
+- **Guide ceilings** (owner, 2026-10-11) — the guides are `CLAUDE.md`, this document,
+  `docs/agentic-setup.md`, the rules docs and every prompt. The same script fails when
+  one grows past the length `guide-ceilings.json` records for it, or when a skill or
+  agent prompt with no recorded ceiling holds more than 120 lines. A ceiling is lowered
+  as its guide shrinks (`just rule-homes --lower-ceilings`); raising one, or recording
+  one above 120 for a new prompt, is the owner's yes, named in the pull request.
 - **Tests with coverage** — Vitest and `cargo llvm-cov`, for the layers a PR touches;
   pushes to `main` run both.
 - **Coverage floors** — `scripts/coverage-gate.py` + `coverage-gates.json`, logic code
@@ -276,14 +282,14 @@ answer before pushing.
 ## 7. Reviewers and the triage policy
 
 Before the PR, run exactly the lanes
-`bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints — none for a
-docs-only change — and again on the fixes until no 🔴 remains. CI runs the same lanes
-on every push as the last net, with the prompts taken from `main`. A local reviewer is
-given the branch, the spec and the vocabulary, never a description of the change: a
-brief that explains the change steers the read, and CI then finds what the same lane
-missed. Criticals that only CI found are counted at the audit (§ 12). Also:
-`spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change,
-`spec-checker` before closing an entry that carries spec rules.
+`bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints — none for a change
+to documents that are not guides — and again on the fixes until no 🔴 remains. CI runs
+the same lanes on every push as the last net, with the prompts taken from `main`. A local reviewer is given the branch, the
+spec and the vocabulary, never a description of the change: a brief that explains the
+change steers the read, and CI then finds what the same lane missed. Criticals that only
+CI found are counted at the audit (§ 12). Also: `spec-reviewer` / `contract-reviewer` /
+`adr-reviewer` when those documents change, `spec-checker` before closing an entry that
+carries spec rules. The guides (§ 5) have a lane of their own, `reviewer-guides`.
 
 Every finding, local or from CI, is graded before any is applied, and the outcome is
 recorded in the PR body, one line per finding that changed something or was rejected:
@@ -380,8 +386,7 @@ the mechanical records are kept (the usage log, GitHub's own history).
   merged, time from opening to merging, how long the queue took (first pull request
   opened to last merged), the entries filed and closed, CI rounds, failed runs per
   workflow, the tools the usage log saw, the paths the documents name that no longer
-  exist, and the length of the guides (`CLAUDE.md`, this document, the rules docs, every
-  prompt), and how many GitHub issues and Dependabot pull requests were open when the
+  exist, and the length of the guides (§ 5), and how many GitHub issues and Dependabot pull requests were open when the
   batch started and when it ended, and for each entry the pull requests and CI rounds
   its branches took beside its size: the audit names the entries that went past their
   size, and which kinds do so most. The agent adds what only the session knows: what the

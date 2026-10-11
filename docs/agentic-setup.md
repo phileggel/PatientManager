@@ -36,6 +36,8 @@ Written to read the same in every repository that works this way.
   should own and test.
 - `coverage-gates.json` — the coverage floors. Never: lowered.
 - `arch-allowlist.json` — the frozen architecture debt. Never: raised.
+- `guide-ceilings.json` — the length each guide may not exceed. Never: raised without
+  the owner's decision.
 
 ### Skills
 
@@ -68,6 +70,8 @@ Written to read the same in every repository that works this way.
   reviewer lane shares. Never: a lane's own checks.
 - `.claude/agents/reviewer-infra.md` — reviews workflows, scripts, hooks, recipes,
   prompts and settings. Never: application code.
+- `.claude/agents/reviewer-guides.md` — reviews the documents and prompts the agent
+  works from: contradictions, restated rules, length. Never: tooling or code.
 - `.claude/agents/reviewer-security.md` — reviews the surface an attacker reaches, on
   a change and across the whole code before a release. Never: code quality.
 - `.claude/agents/spec-reviewer.md` — judges a spec before anything is built from it.
@@ -101,7 +105,7 @@ Written to read the same in every repository that works this way.
 - `scripts/arch-check.py` — enforces the architecture rules a machine can check.
   Never: lets the allowlist grow.
 - `scripts/rule-homes.py` — one location per document, one home per rule, one line
-  here per piece. Never: judges what a document says.
+  here per piece, one ceiling per guide. Never: judges what a document says.
 - `scripts/privacy-check.py` — keeps private data out of logs, files and commit
   messages. Never: prints the data it found.
 - `scripts/review-lanes.sh` — the reviewer lanes a change needs, and only those.

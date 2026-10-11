@@ -53,7 +53,7 @@ class TrustedHelpers(unittest.TestCase):
 
 class ReviewLanes(unittest.TestCase):
     def test_docs_only_needs_no_reviewer(self):
-        self.assertEqual(lanes("README.md", "docs/workflow.md", "screenshots/a.png"), [])
+        self.assertEqual(lanes("README.md", "docs/spec/patient.md", "screenshots/a.png"), [])
 
     def test_rust_gets_backend_and_arch(self):
         self.assertEqual(lanes("src-tauri/src/context/patient/domain.rs"), ["backend", "arch"])
@@ -78,14 +78,14 @@ class ReviewLanes(unittest.TestCase):
         self.assertEqual(lanes("required-checks.json"), ["infra"])
 
     def test_agent_and_skill_prompts_and_the_settings_are_infra(self):
-        self.assertEqual(lanes(".claude/agents/reviewer-sql.md"), ["infra"])
-        self.assertEqual(lanes(".claude/skills/run-entry/SKILL.md"), ["infra"])
+        self.assertEqual(lanes(".claude/agents/reviewer-sql.md"), ["infra", "guides"])
+        self.assertEqual(lanes(".claude/skills/run-entry/SKILL.md"), ["infra", "guides"])
         self.assertEqual(lanes(".claude/settings.json"), ["infra"])
         self.assertEqual(lanes(".claude/agents/sub/reviewer-infra.md"), [])  # flat only
 
     def test_the_coverage_floors_and_path_rules_are_infra(self):
         self.assertEqual(lanes("coverage-gates.json"), ["infra"])
-        self.assertEqual(lanes(".claude/rules/backend.md"), ["infra"])
+        self.assertEqual(lanes(".claude/rules/backend.md"), ["infra", "guides"])
 
     def test_the_frozen_architecture_debt_is_infra(self):
         self.assertEqual(lanes("arch-allowlist.json"), ["infra"])
@@ -96,8 +96,18 @@ class ReviewLanes(unittest.TestCase):
     def test_json_lists_every_lane(self):
         self.assertEqual(
             lanes("src-tauri/src/lib.rs", as_json=True),
-            {"backend": True, "frontend": False, "arch": True, "sql": False, "infra": False, "security": False, "e2e": False},
+            {"backend": True, "frontend": False, "arch": True, "sql": False, "infra": False, "security": False, "e2e": False, "guides": False},
         )
+
+    def test_flow_044_a_guide_fires_the_guides_lane(self):
+        for path in ("CLAUDE.md", "docs/workflow.md", "docs/backend-rules.md", "docs/agentic-setup.md"):
+            self.assertEqual(lanes(path), ["guides"], path)
+
+    def test_flow_044_a_document_that_is_not_a_guide_fires_nothing(self):
+        self.assertEqual(lanes("docs/spec/patient.md", "docs/README.md", "docs/work/flow/FLOW-044.md", "README.md"), [])
+
+    def test_flow_044_the_ceilings_record_is_infra(self):
+        self.assertEqual(lanes("guide-ceilings.json"), ["infra"])
 
 
 if __name__ == "__main__":

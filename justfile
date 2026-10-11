@@ -41,9 +41,10 @@ stat: (_used "stat")
 harness:
     bash scripts/harness.sh
 
-# Doc map and rule homes: every Markdown file in a location of docs/README.md, every rule ID defined once
-rule-homes:
-    python3 scripts/rule-homes.py
+# Doc map and rule homes: every Markdown file in a location of docs/README.md, every rule ID defined once,
+# every guide within its ceiling (guide-ceilings.json); --lower-ceilings follows the guides that shrank
+rule-homes *ARGS:
+    python3 scripts/rule-homes.py {{ARGS}}
 
 # Patient data check over every tracked file (SSN, IBAN, names in logs, real data files)
 privacy-check:

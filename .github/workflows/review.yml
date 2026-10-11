@@ -122,7 +122,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        reviewer: [backend, arch, frontend, sql, infra, security, e2e]
+        reviewer: [backend, arch, frontend, sql, infra, security, e2e, guides]
     steps:
       - name: Skip lanes the diff does not touch
         id: gate

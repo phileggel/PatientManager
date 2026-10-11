@@ -2,8 +2,8 @@
 # review-lanes.sh — the reviewer agents a change needs, and only those.
 #
 # Reads changed paths on stdin (one per line) and prints one lane per line,
-# in this order: backend, frontend, arch, sql, infra, security, e2e. Nothing
-# for a docs-only change. `--json` prints {"backend":true,...} for CI.
+# in this order: backend, frontend, arch, sql, infra, security, e2e, guides.
+# Nothing for a change to documents that are not guides. `--json` prints {"backend":true,...} for CI.
 #
 # Each pattern mirrors the reviewer's own scope, so a lane never fires on
 # files the agent would refuse (an empty-result halt writes no report):
@@ -15,11 +15,15 @@
 #             package.json, Cargo.toml, tauri.conf.json,
 #             capabilities, required-checks.json,
 #             arch-allowlist.json, coverage-gates.json,
+#             guide-ceilings.json,
 #             agent, skill and path-rule prompts,
 #             .claude/settings.json            reviewer-infra
 #   security  the IPC boundary: api.rs, capabilities, the command registry,
 #             secure_path.rs                   reviewer-security
 #   e2e       e2e/**/*.test.ts                 reviewer-e2e
+#   guides    CLAUDE.md, docs/workflow.md, docs/agentic-setup.md,
+#             docs/*-rules.md, agent, skill and path-rule
+#             prompts                          reviewer-guides
 #
 # Use (local, before a PR):  bash scripts/branch.sh files | bash scripts/review-lanes.sh
 set -euo pipefail
@@ -33,15 +37,16 @@ frontend=$( { grep -Ev '^e2e/' <<<"$files" || true; } | grep -Eq '\.(ts|tsx)$' &
 arch=false
 if [[ "$backend" == true || "$frontend" == true ]]; then arch=true; fi
 sql=$(has '^src-tauri/migrations/.*\.sql$')
-infra=$(has '^(\.github/workflows/[^/]*\.ya?ml|\.githooks/.*|scripts/[^/]*\.(sh|bat|py)|justfile|package\.json|required-checks\.json|arch-allowlist\.json|coverage-gates\.json|\.claude/rules/[^/]*\.md|\.claude/agents/[^/]*\.md|\.claude/skills/[^/]+/SKILL\.md|\.claude/settings\.json|src-tauri/Cargo\.toml|src-tauri/tauri\.conf\.json|src-tauri/capabilities/.*\.json)$')
+infra=$(has '^(\.github/workflows/[^/]*\.ya?ml|\.githooks/.*|scripts/[^/]*\.(sh|bat|py)|justfile|package\.json|required-checks\.json|arch-allowlist\.json|coverage-gates\.json|guide-ceilings\.json|\.claude/rules/[^/]*\.md|\.claude/agents/[^/]*\.md|\.claude/skills/[^/]+/SKILL\.md|\.claude/settings\.json|src-tauri/Cargo\.toml|src-tauri/tauri\.conf\.json|src-tauri/capabilities/.*\.json)$')
 security=$(has '^src-tauri/(src/.*/api\.rs|capabilities/.*\.json|src/shared/infrastructure/(specta_builder|secure_path)\.rs)$')
 e2e=$(has '^e2e/.*\.test\.ts$')
+guides=$(has '^(CLAUDE\.md|docs/(workflow|agentic-setup|[^/]*-rules)\.md|\.claude/rules/[^/]*\.md|\.claude/agents/[^/]*\.md|\.claude/skills/[^/]+/SKILL\.md)$')
 
 if [[ "${1:-}" == "--json" ]]; then
-    printf '{"backend":%s,"frontend":%s,"arch":%s,"sql":%s,"infra":%s,"security":%s,"e2e":%s}\n' \
-        "$backend" "$frontend" "$arch" "$sql" "$infra" "$security" "$e2e"
+    printf '{"backend":%s,"frontend":%s,"arch":%s,"sql":%s,"infra":%s,"security":%s,"e2e":%s,"guides":%s}\n' \
+        "$backend" "$frontend" "$arch" "$sql" "$infra" "$security" "$e2e" "$guides"
     exit 0
 fi
-for lane in backend frontend arch sql infra security e2e; do
+for lane in backend frontend arch sql infra security e2e guides; do
     if [[ "${!lane}" == true ]]; then echo "$lane"; fi
 done

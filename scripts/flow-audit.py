@@ -54,6 +54,7 @@ COMMIT_TYPES = {"feat", "fix", "refactor", "chore", "ci", "docs", "test"}
 GUIDES = (
     "CLAUDE.md",
     "docs/workflow.md",
+    "docs/agentic-setup.md",
     "docs/*-rules.md",
     ".claude/skills/*/SKILL.md",
     ".claude/agents/*.md",

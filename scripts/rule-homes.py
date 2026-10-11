@@ -18,10 +18,17 @@ Two checks against drift:
 4. The agentic setup (FLOW-036). `docs/agentic-setup.md` gives one list item to each
    piece, opened by its backticked path. Every script, skill, agent prompt and git
    hook that exists is listed once, and everything listed exists.
+5. Guide ceilings (FLOW-044). `guide-ceilings.json` records the length in lines each
+   guide may not exceed — `CLAUDE.md`, the workflow, the setup document, the rules
+   docs, every prompt. A guide past its ceiling fails; a skill or agent prompt with no
+   recorded ceiling holds at most 120 lines. A ceiling only goes down:
+   `--lower-ceilings` follows the guides that shrank; raising one is the owner's.
 
-Use: python3 scripts/rule-homes.py
+Use: python3 scripts/rule-homes.py [--lower-ceilings]
 """
 
+import fnmatch
+import json
 import posixpath
 import re
 import subprocess
@@ -48,6 +55,19 @@ REQUIRED = {
 }
 SIZE = re.compile(r"^(?:\*\*Size:\*\*|- Size:)[ \t]*(?:XL|S|M|L)\b", re.MULTILINE)
 SETUP = "docs/agentic-setup.md"
+CEILINGS = "guide-ceilings.json"
+GUIDES = (
+    "CLAUDE.md",
+    "docs/workflow.md",
+    SETUP,
+    "docs/*-rules.md",
+    ".claude/skills/*/SKILL.md",
+    ".claude/agents/*.md",
+    ".claude/rules/*.md",
+)
+# What a skill or an agent prompt created without a recorded ceiling may hold (owner, 2026-10-11).
+NEW_PROMPT_CEILING = 120
+PROMPTS = (".claude/skills/*/SKILL.md", ".claude/agents/*.md")
 PIECE = re.compile(r"^- `([^`\s]+)`")
 SKILL = re.compile(r"(\.claude/skills/[^/]+/).+")
 
@@ -139,6 +159,53 @@ def incomplete(texts: dict[str, str]) -> list[str]:
     return problems
 
 
+def _matches(path: str, patterns: tuple[str, ...]) -> bool:
+    # fnmatchcase lets `*` cross a slash: compare the depth too, so `docs/*-rules.md` stays flat.
+    return any(fnmatch.fnmatchcase(path, p) and path.count("/") == p.count("/") for p in patterns)
+
+
+def guides(files: list[str]) -> list[str]:
+    """The documents and prompts the agent works from, among `files`."""
+    return sorted(f for f in files if _matches(f, GUIDES))
+
+
+def guide_lengths(paths: list[str]) -> dict[str, int]:
+    return {path: len((ROOT / path).read_text(encoding="utf-8").splitlines()) for path in paths}
+
+
+def read_ceilings() -> dict[str, int]:
+    return json.loads((ROOT / CEILINGS).read_text(encoding="utf-8"))
+
+
+def ceiling_problems(lengths: dict[str, int], ceilings: dict[str, int]) -> list[str]:
+    """Guides past their ceiling, new guides without one, ceilings without their guide."""
+    problems = []
+    for path, lines in sorted(lengths.items()):
+        if path in ceilings:
+            if lines > ceilings[path]:
+                problems.append(
+                    f"{path}: {lines} lines, over its ceiling of {ceilings[path]} — cut it;"
+                    f" raising a ceiling in {CEILINGS} is the owner's decision"
+                )
+        elif not _matches(path, PROMPTS):
+            problems.append(f"{path}: no ceiling — record its length with `python3 scripts/rule-homes.py --lower-ceilings`")
+        elif lines > NEW_PROMPT_CEILING:
+            problems.append(
+                f"{path}: {lines} lines, over the {NEW_PROMPT_CEILING} a new skill or agent prompt may hold — cut it;"
+                f" a higher ceiling in {CEILINGS} is the owner's decision"
+            )
+    problems += [f"{path}: a ceiling in {CEILINGS} for a guide that is gone" for path in sorted(ceilings) if path not in lengths]
+    return problems
+
+
+def lowered(lengths: dict[str, int], ceilings: dict[str, int]) -> dict[str, int]:
+    """The ceilings after a pass that only lowers: a guide that shrank, a guide that is gone,
+    and the length of a new guide that is not a prompt. Nothing is ever raised."""
+    result = {path: min(ceiling, lengths[path]) for path, ceiling in ceilings.items() if path in lengths}
+    result |= {path: lines for path, lines in lengths.items() if path not in ceilings and not _matches(path, PROMPTS)}
+    return dict(sorted(result.items()))
+
+
 def listed_pieces(setup_text: str) -> list[str]:
     """The paths the setup document gives a line to, in order: each opens a list item."""
     return [match.group(1) for line in setup_text.splitlines() if (match := PIECE.match(line))]
@@ -171,8 +238,18 @@ def tracked(*patterns: str) -> list[str]:
     return [line for line in out.stdout.splitlines() if (ROOT / line).is_file()]
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
     files = tracked("*.md")
+    lengths = guide_lengths(guides(files))
+    if argv == ["--lower-ceilings"]:
+        ceilings = lowered(lengths, read_ceilings())
+        (ROOT / CEILINGS).write_text(json.dumps(ceilings, indent=2) + "\n", encoding="utf-8")
+        print(f"✅ {CEILINGS}: {len(ceilings)} ceilings, none raised")
+        return 0
+    if argv:
+        print("usage: rule-homes.py [--lower-ceilings]", file=sys.stderr)
+        return 2
     found = kinds((ROOT / MAP).read_text(encoding="utf-8"))
     locations = [loc for locs in found.values() for loc in locs]
     problems = [f"{loc}: listed in {MAP} but missing" for loc in locations if not (ROOT / loc).exists()]
@@ -188,6 +265,7 @@ def main() -> int:
     listed = listed_pieces((ROOT / SETUP).read_text(encoding="utf-8"))
     pieces = setup_pieces(tracked("scripts", ".claude", ".githooks"))
     problems += setup_problems(pieces, listed, exists=lambda path: (ROOT / path).exists())
+    problems += ceiling_problems(lengths, read_ceilings())
 
     if problems:
         print(f"❌ rule homes: {len(problems)} problem(s)")

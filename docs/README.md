@@ -2,8 +2,8 @@
 
 Each kind of document has one location, and each location holds only that kind. Other
 documents link to the home and never restate it. `scripts/rule-homes.py` fails when a
-Markdown file sits outside this map, when a path below no longer exists, or when a rule
-ID is defined twice.
+Markdown file sits outside this map, when a path below no longer exists, when a rule
+ID is defined twice, or when a guide grows past its ceiling (`workflow.md` § 5).
 
 - **Domain** — `spec/` (`TRIGRAM-NNN`), `spec-index.md`, `ubiquitous-language.md`:
   business rules, their numbering, and what the domain words mean. The owner validates them.

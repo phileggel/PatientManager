@@ -137,6 +137,63 @@ class RequiredLines(unittest.TestCase):
         self.assertEqual(homes.incomplete(texts), [])
 
 
+class GuideCeilings(unittest.TestCase):
+    """FLOW-044: a guide may shrink, never grow past its ceiling; a new prompt stays short."""
+
+    def test_flow_044_the_guides_are_the_documents_and_prompts_the_agent_works_from(self):
+        files = [
+            "CLAUDE.md", "docs/workflow.md", "docs/backend-rules.md", "docs/agentic-setup.md",
+            ".claude/skills/run-entry/SKILL.md", ".claude/skills/run-entry/template.md",
+            ".claude/agents/reviewer-infra.md", ".claude/rules/backend.md",
+            "docs/spec/patient.md", "docs/README.md", "README.md",
+        ]
+        self.assertEqual(
+            homes.guides(files),
+            [".claude/agents/reviewer-infra.md", ".claude/rules/backend.md", ".claude/skills/run-entry/SKILL.md",
+             "CLAUDE.md", "docs/agentic-setup.md", "docs/backend-rules.md", "docs/workflow.md"],
+        )
+
+    def test_flow_044_a_guide_at_or_under_its_ceiling_passes(self):
+        self.assertEqual(homes.ceiling_problems({"CLAUDE.md": 90, "docs/workflow.md": 400}, {"CLAUDE.md": 90, "docs/workflow.md": 450}), [])
+
+    def test_flow_044_a_guide_past_its_ceiling_is_reported_with_both_figures(self):
+        self.assertEqual(
+            homes.ceiling_problems({"CLAUDE.md": 93}, {"CLAUDE.md": 90}),
+            ["CLAUDE.md: 93 lines, over its ceiling of 90 — cut it; raising a ceiling in guide-ceilings.json is the owner's decision"],
+        )
+
+    def test_flow_044_a_new_skill_or_agent_prompt_holds_at_most_120_lines(self):
+        lengths = {".claude/skills/file-entry/SKILL.md": 120, ".claude/agents/reviewer-guides.md": 121}
+        self.assertEqual(
+            homes.ceiling_problems(lengths, {}),
+            [".claude/agents/reviewer-guides.md: 121 lines, over the 120 a new skill or agent prompt may hold — cut it; a higher ceiling in guide-ceilings.json is the owner's decision"],
+        )
+
+    def test_flow_044_any_other_new_guide_must_have_its_ceiling_recorded(self):
+        self.assertEqual(
+            homes.ceiling_problems({"docs/sql-rules.md": 40}, {}),
+            ["docs/sql-rules.md: no ceiling — record its length with `python3 scripts/rule-homes.py --lower-ceilings`"],
+        )
+
+    def test_flow_044_a_ceiling_whose_guide_is_gone_is_reported(self):
+        self.assertEqual(
+            homes.ceiling_problems({}, {"docs/old-rules.md": 40}),
+            ["docs/old-rules.md: a ceiling in guide-ceilings.json for a guide that is gone"],
+        )
+
+    def test_flow_044_lowering_follows_a_guide_that_shrank_and_never_raises(self):
+        lengths = {"CLAUDE.md": 80, "docs/workflow.md": 460, "docs/sql-rules.md": 40, ".claude/skills/file-entry/SKILL.md": 26}
+        ceilings = {"CLAUDE.md": 90, "docs/workflow.md": 450, "docs/old-rules.md": 12}
+        self.assertEqual(
+            homes.lowered(lengths, ceilings),
+            {"CLAUDE.md": 80, "docs/sql-rules.md": 40, "docs/workflow.md": 450},
+        )
+
+    def test_flow_044_this_repository_s_guides_are_within_their_ceilings(self):
+        lengths = homes.guide_lengths(homes.guides(homes.tracked("*.md")))
+        self.assertEqual(homes.ceiling_problems(lengths, homes.read_ceilings()), [])
+
+
 class AgenticSetup(unittest.TestCase):
     """FLOW-036: every script, skill, agent prompt and hook has its line in the setup document."""
 

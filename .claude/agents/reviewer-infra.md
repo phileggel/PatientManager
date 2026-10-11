@@ -9,9 +9,9 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 ## Lane
 
-- **Files** — from `bash scripts/branch.sh files`: `.github/workflows/*.yml`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/*.json` (format; usage is `reviewer-security`'s), `src-tauri/Cargo.toml`, `package.json`, `scripts/*.{sh,bat,py}`, `.githooks/*`, `justfile`, `required-checks.json`, `arch-allowlist.json`, `coverage-gates.json`, `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`, `.claude/rules/*.md`, `.claude/settings.json`.
+- **Files** — from `bash scripts/branch.sh files`: `.github/workflows/*.yml`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/*.json` (format; usage is `reviewer-security`'s), `src-tauri/Cargo.toml`, `package.json`, `scripts/*.{sh,bat,py}`, `.githooks/*`, `justfile`, `required-checks.json`, `arch-allowlist.json`, `coverage-gates.json`, `guide-ceilings.json`, `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`, `.claude/rules/*.md`, `.claude/settings.json`.
 - **Rules** — `docs/workflow.md` § 5 (the harness) and § Conventions.
-- **Not here** — application code (`reviewer-backend`, `reviewer-frontend`, `reviewer-arch`, `reviewer-security`), migrations (`reviewer-sql`), dependency CVEs and versions (`/dep-audit`).
+- **Not here** — what a prompt says as a guide: a restated or contradicted rule, its length (`reviewer-guides`); application code (`reviewer-backend`, `reviewer-frontend`, `reviewer-arch`, `reviewer-security`), migrations (`reviewer-sql`), dependency CVEs and versions (`/dep-audit`).
 
 ## Checks
 
@@ -34,7 +34,6 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 - A bash block in a prompt with compound shell (`$(…)`, `&&`, `||`, `;`, `cd X && …`) 🔴 — the allow list matches literal prefixes.
 - A script, recipe, path or section a prompt names that does not exist 🟡.
-- A sentence that restates a rule of `docs/workflow.md` or `CLAUDE.md` without one of its conditions 🟡 — read the rule it points to. A sentence that only names the rule and its section ("run the decision scan as § 3 states it") restates nothing and is not a finding.
 - A subcommand, recipe or step the diff removes or changes while a prompt or `docs/workflow.md` still tells the agent to use the old form 🔴 — search the name in every prompt, on the lines the diff did not touch too.
 - The deny list losing a prohibition: push to `main`, force-push, `--no-verify`, `just release`, `git tag`, `gh pr merge`, editing `.claude/settings.json` 🔴.
 - An allow entry broader than one command family (`Bash(*)`, `Bash(bash *)`, `Bash(rm *)`, `Bash(curl *)`, `Bash(sudo *)`) 🔴; `Bash(python3 -c *)` / `Bash(python3 - *)` are accepted, never widened.
@@ -49,7 +48,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 **justfile** — a recipe calling a script that does not exist 🔴; a multi-line recipe relying on `cd` carrying over 🔴; `generate-types` naming a feature `Cargo.toml` does not declare 🔴; a wrapper recipe not passing `*ARGS` through when its script takes flags 🟡; a public recipe without a doc comment 🔵; a destructive recipe without a warning 🟡.
 
-**Records** — an `arch-allowlist.json` entry appearing or growing 🔴; a floor in `coverage-gates.json` lowered 🔴.
+**Records** — an `arch-allowlist.json` entry appearing or growing 🔴; a floor in `coverage-gates.json` lowered 🔴; a ceiling in `guide-ceilings.json` raised or recorded against `docs/workflow.md` § 5 (Guide ceilings) 🔴.
 
 **Config and cross-file**
 

@@ -3,7 +3,8 @@
 #
 # Reads changed paths on stdin (one per line) and runs:
 #   - Prettier on the Markdown among them (still on disk), and the doc map
-#     and rule homes (scripts/rule-homes.py) when any Markdown moved;
+#     and rule homes (scripts/rule-homes.py) when any Markdown or the
+#     guide ceilings (guide-ceilings.json) moved;
 #   - the architecture rules (scripts/arch-check.py) and `check.py --fast`
 #     for the layers they touch (scripts/changed-scope.sh):
 #     frontend, backend, or both, and the core-without-Tauri build
@@ -44,7 +45,7 @@ if [ -n "$MD_FILES" ]; then
     fi
 fi
 
-if printf '%s\n' "$CHANGED" | grep -qE '\.md$'; then
+if printf '%s\n' "$CHANGED" | grep -qE '(\.md|^guide-ceilings\.json)$'; then
     if ! python3 scripts/rule-homes.py; then
         echo -e "${RED}❌ Doc map or rule homes failed (docs/README.md).${NC}"
         exit 1
