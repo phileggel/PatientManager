@@ -377,27 +377,27 @@ local rebase, never a force-push.
 
 ## 12. The flow audit
 
-After a release and its cleanup, the agent audits the batch with `/flow-audit` and writes
-the result in `docs/work/audits.md`. Quality is the goal, weighed against speed and
-effort. The audit runs once per release; nothing of it runs during a batch, where only
-the mechanical records are kept (the usage log, GitHub's own history).
+After a release, `/flow-audit` audits the batch into `docs/work/audits.md`, once:
+quality first, weighed against speed and effort. Nothing of it runs during a batch.
 
+- **An auditor of its own** (owner, 2026-10-11) — `flow-auditor`, read-only, with a
+  fresh context, judges and returns the findings from the figures, the batch's pull
+  requests and the entries filed during it — never the session agent's account, whose
+  answers to its questions are evidence. What it cannot rebuild from those records is a
+  finding; what lives only in a conversation leaves the audit: the questions put to the
+  owner are the dated answers in the entries.
 - **Measures** — `just flow-audit` counts, beside the release before: pull requests
-  merged, time from opening to merging, how long the queue took (first pull request
-  opened to last merged), the entries filed and closed, CI rounds, failed runs per
-  workflow, the tools the usage log saw, the paths the documents name that no longer
-  exist, and the length of the guides (§ 5), and how many GitHub issues and Dependabot pull requests were open when the
-  batch started and when it ended, and for each entry the pull requests and CI rounds
-  its branches took beside its size: the audit names the entries that went past their
-  size, and which kinds do so most. The agent adds what only the session knows: what the
-  reviewers caught, what they got wrong, the criticals only CI found.
+  merged, time to merge, how long the queue took, the entries filed and closed, CI
+  rounds, failed runs per workflow, the tools the usage log saw, dead paths in the
+  documents, the length of the guides (§ 5), the issues and Dependabot pull requests
+  open at both ends, and what each entry took beside its size. The auditor counts from
+  the pull requests what the reviewers caught, got wrong and left to CI, and reads each
+  generic piece of `docs/agentic-setup.md` against its line.
 - **Five questions** (owner, 2026-10-10), asked of every batch: what would have avoided a
   conflict; where the batch waited, and what would shorten it without costing quality;
   what can be simplified; which script, recipe, skill or agent went unused — keep, fold
   or remove; and where a guide was false, contradicted another, or grew without earning
   it.
-- **Responsibilities** — each generic piece of `docs/agentic-setup.md` is read against
-  its line; one that no longer does what the line says is a finding.
 - **Hard points** — every difficulty met becomes a `FLOW-NNN` entry with its evidence
   and a proposal; where nothing should change, the entry says keep and why.
 - **Moves** — a todo or debt entry that is about the flow becomes a flow entry and keeps

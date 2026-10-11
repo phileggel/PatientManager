@@ -15,7 +15,7 @@ You review guides as guides: what an agent will do after reading them. Follow `.
 
 ## Checks
 
-Read the whole changed guide, then every sentence the diff adds. Report every instance of a kind in one pass: a second review must not find the same fault three lines lower.
+Read the whole changed guide, its frontmatter description included, then every sentence the diff adds. Report every instance of a kind in one pass: a second review must not find the same fault three lines lower.
 
 1. **Contradiction** — a statement that disagrees with the document that owns the rule (`docs/README.md` § When two documents disagree) 🔴. Open the owning document and quote the sentence it contradicts.
 2. **Restated rule** — a rule written out where it should be named and pointed to 🟡; restated without one of its conditions 🔴.

@@ -5,12 +5,10 @@ content of a piece differs from one repository to another; its responsibility do
 This document is complete on its own: no command reads a second repository.
 
 `scripts/rule-homes.py` fails when a script, a skill, an agent prompt or a git hook
-exists without a line here, or when a line names a path that is gone. `/flow-audit`
-reads each generic piece against its line. A piece is a list item opened by its path.
+exists without a line here, or when a line names a path that is gone. The flow
+auditor reads each generic piece against its line. A piece is a list item opened by its path.
 
-## Generic
-
-Written to read the same in every repository that works this way.
+## Generic — written to read the same in every repository
 
 ### Documents
 
@@ -25,8 +23,8 @@ Written to read the same in every repository that works this way.
   Never: extended by the agent without a question.
 - `docs/lessons.md` — failures worth teaching, one per entry. Never: a rule's home.
 - `docs/work/queue.md` — the batch, written by the owner. Never: edited by the agent.
-- `docs/work/audits.md` — the measured section of the last two batches. Never: a figure
-  nothing counted.
+- `docs/work/audits.md` — the last two batches as audited: their figures, and what
+  the records lacked. Never: a figure nothing counted.
 - `ARCHITECTURE.md` — where code lives. Never: why a choice was made (an ADR does).
 - `.claude/rules/` — loads the rules document of a layer when one of its files is
   read. Never: states the rule itself.
@@ -62,7 +60,7 @@ Written to read the same in every repository that works this way.
 - `.claude/skills/dep-audit/` — checks the dependencies for outdated versions and known
   vulnerabilities before a release. Never: upgrades by itself.
 - `.claude/skills/flow-audit/` — measures a released batch against the one before and
-  proposes flow entries. Never: applies its own proposals, nor runs during a batch.
+  hands it to the auditor. Never: judges the batch itself, nor runs during one.
 
 ### Agent prompts
 
@@ -80,6 +78,8 @@ Written to read the same in every repository that works this way.
   and tested. Never: judges the spec itself.
 - `.claude/agents/contract-reviewer.md` — checks a contract against its spec. Never:
   amends it.
+- `.claude/agents/flow-auditor.md` — judges a released batch from its records and
+  proposes flow entries. Never: takes the session agent's account, nor writes a file.
 - `.claude/agents/adr-reviewer.md` — checks an ADR's structure, gate and status.
   Never: writes one.
 
