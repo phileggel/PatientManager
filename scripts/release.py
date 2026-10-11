@@ -112,6 +112,8 @@ class ReleaseManager:
         self.mode = mode
         self.forced_version = forced_version
         self.yes = yes
+        # The changelog section as written, kept to be printed when the release ends.
+        self._changelog_entry: str | None = None
 
     def get_current_version(self) -> str:
         """Get current version from package.json."""
@@ -216,11 +218,16 @@ class ReleaseManager:
     def ask_confirmation(self) -> bool:
         """Ask user to confirm release. 'v' allows version override."""
         while True:
-            response = (
-                input(f"{BLUE}Confirm release v{self.new_version}? (y/n/v): {NC}")
-                .lower()
-                .strip()
-            )
+            try:
+                response = (
+                    input(f"{BLUE}Confirm release v{self.new_version}? (y/n/v): {NC}")
+                    .lower()
+                    .strip()
+                )
+            except EOFError:
+                # No terminal to answer on (FLOW-045): one line, not a traceback.
+                print(f"\n{RED}❌ No terminal to confirm on: run `just release -y`.{NC}")
+                return False
 
             if response == "y":
                 return True
@@ -372,13 +379,13 @@ class ReleaseManager:
         """Create or update CHANGELOG.md with new version entry."""
         prefix = self._format_mode_prefix()
         print(f"{BLUE}{prefix}Updating CHANGELOG.md...{NC}")
+        new_entry = self._changelog_entry = self._build_changelog_entry()
 
         if self.mode is Mode.DRY_RUN:
             print("  → CHANGELOG.md")
             return
 
         changelog = self.repo_root / "CHANGELOG.md"
-        new_entry = self._build_changelog_entry()
 
         if changelog.exists():
             existing = changelog.read_text(encoding="utf-8")
@@ -626,18 +633,28 @@ class ReleaseManager:
 
         return self.commit_and_tag()
 
+    def _print_changelog_entry(self, heading: str) -> None:
+        """End on what the release says to its users (FLOW-045): the changelog section."""
+        print(f"{BLUE}{heading}{NC}\n")
+        print((self._changelog_entry or self._build_changelog_entry()).rstrip("\n"))
+        if not (self.features or self.fixes or self.breaking_changes):
+            print("(nothing a user notices: no feat or fix since the last release)")
+        print()
+
     def _finalize(self) -> bool:
-        """Push (real mode only) and print the outcome message."""
+        """Push (real mode only), print the outcome message and the changelog section."""
         if self.mode is Mode.DRY_RUN:
             print(
                 f"\n{GREEN}✨ Dry-run completed! Release would be v{self.new_version}{NC}"
             )
             print(f"Run without {BLUE}--dry-run{NC} to apply changes\n")
+            self._print_changelog_entry("CHANGELOG.md would gain:")
             return True
 
         if not self.push_release():
             return False
         print(f"\n{GREEN}✨ Release v{self.new_version} published!{NC}\n")
+        self._print_changelog_entry("CHANGELOG.md gained:")
         return True
 
     def push_release(self) -> bool:

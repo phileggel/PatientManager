@@ -3,7 +3,7 @@
 
 Measures how work moved between two releases — the pull requests merged, how long each
 took from opening to merging, the CI rounds and what failed, how long each workflow
-runs, what each entry took beside its size, how many issues and Dependabot pull requests
+runs, how long the queue took, what each entry took beside its size, how many issues and Dependabot pull requests
 were open at its start and at its end — and prints them as one JSON document, beside the
 same figures for the release before when asked. It also reads the repository itself:
 which tools the usage log saw and which it never did, the paths the documents name that
@@ -124,6 +124,15 @@ def measure_pull_requests(
         else None,
         "median_minutes_to_merge": _rounded(statistics.median(minutes))
         if minutes
+        else None,
+        # How long the queue took: from the first pull request opened to the last merged.
+        "minutes_first_opened_to_last_merged": _rounded(
+            _minutes(
+                min(pr["createdAt"] for pr in merged),
+                max(pr["mergedAt"] for pr in merged),
+            )
+        )
+        if merged
         else None,
         "by_type": dict(sorted(by_type.items())),
     }
@@ -370,6 +379,23 @@ def known_tools() -> list[str]:
     return sorted({*scripts, *recipes})
 
 
+def measure_entry_files(name_status: str) -> dict:
+    """The entry files added (filed) and deleted (closed), from `git log --name-status` (FLOW-045)."""
+    filed: dict[str, int] = {}
+    closed: dict[str, int] = {}
+    for line in name_status.splitlines():
+        match = re.fullmatch(r"([AD])\tdocs/work/(todo|debt|flow)/[A-Z]+-\d{3}\.md", line)
+        if match:
+            counts = filed if match.group(1) == "A" else closed
+            counts[match.group(2)] = counts.get(match.group(2), 0) + 1
+    return {
+        "filed": sum(filed.values()),
+        "closed": sum(closed.values()),
+        "filed_by_kind": dict(sorted(filed.items())),
+        "closed_by_kind": dict(sorted(closed.items())),
+    }
+
+
 def measure_repository(
     since: datetime, until: datetime, now: str, before: str
 ) -> dict:
@@ -386,6 +412,9 @@ def measure_repository(
         "usage": measure_usage(log_lines, since, until, known_tools()),
         "dangling_paths": dangling_paths(texts, lambda path: (ROOT / path).exists()),
         "guides": compare_lengths(guide_lengths(now), guide_lengths(before)),
+        "entries": measure_entry_files(
+            _git("log", f"{before}..{now}", "--diff-filter=AD", "--name-status", "--format=", "--", "docs/work")
+        ),
     }
 
 

@@ -19,7 +19,7 @@ otherwise stop and report.
 `just queue` prints the queue, what has shipped, what remains, and the notes of the
 queue file: the bundles (several entries, one pull request) and the slices (the part of
 a programme this batch takes). `TaskCreate` one task per remaining reference in order —
-a bundle is one task — then "Prepare the release" and "Flow audit". Mark each task
+a bundle is one task — then "Closing brief and release preparation" and "Flow audit". Mark each task
 `in_progress` when its work starts and `completed` when its pull request has merged.
 
 ## Step 2 — Ask first
@@ -41,9 +41,14 @@ Stop, and say where, when `/run-entry` stops by its own rules (an open question,
 same gate red three times, the three-hour budget). An entry that is not ready is said
 so and skipped.
 
-## Step 4 — Prepare the release
+## Step 4 — Say what the batch achieved, then prepare the release
 
-When `just queue remaining` prints nothing: `/dep-audit`, the release sweep and
+When `just queue remaining` prints nothing, the closing brief of the queue, before
+anything else: what shipped (each entry with its pull request), what a user notices
+(the `feat` and `fix` titles, or "nothing"), what was filed during the run, and what
+was left — skipped, stopped or not ready — with why.
+
+Then `/dep-audit`, the release sweep and
 `spec-checker` on every spec the batch touched (`docs/workflow.md` § Release sweep);
 what they find is filed as debt. Then tell the owner the release is ready, with what was
 filed. The owner runs `just release`; this skill never does.

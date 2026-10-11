@@ -191,14 +191,15 @@ todo entry: the pull request body is its record.
     brief says what changed for the user and what the project gained.
 
 **Release** — the agent prepares it: `/dep-audit` and the release sweep (Conventions),
-what they find filed as debt, and only then does it tell the human the release is
-ready. The human runs `just release` when they choose. It computes the version from
-the merged titles, writes the changelog (only `feat` → Added, `fix` → Fixed) and the
-version files, tags and pushes; CI builds the draft and puts the version's changelog
-section in its notes. The agent publishes the draft once the release workflow and
-`main` are green, and stops if anything is red; then it audits the batch (§ 12). A batch
-is named by its dates until `just release --dry-run` has proposed a version: until then
-`/plan-queue` and the agent say "the next release", never a number.
+what they find filed as debt, and only then does it tell the human the release is ready.
+The human runs `just release` when they choose. It computes the version from the merged
+titles, writes the changelog (only `feat` → Added, `fix` → Fixed) and the version files,
+tags and pushes, and ends by printing the changelog section it wrote; CI builds the
+draft and puts the version's changelog section in its notes. The agent publishes the
+draft once the release workflow and `main` are green, and stops if anything is red; then
+it audits the batch (§ 12). A batch is named by its dates until `just release --dry-run`
+has proposed a version: until then `/plan-queue` and the agent say "the next release",
+never a number.
 
 ## 4. Design proposal
 
@@ -376,15 +377,15 @@ effort. The audit runs once per release; nothing of it runs during a batch, wher
 the mechanical records are kept (the usage log, GitHub's own history).
 
 - **Measures** — `just flow-audit` counts, beside the release before: pull requests
-  merged, time from opening to merging, CI rounds, failed runs per workflow, the tools
-  the usage log saw, the paths the documents name that no longer exist, and the length
-  of the guides (`CLAUDE.md`, this document, the rules docs, every prompt), and how
-  many GitHub issues and Dependabot pull requests were open when the batch started and
-  when it ended, and for each entry the pull requests and CI rounds its branches took
-  beside its size: the audit names the entries that went past their size, and which
-  kinds do so most. The agent
-  adds what only the session knows: what the reviewers caught, what they got wrong, the
-  criticals only CI found.
+  merged, time from opening to merging, how long the queue took (first pull request
+  opened to last merged), the entries filed and closed, CI rounds, failed runs per
+  workflow, the tools the usage log saw, the paths the documents name that no longer
+  exist, and the length of the guides (`CLAUDE.md`, this document, the rules docs, every
+  prompt), and how many GitHub issues and Dependabot pull requests were open when the
+  batch started and when it ended, and for each entry the pull requests and CI rounds
+  its branches took beside its size: the audit names the entries that went past their
+  size, and which kinds do so most. The agent adds what only the session knows: what the
+  reviewers caught, what they got wrong, the criticals only CI found.
 - **Five questions** (owner, 2026-10-10), asked of every batch: what would have avoided a
   conflict; where the batch waited, and what would shorten it without costing quality;
   what can be simplified; which script, recipe, skill or agent went unused — keep, fold

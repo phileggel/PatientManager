@@ -32,7 +32,9 @@ For the batch that led to `v0.24.1`: `just flow-audit v0.24.0 v0.24.1 --previous
   GitHub issues and the Dependabot pull requests open when the batch started and when
   it ended: state both; `current.entries` — each entry's pull requests and CI rounds
   beside its size: name those `past_its_size`, and which kinds they are.
-- `repository` — `usage` (runs and failures by tool in `logs/usage.log`, the tools it
+  `pull_requests.minutes_first_opened_to_last_merged` is how long the queue took.
+- `repository` — `entries` (the entry files filed and closed in the batch, by kind),
+  `usage` (runs and failures by tool in `logs/usage.log`, the tools it
   never saw, and its first line: a log that starts late covers part of the batch),
   `dangling_paths` (paths a document names that no longer exist), `guides` (the length
   of `CLAUDE.md`, the workflow, the rules docs and every prompt, beside the release

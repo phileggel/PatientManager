@@ -266,6 +266,39 @@ class MeasureEntriesTest(unittest.TestCase):
         self.assertIsNone(flow_audit.size_of("# FLOW-001 — A\n"))
 
 
+class QueueFiguresTest(unittest.TestCase):
+    """FLOW-045: the entries filed and closed in the batch, and how long the queue took."""
+
+    def test_flow_045_the_queue_runs_from_the_first_opening_to_the_last_merge(self):
+        figures = flow_audit.measure_pull_requests(PULL_REQUESTS, SINCE, UNTIL)
+        # 101 opened at 08:00, 103 merged at 11:20.
+        self.assertEqual(figures["minutes_first_opened_to_last_merged"], 200.0)
+
+    def test_flow_045_an_empty_window_has_no_queue_time(self):
+        self.assertIsNone(flow_audit.measure_pull_requests([], SINCE, UNTIL)["minutes_first_opened_to_last_merged"])
+
+    def test_flow_045_entry_files_added_and_deleted_are_counted_by_kind(self):
+        log = "\n".join([
+            "A\tdocs/work/debt/DEBT-056.md",
+            "D\tdocs/work/flow/FLOW-045.md",
+            "",
+            "D\tdocs/work/debt/DEBT-051.md",
+            "A\tdocs/work/flow/FLOW-049.md",
+            "D\tdocs/work/flow/FLOW-049.md",
+            "A\tdocs/work/audits.md",
+            "M\tdocs/work/todo/TODO-008.md",
+        ])
+        self.assertEqual(
+            flow_audit.measure_entry_files(log),
+            {
+                "filed": 2,
+                "closed": 3,
+                "filed_by_kind": {"debt": 1, "flow": 1},
+                "closed_by_kind": {"debt": 1, "flow": 2},
+            },
+        )
+
+
 class CommitTypeTest(unittest.TestCase):
     def test_reads_the_conventional_type(self):
         self.assertEqual(flow_audit.commit_type("refactor: a thing"), "refactor")
