@@ -5,6 +5,7 @@ Use:  just watch-pr            the pull request of the current branch
       just watch-pr 178        that pull request
 Exit: 0 every check green · 1 a check failed · 2 GitHub unreachable · 3 timed out
       4 the pull request is not open · 5 the pull request never reached the local commit
+      6 a reviewer lane was stopped by the CI account's usage limit (the reset time is printed)
 
 It reads the check runs of the head commit, the newest run per name, as
 `scripts/merge.py` does, and it is done only once every check named in
@@ -16,13 +17,16 @@ and the required ones still missing do not appear over four polls, the watch end
 failed: a job that starts others (the reviewer lanes) failed before starting them.
 
 Every line printed is something to act on (a failure when it lands, a stuck check,
-the verdict), so the script can run under a monitor without noise.
+the verdict), so the script can run under a monitor without noise. A reviewer lane that
+failed without a report is explained from its sticky comment (FLOW-055): the stated
+reason, what the session said, and when that is the usage limit, the reset time.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
@@ -32,6 +36,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PASSING = ("success", "skipped", "neutral")
+LANE = "reviewer-"
+# The sticky comment review.yml writes when a lane produced no report: its stated reason and the session's last words.
+# The quote carries one `> ` on its first line only; a message of several lines runs to the end of the comment.
+NO_REPORT = re.compile(r"— no report\n.*?On the second try (?P<reason>.+?)\.\n\nSession said:\n\n(?P<said>>.*)", re.S)
+# "You've hit your usage limit. Your limit resets 11:50am (UTC)." — the time, as the session gave it.
+USAGE_LIMIT = re.compile(
+    r"\b(?:usage|rate) limit\b.*?\bresets?\b(?: at)?\s+(?P<when>\d{1,2}(?::\d{2})?\s*(?:am|pm)?(?:\s*\(?UTC\)?)?)", re.I | re.S
+)
 
 
 class GitHubError(Exception):
@@ -91,6 +103,57 @@ def _failure(run: Run) -> str:
     return f"{run.name}: {run.conclusion} — {run.url}"
 
 
+SAID_LIMIT = 200
+
+
+def _plain(text: str) -> str:
+    """The text with its control characters dropped and capped: the session read an unreviewed diff,
+    so its words are printed as data, never as escapes or a wall of text."""
+    text = "".join(char for char in text if char.isprintable())
+    return text if len(text) <= SAID_LIMIT else text[:SAID_LIMIT] + "…"
+
+
+def no_report(comment: str) -> tuple[str, str] | None:
+    """(the reason the workflow stated, what the session said) when a lane's sticky comment reports no report."""
+    found = NO_REPORT.search(comment)
+    if not found:
+        return None
+    said = " ".join(line.removeprefix(">").strip() for line in found.group("said").splitlines() if line.strip())
+    return _plain(found.group("reason")), _plain(said)
+
+
+def usage_limit_reset(said: str) -> str | None:
+    """The reset time when the session's words say a usage limit stopped it, as they give it."""
+    found = USAGE_LIMIT.search(said)
+    return found.group("when").strip() if found else None
+
+
+def explain(failed: list[Run], comment_of: Callable[[str], str | None], out: Callable[[str], None]) -> int:
+    """Say why each failed reviewer lane wrote no report.
+
+    6 when every failure is a lane the usage limit stopped (nothing to fix, re-run after the reset);
+    1 as soon as any check failed for another reason, that failure being the one to read first.
+    """
+    limited = 0
+    for run in failed:
+        if not run.name.startswith(LANE):
+            continue
+        comment = comment_of(run.name[len(LANE):])
+        if comment is None:
+            out(f"{run.name}: no sticky comment to read")
+            continue
+        stopped = no_report(comment)
+        if stopped is None:
+            continue
+        reason, said = stopped
+        out(f"{run.name}: no report — {reason}; session said: {said}")
+        when = usage_limit_reset(said)
+        if when:
+            out(f"USAGE LIMIT: {run.name} resets {when} — re-run that job then, nothing to fix")
+            limited += 1
+    return 6 if limited and limited == len(failed) else 1
+
+
 def watch(
     read_head: Callable[[], str],
     read_runs: Callable[[str], list[Run]],
@@ -104,8 +167,12 @@ def watch(
     patience: int = 4,
     expected: str = "",
     push_patience: int = 10,
+    report_failed: Callable[[list[Run]], None] | None = None,
 ) -> int:
-    """`expected` is the local commit of the watched branch, or "" to watch whatever the head is."""
+    """`expected` is the local commit of the watched branch, or "" to watch whatever the head is.
+
+    `report_failed` is handed the failed runs when the watch ends with 1, so the caller can explain them.
+    """
     deadline = clock() + timeout
     head, errors, stalled, waiting = "", 0, 0, ["the first answer"]
     told: set[tuple[str, str]] = set()
@@ -158,6 +225,8 @@ def watch(
                 out(f"FINISHED WITH FAILURES on {sha[:7]}{never}:")
                 for run in failed:
                     out(f"  {_failure(run)}")
+                if report_failed:
+                    report_failed(failed)
                 return 1
             waiting = names
         sleep(interval)
@@ -209,6 +278,18 @@ def local_commit(pull: str | None) -> str:
         return ""  # the watch itself will say what is wrong
 
 
+def comment_of(pull: str | None, lane: str) -> str | None:
+    """The sticky comment of a reviewer lane on the pull request, or None when there is none to read."""
+    try:
+        number = json.loads(gh("pr", "view", *([pull] if pull else []), "--json", "number"))["number"]
+        # One JSON string per line; the marker is matched here, so the lane's name never enters a jq filter.
+        lines = gh("api", f"repos/{{owner}}/{{repo}}/issues/{number}/comments", "--paginate", "--jq", ".[].body | @json")
+        bodies = [json.loads(line) for line in lines.splitlines() if line.strip()]
+    except (GitHubError, json.JSONDecodeError, KeyError):
+        return None
+    return next((body for body in bodies if body.startswith(f"<!-- review:{lane} -->")), None)
+
+
 def runs_of(sha: str) -> list[Run]:
     answer = gh(
         "api", f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs?filter=latest", "--paginate",
@@ -231,11 +312,13 @@ def main(argv: list[str] | None = None) -> int:
     def say(line: str) -> None:
         print(line, flush=True)
 
+    failed: list[Run] = []
     try:
-        return watch(
+        code = watch(
             lambda: head_of(args.pull), runs_of, required, say, time.sleep, time.monotonic, args.interval, args.timeout,
-            expected=local_commit(args.pull),
+            expected=local_commit(args.pull), report_failed=failed.extend,
         )
+        return explain(failed, lambda lane: comment_of(args.pull, lane), say) if code == 1 else code
     except NotOpen as state:
         say(f"PULL REQUEST {state}: nothing to watch")
         return 4

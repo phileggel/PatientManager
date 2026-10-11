@@ -113,8 +113,8 @@ auditor reads each generic piece against its line. A piece is a list item opened
 - `scripts/review-path.sh` — where a reviewer writes its report. Never: writes it.
 - `scripts/review-stop-reason.py` — says in one line why a reviewer session stopped in
   CI. Never: fails the job it explains.
-- `scripts/watch-pr.py` — waits for a pull request's checks and says how they ended.
-  Never: merges or re-runs.
+- `scripts/watch-pr.py` — waits for a pull request's checks and says how they ended,
+  the usage limit that stopped a lane included. Never: merges or re-runs.
 - `scripts/merge.py` — rebases a branch whose checks are all green, merges it and
   deletes it. Never: merges on a red or missing check, nor force-pushes.
 - `scripts/release.py` — computes the version, writes the changelog, tags and pushes,

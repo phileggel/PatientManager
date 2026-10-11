@@ -17,7 +17,7 @@ You review guides as guides: what an agent will do after reading them. Follow `.
 
 Read the whole changed guide, its frontmatter description included, then every sentence the diff adds. Report every instance of a kind in one pass: a second review must not find the same fault three lines lower.
 
-1. **Contradiction** — a statement that disagrees with the document that owns the rule (`docs/README.md` § When two documents disagree) 🔴. Open the owning document and quote the sentence it contradicts.
+1. **Contradiction** — a statement that disagrees with the document that owns the rule (`docs/README.md` § When two documents disagree) 🔴. Open the owning document and quote the sentence it contradicts. A qualification a skill adds to a rule is one unless the owning section states it.
 2. **Restated rule** — a rule written out where it should be named and pointed to 🟡; restated without one of its conditions 🔴.
 3. **Setup document** — a skill, agent, script or hook whose name or responsibility in the changed text differs from its line in `docs/agentic-setup.md`, or that does what its line says never 🟡; a piece whose role the diff changes while its line stays 🔴.
 4. **Length** — `guide-ceilings.json` is checked by `just rule-homes`, not here. In every review, for each changed guide, say what could be cut: a sentence that repeats another, an example that teaches nothing the rule does not, a history of how the rule came to be, a step no reader would skip 🔵.

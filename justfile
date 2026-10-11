@@ -62,9 +62,13 @@ flow-audit *ARGS:
 queue *ARGS:
     python3 scripts/work-queue.py "$@"
 
-# Wait for a pull request's checks and say how they ended (default: the current branch's); exit 0 green, 1 failed
+# Wait for a pull request's checks and say how they ended (default: the current branch's); exit 0 green, 1 failed, 6 a lane stopped by the usage limit
 watch-pr *ARGS:
     python3 scripts/watch-pr.py {{ARGS}}
+
+# Re-run the failed jobs of a workflow run (the run id of the URL `just watch-pr` printed): a lane the usage limit stopped, once it has reset
+rerun-failed RUN: (_used "rerun-failed")
+    gh run rerun {{RUN}} --failed
 
 # One line in the usage log (logs/usage.log) for a recipe that runs no script of its own; scripts log themselves
 _used RECIPE:

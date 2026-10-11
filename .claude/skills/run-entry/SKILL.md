@@ -15,9 +15,8 @@ this file is the checklist.
   stop and report; never work on a dirty tree.
 - **Headless** (no argument): `just queue` lists the queue (`docs/work/queue.md`);
   take the first remaining reference that is ready. Nobody to ask: a question becomes a line in the entry's `**Open questions:**`.
-- **Chat, named entry** (`TODO-NNN` / `DEBT-NNN` / `FLOW-NNN`): load its file
-  (`docs/work/todo/TODO-NNN.md`, `docs/work/debt/DEBT-NNN.md`,
-  `docs/work/flow/FLOW-NNN.md`).
+- **Chat, named entry** (`TODO-NNN` / `DEBT-NNN` / `FLOW-NNN`): load its file under
+  `docs/work/{todo,debt,flow}/`.
 - **A pull request reference** (`gh#NN`, queued or named): a Dependabot pull request.
   Follow `docs/workflow.md` § Dependabot pull requests instead of Steps 1 to 9: read the
   diff, check each pinned commit, `just merge` on its branch for a real review, grade
@@ -98,11 +97,14 @@ and names what a user notices.
 - Push, `gh pr create --body-file`. Body under 20 lines: the task, each Done-when clause
   with the test that proves it, findings that changed something, techdebt filed,
   screenshots.
-- Watch the checks with `just watch-pr`, in the background: it prints a failure when
-  it lands, a stuck check, and the verdict; exit 0 is green, and
+- Watch the checks with `just watch-pr`, in the background; exit 0 is green, and
   `scripts/watch-pr.py` lists the other codes.
 - A red reviewer lane: read its sticky comment, grade, apply, push. A CI finding the
   local run missed also becomes a rule in that reviewer's prompt, same PR.
+- Exit 6, a lane stopped by the CI account's usage limit: nothing to fix. Wait for the
+  reset time it prints (a scheduled wake-up in chat, a sleep headless), outside Rule 4;
+  re-run that job (`just rerun-failed <the run id of the printed URL>`) and watch again.
+  In chat, the next task may meanwhile be prepared (`docs/workflow.md` § 11).
 - Any other red: read the log first. If it shows the cause, fix it; if not, the next
   push adds observation and makes the failure cheap, never a fix (`docs/workflow.md`
   § 8). Fix with `git commit --fixup <sha>` (never a new titled commit, never a
@@ -124,8 +126,6 @@ was filed.
 ## Rules
 
 1. Headless never asks the human; questions are lines in the entry.
-2. Never lower a floor, raise an allowlist, bypass a hook, force-push, push to `main`,
-   touch the installed app's data, cut a release, edit a released changelog line,
-   or edit the queue.
+2. `CLAUDE.md` § Core rules 1 and Step 5 hold, and the queue is never edited.
 3. One task per invocation. Stop after Step 9.
 4. Three hours of wall clock per task; over that, open question and stop.

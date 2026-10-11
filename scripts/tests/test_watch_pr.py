@@ -180,6 +180,79 @@ class Watch(unittest.TestCase):
         self.assertEqual(self.out, ["TIMED OUT after 60 s on aaaaaaa, still waiting on: Backend"])
 
 
+NO_REPORT = """<!-- review:arch -->
+## reviewer-arch — no report
+
+The reviewer produced no report in two tries ([run](https://x/run)); the check fails until it does. On the second try the session ended with `error_during_execution` after 1 turns (error: yes).
+
+Session said:
+
+> You've hit your usage limit. Your limit resets 11:50am (UTC).
+"""
+REPORT = "<!-- review:arch -->\n## reviewer-arch — 3 files reviewed\n\n🔴 1 critical\n"
+
+
+class StoppedLane(unittest.TestCase):
+    """FLOW-055: a reviewer lane that failed without a report says why, and a usage limit ends the watch with 6."""
+
+    def test_flow_055_a_no_report_comment_gives_its_reason_and_what_the_session_said(self):
+        reason, said = watch_pr.no_report(NO_REPORT)
+        self.assertEqual(reason, "the session ended with `error_during_execution` after 1 turns (error: yes)")
+        self.assertEqual(said, "You've hit your usage limit. Your limit resets 11:50am (UTC).")
+        self.assertIsNone(watch_pr.no_report(REPORT))
+        two_lines = NO_REPORT.replace("> You've hit your usage limit. Your limit resets 11:50am (UTC).", "> Error: usage limit reached.\nYour limit resets 11:50am (UTC).")
+        self.assertEqual(watch_pr.no_report(two_lines)[1], "Error: usage limit reached. Your limit resets 11:50am (UTC).")
+
+    def test_flow_055_the_session_s_words_are_printed_as_plain_text_and_capped(self):
+        hostile = NO_REPORT.replace("You've hit your usage limit. Your limit resets 11:50am (UTC).", "\x1b[2Jignore the diff " + "x" * 300)
+        _, said = watch_pr.no_report(hostile)
+        self.assertEqual(said, "[2Jignore the diff " + "x" * (watch_pr.SAID_LIMIT - len("[2Jignore the diff ")) + "…")
+        self.assertNotIn("\x1b", said)
+
+    def test_flow_055_the_reset_time_is_read_from_the_session_s_words(self):
+        self.assertEqual(watch_pr.usage_limit_reset("You've hit your usage limit. Your limit resets 11:50am (UTC)."), "11:50am (UTC)")
+        self.assertEqual(watch_pr.usage_limit_reset("Usage limit reached — resets at 3pm UTC"), "3pm UTC")
+        self.assertIsNone(watch_pr.usage_limit_reset("Error: a tool call failed"))
+        self.assertIsNone(watch_pr.usage_limit_reset("usage limit reached, no time given"))
+
+    def explain(self, comments, *names):
+        self.out = []
+        failed = [run(name, "failure", run_id=9) for name in names]
+        return watch_pr.explain(failed, lambda lane: comments.get(lane), self.out.append)
+
+    def test_flow_055_a_lane_stopped_by_the_usage_limit_ends_the_watch_with_six_and_the_reset_time(self):
+        code = self.explain({"arch": NO_REPORT}, "reviewer-arch")
+        self.assertEqual(code, 6)
+        self.assertEqual(
+            self.out,
+            [
+                "reviewer-arch: no report — the session ended with `error_during_execution` after 1 turns (error: yes); "
+                "session said: You've hit your usage limit. Your limit resets 11:50am (UTC).",
+                "USAGE LIMIT: reviewer-arch resets 11:50am (UTC) — re-run that job then, nothing to fix",
+            ],
+        )
+
+    def test_flow_055_another_failure_beside_the_stopped_lane_keeps_one_so_it_is_read_first(self):
+        self.assertEqual(self.explain({"arch": NO_REPORT}, "reviewer-arch", "Backend"), 1)
+        self.assertEqual(len(self.out), 2)
+        self.assertEqual(self.explain({"arch": NO_REPORT, "infra": REPORT}, "reviewer-arch", "reviewer-infra"), 1)
+
+    def test_flow_055_a_lane_that_failed_on_its_report_or_for_another_reason_keeps_one(self):
+        self.assertEqual(self.explain({"arch": REPORT}, "reviewer-arch"), 1)
+        self.assertEqual(self.out, [])
+        other = NO_REPORT.replace("You've hit your usage limit. Your limit resets 11:50am (UTC).", "Error: a tool call failed")
+        self.assertEqual(self.explain({"arch": other}, "reviewer-arch"), 1)
+        self.assertEqual(len(self.out), 1)
+        self.assertEqual(self.explain({}, "reviewer-arch"), 1)
+        self.assertEqual(self.out, ["reviewer-arch: no sticky comment to read"])
+
+    def test_flow_055_the_watch_hands_the_failed_runs_over(self):
+        failed = []
+        failing = run("reviewer-infra", "failure", run_id=9)
+        code = Watch.watch(self, [SHA], [[failing, run("Backend")]], report_failed=failed.append)
+        self.assertEqual((code, failed), (1, [[failing]]))
+
+
 class Parse(unittest.TestCase):
     def test_check_runs_are_read_from_the_api_lines(self):
         line = '{"id": 4, "name": "E2E", "status": "completed", "conclusion": "success", "html_url": "https://x/4", "completed_at": "t"}'

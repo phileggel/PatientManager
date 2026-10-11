@@ -312,8 +312,9 @@ recorded in the PR body, one line per finding that changed something or was reje
 
 ## 8. Budget and stop rules
 
-- One task, one run, three hours of wall clock. Over budget → open question "larger
-  than estimated: split?", stop.
+- One task, one run, three hours of wall clock; a wait for the CI account's usage limit
+  to reset (`just watch-pr` exit 6) is not the task's time. Over budget → open question
+  "larger than estimated: split?", stop.
 - A gate fails → read its log. If the log shows the cause, fix it. If it does not, the
   next push adds observation and makes the failure cheap to reproduce (the cache kept
   on failure, a stop at the first failing file), never a fix. This holds from the first
@@ -321,11 +322,9 @@ recorded in the PR body, one line per finding that changed something or was reje
 - The same gate failing three times on one task → open question, stop.
 - An E2E failure that passes on re-run → the flake is filed as `DEBT-NNN`, the run
   continues.
-- **Never:** touch the installed application's data
-  (`~/.local/share/com.projectsf.patient-manager/` holds real patient data), push to
-  `main`, force-push, bypass a hook, edit a released changelog line, change the queue
-  without the human's yes (§ 2), cut a release, edit `.claude/settings.json` (the human
-  edits it; the agent commits that edit through a pull request).
+- **Never:** what `CLAUDE.md` § Core rules 1 forbids; nor change the queue without the
+  human's yes (§ 2), nor edit `.claude/settings.json` (the human edits it; the agent
+  commits that edit through a pull request).
 
 ## 9. Where the loop runs
 
@@ -370,10 +369,10 @@ missed. A feature whose backend or frontend exceeds about 20 files or 500
 lines ships as one PR per layer, in order: spec, contract, migration, backend and
 bindings; then the frontend; then E2E and closure. Each is mergeable on its own.
 
-A branch that is not pushed yet may sit on a branch in review, so pull requests that
-change the same file do not conflict: its harness and reviewers run there, the reviewers
-given its last commit only, and it is rebased onto `main` before its first push — a
-local rebase, never a force-push.
+While a pull request waits for its checks, the next task may be prepared on a branch
+not pushed yet, so pull requests that change the same file do not conflict: its harness
+and reviewers run there, the reviewers given its last commit only, and it is rebased
+onto `main` before its first push — a local rebase, never a force-push.
 
 ## 12. The flow audit
 
