@@ -23,7 +23,7 @@ jobs:
     name: PR checks (commit-msg hygiene + repo invariants)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     permissions:
       contents: read
     steps:
@@ -109,6 +109,12 @@ jobs:
         # scripts/rule-homes.py: every Markdown file in a location of docs/README.md,
         # every rule, entry and lesson ID defined once.
         run: python3 scripts/rule-homes.py
+      - name: Install just
+        # Pinned to a full SHA — mutable tags are a supply-chain risk. The script
+        # tests run the `queue` recipe itself (FLOW-050); the test is skipped without it.
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0
+        with:
+          tool: just
       - name: Unit tests of the repository scripts
         # Same command as `just test-scripts`; the merge guard in scripts/merge.py is under test.
         run: python3 -m unittest discover -s scripts/tests -p "test_*.py"

@@ -1,8 +1,11 @@
 """Tests for scripts/work-queue.py — run with `just test-scripts`."""
 
 import importlib.util
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -498,6 +501,32 @@ class NewEntry(unittest.TestCase):
         for title in ("", "  ", "two\nlines"):
             with self.assertRaises(ValueError):
                 plan.new_entry("FLOW", title, "FLOW-049", "2026-10-11")
+
+
+class RecipeArguments(unittest.TestCase):
+    """FLOW-050: the `queue` recipe hands the script its arguments as they were given."""
+
+    @unittest.skipUnless(shutil.which("just"), "`just` is not installed: the recipe cannot be run")
+    def test_flow_050_just_queue_new_keeps_a_title_of_several_words_whole(self):
+        root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = Path(tmp)
+            (copy / "scripts").mkdir()
+            shutil.copy(root / "justfile", copy / "justfile")
+            for name in ("work-queue.py", "usage_log.py"):
+                shutil.copy(root / "scripts" / name, copy / "scripts" / name)
+            subprocess.run(["git", "init", "-q"], cwd=copy, check=True)
+            run = subprocess.run(
+                ["just", "queue", "new", "flow", "A title of words"],
+                cwd=copy, capture_output=True, text=True,
+                # A hook runs with GIT_DIR set; the copy must be the repository git sees.
+                env={**{k: v for k, v in os.environ.items() if not k.startswith("GIT_")}, "USAGE_LOG": "off"},
+            )
+            self.assertEqual(run.returncode, 0, run.stderr)
+            files = list((copy / "docs" / "work" / "flow").glob("*.md"))
+            self.assertEqual(len(files), 1, files)
+            self.assertTrue(files[0].read_text(encoding="utf-8").startswith("# FLOW-"))
+            self.assertIn("— A title of words\n", files[0].read_text(encoding="utf-8"))
 
 
 class Render(unittest.TestCase):

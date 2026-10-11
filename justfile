@@ -1,6 +1,9 @@
 # PatientManager - Command Runner
 # Install just: https://github.com/casey/just
 
+# A recipe that takes `*ARGS` passes them as `"$@"`, so a quoted argument stays one (FLOW-050).
+set positional-arguments
+
 # The throwaway database the SQLx tooling connects to (schema only, never the
 # application's database: the app reads no DATABASE_URL). Same path as
 # scripts/check.py (SQLX_CHECK_DB) and CI (quality.yml). Set DATABASE_URL to
@@ -57,7 +60,7 @@ flow-audit *ARGS:
 # Where the queue stands: queued with its notes, ready, blocked, debt, open pull requests (/plan-queue proposes the order);
 # `just queue close TODO-NNN` deletes a shipped entry's file; `just queue next-id DEBT` prints the next free id; `just queue remaining` the queued references not shipped yet; `just queue new debt "<title>"` files an entry
 queue *ARGS:
-    python3 scripts/work-queue.py {{ARGS}}
+    python3 scripts/work-queue.py "$@"
 
 # Wait for a pull request's checks and say how they ended (default: the current branch's); exit 0 green, 1 failed
 watch-pr *ARGS:
