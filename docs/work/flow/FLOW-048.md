@@ -59,3 +59,7 @@
   last two batches.
 - Decision (owner, 2026-10-11): accepted and queued, with the flow entries; the filing rules and their
   small skill are part of it.
+- Sizes of the todo entries (owner, 2026-10-11), confirmed for the pass over the backlog:
+  TODO-008 L, TODO-010 M, TODO-013 XL, TODO-018 L, TODO-019 M, TODO-020 L, TODO-021 L;
+  TODO-022 and TODO-023 keep L. TODO-008's `Design` line becomes `needed`: its
+  correction form changes. TODO-013 is sliced before it can be queued.

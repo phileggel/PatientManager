@@ -26,3 +26,6 @@
   prompt's faults one at a time.
 - Decision (owner, 2026-10-11): accepted, with the survey of length: the text of a skill
   or an agent must not grow too much and stays short.
+- Ceiling of a new guide (owner, 2026-10-11): a skill or an agent prompt created from now
+  on may not exceed 120 lines; a longer one needs the owner's yes, written beside its
+  ceiling. An existing guide keeps its present length as its ceiling.
