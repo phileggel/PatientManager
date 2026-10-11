@@ -126,6 +126,33 @@ class Watch(unittest.TestCase):
         self.assertEqual(self.out[:2], ["Backend: failure — https://x/1", "head moved to bbbbbbb"])
         self.assertEqual(code, 3)
 
+    def test_flow_038_no_check_is_read_before_github_knows_the_pushed_commit(self):
+        new = "b" * 40
+        # One answer only: reading the checks of the commit before would use it up, or fail.
+        code = self.watch([SHA, SHA, new], [[run("Backend")]], expected=new)
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            self.out,
+            ["waiting for GitHub to know bbbbbbb: the pull request is still on aaaaaaa", "ALL CHECKS GREEN on bbbbbbb"],
+        )
+
+    def test_flow_038_a_commit_that_never_arrives_ends_the_watch_as_out_of_step(self):
+        new = "b" * 40
+        code = self.watch([SHA], [], expected=new, push_patience=3)
+        self.assertEqual(code, 5)
+        self.assertEqual(
+            self.out[-1],
+            "OUT OF STEP: the pull request is on aaaaaaa, the local branch on bbbbbbb — push or pull, then watch again",
+        )
+
+    def test_flow_038_a_head_that_matches_the_local_commit_is_read_at_once(self):
+        code = self.watch([SHA], [[run("Backend")]], expected=SHA)
+        self.assertEqual((code, self.out), (0, ["ALL CHECKS GREEN on aaaaaaa"]))
+
+    def test_flow_038_only_the_current_branch_s_pull_request_is_held_to_the_local_commit(self):
+        self.assertEqual(watch_pr.expected_head("feat/a", "feat/a", "b" * 40), "b" * 40)
+        self.assertEqual(watch_pr.expected_head("feat/a", "main", "b" * 40), "")
+
     def test_a_failure_that_keeps_required_checks_from_ever_reporting_ends_the_watch(self):
         # gh#183: the job that starts the reviewer lanes failed, so the lanes never reported.
         failed = [run("Lanes touched by the diff", "failure", run_id=5), run("Backend")]

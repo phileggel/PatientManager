@@ -4,13 +4,15 @@
 Use:  just watch-pr            the pull request of the current branch
       just watch-pr 178        that pull request
 Exit: 0 every check green · 1 a check failed · 2 GitHub unreachable · 3 timed out
-      4 the pull request is not open
+      4 the pull request is not open · 5 the pull request never reached the local commit
 
 It reads the check runs of the head commit, the newest run per name, as
 `scripts/merge.py` does, and it is done only once every check named in
-`required-checks.json` has reported. A push moves the watch to the new head. A
-failed poll is retried: five in a row end the watch. When a check has failed and
-the required ones still missing do not appear over four polls, the watch ends as
+`required-checks.json` has reported. For the pull request of the current branch, no
+check is read before GitHub knows the local commit: right after a push it still answers
+with the commit before, whose checks are green (FLOW-038). A push moves the watch to the
+new head. A failed poll is retried: five in a row end the watch. When a check has failed
+and the required ones still missing do not appear over four polls, the watch ends as
 failed: a job that starts others (the reviewer lanes) failed before starting them.
 
 Every line printed is something to act on (a failure when it lands, a stuck check,
@@ -100,14 +102,20 @@ def watch(
     timeout: float = 1800,
     max_errors: int = 5,
     patience: int = 4,
+    expected: str = "",
+    push_patience: int = 10,
 ) -> int:
+    """`expected` is the local commit of the watched branch, or "" to watch whatever the head is."""
     deadline = clock() + timeout
     head, errors, stalled, waiting = "", 0, 0, ["the first answer"]
     told: set[tuple[str, str]] = set()
+    behind = 0
     while True:
         try:
             sha = read_head()
-            runs = latest(read_runs(sha))
+            # Checks are read only once the pull request is on the pushed commit.
+            lagging = bool(expected) and sha != expected and not head
+            runs = [] if lagging else latest(read_runs(sha))
         except GitHubError as error:
             errors += 1
             out(f"poll error ({errors}/{max_errors}): {error}")
@@ -116,6 +124,19 @@ def watch(
                 return 2
         else:
             errors = 0
+            if lagging:
+                behind += 1
+                if behind == 1:
+                    out(f"waiting for GitHub to know {expected[:7]}: the pull request is still on {sha[:7]}")
+                if behind >= push_patience:
+                    out(f"OUT OF STEP: the pull request is on {sha[:7]}, the local branch on {expected[:7]} — push or pull, then watch again")
+                    return 5
+                waiting = [f"the pushed commit {expected[:7]}"]
+                sleep(interval)
+                if clock() >= deadline:
+                    out(f"TIMED OUT after {timeout:g} s, still waiting on: {', '.join(waiting)}")
+                    return 3
+                continue
             if sha != head:
                 if head:
                     out(f"head moved to {sha[:7]}")
@@ -171,6 +192,23 @@ def head_of(pull: str | None) -> str:
     return data["headRefOid"]
 
 
+def expected_head(pull_branch: str, local_branch: str, local_head: str) -> str:
+    """The commit the watch waits for: the local one when the pull request is the current branch's."""
+    return local_head if pull_branch == local_branch else ""
+
+
+def local_commit(pull: str | None) -> str:
+    """The local commit to wait for, or "" when the watched pull request is another branch's."""
+    def git(*args: str) -> str:
+        return subprocess.run(["git", *args], capture_output=True, text=True, check=True, cwd=ROOT).stdout.strip()
+
+    try:
+        branch = json.loads(gh("pr", "view", *([pull] if pull else []), "--json", "headRefName"))["headRefName"]
+        return expected_head(branch, git("branch", "--show-current"), git("rev-parse", "HEAD"))
+    except (GitHubError, json.JSONDecodeError, KeyError, OSError, subprocess.CalledProcessError):
+        return ""  # the watch itself will say what is wrong
+
+
 def runs_of(sha: str) -> list[Run]:
     answer = gh(
         "api", f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs?filter=latest", "--paginate",
@@ -194,7 +232,10 @@ def main(argv: list[str] | None = None) -> int:
         print(line, flush=True)
 
     try:
-        return watch(lambda: head_of(args.pull), runs_of, required, say, time.sleep, time.monotonic, args.interval, args.timeout)
+        return watch(
+            lambda: head_of(args.pull), runs_of, required, say, time.sleep, time.monotonic, args.interval, args.timeout,
+            expected=local_commit(args.pull),
+        )
     except NotOpen as state:
         say(f"PULL REQUEST {state}: nothing to watch")
         return 4

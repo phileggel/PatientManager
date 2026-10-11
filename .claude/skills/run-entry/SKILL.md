@@ -99,8 +99,8 @@ and names what a user notices.
   with the test that proves it, findings that changed something, techdebt filed,
   screenshots.
 - Watch the checks with `just watch-pr`, in the background: it prints a failure when
-  it lands, a stuck check, and the verdict (exit 0 green, 1 failed, 2 GitHub
-  unreachable, 3 timed out).
+  it lands, a stuck check, and the verdict; exit 0 is green, and
+  `scripts/watch-pr.py` lists the other codes.
 - A red reviewer lane: read its sticky comment, grade, apply, push. A CI finding the
   local run missed also becomes a rule in that reviewer's prompt, same PR.
 - Any other red: read the log first. If it shows the cause, fix it; if not, the next
