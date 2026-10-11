@@ -13,3 +13,5 @@
   local lane is re-run on a prompt the same pull request changed, before the push.
 - Costs: a sentence; one more local review on such a pull request. Protects: four CI
   rounds, and prompts that copy rules instead of naming them.
+- Re-measured 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): seen again, milder — #252 changed the `reviewer-guides` prompt after CI
+  round 1 and round 2 raised another critical; the lane was run again locally only after round 2.

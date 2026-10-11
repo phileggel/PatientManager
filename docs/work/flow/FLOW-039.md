@@ -13,3 +13,5 @@
 - Costs: a rule that decides when two changes cannot affect each other; wrong once, it
   merges an untested combination. Protects: about 8 minutes per open pull request per
   merge, in a batch of small pull requests.
+- Re-measured 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): 0 rounds from a merge moving `main`, was about 6; nothing in the tool
+  changed, only one pull request was open at a time.

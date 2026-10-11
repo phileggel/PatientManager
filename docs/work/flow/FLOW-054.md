@@ -38,3 +38,8 @@
 - Decision (owner, 2026-10-11): accepted for the six contradictions, next queue, each settled in its owning
   document; where the owning document looks wrong, the owner is asked that one question. The
   eight lesser points are fixed as their guides are next touched.
+- Added 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): four more statements a record shows false — the setup document says
+  `scripts/merge.py` never force-pushes (FLOW-056) and that `docs/workflow.md` never says how code is
+  written (its § 6 does); the workflow's usage-log convention says skills and agents are counted from the
+  session transcript, which § 12 no longer uses; `CLAUDE.md` names `reviewer-security` alone for the
+  release sweep where the workflow says the reviewer agents (FLOW-061).

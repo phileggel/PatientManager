@@ -11,3 +11,4 @@
   what Playwright knows, or Playwright is raised in the next `/dep-audit`; the README's
   setup names the browser install.
 - Costs: a few lines, or a dependency bump. Protects: twenty minutes on every new machine.
+- Re-measured 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): `visual-proof-capture.mjs` never run in the batch.

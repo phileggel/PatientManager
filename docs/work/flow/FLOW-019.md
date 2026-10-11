@@ -24,3 +24,5 @@
   5.4.2). WebdriverIO 10.0.2 still clears 19; `npm audit fix` clears `source-map-js` and `esbuild`.
 - Proposal: owner's call for the next batch — `npm audit fix` now, WebdriverIO 10 once the
   major has a few weeks behind it; the E2E suites are its only user.
+- Re-checked 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): its condition, a fixed release, has held since 2026-10-06, across three
+  re-checks with no decision.

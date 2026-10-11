@@ -17,3 +17,5 @@
 - Costs: a few lines and a test; a naming rule for filing branches. A branch named the
   old way before the fix is still counted in the audit of this batch.
 - Decision (owner, 2026-10-11): accepted, for the next queue. The audit of this batch runs with the fault known.
+- Added 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): the entries figure is taken from the tag and the pull requests from the publication,
+  so FLOW-042 to 044, filed by #233 and #234, fall in the wrong batch.

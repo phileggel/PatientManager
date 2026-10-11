@@ -17,3 +17,5 @@
 - Re-measured 2026-10-10 (audit of the 0.24.2 batch): 12 cancelled runs, was 32; 8 of them are "PR description"
   runs restarted by an edit of the description after the push. No job was left without a runner. The second half
   of the proposal (edit the description before the push) would have avoided the 8.
+- Re-measured 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): cancelled runs 0, was 12; no description edit restarted a run. The stop on
+  #261 is a different case (FLOW-055).
