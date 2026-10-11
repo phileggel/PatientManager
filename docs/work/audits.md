@@ -3,6 +3,10 @@
 What each batch measured, written after a release by an auditor that did not run the batch (`docs/workflow.md` § 12).
 The hard points an audit finds are `FLOW-NNN` entries in `flow/`. Newest first.
 
+**0.24.4** (2026-10-11, one fix, #267) has no audit of its own: the next audit starts at
+`v0.24.3`, so its three pull requests (#265 to #267) are measured with the next batch (owner,
+2026-10-11).
+
 ---
 
 ## Measured — the 0.24.3 batch (2026-10-10 22:15 UTC → 2026-10-11 13:29 UTC; 2026-10-11 local)
