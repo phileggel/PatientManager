@@ -352,6 +352,9 @@ LOG = [
     "2026-10-04T08:00:00Z\tcheck.py\t3.0s\tok",
     "2026-10-04T09:00:00Z\tcheck.py\t3.0s\texit 1",
     "2026-10-04T10:00:00Z\tformat\t-\tok",
+    # A recipe that runs no script of its own logs that it started, never how it ended.
+    "2026-10-04T10:30:00Z\ttest-scripts\t-\tstarted",
+    "2026-10-04T10:40:00Z\ttest-scripts\t-\tstarted",
     "not a log line",
 ]
 
@@ -361,8 +364,13 @@ class MeasureUsageTest(unittest.TestCase):
         self.figures = flow_audit.measure_usage(LOG, SINCE, UNTIL, ["check.py", "format", "release.py"])
 
     def test_runs_and_failures_are_counted_by_tool_within_the_window(self):
-        self.assertEqual(self.figures["runs"], {"check.py": 2, "format": 1})
+        self.assertEqual(self.figures["runs"], {"check.py": 2, "format": 1, "test-scripts": 2})
         self.assertEqual(self.figures["failed"], {"check.py": 1})
+
+    def test_flow_047_a_recipe_that_started_is_a_run_with_no_outcome_not_a_failure(self):
+        self.assertNotIn("test-scripts", self.figures["failed"])
+        self.assertEqual(self.figures["no_outcome"], {"test-scripts": 2})
+        self.assertEqual(self.figures["runs"]["test-scripts"], 2)
 
     def test_a_tool_the_log_never_saw_is_named(self):
         self.assertEqual(self.figures["never_run"], ["release.py"])

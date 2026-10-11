@@ -43,6 +43,8 @@ State a count only when you counted it; otherwise write "not counted".
   reading before the work should have asked earlier.
 - Every statement in a guide that a pull request shows to be false or contradicted.
 - Each generic piece of `docs/agentic-setup.md` against its line.
+- Tool failures only where the log has an outcome: a tool under `usage.no_outcome` is
+  stated by its runs alone.
 - The tools `never_run`: a tool only CI runs is never in the usage log — say so, and
   never propose removing it for that. The skills and agents launched are in no record
   but the reviewers' comments: for the rest, write "not counted".

@@ -297,10 +297,13 @@ def measure_usage(
     """What the usage log saw in the window: runs and failures by tool, and the tools it never saw.
 
     The log is local and written outside CI only: a tool that only CI runs is never
-    seen, and a log that starts after `since` covers part of the window.
+    seen, and a log that starts after `since` covers part of the window. A recipe that
+    runs no script of its own logs `started` and nothing else: a run with no outcome,
+    counted apart, never as a failure (FLOW-047).
     """
     runs: dict[str, int] = {}
     failed: dict[str, int] = {}
+    no_outcome: dict[str, int] = {}
     stamps = []
     for line in log_lines:
         parts = line.rstrip("\n").split("\t")
@@ -309,12 +312,15 @@ def measure_usage(
         stamp, tool, _, outcome = parts
         stamps.append(stamp)
         runs[tool] = runs.get(tool, 0) + 1
-        if outcome != "ok":
+        if outcome == "started":
+            no_outcome[tool] = no_outcome.get(tool, 0) + 1
+        elif outcome != "ok":
             failed[tool] = failed.get(tool, 0) + 1
     return {
         "first_line": min(stamps) if stamps else None,
         "runs": dict(sorted(runs.items())),
         "failed": dict(sorted(failed.items())),
+        "no_outcome": dict(sorted(no_outcome.items())),
         "never_run": sorted(set(tools) - set(runs)),
     }
 
