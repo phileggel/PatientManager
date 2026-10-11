@@ -16,3 +16,4 @@
   and `docs/workflow.md` § 2 say so; a test with a filing branch.
 - Costs: a few lines and a test; a naming rule for filing branches. A branch named the
   old way before the fix is still counted in the audit of this batch.
+- Decision (owner, 2026-10-11): accepted, for the next queue. The audit of this batch runs with the fault known.

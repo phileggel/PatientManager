@@ -8,4 +8,4 @@
 
 **Size:** M
 
-**Waits on the owner:** whether a fund may be created from a label that can hold a person's name, with TODO-022; the rest does not wait
+**Waits on the owner:** no — a fund created from a label that can hold a person's name stays a question of TODO-022 (owner, 2026-10-11)

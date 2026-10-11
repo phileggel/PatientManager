@@ -17,3 +17,4 @@
   that fails on any title of more than one word.
 - Added 2026-10-11 (release sweep): `/file-entry` step 2 names the failing command; six entries
   were filed since by calling the script directly.
+- Decision (owner, 2026-10-11): accepted, for the next queue. Until then the script is called directly, and said so.

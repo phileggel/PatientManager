@@ -35,3 +35,6 @@
   the owning document is the one that is wrong, the owner says so.
 - Costs: several pull requests of documentation, each read by the guides lane; the
   ceilings mean every addition needs a cut.
+- Decision (owner, 2026-10-11): accepted for the six contradictions, next queue, each settled in its owning
+  document; where the owning document looks wrong, the owner is asked that one question. The
+  eight lesser points are fixed as their guides are next touched.

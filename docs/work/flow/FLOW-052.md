@@ -18,3 +18,5 @@
   reword rule 6 to say what is really restored.
 - Costs: a few lines of workflow, one more CI round to see it work. A pull request that
   changes a hook is then reviewed with the hook of `main`, as prompts already are.
+- Decision (owner, 2026-10-11): accepted — check first what the pinned action loads, then fix; if it loads
+  nothing of the project, the entry closes with what was read.

@@ -17,3 +17,4 @@
   in one line when it does not know the commit to wait for; the test's message goes to
   the test's own output. The `/file-entry` line follows FLOW-050.
 - Costs: a few lines and their tests in three scripts.
+- Decision (owner, 2026-10-11): accepted, for the next queue.

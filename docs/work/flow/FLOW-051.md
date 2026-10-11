@@ -18,3 +18,5 @@
   The owner edits the file: the agent does not change the list that restrains it.
 - Costs: a few lines of settings, one test. A denial that is too wide refuses a
   legitimate command once, and is then narrowed.
+- Decision (owner, 2026-10-11): accepted. The owner adds the denials to `.claude/settings.json`; the agent adds
+  the test that fails when one goes, and never edits that file.
