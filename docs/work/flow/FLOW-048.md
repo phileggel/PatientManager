@@ -4,7 +4,7 @@
 - Observed: on 2026-10-11 the owner found the queue of 16 entries too big the day after
   validating it, as on 2026-10-04 and 05 with a queue of 31 (FLOW-029, closed). One line of
   it, FLOW-032, stands for up to 13 pull requests; another, DEBT-052, for a few lines.
-  `/whats-next` states a count of pull requests since FLOW-029, estimated at the moment of
+  `/plan-queue` states a count of pull requests since FLOW-029, estimated at the moment of
   the proposal by the agent that proposes it; nothing is written on the entry, and nothing
   checks the estimate afterwards. In the 0.24.2 batch, DEBT-038 was one line and one pull
   request; FLOW-029 with FLOW-035, 60 lines of documentation, took five CI rounds; the

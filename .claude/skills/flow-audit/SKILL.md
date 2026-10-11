@@ -28,7 +28,9 @@ For the batch that led to `v0.24.1`: `just flow-audit v0.24.0 v0.24.1 --previous
 - `current` beside `previous` — `pull_requests` (merged, first and last number, closed
   without merging, lines added, mean and median minutes from opening to merging, the
   count by commit type) and `ci` (rounds, branches, rounds beyond the first, failures and cancelled runs by
-  workflow, the median duration of each workflow's green runs).
+  workflow, the median duration of each workflow's green runs); `current.open` — the
+  GitHub issues and the Dependabot pull requests open when the batch started and when
+  it ended: state both.
 - `repository` — `usage` (runs and failures by tool in `logs/usage.log`, the tools it
   never saw, and its first line: a log that starts late covers part of the batch),
   `dangling_paths` (paths a document names that no longer exist), `guides` (the length
@@ -90,7 +92,7 @@ Then empty `logs/usage.log` (local, never committed): its figures are recorded.
 
 For every file in `docs/work/flow/`:
 
-- **settled** by a change of the batch → `just whats-next close FLOW-NNN`;
+- **settled** by a change of the batch → `just queue close FLOW-NNN`;
 - a **watch** → state what the re-check found;
 - a **proposal** neither decided nor declined → leave it, unless a figure now argues for
   or against it: then say so in its text.
@@ -99,7 +101,7 @@ For every file in `docs/work/flow/`:
 
 Add a flow entry only where a figure moved the wrong way, a rule of `docs/workflow.md`
 or `CLAUDE.md` was not followed, a guide was wrong, or the owner corrected the flow
-during the batch. `just whats-next next-id FLOW` gives its id; write the file before
+during the batch. `just queue next-id FLOW` gives its id; write the file before
 asking for the next id. The format is `docs/workflow.md` § 12: Kind, Observed with its
 figure, Proposal, Costs, Protects. "Keep" is a verdict; where nothing needs changing,
 propose nothing.
@@ -107,7 +109,7 @@ propose nothing.
 ## Step 7 — Hand over
 
 One pull request, docs only. Its closing brief lists the figures that moved and the
-entries proposed, for the owner to decide and queue in the next `/whats-next`.
+entries proposed, for the owner to decide and queue in the next `/plan-queue`.
 
 ## Rules
 

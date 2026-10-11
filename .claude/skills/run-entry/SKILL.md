@@ -1,10 +1,10 @@
 ---
-name: next-todo
+name: run-entry
 description: Runs one task end to end under docs/workflow.md — branch, design gate, acceptance tests, implementation, harness, reviewers, PR, merge on green, closure. The task is the first ready entry of the queue, docs/work/queue.md (headless, no argument), an entry the human names (TODO-NNN / DEBT-NNN / FLOW-NNN), or a plain request typed in chat. One task per invocation.
 argument-hint: "[TODO-NNN | DEBT-NNN | FLOW-NNN | a request]"
 ---
 
-# Skill — `next-todo`
+# Skill — `run-entry`
 
 One invocation, one task, to a merged pull request. The rules are `docs/workflow.md`;
 this file is the checklist.
@@ -13,7 +13,7 @@ this file is the checklist.
 
 - `git status --short` is empty and `main` is fresh (`git pull --ff-only`). Otherwise
   stop and report; never work on a dirty tree.
-- **Headless** (no argument): `just whats-next` lists the queue (`docs/work/queue.md`);
+- **Headless** (no argument): `just queue` lists the queue (`docs/work/queue.md`);
   take the first remaining reference that is ready. Nobody to ask: a question becomes a line in the entry's `**Open questions:**`.
 - **Chat, named entry** (`TODO-NNN` / `DEBT-NNN` / `FLOW-NNN`): load its file
   (`docs/work/todo/TODO-NNN.md`, `docs/work/debt/DEBT-NNN.md`,
@@ -64,6 +64,8 @@ If the task changes anything the user sees and `Design` is not `validated`: run
   E2E for what a user does. Test names carry the id or the spec rule; a new business
   rule goes into `docs/spec/<feature>.md`, a changed command into the domain contract,
   in the same commit.
+- A fault met in production: ask for the input that shows it before designing a fix,
+  and reproduce it in a failing test first (`docs/workflow.md` § 3).
 - Run the suites; confirm the new tests are red. A clause that cannot become a test is
   an open question: write it, commit, stop.
 
@@ -110,7 +112,9 @@ and names what a user notices.
 
 ## Step 9 — Closure
 
-In the same PR, before the merge: `just whats-next close <id>` deletes the entry's file
+In the same PR, before the merge. If the branch touched a file under `docs/spec/`, or
+the entry names spec rules: launch `spec-checker` on each such spec now, and fix what it
+reports before closing. Then `just queue close <id>` deletes the entry's file
 (`docs/work/`); the queue is not edited. Techdebt the work resolved
 is closed the same way, `ARCHITECTURE.md` if a module appeared, design proposal images
 deleted. Then the closing brief: what changed for the user (or "nothing — internal"),

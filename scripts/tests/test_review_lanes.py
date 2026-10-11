@@ -79,7 +79,7 @@ class ReviewLanes(unittest.TestCase):
 
     def test_agent_and_skill_prompts_and_the_settings_are_infra(self):
         self.assertEqual(lanes(".claude/agents/reviewer-sql.md"), ["infra"])
-        self.assertEqual(lanes(".claude/skills/next-todo/SKILL.md"), ["infra"])
+        self.assertEqual(lanes(".claude/skills/run-entry/SKILL.md"), ["infra"])
         self.assertEqual(lanes(".claude/settings.json"), ["infra"])
         self.assertEqual(lanes(".claude/agents/sub/reviewer-infra.md"), [])  # flat only
 

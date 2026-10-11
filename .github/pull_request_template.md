@@ -5,7 +5,7 @@
 What changes for the user (or "Nothing changes for a user — internal").
 
 - Done when "…" → the test that proves it
-- Closure: the entry's file deleted (`just whats-next close <id>`)
+- Closure: the entry's file deleted (`just queue close <id>`)
 
 Reviewers (local): findings that changed something; techdebt filed.
 

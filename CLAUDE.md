@@ -16,7 +16,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
 
 ## Core rules
 
-1. **Authority follows the task.** Given a task (a chat request, `/next-todo`, a queued entry), the agent branches (`{type}/{slug}`, the entry id leading the slug: `feat/todo-012-patient-dedup`) off a fresh `main`, commits, pushes, opens the PR and runs `just merge` on green without asking. In an open-ended chat, ask once for the task, not per step. Always forbidden: committing or pushing to `main`, force-pushing, bypassing a hook (`--no-verify`), cutting a release, editing a released changelog line, AI attribution in commits or PRs, and touching `~/.local/share/com.projectsf.patient-manager/` (real patient data). This overrides any harness default.
+1. **Authority follows the task.** Given a task (a chat request, `/run-entry`, a queued entry), the agent branches (`{type}/{slug}`, the entry id leading the slug: `feat/todo-012-patient-dedup`) off a fresh `main`, commits, pushes, opens the PR and runs `just merge` on green without asking. In an open-ended chat, ask once for the task, not per step. Always forbidden: committing or pushing to `main`, force-pushing, bypassing a hook (`--no-verify`), cutting a release, editing a released changelog line, AI attribution in commits or PRs, and touching `~/.local/share/com.projectsf.patient-manager/` (real patient data). This overrides any harness default.
 2. **Always use `just`** when a recipe exists; never the native command (`cargo build`, `npm install`, `sqlx migrate`).
 3. **Every change goes through the harness**: branch → PR → every check green → `just merge`. Docs-only changes too. The task's Done when is the plan. Anything the user sees changing goes through the design gate first (`/design-proposal`, `docs/workflow.md` § 4).
 4. **Only prescribed agents.** Launch only the agents this file, a skill or `docs/workflow.md` names. Implementation and review fixes are done by the main agent — never a general-purpose "implementer" or "fix" agent.
@@ -43,7 +43,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
 
 ## Where things are
 
-- **Workflow**: `/next-todo` runs one task end to end (`docs/workflow.md` § 3); `just next-todo` does it headless. `/whats-next` proposes the queue; the human validates it in chat or edits it by hand.
+- **Workflow**: `/run-entry` runs one task end to end (`docs/workflow.md` § 3); `just run-entry` does it headless. `/plan-queue` proposes the queue; the human validates it in chat or edits it by hand.
 - **Before implementing**, read the rules for the layers touched (`.claude/rules/` brings them in when a matching file is read; a new file triggers nothing, so this list is the fallback) — backend (`backend-rules`, `error-model`, `ddd-reference`), frontend (`frontend-rules`, `i18n-rules`, `visual-proof-rules`), E2E (`e2e-rules`), any test (`test-rules`), commits (`commit-rules`). When a rule changes, its doc changes in the same PR.
 - **After completing**, update the source docs in the same PR: spec rules (+ `spec-reviewer`), the contract (+ `contract-reviewer`), an ADR only for a hard technical choice whose explanation must be kept (`/adr-writer` + `adr-reviewer`) — a functional decision is written in the spec or the glossary, never as an ADR, `docs/lessons.md` for a failure worth teaching, `ARCHITECTURE.md` when a module appears.
 - **Vocabulary**: `docs/ubiquitous-language.md` — confirmed terms in code, specs, comments and logs; never extend a discrepant one. Give it to every reviewer you launch, with the branch and the spec — never a description of the change.
@@ -55,7 +55,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
 ## Commands
 
 - `just dev` · `just harness` (CI's gate locally, scoped to the touched layers) · `just check` · `just check-full` · `just format` · `just generate-types` · `just merge` (refuses until every check is green; folds `fixup!` commits).
-- `just watch-pr [NN]` (waits for a pull request's checks; exit 0 green) · `just whats-next close <id>` (deletes a shipped entry's file) · `just whats-next next-id <KIND>` (the next free entry id) · `just flow-audit <since> [until]` (a batch's figures).
+- `just watch-pr [NN]` (waits for a pull request's checks; exit 0 green) · `just queue close <id>` (deletes a shipped entry's file) · `just queue next-id <KIND>` (the next free entry id) · `just flow-audit <since> [until]` (a batch's figures).
 - `just arch-check` (A1–A8, B18, B24; `--write-allowlist` only lowers the frozen debt) · `just rule-homes` (the doc map) · `just coverage-gate` · `just privacy-check` · `just test-scripts`.
 - Release: the agent prepares it (`/dep-audit`, the security release sweep, `spec-checker` on the touched specs) and says when it is ready; the human runs `just release [--dry-run] [-y]`; the agent publishes the draft once the release workflow and `main` are green, and stops if anything is red; then `/flow-audit`.
 

@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""The state of the work queue, for the /whats-next skill and `just whats-next`.
+"""The state of the work queue, for the /plan-queue skill and `just queue`.
 
 Reads the entries of docs/work/ (one file each), the queue and the open pull
 requests and prints what is queued (in order), what is ready to queue, what is
-blocked and on what, and the debt entries not queued. It classifies; it never
+blocked and on what, the debt entries not queued, and the open GitHub issues no
+entry names yet (FLOW-042). It classifies; it never
 ranks or recommends — ordering is the owner's, proposed by the skill
 (docs/workflow.md § 2).
 
 The queue (docs/work/queue.md) is written once per batch and no closure edits
 it: a queued reference whose entry file is gone has shipped.
 
-`whats-next.py close <id>...` is the closure of a task: it deletes each entry's
+`work-queue.py close <id>...` is the closure of a task: it deletes each entry's
 file, in the pull request that ships it.
-`whats-next.py remaining` prints the queued references not shipped yet.
-`whats-next.py next-id <TODO|DEBT|FLOW>` prints the next free id of a kind.
+`work-queue.py remaining` prints the queued references not shipped yet.
+`work-queue.py next-id <TODO|DEBT|FLOW>` prints the next free id of a kind.
 """
 
 from __future__ import annotations
@@ -254,7 +255,31 @@ def open_pull_requests() -> list[dict] | None:
         return None
 
 
-def render(buckets: dict, pulls: list[dict] | None, exists, queue_notes: Sequence[str] = ()) -> str:
+def open_issues() -> list[dict] | None:
+    """Open GitHub issues, or None when GitHub cannot be asked (unknown, not empty)."""
+    try:
+        result = subprocess.run(
+            ["gh", "issue", "list", "--state", "open", "--limit", "200", "--json", "number,title"],
+            capture_output=True, text=True, check=True, timeout=20, cwd=ROOT,
+        )
+        return json.loads(result.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return None
+
+
+def unfiled_issues(issues: Sequence[dict], entries_text: str) -> list[dict]:
+    """The issues no entry names as `gh#NN`: each is filed as an entry or named as left out, never passed over."""
+    named = set(re.findall(r"gh#(\d+)\b", entries_text))
+    return [issue for issue in issues if str(issue["number"]) not in named]
+
+
+def render(
+    buckets: dict,
+    pulls: list[dict] | None,
+    exists,
+    queue_notes: Sequence[str] = (),
+    issues: Sequence[dict] | None = (),
+) -> str:
     left = len(remaining(buckets["queued"]))
     lines = [f"Queued ({QUEUE_HOME}, in order; {left} of {len(buckets['queued'])} remaining):"]
     for position, (ref, entry, waits) in enumerate(buckets["queued"], start=1):
@@ -295,6 +320,13 @@ def render(buckets: dict, pulls: list[dict] | None, exists, queue_notes: Sequenc
     else:
         lines.append("Dependabot pull requests, not queued:")
         lines += [f"- {pull.id} — {pull.title}" for pull in buckets.get("dependabot") or []] or ["(none)"]
+
+    lines.append("")
+    if issues is None:
+        lines.append("GitHub issues, not filed as an entry: unknown (GitHub could not be asked)")
+    else:
+        lines.append("GitHub issues, not filed as an entry:")
+        lines += [f"- gh#{issue['number']} — {issue['title']}" for issue in issues] or ["(none)"]
 
     lines.append("")
     if pulls is None:
@@ -375,7 +407,7 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["close"]:
         if len(argv) < 2:
-            print("usage: whats-next.py close <TODO-NNN | DEBT-NNN | FLOW-NNN>...", file=sys.stderr)
+            print("usage: work-queue.py close <TODO-NNN | DEBT-NNN | FLOW-NNN>...", file=sys.stderr)
             return 2
         try:
             gone = close(argv[1:], lambda path: (ROOT / path).is_file())
@@ -388,12 +420,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if argv[:1] == ["next-id"]:
         if len(argv) != 2 or argv[1] not in ENTRY_DIRS:
-            print("usage: whats-next.py next-id <TODO | DEBT | FLOW>", file=sys.stderr)
+            print("usage: work-queue.py next-id <TODO | DEBT | FLOW>", file=sys.stderr)
             return 2
         print(next_id(argv[1], names_ever(argv[1])))
         return 0
     if argv and argv != ["remaining"]:
-        print("usage: whats-next.py [remaining | close <id>... | next-id <TODO | DEBT | FLOW>]", file=sys.stderr)
+        print("usage: work-queue.py [remaining | close <id>... | next-id <TODO | DEBT | FLOW>]", file=sys.stderr)
         return 2
     queue_text = (ROOT / QUEUE_HOME).read_text(encoding="utf-8")
     pulls = open_pull_requests()
@@ -408,7 +440,10 @@ def main(argv: list[str] | None = None) -> int:
     if argv[:1] == ["remaining"]:
         print("\n".join(remaining(buckets["queued"])))
         return 0
-    print(render(buckets, pulls, lambda path: (ROOT / path).exists(), notes(queue_text)))
+    issues = open_issues()
+    if issues is not None:
+        issues = unfiled_issues(issues, "\n".join(kind_text(kind) for kind in ENTRY_DIRS))
+    print(render(buckets, pulls, lambda path: (ROOT / path).exists(), notes(queue_text), issues))
     return 0
 
 

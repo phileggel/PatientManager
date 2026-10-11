@@ -1,19 +1,20 @@
 ---
-name: whats-next
+name: plan-queue
 description: Shows the state of the work queue (queued, ready, blocked, debt, open pull requests) and proposes the next queue (docs/work/queue.md) for the owner to validate in chat. Chat only. Use when the queue is empty or short, after a release, or when returning to the project.
 ---
 
-# Skill — `whats-next`
+# Skill — `plan-queue`
 
 The owner sets the queue (`docs/workflow.md` § 2). This skill prepares that decision:
 it shows where every entry stands and proposes an order. It never decides.
 
 ## Step 1 — Collect
 
-`python3 scripts/whats-next.py` (`just whats-next`). It classifies and nothing more:
+`python3 scripts/work-queue.py` (`just queue`). It classifies and nothing more:
 queued in order, ready but not queued, blocked with what each entry waits on, debt not
 queued, flow entries not queued (decided, waiting on the owner, or a watch), open
-Dependabot pull requests not queued, open pull requests with their checks. "unknown" means GitHub could not be
+Dependabot pull requests not queued, open GitHub issues no entry names yet, open pull
+requests with their checks. "unknown" means GitHub could not be
 asked — report it as unknown, never as none.
 
 ## Step 2 — Check the debt
@@ -54,13 +55,17 @@ Print, in this order:
 1. **In flight** — open pull requests and their checks; the queue as it stands.
    Then the size of the proposal: how many pull requests it stands for (a range when a
    programme is in it), beside what the last batch merged (`docs/work/audits.md`).
-2. **Proposed queue** — references in order (written to `docs/work/queue.md` as a plain
-   list, `- TODO-NNN`), todo, debt, decided flow entries and every open Dependabot pull request
-   (`- gh#NN`: its green reviewer checks are skips, `docs/workflow.md` § Conventions) together, one reason per line: what it unblocks, what it depends on, what it should ship with.
-   Dependencies first; an entry waiting on the owner is not in the queue.
+2. **Proposed queue** — references in the order `docs/workflow.md` § 2 states (written
+   to `docs/work/queue.md` as a plain list, `- TODO-NNN`): todo, debt, decided flow
+   entries and open Dependabot pull requests (`- gh#NN`: its green reviewer checks are
+   skips, `docs/workflow.md` § Conventions) together. Each line: the id, a concise
+   summary of the task, at most a clause on why it sits there. Where two ordering rules
+   disagree, one line says so. An entry waiting on the owner is not in the queue.
 3. **Needs you** — the decisions and the drafts from Steps 2 and 3, one line each; they
    are asked one at a time in Step 5.
 4. **Left out** — one line per theme, with why (blocked, low value now, obsolete).
+   Every open issue and Dependabot pull request Step 1 printed is either queued (an
+   issue through its entry) or named here with its reason.
 
 No value scores, no hour estimates (a count of pull requests is not one), no "do now"
 verdict: the reason on each line is the argument, and the owner weighs it.
@@ -74,7 +79,7 @@ On a yes, write exactly what was validated, as a docs change through the harness
 (branch `docs/queue-<date>`, PR, `just merge`):
 
 - `docs/work/queue.md`, replaced by the validated list in its order — the references
-  of the batch before, all shipped or left out, go; `just whats-next` must then show no
+  of the batch before, all shipped or left out, go; `just queue` must then show no
   queued reference as "no such entry";
 - the User value and Done when of each accepted draft, the answers of the decision
   scan, and `**Open questions:** none` once nothing else is open;
@@ -87,4 +92,4 @@ On a yes, write exactly what was validated, as a docs change through the harness
 2. Nothing is written before the owner's yes, and nothing beyond what the yes covers.
 3. No entry is created, renumbered or deleted here; a new idea from the owner becomes
    an entry the owner dictates.
-4. One proposal per invocation; `/next-todo` runs what was queued.
+4. One proposal per invocation; `/run-entry` runs what was queued.

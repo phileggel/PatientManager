@@ -199,6 +199,31 @@ class MeasureCiTest(unittest.TestCase):
         )
 
 
+class MeasureOpenTest(unittest.TestCase):
+    """FLOW-042: how many issues and Dependabot pull requests were open when the batch started and ended."""
+
+    def item(self, created, closed=None):
+        return {"createdAt": created, "closedAt": closed}
+
+    def test_flow_042_an_item_is_open_from_its_creation_until_it_is_closed(self):
+        items = [
+            self.item("2026-10-01T00:00:00Z"),  # open throughout
+            self.item("2026-10-01T00:00:00Z", "2026-10-04T00:00:00Z"),  # closed during the batch
+            self.item("2026-10-04T00:00:00Z"),  # opened during the batch
+            self.item("2026-10-01T00:00:00Z", "2026-10-02T00:00:00Z"),  # closed before it
+            self.item("2026-10-06T00:00:00Z"),  # opened after it
+        ]
+        self.assertEqual(flow_audit.measure_open(items, SINCE, UNTIL), {"at_start": 2, "at_end": 2})
+
+    def test_flow_042_only_the_bot_s_pull_requests_are_dependabot_s(self):
+        pulls = [
+            {"author": {"login": "app/dependabot"}, "createdAt": "2026-10-01T00:00:00Z", "closedAt": None},
+            {"author": {"login": "owner"}, "createdAt": "2026-10-01T00:00:00Z", "closedAt": None},
+            {"author": None, "createdAt": "2026-10-01T00:00:00Z", "closedAt": None},
+        ]
+        self.assertEqual(len(flow_audit.dependabot_pull_requests(pulls)), 1)
+
+
 class CommitTypeTest(unittest.TestCase):
     def test_reads_the_conventional_type(self):
         self.assertEqual(flow_audit.commit_type("refactor: a thing"), "refactor")

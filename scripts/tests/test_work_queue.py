@@ -1,4 +1,4 @@
-"""Tests for scripts/whats-next.py — run with `just test-scripts`."""
+"""Tests for scripts/work-queue.py — run with `just test-scripts`."""
 
 import importlib.util
 import subprocess
@@ -7,7 +7,7 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
-SPEC = importlib.util.spec_from_file_location("whats_next", Path(__file__).resolve().parents[1] / "whats-next.py")
+SPEC = importlib.util.spec_from_file_location("work_queue", Path(__file__).resolve().parents[1] / "work-queue.py")
 plan = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = plan  # dataclasses resolve their module by name
 SPEC.loader.exec_module(plan)
@@ -272,7 +272,7 @@ FILES = {"docs/work/todo/TODO-001.md", "docs/work/todo/TODO-002.md", "docs/work/
 
 
 class Close(unittest.TestCase):
-    """`whats-next.py close <id>`: the entry's file is deleted; the queue is left as written."""
+    """`work-queue.py close <id>`: the entry's file is deleted; the queue is left as written."""
 
     def close(self, *refs):
         return plan.close(list(refs), FILES.__contains__)
@@ -407,6 +407,31 @@ class DependabotPullRequests(unittest.TestCase):
     def test_flow_024_unknown_is_never_none(self):
         text = plan.render(plan.classify([], [], [], [], None), None, lambda path: True)
         self.assertIn("Dependabot pull requests, not queued: unknown (GitHub could not be asked)", text)
+
+
+class GitHubIssues(unittest.TestCase):
+    """FLOW-042: an open issue is queued through its entry or named — never passed over."""
+
+    ISSUES = [{"number": 12, "title": "Export fails on an empty month"}, {"number": 15, "title": "Wrong total"}]
+
+    def test_flow_042_an_issue_no_entry_names_is_unfiled(self):
+        entries = "# TODO-030 — Export an empty month\n\nFrom gh#12, reported by the owner."
+        self.assertEqual(plan.unfiled_issues(self.ISSUES, entries), [self.ISSUES[1]])
+
+    def test_flow_042_a_longer_number_does_not_file_a_shorter_one(self):
+        self.assertEqual(plan.unfiled_issues(self.ISSUES, "See gh#120 and gh#151."), self.ISSUES)
+
+    def test_flow_042_unfiled_issues_are_printed_with_their_number(self):
+        text = plan.render(plan.classify([], [], []), [], lambda path: True, issues=[self.ISSUES[1]])
+        self.assertIn("GitHub issues, not filed as an entry:\n- gh#15 — Wrong total", text)
+
+    def test_flow_042_no_unfiled_issue_reads_as_none_and_github_unreachable_as_unknown(self):
+        buckets = plan.classify([], [], [])
+        self.assertIn("GitHub issues, not filed as an entry:\n(none)", plan.render(buckets, [], lambda path: True, issues=[]))
+        self.assertIn(
+            "GitHub issues, not filed as an entry: unknown (GitHub could not be asked)",
+            plan.render(buckets, [], lambda path: True, issues=None),
+        )
 
 
 class Render(unittest.TestCase):

@@ -40,19 +40,19 @@ job or a machine gate.
   `docs/work/todo/TODO-NNN.md`, `docs/work/debt/DEBT-NNN.md`,
   `docs/work/flow/FLOW-NNN.md`. Its first line is its heading; `just rule-homes` fails
   when the name, the folder and the heading do not say the same id.
-- An entry that ships is deleted (`just whats-next close <id>`), so two pull requests
+- An entry that ships is deleted (`just queue close <id>`), so two pull requests
   never meet in a file when each closes or files an entry.
-- Ids are permanent and never reused: `just whats-next next-id <TODO|DEBT|FLOW>` prints
+- Ids are permanent and never reused: `just queue next-id <TODO|DEBT|FLOW>` prints
   the next free one, counting the entries already deleted. Two branches that take the
   same id conflict at the merge; the later one takes the next id.
-- The overview is `just whats-next`, which lists every entry by kind.
+- The overview is `just queue`, which lists every entry by kind.
 
 ### Todo entries — human-owned
 
 - Every entry is `# TODO-NNN — title` and ends with `**User value:**`,
   `**Done when:**`, `**Design:**` and `**Open questions:**`.
 - The agent writes to an entry in two places only: it sets `Design` to `proposed (…)` or
-  `validated`, and it adds open questions; in `/whats-next` it writes the User value and
+  `validated`, and it adds open questions; in `/plan-queue` it writes the User value and
   Done when the human validated in chat. It deletes the entry in the pull request that
   ships it. It never creates or renumbers one.
 
@@ -61,21 +61,32 @@ job or a machine gate.
 - The file is the queue of one batch: `TODO-NNN`, `DEBT-NNN` and `FLOW-NNN` references,
   and `gh#NN` for a Dependabot pull request (§ Conventions), in the order to work them,
   one per line as a plain list (`- TODO-NNN`).
-- It is written once per batch, in `/whats-next`, in chat, as the order the human
+- It is written once per batch, in `/plan-queue`, in chat, as the order the human
   validated; every reference names an existing entry or an open pull request. No pull
   request that ships an entry edits it, so entries of every kind alternate in the queue
   without two closures meeting in the file. A cut during a batch is an edit the human
   validates.
-- A queued reference whose entry file is gone has shipped: `just whats-next` shows what
+- A queued reference whose entry file is gone has shipped: `just queue` shows what
   shipped and what remains. The agent takes the first remaining reference that is
   **ready**.
 - A queue is sized by its work, not by its number of entries (owner, 2026-10-06):
-  `/whats-next` states how many pull requests the queue stands for, beside what the last
+  `/plan-queue` states how many pull requests the queue stands for, beside what the last
   batch merged. An entry whose Done when is a programme — several features, "split per",
   "every … in" — enters as its first slice, written as a note in the queue file and a
   line in the entry.
 - **Ready** means: queued, a Done when is written, `Open questions: none`, and
   `Design` is `none` or `validated`.
+- **The order `/plan-queue` proposes** (owner, 2026-10-11): what changes the tools
+  first; a dependency before what depends on it; entries that touch the same files next
+  to each other, so one can be prepared on the other; small fixes a user notices early;
+  what needs the owner flagged at the top. Where two of these disagree, the proposal
+  says so in one line. Each line gives the id and a concise summary of the task, with at
+  most a clause on why it sits there; what needs the owner and what is left out come
+  below.
+- **Nothing open is passed over** (owner, 2026-10-11): `just queue` prints every open
+  GitHub issue no entry names yet and every open Dependabot pull request not queued.
+  Each is queued — an issue through its entry, a Dependabot pull request under its
+  number — or named as left out with its reason.
 
 ### Debt entries — agent-owned
 
@@ -85,15 +96,15 @@ job or a machine gate.
 - The agent files here: reviewer findings it did not fix, smells met on the way,
   proposals for new work, coverage holes, frozen architecture debt.
 - Entries are observations, not commitments. The human promotes one by queuing its
-  `DEBT-NNN`; `/whats-next` proposes debt entries beside todo entries.
+  `DEBT-NNN`; `/plan-queue` proposes debt entries beside todo entries.
 - An entry may carry its own gate ("when next touched", "not as a sweep", "when a third
   consumer appears"). Read the whole entry before proposing or working it: the gate is
   honoured, or the override is put to the human — never swept silently.
 
 ## 3. The loop — one run, one task
 
-A task is a queued entry (`/next-todo`, headless), an entry the human names
-(`/next-todo TODO-NNN`), or a request typed in chat ("do X"). A chat request leaves no
+A task is a queued entry (`/run-entry`, headless), an entry the human names
+(`/run-entry TODO-NNN`), or a request typed in chat ("do X"). A chat request leaves no
 todo entry: the pull request body is its record.
 
 1. **Pick and brief.** In chat, a question to the human is asked alone, with the context
@@ -125,6 +136,10 @@ todo entry: the pull request body is its record.
    Vitest for rendering, E2E for what a user does. Test names carry the entry id or the
    spec rule. A new business rule goes into `docs/spec/<feature>.md` in the same commit;
    a new or changed command updates `docs/contracts/<domain>-contract.md`. Confirm red.
+   - **A fault met in production** (owner, 2026-10-11): the input that shows it is asked
+     for before any fix is designed — a log says what failed, not why — and a failing
+     test that reproduces it is the acceptance test of the fix. When the input holds
+     patient data, the agent says what it needs from it and how little.
 4. **Implement** to green, the right way (§ 6).
 5. **Self-check:** `just harness` (§ 5).
 6. **Self-review:** the reviewer lanes the diff needs (§ 7), again on the fixes until no
@@ -136,7 +151,8 @@ todo entry: the pull request body is its record.
 9. **Merge:** `just watch-pr` waits for the checks and says how they ended; then
    `just merge` — it refuses until every check is green and folds `fixup!` commits, so
    the task lands as one commit.
-10. **Closure** in the same PR: `just whats-next close <id>` deletes the entry's file
+10. **Closure** in the same PR: on an entry that touched a spec, `spec-checker` runs
+    first and what it finds is fixed; then `just queue close <id>` deletes the entry's file
     (the queue is left as written); techdebt updated;
     `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
     brief says what changed for the user and what the project gained.
@@ -149,7 +165,7 @@ version files, tags and pushes; CI builds the draft and puts the version's chang
 section in its notes. The agent publishes the draft once the release workflow and
 `main` are green, and stops if anything is red; then it audits the batch (§ 12). A batch
 is named by its dates until `just release --dry-run` has proposed a version: until then
-`/whats-next` and the agent say "the next release", never a number.
+`/plan-queue` and the agent say "the next release", never a number.
 
 ## 4. Design proposal
 
@@ -277,10 +293,10 @@ The chat session is for writing entries together, design conversations and answe
 open questions. The loop runs one task per run and keeps its state in git and the
 entries.
 
-- **In chat:** `/next-todo TODO-NNN`, or a plain request; `/run-queue` for a whole batch:
-  the questions first, each remaining entry through `/next-todo`, the release
+- **In chat:** `/run-entry TODO-NNN`, or a plain request; `/run-queue` for a whole batch:
+  the questions first, each remaining entry through `/run-entry`, the release
   preparation, then `/flow-audit`.
-- **Laptop:** `just next-todo` — one ready entry, headless, three hours of budget; a
+- **Laptop:** `just run-entry` — one ready entry, headless, three hours of budget; a
   command outside the allow list in `.claude/settings.json` is denied, so the run fails
   instead of waiting.
 - **Cloud routine** on claude.ai, created disabled; the human switches it on.
@@ -329,7 +345,9 @@ the mechanical records are kept (the usage log, GitHub's own history).
 - **Measures** — `just flow-audit` counts, beside the release before: pull requests
   merged, time from opening to merging, CI rounds, failed runs per workflow, the tools
   the usage log saw, the paths the documents name that no longer exist, and the length
-  of the guides (`CLAUDE.md`, this document, the rules docs, every prompt). The agent
+  of the guides (`CLAUDE.md`, this document, the rules docs, every prompt), and how
+  many GitHub issues and Dependabot pull requests were open when the batch started and
+  when it ended. The agent
   adds what only the session knows: what the reviewers caught, what they got wrong, the
   criticals only CI found.
 - **Five questions** (owner, 2026-10-10), asked of every batch: what would have avoided a
@@ -387,7 +405,7 @@ multi-line payload, write a temp file and pass it (`gh pr create --body-file …
 
 `review.yml` skips every lane for Dependabot (its runs get no secrets), so the green
 reviewer checks of such a pull request are skips, not reviews. It is handled like an
-entry: `/whats-next` lists the open ones and proposes each for the queue as `gh#NN`;
+entry: `/plan-queue` lists the open ones and proposes each for the queue as `gh#NN`;
 the human orders it with the rest. Once queued, the agent:
 
 1. reads the diff, and checks each pinned commit against the upstream tag it names;

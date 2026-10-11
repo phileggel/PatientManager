@@ -3,7 +3,8 @@
 
 Measures how work moved between two releases — the pull requests merged, how long each
 took from opening to merging, the CI rounds and what failed, how long each workflow
-runs — and prints them as one JSON document, beside the same figures for the release
+runs, how many issues and Dependabot pull requests were open at its start and at its
+end — and prints them as one JSON document, beside the same figures for the release
 before when asked. It also reads the repository itself: which tools the usage log saw
 and which it never did, the paths the documents name that no longer exist, and the
 length of the documents and prompts the agent works from, beside the release before.
@@ -35,8 +36,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 PULL_REQUEST_FIELDS = (
-    "number,title,state,createdAt,mergedAt,closedAt,additions,headRefName"
+    "number,title,state,createdAt,mergedAt,closedAt,additions,headRefName,author"
 )
+ISSUE_FIELDS = "number,createdAt,closedAt"
+# The bot's login as `gh` and the API give it (scripts/work-queue.py reads it the same way).
+DEPENDABOT_LOGINS = ("app/dependabot", "dependabot[bot]")
 RUN_FIELDS = (
     "workflowName,headBranch,headSha,conclusion,event,createdAt,startedAt,updatedAt"
 )
@@ -63,6 +67,7 @@ LOGGERS = ("usage_log.py", "usage-log.sh")
 # A run that ended without passing; a cancelled one is counted apart — nothing ran to its end.
 FAILED = ("failure", "timed_out", "startup_failure")
 PULL_REQUEST_LIMIT = 500
+ISSUE_LIMIT = 500
 RUN_LIMIT = 1000
 
 
@@ -181,6 +186,29 @@ def measure_ci(
             for name, values in sorted(durations.items())
         },
     }
+
+
+def measure_open(items: list[dict], since: datetime, until: datetime) -> dict:
+    """How many of `items` were open when the window started and when it ended (FLOW-042)."""
+
+    def open_at(item: dict, moment: datetime) -> bool:
+        closed = item.get("closedAt")
+        return parse_moment(item["createdAt"]) <= moment and (
+            closed is None or parse_moment(closed) > moment
+        )
+
+    return {
+        "at_start": sum(open_at(item, since) for item in items),
+        "at_end": sum(open_at(item, until) for item in items),
+    }
+
+
+def dependabot_pull_requests(pull_requests: list[dict]) -> list[dict]:
+    return [
+        pr
+        for pr in pull_requests
+        if (pr.get("author") or {}).get("login") in DEPENDABOT_LOGINS
+    ]
 
 
 def measure(
@@ -375,7 +403,19 @@ def main(argv: list[str] | None = None) -> int:
     since = release_moment(args.since)
     until = release_moment(args.until) if args.until else datetime.now(timezone.utc)
     pull_requests, runs = collect()
+    issues = list(
+        _gh_json(
+            "issue", "list", "--state", "all", "--limit", str(ISSUE_LIMIT), "--json", ISSUE_FIELDS
+        )
+        or []
+    )
     report = {"current": measure(pull_requests, runs, since, until)}
+    report["current"]["open"] = {
+        "issues": measure_open(issues, since, until),
+        "dependabot_pull_requests": measure_open(
+            dependabot_pull_requests(pull_requests), since, until
+        ),
+    }
     report["repository"] = measure_repository(
         since, until, args.until or "HEAD", args.since
     )

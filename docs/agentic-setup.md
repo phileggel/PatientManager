@@ -39,11 +39,11 @@ Written to read the same in every repository that works this way.
 
 ### Skills
 
-- `.claude/skills/whats-next/` — shows the state of the entries and proposes the next
+- `.claude/skills/plan-queue/` — shows the state of the entries and proposes the next
   queue. Never: queues anything the owner has not validated.
 - `.claude/skills/run-queue/` — runs a batch from its queue to its audit by chaining
   the other skills. Never: decides, edits the queue or releases.
-- `.claude/skills/next-todo/` — runs one task to a merged pull request. Never: a second
+- `.claude/skills/run-entry/` — runs one task to a merged pull request. Never: a second
   task in the same invocation, nor a guess where a question is owed.
 - `.claude/skills/design-proposal/` — renders the target state before anything a user
   sees changes. Never: builds what it shows.
@@ -79,9 +79,9 @@ Written to read the same in every repository that works this way.
 
 ### Scripts
 
-- `scripts/whats-next.py` — classifies the entries, the queue and the open pull
-  requests; closes an entry; gives the next id. Never: ranks or recommends.
-- `scripts/next-todo.sh` — runs one ready entry with nobody to ask. Never: a second
+- `scripts/work-queue.py` — classifies the entries, the queue, the open pull requests
+  and the open issues; closes an entry; gives the next id. Never: ranks or recommends.
+- `scripts/run-entry.sh` — runs one ready entry with nobody to ask. Never: a second
   entry, nor past its time budget.
 - `scripts/branch.sh` — where the branch left the main branch, and its diff, log and
   files. Never: changes the tree.

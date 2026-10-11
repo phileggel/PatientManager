@@ -1,6 +1,6 @@
 ---
 name: run-queue
-description: Runs a whole batch in chat — every remaining entry of the queue (docs/work/queue.md) through /next-todo, one after the other, then the release preparation, then /flow-audit once the release is published. Chains the existing skills and decides nothing new. Use when the owner says to run the queue.
+description: Runs a whole batch in chat — every remaining entry of the queue (docs/work/queue.md) through /run-entry, one after the other, then the release preparation, then /flow-audit once the release is published. Chains the existing skills and decides nothing new. Use when the owner says to run the queue.
 ---
 
 # Skill — `run-queue`
@@ -16,7 +16,7 @@ otherwise stop and report.
 
 ## Step 1 — Read the queue and show it
 
-`just whats-next` prints the queue, what has shipped, what remains, and the notes of the
+`just queue` prints the queue, what has shipped, what remains, and the notes of the
 queue file: the bundles (several entries, one pull request) and the slices (the part of
 a programme this batch takes). `TaskCreate` one task per remaining reference in order —
 a bundle is one task — then "Prepare the release" and "Flow audit". Mark each task
@@ -32,18 +32,18 @@ task, so the queue then runs without waiting on the owner.
 
 ## Step 3 — Run the entries
 
-For each remaining reference that is ready, in order: `/next-todo <ref>`, naming the
+For each remaining reference that is ready, in order: `/run-entry <ref>`, naming the
 partners of a bundle and the slice of a programme as the notes give them. While a pull
 request waits for its checks, the next task may be prepared on a branch not pushed yet
 (`docs/workflow.md` § 11).
 
-Stop, and say where, when `/next-todo` stops by its own rules (an open question, the
+Stop, and say where, when `/run-entry` stops by its own rules (an open question, the
 same gate red three times, the three-hour budget). An entry that is not ready is said
 so and skipped.
 
 ## Step 4 — Prepare the release
 
-When `just whats-next remaining` prints nothing: `/dep-audit`, the release sweep and
+When `just queue remaining` prints nothing: `/dep-audit`, the release sweep and
 `spec-checker` on every spec the batch touched (`docs/workflow.md` § Release sweep);
 what they find is filed as debt. Then tell the owner the release is ready, with what was
 filed. The owner runs `just release`; this skill never does.
