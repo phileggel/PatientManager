@@ -129,6 +129,45 @@ impl SqliteProcedureRepository {
 }
 
 impl SqliteProcedureRepository {
+    /// Insert one procedure on a connection the caller owns — the write
+    /// `create_batch` loops over, also used by a unit of work (ADR-003).
+    pub async fn insert_in(
+        conn: &mut sqlx::SqliteConnection,
+        procedure: &Procedure,
+    ) -> anyhow::Result<()> {
+        let payment_method_str = procedure.payment_method.as_db_str();
+        let payment_status_str = procedure.payment_status.as_db_str();
+
+        tracing::trace!(
+            procedure_id = %procedure.id,
+            patient_id = %procedure.patient_id,
+            "Inserting procedure into database (batch)"
+        );
+
+        sqlx::query!(
+            r#"
+                INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount, payment_status, is_deleted)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 0)
+                "#,
+            procedure.id,
+            procedure.patient_id,
+            procedure.fund_id,
+            procedure.procedure_type_id,
+            procedure.procedure_date,
+            procedure.billed_amount,
+            payment_method_str,
+            procedure.fund_reconciliation_date,
+            procedure.confirmed_payment_date,
+            procedure.paid_amount,
+            payment_status_str,
+        )
+        .execute(conn)
+        .await
+        .with_context(|| format!("Failed to insert procedure {}", procedure.id))?;
+
+        Ok(())
+    }
+
     /// Update one procedure on a connection the caller owns — the write
     /// `update_batch` loops over, also used by a unit of work that spans
     /// aggregates (ADR-003).
@@ -546,36 +585,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let mut created_procedures = Vec::new();
 
         for procedure in procedures {
-            let payment_method_str = procedure.payment_method.as_db_str();
-            let payment_status_str = procedure.payment_status.as_db_str();
-
-            tracing::trace!(
-                procedure_id = %procedure.id,
-                patient_id = %procedure.patient_id,
-                "Inserting procedure into database (batch)"
-            );
-
-            sqlx::query!(
-                r#"
-                INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount, payment_status, is_deleted)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 0)
-                "#,
-                procedure.id,
-                procedure.patient_id,
-                procedure.fund_id,
-                procedure.procedure_type_id,
-                procedure.procedure_date,
-                procedure.billed_amount,
-                payment_method_str,
-                procedure.fund_reconciliation_date,
-                procedure.confirmed_payment_date,
-                procedure.paid_amount,
-                payment_status_str,
-            )
-            .execute(&mut *tx)
-            .await?;
-
-            created_procedures.push(procedure.clone());
+            Self::insert_in(&mut tx, &procedure).await?;
+            created_procedures.push(procedure);
         }
 
         tx.commit().await?;

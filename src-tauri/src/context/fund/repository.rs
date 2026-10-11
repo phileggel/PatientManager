@@ -55,14 +55,10 @@ impl SqliteFundRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
-}
 
-#[async_trait::async_trait]
-impl FundRepository for SqliteFundRepository {
-    async fn create_fund(&self, fund_identifier: &str, fund_name: &str) -> anyhow::Result<Fund> {
-        // Domain layer creates and validates the fund
-        let fund = Fund::new(fund_identifier.to_string(), fund_name.to_string())?;
-
+    /// Insert one fund on a connection the caller owns — the write behind
+    /// `create_fund`, also used by a unit of work (ADR-003).
+    pub async fn insert_in(conn: &mut sqlx::SqliteConnection, fund: &Fund) -> anyhow::Result<()> {
         tracing::trace!(fund_id = %fund.id, fund_identifier = %fund.fund_identifier, "Inserting affiliated fund into database");
 
         sqlx::query!(
@@ -74,7 +70,7 @@ impl FundRepository for SqliteFundRepository {
             fund.fund_identifier,
             fund.name,
         )
-        .execute(&self.pool)
+        .execute(conn)
         .await
         .map_err(|e| {
             if is_unique_constraint_violation(&e, "fund_identifier") {
@@ -83,6 +79,23 @@ impl FundRepository for SqliteFundRepository {
                 anyhow::Error::from(e)
             }
         })?;
+
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl FundRepository for SqliteFundRepository {
+    async fn create_fund(&self, fund_identifier: &str, fund_name: &str) -> anyhow::Result<Fund> {
+        // Domain layer creates and validates the fund
+        let fund = Fund::new(fund_identifier.to_string(), fund_name.to_string())?;
+
+        let mut conn = self
+            .pool
+            .acquire()
+            .await
+            .context("Failed to acquire a connection")?;
+        Self::insert_in(&mut conn, &fund).await?;
 
         tracing::debug!(fund_id = %fund.id, "Affiliated fund inserted successfully");
 
@@ -289,6 +302,49 @@ impl SqliteFundPaymentRepository {
 }
 
 impl SqliteFundPaymentRepository {
+    /// Insert one group and its lines on a connection the caller owns — the
+    /// write `create_batch_groups` loops over, also used by a unit of work
+    /// (ADR-003).
+    pub async fn insert_group_in(
+        conn: &mut sqlx::SqliteConnection,
+        group: &FundPaymentGroup,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"
+                INSERT INTO fund_payment_group (
+                    id, fund_id, payment_date, total_amount, status, is_deleted
+                )
+                VALUES ($1, $2, $3, $4, 'ACTIVE', 0)
+                "#,
+            group.id,
+            group.fund_id,
+            group.payment_date,
+            group.total_amount,
+        )
+        .execute(&mut *conn)
+        .await
+        .context("Failed to insert fund payment group")?;
+
+        for line in &group.lines {
+            sqlx::query!(
+                r#"
+                    INSERT INTO fund_payment_line (
+                        id, fund_payment_group_id, procedure_id, is_deleted
+                    )
+                    VALUES ($1, $2, $3, 0)
+                    "#,
+                line.id,
+                line.fund_payment_group_id,
+                line.procedure_id,
+            )
+            .execute(&mut *conn)
+            .await
+            .context("Failed to insert fund payment line")?;
+        }
+
+        Ok(())
+    }
+
     /// Set a group's status on a connection the caller owns — the write behind
     /// `update_group_status`, also used by a unit of work that spans
     /// aggregates (ADR-003).
@@ -460,40 +516,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
 
         // Insert all groups and their lines
         for group in &groups {
-            // Insert group
-            sqlx::query!(
-                r#"
-                INSERT INTO fund_payment_group (
-                    id, fund_id, payment_date, total_amount, status, is_deleted
-                )
-                VALUES ($1, $2, $3, $4, 'ACTIVE', 0)
-                "#,
-                group.id,
-                group.fund_id,
-                group.payment_date,
-                group.total_amount,
-            )
-            .execute(&mut *tx)
-            .await
-            .context("Failed to insert fund payment group")?;
-
-            // Insert all lines for this group
-            for line in &group.lines {
-                sqlx::query!(
-                    r#"
-                    INSERT INTO fund_payment_line (
-                        id, fund_payment_group_id, procedure_id, is_deleted
-                    )
-                    VALUES ($1, $2, $3, 0)
-                    "#,
-                    line.id,
-                    line.fund_payment_group_id,
-                    line.procedure_id,
-                )
-                .execute(&mut *tx)
-                .await
-                .context("Failed to insert fund payment line")?;
-            }
+            Self::insert_group_in(&mut tx, group).await?;
         }
 
         tx.commit()

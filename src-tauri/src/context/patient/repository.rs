@@ -69,6 +69,30 @@ impl SqlitePatientRepository {
 }
 
 impl SqlitePatientRepository {
+    /// Insert one patient on a connection the caller owns — the write behind
+    /// `create_patient`, also used by a unit of work (ADR-003).
+    pub async fn insert_in(
+        conn: &mut sqlx::SqliteConnection,
+        patient: &Patient,
+    ) -> anyhow::Result<()> {
+        tracing::trace!(patient_id = %patient.id, "Inserting patient into database");
+
+        sqlx::query!(
+            r#"
+            INSERT INTO patient (id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted)
+            VALUES ($1, $2, $3, $4, NULL, NULL, NULL, NULL, 0)
+            "#,
+            patient.id,
+            patient.is_anonymous,
+            patient.name,
+            patient.ssn,
+        )
+        .execute(conn)
+        .await?;
+
+        Ok(())
+    }
+
     /// Update one patient on a connection the caller owns — the write behind
     /// `update_patient`, also used by a unit of work (ADR-003).
     pub async fn update_in(
@@ -140,20 +164,12 @@ impl SqlitePatientRepository {
 #[async_trait::async_trait]
 impl PatientRepository for SqlitePatientRepository {
     async fn create_patient(&self, patient: Patient) -> anyhow::Result<Patient> {
-        tracing::trace!(patient_id = %patient.id, "Inserting patient into database");
-
-        sqlx::query!(
-            r#"
-            INSERT INTO patient (id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted)
-            VALUES ($1, $2, $3, $4, NULL, NULL, NULL, NULL, 0)
-            "#,
-            patient.id,
-            patient.is_anonymous,
-            patient.name,
-            patient.ssn,
-        )
-        .execute(&self.pool)
-        .await?;
+        let mut conn = self
+            .pool
+            .acquire()
+            .await
+            .context("Failed to acquire a connection")?;
+        Self::insert_in(&mut conn, &patient).await?;
 
         tracing::trace!(patient_id = %patient.id, "Patient inserted successfully");
 
