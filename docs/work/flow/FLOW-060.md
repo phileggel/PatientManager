@@ -6,3 +6,4 @@
 - Proposal: the decision scan checks each queued size against the code the entry names and corrects it on the entry before the branch; a size that changes during the work is written on the entry before it is closed.
 - Costs: reading time at the scan. Protects: the audit's only comparison of size.
 - Decision (owner, 2026-10-11): accepted, for the next queue (banked, FLOW-062).
+- Refined (2026-10-11, before queuing): Done when: the decision scan of `docs/workflow.md` § 3 checks each queued size against the code the entry names and corrects it on the entry before the branch; a size that changes during the work is written on the entry before it is closed. Ships in the guides bundle of FLOW-059.

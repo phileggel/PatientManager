@@ -19,3 +19,4 @@
 - Decision (owner, 2026-10-11): accepted, for the next queue. The audit of this batch runs with the fault known.
 - Added 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): the entries figure is taken from the tag and the pull requests from the publication,
   so FLOW-042 to 044, filed by #233 and #234, fall in the wrong batch.
+- Refined (2026-10-11, before queuing): ships with FLOW-057 and FLOW-053, one pull request on `scripts/flow-audit.py`. Done when: a branch whose slug does not start with the entry's id (`docs/file-…`) is not counted as work on it, with a test; the entry files and the pull requests are counted over the same window (today the first from the tags, the second from the publication times); `/file-entry` and `docs/workflow.md` § 2 name the filing branch, with a cut, both being at their ceiling. The three entries together are one M pull request: infra and guides lanes.

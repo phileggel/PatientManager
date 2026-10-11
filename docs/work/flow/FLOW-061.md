@@ -8,3 +8,4 @@
 - Decision (owner, 2026-10-11): accepted — `reviewer-security` reads the whole command surface before every
   release; the other lanes read what changed since the last release. Every lane states the files
   it read, and the sweep's pull request repeats it.
+- Refined (2026-10-11, before queuing): Done when: `docs/workflow.md` § Release sweep and `CLAUDE.md` say that `reviewer-security` reads the whole command surface before every release and the other lanes what changed since the last one; `review-protocol.md` asks every sweep report to end with the files read in full and those only searched; `/run-queue` Step 4 repeats it in the sweep's pull request. Ships in the guides bundle of FLOW-059.

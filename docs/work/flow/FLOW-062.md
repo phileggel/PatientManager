@@ -19,3 +19,4 @@
 - Costs: a judgement of what is trivial, made by the agent; a banked decision the owner
   would have taken otherwise is found only when they read the record.
 - Decision (owner, 2026-10-11): "ask only if this is not trivial, otherwise bank them".
+- Refined (2026-10-11, before queuing): Done when: `CLAUDE.md` § Who decides what and `docs/workflow.md` § 3, beside the standing answers, say that a proposal with one sensible answer is banked — recorded as accepted with "banked" on its Decision line and reported in one line — and that a question is asked, alone and with its context, only where the options differ in cost, in risk or in what the owner sees. Ships in the guides bundle of FLOW-059.

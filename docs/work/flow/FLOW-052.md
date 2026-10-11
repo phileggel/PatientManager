@@ -20,3 +20,4 @@
   changes a hook is then reviewed with the hook of `main`, as prompts already are.
 - Decision (owner, 2026-10-11): accepted — check first what the pinned action loads, then fix; if it loads
   nothing of the project, the entry closes with what was read.
+- Refined (2026-10-11, before queuing): queued after gh#242, which moves `anthropics/claude-code-action` from v1.0.239 to v1.0.247: the action to read is the new pin. Done when: this entry states what that version loads from the checked-out project (settings, hooks, `CLAUDE.md`), read in its source; if it loads them, `review.yml` restores `.claude/settings.json` and `.claude/hooks` from the base branch, removes what the base does not have and prints `git status --short .claude`, and rule 6 of `review-protocol.md` says what is restored; if it loads none, the entry closes with what was read. Size S holds; it may close with no code change.

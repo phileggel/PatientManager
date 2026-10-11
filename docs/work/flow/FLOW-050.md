@@ -18,3 +18,4 @@
 - Added 2026-10-11 (release sweep): `/file-entry` step 2 names the failing command; six entries
   were filed since by calling the script directly.
 - Decision (owner, 2026-10-11): accepted, for the next queue. Until then the script is called directly, and said so.
+- Refined (2026-10-11, before queuing): the script tests run in the "PR checks" job of `quality.yml`, where `just` is not installed (only the backend job installs it). Done when: the `queue` recipe passes its arguments as given; a test runs `just queue new` with a title of three words in a throwaway copy, and is skipped with a stated reason where `just` is absent; that CI job installs `just`. Touches `justfile`, `scripts/tests/`, `.github/workflows/quality.yml`. Size S holds: one lane.
