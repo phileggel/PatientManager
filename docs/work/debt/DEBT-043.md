@@ -14,3 +14,7 @@
 - **Bank statement matching** — `bank-statement-match/shared/candidateSelection.ts`, `labelRows.ts`, `procedureWindow.ts`: the covered amount of a selection, the label rows and whether all are decided, the date window of candidate procedures.
 - **Excel import** — `excel-import/shared/mappings.ts`, `sheets.ts`: the procedure type mappings derived from the parse result, the sheet order.
 - **Fund payment matching** — `fund-payment-match/shared/utils.ts`, `formatters.ts`: correction keys and builders, the PDF date range, the priority order of issues, the anomaly count; `formatters.ts` is display and may only need reclassifying.
+
+**Size:** XL
+
+**Waits on the owner:** no

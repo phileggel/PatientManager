@@ -1,6 +1,7 @@
 # FLOW-047 — The audit script counts a recipe that started as a recipe that failed
 
 - Kind: quality
+- Size: S
 - Observed: in the audit of the 0.24.2 batch, `just flow-audit` reported `format` 47 runs,
   47 failed, `test-scripts` 15 of 15, `coverage-be` 20 of 20. A recipe that runs no script
   writes `started` in `logs/usage.log`, not `ok`: `measure_usage` reads everything that is

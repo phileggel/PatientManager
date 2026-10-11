@@ -1,5 +1,7 @@
 # 2026-05-16 — DEBT-001 — RTL coverage gap on currency-display components
 
+**Found by:** the coverage report of PR #33.
+
 **Where:** Components with `formatCurrency` calls but no RTL test:
 `SelectProceduresPanel`, `SelectFundGroupsPanel`, `BankTransferList`,
 `EditBankTransferModal`, `AddBankTransferForm`, `MatchResultsStep`,
@@ -15,3 +17,7 @@ integration is covered by `SingleMatchCard.test.tsx` AmountMismatch and
 `FundPaymentList.test.tsx` locale-aware regressions). Add RTL coverage
 **bit-by-bit when these components are next touched for behavioral changes**,
 not as a sweep.
+
+**Size:** S
+
+**Waits on the owner:** no

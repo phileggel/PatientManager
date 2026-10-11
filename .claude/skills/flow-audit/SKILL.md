@@ -30,7 +30,8 @@ For the batch that led to `v0.24.1`: `just flow-audit v0.24.0 v0.24.1 --previous
   count by commit type) and `ci` (rounds, branches, rounds beyond the first, failures and cancelled runs by
   workflow, the median duration of each workflow's green runs); `current.open` — the
   GitHub issues and the Dependabot pull requests open when the batch started and when
-  it ended: state both.
+  it ended: state both; `current.entries` — each entry's pull requests and CI rounds
+  beside its size: name those `past_its_size`, and which kinds they are.
 - `repository` — `usage` (runs and failures by tool in `logs/usage.log`, the tools it
   never saw, and its first line: a log that starts late covers part of the batch),
   `dangling_paths` (paths a document names that no longer exist), `guides` (the length
@@ -101,10 +102,9 @@ For every file in `docs/work/flow/`:
 
 Add a flow entry only where a figure moved the wrong way, a rule of `docs/workflow.md`
 or `CLAUDE.md` was not followed, a guide was wrong, or the owner corrected the flow
-during the batch. `just queue next-id FLOW` gives its id; write the file before
-asking for the next id. The format is `docs/workflow.md` § 12: Kind, Observed with its
-figure, Proposal, Costs, Protects. "Keep" is a verdict; where nothing needs changing,
-propose nothing.
+during the batch. File each with `/file-entry`. The format is `docs/workflow.md` § 12:
+Kind, Observed with its figure, Proposal, Costs, Protects. "Keep" is a verdict; where
+nothing needs changing, propose nothing.
 
 ## Step 7 — Hand over
 

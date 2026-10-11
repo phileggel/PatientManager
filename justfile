@@ -54,7 +54,7 @@ flow-audit *ARGS:
     python3 scripts/flow-audit.py {{ARGS}}
 
 # Where the queue stands: queued with its notes, ready, blocked, debt, open pull requests (/plan-queue proposes the order);
-# `just queue close TODO-NNN` deletes a shipped entry's file; `just queue next-id DEBT` prints the next free id; `just queue remaining` the queued references not shipped yet
+# `just queue close TODO-NNN` deletes a shipped entry's file; `just queue next-id DEBT` prints the next free id; `just queue remaining` the queued references not shipped yet; `just queue new debt "<title>"` files an entry
 queue *ARGS:
     python3 scripts/work-queue.py {{ARGS}}
 

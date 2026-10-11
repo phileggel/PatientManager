@@ -1,6 +1,7 @@
 # FLOW-041 — The screenshot tooling has no browser for this machine's system
 
 - Kind: effort
+- Size: S
 - Observed: on the new development machine (Ubuntu 26.04), `scripts/visual-proof-capture.mjs`
   failed: the project's Playwright has no Chromium build for that system, and
   `npx playwright install chromium` refuses it. The capture worked with

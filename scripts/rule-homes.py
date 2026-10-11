@@ -14,6 +14,7 @@ Two checks against drift:
    the other document links to the home.
 3. Entry files. A todo, debt or flow entry is one file under `docs/work/`, named
    by the one ID it defines (`docs/work/debt/DEBT-008.md`), in the folder of its kind.
+   Each carries the lines of its kind, its size among them (FLOW-048).
 4. The agentic setup (FLOW-036). `docs/agentic-setup.md` gives one list item to each
    piece, opened by its backticked path. Every script, skill, agent prompt and git
    hook that exists is listed once, and everything listed exists.
@@ -39,6 +40,13 @@ DEFINITION = re.compile(
 KIND = re.compile(r"^- \*\*([^*]+)\*\* — (.*)$")
 PATH = re.compile(r"`([^`\s]+(?:\.md|/))`")
 ENTRY_FILE = re.compile(r"docs/work/(todo|debt|flow)/(.+)\.md")
+# The lines an entry of each kind carries when it is filed (docs/workflow.md § 2).
+REQUIRED = {
+    "todo": ("**Size:**", "**User value:**", "**Done when:**", "**Design:**", "**Open questions:**"),
+    "debt": ("**Found by:**", "**Where:**", "**Observation:**", "**Size:**", "**Waits on the owner:**"),
+    "flow": ("- Kind:", "- Size:", "- Observed:"),
+}
+SIZE = re.compile(r"^(?:\*\*Size:\*\*|- Size:)[ \t]*(?:XL|S|M|L)\b", re.MULTILINE)
 SETUP = "docs/agentic-setup.md"
 PIECE = re.compile(r"^- `([^`\s]+)`")
 SKILL = re.compile(r"(\.claude/skills/[^/]+/).+")
@@ -116,6 +124,21 @@ def misnamed(found: dict[str, list[str]]) -> list[str]:
     return problems
 
 
+def incomplete(texts: dict[str, str]) -> list[str]:
+    """Entry files that lack a line of their kind, or whose size is not one of the four."""
+    problems = []
+    for path, text in sorted(texts.items()):
+        entry = ENTRY_FILE.fullmatch(path)
+        if not entry:
+            continue
+        lines = text.splitlines()
+        missing = [line for line in REQUIRED[entry.group(1)] if not any(l.startswith(line) for l in lines)]
+        problems += [f"{path}: lacks `{line}`" for line in missing]
+        if not any("Size:" in line for line in missing) and not SIZE.search(text):
+            problems.append(f"{path}: its size is not S, M, L or XL")
+    return problems
+
+
 def listed_pieces(setup_text: str) -> list[str]:
     """The paths the setup document gives a line to, in order: each opens a list item."""
     return [match.group(1) for line in setup_text.splitlines() if (match := PIECE.match(line))]
@@ -160,6 +183,7 @@ def main() -> int:
     defined = {f: defined_ids((ROOT / f).read_text(encoding="utf-8")) for f in documents}
     problems += [f"{rule_id}: defined in {', '.join(paths)}" for rule_id, paths in sorted(duplicates(defined).items())]
     problems += misnamed(defined)
+    problems += incomplete({f: (ROOT / f).read_text(encoding="utf-8") for f in files if ENTRY_FILE.fullmatch(f)})
 
     listed = listed_pieces((ROOT / SETUP).read_text(encoding="utf-8"))
     pieces = setup_pieces(tracked("scripts", ".claude", ".githooks"))

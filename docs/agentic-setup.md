@@ -45,6 +45,8 @@ Written to read the same in every repository that works this way.
   the other skills. Never: decides, edits the queue or releases.
 - `.claude/skills/run-entry/` — runs one task to a merged pull request. Never: a second
   task in the same invocation, nor a guess where a question is owed.
+- `.claude/skills/file-entry/` — files one entry with the lines and the size its kind
+  requires. Never: writes an entry's file by hand, nor queues it.
 - `.claude/skills/design-proposal/` — renders the target state before anything a user
   sees changes. Never: builds what it shows.
 - `.claude/skills/visual-proof/` — captures every state of a changed component, light
@@ -80,7 +82,8 @@ Written to read the same in every repository that works this way.
 ### Scripts
 
 - `scripts/work-queue.py` — classifies the entries, the queue, the open pull requests
-  and the open issues; closes an entry; gives the next id. Never: ranks or recommends.
+  and the open issues; files and closes an entry; sums the sizes of the queue. Never:
+  ranks or recommends.
 - `scripts/run-entry.sh` — runs one ready entry with nobody to ask. Never: a second
   entry, nor past its time budget.
 - `scripts/branch.sh` — where the branch left the main branch, and its diff, log and

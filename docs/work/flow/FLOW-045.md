@@ -1,6 +1,7 @@
 # FLOW-045 — No stage of the flow says what it did when it ends
 
 - Kind: quality
+- Size: S
 - Observed: on 2026-10-11 the owner stated what each stage owes when it ends, against
   what exists: `/run-queue` goes from its last entry to the release preparation without a
   word on what the batch achieved; `just release` ends on "published!" and does not show

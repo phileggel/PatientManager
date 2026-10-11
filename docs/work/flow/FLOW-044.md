@@ -1,6 +1,7 @@
 # FLOW-044 — Nothing reviews the documents and prompts the agent works from
 
 - Kind: quality
+- Size: M
 - Observed: `reviewer-infra` reads the agent prompts, the skills, `.claude/rules/` and the
   settings, on a short list (compound shell, a path that does not exist, the deny and
   allow lists, a rule restated without one of its conditions). `CLAUDE.md`,

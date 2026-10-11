@@ -224,6 +224,48 @@ class MeasureOpenTest(unittest.TestCase):
         self.assertEqual(len(flow_audit.dependabot_pull_requests(pulls)), 1)
 
 
+class MeasureEntriesTest(unittest.TestCase):
+    """FLOW-048: what each entry took, beside the size it was given."""
+
+    def test_flow_048_a_branch_names_the_entries_it_ships(self):
+        self.assertEqual(flow_audit.branch_entries("feat/todo-012-patient-dedup"), ["TODO-012"])
+        self.assertEqual(flow_audit.branch_entries("chore/flow-042-046-skill-names"), ["FLOW-042", "FLOW-046"])
+        self.assertEqual(flow_audit.branch_entries("docs/queue-2026-10-11"), [])
+
+    def test_flow_048_pull_requests_and_rounds_are_counted_per_entry(self):
+        pulls = [
+            pull_request(1, "fix: a", "2026-10-04T01:00:00Z", "2026-10-04T02:00:00Z", branch="fix/debt-050-one-transaction"),
+            pull_request(2, "fix: b", "2026-10-04T03:00:00Z", "2026-10-04T04:00:00Z", branch="fix/debt-050-follow-up"),
+            pull_request(3, "docs: c", "2026-10-04T05:00:00Z", "2026-10-04T06:00:00Z", branch="docs/flow-045-closing"),
+            pull_request(4, "docs: d", "2026-10-04T05:00:00Z", "2026-10-04T06:00:00Z", branch="docs/notes"),
+        ]
+        runs = [
+            run(flow_audit.ROUND_WORKFLOW, "fix/debt-050-one-transaction", "a1", "success", "2026-10-04T01:00:00Z", "2026-10-04T01:10:00Z"),
+            run(flow_audit.ROUND_WORKFLOW, "fix/debt-050-one-transaction", "a2", "success", "2026-10-04T01:20:00Z", "2026-10-04T01:30:00Z"),
+            run(flow_audit.ROUND_WORKFLOW, "fix/debt-050-follow-up", "b1", "success", "2026-10-04T03:00:00Z", "2026-10-04T03:10:00Z"),
+            run(flow_audit.ROUND_WORKFLOW, "docs/flow-045-closing", "c1", "success", "2026-10-04T05:00:00Z", "2026-10-04T05:10:00Z"),
+        ]
+        sizes = {"DEBT-050": "M", "FLOW-045": "S"}
+        self.assertEqual(
+            flow_audit.measure_entries(pulls, runs, SINCE, UNTIL, sizes.get),
+            [
+                {"entry": "DEBT-050", "size": "M", "pull_requests": 2, "ci_rounds": 3, "past_its_size": True},
+                {"entry": "FLOW-045", "size": "S", "pull_requests": 1, "ci_rounds": 1, "past_its_size": False},
+            ],
+        )
+
+    def test_flow_048_a_large_entry_may_take_three_and_an_unsized_one_is_not_judged(self):
+        self.assertFalse(flow_audit.past_size("L", 3))
+        self.assertTrue(flow_audit.past_size("L", 4))
+        self.assertIsNone(flow_audit.past_size(None, 2))
+        self.assertIsNone(flow_audit.past_size("XL", 5))
+
+    def test_flow_048_a_size_is_read_from_any_kind_of_entry(self):
+        self.assertEqual(flow_audit.size_of("# FLOW-001 — A\n\n- Kind: quality\n- Size: M\n"), "M")
+        self.assertEqual(flow_audit.size_of("# TODO-001 — A\n\n**Size:** XL — a programme\n"), "XL")
+        self.assertIsNone(flow_audit.size_of("# FLOW-001 — A\n"))
+
+
 class CommitTypeTest(unittest.TestCase):
     def test_reads_the_conventional_type(self):
         self.assertEqual(flow_audit.commit_type("refactor: a thing"), "refactor")

@@ -9,3 +9,7 @@
 **Observation:** B44 forbids patient data in a log. On some groups of a real statement — the ones where the fund takes money back from one person — the fund label the parser reads is the fund followed by that person's name, and three log calls write the label as it is: 2 of the 28 `pdf_fund` values of that log carried a name, and the debug line of the fund resolution carried it too. `scripts/privacy-check.py` reads the log calls for private field names and does not know a fund label can hold one. Two things to settle: whether the parser should keep the name out of the label (the fund is then resolved by its number, as it already is), and the three calls, which can log the fund's identifier instead of its label. The diagnostic report (DGR) ships log lines to support: check what it would have carried.
 
 **Scope (owner, 2026-10-11):** every log call of the module that writes a statement's fund label writes the fund's identifier instead — the calls named above and three more in `orchestrator.rs` ("creating fund", "creating fund payment from candidate", "Created procedure has no matching candidate group"), seven in all. `scripts/privacy-check.py` is not changed here.
+
+**Size:** S
+
+**Waits on the owner:** no

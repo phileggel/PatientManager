@@ -1,6 +1,7 @@
 # FLOW-040 — A reviewer rule added in a pull request was applied to that pull request, five rounds
 
 - Kind: speed
+- Size: S
 - Observed: PR #220 added a rule to the `reviewer-infra` prompt (a sentence that restates
   a rule without one of its conditions) after CI raised that finding. CI reviewers read
   the prompt of `main`, yet the next four rounds each raised a new instance of the same

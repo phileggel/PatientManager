@@ -1,6 +1,7 @@
 # FLOW-038 — `just watch-pr` right after a push reports the checks of the commit before
 
 - Kind: quality
+- Size: S
 - Observed: on 2026-10-10, three times (PR #220 after its second push, PR #224 after its
   rebase, PR #220 again), `just watch-pr` run in the same command as the push answered
   "ALL CHECKS GREEN" on the previous head within seconds: GitHub had not yet attached a

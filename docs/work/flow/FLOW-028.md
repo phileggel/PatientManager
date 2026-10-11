@@ -1,6 +1,7 @@
 # FLOW-028 — `just watch-pr` ends on a cancelled job that only needs a re-run
 
 - Kind: speed
+- Size: S
 - Observed: on 2026-10-05, PR #201 took four watches. Editing the pull request's
   description restarted the workflows listening to it and cancelled runs in progress;
   later a job was cancelled after 15 minutes in the queue, no runner having taken it

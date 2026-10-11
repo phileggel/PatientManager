@@ -15,6 +15,8 @@ it: a queued reference whose entry file is gone has shipped.
 file, in the pull request that ships it.
 `work-queue.py remaining` prints the queued references not shipped yet.
 `work-queue.py next-id <TODO|DEBT|FLOW>` prints the next free id of a kind.
+`work-queue.py new <todo|debt|flow> "<title>"` files an entry: the next id, the
+date and the required lines of its kind, to fill in (FLOW-048).
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ import subprocess
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +56,16 @@ PULL_REF = re.compile(r"gh#\d+")
 # The bot's login as `gh` and the API give it; an exact match, so no account that merely contains the word counts.
 DEPENDABOT_LOGINS = ("app/dependabot", "dependabot[bot]")
 FLOW_HEADING = re.compile(r"^# (FLOW-\d{3}) — (.+?)\s*$", re.MULTILINE)
+# How big an entry is, set when it is filed (docs/workflow.md § 2).
+SIZE = re.compile(r"^(?:\*\*Size:\*\*|- Size:)[ \t]*(XL|S|M|L)\b", re.MULTILINE)
+OWNER_WAIT = re.compile(r"^\*\*Waits on the owner:\*\*[ \t]*(.+)$", re.MULTILINE)
+# What a size stands for in pull requests, lowest and highest; a programme is counted by its slice.
+PULL_REQUESTS = {"S": (1, 1), "M": (1, 1), "L": (2, 3)}
+TEMPLATES = {
+    "TODO": "# {ref} — {title}\n\n**Size:** \n\n**User value:** \n\n**Done when:** \n\n**Design:** \n\n**Open questions:** \n",
+    "DEBT": "# {today} — {ref} — {title}\n\n**Found by:** \n\n**Where:** \n\n**Observation:** \n\n**Size:** \n\n**Waits on the owner:** \n",
+    "FLOW": "# {ref} — {title}\n\n- Kind: \n- Size: \n- Observed: \n- Proposal: \n- Costs: \n",
+}
 FIELD = re.compile(r"^\*\*(" + "|".join(FIELDS) + r"):\*\*", re.MULTILINE)
 
 
@@ -61,6 +74,7 @@ class Todo:
     id: str
     title: str
     fields: dict[str, str]
+    size: str | None = None
 
 
 @dataclass
@@ -69,6 +83,8 @@ class Debt:
     date: str
     title: str
     where: str
+    size: str | None = None
+    owner_wait: str = ""
 
 
 @dataclass
@@ -84,6 +100,7 @@ class Flow:
     title: str
     decided: bool
     watch: bool = False
+    size: str | None = None
 
 
 def queue(queue_text: str) -> list[str]:
@@ -100,6 +117,11 @@ def notes(queue_text: str) -> list[str]:
     ]
 
 
+def size_of(body: str) -> str | None:
+    match = SIZE.search(body)
+    return match.group(1) if match else None
+
+
 def _bodies(text: str, heading: re.Pattern) -> list[tuple[re.Match, str]]:
     matches = list(heading.finditer(text))
     ends = [m.start() for m in matches[1:]] + [len(text)]
@@ -113,7 +135,7 @@ def todo_entries(todo_text: str) -> list[Todo]:
         marks = list(FIELD.finditer(body))
         ends = [m.start() for m in marks[1:]] + [len(body)]
         fields = {m.group(1): body[m.end() : end].strip() for m, end in zip(marks, ends)}
-        entries.append(Todo(match.group(1), match.group(2), fields))
+        entries.append(Todo(match.group(1), match.group(2), fields, size_of(body)))
     return entries
 
 
@@ -121,7 +143,17 @@ def debt_entries(debt_text: str) -> list[Debt]:
     entries = []
     for match, body in _bodies(debt_text, DEBT_HEADING):
         where = re.search(r"^\*\*Where:\*\*\s*(.*)$", body, re.MULTILINE)
-        entries.append(Debt(match.group(2), match.group(1), match.group(3), where.group(1).strip() if where else ""))
+        wait = OWNER_WAIT.search(body)
+        entries.append(
+            Debt(
+                match.group(2),
+                match.group(1),
+                match.group(3),
+                where.group(1).strip() if where else "",
+                size_of(body),
+                wait.group(1).strip() if wait and wait.group(1).strip().lower() != "no" else "",
+            )
+        )
     return entries
 
 
@@ -133,6 +165,7 @@ def flow_entries(flow_text: str) -> list[Flow]:
             match.group(2),
             bool(re.search(r"^- Decision \(", body, re.MULTILINE)),
             bool(re.search(r"^- Watch \(", body, re.MULTILINE)),
+            size_of(body),
         )
         for match, body in _bodies(flow_text, FLOW_HEADING)
     ]
@@ -226,6 +259,32 @@ def remaining(queued: Sequence[tuple]) -> list[str]:
     return [ref for ref, _, waits in queued if waits not in ([SHIPPED], [CLOSED])]
 
 
+def queue_size(sizes: Sequence[str | None]) -> str:
+    """What a list of sizes stands for in pull requests: a range, and what it cannot count."""
+    counted = [size for size in sizes if size in PULL_REQUESTS]
+    low = sum(PULL_REQUESTS[size][0] for size in counted)
+    high = sum(PULL_REQUESTS[size][1] for size in counted)
+    detail = ", ".join(f"{size} {counted.count(size)}" for size in PULL_REQUESTS if size in counted)
+    count = f"{low} to {high}" if high > low else str(low)
+    text = f"{count} pull request{'' if high == 1 else 's'}" + (f" ({detail})" if detail else "")
+    programmes = sum(size == "XL" for size in sizes)
+    unsized = sum(size is None for size in sizes)
+    extras = []
+    if programmes:
+        extras.append(
+            f"{programmes} programme{'' if programmes == 1 else 's'} (XL) counted by"
+            f" {'its slice' if programmes == 1 else 'their slices'}"
+        )
+    if unsized:
+        extras.append(f"{unsized} {'entry' if unsized == 1 else 'entries'} without a size")
+    return text + (", plus " + " and ".join(extras) if extras else "")
+
+
+def _label(ref: str, entry) -> str:
+    size = getattr(entry, "size", None)
+    return f"{ref} [{size}]" if size else ref
+
+
 def checks_state(rollup: list[dict]) -> str:
     if not rollup:
         return "no checks"
@@ -286,29 +345,35 @@ def render(
         title = f" — {entry.title}" if entry else ""
         done = waits in ([SHIPPED], [CLOSED])
         state = waits[0] if done else f"waits on: {'; '.join(waits)}" if waits else "ready"
-        lines.append(f"{position}. {ref}{title} — {state}")
+        lines.append(f"{position}. {_label(ref, entry)}{title} — {state}")
     if not buckets["queued"]:
         lines.append("(empty)")
+    todo = [entry for ref, entry, waits in buckets["queued"] if waits not in ([SHIPPED], [CLOSED])]
+    if todo:
+        # A queued pull request is one pull request.
+        sizes = ["S" if isinstance(entry, Pull) else getattr(entry, "size", None) for entry in todo]
+        lines.append(f"Remaining stands for: {queue_size(sizes)}")
     if queue_notes:
         lines += ["", "Notes of the queue:"] + [f"  {note}" for note in queue_notes]
 
     lines += ["", "Ready, not queued:"]
-    lines += [f"- {t.id} — {t.title}" for t in buckets["ready"]] or ["(none)"]
+    lines += [f"- {_label(t.id, t)} — {t.title}" for t in buckets["ready"]] or ["(none)"]
 
     lines += ["", "Blocked, not queued:"]
-    lines += [f"- {t.id} — {t.title} — waits on: {'; '.join(waits)}" for t, waits in buckets["blocked"]] or ["(none)"]
+    lines += [f"- {_label(t.id, t)} — {t.title} — waits on: {'; '.join(waits)}" for t, waits in buckets["blocked"]] or ["(none)"]
 
     lines += ["", "Debt, not queued (newest first):"]
     for debt in buckets["debt"]:
         gone = missing_paths(debt.where, exists)
         stale = f" — path gone: {', '.join(gone)}" if gone else ""
-        lines.append(f"- {debt.id} ({debt.date}) — {debt.title}{stale}")
+        owner = f" — waits on the owner: {debt.owner_wait}" if debt.owner_wait else ""
+        lines.append(f"- {_label(debt.id, debt)} ({debt.date}) — {debt.title}{stale}{owner}")
     if not buckets["debt"]:
         lines.append("(none)")
 
     lines += ["", "Flow, not queued:"]
     lines += [
-        f"- {flow.id} — {flow.title}"
+        f"- {_label(flow.id, flow)} — {flow.title}"
         + (" — watch" if flow.watch else "" if flow.decided else " — waits on: the owner's decision")
         for flow in buckets.get("flow", [])
     ] or ["(none)"]
@@ -373,6 +438,14 @@ def next_id(kind: str, names: Sequence[str]) -> str:
     return f"{kind}-{max([ID_FLOORS[kind], *given]) + 1:03d}"
 
 
+def new_entry(kind: str, title: str, ref: str, today: str) -> tuple[str, str]:
+    """The file of a new entry and its text: the heading and the required lines of its kind, empty."""
+    title = title.strip()
+    if not title or "\n" in title:
+        raise ValueError("an entry's title is one line of text")
+    return str(entry_path(ref)), TEMPLATES[kind].format(ref=ref, title=title, today=today)
+
+
 def names_ever(kind: str, history: str = "--all") -> list[str]:
     """Every file the folder of `kind` holds or has held, from the working tree and the git history.
 
@@ -424,8 +497,25 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(next_id(argv[1], names_ever(argv[1])))
         return 0
+    if argv[:1] == ["new"]:
+        kind = argv[1].upper() if len(argv) == 3 else ""
+        if kind not in ENTRY_DIRS:
+            print('usage: work-queue.py new <todo | debt | flow> "<title>"', file=sys.stderr)
+            return 2
+        try:
+            path, text = new_entry(kind, argv[2], next_id(kind, names_ever(kind)), date.today().isoformat())
+        except ValueError as error:
+            print(f"❌ {error} — nothing was written", file=sys.stderr)
+            return 1
+        (ROOT / path).parent.mkdir(parents=True, exist_ok=True)
+        (ROOT / path).write_text(text, encoding="utf-8")
+        print(f"{path} created — fill in its lines; `just rule-homes` fails until its size is set")
+        return 0
     if argv and argv != ["remaining"]:
-        print("usage: work-queue.py [remaining | close <id>... | next-id <TODO | DEBT | FLOW>]", file=sys.stderr)
+        print(
+            'usage: work-queue.py [remaining | close <id>... | next-id <TODO | DEBT | FLOW> | new <todo | debt | flow> "<title>"]',
+            file=sys.stderr,
+        )
         return 2
     queue_text = (ROOT / QUEUE_HOME).read_text(encoding="utf-8")
     pulls = open_pull_requests()

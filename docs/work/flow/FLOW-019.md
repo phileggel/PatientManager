@@ -1,6 +1,7 @@
 # FLOW-019 — The E2E tooling pulls advisories with no patched release (DEBT-019)
 
 - Kind: quality
+- Size: S
 - Observed: `npm audit` reports 19 high advisories, all through `basic-ftp`, `braces` and
   `extract-zip` under `@wdio/*` 9.32. None ships in the app: `npm audit --omit=dev`, the
   weekly Security Audit gate, is clean. `braces` and `extract-zip` have no patched

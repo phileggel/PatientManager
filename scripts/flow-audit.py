@@ -3,11 +3,12 @@
 
 Measures how work moved between two releases — the pull requests merged, how long each
 took from opening to merging, the CI rounds and what failed, how long each workflow
-runs, how many issues and Dependabot pull requests were open at its start and at its
-end — and prints them as one JSON document, beside the same figures for the release
-before when asked. It also reads the repository itself: which tools the usage log saw
-and which it never did, the paths the documents name that no longer exist, and the
-length of the documents and prompts the agent works from, beside the release before.
+runs, what each entry took beside its size, how many issues and Dependabot pull requests
+were open at its start and at its end — and prints them as one JSON document, beside the
+same figures for the release before when asked. It also reads the repository itself:
+which tools the usage log saw and which it never did, the paths the documents name that
+no longer exist, and the length of the documents and prompts the agent works from,
+beside the release before.
 
 Usage:
     python3 scripts/flow-audit.py v0.5.0                 # from that release to now
@@ -211,6 +212,63 @@ def dependabot_pull_requests(pull_requests: list[dict]) -> list[dict]:
     ]
 
 
+def branch_entries(branch: str) -> list[str]:
+    """The entries a branch ships: its name carries their ids (`chore/flow-042-046-…` is two)."""
+    match = re.search(r"\b(todo|debt|flow)((?:-\d{3})+)(?!\d)", branch)
+    if not match:
+        return []
+    return [f"{match.group(1).upper()}-{number}" for number in match.group(2).split("-")[1:]]
+
+
+def size_of(entry_text: str) -> str | None:
+    """The size an entry states (`**Size:** M`, `- Size: M`), or None."""
+    match = re.search(r"^(?:\*\*Size:\*\*|- Size:)[ \t]*(XL|S|M|L)\b", entry_text, re.MULTILINE)
+    return match.group(1) if match else None
+
+
+def past_size(size: str | None, pull_requests: int) -> bool | None:
+    """Whether an entry took more pull requests than its size stands for; None when it cannot be judged."""
+    limit = {"S": 1, "M": 1, "L": 3}.get(size or "")
+    return None if limit is None else pull_requests > limit
+
+
+def measure_entries(
+    pull_requests: list[dict], runs: list[dict], since: datetime, until: datetime, size
+) -> list[dict]:
+    """For each entry a merged branch names: its pull requests and CI rounds, beside its size (FLOW-048)."""
+    merged: dict[str, set[str]] = {}
+    for pr in pull_requests:
+        if _within(pr.get("mergedAt"), since, until):
+            for entry in branch_entries(pr["headRefName"]):
+                merged.setdefault(entry, set()).add(pr["headRefName"])
+    rounds = {
+        (run["headBranch"], run["headSha"])
+        for run in runs
+        if run.get("event") == "pull_request"
+        and run.get("workflowName") == ROUND_WORKFLOW
+        and _within(run.get("createdAt"), since, until)
+    }
+    return [
+        {
+            "entry": entry,
+            "size": size(entry),
+            "pull_requests": len(branches),
+            "ci_rounds": sum(branch in branches for branch, _ in rounds),
+            "past_its_size": past_size(size(entry), len(branches)),
+        }
+        for entry, branches in sorted(merged.items())
+    ]
+
+
+def entry_size(entry: str) -> str | None:
+    """The size of an entry as last written: from its file, or from the commit before the one that deleted it."""
+    path = f"docs/work/{entry.split('-')[0].lower()}/{entry}.md"
+    if (ROOT / path).is_file():
+        return size_of((ROOT / path).read_text(encoding="utf-8"))
+    deleted = _git("log", "-1", "--format=%H", "--diff-filter=D", "--", path).strip()
+    return size_of(_git("show", f"{deleted}^:{path}")) if deleted else None
+
+
 def measure(
     pull_requests: list[dict], runs: list[dict], since: datetime, until: datetime
 ) -> dict:
@@ -410,6 +468,7 @@ def main(argv: list[str] | None = None) -> int:
         or []
     )
     report = {"current": measure(pull_requests, runs, since, until)}
+    report["current"]["entries"] = measure_entries(pull_requests, runs, since, until, entry_size)
     report["current"]["open"] = {
         "issues": measure_open(issues, since, until),
         "dependabot_pull_requests": measure_open(

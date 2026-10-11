@@ -55,7 +55,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
 ## Commands
 
 - `just dev` · `just harness` (CI's gate locally, scoped to the touched layers) · `just check` · `just check-full` · `just format` · `just generate-types` · `just merge` (refuses until every check is green; folds `fixup!` commits).
-- `just watch-pr [NN]` (waits for a pull request's checks; exit 0 green) · `just queue close <id>` (deletes a shipped entry's file) · `just queue next-id <KIND>` (the next free entry id) · `just flow-audit <since> [until]` (a batch's figures).
+- `just watch-pr [NN]` (waits for a pull request's checks; exit 0 green) · `just queue close <id>` (deletes a shipped entry's file) · `just queue new <kind> "<title>"` (files an entry; `/file-entry` is its checklist) · `just flow-audit <since> [until]` (a batch's figures).
 - `just arch-check` (A1–A8, B18, B24; `--write-allowlist` only lowers the frozen debt) · `just rule-homes` (the doc map) · `just coverage-gate` · `just privacy-check` · `just test-scripts`.
 - Release: the agent prepares it (`/dep-audit`, the security release sweep, `spec-checker` on the touched specs) and says when it is ready; the human runs `just release [--dry-run] [-y]`; the agent publishes the draft once the release workflow and `main` are green, and stops if anything is red; then `/flow-audit`.
 

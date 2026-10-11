@@ -1,6 +1,7 @@
 # FLOW-020 — Each E2E suite writes its own "open a management page" helper (DEBT-026)
 
 - Kind: effort
+- Size: S
 - Observed: opening the management dialog and clicking a card is written again in
   `e2e/patient-duplicate/`, `e2e/bank-statement-label/`, `e2e/patient/`, `e2e/fund/` and
   `e2e/bank-account/`.

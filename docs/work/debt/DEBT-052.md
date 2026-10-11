@@ -5,3 +5,7 @@
 **Where:** `src/features/bank-transfer/add_bank_transfer_form/useSelectPatientModal.ts` (`formatDateOrNA`), `src/features/bank-transfer/add_bank_transfer_form/SelectPatientModal.tsx`
 
 **Observation:** a patient with no procedure shows "N/A" as latest date, a text written in the hook; the component already has a `na` translation key for the name and the SSN. A French user reads "N/A" either way today, so the fix changes nothing visible in French; it is the F rule on text outside `t()`.
+
+**Size:** S
+
+**Waits on the owner:** no

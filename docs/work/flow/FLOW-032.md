@@ -1,6 +1,7 @@
 # FLOW-032 — A contract or a spec read for the first time costs the feature that touches it
 
 - Kind: speed
+- Size: XL
 - Observed: `contract-reviewer` ran on three contracts because a feature changed one
   command in each. It returned 4, 1 and 2 critical findings, none caused by the change
   (wrong argument types, error codes that exist nowhere, "hard-deletes" for a soft

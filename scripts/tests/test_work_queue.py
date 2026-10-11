@@ -107,7 +107,7 @@ class QueueNotes(unittest.TestCase):
     def test_the_report_prints_the_notes_under_the_queue(self):
         buckets = plan.classify(["TODO-001"], plan.todo_entries(TODO), [])
         text = plan.render(buckets, [], lambda path: True, ["TODO-001 ships with TODO-002."])
-        self.assertIn("ready\n\nNotes of the queue:\n  TODO-001 ships with TODO-002.\n\nReady, not queued:", text)
+        self.assertIn("\n\nNotes of the queue:\n  TODO-001 ships with TODO-002.\n\nReady, not queued:", text)
 
     def test_a_queue_without_notes_prints_no_heading(self):
         self.assertNotIn("Notes of the queue", plan.render(plan.classify([], [], []), [], lambda path: True))
@@ -432,6 +432,72 @@ class GitHubIssues(unittest.TestCase):
             "GitHub issues, not filed as an entry: unknown (GitHub could not be asked)",
             plan.render(buckets, [], lambda path: True, issues=None),
         )
+
+
+class Sizes(unittest.TestCase):
+    """FLOW-048: an entry says how big it is, and a queue is the sum of its entries."""
+
+    def test_flow_048_the_size_of_each_kind_is_read_from_its_line(self):
+        todo = plan.todo_entries("# TODO-001 — A\n\n**Size:** L — a spec interview.\n\n**User value:** x\n")[0]
+        debt = plan.debt_entries("# 2026-10-11 — DEBT-001 — B\n\n**Where:** `src/`\n\n**Size:** S\n")[0]
+        flow = plan.flow_entries("# FLOW-001 — C\n\n- Kind: quality\n- Size: XL\n")[0]
+        self.assertEqual((todo.size, debt.size, flow.size), ("L", "S", "XL"))
+
+    def test_flow_048_an_entry_without_a_size_has_none(self):
+        self.assertIsNone(plan.flow_entries("# FLOW-001 — C\n\n- Kind: quality\n")[0].size)
+
+    def test_flow_048_a_queue_stands_for_a_range_of_pull_requests(self):
+        self.assertEqual(
+            plan.queue_size(["S", "S", "M", "L"]),
+            "5 to 6 pull requests (S 2, M 1, L 1)",
+        )
+
+    def test_flow_048_a_programme_and_an_unsized_entry_are_named_not_counted(self):
+        self.assertEqual(
+            plan.queue_size(["S", "XL", None]),
+            "1 pull request (S 1), plus 1 programme (XL) counted by its slice and 1 entry without a size",
+        )
+
+    def test_flow_048_the_queue_states_its_size_and_each_line_its_own(self):
+        flows = plan.flow_entries("# FLOW-001 — C\n\n- Kind: quality\n- Size: M\n- Decision (owner, 2026-10-11): yes\n")
+        text = plan.render(plan.classify(["FLOW-001"], [], [], flows), [], lambda path: True)
+        self.assertIn("1. FLOW-001 [M] — C — ready", text)
+        self.assertIn("Remaining stands for: 1 pull request (M 1)", text)
+
+    def test_flow_048_a_debt_that_waits_on_the_owner_says_for_what(self):
+        debts = plan.debt_entries(
+            "# 2026-10-11 — DEBT-001 — B\n\n**Size:** S\n\n**Waits on the owner:** a spec or the contract alone\n"
+            "# 2026-10-11 — DEBT-002 — C\n\n**Size:** S\n\n**Waits on the owner:** no\n"
+        )
+        text = plan.render(plan.classify([], [], debts), [], lambda path: True)
+        self.assertIn("- DEBT-001 [S] (2026-10-11) — B — waits on the owner: a spec or the contract alone", text)
+        self.assertIn("- DEBT-002 [S] (2026-10-11) — C\n", text + "\n")
+
+
+class NewEntry(unittest.TestCase):
+    """FLOW-048: one command files an entry, with the required lines of its kind."""
+
+    def test_flow_048_a_debt_entry_is_dated_and_carries_its_lines(self):
+        path, text = plan.new_entry("DEBT", "A fund label in the log", "DEBT-056", "2026-10-11")
+        self.assertEqual(path, "docs/work/debt/DEBT-056.md")
+        self.assertTrue(text.startswith("# 2026-10-11 — DEBT-056 — A fund label in the log\n"))
+        for line in ("**Found by:**", "**Where:**", "**Observation:**", "**Size:**", "**Waits on the owner:**"):
+            self.assertIn(line, text)
+
+    def test_flow_048_a_todo_and_a_flow_entry_carry_theirs(self):
+        _, todo = plan.new_entry("TODO", "Export a month", "TODO-024", "2026-10-11")
+        self.assertTrue(todo.startswith("# TODO-024 — Export a month\n"))
+        for line in ("**Size:**", "**User value:**", "**Done when:**", "**Design:**", "**Open questions:**"):
+            self.assertIn(line, todo)
+        path, flow = plan.new_entry("FLOW", "A slow check", "FLOW-049", "2026-10-11")
+        self.assertEqual(path, "docs/work/flow/FLOW-049.md")
+        for line in ("# FLOW-049 — A slow check", "- Kind:", "- Size:", "- Observed:", "- Proposal:", "- Costs:"):
+            self.assertIn(line, flow)
+
+    def test_flow_048_a_title_on_several_lines_or_empty_is_refused(self):
+        for title in ("", "  ", "two\nlines"):
+            with self.assertRaises(ValueError):
+                plan.new_entry("FLOW", title, "FLOW-049", "2026-10-11")
 
 
 class Render(unittest.TestCase):

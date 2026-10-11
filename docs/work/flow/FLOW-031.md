@@ -1,6 +1,7 @@
 # FLOW-031 — A release never waits for a manual check: a doubt is a gap in the harness
 
 - Kind: quality
+- Size: M
 - Observed: DEBT-027 (the permissions narrowed) left three checks for a person on an
   installed build: the open dialog, the save dialog, the restart after a restore. The
   agent first placed them before the release, where they would have tested the old

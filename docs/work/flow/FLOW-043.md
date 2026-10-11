@@ -1,6 +1,7 @@
 # FLOW-043 — The flow audit is written by the agent it audits
 
 - Kind: quality
+- Size: S
 - Observed: `/flow-audit` is run by the agent that ran the batch, in the same session; its
   own text says the judging "needs that session's context". The figures are mechanical;
   their reading is the author's. On 2026-10-10 that author stated a diagnosis it had not

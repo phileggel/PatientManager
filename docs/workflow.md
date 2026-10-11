@@ -47,14 +47,46 @@ job or a machine gate.
   same id conflict at the merge; the later one takes the next id.
 - The overview is `just queue`, which lists every entry by kind.
 
+### Filing an entry (owner, 2026-10-11)
+
+`/file-entry` is the checklist of what follows.
+
+- **Three kinds, no fourth.** A todo is what a user would notice, a debt is about the
+  application's code or documents, a flow entry is about how the work moves. A bug has
+  no kind of its own: a todo when a user would notice the fix, a debt otherwise.
+- **One command creates an entry**, never a hand-written file:
+  `just queue new <todo|debt|flow> "<title>"` gives it the next id, the date and the
+  required lines of its kind. `just rule-homes` fails on an entry that lacks one.
+- **What an entry carries when filed:** its evidence (what was seen, where, with a
+  figure or a pull request), one observation only, its size, and whether it waits on
+  the owner and for what — a debt's `Waits on the owner` line, a todo's open questions,
+  a flow entry's missing `Decision` line.
+- **Size**, by facts and not by effort — **S**: one pull request, one layer, nothing
+  from the owner; **M**: any other single pull request — several lanes, a spec or a
+  contract, an answer from the owner; **L**: two or three pull requests, or mocks or a
+  spec interview with the owner; **XL**: a programme, which cannot be queued before it
+  is sliced. The agent sets it on a debt or a flow entry; on a todo entry
+  `/plan-queue` proposes it and the owner confirms it with the entry.
+- **Who files.** The agent files debt and flow entries. A todo entry is drafted from the
+  owner's words and is not queued before the owner confirms it.
+- **A GitHub issue is never worked directly:** it becomes a todo, a debt or a flow
+  entry first, which names it (`gh#NN`), and the pull request that ships the entry
+  closes the issue. A Dependabot pull request is not an issue: it is queued under its
+  own number.
+- **A bug is always filed**, even when it is fixed in the same session: a first pull
+  request files its entry, the fix closes it, so the fix's branch and tests carry its
+  id and an id is never given twice. A request in chat that is not a bug still needs no
+  entry: the pull request is its record.
+
 ### Todo entries — human-owned
 
-- Every entry is `# TODO-NNN — title` and ends with `**User value:**`,
-  `**Done when:**`, `**Design:**` and `**Open questions:**`.
-- The agent writes to an entry in two places only: it sets `Design` to `proposed (…)` or
-  `validated`, and it adds open questions; in `/plan-queue` it writes the User value and
-  Done when the human validated in chat. It deletes the entry in the pull request that
-  ships it. It never creates or renumbers one.
+- Every entry is `# TODO-NNN — title`, carries `**Size:**` and ends with
+  `**User value:**`, `**Done when:**`, `**Design:**` and `**Open questions:**`.
+- The agent drafts an entry from the owner's words, marked as a draft until the owner
+  confirms it. On a confirmed entry it writes in two places only: it sets `Design` to
+  `proposed (…)` or `validated`, and it adds open questions; in `/plan-queue` it writes
+  the size, the User value and the Done when the human validated in chat. It deletes
+  the entry in the pull request that ships it. It never renumbers one.
 
 ### The queue — `docs/work/queue.md`, human-owned (owner, 2026-10-10)
 
@@ -69,9 +101,10 @@ job or a machine gate.
 - A queued reference whose entry file is gone has shipped: `just queue` shows what
   shipped and what remains. The agent takes the first remaining reference that is
   **ready**.
-- A queue is sized by its work, not by its number of entries (owner, 2026-10-06):
-  `/plan-queue` states how many pull requests the queue stands for, beside what the last
-  batch merged. An entry whose Done when is a programme — several features, "split per",
+- A queue is sized by its work, not by its number of entries (owner, 2026-10-06 and
+  2026-10-11): `/plan-queue` sums the sizes of what it proposes — `just queue` prints
+  the sum — and stops at what the last batches merged (`docs/work/audits.md`), saying
+  both figures. An entry whose Done when is a programme — several features, "split per",
   "every … in" — enters as its first slice, written as a note in the queue file and a
   line in the entry.
 - **Ready** means: queued, a Done when is written, `Open questions: none`, and
@@ -90,9 +123,9 @@ job or a machine gate.
 
 ### Debt entries — agent-owned
 
-- Every entry is `# YYYY-MM-DD — DEBT-NNN — title`. Its body is three lines —
-  `**Found by:**`, `**Where:**` (paths from the repository root) and
-  `**Observation:**`.
+- Every entry is `# YYYY-MM-DD — DEBT-NNN — title`. Its body is five lines —
+  `**Found by:**`, `**Where:**` (paths from the repository root), `**Observation:**`,
+  `**Size:**` and `**Waits on the owner:**` (`no`, or for what).
 - The agent files here: reviewer findings it did not fix, smells met on the way,
   proposals for new work, coverage holes, frozen architecture debt.
 - Entries are observations, not commitments. The human promotes one by queuing its
@@ -347,7 +380,9 @@ the mechanical records are kept (the usage log, GitHub's own history).
   the usage log saw, the paths the documents name that no longer exist, and the length
   of the guides (`CLAUDE.md`, this document, the rules docs, every prompt), and how
   many GitHub issues and Dependabot pull requests were open when the batch started and
-  when it ended. The agent
+  when it ended, and for each entry the pull requests and CI rounds its branches took
+  beside its size: the audit names the entries that went past their size, and which
+  kinds do so most. The agent
   adds what only the session knows: what the reviewers caught, what they got wrong, the
   criticals only CI found.
 - **Five questions** (owner, 2026-10-10), asked of every batch: what would have avoided a
@@ -363,7 +398,7 @@ the mechanical records are kept (the usage log, GitHub's own history).
   its old id in its title.
 
 A flow entry is `# FLOW-NNN — title` and a list (owner, 2026-10-04): `Kind` (quality,
-speed or effort), `Observed` with its evidence — a count, a duration, a pull request —
+speed or effort), `Size` (§ 2), `Observed` with its evidence — a count, a duration, a pull request —
 then a `Proposal` with what it `Costs` and what it `Protects`. A change that buys speed
 says what it risks; one that buys safety says what it costs. A tool nobody used is named,
 with a verdict: keep, fold or remove.

@@ -1,6 +1,7 @@
 # FLOW-027 — The local harness runs both layers for a change to a script or a prompt
 
 - Kind: speed
+- Size: S
 - Observed: on 2026-10-04, five pull requests that changed only `scripts/`, the
   `justfile` or a skill prompt each waited about 12 minutes for `just harness`: the
   frontend and backend suites with coverage, on code the change could not reach.

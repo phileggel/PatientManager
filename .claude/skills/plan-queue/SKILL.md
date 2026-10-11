@@ -53,8 +53,10 @@ Name every entry that is a programme and propose its first slice, as
 Print, in this order:
 
 1. **In flight** — open pull requests and their checks; the queue as it stands.
-   Then the size of the proposal: how many pull requests it stands for (a range when a
-   programme is in it), beside what the last batch merged (`docs/work/audits.md`).
+   Then the size of the proposal: the sum of its entries' sizes in pull requests, as
+   `just queue` counts them (`docs/workflow.md` § 2), beside what the last batches
+   merged (`docs/work/audits.md`). The proposal stops at that figure; an XL entry
+   enters as a slice. A todo entry without a size gets one proposed in **Needs you**.
 2. **Proposed queue** — references in the order `docs/workflow.md` § 2 states (written
    to `docs/work/queue.md` as a plain list, `- TODO-NNN`): todo, debt, decided flow
    entries and open Dependabot pull requests (`- gh#NN`: its green reviewer checks are
