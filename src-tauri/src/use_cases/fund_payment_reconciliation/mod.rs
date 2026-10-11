@@ -27,6 +27,8 @@ pub mod api;
 /// Types the core and the command adapters both use (B47).
 mod dto;
 pub mod error;
+/// What a log may say of a fund label read from a statement (B44).
+mod fund_label;
 pub mod orchestrator;
 pub mod service;
 

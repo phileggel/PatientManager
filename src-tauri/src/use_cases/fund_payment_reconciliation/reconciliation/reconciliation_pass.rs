@@ -5,6 +5,7 @@ use crate::use_cases::fund_payment_reconciliation::core::{
 };
 use crate::use_cases::fund_payment_reconciliation::data::FundCache;
 use crate::use_cases::fund_payment_reconciliation::dto::{AnomalyType, DbMatch, NormalizedPdfLine};
+use crate::use_cases::fund_payment_reconciliation::fund_label::loggable_fund_identifier;
 /// State machine for a single reconciliation pass
 use std::collections::{HashMap, HashSet};
 
@@ -278,7 +279,7 @@ impl ReconciliationPass {
             tracing::warn!(
                 line_index = normalized.line_index,
                 procedure_id = %proc.id,
-                pdf_fund = %normalized.fund_name,
+                fund_identifier = loggable_fund_identifier(&normalized.fund_name),
                 anomaly_type = "FundMismatch",
                 "Fund mismatch detected"
             );
@@ -335,7 +336,7 @@ impl ReconciliationPass {
                 tracing::warn!(
                     line_index = normalized.line_index,
                     procedure_id = %proc.id,
-                    pdf_fund = %normalized.fund_name,
+                    fund_identifier = loggable_fund_identifier(&normalized.fund_name),
                     anomaly_type = "FundMismatch",
                     "Fund mismatch detected"
                 );

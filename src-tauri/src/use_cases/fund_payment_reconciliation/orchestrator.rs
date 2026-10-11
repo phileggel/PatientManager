@@ -1,10 +1,10 @@
 use chrono::NaiveDate;
-use regex::Regex;
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use super::dto::AutoCorrection;
 use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
+use super::fund_label::{fund_identifier_of, loggable_fund_identifier};
 use crate::context::fund::{
     FundError, FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentService, FundService,
 };
@@ -12,16 +12,6 @@ use crate::context::patient::PatientService;
 use crate::context::procedure::{Procedure, ProcedureService, ProcedureStatus};
 use crate::shared::event_bus::{EventBus, FundPaymentGroupUpdated, ProcedureUpdated};
 use crate::shared::logger::BACKEND;
-
-/// Compile-time-constant fund-number pattern (e.g. "n° 931"), compiled once and
-/// cached. The literal is always valid, but the crate denies `expect_used`, so
-/// on the (unreachable) compile failure callers fall back to treating the whole
-/// label as the identifier — never a panic. Mirrors the `Regex::new(...).ok()`
-/// idiom used in `parsing/pdf_parser.rs`.
-fn fund_number_regex() -> Option<&'static Regex> {
-    static RE: OnceLock<Option<Regex>> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"n°\s*(\d+)").ok()).as_ref()
-}
 
 /// Statistics from correction processing
 #[derive(Default, Debug)]
@@ -86,13 +76,8 @@ impl FundPaymentReconciliationOrchestrator {
         &self,
         fund_label: &str,
     ) -> Result<String, FundPaymentReconciliationError> {
-        // Extract fund number: look for pattern "n° XXX" or similar
-        let fund_identifier = match fund_number_regex().and_then(|re| re.captures(fund_label)) {
-            Some(caps) => caps[1].to_string(),
-            // No number found (or, unreachably, no regex), use the full label
-            // as identifier (e.g., "MGEN")
-            None => fund_label.trim().to_string(),
-        };
+        // The fund number ("n° XXX"), or the full label when it carries none (e.g., "MGEN")
+        let fund_identifier = fund_identifier_of(fund_label);
 
         // Search for existing fund by identifier
         if let Some(fund) = self
@@ -100,14 +85,13 @@ impl FundPaymentReconciliationOrchestrator {
             .find_fund_by_identifier(&fund_identifier)
             .await?
         {
-            tracing::debug!(fund_label = %fund_label, fund_identifier = %fund_identifier, fund_id = %fund.id, "Resolved fund label to fund ID");
+            tracing::debug!(fund_identifier = loggable_fund_identifier(fund_label), fund_id = %fund.id, "Resolved fund label to fund ID");
             return Ok(fund.id);
         }
 
         // Fund not found, create it
         tracing::info!(
-            fund_label = %fund_label,
-            fund_identifier = %fund_identifier,
+            fund_identifier = loggable_fund_identifier(fund_label),
             "Fund not found by identifier, creating new fund"
         );
         let fund = self
@@ -173,10 +157,7 @@ impl FundPaymentReconciliationOrchestrator {
         &self,
         fund_label: &str,
     ) -> Result<Option<String>, FundPaymentReconciliationError> {
-        let fund_identifier = match fund_number_regex().and_then(|re| re.captures(fund_label)) {
-            Some(caps) => caps[1].to_string(),
-            None => fund_label.trim().to_string(),
-        };
+        let fund_identifier = fund_identifier_of(fund_label);
 
         if let Some(fund) = self
             .fund_service
@@ -204,7 +185,7 @@ impl FundPaymentReconciliationOrchestrator {
         let payment_date_iso = payment_date.format("%Y-%m-%d").to_string();
 
         tracing::info!(
-            fund_label = %fund_label,
+            fund_identifier = loggable_fund_identifier(&fund_label),
             payment_date = %payment_date_iso,
             procedure_count = procedure_ids.len(),
             "Creating fund payment group from reconciliation candidate"
@@ -455,7 +436,7 @@ impl FundPaymentReconciliationOrchestrator {
                 candidate.procedure_ids.push(proc_id);
             } else {
                 tracing::warn!(
-                    fund_label = %fund_label,
+                    fund_identifier = loggable_fund_identifier(&fund_label),
                     payment_date = %payment_date,
                     "Created procedure has no matching candidate group"
                 );

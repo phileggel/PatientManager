@@ -13,6 +13,7 @@ use super::dto::{
     ReconcileAndCandidatesResponse, ReconciliationMatch, ReconciliationResult,
 };
 use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
+use super::fund_label::loggable_fund_identifier;
 use super::output::PdfCandidateMapper;
 use super::reconciliation::ReconciliationPass;
 
@@ -158,7 +159,7 @@ impl ReconciliationService {
                     tracing::warn!(
                         target: BACKEND,
                         line_index = line_index,
-                        pdf_fund = %normalized_line.fund_name,
+                        fund_identifier = loggable_fund_identifier(&normalized_line.fund_name),
                         pdf_amount = InternalAmount(normalized_line.amount).to_f64(),
                         "Procedure not found in database"
                     );
