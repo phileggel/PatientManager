@@ -184,6 +184,18 @@ jobs:
           else
             rm -f scripts/review-stop-reason.py
           fi
+          # The session's settings and hooks are the base branch's too: the pinned
+          # action loads the checked-out project's settings (setting sources user,
+          # project, local in base-action/src/parse-sdk-options.ts at v1.0.247) and
+          # Claude Code runs the hooks they name, beside the subscription token. A
+          # hook the pull request adds is removed; the log says what then differs.
+          for path in .claude/settings.json .claude/hooks; do
+            rm -rf "$path"
+            if git cat-file -e "origin/$BASE:$path" 2>/dev/null; then
+              git checkout "origin/$BASE" -- "$path"
+            fi
+          done
+          git status --short .claude
 
       - name: Run the reviewer prompt
         # The session reads a diff nobody has reviewed yet, so its shell is a

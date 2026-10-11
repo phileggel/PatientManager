@@ -50,6 +50,17 @@ class TrustedHelpers(unittest.TestCase):
                 self.assertIn("scripts/usage-log.sh", paths, f"{path} sources it")
                 self.assertIn("scripts/usage_log.py", paths, "usage-log.sh runs it")
 
+    def test_flow_052_the_session_settings_and_hooks_are_the_base_branch_s(self):
+        """The pinned action loads the checked-out project's settings and runs its hooks (v1.0.247,
+        base-action/src/parse-sdk-options.ts: setting sources user, project, local)."""
+        workflow = (SCRIPT.parents[1] / ".github" / "workflows" / "review.yml").read_text(encoding="utf-8")
+        restored = re.search(r'for path in ([^;\n]+); do\s*\n\s*rm -rf "\$path"', workflow)
+        self.assertIsNotNone(restored, "review.yml no longer empties and restores the session's settings and hooks")
+        paths = restored.group(1).split()
+        self.assertIn(".claude/settings.json", paths)
+        self.assertIn(".claude/hooks", paths)
+        self.assertIn('git status --short .claude', workflow, "the job log does not say what differs from the base")
+
 
 class ReviewLanes(unittest.TestCase):
     def test_docs_only_needs_no_reviewer(self):
