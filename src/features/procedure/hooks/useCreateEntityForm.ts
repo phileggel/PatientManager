@@ -78,12 +78,13 @@ export function useCreateEntityForm<TFields extends Record<string, unknown>, TFo
       setIsSubmitting(true);
       try {
         const formData = toFormData(fields);
-        logger.info(`${entityName} form: Submitting`, formData);
+        // The form's values stay out of the log: they are a person's name and SSN (B44).
+        logger.info(`${entityName} form: Submitting`);
         await onSubmit(formData);
         reset();
         onClose();
       } catch (error) {
-        logger.error(`${entityName} form: Submission failed`, error);
+        logger.error(`${entityName} form: Submission failed`, { error });
         setErrors({
           submit: error instanceof Error ? error.message : `Failed to create ${entityName}`,
         });

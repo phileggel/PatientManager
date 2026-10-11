@@ -83,7 +83,7 @@ export function useBankStatementGate(filePath: string): UseBankStatementGateRetu
       }
       setBankAccount(account);
       setPhase("ready");
-      logger.info(TAG, `Bank account resolved: ${account.name}`);
+      logger.info(TAG, "Bank account resolved", { accountId: account.id });
     }
 
     loadAndResolve();
@@ -127,7 +127,7 @@ export function useBankStatementGate(filePath: string): UseBankStatementGateRetu
       setBankAccount(account);
       // BAS-014 — workflow continuation: hand over to the reconciliation list.
       setPhase("ready");
-      logger.info(TAG, `Bank account created inline: ${account.name}`);
+      logger.info(TAG, "Bank account created inline", { accountId: account.id });
     } finally {
       setIsCreatingAccount(false);
     }

@@ -34,7 +34,7 @@ export async function createBankAccount(
   name: string,
   iban: string | null,
 ): Promise<ServiceResult<BankAccount, BankError>> {
-  logger.info(TAG, "Creating bank account", { name, hasIban: iban !== null });
+  logger.info(TAG, "Creating bank account", { hasIban: iban !== null });
 
   try {
     const result = await commands.createBankAccount(name, iban);

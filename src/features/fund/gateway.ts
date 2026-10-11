@@ -13,7 +13,7 @@ export async function addFund(
   fundIdentifier: string,
   fundName: string,
 ): Promise<ServiceResult<Fund, FundError>> {
-  logger.info("Adding fund", { fundIdentifier, fundName });
+  logger.info("Adding fund");
   const result = await commands.addFund(fundIdentifier, fundName);
   if (result.status === "ok") {
     logger.info("Fund added successfully");

@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { logger } from "@/infra/logger";
 import { useCreateEntityForm } from "./useCreateEntityForm";
 
 type TestFields = { name: string };
@@ -151,5 +152,22 @@ describe("useCreateEntityForm", () => {
 
     expect(result.current.fields).toEqual({ name: "" });
     expect(result.current.errors).toEqual({});
+  });
+
+  it("DEBT-059: submitting logs that it happened, never the values of the form", async () => {
+    const info = vi.spyOn(logger, "info");
+    const { result } = renderHook(() =>
+      useCreateEntityForm<TestFields, TestFormData>(makeOptions({ onSubmit: vi.fn() })),
+    );
+
+    act(() => result.current.updateField("name", "Nom Prenom"));
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as React.FormEvent);
+    });
+
+    expect(info).toHaveBeenCalledWith("test form: Submitting");
+    expect(JSON.stringify(info.mock.calls)).not.toContain("Nom Prenom");
   });
 });
