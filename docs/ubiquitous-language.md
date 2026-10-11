@@ -230,7 +230,7 @@ A bank-statement line consciously excluded from settlement during reconciliation
 
 A group of a fund's PDF statement whose stated total is zero or negative — the fund takes money back — and which the statement import therefore leaves out before matching (FPA-070): none of its lines is matched, nothing is created for it, and it is named to the user. Not a stored concept. Distinct from a left-aside line, which the user sets aside on purpose during a bank reconciliation.
 
-> Status: proposed (2026-10-10) — awaiting the owner's confirmation
+> Status: confirmed (2026-10-11)
 
 ### Bank statement label (« Libellé de relevé »)
 
