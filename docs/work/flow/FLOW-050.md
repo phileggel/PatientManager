@@ -15,3 +15,5 @@
 - Costs: a few lines in the `justfile`, one test that needs `just` installed where the
   script tests run. Until then `/file-entry` and `docs/workflow.md` § 2 name a command
   that fails on any title of more than one word.
+- Added 2026-10-11 (release sweep): `/file-entry` step 2 names the failing command; six entries
+  were filed since by calling the script directly.

@@ -18,5 +18,9 @@
   WebdriverIO 10.0.2 is out. Minor updates wait on most direct dependencies (Tauri 2.10 to 2.12 and its
   plugins, tokio, serde, uuid), read from the registries; the web search did not confirm the latest Rust
   and Tauri versions.
+- Re-checked 2026-10-11 (`/dep-audit`, the batch of that day): unchanged. 21 advisories (20 high, 1
+  low), all under the E2E and build tooling; `npm audit --omit=dev` reports none and `cargo audit` no
+  vulnerability (14 allowed warnings; one of the four unsound crates, `event-listener` 5.4.1, has a fixed
+  5.4.2). WebdriverIO 10.0.2 still clears 19; `npm audit fix` clears `source-map-js` and `esbuild`.
 - Proposal: owner's call for the next batch — `npm audit fix` now, WebdriverIO 10 once the
   major has a few weeks behind it; the E2E suites are its only user.
