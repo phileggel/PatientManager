@@ -4,6 +4,7 @@ import importlib.util
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SPEC = importlib.util.spec_from_file_location("watch_pr", Path(__file__).resolve().parents[1] / "watch-pr.py")
 watch_pr = importlib.util.module_from_spec(SPEC)
@@ -251,6 +252,16 @@ class StoppedLane(unittest.TestCase):
         failing = run("reviewer-infra", "failure", run_id=9)
         code = Watch.watch(self, [SHA], [[failing, run("Backend")]], report_failed=failed.append)
         self.assertEqual((code, failed), (1, [[failing]]))
+
+
+class LocalCommit(unittest.TestCase):
+    """FLOW-053: the watch says in one line when it cannot read the commit to wait for."""
+
+    def test_flow_053_an_unread_local_commit_is_said_not_passed_over(self):
+        out = []
+        with mock.patch.object(watch_pr, "gh", side_effect=watch_pr.GitHubError("gh: not logged in")):
+            self.assertEqual(watch_pr.local_commit("7", out.append), "")
+        self.assertEqual(out, ["the local commit could not be read (gh: not logged in): watching whatever head GitHub gives"])
 
 
 class Parse(unittest.TestCase):

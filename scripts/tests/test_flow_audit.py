@@ -3,6 +3,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SPEC = importlib.util.spec_from_file_location(
     "flow_audit", Path(__file__).resolve().parents[1] / "flow-audit.py"
@@ -191,6 +192,18 @@ class MeasureCiTest(unittest.TestCase):
         self.assertEqual(figures["failures_by_workflow"], {"E2E": 1, "Quality": 1, "Review": 1})
         self.assertEqual(figures["cancelled_by_workflow"], {"E2E": 1})
 
+    def test_flow_057_the_failed_attempts_of_a_run_re_run_are_counted_and_the_run_printed(self):
+        reruns = [
+            {"workflowName": "Review", "headBranch": "branch-101", "event": "pull_request",
+             "createdAt": "2026-10-04T08:01:00Z", "attempts": ["failure"]},
+            {"workflowName": "Quality", "headBranch": "elsewhere", "event": "pull_request",
+             "createdAt": "2026-10-04T08:01:00Z", "attempts": ["failure", "timed_out"]},
+        ]
+        figures = flow_audit.measure_ci(RUNS, PULL_REQUESTS, SINCE, UNTIL, reruns)
+        self.assertEqual(figures["failures_by_workflow"], {"Review": 2})
+        self.assertEqual(figures["reruns"], [{"workflow": "Review", "branch": "branch-101", "failed_attempts": 1}])
+        self.assertEqual(self.figures["reruns"], [])
+
     def test_a_workflow_s_duration_is_the_median_of_its_green_runs(self):
         # Quality: 3, 5 and 4 minutes; Review's red run is left out.
         self.assertEqual(
@@ -231,6 +244,18 @@ class MeasureEntriesTest(unittest.TestCase):
         self.assertEqual(flow_audit.branch_entries("feat/todo-012-patient-dedup"), ["TODO-012"])
         self.assertEqual(flow_audit.branch_entries("chore/flow-042-046-skill-names"), ["FLOW-042", "FLOW-046"])
         self.assertEqual(flow_audit.branch_entries("docs/queue-2026-10-11"), [])
+
+    def test_flow_049_a_branch_that_files_or_amends_an_entry_is_not_work_on_it(self):
+        self.assertEqual(flow_audit.branch_entries("docs/file-flow-048-the-audit-counts"), [])
+        self.assertEqual(flow_audit.branch_entries("docs/flow-048-amend"), ["FLOW-048"])
+
+    def test_flow_049_entry_files_are_counted_over_the_window_s_moments_not_the_tags(self):
+        with mock.patch.object(flow_audit, "_git", return_value="") as git:
+            flow_audit.entry_file_changes("HEAD", SINCE, UNTIL)
+        args = git.call_args.args
+        self.assertIn(f"--since={SINCE.isoformat()}", args)
+        self.assertIn(f"--until={UNTIL.isoformat()}", args)
+        self.assertFalse(any(".." in arg for arg in args))
 
     def test_flow_048_pull_requests_and_rounds_are_counted_per_entry(self):
         pulls = [
@@ -414,13 +439,17 @@ class CompareLengthsTest(unittest.TestCase):
 class TruncatedTest(unittest.TestCase):
     def test_a_full_list_that_starts_too_late_is_reported(self):
         late = [{"createdAt": "2026-10-04T00:00:00Z"}] * flow_audit.RUN_LIMIT
-        self.assertEqual(flow_audit.truncated([], late, SINCE), ["workflow runs"])
+        self.assertEqual(flow_audit.truncated([], late, [], SINCE), ["workflow runs"])
+
+    def test_flow_053_a_full_list_of_issues_that_starts_too_late_is_reported_too(self):
+        late = [{"createdAt": "2026-10-04T00:00:00Z"}] * flow_audit.ISSUE_LIMIT
+        self.assertEqual(flow_audit.truncated([], [], late, SINCE), ["issues"])
 
     def test_a_list_that_reaches_back_far_enough_is_not(self):
         full = [{"createdAt": "2026-10-01T00:00:00Z"}] * flow_audit.RUN_LIMIT
-        self.assertEqual(flow_audit.truncated([], full, SINCE), [])
+        self.assertEqual(flow_audit.truncated([], full, [], SINCE), [])
         short = [{"createdAt": "2026-10-04T00:00:00Z"}]
-        self.assertEqual(flow_audit.truncated([], short, SINCE), [])
+        self.assertEqual(flow_audit.truncated([], short, [], SINCE), [])
 
 
 if __name__ == "__main__":

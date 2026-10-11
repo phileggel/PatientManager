@@ -115,6 +115,14 @@ class QueueNotes(unittest.TestCase):
     def test_a_queue_without_notes_prints_no_heading(self):
         self.assertNotIn("Notes of the queue", plan.render(plan.classify([], [], []), [], lambda path: True))
 
+    def test_flow_053_the_report_says_when_github_cut_the_list_of_issues(self):
+        issues = [{"number": 7, "title": "x"}]
+        text = plan.render(plan.classify([], [], []), [], lambda path: True, issues=issues, issues_cut=True)
+        self.assertIn(f"GitHub issues, not filed as an entry (the list was cut at {plan.ISSUE_LIMIT}; older ones are not read):", text)
+        self.assertEqual(plan.ISSUE_LIMIT, 200)
+        text = plan.render(plan.classify([], [], []), [], lambda path: True, issues=issues)
+        self.assertIn("GitHub issues, not filed as an entry:", text)
+
 
 class TodoEntries(unittest.TestCase):
     def setUp(self):

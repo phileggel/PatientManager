@@ -1,6 +1,8 @@
 """Tests for scripts/arch-check.py — run with `just test-scripts`."""
 
+import contextlib
 import importlib.util
+import io
 import tempfile
 import unittest
 import unittest.mock
@@ -186,7 +188,8 @@ class FrontendLogic(unittest.TestCase):
                 "commands_outside_gateways": {}, "cross_feature_imports": [], "missing_ids": {}, "literal_attributes": {},
                 "use_case_imports": {}, "sqlx_in_use_cases": {}, "frontend_logic_files": ["src/features/fund/shared/rule.ts"],
             }
-            with unittest.mock.patch.object(arch, "ALLOWLIST", allowlist):
+            # The rewrite prints "arch-allowlist.json rewritten": from a temporary tree, that line would read as the real file's.
+            with unittest.mock.patch.object(arch, "ALLOWLIST", allowlist), contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(arch.write_allowlist(state, {"frontend_logic_files": []}), 1)
                 self.assertEqual(allowlist.read_text(encoding="utf-8"), "{}")
                 self.assertEqual(arch.write_allowlist({**state, "frontend_logic_files": []}, {"frontend_logic_files": ["src/features/x.ts"]}), 0)

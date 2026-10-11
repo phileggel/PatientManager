@@ -31,6 +31,7 @@ import shutil
 import statistics
 import subprocess
 import sys
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -140,7 +141,7 @@ def measure_pull_requests(
 
 
 def measure_ci(
-    runs: list[dict], pull_requests: list[dict], since: datetime, until: datetime
+    runs: list[dict], pull_requests: list[dict], since: datetime, until: datetime, reruns: Sequence[dict] = ()
 ) -> dict:
     """The CI rounds of the window's pull request branches, what failed, how long runs take.
 
@@ -148,7 +149,9 @@ def measure_ci(
     beyond the first of each branch are the ones a rebase or a fix cost. Runs are matched
     to a pull request by its branch, within the window: a pull request opened before the
     window loses the rounds it ran before it. A failure is counted per run, so a commit
-    run again after a failure counts once as a round and once per failed run.
+    run again after a failure counts once as a round and once per failed run. `gh run list`
+    shows a run's last attempt only: `reruns` carries the earlier attempts of each run that
+    was re-run (`collect_reruns`), and their failures count too (FLOW-057).
     """
     branches = {
         pr["headRefName"]
@@ -156,23 +159,33 @@ def measure_ci(
         if _within(pr.get("mergedAt"), since, until)
         or (pr.get("mergedAt") is None and _within(pr.get("closedAt"), since, until))
     }
-    in_window = [
-        run
-        for run in runs
-        if run.get("event") == "pull_request"
-        and run.get("headBranch") in branches
-        and _within(run.get("createdAt"), since, until)
-    ]
+
+    def in_window(items: list[dict]) -> list[dict]:
+        return [
+            run
+            for run in items
+            if run.get("event") == "pull_request"
+            and run.get("headBranch") in branches
+            and _within(run.get("createdAt"), since, until)
+        ]
+
+    in_window_runs = in_window(runs)
     rounds = {
         (run["headBranch"], run["headSha"])
-        for run in in_window
+        for run in in_window_runs
         if run.get("workflowName") == ROUND_WORKFLOW
     }
     branches_run = {branch for branch, _ in rounds}
     failures: dict[str, int] = {}
     cancelled: dict[str, int] = {}
     durations: dict[str, list[float]] = {}
-    for run in in_window:
+    rerun_lines = []
+    for rerun in in_window(list(reruns)):
+        name = rerun.get("workflowName") or "unknown"
+        failed = sum(conclusion in FAILED for conclusion in rerun.get("attempts", ()))
+        failures[name] = failures.get(name, 0) + failed
+        rerun_lines.append({"workflow": name, "branch": rerun.get("headBranch"), "failed_attempts": failed})
+    for run in in_window_runs:
         name = run.get("workflowName") or "unknown"
         if run.get("conclusion") in FAILED:
             failures[name] = failures.get(name, 0) + 1
@@ -192,6 +205,7 @@ def measure_ci(
         "rounds_beyond_the_first": len(rounds) - len(branches_run),
         "failures_by_workflow": dict(sorted(failures.items())),
         "cancelled_by_workflow": dict(sorted(cancelled.items())),
+        "reruns": rerun_lines,
         "median_minutes_by_workflow": {
             name: _rounded(statistics.median(values))
             for name, values in sorted(durations.items())
@@ -224,7 +238,9 @@ def dependabot_pull_requests(pull_requests: list[dict]) -> list[dict]:
 
 def branch_entries(branch: str) -> list[str]:
     """The entries a branch ships: its name carries their ids (`chore/flow-042-046-…` is two)."""
-    match = re.search(r"\b(todo|debt|flow)((?:-\d{3})+)(?!\d)", branch)
+    # The id leads the slug (`chore/flow-048-…`); a branch that files or amends an entry
+    # (`docs/file-flow-048-…`) is not work on it (FLOW-049).
+    match = re.match(r"[a-z]+/(todo|debt|flow)((?:-\d{3})+)(?!\d)", branch)
     if not match:
         return []
     return [f"{match.group(1).upper()}-{number}" for number in match.group(2).split("-")[1:]]
@@ -280,14 +296,14 @@ def entry_size(entry: str) -> str | None:
 
 
 def measure(
-    pull_requests: list[dict], runs: list[dict], since: datetime, until: datetime
+    pull_requests: list[dict], runs: list[dict], since: datetime, until: datetime, reruns: Sequence[dict] = ()
 ) -> dict:
     """Every figure of one window."""
     return {
         "since": since.isoformat(),
         "until": until.isoformat(),
         "pull_requests": measure_pull_requests(pull_requests, since, until),
-        "ci": measure_ci(runs, pull_requests, since, until),
+        "ci": measure_ci(runs, pull_requests, since, until, reruns),
     }
 
 
@@ -403,6 +419,15 @@ def measure_entry_files(name_status: str) -> dict:
     }
 
 
+def entry_file_changes(now: str, since: datetime, until: datetime) -> str:
+    """The entry files added and deleted on `now`'s history between the two moments, as
+    `git log --name-status` prints them: the same window as the pull requests (FLOW-049)."""
+    return _git(
+        "log", now, f"--since={since.isoformat()}", f"--until={until.isoformat()}",
+        "--diff-filter=AD", "--name-status", "--format=", "--", "docs/work",
+    )
+
+
 def measure_repository(
     since: datetime, until: datetime, now: str, before: str
 ) -> dict:
@@ -419,9 +444,7 @@ def measure_repository(
         "usage": measure_usage(log_lines, since, until, known_tools()),
         "dangling_paths": dangling_paths(texts, lambda path: (ROOT / path).exists()),
         "guides": compare_lengths(guide_lengths(now), guide_lengths(before)),
-        "entries": measure_entry_files(
-            _git("log", f"{before}..{now}", "--diff-filter=AD", "--name-status", "--format=", "--", "docs/work")
-        ),
+        "entries": measure_entry_files(entry_file_changes(now, since, until)),
     }
 
 
@@ -437,6 +460,46 @@ def _gh_json(*args: str) -> object:
             f"flow-audit: gh {' '.join(args[:2])} failed: {error}"
         ) from error
     return json.loads(result.stdout or "null")
+
+
+def _gh_json_lines(*args: str) -> list[dict]:
+    """One JSON object per line, as `gh api --paginate --jq` prints them page after page."""
+    if not shutil.which("gh"):
+        raise SystemExit("flow-audit: the GitHub command line (gh) is not installed")
+    try:
+        result = subprocess.run(
+            ["gh", *args], check=True, capture_output=True, text=True, timeout=300
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        raise SystemExit(f"flow-audit: gh {' '.join(args[:2])} failed: {error}") from error
+    return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+
+
+def collect_reruns(earliest: datetime) -> list[dict]:
+    """The runs re-run since `earliest`, each with the conclusions of its earlier attempts.
+
+    `gh run list` has no attempt field: GitHub's REST list gives `run_attempt`, in one
+    paginated call narrowed to the window, and each earlier attempt is read on its own.
+    """
+    rerun = _gh_json_lines(
+        "api", "-X", "GET", "repos/{owner}/{repo}/actions/runs", "--paginate",
+        "-f", "per_page=100", "-f", f"created=>={earliest.date().isoformat()}",
+        "--jq", ".workflow_runs[] | select(.run_attempt > 1)"
+        " | {id, run_attempt, name, head_branch, event, created_at}",
+    )
+    return [
+        {
+            "workflowName": run["name"],
+            "headBranch": run["head_branch"],
+            "event": run["event"],
+            "createdAt": run["created_at"],
+            "attempts": [
+                (_gh_json("api", f"repos/{{owner}}/{{repo}}/actions/runs/{run['id']}/attempts/{attempt}") or {}).get("conclusion")
+                for attempt in range(1, run["run_attempt"])
+            ],
+        }
+        for run in rerun
+    ]
 
 
 def release_moment(tag: str) -> datetime:
@@ -465,7 +528,7 @@ def collect() -> tuple[list[dict], list[dict]]:
 
 
 def truncated(
-    pull_requests: list[dict], runs: list[dict], earliest: datetime
+    pull_requests: list[dict], runs: list[dict], issues: list[dict], earliest: datetime
 ) -> list[str]:
     """What GitHub's lists cut short: a list that came back full and whose oldest item
     is later than the earliest moment asked for does not cover the window."""
@@ -473,6 +536,7 @@ def truncated(
     for name, items, limit in (
         ("pull requests", pull_requests, PULL_REQUEST_LIMIT),
         ("workflow runs", runs, RUN_LIMIT),
+        ("issues", issues, ISSUE_LIMIT),
     ):
         if (
             len(items) >= limit
@@ -503,7 +567,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         or []
     )
-    report = {"current": measure(pull_requests, runs, since, until)}
+    earliest = release_moment(args.previous) if args.previous else since
+    reruns = collect_reruns(earliest)
+    report = {"current": measure(pull_requests, runs, since, until, reruns)}
     report["current"]["entries"] = measure_entries(pull_requests, runs, since, until, entry_size)
     report["current"]["open"] = {
         "issues": measure_open(issues, since, until),
@@ -514,11 +580,9 @@ def main(argv: list[str] | None = None) -> int:
     report["repository"] = measure_repository(
         since, until, args.until or "HEAD", args.since
     )
-    earliest = since
     if args.previous:
-        earliest = release_moment(args.previous)
-        report["previous"] = measure(pull_requests, runs, earliest, since)
-    report["truncated"] = truncated(pull_requests, runs, earliest)
+        report["previous"] = measure(pull_requests, runs, earliest, since, reruns)
+    report["truncated"] = truncated(pull_requests, runs, issues, earliest)
     if report["truncated"]:
         print(
             f"flow-audit: the list of {' and '.join(report['truncated'])} does not reach"

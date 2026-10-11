@@ -36,16 +36,14 @@ job or a machine gate.
 
 ### Entries — one file each (owner, 2026-10-10)
 
-- An entry is one file named by its id, in the folder of its kind:
-  `docs/work/todo/TODO-NNN.md`, `docs/work/debt/DEBT-NNN.md`,
-  `docs/work/flow/FLOW-NNN.md`. Its first line is its heading; `just rule-homes` fails
-  when the name, the folder and the heading do not say the same id.
+- An entry is one file named by its id, in the folder of its kind
+  (`docs/work/{todo,debt,flow}/<id>.md`). Its first line is its heading; `just rule-homes`
+  fails when the name, the folder and the heading do not say the same id.
 - An entry that ships is deleted (`just queue close <id>`), so two pull requests
   never meet in a file when each closes or files an entry.
 - Ids are permanent and never reused: `just queue next-id <TODO|DEBT|FLOW>` prints
   the next free one, counting the entries already deleted. Two branches that take the
   same id conflict at the merge; the later one takes the next id.
-- The overview is `just queue`, which lists every entry by kind.
 
 ### Filing an entry (owner, 2026-10-11)
 
@@ -73,6 +71,8 @@ job or a machine gate.
   entry first, which names it (`gh#NN`), and the pull request that ships the entry
   closes the issue. A Dependabot pull request is not an issue: it is queued under its
   own number.
+- **The filing branch** is `docs/file-<slug>`: an entry's id leads a slug only on the
+  branch that works it (`chore/flow-048-…`), the only branch the audit counts as its work.
 - **A bug is always filed**, even when it is fixed in the same session: a first pull
   request files its entry, the fix closes it, so the fix's branch and tests carry its
   id and an id is never given twice. A request in chat that is not a bug still needs no

@@ -34,6 +34,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FIELDS = ("User value", "Done when", "Design", "Open questions")
 # A Where path is checked only when it starts at the repository root.
 PATH_ROOTS = ("src/", "src-tauri/", "docs/", "scripts/", "e2e/", ".github/", ".claude/")
+# How many open issues GitHub is asked for; the report says when the list came back full (FLOW-053).
+ISSUE_LIMIT = 200
 PASSING = ("SUCCESS", "NEUTRAL", "SKIPPED")
 QUEUE_HOME = "docs/work/queue.md"
 # What a queued reference reads as once its work is done: the queue is not edited.
@@ -318,7 +320,7 @@ def open_issues() -> list[dict] | None:
     """Open GitHub issues, or None when GitHub cannot be asked (unknown, not empty)."""
     try:
         result = subprocess.run(
-            ["gh", "issue", "list", "--state", "open", "--limit", "200", "--json", "number,title"],
+            ["gh", "issue", "list", "--state", "open", "--limit", str(ISSUE_LIMIT), "--json", "number,title"],
             capture_output=True, text=True, check=True, timeout=20, cwd=ROOT,
         )
         return json.loads(result.stdout)
@@ -338,6 +340,7 @@ def render(
     exists,
     queue_notes: Sequence[str] = (),
     issues: Sequence[dict] | None = (),
+    issues_cut: bool = False,
 ) -> str:
     left = len(remaining(buckets["queued"]))
     lines = [f"Queued ({QUEUE_HOME}, in order; {left} of {len(buckets['queued'])} remaining):"]
@@ -390,7 +393,8 @@ def render(
     if issues is None:
         lines.append("GitHub issues, not filed as an entry: unknown (GitHub could not be asked)")
     else:
-        lines.append("GitHub issues, not filed as an entry:")
+        cut = f" (the list was cut at {ISSUE_LIMIT}; older ones are not read)" if issues_cut else ""
+        lines.append(f"GitHub issues, not filed as an entry{cut}:")
         lines += [f"- gh#{issue['number']} — {issue['title']}" for issue in issues] or ["(none)"]
 
     lines.append("")
@@ -531,9 +535,10 @@ def main(argv: list[str] | None = None) -> int:
         print("\n".join(remaining(buckets["queued"])))
         return 0
     issues = open_issues()
+    issues_cut = issues is not None and len(issues) >= ISSUE_LIMIT
     if issues is not None:
         issues = unfiled_issues(issues, "\n".join(kind_text(kind) for kind in ENTRY_DIRS))
-    print(render(buckets, pulls, lambda path: (ROOT / path).exists(), notes(queue_text), issues))
+    print(render(buckets, pulls, lambda path: (ROOT / path).exists(), notes(queue_text), issues, issues_cut))
     return 0
 
 

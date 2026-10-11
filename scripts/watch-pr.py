@@ -266,16 +266,20 @@ def expected_head(pull_branch: str, local_branch: str, local_head: str) -> str:
     return local_head if pull_branch == local_branch else ""
 
 
-def local_commit(pull: str | None) -> str:
-    """The local commit to wait for, or "" when the watched pull request is another branch's."""
+def local_commit(pull: str | None, say: Callable[[str], None]) -> str:
+    """The local commit to wait for, or "" when the watched pull request is another branch's.
+
+    When it cannot be read, the watch says so in one line and watches whatever head GitHub gives (FLOW-053).
+    """
     def git(*args: str) -> str:
         return subprocess.run(["git", *args], capture_output=True, text=True, check=True, cwd=ROOT).stdout.strip()
 
     try:
         branch = json.loads(gh("pr", "view", *([pull] if pull else []), "--json", "headRefName"))["headRefName"]
         return expected_head(branch, git("branch", "--show-current"), git("rev-parse", "HEAD"))
-    except (GitHubError, json.JSONDecodeError, KeyError, OSError, subprocess.CalledProcessError):
-        return ""  # the watch itself will say what is wrong
+    except (GitHubError, json.JSONDecodeError, KeyError, OSError, subprocess.CalledProcessError) as error:
+        say(f"the local commit could not be read ({error}): watching whatever head GitHub gives")
+        return ""
 
 
 def comment_of(pull: str | None, lane: str) -> str | None:
@@ -316,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         code = watch(
             lambda: head_of(args.pull), runs_of, required, say, time.sleep, time.monotonic, args.interval, args.timeout,
-            expected=local_commit(args.pull), report_failed=failed.extend,
+            expected=local_commit(args.pull, say), report_failed=failed.extend,
         )
         return explain(failed, lambda lane: comment_of(args.pull, lane), say) if code == 1 else code
     except NotOpen as state:
