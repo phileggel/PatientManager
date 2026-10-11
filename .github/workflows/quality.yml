@@ -160,7 +160,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -233,7 +233,7 @@ jobs:
         # Pinned to a full SHA — mutable tags are a supply-chain risk.
         # sqlx-cli version matches `sqlx` in Cargo.lock (0.8.6).
         if: steps.cache-sqlx-cli.outputs.cache-hit != 'true'
-        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0
+        uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad
         with:
           tool: sqlx-cli@0.8.6
       - name: Setup sqlx-check DB
@@ -251,7 +251,7 @@ jobs:
       - name: Install cargo-llvm-cov and just
         # Pinned to a full SHA — mutable tags are a supply-chain risk
         if: needs.scope.outputs.backend == 'true'
-        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0
+        uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad
         with:
           tool: cargo-llvm-cov@0.8.7,just
       # Single source of truth: `just coverage-be` is the same recipe developers
