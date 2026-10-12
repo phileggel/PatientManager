@@ -14,7 +14,7 @@ Creates a new fund with an identifier and a name. Both are trimmed: the screen s
 
 - **Args:** `fund_identifier: String, fund_name: String`
 - **Returns:** `Fund`
-- **Errors:** `FundInvalid { reasons }` (every empty field at once: `IdentifierEmpty`, `NameEmpty`), `DatabaseError` (also for an identifier already used — DEBT-039)
+- **Errors:** `FundInvalid { reasons }` (every empty field at once: `IdentifierEmpty`, `NameEmpty`), `IdentifierAlreadyUsed` (another fund in use holds the identifier; a deleted fund's identifier can be taken again), `DatabaseError`
 
 ---
 
@@ -34,7 +34,7 @@ A user's edit of a fund: the identifier and the name, trimmed and validated, are
 
 - **Args:** `fund: Fund`
 - **Returns:** `Fund`
-- **Errors:** `FundInvalid { reasons }` (as `add_fund`), `FundNotFound`, `DatabaseError` (also for an identifier already used — DEBT-039)
+- **Errors:** `FundInvalid { reasons }` (as `add_fund`), `FundNotFound`, `IdentifierAlreadyUsed` (as `add_fund`; a fund keeps its own identifier), `DatabaseError`
 
 ---
 

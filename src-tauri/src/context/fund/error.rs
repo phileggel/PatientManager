@@ -43,6 +43,12 @@ pub enum FundError {
     #[error("Fund not found")]
     FundNotFound,
 
+    /// `FundService::create_fund` / `update_fund`: another fund still in use
+    /// holds the identifier (a deleted fund's identifier can be taken again,
+    /// as the unique index only covers active rows — DEBT-039).
+    #[error("Fund identifier already used by another fund")]
+    IdentifierAlreadyUsed,
+
     /// `FundPaymentGroupService` update-by-id lookup returned no row.
     #[error("Fund payment group not found: {fund_payment_group_id}")]
     PaymentGroupNotFound { fund_payment_group_id: String },
@@ -77,6 +83,10 @@ mod tests {
             })
             .unwrap(),
             json!({ "code": "FundInvalid", "reasons": ["IdentifierEmpty", "NameEmpty"] }),
+        );
+        assert_eq!(
+            to_value(FundError::IdentifierAlreadyUsed).unwrap(),
+            json!({ "code": "IdentifierAlreadyUsed" }),
         );
         assert_eq!(
             to_value(FundError::FundNotFound).unwrap(),

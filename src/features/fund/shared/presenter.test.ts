@@ -222,6 +222,15 @@ describe("formatFundError - F27 Layer 3 (pure code → key mapping)", () => {
     expect(fundFieldErrorKeys({ code: "DatabaseError" })).toBeNull();
   });
 
+  it("DEBT-039: an identifier already used is shown under the identifier field, and has a key", () => {
+    expect(fundFieldErrorKeys({ code: "IdentifierAlreadyUsed" })).toEqual({
+      fund_identifier: "fund:form.identifier_already_used",
+    });
+    expect(formatFundError({ code: "IdentifierAlreadyUsed" })).toEqual({
+      key: "fund:errors.identifier_already_used",
+    });
+  });
+
   it("maps FundIdEmpty to its key", () => {
     const err: FundError = { code: "FundIdEmpty" };
     expect(formatFundError(err)).toEqual({ key: "fund:errors.fund_id_empty" });

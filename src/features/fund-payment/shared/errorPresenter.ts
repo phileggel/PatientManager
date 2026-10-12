@@ -35,6 +35,7 @@ export function formatManualManagementError(err: FundPaymentManualManagementErro
     // --- FundError domain invariants (not expected in this flow) ---
     case "FundInvalid":
     case "FundNotFound":
+    case "IdentifierAlreadyUsed":
     case "FundIdEmpty":
     case "TotalAmountNotPositive":
     case "FundPaymentGroupIdEmpty":

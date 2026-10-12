@@ -11,6 +11,9 @@ const FIELD_ERROR_KEYS: Record<FundInvalidReason, [keyof FundFormData, string]> 
  * error is not about the form's fields (it then goes to a toast).
  */
 export function fundFieldErrorKeys(err: FundError): FormErrors | null {
+  if (err.code === "IdentifierAlreadyUsed") {
+    return { fund_identifier: "fund:form.identifier_already_used" };
+  }
   if (err.code !== "FundInvalid") return null;
   return Object.fromEntries(err.reasons.map((reason) => FIELD_ERROR_KEYS[reason]));
 }
@@ -32,6 +35,8 @@ export function formatFundError(err: FundError): {
       };
     case "FundNotFound":
       return { key: "fund:errors.fund_not_found" };
+    case "IdentifierAlreadyUsed":
+      return { key: "fund:errors.identifier_already_used" };
     case "FundIdEmpty":
       return { key: "fund:errors.fund_id_empty" };
     case "TotalAmountNotPositive":

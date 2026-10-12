@@ -1632,6 +1632,12 @@ export type FundError =
  */
 { code: "FundNotFound" } | 
 /**
+ * `FundService::create_fund` / `update_fund`: another fund still in use
+ * holds the identifier (a deleted fund's identifier can be taken again,
+ * as the unique index only covers active rows — DEBT-039).
+ */
+{ code: "IdentifierAlreadyUsed" } | 
+/**
  * `FundPaymentGroupService` update-by-id lookup returned no row.
  */
 { code: "PaymentGroupNotFound"; fund_payment_group_id: string } | 

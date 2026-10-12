@@ -29,6 +29,25 @@ impl FundService {
         }
     }
 
+    /// Identifier uniqueness among the funds in use, shared by the create and
+    /// update paths (DEBT-039). `exempt_id` lets an edit keep its own
+    /// identifier; `None` refuses any match. Checked before the write so the
+    /// refusal keeps its code: the unique index would answer `anyhow`, which
+    /// reads as a database failure.
+    async fn ensure_identifier_unique(
+        &self,
+        identifier: &str,
+        exempt_id: Option<&str>,
+    ) -> Result<(), FundError> {
+        let other = self.find_fund_by_identifier(identifier).await?;
+        match other {
+            Some(other) if exempt_id != Some(other.id.as_str()) => {
+                Err(FundError::IdentifierAlreadyUsed)
+            }
+            _ => Ok(()),
+        }
+    }
+
     pub async fn create_fund(
         &self,
         fund_identifier: String,
@@ -37,6 +56,8 @@ impl FundService {
         // Validated here so that a refusal keeps its code: the repository's own
         // construction answers `anyhow`, which reads as a database failure.
         let fund = Fund::new(fund_identifier, name)?;
+        self.ensure_identifier_unique(&fund.fund_identifier, None)
+            .await?;
         let result = self
             .repository
             .create_fund(&fund.fund_identifier, &fund.name)
@@ -90,6 +111,8 @@ impl FundService {
             FundError::FundNotFound
         })?;
         let fund = stored.edit(fund.fund_identifier, fund.name)?;
+        self.ensure_identifier_unique(&fund.fund_identifier, Some(&fund.id))
+            .await?;
         let result = self.repository.update_fund(fund).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "update_fund: repository failed");
             FundError::DatabaseError
@@ -449,6 +472,8 @@ mod tests {
 
     fn fund_repo_create_ok() -> MockFundRepository {
         let mut mock = MockFundRepository::new();
+        mock.expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
         mock.expect_create_fund()
             .returning(|fund_identifier, fund_name| {
                 Ok(Fund::restore(
@@ -479,6 +504,8 @@ mod tests {
 
     fn fund_repo_failing() -> MockFundRepository {
         let mut mock = MockFundRepository::new();
+        mock.expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
         mock.expect_create_fund()
             .returning(|_, _| Err(anyhow!("Mock repository error")));
         mock.expect_read_all_funds()
@@ -500,6 +527,63 @@ mod tests {
         let fund = result.unwrap();
         assert_eq!(fund.fund_identifier, "FUND-001");
         assert_eq!(fund.name, "Healthcare Fund");
+    }
+
+    #[tokio::test]
+    async fn test_debt_039_add_fund_with_an_identifier_in_use_is_refused_by_name() {
+        let mut mock = MockFundRepository::new();
+        mock.expect_find_fund_by_identifier().returning(|_| {
+            Ok(Some(Fund::restore(
+                "f1".into(),
+                "75".into(),
+                "CPAM 75".into(),
+            )))
+        });
+        // Never reached: the refusal comes before the write.
+        mock.expect_create_fund().never();
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let result = service
+            .create_fund(" 75 ".to_string(), "Other".to_string())
+            .await;
+
+        assert!(matches!(result, Err(FundError::IdentifierAlreadyUsed)));
+    }
+
+    #[tokio::test]
+    async fn test_debt_039_update_fund_refuses_another_fund_identifier_and_keeps_its_own() {
+        let mut mock = MockFundRepository::new();
+        mock.expect_read_fund().returning(|_| {
+            Ok(Some(Fund::restore(
+                "f1".into(),
+                "75".into(),
+                "CPAM 75".into(),
+            )))
+        });
+        mock.expect_find_fund_by_identifier()
+            .returning(|identifier| {
+                Ok(match identifier {
+                    "75" => Some(Fund::restore("f1".into(), "75".into(), "CPAM 75".into())),
+                    "93" => Some(Fund::restore("f2".into(), "93".into(), "CPAM 93".into())),
+                    _ => None,
+                })
+            });
+        mock.expect_update_fund().returning(Ok);
+        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
+
+        let onto_another = service
+            .update_fund(Fund::restore("f1".into(), "93".into(), "CPAM 75".into()))
+            .await;
+        assert!(matches!(
+            onto_another,
+            Err(FundError::IdentifierAlreadyUsed)
+        ));
+
+        let renamed = service
+            .update_fund(Fund::restore("f1".into(), "75".into(), "CPAM Paris".into()))
+            .await
+            .expect("a fund keeps its own identifier");
+        assert_eq!(renamed.name, "CPAM Paris");
     }
 
     #[tokio::test]
@@ -729,6 +813,8 @@ mod tests {
     async fn fund_service_update_fund_returns_updated() {
         let mut mock = MockFundRepository::new();
         mock.expect_read_fund().returning(|_| Ok(Some(make_fund())));
+        mock.expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
         mock.expect_update_fund().returning(Ok);
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
         let result = service.update_fund(make_fund()).await.unwrap();
@@ -928,6 +1014,8 @@ mod tests {
     async fn fund_service_update_fund_repository_error_translates() {
         let mut mock = MockFundRepository::new();
         mock.expect_read_fund().returning(|_| Ok(Some(make_fund())));
+        mock.expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
         mock.expect_update_fund()
             .returning(|_| Err(anyhow!("Mock repository error")));
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));

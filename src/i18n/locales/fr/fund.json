@@ -10,7 +10,8 @@
     "name": "Nom de la caisse",
     "name_placeholder": "ex. : Caisse Primaire",
     "identifier_required": "L'identifiant de la caisse est obligatoire",
-    "name_required": "Le nom de la caisse est obligatoire"
+    "name_required": "Le nom de la caisse est obligatoire",
+    "identifier_already_used": "Identifiant déjà utilisé par une autre caisse"
   },
   "list": {
     "identifier": "Identifiant",
@@ -40,6 +41,7 @@
   },
   "errors": {
     "fund_identifier_empty": "L'identifiant de la caisse ne peut pas être vide",
+    "identifier_already_used": "Cet identifiant est déjà utilisé par une autre caisse.",
     "fund_name_empty": "Le nom de la caisse ne peut pas être vide",
     "fund_id_empty": "L'identifiant de la caisse ne peut pas être vide",
     "total_amount_not_positive": "Le montant total doit être supérieur à 0",

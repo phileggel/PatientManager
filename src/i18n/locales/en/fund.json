@@ -10,7 +10,8 @@
     "name": "Fund Name",
     "name_placeholder": "e.g., Healthcare Fund",
     "identifier_required": "Fund identifier is required",
-    "name_required": "Fund name is required"
+    "name_required": "Fund name is required",
+    "identifier_already_used": "Identifier already used by another fund"
   },
   "list": {
     "identifier": "Identifier",
@@ -40,6 +41,7 @@
   },
   "errors": {
     "fund_identifier_empty": "Fund identifier cannot be empty",
+    "identifier_already_used": "This identifier is already used by another fund.",
     "fund_name_empty": "Fund name cannot be empty",
     "fund_id_empty": "Fund ID cannot be empty",
     "total_amount_not_positive": "Total amount must be greater than 0",
