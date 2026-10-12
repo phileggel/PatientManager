@@ -28,7 +28,7 @@ export async function extractPdfText(
   const result = await commands.extractPdfText(filePath);
 
   if (result.status === "error") {
-    logger.error(TAG, "Failed to extract PDF text", result.error);
+    logger.error(TAG, "Failed to extract PDF text", { error: result.error });
     return { success: false, error: result.error };
   }
 
@@ -44,7 +44,7 @@ export async function extractPdfText(
  *   unparseable lines are reported inside the result, never as an error)
  */
 export async function parsePdfText(text: string): Promise<PdfParseResult> {
-  logger.debug(TAG, "Parsing PDF text", `${text.length} characters`);
+  logger.debug(TAG, "Parsing PDF text", { characters: text.length });
 
   const result = await commands.parsePdfText(text);
 
@@ -69,7 +69,7 @@ export async function reconcileAndCreateCandidates(
   const result = await commands.reconcileAndCreateCandidates(parseResult);
 
   if (result.status === "error") {
-    logger.error(TAG, "Failed to reconcile and create candidates", result.error);
+    logger.error(TAG, "Failed to reconcile and create candidates", { error: result.error });
     return { success: false, error: result.error };
   }
 
@@ -80,7 +80,8 @@ export async function reconcileAndCreateCandidates(
   ).length;
   logger.info(
     TAG,
-    `Created ${result.data.candidates.length} fund payment candidates from ${result.data.reconciliation.matches.length} total matches (${issueCount} issues)`,
+    `Created ${result.data.candidates.length} fund payment candidates from ${result.data.reconciliation.matches.length} total matches`,
+    { issues: issueCount },
   );
   return { success: true, data: result.data };
 }
@@ -105,7 +106,9 @@ export async function createFundPaymentWithAutoCorrections(
   const result = await commands.createFundPaymentWithAutoCorrections(request);
 
   if (result.status === "error") {
-    logger.error(TAG, "Failed to create fund payment groups with auto-corrections", result.error);
+    logger.error(TAG, "Failed to create fund payment groups with auto-corrections", {
+      error: result.error,
+    });
     return { success: false, error: result.error };
   }
 
@@ -132,7 +135,7 @@ export async function getUnreconciledProceduresInRange(
   const result = await commands.getUnreconciledProceduresInRange(startDate, endDate);
 
   if (result.status === "error") {
-    logger.error(TAG, "Failed to fetch unreconciled procedures", result.error);
+    logger.error(TAG, "Failed to fetch unreconciled procedures", { error: result.error });
     return { success: false, error: result.error };
   }
 

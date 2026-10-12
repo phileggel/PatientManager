@@ -6,7 +6,10 @@ Three checks:
   logs   a `tracing::*!` (Rust) or `logger.*` / `console.*` (TypeScript) call
          that logs the value of an SSN, an IBAN or a patient name. A presence
          flag (`ssn.is_some()`, `!!iban`, `.len()`, `.length`) or an IBAN tail
-         (`iban[iban.len() - 4..]`) is fine.
+         (`iban[iban.len() - 4..]`) is fine. A TypeScript message may interpolate
+         only an upper-case constant, a `.length`, an id or `entityName`, and what
+         follows the message is an object literal, which the logger redacts
+         (DEBT-060); a test file may hand the logger an object variable.
   text   a French SSN or an IBAN whose check digits are valid, in a tracked
          file, a commit message or a PR body — unless privacy-allowlist.json
          names it as synthetic.
@@ -83,6 +86,51 @@ SAFE_SUFFIX = re.compile(
 )
 
 
+TS_STRING = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|`(?:\\.|[^`\\])*`')
+# What a message may interpolate: a constant tag, a size, an id, the kind of entity.
+ALLOWED_INTERPOLATION = re.compile(r"^(?:[A-Z][A-Z0-9_]*|[\w.]+\.length|id|\w+Id|entityName)$")
+TS_TEST_FILE = re.compile(r"\.test\.tsx?$")
+
+
+def _ts_args(text: str) -> list[str]:
+    """The top-level arguments of a call, string literals and nested brackets kept whole."""
+    args, depth, current, i = [], 0, "", 0
+    while i < len(text):
+        literal = TS_STRING.match(text, i)
+        if literal:
+            current += literal.group(0)
+            i = literal.end()
+            continue
+        char = text[i]
+        depth += {"(": 1, "[": 1, "{": 1, ")": -1, "]": -1, "}": -1}.get(char, 0)
+        if char == "," and depth == 0:
+            args.append(current.strip())
+            current = ""
+        else:
+            current += char
+        i += 1
+    if current.strip():
+        args.append(current.strip())
+    return args
+
+
+def _ts_message_findings(path: str, raw: str) -> list[str]:
+    """What a TypeScript log call writes into its message itself, which the logger cannot redact."""
+    findings = []
+    args = _ts_args(raw)
+    for arg in args:
+        for literal in TS_STRING.findall(arg):
+            for expr in re.findall(r"\$\{([^}]*)\}", literal):
+                if not ALLOWED_INTERPOLATION.match(expr.strip()):
+                    findings.append(f"log message interpolates a value: ${{{expr.strip()}}}")
+    message = next((i for i, arg in enumerate(args) if TS_STRING.fullmatch(arg)), None)
+    if message is not None and not TS_TEST_FILE.search(path):
+        for arg in args[message + 1 :]:
+            if not (arg.startswith("{") and arg.endswith("}")):
+                findings.append(f"log call hands a value after its message that is not an object literal: {arg}")
+    return findings
+
+
 def _call_text(source: str, start: int) -> str:
     """The argument text of the call whose `(` ends at `start`, up to its matching `)`."""
     depth, i = 1, start
@@ -96,7 +144,7 @@ def _strip_strings(args: str) -> str:
     """Drop string literals but keep what they interpolate (`{ssn}`, `${ssn}`)."""
     def keep_placeholders(m: re.Match[str]) -> str:
         return " ".join(re.findall(r"\$?\{([^}]*)\}", m.group(0)))
-    return re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|`(?:\\.|[^`\\])*`', keep_placeholders, args)
+    return TS_STRING.sub(keep_placeholders, args)
 
 
 def log_findings(path: str, source: str) -> list[tuple[int, str]]:
@@ -108,7 +156,11 @@ def log_findings(path: str, source: str) -> list[tuple[int, str]]:
         return []
     findings = []
     for m in call.finditer(source):
-        args = _strip_strings(_call_text(source, m.end()))
+        raw = _call_text(source, m.end())
+        args = _strip_strings(raw)
+        line = source.count("\n", 0, m.start()) + 1
+        if call is TS_CALL and path.startswith("src/"):  # the frontend logger's calls; tooling prints to a terminal
+            findings += [(line, text) for text in _ts_message_findings(path, raw)]
         for ref in private.finditer(args):
             after = args[ref.end() :]
             before = args[: ref.start()].rstrip()
@@ -116,7 +168,6 @@ def log_findings(path: str, source: str) -> list[tuple[int, str]]:
                 continue
             if path.endswith(".rs") and re.match(r"\s*=(?!=)", after):
                 continue  # a field name (`ssn = …`); its value is checked on its own
-            line = source.count("\n", 0, m.start()) + 1
             findings.append((line, f"log call hands over a private value: {ref.group(0)}"))
     return findings
 

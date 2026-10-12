@@ -125,7 +125,7 @@ export function useProcedureSelectionModal({
           toastService.show("error", t("select.error_load"));
         }
       } catch (e) {
-        logger.error("Failed to load procedures", e);
+        logger.error("Failed to load procedures", { error: e });
         toastService.show("error", t("select.error_load"));
       } finally {
         setLoading(false);

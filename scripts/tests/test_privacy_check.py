@@ -66,6 +66,28 @@ class Logs(unittest.TestCase):
     def test_calls_that_are_not_logs_are_ignored(self):
         self.assertEqual(pc.log_findings("a.ts", "commands.createBankAccount(name, iban);"), [])
 
+    def test_debt_060_a_message_may_interpolate_a_constant_a_length_an_id_or_the_entity_name(self):
+        source = "logger.info(TAG, `${TAG} loaded ${rows.length} rows for ${patientId} ${id} (${entityName})`, { id });"
+        self.assertEqual(pc.log_findings("src/a.ts", source), [])
+
+    def test_debt_060_a_message_interpolating_anything_else_is_found(self):
+        for expr in ("result.data", "issueCount", "label"):
+            source = "logger.info(TAG, `done: ${%s} entries`);" % expr
+            self.assertEqual(pc.log_findings("src/a.ts", source), [(1, f"log message interpolates a value: ${{{expr}}}")], expr)
+        # A private value in the message is found twice: once as an interpolation, once by name.
+        self.assertEqual(len(pc.log_findings("src/a.ts", "logger.info(TAG, `done: ${patient.name}`);")), 2)
+
+    def test_debt_060_a_value_after_the_message_that_is_not_an_object_literal_is_found(self):
+        self.assertEqual(pc.log_findings("src/a.ts", 'logger.error(TAG, "failed", result.error);'), [(1, "log call hands a value after its message that is not an object literal: result.error")])
+        self.assertEqual(len(pc.log_findings("src/a.tsx", 'logger.error("failed", e);')), 1)
+        self.assertEqual(len(pc.log_findings("src/a.ts", 'logger.debug(TAG, "parsing", `${text.length} chars`);')), 1)
+        self.assertEqual(pc.log_findings("src/a.ts", 'logger.info(TAG, "ok", { id, count: rows.length });'), [])
+        self.assertEqual(pc.log_findings("src/a.ts", 'logger.error(TAG, "failed", {\n  code: result.error.code,\n});'), [])
+        self.assertEqual(pc.log_findings("wdio.conf.ts", 'console.error("failed", error);'), [], "tooling outside src/ prints to a terminal")
+
+    def test_debt_060_a_test_may_hand_the_logger_an_object_variable(self):
+        self.assertEqual(pc.log_findings("src/infra/logger.test.ts", 'logger.info("patient form: Submitting", form);'), [])
+
 
 class Data(unittest.TestCase):
     def test_a_spreadsheet_outside_the_fixtures_is_found(self):

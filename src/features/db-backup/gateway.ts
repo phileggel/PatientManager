@@ -62,7 +62,7 @@ export async function exportDatabase(
   logger.info("[db-backup] exportDatabase");
   const result = await commands.exportDatabase(destPath);
   if (result.status === "error") {
-    logger.error("[db-backup] exportDatabase failed", result.error);
+    logger.error("[db-backup] exportDatabase failed", { error: result.error });
     return { success: false, error: result.error };
   }
   return { success: true, data: undefined };
@@ -81,7 +81,7 @@ export async function importDatabase(
   logger.info("[db-backup] importDatabase");
   const result = await commands.importDatabase(sourcePath);
   if (result.status === "error") {
-    logger.error("[db-backup] importDatabase failed", result.error);
+    logger.error("[db-backup] importDatabase failed", { error: result.error });
     return { success: false, error: result.error };
   }
   return { success: true, data: undefined };
@@ -101,7 +101,7 @@ export async function generateDiagnosticReport(
   logger.info("[db-backup] generateDiagnosticReport");
   const result = await commands.generateDiagnosticReport(destPath);
   if (result.status === "error") {
-    logger.error("[db-backup] generateDiagnosticReport failed", result.error);
+    logger.error("[db-backup] generateDiagnosticReport failed", { error: result.error });
     return { success: false, error: result.error };
   }
   return { success: true, data: result.data };

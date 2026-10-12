@@ -141,7 +141,7 @@ export async function validateBankStatementReconciliation(
       logger.error(TAG, "Failed to validate reconciliation", { code: result.error.code });
       return { success: false, error: result.error };
     }
-    logger.info(TAG, `Validated reconciliation: ${result.data} bank entries created`);
+    logger.info(TAG, "Validated reconciliation", { bankEntriesCreated: result.data });
     return { success: true, data: result.data };
   } catch (e) {
     logger.error(TAG, "validateBankStatementReconciliation exception", { error: e });

@@ -143,7 +143,9 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
 
         setImportResult(result.data);
         setCurrentStep("complete");
-        logger.info("[ImportExcelPage] Import workflow completed successfully", result.data);
+        logger.info("[ImportExcelPage] Import workflow completed successfully", {
+          result: result.data,
+        });
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         setError(errorMessage);
