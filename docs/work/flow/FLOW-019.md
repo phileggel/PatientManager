@@ -31,5 +31,6 @@
   vulnerability (3 unsound warnings, all transitive). WebdriverIO 10.0.2 clears 19; `npm audit fix`
   clears `source-map-js` and `esbuild`. The registries put Tauri at 2.12.3 (2.10.3 in use) and Rust at
   1.99.0 installed; the web search confirmed neither.
-- Decision (banked, 2026-10-12): `npm audit fix` goes in the next batch as a chore. WebdriverIO 10, a
-  major of the E2E tooling, stays the owner's call.
+- Decision (owner, 2026-10-12): queued for the next batch — WebdriverIO 10 (the major of the E2E
+  tooling, 10.0.2 at the time) with `npm audit fix` (banked the same day), one chore pull request;
+  the E2E suites are the proof.
