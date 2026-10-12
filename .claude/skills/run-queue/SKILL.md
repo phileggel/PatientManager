@@ -48,10 +48,10 @@ anything else: what shipped (each entry with its pull request), what a user noti
 (the `feat` and `fix` titles, or "nothing"), what was filed during the run, and what
 was left — skipped, stopped or not ready — with why.
 
-Then `/dep-audit`, the release sweep and
-`spec-checker` on every spec the batch touched (`docs/workflow.md` § Release sweep);
-what they find is filed as debt. Then tell the owner the release is ready, with what was
-filed. The owner runs `just release`; this skill never does.
+Then `/dep-audit`, the release sweep and `spec-checker` on every spec the batch touched
+(`docs/workflow.md` § Release sweep); what they find is filed as debt, and the sweep's
+pull request repeats what each lane read. Then tell the owner the release is ready, with
+what was filed. The owner runs `just release`; this skill never does.
 
 ## Step 5 — Publish and audit
 

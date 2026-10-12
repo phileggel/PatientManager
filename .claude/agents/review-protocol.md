@@ -5,7 +5,7 @@ Each `reviewer-*` prompt names its lane: the files it owns, the rules docs it lo
 ## Modes
 
 - **Diff-scoped (default).** Review only the lines this branch changed. Findings on unchanged lines are pre-existing: listed without a severity, never blocking.
-- **Release sweep.** Only when the invoking prompt contains `release-sweep`. Every file in the lane is in scope and every finding carries a severity; there is no pre-existing section.
+- **Release sweep.** Only when the invoking prompt contains `release-sweep`. The scope is `docs/workflow.md` § Release sweep's: `reviewer-security` the whole command surface; every other lane the files `git diff --name-only <tag>...HEAD` lists, `<tag>` being `v` and the version `package.json` holds (the last release wrote it) — Step 1 takes that set in place of `branch.sh`'s, and Step 3 reads `git diff <tag>...HEAD -- <path>`. Every finding carries a severity; there is no pre-existing section. The report ends with a `## Files read` section: those read in full (Step 4) and those only searched (the greps of Step 5).
 
 ## Steps
 

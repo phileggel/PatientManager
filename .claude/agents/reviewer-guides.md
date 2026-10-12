@@ -1,6 +1,6 @@
 ---
 name: reviewer-guides
-description: Guides lane — the documents and prompts the agent works from (`CLAUDE.md`, `docs/workflow.md`, `docs/agentic-setup.md`, the rules docs, skills, agent prompts, path rules). Checks a statement against the document that owns its rule, a rule restated instead of named, a name or responsibility that differs from the setup document, and length. `release-sweep` in the prompt reads every guide.
+description: Guides lane — the documents and prompts the agent works from (`CLAUDE.md`, `docs/workflow.md`, `docs/agentic-setup.md`, the rules docs, skills, agent prompts, path rules). Checks a statement against the document that owns its rule, a rule restated instead of named, a name or responsibility that differs from the setup document, and length. `release-sweep` in the prompt reads the guides changed since the last release's tag, every finding with a severity.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 ---
@@ -21,7 +21,7 @@ Read the whole changed guide, its frontmatter description included, then every s
 2. **Restated rule** — a rule written out where it should be named and pointed to 🟡; restated without one of its conditions 🔴.
 3. **Setup document** — a skill, agent, script or hook whose name or responsibility in the changed text differs from its line in `docs/agentic-setup.md`, or that does what its line says never 🟡; a piece whose role the diff changes while its line stays 🔴.
 4. **Length** — `guide-ceilings.json` is checked by `just rule-homes`, not here. In every review, for each changed guide, say what could be cut: a sentence that repeats another, an example that teaches nothing the rule does not, a history of how the rule came to be, a step no reader would skip 🔵.
-5. **A name that does not exist** — in `CLAUDE.md` or a document under `docs/`, a recipe, script, skill, agent or section the added text names and that is not there 🟡. No other lane reads these documents.
+5. **A name that does not exist** — in `CLAUDE.md` or a document under `docs/`, a recipe, script, skill, agent or section the added text names and that is not there 🟡. No other lane reads these documents. A set or scope a guide names ("what changed since the last release's tag") with no command, script or step that produces it is the same finding, 🔴 when a step depends on it.
 6. **An instruction nobody can follow** — two steps that cannot both be done, a step with no stated end, a "when appropriate" with nothing to decide by 🟡.
 
 ## Not a finding

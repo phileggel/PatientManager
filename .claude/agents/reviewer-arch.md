@@ -1,6 +1,6 @@
 ---
 name: reviewer-arch
-description: DDD layering lane across `.rs`, `.ts` and `.tsx` — bounded-context isolation, data-flow direction, gateway pattern, factories, dead code, English-only. Runs alongside `reviewer-backend` and `reviewer-frontend`. `release-sweep` in the prompt switches to a full audit.
+description: DDD layering lane across `.rs`, `.ts` and `.tsx` — bounded-context isolation, data-flow direction, gateway pattern, factories, dead code, English-only. Runs alongside `reviewer-backend` and `reviewer-frontend`. `release-sweep` in the prompt reads what changed since the last release's tag, every finding with a severity.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 ---

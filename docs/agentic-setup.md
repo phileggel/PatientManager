@@ -70,8 +70,8 @@ auditor reads each generic piece against its line. A piece is a list item opened
   prompts and settings. Never: application code.
 - `.claude/agents/reviewer-guides.md` — reviews the documents and prompts the agent
   works from: contradictions, restated rules, length. Never: tooling or code.
-- `.claude/agents/reviewer-security.md` — reviews the surface an attacker reaches, on
-  a change and across the whole code before a release. Never: code quality.
+- `.claude/agents/reviewer-security.md` — reviews the surface an attacker reaches: a
+  change, and the whole command surface before a release. Never: code quality.
 - `.claude/agents/spec-reviewer.md` — judges a spec before anything is built from it.
   Never: checks code against it.
 - `.claude/agents/spec-checker.md` — checks that every rule of a spec is implemented

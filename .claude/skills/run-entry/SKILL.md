@@ -95,8 +95,8 @@ and names what a user notices.
 ## Step 8 — Pull request and merge
 
 - Push, `gh pr create --body-file`. Body under 20 lines: the task, each Done-when clause
-  with the test that proves it, findings that changed something, techdebt filed,
-  screenshots.
+  with the test that proves it and where it was seen red (or why it could not be),
+  findings that changed something, techdebt filed, screenshots.
 - Watch the checks with `just watch-pr`, in the background; exit 0 is green, and
   `scripts/watch-pr.py` lists the other codes.
 - A red reviewer lane: read its sticky comment, grade, apply, push. A CI finding the

@@ -153,6 +153,13 @@ todo entry: the pull request body is its record.
    - A choice with a standing answer is not asked: when one option keeps what a user
      sees today, it is taken and stated in the pull request; a release-sweep finding
      that is not critical and predates the release is filed and reported (Conventions).
+   - **Banked** (owner, 2026-10-11, 2026-10-12): a question is asked alone, with its
+     context, only where the options differ in cost, risk or what is seen — an ambiguity
+     or a deep choice; a trivial one is the agent's. A flow entry's proposal so answered
+     is recorded as accepted ("banked" on its Decision line, § 12) and reported in one line.
+   - Each queued size is checked against the code the entry names and corrected on the
+     entry before the branch (a todo's as an open question); one that changes during the
+     work is written before closure.
    - During the work, a question remains right for what that reading could not show — a
      reviewer's finding, a failing machine, a behaviour found in the code — and the
      agent asks rather than guess, for a spec point as for a vocabulary term.
@@ -179,8 +186,8 @@ todo entry: the pull request body is its record.
    🔴 remains.
 7. **Evidence:** `/visual-proof` for every changed component.
 8. **PR**, opened for the record, not for approval. Body under 20 lines: the task, each
-   Done-when clause with the test that proves it, findings that changed something,
-   techdebt filed, screenshots.
+   Done-when clause with the test that proves it and where that test was seen red (or
+   why it could not be), findings that changed something, techdebt filed, screenshots.
 9. **Merge:** `just watch-pr` waits for the checks and says how they ended; then
    `just merge` — it refuses until every check is green and folds `fixup!` commits, so
    the task lands as one commit.
@@ -319,7 +326,8 @@ recorded in the PR body, one line per finding that changed something or was reje
   next push adds observation and makes the failure cheap to reproduce (the cache kept
   on failure, a stop at the first failing file), never a fix. This holds from the first
   failure, for every gate.
-- The same gate failing three times on one task → open question, stop.
+- The same gate failing three times on one task → open question, stop (a trivial one is
+  the agent's, § 3).
 - An E2E failure that passes on re-run → the flake is filed as `DEBT-NNN`, the run
   continues.
 - **Never:** what `CLAUDE.md` § Core rules 1 forbids; nor change the queue without the
@@ -385,18 +393,15 @@ quality first, weighed against speed and effort. Nothing of it runs during a bat
   answers to its questions are evidence. What it cannot rebuild from those records is a
   finding; what lives only in a conversation leaves the audit: the questions put to the
   owner are the dated answers in the entries.
-- **Measures** — `just flow-audit` counts, beside the release before: pull requests
-  merged, time to merge, how long the queue took, the entries filed and closed, CI
-  rounds, failed runs per workflow, the tools the usage log saw, dead paths in the
-  documents, the length of the guides (§ 5), the issues and Dependabot pull requests
-  open at both ends, and what each entry took beside its size. The auditor counts from
-  the pull requests what the reviewers caught, got wrong and left to CI, and reads each
-  generic piece of `docs/agentic-setup.md` against its line.
+- **Measures** — `just flow-audit` counts every figure beside the release before: the
+  pull requests, the queue, the entries, CI, the usage log, dead paths, the guides'
+  length (§ 5), what each entry took beside its size. The auditor counts from the pull
+  requests what the reviewers caught, got wrong and left to CI, and reads each generic
+  piece of `docs/agentic-setup.md` against its line.
 - **Five questions** (owner, 2026-10-10), asked of every batch: what would have avoided a
   conflict; where the batch waited, and what would shorten it without costing quality;
-  what can be simplified; which script, recipe, skill or agent went unused — keep, fold
-  or remove; and where a guide was false, contradicted another, or grew without earning
-  it.
+  what can be simplified; which script, recipe, skill or agent went unused (keep, fold
+  or remove); where a guide was false, contradicted another, or grew without earning it.
 - **Hard points** — every difficulty met becomes a `FLOW-NNN` entry with its evidence
   and a proposal; where nothing should change, the entry says keep and why.
 - **Moves** — a todo or debt entry that is about the flow becomes a flow entry and keeps
@@ -408,8 +413,8 @@ then a `Proposal` with what it `Costs` and what it `Protects`. A change that buy
 says what it risks; one that buys safety says what it costs. A tool nobody used is named,
 with a verdict: keep, fold or remove.
 
-The human decides each entry: a `Decision (owner, date)` line makes it workable and it
-can be queued (§ 2); a `Watch (owner, date)` line marks one with nothing to do but
+The human decides each entry, or has banked it (§ 3): a `Decision (owner, date)` line
+makes it workable and it can be queued (§ 2); a `Watch (owner, date)` line marks one with nothing to do but
 re-check. An entry is deleted once done, or once the verdict is to keep things as they
 are.
 
@@ -432,14 +437,6 @@ Locally a reviewer's reply is its report; nothing is written. In CI the reviewer
 its output to `.review/{slug}-{date}-{NN}.md` (`bash scripts/review-path.sh {slug}`) and
 the workflow builds the pull request comment from that file. `.review/` is gitignored
 and safe to delete.
-
-### Authoring rule — no compound shell in agent / skill prompts
-
-Bash blocks in `.claude/agents/*.md` and `.claude/skills/*/SKILL.md` must not use
-command substitution (`$(...)`), `&&`, `||`, `;`, or `cd X && cmd` chains: the
-permission allowlist matches a command by literal prefix, so a compound line prompts on
-every run. Move the logic into a script under `scripts/` and call it by name; for a
-multi-line payload, write a temp file and pass it (`gh pr create --body-file …`).
 
 ### Dependabot pull requests
 
@@ -473,8 +470,9 @@ logged in CI. Skills and agents are counted from the session transcript.
 A headless run has nobody to approve a command, so every shell call is one command the
 allow list in `.claude/settings.json` names:
 
-- no `cd … &&`, no `&&` or `;` chain: `git -C <path>` or an absolute path reaches
-  another directory; a multi-line edit goes through `python3 - <<'EOF'`;
+- no `cd … &&`, no `&&`, `||`, `;` or `$(...)` chain, in a prompt as in a call (the
+  allow list matches a literal prefix): `git -C <path>` reaches another directory, a
+  multi-line edit goes through `python3 - <<'EOF'`, more logic into a script by name;
 - a message or a body goes in a file (`gh pr create --body-file`), never on the command
   line;
 - calls that depend on each other run one after another, never in one parallel batch:
@@ -489,6 +487,8 @@ allow list in `.claude/settings.json` names:
 
 Before a release, run the reviewer agents in `release-sweep` mode (the invoking prompt
 contains `release-sweep`) alongside `/dep-audit`, and `spec-checker` on every spec the
-batch touched. What they find is filed as `DEBT-NNN`, not fixed in the release. A
-finding that is not critical and predates the release is filed and reported, not put to
-the human as a question (§ 7 keeps a 🔴 security finding for them).
+batch touched. `reviewer-security` reads the whole command surface; every other lane
+reads what changed since the last release's tag (owner, 2026-10-11); the sweep's pull
+request repeats each lane's `## Files read`. What they find is filed as `DEBT-NNN`, not
+fixed in the release; a finding that is not critical and predates the release is filed
+and reported, not asked (§ 7 keeps a 🔴 security finding for them).

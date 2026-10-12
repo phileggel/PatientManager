@@ -1,6 +1,6 @@
 ---
 name: reviewer-infra
-description: Infrastructure lane — GitHub workflows, Tauri and package config, capability file format, scripts, git hooks, the justfile, the merge and architecture records, agent and skill prompts, `.claude/settings.json`. Checks CI safety, CI/local parity, script quality and cross-file consistency. `release-sweep` in the prompt switches to a full audit with CI improvement proposals.
+description: Infrastructure lane — GitHub workflows, Tauri and package config, capability file format, scripts, git hooks, the justfile, the merge and architecture records, agent and skill prompts, `.claude/settings.json`. Checks CI safety, CI/local parity, script quality and cross-file consistency. `release-sweep` in the prompt reads what changed since the last release's tag, every finding with a severity, with CI improvement proposals.
 tools: Read, Glob, Bash, Write
 model: sonnet
 ---
