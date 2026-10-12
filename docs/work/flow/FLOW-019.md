@@ -26,3 +26,10 @@
   major has a few weeks behind it; the E2E suites are its only user.
 - Re-checked 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): its condition, a fixed release, has held since 2026-10-06, across three
   re-checks with no decision.
+- Re-checked 2026-10-12 (`/dep-audit`, before the release after 0.24.4): unchanged. 21 advisories (20
+  high, 1 low), all under the E2E tooling; `npm audit --omit=dev` reports none and `cargo audit` no
+  vulnerability (3 unsound warnings, all transitive). WebdriverIO 10.0.2 clears 19; `npm audit fix`
+  clears `source-map-js` and `esbuild`. The registries put Tauri at 2.12.3 (2.10.3 in use) and Rust at
+  1.99.0 installed; the web search confirmed neither.
+- Decision (banked, 2026-10-12): `npm audit fix` goes in the next batch as a chore. WebdriverIO 10, a
+  major of the E2E tooling, stays the owner's call.
