@@ -9,3 +9,4 @@
 - Costs: one small pull request. Protects: a change of the dialog breaking five suites
   in five ways.
 - Decision (owner, 2026-10-04): one shared helper in `e2e/helpers/`, used by the five suites.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): decided, not worked; carried a third time. Left.

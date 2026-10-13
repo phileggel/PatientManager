@@ -34,3 +34,4 @@
 - Decision (owner, 2026-10-12): queued for the next batch — WebdriverIO 10 (the major of the E2E
   tooling, 10.0.2 at the time) with `npm audit fix` (banked the same day), one chore pull request;
   the E2E suites are the proof.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): decided 2026-10-12 for the next batch; `/dep-audit` of 2026-10-12 unchanged. Left.

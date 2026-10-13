@@ -22,3 +22,4 @@
   themselves staying out of reach of the driver.
 - Costs: one E2E suite that talks to the plugins without the override. Protects: a
   release that ships a permission the screens need and no test noticed.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): decided, not worked; carried a third time. Left.

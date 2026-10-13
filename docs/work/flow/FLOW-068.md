@@ -6,3 +6,4 @@
 - Proposal: the issue's own. § 1 and the heading of § 2 say the todo entries are shared and defined by being user-facing; § 2 says what stays the owner's inside one, if anything (the validated user value and done-when, the decision to queue); the list of permitted agent writes becomes "what the agent does not change without asking". The agent may create a todo entry when the matter is user-facing and needed.
 - Costs: a few reworded lines in two guides at their ceiling.
 - Decision (owner, 2026-10-11): accepted — "Nothing is mine. You can create todo if user facing and needed." Not queued before it is refined.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.

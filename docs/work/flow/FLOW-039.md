@@ -15,3 +15,4 @@
   merge, in a batch of small pull requests.
 - Re-measured 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): 0 rounds from a merge moving `main`, was about 6; nothing in the tool
   changed, only one pull request was open at a time.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): 0 rounds from a moving `main`, second batch running. Proposal for the owner: close with "keep".

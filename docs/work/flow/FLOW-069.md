@@ -23,3 +23,4 @@
   question of course). size can be better evaluated as well. and when decided, we bank
   the queue and we create the mr about it" — "we need to avoid a bunch of doc commits
   that are just about the queue refinement or myself hesitating".
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): decided. Record pull requests after the queue: 3 (#276, #278, #279). #275's 11-hour stop is the cost of a question not asked at refinement, its observation now measured. #270 filed FLOW-069 on a work branch at the owner's request, while § 2 says the filing branch is `docs/file-<slug>`; when FLOW-069 ships, § 2 should say what the owner asked. Left.

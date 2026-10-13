@@ -6,3 +6,4 @@
 - Proposal: the workflows end at once when the pull request is already merged; the three guides say what `merge.py` does.
 - Costs: a few lines per workflow. Risk: none on the tree — `merge.py` already compares it with the one tested.
 - Decision (owner, 2026-10-11): accepted, for the next queue (banked: asked only what is not trivial, FLOW-062).
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): folded-commit rounds 6, 5 of them after the merge, was 2. Left.

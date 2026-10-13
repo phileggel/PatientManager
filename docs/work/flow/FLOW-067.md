@@ -6,3 +6,4 @@
 - Proposal: the issue's own. A sixth question: what did the batch check or do by hand that a tool should do, and which finding belongs to another repository — a script, hook or recipe owed here, an issue filed there. One clause on `flow-auditor`'s setup line: a generic piece a sibling repository words differently is a finding.
 - Costs: a few lines in § 12 and in the auditor's prompt; § 12 is at the workflow's ceiling.
 - Decision (owner, 2026-10-11): accepted (banked, FLOW-062: the proposal is the owner's own, written in the issue). Not queued before it is refined.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.

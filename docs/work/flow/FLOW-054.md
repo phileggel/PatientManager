@@ -43,3 +43,4 @@
   written (its § 6 does); the workflow's usage-log convention says skills and agents are counted from the
   session transcript, which § 12 no longer uses; `CLAUDE.md` names `reviewer-security` alone for the
   release sweep where the workflow says the reviewer agents (FLOW-061).
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): partly moved. #275 fixed the `reviewer-security` setup line. The transcript sentence (line 466), § 6 and the queue line stand. #277 is a fresh instance of contradiction 2 (visual proof "not required"). Left.

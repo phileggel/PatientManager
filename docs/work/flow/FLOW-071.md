@@ -18,3 +18,4 @@
   proposals are weighed one by one: the install cache and the notice cost a few lines
   each; the scheduled re-run needs `actions: write` and is the owner's.
 - Costs: a docs pull request; the CI proposals a workflow change each.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): no Decision line. Left.

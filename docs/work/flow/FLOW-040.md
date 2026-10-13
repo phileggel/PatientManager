@@ -15,3 +15,4 @@
   rounds, and prompts that copy rules instead of naming them.
 - Re-measured 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): seen again, milder — #252 changed the `reviewer-guides` prompt after CI
   round 1 and round 2 raised another critical; the lane was run again locally only after round 2.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): the same finding did not repeat across rounds. What repeated is a new critical each round on unchanged text (FLOW-072). Left.

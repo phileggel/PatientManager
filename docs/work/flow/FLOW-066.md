@@ -6,3 +6,4 @@
 - Proposal: as the owner decided in the other project: `/flow-audit`, after the owner's yes, empties the queue of the batch it audited; the setup line of `docs/work/queue.md` becomes "never edited beyond what the owner validated". If `/plan-queue` stays the one that replaces the list here, the line says that instead, and the audit script stops counting a landed queue line as a dangling id.
 - Costs: a step in `/flow-audit`, two setup lines.
 - Decision (owner, 2026-10-11): accepted (banked, FLOW-062: the proposal is the owner's own, written in the issue). Not queued before it is refined.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.

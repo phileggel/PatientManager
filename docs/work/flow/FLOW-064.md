@@ -6,3 +6,4 @@
 - Proposal: the decision taken in that project: `/run-queue` owns the task list during a batch; `/run-entry` creates no task when a batch runs it and keeps its own list when run alone. The two setup lines say so, and each skill says it at its `TaskCreate` step.
 - Costs: two lines of the setup document and one sentence in each skill; `/run-entry` is at its ceiling, so its sentence needs a cut.
 - Decision (owner, 2026-10-11): accepted (banked, FLOW-062: the proposal is the owner's own, written in the issue). Not queued before it is refined.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.

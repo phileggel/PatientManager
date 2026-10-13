@@ -6,3 +6,4 @@
 - Proposal: each round's report is kept (a comment per round, or the file as an artifact); `/run-entry` reads every lane's comment before `just merge`, green or not, and grades it in a comment, not by editing the description.
 - Costs: more comments per pull request, a minute before each merge.
 - Decision (owner, 2026-10-11): accepted, for the next queue (banked, FLOW-062).
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): 5 ungraded CI suggestions, was 5. The criticals of #270 and #273–#275 survive only in the authors' summaries. Left.

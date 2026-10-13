@@ -12,3 +12,4 @@
   setup names the browser install.
 - Costs: a few lines, or a dependency bump. Protects: twenty minutes on every new machine.
 - Re-measured 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): `visual-proof-capture.mjs` never run in the batch.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): `visual-proof-capture.mjs` not run again. Left.

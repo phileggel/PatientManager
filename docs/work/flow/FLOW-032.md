@@ -16,3 +16,4 @@
   `/contract` and runs `spec-checker` on every spec, before the next feature work.
 - Costs: one batch-sized entry with nothing a user sees. Protects: about half an hour
   per feature, and contracts a second surface (TODO-013) can be written against.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): decided, not worked; carried a third time. Left.

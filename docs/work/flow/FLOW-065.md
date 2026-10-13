@@ -6,3 +6,4 @@
 - Proposal: the issue's own. The line of `/run-entry` carries the duty ("and files what it met and did not fix before the entry closes … nor a finding left in chat"), and the skill has the step, after the review findings are fixed and before the entry closes.
 - Costs: one line of the setup document, one step in a skill at its ceiling.
 - Decision (owner, 2026-10-11): accepted (banked, FLOW-062: the proposal is the owner's own, written in the issue). Not queued before it is refined.
+- Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.
