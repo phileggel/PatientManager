@@ -6,7 +6,7 @@ use crate::use_cases::excel_import::excel_codec::{
     ParsedExcelData, ParsingIssues, SkipReason, SkippedRow,
 };
 use calamine::{Reader, Xlsx};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::Path;
 use uuid::Uuid;
@@ -93,6 +93,28 @@ impl ExcelParserService {
     fn is_excel_error(value: &str) -> bool {
         let trimmed = value.trim();
         trimmed.starts_with('#') && (trimmed.ends_with('!') || trimmed == "#N/A")
+    }
+
+    /// EXI-030 — an SSN is exactly 13 ASCII digits.
+    fn is_valid_ssn(ssn: &str) -> bool {
+        ssn.len() == 13 && ssn.chars().all(|c| c.is_ascii_digit())
+    }
+
+    /// EXI-030, EXI-080 — a patient's name and SSN as stored, and the key that
+    /// deduplicates it: the SSN when valid; otherwise the lowercased name, which
+    /// carries a code that is not an SSN as `"{name} (code: {ssn})"`.
+    fn patient_identity(name: String, ssn: &str) -> (String, String, String) {
+        let ssn = ssn.trim();
+        if Self::is_valid_ssn(ssn) {
+            return (name, ssn.to_string(), ssn.to_string());
+        }
+        let name = if ssn.is_empty() || Self::is_excel_error(ssn) {
+            name
+        } else {
+            format!("{name} (code: {ssn})")
+        };
+        let key = name.to_lowercase();
+        (name, String::new(), key)
     }
 
     /// Parse an Excel file and extract patients, funds, and procedures.
@@ -213,7 +235,6 @@ impl ExcelParserService {
     ///
     /// Used when the "Patiente" sheet is absent (old format).
     /// Deduplicates by SSN (col A = CODE). Patients without SSN are deduplicated by name.
-    /// Deduplicates patients by SSN or name across sheets.
     fn extract_patients_from_monthly_sheets(
         workbook: &mut Xlsx<File>,
     ) -> anyhow::Result<Vec<ExcelPatient>> {
@@ -247,36 +268,18 @@ impl ExcelParserService {
                             continue;
                         }
 
-                        // Validate SSN: must be exactly 13 numeric digits.
-                        let is_valid_ssn = !ssn.is_empty()
-                            && !Self::is_excel_error(&ssn)
-                            && ssn.chars().all(|c| c.is_ascii_digit())
-                            && ssn.len() == 13;
-
-                        if is_valid_ssn {
-                            by_ssn.entry(ssn.clone()).or_insert_with(|| ExcelPatient {
-                                temp_id: Uuid::new_v4().to_string(),
-                                name,
-                                ssn,
-                                latest_fund: None,
-                            });
+                        let (name, ssn, key) = Self::patient_identity(name, &ssn);
+                        let by_key = if ssn.is_empty() {
+                            &mut by_name
                         } else {
-                            // Invalid or absent SSN: append code to name for traceability.
-                            let display_name = if !ssn.is_empty() && !Self::is_excel_error(&ssn) {
-                                format!("{name} (code: {ssn})")
-                            } else {
-                                name.clone()
-                            };
-                            // Use lowercase key for case-insensitive dedup across sheets
-                            by_name
-                                .entry(display_name.to_lowercase())
-                                .or_insert_with(|| ExcelPatient {
-                                    temp_id: Uuid::new_v4().to_string(),
-                                    name: display_name,
-                                    ssn: String::new(),
-                                    latest_fund: None,
-                                });
-                        }
+                            &mut by_ssn
+                        };
+                        by_key.entry(key).or_insert_with(|| ExcelPatient {
+                            temp_id: Uuid::new_v4().to_string(),
+                            name,
+                            ssn,
+                            latest_fund: None,
+                        });
                     }
                     break; // found this month variation, stop trying others
                 }
@@ -297,7 +300,6 @@ impl ExcelParserService {
         workbook: &mut Xlsx<File>,
         parsing_issues: &mut ParsingIssues,
     ) -> anyhow::Result<Vec<ExcelPatient>> {
-        let mut patients = Vec::new();
         let sheet_name = codec::PATIENTE_SHEET;
 
         let range = match workbook.worksheet_range(sheet_name) {
@@ -305,11 +307,22 @@ impl ExcelParserService {
             Err(_) => {
                 tracing::debug!(sheet = sheet_name, "Sheet not found, skipping");
                 parsing_issues.missing_sheets.push(sheet_name.to_string());
-                return Ok(patients);
+                return Ok(Vec::new());
             }
         };
 
-        for (row_idx, row) in range.rows().enumerate() {
+        Ok(Self::patients_from_rows(range.rows(), parsing_issues))
+    }
+
+    /// The patients of the Patiente sheet's rows, in order.
+    fn patients_from_rows<'a>(
+        rows: impl Iterator<Item = &'a [calamine::Data]>,
+        parsing_issues: &mut ParsingIssues,
+    ) -> Vec<ExcelPatient> {
+        let sheet_name = codec::PATIENTE_SHEET;
+        let mut patients = Vec::new();
+        let mut seen = HashSet::new();
+        for (row_idx, row) in rows.enumerate() {
             let row_number = (row_idx + 1) as u32;
 
             if row.len() < 4 {
@@ -329,8 +342,9 @@ impl ExcelParserService {
             let ssn = row.get(2).map(|c| c.to_string()).unwrap_or_default();
             let latest_fund_str = row.get(3).map(|c| c.to_string()).unwrap_or_default();
 
-            // Skip rows with Excel error values silently
-            if Self::is_excel_error(&name) || Self::is_excel_error(&ssn) {
+            // Skip a name that is an Excel error silently; an SSN that is one
+            // reads as missing (EXI-030), as in the monthly sheets.
+            if Self::is_excel_error(&name) {
                 continue;
             }
 
@@ -341,13 +355,19 @@ impl ExcelParserService {
             };
 
             // Only require name, SSN and fund are optional
+            let name = name.trim().to_string();
             if !name.is_empty() {
-                patients.push(ExcelPatient {
-                    temp_id: Uuid::new_v4().to_string(),
-                    name,
-                    ssn,
-                    latest_fund,
-                });
+                // EXI-030, EXI-080 — the SSN kept only when valid; a repeated
+                // patient is the first row's.
+                let (name, ssn, key) = Self::patient_identity(name, &ssn);
+                if seen.insert(key) {
+                    patients.push(ExcelPatient {
+                        temp_id: Uuid::new_v4().to_string(),
+                        name,
+                        ssn,
+                        latest_fund,
+                    });
+                }
             } else {
                 tracing::warn!(row = row_number, "Skipping invalid patient row");
                 parsing_issues.skipped_rows.push(SkippedRow {
@@ -358,7 +378,7 @@ impl ExcelParserService {
             }
         }
 
-        Ok(patients)
+        patients
     }
 
     /// Parse funds from Secu sheet
@@ -366,7 +386,6 @@ impl ExcelParserService {
         workbook: &mut Xlsx<File>,
         parsing_issues: &mut ParsingIssues,
     ) -> anyhow::Result<Vec<ExcelFund>> {
-        let mut funds = Vec::new();
         let sheet_name = codec::SECU_SHEET;
 
         let range = match workbook.worksheet_range(sheet_name) {
@@ -374,11 +393,22 @@ impl ExcelParserService {
             Err(_) => {
                 tracing::debug!(sheet = sheet_name, "Sheet not found, skipping");
                 parsing_issues.missing_sheets.push(sheet_name.to_string());
-                return Ok(funds);
+                return Ok(Vec::new());
             }
         };
 
-        for (row_idx, row) in range.rows().enumerate() {
+        Ok(Self::funds_from_rows(range.rows(), parsing_issues))
+    }
+
+    /// The funds of the Secu sheet's rows, in order.
+    fn funds_from_rows<'a>(
+        rows: impl Iterator<Item = &'a [calamine::Data]>,
+        parsing_issues: &mut ParsingIssues,
+    ) -> Vec<ExcelFund> {
+        let sheet_name = codec::SECU_SHEET;
+        let mut funds = Vec::new();
+        let mut seen = HashSet::new();
+        for (row_idx, row) in rows.enumerate() {
             let row_number = (row_idx + 1) as u32;
 
             if row.len() < 2 {
@@ -409,7 +439,13 @@ impl ExcelParserService {
                 None
             };
 
-            if !fund_identifier.is_empty() && !fund_name.is_empty() {
+            // EXI-040 — a blank cell is a reported skip, not a fund the import
+            // then refuses.
+            if !fund_identifier.trim().is_empty() && !fund_name.trim().is_empty() {
+                // EXI-090 — a repeated identifier is the first row's fund.
+                if !seen.insert(fund_identifier.clone()) {
+                    continue;
+                }
                 funds.push(ExcelFund {
                     temp_id: Uuid::new_v4().to_string(),
                     fund_identifier,
@@ -421,7 +457,7 @@ impl ExcelParserService {
                 parsing_issues.skipped_rows.push(SkippedRow {
                     sheet: sheet_name.to_string(),
                     row_number,
-                    reason: if fund_identifier.is_empty() {
+                    reason: if fund_identifier.trim().is_empty() {
                         SkipReason::MissingFundIdentifier
                     } else {
                         SkipReason::MissingFundName
@@ -430,7 +466,7 @@ impl ExcelParserService {
             }
         }
 
-        Ok(funds)
+        funds
     }
 
     /// Parse procedures from monthly sheets (Jan-Déc)
@@ -591,11 +627,7 @@ impl ExcelParserService {
                         // 3. By name + "(code: SSN)" — fallback for invalid-SSN patients
                         let row_ssn = row.first().map(|c| c.to_string()).unwrap_or_default();
                         let row_ssn = row_ssn.trim();
-                        let is_valid_ssn = !row_ssn.is_empty()
-                            && !Self::is_excel_error(row_ssn)
-                            && row_ssn.chars().all(|c| c.is_ascii_digit())
-                            && row_ssn.len() == 13;
-                        let patient_temp_id = if is_valid_ssn {
+                        let patient_temp_id = if Self::is_valid_ssn(row_ssn) {
                             patient_ssn_to_temp_id.get(row_ssn).cloned()
                         } else {
                             patient_name_to_temp_id
@@ -724,11 +756,115 @@ impl ExcelParserService {
 mod tests {
     use super::*;
 
-    // --- ColIdx::from_header_row ---
-
     fn s(v: &str) -> calamine::Data {
         calamine::Data::String(v.to_string())
     }
+
+    // --- Patiente and Secu sheets (EXI-030, EXI-080, EXI-090; DEBT-035, DEBT-046) ---
+
+    fn issues() -> ParsingIssues {
+        ParsingIssues {
+            skipped_rows: Vec::new(),
+            missing_sheets: Vec::new(),
+        }
+    }
+
+    fn patient_row(name: &str, ssn: &str) -> Vec<calamine::Data> {
+        vec![s(name), s(""), s(ssn), s("")]
+    }
+
+    #[test]
+    fn exi_030_a_patient_sheet_ssn_that_is_not_13_digits_goes_into_the_name() {
+        let rows = [patient_row("Patient A", "12345")];
+
+        let patients =
+            ExcelParserService::patients_from_rows(rows.iter().map(Vec::as_slice), &mut issues());
+
+        assert_eq!(patients.len(), 1);
+        assert_eq!(patients[0].ssn, "");
+        assert_eq!(patients[0].name, "Patient A (code: 12345)");
+    }
+
+    #[test]
+    fn exi_030_a_valid_patient_sheet_ssn_is_kept() {
+        let rows = [patient_row("Patient A", "1234567890123")];
+
+        let patients =
+            ExcelParserService::patients_from_rows(rows.iter().map(Vec::as_slice), &mut issues());
+
+        assert_eq!(patients[0].ssn, "1234567890123");
+        assert_eq!(patients[0].name, "Patient A");
+    }
+
+    #[test]
+    fn exi_080_two_patient_sheet_rows_with_the_same_key_are_one_patient() {
+        let rows = [
+            patient_row("Patient A", "1234567890123"),
+            patient_row("Patient A bis", "1234567890123"),
+            patient_row("Patient B", ""),
+            patient_row("patient b", ""),
+        ];
+
+        let patients =
+            ExcelParserService::patients_from_rows(rows.iter().map(Vec::as_slice), &mut issues());
+
+        let names: Vec<&str> = patients.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["Patient A", "Patient B"]);
+    }
+
+    #[test]
+    fn exi_030_a_patient_sheet_ssn_that_is_an_excel_error_reads_as_missing() {
+        let rows = [patient_row("Patient A", "#N/A")];
+
+        let patients =
+            ExcelParserService::patients_from_rows(rows.iter().map(Vec::as_slice), &mut issues());
+
+        assert_eq!(patients.len(), 1);
+        assert_eq!(
+            (patients[0].name.as_str(), patients[0].ssn.as_str()),
+            ("Patient A", "")
+        );
+    }
+
+    #[test]
+    fn exi_040_a_blank_secu_cell_is_a_reported_skip() {
+        let rows = [vec![s("  "), s("Fund 75")], vec![s("93"), s(" ")]];
+        let mut issues = issues();
+
+        let funds =
+            ExcelParserService::funds_from_rows(rows.iter().map(Vec::as_slice), &mut issues);
+
+        assert!(funds.is_empty());
+        let reasons: Vec<_> = issues
+            .skipped_rows
+            .iter()
+            .map(|r| r.reason.clone())
+            .collect();
+        assert_eq!(
+            reasons,
+            vec![
+                SkipReason::MissingFundIdentifier,
+                SkipReason::MissingFundName
+            ]
+        );
+    }
+
+    #[test]
+    fn exi_090_two_secu_rows_with_the_same_identifier_are_one_fund() {
+        let rows = [
+            vec![s("75"), s("Fund 75")],
+            vec![s("75"), s("Fund 75 again")],
+            vec![s("93"), s("Fund 93")],
+        ];
+
+        let funds =
+            ExcelParserService::funds_from_rows(rows.iter().map(Vec::as_slice), &mut issues());
+
+        let names: Vec<&str> = funds.iter().map(|f| f.fund_name.as_str()).collect();
+        assert_eq!(names, vec!["Fund 75", "Fund 93"]);
+    }
+
+    // --- ColIdx::from_header_row ---
 
     #[test]
     fn col_idx_parses_explicit_column_positions() {
