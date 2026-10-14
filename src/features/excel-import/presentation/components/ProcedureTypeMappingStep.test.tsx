@@ -34,7 +34,9 @@ describe("ProcedureTypeMappingStep — DEBT-046 (EXI-120)", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    const button = screen.getByRole("button", { name: "Continue" });
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
 
     expect(onMappingComplete).not.toHaveBeenCalled();
     expect(gateway.saveExcelAmountMappings).not.toHaveBeenCalled();
@@ -61,7 +63,7 @@ describe("ProcedureTypeMappingStep — DEBT-046 (EXI-120)", () => {
     ]);
   });
 
-  it("lets the user continue when the saved mappings cannot be read", async () => {
+  it("lets the user continue, and keeps the stored mappings, when they cannot be read", async () => {
     vi.mocked(gateway.getExcelAmountMappings).mockRejectedValue(new Error("bridge down"));
     const onMappingComplete = vi.fn();
     render(
@@ -77,5 +79,6 @@ describe("ProcedureTypeMappingStep — DEBT-046 (EXI-120)", () => {
     await userEvent.click(button);
 
     expect(onMappingComplete).toHaveBeenCalledWith({ "tmp-1": "type-1" });
+    expect(gateway.saveExcelAmountMappings).not.toHaveBeenCalled();
   });
 });

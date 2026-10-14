@@ -63,7 +63,6 @@
     "src/features/excel-import/presentation/ImportExcelPage.tsx": 3,
     "src/features/excel-import/presentation/components/CreateProcedureTypeModal.tsx": 2,
     "src/features/excel-import/presentation/components/ParsingReportModal.tsx": 1,
-    "src/features/excel-import/presentation/components/ProcedureTypeMappingStep.tsx": 1,
     "src/features/fund-payment-match/reconciliation_modal/ReconciliationModal.tsx": 5,
     "src/features/fund-payment-match/reconciliation_results/cards/GroupMatchCard.tsx": 2,
     "src/features/fund-payment-match/reconciliation_results/cards/NotFoundCard.tsx": 2,
