@@ -8,4 +8,6 @@
 
 **Size:** S
 
-**Waits on the owner:** the name of the factory, with TODO-019
+**Waits on the owner:** no — no new term: `FundPaymentGroup::new` and `with_id` take the procedure identifiers instead of the lines and build them (owner, 2026-10-14)
+
+**Refined (2026-10-14, before queuing):** ships with TODO-019. Sites left after DEBT-056: `fund_payment_reconciliation/orchestrator.rs:234` and `overpayment/orchestrator.rs`. Done when: the group builds its own lines from the procedure identifiers, through `new` and `with_id` taking the procedure identifiers; no caller assigns `group.lines` outside the repository's restore path; Rust tests on the factory. Size S holds.

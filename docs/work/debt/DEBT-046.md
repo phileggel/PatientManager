@@ -9,3 +9,5 @@
 **Size:** L
 
 **Waits on the owner:** no
+
+**Refined (2026-10-14, before queuing):** two slices this batch, the rest stays open. Point 1 ships with DEBT-035 (its Done when there). Point 3, a pull request of its own: `ProcedureTypeMappingStep.tsx` disables Continue on `isLoading` only, while `savedAmountMappings` is `null` until the gateway answers. Done when: Continue is disabled while the saved mappings load; a Vitest test clicks it before the gateway resolves and sees nothing sent and no mapping saved; screenshots. Nothing new is seen beyond a button disabled for that moment, so no design. A `fix`. Size S for each slice.

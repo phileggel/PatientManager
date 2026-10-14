@@ -9,3 +9,5 @@
 **Size:** S
 
 **Waits on the owner:** no
+
+**Refined (2026-10-14, before queuing):** 22 `tracing::` calls in `context/procedure/repository/procedure.rs`, 2 with `target: BACKEND`. Done when: all 22 carry it; nothing else in the file changes. Size S holds.

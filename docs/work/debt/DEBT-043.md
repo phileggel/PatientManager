@@ -18,3 +18,5 @@
 **Size:** XL
 
 **Waits on the owner:** no
+
+**Refined (2026-10-14, before queuing):** this batch takes the first slice, the two form validators; the twelve other files stay frozen. Done when: `validatePayment.ts` and `validateBankTransfer.ts` are gone from `arch-allowlist.json` (`frontend_logic_files`) and from `src/`; the create commands refuse a missing fund or account, an invalid date and an empty selection, all refusals at once (`docs/error-model.md`), as FPM-200 already says "frontend + backend"; the screens show the backend's answer; the check before opening the procedure picker stays as display state; Rust tests per refusal, the audit table in the pull request. Size M for the slice.

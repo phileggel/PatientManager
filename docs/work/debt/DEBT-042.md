@@ -9,3 +9,5 @@
 **Size:** M
 
 **Waits on the owner:** no
+
+**Refined (2026-10-14, before queuing):** confirmed — `clear_procedure_type_tracking` and `clear_fund_tracking` are called only by their tests; `delete_procedure_type` (`context/procedure/api.rs:69`) and `delete_fund` (`context/fund/api.rs:56`) call their context's service, which soft-deletes. The spec rules stand, so the owner's choice has its standing answer: the rules hold. Done when: both commands go through `procedure_orchestration`, which soft-deletes and clears the patients' defaults in one unit; Rust tests show a patient's default type and fund cleared after each deletion (PRO-280, PRO-290); the two contracts state the side effect again. A `fix`. Size M holds.

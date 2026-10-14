@@ -9,3 +9,5 @@
 **Size:** M
 
 **Waits on the owner:** no
+
+**Refined (2026-10-14, before queuing):** this batch takes R4 only; the spec realignment and the missing tests stay open. Confirmed: `find_by_name` compares with `LOWER(name) = LOWER($1)` (`procedure_type.rs:145`), which folds ASCII only. Done when: a name that differs from an existing one only by case, accented letters included ("Échographie" / "échographie"), is refused as a duplicate, compared in Rust as the patient duplicates are; a repository test against a real database proves it, not a mock. A `fix`. Size S for the slice.

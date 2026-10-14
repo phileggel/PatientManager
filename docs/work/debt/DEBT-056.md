@@ -9,3 +9,5 @@
 **Size:** S
 
 **Waits on the owner:** no
+
+**Refined (2026-10-14, before queuing):** confirmed — `create_groups_batch` (`context/fund/service.rs:366`) and `create_procedures_batch_from_candidates` (`context/procedure/service.rs:270`) are reached only by their unit tests; `create_batch_groups` only by `create_groups_batch` and two repository tests. Done when: the three methods, their tests, the trait method with its mock expectations and the two comments that name it (`overpayment/orchestrator.rs:625`, `bank_statement_reconciliation/orchestrator.rs:562`) are gone; `insert_group_in` stays; `just harness` green. Comes before TODO-019 and DEBT-057: it removes one of DEBT-057's three sites. Size S holds.

@@ -35,3 +35,4 @@
   tooling, 10.0.2 at the time) with `npm audit fix` (banked the same day), one chore pull request;
   the E2E suites are the proof.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): decided 2026-10-12 for the next batch; `/dep-audit` of 2026-10-12 unchanged. Left.
+- Refined (2026-10-14, before queuing): `package.json` pins the six `@wdio/*` packages and `webdriverio` at `^9.27.1`. Done when: all seven are on WebdriverIO 10, `npm audit fix` has run, `npm audit` reports none of the 19 advisories the major clears, `npm audit --omit=dev` stays clean, and the E2E suites pass on Linux and on the Windows gate. Size S holds.
