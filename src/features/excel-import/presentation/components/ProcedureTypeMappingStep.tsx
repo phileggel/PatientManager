@@ -47,19 +47,30 @@ export function ProcedureTypeMappingStep({
   const [savedAmountMappings, setSavedAmountMappings] = useState<Record<number, string> | null>(
     null,
   );
+  // A failed read must not lead Continue to save defaults over the stored choices.
+  const [savedMappingsUnread, setSavedMappingsUnread] = useState(false);
 
   useEffect(() => {
     logger.info("[ProcedureTypeMappingStep] Component mounted");
     // Backend returns only valid mappings (deleted types are already filtered out)
-    getExcelAmountMappings().then((result) => {
-      const byAmount: Record<number, string> = {};
-      if (result.success && result.data) {
-        for (const m of result.data) {
-          byAmount[m.amount] = m.procedure_type_id;
+    getExcelAmountMappings()
+      .then((result) => {
+        const byAmount: Record<number, string> = {};
+        if (result.success && result.data) {
+          for (const m of result.data) {
+            byAmount[m.amount] = m.procedure_type_id;
+          }
+        } else {
+          setSavedMappingsUnread(true);
         }
-      }
-      setSavedAmountMappings(byAmount);
-    });
+        setSavedAmountMappings(byAmount);
+      })
+      .catch((error) => {
+        // A failed read leaves no saved mapping, never a Continue disabled for good.
+        logger.error("[ProcedureTypeMappingStep] Saved mappings could not be read", { error });
+        setSavedMappingsUnread(true);
+        setSavedAmountMappings({});
+      });
   }, []);
 
   // Initialize defaults once saved mappings are loaded.
@@ -90,6 +101,9 @@ export function ProcedureTypeMappingStep({
     setAvailableTypes(procedureTypes);
   }, [procedureTypes]);
 
+  // EXI-120 — until the saved mappings are read, a choice would overwrite them.
+  const mappingsLoading = savedAmountMappings === null;
+
   const handleMappingChange = (tmpId: string, amount: number, procedureTypeId: string) => {
     if (procedureTypeId === "create-new") {
       setShowNewTypeModal({ tmpId, amount });
@@ -115,12 +129,15 @@ export function ProcedureTypeMappingStep({
   };
 
   const handleConfirm = () => {
-    // Persist choices for future imports (fire-and-forget)
-    const toSave = procedureMappings.map((pm) => ({
-      amount: pm.amount,
-      procedure_type_id: mapping[pm.tmp_id] ?? IMPORTED_FROM_EXCEL_ID,
-    }));
-    saveExcelAmountMappings(toSave);
+    // Persist choices for future imports (fire-and-forget), unless the stored
+    // ones could not be read.
+    if (!savedMappingsUnread) {
+      const toSave = procedureMappings.map((pm) => ({
+        amount: pm.amount,
+        procedure_type_id: mapping[pm.tmp_id] ?? IMPORTED_FROM_EXCEL_ID,
+      }));
+      saveExcelAmountMappings(toSave);
+    }
 
     onMappingComplete(mapping);
   };
@@ -197,7 +214,11 @@ export function ProcedureTypeMappingStep({
 
       {/* Confirmation */}
       <div className="flex gap-2 justify-end pt-4">
-        <Button onClick={handleConfirm} disabled={isLoading || showNewTypeModal !== null}>
+        <Button
+          id="excel-import-mapping-continue"
+          onClick={handleConfirm}
+          disabled={isLoading || mappingsLoading || showNewTypeModal !== null}
+        >
           {isLoading ? t("mapping.processing") : t("mapping.continue")}
         </Button>
       </div>
