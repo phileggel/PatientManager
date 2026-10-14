@@ -1,21 +1,12 @@
 import { browser, $ } from "@wdio/globals";
 import assert from "node:assert";
 import { setReactInputValue } from "../helpers/seed";
+import { openManagementPage } from "../helpers/navigation";
 
 const PATIENT_NAME = "E2E Smoke Patient";
 
 async function navigateToPatients(): Promise<void> {
-  // Selectors target stable `id` attributes — locale-invariant per ADR-007.
-  const mgmtBtn = await $("#nav-management");
-  await mgmtBtn.waitForExist({ timeout: 10000 });
-  await mgmtBtn.click();
-
-  const patientCard = await $("#mgmt-card-patients");
-  await patientCard.waitForExist({ timeout: 8000 });
-  await patientCard.click();
-
-  const searchInput = await $("#patient-search");
-  await searchInput.waitForExist({ timeout: 10000 });
+  await openManagementPage("#mgmt-card-patients", "#patient-search");
 }
 
 describe("patient smoke", () => {

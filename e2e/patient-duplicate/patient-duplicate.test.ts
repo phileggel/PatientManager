@@ -1,6 +1,7 @@
 import assert from "node:assert";
 import { $, browser } from "@wdio/globals";
 import { tauriInvoke } from "../helpers/tauri-invoke";
+import { openManagementPage } from "../helpers/navigation";
 
 // Seeding goes through the real commands (no mock). Each scenario has its own pair
 // of same-name patients and opens the page itself.
@@ -30,22 +31,12 @@ async function listPairs(): Promise<Pair[]> {
   return pairs.data;
 }
 
-async function openFromManagement(cardId: string, pageId: string): Promise<void> {
-  const mgmtBtn = await $("#nav-management");
-  await mgmtBtn.waitForExist({ timeout: 10000 });
-  await mgmtBtn.click();
-  const card = await $(cardId);
-  await card.waitForExist({ timeout: 8000 });
-  await card.click();
-  await $(pageId).waitForExist({ timeout: 10000 });
-}
-
 async function openDuplicatesPage(): Promise<void> {
   // Close any dialog a previous suite left open (shared WebView session).
   await browser.keys(["Escape"]);
   // Through another page first, so that the page loads the pairs seeded since.
-  await openFromManagement("#mgmt-card-patients", "#patient-list");
-  await openFromManagement("#mgmt-card-patient-duplicates", "#patient-duplicate-list");
+  await openManagementPage("#mgmt-card-patients", "#patient-list");
+  await openManagementPage("#mgmt-card-patient-duplicates", "#patient-duplicate-list");
 }
 
 describe("patient duplicates", () => {

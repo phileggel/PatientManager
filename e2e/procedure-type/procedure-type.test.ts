@@ -1,22 +1,13 @@
 import { browser, $ } from "@wdio/globals";
 import assert from "node:assert";
 import { setReactInputValue } from "../helpers/seed";
+import { openManagementPage } from "../helpers/navigation";
 
 const PROCEDURE_TYPE_NAME = "E2E Smoke Acte";
 const PROCEDURE_TYPE_AMOUNT = "42.50";
 
 async function navigateToProcedureTypes(): Promise<void> {
-  // Selectors target stable `id` attributes — locale-invariant per ADR-007.
-  const mgmtBtn = await $("#nav-management");
-  await mgmtBtn.waitForExist({ timeout: 10000 });
-  await mgmtBtn.click();
-
-  const procedureTypeCard = await $("#mgmt-card-procedure-types");
-  await procedureTypeCard.waitForExist({ timeout: 8000 });
-  await procedureTypeCard.click();
-
-  const searchInput = await $("#procedure-type-search");
-  await searchInput.waitForExist({ timeout: 10000 });
+  await openManagementPage("#mgmt-card-procedure-types", "#procedure-type-search");
 }
 
 describe("procedure-type smoke", () => {

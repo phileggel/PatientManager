@@ -10,6 +10,7 @@
  * on the active locale either way.
  */
 import { browser, $ } from "@wdio/globals";
+import { openManagementPage } from "./navigation";
 
 export async function setReactInputValue(elementId: string, value: string): Promise<void> {
   await browser.execute(
@@ -87,19 +88,9 @@ export async function readProcedureTypeIdByName(name: string): Promise<string> {
   return pt.id;
 }
 
-async function openManagementModal(): Promise<void> {
-  await browser.keys(["Escape"]);
-  const mgmtBtn = await $("#nav-management");
-  await mgmtBtn.waitForExist({ timeout: 10000 });
-  await mgmtBtn.click();
-}
-
 export async function seedBankAccount(name: string): Promise<void> {
-  await openManagementModal();
-  const card = await $("#mgmt-card-bank-accounts");
-  await card.waitForExist({ timeout: 8000 });
-  await card.click();
-  await $("#bank-account-search").waitForExist({ timeout: 10000 });
+  await browser.keys(["Escape"]);
+  await openManagementPage("#mgmt-card-bank-accounts", "#bank-account-search");
 
   await setReactInputValue("add-bank-account-name", name);
   const submitBtn = await $('button[type="submit"][form="add-bank-account-form"]');
@@ -109,11 +100,8 @@ export async function seedBankAccount(name: string): Promise<void> {
 }
 
 export async function seedProcedureType(name: string, amount: string): Promise<void> {
-  await openManagementModal();
-  const card = await $("#mgmt-card-procedure-types");
-  await card.waitForExist({ timeout: 8000 });
-  await card.click();
-  await $("#procedure-type-search").waitForExist({ timeout: 10000 });
+  await browser.keys(["Escape"]);
+  await openManagementPage("#mgmt-card-procedure-types", "#procedure-type-search");
 
   const fab = await $("#fab-create-procedure-type");
   await fab.waitForExist({ timeout: 5000 });
@@ -129,11 +117,8 @@ export async function seedProcedureType(name: string, amount: string): Promise<v
 }
 
 export async function seedPatient(name: string): Promise<void> {
-  await openManagementModal();
-  const card = await $("#mgmt-card-patients");
-  await card.waitForExist({ timeout: 8000 });
-  await card.click();
-  await $("#patient-search").waitForExist({ timeout: 10000 });
+  await browser.keys(["Escape"]);
+  await openManagementPage("#mgmt-card-patients", "#patient-search");
 
   await setReactInputValue("add-patient-name", name);
   const submitBtn = await $('button[type="submit"][form="add-patient-form"]');

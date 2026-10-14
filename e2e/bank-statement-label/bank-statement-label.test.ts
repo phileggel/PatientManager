@@ -1,6 +1,7 @@
 import { $, browser } from "@wdio/globals";
 import assert from "node:assert";
 import { tauriInvoke } from "../helpers/tauri-invoke";
+import { openManagementPage } from "../helpers/navigation";
 
 // Seeding goes through the real commands (no mock): a saved bank statement label
 // only exists after a statement import is validated (BAS-035), and the import's
@@ -71,13 +72,7 @@ async function seedLabel(): Promise<string> {
 async function openLabelsPage(): Promise<void> {
   // Close any dialog a previous suite left open (shared WebView session).
   await browser.keys(["Escape"]);
-  const mgmtBtn = await $("#nav-management");
-  await mgmtBtn.waitForExist({ timeout: 10000 });
-  await mgmtBtn.click();
-  const card = await $("#mgmt-card-bank-statement-labels");
-  await card.waitForExist({ timeout: 8000 });
-  await card.click();
-  await $("#bank-statement-label-list").waitForExist({ timeout: 10000 });
+  await openManagementPage("#mgmt-card-bank-statement-labels", "#bank-statement-label-list");
 }
 
 describe("bank statement labels", () => {

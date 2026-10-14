@@ -1,22 +1,13 @@
 import { browser, $ } from "@wdio/globals";
 import assert from "node:assert";
 import { setReactInputValue } from "../helpers/seed";
+import { openManagementPage } from "../helpers/navigation";
 
 const FUND_IDENTIFIER = "E2E-SMOKE";
 const FUND_NAME = "E2E Smoke Fund";
 
 async function navigateToFunds(): Promise<void> {
-  // Selectors target stable `id` attributes — locale-invariant per ADR-007.
-  const mgmtBtn = await $("#nav-management");
-  await mgmtBtn.waitForExist({ timeout: 10000 });
-  await mgmtBtn.click();
-
-  const fundCard = await $("#mgmt-card-funds");
-  await fundCard.waitForExist({ timeout: 8000 });
-  await fundCard.click();
-
-  const searchInput = await $("#fund-search");
-  await searchInput.waitForExist({ timeout: 10000 });
+  await openManagementPage("#mgmt-card-funds", "#fund-search");
 }
 
 describe("fund smoke", () => {

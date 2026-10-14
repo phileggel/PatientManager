@@ -9,6 +9,7 @@ import {
   setReactInputValue,
   setReactSelectValue,
 } from "../helpers/seed";
+import { openManagementPage } from "../helpers/navigation";
 
 function isoToDisplayDate(iso: string): string {
   const [year, month, day] = iso.split("-");
@@ -25,13 +26,7 @@ const BILLED_AMOUNT_MILLIS = 25000; // €25.00
 async function navigateToBankTransfer(): Promise<void> {
   // Selectors target stable `id` attributes — locale-invariant per ADR-007.
   await browser.keys(["Escape"]);
-  const mgmtBtn = await $("#nav-management");
-  await mgmtBtn.waitForExist({ timeout: 10000 });
-  await mgmtBtn.click();
-  const btCard = await $("#mgmt-card-bank-transfers");
-  await btCard.waitForExist({ timeout: 8000 });
-  await btCard.click();
-  await $("#bank-transfer-list").waitForExist({ timeout: 10000 });
+  await openManagementPage("#mgmt-card-bank-transfers", "#bank-transfer-list");
 }
 
 describe("bank-transfer — PATIENT_CASH smoke", () => {

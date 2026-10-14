@@ -1,6 +1,7 @@
 import { browser, $ } from "@wdio/globals";
 import assert from "node:assert";
 import { readBankAccountIdByName, setReactInputValue } from "../helpers/seed";
+import { openManagementPage } from "../helpers/navigation";
 
 // Skipped commands (no UI surface):
 //   read_bank_account        — internal / no dedicated UI entry point
@@ -11,17 +12,7 @@ const CREATE_NAME = "E2E Smoke Create";
 const UPDATE_NAME = "E2E Smoke Updated";
 
 async function navigateToBankAccounts(): Promise<void> {
-  // Selectors target stable `id` attributes — locale-invariant per ADR-007.
-  const mgmtBtn = await $("#nav-management");
-  await mgmtBtn.waitForExist({ timeout: 10000 });
-  await mgmtBtn.click();
-
-  const bankAccountCard = await $("#mgmt-card-bank-accounts");
-  await bankAccountCard.waitForExist({ timeout: 8000 });
-  await bankAccountCard.click();
-
-  const searchInput = await $("#bank-account-search");
-  await searchInput.waitForExist({ timeout: 10000 });
+  await openManagementPage("#mgmt-card-bank-accounts", "#bank-account-search");
 }
 
 describe("bank-account smoke", () => {
