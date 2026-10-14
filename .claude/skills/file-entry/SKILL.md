@@ -11,7 +11,7 @@ The rules are `docs/workflow.md` § 2 (Filing an entry); this file is the checkl
    or documents, a flow entry is about how the work moves. A bug is a todo or a debt by
    the same test. A todo is drafted from the owner's words and says it is a draft.
 2. **Create.** `just queue new <todo|debt|flow> "<title>"` — never a hand-written file —
-   on a branch `docs/file-<slug>`, the id never leading the slug (`docs/workflow.md` § 2).
+   on a filing branch (`docs/workflow.md` § 2), the new entry's id never leading the slug.
    The title states the observation, not the fix.
 3. **Fill every line** the command wrote. Evidence first: what was seen, where, with a
    figure or a pull request. One observation per entry; a second one is a second entry.

@@ -1,6 +1,6 @@
 ---
 name: plan-queue
-description: Shows the state of the work queue (queued, ready, blocked, debt, open pull requests) and proposes the next queue (docs/work/queue.md) for the owner to validate in chat. Chat only. Use when the queue is empty or short, after a release, or when returning to the project.
+description: Shows the state of the work queue (queued, ready, blocked, debt, open pull requests), refines the candidates against their code and proposes the next queue (docs/work/queue.md) for the owner to validate in chat. Chat only. Use when the queue is empty or short, after a release, or when returning to the project.
 ---
 
 # Skill — `plan-queue`
@@ -33,7 +33,7 @@ Group entries that are one theme (same feature, same file, same cause) into one 
 Read the flow entries (`docs/work/flow/`) the same way: an entry with a `Decision` line is workable; one
 without waits on the owner, and its question goes to them.
 
-## Step 3 — Draft what blocks an entry
+## Step 3 — Draft and refine
 
 An entry without a User value or a Done when cannot be queued. For each one the owner
 may want next, draft both from the entry's own text: the User value in the user's
@@ -41,9 +41,11 @@ words (or "none directly — …" for internal work), the Done when as clauses a
 prove. Never draft for an entry whose description is too thin to tell what done means;
 say what is missing instead.
 
-Then, for every entry about to be proposed, run the decision scan as
-`docs/workflow.md` § 3 states it. The questions it leaves join **Needs you**, so an
-entry enters the queue with its questions answered.
+Then refine every entry about to be proposed: read the code it names, check its size,
+and run the decision scan as `docs/workflow.md` § 3 states it for `/plan-queue`. Its
+questions join **Needs you**, answered before the queue is written. The code read and the
+Done when become the entry's `Refined` line (`docs/workflow.md` § 2); a size that moved
+is corrected on the entry, a todo's proposed in **Needs you**.
 
 Name every entry that is a programme and propose its first slice, as
 `docs/workflow.md` § 2 states it.
@@ -53,10 +55,8 @@ Name every entry that is a programme and propose its first slice, as
 Print, in this order:
 
 1. **In flight** — open pull requests and their checks; the queue as it stands.
-   Then the size of the proposal: the sum of its entries' sizes in pull requests, as
-   `just queue` counts them (`docs/workflow.md` § 2), beside what the last batches
-   merged (`docs/work/audits.md`). The proposal stops at that figure; an XL entry
-   enters as a slice. A todo entry without a size gets one proposed in **Needs you**.
+   Then the size of the proposal beside what the last batches merged, where it stops,
+   and a todo entry's missing size, as `docs/workflow.md` § 2 states them.
 2. **Proposed queue** — references in the order `docs/workflow.md` § 2 states (written
    to `docs/work/queue.md` as a plain list, `- TODO-NNN`): todo, debt, decided flow
    entries and open Dependabot pull requests (`- gh#NN`: its green reviewer checks are
@@ -65,9 +65,8 @@ Print, in this order:
    disagree, one line says so. An entry waiting on the owner is not in the queue.
 3. **Needs you** — the decisions and the drafts from Steps 2 and 3, one line each; they
    are asked one at a time in Step 5.
-4. **Left out** — one line per theme, with why (blocked, low value now, obsolete).
-   Every open issue and Dependabot pull request Step 1 printed is either queued (an
-   issue through its entry) or named here with its reason.
+4. **Left out** — one line per theme, with why (blocked, low value now, obsolete), and
+   each open issue or Dependabot pull request not queued (`docs/workflow.md` § 2).
 
 No value scores, no hour estimates (a count of pull requests is not one), no "do now"
 verdict: the reason on each line is the argument, and the owner weighs it.
@@ -76,15 +75,16 @@ verdict: the reason on each line is the argument, and the owner weighs it.
 
 Ask for the queue first: accept, or edit. Then put each decision to the owner alone,
 with its context, what each option changes and a recommended answer; the next one waits
-for the answer. The owner may also edit `docs/work/queue.md` by hand instead.
-On a yes, write exactly what was validated, as a docs change through the harness
-(branch `docs/queue-<date>`, PR, `just merge`):
+for the answer; an answer that changes the queue shows it again. The owner may also
+edit `docs/work/queue.md` by hand instead. Once the queue is accepted and the last
+answer given, one docs pull request carries it all (`docs/queue-<date>`, `just merge`):
 
 - `docs/work/queue.md`, replaced by the validated list in its order — the references
   of the batch before, all shipped or left out, go; `just queue` must then show no
   queued reference as "no such entry";
-- the User value and Done when of each accepted draft, the answers of the decision
-  scan, and `**Open questions:** none` once nothing else is open;
+- the `Refined` lines with any corrected size, each accepted draft, the answers, and
+  `**Open questions:** none` once nothing is open;
+- any entry filed on the way, as `/file-entry` does but on this branch;
 - the bundles and the first slices, as notes in the queue file; a slice also as a line
   in its entry.
 
@@ -92,6 +92,6 @@ On a yes, write exactly what was validated, as a docs change through the harness
 
 1. Chat only. A headless run never touches the queue.
 2. Nothing is written before the owner's yes, and nothing beyond what the yes covers.
-3. No entry is created, renumbered or deleted here; a new idea from the owner becomes
-   an entry the owner dictates.
+3. No entry is renumbered or deleted here; a new idea from the owner becomes an entry
+   the owner dictates.
 4. One proposal per invocation; `/run-entry` runs what was queued.

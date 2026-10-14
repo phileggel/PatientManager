@@ -39,8 +39,8 @@ auditor reads each generic piece against its line. A piece is a list item opened
 
 ### Skills
 
-- `.claude/skills/plan-queue/` — shows the state of the entries and proposes the next
-  queue. Never: queues anything the owner has not validated.
+- `.claude/skills/plan-queue/` — refines the candidates, proposes the next queue, records
+  it and what it filed in one pull request. Never: queues what the owner has not validated.
 - `.claude/skills/run-queue/` — runs a batch from its queue to its audit by chaining
   the other skills. Never: decides, edits the queue or releases.
 - `.claude/skills/run-entry/` — runs one task to a merged pull request. Never: a second

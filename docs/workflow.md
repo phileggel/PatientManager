@@ -44,6 +44,8 @@ job or a machine gate.
 - Ids are permanent and never reused: `just queue next-id <TODO|DEBT|FLOW>` prints
   the next free one, counting the entries already deleted. Two branches that take the
   same id conflict at the merge; the later one takes the next id.
+- `/plan-queue` adds one `Refined (<date>)` line, beyond those its kind requires, to an
+  entry it proposes: the code read and its Done when (a todo's in its Done when line).
 
 ### Filing an entry (owner, 2026-10-11)
 
@@ -71,8 +73,9 @@ job or a machine gate.
   entry first, which names it (`gh#NN`), and the pull request that ships the entry
   closes the issue. A Dependabot pull request is not an issue: it is queued under its
   own number.
-- **The filing branch** is `docs/file-<slug>`: an entry's id leads a slug only on the
-  branch that works it (`chore/flow-048-…`), the only branch the audit counts as its work.
+- **The filing branch** is `docs/file-<slug>` (`docs/queue-<date>` while planning, a work
+  branch if the owner asks): an entry's id leads a slug only on the branch that works it
+  (`chore/flow-048-…`), the only branch the audit counts as its work.
 - **A bug is always filed**, even when it is fixed in the same session: a first pull
   request files its entry, the fix closes it, so the fix's branch and tests carry its
   id and an id is never given twice. A request in chat that is not a bug still needs no
@@ -114,8 +117,7 @@ job or a machine gate.
   to each other, so one can be prepared on the other; small fixes a user notices early;
   what needs the owner flagged at the top. Where two of these disagree, the proposal
   says so in one line. Each line gives the id and a concise summary of the task, with at
-  most a clause on why it sits there; what needs the owner and what is left out come
-  below.
+  most a clause on why it sits there; what needs the owner and what is left out come below.
 - **Nothing open is passed over** (owner, 2026-10-11): `just queue` prints every open
   GitHub issue no entry names yet and every open Dependabot pull request not queued.
   Each is queued — an issue through its entry, a Dependabot pull request under its
@@ -145,11 +147,11 @@ todo entry: the pull request body is its record.
    next one waits for the answer. Headless, a question is written into the entry and the
    run moves on.
    - **The questions come before the work — the decision scan** (owner, 2026-10-06):
-     before the branch exists, the agent reads the entry and the code it names, lists every choice that is
-     the owner's — what a user sees, a term, a rule's scope, where a programme stops —
-     and asks them then, each once and at its widest ("the term for every aggregate
-     edited from a form", not one aggregate at a time); the answers are written into the
-     entry.
+     the agent reads the entry and the code it names, lists every choice that is the
+     owner's — what a user sees, a term, a rule's scope, where a programme stops — and asks
+     each once and at its widest, writing the answers into the entry. `/plan-queue` runs it
+     while refining, leaving what a user sees (§ 4) and the code to the run, which asks
+     what is still open before its branch exists.
    - A choice with a standing answer is not asked: when one option keeps what a user
      sees today, it is taken and stated in the pull request; a release-sweep finding
      that is not critical and predates the release is filed and reported (Conventions).
@@ -337,8 +339,7 @@ recorded in the PR body, one line per finding that changed something or was reje
 ## 9. Where the loop runs
 
 The chat session is for writing entries together, design conversations and answering
-open questions. The loop runs one task per run and keeps its state in git and the
-entries.
+open questions. The loop runs one task per run and keeps its state in git and the entries.
 
 - **In chat:** `/run-entry TODO-NNN`, or a plain request; `/run-queue` for a whole batch:
   the questions first, each remaining entry through `/run-entry`, the release
