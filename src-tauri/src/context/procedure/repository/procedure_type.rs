@@ -139,18 +139,64 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
     async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>> {
         tracing::trace!(name = %name, "Fetching procedure type by name from database");
 
-        let row = sqlx::query_as!(
+        // R4 — SQLite's LOWER() folds ASCII only ("Échographie" stays apart from
+        // "échographie"); Rust's to_lowercase() is Unicode-aware, as for patients.
+        let needle = name.to_lowercase();
+        let rows = sqlx::query_as!(
             ProcedureTypeRow,
             r#"
             SELECT id, name, default_amount, category, is_deleted
             FROM procedure_type
-            WHERE LOWER(name) = LOWER($1) AND is_deleted = 0
+            WHERE is_deleted = 0
             "#,
-            name,
         )
-        .fetch_optional(&self.pool)
+        .fetch_all(&self.pool)
         .await?;
 
-        Ok(row.map(ProcedureType::from))
+        Ok(rows
+            .into_iter()
+            .find(|row| row.name.to_lowercase() == needle)
+            .map(ProcedureType::from))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+
+    use super::*;
+
+    async fn repo() -> SqliteProcedureTypeRepository {
+        let opts = SqliteConnectOptions::new().in_memory(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        SqliteProcedureTypeRepository::new(pool)
+    }
+
+    #[tokio::test]
+    async fn debt_045_r4_a_name_differing_only_by_the_case_of_an_accented_letter_is_found() {
+        let repo = repo().await;
+        let stored = repo
+            .create_procedure_type("Échographie".to_string(), 50000, None)
+            .await
+            .unwrap();
+
+        let found = repo.find_by_name("échographie").await.unwrap();
+
+        assert_eq!(found.map(|t| t.id), Some(stored.id));
+    }
+
+    #[tokio::test]
+    async fn r4_another_name_is_not_found() {
+        let repo = repo().await;
+        repo.create_procedure_type("Échographie".to_string(), 50000, None)
+            .await
+            .unwrap();
+
+        assert!(repo.find_by_name("Echographie").await.unwrap().is_none());
     }
 }
