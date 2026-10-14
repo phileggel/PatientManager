@@ -622,7 +622,7 @@ mod tests {
     }
 
     /// Fund-payment repo that echoes all writes and returns empty for reads.
-    /// `create_group` and `create_batch_groups` deliberately unconfigured —
+    /// `create_group` deliberately unconfigured —
     /// they must not be called on this path.
     fn fund_payment_repo_persist_ok() -> MockFundPaymentRepository {
         let mut mock = MockFundPaymentRepository::new();

@@ -253,47 +253,6 @@ impl ProcedureService {
         Ok(result)
     }
 
-    /// Create multiple procedures from candidates with optional event suppression
-    ///
-    /// Used for batch creation scenarios (e.g., reconciliation) where events
-    /// should be controlled by the orchestrator, not the service.
-    pub async fn create_procedures_batch_from_candidates(
-        &self,
-        candidates: Vec<super::dto::ProcedureCandidate>,
-        is_silent: bool,
-    ) -> Result<Vec<Procedure>, ProcedureError> {
-        // Create procedures from candidates using factory methods
-        let mut procedures = Vec::new();
-        for candidate in candidates {
-            let procedure = Procedure::new(
-                candidate.patient_id,
-                candidate.fund_id,
-                candidate.procedure_type_id,
-                candidate.procedure_date,
-                candidate.billed_amount,
-                super::domain::PaymentMethod::None, // Default for batch creation
-                None, // fund_reconciliation_date — Stage 1 not carried by batch candidates
-                candidate.confirmed_payment_date,
-                candidate.paid_amount,
-                super::domain::ProcedureStatus::None,
-            )?;
-            procedures.push(procedure);
-        }
-
-        // Persist all procedures in a single transaction
-        let result = self.repository.create_batch(procedures).await.map_err(|e| {
-            tracing::error!(target: BACKEND, err = ?e, "create_procedures_batch_from_candidates: repository failed");
-            ProcedureError::DatabaseError
-        })?;
-
-        // Publish event only if not silent
-        if !is_silent {
-            let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
-        }
-
-        Ok(result)
-    }
-
     /// Update an existing procedure (basic CRUD, no cross-context logic)
     pub async fn update_procedure(
         &self,
@@ -1104,23 +1063,6 @@ mod tests {
             service.find_unpaid_by_fund("fund-1").await,
             Err(ProcedureError::DatabaseError)
         ));
-    }
-
-    #[tokio::test]
-    async fn create_procedures_batch_repo_error_maps_to_database_error() {
-        let mut mock = MockProcedureRepository::new();
-        mock.expect_create_batch()
-            .returning(|_| Err(anyhow!("db down")));
-        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
-
-        let result = service
-            .create_procedures_batch_from_candidates(vec![], true)
-            .await;
-
-        assert!(
-            matches!(result, Err(ProcedureError::DatabaseError)),
-            "got {result:?}"
-        );
     }
 
     #[tokio::test]

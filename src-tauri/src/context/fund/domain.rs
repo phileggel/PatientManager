@@ -309,14 +309,6 @@ pub trait FundPaymentRepository: Send + Sync {
         procedure_ids: Vec<String>,
     ) -> anyhow::Result<FundPaymentGroup>;
 
-    /// Batch create multiple fund payment groups with all their lines (single atomic transaction)
-    /// Receives fully-constructed FundPaymentGroup objects (IDs already generated)
-    /// Repository only persists them atomically
-    async fn create_batch_groups(
-        &self,
-        groups: Vec<FundPaymentGroup>,
-    ) -> anyhow::Result<Vec<FundPaymentGroup>>;
-
     async fn create_lines(
         &self,
         lines: Vec<FundPaymentLine>,

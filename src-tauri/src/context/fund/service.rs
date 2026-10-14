@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use crate::{
     context::fund::{
-        Fund, FundCandidate, FundError, FundPaymentGroup, FundPaymentLine, FundPaymentRepository,
-        FundRepository,
+        Fund, FundCandidate, FundError, FundPaymentGroup, FundPaymentRepository, FundRepository,
     },
     shared::{
         event_bus::{EventBus, FundPaymentGroupUpdated, FundUpdated},
@@ -343,71 +342,6 @@ impl FundPaymentService {
             })
     }
 
-    /// Create multiple fund payment groups from resolved data (batch operation)
-    ///
-    /// This method:
-    /// 1. Creates FundPaymentGroup domain objects using factory method (generates IDs)
-    /// 2. Creates FundPaymentLine domain objects for each procedure
-    /// 3. Persists all groups and lines atomically via repository
-    /// 4. Emits event only if !is_silent
-    ///
-    /// Input: Vec of tuples (fund_id, payment_date, total_amount, procedure_ids)
-    /// is_silent: true for orchestration calls (event emitted at orchestrator level)
-    ///            false for direct API calls
-    pub async fn create_groups_batch(
-        &self,
-        batch_data: Vec<(String, String, i64, Vec<String>)>,
-        is_silent: bool,
-    ) -> Result<Vec<FundPaymentGroup>, FundError> {
-        tracing::debug!(
-            count = batch_data.len(),
-            "Creating batch of fund payment groups"
-        );
-
-        let mut groups = Vec::new();
-
-        // Service layer: Create all domain objects with factory methods
-        for (fund_id, payment_date, total_amount, procedure_ids) in batch_data {
-            // Create group using factory (generates ID)
-            let mut group = FundPaymentGroup::new(
-                fund_id,
-                payment_date,
-                total_amount,
-                vec![], // Start with empty lines
-            )?;
-
-            // Create lines using factory for each procedure
-            let lines: Vec<FundPaymentLine> = procedure_ids
-                .iter()
-                .map(|procedure_id| FundPaymentLine::new(group.id.clone(), procedure_id.clone()))
-                .collect::<Result<Vec<_>, _>>()?;
-
-            group.lines = lines;
-            groups.push(group);
-        }
-
-        // Repository layer: Persist all groups and lines atomically
-        let created_groups = self
-            .repository
-            .create_batch_groups(groups)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, error = %e, "Failed to create batch of fund payment groups");
-                FundError::DatabaseError
-            })?;
-
-        // Emit event only if not silent (orchestrator will emit its own event)
-        if !is_silent {
-            let _ = self
-                .event_bus
-                .publish::<crate::shared::event_bus::FundPaymentGroupUpdated>(
-                    crate::shared::event_bus::FundPaymentGroupUpdated,
-                );
-        }
-
-        Ok(created_groups)
-    }
-
     /// Tell listeners a group changed, after a unit of work that wrote it
     /// committed (ADR-003). The bank flows set a group's status that way.
     pub fn notify_group_updated(&self) {
@@ -458,7 +392,7 @@ impl FundPaymentService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::fund::{FundPaymentGroupStatus, MockFundRepository};
+    use crate::context::fund::{FundPaymentGroupStatus, FundPaymentLine, MockFundRepository};
     use anyhow::anyhow;
 
     fn fund_repo_create_ok() -> MockFundRepository {
@@ -642,7 +576,6 @@ mod tests {
         mock.expect_create_lines().returning(Ok);
         mock.expect_delete_group().returning(|_| Ok(()));
         mock.expect_exists_group().returning(|_, _, _| Ok(false));
-        mock.expect_create_batch_groups().returning(Ok);
         mock.expect_update_group_status().returning(|_, _| Ok(()));
         mock.expect_persist_group().returning(Ok);
         mock
@@ -714,20 +647,6 @@ mod tests {
                 20000,
             )
             .await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn fund_payment_service_create_groups_batch_success() {
-        let service =
-            FundPaymentService::new(Arc::new(make_payment_repo_ok()), Arc::new(EventBus::new()));
-        let batch = vec![(
-            "fund-1".to_string(),
-            "2026-01-15".to_string(),
-            10000i64,
-            vec!["p1".to_string()],
-        )];
-        let result = service.create_groups_batch(batch, false).await;
         assert!(result.is_ok());
     }
 
@@ -1042,21 +961,6 @@ mod tests {
         let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
 
         let result = service.exists_group("fund-1", "2026-01-15", 10000).await;
-
-        assert!(
-            matches!(result, Err(FundError::DatabaseError)),
-            "got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn create_groups_batch_repo_error_maps_to_database_error() {
-        let mut mock = MockFundPaymentRepository::new();
-        mock.expect_create_batch_groups()
-            .returning(|_| Err(anyhow!("db down")));
-        let service = FundPaymentService::new(Arc::new(mock), Arc::new(EventBus::new()));
-
-        let result = service.create_groups_batch(vec![], true).await;
 
         assert!(
             matches!(result, Err(FundError::DatabaseError)),

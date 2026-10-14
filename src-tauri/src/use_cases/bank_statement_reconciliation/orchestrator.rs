@@ -558,7 +558,7 @@ mod tests {
         groups: Vec<FundPaymentGroup>,
     ) -> MockFundPaymentRepository {
         let mut mock = MockFundPaymentRepository::new();
-        // create_group and create_batch_groups deliberately left unconfigured —
+        // create_group deliberately left unconfigured —
         // mockall panics on unexpected call, matching the previous unimplemented!().
         mock.expect_create_lines().returning(Ok);
         let groups_for_read_one = groups.clone();

@@ -303,8 +303,7 @@ impl SqliteFundPaymentRepository {
 
 impl SqliteFundPaymentRepository {
     /// Insert one group and its lines on a connection the caller owns — the
-    /// write `create_batch_groups` loops over, also used by a unit of work
-    /// (ADR-003).
+    /// write of a unit of work (ADR-003).
     pub async fn insert_group_in(
         conn: &mut sqlx::SqliteConnection,
         group: &FundPaymentGroup,
@@ -492,43 +491,6 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         tx.commit().await.context("Failed to commit transaction")?;
 
         Ok(lines)
-    }
-
-    async fn create_batch_groups(
-        &self,
-        groups: Vec<FundPaymentGroup>,
-    ) -> anyhow::Result<Vec<FundPaymentGroup>> {
-        if groups.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        tracing::info!(
-            count = groups.len(),
-            "Creating batch of fund payment groups with all lines (atomic)"
-        );
-
-        // Start single transaction for all groups and lines
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .context("Failed to begin transaction")?;
-
-        // Insert all groups and their lines
-        for group in &groups {
-            Self::insert_group_in(&mut tx, group).await?;
-        }
-
-        tx.commit()
-            .await
-            .context("Failed to commit batch transaction")?;
-
-        tracing::info!(
-            count = groups.len(),
-            "Batch fund payment groups with lines created successfully"
-        );
-
-        Ok(groups)
     }
 
     async fn read_group(&self, id: &str) -> anyhow::Result<Option<FundPaymentGroup>> {
@@ -1089,22 +1051,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn create_batch_groups_inserts_all() {
-        let (fund_repo, payment_repo) = setup_payment_repos().await;
-        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
-
-        let groups = vec![
-            FundPaymentGroup::new(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
-                .unwrap(),
-            FundPaymentGroup::new(fund.id.clone(), "2026-02-15".to_string(), 20000, vec![])
-                .unwrap(),
-        ];
-        let created = payment_repo.create_batch_groups(groups).await.unwrap();
-        assert_eq!(created.len(), 2);
-        assert_eq!(payment_repo.read_all_groups().await.unwrap().len(), 2);
-    }
-
-    #[tokio::test]
     async fn create_group_with_procedure_lines_reads_back() {
         let (fund_repo, payment_repo) = setup_payment_repos().await;
         let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
@@ -1160,25 +1106,5 @@ mod tests {
 
         let lines = payment_repo.read_lines_by_group(&group.id).await.unwrap();
         assert!(lines.is_empty());
-    }
-
-    #[tokio::test]
-    async fn create_batch_groups_with_lines_reads_back() {
-        let (fund_repo, payment_repo) = setup_payment_repos().await;
-        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
-
-        let mut g1 =
-            FundPaymentGroup::new(fund.id.clone(), "2026-01-15".to_string(), 10000, vec![])
-                .unwrap();
-        g1.lines = vec![FundPaymentLine::new(g1.id.clone(), "proc-x".to_string()).unwrap()];
-
-        let created = payment_repo.create_batch_groups(vec![g1]).await.unwrap();
-        assert_eq!(created.len(), 1);
-
-        let lines = payment_repo
-            .read_lines_by_group(&created[0].id)
-            .await
-            .unwrap();
-        assert_eq!(lines.len(), 1);
     }
 }
