@@ -90,6 +90,9 @@ export function ProcedureTypeMappingStep({
     setAvailableTypes(procedureTypes);
   }, [procedureTypes]);
 
+  // EXI-120 — until the saved mappings are read, a choice would overwrite them.
+  const mappingsLoading = savedAmountMappings === null;
+
   const handleMappingChange = (tmpId: string, amount: number, procedureTypeId: string) => {
     if (procedureTypeId === "create-new") {
       setShowNewTypeModal({ tmpId, amount });
@@ -197,7 +200,10 @@ export function ProcedureTypeMappingStep({
 
       {/* Confirmation */}
       <div className="flex gap-2 justify-end pt-4">
-        <Button onClick={handleConfirm} disabled={isLoading || showNewTypeModal !== null}>
+        <Button
+          onClick={handleConfirm}
+          disabled={isLoading || mappingsLoading || showNewTypeModal !== null}
+        >
           {isLoading ? t("mapping.processing") : t("mapping.continue")}
         </Button>
       </div>
