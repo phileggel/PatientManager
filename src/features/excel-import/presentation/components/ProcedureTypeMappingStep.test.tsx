@@ -60,4 +60,22 @@ describe("ProcedureTypeMappingStep — DEBT-046 (EXI-120)", () => {
       { amount: 50000, procedure_type_id: "type-1" },
     ]);
   });
+
+  it("lets the user continue when the saved mappings cannot be read", async () => {
+    vi.mocked(gateway.getExcelAmountMappings).mockRejectedValue(new Error("bridge down"));
+    const onMappingComplete = vi.fn();
+    render(
+      <ProcedureTypeMappingStep
+        procedureMappings={procedureMappings}
+        procedureTypes={procedureTypes}
+        onMappingComplete={onMappingComplete}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Continue" });
+    await waitFor(() => expect(button).toBeEnabled());
+    await userEvent.click(button);
+
+    expect(onMappingComplete).toHaveBeenCalledWith({ "tmp-1": "type-1" });
+  });
 });

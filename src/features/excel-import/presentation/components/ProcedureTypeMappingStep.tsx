@@ -51,15 +51,21 @@ export function ProcedureTypeMappingStep({
   useEffect(() => {
     logger.info("[ProcedureTypeMappingStep] Component mounted");
     // Backend returns only valid mappings (deleted types are already filtered out)
-    getExcelAmountMappings().then((result) => {
-      const byAmount: Record<number, string> = {};
-      if (result.success && result.data) {
-        for (const m of result.data) {
-          byAmount[m.amount] = m.procedure_type_id;
+    getExcelAmountMappings()
+      .then((result) => {
+        const byAmount: Record<number, string> = {};
+        if (result.success && result.data) {
+          for (const m of result.data) {
+            byAmount[m.amount] = m.procedure_type_id;
+          }
         }
-      }
-      setSavedAmountMappings(byAmount);
-    });
+        setSavedAmountMappings(byAmount);
+      })
+      .catch((error) => {
+        // A failed read leaves no saved mapping, never a Continue disabled for good.
+        logger.error("[ProcedureTypeMappingStep] Saved mappings could not be read", { error });
+        setSavedAmountMappings({});
+      });
   }, []);
 
   // Initialize defaults once saved mappings are loaded.
