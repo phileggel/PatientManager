@@ -28,6 +28,22 @@ impl SqliteProcedureTypeRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
+
+    /// Soft-delete one procedure type on a connection the caller owns — the
+    /// write of a unit of work (ADR-003, PRO-280).
+    pub async fn soft_delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
+        tracing::trace!(procedure_type_id = %id, "Soft-deleting procedure type from database");
+
+        sqlx::query!(
+            r#"UPDATE procedure_type SET is_deleted = 1 WHERE id = ?"#,
+            id
+        )
+        .execute(conn)
+        .await
+        .with_context(|| anyhow!("Failed to soft-delete healthcare procedure type"))?;
+
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
@@ -118,20 +134,6 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
 
         tracing::trace!("Procedure type updated successfully");
         Ok(procedure_type.clone())
-    }
-
-    async fn delete_procedure_type(&self, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(procedure_type_id = %id, "Soft-deleting procedure type from database");
-
-        sqlx::query!(
-            r#"UPDATE procedure_type SET is_deleted = 1 WHERE id = ?"#,
-            id
-        )
-        .execute(&self.pool)
-        .await
-        .with_context(|| anyhow!("Failed to soft-delete healthcare procedure type"))?;
-
-        Ok(())
     }
 
     async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>> {

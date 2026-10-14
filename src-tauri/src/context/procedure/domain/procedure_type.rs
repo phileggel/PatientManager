@@ -19,6 +19,17 @@ pub struct ProcedureType {
 }
 
 impl ProcedureType {
+    /// The procedure type the PDF reconciliation files its procedures under.
+    pub const RESERVED_ID: &'static str = "import-pdf";
+
+    /// A user may edit or delete any procedure type but the reserved one.
+    pub fn ensure_mutable(id: &str) -> Result<(), ProcedureError> {
+        if id == Self::RESERVED_ID {
+            return Err(ProcedureError::ReservedTypeNotMutable);
+        }
+        Ok(())
+    }
+
     /// Creates a new ProcedureType with validation and generates ID. The name
     /// is trimmed and a blank category read as none, as for an edit.
     pub fn new(
@@ -179,6 +190,5 @@ pub trait ProcedureTypeRepository: Send + Sync {
         &self,
         procedure_type: ProcedureType,
     ) -> anyhow::Result<ProcedureType>;
-    async fn delete_procedure_type(&self, id: &str) -> anyhow::Result<()>;
     async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>>;
 }

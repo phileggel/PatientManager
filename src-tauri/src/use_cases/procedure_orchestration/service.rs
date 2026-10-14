@@ -332,50 +332,6 @@ impl ProcedureOrchestrationService {
         Ok(())
     }
 
-    /// Clear procedure type tracking for all patients referencing a soft-deleted type
-    // reviewer-backend FP: B31 wire-error rule N/A — clear_* have only test
-    // callers, no command reaches them, so the anyhow signature is not
-    // wire-visible — see PR #54.
-    pub async fn clear_procedure_type_tracking(&self, deleted_type_id: &str) -> anyhow::Result<()> {
-        tracing::debug!(type_id = %deleted_type_id, "Clearing procedure type tracking");
-
-        let all_patients = self.patient_repository.read_all_patients().await?;
-
-        for patient in all_patients {
-            // latest_procedure_type now stores procedure_type_id (UUID), so direct comparison
-            if patient.latest_procedure_type.as_ref() == Some(&deleted_type_id.to_string()) {
-                let mut updated_patient = patient.clone();
-                updated_patient.latest_procedure_type = None;
-                updated_patient.latest_date = None;
-                self.patient_repository
-                    .update_patient(updated_patient)
-                    .await?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Clear fund tracking for all patients referencing a soft-deleted fund
-    pub async fn clear_fund_tracking(&self, deleted_fund_id: &str) -> anyhow::Result<()> {
-        tracing::debug!(fund_id = %deleted_fund_id, "Clearing fund tracking");
-
-        let all_patients = self.patient_repository.read_all_patients().await?;
-
-        for patient in all_patients {
-            // latest_fund now stores fund_id (UUID), so direct comparison
-            if patient.latest_fund.as_ref() == Some(&deleted_fund_id.to_string()) {
-                let mut updated_patient = patient.clone();
-                updated_patient.latest_fund = None;
-                self.patient_repository
-                    .update_patient(updated_patient)
-                    .await?;
-            }
-        }
-
-        Ok(())
-    }
-
     /// Create a batch of valid procedures
     ///
     /// awaited_amount is recalculated from billed_amount and paid_amount
@@ -1492,45 +1448,6 @@ mod tests {
         assert_eq!(updated.payment_status, ProcedureStatus::Overpaid);
     }
 
-    // --- clear_procedure_type_tracking ---
-
-    #[tokio::test]
-    async fn clear_procedure_type_tracking_clears_matching_patient() {
-        let patient = Patient::restore(
-            "patient-id-1".to_string(),
-            false,
-            Some("Marie Dupont".to_string()),
-            None,
-            Some("type-to-clear".to_string()),
-            None,
-            Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
-            None,
-        );
-        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
-        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
-        let event_bus = Arc::new(EventBus::new());
-        let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(mock_proc_repo_passthrough()),
-            event_bus,
-        ));
-        let orchestrator = ProcedureOrchestrationService::new(
-            context_service,
-            patient_repo,
-            Arc::new(mock_type_repo_stub()),
-            Arc::new(mock_fund_repo_stub()),
-            Arc::new(refund_repo_noop()),
-        );
-
-        orchestrator
-            .clear_procedure_type_tracking("type-to-clear")
-            .await
-            .unwrap();
-
-        let updated = updated_capture.lock().unwrap().clone().unwrap();
-        assert_eq!(updated.latest_procedure_type, None);
-        assert_eq!(updated.latest_date, None);
-    }
-
     // --- create_procedure error paths ---
 
     #[tokio::test]
@@ -1768,44 +1685,6 @@ mod tests {
         );
         let result = orchestrator.update_procedure(source_proc).await;
         assert!(result.is_ok());
-    }
-
-    // --- clear_fund_tracking ---
-
-    #[tokio::test]
-    async fn clear_fund_tracking_clears_matching_patient() {
-        let patient = Patient::restore(
-            "patient-id-1".to_string(),
-            false,
-            Some("Marie Dupont".to_string()),
-            None,
-            Some("type-1".to_string()),
-            Some("fund-to-clear".to_string()),
-            Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
-            None,
-        );
-        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
-        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
-        let event_bus = Arc::new(EventBus::new());
-        let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(mock_proc_repo_passthrough()),
-            event_bus,
-        ));
-        let orchestrator = ProcedureOrchestrationService::new(
-            context_service,
-            patient_repo,
-            Arc::new(mock_type_repo_stub()),
-            Arc::new(mock_fund_repo_stub()),
-            Arc::new(refund_repo_noop()),
-        );
-
-        orchestrator
-            .clear_fund_tracking("fund-to-clear")
-            .await
-            .unwrap();
-
-        let updated = updated_capture.lock().unwrap().clone().unwrap();
-        assert_eq!(updated.latest_fund, None);
     }
 
     // --- DB-error translation arms (orchestrator infra paths) ---

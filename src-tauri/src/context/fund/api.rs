@@ -50,20 +50,6 @@ pub async fn update_fund(
     })
 }
 
-/// Tauri command: Delete an affiliated fund
-#[tauri::command]
-#[specta::specta]
-pub async fn delete_fund(
-    id: String,
-    service: State<'_, Arc<FundService>>,
-) -> Result<(), FundError> {
-    tracing::info!(target: BACKEND, fund_id = %id, "Processing delete fund request");
-
-    service.delete_fund(&id).await.inspect(|_| {
-        tracing::info!(target: BACKEND, fund_id = %id, "Fund deleted successfully");
-    })
-}
-
 // ============ Fund Payment Commands ============
 
 /// Tauri command: Read all fund payment groups

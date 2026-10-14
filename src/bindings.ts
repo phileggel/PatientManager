@@ -86,7 +86,7 @@ async updateFund(fund: Fund) : Promise<Result<Fund, FundError>> {
 }
 },
 /**
- * Tauri command: Delete an affiliated fund
+ * PRO-290 — delete a fund; the patients' defaults that name it go.
  */
 async deleteFund(id: string) : Promise<Result<null, FundError>> {
     try {
@@ -196,7 +196,7 @@ async updateProcedureType(raw: RawProcedureType) : Promise<Result<ProcedureType,
 }
 },
 /**
- * Tauri command: Delete a procedure type
+ * PRO-280 — delete a procedure type; the patients' defaults that name it go.
  */
 async deleteProcedureType(id: string) : Promise<Result<null, ProcedureError>> {
     try {

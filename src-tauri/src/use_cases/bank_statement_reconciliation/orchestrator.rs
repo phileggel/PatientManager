@@ -551,7 +551,6 @@ mod tests {
         mock.expect_find_fund_by_identifier()
             .returning(move |id| Ok(funds.iter().find(|f| f.fund_identifier == id).cloned()));
         mock.expect_create_batch().returning(Ok);
-        mock.expect_delete_fund().returning(|_| Ok(()));
         mock
     }
 

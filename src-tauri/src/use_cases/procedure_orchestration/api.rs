@@ -1,8 +1,9 @@
+use crate::context::fund::FundError;
 use crate::context::procedure::{PaymentMethod, Procedure, ProcedureError, ProcedureStatus};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::procedure_orchestration::{
-    CreateProcedureRequest, ProcedureOrchestrationError, ProcedureOrchestrationService,
-    ProcedureOrchestrationTask,
+    CreateProcedureRequest, DeletionOrchestrator, ProcedureOrchestrationError,
+    ProcedureOrchestrationService, ProcedureOrchestrationTask,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -203,6 +204,28 @@ pub async fn read_procedures_by_ids(
                 "Retrieved procedures by IDs successfully"
             );
         })
+}
+
+/// PRO-280 — delete a procedure type; the patients' defaults that name it go.
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_procedure_type(
+    id: String,
+    orchestrator: State<'_, Arc<DeletionOrchestrator>>,
+) -> Result<(), ProcedureError> {
+    tracing::info!(target: BACKEND, procedure_type_id = %id, "Processing delete procedure type request");
+    orchestrator.delete_procedure_type(&id).await
+}
+
+/// PRO-290 — delete a fund; the patients' defaults that name it go.
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_fund(
+    id: String,
+    orchestrator: State<'_, Arc<DeletionOrchestrator>>,
+) -> Result<(), FundError> {
+    tracing::info!(target: BACKEND, fund_id = %id, "Processing delete fund request");
+    orchestrator.delete_fund(&id).await
 }
 
 #[cfg(test)]

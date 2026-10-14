@@ -1,8 +1,8 @@
 # Contract — Fund
 
 > Domain: fund
-> Backend module: context/fund
-> Last updated by: retroactive (fund CRUD from no dedicated spec; fund payment group CRUD from fund-payment-manual-match spec)
+> Backend module: context/fund; `delete_fund` in use_cases/procedure_orchestration
+> Last updated by: retroactive (fund CRUD from no dedicated spec; fund payment group CRUD from fund-payment-manual-match spec; delete_fund from procedure-orchestration spec)
 
 ## Commands
 
@@ -38,9 +38,9 @@ A user's edit of a fund: the identifier and the name, trimmed and validated, are
 
 ---
 
-### `delete_fund`
+### `delete_fund` — PRO-290
 
-Soft-deletes a fund: it is marked deleted and leaves every read. An unknown id is not an error: the command succeeds and changes nothing. It does not clear the patients' latest fund (PRO-290 is not implemented — DEBT-042).
+Soft-deletes a fund: it is marked deleted and leaves every read. An unknown id is not an error: the command succeeds and changes nothing. In the same transaction, every patient whose latest fund is this one has it cleared (PRO-290); a failure leaves both unchanged. Handled by the `procedure_orchestration` use case.
 
 - **Args:** `id: String`
 - **Returns:** `()`
@@ -132,3 +132,8 @@ enum FundPaymentGroupStatus {
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ProcedureUpdated` | After `create_fund_payment_group`, `update_fund_payment_group_with_procedures`, `delete_fund_payment_group` — procedure statuses and payment fields change |
 | `FundUpdated`      | After `add_fund`, `update_fund`, `delete_fund`                                                                                                             |
+| `PatientUpdated`   | After `delete_fund` (PRO-290)                                                                                                                              |
+
+## Changelog
+
+- 2026-10-14 — Modified by `procedure-orchestration` spec (DEBT-042): delete_fund

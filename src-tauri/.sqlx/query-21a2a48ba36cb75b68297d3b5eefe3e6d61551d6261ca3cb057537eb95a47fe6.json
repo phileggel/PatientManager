@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE patient SET latest_fund = NULL WHERE latest_fund = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "21a2a48ba36cb75b68297d3b5eefe3e6d61551d6261ca3cb057537eb95a47fe6"
+}

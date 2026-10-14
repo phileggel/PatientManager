@@ -121,15 +121,6 @@ impl FundService {
         Ok(result)
     }
 
-    pub async fn delete_fund(&self, id: &str) -> Result<(), FundError> {
-        self.repository.delete_fund(id).await.map_err(|e| {
-            tracing::error!(target: BACKEND, err = ?e, "delete_fund: repository failed");
-            FundError::DatabaseError
-        })?;
-        let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
-        Ok(())
-    }
-
     /// Create batch of valid funds.
     /// Candidates should have been validated first.
     /// Returns the created funds alongside a `temp_id → created_id` map
@@ -496,12 +487,6 @@ mod tests {
         mock
     }
 
-    fn fund_repo_delete_ok() -> MockFundRepository {
-        let mut mock = MockFundRepository::new();
-        mock.expect_delete_fund().returning(|_| Ok(()));
-        mock
-    }
-
     fn fund_repo_failing() -> MockFundRepository {
         let mut mock = MockFundRepository::new();
         mock.expect_find_fund_by_identifier()
@@ -510,8 +495,6 @@ mod tests {
             .returning(|_, _| Err(anyhow!("Mock repository error")));
         mock.expect_read_all_funds()
             .returning(|| Err(anyhow!("Mock repository error")));
-        mock.expect_delete_fund()
-            .returning(|_| Err(anyhow!("Mock repository error")));
         mock
     }
 
@@ -616,24 +599,6 @@ mod tests {
         let service = FundService::new(Arc::new(fund_repo_failing()), Arc::new(EventBus::new()));
 
         let result = service.read_all_funds().await;
-
-        assert!(matches!(result, Err(FundError::DatabaseError)));
-    }
-
-    #[tokio::test]
-    async fn test_delete_fund_success() {
-        let service = FundService::new(Arc::new(fund_repo_delete_ok()), Arc::new(EventBus::new()));
-
-        let result = service.delete_fund("test-id").await;
-
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_delete_fund_repository_error() {
-        let service = FundService::new(Arc::new(fund_repo_failing()), Arc::new(EventBus::new()));
-
-        let result = service.delete_fund("test-id").await;
 
         assert!(matches!(result, Err(FundError::DatabaseError)));
     }

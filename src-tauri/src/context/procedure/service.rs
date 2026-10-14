@@ -77,9 +77,7 @@ impl ProcedureTypeService {
         raw: RawProcedureType,
     ) -> Result<ProcedureType, ProcedureError> {
         tracing::info!(target: BACKEND, id = %raw.id, "Updating procedure type");
-        if raw.id == "import-pdf" {
-            return Err(ProcedureError::ReservedTypeNotMutable);
-        }
+        ProcedureType::ensure_mutable(&raw.id)?;
         let stored = self.read_procedure_type(&raw.id).await?;
         let procedure_type = stored.edit(raw.name, raw.default_amount, raw.category)?;
         let conflict = self
@@ -109,20 +107,12 @@ impl ProcedureTypeService {
         Ok(result)
     }
 
-    /// Soft-delete a procedure type
-    pub async fn delete_procedure_type(&self, id: &str) -> Result<(), ProcedureError> {
-        tracing::info!(target: BACKEND, id = %id, "Deleting procedure type");
-        if id == "import-pdf" {
-            return Err(ProcedureError::ReservedTypeNotMutable);
-        }
-        self.repository.delete_procedure_type(id).await.map_err(|e| {
-            tracing::error!(target: BACKEND, err = ?e, "delete_procedure_type: repository failed");
-            ProcedureError::DatabaseError
-        })?;
+    /// Tell the screens the procedure types changed — after a write a unit of
+    /// work committed (B20).
+    pub fn notify_procedure_types_updated(&self) {
         let _ = self
             .event_bus
             .publish::<ProcedureTypeUpdated>(ProcedureTypeUpdated);
-        Ok(())
     }
 }
 
@@ -447,8 +437,6 @@ mod tests {
         let mut mock = MockProcedureTypeRepository::new();
         mock.expect_find_by_name()
             .returning(|_| Err(anyhow!("Mock repository error")));
-        mock.expect_delete_procedure_type()
-            .returning(|_| Err(anyhow!("Mock repository error")));
         mock
     }
 
@@ -523,16 +511,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_delete_procedure_type_error_propagates() {
-        let service = ProcedureTypeService::new(
-            Arc::new(proc_type_repo_failing()),
-            Arc::new(EventBus::new()),
-        );
-        let result = service.delete_procedure_type("test-id").await;
-        assert!(matches!(result, Err(ProcedureError::DatabaseError)));
-    }
-
-    #[tokio::test]
     async fn test_add_procedure_type_rejects_empty_name() {
         let service = ProcedureTypeService::new(
             Arc::new(MockProcedureTypeRepository::new()),
@@ -595,19 +573,6 @@ mod tests {
         );
         let pt = ProcedureType::restore("import-pdf".to_string(), "Import".to_string(), 0, None);
         let result = service.update_procedure_type(raw(pt)).await;
-        assert!(matches!(
-            result,
-            Err(ProcedureError::ReservedTypeNotMutable)
-        ));
-    }
-
-    #[tokio::test]
-    async fn test_delete_procedure_type_rejects_import_pdf() {
-        let service = ProcedureTypeService::new(
-            Arc::new(MockProcedureTypeRepository::new()),
-            Arc::new(EventBus::new()),
-        );
-        let result = service.delete_procedure_type("import-pdf").await;
         assert!(matches!(
             result,
             Err(ProcedureError::ReservedTypeNotMutable)

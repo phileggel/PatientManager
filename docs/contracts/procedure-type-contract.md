@@ -1,7 +1,7 @@
 # Contract — Procedure Type
 
 > Domain: procedure-type
-> Last updated by: procedure-type spec
+> Last updated by: procedure-orchestration spec (delete_procedure_type, PRO-280)
 
 ## Commands
 
@@ -35,11 +35,11 @@ A user's edit of a procedure type, written onto the stored one. Same field valid
 
 ---
 
-### `delete_procedure_type` — R5, R6, R22
+### `delete_procedure_type` — R5, R6, R22, PRO-280
 
 Soft-deletes a procedure type. The type is marked deleted and no longer returned in reads (R6). Existing procedures that reference it keep their reference. Rejects deletion of the reserved `import-pdf` type (R22). Publishes `ProcedureTypeUpdated` event (R5).
 
-An unknown id is not an error: the command succeeds and changes nothing. It does not clear the patients' latest procedure type (PRO-280 is not implemented — DEBT-042).
+An unknown id is not an error: the command succeeds and changes nothing. In the same transaction, every patient whose latest procedure type is this one has it and its `latest_date` cleared (PRO-280); a failure leaves both unchanged. Handled by the `procedure_orchestration` use case.
 
 - **Args:** `id: String`
 - **Returns:** `()`
@@ -72,7 +72,9 @@ struct RawProcedureType {
 | Event                  | Trigger                                                                           |
 | ---------------------- | --------------------------------------------------------------------------------- |
 | `ProcedureTypeUpdated` | After `add_procedure_type`, `update_procedure_type`, `delete_procedure_type` (R5) |
+| `PatientUpdated`       | After `delete_procedure_type` (PRO-280)                                           |
 
 ## Changelog
 
 - 2026-05-02 — Added by `procedure-type` spec: read_all_procedure_types, add_procedure_type, update_procedure_type, delete_procedure_type
+- 2026-10-14 — Modified by `procedure-orchestration` spec (DEBT-042): delete_procedure_type

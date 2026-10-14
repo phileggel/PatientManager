@@ -40,7 +40,9 @@ use crate::use_cases::fund_payment_reconciliation::{
 };
 use crate::use_cases::overpayment::OverpaymentOrchestrator;
 use crate::use_cases::patient_duplicates::PatientDuplicatesOrchestrator;
-use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
+use crate::use_cases::procedure_orchestration::{
+    DeletionOrchestrator, ProcedureOrchestrationService,
+};
 
 /// Initialize the application backend
 ///
@@ -263,6 +265,15 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         Arc::new(SqlxTransactionManager::new(db.get_pool().clone())),
     ));
 
+    // Create the deletion orchestrator (use_cases/procedure_orchestration, PRO-280,
+    // PRO-290): a type or a fund and the patients' defaults go in one transaction.
+    let deletion_orchestrator = Arc::new(DeletionOrchestrator::new(
+        procedure_type_service.clone(),
+        fund_service.clone(),
+        patient_service.clone(),
+        Arc::new(SqlxTransactionManager::new(db.get_pool().clone())),
+    ));
+
     // Create overpayment orchestrator (use_cases/overpayment, REF)
     let overpayment_orchestrator = Arc::new(OverpaymentOrchestrator::new(
         context_procedure_service.clone(),
@@ -289,6 +300,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     app.manage(fund_service);
     app.manage(context_procedure_service);
     app.manage(procedure_orchestration_service);
+    app.manage(deletion_orchestrator);
     app.manage(procedure_type_service);
     app.manage(reconciliation_service);
     app.manage(fund_payment_service);

@@ -159,6 +159,38 @@ impl SqlitePatientRepository {
 
         Ok(())
     }
+
+    /// PRO-280 — every patient whose latest procedure type is `procedure_type_id`
+    /// loses that default and its date, on a connection the caller owns (ADR-003).
+    pub async fn clear_procedure_type_defaults_in(
+        conn: &mut sqlx::SqliteConnection,
+        procedure_type_id: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"UPDATE patient SET latest_procedure_type = NULL, latest_date = NULL WHERE latest_procedure_type = ?"#,
+            procedure_type_id,
+        )
+        .execute(conn)
+        .await
+        .context("Failed to clear the patients' procedure type default")?;
+        Ok(())
+    }
+
+    /// PRO-290 — every patient whose latest fund is `fund_id` loses that
+    /// default, on a connection the caller owns (ADR-003).
+    pub async fn clear_fund_defaults_in(
+        conn: &mut sqlx::SqliteConnection,
+        fund_id: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"UPDATE patient SET latest_fund = NULL WHERE latest_fund = ?"#,
+            fund_id,
+        )
+        .execute(conn)
+        .await
+        .context("Failed to clear the patients' fund default")?;
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]

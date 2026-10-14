@@ -35,7 +35,6 @@ pub trait FundRepository: Send + Sync {
     async fn update_fund(&self, fund: Fund) -> anyhow::Result<Fund>;
     async fn find_fund_by_identifier(&self, identifier: &str) -> anyhow::Result<Option<Fund>>;
     async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>>;
-    async fn delete_fund(&self, id: &str) -> anyhow::Result<()>;
 }
 
 /// Alphabetical order a user expects: case and accents ignored ("Élan" sits with the E's).
@@ -79,6 +78,19 @@ impl SqliteFundRepository {
                 anyhow::Error::from(e)
             }
         })?;
+
+        Ok(())
+    }
+
+    /// Soft-delete one fund on a connection the caller owns — the write of a
+    /// unit of work (ADR-003, PRO-290).
+    pub async fn soft_delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
+        tracing::trace!(fund_id = %id, "Soft-deleting affiliated fund from database");
+
+        sqlx::query!(r#"UPDATE fund SET is_deleted = 1 WHERE id = ?"#, id)
+            .execute(conn)
+            .await
+            .with_context(|| format!("Failed to soft-delete fund {}", id))?;
 
         Ok(())
     }
@@ -212,18 +224,6 @@ impl FundRepository for SqliteFundRepository {
         );
 
         Ok(created_funds)
-    }
-
-    async fn delete_fund(&self, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(fund_id = %id, "Soft-deleting affiliated fund from database");
-
-        sqlx::query!(r#"UPDATE fund SET is_deleted = 1 WHERE id = ?"#, id)
-            .execute(&self.pool)
-            .await
-            .with_context(|| format!("Failed to soft-delete fund {}", id))?;
-
-        tracing::trace!(fund_id = %id, "Affiliated fund soft-deleted successfully");
-        Ok(())
     }
 }
 
@@ -905,7 +905,11 @@ mod tests {
     async fn delete_fund_soft_deletes() {
         let repo = setup_fund_repo().await;
         let fund = repo.create_fund("75", "CPAM 75").await.unwrap();
-        repo.delete_fund(&fund.id).await.unwrap();
+        let mut conn = repo.pool.acquire().await.unwrap();
+        SqliteFundRepository::soft_delete_in(&mut conn, &fund.id)
+            .await
+            .unwrap();
+        drop(conn);
 
         assert!(repo.read_fund(&fund.id).await.unwrap().is_none());
         assert!(repo.read_all_funds().await.unwrap().is_empty());

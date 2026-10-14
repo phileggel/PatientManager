@@ -88,9 +88,6 @@ mod tests {
         async fn update_fund(&self, _: Fund) -> anyhow::Result<Fund> {
             unimplemented!()
         }
-        async fn delete_fund(&self, _: &str) -> anyhow::Result<()> {
-            unimplemented!()
-        }
         async fn find_fund_by_identifier(&self, _: &str) -> anyhow::Result<Option<Fund>> {
             unimplemented!()
         }

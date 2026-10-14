@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE patient SET latest_procedure_type = NULL, latest_date = NULL WHERE latest_procedure_type = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "4c0e7f054a6414df241da33524aa901858c0f506a564c5ea4d45c35e46ac6a91"
+}

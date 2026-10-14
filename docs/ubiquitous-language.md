@@ -299,9 +299,10 @@ from code and proposed for confirmation.
 
 ### ProcedureType
 
-| Method                                 | Domain intent                 | Status transition | Status    |
-| -------------------------------------- | ----------------------------- | ----------------- | --------- |
-| `edit(name, default_amount, category)` | A user edits a procedure type | —                 | confirmed |
+| Method                                 | Domain intent                                                | Status transition | Status    |
+| -------------------------------------- | ------------------------------------------------------------ | ----------------- | --------- |
+| `edit(name, default_amount, category)` | A user edits a procedure type                                | —                 | confirmed |
+| `ensure_mutable(id)`                   | Refuses a user's edit or deletion of the reserved type (R22) | —                 | proposed  |
 
 ### Patient
 

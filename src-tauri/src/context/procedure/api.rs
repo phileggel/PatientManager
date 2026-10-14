@@ -62,20 +62,3 @@ pub async fn update_procedure_type(
             tracing::info!(target: BACKEND, procedure_type_id = ?pt.id, "Procedure type updated successfully");
         })
 }
-
-/// Tauri command: Delete a procedure type
-#[tauri::command]
-#[specta::specta]
-pub async fn delete_procedure_type(
-    id: String,
-    service: State<'_, Arc<ProcedureTypeService>>,
-) -> Result<(), ProcedureError> {
-    tracing::info!(target: BACKEND, procedure_type_id = %id, "Processing delete procedure type request");
-
-    service
-        .delete_procedure_type(&id)
-        .await
-        .inspect(|_| {
-            tracing::info!(target: BACKEND, procedure_type_id = %id, "Procedure type deleted successfully");
-        })
-}
