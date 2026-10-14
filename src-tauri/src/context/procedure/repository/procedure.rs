@@ -139,7 +139,7 @@ impl SqliteProcedureRepository {
         let payment_status_str = procedure.payment_status.as_db_str();
 
         tracing::trace!(
-            procedure_id = %procedure.id,
+            target: BACKEND, procedure_id = %procedure.id,
             patient_id = %procedure.patient_id,
             "Inserting procedure into database (batch)"
         );
@@ -265,7 +265,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let payment_status_str = procedure.payment_status.as_db_str();
 
         tracing::trace!(
-            procedure_id = %procedure.id,
+            target: BACKEND, procedure_id = %procedure.id,
             patient_id = %procedure.patient_id,
             "Inserting procedure into database"
         );
@@ -290,13 +290,13 @@ impl ProcedureRepository for SqliteProcedureRepository {
         .execute(&self.pool)
         .await?;
 
-        tracing::trace!(procedure_id = %procedure.id, "Procedure inserted successfully");
+        tracing::trace!(target: BACKEND, procedure_id = %procedure.id, "Procedure inserted successfully");
 
         Ok(procedure)
     }
 
     async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-        tracing::trace!("Fetching all active procedures from database");
+        tracing::trace!(target: BACKEND, "Fetching all active procedures from database");
 
         let rows = sqlx::query_as!(
             ProcedureRow,
@@ -313,7 +313,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
     }
 
     async fn read_procedure(&self, id: &str) -> anyhow::Result<Option<Procedure>> {
-        tracing::trace!(procedure_id = %id, "Fetching procedure from database");
+        tracing::trace!(target: BACKEND, procedure_id = %id, "Fetching procedure from database");
 
         let row = sqlx::query_as!(
             ProcedureRow,
@@ -331,7 +331,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
     }
 
     async fn read_procedures_by_ids(&self, ids: &[String]) -> anyhow::Result<Vec<Procedure>> {
-        tracing::debug!(count = ids.len(), "Fetching procedures by IDs");
+        tracing::debug!(target: BACKEND, count = ids.len(), "Fetching procedures by IDs");
 
         if ids.is_empty() {
             return Ok(Vec::new());
@@ -365,7 +365,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         &self,
         patient_id: &str,
     ) -> anyhow::Result<Vec<Procedure>> {
-        tracing::trace!(patient_id = %patient_id, "Fetching procedures by patient_id");
+        tracing::trace!(target: BACKEND, patient_id = %patient_id, "Fetching procedures by patient_id");
 
         let rows = sqlx::query_as!(
             ProcedureRow,
@@ -384,7 +384,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
     }
 
     async fn update_procedure(&self, procedure: Procedure) -> anyhow::Result<Procedure> {
-        tracing::trace!(procedure_id = %procedure.id, "Updating procedure in database");
+        tracing::trace!(target: BACKEND, procedure_id = %procedure.id, "Updating procedure in database");
 
         let payment_method_str = procedure.payment_method.as_db_str();
         let payment_status_str = procedure.payment_status.as_db_str();
@@ -410,12 +410,12 @@ impl ProcedureRepository for SqliteProcedureRepository {
         .execute(&self.pool)
         .await?;
 
-        tracing::trace!("Procedure updated successfully");
+        tracing::trace!(target: BACKEND, "Procedure updated successfully");
         Ok(procedure.clone())
     }
 
     async fn delete_procedure(&self, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(procedure_id = %id, "Soft-deleting procedure from database");
+        tracing::trace!(target: BACKEND, procedure_id = %id, "Soft-deleting procedure from database");
 
         sqlx::query!(r#"UPDATE procedure SET is_deleted = 1 WHERE id = ?"#, id)
             .execute(&self.pool)
@@ -431,7 +431,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>> {
-        tracing::trace!(start = %start_date, end = %end_date,
+        tracing::trace!(target: BACKEND, start = %start_date, end = %end_date,
                         "Querying procedures by SSN and date range");
 
         let rows = sqlx::query_as!(
@@ -469,7 +469,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         }
 
         tracing::debug!(
-            ssn_count = ssns.len(),
+            target: BACKEND, ssn_count = ssns.len(),
             start = %start_date,
             end = %end_date,
             "Batch querying procedures by multiple SSNs (with SSN return for grouping)"
@@ -514,7 +514,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             .await?;
 
         tracing::info!(
-            ssn_count = ssns.len(),
+            target: BACKEND, ssn_count = ssns.len(),
             procedure_count = rows.len(),
             "Batch procedure query with SSN completed"
         );
@@ -550,7 +550,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         billed_amount: i64,
     ) -> anyhow::Result<Option<Procedure>> {
         tracing::trace!(
-            patient_id = %patient_id,
+            target: BACKEND, patient_id = %patient_id,
             fund_id = ?fund_id,
             procedure_date = %procedure_date,
             billed_amount = %billed_amount,
@@ -591,7 +591,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
 
         tx.commit().await?;
         tracing::trace!(
-            count = created_procedures.len(),
+            target: BACKEND, count = created_procedures.len(),
             "Procedures batch inserted successfully"
         );
 
@@ -609,7 +609,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
 
         tx.commit().await?;
         tracing::trace!(
-            count = updated_procedures.len(),
+            target: BACKEND, count = updated_procedures.len(),
             "Procedures batch updated successfully"
         );
 
@@ -617,7 +617,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
     }
 
     async fn find_unpaid_by_fund(&self, fund_id: &str) -> anyhow::Result<Vec<Procedure>> {
-        tracing::debug!(fund_id = %fund_id, "Finding unpaid procedures by fund");
+        tracing::debug!(target: BACKEND, fund_id = %fund_id, "Finding unpaid procedures by fund");
 
         let rows = sqlx::query_as!(
             ProcedureRow,
@@ -645,7 +645,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> anyhow::Result<Vec<UnreconciledProcedure>> {
-        tracing::debug!(start_date = %start_date, end_date = %end_date, "Finding unreconciled procedures by date range");
+        tracing::debug!(target: BACKEND, start_date = %start_date, end_date = %end_date, "Finding unreconciled procedures by date range");
 
         let rows = sqlx::query_as!(
             UnreconciledProcedureRow,
@@ -718,7 +718,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         date_max: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>> {
         tracing::debug!(
-            date_min = %date_min,
+            target: BACKEND, date_min = %date_min,
             date_max = %date_max,
             "Finding Created procedures in date range for direct payment"
         );
@@ -751,7 +751,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
         date: NaiveDate,
     ) -> anyhow::Result<Vec<Procedure>> {
         tracing::debug!(
-            fund_id = %fund_id,
+            target: BACKEND, fund_id = %fund_id,
             date = %date,
             "Finding Created procedures by fund before date (R19)"
         );
