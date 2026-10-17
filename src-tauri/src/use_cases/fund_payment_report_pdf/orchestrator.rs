@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use super::error::ReportPdfError;
 use super::renderer::render;
 use super::request::ReportGenerationRequest;
+use crate::shared::secure_path::{validate_user_path, PathPolicy};
+use crate::BACKEND;
 
 /// Orchestrate the post-reconciliation report PDF generation.
 ///
@@ -37,42 +39,72 @@ pub fn generate(request: &ReportGenerationRequest) -> Result<Vec<u8>, ReportPdfE
 /// - `ReportPdfError::WriteFailed` if the filesystem write fails.
 pub fn save(request: &ReportGenerationRequest, path: &Path) -> Result<(), ReportPdfError> {
     let bytes = generate(request)?;
-    std::fs::write(path, &bytes).map_err(|e| ReportPdfError::WriteFailed {
-        detail: io_error_code(&e).to_string(),
-    })?;
+    // A new file only: anything already at the name, a link planted since the
+    // name was chosen included, is refused rather than written through.
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .and_then(|mut file| std::io::Write::write_all(&mut file, &bytes))
+        .map_err(|e| ReportPdfError::WriteFailed {
+            detail: io_error_code(&e).to_string(),
+        })?;
     Ok(())
 }
 
-/// Return `base` if no file exists there, otherwise insert ` (N)` before the
-/// extension and probe `N = 1, 2, 3, …` until an unused path is found.
+/// Where a report named `filename` is written in `downloads_dir`: the first
+/// free name ([`next_available_path`]), checked as every written path is —
+/// never a link, never outside the folder (DEBT-048).
+pub fn destination_in(downloads_dir: &Path, filename: &str) -> Result<PathBuf, ReportPdfError> {
+    let free = next_available_path(&downloads_dir.join(filename)).ok_or_else(|| {
+        tracing::warn!(target: BACKEND, "No free report name in the folder");
+        ReportPdfError::WriteFailed {
+            detail: "no_free_name".into(),
+        }
+    })?;
+    validate_user_path(
+        &free.to_string_lossy(),
+        downloads_dir,
+        PathPolicy::NewFileInExistingDir {
+            extensions: &["pdf"],
+        },
+    )
+    .map_err(|e| {
+        tracing::warn!(target: BACKEND, error = %e, "Report path rejected");
+        ReportPdfError::WriteFailed {
+            detail: "path_rejected".into(),
+        }
+    })
+}
+
+/// How many ` (N)` names are tried before giving up.
+const PROBE_LIMIT: usize = 1000;
+
+/// Return `base` if nothing is at that name, otherwise insert ` (N)` before
+/// the extension and probe `N = 1, 2, 3, …` until a free name is found.
 ///
-/// Mirrors the OS Downloads collision UX (`name.pdf`, `name (1).pdf`,
-/// `name (2).pdf`, …) so re-exporting the same report for the same period
-/// never silently overwrites a previous file.
-///
-/// The probe cap (1000) is defensive — a real Downloads directory is never
-/// expected to hold a thousand same-named exports. On overflow the original
-/// `base` is returned and the eventual `fs::write` overwrites it.
-pub fn next_available_path(base: &Path) -> PathBuf {
-    if !base.exists() {
-        return base.to_path_buf();
+/// Mirrors the OS Downloads collision UX (`name.pdf`, `name (1).pdf`, …) so
+/// re-exporting never overwrites a previous file. A name is taken when
+/// anything is there, a dangling symbolic link included, so a write never
+/// follows a link (DEBT-048). `None` once [`PROBE_LIMIT`] names are taken.
+fn next_available_path(base: &Path) -> Option<PathBuf> {
+    let taken = |path: &Path| std::fs::symlink_metadata(path).is_ok();
+    if !taken(base) {
+        return Some(base.to_path_buf());
     }
     let stem = base.file_stem().and_then(|s| s.to_str()).unwrap_or("");
     let ext = base.extension().and_then(|s| s.to_str()).unwrap_or("");
     let parent = base.parent().unwrap_or_else(|| Path::new(""));
 
-    for n in 1..=1000 {
-        let candidate_name = if ext.is_empty() {
-            format!("{stem} ({n})")
-        } else {
-            format!("{stem} ({n}).{ext}")
-        };
-        let candidate = parent.join(candidate_name);
-        if !candidate.exists() {
-            return candidate;
-        }
-    }
-    base.to_path_buf()
+    (1..=PROBE_LIMIT)
+        .map(|n| {
+            parent.join(if ext.is_empty() {
+                format!("{stem} ({n})")
+            } else {
+                format!("{stem} ({n}).{ext}")
+            })
+        })
+        .find(|candidate| !taken(candidate))
 }
 
 /// Map a `std::io::Error` to a fixed, platform-independent code.
@@ -159,10 +191,36 @@ mod tests {
     }
 
     #[test]
+    fn debt_048_save_never_writes_over_what_is_at_the_name() {
+        let req = valid_request();
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let path = dir.path().join("report.pdf");
+        std::fs::write(&path, b"kept").expect("seed");
+        let err = save(&req, &path).expect_err("an existing entry must be refused");
+        assert!(
+            matches!(err, ReportPdfError::WriteFailed { ref detail } if detail == "already_exists"),
+            "{err:?}"
+        );
+        assert_eq!(std::fs::read(&path).expect("read"), b"kept");
+    }
+
+    #[test]
+    fn debt_048_a_report_is_written_in_its_folder_under_a_free_name() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        std::fs::write(dir.path().join("report.pdf"), b"x").expect("seed");
+        let target = destination_in(dir.path(), "report.pdf").expect("a free name");
+        assert_eq!(
+            target.file_name().and_then(|n| n.to_str()),
+            Some("report (1).pdf")
+        );
+        assert!(target.starts_with(std::fs::canonicalize(dir.path()).expect("canonical")));
+    }
+
+    #[test]
     fn next_available_path_returns_base_when_unused() {
         let dir = tempfile::tempdir().expect("create tempdir");
         let base = dir.path().join("report.pdf");
-        assert_eq!(next_available_path(&base), base);
+        assert_eq!(next_available_path(&base), Some(base));
     }
 
     #[test]
@@ -172,7 +230,7 @@ mod tests {
         std::fs::write(&base, b"x").expect("seed first collision");
 
         let next = next_available_path(&base);
-        assert_eq!(next, dir.path().join("report (1).pdf"));
+        assert_eq!(next, Some(dir.path().join("report (1).pdf")));
     }
 
     #[test]
@@ -184,7 +242,32 @@ mod tests {
         std::fs::write(dir.path().join("report (2).pdf"), b"x").expect("seed");
 
         let next = next_available_path(&base);
-        assert_eq!(next, dir.path().join("report (3).pdf"));
+        assert_eq!(next, Some(dir.path().join("report (3).pdf")));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn debt_048_a_dangling_link_at_the_name_is_never_written_through() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let base = dir.path().join("report.pdf");
+        std::os::unix::fs::symlink(dir.path().join("elsewhere.pdf"), &base).expect("plant a link");
+
+        assert_eq!(
+            next_available_path(&base),
+            Some(dir.path().join("report (1).pdf"))
+        );
+    }
+
+    #[test]
+    fn debt_065_no_free_name_after_the_probe_limit_is_none() {
+        let dir = tempfile::tempdir().expect("create tempdir");
+        let base = dir.path().join("report.pdf");
+        std::fs::write(&base, b"x").expect("seed");
+        for n in 1..=PROBE_LIMIT {
+            std::fs::write(dir.path().join(format!("report ({n}).pdf")), b"x").expect("seed");
+        }
+
+        assert_eq!(next_available_path(&base), None);
     }
 
     #[test]
@@ -194,7 +277,7 @@ mod tests {
         std::fs::write(&base, b"x").expect("seed");
 
         let next = next_available_path(&base);
-        assert_eq!(next, dir.path().join("report (1)"));
+        assert_eq!(next, Some(dir.path().join("report (1)")));
     }
 
     #[test]

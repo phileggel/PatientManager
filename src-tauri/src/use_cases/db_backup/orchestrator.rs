@@ -11,6 +11,28 @@ use crate::shared::Database;
 
 use super::error::DbBackupError;
 
+/// The most a backup may decompress to: far above any practice's database, it
+/// stops a crafted archive from filling the disk (DEBT-065).
+const MAX_DECOMPRESSED_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+/// Copy a decompressing reader into `writer`, refusing a payload above `cap`
+/// as a corrupt backup.
+fn copy_capped(
+    reader: &mut impl io::Read,
+    writer: &mut impl io::Write,
+    cap: u64,
+) -> Result<(), DbBackupError> {
+    let copied = io::copy(&mut io::Read::take(&mut *reader, cap + 1), writer).map_err(|e| {
+        tracing::error!(target: BACKEND, error = %e, "Gzip decompression failed");
+        DbBackupError::ImportFailed
+    })?;
+    if copied > cap {
+        tracing::error!(target: BACKEND, cap, "Backup decompresses past its size cap");
+        return Err(DbBackupError::BackupCorrupted);
+    }
+    Ok(())
+}
+
 /// Orchestrates database export and import operations (R8–R11).
 pub struct DbBackupOrchestrator {
     db: Arc<Database>,
@@ -57,11 +79,8 @@ impl DbBackupOrchestrator {
             DbBackupError::ExportFailed
         })?;
 
-        if temp_str.contains('\'') {
-            tracing::error!(target: BACKEND, "Temp export path contains unexpected characters");
-            return Err(DbBackupError::ExportFailed);
-        }
-        sqlx::query(sqlx::AssertSqlSafe(format!("VACUUM INTO '{temp_str}'")))
+        sqlx::query("VACUUM INTO ?")
+            .bind(temp_str)
             .execute(self.db.get_pool())
             .await
             .map_err(|e| {
@@ -142,10 +161,7 @@ impl DbBackupOrchestrator {
         })?;
         let mut decoder = GzDecoder::new(io::BufReader::new(input));
         let mut writer = io::BufWriter::new(output);
-        io::copy(&mut decoder, &mut writer).map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Gzip decompression failed");
-            DbBackupError::ImportFailed
-        })?;
+        copy_capped(&mut decoder, &mut writer, MAX_DECOMPRESSED_BYTES)?;
         drop(writer);
 
         // Validate the decompressed database (R9) — a bad payload is a corrupt
@@ -278,6 +294,20 @@ mod tests {
             buf.starts_with(b"SQLite format 3"),
             "decompressed content should be SQLite"
         );
+    }
+
+    #[test]
+    fn debt_065_a_payload_past_the_cap_is_a_corrupt_backup() {
+        let mut out = Vec::new();
+        let err = copy_capped(&mut io::Cursor::new(vec![0u8; 11]), &mut out, 10).unwrap_err();
+        assert!(matches!(err, DbBackupError::BackupCorrupted), "{err:?}");
+    }
+
+    #[test]
+    fn debt_065_a_payload_within_the_cap_is_copied_whole() {
+        let mut out = Vec::new();
+        copy_capped(&mut io::Cursor::new(vec![7u8; 10]), &mut out, 10).expect("within the cap");
+        assert_eq!(out, vec![7u8; 10]);
     }
 
     #[tokio::test]

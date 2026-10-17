@@ -1,7 +1,7 @@
 use tauri::{AppHandle, Manager};
 
 use super::error::ReportPdfError;
-use super::orchestrator::{generate, next_available_path, save};
+use super::orchestrator::{destination_in, generate, save};
 use super::request::ReportGenerationRequest;
 use crate::BACKEND;
 
@@ -75,14 +75,17 @@ fn log_report_pdf_error(e: &ReportPdfError) {
 /// frontend can surface its name in a confirmation toast.
 ///
 /// Filename safety: the caller-supplied `filename` is treated as a leaf name
-/// only — it MUST contain no path separators, no `..` segment, must end in
+/// only — it MUST contain no path separator, no `:`, no `..`, no Windows
+/// device name, must end in
 /// `.pdf`, and must fit within [`FILENAME_MAX_LEN`]. The destination
-/// directory is fixed to the platform Downloads folder; no user-supplied
-/// path component reaches the filesystem.
+/// directory is fixed to the platform Downloads folder; the chosen name goes
+/// through `validate_user_path` (never a link, never outside Downloads) and is
+/// created new, never written over.
 ///
-/// Collision handling: if a same-named file already exists, a ` (N)` suffix
-/// is appended before the extension (`name.pdf` → `name (1).pdf` → …) so
-/// re-exporting the same report never silently overwrites a prior one.
+/// Collision handling: if anything is at that name, a link included, a ` (N)`
+/// suffix is appended before the extension (`name.pdf` → `name (1).pdf` → …),
+/// so re-exporting never overwrites a prior one; after 1000 taken names the
+/// export fails (`no_free_name`).
 #[tauri::command]
 #[specta::specta]
 pub async fn export_and_open_fund_reconciliation_report_pdf(
@@ -105,23 +108,34 @@ pub async fn export_and_open_fund_reconciliation_report_pdf(
         }
     })?;
 
-    let target = next_available_path(&downloads_dir.join(&filename));
+    let target = destination_in(&downloads_dir, &filename).inspect_err(log_report_pdf_error)?;
 
     save(&request, &target).inspect_err(log_report_pdf_error)?;
     tracing::info!(target: BACKEND, "Fund reconciliation report PDF saved");
 
-    tauri_plugin_opener::open_path(&target, None::<&str>).map_err(|e| {
-        tracing::error!(target: BACKEND, error = %e, "Failed to open report PDF in system viewer");
-        ReportPdfError::OpenFailed {
-            detail: e.to_string(),
-        }
-    })?;
+    tauri_plugin_opener::open_path(&target, None::<&str>).map_err(open_failed)?;
 
     Ok(target.to_string_lossy().into_owned())
 }
 
-/// Reject filenames that are empty, too long, contain path separators or
-/// `..` segments, or do not end in `.pdf` (case-insensitive).
+/// The opener's own error text can name the report's local path: it is logged,
+/// and the frontend gets a fixed code (DEBT-061).
+fn open_failed(e: impl std::fmt::Display) -> ReportPdfError {
+    tracing::error!(target: BACKEND, error = %e, "Failed to open report PDF in system viewer");
+    ReportPdfError::OpenFailed {
+        detail: "open_failed".into(),
+    }
+}
+
+/// Windows device names, refused as a file stem whatever the extension.
+const RESERVED_STEMS: &[&str] = &[
+    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+];
+
+/// Reject filenames that are empty, too long, contain path separators, `:`
+/// or `..` segments, name a Windows device, or do not end in `.pdf`
+/// (case-insensitive).
 ///
 /// Returns an `Err` carrying a fixed code suitable for direct surfacing to
 /// the frontend — no user-supplied content is echoed back.
@@ -135,10 +149,17 @@ fn validate_filename(filename: &str) -> Result<(), ReportPdfError> {
     if filename.chars().count() > FILENAME_MAX_LEN {
         return Err(reject("Filename too long"));
     }
-    if filename.contains('/') || filename.contains('\\') {
+    if filename.contains('/') || filename.contains('\\') || filename.contains(':') {
         return Err(reject("Filename contains path separator"));
     }
-    if filename.split(['/', '\\']).any(|segment| segment == "..") || filename.contains("..") {
+    let stem = filename.split('.').next().unwrap_or("").trim_end();
+    if RESERVED_STEMS
+        .iter()
+        .any(|reserved| stem.eq_ignore_ascii_case(reserved))
+    {
+        return Err(reject("Filename is a reserved device name"));
+    }
+    if filename.contains("..") {
         return Err(reject("Filename contains parent reference"));
     }
     if !filename.to_ascii_lowercase().ends_with(".pdf") {
@@ -150,6 +171,29 @@ fn validate_filename(filename: &str) -> Result<(), ReportPdfError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn debt_061_a_failed_open_sends_a_fixed_code_never_the_path() {
+        match open_failed("cannot open /home/someone/Downloads/report.pdf") {
+            ReportPdfError::OpenFailed { detail } => assert_eq!(detail, "open_failed"),
+            other => panic!("expected OpenFailed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn debt_065_a_colon_or_a_windows_device_name_is_refused() {
+        for name in [
+            "C:report.pdf",
+            "report:x.pdf",
+            "CON.pdf",
+            "nul.pdf",
+            "Com1.pdf",
+            "lpt9.pdf",
+        ] {
+            assert!(validate_filename(name).is_err(), "{name} must be refused");
+        }
+        assert!(validate_filename("console.pdf").is_ok());
+    }
 
     #[test]
     fn validate_filename_accepts_simple_pdf_name() {

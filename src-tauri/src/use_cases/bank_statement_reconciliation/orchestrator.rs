@@ -97,7 +97,7 @@ impl BankStatementOrchestrator {
         })?;
 
         let text = pdf_extractor::extract_pdf_text(&canonical).map_err(|e| {
-            tracing::error!(target: BACKEND, err = ?e, "parse_bank_statement: PDF text extraction failed");
+            tracing::error!(target: BACKEND, kind = %pdf_extractor::failure_kind(&e), "parse_bank_statement: PDF text extraction failed");
             BankStatementReconciliationTask::PdfExtractionFailed
         })?;
         tracing::info!(target: BACKEND, chars = text.len(), "PDF text extracted");

@@ -23,7 +23,7 @@ pub mod request;
 #[cfg(feature = "app")]
 pub use api::*;
 pub use error::ReportPdfError;
-pub use orchestrator::{generate, next_available_path, save};
+pub use orchestrator::{generate, save};
 pub use renderer::render;
 pub use request::{
     CorrectionGroup, ReportGenerationRequest, UnreconciledColumns, UnreconciledRow,

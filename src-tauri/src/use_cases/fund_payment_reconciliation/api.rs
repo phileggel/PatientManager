@@ -123,7 +123,7 @@ pub async fn extract_pdf_text(file_path: String) -> Result<String, FundPaymentRe
         FundPaymentReconciliationError::from(FundPaymentReconciliationTask::PdfPathRejected)
     })?;
     let result = pdf_extractor::extract_pdf_text(&canonical).map_err(|e| {
-        tracing::error!(target: BACKEND, error = %format!("{e:#}"), "PDF text extraction failed");
+        tracing::error!(target: BACKEND, kind = %pdf_extractor::failure_kind(&e), "PDF text extraction failed");
         FundPaymentReconciliationError::from(FundPaymentReconciliationTask::PdfExtractionFailed)
     })?;
     let result = ensure_has_text(result)?;
