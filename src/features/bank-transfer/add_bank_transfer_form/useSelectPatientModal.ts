@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCacheStore } from "@/infra/cache/store";
 import { useFormatters } from "@/ui/format/formatters";
 
@@ -6,6 +7,7 @@ export function useSelectPatientModal() {
   const patients = useCacheStore((state) => state.patients);
   const [searchTerm, setSearchTerm] = useState("");
   const { formatDate } = useFormatters();
+  const { t } = useTranslation("bank");
 
   const filteredPatients = useMemo(() => {
     if (!searchTerm.trim()) return patients;
@@ -18,8 +20,9 @@ export function useSelectPatientModal() {
   }, [patients, searchTerm]);
 
   const formatDateOrNA = useCallback(
-    (dateStr: string | null) => (dateStr ? formatDate(dateStr) : "N/A"),
-    [formatDate],
+    (dateStr: string | null) =>
+      dateStr ? formatDate(dateStr) : t("transfer.select_patient_modal.na"),
+    [formatDate, t],
   );
 
   return {

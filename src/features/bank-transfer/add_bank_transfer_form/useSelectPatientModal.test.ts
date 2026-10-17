@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Patient } from "@/bindings";
+import i18n from "@/i18n/config";
 import { useCacheStore } from "@/infra/cache/store";
 import { makePatient } from "@/tests/patient.factory";
 import { useSelectPatientModal } from "./useSelectPatientModal";
@@ -71,6 +72,18 @@ describe("useSelectPatientModal — formatDate", () => {
     const { result } = renderHook(() => useSelectPatientModal());
 
     expect(result.current.formatDate(null)).toBe("N/A");
+  });
+
+  it("DEBT-052: a missing date reads the translated key, not a literal", () => {
+    const key = "transfer.select_patient_modal.na";
+    const original = i18n.t(key, { ns: "bank" });
+    i18n.addResource("en", "bank", key, "—");
+    try {
+      const { result } = renderHook(() => useSelectPatientModal());
+      expect(result.current.formatDate(null)).toBe("—");
+    } finally {
+      i18n.addResource("en", "bank", key, original);
+    }
   });
 
   it("formats a valid ISO date as a localised string", () => {
