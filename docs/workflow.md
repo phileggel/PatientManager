@@ -142,10 +142,10 @@ A task is a queued entry (`/run-entry`, headless), an entry the human names
 (`/run-entry TODO-NNN`), or a request typed in chat ("do X"). A chat request leaves no
 todo entry: the pull request body is its record.
 
-1. **Pick and brief.** In chat, a question to the human is asked alone, with the context
-   to answer it cold — what happened, what each option changes, what it costs — and the
-   next one waits for the answer. Headless, a question is written into the entry and the
-   run moves on.
+1. **Pick and brief.** In chat, a question to the human goes through `AskUserQuestion`,
+   one per call (owner, 2026-10-17): what happened, what each option changes and costs,
+   the recommended one first; no status message repeats it, and the next waits for its
+   answer. Headless, a question is written into the entry and the run moves on.
    - **The questions come before the work — the decision scan** (owner, 2026-10-06):
      the agent reads the entry and the code it names, lists every choice that is the
      owner's — what a user sees, a term, a rule's scope, where a programme stops — and asks

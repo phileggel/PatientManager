@@ -40,7 +40,7 @@ This avoids asking the user what the codebase already answers.
 
 ### 2. Interview — Round 1
 
-Use **AskUserQuestion** with up to 4 questions at once:
+Ask the round's questions (up to 4) with **AskUserQuestion**, one call each (`docs/workflow.md` § 3):
 
 1. **Feature name** — what short name will be used for the file and rules?
 2. **Trigram** — Assign a 3-letter identifier for this spec (e.g., `REF`, `PAY`, `INV`). Trigram must be unique per project. If your choice collides with an existing trigram in `docs/spec-index.md`, you'll be prompted to pick a different one (up to 2 collision attempts allowed; see step 3).
@@ -218,7 +218,7 @@ After writing the spec, check the `## Open Questions` section for unchecked item
 
 **While `[ ]` items remain:**
 
-1. Group remaining open questions into a single **AskUserQuestion** call (max 4 at a time, prioritise the most blocking ones first).
+1. Ask the remaining open questions (up to 4, the most blocking first) with **AskUserQuestion**, one call each.
 2. For each answer received:
    - If the answer resolves the question: update the affected `{TRIGRAM}-NNN` rule(s) in the spec, then mark the item `[x]` (or remove it if the answer makes the question moot).
    - If the answer reveals a new unknown: add a new `[ ]` item for it.
