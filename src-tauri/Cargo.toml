@@ -1,6 +1,6 @@
 [package]
 name = "patient_manager_app"
-version = "0.24.5"
+version = "0.24.6"
 description = "PatientManager - Patient and service management system"
 authors = ["you"]
 edition = "2021"
