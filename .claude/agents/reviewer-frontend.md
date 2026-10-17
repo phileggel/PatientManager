@@ -1,6 +1,6 @@
 ---
 name: reviewer-frontend
-description: Frontend code-quality and UX lane for `.ts` / `.tsx` under `src/` — typed error pipeline (F27), gateway calls, stable ids (F25), translated a11y labels (F24), cross-feature imports (F26), bucket layout (F28), M3 tokens, UX completeness. Runs alongside `reviewer-arch`. `release-sweep` in the prompt reads what changed since the last release's tag, every finding with a severity.
+description: Frontend code-quality and UX lane for `.ts` / `.tsx` under `src/` — typed error pipeline (F27), gateway calls, stable ids (F25), translated a11y labels (F24), cross-feature imports (F26), bucket layout (F28), M3 tokens, UX completeness. Runs alongside `reviewer-arch`. `release-sweep` in the prompt reads what changed since the last batch end's tag (`v*` or `batch/<date>`), every finding with a severity.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 ---

@@ -1,6 +1,6 @@
 ---
 name: reviewer-e2e
-description: E2E lane for WebdriverIO tests (`e2e/**/*.test.ts`) — stable-id selectors (E1–E5), explicit waits (E10), controlled-input handling (E6–E7), no mocks, independent tests, helper use. Runs only when E2E test files change. `release-sweep` in the prompt reads what changed since the last release's tag, every finding with a severity.
+description: E2E lane for WebdriverIO tests (`e2e/**/*.test.ts`) — stable-id selectors (E1–E5), explicit waits (E10), controlled-input handling (E6–E7), no mocks, independent tests, helper use. Runs only when E2E test files change. `release-sweep` in the prompt reads what changed since the last batch end's tag (`v*` or `batch/<date>`), every finding with a severity.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 ---

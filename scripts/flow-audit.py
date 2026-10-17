@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 """Deterministic figures for the /flow-audit skill.
 
-Measures how work moved between two releases — the pull requests merged, how long each
+Measures how work moved between two batch ends (releases or `batch/<date>` tags) — the pull requests merged, how long each
 took from opening to merging, the CI rounds and what failed, how long each workflow
 runs, how long the queue took, what each entry took beside its size, how many issues and Dependabot pull requests
 were open at its start and at its end — and prints them as one JSON document, beside the
-same figures for the release before when asked. It also reads the repository itself:
+same figures for the batch before when asked. It also reads the repository itself:
 which tools the usage log saw and which it never did, the paths the documents name that
 no longer exist, and the length of the documents and prompts the agent works from,
-beside the release before.
+beside the batch before.
 
 Usage:
     python3 scripts/flow-audit.py v0.5.0                 # from that release to now
-    python3 scripts/flow-audit.py v0.5.0 v0.6.0          # between two releases
+    python3 scripts/flow-audit.py v0.5.0 v0.6.0          # between two batch ends
     python3 scripts/flow-audit.py v0.5.0 v0.6.0 --previous v0.4.0
     python3 scripts/flow-audit.py v0.5.0 --pretty
 
-A release is named by its tag; its moment is when it was published on GitHub. The skill
+A release is named by its tag; its moment is when it was published on GitHub. A batch
+that ended without a release is named by its `batch/<date>` tag, dated by the tag. The skill
 turns the figures into the "Measured" section of `docs/work/audits.md`. This script has
 no judgment — only counting.
 """
@@ -51,7 +52,7 @@ ROUND_WORKFLOW = "Quality"
 # The conventional commit types of `docs/commit-rules.md`.
 COMMIT_TYPES = {"feat", "fix", "refactor", "chore", "ci", "docs", "test"}
 # What the agent works from: rules, the workflow and every prompt. Their length is
-# stated beside the release before, so a document that only grows is seen.
+# stated beside the batch before, so a document that only grows is seen.
 GUIDES = (
     "CLAUDE.md",
     "docs/workflow.md",
@@ -362,7 +363,7 @@ def dangling_paths(texts: dict[str, str], exists) -> dict[str, list[str]]:
 
 
 def compare_lengths(now: dict[str, int], before: dict[str, int]) -> dict[str, dict]:
-    """Each guide with its length now and at the release before; None where it did not exist."""
+    """Each guide with its length now and at the batch before; None where it did not exist."""
     return {
         path: {"lines": now.get(path), "was": before.get(path)}
         for path in sorted(set(now) | set(before))
@@ -502,8 +503,19 @@ def collect_reruns(earliest: datetime) -> list[dict]:
     ]
 
 
+BATCH_TAG_PREFIX = "batch/"
+
+
 def release_moment(tag: str) -> datetime:
-    """When the release `tag` was published."""
+    """When the release `tag` was published, or, for a batch that ended without a
+    release, when its annotated `batch/<date>` tag was made (FLOW-074)."""
+    if tag.startswith(BATCH_TAG_PREFIX):
+        made = _git(
+            "for-each-ref", f"refs/tags/{tag}", "--format=%(taggerdate:iso-strict)"
+        ).strip()
+        if not made:
+            raise SystemExit(f"flow-audit: batch tag {tag} has no tagger date")
+        return parse_moment(made)
     release = _gh_json("release", "view", tag, "--json", "publishedAt")
     published = release.get("publishedAt") if isinstance(release, dict) else None
     if not published:
@@ -548,12 +560,12 @@ def truncated(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("since", help="the release the window starts after, by its tag")
+    parser.add_argument("since", help="the release (or `batch/<date>` tag) the window starts after")
     parser.add_argument(
-        "until", nargs="?", help="the release the window ends at (default: now)"
+        "until", nargs="?", help="the release (or `batch/<date>` tag) the window ends at (default: now)"
     )
     parser.add_argument(
-        "--previous", help="the release before `since`, to print its window too"
+        "--previous", help="the batch end before `since`, to print its window too"
     )
     parser.add_argument("--pretty", action="store_true", help="indented JSON")
     args = parser.parse_args(argv)

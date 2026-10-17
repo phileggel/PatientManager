@@ -1,6 +1,6 @@
 ---
 name: plan-queue
-description: Shows the state of the work queue (queued, ready, blocked, debt, open pull requests), refines the candidates against their code and proposes the next queue (docs/work/queue.md) for the owner to validate in chat. Chat only. Use when the queue is empty or short, after a release, or when returning to the project.
+description: Shows the state of the work queue (queued, ready, blocked, debt, open pull requests), refines the candidates against their code and proposes the next queue (docs/work/queue.md) for the owner to validate in chat. Chat only. Use when the queue is empty or short, after a batch ends, or when returning to the project.
 ---
 
 # Skill — `plan-queue`
@@ -54,9 +54,9 @@ Name every entry that is a programme and propose its first slice, as
 
 Print, in this order:
 
-1. **In flight** — open pull requests and their checks; the queue as it stands.
-   Then the size of the proposal beside what the last batches merged, where it stops,
-   and a todo entry's missing size, as `docs/workflow.md` § 2 states them.
+1. **In flight** — open pull requests and their checks; the queue as it stands. Then
+   the proposal's size beside what the last batches merged, where it stops, a todo's
+   missing size (§ 2); a queue with no todo ends without a release (§ 3), say so.
 2. **Proposed queue** — references in the order `docs/workflow.md` § 2 states (written
    to `docs/work/queue.md` as a plain list, `- TODO-NNN`): todo, debt, decided flow
    entries and open Dependabot pull requests (`- gh#NN`: its green reviewer checks are

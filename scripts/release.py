@@ -123,10 +123,10 @@ class ReleaseManager:
         return data["version"]
 
     def get_latest_tag(self) -> str | None:
-        """Get the latest git tag."""
+        """Get the latest version tag; a `batch/<date>` tag is never one (FLOW-074)."""
         try:
             result = subprocess.run(
-                ["git", "describe", "--tags", "--abbrev=0"],
+                ["git", "describe", "--tags", "--abbrev=0", "--match", "v*"],
                 cwd=self.repo_root,
                 capture_output=True,
                 text=True,

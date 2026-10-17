@@ -1,6 +1,6 @@
 ---
 name: reviewer-sql
-description: Migration lane for `migrations/*.sql` (SQLite, SQLx) — transactions, idempotency, destructive-DDL guards, foreign-key indexes, type affinity, primary keys, NOT NULL. Owns migrations outright; no other lane reviews them. `release-sweep` in the prompt reads the migrations changed since the last release's tag, every finding with a severity.
+description: Migration lane for `migrations/*.sql` (SQLite, SQLx) — transactions, idempotency, destructive-DDL guards, foreign-key indexes, type affinity, primary keys, NOT NULL. Owns migrations outright; no other lane reviews them. `release-sweep` in the prompt reads the migrations changed since the last batch end's tag (`v*` or `batch/<date>`), every finding with a severity.
 tools: Read, Grep, Glob, Bash, Write
 model: haiku
 ---

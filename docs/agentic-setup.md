@@ -22,7 +22,7 @@ auditor reads each generic piece against its line. A piece is a list item opened
 - `docs/ubiquitous-language.md` — what the domain words mean, validated by the owner.
   Never: extended by the agent without a question.
 - `docs/lessons.md` — failures worth teaching, one per entry. Never: a rule's home.
-- `docs/work/queue.md` — the batch, written by the owner. Never: edited by the agent.
+- `docs/work/queue.md` — the batch the owner validated. Never: edited, but emptied by `/flow-audit`.
 - `docs/work/audits.md` — the last two batches as audited: their figures, and what
   the records lacked. Never: a figure nothing counted.
 - `ARCHITECTURE.md` — where code lives. Never: why a choice was made (an ADR does).
@@ -59,8 +59,8 @@ auditor reads each generic piece against its line. A piece is a list item opened
   Never: a functional decision, nor a tentative one.
 - `.claude/skills/dep-audit/` — checks the dependencies for outdated versions and known
   vulnerabilities before a release. Never: upgrades by itself.
-- `.claude/skills/flow-audit/` — measures a released batch against the one before and
-  hands it to the auditor. Never: judges the batch itself, nor runs during one.
+- `.claude/skills/flow-audit/` — measures an ended batch against the one before, hands it
+  to the auditor, empties the queue. Never: judges the batch itself, nor runs during one.
 
 ### Agent prompts
 
@@ -78,8 +78,9 @@ auditor reads each generic piece against its line. A piece is a list item opened
   and tested. Never: judges the spec itself.
 - `.claude/agents/contract-reviewer.md` — checks a contract against its spec. Never:
   amends it.
-- `.claude/agents/flow-auditor.md` — judges a released batch from its records and
-  proposes flow entries. Never: takes the session agent's account, nor writes a file.
+- `.claude/agents/flow-auditor.md` — judges an ended batch from its records and proposes
+  flow entries, and names a finding owed to another repository. Never:
+  takes the session agent's account, nor writes a file.
 - `.claude/agents/adr-reviewer.md` — checks an ADR's structure, gate and status.
   Never: writes one.
 
@@ -117,12 +118,11 @@ auditor reads each generic piece against its line. A piece is a list item opened
   the usage limit that stopped a lane included. Never: merges or re-runs.
 - `scripts/merge.py` — rebases a branch whose checks are all green, merges it and
   deletes it. Never: merges on a red or missing check, nor force-pushes.
-- `scripts/release.py` — computes the version, writes the changelog, tags and pushes,
-  for the owner. Never: run by the agent.
+- `scripts/release.py` — versions from the last `v*` tag, writes the changelog, tags and
+  pushes. Never: run by the agent (its own: `just batch-end` tags, `just batch-ends` lists).
 - `scripts/release-notes.py` — prints one version's changelog section for its release
   page. Never: edits the changelog.
-- `scripts/flow-audit.py` — the figures of a batch, as one document. Never: reads
-  them.
+- `scripts/flow-audit.py` — the figures of a batch, as one document. Never: reads them.
 - `scripts/usage_log.py` — writes one line per run of a tool, locally. Never: in CI,
   nor anything about the data handled.
 - `scripts/usage-log.sh` — the same line for a shell script. Never: changes the
