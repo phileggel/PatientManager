@@ -17,6 +17,16 @@ export async function tauriInvoke<T>(
   cmd: string,
   args: unknown,
 ): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  // DEBT-068 — a freshly started app may not have loaded the bridge yet (seen on
+  // the Windows gate): wait for it before the first call.
+  await browser.waitUntil(
+    () =>
+      browser.execute(
+        // biome-ignore lint/suspicious/noExplicitAny: __TAURI_INTERNALS__ is untyped
+        () => typeof (window as any).__TAURI_INTERNALS__?.invoke === "function",
+      ),
+    { timeout: 10000, timeoutMsg: "the Tauri bridge did not load within 10 s" },
+  );
   try {
     const data = await browser.execute(
       async (command, invokeArgs) => {
