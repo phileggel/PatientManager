@@ -8,8 +8,8 @@ After cloning: `git config core.hooksPath .githooks`. The hooks block commits to
 
 ## Who decides what
 
-- The **human** writes the todo entries (`docs/work/todo/`) and the queue (`docs/work/queue.md`), validates a **design** before anything the user sees changes, validates the vocabulary, and cuts **releases**.
-- The **agent** owns the debt and flow entries (`docs/work/debt/`, `docs/work/flow/`), does the task end to end and merges on green. No pull request waits for a human.
+- The **human** confirms a todo entry (`docs/workflow.md` § 2), writes the queue (`docs/work/queue.md`), validates a **design** before anything the user sees changes, validates the vocabulary, and cuts **releases**.
+- The **agent** files the entries of every kind (`docs/work/`), does the task end to end and merges on green. No pull request waits for a human.
 - The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
 Headless, a question only the human can answer goes into the entry as an open question, never guessed. In chat, a question goes through `AskUserQuestion`, one per call, with the context to answer it cold (`docs/workflow.md` § 3). An entry's questions are asked before its work starts (`docs/workflow.md` § 3); during the work, ask rather than guess for what that reading could not show, for a spec point as for a vocabulary term. State assumptions; name what is unclear. A trivial question is the agent's; only an ambiguity or a deep choice is the owner's (`docs/workflow.md` § 3).

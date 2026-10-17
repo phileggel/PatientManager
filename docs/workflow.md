@@ -6,8 +6,8 @@ was built.
 
 ## 1. Who owns what
 
-- **Human** — the todo entries (`docs/work/todo/`): what is worth doing, its user value,
-  its done-when; and the queue (`docs/work/queue.md`).
+- **Shared** — the todo entries (`docs/work/todo/`), each what a user will see; the human
+  confirms its user value and done-when, and writes the queue (`docs/work/queue.md`).
 - **Human** — validating a **design** before anything the user sees changes.
 - **Human** — cutting a **release**; several merged branches may wait for one.
 - **Agent** — the debt entries (`docs/work/debt/`): every observation, smell and proposal
@@ -51,9 +51,11 @@ job or a machine gate.
 
 `/file-entry` is the checklist of what follows.
 
-- **Three kinds, no fourth.** A todo is what a user would notice, a debt is about the
-  application's code or documents, a flow entry is about how the work moves. A bug has
-  no kind of its own: a todo when a user would notice the fix, a debt otherwise.
+- **Three kinds, no fourth** (owner, 2026-10-17). A todo is what a user will see (a `feat`
+  or a `fix`); a debt, what a user will not (`refactor`, `chore` on the application); a flow
+  entry, how the work moves (guides, `scripts/`, `justfile`, hooks, workflows). A bug takes
+  its fix's kind. A spec, contract, glossary, ADR or `ARCHITECTURE.md` drifting from right
+  code is a debt gated "when next touched", alone only when it blocks something.
 - **One command creates an entry**, never a hand-written file:
   `just queue new <todo|debt|flow> "<title>"` gives it the next id, the date and the
   required lines of its kind. `just rule-homes` fails on an entry that lacks one.
@@ -67,8 +69,8 @@ job or a machine gate.
   spec interview with the owner; **XL**: a programme, which cannot be queued before it
   is sliced. The agent sets it on a debt or a flow entry; on a todo entry
   `/plan-queue` proposes it and the owner confirms it with the entry.
-- **Who files.** The agent files debt and flow entries. A todo entry is drafted from the
-  owner's words and is not queued before the owner confirms it.
+- **Who files.** The agent files every kind: a todo when user-facing and needed, carrying
+  the open question "The owner confirms this entry" until the owner confirms its User value.
 - **A GitHub issue is never worked directly:** it becomes a todo, a debt or a flow
   entry first, which names it (`gh#NN`), and the pull request that ships the entry
   closes the issue. A Dependabot pull request is not an issue: it is queued under its
@@ -81,15 +83,13 @@ job or a machine gate.
   id and an id is never given twice. A request in chat that is not a bug still needs no
   entry: the pull request is its record.
 
-### Todo entries — human-owned
+### Todo entries — shared
 
 - Every entry is `# TODO-NNN — title`, carries `**Size:**` and ends with
   `**User value:**`, `**Done when:**`, `**Design:**` and `**Open questions:**`.
-- The agent drafts an entry from the owner's words, marked as a draft until the owner
-  confirms it. On a confirmed entry it writes in two places only: it sets `Design` to
-  `proposed (…)` or `validated`, and it adds open questions; in `/plan-queue` it writes
-  the size, the User value and the Done when the human validated in chat. It deletes
-  the entry in the pull request that ships it. It never renumbers one.
+- The agent writes `Design` and the open questions and proposes the size; it does not
+  change without asking what the owner confirmed (User value, Done when, the decision to
+  queue). `/plan-queue` adds its `Refined` text to the Done when line.
 
 ### The queue — `docs/work/queue.md`, human-owned (owner, 2026-10-10)
 

@@ -7,9 +7,9 @@ description: Files one todo, debt or flow entry the right way — the command th
 
 The rules are `docs/workflow.md` § 2 (Filing an entry); this file is the checklist.
 
-1. **Kind.** A todo is what a user would notice, a debt is about the application's code
-   or documents, a flow entry is about how the work moves. A bug is a todo or a debt by
-   the same test. A todo is drafted from the owner's words and says it is a draft.
+1. **Kind** — § 2 "Three kinds": what a user will see, what a user will not, how the work
+   moves (tooling code included); a bug takes its fix's kind. A todo carries the open
+   question "The owner confirms this entry" (§ 2 "Who files").
 2. **Create.** `just queue new <todo|debt|flow> "<title>"` — never a hand-written file —
    on a filing branch (`docs/workflow.md` § 2), the new entry's id never leading the slug.
    The title states the observation, not the fix.
