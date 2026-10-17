@@ -19,3 +19,4 @@
   each; the scheduled re-run needs `actions: write` and is the owner's.
 - Costs: a docs pull request; the CI proposals a workflow change each.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): no Decision line. Left.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision. #297 is the sweep's own pull request and repeats each lane's files read, so half of its proposal is practice. Left.

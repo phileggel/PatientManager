@@ -6,3 +6,4 @@
 - Proposal: in chat, a question to the owner goes through the question tool (`AskUserQuestion`), one question per call, its options with what each changes and costs, the recommended one first; the status messages around it do not repeat it. `CLAUDE.md` § Who decides what and `docs/workflow.md` § 3 name it.
 - Costs: a sentence in two guides at their ceiling, each with its cut. Protects: a decision waiting unseen.
 - Decision (owner, 2026-10-17): "next time use askquestion tool".
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): decided 2026-10-17, not worked (`CLAUDE.md` unchanged). The session agent's answer adds the evidence: the three questions were `ensure_mutable` (2026-10-14), TODO-019's `edit` (10-14 → 10-17, about 60 h) and the zip advisories (10-17, about an hour); one term merged unconfirmed. Left; next to queue.

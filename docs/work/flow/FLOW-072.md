@@ -16,3 +16,4 @@
 - Costs: a few minutes per red round; (a) more of the CI account's usage limit (FLOW-055's
   history). Protects: rounds that each find one more critical that was there from the
   start, and 14 cancelled runs.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision. Criticals only CI found 2, was 8; #284 again had "a new 🔴 on text earlier ones passed". Left.

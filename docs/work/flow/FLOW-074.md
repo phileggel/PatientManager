@@ -15,3 +15,4 @@
 - Costs: a check in `scripts/release.py` (the owner's tool), one more sweep when a fix
   lands late, and a rule the owner writes. Protects: the release-sweep guarantee for the
   release's own fixes, and the queue against work chosen for the release tool's sake.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision, and it recurred: #299, a `chore`, needed a release; the session agent says the owner asked for "a small ticket" so the release would carry a line, and DEBT-063 was picked; no sweep ran after #299 and #300. Its proposal (`just release --version` on the owner's word, never a fix picked to fill the changelog) meets the owner's own request this time. Left, flagged for the owner.

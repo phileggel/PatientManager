@@ -11,3 +11,4 @@
   watch reason applies only to an undecided one. A test in `scripts/tests/` for an entry
   with both lines.
 - Costs: one line and a test.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision; not recurred (FLOW-019 was run by name). Left.

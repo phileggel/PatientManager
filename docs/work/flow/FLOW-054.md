@@ -44,3 +44,4 @@
   session transcript, which § 12 no longer uses; `CLAUDE.md` names `reviewer-security` alone for the
   release sweep where the workflow says the reviewer agents (FLOW-061).
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): partly moved. #275 fixed the `reviewer-security` setup line. The transcript sentence (line 466), § 6 and the queue line stand. #277 is a fresh instance of contradiction 2 (visual proof "not required"). Left.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): decided, not worked. Contradiction 1 was acted on in #296 (by the session agent): an upgrade nobody asked for. Fresh instance of the queue line: #282, #295. Add `CLAUDE.md` § Opening and closing, "the closing brief is the PR body's first lines": all 18 bodies with a brief end with it. Left; the first to queue.

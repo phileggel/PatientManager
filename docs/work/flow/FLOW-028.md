@@ -20,3 +20,4 @@
 - Re-measured 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): cancelled runs 0, was 12; no description edit restarted a run. The stop on
   #261 is a different case (FLOW-055).
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): cancelled runs 25, was 0. 11 are PR description runs; 13 commits had their description edited after the push, through `gh api` PATCH since `gh pr edit` fails (the session agent). The second half of its proposal (edit before the push) would have avoided those. Still no Decision line.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): cancelled description runs 2, was 11, both from an edit after the push. No Decision. Left.

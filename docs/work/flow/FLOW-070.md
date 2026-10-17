@@ -14,3 +14,4 @@
   before the work's own.
 - Costs: a few lines in two scripts and a test, or one more pull request per corrected size.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): no corrected size in the batch to show it. The bundle point joins it: the entries figure counts a bundle's rounds once per entry (54 entry-rounds for 38 rounds). Left.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): DEBT-043's corrected size went in a filing pull request (#295) before any work — the proposal's second option. No size was corrected in a closing pull request. Left.

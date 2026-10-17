@@ -16,3 +16,4 @@
 - Re-measured 2026-10-11 (audit of the 0.24.3 batch, `flow-auditor`): 0 rounds from a merge moving `main`, was about 6; nothing in the tool
   changed, only one pull request was open at a time.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): 0 rounds from a moving `main`, second batch running. Proposal for the owner: close with "keep".
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): 2 rounds from a rebase alone, was 0; up to four pull requests open at once around 18:00 UTC on 2026-10-14. Its "close with keep" still waits on the owner. Left.

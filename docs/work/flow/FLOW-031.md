@@ -23,3 +23,4 @@
 - Costs: one E2E suite that talks to the plugins without the override. Protects: a
   release that ships a permission the screens need and no test noticed.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): decided, not worked; carried a third time. Left.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): decided, not worked, carried a fourth time. v0.24.6 is a harness gap of its kind: the Windows gate was not reached before the tag. Left.

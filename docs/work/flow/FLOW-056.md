@@ -7,3 +7,4 @@
 - Costs: a few lines per workflow. Risk: none on the tree — `merge.py` already compares it with the one tested.
 - Decision (owner, 2026-10-11): accepted, for the next queue (banked: asked only what is not trivial, FLOW-062).
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): folded-commit rounds 6, 5 of them after the merge, was 2. Left.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): banked, left out of the queue of 2026-10-14. 8 folded rounds, 7 after the merge; was 6 and 5. Added: a round after the merge runs the protocol on an empty diff, and its "review skipped" replaced the full report on #293 (e2e) and #294 (arch). Left.

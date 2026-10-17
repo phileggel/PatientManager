@@ -7,3 +7,4 @@
 - Costs: a few lines in § 12 and in the auditor's prompt; § 12 is at the workflow's ceiling.
 - Decision (owner, 2026-10-11): accepted (banked, FLOW-062: the proposal is the owner's own, written in the issue). Not queued before it is refined.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): banked, not refined, left out of the queue a second time. Left.

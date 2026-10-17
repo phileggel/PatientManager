@@ -7,3 +7,4 @@
 - Costs: a few reworded lines in two guides at their ceiling.
 - Decision (owner, 2026-10-11): accepted — "Nothing is mine. You can create todo if user facing and needed." Not queued before it is refined.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.
+- Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): decided, not refined, left out of the queue a second time. Left.
