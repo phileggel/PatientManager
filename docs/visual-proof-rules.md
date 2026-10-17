@@ -8,13 +8,12 @@ dark mode**. Use `/visual-proof` to automate the full capture workflow.
 
 ---
 
-## When visual proof is not required
+## When nothing should look different
 
-State it explicitly at the top of the PR description or commit message:
-
-> No visual impact — internal refactor / Rust-only change.
-
-Then screenshot at least one screen that _consumes_ the modified code as a non-regression proof.
+A `.tsx` or `.css` change a user cannot see (an internal refactor) still carries proof: the
+PR body states "No visual impact — internal refactor", and at least one screen
+that _consumes_ the modified code is captured, light and dark. Nothing goes in a commit
+message (`commit-rules.md`: a title only).
 
 ---
 
@@ -242,7 +241,7 @@ Because the preview page imports the same source files as the real app, design p
 | Platform WebView rendering  | ⚠️ preview uses Chromium — minor subpixel differences |
 
 The two caveats are cosmetic. If a change specifically touches modal chrome or backdrop blur, note
-it in the commit message.
+it in the PR body.
 
 ---
 

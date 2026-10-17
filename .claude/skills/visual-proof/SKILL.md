@@ -125,11 +125,8 @@ Check Playwright is installed:
 ls node_modules/playwright
 ```
 
-If absent, install:
-
-```bash
-npm install --save-dev playwright
-```
+If absent, the project's dependencies are not installed (`playwright` is in `package.json`):
+stop and say so — the setup is the README's, not this skill's.
 
 ---
 

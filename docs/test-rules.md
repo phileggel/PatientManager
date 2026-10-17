@@ -10,13 +10,10 @@
 | BE Tier 3 — Integration | Spec-driven end-to-end flows | `src-tauri/tests/` (separate binary)                         | None — real services + SQLite |
 | Tier 4 — E2E            | WebDriver UI flows           | `e2e-rules.md` (ephemeral DB, B36)                           | None                          |
 
-Run checks before committing:
-
-```bash
-npm run test                   # Frontend (Vitest)
-cargo test --manifest-path src-tauri/Cargo.toml   # Backend (Rust)
-<your-check-command>           # Full check: lint + type-check + tests
-```
+Nothing is run by hand before a commit: the hooks run the fast checks, the tests are CI's
+(`docs/workflow.md` § 5). `just harness`
+runs CI's gate locally. One test while working takes the runner's filter, which no recipe has:
+`npx vitest run <path>`, or `cargo test <filter>` in `src-tauri/`.
 
 ---
 
@@ -298,7 +295,6 @@ See [`e2e-rules.md`](e2e-rules.md) for the full rule set (E1–E10) — selector
 
 ```bash
 cd src-tauri
-cargo test                     # All tests
 cargo test {filter}            # Filter by name
 cargo test -- --nocapture      # Show println! output
 RUST_BACKTRACE=1 cargo test    # With backtraces

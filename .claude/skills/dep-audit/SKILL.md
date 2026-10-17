@@ -72,17 +72,16 @@ Always verify:
 
 ### 5. Classify findings
 
-| Severity       | Criteria                                                                                              |
-| -------------- | ----------------------------------------------------------------------------------------------------- |
-| 🔴 CVE         | `npm audit`: severity `moderate`/`high`/`critical`. `cargo audit`: any advisory. **Release blocker.** |
-| 🟡 Major drift | Latest major > current major (e.g. v5 in use, v6 available)                                           |
-| 🟡 Misplaced   | See placement rules above                                                                             |
-| 🔵 Minor drift | Latest minor > current minor within same major                                                        |
+| Severity       | Criteria                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------- |
+| 🔴 CVE         | `npm audit`: severity `moderate`/`high`/`critical`. `cargo audit`: any advisory. See below. |
+| 🟡 Major drift | Latest major > current major (e.g. v5 in use, v6 available)                                 |
+| 🟡 Misplaced   | See placement rules above                                                                   |
+| 🔵 Minor drift | Latest minor > current minor within same major                                              |
 
-**Release vs. non-release context:**
-
-- In **release context**: 🔴 CVEs are hard blockers — do not proceed to tag/publish without fixing.
-- In **non-release context** (a batch tag publishes nothing, so it is one): 🔴 CVEs are flagged urgently but do not block the current session — inform the user and recommend scheduling a fix. One that puts users at risk is a `fix`, filed as a todo, and its batch releases (`docs/workflow.md` § 3).
+**What a 🔴 CVE becomes** is `docs/workflow.md` § 3's call. The
+report gives its evidence: whether the application reaches the vulnerable code, read in the
+code (DEBT-067: calamine never calls `zip`'s `extract`). The skill never upgrades.
 
 ### 6. Report
 
@@ -98,13 +97,13 @@ Get today's date (`date +%Y-%m-%d`) for the report heading.
 
 ### npm (`package.json`)
 🔴 CVE: {package} {version} — {severity} — {advisory ID} — {description}
-     Fix: npm audit fix (or manual bump to {fixed-version}, source: {url})
+     Fixed in: {fixed-version} (source: {url}) — reached by the application: yes / no
 🟡 Major drift: {package} {current} → {latest} (source: {url})
 🟡 Misplaced: {package} in {wrong-section} — should be in {correct-section}
 🔵 Minor drift: {package} {current} → {latest} (source: {url})
 
 ### Cargo (`Cargo.toml`)
-🔴 CVE: {crate} {version} — {advisory} — {description}
+🔴 CVE: {crate} {version} — {advisory} — {description} — reached by the application: yes / no
 🟡 Major drift: {crate} {current} → {latest} (source: {url})
 🔵 Minor drift: {crate} {current} → {latest} (source: {url})
 
@@ -114,7 +113,7 @@ Stable:    {version from web — cite source URL}
 Status: ✅ up to date / 🟡 behind (update with: rustup update stable)
 
 ### Summary
-🔴 {N} CVE(s) — must fix before release
+🔴 {N} CVE(s), {n} reached by the application
 🟡 {N} major drift(s) / misplaced dep(s)
 🔵 {N} minor drift(s)
 ```
@@ -127,7 +126,7 @@ If all clean: `✅ All dependencies up to date and no known CVEs.`
 
 1. **Always use WebSearch to verify versions** — never report stale model knowledge as fact
 2. **Always cite the source URL** next to any version number you report
-3. 🔴 CVEs are a **release blocker** — do not run `just release` without fixing
+3. What a 🔴 CVE becomes is `docs/workflow.md` § 3's call; the report gives whether it is reached
 4. Missing tools (`cargo-audit`, `cargo-outdated`) must be flagged in the report, not silently skipped
 5. Report `misplaced` deps even if versions are current — placement affects production bundle size
 
