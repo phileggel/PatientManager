@@ -18,3 +18,4 @@
   per feature, and contracts a second surface (TODO-013) can be written against.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): decided, not worked; carried a third time. Left.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): decided, not worked, carried a fourth time. Left.
+- Decision (owner, 2026-10-17): superseded by FLOW-079 — a document drifting from right code is DEBT, gated "when next touched"; the one-off regeneration is not owed. To close.

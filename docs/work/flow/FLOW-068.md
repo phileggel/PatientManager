@@ -8,3 +8,4 @@
 - Decision (owner, 2026-10-11): accepted — "Nothing is mine. You can create todo if user facing and needed." Not queued before it is refined.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): decided, not refined, left out of the queue a second time. Left.
+- Refined (2026-10-17): read `docs/workflow.md` § 1 (the todo row), the § 2 heading "Todo entries — human-owned" and its list of agent writes, `CLAUDE.md` § Who decides what ("The human writes the todo entries"). Done when: the three say the todo entries are shared and defined by being user-facing; the list of agent writes becomes what the agent does not change without asking (the validated User value and Done when, the decision to queue); FLOW-077's 🟡 on that list (the missing `Refined` line) is fixed with it. Ships with FLOW-079. Size S holds.

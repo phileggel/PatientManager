@@ -9,3 +9,5 @@
 **Size:** S
 
 **Waits on the owner:** no
+
+**Refined (2026-10-17, before queuing):** `ProcedureFormModal.tsx:107` counts `view` as read-only, and the Save buttons at 393-431 render for create, edit and overpaid only; the view submit path (`useProcedureFormModal.ts:144`) sends the type change alone. Done when: in view mode a Save button, as the overpaid mode's (disabled without a type or while saving), submits the type change; success closes the modal with a snackbar, an error keeps it open (PRO-190); a Vitest test renders view mode, changes the type, clicks Save and sees `updateProcedure` called; screenshots. Design: one mock first (an added button, § 4). A `fix`. Size S holds.

@@ -15,3 +15,4 @@
 - Costs: a branch in `merge.py` and a test. Protects: a closed pull request and a CI round
   each time two pull requests of a batch edit the same entry file.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision. Added cause: slices of one entry, prepared side by side, write the same entry file — reopening what § 2's "one file each, deleted when shipped" closed. An alternative to the tool fix: a slice's record goes in its pull request body, and the entry file is edited by a filing pull request or at the last slice. Left.
+- Decision (owner, 2026-10-17): the alternative: a slice's record goes in its pull request body, the entry file edited by a filing pull request or at the last slice; `merge.py` unchanged (banked).

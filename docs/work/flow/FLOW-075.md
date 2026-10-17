@@ -12,3 +12,4 @@
   with both lines.
 - Costs: one line and a test.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision; not recurred (FLOW-019 was run by name). Left.
+- Decision (owner, 2026-10-17): accepted: a `Decision` line makes a flow entry decided whatever watch it held (banked).

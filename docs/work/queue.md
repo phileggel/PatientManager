@@ -7,32 +7,37 @@ request that ships an entry touches it. `just queue` says what has shipped.
 <!-- One reference per line, as a plain list: `- TODO-NNN`, `- DEBT-NNN`, `- FLOW-NNN`, -->
 <!-- or `- gh#NN` for a Dependabot pull request. -->
 
-<!-- Validated by the owner on 2026-10-14, for the batch after 0.24.5: four fixes a user -->
-<!-- notices, the application work carried three times, two decided tools. A first -->
-<!-- proposal of six flow entries and no `feat` or `fix` was rebalanced at the owner's -->
-<!-- question ("your proposed queue is only flow?"). -->
-<!-- Eleven pull requests; the last two batches merged 9 and 11 work pull requests. -->
-<!-- Each entry carries a `Refined` line of 2026-10-14 with its Done when. -->
-<!-- Bundles, one pull request each: DEBT-035 with DEBT-046 (its point 1; point 3 is -->
-<!-- a pull request of its own, after it); TODO-019 with -->
-<!-- DEBT-057. -->
-<!-- Slices: DEBT-045, rule R4 only; DEBT-046, points 1 (with DEBT-035) and 3 only; -->
-<!-- DEBT-043, the two form validators only. The rest of each entry stays open. -->
-<!-- Order: DEBT-056 before TODO-019, which it clears a site for; FLOW-020 after FLOW-019 -->
-<!-- (the same E2E tree), kept with the application work against "tools first". -->
-<!-- Cut (owner, 2026-10-17): DEBT-043, its slice read as an L, not an M. -->
-<!-- Left for the batch after: FLOW-056, FLOW-058, FLOW-063 to FLOW-068 (the six open -->
-<!-- issues), DEBT-052, TODO-018, FLOW-031, FLOW-032 (first slice: the fund and fund -->
-<!-- payment reconciliation contracts), FLOW-054 (after FLOW-073 is decided). -->
+<!-- Validated by the owner on 2026-10-17, for the batch after 0.24.7: twelve work pull -->
+<!-- requests (thirteen if TODO-018 needs a third); the last two batches merged 13 and 9. -->
+<!-- The owner set the range at 10 to 15. Ends with a release: DEBT-062 is a `fix`. -->
+<!-- Each entry carries a `Refined` line of 2026-10-17 with its Done when. -->
+<!-- Bundles, one pull request each: FLOW-079 with FLOW-068; FLOW-074 with FLOW-066 and -->
+<!-- FLOW-067; FLOW-063 with FLOW-064 and FLOW-065; FLOW-056 with FLOW-058; DEBT-048 with -->
+<!-- DEBT-061 and DEBT-065's slice. -->
+<!-- Slices: FLOW-054, contradictions 1, 2 and 4; DEBT-065, its three 🔵. TODO-018 is two -->
+<!-- pull requests: the fund-payment use cases, then the bank ones and the corrections. -->
+<!-- Order: FLOW-078 first, since every question of the batch then goes through the tool; -->
+<!-- DEBT-062 second against "tools first", so the owner sees its mock while the guides -->
+<!-- are worked. -->
+<!-- Left for the batch after: FLOW-054 slice 2, FLOW-031, TODO-020, DEBT-043, the banked -->
+<!-- flow entries of 2026-10-17. FLOW-032 superseded by FLOW-079 (owner, 2026-10-17). -->
 
-- FLOW-069
-- FLOW-019
-- DEBT-042
-- DEBT-045
-- DEBT-035
-- DEBT-046
-- DEBT-056
-- TODO-019
+- FLOW-078
+- DEBT-062
+- FLOW-079
+- FLOW-068
+- FLOW-074
+- FLOW-066
+- FLOW-067
+- FLOW-063
+- FLOW-064
+- FLOW-065
+- FLOW-054
+- FLOW-056
+- FLOW-058
 - DEBT-057
-- DEBT-011
-- FLOW-020
+- TODO-018
+- DEBT-048
+- DEBT-061
+- DEBT-065
+- DEBT-052

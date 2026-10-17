@@ -15,3 +15,5 @@
 **Shipped 2026-10-14:** the R4 slice — names now compare case-insensitively in Rust, accented letters included, with repository tests on a real database. What is above stays open.
 
 **Added 2026-10-17** (`spec-checker`, release preparation): 23 of 23 rules implemented, 17 fully as written. Spec against code, the owner's: R4 (inline) against R16/R17 (snackbar) for a duplicate; R7's literal `€…toFixed(2)` against the locale format; R9's en dash against a hyphen; R8, a whitespace-only name refused by the backend round trip rather than before submit. Tests owed: R5 (the event on add, update, delete), R19/R20 (confirm → delete → snackbars), R21 (the `Import` rename, "import" refused), R22/R6 on a real database (the reserved type read, a deleted one not), R17 (button and double-click open the modal), R9's missing-category cell; `ProcedureTypeList.test.tsx:266` proves nothing (its rows are filtered by the mock).
+
+**Gate (2026-10-17):** a document drifting from the code rides with the next `feat` or `fix` of its area (FLOW-079; FLOW-032 superseded, owner).

@@ -9,3 +9,5 @@
 **Size:** S
 
 **Waits on the owner:** no
+
+**Refined (2026-10-17, before queuing):** `useSelectPatientModal.ts:21` writes `"N/A"`; `bank.json` has the `na` key ("N/A"). Done when: the hook reads the translated key; no literal remains; a Vitest test sees it for a patient with no procedure. Nothing visible changes. Size S holds.

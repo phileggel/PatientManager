@@ -8,4 +8,4 @@
 
 **Size:** L
 
-**Waits on the owner:** a patient spec written with `/spec-writer`, or the contract as the only record
+**Waits on the owner:** no — the contract is the record until the patient feature's next `feat` or `fix`, which writes the spec with `/spec-writer` (owner, 2026-10-17)

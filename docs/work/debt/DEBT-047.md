@@ -10,4 +10,4 @@
 
 **Size:** S
 
-**Waits on the owner:** for each dead pointer: write the entry it promises, or drop the sentence
+**Waits on the owner:** no — every dead pointer is dropped, no entry written (owner, 2026-10-17); done when those files are next touched

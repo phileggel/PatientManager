@@ -8,4 +8,4 @@
 
 **Size:** L
 
-**Waits on the owner:** PRO-120 — the disabled Submit or the per-field messages
+**Waits on the owner:** no — PRO-120: Submit stays disabled, the spec follows the code (owner, 2026-10-17)

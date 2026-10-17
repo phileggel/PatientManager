@@ -17,3 +17,4 @@
   round 1 and round 2 raised another critical; the lane was run again locally only after round 2.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): the same finding did not repeat across rounds. What repeated is a new critical each round on unchanged text (FLOW-072). Left.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no prompt changed in the batch. Left.
+- Decision (owner, 2026-10-17): accepted (banked).

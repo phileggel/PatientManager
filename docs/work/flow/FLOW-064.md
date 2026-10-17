@@ -8,3 +8,4 @@
 - Decision (owner, 2026-10-11): accepted (banked, FLOW-062: the proposal is the owner's own, written in the issue). Not queued before it is refined.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): banked, not refined, left out of the queue a second time. Left.
+- Refined (2026-10-17): read `/run-queue` Step 1 and `/run-entry` Step 1 (each creates tasks). Done when: the two setup lines and each skill's `TaskCreate` step say `/run-queue` owns the task list during a batch and `/run-entry` keeps its own only when run alone; `/run-entry` within its ceiling, the cut named. Ships with FLOW-063. Size S holds.

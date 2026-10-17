@@ -9,3 +9,5 @@
 **Size:** M
 
 **Waits on the owner:** no
+
+**Gate (2026-10-17):** a document drifting from the code rides with the next `feat` or `fix` of its area (FLOW-079; FLOW-032 superseded, owner).

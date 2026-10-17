@@ -9,3 +9,5 @@
 **Size:** M
 
 **Waits on the owner:** no
+
+**Refined (2026-10-17, before queuing):** this batch takes the three 🔵, with DEBT-048. Done when: the `.gz` import refuses a stream past a size cap (a test); `validate_filename` refuses `:` and Windows reserved names (tests); `next_available_path` returns an error after its probe limit instead of the original path (a test). The two 🟡 (`deny_unknown_fields`, the logger's string message) stay open.

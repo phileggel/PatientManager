@@ -11,3 +11,5 @@
 **Waits on the owner:** no
 
 **Added 2026-10-12** (`contract-reviewer`, on DEBT-039's change): 🟡 `read_all_fund_payment_groups` lists `—` for errors where the service maps repository failures to `DatabaseError`; the FPG Errors columns name codes the wire does not send (`GroupNotFound` is `PaymentGroupNotFound`, `InvalidDateFormat` is `InvalidPaymentDateFormat`, `DeletionForbidden` is `RefundGroupProtected`), `DatabaseError` is missing from the three mutations, the header says `context/fund` where the mutations live in `use_cases/fund_payment_manual_management`, and `create_fund_payment_group` says `confirmed_payment_date` where the spec (FPM-310/320) says `fund_reconciliation_date`.
+
+**Gate (2026-10-17):** a document drifting from the code rides with the next `feat` or `fix` of its area (FLOW-079; FLOW-032 superseded, owner).

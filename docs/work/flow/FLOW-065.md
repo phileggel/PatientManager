@@ -8,3 +8,4 @@
 - Decision (owner, 2026-10-11): accepted (banked, FLOW-062: the proposal is the owner's own, written in the issue). Not queued before it is refined.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): banked, not refined, left out of the queue a second time. Its proposal would have caught the 17 (b) grades with no entry this batch, 2 of which came back from the sweep. Left; the one this batch measured.
+- Refined (2026-10-17): read `/run-entry`'s setup line and its steps between the review fixes and the closure. Done when: the line carries the duty ("files what it met and did not fix before the entry closes"), and the skill has that step after the review findings and before the closure; within its ceiling, the cut named. Ships with FLOW-063. Size S holds.

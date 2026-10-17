@@ -8,3 +8,4 @@
 - Decision (owner, 2026-10-11): accepted (banked, FLOW-062: the proposal is the owner's own, written in the issue). Not queued before it is refined.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): banked or decided, not refined. Left.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): banked, not refined, left out of the queue a second time. Left.
+- Refined (2026-10-17): read the setup line of `docs/work/queue.md` in `docs/agentic-setup.md`, `/flow-audit`'s last step, `/plan-queue` Step 5. Done when: `/flow-audit`, after the owner's yes, empties the list of the batch it audited (the header and notes kept); the setup line says "never edited beyond what the owner validated"; `just queue` shows an empty queue, not the landed references, after an audit. Ships with FLOW-074. Size S holds.

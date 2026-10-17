@@ -9,3 +9,5 @@
 **Size:** S
 
 **Waits on the owner:** no
+
+**Refined (2026-10-17, before queuing):** `fund_payment_report_pdf/api.rs:115` and `fund_payment_reconciliation/api.rs:126` read. Done when: `OpenFailed` carries a fixed code without the opener's text; the extraction failure logs the error kind, not the chain; a test on each. Ships with DEBT-048. Size S holds.

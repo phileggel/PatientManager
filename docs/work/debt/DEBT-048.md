@@ -9,3 +9,5 @@
 **Size:** M
 
 **Waits on the owner:** no
+
+**Refined (2026-10-17, before queuing):** `next_available_path` is in `fund_payment_report_pdf/orchestrator.rs:56`; `do_export` formats `VACUUM INTO '{temp_str}'` (`db_backup/orchestrator.rs:64`). Done when: the PDF's destination goes through `secure_path` and a dangling link at the chosen name is refused (a test plants one); `VACUUM INTO` takes a bound parameter and the export test still passes. Ships with DEBT-061 and DEBT-065's slice. Size M holds for the bundle.

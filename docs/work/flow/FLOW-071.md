@@ -20,3 +20,4 @@
 - Costs: a docs pull request; the CI proposals a workflow change each.
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): no Decision line. Left.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision. #297 is the sweep's own pull request and repeats each lane's files read, so half of its proposal is practice. Left.
+- Decision (owner, 2026-10-17): accepted, in one guides pull request with FLOW-077; the CI proposals weighed one by one (banked).

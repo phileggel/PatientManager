@@ -6,3 +6,4 @@
 - Proposal: one guides pull request for the three 🟡 (the guides are at their ceiling: each needs its cut, FLOW-073); the CI proposals weighed one by one.
 - Costs: a docs pull request; a workflow change per CI proposal taken.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): new, no Decision. Left.
+- Decision (owner, 2026-10-17): accepted, in one guides pull request with FLOW-071; the CI proposals weighed one by one (banked).
