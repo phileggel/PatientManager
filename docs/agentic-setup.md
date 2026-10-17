@@ -58,7 +58,7 @@ auditor reads each generic piece against its line. A piece is a list item opened
 - `.claude/skills/adr-writer/` — records a technical choice that is costly to reverse.
   Never: a functional decision, nor a tentative one.
 - `.claude/skills/dep-audit/` — checks the dependencies for outdated versions and known
-  vulnerabilities before a release. Never: upgrades by itself.
+  vulnerabilities before a batch ends. Never: upgrades by itself.
 - `.claude/skills/flow-audit/` — measures an ended batch against the one before, hands it
   to the auditor, empties the queue. Never: judges the batch itself, nor runs during one.
 
@@ -71,7 +71,7 @@ auditor reads each generic piece against its line. A piece is a list item opened
 - `.claude/agents/reviewer-guides.md` — reviews the documents and prompts the agent
   works from: contradictions, restated rules, length. Never: tooling or code.
 - `.claude/agents/reviewer-security.md` — reviews the surface an attacker reaches: a
-  change, and the whole command surface before a release. Never: code quality.
+  change, and the whole command surface before a batch ends. Never: code quality.
 - `.claude/agents/spec-reviewer.md` — judges a spec before anything is built from it.
   Never: checks code against it.
 - `.claude/agents/spec-checker.md` — checks that every rule of a spec is implemented

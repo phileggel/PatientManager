@@ -1,6 +1,6 @@
 ---
 name: dep-audit
-description: Audit npm and Cargo dependencies for outdated versions and CVEs, with web-verified version data. Run before every release or periodically during development.
+description: Audit npm and Cargo dependencies for outdated versions and CVEs, with web-verified version data. Run before every batch end or periodically during development.
 tools: Bash, Read, WebSearch
 ---
 
