@@ -11,7 +11,7 @@ no longer exist, and the length of the documents and prompts the agent works fro
 beside the batch before.
 
 Usage:
-    python3 scripts/flow-audit.py v0.5.0                 # from that release to now
+    python3 scripts/flow-audit.py v0.5.0                 # from that batch end to now
     python3 scripts/flow-audit.py v0.5.0 v0.6.0          # between two batch ends
     python3 scripts/flow-audit.py v0.5.0 v0.6.0 --previous v0.4.0
     python3 scripts/flow-audit.py v0.5.0 --pretty
@@ -506,7 +506,7 @@ def collect_reruns(earliest: datetime) -> list[dict]:
 BATCH_TAG_PREFIX = "batch/"
 
 
-def release_moment(tag: str) -> datetime:
+def batch_end_moment(tag: str) -> datetime:
     """When the release `tag` was published, or, for a batch that ended without a
     release, when its annotated `batch/<date>` tag was made (FLOW-074)."""
     if tag.startswith(BATCH_TAG_PREFIX):
@@ -570,8 +570,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pretty", action="store_true", help="indented JSON")
     args = parser.parse_args(argv)
 
-    since = release_moment(args.since)
-    until = release_moment(args.until) if args.until else datetime.now(timezone.utc)
+    since = batch_end_moment(args.since)
+    until = batch_end_moment(args.until) if args.until else datetime.now(timezone.utc)
     pull_requests, runs = collect()
     issues = list(
         _gh_json(
@@ -579,7 +579,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         or []
     )
-    earliest = release_moment(args.previous) if args.previous else since
+    earliest = batch_end_moment(args.previous) if args.previous else since
     reruns = collect_reruns(earliest)
     report = {"current": measure(pull_requests, runs, since, until, reruns)}
     report["current"]["entries"] = measure_entries(pull_requests, runs, since, until, entry_size)
@@ -598,7 +598,7 @@ def main(argv: list[str] | None = None) -> int:
     if report["truncated"]:
         print(
             f"flow-audit: the list of {' and '.join(report['truncated'])} does not reach"
-            " back to the earliest release asked for; the oldest figures are incomplete",
+            " back to the earliest batch end asked for; the oldest figures are incomplete",
             file=sys.stderr,
         )
     json.dump(report, sys.stdout, indent=2 if args.pretty else None)

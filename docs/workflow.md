@@ -1,6 +1,6 @@
 # Workflow — the human sets expectations, the harness holds the line
 
-How work moves from a request or an entry of `docs/work/` to a release, and the conventions the
+How work moves from a request or an entry of `docs/work/` to a batch end, and the conventions the
 agents and skills rely on. This document is the rule set; git history records how it
 was built.
 
@@ -154,7 +154,7 @@ todo entry: the pull request body is its record.
      what is still open before its branch exists.
    - A choice with a standing answer is not asked: when one option keeps what a user
      sees today, it is taken and stated in the pull request; a release-sweep finding
-     that is not critical and predates the release is filed and reported (Conventions).
+     that is not critical and predates the batch is filed and reported (Conventions).
    - **Banked** (owner, 2026-10-11, 2026-10-12): a question is asked alone, with its
      context, only where the options differ in cost, risk or what is seen — an ambiguity
      or a deep choice; a trivial one is the agent's. A flow entry's proposal so answered
