@@ -507,8 +507,8 @@ BATCH_TAG_PREFIX = "batch/"
 
 
 def batch_end_moment(tag: str) -> datetime:
-    """When the release `tag` was published, or, for a batch that ended without a
-    release, when its annotated `batch/<date>` tag was made (FLOW-074)."""
+    """When the batch end `tag` happened: a release's publication on GitHub, or the
+    tagger date of a `batch/<date>` tag for a batch that ended without one (FLOW-074)."""
     if tag.startswith(BATCH_TAG_PREFIX):
         made = _git(
             "for-each-ref", f"refs/tags/{tag}", "--format=%(taggerdate:iso-strict)"
