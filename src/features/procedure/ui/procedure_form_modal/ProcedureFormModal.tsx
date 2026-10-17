@@ -342,13 +342,14 @@ export function ProcedureFormModal({
         {/* Footer
             Layout by mode:
             - create/edit: [Cancel secondary] [Add/Update primary]
-            - view:        [Close secondary]  [Refund primary?]
+            - view:        [Close secondary]  [Refund primary?]  [Save primary] (PRO-190)
             - overpaid:    [Close secondary]  [Cancel Refund danger]  [Save primary]
             - refund:      [Close secondary]  [Cancel Refund danger]
             Destructive actions are placed after the neutral close/cancel (M3 convention). */}
         <div className="flex gap-3 p-5 bg-m3-surface-container-low">
           {/* Close / Cancel — always leftmost */}
           <Button
+            id="procedure-form-modal-close"
             type="button"
             onClick={onClose}
             variant="secondary"
@@ -365,6 +366,7 @@ export function ProcedureFormModal({
               className="flex-1"
             >
               <Button
+                id="procedure-form-modal-refund"
                 type="button"
                 onClick={handleRefundClick}
                 variant="primary"
@@ -379,6 +381,7 @@ export function ProcedureFormModal({
           {/* Cancel Refund — after Close in overpaid/refund modes (REF-190, REF-200) */}
           {(isOverpaidMode || isRefundMode) && (
             <Button
+              id="procedure-form-modal-cancel-refund"
               type="button"
               onClick={handleCancelRefundClick}
               variant="danger"
@@ -394,6 +397,7 @@ export function ProcedureFormModal({
             !isReadOnlyMode &&
             (mode === "create" ? (
               <Button
+                id="procedure-form-modal-add"
                 type="submit"
                 form="procedure-form"
                 variant="primary"
@@ -405,6 +409,7 @@ export function ProcedureFormModal({
               </Button>
             ) : (
               <Button
+                id="procedure-form-modal-update"
                 type="submit"
                 form="procedure-form"
                 variant="primary"
@@ -416,9 +421,10 @@ export function ProcedureFormModal({
               </Button>
             ))}
 
-          {/* Save — overpaid mode (procedure_type_id only, REF-190) */}
-          {isOverpaidMode && (
+          {/* Save — view and overpaid modes (procedure_type_id only, PRO-190, REF-190) */}
+          {(mode === "view" || isOverpaidMode) && (
             <Button
+              id="procedure-form-modal-save-type"
               type="submit"
               form="procedure-form"
               variant="primary"

@@ -311,3 +311,120 @@ describe("ProcedureFormModal — refund mode (Cancel Refund / F27 typed-error pi
     });
   });
 });
+
+describe("ProcedureFormModal — view mode saves a changed procedure type (DEBT-062, PRO-190)", () => {
+  const OTHER_TYPE: ProcedureType = {
+    id: "pt2",
+    name: "Échographie",
+    default_amount: 56000,
+    category: null,
+  };
+  const RECONCILED: Procedure = { ...MOCK_PROCEDURE, payment_status: "RECONCILED" };
+  const FUND_PAID: Procedure = { ...MOCK_PROCEDURE, payment_status: "FUND_PAID" };
+
+  beforeEach(() => {
+    useCacheStore.setState({ procedureTypes: [PROCEDURE_TYPE, OTHER_TYPE] });
+  });
+
+  function renderView(procedure: Procedure, onClose = vi.fn(), onSuccess = vi.fn()) {
+    render(
+      <ProcedureFormModal
+        mode="view"
+        procedure={procedure}
+        isOpen
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+    return { onClose, onSuccess };
+  }
+
+  it("DEBT-062: saving sends the new type and closes the modal", async () => {
+    vi.mocked(procedureGateway.updateProcedure).mockResolvedValue({
+      success: true,
+      data: { ...RECONCILED, procedure_type_id: "pt2" },
+    });
+    const { onClose, onSuccess } = renderView(RECONCILED);
+
+    fireEvent.change(screen.getByLabelText("Procedure Type"), { target: { value: "pt2" } });
+    await userEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    await waitFor(() => {
+      expect(procedureGateway.updateProcedure).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "proc-1", procedure_type_id: "pt2" }),
+      );
+    });
+    expect(onSuccess).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("DEBT-062: a failed save keeps the modal open and shows an error", async () => {
+    vi.mocked(procedureGateway.updateProcedure).mockResolvedValue({
+      success: false,
+      error: { code: "ProcedureTypeNotFound", procedure_type_id: "pt2" },
+    });
+    const { onClose } = renderView(RECONCILED);
+
+    await userEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    await waitFor(() => {
+      expect(toastService.show).toHaveBeenCalledWith("error", expect.any(String));
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("PRO-190: a successful save shows the success snackbar", async () => {
+    vi.mocked(procedureGateway.updateProcedure).mockResolvedValue({
+      success: true,
+      data: RECONCILED,
+    });
+    renderView(RECONCILED);
+
+    await userEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    await waitFor(() => {
+      expect(toastService.show).toHaveBeenCalledWith("success", expect.any(String));
+    });
+  });
+
+  it("PRO-190: the save button is disabled while saving", async () => {
+    vi.mocked(procedureGateway.updateProcedure).mockReturnValue(new Promise(() => {}));
+    renderView(RECONCILED);
+
+    await userEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    expect(screen.getByRole("button", { name: "Updating..." })).toBeDisabled();
+  });
+
+  it("PRO-190: a thrown call keeps the modal open, shows an error and frees the button", async () => {
+    vi.mocked(procedureGateway.updateProcedure).mockRejectedValue(new Error("ipc down"));
+    const { onClose } = renderView(RECONCILED);
+
+    await userEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    await waitFor(() => {
+      expect(toastService.show).toHaveBeenCalledWith("error", "An unexpected error occurred.");
+    });
+    expect(screen.getByRole("button", { name: "Update" })).toBeEnabled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("PRO-190: every field but the type is read-only, the patient with the SSN", () => {
+    renderView(RECONCILED);
+
+    expect(screen.getByLabelText("Patient")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Patient")).toHaveValue("Marie Dupont (1234567890123)");
+    expect(screen.getByLabelText("Fund")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Procedure Date")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Amount")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Procedure Type")).not.toHaveAttribute("readonly");
+    expect(screen.getAllByRole("textbox")).toHaveLength(4);
+  });
+
+  it("DEBT-062: a fund-paid procedure offers both Refund and Update", () => {
+    renderView(FUND_PAID);
+
+    expect(screen.getByRole("button", { name: "Refund" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Update" })).toBeInTheDocument();
+  });
+});

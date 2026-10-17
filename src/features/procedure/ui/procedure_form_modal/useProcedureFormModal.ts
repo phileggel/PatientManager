@@ -137,6 +137,22 @@ export function useProcedureFormModal({
     setFieldErrors({});
   }, []);
 
+  // A thrown call (IPC failure) ends like a refused one: loading cleared, an error shown (PRO-050, PRO-190).
+  const callGateway = useCallback(
+    async <T>(call: () => Promise<T>): Promise<T | null> => {
+      try {
+        return await call();
+      } catch (err) {
+        logger.error(`${TAG} Gateway call threw`, { err });
+        toastService.show("error", tc("error.unknown"));
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [tc],
+  );
+
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
@@ -145,20 +161,22 @@ export function useProcedureFormModal({
         // View mode: only procedure_type_id is editable (R26)
         if (!procedure || !procedureTypeId) return;
         setLoading(true);
-        const result = await gateway.updateProcedure({
-          id: procedure.id,
-          patient_id: procedure.patient_id,
-          fund_id: procedure.fund_id,
-          procedure_type_id: procedureTypeId,
-          procedure_date: procedure.procedure_date,
-          billed_amount: procedure.billed_amount,
-          payment_method: procedure.payment_method,
-          fund_reconciliation_date: procedure.fund_reconciliation_date || null,
-          confirmed_payment_date: procedure.confirmed_payment_date || null,
-          paid_amount: procedure.paid_amount,
-          payment_status: procedure.payment_status,
-        });
-        setLoading(false);
+        const result = await callGateway(() =>
+          gateway.updateProcedure({
+            id: procedure.id,
+            patient_id: procedure.patient_id,
+            fund_id: procedure.fund_id,
+            procedure_type_id: procedureTypeId,
+            procedure_date: procedure.procedure_date,
+            billed_amount: procedure.billed_amount,
+            payment_method: procedure.payment_method,
+            fund_reconciliation_date: procedure.fund_reconciliation_date || null,
+            confirmed_payment_date: procedure.confirmed_payment_date || null,
+            paid_amount: procedure.paid_amount,
+            payment_status: procedure.payment_status,
+          }),
+        );
+        if (!result) return;
         if (!result.success) {
           logger.error(`${TAG} Error updating procedure type in view mode`, {
             code: result.error.code,
@@ -184,14 +202,16 @@ export function useProcedureFormModal({
       setFieldErrors({});
       setLoading(true);
       if (mode === "create") {
-        const result = await gateway.addProcedure(
-          patientId,
-          fundId || null,
-          procedureTypeId,
-          procedureDate,
-          Math.round((billedAmount ?? 0) * 1000),
+        const result = await callGateway(() =>
+          gateway.addProcedure(
+            patientId,
+            fundId || null,
+            procedureTypeId,
+            procedureDate,
+            Math.round((billedAmount ?? 0) * 1000),
+          ),
         );
-        setLoading(false);
+        if (!result) return;
         if (!result.success) {
           logger.error(`${TAG} Error submitting`, { code: result.error.code });
           const { key, params } = formatProcedureOrchestrationError(result.error);
@@ -209,20 +229,22 @@ export function useProcedureFormModal({
           setLoading(false);
           return;
         }
-        const result = await gateway.updateProcedure({
-          id: procedure.id,
-          patient_id: patientId,
-          fund_id: fundId || null,
-          procedure_type_id: procedureTypeId,
-          procedure_date: procedureDate,
-          billed_amount: Math.round((billedAmount ?? 0) * 1000),
-          payment_method: procedure.payment_method,
-          fund_reconciliation_date: procedure.fund_reconciliation_date || null,
-          confirmed_payment_date: procedure.confirmed_payment_date || null,
-          paid_amount: procedure.paid_amount,
-          payment_status: procedure.payment_status,
-        });
-        setLoading(false);
+        const result = await callGateway(() =>
+          gateway.updateProcedure({
+            id: procedure.id,
+            patient_id: patientId,
+            fund_id: fundId || null,
+            procedure_type_id: procedureTypeId,
+            procedure_date: procedureDate,
+            billed_amount: Math.round((billedAmount ?? 0) * 1000),
+            payment_method: procedure.payment_method,
+            fund_reconciliation_date: procedure.fund_reconciliation_date || null,
+            confirmed_payment_date: procedure.confirmed_payment_date || null,
+            paid_amount: procedure.paid_amount,
+            payment_status: procedure.payment_status,
+          }),
+        );
+        if (!result) return;
         if (!result.success) {
           logger.error(`${TAG} Error submitting`, { code: result.error.code });
           const { key, params } = formatProcedureOrchestrationError(result.error);
@@ -246,6 +268,7 @@ export function useProcedureFormModal({
       onSuccess,
       onClose,
       reset,
+      callGateway,
     ],
   );
 

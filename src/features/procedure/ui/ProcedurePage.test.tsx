@@ -148,6 +148,23 @@ describe("ProcedurePage — R6: modal mode routing based on blocking status", ()
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  test.each([
+    "RECONCILED",
+    "PARTIALLY_RECONCILED",
+    "FUND_PAID",
+    "PARTIALLY_FUND_PAID",
+    "DIRECTLY_PAID",
+  ] as const)("PRO-190: a %s procedure opens in view mode", async (status) => {
+    render(<ProcedurePage />);
+    await waitFor(() => expect(capturedOnEdit).not.toBeNull());
+
+    act(() => {
+      capturedOnEdit?.(makeRow(status));
+    });
+
+    expect(screen.getByRole("heading", { name: "View Procedure" })).toBeInTheDocument();
+  });
+
   test("opens modal in overpaid mode for OVERPAID status (REF-190)", async () => {
     render(<ProcedurePage />);
     await waitFor(() => expect(capturedOnEdit).not.toBeNull());
