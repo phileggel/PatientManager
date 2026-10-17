@@ -20,6 +20,8 @@ its notes. `just queue` says what has shipped.
 <!-- Order: FLOW-078 first, since every question of the batch then goes through the tool; -->
 <!-- DEBT-062 second against "tools first", so the owner sees its mock while the guides -->
 <!-- are worked. -->
+<!-- Cut (owner, 2026-10-17): TODO-018, its methods now refuse transitions (a spec -->
+<!-- interview first); it opens the next batch. -->
 <!-- Left for the batch after: FLOW-054 slice 2, FLOW-031, TODO-020, DEBT-043, the banked -->
 <!-- flow entries of 2026-10-17. FLOW-032 superseded by FLOW-079 (owner, 2026-10-17). -->
 
@@ -37,7 +39,6 @@ its notes. `just queue` says what has shipped.
 - FLOW-056
 - FLOW-058
 - DEBT-057
-- TODO-018
 - DEBT-048
 - DEBT-061
 - DEBT-065
