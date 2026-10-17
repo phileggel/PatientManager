@@ -15,3 +15,4 @@
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): `visual-proof-capture.mjs` not run again. Left.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): 2 captures ran without the override (by the session agent); Playwright is unchanged in `package-lock.json` since 2026-05-03, so nothing in the batch explains it. The README gap for a new machine stands. Left.
 - Decision (owner, 2026-10-17): accepted (banked).
+- Re-checked 2026-10-18 (audit of the v0.24.8 batch, `flow-auditor`): 2 captures ran, ok; whether the override was set is not recorded. Left.

@@ -6,3 +6,4 @@
 - Proposal: `release-notes.py` prints every section since the last published release. Amending v0.24.7's page now is the owner's call.
 - Costs: a few lines and a test in a CI-only script; longer notes after a failed tag. Protects: what a user is told changed.
 - Decision (owner, 2026-10-17): accepted; v0.24.7's release page is left as it is (banked).
+- Re-checked 2026-10-18 (audit of the v0.24.8 batch, `flow-auditor`): did not recur; v0.24.8 follows a published tag. Left.

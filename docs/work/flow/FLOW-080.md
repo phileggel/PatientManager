@@ -6,3 +6,4 @@
 - Proposal: § 3 step 10 says an entry whose Done when names a gate the pull request did not run stays open until that gate has run, or the pull request makes that gate run. Add `package-lock.json` to the dry run's paths.
 - Costs: an entry open across a release, or a 33-min dry run on such pull requests. Protects: a tag that cannot release, and the notes gap of FLOW-081.
 - Decision (owner, 2026-10-17): accepted, both halves (banked).
+- Re-checked 2026-10-18 (audit of the v0.24.8 batch, `flow-auditor`): `package-lock.json` still not in the dry run's paths; #313's Done when could only be proven after the merge and nobody looked at `main` afterwards (FLOW-086). Left.

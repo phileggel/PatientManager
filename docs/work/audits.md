@@ -5,6 +5,88 @@ The hard points an audit finds are `FLOW-NNN` entries in `flow/`. Newest first.
 
 ---
 
+## Measured — the v0.24.8 batch (2026-10-17 11:11 UTC → 2026-10-17 21:45 UTC)
+
+Written by `flow-auditor` and revised once with the session agent's answers. The figures come from `logs/flow-audit.json` (`just flow-audit v0.24.7 v0.24.8 --previous v0.24.5`; `truncated`: nothing). "Counted" means the auditor counted it from the pull requests, the runs (`gh run list`, `gh run view`), the comments' edit history (GraphQL `userContentEdits`), the commits (`gh api …/commits`) or `logs/usage.log`. "The session agent says" marks an answer: evidence, not a conclusion. The invoking prompt gave the three tags and the figures file and nothing else.
+
+- **Pull requests merged:** 17 (#301–#318 without #309), was 19. Lines added: 1 216, was 2 633.
+  - By type: 11 docs, 3 refactor, 1 fix, 1 ci, 1 chore; was 7 docs, 5 chore, 5 fix, 2 refactor.
+  - Closed without merging: 1 (#309), was 1.
+  - Counted: 10 are work (#306–#308, #310–#314, #316, #317) and 7 are records (#301–#305, #315, #318). Was 13 and 6.
+- **Opening to merging:** median 7.7 min, was 8.5. Mean 27.3 min, was 13.1.
+  - Counted: 463 min open in total. #313 alone was open 220.8 min (48 %); then #316 72.8, #307 38.7, #310 36.2, #314 35.5. #309 was open 77.5 min before it was closed.
+- **How long the queue took:** 585.4 min from the first opening to the last merge, was 6 005.1.
+  - Counted, gaps of 20 min or more in the usage log: 11:47 → 13:30 (103 min; the session agent says planning, the owner's answers to the queue and to five decisions); 15:31 → 16:16 (45 min; the session agent says a local `reviewer-infra` re-read that ran 3 844 s in the background); 16:19 → 16:45; 17:22 → 17:52 (a 30-min watch timeout; the session agent says it waited on the Release dry run's `build / windows`); 21:13 → 21:45 (the release workflow).
+  - Counted: v0.24.8 was tagged at 21:13:14; the release workflow ran 21:13:17 → 21:45:15; the release was published at 21:45:35. The session agent says the owner typed `just release -y` after "ready" was said in chat once #318 had merged.
+- **CI rounds:** 50 for 18 branches, was 33 for 20. Beyond the first: 32, was 13. Counted causes:
+  - 15 were fixes after a CI review finding: #313 8, #316 3, #309 2, #310 1, #312 1.
+  - 8 were the folded commit `just merge` pushes, all on a pull request already merged or merging (#306, #308, #310–#314, #316). Was 8. #313's own fold was cancelled by its own change.
+  - 5 came from a rebase alone, after `main` moved (#307 a2a0929 and 9dc9001; #313 c2a6079 and 65bcebe; #316 e841eda). Was 2. 4 of those rebased a branch whose last round was green and graded; 10 more rounds followed them: #313 7 (rounds 6–12), #316 3 (rounds 3–5).
+  - 3 were a rebased fold that `just merge` pushed while the checks were red, before its green guard (#309 27fdf69 and 8f4afc1; #312 4b7163d). The session agent says the commands were chained as `just watch-pr N …; just merge`.
+  - 1 was a fix after the local review or `spec-checker` (#307 1ba263a).
+- **Run times (median of green runs):** Quality 2.8 min (2.4), Review 2.5 (1.4), E2E 6.8 (6.8), Codec Gate 1.8 (2.0), PR description 0.1 (0.1), Release dry run 15.3 (33.0). The dry run ran on every #313 round.
+- **Failed runs on pull requests:** Review 14, was 2: #313 7 plus 1 failed attempt, #309 4, #310 1, #312 1. Re-runs: 1 (#313), was 0.
+  - Cancelled: 20, was 2. Counted: 10 superseded by a newer push within 4 min; 6 were #313's own runs, cancelled at its merge; 4 PR description runs restarted by a description edit after the push.
+  - Counted, outside the figure: 7 push runs on `main` were cancelled, was 1. 3 were superseded by the next merge. The other 4 came after #313: d25e342's Quality, Codec Gate and E2E (runs 39069286584, 39069286597, 39069286591) and a3937ae's Quality (39069570258), each cancelled 2–3 s after it started. 240bbf1, pushed with no pull request, ran green.
+- **Entries:** 10 filed (7 flow, 2 debt, 1 todo), was 14. 17 closed (12 flow, 5 debt), was 10.
+  - Counted, the queue: 19 references at #304, 18 after the owner cut TODO-018 (#315). 16 closed; 2 are slices left open by design: FLOW-054 (slice 2) and DEBT-065 (its two 🟡). FLOW-084 was filed (#310) and closed (#313) within the batch.
+- **Each entry beside its size:** past its size 0, was 0. FLOW-056 (S) took 1 pull request and 12 rounds, the most; DEBT-048 (M) took 6.
+- **Open at both ends:** issues 6 → 0 (closed by #308, #310, #311). Dependabot pull requests 0 → 0.
+- **Tools (`logs/usage.log`, from 2026-10-17 11:27:26 UTC):** 958 runs, was 898.
+  - Most run: `rule-homes` 176, `privacy-check` 159, `changed-scope` 154, `scoped-checks` 142, `arch-check` 47, `check` 41, `watch-pr` 39, `work-queue` 28, `branch` 26, `merge` 26.
+  - Failures: 42, was 38 — `watch-pr` 14 (12 exit 1, red rounds; 2 exit 3, 30-min timeouts: 16:50 on #310, cause not known, and 17:52 on #313, the dry run's Windows build by the session agent), `merge` 10 (5 within 5 s of a failing watch through the `;` chain, 3 of which pushed a round; 2 #307 meeting a moved `main`; 3 stop after a rebase that moved the commits), `rule-homes` 7, `scoped-checks` 6, `arch-check` 2, `check` 2, `harness` 1 (not attributed).
+  - `release.py`: 1 run, ok, the owner's (the session agent). `visual-proof-capture.mjs`: 2 runs, ok.
+  - Never run: 15, was 12 — `batch-end` (not needed, the batch released), `clean-branches`, `clean-db`, `flow-audit.py` (ran after the window), `generate-types`, `migrate`, `prepare-sqlx`, `regen-fixtures`, `release-notes.py`, `review-path.sh`, `review-stop-reason.py` (CI only), `run-entry.sh`, `start-app.sh`, `stat`, `test-scripts` (its command runs in CI and `just harness`).
+- **Agents and skills:** CI reviewer comments, 45 on 11 pull requests (guides 18, infra 18, arch 4, backend 2, frontend 2, security 1); #313 alone has 23. On #316 the last state of 3 lanes is "review skipped", from the fold's run after the merge, replacing round 5's reports (kept in the edit history). The one local launch known is a `reviewer-infra` re-read of 3 844 s (the session agent); the rest not counted.
+- **Guides:** 39 documents, 4 738 lines, was 4 747 (−9). Words 40 144, was 39 763 (+381). `docs/workflow.md` 495 lines at both tags, +81 words; `docs/agentic-setup.md` +65, `review-protocol.md` +55, `/run-entry` +14, `flow-auditor` +10, `CLAUDE.md` −1. Documents naming a path that does not exist: 17, was 17.
+- **Defects found before merge, by reviewers:** #306 `/spec-writer` batching questions; #307 a thrown call leaving Save loading (`spec-checker`, PRO-190), footer ids; #308 the kinds' edges, the bug rule, the agent's writes; #309/#310 queue ownership, the tag step and push, `release.py` counting from a batch tag, and (CI) the sweep's scope, the sibling clause, the auditor's header, two "release" words, `reviewer-security`'s description, `/dep-audit`'s third case; #311 the `run-entry` setup line, the task-list home, the filing order; #312 "Release blocker" and (CI) line 244's commit message; #313 § 7 against the skill, `release-dry-run.yml`, protocol line 40, the grading step's home, rule 6's source, the `closed` guard; #314 a domain refusal as `DatabaseError`; #316 B21, the extraction kind, a re-export, a log.
+- **Criticals only CI found:** 14 graded (a), was 2 — #309 7 (round 2 repeated round 1 on a fold with no fix), #310 1, #312 1, #313 5. 11 more graded (c): 10 were the base checkout (`claude-code-action` restores `.claude` and `CLAUDE.md` from `origin/main`), 1 rejected with a quoted run log.
+- **Reviewer claims rejected:** 8 (c) lines cite a source. 9 (c) lines in 6 pull requests cite none (#308, #310, #312, #313 ×4, #314, #316); 2 came back from the sweep (#308's touchpoints as FLOW-085, #314's mapping as DEBT-069).
+- **CI findings with no grade:** 1 🔴 and 6 🟡, was 4 🔵 — #310 round 1 (🔴 `run-queue` setup line, 2 🟡), #308 (2 🟡), #311 (2 🟡, merged 28 s after the comment).
+- **(b) grades with no entry:** 0, was 17.
+- **Defects that reached `main` and were found later:** FLOW-085 (🔴 `/plan-queue` Step 4 against § 3, #310; `/run-entry` restating the question rule, #306; `batch-end` logic in the `justfile`, #310; `adr-reviewer.md` "before a release", #310; § 1's touchpoints, #308); DEBT-069 (#314's mapping, #316's message); TODO-024 (#307's Save state). Found by this audit only: since #313 a merge cancels `main`'s push runs.
+- **Rules not followed:**
+  1. § 8, three red rounds of one gate or three hours → stop and ask. #313's Review failed on 7 commits plus 1 attempt, open 3 h 41 min; the session agent says the count was not applied. FLOW-074's Review failed 5 times across #309 and #310. Cost: 11 extra rounds on #313, 12 Release dry runs, 23 lane sessions.
+  2. § 7, every finding graded: the 1 🔴 and 6 🟡 above, in part through the `; just merge` chain.
+  3. § 7, a (c) cites what overrides the finding: 9 lines, 2 came back.
+  4. § 7, a CI finding the local run missed → a rule in that reviewer's prompt: #312 changed no prompt. Third audit in a row with an instance.
+  5. `CLAUDE.md` § Agents, re-run on the fixes before the push: #313 round 6 was pushed unread, and the next round raised a 🔴.
+  6. `spec-checker` on every spec the batch touched before its end: not run at the end on the spec holding REF-100, whose code #314 changed (the session agent); #307 ran it on PRO-190.
+- **Guide statements a record shows false, not already filed:** the six workflows' `closed` comment ("cancels the rounds still running on a pull request") — it reaches `main`'s group too (a guess, not checked: a merged pull request's `closed` event carries the base branch as `github.ref`); TODO-018's Done when keeps "behaviour is unchanged" beside the owner's answer; #313's round-5 grade "the rule 6 fix held" against round 4's "applies after this merges"; `CLAUDE.md` "the closing brief is the PR body's first lines": 11 of 18.
+- **Generic pieces of `docs/agentic-setup.md` against their line:** 60. Contradicted: `justfile` (#310's `batch-end`), `docs/work/queue.md` (#315 edited it), `flow-auditor` "nor writes a file" (this audit wrote copies to the session's scratch directory), `CLAUDE.md` "read every turn" (not reloaded during the session, by the session agent; this auditor received v0.24.7's text).
+- **The owner's answers written into entries:** 9 dated (FLOW-079; DEBT-057, FLOW-074; FLOW-032, DEBT-037, DEBT-047, DEBT-064; DEBT-062's design; TODO-018), 14 banked Decision lines (#304), 3 confirmed glossary rows, 3 answers in #310. Through `AskUserQuestion` (the session agent): who runs `batch-end`, emptying the queue, TODO-018's refusals and placement, DEBT-062's design, #304's questions; the CVE-at-batch-end rule was volunteered by the owner. No times recorded. One the reading before the work should have asked: who tags a batch (asked during #309).
+
+Reading: the batch merged 17 pull requests with 32 extra rounds (was 13), 14 criticals only CI found (was 2) and 20 cancelled runs (was 2); the mean time open doubled to 27.3 min while the median fell to 7.7. Half of the open time and 11 of the extra rounds are one S entry (FLOW-056, #313): its rounds kept finding something new, including after green graded rounds a rebase re-opened, and § 8's count was not applied. The batch released 20 s after its workflow went green with no (b) left unfiled, but a change it merged (#313) cancels `main`'s push runs, and neither its 23 reviews nor the sweep saw it.
+
+**The six questions**
+
+1. A conflict avoided: #309's `--fixup HEAD~N` named commits on `main`, caught at merge and reopened as #310 (FLOW-088); a rebase re-opened a green review 4 times (FLOW-089); #307/#308 merging 14 s apart: keep (FLOW-039).
+2. Where it waited: #313's 221 min with § 8 not applied (FLOW-090); the `; just merge` chain (FLOW-087); a 64-min background local re-read (FLOW-090); the dry run's 30 min: keep; the release workflow's 32 min: keep.
+3. Simplify: 7 of 17 pull requests are records, was 6 of 19. Nothing to change.
+4. Unused: 15 never run; keep all.
+5. Guides: −9 lines, +381 words (FLOW-073); four false statements; six sweep findings in text the batch wrote (FLOW-085); a session that does not reload `CLAUDE.md` works on the pre-batch text (FLOW-092).
+6. By hand: a fixup's target (FLOW-088), watching `main` after a merge (FLOW-086), the § 8 count (FLOW-090), reading the comments before merging (FLOW-087). Owed to another repository: #311 rewrote the generic part of `docs/agentic-setup.md` from issues filed while porting it; whether that repository gets the same text is unrecorded.
+
+**Flow entries.** Settled, to close: FLOW-032, FLOW-039, FLOW-070. Re-checks written on the entries. Proposed: FLOW-086 to FLOW-092, filed in the audit's pull request. FLOW-086 (it cancels `main`'s runs) and FLOW-090 with FLOW-072 are the first to queue.
+
+## Not in the records
+
+Answered by the session agent and in no record. Each should have been written where named:
+
+- The owner typed `just release -y`; "ready" was said in chat after #318. Belongs in a comment on #318.
+- The questions went through `AskUserQuestion`; the CVE rule was volunteered. No times. The answers belong on their entries, with their times.
+- TODO-018's refusals were raised by the run's scan before any branch. Belongs on TODO-018.
+- § 8 was not applied on #313. Belongs in a comment on #313.
+- #313's timeout waited on the dry run's Windows build.
+- 11:47 → 13:30 was planning; 15:31 → 16:16 a 3 844-s background re-read. The re-read belongs in #309's comments.
+- `spec-checker` was not run at the end on the spec holding REF-100. Belongs in #318.
+- `watch-pr` and `merge` were chained with `;`.
+- `CLAUDE.md` was not reloaded during the session.
+
+Still unanswered: whether #301 and #303 record one discussion (both predate the session); the cause of #310's watch timeout. Local agent launches and skills run, beyond the one re-read, are not counted.
+
+---
+
 ## Measured — the 0.24.7 batch, with 0.24.6 folded in (2026-10-13 04:26 UTC → 2026-10-17 11:11 UTC)
 
 Written by `flow-auditor` and revised once with the session agent's answers. The figures come from `logs/flow-audit.json` (`just flow-audit v0.24.5 v0.24.7 --previous v0.24.3`; `truncated`: nothing). "Counted" means the auditor counted it from the pull requests, the runs (`gh run list`, `gh run view`), the comments' edit history (GraphQL `userContentEdits`) or `logs/usage.log`. "The session agent says" marks an answer: evidence, not a conclusion. The invoking prompt gave the three tags and the figures file and nothing else.
@@ -122,166 +204,3 @@ Answered by the session agent and in no record. Each should have been written wh
 - The captures ran without the override. Belongs in FLOW-041's re-check.
 
 Still unanswered: the owner's answer to the DEBT-039 wording question that #281 put to the owner. Local agent launches and skills run are in no record and were not counted.
-
----
-
-## Measured — the 0.24.5 batch, with 0.24.4 folded in (2026-10-11 13:29 UTC → 2026-10-13 04:26 UTC)
-
-Written by `flow-auditor` and revised once with the session agent's answers. Figures come from `logs/flow-audit.json` (`just flow-audit v0.24.3 v0.24.5 --previous v0.24.2`; `truncated`: nothing), each beside the batch before. "Counted" marks what the auditor counted from the pull requests, the runs (`gh run list`) or `logs/usage.log`. "The session agent says" marks an answer: evidence, not a conclusion. The invoking prompt gave the three tags and the figures file and nothing else.
-
-- **Pull requests merged:** 17 (#242, #265–#280), was 23. Lines added: 1 407, was 3 752. By type: 8 docs, 5 chore, 2 fix, 1 ci, 1 other; was 13 docs, 6 chore, 2 refactor, 1 ci, 1 fix. None closed without merging, was none.
-  - Counted: "other" is #242. The script does not read Dependabot's `chore(deps):` title as a type.
-  - Counted: 9 are work (#242, #267, #270–#275, #277, #280) and 7 are records (#265, #266, #268, #269, #276, #278, #279), was 11 and 12.
-- **Opening to merging:** median 7.6 min, was 0.7; mean 143.5 min, was 11.3.
-  - Counted: four pull requests hold 2 353 of the 2 440 minutes spent open: #242 1 082 (opened before the window, waiting for its turn in the queue), #275 702, #274 407, #273 162.
-  - Counted: work pull requests, median 25.3 min; record pull requests, about 0.7 min each.
-- **How long the queue took:** 2 468.0 min from the first opening to the last merge, was 869.5.
-  - Counted, from the usage log, three stretches with no tool run while a pull request had a red Review:
-    - **#275, 05:40 → 16:32 UTC, 10 h 52 min.** The session agent says it stopped under the three-reds rule of § 8, the owner answered in chat at about 16:30, and the fix was pushed then. The runs disagree on the count: before 05:40 #275 had two red Review runs (4e6a773, 33d70e5); the third (191d8ac) started at 16:33, after the answer.
-    - **#274, 22:38 → 04:56 UTC, 6 h 18 min.** The session agent says the owner's machine paused overnight.
-    - **#273, 20:04 → 22:13 UTC, 2 h 9 min.** The session agent says it was waiting on #272's watch while the machine paused.
-  - Counted: v0.24.5's release workflow was green at 19:50 UTC and the release was published at 04:26 UTC, 8 h 36 min later. For v0.24.4 the gap was 12 s. The session agent says the agent published on wake, after the machine paused overnight.
-- **CI rounds:** 38 for 17 branches, was 28 for 23; 21 beyond the first, was 5. Counted causes of the 21:
-  - 11 were fixes after a critical that only CI found: #270 1, #273 4, #274 1, #275 5.
-    - Four of those pushes were followed 40–71 s later by a second push that cancelled their runs (#273 c7bdd61 and a6628df; #275 aca2ff9 and efe0c7c).
-    - The session agent says each second push carried fixes a local guides or infra pass had asked for, and no lane read them again before the push.
-  - 6 were the folded commit `just merge` pushes (#242, #270, #273, #274, #275, #277). Five of them ran after the merge; on #277 the fold was tested before the merge.
-  - 2 were fixes after CI warnings or suggestions (#273 e296aa0, #277 dcb1ed0). The session agent says no local infra pass read e296aa0 before its push; its CI round raised two infra criticals.
-  - 1 added scope: #270 b3d564c carried the FLOW-069 entry, at the owner's request (comment of 16:10 UTC).
-  - 1 was a fixup on Dependabot's branch (#242: moving the "Install just" step to the same pin), pushed 6 s after the agent's rebase.
-  - 0 came from a rebase alone, was 0.
-- **Run times (median of green runs):** Quality 2.7 min (2.6), Review 1.9 (1.3), E2E 6.6 (6.5), Codec Gate 1.7 (1.8), PR description 0.1 (0.1). Release dry run 31.1 is new; it ran on #242 only.
-- **Failed runs on pull requests:** Review 8, was 3, of which 1 is an earlier attempt of a run that was re-run (#274); nothing else failed. Cancelled: 25, was 0 — PR description 11, Review 5, E2E 3, Quality 3, Codec Gate 2, Release dry run 1.
-  - Counted: the 14 cancelled runs that are not PR description runs all come from a push followed by another within 6–71 s.
-  - Counted: 13 commits carry two or more PR description runs, so the description was edited after the push. The session agent says the edits went through `gh api -X PATCH …/pulls/N`, because `gh pr edit` fails on GitHub's deprecation of project cards (#270).
-  - Counted: on `main`, the push runs of 579cffb, 47f5aee and 37419eb were cancelled within seconds of the merge. The script counts pull-request runs only, so these are not in the figure. Cause not known.
-- **Entries:** 20 filed (17 flow, 3 debt), was 18; 15 closed (12 flow, 3 debt), was 12.
-  - Counted, the queue: 12 references (11 entries and gh#242), all 12 shipped.
-  - Counted, outside the queue:
-    - DEBT-059 (#267, "fix now", owner);
-    - FLOW-051 (#270). The queue the owner validated that day had put it in the batch after, "to refine first";
-    - DEBT-039 (#280). The session agent says the owner named it after `just release -y` printed "No releasable commits", so that the release would carry a changelog line.
-- **Each entry beside its size:** past its size, 0, was 1.
-  - FLOW-055 (M): 1 pull request, 7 rounds.
-  - Counted: the figure gives a bundle's rounds to each entry it names. FLOW-059 to FLOW-062 each show #275's 7 rounds, and FLOW-049, 053 and 057 each show #274's 3. Summed over entries the figure gives 54 rounds; the batch had 38.
-- **Open at both ends:** issues 6 → 6, and each now has an entry (FLOW-063 to FLOW-068, #269). Dependabot pull requests 1 → 0 (#242 merged).
-- **Tools (`logs/usage.log`, from 13:42:55 UTC):** 667 runs, was 725. Most run: `rule-homes` 137, `changed-scope` 111, `scoped-checks` 95, `privacy-check` 92, `work-queue` 33, `watch-pr` 29, `arch-check` 26, `check` 25, `branch` 22, `merge` 20, `harness` 16.
-  - Failures: 38, was 25 — `rule-homes` 11, `watch-pr` 8, `harness` 6, `check` 5, `merge` 3, `privacy-check` 2, `scoped-checks` 2, `release` 1.
-  - Counted: the 8 `watch-pr` exits match, by time, the 8 red Review rounds it reported. They are answers, not faults of the tool.
-  - Counted: 2 of the 3 `merge` failures are on #242, where the Dependabot convention expects the first `just merge` to stop.
-  - The `release` failure was at 18:31:51 UTC on 2026-10-12. The session agent says the owner ran `just release -y` and it refused: no releasable commits.
-  - No outcome, stated by runs alone: `coverage-fe` 9, `format` 8, `coverage-be` 6, `generate-types` 1, `rerun-failed` 1.
-  - Never run: 14, was 13 — `clean-branches`, `clean-db`, `flow-audit.py`, `migrate`, `prepare-sqlx`, `regen-fixtures`, `release-notes.py`, `review-path.sh`, `review-stop-reason.py`, `run-entry.sh`, `start-app.sh`, `stat`, `test-scripts`, `visual-proof-capture.mjs`.
-  - `release-notes.py` and the two `review-*` scripts run in CI only. The script tests run in CI's PR checks job (#271). `flow-audit.py` ran after the window, so § 12's "nothing of it runs during a batch" was kept this time.
-- **Agents and skills:** CI reviewer comments, counted in their last state: 20 on 10 pull requests (infra 8, guides 5, arch 3, frontend 3, backend 1). Each comment is overwritten by the next round (FLOW-058), so the reports of earlier rounds are not countable. Local launches and skills run: not counted.
-- **Guides:** 39 documents, 4 746 lines; was 39 and 4 746. `/file-entry` 24 → 25; `docs/workflow.md` 495 → 494.
-  - Counted, words in the 39 guides: 39 256 → 39 692 (+436). `reviewer-guides` grew 494 → 582 words on the same 33 lines, `review-protocol` 664 → 739, `docs/workflow.md` 5 029 → 5 106, `reviewer-infra` 1 333 → 1 378, `/run-entry` 1 180 → 1 222, `CLAUDE.md` 1 566 → 1 602.
-  - Documents naming a path that does not exist: 17, unchanged.
-- **Defects found before merge, by reviewers (from the bodies):**
-  - #267: an error the application builds still wrote its message into the log.
-  - #271: a CI timeout too tight for an added download; a test that inherited `GIT_*`.
-  - #273: a quote's later lines dropped; Rule 2 lost two conditions in a cut made for the ceiling (local guides 🔴); the session's words printed unfiltered.
-  - #275: the setup line still gave `reviewer-security` "the whole code" (local guides 🔴); rules lost with a section cut for the ceiling; seven lane descriptions promising a full audit; `git describe` not on the allow list.
-  - #280: older drift in the fund contract (b, DEBT-040).
-- **Criticals only CI found:** 8, was 2 (guides 5, infra 3), plus 1 false positive (#274, graded with an inline comment).
-  - #270 (infra): the `gh api` denials let a write through when a flag is written with `=`. The owner settled it the other way: the denials were removed.
-  - #273 (guides): the skill's wait sat outside the time budget while § 8 stated no exception.
-  - #273 (infra): a mixed run, one lane usage-limited and another red, still exited 6.
-  - #273 (infra): `gh run rerun` is not on the allow list.
-  - #274 (guides): `CLAUDE.md` rule 1 named the branch form without the filing exception.
-  - #275 (guides, round 1): a sweep scope that no step produces.
-  - #275 (guides, round 2): "banked" scoped to the wrong line.
-  - #275 (guides, round 3): "banked" written on the Decision line that § 12 gives to the owner.
-  - Counted: at least 3 were on text that an earlier CI round of the same lane had passed. `gh run rerun` is in #273's skill at 617e8e3 and cc9eb8d. The round-3 contradiction of #275 is in 4e6a773 (workflow lines 156 and 417). On #274 the same commit's first attempt raised the false positive instead of the real critical.
-  - § 11's figure against this: the four pull requests with a CI-only critical added 139, 186, 168 and 47 lines. All are far under 400 per lane.
-- **Reviewer claims rejected with a source:** 24 in 8 pull requests (counted). 3 cite no rule, file, measurement or decision:
-  - #273: "the first local pass asked for it";
-  - #274: "it contrasts the two forms";
-  - #275: "seven descriptions → (c)".
-- **CI findings with no grade in the body or a comment (§ 7):** 5, all suggestions, was 5.
-  - #274 `reviewer-guides`, last round: `CLAUDE.md` at its ceiling, `docs/workflow.md` headroom, a run-on line in `reviewer-guides`.
-  - #275 `reviewer-guides`, last round: the output template has no `## Files read` slot; a quoted example to drop.
-- **Defects that reached `main` and were found later:**
-  - The release sweep (#278, FLOW-071) found 3 warnings in guides this batch wrote: "the security release sweep" in `CLAUDE.md` § Commands; the trivial-question rule without its criterion; "the sweep's pull request" that no step creates.
-  - FLOW-070: a corrected size is invisible to the audit. Seen while writing #275.
-- **Rules not followed:**
-  1. **`CLAUDE.md` § Where things are, Agents: "re-run on the fixes until no 🔴, then push" (§ 7).**
-     - The session agent says the second push of each pair (#273 cc9eb8d and 5e23c80; #275 33d70e5 and 0638f6f) was written to a local lane's findings and not re-read before the push. It also says e296aa0 (#273) went out with no local infra pass because it fixed only a CI 🟡 and 🔵. The rule makes no exception for a fix of a warning.
-     - Cost: 14 cancelled runs. 4 of the 11 fix rounds were pushes that no lane had read. e296aa0's round raised two infra criticals; 33d70e5's raised #275's round-2 critical.
-     - Counter-argument: at least one of those criticals (`gh run rerun`) was on older text, which a re-read of the delta would not have reached. It survives in part.
-  2. **§ 7, "a CI finding the local run missed → a rule in that reviewer's prompt, same PR".**
-     - #273's two infra criticals left `reviewer-infra.md` untouched; #275 added a rule for round 1 only, not for rounds 2 and 3.
-     - Counter-argument: rule 1 of `reviewer-guides` (contradiction) already covers round 3. That survives, and it points to the lane's instability rather than a gap in its prompt (FLOW-072).
-     - Cost: 4 of 8 CI-only criticals left the local lanes as they were.
-  3. **§ 3 Release: "the release sweep … and only then does it tell the human the release is ready".**
-     - The session agent says the owner was told "ready" at about 17:30 UTC (after #278) and again at about 19:20 UTC (after #280), with no sweep after #280. Only #280's three CI lanes read its diff.
-     - #280 is v0.24.5's only changelog line, added because `just release -y` had refused for lack of one.
-     - For v0.24.4, tagged 11 min after #267, whether any sweep ran is not known.
-  4. **`CLAUDE.md` § Standards and `docs/visual-proof-rules.md` line 5: any `.tsx` change carries screenshots.**
-     - #277 changed `ImportExcelPage.tsx` with none. Its body says the rules document names only component or layout changes as triggers. Line 5 says "any change that touches a `.tsx` … MUST", and the "not required" path still asks for one screen that consumes the code.
-     - Cost: small (one log argument), but the pull request states a guide says what it does not.
-  5. **§ 3 Banked and `CLAUDE.md` § Who decides what: only an ambiguity or a deep choice is the owner's, a question being asked "where the options differ in … what is seen".**
-     - DEBT-039 said "a visible change, so the wording is the owner's". The session agent says the agent chose "Identifiant déjà utilisé par une autre caisse" itself, copying the duplicate-IBAN message, under the rule of 2026-10-12.
-     - By that rule's own criterion, a new message a user reads is the owner's.
-     - Cost: a user-facing message validated by nobody but the agent, against the entry's own line.
-  6. **§ 2 / § 8, the queue as validated.**
-     - FLOW-051 was worked first in the batch while the queue placed it in the batch after, to refine first. No owner's yes is in the records, and the session agent does not know (before its session).
-     - Cost: its unrefined scope (the `gh api` denials) became a CI critical that the owner settled during the work.
-  7. **`CLAUDE.md` Core rule 1: the branch type is the commit type.**
-     - #277's branch is `fix/debt-060-…` and its title is `chore:`. No cost found.
-- **Guide statements a record shows false, not already filed:** 2.
-  1. `docs/agentic-setup.md`, `.claude/settings.json`, "Never: allows what `CLAUDE.md` forbids". On #270 the owner ruled that another spelling past a deny rule is not a finding, and removed the `gh api` write denials. `Bash(gh api *)` stays allowed and can move a ref; the session agent's answer shows the agent uses it to write (PATCH on pull requests).
-  2. `docs/workflow.md` § 3 Release says "the human runs `just release` when they choose. It computes the version from the merged titles". It does not say what a batch with no `feat` or `fix` does. Here the tool refused, and a fix was added after the sweep.
-  - Already filed: FLOW-054 (§ 6 of the workflow; the queue line; the transcript sentence, line 466), FLOW-056 (`merge.py` force-pushes: 6 times this batch), FLOW-071 (3).
-- **Generic pieces of `docs/agentic-setup.md` against their line:** 60 lines. 6 are contradicted by a record:
-  - `scripts/merge.py` (6 force-pushes);
-  - `docs/workflow.md` (§ 6);
-  - `docs/work/queue.md` (#269 wrote it on the owner's yes);
-  - `.claude/settings.json` (#270);
-  - `CLAUDE.md` (FLOW-071, a restated rule);
-  - `flow-auditor` "nor writes a file": in this audit a `git fetch` created a ref, `refs/remotes/audit/pr275`, which the auditor deleted at once. Read-only holds by prompt alone (FLOW-053's 🔵).
-  - `scripts/release.py`, "never run by the agent": the session agent says the owner ran all three runs from the terminal (the 18:31 refusal named; the others consistent). Not contradicted, on an answer.
-  - The other 53: no pull request contradicts them; not verified line by line.
-- **The owner's answers written into entries:** 16 dated Decision lines (counted): 8 in #266, 6 in #269, 1 in #270, 1 in #279.
-  - 7 more answers live only in pull request bodies or comments: two on DEBT-059 in #267; the 0.24.4 fold in #268; "too big, refine first" in #269; the `gh api` ruling in #270; "trivial question is yours" in #275; DEBT-039 named in #280.
-  - Asked during the work: 5 — #270 (twice), #275, #279, #280.
-  - Two that the reading before the work should have asked:
-    - #275: FLOW-062's own proposal said "banked on its Decision line" against § 12. The session agent says the answer was awaited from 05:40 to about 16:30 UTC, the batch's longest stop.
-    - #270: the `gh api` scope of an entry worked unrefined.
-
-Reading: the batch merged fewer and smaller pull requests (17, 1 407 lines) but spent four times the CI rounds (21 beyond the first, was 5), and 11 of those 21 were fixes after criticals that only CI's guides and infra lanes found (8, was 2), all on pull requests under 190 lines. The mean time open rose to 143.5 min. By the session agent's answers, the long gaps were the owner's machine pausing overnight (#274, #273, the publication) and one wait of about eleven hours for an owner's answer on #275, a question the refinement could have asked. The guides kept their line count exactly (4 746) and grew by 436 words, and the release's one changelog line was a fix added after the sweep, because the release tool found nothing releasable.
-
-**The five questions**
-
-1. A conflict avoided: nothing to change — 0 rounds from a rebase alone, was 0.
-2. Where it waited:
-   - #275, 10 h 52 min on the owner's answer (by the session agent), which a question at refinement would have removed. That step is already FLOW-069's decision; nothing new.
-   - #274 6 h 18 min, #273 2 h 9 min and the publication's 8 h 36 min: the machine paused (by the session agent). That is outside the flow; nothing to change.
-   - 25 cancelled runs, 14 from a second push that no lane had read: rule 1 above, and FLOW-072.
-3. Simplify: 7 of 17 pull requests are records, was 12 of 23. The release preparation still took two record pull requests an hour apart (#278, #279), what FLOW-069's decision means to stop. Nothing new.
-4. Unused: 14 never run, keep all. `run-entry.sh` has now gone two audits without a run (as `next-todo.sh` before): keep, re-check. `visual-proof-capture.mjs` did not run although #277 changed a `.tsx`; that is the rule's failure, not the tool's.
-5. Guides: 2 false statements not filed; 4 746 → 4 746 lines but +436 words; two cuts made for a ceiling removed a rule's conditions. FLOW-073.
-
-**Flow entries.** Settled, to close: none. Watches re-checked on their entries. Proposed: FLOW-072, FLOW-073, FLOW-074 (filed in the audit's pull request).
-
-## Not in the records
-
-Still unanswered:
-
-- Whether a sweep or `/dep-audit` ran after #267 and before v0.24.4. The session agent: not known (before its session).
-- Who decided FLOW-051 would run in this batch. The session agent: not known. It belongs on FLOW-051's Decision line or in the queue file.
-- Why the push runs on `main` of 579cffb, 47f5aee and 37419eb were cancelled within seconds. Not asked; not known.
-- Local agent launches and skills run: in no record; not counted.
-- The count behind #275's stop: the session agent's answer (three reds by 05:40) disagrees with the runs (two by 05:40, the third at 16:33). Not resolved.
-
-Answered by the session agent, and in no record. Each should have been written where named:
-
-- The #275 stop and the owner's answer at about 16:30 UTC. #275's body records the answer but not the wait. Belongs in a comment on #275.
-- The machine's overnight pauses (#274, #273, the publication of v0.24.5). Nothing records them. Belongs in the pull request comment, or at least the publication time in the release preparation's record.
-- No local lane read the second pushes or e296aa0. Belongs in #273's and #275's bodies, beside the fix lines.
-- `just release -y` refused at 18:31, and DEBT-039 was named to fill the changelog. Belongs in #280's body and DEBT-039's last line.
-- "Ready" told at about 17:30 and about 19:20 UTC, no sweep after #280. Belongs in the release preparation's record (#278 or a comment on it).
-- The agent chose DEBT-039's wording. #280 names the precedent but not who chose.
-- Descriptions edited through `gh api` PATCH after `gh pr edit` failed. #270's comment names the failure, not the workaround.
-
-About this audit: the `CLAUDE.md` injected into the auditor's context was the text before #275; the auditor read the file on `main`. A `git fetch` by the auditor created the ref `refs/remotes/audit/pr275`, deleted at once; nothing else was written.

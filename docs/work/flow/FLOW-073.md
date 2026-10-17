@@ -13,3 +13,4 @@
   that measures what it means to.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision. +71 words on +1 line. #284 named its cut — the proposal's second half. Left.
 - Decision (owner, 2026-10-17): a line-length cap in `just rule-homes`, and a cut for a ceiling named in its pull request (banked).
+- Re-checked 2026-10-18 (audit of the v0.24.8 batch, `flow-auditor`): −9 lines, +381 words. Left.

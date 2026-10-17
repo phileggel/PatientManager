@@ -21,3 +21,4 @@
 - Re-checked 2026-10-13 (audit of the 0.24.5 batch, `flow-auditor`): no Decision line. Left.
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision. #297 is the sweep's own pull request and repeats each lane's files read, so half of its proposal is practice. Left.
 - Decision (owner, 2026-10-17): accepted, in one guides pull request with FLOW-077; the CI proposals weighed one by one (banked).
+- Re-checked 2026-10-18 (audit of the v0.24.8 batch, `flow-auditor`): decided, not worked; overlaps FLOW-085, one guides pull request should carry both. Left.
