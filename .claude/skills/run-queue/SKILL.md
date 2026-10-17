@@ -20,7 +20,7 @@ otherwise stop and report.
 queue file: the bundles (several entries, one pull request) and the slices (the part of
 a programme this batch takes). `TaskCreate` one task per remaining reference in order —
 a bundle is one task — then "Closing brief and batch end" and "Flow audit". Mark each task
-`in_progress` when its work starts and `completed` when its pull request has merged.
+`in_progress` when it starts, `completed` once merged; `/run-entry` creates none under it.
 
 ## Step 2 — Ask first
 

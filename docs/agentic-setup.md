@@ -40,11 +40,12 @@ auditor reads each generic piece against its line. A piece is a list item opened
 ### Skills
 
 - `.claude/skills/plan-queue/` — refines the candidates, proposes the next queue, records
-  it and what it filed in one pull request. Never: queues what the owner has not validated.
+  it and what it filed through one ceremony. Never: queues what the owner has not validated.
 - `.claude/skills/run-queue/` — runs a batch from its queue to its audit by chaining
-  the other skills. Never: decides, edits the queue or releases.
-- `.claude/skills/run-entry/` — runs one task to a merged pull request. Never: a second
-  task in the same invocation, nor a guess where a question is owed.
+  the other skills, and owns the batch's task list. Never: decides, edits the queue or releases.
+- `.claude/skills/run-entry/` — runs one task through the ceremony (`docs/workflow.md` § 3),
+  its task list only when run alone, and files what it met and did not fix before the entry
+  closes. Never: a second task, a guess where a question is owed, nor a finding left in chat.
 - `.claude/skills/file-entry/` — files one entry with the lines and the size its kind
   requires. Never: writes an entry's file by hand, nor queues it.
 - `.claude/skills/design-proposal/` — renders the target state before anything a user
@@ -76,17 +77,15 @@ auditor reads each generic piece against its line. A piece is a list item opened
   Never: checks code against it.
 - `.claude/agents/spec-checker.md` — checks that every rule of a spec is implemented
   and tested. Never: judges the spec itself.
-- `.claude/agents/contract-reviewer.md` — checks a contract against its spec. Never:
-  amends it.
+- `.claude/agents/contract-reviewer.md` — checks a contract against its spec. Never: amends it.
 - `.claude/agents/flow-auditor.md` — judges an ended batch from its records and proposes
   flow entries, and names a finding owed to another repository. Never:
   takes the session agent's account, nor writes a file.
-- `.claude/agents/adr-reviewer.md` — checks an ADR's structure, gate and status.
-  Never: writes one.
+- `.claude/agents/adr-reviewer.md` — checks an ADR's structure, gate and status. Never: writes one.
 
 ### Scripts
 
-- `scripts/work-queue.py` — classifies the entries, the queue, the open pull requests
+- `scripts/work-queue.py` — classifies the entries, the queue, the ceremonies in flight
   and the open issues; files and closes an entry; sums the sizes of the queue. Never:
   ranks or recommends.
 - `scripts/run-entry.sh` — runs one ready entry with nobody to ask. Never: a second
@@ -114,10 +113,6 @@ auditor reads each generic piece against its line. A piece is a list item opened
 - `scripts/review-path.sh` — where a reviewer writes its report. Never: writes it.
 - `scripts/review-stop-reason.py` — says in one line why a reviewer session stopped in
   CI. Never: fails the job it explains.
-- `scripts/watch-pr.py` — waits for a pull request's checks and says how they ended,
-  the usage limit that stopped a lane included. Never: merges or re-runs.
-- `scripts/merge.py` — rebases a branch whose checks are all green, merges it and
-  deletes it. Never: merges on a red or missing check, nor force-pushes.
 - `scripts/release.py` — versions from the last `v*` tag, writes the changelog, tags and
   pushes. Never: run by the agent (its own: `just batch-end` tags, `just batch-ends` lists).
 - `scripts/release-notes.py` — prints one version's changelog section for its release
@@ -140,8 +135,13 @@ auditor reads each generic piece against its line. A piece is a list item opened
 
 ## This project
 
-The pieces only this repository has: the reviewers of its stack, the tools of its build.
+The pieces only this repository has: the reviewers of its stack, the tools of its build,
+and those of its ceremony, a pull request (`docs/workflow.md` § 3).
 
+- `scripts/watch-pr.py` — waits for a pull request's checks and says how they ended,
+  the usage limit that stopped a lane included. Never: merges or re-runs.
+- `scripts/merge.py` — rebases a branch whose checks are all green, merges it and
+  deletes it. Never: merges on a red or missing check, nor force-pushes.
 - `.claude/agents/reviewer-backend.md` — the quality of Rust code against
   `backend-rules.md`. Never: layering, which is `reviewer-arch`'s.
 - `.claude/agents/reviewer-frontend.md` — the quality and UX of TypeScript and React

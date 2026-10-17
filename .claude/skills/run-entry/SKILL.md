@@ -6,7 +6,7 @@ argument-hint: "[TODO-NNN | DEBT-NNN | FLOW-NNN | a request]"
 
 # Skill — `run-entry`
 
-One invocation, one task, to a merged pull request. The rules are `docs/workflow.md`;
+One invocation, one task, through the ceremony to `main`. The rules are `docs/workflow.md`;
 this file is the checklist.
 
 ## Step 0 — Preconditions and mode
@@ -43,7 +43,7 @@ this file is the checklist.
 - `git checkout -b <type>/todo-NNN-<slug>` (`<type>/debt-NNN-<slug>`, `<type>/flow-NNN-<slug>`, or
   `<type>/<slug>` for a plain request), `<type>` being the commit type the change will
   carry.
-- `TaskCreate` one task per step below; mark each `in_progress` / `completed`.
+- `TaskCreate` one task per step below, each `in_progress` / `completed` (none under `/run-queue`).
 
 ## Step 2 — Design gate
 
@@ -114,14 +114,14 @@ and names what a user notices.
 
 ## Step 9 — Closure
 
-In the same PR, before the merge. If the branch touched a file under `docs/spec/`, or
-the entry names spec rules: launch `spec-checker` on each such spec now, and fix what it
-reports before closing. Then `just queue close <id>` deletes the entry's file
-(`docs/work/`); the queue is not edited. Techdebt the work resolved
-is closed the same way, `ARCHITECTURE.md` if a module appeared, design proposal images
-deleted. Then the closing brief: what changed for the user (or "nothing — internal"),
-what the project gained (tests, coverage); the PR number and where anything still owed
-was filed.
+In the same PR, before the merge. If the branch touched a file under `docs/spec/`, or the
+entry names spec rules: launch `spec-checker` on each such spec now, and fix what it
+reports. File what the task met and did not fix (`/file-entry`, in this PR, headless
+too), never left in chat. Then `just queue close <id>` deletes the entry's file
+(`docs/work/`); the queue is not edited. Techdebt the work resolved is closed the same
+way, `ARCHITECTURE.md` if a module appeared, design proposal images deleted. Then the
+closing brief: what changed for the user (or "nothing — internal"), what the project
+gained (tests, coverage), the PR number.
 
 ## Rules
 

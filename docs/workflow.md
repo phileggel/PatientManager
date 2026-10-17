@@ -138,9 +138,9 @@ job or a machine gate.
 
 ## 3. The loop — one run, one task
 
-A task is a queued entry (`/run-entry`, headless), an entry the human names
-(`/run-entry TODO-NNN`), or a request typed in chat ("do X"). A chat request leaves no
-todo entry: the pull request body is its record.
+A task — a queued entry (`/run-entry`, headless), an entry the human names, or a chat
+request (its record is the pull request body) — lands on `main` through the **ceremony**:
+here a pull request, every check green, merged by `just merge` (steps 8–10).
 
 1. **Pick and brief.** In chat, a question to the human goes through `AskUserQuestion`,
    one per call (owner, 2026-10-17): what happened, what each option changes and costs,
@@ -194,9 +194,9 @@ todo entry: the pull request body is its record.
    `just merge` — it refuses until every check is green and folds `fixup!` commits, so
    the task lands as one commit.
 10. **Closure** in the same PR: on an entry that touched a spec, `spec-checker` runs
-    first and what it finds is fixed; then `just queue close <id>` deletes the entry's file
-    (the queue is left as written); techdebt updated;
-    `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
+    first and what it finds is fixed; what the task met and did not fix is filed; then
+    `just queue close <id>` deletes the entry's file (the queue left as written); techdebt
+    updated; `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
     brief says what changed for the user and what the project gained.
 
 **Ending a batch** (owner, 2026-10-17) — every batch ends alike: the closing brief, then

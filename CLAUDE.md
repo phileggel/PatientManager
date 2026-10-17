@@ -49,7 +49,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
 - **Vocabulary**: `docs/ubiquitous-language.md` — confirmed terms in code, specs, comments and logs; never extend a discrepant one. Give it to every reviewer you launch, with the branch and the spec — never a description of the change.
 - **Skills, agents, scripts and hooks**: [`docs/agentic-setup.md`](docs/agentic-setup.md) says what each one is for and what it must never do. A spec, a contract and an ADR are always written with their skill, never by hand: the templates prevent the format findings the reviewers otherwise raise.
 - **Agents**: exactly the reviewer lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for documents that are not guides), re-run on the fixes until no 🔴, then push; CI runs the same lanes. Before every batch end, the release sweep (`docs/workflow.md` § Release sweep); `spec-checker` before closing an entry with spec rules, and on every spec the batch touched before its end; `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change.
-- **Task tracking**: `TaskCreate` / `TaskUpdate` for any task of more than one file or step.
+- **Task tracking**: `TaskCreate` / `TaskUpdate` for any task of more than one file or step; under `/run-queue`, the batch's list only.
 - **Plans** (asked in chat): exact paths, functions and components per layer, gold work with its size, the tests for each clause. Once the user says go, the plan is the authority for the batch.
 
 ## Commands
