@@ -629,34 +629,38 @@ impl BankManualMatchOrchestrator {
                 tracing::error!(target: BACKEND, err = ?e, "apply_fund_transfer_to_group: read_group failed");
                 FundError::DatabaseError
             })?;
-        let mut updated: Option<Vec<Procedure>> = None;
-        if let Some(group) = group {
-            let procedure_ids: Vec<String> =
-                group.lines.iter().map(|l| l.procedure_id.clone()).collect();
+        // A group that is not found has nothing to settle: the status write
+        // touches no row, as before.
+        let Some(mut group) = group else {
+            return self
+                .settle_group(None, group_id, FundPaymentGroupStatus::BankPaid)
+                .await;
+        };
+        let procedure_ids: Vec<String> =
+            group.lines.iter().map(|l| l.procedure_id.clone()).collect();
 
-            let procedures = self
-                .procedure_service
-                .read_procedures_by_ids(procedure_ids)
-                .await?;
+        let procedures = self
+            .procedure_service
+            .read_procedures_by_ids(procedure_ids)
+            .await?;
 
-            let settled = procedures
-                .into_iter()
-                .map(|mut p| {
-                    let new_status = if p.payment_status == ProcedureStatus::PartiallyReconciled {
-                        ProcedureStatus::PartiallyFundPaid
-                    } else {
-                        ProcedureStatus::FundPaid
-                    };
-                    p.payment_status = new_status;
-                    // paid_amount is conserved (R7 spec)
-                    let amount = p.paid_amount;
-                    p.with_payment_info(PaymentMethod::BankTransfer, Some(confirmed_date), amount)
-                })
-                .collect();
-            updated = Some(settled);
-        }
+        let settled = procedures
+            .into_iter()
+            .map(|mut p| {
+                let new_status = if p.payment_status == ProcedureStatus::PartiallyReconciled {
+                    ProcedureStatus::PartiallyFundPaid
+                } else {
+                    ProcedureStatus::FundPaid
+                };
+                p.payment_status = new_status;
+                // paid_amount is conserved (R7 spec)
+                let amount = p.paid_amount;
+                p.with_payment_info(PaymentMethod::BankTransfer, Some(confirmed_date), amount)
+            })
+            .collect();
 
-        self.settle_group(updated, group_id, FundPaymentGroupStatus::BankPaid)
+        group.confirm_bank_payment();
+        self.settle_group(Some(settled), group_id, group.status)
             .await
     }
 
@@ -674,33 +678,37 @@ impl BankManualMatchOrchestrator {
                 tracing::error!(target: BACKEND, err = ?e, "revert_fund_transfer_from_group: read_group failed");
                 FundError::DatabaseError
             })?;
-        let mut updated: Option<Vec<Procedure>> = None;
-        if let Some(group) = group {
-            let procedure_ids: Vec<String> =
-                group.lines.iter().map(|l| l.procedure_id.clone()).collect();
+        // A group that is not found has nothing to settle: the status write
+        // touches no row, as before.
+        let Some(mut group) = group else {
+            return self
+                .settle_group(None, group_id, FundPaymentGroupStatus::Active)
+                .await;
+        };
+        let procedure_ids: Vec<String> =
+            group.lines.iter().map(|l| l.procedure_id.clone()).collect();
 
-            let procedures = self
-                .procedure_service
-                .read_procedures_by_ids(procedure_ids)
-                .await?;
+        let procedures = self
+            .procedure_service
+            .read_procedures_by_ids(procedure_ids)
+            .await?;
 
-            let settled = procedures
-                .into_iter()
-                .map(|mut p| {
-                    p.payment_status = match p.payment_status {
-                        ProcedureStatus::FundPaid => ProcedureStatus::Reconciled,
-                        ProcedureStatus::PartiallyFundPaid => ProcedureStatus::PartiallyReconciled,
-                        other => other, // Unexpected — leave as-is
-                    };
-                    // Clear Stage 2 — payment_method + confirmed_payment_date.
-                    // fund_reconciliation_date (Stage 1) and paid_amount stay (per R8).
-                    p.revert_fund_payment()
-                })
-                .collect();
-            updated = Some(settled);
-        }
+        let settled = procedures
+            .into_iter()
+            .map(|mut p| {
+                p.payment_status = match p.payment_status {
+                    ProcedureStatus::FundPaid => ProcedureStatus::Reconciled,
+                    ProcedureStatus::PartiallyFundPaid => ProcedureStatus::PartiallyReconciled,
+                    other => other, // Unexpected — leave as-is
+                };
+                // Clear Stage 2 — payment_method + confirmed_payment_date.
+                // fund_reconciliation_date (Stage 1) and paid_amount stay (per R8).
+                p.revert_fund_payment()
+            })
+            .collect();
 
-        self.settle_group(updated, group_id, FundPaymentGroupStatus::Active)
+        group.revert_bank_payment();
+        self.settle_group(Some(settled), group_id, group.status)
             .await
     }
 

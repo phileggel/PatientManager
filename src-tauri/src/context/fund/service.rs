@@ -274,7 +274,7 @@ impl FundPaymentService {
         );
 
         // Update payment group
-        let mut group = self
+        let stored = self
             .repository
             .read_group(&group_id)
             .await
@@ -286,12 +286,9 @@ impl FundPaymentService {
                 fund_payment_group_id: group_id.clone(),
             })?;
 
-        // Parse payment date
-        let parsed_date = chrono::NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
-            .map_err(|_| FundError::InvalidPaymentDateFormat)?;
-
-        group.payment_date = parsed_date;
-        group.total_amount = total_amount;
+        // TODO-019 — the edit goes through the aggregate, which builds the new lines.
+        let group = stored.edit(payment_date, procedure_ids, total_amount)?;
+        let new_lines = group.lines.clone();
 
         let updated_group = self.repository.update_group(group).await.map_err(|e| {
             tracing::error!(target: BACKEND, error = %e, "Failed to update fund payment group");
@@ -306,14 +303,6 @@ impl FundPaymentService {
                 tracing::error!(target: BACKEND, error = %e, "Failed to delete fund payment lines");
                 FundError::DatabaseError
             })?;
-
-        // Create new lines using factory method (generates IDs)
-        let new_lines: Vec<crate::context::fund::FundPaymentLine> = procedure_ids
-            .iter()
-            .map(|procedure_id| {
-                crate::context::fund::FundPaymentLine::new(group_id.clone(), procedure_id.clone())
-            })
-            .collect::<Result<Vec<_>, _>>()?;
 
         if !new_lines.is_empty() {
             self.repository.create_lines(new_lines).await.map_err(|e| {

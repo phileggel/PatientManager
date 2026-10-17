@@ -97,6 +97,12 @@ impl Patient {
         })
     }
 
+    /// PDF auto-correction: the SSN a fund statement gives for this patient
+    /// replaces the stored one — the statement is authoritative.
+    pub fn correct_ssn(&mut self, ssn: String) {
+        self.ssn = Some(ssn);
+    }
+
     /// PDU-022, PDU-023 — what this patient becomes when `other` is merged into
     /// it: it takes the other's INS when it has none, and the other's
     /// latest-procedure defaults when those are more recent.
@@ -214,6 +220,15 @@ impl Patient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn todo_019_correct_ssn_overrides_the_stored_ssn() {
+        let mut patient = patient_with(Some("1234567890123"), None);
+
+        patient.correct_ssn("2234567890123".to_string());
+
+        assert_eq!(patient.ssn.as_deref(), Some("2234567890123"));
+    }
 
     fn patient_with(ssn: Option<&str>, latest: Option<(&str, i64)>) -> Patient {
         Patient::restore(

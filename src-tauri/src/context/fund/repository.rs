@@ -382,22 +382,11 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         total_amount: i64,
         procedure_ids: Vec<String>,
     ) -> anyhow::Result<FundPaymentGroup> {
-        // Create group first to get its ID, then create lines with the real group ID
-        let group =
-            FundPaymentGroup::new(fund_id.clone(), payment_date.clone(), total_amount, vec![])?;
-
-        let mut lines = Vec::new();
-        for procedure_id in procedure_ids {
-            let line = FundPaymentLine::new(group.id.clone(), procedure_id)?;
-            lines.push(line);
-        }
-
-        let group = FundPaymentGroup::with_id(
-            group.id,
+        let group = FundPaymentGroup::new(
             fund_id.clone(),
             payment_date.clone(),
             total_amount,
-            lines,
+            procedure_ids,
         )?;
 
         tracing::info!(

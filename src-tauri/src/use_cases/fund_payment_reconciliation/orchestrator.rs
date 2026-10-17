@@ -7,8 +7,7 @@ use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask
 use super::fund_label::{fund_identifier_of, loggable_fund_identifier};
 use super::uow::StatementValidationTransactionManager;
 use crate::context::fund::{
-    Fund, FundError, FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentLine,
-    FundPaymentService, FundService,
+    Fund, FundError, FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentService, FundService,
 };
 use crate::context::patient::{Patient, PatientService};
 use crate::context::procedure::{PaymentMethod, Procedure, ProcedureService, ProcedureStatus};
@@ -229,14 +228,12 @@ impl FundPaymentReconciliationOrchestrator {
             }
             let fund_id = self.plan_fund_id(plan, &candidate.fund_label).await?;
             let iso_date = candidate.payment_date.format("%Y-%m-%d").to_string();
-            let mut group =
-                FundPaymentGroup::new(fund_id, iso_date, candidate.total_amount, vec![])?;
-            group.lines = candidate
-                .procedure_ids
-                .iter()
-                .map(|procedure_id| FundPaymentLine::new(group.id.clone(), procedure_id.clone()))
-                .collect::<Result<Vec<_>, _>>()?;
-            groups.push(group);
+            groups.push(FundPaymentGroup::new(
+                fund_id,
+                iso_date,
+                candidate.total_amount,
+                candidate.procedure_ids.clone(),
+            )?);
         }
 
         // FPA-300 — Stage 1 reconciliation sets fund_reconciliation_date (the
@@ -708,7 +705,7 @@ impl FundPaymentReconciliationOrchestrator {
                     if let Some(mut patient) =
                         patient_service.read_patient(&procedure.patient_id).await?
                     {
-                        patient.ssn = Some(pdf_ssn.clone());
+                        patient.correct_ssn(pdf_ssn.clone());
                         plan.patients_to_update.push(patient);
                     }
                 }

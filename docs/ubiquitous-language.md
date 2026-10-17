@@ -311,21 +311,14 @@ from code and proposed for confirmation.
 | `correct_ssn(ssn)` | Override SSN from PDF auto-correction (PDF is authoritative) | —                 | confirmed |
 | `edit(name, ssn)`  | A user changes the name and SSN in the edit form             | —                 | confirmed |
 
-> ⚠️ Code discrepancy: `patient.ssn = Some(pdf_ssn)` mutated directly in
-> `use_cases/fund_payment_reconciliation/orchestrator.rs:1103`.
-
 ### FundPaymentGroup
 
-| Method                                | Domain intent                                                                                                         | Status transition | Status    |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------- | --------- |
-| `confirm_bank_payment()`              | Bank transfer matched — group is now settled; prevents edits and deletion                                             | → `BankPaid`      | confirmed |
-| `revert_bank_payment()`               | Bank transfer removed — group is back to active                                                                       | → `Active`        | confirmed |
-| `update(payment_date, procedure_ids)` | Edit the group — changes payment date and procedure lines; `total_amount` is recalculated internally as a side effect | —                 | confirmed |
-| `accepts_total(total_amount)`         | Whether an amount can be a group's total: it must be positive                                                         | —                 | proposed  |
-
-> ⚠️ Code discrepancy: `confirm_bank_payment`/`revert_bank_payment` are done by the group
-> settlement unit of work writing the status (`update_group_status_in`). `update()` is a direct
-> field mutation in `FundService::update_group()` — to be extracted to the aggregate root.
+| Method                                            | Domain intent                                                                                               | Status transition | Status    |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------- | --------- |
+| `confirm_bank_payment()`                          | Bank transfer matched — group is now settled; prevents edits and deletion                                   | → `BankPaid`      | confirmed |
+| `revert_bank_payment()`                           | Bank transfer removed — group is back to active                                                             | → `Active`        | confirmed |
+| `edit(payment_date, procedure_ids, total_amount)` | A user edits the group: payment date, procedure lines and total, as the form sends them (owner, 2026-10-17) | —                 | confirmed |
+| `accepts_total(total_amount)`                     | Whether an amount can be a group's total: it must be positive                                               | —                 | proposed  |
 
 ---
 

@@ -146,23 +146,41 @@ where
 }
 
 impl FundPaymentGroup {
-    /// Creates a new FundPaymentGroup with validation and generates ID.
-    /// New groups start as Active (not yet bank-reconciled).
+    /// Creates a new FundPaymentGroup with validation and generates ID; it
+    /// builds one line per procedure itself (DEBT-057). New groups start as
+    /// Active (not yet bank-reconciled).
     pub fn new(
         fund_id: String,
         payment_date: String,
         total_amount: i64,
-        lines: Vec<FundPaymentLine>,
+        procedure_ids: Vec<String>,
+    ) -> Result<Self, FundError> {
+        Self::with_id(
+            Uuid::new_v4().to_string(),
+            fund_id,
+            payment_date,
+            total_amount,
+            procedure_ids,
+        )
+    }
+
+    /// A new, Active FundPaymentGroup under a given id, with one line per
+    /// procedure.
+    pub fn with_id(
+        id: String,
+        fund_id: String,
+        payment_date: String,
+        total_amount: i64,
+        procedure_ids: Vec<String>,
     ) -> Result<Self, FundError> {
         Self::validate(&fund_id, &payment_date, total_amount)?;
-
-        let parsed_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
-            .map_err(|_| FundError::InvalidPaymentDateFormat)?;
+        let payment_date = Self::parse_payment_date(&payment_date)?;
+        let lines = Self::lines_for(&id, &procedure_ids)?;
 
         Ok(Self {
-            id: Uuid::new_v4().to_string(),
+            id,
             fund_id,
-            payment_date: parsed_date,
+            payment_date,
             total_amount,
             lines,
             status: FundPaymentGroupStatus::Active,
@@ -170,28 +188,49 @@ impl FundPaymentGroup {
         })
     }
 
-    /// Updates an existing FundPaymentGroup with validation.
-    pub fn with_id(
-        id: String,
-        fund_id: String,
+    /// What this group becomes when a user edits it: a new payment date, a
+    /// new total, one new line per procedure; the id, the fund and the status
+    /// kept.
+    pub fn edit(
+        &self,
         payment_date: String,
+        procedure_ids: Vec<String>,
         total_amount: i64,
-        lines: Vec<FundPaymentLine>,
     ) -> Result<Self, FundError> {
-        Self::validate(&fund_id, &payment_date, total_amount)?;
-
-        let parsed_date = NaiveDate::parse_from_str(&payment_date, "%Y-%m-%d")
-            .map_err(|_| FundError::InvalidPaymentDateFormat)?;
-
         Ok(Self {
-            id,
-            fund_id,
-            payment_date: parsed_date,
+            payment_date: Self::parse_payment_date(&payment_date)?,
             total_amount,
-            lines,
-            status: FundPaymentGroupStatus::Active,
-            is_locked: false,
+            lines: Self::lines_for(&self.id, &procedure_ids)?,
+            ..self.clone()
         })
+    }
+
+    /// Bank transfer matched: the group is settled and locked against edits
+    /// and deletion.
+    pub fn confirm_bank_payment(&mut self) {
+        self.status = FundPaymentGroupStatus::BankPaid;
+        self.is_locked = true;
+    }
+
+    /// Bank transfer removed: the group is active again.
+    pub fn revert_bank_payment(&mut self) {
+        self.status = FundPaymentGroupStatus::Active;
+        self.is_locked = false;
+    }
+
+    fn parse_payment_date(payment_date: &str) -> Result<NaiveDate, FundError> {
+        NaiveDate::parse_from_str(payment_date, "%Y-%m-%d")
+            .map_err(|_| FundError::InvalidPaymentDateFormat)
+    }
+
+    fn lines_for(
+        group_id: &str,
+        procedure_ids: &[String],
+    ) -> Result<Vec<FundPaymentLine>, FundError> {
+        procedure_ids
+            .iter()
+            .map(|procedure_id| FundPaymentLine::new(group_id.to_string(), procedure_id.clone()))
+            .collect()
     }
 
     /// Restores a FundPaymentGroup from database storage (no validation).
@@ -480,6 +519,80 @@ mod tests {
             vec![],
             FundPaymentGroupStatus::Active,
         );
+        assert!(!g.is_locked);
+    }
+
+    #[test]
+    fn debt_057_a_new_group_builds_one_line_per_procedure() {
+        let g = FundPaymentGroup::new(
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            10000,
+            vec!["p1".to_string(), "p2".to_string()],
+        )
+        .unwrap();
+
+        let procedures: Vec<&str> = g.lines.iter().map(|l| l.procedure_id.as_str()).collect();
+        assert_eq!(procedures, vec!["p1", "p2"]);
+        assert!(g.lines.iter().all(|l| l.fund_payment_group_id == g.id));
+    }
+
+    fn active_group() -> FundPaymentGroup {
+        FundPaymentGroup::new(
+            "fund-1".to_string(),
+            "2026-01-15".to_string(),
+            10000,
+            vec!["p1".to_string()],
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn todo_019_an_edit_changes_date_total_and_lines_and_keeps_the_rest() {
+        let g = active_group();
+
+        let edited = g
+            .edit("2026-02-01".to_string(), vec!["p2".to_string()], 20000)
+            .unwrap();
+
+        assert_eq!(edited.id, g.id);
+        assert_eq!(edited.fund_id, g.fund_id);
+        assert_eq!(edited.status, g.status);
+        assert_eq!(
+            edited.payment_date,
+            NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()
+        );
+        assert_eq!(edited.total_amount, 20000);
+        assert_eq!(edited.lines.len(), 1);
+        assert_eq!(edited.lines[0].procedure_id, "p2");
+        assert_eq!(edited.lines[0].fund_payment_group_id, g.id);
+    }
+
+    #[test]
+    fn todo_019_an_edit_refuses_a_malformed_date() {
+        let result = active_group().edit("15/01/2026".to_string(), vec![], 10000);
+
+        assert!(matches!(result, Err(FundError::InvalidPaymentDateFormat)));
+    }
+
+    #[test]
+    fn todo_019_confirm_bank_payment_settles_and_locks_the_group() {
+        let mut g = active_group();
+
+        g.confirm_bank_payment();
+
+        assert_eq!(g.status, FundPaymentGroupStatus::BankPaid);
+        assert!(g.is_locked);
+    }
+
+    #[test]
+    fn todo_019_revert_bank_payment_makes_the_group_active_again() {
+        let mut g = active_group();
+        g.confirm_bank_payment();
+
+        g.revert_bank_payment();
+
+        assert_eq!(g.status, FundPaymentGroupStatus::Active);
         assert!(!g.is_locked);
     }
 

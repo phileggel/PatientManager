@@ -7,7 +7,7 @@ use specta::Type;
 use crate::context::bank::{
     BankAccountService, BankEntryLinkRepository, BankEntryService, BankEntryType, BankError,
 };
-use crate::context::fund::{FundError, FundPaymentGroupStatus, FundPaymentService, FundService};
+use crate::context::fund::{FundError, FundPaymentService, FundService};
 use crate::context::procedure::{ProcedureService, ProcedureStatus};
 use crate::shared::event_bus::{BankEntryUpdated, EventBus, ProcedureUpdated};
 use crate::shared::logger::BACKEND;
@@ -167,7 +167,7 @@ impl BankStatementOrchestrator {
             );
 
             // Step 3: Load the group's procedures and compute their paid state.
-            let group = self
+            let mut group = self
                 .fund_payment_service
                 .read_group(&m.group_id)
                 .await?
@@ -226,11 +226,12 @@ impl BankStatementOrchestrator {
             // transfer exists would be re-matched by the next statement import
             // and get a duplicate transfer. ProcedureUpdated is published once
             // at the end; the group event goes out per group, as before.
+            group.confirm_bank_payment();
             settle_group(
                 self.group_settlement.as_ref(),
                 updated_procedures,
                 &m.group_id,
-                FundPaymentGroupStatus::BankPaid,
+                group.status,
             )
             .await
             .map_err(|e| {

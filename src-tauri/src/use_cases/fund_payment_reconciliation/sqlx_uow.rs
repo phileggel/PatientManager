@@ -86,7 +86,6 @@ mod tests {
     use sqlx::SqlitePool;
 
     use super::*;
-    use crate::context::fund::FundPaymentLine;
     use crate::context::procedure::{PaymentMethod, ProcedureStatus};
 
     async fn seeded_pool() -> SqlitePool {
@@ -163,13 +162,13 @@ mod tests {
         corrected.billed_amount = 60_000;
         corrected.paid_amount = Some(60_000);
         corrected.payment_status = ProcedureStatus::Reconciled;
-        let mut group =
-            FundPaymentGroup::new(fund.id.clone(), "2026-03-20".to_string(), 100_000, vec![])
-                .expect("group");
-        group.lines = vec![
-            FundPaymentLine::new(group.id.clone(), created.id.clone()).expect("line"),
-            FundPaymentLine::new(group.id.clone(), corrected.id.clone()).expect("line"),
-        ];
+        let group = FundPaymentGroup::new(
+            fund.id.clone(),
+            "2026-03-20".to_string(),
+            100_000,
+            vec![created.id.clone(), corrected.id.clone()],
+        )
+        .expect("group");
         Writes {
             fund,
             patient,
