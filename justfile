@@ -26,6 +26,29 @@ check-full:
 release *ARGS:
     python3 scripts/release.py {{ARGS}}
 
+# The last N batch ends (release `v*` or `batch/<date>` tags), newest first
+batch-ends n="1": (_used "batch-ends")
+    @git fetch -q origin --tags
+    @git for-each-ref --sort=-creatordate --count='{{n}}' --format='%(refname:short)' 'refs/tags/v*' refs/tags/batch/
+
+# End a batch with no `feat` or `fix`: tag the fresh main `batch/<UTC date>` and push the tag
+batch-end: (_used "batch-end")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    git fetch -q origin main --tags
+    if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+        echo "batch-end: check out a fresh main first" >&2
+        exit 1
+    fi
+    tag="batch/$(date -u +%F)"
+    if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+        echo "batch-end: $tag already exists — a batch already ended today" >&2
+        exit 1
+    fi
+    git tag -a "$tag" -m "Batch ended without a release"
+    git push -q origin "$tag"
+    echo "✅ $tag pushed"
+
 # ⚠️  Destructive: removes stale remote-tracking branches
 clean-branches: (_used "clean-branches")
     #!/usr/bin/env bash

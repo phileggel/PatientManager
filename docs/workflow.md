@@ -1,6 +1,6 @@
 # Workflow — the human sets expectations, the harness holds the line
 
-How work moves from a request or an entry of `docs/work/` to a release, and the conventions the
+How work moves from a request or an entry of `docs/work/` to a batch end, and the conventions the
 agents and skills rely on. This document is the rule set; git history records how it
 was built.
 
@@ -13,7 +13,7 @@ was built.
 - **Agent** — the debt entries (`docs/work/debt/`): every observation, smell and proposal
   about the code. The human queues from them.
 - **Agent** — the flow entries (`docs/work/flow/`): the same about the workflow itself
-  (checks, waits, tools, the human's part), audited after each release (§ 12).
+  (checks, waits, tools, the human's part), audited after each batch (§ 12).
 - **Agent** — the task, end to end: tests, code, review, merge. **No pull request is
   validated by a human.**
 - **Harness** — proving it, mechanically, on every pull request. Nothing merges that
@@ -100,7 +100,7 @@ job or a machine gate.
   validated; every reference names an existing entry or an open pull request. No pull
   request that ships an entry edits it, so entries of every kind alternate in the queue
   without two closures meeting in the file. A cut during a batch is an edit the human
-  validates.
+  validates; the audit's pull request empties the list and its notes (§ 12).
 - A queued reference whose entry file is gone has shipped: `just queue` shows what
   shipped and what remains. The agent takes the first remaining reference that is
   **ready**.
@@ -154,7 +154,7 @@ todo entry: the pull request body is its record.
      what is still open before its branch exists.
    - A choice with a standing answer is not asked: when one option keeps what a user
      sees today, it is taken and stated in the pull request; a release-sweep finding
-     that is not critical and predates the release is filed and reported (Conventions).
+     that is not critical and predates the batch is filed and reported (Conventions).
    - **Banked** (owner, 2026-10-11, 2026-10-12): a question is asked alone, with its
      context, only where the options differ in cost, risk or what is seen — an ambiguity
      or a deep choice; a trivial one is the agent's. A flow entry's proposal so answered
@@ -199,16 +199,15 @@ todo entry: the pull request body is its record.
     `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
     brief says what changed for the user and what the project gained.
 
-**Release** — the agent prepares it: `/dep-audit` and the release sweep (Conventions),
-what they find filed as debt, and only then does it tell the human the release is ready.
-The human runs `just release` when they choose. It computes the version from the merged
-titles, writes the changelog (only `feat` → Added, `fix` → Fixed) and the version files,
-tags and pushes, and ends by printing the changelog section it wrote; CI builds the
-draft and puts the version's changelog section in its notes. The agent publishes the
-draft once the release workflow and `main` are green, and stops if anything is red; then
-it audits the batch (§ 12). A batch is named by its dates until `just release --dry-run`
-has proposed a version: until then `/plan-queue` and the agent say "the next release",
-never a number.
+**Ending a batch** (owner, 2026-10-17) — every batch ends alike: the closing brief, then
+`/dep-audit` and the release sweep (Conventions), what they find filed as debt; a security
+issue that puts users at risk is a `fix` instead: a todo put to the owner, worked before
+the batch ends, swept again on what it changed, released. A batch with a `feat` or `fix` is released: the
+agent says it is ready; the human runs `just release`; CI builds the draft, which the
+agent publishes once the release workflow and `main` are green, stopping on red. Any other
+batch the agent closes with `just batch-end` (a `batch/<date>` tag): it publishes nothing,
+its chores ride in the next release, no fix is picked to fill a changelog. `/flow-audit`
+audits the range it closes (§ 12). A batch is named by its dates, never a version number.
 
 ## 4. Design proposal
 
@@ -342,8 +341,8 @@ The chat session is for writing entries together, design conversations and answe
 open questions. The loop runs one task per run and keeps its state in git and the entries.
 
 - **In chat:** `/run-entry TODO-NNN`, or a plain request; `/run-queue` for a whole batch:
-  the questions first, each remaining entry through `/run-entry`, the release
-  preparation, then `/flow-audit`.
+  the questions first, each remaining entry through `/run-entry`, the batch's end
+  (§ 3), then `/flow-audit`.
 - **Laptop:** `just run-entry` — one ready entry, headless, three hours of budget; a
   command outside the allow list in `.claude/settings.json` is denied, so the run fails
   instead of waiting.
@@ -385,7 +384,7 @@ onto `main` before its first push — a local rebase, never a force-push.
 
 ## 12. The flow audit
 
-After a release, `/flow-audit` audits the batch into `docs/work/audits.md`, once:
+After a batch ends (§ 3), `/flow-audit` audits it into `docs/work/audits.md`, once:
 quality first, weighed against speed and effort. Nothing of it runs during a batch.
 
 - **An auditor of its own** (owner, 2026-10-11) — `flow-auditor`, read-only, with a
@@ -394,15 +393,16 @@ quality first, weighed against speed and effort. Nothing of it runs during a bat
   answers to its questions are evidence. What it cannot rebuild from those records is a
   finding; what lives only in a conversation leaves the audit: the questions put to the
   owner are the dated answers in the entries.
-- **Measures** — `just flow-audit` counts every figure beside the release before: the
+- **Measures** — `just flow-audit` counts every figure beside the batch before: the
   pull requests, the queue, the entries, CI, the usage log, dead paths, the guides'
   length (§ 5), what each entry took beside its size. The auditor counts from the pull
   requests what the reviewers caught, got wrong and left to CI, and reads each generic
   piece of `docs/agentic-setup.md` against its line.
-- **Five questions** (owner, 2026-10-10), asked of every batch: what would have avoided a
-  conflict; where the batch waited, and what would shorten it without costing quality;
-  what can be simplified; which script, recipe, skill or agent went unused (keep, fold
-  or remove); where a guide was false, contradicted another, or grew without earning it.
+- **Six questions** (owner, 2026-10-10, 2026-10-11), asked of every batch: what would have
+  avoided a conflict; where it waited, and what would shorten it without costing quality;
+  what can be simplified; which script, recipe, skill or agent went unused (keep, fold or
+  remove); where a guide was false, contradicted another, or grew without earning it; what
+  was done by hand that a tool should do, and which finding belongs to another repository.
 - **Hard points** — every difficulty met becomes a `FLOW-NNN` entry with its evidence
   and a proposal; where nothing should change, the entry says keep and why.
 - **Moves** — a todo or debt entry that is about the flow becomes a flow entry and keeps
@@ -457,7 +457,7 @@ the human orders it with the rest. Once queued, the agent:
 
 A tool the flow needs is added for good — a script under `scripts/` with its tests, a
 recipe in the `justfile` — never rewritten in a session's scratch folder. Each is
-judged again at the audit that follows a release: keep, fold or remove.
+judged again at the audit that follows a batch: keep, fold or remove.
 
 The audit reads `logs/usage.log`: one line per run of a script or a recipe (time, tool,
 duration, result), written by `scripts/usage_log.py`. The file is local, never
@@ -486,10 +486,10 @@ allow list in `.claude/settings.json` names:
 
 ### Release sweep
 
-Before a release, run the reviewer agents in `release-sweep` mode (the invoking prompt
-contains `release-sweep`) alongside `/dep-audit`, and `spec-checker` on every spec the
-batch touched. `reviewer-security` reads the whole command surface; every other lane
-reads what changed since the last release's tag (owner, 2026-10-11); the sweep's pull
-request repeats each lane's `## Files read`. What they find is filed as `DEBT-NNN`, not
-fixed in the release; a finding that is not critical and predates the release is filed
-and reported, not asked (§ 7 keeps a 🔴 security finding for them).
+Before a batch ends (§ 3), run the reviewer agents in `release-sweep` mode with `/dep-audit`,
+and `spec-checker` on every spec the batch touched. `reviewer-security` reads the whole
+command surface; every other lane reads what changed since the last batch end's tag
+(owner, 2026-10-11; the review protocol says how to find it); the sweep's pull request
+repeats each lane's `## Files read`. What they find is filed as `DEBT-NNN`, not fixed in
+the batch, but for § 3's user-risk case; one not critical and older than the batch is
+filed and reported, not asked (§ 7 keeps a 🔴 security finding for the owner).

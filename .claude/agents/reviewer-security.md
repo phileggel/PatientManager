@@ -1,6 +1,6 @@
 ---
 name: reviewer-security
-description: Application-security lane — the IPC command layer (input validation, path traversal, SQL injection, unsafe), frontend security (XSS, eval, storage), hardcoded secrets, the capability surface, and compound risks across layers. Runs when commands, capabilities, the command registry or path handling change, and in `release-sweep` mode before every release.
+description: Application-security lane — the IPC command layer (input validation, path traversal, SQL injection, unsafe), frontend security (XSS, eval, storage), hardcoded secrets, the capability surface, and compound risks across layers. Runs when commands, capabilities, the command registry or path handling change, and in `release-sweep` mode before every batch end.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 ---

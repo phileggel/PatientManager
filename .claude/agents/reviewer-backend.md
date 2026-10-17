@@ -1,6 +1,6 @@
 ---
 name: reviewer-backend
-description: Backend code-quality lane for `.rs` files — typed errors per `docs/error-model.md`, no `unwrap()` in production paths, async correctness, trait-based repositories, idiomatic Rust, inline tests. Runs alongside `reviewer-arch`. `release-sweep` in the prompt reads what changed since the last release's tag, every finding with a severity.
+description: Backend code-quality lane for `.rs` files — typed errors per `docs/error-model.md`, no `unwrap()` in production paths, async correctness, trait-based repositories, idiomatic Rust, inline tests. Runs alongside `reviewer-arch`. `release-sweep` in the prompt reads what changed since the last batch end's tag (`v*` or `batch/<date>`), every finding with a severity.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 ---

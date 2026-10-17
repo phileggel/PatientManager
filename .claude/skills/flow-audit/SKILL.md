@@ -1,6 +1,6 @@
 ---
 name: flow-audit
-description: After a release, runs the figures of the batch (`just flow-audit`), launches the `flow-auditor` agent on them with a fresh context, and writes what it returns — the measured section of docs/work/audits.md and the flow entries it proposes. Use once per release, right after it is published.
+description: After a batch ends (a release or a batch tag), runs the figures of the batch (`just flow-audit`), launches the `flow-auditor` agent on them with a fresh context, and writes what it returns — the measured section of docs/work/audits.md and the flow entries it proposes. Use once per batch, right after it ends.
 ---
 
 # Skill — `flow-audit`
@@ -11,8 +11,7 @@ The audit proposes entries, which the owner queues or declines.
 
 ## When to use
 
-- Once per release, right after it is published. Any session can run it: the audit
-  reads the records, not a conversation.
+- Once per batch, right after it ends; any session can: the audit reads the records.
 - Never during a batch: nothing here runs while work is in progress, and a half-run
   batch measures nothing comparable.
 
@@ -22,14 +21,13 @@ The audit proposes entries, which the owner queues or declines.
 just flow-audit <start> <end> --previous <previous> --pretty > logs/flow-audit.json
 ```
 
-`<start>` is the release the batch follows, `<end>` the release it led to, `<previous>`
-the one before `<start>`. The file is local, never committed; `scripts/flow-audit.py`
-says what each figure is. If the script fails, say so and stop: figures gathered by
+`<end>`, `<start>`, `<previous>`: the three lines `just batch-ends 3` prints, in that order.
+The file is local, never committed; `scripts/flow-audit.py` says what each figure is. If the script fails, say so and stop: figures gathered by
 hand are not comparable.
 
 ## Step 2 — Launch the auditor
 
-Launch `flow-auditor` with the three release tags by label (`previous=`, `start=`,
+Launch `flow-auditor` with the three tags by label (`previous=`, `start=`,
 `end=`) and the path of the figures file, and nothing else: no summary of the batch, no
 cause, no conclusion.
 
@@ -45,7 +43,9 @@ revised reply, which is final.
 - Each entry it says is settled: `just queue close FLOW-NNN`. Each watch: its re-check,
   added to the entry.
 - Each entry it proposes is filed with `/file-entry`, in its words.
-- Then empty `logs/usage.log` (local, never committed): its figures are recorded.
+- Then empty `logs/usage.log` (local, never committed): its figures are recorded, and
+  the list of `docs/work/queue.md` and its comments from `<!-- Validated` on; the title
+  paragraph and the format comment stay.
 
 This session corrects a figure only against the script's output, and says so in the
 pull request. A finding it disagrees with stays as written; the disagreement goes in
@@ -53,12 +53,12 @@ the pull request body, for the owner.
 
 ## Step 4 — Hand over
 
-One pull request, docs only: its closing brief lists the figures that moved and the
-entries proposed.
+One pull request, docs only: its closing brief lists the figures that moved, the
+entries proposed and the emptied queue.
 
 ## Rules
 
 1. **The script counts, the auditor judges, the session carries.** No figure in the
    measured section that the script did not print or the auditor did not count.
-2. **The owner decides.** Never edit the queue; never apply a proposal in the audit's
-   own pull request.
+2. **The owner decides.** Never edit the queue but to empty it; never apply a proposal in
+   the audit's own pull request.

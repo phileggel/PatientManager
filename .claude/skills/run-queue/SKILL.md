@@ -1,6 +1,6 @@
 ---
 name: run-queue
-description: Runs a whole batch in chat — every remaining entry of the queue (docs/work/queue.md) through /run-entry, one after the other, then the release preparation, then /flow-audit once the release is published. Chains the existing skills and decides nothing new. Use when the owner says to run the queue.
+description: Runs a whole batch in chat — every remaining entry of the queue (docs/work/queue.md) through /run-entry, one after the other, then the batch's end (a release or a batch tag), then /flow-audit. Chains the existing skills and decides nothing new. Use when the owner says to run the queue.
 ---
 
 # Skill — `run-queue`
@@ -19,7 +19,7 @@ otherwise stop and report.
 `just queue` prints the queue, what has shipped, what remains, and the notes of the
 queue file: the bundles (several entries, one pull request) and the slices (the part of
 a programme this batch takes). `TaskCreate` one task per remaining reference in order —
-a bundle is one task — then "Closing brief and release preparation" and "Flow audit". Mark each task
+a bundle is one task — then "Closing brief and batch end" and "Flow audit". Mark each task
 `in_progress` when its work starts and `completed` when its pull request has merged.
 
 ## Step 2 — Ask first
@@ -41,7 +41,7 @@ Stop, and say where, when `/run-entry` stops by its own rules (an open question,
 same gate red three times, the three-hour budget). An entry that is not ready is said
 so and skipped.
 
-## Step 4 — Say what the batch achieved, then prepare the release
+## Step 4 — Say what the batch achieved, then end it
 
 When `just queue remaining` prints nothing, the closing brief of the queue, before
 anything else: what shipped (each entry with its pull request), what a user notices
@@ -50,17 +50,17 @@ was left — skipped, stopped or not ready — with why.
 
 Then `/dep-audit`, the release sweep and `spec-checker` on every spec the batch touched
 (`docs/workflow.md` § Release sweep); what they find is filed as debt, and the sweep's
-pull request repeats what each lane read. Then tell the owner the release is ready, with
-what was filed. The owner runs `just release`; this skill never does.
+pull request repeats what each lane read. Then the batch ends as `docs/workflow.md` § 3
+says: with a `feat` or `fix`, tell the owner the release is ready, with what was filed;
+without, `just batch-end` on a fresh `main`.
 
 ## Step 5 — Publish and audit
 
-Once the owner has released: wait for the release workflow and `main` to be green,
-publish the draft, and stop if anything is red (`docs/workflow.md` § 3). Then
-`/flow-audit`, once.
+Once released and published (`docs/workflow.md` § 3), or tagged: `/flow-audit`, once.
 
 ## Rules
 
 1. It chains; it decides nothing. A choice a step does not settle goes to the owner.
-2. Never edit the queue, never run `just release`, never skip an entry silently.
+2. Never edit the queue (`/flow-audit` empties it), never run `just release`, never skip
+   an entry silently.
 3. One batch per invocation: it ends with the audit's pull request.

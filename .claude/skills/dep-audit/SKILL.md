@@ -1,6 +1,6 @@
 ---
 name: dep-audit
-description: Audit npm and Cargo dependencies for outdated versions and CVEs, with web-verified version data. Run before every release or periodically during development.
+description: Audit npm and Cargo dependencies for outdated versions and CVEs, with web-verified version data. Run before every batch end or periodically during development.
 tools: Bash, Read, WebSearch
 ---
 
@@ -82,7 +82,7 @@ Always verify:
 **Release vs. non-release context:**
 
 - In **release context**: 🔴 CVEs are hard blockers — do not proceed to tag/publish without fixing.
-- In **non-release context**: 🔴 CVEs are flagged urgently but do not block the current session — inform the user and recommend scheduling a fix.
+- In **non-release context** (a batch tag publishes nothing, so it is one): 🔴 CVEs are flagged urgently but do not block the current session — inform the user and recommend scheduling a fix. One that puts users at risk is a `fix`, filed as a todo, and its batch releases (`docs/workflow.md` § 3).
 
 ### 6. Report
 
@@ -127,7 +127,7 @@ If all clean: `✅ All dependencies up to date and no known CVEs.`
 
 1. **Always use WebSearch to verify versions** — never report stale model knowledge as fact
 2. **Always cite the source URL** next to any version number you report
-3. 🔴 CVEs are a **release blocker** — do not proceed to tag/publish without fixing
+3. 🔴 CVEs are a **release blocker** — do not run `just release` without fixing
 4. Missing tools (`cargo-audit`, `cargo-outdated`) must be flagged in the report, not silently skipped
 5. Report `misplaced` deps even if versions are current — placement affects production bundle size
 

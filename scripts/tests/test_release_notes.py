@@ -150,5 +150,16 @@ class ReleaseEnds(unittest.TestCase):
         self.assertEqual(len(out.getvalue().strip().splitlines()), 1)
 
 
+class LatestTagTest(unittest.TestCase):
+    def test_flow_074_a_batch_tag_is_never_the_tag_a_release_counts_from(self):
+        manager = release.ReleaseManager.__new__(release.ReleaseManager)
+        manager.repo_root = SCRIPTS.parent
+        done = mock.Mock(stdout="v0.24.7\n")
+        with mock.patch.object(release.subprocess, "run", return_value=done) as run:
+            self.assertEqual(manager.get_latest_tag(), "v0.24.7")
+        command = run.call_args.args[0]
+        self.assertEqual(command[command.index("--match") + 1], "v*")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 ---
 name: reviewer-infra
-description: Infrastructure lane — GitHub workflows, Tauri and package config, capability file format, scripts, git hooks, the justfile, the merge and architecture records, agent and skill prompts, `.claude/settings.json`. Checks CI safety, CI/local parity, script quality and cross-file consistency. `release-sweep` in the prompt reads what changed since the last release's tag, every finding with a severity, with CI improvement proposals.
+description: Infrastructure lane — GitHub workflows, Tauri and package config, capability file format, scripts, git hooks, the justfile, the merge and architecture records, agent and skill prompts, `.claude/settings.json`. Checks CI safety, CI/local parity, script quality and cross-file consistency. `release-sweep` in the prompt reads what changed since the last batch end's tag (`v*` or `batch/<date>`), every finding with a severity, with CI improvement proposals.
 tools: Read, Glob, Bash, Write
 model: sonnet
 ---
@@ -34,7 +34,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 - A bash block in a prompt with compound shell (`$(…)`, `&&`, `||`, `;`, `cd X && …`) 🔴 — the allow list matches literal prefixes.
 - A script, recipe, path or section a prompt names that does not exist 🟡.
-- A subcommand, recipe or step the diff removes or changes while a prompt or `docs/workflow.md` still tells the agent to use the old form 🔴 — search the name in every prompt, on the lines the diff did not touch too.
+- A subcommand, recipe or step the diff removes or changes while a prompt or `docs/workflow.md` still tells the agent to use the old form 🔴 — search the name in every prompt, on the lines the diff did not touch too; so is a concept the diff widens (a release → any batch end) still named narrowly in a docstring, a help text or a reply template of the same piece.
 - The deny list losing a prohibition: push to `main`, force-push, `--no-verify`, `just release`, `git tag`, `gh pr merge`, editing `.claude/settings.json` 🔴.
 - An allow entry broader than one command family (`Bash(*)`, `Bash(bash *)`, `Bash(rm *)`, `Bash(curl *)`, `Bash(sudo *)`) 🔴; `Bash(python3 -c *)` / `Bash(python3 - *)` are accepted, never widened.
 
