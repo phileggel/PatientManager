@@ -8,7 +8,12 @@ import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../api/gateway";
 import { useProcedureData } from "../hooks/useProcedureData";
 import { useProcedurePeriod } from "../hooks/useProcedurePeriod";
-import { isBlockingStatus, isOverpaidStatus, isOverpaymentRefundStatus } from "../model";
+import {
+  isBlockingStatus,
+  isOverpaidStatus,
+  isOverpaymentRefundStatus,
+  markOverdueRows,
+} from "../model";
 import { toProcedureRow } from "../model/procedure-row.mapper";
 import type { ProcedureRow } from "../model/procedure-row.types";
 import { PeriodSelector } from "./PeriodSelector";
@@ -135,7 +140,8 @@ export default function ProcedurePage() {
     const mappedRows = result.data.map((proc) =>
       toProcedureRow(proc, { patients, funds, procedureTypes }),
     );
-    setRows(mappedRows);
+    // PRO-310 — the overdue mark is computed over the full set, as on first load.
+    setRows(markOverdueRows(mappedRows));
   }, [patients, funds, procedureTypes, t]);
 
   const handleConfirmDelete = useCallback(async () => {

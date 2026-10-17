@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { act } from "react";
 import { vi } from "vitest";
+import type { Procedure } from "@/bindings";
 import * as gateway from "../api/gateway";
 import * as useProcedureDataModule from "../hooks/useProcedureData";
 import type { ProcedureRow } from "../model/procedure-row.types";
@@ -14,7 +15,7 @@ vi.mock("@/ui/components/snackbar", () => ({
 }));
 
 type ProcedureListProps = {
-  rows: Array<{ rowId: string }>;
+  rows: Array<{ rowId: string; isOverdue: boolean }>;
   onEdit: (row: ProcedureRow) => void;
   onDelete: (id: string) => void;
 };
@@ -30,6 +31,7 @@ vi.mock("./procedure_list/ProcedureList", () => ({
     return (
       <div data-testid="procedure-list">
         <div data-testid="row-count">{rows.length}</div>
+        <div data-testid="overdue-count">{rows.filter((r) => r.isOverdue).length}</div>
       </div>
     );
   },
@@ -184,6 +186,45 @@ describe("ProcedurePage — reloadRows + delete flow", () => {
     });
 
     await waitFor(() => expect(gateway.readAllProcedures).toHaveBeenCalled());
+  });
+
+  test("DEBT-063 (PRO-310): rows reloaded after procedure_updated keep their overdue mark", async () => {
+    const procedure = (id: string, date: string, status: string) =>
+      ({
+        id,
+        patient_id: "p1",
+        fund_id: null,
+        procedure_type_id: "t1",
+        procedure_date: date,
+        billed_amount: 50000,
+        payment_method: "NONE",
+        fund_reconciliation_date: null,
+        confirmed_payment_date: null,
+        paid_amount: null,
+        payment_status: status,
+      }) as unknown as Procedure;
+    vi.mocked(gateway.readAllProcedures).mockResolvedValue({
+      success: true,
+      data: [
+        procedure("late", "2026-01-10", "CREATED"),
+        procedure("done", "2026-02-10", "RECONCILED"),
+      ],
+    });
+
+    // January 2026 shows the late procedure; February's reconciled one sets the mark.
+    sessionStorage.setItem("procedureSelectedMonth", "1");
+    sessionStorage.setItem("procedureSelectedYear", "2026");
+    render(<ProcedurePage />);
+    await waitFor(() => expect(screen.getByTestId("procedure-list")).toBeInTheDocument());
+
+    await act(async () => {
+      window.dispatchEvent(new Event("procedure_updated"));
+    });
+
+    await waitFor(() => expect(gateway.readAllProcedures).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId("row-count")).toHaveTextContent("1"));
+    expect(screen.getByTestId("overdue-count")).toHaveTextContent("1");
+    sessionStorage.clear();
   });
 
   test("procedure_updated event surfaces an error toast when readAllProcedures fails", async () => {
