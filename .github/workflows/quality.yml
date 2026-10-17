@@ -3,7 +3,9 @@ name: Quality
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened]
+    # `closed` (FLOW-056): its run joins this concurrency group and cancels the rounds
+    # still running on a pull request closed or merged; its own jobs skip.
+    types: [opened, synchronize, reopened, closed]
   push:
     branches: [main]
   # Manual trigger: `gh workflow run Quality --ref <branch>` or via Actions tab.
@@ -21,7 +23,7 @@ permissions:
 jobs:
   pr-checks:
     name: PR checks (commit-msg hygiene + repo invariants)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -121,6 +123,7 @@ jobs:
 
   scope:
     name: Which layers the change touches
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
@@ -159,7 +162,7 @@ jobs:
     needs: scope
     # A docs-only change (Markdown, docs/, screenshots/) cannot move lint, types
     # or the build: the job is skipped, which `just merge` counts as passing.
-    if: needs.scope.outputs.docs != 'true'
+    if: github.event.action != 'closed' && needs.scope.outputs.docs != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -197,7 +200,7 @@ jobs:
     needs: scope
     # A docs-only change (Markdown, docs/, screenshots/) cannot move lint, types
     # or the build: the job is skipped, which `just merge` counts as passing.
-    if: needs.scope.outputs.docs != 'true'
+    if: github.event.action != 'closed' && needs.scope.outputs.docs != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

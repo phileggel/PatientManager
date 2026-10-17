@@ -22,8 +22,8 @@ reply as a finding and do not use it.
   anything, say so beside the oldest figures. `scripts/flow-audit.py` says
   what each figure is and where it stops.
 - Each pull request merged in the window (`current.pull_requests.first` to `.last`):
-  `gh pr view <n> --json title,body,commits,comments,reviews`. The body carries the
-  graded findings; the comments carry the CI reviewers' reports.
+  `gh pr view <n> --json title,body,commits,comments,reviews`. The body carries the graded
+  findings; once pushed, the comments carry them too, beside each CI round's report.
 - The entries filed and closed in the window, from
   `git log <start>..<end> --diff-filter=AD --name-status --format=%h -- docs/work`;
   `git show <commit>:<path>` reads a file a later commit deleted. The owner's dated

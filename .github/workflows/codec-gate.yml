@@ -10,6 +10,9 @@ name: Codec Gate
 on:
   pull_request:
     branches: [main]
+    # `closed` (FLOW-056): its run joins this concurrency group and cancels the rounds
+    # still running on a pull request closed or merged; its own jobs skip.
+    types: [opened, synchronize, reopened, closed]
     paths:
       - "src-tauri/Cargo.toml"
       - "src-tauri/Cargo.lock"
@@ -56,6 +59,7 @@ permissions: {}
 jobs:
   fixtures:
     name: Codec — regen, drift, round-trip
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:

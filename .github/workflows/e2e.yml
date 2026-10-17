@@ -8,6 +8,9 @@ on:
   # docs-only (scripts/changed-scope.sh). Pushes to main keep the filter.
   pull_request:
     branches: [main]
+    # `closed` (FLOW-056): its run joins this concurrency group and cancels the rounds
+    # still running on a pull request closed or merged; its own jobs skip.
+    types: [opened, synchronize, reopened, closed]
   push:
     branches: [main]
     paths-ignore: ["**/*.md", "docs/**"]
@@ -21,6 +24,7 @@ concurrency:
 jobs:
   e2e:
     name: E2E — headless WebDriver
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

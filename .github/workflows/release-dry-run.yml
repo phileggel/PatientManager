@@ -5,6 +5,9 @@ name: Release dry run
 # turned off (they need the signing key); the bundles are uploaded as artifacts.
 on:
   pull_request:
+    # `closed` (FLOW-056): its run joins this concurrency group and cancels the rounds
+    # still running on a pull request closed or merged; its own jobs skip.
+    types: [opened, synchronize, reopened, closed]
     paths:
       - .github/workflows/release.yml
       - .github/workflows/release-build.yml
@@ -28,6 +31,7 @@ permissions:
 
 jobs:
   build:
+    if: github.event.action != 'closed'
     uses: ./.github/workflows/release-build.yml
     with:
       publish: false

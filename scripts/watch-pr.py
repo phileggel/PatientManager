@@ -18,7 +18,7 @@ failed: a job that starts others (the reviewer lanes) failed before starting the
 
 Every line printed is something to act on (a failure when it lands, a stuck check,
 the verdict), so the script can run under a monitor without noise. A reviewer lane that
-failed without a report is explained from its sticky comment (FLOW-055): the stated
+failed without a report is explained from its lane comment (FLOW-055): the stated
 reason, what the session said, and when that is the usage limit, the reset time.
 """
 
@@ -37,7 +37,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PASSING = ("success", "skipped", "neutral")
 LANE = "reviewer-"
-# The sticky comment review.yml writes when a lane produced no report: its stated reason and the session's last words.
+# The lane comment review.yml writes when a lane produced no report: its stated reason and the session's last words.
 # The quote carries one `> ` on its first line only; a message of several lines runs to the end of the comment.
 NO_REPORT = re.compile(r"— no report\n.*?On the second try (?P<reason>.+?)\.\n\nSession said:\n\n(?P<said>>.*)", re.S)
 # "You've hit your usage limit. Your limit resets 11:50am (UTC)." — the time, as the session gave it.
@@ -114,7 +114,7 @@ def _plain(text: str) -> str:
 
 
 def no_report(comment: str) -> tuple[str, str] | None:
-    """(the reason the workflow stated, what the session said) when a lane's sticky comment reports no report."""
+    """(the reason the workflow stated, what the session said) when a lane's comment reports no report."""
     found = NO_REPORT.search(comment)
     if not found:
         return None
@@ -140,7 +140,7 @@ def explain(failed: list[Run], comment_of: Callable[[str], str | None], out: Cal
             continue
         comment = comment_of(run.name[len(LANE):])
         if comment is None:
-            out(f"{run.name}: no sticky comment to read")
+            out(f"{run.name}: no lane comment to read")
             continue
         stopped = no_report(comment)
         if stopped is None:
@@ -283,7 +283,7 @@ def local_commit(pull: str | None, say: Callable[[str], None]) -> str:
 
 
 def comment_of(pull: str | None, lane: str) -> str | None:
-    """The sticky comment of a reviewer lane on the pull request, or None when there is none to read."""
+    """The newest comment of a reviewer lane on the pull request (one per round, FLOW-058), or None."""
     try:
         number = json.loads(gh("pr", "view", *([pull] if pull else []), "--json", "number"))["number"]
         # One JSON string per line; the marker is matched here, so the lane's name never enters a jq filter.
@@ -291,7 +291,7 @@ def comment_of(pull: str | None, lane: str) -> str | None:
         bodies = [json.loads(line) for line in lines.splitlines() if line.strip()]
     except (GitHubError, json.JSONDecodeError, KeyError):
         return None
-    return next((body for body in bodies if body.startswith(f"<!-- review:{lane} -->")), None)
+    return next((body for body in reversed(bodies) if body.startswith(f"<!-- review:{lane} -->")), None)
 
 
 def runs_of(sha: str) -> list[Run]:

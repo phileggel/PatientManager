@@ -4,7 +4,7 @@
 # Output: .review/<slug>-YYYY-MM-DD-NN.md  (NN is zero-padded, auto-incremented)
 #
 # In CI a reviewer (.claude/agents/reviewer-*.md) calls this and writes its
-# report there: the workflow builds the pull request comment from the file
+# report there: the workflow posts it as a new pull request comment each round
 # (.github/workflows/review.yml). Locally the reviewer's reply is the report
 # and nothing is written. `.review/` is gitignored.
 #

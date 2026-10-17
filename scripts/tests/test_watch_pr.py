@@ -1,6 +1,7 @@
 """Tests for scripts/watch-pr.py — run with `just test-scripts`."""
 
 import importlib.util
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -216,6 +217,12 @@ class StoppedLane(unittest.TestCase):
         self.assertIsNone(watch_pr.usage_limit_reset("Error: a tool call failed"))
         self.assertIsNone(watch_pr.usage_limit_reset("usage limit reached, no time given"))
 
+    def test_flow_058_the_newest_round_s_comment_is_the_one_read(self):
+        bodies = ["<!-- review:arch -->\nround 1", "<!-- review:infra -->\nother", "<!-- review:arch -->\nround 2"]
+        lines = "\n".join(json.dumps(b) for b in bodies)
+        with mock.patch.object(watch_pr, "gh", side_effect=[json.dumps({"number": 7}), lines]):
+            self.assertEqual(watch_pr.comment_of(None, "arch"), "<!-- review:arch -->\nround 2")
+
     def explain(self, comments, *names):
         self.out = []
         failed = [run(name, "failure", run_id=9) for name in names]
@@ -245,7 +252,7 @@ class StoppedLane(unittest.TestCase):
         self.assertEqual(self.explain({"arch": other}, "reviewer-arch"), 1)
         self.assertEqual(len(self.out), 1)
         self.assertEqual(self.explain({}, "reviewer-arch"), 1)
-        self.assertEqual(self.out, ["reviewer-arch: no sticky comment to read"])
+        self.assertEqual(self.out, ["reviewer-arch: no lane comment to read"])
 
     def test_flow_055_the_watch_hands_the_failed_runs_over(self):
         failed = []

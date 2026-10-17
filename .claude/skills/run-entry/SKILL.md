@@ -97,9 +97,8 @@ and names what a user notices.
 - Push, `gh pr create --body-file`. Body under 20 lines: the task, each Done-when clause
   with the test that proves it and where it was seen red (or why it could not be),
   findings that changed something, techdebt filed, screenshots.
-- Watch the checks with `just watch-pr`, in the background; exit 0 is green, and
-  `scripts/watch-pr.py` lists the other codes.
-- A red reviewer lane: read its sticky comment, grade, apply, push. A CI finding the
+- `just watch-pr` in the background: exit 0 is green; `scripts/watch-pr.py` lists the others.
+- A red reviewer lane: read its newest comment, grade, apply, push. A CI finding the
   local run missed also becomes a rule in that reviewer's prompt, same PR.
 - Exit 6, a lane stopped by the CI account's usage limit: nothing to fix. Wait for the
   reset time it prints (a scheduled wake-up in chat, a sleep headless), outside Rule 4;
@@ -110,7 +109,8 @@ and names what a user notices.
   § 8). Fix with `git commit --fixup <sha>` (never a new titled commit, never a
   force-push), push, watch again. The same gate red three times: open question, leave
   the PR open, stop.
-- All green: `just merge` — it folds the fixups, so the task lands as one commit.
+- All green: every lane's newest comment, green or not, graded in a PR comment (`docs/workflow.md` § 3, step 9);
+  `just merge` folds the fixups.
 
 ## Step 9 — Closure
 

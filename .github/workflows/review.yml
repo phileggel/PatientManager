@@ -2,7 +2,7 @@ name: Review
 
 # The reviewer prompts under .claude/agents/ run on every pull request, one job
 # per lane the diff touches (scripts/review-lanes.sh — the same map the agent
-# uses locally before opening the PR). Each posts its report as a sticky
+# uses locally before opening the PR). Each posts its report as a lane
 # comment and fails the check on any 🔴 critical. Runs on the owner's Claude
 # subscription through the CLAUDE_CODE_OAUTH_TOKEN repository secret (minted
 # with `claude setup-token`); the check fails closed without it rather than
@@ -14,6 +14,9 @@ name: Review
 on:
   pull_request:
     branches: [main]
+    # `closed` (FLOW-056): its run joins this concurrency group and cancels the rounds
+    # still running on a pull request closed or merged; its own jobs skip.
+    types: [opened, synchronize, reopened, closed]
   # Re-run by hand on an open pull request when GitHub drops the event
   # (`gh workflow run Review --ref <branch> -f pr=<number>`).
   workflow_dispatch:
@@ -45,6 +48,7 @@ env:
 jobs:
   lanes:
     name: Lanes touched by the diff
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     outputs:
@@ -87,12 +91,13 @@ jobs:
   review:
     name: reviewer-${{ matrix.reviewer }}
     needs: lanes
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     # Two tries of a reviewer at worst (about 5 minutes each at 60 turns), with headroom.
     timeout-minutes: 40
     permissions:
       contents: read
-      # The report is a sticky comment on the pull request.
+      # The report is a lane comment on the pull request.
       pull-requests: write
     env:
       # Where the pinned action writes the session's execution log (verified
@@ -218,7 +223,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # The workflow token is enough: the session gets no GitHub tool.
           # reviewer-infra FP (CI, PR #121): with a custom prompt the action posts
-          # nothing itself — two runs left only the step below's sticky comment.
+          # nothing itself — two runs left only the step below's lane comment.
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}
           claude_args: ${{ env.REVIEW_ARGS }}
@@ -255,7 +260,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # The workflow token is enough: the session gets no GitHub tool.
           # reviewer-infra FP (CI, PR #121): with a custom prompt the action posts
-          # nothing itself — two runs left only the step below's sticky comment.
+          # nothing itself — two runs left only the step below's lane comment.
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}
           claude_args: ${{ env.REVIEW_ARGS }}
@@ -299,8 +304,8 @@ jobs:
           retention-days: 7
 
       - name: Post the report and fail on criticals
-        # Runs even when the reviewer step failed, so the sticky comment never
-        # shows a stale verdict next to a red check.
+        # Runs even when the reviewer step failed, so a failed round still leaves
+        # its report beside the red check.
         if: ${{ steps.gate.outputs.run == 'true' && !cancelled() }}
         shell: bash
         env:
@@ -330,13 +335,8 @@ jobs:
             # GitHub caps a comment at 65 536 characters; keep the head of a long report.
             body=$(printf '%s\n%s\n\n[run](%s)\n' "$MARKER" "$(head -c 60000 "$report")" "$RUN_URL")
           fi
-          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
-            --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" | head -n 1)
-          if [[ -n "$existing" ]]; then
-            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" > /dev/null
-          else
-            gh pr comment "$PR_NUMBER" --body "$body"
-          fi
+          # One comment per round, never an edit of the last (FLOW-058): each round's report is kept.
+          gh pr comment "$PR_NUMBER" --body "$body"
           if [[ "$criticals" != "0" ]]; then
             if [[ "$REVIEW_BLOCKING" == "true" ]]; then
               echo "::error::reviewer-$REVIEWER reported $criticals critical finding(s) — see the PR comment."

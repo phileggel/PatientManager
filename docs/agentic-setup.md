@@ -141,7 +141,7 @@ and those of its ceremony, a pull request (`docs/workflow.md` § 3).
 - `scripts/watch-pr.py` — waits for a pull request's checks and says how they ended,
   the usage limit that stopped a lane included. Never: merges or re-runs.
 - `scripts/merge.py` — rebases a branch whose checks are all green, merges it and
-  deletes it. Never: merges on a red or missing check, nor force-pushes.
+  deletes it. Never: merges on a red or missing check, nor force-pushes anything but its folded commit, with lease.
 - `.claude/agents/reviewer-backend.md` — the quality of Rust code against
   `backend-rules.md`. Never: layering, which is `reviewer-arch`'s.
 - `.claude/agents/reviewer-frontend.md` — the quality and UX of TypeScript and React

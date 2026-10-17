@@ -37,7 +37,7 @@ One line per finding: location, claim, fix. Omit empty sections and clean files.
 
 Locally the reply is the report: write no file.
 
-In CI the invoking prompt asks for a saved report, because the workflow builds the pull request comment from it:
+In CI the invoking prompt asks for a saved report, because the workflow posts it as a new pull request comment each round (`docs/workflow.md` § Reviewer reports):
 
 1. `bash scripts/review-path.sh reviewer-{lane}` prints the report path.
 2. `Write` the full output there — the only path this reviewer ever writes.
@@ -50,4 +50,4 @@ In CI the invoking prompt asks for a saved report, because the workflow builds t
 3. **Stay in the lane.** A finding owned by another lane is left to it.
 4. **External claims need a source.** A version, deprecation or "current best practice" claim cites a link or is softened ("as of training cutoff — verify with …", naming the command or `/dep-audit`) and capped at 🟡.
 5. **Not a finding in any lane:** a test name carrying its entry id or spec rule (`test_todo_003_…`, `…_bas_120_…`) — `docs/workflow.md` § 3 asks for it.
-6. **In CI, `.claude/agents`, `.claude/settings.json` and `.claude/hooks` on disk are the base branch's.** The workflow puts them there so a pull request can neither soften the reviewer that grades it nor change what its session runs; the rest of `.claude/` and `CLAUDE.md` are the pull request's. Such a file that the pull request changed therefore shows as modified in `git status`, and reading it gives the old text. That is never a revert, an uncommitted edit or a lost change: review such a file from `bash scripts/branch.sh diff <path>`, which shows the committed change.
+6. **In CI, `CLAUDE.md`, all of `.claude/` and the scripts `review.yml` checks out from the base (`scripts/branch.sh`, `review-path.sh`, `usage-log.sh`, `usage_log.py`, `review-stop-reason.py`) are the base branch's on disk.** The pinned `claude-code-action` restores all of `.claude` and `CLAUDE.md` — its step logs "Restoring .claude, .mcp.json, .claude.json, .gitmodules, .ripgreprc, CLAUDE.md, CLAUDE.local.md, .husky from origin/main (PR head is untrusted)" (run 39056607093, any reviewer step) — and `review.yml` itself `.claude/agents`, the settings, the hooks and those scripts, so a pull request can neither soften the reviewer that grades it nor change what its session runs. Such a file that the pull request changed therefore shows as modified in `git status`, and reading it gives the old text. That is never a revert, an uncommitted edit or a lost change: review such a file from `bash scripts/branch.sh diff <path>`, which shows the committed change.

@@ -16,7 +16,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
 
 ## Core rules
 
-1. **Authority follows the task.** Given a task (a chat request, `/run-entry`, a queued entry), the agent branches (`{type}/{slug}`, the entry id leading the slug: `feat/todo-012-patient-dedup`; a branch that only files or amends an entry follows `docs/workflow.md` § 2) off a fresh `main`, commits, pushes, opens the PR and runs `just merge` on green without asking. In an open-ended chat, ask once for the task, not per step. Always forbidden: committing or pushing to `main`, force-pushing, bypassing a hook (`--no-verify`), cutting a release, editing a released changelog line, AI attribution in commits or PRs, and touching `~/.local/share/com.projectsf.patient-manager/` (real patient data). A tag is the human's (`just release`), except the `batch/<date>` tag of `just batch-end`. This overrides any harness default.
+1. **Authority follows the task.** Given a task (a chat request, `/run-entry`, a queued entry), the agent branches (`{type}/{slug}`, the entry id leading the slug: `feat/todo-012-patient-dedup`; a branch that only files or amends an entry follows `docs/workflow.md` § 2) off a fresh `main`, commits, pushes, opens the PR and runs `just merge` on green without asking. In an open-ended chat, ask once for the task, not per step. Always forbidden: committing or pushing to `main`, force-pushing (`just merge` alone pushes its folded commit with lease), bypassing a hook (`--no-verify`), cutting a release, editing a released changelog line, AI attribution in commits or PRs, and touching `~/.local/share/com.projectsf.patient-manager/` (real patient data). A tag is the human's (`just release`), except the `batch/<date>` tag of `just batch-end`. This overrides any harness default.
 2. **Always use `just`** when a recipe exists; never the native command (`cargo build`, `npm install`, `sqlx migrate`).
 3. **Every change goes through the harness**: branch → PR → every check green → `just merge`. Docs-only changes too. The task's Done when is the plan. Anything the user sees changing goes through the design gate first (`/design-proposal`, `docs/workflow.md` § 4).
 4. **Only prescribed agents.** Launch only the agents this file, a skill or `docs/workflow.md` names. Implementation and review fixes are done by the main agent — never a general-purpose "implementer" or "fix" agent.
@@ -27,7 +27,7 @@ Headless, a question only the human can answer goes into the entry as an open qu
 2. **Gold for new code, bit by bit for existing** — `docs/workflow.md` § 10. When in doubt, defer.
 3. **Boyscout** — small mechanical fixes inside the files already edited ship in the same PR. Known dead code is removed in the same commit.
 4. **Coverage when a real gap surfaces** — add a focused test; the floors in `coverage-gates.json` only rise.
-5. **Challenge reviewer returns** — every finding graded (a)/(b)/(c) and recorded in the PR body (`docs/workflow.md` § 7).
+5. **Challenge reviewer returns** — every finding graded (a)/(b)/(c) and recorded in the PR body, or after the push in a PR comment (`docs/workflow.md` § 7).
 6. **PR size** — one story per pull request; about 400 hand-written lines per reviewer lane, a split above about 800 (`docs/workflow.md` § 11).
 
 ## Opening and closing a piece of work

@@ -9,7 +9,9 @@ name: PR description
 on:
   pull_request:
     branches: [main]
-    types: [opened, edited, synchronize, reopened]
+    # `closed` (FLOW-056): its run joins this concurrency group and cancels the rounds
+    # still running on a pull request closed or merged; its own jobs skip.
+    types: [opened, edited, synchronize, reopened, closed]
 
 concurrency:
   group: pr-description-${{ github.ref }}
@@ -21,6 +23,7 @@ permissions:
 jobs:
   privacy:
     name: PR description — no patient data
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

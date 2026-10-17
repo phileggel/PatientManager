@@ -190,9 +190,9 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
 8. **PR**, opened for the record, not for approval. Body under 20 lines: the task, each
    Done-when clause with the test that proves it and where that test was seen red (or
    why it could not be), findings that changed something, techdebt filed, screenshots.
-9. **Merge:** `just watch-pr` waits for the checks and says how they ended; then
-   `just merge` — it refuses until every check is green and folds `fixup!` commits, so
-   the task lands as one commit.
+9. **Merge:** `just watch-pr` waits for the checks; each lane's newest comment, green or
+   not, is read and its findings graded (§ 7); then `just merge` — it refuses until every
+   check is green and folds `fixup!` commits, so the task lands as one commit.
 10. **Closure** in the same PR: on an entry that touched a spec, `spec-checker` runs
     first and what it finds is fixed; what the task met and did not fix is filed; then
     `just queue close <id>` deletes the entry's file (the queue left as written); techdebt
@@ -299,11 +299,11 @@ CI found are counted at the audit (§ 12). Also: `spec-reviewer` / `contract-rev
 `adr-reviewer` when those documents change, `spec-checker` before closing an entry that
 carries spec rules. The guides (§ 5) have a lane of their own, `reviewer-guides`.
 
-Every finding, local or from CI, is graded before any is applied, and the outcome is
-recorded in the PR body, one line per finding that changed something or was rejected:
+Every finding, local or from CI, is graded before any is applied; one line per finding that
+changed something or was rejected goes in the PR body, or in a PR comment once pushed:
 
 - **(a)** in scope → fix in the PR.
-- **(b)** bigger, or outside the file set → `DEBT-NNN` entry, linked from the PR body.
+- **(b)** bigger, or outside the file set → `DEBT-NNN` entry, linked from that line.
 - **(c)** is never "pre-existing" alone: a rejection cites what overrides the finding —
   a rule, a file, an ADR, a measurement, the owner's decision.
 - **(c) one-off** false positive → inline comment `<reviewer> FP: <reason> — see PR #NN`.
@@ -436,7 +436,7 @@ to the human in chat, and the PR stays open. Once the choice is made, record it 
 
 Locally a reviewer's reply is its report; nothing is written. In CI the reviewer saves
 its output to `.review/{slug}-{date}-{NN}.md` (`bash scripts/review-path.sh {slug}`) and
-the workflow builds the pull request comment from that file. `.review/` is gitignored
+the workflow posts it as a new pull request comment each round. `.review/` is gitignored
 and safe to delete.
 
 ### Dependabot pull requests
