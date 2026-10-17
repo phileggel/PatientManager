@@ -313,12 +313,13 @@ from code and proposed for confirmation.
 
 ### FundPaymentGroup
 
-| Method                                            | Domain intent                                                                                               | Status transition | Status    |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------- | --------- |
-| `confirm_bank_payment()`                          | Bank transfer matched — group is now settled; prevents edits and deletion                                   | → `BankPaid`      | confirmed |
-| `revert_bank_payment()`                           | Bank transfer removed — group is back to active                                                             | → `Active`        | confirmed |
-| `edit(payment_date, procedure_ids, total_amount)` | A user edits the group: payment date, procedure lines and total, as the form sends them (owner, 2026-10-17) | —                 | confirmed |
-| `accepts_total(total_amount)`                     | Whether an amount can be a group's total: it must be positive                                               | —                 | proposed  |
+| Method                                                | Domain intent                                                                                                                               | Status transition | Status    |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | --------- |
+| `confirm_bank_payment()`                              | Bank transfer matched — group is now settled; prevents edits and deletion                                                                   | → `BankPaid`      | confirmed |
+| `revert_bank_payment()`                               | Bank transfer removed — group is back to active                                                                                             | → `Active`        | confirmed |
+| `edit(payment_date, procedure_ids, total_amount)`     | A user edits the group: payment date, procedure lines and total, as the form sends them (owner, 2026-10-17)                                 | —                 | confirmed |
+| `accepts_total(total_amount)`                         | Whether an amount can be a group's total: it must be positive                                                                               | —                 | proposed  |
+| `refund(fund_id, payment_date, amount, procedure_id)` | A refund to a patient: the group is created settled, its total the amount taken back, its one line the refund procedure (owner, 2026-10-17) | → `BankPaid`      | confirmed |
 
 ---
 

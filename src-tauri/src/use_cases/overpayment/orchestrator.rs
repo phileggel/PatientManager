@@ -6,9 +6,7 @@ use crate::context::bank::{
     BankAccountService, BankEntry, BankEntryLinkRepository, BankEntryService, BankEntryType,
     BankError,
 };
-use crate::context::fund::{
-    FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine, FundPaymentService,
-};
+use crate::context::fund::{FundPaymentGroup, FundPaymentService};
 use crate::context::procedure::{
     PaymentMethod, Procedure, ProcedureRefund, ProcedureRefundRepository, ProcedureService,
     ProcedureStatus,
@@ -159,15 +157,6 @@ impl OverpaymentOrchestrator {
             .await?;
 
         // Step 8 — Create refund FundPaymentGroup (REF-100)
-        // BankPaid status and negative total_amount bypass normal validation.
-        // Build the group with a known ID so we can set the line's group_id.
-        let group_id = uuid::Uuid::new_v4().to_string();
-        let refund_line = FundPaymentLine::new(group_id.clone(), refund_procedure.id.clone())
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e,"Failed to build refund fund payment line");
-                OverpaymentTask::DatabaseError
-            })?;
-
         let fund_id = source
             .fund_id
             .clone()
@@ -175,14 +164,16 @@ impl OverpaymentOrchestrator {
                 id: source.id.clone(),
             })?;
 
-        let refund_group = FundPaymentGroup::restore(
-            group_id,
+        let refund_group = FundPaymentGroup::refund(
             fund_id,
             refund_date,
-            -source_amount,
-            vec![refund_line],
-            FundPaymentGroupStatus::BankPaid,
-        );
+            source_amount,
+            refund_procedure.id.clone(),
+        )
+        .map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "Failed to build the refund fund payment group");
+            OverpaymentTask::DatabaseError
+        })?;
 
         let refund_group = self
             .fund_payment_service

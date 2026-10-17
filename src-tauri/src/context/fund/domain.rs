@@ -205,6 +205,28 @@ impl FundPaymentGroup {
         })
     }
 
+    /// The group a refund to a patient creates (REF-100): settled at once
+    /// (`BankPaid`, locked), its total the refunded amount taken back, its one
+    /// line the refund procedure.
+    pub fn refund(
+        fund_id: String,
+        payment_date: NaiveDate,
+        amount: i64,
+        procedure_id: String,
+    ) -> Result<Self, FundError> {
+        let id = Uuid::new_v4().to_string();
+        let lines = Self::lines_for(&id, &[procedure_id])?;
+        Ok(Self {
+            id,
+            fund_id,
+            payment_date,
+            total_amount: -amount,
+            lines,
+            status: FundPaymentGroupStatus::BankPaid,
+            is_locked: true,
+        })
+    }
+
     /// Bank transfer matched: the group is settled and locked against edits
     /// and deletion.
     pub fn confirm_bank_payment(&mut self) {
@@ -629,6 +651,37 @@ mod tests {
         assert!(
             FundPaymentLine::with_id("my-id".to_string(), "g1".to_string(), "".to_string())
                 .is_err()
+        );
+    }
+
+    // --- FundPaymentGroup::refund (DEBT-057, REF-100) ---
+
+    fn refund_date() -> NaiveDate {
+        NaiveDate::from_ymd_opt(2026, 10, 17).expect("a valid date")
+    }
+
+    #[test]
+    fn debt_057_a_refund_group_is_settled_with_its_negative_total_and_one_line() {
+        let group =
+            FundPaymentGroup::refund("f1".to_string(), refund_date(), 56_000, "p1".to_string())
+                .expect("a positive refunded amount is valid");
+        assert_eq!(group.total_amount, -56_000);
+        assert_eq!(group.status, FundPaymentGroupStatus::BankPaid);
+        assert!(group.is_locked);
+        assert_eq!(group.fund_id, "f1");
+        assert_eq!(group.payment_date, refund_date());
+        assert_eq!(group.lines.len(), 1);
+        assert_eq!(group.lines[0].procedure_id, "p1");
+        assert_eq!(group.lines[0].fund_payment_group_id, group.id);
+    }
+
+    #[test]
+    fn debt_057_a_refund_needs_its_procedure() {
+        let result =
+            FundPaymentGroup::refund("f1".to_string(), refund_date(), 56_000, "".to_string());
+        assert!(
+            matches!(result, Err(FundError::LineProcedureIdEmpty)),
+            "{result:?}"
         );
     }
 }
