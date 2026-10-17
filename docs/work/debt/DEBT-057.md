@@ -8,7 +8,7 @@
 
 **Size:** S
 
-**Waits on the owner:** the name of a factory for a refund group (settled, negative total), the one site left — `new` and `with_id` take the procedure identifiers (owner, 2026-10-14) and cannot build it
+**Waits on the owner:** no — the refund group's factory is `FundPaymentGroup::refund(fund, date, amount, procedure_id)`: created settled (`BankPaid`) with its negative total and its one line, replacing `restore` at the overpayment site (owner, 2026-10-17)
 
 **Refined (2026-10-14, before queuing):** ships with TODO-019. Sites left after DEBT-056: `fund_payment_reconciliation/orchestrator.rs:234` and `overpayment/orchestrator.rs`. Done when: the group builds its own lines from the procedure identifiers, through `new` and `with_id` taking the procedure identifiers; no caller assigns `group.lines` outside the repository's restore path; Rust tests on the factory. Size S holds.
 
