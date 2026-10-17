@@ -20,6 +20,7 @@ request that ships an entry touches it. `just queue` says what has shipped.
 <!-- DEBT-043, the two form validators only. The rest of each entry stays open. -->
 <!-- Order: DEBT-056 before TODO-019, which it clears a site for; FLOW-020 after FLOW-019 -->
 <!-- (the same E2E tree), kept with the application work against "tools first". -->
+<!-- Cut (owner, 2026-10-17): DEBT-043, its slice read as an L, not an M. -->
 <!-- Left for the batch after: FLOW-056, FLOW-058, FLOW-063 to FLOW-068 (the six open -->
 <!-- issues), DEBT-052, TODO-018, FLOW-031, FLOW-032 (first slice: the fund and fund -->
 <!-- payment reconciliation contracts), FLOW-054 (after FLOW-073 is decided). -->
@@ -34,5 +35,4 @@ request that ships an entry touches it. `just queue` says what has shipped.
 - TODO-019
 - DEBT-057
 - DEBT-011
-- DEBT-043
 - FLOW-020
