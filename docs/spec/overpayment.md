@@ -111,7 +111,7 @@ The backend rejects the request if no `bank_account_id` is provided.
 
 **REF-190 — Overpaid Procedure Modal Mode (frontend)**: A procedure with `Overpaid` status opens in a dedicated partial-edit mode in `EditProcedureModal`:
 
-- `procedure_type_id` is editable and required; changing it and clicking "Save" fires the existing `update_procedure` command (augmented per REF-170). The field must not be empty before submission.
+- `procedure_type_id` is editable and required; changing it and clicking "Save" fires the existing `update_procedure` command (augmented per REF-170). An empty type is refused by the backend and shown under the field (PRO-125, PRO-122); an unchanged type closes the modal silently (PRO-121).
 - All other fields are read-only.
 - The "Cancel Refund" button is present (triggers REF-210).
 - The "Delete" button is absent.

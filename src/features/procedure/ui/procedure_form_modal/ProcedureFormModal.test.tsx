@@ -155,23 +155,14 @@ describe("ProcedureFormModal — create mode (ComboboxField wiring)", () => {
     expect(screen.getByRole("option", { name: "CPAM" })).toBeInTheDocument();
   });
 
-  it("submit button is disabled until patient, procedure type, and date are filled", () => {
-    renderCreate();
-    const submitBtn = screen.getByRole("button", { name: "Add Procedure" });
-    // All three required fields empty → disabled
-    expect(submitBtn).toBeDisabled();
+  it("PRO-126: Save is enabled in edit mode with the type cleared", async () => {
+    render(<ProcedureFormModal mode="edit" procedure={MOCK_PROCEDURE} isOpen onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Procedure Type"), { target: { value: "" } });
+    expect(screen.getByRole("button", { name: "Update" })).not.toBeDisabled();
   });
 
-  it("submit button enables after all required fields are filled", async () => {
-    const user = userEvent.setup();
+  it("PRO-120: Save is enabled on an empty form", () => {
     renderCreate();
-
-    await user.selectOptions(screen.getByLabelText("Patient"), "p1");
-    await user.selectOptions(screen.getByLabelText("Procedure Type"), "pt1");
-    fireEvent.change(screen.getByLabelText("Procedure Date"), {
-      target: { value: "2026-05-01" },
-    });
-
     expect(screen.getByRole("button", { name: "Add Procedure" })).not.toBeDisabled();
   });
 
@@ -222,17 +213,19 @@ describe("ProcedureFormModal — create mode (ComboboxField wiring)", () => {
     });
   });
 
-  it("shows patientId validation error when submitting without patient", async () => {
-    // Override addProcedure to return validation error (should not be called — button disabled)
-    // The submit button is disabled when patientId is empty, so we verify the disabled state
+  it("PRO-120: a refused submit shows each reason under its field", async () => {
+    vi.mocked(procedureGateway.addProcedure).mockResolvedValueOnce({
+      success: false,
+      error: { code: "ProcedureInvalid", reasons: ["PatientIdEmpty", "ProcedureDateEmpty"] },
+    });
     renderCreate();
     await userEvent.selectOptions(screen.getByLabelText("Procedure Type"), "pt1");
-    fireEvent.change(screen.getByLabelText("Procedure Date"), {
-      target: { value: "2026-05-01" },
-    });
-    // Patient not selected → button still disabled (patientId missing)
-    expect(screen.getByRole("button", { name: "Add Procedure" })).toBeDisabled();
-    expect(procedureGateway.addProcedure).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Add Procedure" }));
+
+    expect(await screen.findByText("Choose a patient.")).toBeInTheDocument();
+    expect(screen.getByText("Enter the procedure date.")).toBeInTheDocument();
+    expect(procedureGateway.addProcedure).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -1599,6 +1599,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn pro_251_edit_changing_to_an_unknown_fund_is_refused_and_writes_nothing() {
+        let stored = make_procedure_with_status(ProcedureStatus::Created);
+        let mut changed = stored.clone();
+        changed.fund_id = Some("unknown-fund".to_string());
+        let mut repo = MockProcedureRepository::new();
+        let for_read = stored.clone();
+        repo.expect_read_procedure()
+            .returning(move |_| Ok(Some(for_read.clone())));
+        repo.expect_update_procedure().times(0);
+        let orchestrator = ProcedureOrchestrationService::new(
+            Arc::new(ContextProcedureService::new(
+                Arc::new(repo),
+                Arc::new(EventBus::new()),
+            )),
+            Arc::new(mock_patient_repo(None, Arc::new(Mutex::new(None)))),
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_not_found()),
+            Arc::new(refund_repo_noop()),
+        );
+        let err = orchestrator.edit_procedure(changed).await.unwrap_err();
+        assert!(matches!(
+            err,
+            ProcedureOrchestrationError::Task(ProcedureOrchestrationTask::FundNotFound { .. })
+        ));
+    }
+
+    #[tokio::test]
     async fn pro_251_edit_naming_an_unknown_patient_is_refused_and_writes_nothing() {
         let stored = make_procedure_with_status(ProcedureStatus::Created);
         let mut changed = stored.clone();

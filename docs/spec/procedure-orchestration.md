@@ -27,7 +27,7 @@ status inference, and patient tracking-field updates as side effects.
 
 **PRO-040 (R6) — Modal routing by status (frontend)**: A double-click on a row, or a click on the Edit button, opens the modal in the mode matching the procedure's status. Procedures whose status is non-blocking (`None`, `Created`, `ImportDirectlyPayed`, `ImportFundPayed`) open in edit mode (see PRO-050). Procedures whose deletion is blocked (`Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`, `OverpaymentRefund`) open in partial-view mode (see PRO-190). Procedures in `Overpaid` status open in a dedicated partial-edit mode (see REF-190): the `procedure_type_id` field is editable, with propagation to the linked refund (see REF-170); all other fields are read-only; the "Cancel refund" button is present.
 
-**PRO-050 (R30) — Modal contents in edit mode (frontend)**: In edit mode, the modal pre-fills all fields from the existing procedure. Editable fields: `patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`. Patient selection happens through a ComboboxField (see PRO-150, PRO-160). Payment information (`payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `payment_status`, `actual_payment_amount`) is not displayed — those fields are edited exclusively through the management of bank transfers and transactions. The procedure's technical id is not displayed. While saving, the button is disabled and shows a loading indicator; after a successful save, the modal closes and a success snackbar is displayed; on backend or network error, the modal stays open and an error snackbar is displayed.
+**PRO-050 (R30) — Modal contents in edit mode (frontend)**: In edit mode, the modal pre-fills all fields from the existing procedure. Editable fields: `patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`. Patient selection happens through a ComboboxField (see PRO-150, PRO-160). Payment information (`payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `payment_status`, `actual_payment_amount`) is not displayed — those fields are edited exclusively through the management of bank transfers and transactions. The procedure's technical id is not displayed. While saving, the button is disabled and shows a loading indicator; after a successful save, the modal closes and a success snackbar is displayed (an unchanged edit: PRO-121); on backend or network error, the modal stays open and an error snackbar is displayed (a refused field: PRO-122).
 
 **PRO-060 (R7) — Aggregate statistics**: The header bar displays aggregate statistics for the filtered rows (period + search): unique patient count, procedure count, billed total (`procedureAmount`), received total (`actualPaymentAmount`), and awaited total (`max(0, procedureAmount − actualPaymentAmount)` per row). Draft rows (procedures with `isDraft` true, i.e. procedures being entered for the active period) are excluded from all statistics.
 
@@ -36,6 +36,8 @@ status inference, and patient tracking-field updates as side effects.
 logged and surfaced to the user via a toast.
 
 **PRO-080 (R9) — Inline patient creation (frontend)**: From the patient field **in creation mode only**, the practitioner can create a new patient without closing the modal. The creation form appears in a nested modal; on validation, the new patient is automatically selected. This feature is not available in edit mode.
+
+**PRO-081 — Refusals of the inline patient creation (frontend)**: The new-patient form's create button is enabled whenever nothing is being saved. An empty name is refused by the backend and shown under the name, cleared once the name changes; any other refusal keeps the form open, its reason shown in the form.
 
 **PRO-090 (R10) — Status badge (frontend)**: Each procedure's payment status is displayed as a badge styled by its status (`Overpaid` and `OverpaymentRefund`: REF-180).
 M3 token mapping:
@@ -56,7 +58,17 @@ M3 token mapping:
 `rounded-full`) opens `ProcedureFormModal` in creation mode. The table occupies the full
 content width.
 
-**PRO-120 (R27) — Form validation (frontend)**: Three fields are required to submit the create or edit form: the patient (`patient_id`), the procedure type (`procedure_type_id`), and the execution date (`procedure_date`). An error message is shown for each missing field and a global error toast is triggered. The fund (`fund_id`) is optional. The amount (`billed_amount`) is a mandatory domain field stored as a non-null integer in thousandths of a euro; the form displays an empty input box when the field has not been initialized by the user nor by propagation (PRO-020, PRO-025), in which case the submitted value is `0`.
+**PRO-120 (R27) — Form validation (frontend)**: Three fields are required: the patient (`patient_id`), the procedure type (`procedure_type_id`), and the execution date (`procedure_date`); the backend judges them (PRO-125), the form marks none of them as required (no marker, no native `required` attribute), and it shows the refusals as PRO-122 says. The fund (`fund_id`) is optional. The amount (`billed_amount`) is a mandatory domain field stored as a non-null integer in thousandths of a euro; the form displays an empty input box when the field has not been initialized by the user nor by propagation (PRO-020, PRO-025), in which case the submitted value is `0`.
+
+**PRO-121 — An unchanged edit closes silently (frontend)**: When an edit is reported as unchanged (PRO-255), the modal closes with no snackbar and the list is not refreshed.
+
+**PRO-122 — Refusals shown at the field (frontend)**: When the backend refuses the form under PRO-125, each refused field shows its own message under it (an empty date and a malformed date have different messages; the texts are the `procedure:form_errors` keys of the locale files). A new submit first clears every message. Any other refusal shows no message at a field.
+
+**PRO-123 — A field's message clears when it is edited (frontend)**: A field's message clears once its value changes; for the patient field, once a patient is selected.
+
+**PRO-124 — The snackbar of a refusal (frontend)**: Every refusal, under PRO-125 or not, also shows the mode's error snackbar.
+
+**PRO-126 — Save always enabled (frontend)**: In every mode with an editable field (creation, edit, partial view, Overpaid), Save is enabled whenever nothing is being saved; the form never checks its fields itself (owner, 2026-10-18).
 
 **PRO-130 (R28) — SSN display format (frontend)**: When the patient's social-security number (SSN — `ssn` field) is set, it is displayed in parentheses immediately after the patient's name. Example: `DUPOND Floriane (1234567890123)`. If the patient has no SSN, the parentheses and their content are omitted.
 
@@ -70,7 +82,7 @@ content width.
 
 **PRO-180 (R25) — Status filter**: A dedicated selector restricts the display to a specific payment status. This filter is independent of the text search (PRO-100); both filters are applied cumulatively to the rows of the period.
 
-**PRO-190 (R26) — Partial view (blocking-status procedures)**: Procedures whose deletion is blocked (see PRO-030 — statuses `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`, `OverpaymentRefund`) open in a partial-view modal (mode="view"). The `procedure_type_id` field stays editable; all other fields are displayed read-only. Read-only fields displayed: the patient's name (with SSN in parentheses if set, see PRO-130), the procedure date, the billed amount, and the fund. Payment information is not displayed. The procedure's technical id is not displayed. A save button is present so that the procedure type can be edited; while saving, it is disabled and shows a loading indicator; after a successful save, the modal closes and a success snackbar is displayed; on backend or network error, the modal stays open and an error snackbar is displayed. The delete button is absent or disabled.
+**PRO-190 (R26) — Partial view (blocking-status procedures)**: Procedures whose deletion is blocked (see PRO-030 — statuses `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`, `OverpaymentRefund`) open in a partial-view modal (mode="view"). The `procedure_type_id` field stays editable; all other fields are displayed read-only. Read-only fields displayed: the patient's name (with SSN in parentheses if set, see PRO-130), the procedure date, the billed amount, and the fund. Payment information is not displayed. The procedure's technical id is not displayed. A save button is present so that the procedure type can be edited; while saving, it is disabled and shows a loading indicator; after a successful save, the modal closes and a success snackbar is displayed (an unchanged edit: PRO-121); on backend or network error, the modal stays open and an error snackbar is displayed (a refused field: PRO-122). The delete button is absent or disabled.
 
 ---
 

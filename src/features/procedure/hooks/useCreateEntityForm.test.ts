@@ -7,12 +7,10 @@ type TestFields = { name: string };
 type TestFormData = { name: string };
 
 const initialFields: TestFields = { name: "" };
-const validator = (f: TestFields): Record<string, string> =>
-  f.name.trim() ? {} : { name: "Name is required" };
 const toFormData = (f: TestFields): TestFormData => ({ name: f.name.trim() });
 
 function makeOptions(overrides: {
-  onSubmit?: (data: TestFormData) => Promise<void>;
+  onSubmit?: (data: TestFormData) => Promise<Record<string, string>>;
   onClose?: () => void;
   initialQuery?: string;
   queryField?: keyof TestFields;
@@ -20,9 +18,8 @@ function makeOptions(overrides: {
   return {
     entityName: "test",
     initialFields,
-    validator,
     toFormData,
-    onSubmit: overrides.onSubmit ?? vi.fn(),
+    onSubmit: overrides.onSubmit ?? vi.fn().mockResolvedValue({}),
     onClose: overrides.onClose ?? vi.fn(),
     initialQuery: overrides.initialQuery,
     queryField: overrides.queryField,
@@ -64,10 +61,11 @@ describe("useCreateEntityForm", () => {
     expect(result.current.fields.name).toBe("Bob");
   });
 
-  it("handleSubmit sets errors and does not call onSubmit when validation fails", async () => {
-    const onSubmit = vi.fn();
+  it("TODO-026: an empty form is sent, and the refused fields keep the form open with their messages", async () => {
+    const onSubmit = vi.fn().mockResolvedValue({ name: "Enter the name." });
+    const onClose = vi.fn();
     const { result } = renderHook(() =>
-      useCreateEntityForm<TestFields, TestFormData>(makeOptions({ onSubmit })),
+      useCreateEntityForm<TestFields, TestFormData>(makeOptions({ onSubmit, onClose })),
     );
 
     await act(async () => {
@@ -76,12 +74,29 @@ describe("useCreateEntityForm", () => {
       } as unknown as React.FormEvent);
     });
 
-    expect(result.current.errors.name).toBe("Name is required");
-    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onSubmit).toHaveBeenCalledWith({ name: "" });
+    expect(result.current.errors).toEqual({ name: "Enter the name." });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("TODO-026: editing a refused field clears its message", async () => {
+    const onSubmit = vi.fn().mockResolvedValue({ name: "Enter the name." });
+    const { result } = renderHook(() =>
+      useCreateEntityForm<TestFields, TestFormData>(makeOptions({ onSubmit })),
+    );
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as React.FormEvent);
+    });
+
+    act(() => result.current.updateField("name", "A"));
+
+    expect(result.current.errors).toEqual({});
   });
 
   it("handleSubmit calls onSubmit with transformed formData and then resets and closes on success", async () => {
-    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const onSubmit = vi.fn().mockResolvedValue({});
     const onClose = vi.fn();
     const { result } = renderHook(() =>
       useCreateEntityForm<TestFields, TestFormData>(makeOptions({ onSubmit, onClose })),
@@ -157,7 +172,9 @@ describe("useCreateEntityForm", () => {
   it("DEBT-059: submitting logs that it happened, never the values of the form", async () => {
     const info = vi.spyOn(logger, "info");
     const { result } = renderHook(() =>
-      useCreateEntityForm<TestFields, TestFormData>(makeOptions({ onSubmit: vi.fn() })),
+      useCreateEntityForm<TestFields, TestFormData>(
+        makeOptions({ onSubmit: vi.fn().mockResolvedValue({}) }),
+      ),
     );
 
     act(() => result.current.updateField("name", "Nom Prenom"));

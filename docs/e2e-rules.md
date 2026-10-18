@@ -29,14 +29,12 @@ The `id` MUST be forwarded to the underlying DOM `<input>` — never stop at the
 ## E3 — Submit buttons MUST use `type="submit"` and `form="{form-id}"`
 
 ```tsx
-<Button
-  type="submit"
-  form="price-modal-form"
-  disabled={isSubmitting || !isFormValid}
->
+<Button type="submit" form="price-modal-form" disabled={isSubmitting}>
   Save
 </Button>
 ```
+
+That is the Submit of a form F30 lists as moved; another also gates it on its own checks.
 
 E2E selector: `button[type="submit"][form="price-modal-form"]`.
 Never rely on an `onClick`-only submit path — there is no stable selector for it.
@@ -70,8 +68,8 @@ This is already required by accessibility rules — it is also what E2E tests as
 ## E6 — React controlled inputs require `setReactInputValue` in E2E tests
 
 Standard `setValue()` from WebdriverIO does **not** reliably trigger React's synthetic
-`onChange` in WebKitGTK. The DOM value is set but React state never updates, so
-`isFormValid` stays `false` and the submit button stays disabled.
+`onChange` in WebKitGTK. The DOM value is set but React state never updates.
+A form F30 lists as moved is then sent with its fields empty and refused; any other form keeps its submit disabled.
 
 Use this helper in every E2E test file that sets input values:
 

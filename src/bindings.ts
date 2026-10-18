@@ -2225,7 +2225,7 @@ paid_amount: number | null;
  */
 id: string }
 /**
- * What an edit from the form did (PRO-250).
+ * What an edit from the form did (PRO-255).
  */
 export type ProcedureEdit = 
 /**
@@ -2253,7 +2253,7 @@ export type ProcedureEdit =
 export type ProcedureError = 
 /**
  * `Procedure::validate` or `Procedure::read_form` refused the procedure:
- * every reason at once, one per field (PRO-120).
+ * every reason at once, one per field (PRO-125).
  */
 { code: "ProcedureInvalid"; reasons: ProcedureInvalidReason[] } | 
 /**
@@ -2298,9 +2298,25 @@ export type ProcedureError =
  */
 { code: "DatabaseError" }
 /**
- * Why a procedure is refused; one per invalid field (PRO-120).
+ * Why a procedure is refused; one per invalid field (PRO-125).
  */
-export type ProcedureInvalidReason = "PatientIdEmpty" | "ProcedureTypeIdEmpty" | "ProcedureDateEmpty" | "ProcedureDateInvalid"
+export type ProcedureInvalidReason = 
+/**
+ * No patient, or a blank one.
+ */
+"PatientIdEmpty" | 
+/**
+ * No procedure type, or a blank one.
+ */
+"ProcedureTypeIdEmpty" | 
+/**
+ * No date, or a blank one.
+ */
+"ProcedureDateEmpty" | 
+/**
+ * A date that is not a valid YYYY-MM-DD date.
+ */
+"ProcedureDateInvalid"
 /**
  * Composite error for the procedure-orchestration use case.
  * 
@@ -2394,7 +2410,7 @@ id: string }
  */
 export type RawProcedure = { id: string; patient_id: string; fund_id: string | null; procedure_type_id: string; 
 /**
- * As the form sent it (YYYY-MM-DD, or empty): `Procedure::read_form` judges it (PRO-120).
+ * As the form sent it (YYYY-MM-DD, or empty): `Procedure::read_form` judges it (PRO-125).
  */
 procedure_date: string; billed_amount: number; payment_method: string | null; fund_reconciliation_date: string | null; confirmed_payment_date: string | null; paid_amount: number | null; payment_status: string }
 /**

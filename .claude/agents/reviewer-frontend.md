@@ -43,7 +43,7 @@ You review React 19 / TypeScript code with a Material Design 3 system. Follow `.
 **Design tokens and UX**
 
 - Raw Tailwind colours (`text-gray-*`, `bg-white`, `text-red-*`, `border-gray-*`) 🔴; `*Legacy` components in new code 🔴; raw `shadow-*` instead of `shadow-elevation-*` 🟡; borders instead of tonal surfaces 🟡; buttons not `rounded-xl` 🟡; opaque modal instead of `bg-m3-surface-container-lowest/85 backdrop-blur-[12px]` 🟡; a primitive from `@/ui/components` reinvented 🟡.
-- Gateway call with no error path 🔴; destructive action without confirmation 🔴; no empty state, loading indicator, submit-disabled state or success feedback 🟡.
+- Gateway call with no error path 🔴; destructive action without confirmation 🔴; no empty state, loading indicator, disabled-while-saving state or success feedback 🟡; the Submit of a form F30 lists as moved, disabled by the form's own field checks 🟡; a snackbar whose text contradicts the field messages shown with it 🟡.
 - Modal not header → scrolling content → footer 🟡; cancel / confirm / destructive not `secondary` / `primary` / `danger` 🟡.
 
 **i18n**

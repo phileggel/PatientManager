@@ -108,8 +108,7 @@
   },
   "error": {
     "loading": "Error loading data",
-    "required_field": "Required field",
-    "required_fields": "Please fill in all required fields.",
+    "invalid_fields": "Please correct the fields shown.",
     "delete_failed": "Failed to delete procedure"
   },
   "modal": {
@@ -121,7 +120,6 @@
     "title": "Create New Patient",
     "name_label": "Patient Name",
     "name_placeholder": "Enter patient name",
-    "name_required": "Patient name is required",
     "ssn_label": "SSN (Optional)",
     "ssn_placeholder": "Enter SSN (optional)",
     "submit": "Create Patient"
@@ -130,7 +128,6 @@
     "title": "Create New Procedure Type",
     "name_label": "Procedure Type Name",
     "name_placeholder": "Enter procedure type name",
-    "name_required": "Procedure type name is required",
     "amount_label": "Default Amount",
     "amount_placeholder": "Enter default amount",
     "amount_required": "Default amount is required",
@@ -138,5 +135,12 @@
     "category_label": "Category (Optional)",
     "category_placeholder": "Enter category (optional)",
     "submit": "Create Procedure Type"
+  },
+  "form_errors": {
+    "patient_missing": "Choose a patient.",
+    "procedure_type_missing": "Choose a procedure type.",
+    "procedure_date_missing": "Enter the procedure date.",
+    "procedure_date_invalid": "Enter a valid date.",
+    "patient_name_missing": "Enter the patient's name."
   }
 }

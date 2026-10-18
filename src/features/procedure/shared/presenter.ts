@@ -1,5 +1,31 @@
-import type { ProcedureOrchestrationError } from "@/bindings";
+import type { PatientError, ProcedureInvalidReason, ProcedureOrchestrationError } from "@/bindings";
 import { isPaidStatus, type ProcedureRow } from "../model/procedure-row.types";
+
+/** The procedure form's fields a refusal can name (PRO-120, PRO-125). */
+export type ProcedureFormField = "patientId" | "procedureTypeId" | "procedureDate";
+
+const FIELD_ERROR_KEYS: Record<ProcedureInvalidReason, [ProcedureFormField, string]> = {
+  PatientIdEmpty: ["patientId", "procedure:form_errors.patient_missing"],
+  ProcedureTypeIdEmpty: ["procedureTypeId", "procedure:form_errors.procedure_type_missing"],
+  ProcedureDateEmpty: ["procedureDate", "procedure:form_errors.procedure_date_missing"],
+  ProcedureDateInvalid: ["procedureDate", "procedure:form_errors.procedure_date_invalid"],
+};
+
+/**
+ * The i18n key to show under each field the backend refused (PRO-120), or
+ * null when the error is not about the form's fields (it then goes to a toast).
+ */
+export function procedureFieldErrorKeys(
+  err: ProcedureOrchestrationError,
+): Partial<Record<ProcedureFormField, string>> | null {
+  if (err.code !== "ProcedureInvalid") return null;
+  return Object.fromEntries(err.reasons.map((reason) => FIELD_ERROR_KEYS[reason]));
+}
+
+/** The i18n key to show under the new-patient form's name, or null (TODO-026). */
+export function patientNameErrorKey(err: PatientError): string | null {
+  return err.code === "NameEmpty" ? "procedure:form_errors.patient_name_missing" : null;
+}
 
 /**
  * Layer 3 of the F27 typed-error pipeline for the procedure-orchestration use
@@ -25,7 +51,7 @@ export function formatProcedureOrchestrationError(err: ProcedureOrchestrationErr
       return { key: "procedure:errors.delete_blocked" };
     // --- ProcedureError (BC) ---
     case "ProcedureInvalid":
-      return { key: "procedure:error.required_fields" };
+      return { key: "procedure:error.invalid_fields" };
     case "ProcedureNotFound":
       return { key: "procedure:errors.procedure_not_found", params: { id: err.procedure_id } };
     case "ProcedureTypeNameEmpty":

@@ -108,8 +108,7 @@
   },
   "error": {
     "loading": "Erreur de chargement des données",
-    "required_field": "Champ obligatoire",
-    "required_fields": "Veuillez remplir tous les champs obligatoires.",
+    "invalid_fields": "Veuillez corriger les champs indiqués.",
     "delete_failed": "Échec de la suppression de l'acte"
   },
   "modal": {
@@ -121,7 +120,6 @@
     "title": "Créer un nouveau patient",
     "name_label": "Nom du patient",
     "name_placeholder": "Entrez le nom du patient",
-    "name_required": "Le nom du patient est obligatoire",
     "ssn_label": "INS (Optionnel)",
     "ssn_placeholder": "Entrez le numéro INS (optionnel)",
     "submit": "Créer le patient"
@@ -130,7 +128,6 @@
     "title": "Créer un nouveau type d'acte",
     "name_label": "Nom du type d'acte",
     "name_placeholder": "Entrez le nom du type d'acte",
-    "name_required": "Le nom du type d'acte est obligatoire",
     "amount_label": "Montant par défaut",
     "amount_placeholder": "Entrez le montant par défaut",
     "amount_required": "Le montant par défaut est obligatoire",
@@ -138,5 +135,12 @@
     "category_label": "Catégorie (Optionnel)",
     "category_placeholder": "Entrez une catégorie (optionnel)",
     "submit": "Créer le type d'acte"
+  },
+  "form_errors": {
+    "patient_missing": "Choisissez un patient.",
+    "procedure_type_missing": "Choisissez un type d'acte.",
+    "procedure_date_missing": "Indiquez la date de l'acte.",
+    "procedure_date_invalid": "Indiquez une date valide.",
+    "patient_name_missing": "Indiquez le nom du patient."
   }
 }

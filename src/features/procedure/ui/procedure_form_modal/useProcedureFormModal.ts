@@ -11,35 +11,23 @@
 
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Patient, Procedure } from "@/bindings";
+import type { Patient, Procedure, ProcedureEdit, ProcedureOrchestrationError } from "@/bindings";
 import { formatPatientError } from "@/features/patient/shared/presenter";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../../api/gateway";
 import { formatPatientLabel } from "../../model";
-import { formatProcedureOrchestrationError } from "../../shared/presenter";
+import {
+  formatProcedureOrchestrationError,
+  type ProcedureFormField,
+  patientNameErrorKey,
+  procedureFieldErrorKeys,
+} from "../../shared/presenter";
 
 const TAG = "[useProcedureFormModal]";
 
-function validateForm(
-  patientId: string,
-  procedureTypeId: string,
-  procedureDate: string,
-  t: (key: string) => string,
-): FieldErrors {
-  const errors: FieldErrors = {};
-  if (!patientId) errors.patientId = t("error.required_field");
-  if (!procedureTypeId) errors.procedureTypeId = t("error.required_field");
-  if (!procedureDate) errors.procedureDate = t("error.required_field");
-  return errors;
-}
-
-interface FieldErrors {
-  patientId?: string;
-  procedureTypeId?: string;
-  procedureDate?: string;
-}
+type FieldErrors = Partial<Record<ProcedureFormField, string>>;
 
 interface UseProcedureFormModalOptions {
   mode: "create" | "edit" | "view";
@@ -92,12 +80,30 @@ export function useProcedureFormModal({
     setFieldErrors({});
   }, [initPatientId, initFundId, initProcedureTypeId, initProcedureDate, initBilledAmount]);
 
+  // PRO-120: a refused field's message clears once that field is edited.
+  const clearFieldError = useCallback((field: ProcedureFormField) => {
+    setFieldErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const { [field]: _cleared, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
+  const changeProcedureDate = useCallback(
+    (date: string) => {
+      setProcedureDate(date);
+      clearFieldError("procedureDate");
+    },
+    [clearFieldError],
+  );
+
   // Auto-fill on patient selection (create mode only, PRO-020).
   // Each field is propagated only when it is still in its not-initialized state
   // (the user has not entered a value).
   const handlePatientChange = useCallback(
     (id: string) => {
       setPatientId(id);
+      clearFieldError("patientId");
       if (!id || mode !== "create") return;
       const patient = patients.find((p) => p.id === id);
       if (!patient) return;
@@ -108,11 +114,21 @@ export function useProcedureFormModal({
         procedureTypes.some((pt) => pt.id === patient.latest_procedure_type)
       )
         setProcedureTypeId(patient.latest_procedure_type);
-      if (!procedureDate) setProcedureDate(new Date().toISOString().split("T")[0] ?? "");
+      if (!procedureDate) changeProcedureDate(new Date().toISOString().split("T")[0] ?? "");
       if (billedAmount == null && patient.latest_procedure_amount != null)
         setBilledAmount(patient.latest_procedure_amount / 1000);
     },
-    [patients, procedureTypes, procedureTypeId, fundId, procedureDate, billedAmount, mode],
+    [
+      patients,
+      procedureTypes,
+      procedureTypeId,
+      fundId,
+      procedureDate,
+      billedAmount,
+      mode,
+      clearFieldError,
+      changeProcedureDate,
+    ],
   );
 
   // Auto-fill amount on procedure type selection (create mode only, PRO-025).
@@ -120,12 +136,13 @@ export function useProcedureFormModal({
   const handleProcedureTypeChange = useCallback(
     (id: string) => {
       setProcedureTypeId(id);
+      clearFieldError("procedureTypeId");
       if (!id || mode !== "create") return;
       if (billedAmount != null) return;
       const procedureType = procedureTypes.find((pt) => pt.id === id);
       if (procedureType) setBilledAmount(procedureType.default_amount / 1000);
     },
-    [procedureTypes, billedAmount, mode],
+    [procedureTypes, billedAmount, mode, clearFieldError],
   );
 
   const reset = useCallback(() => {
@@ -153,14 +170,44 @@ export function useProcedureFormModal({
     [tc],
   );
 
+  // A refusal (PRO-120): each refused field gets its message under it, and a toast says why.
+  const showRefusal = useCallback(
+    (error: ProcedureOrchestrationError, context: string) => {
+      logger.error(`${TAG} Refused`, { context, code: error.code });
+      const fieldKeys = procedureFieldErrorKeys(error);
+      if (fieldKeys) {
+        setFieldErrors(
+          Object.fromEntries(Object.entries(fieldKeys).map(([field, key]) => [field, t(key)])),
+        );
+      }
+      const { key, params } = formatProcedureOrchestrationError(error);
+      toastService.show("error", t(key, params));
+    },
+    [t],
+  );
+
+  // PRO-255: an edit answered unchanged closes the dialog without a message.
+  const finishEdit = useCallback(
+    (edit: ProcedureEdit) => {
+      if (edit.outcome === "Updated") {
+        toastService.show("success", t("state.updated"));
+        onSuccess?.();
+      }
+      onClose();
+    },
+    [t, onSuccess, onClose],
+  );
+
+  // The backend judges the form (TODO-024): Save sends it as it is, whatever is missing.
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
+      if (mode !== "create" && !procedure) return;
+      setFieldErrors({});
+      setLoading(true);
 
-      if (mode === "view") {
+      if (mode === "view" && procedure) {
         // View mode: only procedure_type_id is editable (R26)
-        if (!procedure || !procedureTypeId) return;
-        setLoading(true);
         const result = await callGateway(() =>
           gateway.updateProcedure({
             id: procedure.id,
@@ -178,29 +225,13 @@ export function useProcedureFormModal({
         );
         if (!result) return;
         if (!result.success) {
-          logger.error(`${TAG} Error updating procedure type in view mode`, {
-            code: result.error.code,
-          });
-          const { key, params } = formatProcedureOrchestrationError(result.error);
-          toastService.show("error", t(key, params));
+          showRefusal(result.error, "Error updating procedure type in view mode");
           return;
         }
-        toastService.show("success", t("state.updated"));
-        onSuccess?.();
-        onClose();
+        finishEdit(result.data);
         return;
       }
 
-      const errors = validateForm(patientId, procedureTypeId, procedureDate, t);
-      if (Object.keys(errors).length > 0) {
-        logger.warn(`${TAG} Submit with missing required fields`);
-        setFieldErrors(errors);
-        toastService.show("error", t("error.required_fields"));
-        return;
-      }
-
-      setFieldErrors({});
-      setLoading(true);
       if (mode === "create") {
         const result = await callGateway(() =>
           gateway.addProcedure(
@@ -213,9 +244,7 @@ export function useProcedureFormModal({
         );
         if (!result) return;
         if (!result.success) {
-          logger.error(`${TAG} Error submitting`, { code: result.error.code });
-          const { key, params } = formatProcedureOrchestrationError(result.error);
-          toastService.show("error", t(key, params));
+          showRefusal(result.error, "Error submitting");
           return;
         }
         logger.info(`${TAG} Procedure added`, { id: result.data.id });
@@ -223,38 +252,32 @@ export function useProcedureFormModal({
         toastService.show("success", t("state.added"));
         onSuccess?.();
         onClose();
-      } else {
-        // Edit mode: payment fields passed through unchanged from original procedure (PRO-050)
-        if (!procedure) {
-          setLoading(false);
-          return;
-        }
-        const result = await callGateway(() =>
-          gateway.updateProcedure({
-            id: procedure.id,
-            patient_id: patientId,
-            fund_id: fundId || null,
-            procedure_type_id: procedureTypeId,
-            procedure_date: procedureDate,
-            billed_amount: Math.round((billedAmount ?? 0) * 1000),
-            payment_method: procedure.payment_method,
-            fund_reconciliation_date: procedure.fund_reconciliation_date || null,
-            confirmed_payment_date: procedure.confirmed_payment_date || null,
-            paid_amount: procedure.paid_amount,
-            payment_status: procedure.payment_status,
-          }),
-        );
-        if (!result) return;
-        if (!result.success) {
-          logger.error(`${TAG} Error submitting`, { code: result.error.code });
-          const { key, params } = formatProcedureOrchestrationError(result.error);
-          toastService.show("error", t(key, params));
-          return;
-        }
-        toastService.show("success", t("state.updated"));
-        onSuccess?.();
-        onClose();
+        return;
       }
+
+      if (!procedure) return;
+      // Edit mode: payment fields passed through unchanged from original procedure (PRO-050)
+      const result = await callGateway(() =>
+        gateway.updateProcedure({
+          id: procedure.id,
+          patient_id: patientId,
+          fund_id: fundId || null,
+          procedure_type_id: procedureTypeId,
+          procedure_date: procedureDate,
+          billed_amount: Math.round((billedAmount ?? 0) * 1000),
+          payment_method: procedure.payment_method,
+          fund_reconciliation_date: procedure.fund_reconciliation_date || null,
+          confirmed_payment_date: procedure.confirmed_payment_date || null,
+          paid_amount: procedure.paid_amount,
+          payment_status: procedure.payment_status,
+        }),
+      );
+      if (!result) return;
+      if (!result.success) {
+        showRefusal(result.error, "Error submitting");
+        return;
+      }
+      finishEdit(result.data);
     },
     [
       mode,
@@ -269,25 +292,31 @@ export function useProcedureFormModal({
       onClose,
       reset,
       callGateway,
+      showRefusal,
+      finishEdit,
     ],
   );
 
   // Patient inline creation handler (create mode only, R9)
+  // Returns the new-patient form's messages: under a field, or `submit` for the form (TODO-026); none on success.
   const handlePatientCreated = useCallback(
-    async (data: { name: string; ssn?: string }) => {
+    async (data: { name: string; ssn?: string }): Promise<Record<string, string>> => {
       const result = await gateway.createNewPatient(data.name, data.ssn ?? null);
       if (!result.success) {
-        const { key, params } = formatPatientError(result.error);
         logger.error(`${TAG} Error creating patient`, { code: result.error.code });
-        toastService.show("error", t(key, params) || tc("error.unknown"));
-        return;
+        const nameKey = patientNameErrorKey(result.error);
+        if (nameKey) return { name: t(nameKey) };
+        // A refusal that names no field keeps the form open, its reason shown in it (F30).
+        const { key, params } = formatPatientError(result.error);
+        return { submit: t(key, params) || tc("error.unknown") };
       }
       const patient: Patient = result.data;
       setPatientId(patient.id);
-      setFieldErrors((prev) => ({ ...prev, patientId: undefined }));
+      clearFieldError("patientId");
       setPatientModal({ open: false, query: "" });
+      return {};
     },
-    [t, tc],
+    [t, tc, clearFieldError],
   );
 
   const selectedPatient = useMemo(
@@ -328,7 +357,7 @@ export function useProcedureFormModal({
     setProcedureTypeId,
     handleProcedureTypeChange,
     procedureDate,
-    setProcedureDate,
+    setProcedureDate: changeProcedureDate,
     billedAmount,
     setBilledAmount,
     loading,

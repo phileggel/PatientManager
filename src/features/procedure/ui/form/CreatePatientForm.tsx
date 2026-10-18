@@ -13,7 +13,8 @@ export interface CreatePatientFormData {
 interface CreatePatientFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: CreatePatientFormData) => Promise<void>;
+  /** Returns the messages to show under the refused fields, none on success. */
+  onSubmit: (data: CreatePatientFormData) => Promise<Record<string, string>>;
   initialQuery?: string;
 }
 
@@ -52,13 +53,6 @@ export function CreatePatientForm({
     },
     initialQuery,
     queryField: "name",
-    validator: (fields) => {
-      const errors: Record<string, string> = {};
-      if (!fields.name.trim()) {
-        errors.name = t("create_patient.name_required");
-      }
-      return errors;
-    },
     toFormData: (fields) => ({
       name: fields.name.trim(),
       ssn: fields.ssn.trim() || undefined,
@@ -82,7 +76,6 @@ export function CreatePatientForm({
         form="create-patient-form"
         variant="primary"
         loading={form.isSubmitting}
-        disabled={!form.fields.name.trim()}
       >
         {t("create_patient.submit")}
       </Button>
@@ -105,7 +98,6 @@ export function CreatePatientForm({
           value={form.fields.name}
           onChange={(e) => form.updateField("name", e.target.value)}
           placeholder={t("create_patient.name_placeholder")}
-          required
           error={form.errors.name}
           disabled={form.isSubmitting}
           autoFocus

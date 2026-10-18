@@ -404,7 +404,7 @@ export function ProcedureFormModal({
                 form="procedure-form"
                 variant="primary"
                 loading={loading}
-                disabled={!patientId || !procedureTypeId || !procedureDate || loading}
+                disabled={loading}
                 className="flex-1"
               >
                 {loading ? t("action.adding") : t("action.add")}
@@ -416,7 +416,7 @@ export function ProcedureFormModal({
                 form="procedure-form"
                 variant="primary"
                 loading={loading}
-                disabled={!patientId || !procedureTypeId || !procedureDate || loading}
+                disabled={loading}
                 className="flex-1"
               >
                 {submitLabel}
@@ -431,7 +431,7 @@ export function ProcedureFormModal({
               form="procedure-form"
               variant="primary"
               loading={loading}
-              disabled={!procedureTypeId || loading}
+              disabled={loading}
               className="flex-1"
             >
               {submitLabel}

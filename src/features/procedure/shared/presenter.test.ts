@@ -152,7 +152,7 @@ describe("formatProcedureOrchestrationError - F27 Layer 3 (pure code → key map
       reasons: ["PatientIdEmpty", "ProcedureDateEmpty"],
     };
     expect(formatProcedureOrchestrationError(err)).toEqual({
-      key: "procedure:error.required_fields",
+      key: "procedure:error.invalid_fields",
     });
   });
 

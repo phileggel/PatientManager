@@ -738,23 +738,129 @@ describe("edit mode — calls updateProcedure on submit", () => {
   });
 });
 
-describe("create mode — validation errors set fieldErrors", () => {
-  it("sets fieldErrors for all missing required fields and shows toast", async () => {
-    const { toastService } = await import("@/ui/components/snackbar");
-
-    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
-
-    // Submit with all fields empty
-    await act(async () => {
-      await result.current.handleSubmit({
-        preventDefault: vi.fn(),
-      } as unknown as FormEvent);
+describe("TODO-026 — the backend judges the form, its refusals shown under each field", () => {
+  const submit = (result: { current: ReturnType<typeof useProcedureFormModal> }) =>
+    act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as FormEvent);
     });
 
-    expect(result.current.fieldErrors.patientId).toBeTruthy();
-    expect(result.current.fieldErrors.procedureTypeId).toBeTruthy();
-    expect(result.current.fieldErrors.procedureDate).toBeTruthy();
+  it("PRO-120: an empty form is sent, and each refused field gets its own message", async () => {
+    const { toastService } = await import("@/ui/components/snackbar");
+    const { addProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(addProcedure).mockResolvedValueOnce({
+      success: false,
+      error: {
+        code: "ProcedureInvalid",
+        reasons: ["PatientIdEmpty", "ProcedureTypeIdEmpty", "ProcedureDateEmpty"],
+      },
+    });
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    await submit(result);
+
+    expect(addProcedure).toHaveBeenCalledTimes(1);
+    expect(result.current.fieldErrors).toEqual({
+      patientId: "Choose a patient.",
+      procedureTypeId: "Choose a procedure type.",
+      procedureDate: "Enter the procedure date.",
+    });
     expect(toastService.show).toHaveBeenCalledWith("error", expect.any(String));
+  });
+
+  it("PRO-120: a malformed date gets its own message", async () => {
+    const { addProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(addProcedure).mockResolvedValueOnce({
+      success: false,
+      error: { code: "ProcedureInvalid", reasons: ["ProcedureDateInvalid"] },
+    });
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    await submit(result);
+
+    expect(result.current.fieldErrors).toEqual({ procedureDate: "Enter a valid date." });
+  });
+
+  it("PRO-120: editing a refused field clears its message only", async () => {
+    const { addProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(addProcedure).mockResolvedValueOnce({
+      success: false,
+      error: { code: "ProcedureInvalid", reasons: ["ProcedureTypeIdEmpty", "ProcedureDateEmpty"] },
+    });
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+    await submit(result);
+
+    act(() => {
+      result.current.setProcedureDate("2026-10-18");
+    });
+
+    expect(result.current.fieldErrors).toEqual({ procedureTypeId: "Choose a procedure type." });
+  });
+
+  it("PRO-122: a new submit clears the earlier messages, and another refusal puts none at a field", async () => {
+    const { addProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(addProcedure)
+      .mockResolvedValueOnce({
+        success: false,
+        error: { code: "ProcedureInvalid", reasons: ["PatientIdEmpty"] },
+      })
+      .mockResolvedValueOnce({
+        success: false,
+        error: { code: "PatientNotFound", patient_id: "p9" },
+      });
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+    await submit(result);
+    expect(result.current.fieldErrors).toEqual({ patientId: "Choose a patient." });
+
+    await submit(result);
+
+    expect(result.current.fieldErrors).toEqual({});
+  });
+
+  it("PRO-123: choosing a procedure type clears its message", async () => {
+    const { addProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(addProcedure).mockResolvedValueOnce({
+      success: false,
+      error: { code: "ProcedureInvalid", reasons: ["ProcedureTypeIdEmpty"] },
+    });
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+    await submit(result);
+
+    act(() => {
+      result.current.handleProcedureTypeChange("pt1");
+    });
+
+    expect(result.current.fieldErrors).toEqual({});
+  });
+
+  it("PRO-255: an edit answered unchanged closes the dialog without a message", async () => {
+    const { toastService } = await import("@/ui/components/snackbar");
+    const { updateProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(updateProcedure).mockResolvedValueOnce({
+      success: true,
+      data: { outcome: "Unchanged" },
+    });
+    const onClose = vi.fn();
+    const onSuccess = vi.fn();
+    const procedure = {
+      id: "proc-1",
+      patient_id: "p1",
+      fund_id: "f1",
+      procedure_type_id: "pt1",
+      procedure_date: "2026-02-10",
+      billed_amount: 50000,
+      payment_method: "NONE",
+      payment_status: "CREATED",
+      fund_reconciliation_date: "",
+      confirmed_payment_date: "",
+      paid_amount: null,
+    } as const;
+    const { result } = makeHook({ mode: "edit", procedure, onClose, onSuccess });
+
+    await submit(result);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(toastService.show).not.toHaveBeenCalled();
   });
 });
 
@@ -764,9 +870,14 @@ describe("create mode — handlePatientCreated", () => {
     const createdPatient = makePatient({ id: "new-p" });
     vi.mocked(createNewPatient).mockResolvedValue({ success: true, data: createdPatient });
 
+    const { addProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(addProcedure).mockResolvedValueOnce({
+      success: false,
+      error: { code: "ProcedureInvalid", reasons: ["PatientIdEmpty"] },
+    });
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
-    // Force a patientId error first
+    // A refused submit first puts a message under the patient
     await act(async () => {
       await result.current.handleSubmit({
         preventDefault: vi.fn(),
@@ -782,7 +893,7 @@ describe("create mode — handlePatientCreated", () => {
     expect(result.current.fieldErrors.patientId).toBeUndefined();
   });
 
-  it("shows error toast when createNewPatient returns a failure result", async () => {
+  it("TODO-026: a refusal that names no field keeps the new-patient form open with its reason", async () => {
     const { createNewPatient } = await import("@/features/procedure/api/gateway");
     const { toastService } = await import("@/ui/components/snackbar");
     vi.mocked(createNewPatient).mockResolvedValue({
@@ -792,10 +903,29 @@ describe("create mode — handlePatientCreated", () => {
 
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
+    let messages: Record<string, string> | undefined;
     await act(async () => {
-      await result.current.handlePatientCreated({ name: "Alice" });
+      messages = await result.current.handlePatientCreated({ name: "Alice" });
     });
 
-    expect(toastService.show).toHaveBeenCalledWith("error", expect.any(String));
+    expect(messages).toEqual({ submit: expect.any(String) });
+    expect(toastService.show).not.toHaveBeenCalled();
+  });
+});
+
+describe("TODO-026 — the new-patient form shows the backend's refusal under the name", () => {
+  it("an empty name is answered under the name field, no toast", async () => {
+    const { createNewPatient } = await import("@/features/procedure/api/gateway");
+    const { toastService } = await import("@/ui/components/snackbar");
+    vi.mocked(createNewPatient).mockResolvedValue({ success: false, error: { code: "NameEmpty" } });
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    let fieldErrors: Record<string, string> | undefined;
+    await act(async () => {
+      fieldErrors = await result.current.handlePatientCreated({ name: "" });
+    });
+
+    expect(fieldErrors).toEqual({ name: "Enter the patient's name." });
+    expect(toastService.show).not.toHaveBeenCalled();
   });
 });

@@ -196,7 +196,7 @@ The reviewer-frontend lane flags any literal string passed to those props.
 
 - Log critical errors with context (component, action, data)
 - Show user-friendly feedback (snackbar)
-- Display inline validation errors in forms
+- Display each error under its field: the backend's refusal for a moved form (F30), the form's own check otherwise
 - Distinguish between user errors (validation) and system errors
 
 **F27** — Typed backend errors MUST flow through a 4-layer pipeline. Each layer has one job; silently dropping the error branch is forbidden at every layer. This is the FE consuming side of the backend rejection-layer rule (`ddd-reference.md` § Errors).
@@ -246,7 +246,7 @@ return (
 );
 ```
 
-Client-side validation (no backend round-trip) follows the same pipeline: validation produces typed errors with `code` fields, presenter maps to i18n keys, component renders. The snackbar store interface is left to projects — F27 prescribes only the layering.
+**F30** — A form F30 lists as moved MUST NOT judge its own fields (owner, 2026-10-18; this rule owns the list, each slice adding its forms): `ProcedureFormModal`, `CreatePatientForm`. Its Submit is enabled while not saving and sends the form as it is; the backend refuses every invalid field at once (`docs/error-model.md`, `{Aggregate}Invalid { reasons }`); F27's pipeline runs per reason, each message in red under its field, cleared once that field is edited. An edit that changes nothing is answered unchanged by the backend. Client-side validation in a form not yet moved follows F27's pipeline too: typed errors with `code` fields, presenter keys, messages under the fields.
 
 ## Tests
 
