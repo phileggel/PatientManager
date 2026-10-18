@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] - 2026-10-18
+
+### Added
+
+- split an unmatched fund line into several procedures
+
+### Fixed
+
+- saving a paid or reconciled procedure keeps its status
+- the procedure form names each missing field under it
+- partial payments get a badge, a row opens on double-click
+
 ## [0.24.8] - 2026-10-17
 
 ### Fixed
