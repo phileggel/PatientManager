@@ -15,3 +15,5 @@
 **Size:** M
 
 **Waits on the owner:** no
+
+**Re-checked 2026-10-18 (release sweep):** the command now calls `is_refund_fund_payment_group` and maps it to its own `RefundGroupProtected`; `ensure_not_refund_fund_payment_group` has no production caller (DEBT-077).

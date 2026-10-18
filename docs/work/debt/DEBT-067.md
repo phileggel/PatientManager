@@ -9,3 +9,5 @@
 **Size:** S
 
 **Waits on the owner:** no
+
+**Re-checked 2026-10-18:** `zip` 9.0.5 is out; `calamine` is still 0.36.1 on crates.io, so the advisories still wait on it; unreached.

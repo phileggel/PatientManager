@@ -13,3 +13,5 @@
 **Waits on the owner:** no
 
 **Gate (2026-10-17):** a document drifting from the code rides with the next `feat` or `fix` of its area (FLOW-079; FLOW-032 superseded, owner).
+
+**Re-checked 2026-10-18 (release sweep, `spec-checker`):** no point resolved. New contract drift: `create_fund_payment_from_candidates` says it sets `confirmed_payment_date`, the code sets `fund_reconciliation_date` (as FPA-300 says), and it has no frontend caller; the contract says a negative line is always a `NotFoundIssue`, which the code does not guarantee (DEBT-054 point 3).

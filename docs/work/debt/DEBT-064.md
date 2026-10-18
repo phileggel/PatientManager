@@ -9,3 +9,7 @@
 **Size:** L
 
 **Waits on the owner:** no — PRO-120: the owner first kept the disabled Submit (2026-10-17), then chose one rule for every form (2026-10-18): Submit always enabled, the backend the only judge, its refusals shown in red under each field (TODO-024); the code follows it under TODO-026, TODO-024's first slice.
+
+**Re-checked 2026-10-18 (release sweep):** REF-190's PRO-121 and PRO-122 clauses are untested in overpaid mode as well (DEBT-077).
+
+**Re-checked 2026-10-18 (release sweep, `spec-checker` on procedure-orchestration):** no longer true: PRO-200's malformed date is tested (`procedure.rs:820`); PRO-250's blocking-status edit is tested at the service (not through the command's parsing). Missing: PRO-020's default date is taken in UTC (`toISOString`), yesterday's near local midnight; PRO-090 is tested for 2 of its mappings; stale comments `service.rs:409`, `service.rs:567`, and `error.rs:589` points at `docs/techdebt.md`, which does not exist; `ARCHITECTURE.md:111` still says `billed_amount: Option<i64>`; REF-170's two writes → DEBT-076. The status reset of PRO-250 is TODO-030.

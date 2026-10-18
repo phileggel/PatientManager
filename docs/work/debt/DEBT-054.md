@@ -11,3 +11,5 @@
 **Waits on the owner:** no
 
 **Gate (2026-10-17):** a document drifting from the code rides with the next `feat` or `fix` of its area (FLOW-079; FLOW-032 superseded, owner).
+
+**Re-checked 2026-10-18 (release sweep, `spec-checker`):** 44 of 53 rules fully implemented, 48 with a test (the split rules added). Closed: FPA-250 is tested; FPA-254D's cancel is tested. Still open: points 1 to 6 (point 5 wider: `ReconciliationResults.test.tsx:264` asserts a procedure stays linkable on another line, against FPA-240's "linked once"); no test for FPA-210 and FPA-220 in the backend, FPA-310's mismatch path, FPA-252A, FPA-251's hidden candidates, FPA-258's two parts on one date, the rest of FPA-071's notice, FPA-070's date range. New: FPA-450's contest override and FPA-440's Enter → DEBT-078; the two validation paths treat a re-matched `PartiallyReconciled` procedure differently (`keep_contested`, `orchestrator.rs:281-285`).
