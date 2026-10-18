@@ -10,10 +10,12 @@ its notes. `just queue` says what has shipped.
 
 <!-- Batch of 2026-10-18, user-facing (owner). TODO-026 is TODO-024's first slice; the -->
 <!-- other slices are TODO-027 to TODO-029, left for the batch after with TODO-018. -->
-<!-- Order: gh#320 first (tools); TODO-025 before TODO-026 (small fixes a user notices -->
+<!-- FLOW-072 added by the owner (2026-10-18): the most valuable flow entry. -->
+<!-- Order: gh#320 and FLOW-072 first (tools); TODO-025 before TODO-026 (small fixes a user notices -->
 <!-- early), on the same screen; TODO-008 last, its new form following TODO-026's rule. -->
 
 - gh#320
+- FLOW-072
 - TODO-025
 - TODO-026
 - TODO-008

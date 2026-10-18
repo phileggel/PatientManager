@@ -19,3 +19,4 @@
 - Re-checked 2026-10-17 (audit of the 0.24.7 batch, `flow-auditor`): no Decision. Criticals only CI found 2, was 8; #284 again had "a new 🔴 on text earlier ones passed". Left.
 - Decision (owner, 2026-10-17): option (b): after a CI 🔴 the local lane re-reads the whole changed guide and is asked for every 🔴 at once (banked).
 - Re-checked 2026-10-18 (audit of the v0.24.8 batch, `flow-auditor`): criticals only CI found 14, was 2; #313's round 6 fix went out unread. Left; first to queue with FLOW-090.
+- Refined (2026-10-18, `/plan-queue`): read `docs/workflow.md` § 7 and § 8. Done when: § 7 says that after a CI 🔴 the local lane re-reads the whole changed file, not the delta, and is asked for every 🔴 at once; no push until a lane has read the fix, one push per fix; the guides lane's prompt says the same if it states how it reads a re-run. Size S holds.
