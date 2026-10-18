@@ -51,6 +51,9 @@ describe("formatReconciliationError", () => {
       } as FundPaymentReconciliationError).key,
     ).toBe("fund-payment-match:errors.unexpected");
     expect(
+      formatReconciliationError({ code: "DisputedAmountCorrected", procedure_id: "p-1" }).key,
+    ).toBe("fund-payment-match:errors.unexpected");
+    expect(
       formatReconciliationError({
         code: "FundIdEmpty",
       } as FundPaymentReconciliationError).key,

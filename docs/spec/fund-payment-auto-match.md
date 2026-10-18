@@ -69,7 +69,19 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-130 (R7) — Single match with anomaly (backend)**: A PDF line matches exactly one procedure but presents one or more anomalies (`SingleMatchIssue`, see FPA-110).
 
-**FPA-140 (R8) — Group match with anomaly (backend + frontend)**: A PDF line matches several procedures (grouped procedures) but presents anomalies (`GroupMatchIssue`, see FPA-110). In the GroupMatch card, each matched procedure displays its `DateMismatch` and `FundMismatch` anomalies as chips. The "Validate distribution" button accepts simultaneously all corrections (amount, date, fund) for all procedures in the group.
+**FPA-140 (R8) — Group match with anomaly (backend + frontend)**: A PDF line matches several procedures (grouped procedures) but presents anomalies (`GroupMatchIssue`, see FPA-110). In the GroupMatch card, each matched procedure displays its `DateMismatch` and `FundMismatch` anomalies as chips. The "Validate distribution" button accepts simultaneously all corrections (amount, date, fund) for all procedures in the group, except as FPA-141C says.
+
+**FPA-141 — Group dispute offered (frontend)**: While the distributed total is above zero and differs from the PDF amount, and the issue is not resolved nor every procedure disputed, the GroupMatch card offers to dispute the amounts of its procedures.
+
+**FPA-141A — What a group dispute stages (frontend)**: Disputing stages a dispute for every procedure of the group, the amount typed for each becoming its paid amount; no amount correction stays staged, so the billed amounts are kept (FPA-210B).
+
+**FPA-141B — An amount typed after a dispute (frontend)**: An amount typed for a disputed procedure changes its paid amount, not its billed amount.
+
+**FPA-141C — Validate distribution after a dispute (frontend)**: "Validate distribution" stages no amount correction for a disputed procedure.
+
+**FPA-141D — A dispute settles the amount only (frontend)**: After a group dispute, the group's date and fund anomalies still have to be accepted.
+
+**FPA-141E — Un-handling a dispute (frontend)**: Un-handling the issue (FPA-460) drops the disputes; the distribution returns to the billed amounts.
 
 **FPA-150 (R9) — Too many matches (backend)**: If more than 8 candidate procedures are found without a clear match, the case is marked `TooManyMatchIssue`. This case is blocking — no automatic correction is possible, manual intervention in the database is required.
 
@@ -79,7 +91,13 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-200 (R11) — Amount correction (backend)**: The procedure's amount in the database is updated to the PDF amount (`AmountMismatch` → `AutoCorrection::AmountMismatch`).
 
-**FPA-210 (R12) — Amount contest (frontend + backend)**: When the fund pays less than the invoiced amount, the practitioner can "contest": the actual paid amount is recorded separately without changing the procedure's amount (`AutoCorrection::ContestAmount`, status → `PartiallyReconciled`).
+**FPA-210 (R12) — Amount dispute offered (frontend)**: A SingleMatch card whose amount differs from the PDF amount offers to dispute it ("contest" on screen), the PDF amount becoming the procedure's paid amount.
+
+**FPA-210A — Correct or dispute, not both (frontend)**: A SingleMatch card offers both the amount correction and the dispute; once either is staged, neither is offered.
+
+**FPA-210B — What a dispute records (backend)**: A dispute records the procedure's paid amount without changing its billed amount (`AutoCorrection::ContestAmount`); the procedure becomes `PartiallyReconciled`.
+
+**FPA-211 — A dispute and an amount correction on one procedure are rejected (backend)**: A validation holding, for one procedure, both a dispute and an amount correction is rejected with a specific error; nothing is written.
 
 **FPA-220 (R13) — Fund correction (backend)**: The fund associated with the procedure is updated to the PDF fund (`FundMismatch` → `AutoCorrection::FundMismatch`).
 
@@ -123,7 +141,7 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-300 (R18) — Status lifecycle (backend)**: A procedure's final status is reached in two stages from two distinct features:
 
-- **Stage 1 — Fund reconciliation** (manual or automatic): the procedure goes from `Created` to `Reconciliated` (full payment accepted) or `PartiallyReconciled` (contested amount, see FPA-210). In both cases, `fund_reconciliation_date` is set to the group's payment date and `actual_payment_amount` is set.
+- **Stage 1 — Fund reconciliation** (manual or automatic): the procedure goes from `Created` to `Reconciliated` (full payment accepted) or `PartiallyReconciled` (contested amount, see FPA-210B). In both cases, `fund_reconciliation_date` is set to the group's payment date and `actual_payment_amount` is set.
 - **Stage 2 — Bank reconciliation** (`bank-statement-match` feature): when the fund's transfer is detected on the bank statement, the procedure moves to its final status:
   - `Reconciliated` → `FundPayed`
   - `PartiallyReconciled` → `PartiallyFundPayed` (the `actual_payment_amount` from the contest is preserved)
@@ -150,14 +168,14 @@ A procedure with none of these anomalies is considered a perfect match.
 
 Action applied per anomaly type:
 
-| Type                                  | Auto-correction action                                                                                                    |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `NotFoundIssue`                       | Triggers a `CreateProcedure` — unless the line is already accepted or a nearby candidate has already been linked manually |
-| `SingleMatchIssue` — `AmountMismatch` | Applies `AutoCorrection::AmountMismatch` with the PDF amount                                                              |
-| `SingleMatchIssue` — `FundMismatch`   | Applies `AutoCorrection::FundMismatch` with the PDF fund label                                                            |
-| `SingleMatchIssue` — `DateMismatch`   | Applies `AutoCorrection::DateMismatch` with the PDF date                                                                  |
-| `GroupMatchIssue`                     | Not handled — button hidden as long as group issues remain unresolved                                                     |
-| `TooManyMatchIssue`                   | Not handled — button hidden                                                                                               |
+| Type                                  | Auto-correction action                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `NotFoundIssue`                       | Triggers a `CreateProcedure` — unless the line is already accepted or a nearby candidate has already been linked manually       |
+| `SingleMatchIssue` — `AmountMismatch` | Applies `AutoCorrection::AmountMismatch` with the PDF amount — unless a dispute is staged for the procedure (FPA-210A, FPA-211) |
+| `SingleMatchIssue` — `FundMismatch`   | Applies `AutoCorrection::FundMismatch` with the PDF fund label                                                                  |
+| `SingleMatchIssue` — `DateMismatch`   | Applies `AutoCorrection::DateMismatch` with the PDF date                                                                        |
+| `GroupMatchIssue`                     | Not handled — button hidden as long as group issues remain unresolved                                                           |
+| `TooManyMatchIssue`                   | Not handled — button hidden                                                                                                     |
 
 **FPA-460 (R26) — Staged corrections + explicit validation (frontend)**: Corrections (correct / contest / link / create) are **staged in memory and remain fully reversible** until the user explicitly applies them — nothing is written to the database before that point. While reviewing anomalies the user may navigate back to any already-resolved anomaly and **un-handle it** (clearing its staged correction so the anomaly returns to its editable, unresolved state) or **modify it** (un-handle, then pick a different correction). Validation is **not** triggered automatically: once every anomaly is resolved, an explicit **Validate** action applies the whole correction batch in a single operation. On failure the batch is not retried automatically; the staged corrections are preserved so the user can adjust and re-validate.
 

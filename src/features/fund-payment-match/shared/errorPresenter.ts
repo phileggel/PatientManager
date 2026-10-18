@@ -106,6 +106,9 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
       return { key: "fund-payment-match:errors.no_valid_candidates" };
     case "SplitInvalid":
       return { key: "fund-payment-match:errors.split_invalid" };
+    // FPA-211 — the screen never stages a dispute with an amount correction (FPA-141A).
+    case "DisputedAmountCorrected":
+      return { key: "fund-payment-match:errors.unexpected" };
 
     // --- shared infra catch-all (BC enums + Task all share this code) ---
     case "DatabaseError":

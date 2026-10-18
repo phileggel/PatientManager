@@ -71,3 +71,45 @@ describe("SingleMatchCard — AmountMismatch comparison row", () => {
     expect(screen.queryByText("7.50 €")).not.toBeInTheDocument();
   });
 });
+
+// FPA-210A (#392): the card offers the amount correction or the dispute, never both
+// once one is staged; a second anomaly keeps the card unresolved.
+describe("SingleMatchCard — correct or dispute, not both (FPA-210A)", () => {
+  const dbMatch: DbMatch = {
+    ...dbMatchAmountMismatch,
+    anomalies: ["AmountMismatch", "DateMismatch"],
+  };
+
+  it.each([
+    [
+      "the dispute",
+      "ContestAmount-proc-2",
+      { ContestAmount: { procedure_id: "proc-2", paid_amount: 5000 } },
+    ],
+    [
+      "the amount correction",
+      "AmountMismatch-proc-2",
+      { AmountMismatch: { procedure_id: "proc-2", pdf_amount: 5000 } },
+    ],
+  ] as const)("offers neither once %s is staged", (_, key, correction) => {
+    render(
+      <SingleMatchCard
+        {...baseProps}
+        dbMatch={dbMatch}
+        acceptedKeys={new Set([key])}
+        autoCorrections={new Map([[key, correction]])}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /apply pdf amount/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /contest/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /date/i })).toBeInTheDocument();
+  });
+
+  it("offers both while neither is staged", () => {
+    render(<SingleMatchCard {...baseProps} dbMatch={dbMatch} />);
+
+    expect(screen.getByRole("button", { name: /apply pdf amount/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /contest/i })).toBeInTheDocument();
+  });
+});

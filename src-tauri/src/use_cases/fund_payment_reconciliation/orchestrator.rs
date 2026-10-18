@@ -52,6 +52,39 @@ fn ensure_totals_are_positive(
     Ok(())
 }
 
+/// FPA-211: a procedure with a dispute staged takes no amount correction.
+fn ensure_no_disputed_amount_corrected(
+    auto_corrections: &[AutoCorrection],
+) -> Result<(), FundPaymentReconciliationError> {
+    use std::collections::HashSet;
+
+    let disputed: HashSet<&str> = auto_corrections
+        .iter()
+        .filter_map(|correction| match correction {
+            AutoCorrection::ContestAmount { procedure_id, .. } => Some(procedure_id.as_str()),
+            _ => None,
+        })
+        .collect();
+    let corrected = auto_corrections
+        .iter()
+        .find_map(|correction| match correction {
+            AutoCorrection::AmountMismatch { procedure_id, .. }
+                if disputed.contains(procedure_id.as_str()) =>
+            {
+                Some(procedure_id)
+            }
+            _ => None,
+        });
+    if let Some(procedure_id) = corrected {
+        tracing::warn!(target: BACKEND, "Validation refused: a disputed amount is also corrected");
+        return Err(FundPaymentReconciliationTask::DisputedAmountCorrected {
+            procedure_id: procedure_id.clone(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
 /// Orchestrator for creating fund payment groups from reconciliation candidates
 ///
 /// Coordinates between contexts to:
@@ -401,6 +434,7 @@ impl FundPaymentReconciliationOrchestrator {
         patient_service: Arc<PatientService>,
     ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
         ensure_totals_are_positive(&candidates)?;
+        ensure_no_disputed_amount_corrected(&auto_corrections)?;
 
         let duplicate_flags = self.duplicate_flags(&candidates).await?;
         let duplicate_count = duplicate_flags.iter().filter(|&&d| d).count();
@@ -1752,6 +1786,61 @@ mod tests {
                 ))
             ),
             "all-duplicate batch must return AllDuplicates {{ count: 1 }}, got: {result:?}",
+        );
+        Ok(())
+    }
+
+    /// FPA-211 (#392) — a procedure with a dispute staged takes no amount correction: the
+    /// pair is refused before anything is read. The mocks have no expectation,
+    /// so a read would crash the test, and nothing reaches the unit of work.
+    #[tokio::test]
+    async fn create_multiple_with_auto_corrections_refuses_a_disputed_amount_corrected(
+    ) -> anyhow::Result<()> {
+        use crate::context::patient::{MockPatientRepository, PatientService};
+
+        let orchestrator = make_orchestrator(
+            MockFundRepository::new(),
+            MockFundPaymentRepository::new(),
+            MockProcedureRepository::new(),
+        );
+        let bus = Arc::new(EventBus::new());
+        let patient_service = Arc::new(PatientService::new(
+            Arc::new(MockPatientRepository::new()),
+            bus,
+        ));
+
+        let result = orchestrator
+            .create_multiple_with_auto_corrections(
+                vec![FundPaymentGroupCandidate {
+                    fund_label: "CPAM n° 75".to_string(),
+                    payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+                    total_amount: 40_000,
+                    procedure_ids: vec!["proc-1".to_string()],
+                    matched_amount: 40_000,
+                    is_fully_covered: true,
+                }],
+                vec![
+                    AutoCorrection::ContestAmount {
+                        procedure_id: "proc-1".to_string(),
+                        paid_amount: 40_000,
+                    },
+                    AutoCorrection::AmountMismatch {
+                        procedure_id: "proc-1".to_string(),
+                        pdf_amount: 40_000,
+                    },
+                ],
+                patient_service,
+            )
+            .await;
+
+        assert!(
+            matches!(
+                &result,
+                Err(FundPaymentReconciliationError::Task(
+                    FundPaymentReconciliationTask::DisputedAmountCorrected { procedure_id }
+                )) if procedure_id == "proc-1"
+            ),
+            "got: {result:?}",
         );
         Ok(())
     }

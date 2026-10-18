@@ -230,6 +230,7 @@ export function ReconciliationResultsView({
               acceptedKeys={acceptedKeys}
               autoCorrections={autoCorrections}
               onAcceptCorrection={onAcceptCorrection}
+              onUnacceptCorrection={onUnacceptCorrection}
             />
           )}
           {currentIssue.type === "TooManyMatchIssue" && (

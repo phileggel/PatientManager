@@ -1848,6 +1848,11 @@ export type FundPaymentReconciliationTask =
  */
 { code: "SplitInvalid"; reasons: SplitInvalidReason[]; parts: SplitPartInvalidReason[][] } | 
 /**
+ * A procedure carries both a dispute and an amount correction (FPA-211): a
+ * disputed amount keeps the billed amount, so the pair contradicts itself.
+ */
+{ code: "DisputedAmountCorrected"; procedure_id: string } | 
+/**
  * Failure from a repository the reconciliation service holds directly.
  * Logged at the call site via `tracing::error!`; the wire surface carries
  * no detail.

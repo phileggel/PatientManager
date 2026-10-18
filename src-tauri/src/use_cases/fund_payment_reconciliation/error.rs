@@ -60,6 +60,11 @@ pub enum FundPaymentReconciliationTask {
         parts: Vec<Vec<SplitPartInvalidReason>>,
     },
 
+    /// A procedure carries both a dispute and an amount correction (FPA-211): a
+    /// disputed amount keeps the billed amount, so the pair contradicts itself.
+    #[error("Procedure {procedure_id} has a disputed amount and an amount correction")]
+    DisputedAmountCorrected { procedure_id: String },
+
     /// Failure from a repository the reconciliation service holds directly.
     /// Logged at the call site via `tracing::error!`; the wire surface carries
     /// no detail.
@@ -121,6 +126,16 @@ mod tests {
         assert_eq!(
             to_value(&dup).unwrap(),
             json!({ "code": "AllDuplicates", "count": 3 }),
+        );
+
+        let disputed: FundPaymentReconciliationError =
+            FundPaymentReconciliationTask::DisputedAmountCorrected {
+                procedure_id: "proc-1".to_string(),
+            }
+            .into();
+        assert_eq!(
+            to_value(&disputed).unwrap(),
+            json!({ "code": "DisputedAmountCorrected", "procedure_id": "proc-1" }),
         );
 
         // Task unit variants must still emit their code (never null).

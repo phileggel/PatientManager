@@ -314,3 +314,51 @@ describe("useReconciliationModal — typed gateway error surfaces a message (F27
     expect(result.current.unreconciledReport).toBeNull();
   });
 });
+
+// #392 (FPA-211, FPA-450): a procedure with a dispute staged takes no amount correction from
+// "Auto-correct all"; the line's other anomalies are still corrected.
+describe("useReconciliationModal — handleAutoCorrectAll keeps a disputed amount (#392)", () => {
+  const onClose = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExtract.mockResolvedValue({ success: true, data: "PDF text" });
+    // biome-ignore lint/suspicious/noExplicitAny: test fixture
+    mockParse.mockResolvedValue(PDF_WITH_LINE as any);
+    const match = RECONCILE_WITH_ANOMALY.reconciliation.matches[0];
+    const data = {
+      ...RECONCILE_WITH_ANOMALY,
+      reconciliation: {
+        matches: [
+          {
+            ...match,
+            data: {
+              ...match?.data,
+              db_match: { ...match?.data.db_match, anomalies: ["AmountMismatch", "FundMismatch"] },
+            },
+          },
+        ],
+      },
+    };
+    // biome-ignore lint/suspicious/noExplicitAny: test fixture — ReconciliationMatch is a discriminated union that TypeScript widens
+    mockReconcile.mockResolvedValue({ success: true, data } as any);
+  });
+
+  it("stages no AmountMismatch on a procedure whose amount is disputed", async () => {
+    const { result } = renderHook(() => useReconciliationModal("/test.pdf", onClose));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() =>
+      result.current.handleAcceptCorrection("ContestAmount-proc-1", {
+        ContestAmount: { procedure_id: "proc-1", paid_amount: 40000 },
+      }),
+    );
+    act(() => result.current.handleAutoCorrectAll());
+
+    expect(result.current.acceptedKeys.has("AmountMismatch-proc-1")).toBe(false);
+    expect(result.current.autoCorrections.has("AmountMismatch-proc-1")).toBe(false);
+    expect(result.current.autoCorrections.get("FundMismatch-proc-1")).toEqual({
+      FundMismatch: { procedure_id: "proc-1", pdf_fund_label: "CPAM" },
+    });
+  });
+});

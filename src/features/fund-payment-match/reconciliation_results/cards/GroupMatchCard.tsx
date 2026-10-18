@@ -4,7 +4,11 @@
  * User must distribute the PDF total amount across the matched procedures.
  * Uses AmountField for locale-aware decimal input (fr-FR: comma as separator).
  *
- * Sources: acceptedKeys, autoCorrections (parent correction state), onAcceptCorrection callback.
+ * A dispute (FPA-141A) records each distributed amount as what the fund paid and keeps
+ * the billed amounts: it replaces the amount corrections typed in the distribution.
+ *
+ * Sources: acceptedKeys, autoCorrections (parent correction state), onAcceptCorrection and
+ * onUnacceptCorrection callbacks.
  */
 
 import { useTranslation } from "react-i18next";
@@ -26,6 +30,7 @@ interface GroupMatchCardProps {
   acceptedKeys: Set<string>;
   autoCorrections: Map<string, AutoCorrection>;
   onAcceptCorrection: (key: string, correction: AutoCorrection) => void;
+  onUnacceptCorrection: (keys: string[]) => void;
 }
 
 export function GroupMatchCard({
@@ -34,17 +39,35 @@ export function GroupMatchCard({
   acceptedKeys,
   autoCorrections,
   onAcceptCorrection,
+  onUnacceptCorrection,
 }: GroupMatchCardProps) {
   const { t } = useTranslation("fund-payment-match");
   const { formatCurrency, formatDate } = useFormatters();
 
+  const isDisputed = (m: DbMatch) => acceptedKeys.has(buildContestKey(m.procedure_id));
+
   const getAmount = (m: DbMatch): number => {
-    const key = buildCorrectionKey("AmountMismatch", m.procedure_id);
-    const corr = autoCorrections.get(key);
+    const contest = autoCorrections.get(buildContestKey(m.procedure_id));
+    if (contest && "ContestAmount" in contest) return contest.ContestAmount.paid_amount;
+    const corr = autoCorrections.get(buildCorrectionKey("AmountMismatch", m.procedure_id));
     return corr && "AmountMismatch" in corr ? corr.AmountMismatch.pdf_amount : m.amount || 0;
   };
 
-  const allContested = dbMatches.every((m) => acceptedKeys.has(buildContestKey(m.procedure_id)));
+  const setAmount = (m: DbMatch, amount: number) => {
+    if (isDisputed(m)) {
+      onAcceptCorrection(
+        buildContestKey(m.procedure_id),
+        buildContestCorrection(m.procedure_id, amount),
+      );
+    } else {
+      onAcceptCorrection(
+        buildCorrectionKey("AmountMismatch", m.procedure_id),
+        buildAutoCorrection("AmountMismatch", pdfLine, m, amount),
+      );
+    }
+  };
+
+  const allContested = dbMatches.every(isDisputed);
 
   const currentTotal = dbMatches.reduce((sum, m) => sum + getAmount(m), 0);
   const amountOk = pdfLine.amount === currentTotal;
@@ -89,12 +112,7 @@ export function GroupMatchCard({
                   label=""
                   value={getAmount(m) / 1000}
                   onChange={(val) => {
-                    if (val !== null) {
-                      onAcceptCorrection(
-                        buildCorrectionKey("AmountMismatch", m.procedure_id),
-                        buildAutoCorrection("AmountMismatch", pdfLine, m, Math.round(val * 1000)),
-                      );
-                    }
+                    if (val !== null) setAmount(m, Math.round(val * 1000));
                   }}
                 />
               </div>
@@ -137,8 +155,9 @@ export function GroupMatchCard({
           fullWidth
           onClick={() => {
             for (const m of dbMatches) {
+              // FPA-141C: a disputed procedure keeps its billed amount.
               for (const anomaly of [
-                "AmountMismatch",
+                ...(isDisputed(m) ? [] : ["AmountMismatch" as const]),
                 ...m.anomalies.filter((a) => a !== "AmountMismatch"),
               ]) {
                 const key = buildCorrectionKey(anomaly, m.procedure_id);
@@ -157,11 +176,15 @@ export function GroupMatchCard({
           variant="secondary"
           fullWidth
           onClick={() => {
-            for (const m of dbMatches) {
-              if (!acceptedKeys.has(buildContestKey(m.procedure_id))) {
+            const paid = dbMatches.map((m) => [m, getAmount(m)] as const);
+            onUnacceptCorrection(
+              dbMatches.map((m) => buildCorrectionKey("AmountMismatch", m.procedure_id)),
+            );
+            for (const [m, amount] of paid) {
+              if (!isDisputed(m)) {
                 onAcceptCorrection(
                   buildContestKey(m.procedure_id),
-                  buildContestCorrection(m.procedure_id, getAmount(m)),
+                  buildContestCorrection(m.procedure_id, amount),
                 );
               }
             }
