@@ -1,6 +1,6 @@
 name: Bug
 description: Something a user sees that behaves wrongly
-labels: ["kind:bug"]
+labels: ["bug"]
 projects: ["phileggel/4"]
 body:
   - type: markdown

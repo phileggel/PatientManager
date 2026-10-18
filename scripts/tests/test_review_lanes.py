@@ -115,7 +115,7 @@ class ReviewLanes(unittest.TestCase):
             self.assertEqual(lanes(path), ["guides"], path)
 
     def test_flow_044_a_document_that_is_not_a_guide_fires_nothing(self):
-        self.assertEqual(lanes("docs/spec/patient.md", "docs/README.md", "docs/work/flow/FLOW-044.md", "README.md"), [])
+        self.assertEqual(lanes("docs/spec/patient.md", "docs/README.md", "docs/adr/003-unit-of-work.md", "README.md"), [])
 
     def test_flow_044_the_ceilings_record_is_infra(self):
         self.assertEqual(lanes("guide-ceilings.json"), ["infra"])

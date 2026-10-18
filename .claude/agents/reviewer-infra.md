@@ -61,7 +61,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 ## Run from a copy
 
-`review.yml` runs the base branch's `scripts/review-lanes.sh` from a temp folder. A change that makes that script source or call a sibling file is a 🔴 unless the same diff adds the file to the list `review.yml` copies: the failure shows only on the pull requests that follow the merge (gh#183).
+`review.yml` runs the base branch's `scripts/review-lanes.sh` from a temp folder. A change that makes that script source or call a sibling file is a 🔴 unless the same diff adds the file to the list `review.yml` copies: the failure shows only on the pull requests that follow the merge (PR #183).
 
 ## Not a finding
 
@@ -71,5 +71,5 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 - `app.security.csp: null` — a local desktop app; note it only when dynamic script appears (`reviewer-security`).
 - A hook that fails when a script it calls is missing — failing closed is intended; never suggest `[ -f … ] || exit 0`.
 - GNU-only flags in `scripts/` — they run on Linux; Windows CI steps declare their own shell.
-- A deny rule in `.claude/settings.json` that starts with a wildcard — `Bash(*name*)` refuses any command whose text contains the name (tested on 2026-10-04: an `echo` naming the folder was refused, and so was a `Read` inside it). "Matches literal prefixes" is about the allow list. Another spelling that slips past a deny rule is not a finding either: the list is a net under the written rule of `CLAUDE.md`, not a proof, and it is not chased spelling by spelling (owner, 2026-10-11).
-- A `Write(path)` rule missing from `.claude/settings.json` or from `--allowedTools` where the `Edit(path)` rule for the same path is present — file permission checks match `Edit(path)` rules only, and those cover every file-editing tool. Claude Code says so at startup for each `Write(path)` rule it finds (seen on 2026-10-04: "Write(…) is not matched by file permission checks — only Edit(path) rules are. Use Edit(…) instead (Edit rules cover all file-editing tools)."). A path guarded by neither is a finding.
+- A deny rule in `.claude/settings.json` that starts with a wildcard — `Bash(*name*)` refuses any command whose text contains the name; "matches literal prefixes" is about the allow list. Nor another spelling that slips past a deny rule: the list is a net under `CLAUDE.md`'s written rule, not chased spelling by spelling (owner, 2026-10-11).
+- A `Write(path)` rule missing from `.claude/settings.json` or `--allowedTools` where the `Edit(path)` rule for the same path is present — file permission checks match `Edit(path)` rules only, and those cover every file-editing tool. A path guarded by neither is a finding.

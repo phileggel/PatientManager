@@ -80,11 +80,6 @@ privacy-check:
 flow-audit *ARGS:
     python3 scripts/flow-audit.py {{ARGS}}
 
-# Where the queue stands: queued with its notes, ready, blocked, debt, open pull requests (/plan-queue proposes the order);
-# `just queue close TODO-NNN` deletes a shipped entry's file; `just queue next-id DEBT` prints the next free id; `just queue remaining` the queued references not shipped yet; `just queue new debt "<title>"` files an entry
-queue *ARGS:
-    python3 scripts/work-queue.py "$@"
-
 # Wait for a pull request's checks and say how they ended (default: the current branch's); exit 0 green, 1 failed, 6 a lane stopped by the usage limit
 watch-pr *ARGS:
     python3 scripts/watch-pr.py {{ARGS}}
@@ -97,7 +92,7 @@ rerun-failed RUN: (_used "rerun-failed")
 _used RECIPE:
     @python3 scripts/usage_log.py used {{RECIPE}}
 
-# Run the first ready entry of the queue (docs/work/queue.md) headless (docs/workflow.md § 9); logs under logs/run-entry/
+# Run the first Queued item of Project 4 headless (docs/workflow.md § 9); logs under logs/run-entry/
 run-entry:
     bash scripts/run-entry.sh
 

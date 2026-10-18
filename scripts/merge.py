@@ -120,11 +120,11 @@ def _check_runs(sha: str) -> dict[str, tuple[str, str]]:
     return {name: (status, conclusion) for name, (_, status, conclusion) in latest.items()}
 
 
-# The record files: what closure commits and a new queue move. Each is checked in
-# the pull request that changes it (its ID, its name) and none is read against the
-# code, so a move of `main` made only of them cannot change what the checks proved.
-# Everything else — code, workflows, convention docs, prompts — re-runs the checks.
-RECORD_DIRS = ("docs/adr/", "docs/work/")
+# The record files: the ADRs. Each is checked in the pull request that changes it and
+# none is read against the code, so a move of `main` made only of them cannot change
+# what the checks proved. Everything else — code, workflows, convention docs, prompts —
+# re-runs the checks. (The backlog is on GitHub: no commit moves it.)
+RECORD_DIRS = ("docs/adr/",)
 
 
 def _record_files_only(files: list[str]) -> bool:

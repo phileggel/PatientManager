@@ -157,7 +157,7 @@ The pins are:
 
 ## Open decisions (resolve in each feature's spec, not here)
 
-These are deliberately left to per-feature `/spec-writer` work:
+These are deliberately left to each feature's spec:
 
 - **Surface** — ephemeral modal (import-time) vs a persistent, revisitable view
   (storing partial reconciliation state — a meaningfully larger build). This

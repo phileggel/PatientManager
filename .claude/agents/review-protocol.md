@@ -45,9 +45,9 @@ In CI the invoking prompt asks for a saved report, because the workflow posts it
 
 ## Rules for every lane
 
-1. **Read-only.** Never edit reviewed files, docs or the entries of `docs/work/`; pre-existing debt is reported, not filed.
+1. **Read-only.** Never edit reviewed files or docs, nor file or edit an issue; pre-existing debt is reported, not filed.
 2. **One pass.** Review every file in scope in one reply.
 3. **Stay in the lane.** A finding owned by another lane is left to it.
 4. **External claims need a source.** A version, deprecation or "current best practice" claim cites a link or is softened ("as of training cutoff — verify with …", naming the command or `/dep-audit`) and capped at 🟡.
-5. **Not a finding in any lane:** a test name carrying its entry id or spec rule (`test_todo_003_…`, `…_bas_120_…`) — `docs/workflow.md` § 3 asks for it.
-6. **In CI, `CLAUDE.md`, all of `.claude/` and the scripts `review.yml` checks out from the base (`scripts/branch.sh`, `review-path.sh`, `usage-log.sh`, `usage_log.py`, `review-stop-reason.py`) are the base branch's on disk.** The pinned `claude-code-action` restores all of `.claude` and `CLAUDE.md` — its step logs "Restoring .claude, .mcp.json, .claude.json, .gitmodules, .ripgreprc, CLAUDE.md, CLAUDE.local.md, .husky from origin/main (PR head is untrusted)" (run 39056607093, any reviewer step) — and `review.yml` itself `.claude/agents`, the settings, the hooks and those scripts, so a pull request can neither soften the reviewer that grades it nor change what its session runs. Such a file that the pull request changed therefore shows as modified in `git status`, and reading it gives the old text. That is never a revert, an uncommitted edit or a lost change: review such a file from `bash scripts/branch.sh diff <path>`, which shows the committed change.
+5. **Not a finding in any lane:** a test name carrying its issue number or spec rule (`test_123_…`, `…_bas_120_…`) — `docs/workflow.md` § 3 asks for it.
+6. **In CI, `CLAUDE.md`, all of `.claude/` and the scripts `review.yml` takes from the base (`scripts/branch.sh`, `review-path.sh`, `usage-log.sh`, `usage_log.py`, `review-stop-reason.py`) are the base branch's on disk**, so a pull request cannot soften the reviewer that grades it. Such a file the pull request changed shows as modified in `git status` and reads as the old text: never a revert or a lost change. Review it from `bash scripts/branch.sh diff <path>`.

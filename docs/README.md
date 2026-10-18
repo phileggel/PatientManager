@@ -5,20 +5,20 @@ documents link to the home and never restate it. `scripts/rule-homes.py` fails w
 Markdown file sits outside this map, when a path below no longer exists, when a rule
 ID is defined twice, or when a guide grows past its ceiling (`workflow.md` § 5).
 
-- **Domain** — `spec/` (`TRIGRAM-NNN`), `spec-index.md`, `ubiquitous-language.md`:
-  business rules, their numbering, and what the domain words mean. The owner validates them.
+- **Domain** — `spec/` (`TRIGRAM-NNN`; its `README.md` holds the numbering, the trigrams
+  and the format), `ubiquitous-language.md`: business rules and what the domain words mean. The owner validates them.
 - **Rules** — `backend-rules.md` (B), `frontend-rules.md` (F), `e2e-rules.md` (E),
   `i18n-rules.md`, `test-rules.md`, `commit-rules.md`, `visual-proof-rules.md`: how
   code, tests, strings, commits and visual proofs are written.
 - **Rule examples** — `error-model.md`, `reconciliation-ux-pattern.md`: worked shapes for
   rules already stated in the rules docs.
-- **Decisions** — `adr/`: technical choices costly to reverse, each with its guard.
-- **Contracts** — `contracts/`: the wire record of each command.
-- **Workflow** — `workflow.md`: how work moves from an entry to `main`.
-- **Records** — `work/` (one file per `TODO-NNN`, `DEBT-NNN` and `FLOW-NNN` entry, the
-  queue of the batch and the batch audits), `lessons.md` (`TL-NNN`), `../CHANGELOG.md`:
-  what is owed to the user, to the code and to the workflow, and what was learned or
-  shipped.
+- **Decisions** — `adr/`: technical choices costly to reverse, never domain ones; its
+  `README.md` holds the gate and the format.
+- **Contracts** — `contracts/`: the wire record of each command; its `README.md` holds the
+  rules and the format.
+- **Workflow** — `workflow.md`: how work moves from an issue to `main`; the backlog itself
+  is on GitHub (issues and Project 4), never in the repository.
+- **Records** — `lessons.md` (`TL-NNN`), `../CHANGELOG.md`: what was learned or shipped.
 - **Reference** — `ddd-reference.md`: background an agent reads when a task needs it.
 - **Map** — `../ARCHITECTURE.md`: where code lives.
 - **Index** — `../CLAUDE.md`: authority, forbidden actions, and pointers to all of the
