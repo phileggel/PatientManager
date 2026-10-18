@@ -88,12 +88,13 @@ auditor reads each generic piece against its line. A piece is a list item opened
 - `scripts/work-queue.py` — classifies the entries, the queue, the ceremonies in flight
   and the open issues; files and closes an entry; sums the sizes of the queue. Never:
   ranks or recommends.
+- `scripts/migrate-work-to-issues.py` — moves `docs/work/` to issues once (gh#332), a dry
+  run unless `--apply`. Never: sends what privacy-check refuses, nor opens one twice.
 - `scripts/run-entry.sh` — runs one ready entry with nobody to ask. Never: a second
   entry, nor past its time budget.
 - `scripts/branch.sh` — where the branch left the main branch, and its diff, log and
   files. Never: changes the tree.
-- `scripts/changed-scope.sh` — classifies changed paths into the checks they need.
-  Never: runs a check.
+- `scripts/changed-scope.sh` — the checks each changed path needs. Never: runs a check.
 - `scripts/scoped-checks.sh` — the fast checks of a change, for the hooks. Never:
   tests, coverage or a build.
 - `scripts/check.py` — the quality checks of each layer, fast or full. Never: fixes
@@ -108,8 +109,7 @@ auditor reads each generic piece against its line. A piece is a list item opened
   here per piece, one ceiling per guide. Never: judges what a document says.
 - `scripts/privacy-check.py` — keeps private data out of logs, files and commit
   messages. Never: prints the data it found.
-- `scripts/review-lanes.sh` — the reviewer lanes a change needs, and only those.
-  Never: launches one.
+- `scripts/review-lanes.sh` — only the reviewer lanes a change needs. Never: launches one.
 - `scripts/review-path.sh` — where a reviewer writes its report. Never: writes it.
 - `scripts/review-stop-reason.py` — says in one line why a reviewer session stopped in
   CI. Never: fails the job it explains.
