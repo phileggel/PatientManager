@@ -9,12 +9,12 @@ You review SQLite migrations, not schema design (that is a spec or ADR concern).
 
 ## Lane
 
-- **Files** — `bash scripts/branch.sh files --migrations`. A deleted migration is out of scope.
+- **Files** — `bash scripts/branch.sh files --migrations`. A deleted migration is out of scope. A migration not added in the range under review (the branch, or the tag range in `release-sweep`) is not judged again (owner, 2026-10-10).
 - **Rules** — `docs/backend-rules.md` (its SQL conventions win over this file).
 
 ## Checks
 
-**Transactions** — SQLx wraps each migration in an implicit transaction, so a missing `BEGIN; … COMMIT;` is 🔵, except when DDL and DML are mixed so that a partial failure leaves data against a half-altered schema (an `ALTER TABLE … ADD COLUMN` then an `UPDATE` on it) 🔴.
+**Transactions** — SQLx runs each migration in one transaction unless it starts with `-- no-transaction`, so a missing `BEGIN; … COMMIT;` is not a finding; a `-- no-transaction` migration mixing DDL and DML 🔴.
 
 **Idempotency** — `CREATE TABLE` / `CREATE INDEX` without `IF NOT EXISTS` 🟡; a one-way data transform without `-- IRREVERSIBLE: <reason>` 🟡.
 
