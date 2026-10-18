@@ -10,7 +10,7 @@ Reference for handling errors in this codebase. Directive, not historical. Conce
 
 **One composite per use case (`{UseCase}Error`).** Wraps the BC enums the use case touches via `#[from]`, plus a `{UseCase}Task` sub-enum (`#[serde(tag = "code")]`) carrying use-case-specific codes (cross-BC guards, in-flight checks, catch-alls) — wired in via `#[from]` too. The composite itself is `#[serde(untagged)]` so the wrappers disappear on the wire and every variant emits `{ "code": "..." }`.
 
-**Contracts describe the wire shape only.** `docs/contracts/{bc}-contract.md` lists per-command wire-visible variant codes; Rust-internal type names (BC enums, composite enums) are not exposed in contracts.
+**Contracts describe the wire shape only** — per-command variant codes, never Rust type names (`docs/contracts/README.md`).
 
 ---
 
@@ -209,17 +209,6 @@ if (result.status === "error") {
   }
 }
 ```
-
----
-
-## Contract presentation
-
-`docs/contracts/{bc}-contract.md` describes the wire shape only.
-
-- Per-command "Errors" column lists wire-visible variant codes (e.g. `ProcessAlreadyRunning (ORD-113)`).
-- No `*ApplicationError`, `*DomainError`, composite type names — Rust internals are out of scope.
-- Spec rule tags (`(ORD-043)`, `(B18)`) and short contextual prose (`(when reference missing)`) are encouraged; they help the FE author and don't leak Rust.
-- No `## Changelog` section; git history is the changelog.
 
 ---
 

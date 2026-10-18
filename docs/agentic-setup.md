@@ -23,8 +23,8 @@ reads each generic piece against its line. A piece is a list item opened by its 
   Never: extended by the agent without a question.
 - `docs/lessons.md` — failures worth teaching, one per entry. Never: a rule's home.
 - `ARCHITECTURE.md` — where code lives. Never: why a choice was made (an ADR does).
-- `.claude/rules/` — loads the rules document of a layer when one of its files is
-  read. Never: states the rule itself.
+- `.claude/rules/` — loads the rules document of a layer, or a document folder's
+  `README.md`, when one of its files is read. Never: states the rule itself.
 - `.claude/settings.json` — what the agent may run without asking, and what it may
   never run. Never: allows what `CLAUDE.md` forbids.
 - `justfile` — the one entry point to every command. Never: holds logic a script
@@ -47,12 +47,6 @@ reads each generic piece against its line. A piece is a list item opened by its 
   sees changes. Never: builds what it shows.
 - `.claude/skills/visual-proof/` — captures every state of a changed component, light
   and dark. Never: stands in for the design proposal.
-- `.claude/skills/spec-writer/` — interviews the owner and writes a feature's business
-  rules. Never: documents existing code, nor invents a rule.
-- `.claude/skills/contract/` — derives the record of a domain's commands from a
-  validated spec. Never: overwrites a command it was not asked to change.
-- `.claude/skills/adr-writer/` — records a technical choice that is costly to reverse.
-  Never: a functional decision, nor a tentative one.
 - `.claude/skills/dep-audit/` — checks the dependencies for outdated versions and known
   vulnerabilities before a batch ends. Never: upgrades by itself.
 - `.claude/skills/flow-audit/` — judges an ended batch from its records, forked with a
@@ -73,7 +67,8 @@ reads each generic piece against its line. A piece is a list item opened by its 
   Never: checks code against it.
 - `.claude/agents/spec-checker.md` — checks that every rule of a spec is implemented
   and tested. Never: judges the spec itself.
-- `.claude/agents/contract-reviewer.md` — checks a contract against its spec. Never: amends it.
+- `.claude/agents/contract-reviewer.md` — checks a contract against its spec and
+  `docs/contracts/README.md`. Never: amends it.
 - `.claude/agents/adr-reviewer.md` — checks an ADR's structure, gate and status. Never: writes one.
 
 ### Scripts

@@ -362,14 +362,14 @@ they are, is closed.
 
 ### Spec rule numbering (TRIGRAM-NNN)
 
-The scheme and the registered trigrams live in [`spec-index.md`](spec-index.md).
+The scheme and the registered trigrams live in [`spec/README.md`](spec/README.md).
 
 ### `[DECISION]` criticals
 
 A reviewer critical tagged `[DECISION]` needs an architectural choice, not a mechanical
 fix. It is never fixed unilaterally: it becomes a `needs-owner` question on the issue, or goes
-to the human in chat, and the PR stays open. Once the choice is made, record it with
-`/adr-writer` → `adr-reviewer` in `docs/adr/` before applying the fix.
+to the human in chat, and the PR stays open. The choice made is recorded before the fix: a
+technical one as an ADR (`docs/adr/README.md`), a domain one in the spec or the glossary.
 
 ### Reviewer reports
 

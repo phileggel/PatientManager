@@ -56,9 +56,9 @@ If the task changes anything the user sees and `Design` is not `validated`: run
 
 ## Step 3 — Acceptance first
 
-- Read the convention docs the layers require (CLAUDE.md § Where things are).
-- Every Done-when clause becomes a failing test (`docs/workflow.md` § 3, step 3); a new
-  business rule goes into the spec, a changed command into the contract, same commit.
+- A new or changed business rule goes into its spec, a changed command into its contract,
+  with their reviewer, before the code (their folder's `README.md`).
+- Every Done-when clause becomes a failing test (`docs/workflow.md` § 3, step 3).
 - A fault met in production: ask for the input that shows it before designing a fix,
   and reproduce it in a failing test first (`docs/workflow.md` § 3).
 - Run the suites; confirm the new tests are red. A clause that cannot become a test is
@@ -71,16 +71,14 @@ logs, fixtures, commits or PR text.
 
 ## Step 5 — Harness
 
-`just harness` until green. A coverage floor is met with tests, never by lowering
-`coverage-gates.json`; an architecture violation is fixed in code, never by raising
-`arch-allowlist.json`.
+`just harness` until green: a coverage floor met with tests, an architecture violation fixed
+in code — never `coverage-gates.json` lowered nor `arch-allowlist.json` raised.
 
 ## Step 6 — Reviewers
 
-Launch exactly the lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh`
-prints, in one batch. Give each lane the branch, the spec and the vocabulary, never a
-description of the change. Grade every finding (`docs/workflow.md` § 7) and apply the policy.
-Run the lanes again on the fixes until no 🔴 remains.
+Exactly the lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints, in
+one batch, each given the branch, the spec and the vocabulary; every finding graded
+(`docs/workflow.md` § 7); again on the fixes until no 🔴 remains.
 
 ## Step 7 — Evidence and commit
 
@@ -93,9 +91,8 @@ Run the lanes again on the fixes until no 🔴 remains.
 - A red reviewer lane: read its newest comment; grade, apply and re-read locally as
   `docs/workflow.md` § 7 says; push.
 - Exit 6, a lane stopped by the CI account's usage limit: nothing to fix. Wait for the
-  reset time it prints (a scheduled wake-up in chat, a sleep headless), outside Rule 4;
-  re-run that job (`just rerun-failed <the run id of the printed URL>`) and watch again.
-  In chat, the next task may meanwhile be prepared (`docs/workflow.md` § 11).
+  reset time it prints (a wake-up in chat, a sleep headless; outside Rule 4), then
+  `just rerun-failed <the run id of the printed URL>` and watch again.
 - Any other red: read the log first. If it shows the cause, fix it; if not, the next
   push adds observation and makes the failure cheap, never a fix (`docs/workflow.md`
   § 8). Fix with `git commit --fixup <sha>` (never a new titled commit, never a
@@ -106,12 +103,14 @@ Run the lanes again on the fixes until no 🔴 remains.
 
 ## Step 9 — Closure
 
-In the same PR, before the merge. If the branch touched a file under `docs/spec/`, or the
-issue names spec rules: launch `spec-checker` on each such spec now, and fix what it
-reports. File what the task met and did not fix as issues (`docs/workflow.md` § 2,
-headless too), never left in chat. A task issue the work resolved is named in the body
-(`Closes #NN`) too; `ARCHITECTURE.md` if a module appeared. Then the closing brief
-(`CLAUDE.md`), with the PR number.
+In the same PR, before the merge, then the closing brief (`CLAUDE.md`) with the PR number:
+
+- **The source docs still match the code**: spec, contract, an ADR for a hard technical
+  choice, `ARCHITECTURE.md` for a new module. The PR body says which changed, or "docs:
+  none needed".
+- A spec touched or named: `spec-checker` on it, and what it reports fixed.
+- What the task met and did not fix is filed as issues (`docs/workflow.md` § 2, headless
+  too), never left in chat; a task issue the work resolved is `Closes #NN` too.
 
 ## Rules
 
