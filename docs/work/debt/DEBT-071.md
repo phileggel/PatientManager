@@ -13,3 +13,5 @@
 **Re-checked 2026-10-18 (release sweep):** REF-190's "required" is now the only stale word there, since PRO-125 has the backend refuse an empty type.
 
 **Re-checked 2026-10-18 (procedure-orchestration):** PRO-090's keys (`RECONCILIATED`, `FUND_PAYED`) match no wire value now, which uses the glossary's spellings; PRO-310 also points at `docs/todo.md`, which does not exist.
+
+**Added 2026-10-18 (TODO-030):** PRO-250 does not say an unknown `payment_status` is refused when the command's arguments are read (the contract does), nor that the status is the one the screen read.

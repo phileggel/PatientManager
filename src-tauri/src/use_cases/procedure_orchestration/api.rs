@@ -29,14 +29,14 @@ pub struct RawProcedure {
     #[specta(type = Option<String>)]
     pub confirmed_payment_date: Option<chrono::NaiveDate>,
     pub paid_amount: Option<i64>,
-    pub payment_status: String,
+    /// Typed, so the wire spelling the screen read is the one it sends back (TODO-030).
+    pub payment_status: ProcedureStatus,
 }
 
 impl RawProcedure {
     /// Converts raw procedure data into a validated domain Procedure, every
-    /// refused field at once (PRO-125). Unknown `payment_method` /
-    /// `payment_status` strings fall back to the `None` variant of each enum
-    /// (matching legacy behaviour).
+    /// refused field at once (PRO-125). An unknown `payment_method` string falls
+    /// back to `None` (legacy behaviour); the status arrives typed.
     pub fn into_procedure(self) -> Result<Procedure, ProcedureError> {
         let procedure_date = Procedure::read_form(
             &self.patient_id,
@@ -47,10 +47,6 @@ impl RawProcedure {
             .payment_method
             .as_deref()
             .and_then(|s| s.parse::<PaymentMethod>().ok())
-            .unwrap_or_default();
-        let payment_status = self
-            .payment_status
-            .parse::<ProcedureStatus>()
             .unwrap_or_default();
 
         Procedure::with_id(
@@ -64,7 +60,7 @@ impl RawProcedure {
             self.fund_reconciliation_date,
             self.confirmed_payment_date,
             self.paid_amount,
-            payment_status,
+            self.payment_status,
         )
     }
 }
@@ -239,7 +235,7 @@ pub async fn delete_fund(
 mod tests {
     use super::*;
 
-    fn raw_with(payment_method: Option<&str>, payment_status: &str) -> RawProcedure {
+    fn raw_with(payment_method: Option<&str>, payment_status: ProcedureStatus) -> RawProcedure {
         RawProcedure {
             id: "proc-1".to_string(),
             patient_id: "pat-1".to_string(),
@@ -251,13 +247,13 @@ mod tests {
             fund_reconciliation_date: None,
             confirmed_payment_date: None,
             paid_amount: None,
-            payment_status: payment_status.to_string(),
+            payment_status,
         }
     }
 
     #[test]
     fn pro_125_update_refuses_every_missing_field_at_once() {
-        let mut raw = raw_with(None, "CREATED");
+        let mut raw = raw_with(None, ProcedureStatus::Created);
         raw.patient_id = String::new();
         raw.procedure_date = String::new();
         let err = raw.into_procedure().unwrap_err();
@@ -279,7 +275,9 @@ mod tests {
             ("BANK_CARD", PaymentMethod::BankCard),
             ("BANK_TRANSFER", PaymentMethod::BankTransfer),
         ] {
-            let procedure = raw_with(Some(raw), "CREATED").into_procedure().unwrap();
+            let procedure = raw_with(Some(raw), ProcedureStatus::Created)
+                .into_procedure()
+                .unwrap();
             assert_eq!(
                 procedure.payment_method, expected,
                 "payment_method {raw} must map to {expected:?}"
@@ -289,34 +287,71 @@ mod tests {
 
     #[test]
     fn into_procedure_falls_back_to_payment_method_none_on_unknown_or_missing() {
-        let none_when_missing = raw_with(None, "CREATED").into_procedure().unwrap();
+        let none_when_missing = raw_with(None, ProcedureStatus::Created)
+            .into_procedure()
+            .unwrap();
         assert_eq!(none_when_missing.payment_method, PaymentMethod::None);
 
-        let none_when_unknown = raw_with(Some("WAT"), "CREATED").into_procedure().unwrap();
+        let none_when_unknown = raw_with(Some("WAT"), ProcedureStatus::Created)
+            .into_procedure()
+            .unwrap();
         assert_eq!(none_when_unknown.payment_method, PaymentMethod::None);
     }
 
+    /// TODO-030 — the status as the screen sends it back: the wire spelling of what it read.
     #[test]
-    fn into_procedure_maps_known_payment_status_strings_to_enum() {
-        for (raw, expected) in [
+    fn pro_250_update_keeps_every_status_the_screen_sends() {
+        for (wire, expected) in [
+            ("NONE", ProcedureStatus::None),
             ("CREATED", ProcedureStatus::Created),
-            ("RECONCILIATED", ProcedureStatus::Reconciled),
-            ("FUND_PAYED", ProcedureStatus::FundPaid),
-            ("DIRECTLY_PAYED", ProcedureStatus::DirectlyPaid),
+            ("RECONCILED", ProcedureStatus::Reconciled),
+            ("PARTIALLY_RECONCILED", ProcedureStatus::PartiallyReconciled),
+            ("DIRECTLY_PAID", ProcedureStatus::DirectlyPaid),
+            ("FUND_PAID", ProcedureStatus::FundPaid),
+            ("PARTIALLY_FUND_PAID", ProcedureStatus::PartiallyFundPaid),
+            ("IMPORT_DIRECTLY_PAID", ProcedureStatus::ImportDirectlyPaid),
+            ("IMPORT_FUND_PAID", ProcedureStatus::ImportFundPaid),
             ("OVERPAID", ProcedureStatus::Overpaid),
             ("OVERPAYMENT_REFUND", ProcedureStatus::OverpaymentRefund),
         ] {
-            let procedure = raw_with(Some("CASH"), raw).into_procedure().unwrap();
+            let sent = serde_json::json!({
+                "id": "proc-1", "patient_id": "pat-1", "fund_id": null,
+                "procedure_type_id": "type-1", "procedure_date": "2026-01-15",
+                "billed_amount": 1000, "payment_method": "CASH",
+                "fund_reconciliation_date": null, "confirmed_payment_date": null,
+                "paid_amount": 1000, "payment_status": wire,
+            });
+            let raw: RawProcedure = serde_json::from_value(sent).unwrap();
+            let procedure = raw.into_procedure().unwrap();
             assert_eq!(
                 procedure.payment_status, expected,
-                "payment_status {raw} must map to {expected:?}"
+                "status {wire} must be kept"
             );
         }
     }
 
+    /// TODO-030, PRO-255 — a reconciled procedure sent back as the screen read it is the
+    /// stored one, so an edit that changes nothing is answered unchanged.
     #[test]
-    fn into_procedure_falls_back_to_payment_status_none_on_unknown() {
-        let procedure = raw_with(Some("CASH"), "WAT").into_procedure().unwrap();
-        assert_eq!(procedure.payment_status, ProcedureStatus::None);
+    fn pro_255_a_paid_procedure_sent_back_as_read_is_unchanged() {
+        let date = |d| chrono::NaiveDate::from_ymd_opt(2026, 1, d).unwrap();
+        let stored = Procedure::with_id(
+            "proc-1".to_string(),
+            "pat-1".to_string(),
+            Some("fund-1".to_string()),
+            "type-1".to_string(),
+            date(15),
+            45_000,
+            PaymentMethod::BankTransfer,
+            Some(date(20)),
+            Some(date(22)),
+            Some(45_000),
+            ProcedureStatus::Reconciled,
+        )
+        .unwrap();
+        let read = serde_json::to_value(&stored).unwrap();
+        let sent: RawProcedure = serde_json::from_value(read).unwrap();
+        let rebuilt = sent.into_procedure().unwrap();
+        assert_eq!(rebuilt, stored);
     }
 }

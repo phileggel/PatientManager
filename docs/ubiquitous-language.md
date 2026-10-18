@@ -163,9 +163,10 @@ Lifecycle/reconciliation status of a `Procedure`.
 - `Overpaid` — source procedure whose overpayment has been fully recorded.
 - `OverpaymentRefund` — mirror negative procedure created to offset an overpayment.
   > Status: confirmed
-  > ⚠️ Code discrepancy: `Reconciliated`, `DirectlyPayed`, `FundPayed`, `PartiallyFundPayed`,
-  > `ImportDirectlyPayed`, `ImportFundPayed` in code — to be corrected to `Reconciled`,
-  > `DirectlyPaid`, `FundPaid`, `PartiallyFundPaid`, `ImportDirectlyPaid`, `ImportFundPaid`.
+  > ⚠️ Code discrepancy: the variants and the wire use these names (`RECONCILED`, `FUND_PAID`, …);
+  > the database still stores `RECONCILIATED`, `DIRECTLY_PAYED`, `FUND_PAYED`, `PARTIALLY_FUND_PAYED`,
+  > `IMPORT_DIRECTLY_PAYED`, `IMPORT_FUND_PAYED` (`as_db_str` / `FromStr`), so a wire string is never
+  > parsed with `FromStr` (TODO-030).
 
 ### Overdue (derived)
 

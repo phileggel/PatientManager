@@ -2434,7 +2434,11 @@ export type RawProcedure = { id: string; patient_id: string; fund_id: string | n
 /**
  * As the form sent it (YYYY-MM-DD, or empty): `Procedure::read_form` judges it (PRO-125).
  */
-procedure_date: string; billed_amount: number; payment_method: string | null; fund_reconciliation_date: string | null; confirmed_payment_date: string | null; paid_amount: number | null; payment_status: string }
+procedure_date: string; billed_amount: number; payment_method: string | null; fund_reconciliation_date: string | null; confirmed_payment_date: string | null; paid_amount: number | null; 
+/**
+ * Typed, so the wire spelling the screen read is the one it sends back (TODO-030).
+ */
+payment_status: ProcedureStatus }
 /**
  * Raw procedure type data from frontend (unvalidated)
  */
