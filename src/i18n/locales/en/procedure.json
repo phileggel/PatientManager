@@ -25,6 +25,7 @@
     "no_selection": "—",
     "select_patient": "Enter patient name",
     "select_fund": "Enter fund identifier or name",
+    "no_patient_found": "No patient matches “{{query}}”.",
     "payment": {
       "none": "—",
       "cash": "Cash",

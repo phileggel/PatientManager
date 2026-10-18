@@ -37,14 +37,16 @@ logged and surfaced to the user via a toast.
 
 **PRO-080 (R9) — Inline patient creation (frontend)**: From the patient field **in creation mode only**, the practitioner can create a new patient without closing the modal. The creation form appears in a nested modal; on validation, the new patient is automatically selected. This feature is not available in edit mode.
 
-**PRO-090 (R10) — Status badge**: Each procedure's payment status is displayed as a colored badge.
+**PRO-090 (R10) — Status badge (frontend)**: Each procedure's payment status is displayed as a badge styled by its status (`Overpaid` and `OverpaymentRefund`: REF-180).
 M3 token mapping:
 
 - `NONE` → `bg-m3-surface-container-high` / `text-m3-on-surface-variant`
 - `CREATED` → `bg-m3-secondary-container` / `text-m3-on-secondary-container`
-- `RECONCILIATED`, `PARTIALLY_RECONCILED` → `bg-m3-tertiary-container` / `text-m3-on-tertiary-container`
-- `DIRECTLY_PAYED`, `FUND_PAYED`, `PARTIALLY_FUND_PAYED`, `IMPORT_DIRECTLY_PAYED`, `IMPORT_FUND_PAYED` →
+- `RECONCILIATED` → `bg-m3-tertiary-container` / `text-m3-on-tertiary-container`
+- `PARTIALLY_RECONCILED` → outlined, no fill: `border border-m3-tertiary` / `text-m3-tertiary`
+- `DIRECTLY_PAYED`, `FUND_PAYED`, `IMPORT_DIRECTLY_PAYED`, `IMPORT_FUND_PAYED` →
   `bg-m3-primary-container` / `text-m3-on-primary-container`
+- `PARTIALLY_FUND_PAYED` → outlined, no fill: `border border-m3-primary` / `text-m3-primary`
 
 > **Note on `NONE`**: this status is the default initial value of the Rust domain model. It is never assigned by this feature at creation (see PRO-230 — the minimum assigned is `Created`). It can appear on legacy data predating the formalization of the status lifecycle. A `NONE` procedure is treated as eligible for deletion and editing.
 

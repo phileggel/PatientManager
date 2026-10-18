@@ -23,9 +23,12 @@ interface ComboboxFieldProps<T extends object> {
   disabled?: boolean;
   onCreateNew?: (query: string) => void;
   createLabel?: string;
+  /** Optional neutral message shown in the dropdown when the search finds nothing. */
+  noResultLabel?: (query: string) => string;
 }
 
 const CREATE_MARKER = "@@CREATE";
+const NO_RESULT_MARKER = "@@NO_RESULT";
 
 /**
  * ComboboxField - M3 Design System Autocomplete + Dropdown field.
@@ -61,9 +64,10 @@ export function ComboboxField<T extends object>({
   error,
   disabled,
   onCreateNew,
-  createLabel = "+ Create",
+  createLabel,
+  noResultLabel,
 }: ComboboxFieldProps<T>) {
-  const { query, setQuery, filteredItems } = useComboboxField(
+  const { query, setQuery, filteredItems, isNoResult } = useComboboxField(
     items,
     displayKey,
     idKey,
@@ -78,10 +82,11 @@ export function ComboboxField<T extends object>({
   );
 
   const hasResults = filteredItems.length > 0;
-  const showDropdown = query.length >= 2 && (hasResults || !!onCreateNew);
+  const showNoResult = isNoResult && !!noResultLabel;
+  const showDropdown = query.length >= 2 && (hasResults || !!onCreateNew || showNoResult);
 
-  const handleChange = (selected: T | typeof CREATE_MARKER | null) => {
-    if (!selected) return;
+  const handleChange = (selected: T | typeof CREATE_MARKER | typeof NO_RESULT_MARKER | null) => {
+    if (!selected || selected === NO_RESULT_MARKER) return;
     if (selected === CREATE_MARKER) {
       onCreateNew?.(query);
     } else {
@@ -120,6 +125,17 @@ export function ComboboxField<T extends object>({
               anchor={{ to: "bottom start", gap: "4px" }}
               className="z-50 w-[var(--input-width)] bg-m3-surface border border-m3-outline/20 shadow-elevation-3 rounded-lg py-1 overflow-auto max-h-48"
             >
+              {showNoResult && (
+                <ComboboxOption
+                  id={`${id}-no-result`}
+                  value={NO_RESULT_MARKER}
+                  disabled
+                  className="px-4 py-2 text-sm italic text-m3-on-surface-variant"
+                >
+                  {noResultLabel(query)}
+                </ComboboxOption>
+              )}
+
               {filteredItems.slice(0, 6).map((item) => (
                 <ComboboxOption
                   key={String(item[idKey])}
@@ -132,8 +148,9 @@ export function ComboboxField<T extends object>({
 
               {onCreateNew && (
                 <ComboboxOption
+                  id={`${id}-create`}
                   value={CREATE_MARKER}
-                  className="px-4 py-2 text-sm font-medium text-m3-primary cursor-pointer border-t border-m3-outline/10 data-[focus]:bg-m3-primary/10"
+                  className={`px-4 py-2 text-sm font-medium text-m3-primary cursor-pointer data-[focus]:bg-m3-primary/10 ${hasResults || showNoResult ? "border-t border-m3-outline/10" : ""}`}
                 >
                   {createLabel}
                 </ComboboxOption>

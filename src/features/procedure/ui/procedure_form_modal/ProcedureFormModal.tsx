@@ -227,6 +227,7 @@ export function ProcedureFormModal({
               placeholder={t("form.select_patient")}
               onCreateNew={(q) => setPatientModal({ open: true, query: q })}
               createLabel={t("create_patient.submit")}
+              noResultLabel={(query) => t("form.no_patient_found", { query })}
               error={fieldErrors.patientId}
             />
           ) : (
@@ -240,6 +241,7 @@ export function ProcedureFormModal({
               value={patientId}
               onChange={handlePatientChange}
               placeholder={t("form.select_patient")}
+              noResultLabel={(query) => t("form.no_patient_found", { query })}
               error={fieldErrors.patientId}
             />
           )}

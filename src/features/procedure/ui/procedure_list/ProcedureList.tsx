@@ -87,6 +87,7 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                 className={row.isOverdue ? "m3-tr m3-tr-warning" : "m3-tr"}
                 data-overdue={row.isOverdue || undefined}
                 title={row.isOverdue ? t("overdue.row_title") : undefined}
+                onDoubleClick={() => onEdit(row)}
               >
                 <td className={`m3-td ${COL_WIDTHS.patientName}`}>{row.patientName ?? "—"}</td>
                 <td className={`m3-td ${COL_WIDTHS.ssn}`}>{row.ssn ?? "—"}</td>
@@ -114,7 +115,8 @@ export function ProcedureList({ rows, isFiltered, onEdit, onDelete }: ProcedureL
                   <StatusBadge status={row.status} />
                   {row.isOverdue && <span className="sr-only">{t("overdue.row_title")}</span>}
                 </td>
-                <td className="m3-td text-right">
+                {/* PRO-040: a double-click on an action button is not a double-click on the row. */}
+                <td className="m3-td text-right" onDoubleClick={(e) => e.stopPropagation()}>
                   <div className="flex gap-1 justify-end">
                     <IconButton
                       variant="ghost"

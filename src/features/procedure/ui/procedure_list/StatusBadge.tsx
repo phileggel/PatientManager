@@ -10,6 +10,11 @@ function getBadgeColor(status: string | null | undefined): string {
       return "bg-m3-secondary-container text-m3-on-secondary-container";
     case "RECONCILED":
       return "bg-m3-tertiary-container text-m3-on-tertiary-container";
+    // PRO-090: a partial status is the outline of its family's badge.
+    case "PARTIALLY_RECONCILED":
+      return "border border-m3-tertiary text-m3-tertiary";
+    case "PARTIALLY_FUND_PAID":
+      return "border border-m3-primary text-m3-primary";
     case "DIRECTLY_PAID":
     case "FUND_PAID":
     case "IMPORT_DIRECTLY_PAID":

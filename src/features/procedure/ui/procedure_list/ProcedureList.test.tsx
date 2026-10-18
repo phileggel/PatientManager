@@ -200,4 +200,30 @@ describe("ProcedureList", () => {
     expect(normalTr).not.toHaveAttribute("data-overdue");
     expect(normalTr).not.toHaveAttribute("title");
   });
+
+  test("PRO-040: a double-click on a row opens it as the Edit button does", () => {
+    const onEdit = vi.fn();
+    const row = makeProcedureRow({
+      rowId: "r1",
+      id: "proc-1",
+      patientName: "Alice",
+      status: "CREATED",
+    });
+    render(<ProcedureList rows={[row]} onEdit={onEdit} onDelete={vi.fn()} />);
+    fireEvent.doubleClick(screen.getByText("Alice"));
+    expect(onEdit).toHaveBeenCalledWith(row);
+  });
+
+  test("PRO-040: a double-click on the delete button does not open the row", () => {
+    const onEdit = vi.fn();
+    const row = makeProcedureRow({
+      rowId: "r1",
+      id: "proc-1",
+      patientName: "Alice",
+      status: "CREATED",
+    });
+    render(<ProcedureList rows={[row]} onEdit={onEdit} onDelete={vi.fn()} />);
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Delete procedure" }));
+    expect(onEdit).not.toHaveBeenCalled();
+  });
 });

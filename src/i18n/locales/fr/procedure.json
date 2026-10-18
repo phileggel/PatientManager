@@ -25,6 +25,7 @@
     "no_selection": "—",
     "select_patient": "Entrez le nom du patient",
     "select_fund": "Entrez l'identifiant ou le nom de la caisse",
+    "no_patient_found": "Aucun patient ne correspond à « {{query}} ».",
     "payment": {
       "none": "—",
       "cash": "Espèce",

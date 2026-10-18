@@ -30,5 +30,8 @@ export function useComboboxField<T extends object>(
     return found ? String(found[displayKey]) : "";
   }, [items, idKey, displayKey, selectedId]);
 
-  return { query, setQuery, filteredItems, displayValue };
+  // PRO-150: the dropdown opens from two characters; a search that finds nothing says so.
+  const isNoResult = query.length >= 2 && filteredItems.length === 0;
+
+  return { query, setQuery, filteredItems, displayValue, isNoResult };
 }
