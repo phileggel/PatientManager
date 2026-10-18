@@ -1,7 +1,7 @@
 ---
 name: design-proposal
-description: Produces the design proposal required before anything the user sees changes — rendered mocks of the target state in light and dark under screenshots/design/, plus a five-line note — for a todo entry or a chat request. Invoked as `/design-proposal <id>` (TODO-NNN, DEBT-NNN, or a short slug for a chat request). The human validates; nothing visible is built before that.
-argument-hint: "[TODO-NNN | DEBT-NNN | slug]"
+description: Produces the design proposal required before anything the user sees changes — rendered mocks of the target state in light and dark under screenshots/design/, plus a five-line note — for an issue or a chat request. Invoked as `/design-proposal <id>` (an issue number, or a short slug for a chat request). The human validates; nothing visible is built before that.
+argument-hint: "[123 | slug]"
 ---
 
 # Skill — `design-proposal`
@@ -12,8 +12,7 @@ approve is what ships.
 
 ## Step 1 — Read the task
 
-Load the entry (`docs/work/todo/TODO-NNN.md`, `docs/work/debt/DEBT-NNN.md`) or take the
-chat request. From it and its Done when, list the
+Load the issue (`gh issue view <id> --comments`) or take the chat request. From it and its Done when, list the
 screens and states that change: one state per distinct thing the human must see (the
 row with the new column, the dialog with the moved buttons, the empty case if it
 changes).
@@ -47,18 +46,16 @@ removed, what stays the same, one open point if any.
 
 ## Step 5 — Ask, or record
 
-- **Chat:** show the images and the note, and ask. On a yes, set the entry's line to
-  `**Design:** validated` (a chat request has no entry: say so in the PR body) and
-  continue the task; the images land in the same PR. On a no, write what the human
-  wants as an open question and stop.
-- **Headless:** set `**Design:** proposed (screenshots/design/{id}-*.png)`, commit the
-  images, the note and the todo edit as one `docs:` commit, open the PR, merge on
-  green. The human validates by editing the line to `validated`, or adds an open
-  question.
+- **Chat:** show the images and the note, and ask. On a yes, set the issue's Design to
+  `validated` (`gh issue edit`; a chat request has no issue: say so in the PR body) and
+  continue the task. On a no, write what the human wants on the issue and stop.
+- **Headless:** commit the images and the note on a `design/{id}` branch, push it, and
+  post the note on the issue with each image linked from that branch, with
+  `needs-owner`. The human validates in the thread.
 
 ## Rules
 
 1. Real components and tokens only; no drawing tools, no hand-made images.
 2. Both themes for every state.
 3. The proposal never touches production code.
-4. The proposal images are deleted in the closure commit of the work that ships them.
+4. The proposal never reaches `main`: the issue holds it; the visual proofs are the record.

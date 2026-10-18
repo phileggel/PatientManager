@@ -7,18 +7,14 @@ Two checks against drift:
    (backticked paths, relative to `docs/`). Every tracked Markdown file must sit in
    a listed location, every listed location must exist, and the Rules kind holds
    exactly the `*-rules.md` files.
-2. Rule homes. A rule, entry or lesson is defined where its ID opens a line
-   followed by an em dash — `**B24** —`, `## E11 —`, `**BAS-010 (R1) —`,
-   `# TODO-003 —`, `# 2026-09-27 — DEBT-008 —`, `# FLOW-001 —`, `### TL-001 —`. Anywhere else an
-   ID is a mention. One ID defined in two places fails: the copy is removed and
-   the other document links to the home.
-3. Entry files. A todo, debt or flow entry is one file under `docs/work/`, named
-   by the one ID it defines (`docs/work/debt/DEBT-008.md`), in the folder of its kind.
-   Each carries the lines of its kind, its size among them (FLOW-048).
-4. The agentic setup (FLOW-036). `docs/agentic-setup.md` gives one list item to each
+2. Rule homes. A rule or lesson is defined where its ID opens a line followed by
+   an em dash — `**B24** —`, `## E11 —`, `**BAS-010 (R1) —`, `### TL-001 —`.
+   Anywhere else an ID is a mention. One ID defined in two places fails: the copy is
+   removed and the other document links to the home.
+3. The agentic setup (FLOW-036). `docs/agentic-setup.md` gives one list item to each
    piece, opened by its backticked path. Every script, skill, agent prompt and git
    hook that exists is listed once, and everything listed exists.
-5. Guide ceilings (FLOW-044). `guide-ceilings.json` records the length in lines each
+4. Guide ceilings (FLOW-044). `guide-ceilings.json` records the length in lines each
    guide may not exceed — `CLAUDE.md`, the workflow, the setup document, the rules
    docs, every prompt. A guide past its ceiling fails; a skill or agent prompt with no
    recorded ceiling holds at most 120 lines. A ceiling only goes down:
@@ -41,19 +37,10 @@ DEFINITION = re.compile(
     r"^(?:\*\*([A-Z]{1,3}\d+)\*\* —"
     r"|#{2,3} ([A-Z]{1,3}\d+) —"
     r"|\*\*([A-Z]{3}-\d{3}[A-Z]?)(?: \([^)]*\))? —"
-    r"|#{1,3} ((?:TODO|TL|FLOW)-\d{3}) —"
-    r"|#{1,2} \d{4}-\d{2}-\d{2} — (DEBT-\d{3}) —)"
+    r"|#{1,3} (TL-\d{3}) —)"
 )
 KIND = re.compile(r"^- \*\*([^*]+)\*\* — (.*)$")
 PATH = re.compile(r"`([^`\s]+(?:\.md|/))`")
-ENTRY_FILE = re.compile(r"docs/work/(todo|debt|flow)/(.+)\.md")
-# The lines an entry of each kind carries when it is filed (docs/workflow.md § 2).
-REQUIRED = {
-    "todo": ("**Size:**", "**User value:**", "**Done when:**", "**Design:**", "**Open questions:**"),
-    "debt": ("**Found by:**", "**Where:**", "**Observation:**", "**Size:**", "**Waits on the owner:**"),
-    "flow": ("- Kind:", "- Size:", "- Observed:"),
-}
-SIZE = re.compile(r"^(?:\*\*Size:\*\*|- Size:)[ \t]*(?:XL|S|M|L)\b", re.MULTILINE)
 SETUP = "docs/agentic-setup.md"
 CEILINGS = "guide-ceilings.json"
 GUIDES = (
@@ -127,36 +114,6 @@ def misfiled(found: dict[str, list[str]], files: list[str]) -> list[str]:
     problems = [f"{loc}: listed under Rules but not a *-rules.md" for loc in rules if not loc.endswith("-rules.md")]
     problems += [f"{f}: a *-rules.md not listed under Rules" for f in files if f.endswith("-rules.md") and f not in rules]
     return sorted(problems)
-
-
-def misnamed(found: dict[str, list[str]]) -> list[str]:
-    """Entry files whose name, folder and heading do not say the same ID."""
-    problems = []
-    for path, ids in sorted(found.items()):
-        entry = ENTRY_FILE.fullmatch(path)
-        if not entry:
-            continue
-        folder, name = entry.groups()
-        if not re.fullmatch(rf"{folder.upper()}-\d{{3}}", name):
-            problems.append(f"{path}: an entry of {folder}/ is named {folder.upper()}-NNN.md")
-        elif ids != [name]:
-            problems.append(f"{path}: defines {', '.join(ids) or 'no ID'}, not the one ID {name} it is named after")
-    return problems
-
-
-def incomplete(texts: dict[str, str]) -> list[str]:
-    """Entry files that lack a line of their kind, or whose size is not one of the four."""
-    problems = []
-    for path, text in sorted(texts.items()):
-        entry = ENTRY_FILE.fullmatch(path)
-        if not entry:
-            continue
-        lines = text.splitlines()
-        missing = [line for line in REQUIRED[entry.group(1)] if not any(l.startswith(line) for l in lines)]
-        problems += [f"{path}: lacks `{line}`" for line in missing]
-        if not any("Size:" in line for line in missing) and not SIZE.search(text):
-            problems.append(f"{path}: its size is not S, M, L or XL")
-    return problems
 
 
 def _matches(path: str, patterns: tuple[str, ...]) -> bool:
@@ -259,8 +216,6 @@ def main(argv: list[str] | None = None) -> int:
     documents = [f for f in files if f in ("CLAUDE.md", "ARCHITECTURE.md") or f.startswith(("docs/", ".claude/"))]
     defined = {f: defined_ids((ROOT / f).read_text(encoding="utf-8")) for f in documents}
     problems += [f"{rule_id}: defined in {', '.join(paths)}" for rule_id, paths in sorted(duplicates(defined).items())]
-    problems += misnamed(defined)
-    problems += incomplete({f: (ROOT / f).read_text(encoding="utf-8") for f in files if ENTRY_FILE.fullmatch(f)})
 
     listed = listed_pieces((ROOT / SETUP).read_text(encoding="utf-8"))
     pieces = setup_pieces(tracked("scripts", ".claude", ".githooks"))

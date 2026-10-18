@@ -40,7 +40,7 @@ any AI attribution. No SSN, IBAN or patient name — the `commit-msg` hook refus
 
 ## One task, one commit
 
-A task (a todo entry, a techdebt entry, a request) lands on `main` as **one** commit:
+A task (an issue, or a request) lands on `main` as **one** commit:
 review fixes, coverage top-ups and closure edits belong inside it.
 
 - Before the first push: fold locally (`git commit --amend`). Fold only what

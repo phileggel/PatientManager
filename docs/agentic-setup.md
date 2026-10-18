@@ -5,8 +5,8 @@ content of a piece differs from one repository to another; its responsibility do
 This document is complete on its own: no command reads a second repository.
 
 `scripts/rule-homes.py` fails when a script, a skill, an agent prompt or a git hook
-exists without a line here, or when a line names a path that is gone. The flow
-auditor reads each generic piece against its line. A piece is a list item opened by its path.
+exists without a line here, or when a line names a path that is gone. `/flow-audit`
+reads each generic piece against its line. A piece is a list item opened by its path.
 
 ## Generic — written to read the same in every repository
 
@@ -15,16 +15,13 @@ auditor reads each generic piece against its line. A piece is a list item opened
 - `CLAUDE.md` — the index the agent reads every turn: authority, forbidden actions,
   pointers. Never: states a rule that has a home elsewhere.
 - `docs/README.md` — the map: one location per kind of document. Never: holds a rule.
-- `docs/workflow.md` — how work moves from an entry to the main branch, and who decides
+- `docs/workflow.md` — how work moves from an issue to the main branch, and who decides
   what. Never: says how code is written.
 - `docs/commit-rules.md` — the commit format and what each type means. Never: restated
   in a hook's message beyond the line that failed.
 - `docs/ubiquitous-language.md` — what the domain words mean, validated by the owner.
   Never: extended by the agent without a question.
 - `docs/lessons.md` — failures worth teaching, one per entry. Never: a rule's home.
-- `docs/work/queue.md` — the batch the owner validated. Never: edited, but emptied by `/flow-audit`.
-- `docs/work/audits.md` — the last two batches as audited: their figures, and what
-  the records lacked. Never: a figure nothing counted.
 - `ARCHITECTURE.md` — where code lives. Never: why a choice was made (an ADR does).
 - `.claude/rules/` — loads the rules document of a layer when one of its files is
   read. Never: states the rule itself.
@@ -39,15 +36,13 @@ auditor reads each generic piece against its line. A piece is a list item opened
 
 ### Skills
 
-- `.claude/skills/plan-queue/` — refines the candidates, proposes the next queue, records
-  it and what it filed through one ceremony. Never: queues what the owner has not validated.
-- `.claude/skills/run-queue/` — runs a batch from its queue to its audit by chaining
-  the other skills, and owns the batch's task list. Never: decides, edits the queue or releases.
+- `.claude/skills/plan-batch/` — refines the candidates, proposes the next batch, and
+  sets it on the Project once approved. Never: queues what the owner has not approved, nor commits.
+- `.claude/skills/run-batch/` — runs a batch from its Queued items to its audit by
+  chaining the other skills, and owns the batch's task list. Never: decides, edits the batch or releases.
 - `.claude/skills/run-entry/` — runs one task through the ceremony (`docs/workflow.md` § 3),
-  its task list only when run alone, and files what it met and did not fix before the entry
+  its task list only when run alone, and files what it met and did not fix before the issue
   closes. Never: a second task, a guess where a question is owed, nor a finding left in chat.
-- `.claude/skills/file-entry/` — files one entry with the lines and the size its kind
-  requires. Never: writes an entry's file by hand, nor queues it.
 - `.claude/skills/design-proposal/` — renders the target state before anything a user
   sees changes. Never: builds what it shows.
 - `.claude/skills/visual-proof/` — captures every state of a changed component, light
@@ -60,8 +55,9 @@ auditor reads each generic piece against its line. A piece is a list item opened
   Never: a functional decision, nor a tentative one.
 - `.claude/skills/dep-audit/` — checks the dependencies for outdated versions and known
   vulnerabilities before a batch ends. Never: upgrades by itself.
-- `.claude/skills/flow-audit/` — measures an ended batch against the one before, hands it
-  to the auditor, empties the queue. Never: judges the batch itself, nor runs during one.
+- `.claude/skills/flow-audit/` — judges an ended batch from its records, forked with a
+  fresh context, and posts it on the batch's issue. Never: takes the session's account,
+  nor runs during a batch.
 
 ### Agent prompts
 
@@ -78,20 +74,12 @@ auditor reads each generic piece against its line. A piece is a list item opened
 - `.claude/agents/spec-checker.md` — checks that every rule of a spec is implemented
   and tested. Never: judges the spec itself.
 - `.claude/agents/contract-reviewer.md` — checks a contract against its spec. Never: amends it.
-- `.claude/agents/flow-auditor.md` — judges an ended batch from its records and proposes
-  flow entries, and names a finding owed to another repository. Never:
-  takes the session agent's account, nor writes a file.
 - `.claude/agents/adr-reviewer.md` — checks an ADR's structure, gate and status. Never: writes one.
 
 ### Scripts
 
-- `scripts/work-queue.py` — classifies the entries, the queue, the ceremonies in flight
-  and the open issues; files and closes an entry; sums the sizes of the queue. Never:
-  ranks or recommends.
-- `scripts/migrate-work-to-issues.py` — moves `docs/work/` to issues once (gh#332), a dry
-  run unless `--apply`. Never: sends what privacy-check refuses, nor opens one twice.
-- `scripts/run-entry.sh` — runs one ready entry with nobody to ask. Never: a second
-  entry, nor past its time budget.
+- `scripts/run-entry.sh` — runs one Queued item with nobody to ask. Never: a second
+  task, nor past its time budget.
 - `scripts/branch.sh` — where the branch left the main branch, and its diff, log and
   files. Never: changes the tree.
 - `scripts/changed-scope.sh` — the checks each changed path needs. Never: runs a check.
