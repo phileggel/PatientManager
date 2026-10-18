@@ -199,15 +199,15 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
     updated; `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The closing
     brief says what changed for the user and what the project gained.
 
-**Ending a batch** (owner, 2026-10-17) — every batch ends alike: the closing brief, then
-`/dep-audit` and the release sweep (Conventions), what they find filed as debt; a security
-issue that puts users at risk is a `fix` instead: a todo put to the owner, worked before
-the batch ends, swept again on what it changed, released. A batch with a `feat` or `fix` is released: the
-agent says it is ready; the human runs `just release`; CI builds the draft, which the
-agent publishes once the release workflow and `main` are green, stopping on red. Any other
-batch the agent closes with `just batch-end` (a `batch/<date>` tag): it publishes nothing,
-its chores ride in the next release, no fix is picked to fill a changelog. `/flow-audit`
-audits the range it closes (§ 12). A batch is named by its dates, never a version number.
+**Ending a batch** (owner, 2026-10-17) — every batch ends alike: the closing brief, then `/dep-audit`
+and the release sweep (Conventions), what they find filed as debt; a security issue that puts users at
+risk is a `fix` instead: a todo put to the owner, worked before the batch ends, swept again on what it
+changed, released. A batch with a `feat` or `fix` is released: the agent says it is ready; the human
+runs `just release`; CI builds the draft, which the agent publishes once the release workflow and every
+push run on `main`'s head (`gh run list --branch main --commit <sha>`) are green, a cancelled one
+re-run, stopping on red. Any other batch the agent closes with `just batch-end` (a `batch/<date>` tag):
+it publishes nothing, its chores ride in the next release, no fix is picked to fill a changelog.
+`/flow-audit` audits the range it closes (§ 12). A batch is named by its dates, never a version number.
 
 ## 4. Design proposal
 

@@ -14,7 +14,7 @@ on:
     types: [opened, edited, synchronize, reopened, closed]
 
 concurrency:
-  group: pr-description-${{ github.ref }}
+  group: pr-description-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:

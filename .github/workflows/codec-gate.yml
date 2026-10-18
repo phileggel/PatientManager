@@ -51,7 +51,7 @@ on:
       - "justfile"
 
 concurrency:
-  group: codec-gate-${{ github.ref }}
+  group: codec-gate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions: {}

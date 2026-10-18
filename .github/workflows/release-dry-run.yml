@@ -23,7 +23,7 @@ on:
       - package.json
 
 concurrency:
-  group: release-dry-run-${{ github.ref }}
+  group: release-dry-run-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
