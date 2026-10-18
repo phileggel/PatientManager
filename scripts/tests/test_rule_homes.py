@@ -16,15 +16,12 @@ class Definitions(unittest.TestCase):
             "## E1 — selectors",
             "**BAS-010 (R1) — Title**: text",
             "**BAS-113A — Sub-rule**",
-            "# TODO-003 — An entry",
-            "# 2026-07-29 — DEBT-008 — An observation",
             "### TL-001 — A lesson",
-            "# FLOW-004 — A flow entry",
         ])
-        self.assertEqual(
-            homes.defined_ids(text),
-            ["B7", "E1", "BAS-010", "BAS-113A", "TODO-003", "DEBT-008", "TL-001", "FLOW-004"],
-        )
+        self.assertEqual(homes.defined_ids(text), ["B7", "E1", "BAS-010", "BAS-113A", "TL-001"])
+
+    def test_an_old_entry_heading_is_no_longer_a_definition(self):
+        self.assertEqual(homes.defined_ids("# TODO-003 — An entry\n# 2026-07-29 — DEBT-008 — x\n# FLOW-004 — y"), [])
 
     def test_a_mention_is_not_a_definition(self):
         self.assertEqual(homes.defined_ids("See **B7** — and BAS-010 in the spec.\n- **F29** — restated"), [])
@@ -32,36 +29,6 @@ class Definitions(unittest.TestCase):
     def test_an_id_defined_in_two_documents_is_reported_with_both(self):
         found = {"docs/backend-rules.md": ["B44"], "CLAUDE.md": ["B44"], "docs/e2e-rules.md": ["E1"]}
         self.assertEqual(homes.duplicates(found), {"B44": ["CLAUDE.md", "docs/backend-rules.md"]})
-
-
-class EntryFiles(unittest.TestCase):
-    """A todo, debt or flow entry is one file, named by the one ID it defines."""
-
-    def test_an_entry_named_after_its_id_in_its_folder_passes(self):
-        found = {"docs/work/debt/DEBT-008.md": ["DEBT-008"], "docs/work/audits.md": [], "docs/lessons.md": ["TL-001", "TL-002"]}
-        self.assertEqual(homes.misnamed(found), [])
-
-    def test_a_name_that_disagrees_with_the_heading_is_reported(self):
-        found = {"docs/work/debt/DEBT-008.md": ["DEBT-009"], "docs/work/flow/FLOW-001.md": [], "docs/work/todo/TODO-002.md": ["TODO-002", "TODO-003"]}
-        self.assertEqual(
-            homes.misnamed(found),
-            [
-                "docs/work/debt/DEBT-008.md: defines DEBT-009, not the one ID DEBT-008 it is named after",
-                "docs/work/flow/FLOW-001.md: defines no ID, not the one ID FLOW-001 it is named after",
-                "docs/work/todo/TODO-002.md: defines TODO-002, TODO-003, not the one ID TODO-002 it is named after",
-            ],
-        )
-
-    def test_a_file_of_another_kind_or_another_name_is_reported(self):
-        found = {"docs/work/todo/DEBT-008.md": ["DEBT-008"], "docs/work/flow/notes.md": [], "docs/work/debt/DEBT-8.md": []}
-        self.assertEqual(
-            homes.misnamed(found),
-            [
-                "docs/work/debt/DEBT-8.md: an entry of debt/ is named DEBT-NNN.md",
-                "docs/work/flow/notes.md: an entry of flow/ is named FLOW-NNN.md",
-                "docs/work/todo/DEBT-008.md: an entry of todo/ is named TODO-NNN.md",
-            ],
-        )
 
 
 class DocMap(unittest.TestCase):
@@ -99,42 +66,6 @@ class DocMap(unittest.TestCase):
                 "docs/lessons.md: listed under Rules but not a *-rules.md",
             ],
         )
-
-
-class RequiredLines(unittest.TestCase):
-    """FLOW-048: an entry carries the lines of its kind, its size among them."""
-
-    DEBT = "# 2026-10-11 — DEBT-056 — A\n\n**Found by:** x\n\n**Where:** `src/`\n\n**Observation:** y\n\n**Size:** S\n\n**Waits on the owner:** no\n"
-    FLOW = "# FLOW-049 — A\n\n- Kind: quality\n- Size: M\n- Observed: x\n"
-    TODO = "# TODO-024 — A\n\n**Size:** L — why\n\n**User value:** x\n\n**Done when:** y\n\n**Design:** none\n\n**Open questions:** none\n"
-
-    def test_flow_048_a_complete_entry_of_each_kind_passes(self):
-        texts = {"docs/work/debt/DEBT-056.md": self.DEBT, "docs/work/flow/FLOW-049.md": self.FLOW, "docs/work/todo/TODO-024.md": self.TODO}
-        self.assertEqual(homes.incomplete(texts), [])
-
-    def test_flow_048_a_missing_line_is_named(self):
-        texts = {"docs/work/debt/DEBT-056.md": self.DEBT.replace("**Waits on the owner:** no\n", "")}
-        self.assertEqual(homes.incomplete(texts), ["docs/work/debt/DEBT-056.md: lacks `**Waits on the owner:**`"])
-
-    def test_flow_048_a_size_is_one_of_the_four(self):
-        texts = {
-            "docs/work/flow/FLOW-049.md": self.FLOW.replace("- Size: M", "- Size: big"),
-            "docs/work/todo/TODO-024.md": self.TODO.replace("**Size:** L — why", "**Size:**"),
-        }
-        self.assertEqual(
-            homes.incomplete(texts),
-            [
-                "docs/work/flow/FLOW-049.md: its size is not S, M, L or XL",
-                "docs/work/todo/TODO-024.md: its size is not S, M, L or XL",
-            ],
-        )
-
-    def test_flow_048_a_document_that_is_not_an_entry_owes_nothing(self):
-        self.assertEqual(homes.incomplete({"docs/work/audits.md": "# Audits\n", "docs/workflow.md": ""}), [])
-
-    def test_flow_048_every_entry_of_this_repository_is_complete(self):
-        texts = {f: (homes.ROOT / f).read_text(encoding="utf-8") for f in homes.tracked("docs/work")}
-        self.assertEqual(homes.incomplete(texts), [])
 
 
 class GuideCeilings(unittest.TestCase):

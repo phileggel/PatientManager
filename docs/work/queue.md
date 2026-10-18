@@ -1,9 +1,0 @@
-# Queue
-
-Owned by the human (`docs/workflow.md` § 2): the entries of one batch, in the order to
-work them. Written once per batch, in `/plan-queue`, as the human validated it; no pull
-request that ships an entry touches it; the audit's pull request empties the list and
-its notes. `just queue` says what has shipped.
-
-<!-- One reference per line, as a plain list: `- TODO-NNN`, `- DEBT-NNN`, `- FLOW-NNN`, -->
-<!-- or `- gh#NN` for a Dependabot pull request. -->

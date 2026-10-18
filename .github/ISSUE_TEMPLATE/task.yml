@@ -1,6 +1,6 @@
-name: Debt
-description: Something a user will not see — a refactor, a chore on the application, a gap a reviewer found
-labels: ["kind:debt"]
+name: Task
+description: Something a user will not see — a refactor, a chore, an enabler for a feature, a gap a reviewer found
+labels: ["task"]
 projects: ["phileggel/4"]
 body:
   - type: markdown

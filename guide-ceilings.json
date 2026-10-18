@@ -18,15 +18,15 @@
   ".claude/skills/adr-writer/SKILL.md": 166,
   ".claude/skills/contract/SKILL.md": 200,
   ".claude/skills/dep-audit/SKILL.md": 134,
-  ".claude/skills/design-proposal/SKILL.md": 64,
-  ".claude/skills/flow-audit/SKILL.md": 64,
-  ".claude/skills/plan-queue/SKILL.md": 97,
-  ".claude/skills/run-entry/SKILL.md": 131,
-  ".claude/skills/run-queue/SKILL.md": 66,
+  ".claude/skills/design-proposal/SKILL.md": 61,
+  ".claude/skills/flow-audit/SKILL.md": 74,
+  ".claude/skills/plan-batch/SKILL.md": 75,
+  ".claude/skills/run-batch/SKILL.md": 64,
+  ".claude/skills/run-entry/SKILL.md": 127,
   ".claude/skills/spec-writer/SKILL.md": 308,
   ".claude/skills/visual-proof/SKILL.md": 240,
   "CLAUDE.md": 69,
-  "docs/agentic-setup.md": 162,
+  "docs/agentic-setup.md": 150,
   "docs/backend-rules.md": 231,
   "docs/commit-rules.md": 79,
   "docs/e2e-rules.md": 156,
@@ -34,5 +34,5 @@
   "docs/i18n-rules.md": 35,
   "docs/test-rules.md": 305,
   "docs/visual-proof-rules.md": 254,
-  "docs/workflow.md": 495
+  "docs/workflow.md": 433
 }

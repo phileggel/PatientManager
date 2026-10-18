@@ -3,7 +3,7 @@
 
 Measures how work moved between two batch ends (releases or `batch/<date>` tags) — the pull requests merged, how long each
 took from opening to merging, the CI rounds and what failed, how long each workflow
-runs, how long the queue took, what each entry took beside its size, how many issues and Dependabot pull requests
+runs, how long the batch took, how many issues and Dependabot pull requests
 were open at its start and at its end — and prints them as one JSON document, beside the
 same figures for the batch before when asked. It also reads the repository itself:
 which tools the usage log saw and which it never did, the paths the documents name that
@@ -18,7 +18,7 @@ Usage:
 
 A release is named by its tag; its moment is when it was published on GitHub. A batch
 that ended without a release is named by its `batch/<date>` tag, dated by the tag. The skill
-turns the figures into the "Measured" section of `docs/work/audits.md`. This script has
+posts the figures on the batch's `batch-audit` issue. This script has
 no judgment — only counting.
 """
 
@@ -42,7 +42,7 @@ PULL_REQUEST_FIELDS = (
     "number,title,state,createdAt,mergedAt,closedAt,additions,headRefName,author"
 )
 ISSUE_FIELDS = "number,createdAt,closedAt"
-# The bot's login as `gh` and the API give it (scripts/work-queue.py reads it the same way).
+# The bot's login as `gh` and the API give it.
 DEPENDABOT_LOGINS = ("app/dependabot", "dependabot[bot]")
 RUN_FIELDS = (
     "workflowName,headBranch,headSha,conclusion,event,createdAt,startedAt,updatedAt"
@@ -63,7 +63,7 @@ GUIDES = (
     ".claude/rules/*.md",
 )
 # Records keep the paths of their day; every other document names paths that exist.
-RECORDS = ("CHANGELOG.md", "docs/work/", "docs/adr/", "docs/lessons.md")
+RECORDS = ("CHANGELOG.md", "docs/adr/", "docs/lessons.md")
 # A backticked token is read as a path only when it starts at the repository root.
 PATH_ROOTS = ("src/", "src-tauri/", "docs/", "scripts/", "e2e/", ".github/", ".claude/", ".githooks/")
 # The two halves of the usage log itself: they log the others and never themselves.
@@ -128,7 +128,7 @@ def measure_pull_requests(
         "median_minutes_to_merge": _rounded(statistics.median(minutes))
         if minutes
         else None,
-        # How long the queue took: from the first pull request opened to the last merged.
+        # How long the batch took: from the first pull request opened to the last merged.
         "minutes_first_opened_to_last_merged": _rounded(
             _minutes(
                 min(pr["createdAt"] for pr in merged),
@@ -237,65 +237,6 @@ def dependabot_pull_requests(pull_requests: list[dict]) -> list[dict]:
     ]
 
 
-def branch_entries(branch: str) -> list[str]:
-    """The entries a branch ships: its name carries their ids (`chore/flow-042-046-…` is two)."""
-    # The id leads the slug (`chore/flow-048-…`); a branch that files or amends an entry
-    # (`docs/file-flow-048-…`) is not work on it (FLOW-049).
-    match = re.match(r"[a-z]+/(todo|debt|flow)((?:-\d{3})+)(?!\d)", branch)
-    if not match:
-        return []
-    return [f"{match.group(1).upper()}-{number}" for number in match.group(2).split("-")[1:]]
-
-
-def size_of(entry_text: str) -> str | None:
-    """The size an entry states (`**Size:** M`, `- Size: M`), or None."""
-    match = re.search(r"^(?:\*\*Size:\*\*|- Size:)[ \t]*(XL|S|M|L)\b", entry_text, re.MULTILINE)
-    return match.group(1) if match else None
-
-
-def past_size(size: str | None, pull_requests: int) -> bool | None:
-    """Whether an entry took more pull requests than its size stands for; None when it cannot be judged."""
-    limit = {"S": 1, "M": 1, "L": 3}.get(size or "")
-    return None if limit is None else pull_requests > limit
-
-
-def measure_entries(
-    pull_requests: list[dict], runs: list[dict], since: datetime, until: datetime, size
-) -> list[dict]:
-    """For each entry a merged branch names: its pull requests and CI rounds, beside its size (FLOW-048)."""
-    merged: dict[str, set[str]] = {}
-    for pr in pull_requests:
-        if _within(pr.get("mergedAt"), since, until):
-            for entry in branch_entries(pr["headRefName"]):
-                merged.setdefault(entry, set()).add(pr["headRefName"])
-    rounds = {
-        (run["headBranch"], run["headSha"])
-        for run in runs
-        if run.get("event") == "pull_request"
-        and run.get("workflowName") == ROUND_WORKFLOW
-        and _within(run.get("createdAt"), since, until)
-    }
-    return [
-        {
-            "entry": entry,
-            "size": size(entry),
-            "pull_requests": len(branches),
-            "ci_rounds": sum(branch in branches for branch, _ in rounds),
-            "past_its_size": past_size(size(entry), len(branches)),
-        }
-        for entry, branches in sorted(merged.items())
-    ]
-
-
-def entry_size(entry: str) -> str | None:
-    """The size of an entry as last written: from its file, or from the commit before the one that deleted it."""
-    path = f"docs/work/{entry.split('-')[0].lower()}/{entry}.md"
-    if (ROOT / path).is_file():
-        return size_of((ROOT / path).read_text(encoding="utf-8"))
-    deleted = _git("log", "-1", "--format=%H", "--diff-filter=D", "--", path).strip()
-    return size_of(_git("show", f"{deleted}^:{path}")) if deleted else None
-
-
 def measure(
     pull_requests: list[dict], runs: list[dict], since: datetime, until: datetime, reruns: Sequence[dict] = ()
 ) -> dict:
@@ -346,7 +287,7 @@ def dangling_paths(texts: dict[str, str], exists) -> dict[str, list[str]]:
     """The paths each document names that are not in the repository.
 
     Only a backticked token that starts at the repository root is read as a path; a
-    pattern or a placeholder (`docs/spec/*.md`, `docs/work/todo/TODO-NNN.md`) is not one.
+    pattern or a placeholder (`docs/spec/*.md`, `docs/spec/TRI-NNN.md`) is not one.
     """
     found: dict[str, list[str]] = {}
     for document, text in sorted(texts.items()):
@@ -403,32 +344,6 @@ def known_tools() -> list[str]:
     return sorted({*scripts, *recipes})
 
 
-def measure_entry_files(name_status: str) -> dict:
-    """The entry files added (filed) and deleted (closed), from `git log --name-status` (FLOW-045)."""
-    filed: dict[str, int] = {}
-    closed: dict[str, int] = {}
-    for line in name_status.splitlines():
-        match = re.fullmatch(r"([AD])\tdocs/work/(todo|debt|flow)/[A-Z]+-\d{3}\.md", line)
-        if match:
-            counts = filed if match.group(1) == "A" else closed
-            counts[match.group(2)] = counts.get(match.group(2), 0) + 1
-    return {
-        "filed": sum(filed.values()),
-        "closed": sum(closed.values()),
-        "filed_by_kind": dict(sorted(filed.items())),
-        "closed_by_kind": dict(sorted(closed.items())),
-    }
-
-
-def entry_file_changes(now: str, since: datetime, until: datetime) -> str:
-    """The entry files added and deleted on `now`'s history between the two moments, as
-    `git log --name-status` prints them: the same window as the pull requests (FLOW-049)."""
-    return _git(
-        "log", now, f"--since={since.isoformat()}", f"--until={until.isoformat()}",
-        "--diff-filter=AD", "--name-status", "--format=", "--", "docs/work",
-    )
-
-
 def measure_repository(
     since: datetime, until: datetime, now: str, before: str
 ) -> dict:
@@ -445,7 +360,6 @@ def measure_repository(
         "usage": measure_usage(log_lines, since, until, known_tools()),
         "dangling_paths": dangling_paths(texts, lambda path: (ROOT / path).exists()),
         "guides": compare_lengths(guide_lengths(now), guide_lengths(before)),
-        "entries": measure_entry_files(entry_file_changes(now, since, until)),
     }
 
 
@@ -582,7 +496,6 @@ def main(argv: list[str] | None = None) -> int:
     earliest = batch_end_moment(args.previous) if args.previous else since
     reruns = collect_reruns(earliest)
     report = {"current": measure(pull_requests, runs, since, until, reruns)}
-    report["current"]["entries"] = measure_entries(pull_requests, runs, since, until, entry_size)
     report["current"]["open"] = {
         "issues": measure_open(issues, since, until),
         "dependabot_pull_requests": measure_open(

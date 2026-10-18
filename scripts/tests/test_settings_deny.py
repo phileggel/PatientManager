@@ -63,7 +63,6 @@ ALLOWED = [
     "gh pr create --title t --body-file b.md",
     "gh run rerun 123 --failed",
     "gh release edit v1.2.3 --draft=false --latest",
-    "python3 scripts/work-queue.py remaining",
     "python3 scripts/release-notes.py v1.2.3",
 ]
 
