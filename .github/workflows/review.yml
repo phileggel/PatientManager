@@ -191,7 +191,7 @@ jobs:
           fi
           # The session's settings and hooks are the base branch's too: the pinned
           # action loads the checked-out project's settings (setting sources user,
-          # project, local in base-action/src/parse-sdk-options.ts at v1.0.247) and
+          # project, local in base-action/src/parse-sdk-options.ts at v1.0.251) and
           # Claude Code runs the hooks they name, beside the subscription token. A
           # hook the pull request adds is removed; the log says what then differs.
           for path in .claude/settings.json .claude/hooks; do
@@ -218,7 +218,7 @@ jobs:
         # A first try that fails or writes nothing is tried once more below; the
         # last step fails the job when there is still no report.
         continue-on-error: true
-        uses: anthropics/claude-code-action@2dca132ff0e0c4094ce6048b422c6915a071210b  # v1.0.247
+        uses: anthropics/claude-code-action@374f254f5efaf968abfe15d399fd90972e8138b9  # v1.0.251
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # The workflow token is enough: the session gets no GitHub tool.
@@ -255,7 +255,7 @@ jobs:
         if: ${{ steps.gate.outputs.run == 'true' && steps.retry.outputs.needed == 'true' && !cancelled() }}
         # Like the first try: the last step decides, from the report.
         continue-on-error: true
-        uses: anthropics/claude-code-action@2dca132ff0e0c4094ce6048b422c6915a071210b  # v1.0.247
+        uses: anthropics/claude-code-action@374f254f5efaf968abfe15d399fd90972e8138b9  # v1.0.251
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # The workflow token is enough: the session gets no GitHub tool.

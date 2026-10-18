@@ -51,7 +51,7 @@ class TrustedHelpers(unittest.TestCase):
                 self.assertIn("scripts/usage_log.py", paths, "usage-log.sh runs it")
 
     def test_flow_052_the_session_settings_and_hooks_are_the_base_branch_s(self):
-        """The pinned action loads the checked-out project's settings and runs its hooks (v1.0.247,
+        """The pinned action loads the checked-out project's settings and runs its hooks (v1.0.251,
         base-action/src/parse-sdk-options.ts: setting sources user, project, local)."""
         workflow = (SCRIPT.parents[1] / ".github" / "workflows" / "review.yml").read_text(encoding="utf-8")
         restored = re.search(r'for path in ([^;\n]+); do\s*\n\s*rm -rf "\$path"', workflow)
