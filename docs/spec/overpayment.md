@@ -135,6 +135,8 @@ The backend rejects the request if no `bank_account_id` is provided.
 
 If any step fails, the entire operation rolls back.
 
+**REF-215 — Cancel confirmation outcome (frontend)**: While the cancellation runs, the confirmation dialog's buttons are disabled. When it succeeds, a success snackbar is shown, the dialog and the procedure modal close and the list reloads; when it fails, the dialog stays open and an error snackbar names the cause.
+
 **REF-220 — Deletion of Overpaid Source Procedure (backend)**: A source procedure with `Overpaid` status cannot be deleted directly. Its linked overpayment must be cancelled first (REF-210).
 
 **REF-230 — Deletion of Refund Procedure (backend)**: A refund procedure with `OverpaymentRefund` status cannot be deleted directly. Cancellation must be initiated via the procedure detail modal as described in REF-210.
@@ -201,7 +203,7 @@ A "Cancel Refund" button is available in the `EditProcedureModal` for:
 - **Loading (cancel)**: The confirmation dialog displays a loading spinner while the cancellation cascade runs.
 - **Loading (procedure type save)**: The save button is disabled and shows a spinner while the `procedure_type_id` update and REF-170 propagation are in progress.
 - **Error (create)**: Validation errors (REF-030, REF-040) are displayed inline; backend errors show a snackbar. The modal remains open.
-- **Error (cancel)**: If the cancellation fails, the confirmation dialog closes and a snackbar error is shown. No partial state is persisted (full rollback per REF-210).
+- **Error (cancel)**: If the cancellation fails, the confirmation dialog stays open and a snackbar error is shown (REF-215). No partial state is persisted (full rollback per REF-210).
 - **Error (procedure type save)**: A snackbar error is shown; the modal remains open with the previously entered value.
 - **Success (create)**: A success toast is shown and the modal closes.
 - **Success (cancel)**: A success toast is shown and the modal closes. The source procedure's status badge reverts.

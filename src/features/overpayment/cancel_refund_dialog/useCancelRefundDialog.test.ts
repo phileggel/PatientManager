@@ -40,7 +40,7 @@ describe("useCancelRefundDialog", () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it("shows error toast and does not call onSuccess when gateway returns failure", async () => {
+  it("REF-215: a failed cancel shows an error and keeps the dialog open", async () => {
     mockCancel.mockResolvedValue({
       success: false,
       error: { code: "RefundRecordNotFound" } as OverpaymentError,
@@ -55,6 +55,7 @@ describe("useCancelRefundDialog", () => {
     });
 
     expect(onSuccess).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
     expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
     expect(result.current.loading).toBe(false);
   });

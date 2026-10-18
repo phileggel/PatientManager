@@ -4,7 +4,9 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::context::bank::{BankEntryLinkRepository, BankEntryService, BankEntryType, BankError};
+use crate::context::bank::{
+    BankEntry, BankEntryLinkRepository, BankEntryService, BankEntryType, BankError,
+};
 use crate::context::fund::{
     FundError, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentService,
 };
@@ -394,6 +396,38 @@ impl BankManualMatchOrchestrator {
         })
     }
 
+    /// A direct payment the patient made: a check, card or cash transfer
+    /// linked to no fund payment group. A fund's wire is not one, nor is a
+    /// refund's transfer (REF-110, linked to its refund group, REF-120), which
+    /// only the refund's cancellation removes (REF-210).
+    async fn read_direct_transfer(
+        &self,
+        transfer_id: &str,
+    ) -> Result<BankEntry, BankManualMatchError> {
+        let transfer = self
+            .bank_transfer_service
+            .read_transfer(transfer_id)
+            .await?
+            .ok_or_else(|| BankError::TransferNotFound {
+                bank_transfer_id: transfer_id.to_string(),
+            })?;
+        if !transfer.transfer_type.is_patient_payment() {
+            return Err(BankManualMatchTask::WrongTransferType.into());
+        }
+        let fund_groups = self
+            .transfer_link_repo
+            .get_fund_group_ids(transfer_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "read_direct_transfer: get_fund_group_ids failed");
+                BankError::DatabaseError
+            })?;
+        if !fund_groups.is_empty() {
+            return Err(BankManualMatchTask::WrongTransferType.into());
+        }
+        Ok(transfer)
+    }
+
     /// R17 — Update a direct transfer: change date and/or procedures.
     pub async fn update_direct_transfer(
         &self,
@@ -401,17 +435,8 @@ impl BankManualMatchOrchestrator {
         new_transfer_date: String,
         new_procedure_ids: Vec<String>,
     ) -> Result<BankManualMatchResult, BankManualMatchError> {
-        // R4 — Immutable type guard: must not be a FUND transfer (checked before any mutation).
-        let transfer = self
-            .bank_transfer_service
-            .read_transfer(&transfer_id)
-            .await?
-            .ok_or_else(|| BankError::TransferNotFound {
-                bank_transfer_id: transfer_id.clone(),
-            })?;
-        if transfer.transfer_type == BankEntryType::FundWire {
-            return Err(BankManualMatchTask::WrongTransferType.into());
-        }
+        // R4 — Immutable type guard (checked before any mutation).
+        let transfer = self.read_direct_transfer(&transfer_id).await?;
 
         // Revert old procedures
         let old_procedure_ids = self
@@ -471,18 +496,8 @@ impl BankManualMatchOrchestrator {
         &self,
         transfer_id: String,
     ) -> Result<(), BankManualMatchError> {
-        // R4 — Immutable type guard (guard only — transfer not reused after this check).
-        let transfer_type = self
-            .bank_transfer_service
-            .read_transfer(&transfer_id)
-            .await?
-            .ok_or_else(|| BankError::TransferNotFound {
-                bank_transfer_id: transfer_id.clone(),
-            })?
-            .transfer_type;
-        if transfer_type == BankEntryType::FundWire {
-            return Err(BankManualMatchTask::WrongTransferType.into());
-        }
+        // R4 — Immutable type guard (checked before any mutation).
+        self.read_direct_transfer(&transfer_id).await?;
 
         let procedure_ids = self
             .transfer_link_repo

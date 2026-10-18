@@ -15,9 +15,11 @@ use crate::context::procedure::ProcedureError;
 #[derive(Debug, Clone, Error, Serialize, Type)]
 #[serde(tag = "code")]
 pub enum BankManualMatchTask {
-    /// R4 — the targeted transfer's type does not match the command: a FUND
-    /// transfer was passed to a direct-payment operation, or a direct transfer
-    /// to a FUND operation. The matching-typed command must be used instead.
+    /// R4 — the targeted transfer does not fit the command: a FUND transfer
+    /// passed to a direct-payment operation, a direct transfer to a FUND
+    /// operation, or a refund's transfer (REF-110, linked to its refund group)
+    /// to a direct-payment operation, which only the refund's cancellation
+    /// removes (REF-210). The matching command must be used instead.
     #[error("Transfer type does not match the requested operation")]
     WrongTransferType,
 }

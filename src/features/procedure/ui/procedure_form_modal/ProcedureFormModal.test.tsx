@@ -421,3 +421,59 @@ describe("ProcedureFormModal — view mode saves a changed procedure type (DEBT-
     expect(screen.getByRole("button", { name: "Update" })).toBeInTheDocument();
   });
 });
+
+// #391 (REF-190): an Overpaid procedure's partial edit follows PRO-121 and PRO-122.
+describe("ProcedureFormModal — overpaid mode (REF-190)", () => {
+  const OVERPAID: Procedure = { ...MOCK_PROCEDURE, payment_status: "OVERPAID" };
+
+  function renderOverpaid(onClose = vi.fn(), onSuccess = vi.fn()) {
+    render(
+      <ProcedureFormModal
+        mode="overpaid"
+        procedure={OVERPAID}
+        isOpen
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    );
+    return { onClose, onSuccess };
+  }
+
+  it("PRO-121: an unchanged type closes the modal with no snackbar", async () => {
+    vi.mocked(procedureGateway.updateProcedure).mockResolvedValue({
+      success: true,
+      data: { outcome: "Unchanged" },
+    });
+    const { onClose, onSuccess } = renderOverpaid();
+
+    await userEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(toastService.show).not.toHaveBeenCalledWith("success", expect.anything());
+  });
+
+  it("PRO-122: an empty type refused by the backend shows its message under the field", async () => {
+    vi.mocked(procedureGateway.updateProcedure).mockResolvedValue({
+      success: false,
+      error: { code: "ProcedureInvalid", reasons: ["ProcedureTypeIdEmpty"] },
+    });
+    const { onClose } = renderOverpaid();
+
+    await userEvent.click(screen.getByRole("button", { name: "Update" }));
+
+    expect(await screen.findByText("Choose a procedure type.")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("REF-190: every field but the type is read-only; Cancel Refund, no Delete", () => {
+    renderOverpaid();
+
+    expect(screen.getByLabelText("Patient")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Procedure Date")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Amount")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Procedure Type")).not.toHaveAttribute("readonly");
+    expect(screen.getByRole("button", { name: "Cancel Refund" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  });
+});

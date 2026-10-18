@@ -24,6 +24,16 @@ pub enum BankEntryType {
 }
 
 impl BankEntryType {
+    /// A payment the patient made directly (check, card, cash): what the
+    /// direct-transfer commands handle. A fund's wire and a refund's wire
+    /// (REF-110, removed only by REF-210) are not.
+    pub fn is_patient_payment(self) -> bool {
+        matches!(
+            self,
+            Self::PatientCheck | Self::PatientCreditCard | Self::PatientCash
+        )
+    }
+
     /// REF-080 — Reject `FundOutgoingWire`: it is exclusively created via the
     /// overpayment refund flow and must not be created through any other code
     /// path. All other variants (including `FundWire`) are accepted.
@@ -199,6 +209,19 @@ mod tests {
             serde_json::to_string(&BankEntryType::FundWire).unwrap(),
             r#""FUND_WIRE""#
         );
+    }
+
+    #[test]
+    fn test_is_patient_payment_holds_for_check_card_and_cash_only() {
+        for (ty, expected) in [
+            (BankEntryType::FundWire, false),
+            (BankEntryType::PatientCheck, true),
+            (BankEntryType::PatientCreditCard, true),
+            (BankEntryType::PatientCash, true),
+            (BankEntryType::FundOutgoingWire, false),
+        ] {
+            assert_eq!(ty.is_patient_payment(), expected, "{ty:?}");
+        }
     }
 
     #[test]
