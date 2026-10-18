@@ -23,4 +23,6 @@
 
 **Cut from the batch after 0.24.5 (owner, 2026-10-17):** reading the code showed the form-validator slice is an L, not an M. To answer every refusal at once (`docs/error-model.md`), `FundPaymentGroup::validate` and `BankEntry::validate` gather their reasons into `FundPaymentGroupInvalid { reasons }` and `BankEntryInvalid { reasons }`; that changes the error codes of every command that creates a group or a bank entry, the automatic matching paths included, so the fund and bank contracts change (`/contract`, the owner's approval), then the two gateways, the two hooks and their tests, and the two TypeScript files go. Two or three pull requests. FPM-200 and R3 of the bank manual-match spec already say "frontend + backend".
 
+**Slices (owner, 2026-10-18):** the form-validator slice ships as TODO-027 (`validateBankTransfer.ts`) and TODO-028 (`validatePayment.ts`).
+
 **Linked (owner, 2026-10-18):** the form-validator slice is one story with TODO-024 (the backend is the only judge of a form; the screen shows each refusal at its field) and TODO-018 (the procedure's refusals); planning slices them together.
