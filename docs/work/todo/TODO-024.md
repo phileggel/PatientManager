@@ -6,11 +6,13 @@ Filed from `reviewer-frontend`'s release sweep of 2026-10-17 (the procedure view
 
 **User value:** in any form, the user presses Save and is told, under each field, what is missing; an edit with nothing changed says so instead of saving nothing.
 
-**Done when:** (draft) a rule in `docs/frontend-rules.md` states it; every form's Submit is enabled while it is not saving; a click with a required field empty shows the red message under that field and sends nothing; an edit with nothing changed shows a message and sends nothing; the procedure form meets PRO-120 as written; each form has a Vitest test of the click on missing fields; screenshots.
+**Decided (owner, 2026-10-18):** the backend is the only judge. The screen does not validate: Submit sends the form; the command checks every field and answers all its refusals at once, each tied to its field (`docs/error-model.md`); the screen shows each in red under its field, and clears a message once its field is edited (display only). An edit with nothing changed is decided by the backend too: the update command compares what it receives with the stored row, writes nothing and answers "unchanged"; the screen closes the dialog. One story with DEBT-043 (the form validators moving to Rust) and TODO-018 (the procedure's refusals): the backend refuses, the screen shows the reason at the field.
+
+**Done when:** (draft) a rule in `docs/frontend-rules.md` states it; every form's Submit is enabled while it is not saving; a submit with a required field empty is refused by the command with that field's reason, shown in red under the field, nothing written; an edit with nothing changed is answered "unchanged" by the command, nothing written, the dialog closed; PRO-120 and PRO-250 (the update now compares) and the contracts carry it; Rust tests per refusal and for "unchanged", a Vitest test per form of the field messages; screenshots.
 
 **Design:** needed — the messages and the "nothing changed" answer, mocked for each form before anything is built.
 
 **Open questions:**
 
 - [ ] The size and the first slice, at `/plan-queue`.
-- [ ] Where "nothing changed" is said: under the form, or as a snackbar?
+- [x] Where "nothing changed" is said: nowhere — the backend answers "unchanged" and the dialog closes (owner, 2026-10-18).

@@ -10,6 +10,8 @@ Second entry split from TODO-006. Orchestrators mutate the fields of `Procedure`
 
 **Design:** none
 
+**Linked (owner, 2026-10-18):** one story with TODO-024 (the backend is the only judge of a form; the screen shows each refusal at its field) and DEBT-043's form validators; planning slices them together.
+
 **Open questions:**
 
 - [ ] Which transition is refused from which status, and what the user reads for each — the `/spec-writer` interview, before the work.
