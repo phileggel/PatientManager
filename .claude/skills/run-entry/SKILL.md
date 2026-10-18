@@ -98,8 +98,8 @@ and names what a user notices.
   with the test that proves it and where it was seen red (or why it could not be),
   findings that changed something, techdebt filed, screenshots.
 - `just watch-pr` in the background: exit 0 is green; `scripts/watch-pr.py` lists the others.
-- A red reviewer lane: read its newest comment, grade, apply, push. A CI finding the
-  local run missed also becomes a rule in that reviewer's prompt, same PR.
+- A red reviewer lane: read its newest comment; grade, apply and re-read locally as
+  `docs/workflow.md` § 7 says; push.
 - Exit 6, a lane stopped by the CI account's usage limit: nothing to fix. Wait for the
   reset time it prints (a scheduled wake-up in chat, a sleep headless), outside Rule 4;
   re-run that job (`just rerun-failed <the run id of the printed URL>`) and watch again.

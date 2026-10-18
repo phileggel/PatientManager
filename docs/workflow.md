@@ -290,14 +290,14 @@ answer before pushing.
 ## 7. Reviewers and the triage policy
 
 Before the PR, run exactly the lanes
-`bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints — none for a change
-to documents that are not guides — and again on the fixes until no 🔴 remains. CI runs
-the same lanes on every push as the last net, with the prompts taken from `main`. A local reviewer is given the branch, the
-spec and the vocabulary, never a description of the change: a brief that explains the
-change steers the read, and CI then finds what the same lane missed. Criticals that only
-CI found are counted at the audit (§ 12). Also: `spec-reviewer` / `contract-reviewer` /
-`adr-reviewer` when those documents change, `spec-checker` before closing an entry that
-carries spec rules. The guides (§ 5) have a lane of their own, `reviewer-guides`.
+`bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for documents
+that are not guides), and again on every fix, a warning's included, before its push, until
+no 🔴 remains; one push per fix. After a CI 🔴, the local lane re-reads each changed file
+whole, not the delta, and is asked for every 🔴 at once. CI runs the same lanes on every
+push, prompts from `main`. A local reviewer gets the branch, the spec and the vocabulary,
+never a description of the change. Also: `spec-reviewer` / `contract-reviewer` /
+`adr-reviewer` when those documents change, `spec-checker` before closing an entry with
+spec rules; `reviewer-guides` for the guides (§ 5).
 
 Every finding, local or from CI, is graded before any is applied; one line per finding that
 changed something or was rejected goes in the PR body, or in a PR comment once pushed:
