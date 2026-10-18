@@ -6,37 +6,18 @@ tools: Bash, Read, WebSearch
 
 # Skill — `dep-audit`
 
-Audit npm and Cargo dependencies for outdated versions and known CVEs.
-Uses **live web search** to verify real-world versions — never relies on model knowledge alone.
+Outdated versions and known CVEs in `package.json` and `src-tauri/Cargo.toml`. A version is
+never called latest or outdated from model knowledge, which may be months behind: each one
+reported is checked with WebSearch and cited with its source URL. The skill never upgrades.
 
----
+## 1. Read and run
 
-## Placement rules (applies always, no tools needed)
-
-| Finding                              | Rule                                                                                            |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| Build-time package in `dependencies` | 🟡 Move to `devDependencies` (bundlers, linters, type checkers, test runners, type definitions) |
-| Runtime package in `devDependencies` | 🟡 Move to `dependencies` (UI libs, state managers, utilities imported in `src/`)               |
-| Test-only crate in `[dependencies]`  | 🟡 Move to `[dev-dependencies]`                                                                 |
-| Two packages serving the same role   | 🟡 Keep one, remove the other                                                                   |
-
----
-
-## Execution Steps
-
-### 1. Read declared dependencies
-
-Read `package.json`. Locate `Cargo.toml` by reading `ARCHITECTURE.md` or by searching for `Cargo.toml` in the project root and one level of subdirectories; skip Cargo checks if not found. Extract all declared packages and their version ranges.
-
-### 2. Get current toolchain version
+The declared packages and ranges of both files, then each command on its own — a non-zero
+exit is information (a missing tool, or findings), never a stop:
 
 ```bash
 rustc --version
 ```
-
-### 3. Run local audit tools
-
-Run the following — failures are expected if tools are not installed and must appear in the report under "Tool availability":
 
 ```bash
 npm outdated 2>/dev/null
@@ -54,46 +35,38 @@ cargo outdated 2>/dev/null
 cargo audit 2>/dev/null
 ```
 
-Non-zero exit is expected when tools are missing or issues are found — treat the output as informational and continue. If a command produces no output and exits non-zero, note the tool as unavailable in the report.
+A tool with no output and a non-zero exit is not installed: report it
+(`⚠️ {tool} not installed — install with: cargo install {tool}`), never skip it silently.
 
-If `cargo-outdated` or `cargo-audit` are missing, flag them in the report: `⚠️ {tool} not installed — install with: cargo install {tool}`
+## 2. Verify on the web
 
-### 4. Web-verify all reported issues
+Every package flagged, and always: Rust stable (`rust stable release latest
+site:blog.rust-lang.org`), Tauri (`tauri-apps tauri latest release github`), npm
+(`{package} npm latest version`, npmjs.com), crates (`{crate} crates.io latest version`),
+CVEs (`{package} security advisory CVE`, osv.dev).
 
-**CRITICAL**: Never report a version as "latest" or "outdated" based solely on model knowledge — it may be months out of date. For every package flagged as outdated, use WebSearch to confirm the actual current version and cite the source URL.
+## 3. Classify
 
-Always verify:
+- 🔴 **CVE** — `npm audit` severity `moderate`, `high` or `critical`; any `cargo audit` advisory.
+- 🟡 **Major drift** — the latest major above the current one (v5 in use, v6 out).
+- 🟡 **Misplaced** — a build-time package (bundler, linter, type checker, test runner, types)
+  in `dependencies`, a runtime one (imported in `src/`) in `devDependencies`, a test-only
+  crate in `[dependencies]`, two packages in one role. Reported even when current:
+  placement changes the production bundle.
+- 🔵 **Minor drift** — the latest minor above the current one, same major.
 
-- **Rust stable**: search `rust stable release latest site:blog.rust-lang.org`
-- **Tauri**: search `tauri-apps tauri latest release github`
-- **npm packages**: search `{package} npm latest version` or check npmjs.com
-- **Cargo crates**: search `{crate} crates.io latest version`
-- **CVEs**: search `{package} security advisory CVE 2025` or check osv.dev
+What a 🔴 CVE becomes is `docs/workflow.md` § 3's call. The report gives its evidence:
+whether the application reaches the vulnerable code, read in the code (calamine never
+calls `zip`'s `extract`).
 
-### 5. Classify findings
-
-| Severity       | Criteria                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------------- |
-| 🔴 CVE         | `npm audit`: severity `moderate`/`high`/`critical`. `cargo audit`: any advisory. See below. |
-| 🟡 Major drift | Latest major > current major (e.g. v5 in use, v6 available)                                 |
-| 🟡 Misplaced   | See placement rules above                                                                   |
-| 🔵 Minor drift | Latest minor > current minor within same major                                              |
-
-**What a 🔴 CVE becomes** is `docs/workflow.md` § 3's call. The
-report gives its evidence: whether the application reaches the vulnerable code, read in the
-code (DEBT-067: calamine never calls `zip`'s `extract`). The skill never upgrades.
-
-### 6. Report
-
-Get today's date (`date +%Y-%m-%d`) for the report heading.
+## 4. Report
 
 ```
-## Dependency Audit — {date}
+## Dependency Audit — {date +%Y-%m-%d}
 
 ### Tool availability
-⚠️ cargo-outdated not installed — install with: cargo install cargo-outdated
 ⚠️ cargo-audit not installed — install with: cargo install cargo-audit
-(omit this section if all tools are available)
+(omit when every tool is there)
 
 ### npm (`package.json`)
 🔴 CVE: {package} {version} — {severity} — {advisory ID} — {description}
@@ -102,14 +75,14 @@ Get today's date (`date +%Y-%m-%d`) for the report heading.
 🟡 Misplaced: {package} in {wrong-section} — should be in {correct-section}
 🔵 Minor drift: {package} {current} → {latest} (source: {url})
 
-### Cargo (`Cargo.toml`)
+### Cargo (`src-tauri/Cargo.toml`)
 🔴 CVE: {crate} {version} — {advisory} — {description} — reached by the application: yes / no
 🟡 Major drift: {crate} {current} → {latest} (source: {url})
 🔵 Minor drift: {crate} {current} → {latest} (source: {url})
 
 ### Rust toolchain
-Installed: {output of rustc --version}
-Stable:    {version from web — cite source URL}
+Installed: {rustc --version}
+Stable:    {version from the web — source URL}
 Status: ✅ up to date / 🟡 behind (update with: rustup update stable)
 
 ### Summary
@@ -118,16 +91,4 @@ Status: ✅ up to date / 🟡 behind (update with: rustup update stable)
 🔵 {N} minor drift(s)
 ```
 
-If all clean: `✅ All dependencies up to date and no known CVEs.`
-
----
-
-## Critical Rules
-
-1. **Always use WebSearch to verify versions** — never report stale model knowledge as fact
-2. **Always cite the source URL** next to any version number you report
-3. What a 🔴 CVE becomes is `docs/workflow.md` § 3's call; the report gives whether it is reached
-4. Missing tools (`cargo-audit`, `cargo-outdated`) must be flagged in the report, not silently skipped
-5. Report `misplaced` deps even if versions are current — placement affects production bundle size
-
----
+All clean: `✅ All dependencies up to date and no known CVEs.`

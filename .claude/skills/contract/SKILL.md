@@ -7,138 +7,67 @@ model: opus
 
 # Skill — `contract`
 
-Produce or update a domain contract from a validated feature spec. The contract normalizes the backend ↔ frontend interface for a bounded context — commands, shared types, and error variants — so both sides can implement against the same shape.
+The contract normalises the backend ↔ frontend interface of one bounded context — commands,
+shared types, error variants — so both sides implement the same shape. It writes nothing
+when it aborts: it reports `❌ Aborted — {reason}.`
 
----
+## 1. Load the spec
 
-## Output format
+The spec path given, or ask (listing `docs/spec/`). Read it in full.
 
-Produces:
+## 2. Identify the domain
 
-- `docs/contracts/{domain}-contract.md` — the domain contract file (created if missing; patched in place if existing, per step 5)
-- A `## Changelog` entry appended inside that file (step 6)
+From the spec's `## Context`: the **bounded context (aggregate root)**, the
+`context/{domain}/` service that owns the commands — never a use-case folder, a frontend
+feature, a page or a UI concern. Commands from `use_cases/` belong to the contract of the
+aggregate they mainly mutate; a gateway calling several contracts is expected. Not
+inferable: ask which bounded context (`user`, `payment` — a `context/` folder).
 
-If no frontend-callable commands are derived (step 3 — frontend-only or backend-internal-only feature), a duplicate command is detected across contracts (step 4), or the user rejects the diff (step 5), do not write or modify any file. Report `❌ Aborted — {reason}.` and exit.
+## 3. Derive
 
----
+**Commands** — one per **frontend-callable** backend operation, each backed by a spec rule:
+an action triggered from the UI. Internal-only logic (background jobs, startup tasks,
+schedulers, system monitors) has no caller and is no command. A rule unclear on who
+triggers it ("reconciled on demand"): ask with **AskUserQuestion** — never classify a
+borderline rule internal silently; an omission is harder to recover than an extra command.
+For each: `command` (`snake_case`, the rule's operation), `args` and `return` (from the
+Entity Definition), `errors` — every failure the rule describes, as named variants
+(`NotFound`, `AlreadyExists`, `InvalidStatus`); a catch-all (`DbError`, `InternalError`,
+`Unknown`) only beside them, never alone.
 
-## Execution Steps
+**Shared types** — each struct in args or returns: `snake_case` fields, `PascalCase` names,
+business meaning only (no storage types, `Option<>` or derives).
 
-### 1. Load spec
+**Events** — those state-transition rules imply.
 
-Ask for the spec path if not provided. Read `docs/spec/{feature}.md` in full.
+No frontend-callable command (a frontend-only spec, or only internal backend rules):
+`❌ Aborted — no frontend ↔ backend interface to normalize, no contract needed.`
 
-If no spec path is given, list files in `docs/spec/` and ask the user which spec to use.
+## 4. No command in two contracts
 
----
+Read every other `docs/contracts/*-contract.md`. A command name already in one: stop —
+`Command {name} already exists in docs/contracts/{other}-contract.md. Each command belongs
+to exactly one backend boundary.`
 
-### 2. Identify domain
+## 5. Write, after a yes
 
-Extract the domain name from the spec's `## Context` section. The domain must name a
-**bounded context (aggregate root)** — the `context/{domain}/` service that owns these
-commands. Use-case folders (`use_cases/{domain}/`) are implementation details; their commands
-belong in the aggregate contract they primarily mutate. The domain must NOT be named after a
-frontend feature, page, or UI concern.
+- **New**: compose the contract (format below), show it, ask "Does this look correct?",
+  write it on approval. A no aborts.
+- **Existing**: show the diff (new, modified — `get_user`: adding `NotFound` — and
+  unchanged commands), ask, then patch — append the new commands, update the changed rows,
+  never remove one silently.
 
-If it cannot be inferred, ask the user: "Which bounded context (aggregate) does this feature
-belong to? (e.g. `user`, `portfolio`, `payment` — must match a `context/` folder)"
+Then append to `## Changelog`: `- {YYYY-MM-DD} — Added by {feature} spec: {commands}`.
 
----
-
-### 3. Extract contract data from spec
-
-From the spec, derive:
-
-**Commands** — one per **frontend-callable** backend operation. A rule describes a frontend-callable operation if it specifies an action triggered from the UI or an external caller. Internal-only logic (background jobs, startup tasks, scheduled workers, system monitors) is **not** a command — it has no frontend caller and no interface to normalize, so it does not appear in the contract.
-
-If a backend rule is ambiguous about who triggers it (e.g., "transactions are reconciled on demand" — UI-triggered or system-internal?), use **AskUserQuestion** to ask before deciding. Never silently classify a borderline rule as internal-only — the omission is harder to recover from than a false-positive command.
-
-For each command identify:
-
-- `command`: `snake_case` name matching the spec rule's operation
-- `args`: struct name and fields from the Entity Definition section
-- `return`: the entity or value the command returns (from Entity Definition)
-- `errors`: every failure condition described in the spec rule
-
-**Shared Types** — every entity struct involved in args or return values. Use Rust field naming
-(`snake_case` fields, `PascalCase` struct names). Describe business meaning only — no storage
-types, no `Option<>`, no derives. Those are implementation details.
-
-**Events** — any named events implied by state-transition rules.
-
-If no frontend-callable commands are derived — either because the spec is frontend-only (no `backend` rules) or because all backend rules describe internal-only logic (no frontend caller) — the feature has no backend ↔ frontend interface to normalize. Stop and report:
+## 6. Hand off
 
 ```
-❌ Aborted — no frontend ↔ backend interface to normalize, no contract needed.
+✅ Contract written — docs/contracts/{domain}-contract.md   (Updated, for a patch)
+   Commands: {the new or modified ones}
+   Next: run `contract-reviewer`, then implement.
 ```
 
-Skip steps 4–7. The user can re-run `/contract` later if frontend-callable backend operations are added to the spec.
-
----
-
-### 4. Check for cross-contract command duplication
-
-Before writing anything, glob all existing contracts and scan for command name conflicts:
-
-- Run `Glob docs/contracts/*-contract.md` to collect every existing contract.
-- For each contract found (excluding `{domain}-contract.md` itself), read it and collect its command names.
-- If any command you are about to write already exists in another contract, **stop and report**:
-  ```
-  Command `{name}` already exists in docs/contracts/{other}-contract.md.
-  Each command must belong to exactly one backend boundary. Resolve the overlap before proceeding.
-  ```
-- Do not write the contract until all conflicts are resolved.
-
-### 5. Check for existing contract
-
-Run `Glob docs/contracts/{domain}-contract.md`.
-
-**If the file does not exist:**
-
-- Compose the full contract (see format below)
-- Show it to the user and ask: "Does this contract look correct? Any changes before I create it?"
-- On approval, write `docs/contracts/{domain}-contract.md`
-
-**If the file already exists:**
-
-- Read the current content
-- Identify what is new (commands not yet present) and what would be modified (changed args/return/errors)
-- Present the diff to the user:
-  ```
-  New commands:    create_user, update_user
-  Modified:        get_user — adding NotFound error variant
-  Unchanged:       delete_user
-  ```
-- Ask: "Does this look correct? Any changes before I update the contract?"
-- On approval, patch the file — append new commands, update modified rows, never remove existing commands silently
-
----
-
-### 6. Write changelog entry
-
-After writing or patching, append to the `## Changelog` section:
-
-```
-- {YYYY-MM-DD} — Added by `{feature-name}` spec: {comma-separated list of new/modified commands}
-```
-
----
-
-### 7. Confirm and hand off
-
-Report using this shape:
-
-```
-✅ Contract written — docs/contracts/{domain}-contract.md
-   Commands: create_user, update_user, delete_user
-   Next: run `contract-reviewer` to validate, then implement.
-```
-
-For an upsert (existing contract patched), prefix `Updated` instead of `Written` and list only the new/modified commands.
-
----
-
-## Contract file format
+## Contract format
 
 ```markdown
 # Contract — {Domain}
@@ -171,30 +100,3 @@ field_name: FieldType,
 
 - {YYYY-MM-DD} — Added by `{spec-name}`: {command list}
 ```
-
----
-
-## Critical Rules
-
-1. Never silently overwrite existing commands — always diff and confirm with the user first
-2. **One contract = one bounded context (aggregate root).** The domain must name a
-   `context/{domain}/` bounded context, not a use case or module folder. Commands from
-   `use_cases/` that primarily mutate one aggregate belong in that aggregate's contract. A
-   frontend gateway may call commands from multiple contracts — that is expected. What is
-   forbidden is the same command appearing in two contracts.
-3. **No cross-contract command duplication.** If a command name already exists in another contract,
-   stop and report before writing — do not proceed until the overlap is resolved.
-4. **Features with no frontend ↔ backend interface get no contract.** The contract normalizes
-   a frontend ↔ backend interface; a feature with no frontend-callable backend operations has
-   nothing to normalize. This covers both frontend-only features (no backend rules) and
-   backend-internal-only features (cron jobs, startup tasks, schedulers — backend rules with no
-   frontend caller). Step 3 detects this and exits without writing a file.
-5. Types use Rust naming conventions: `snake_case` fields, `PascalCase` structs
-6. **Errors must be exhaustive.** Every failure path described in a spec rule must appear as a
-   named error variant. A command whose only error variant is a generic catch-all
-   (`DbError`, `InternalError`, `Unknown`) is **rejected** — name the specific failure modes
-   from the spec (e.g., `NotFound`, `AlreadyExists`, `InvalidStatus`). Catch-all variants are
-   acceptable only as a final fallback **alongside** named variants, never alone.
-7. Do not invent commands not backed by a spec rule — traceability is mandatory
-8. If the `docs/contracts/` directory does not exist, create it before writing
-9. This skill produces the contract shape — `contract-reviewer` validates correctness

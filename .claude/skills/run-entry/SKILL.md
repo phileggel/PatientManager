@@ -57,10 +57,8 @@ If the task changes anything the user sees and `Design` is not `validated`: run
 ## Step 3 — Acceptance first
 
 - Read the convention docs the layers require (CLAUDE.md § Where things are).
-- Every Done-when clause becomes a failing test: Rust for logic, Vitest for rendering,
-  E2E for what a user does. Test names carry the issue number or the spec rule; a new business
-  rule goes into `docs/spec/<feature>.md`, a changed command into the domain contract,
-  in the same commit.
+- Every Done-when clause becomes a failing test (`docs/workflow.md` § 3, step 3); a new
+  business rule goes into the spec, a changed command into the contract, same commit.
 - A fault met in production: ask for the input that shows it before designing a fix,
   and reproduce it in a failing test first (`docs/workflow.md` § 3).
 - Run the suites; confirm the new tests are red. A clause that cannot become a test is
@@ -86,15 +84,11 @@ Run the lanes again on the fixes until no 🔴 remains.
 
 ## Step 7 — Evidence and commit
 
-`/visual-proof` for every changed `.tsx` / `.css`. One commit, title only:
-conventional, at most 72 characters; for `feat` / `fix` the title is the changelog line
-and names what a user notices.
+`/visual-proof` for every changed `.tsx` / `.css`. One commit (`docs/commit-rules.md`).
 
 ## Step 8 — Pull request and merge
 
-- Push, `gh pr create --body-file`. Body under 20 lines: `Closes #123`, the task, each Done-when clause
-  with the test that proves it and where it was seen red (or why it could not be),
-  findings that changed something, issues filed, screenshots.
+- Push, `gh pr create --body-file`: the body of `docs/workflow.md` § 3, step 8.
 - `just watch-pr` in the background: exit 0 is green; `scripts/watch-pr.py` lists the others.
 - A red reviewer lane: read its newest comment; grade, apply and re-read locally as
   `docs/workflow.md` § 7 says; push.
@@ -107,8 +101,8 @@ and names what a user notices.
   § 8). Fix with `git commit --fixup <sha>` (never a new titled commit, never a
   force-push), push, watch again. The same gate red three times: open question, leave
   the PR open, stop.
-- All green: every lane's newest comment, green or not, graded in a PR comment (`docs/workflow.md` § 3, step 9);
-  `just merge` folds the fixups.
+- All green: every lane's newest comment, green or not, graded in a PR comment
+  (`docs/workflow.md` § 3, step 9); `just merge` folds the fixups.
 
 ## Step 9 — Closure
 
@@ -116,8 +110,8 @@ In the same PR, before the merge. If the branch touched a file under `docs/spec/
 issue names spec rules: launch `spec-checker` on each such spec now, and fix what it
 reports. File what the task met and did not fix as issues (`docs/workflow.md` § 2,
 headless too), never left in chat. A task issue the work resolved is named in the body
-(`Closes #NN`) too; `ARCHITECTURE.md` if a module appeared. Then the closing brief: what changed for the user (or "nothing — internal"), what the project
-gained (tests, coverage), the PR number.
+(`Closes #NN`) too; `ARCHITECTURE.md` if a module appeared. Then the closing brief
+(`CLAUDE.md`), with the PR number.
 
 ## Rules
 

@@ -7,68 +7,33 @@ model: opus
 
 # Skill — `adr-writer`
 
-Produce or supersede an ADR — `docs/adr/{NNN}-{slug}.md` — and keep `docs/adr/README.md` in sync. The ADR captures the _why_ behind a structural choice that the spec cannot carry alone.
-
----
-
-## Output format
-
-On success, produces:
-
-- `docs/adr/{NNN}-{slug}.md` — the new (or superseded) ADR
-- `docs/adr/README.md` — index updated; on supersede, both the new and the superseded rows are patched
-- On supersede, the prior ADR's `Status` line is rewritten to `Superseded by ADR-{NEW}` (file otherwise untouched)
-
-Reports the produced paths and the assigned ADR number to the conversation.
-
-If the gate fails (Step 1.b) or the user declines the proposed decision (Step 2), do not write any file. Report:
-
-```
-ℹ️ No ADR created — {which criterion failed} ({one-line rationale}).
-```
-
-and exit. Silence is not an acceptable refusal; downstream callers parse this marker.
-
----
+An ADR (`docs/adr/{NNN}-{slug}.md`, indexed in `docs/adr/README.md`) keeps the _why_ of a
+structural choice the spec cannot carry. One decision per ADR; what was chosen and why,
+never how it is implemented. `docs/adr/` holds the examples to follow.
 
 ## The 3-criteria gate
 
-ADRs are rare. Write one only when **all three** conditions hold:
+The canonical gate (`adr-reviewer` applies it). ADRs are rare: one is written only when
+**all three** hold.
 
-1. **Genuinely complex** — the decision involves real trade-offs with no obvious right answer.
-2. **Not obvious from context** — a future developer reading the code or the spec could not reasonably infer why this choice was made.
-3. **Costly to reverse** — undoing the decision later would require significant rework across the codebase.
+1. **Genuinely complex** — real trade-offs, no obvious right answer.
+2. **Not obvious from context** — a reader of the code or the spec could not infer why.
+3. **Costly to reverse** — undoing it means significant rework across the codebase.
 
-This block is the canonical source for the gate. `adr-reviewer` references it; do not restate it elsewhere without cross-linking back here.
+## 1. Intent, gate, yes
 
----
+- **Intent**: create, supersede, or refresh the index; ask with `AskUserQuestion` when unclear.
+- **Gate**: confirm each criterion with the user, one yes/no each. One fails: write nothing
+  and report `ℹ️ No ADR created — {criterion failed} ({one-line rationale}).` — callers
+  parse this marker; silence is no refusal.
+- **Yes**: show the proposed decision and wait for explicit approval, even when invoked by
+  `/spec-writer` on an `ADR-SUGGESTED`. Never auto-create; a no writes nothing.
 
-## Execution Steps
+## 2. Create
 
-### 1. Identify intent and validate the gate
-
-a. **Resolve intent**. The user or another agent (e.g. `spec-writer`) will request one of:
-
-- **Create** a new ADR
-- **Supersede** an existing ADR
-- **Refresh** the ADR index (rare standalone — usually a side-effect of create/supersede)
-
-If the intent is ambiguous, use `AskUserQuestion`.
-
-b. **Validate the 3-criteria gate** before writing anything. Use `AskUserQuestion` to confirm each of the three criteria holds (one yes/no per criterion). If any criterion fails, refuse per the Output format and exit. Do not proceed silently.
-
-c. **Always confirm before writing**. Even when the intent is unambiguous (e.g. invoked by `spec-writer` after an `ADR-SUGGESTED`), surface the proposed decision to the user with `AskUserQuestion` and wait for explicit approval. Never auto-create.
-
----
-
-### 2. Create a new ADR
-
-1. List `docs/adr/` to determine the next available number (e.g. `003`). If `docs/adr/` does not exist, treat the next number as `001`.
-2. Use `AskUserQuestion` to collect the **title** (short, imperative — e.g. "Use i64 for monetary amounts"). Then prompt the user for the **Context**, **Decision**, and **Consequences (Pros / Cons)** as a single free-form response — these are multi-sentence fields that don't fit a structured question.
-3. Write `docs/adr/{NNN}-{slug}.md` using the template below.
-4. Update the index (Step 4).
-
-#### ADR file template
+The next number from `docs/adr/` (numbers are never reused). Ask for the title (short,
+imperative — "Use i64 for monetary amounts") with `AskUserQuestion`, then for Context,
+Decision and Consequences as one free-form answer. Write:
 
 ```markdown
 # ADR {NNN} — {Decision Title}
@@ -78,66 +43,32 @@ c. **Always confirm before writing**. Even when the intent is unambiguous (e.g. 
 
 ## Context
 
-{The problem, constraint, or forcing function. State what changed or what is new — why a decision is needed now.}
+{The problem, constraint or forcing function — why a decision is needed now.}
 
 ## Decision
 
-{What was chosen and why this option over the alternatives. Name the alternatives considered.}
+{What was chosen and why over the alternatives, which are named.}
 
 ## Consequences
 
-- **Pros**: {Concrete benefits — what becomes easier or possible.}
-- **Cons**: {Concrete costs — what becomes harder or constrained.}
+- **Pros**: {what becomes easier or possible.}
+- **Cons**: {what becomes harder or constrained.}
 ```
 
-#### Worked example
+## 3. Supersede
 
-For a decision "Use i64 for monetary amounts":
+An ADR is never deleted: it is superseded. A target already `Superseded by ADR-{X}`:
+refuse and point to ADR-{X}. Otherwise create the new ADR with `Status: Accepted —
+supersedes ADR-{OLD}`, then change only the old one's `Status` line to `Superseded by
+ADR-{NEW}`; its text stays readable as history.
 
-```markdown
-# ADR 001 — Use i64 for monetary amounts
+The `Status` is one of `Accepted`, `Accepted — supersedes ADR-{NNN}`, `Superseded by
+ADR-{NNN}` — nothing else; a tentative decision stays in the spec's Open Questions.
 
-**Date**: 2026-05-09
-**Status**: Accepted
+## 4. The index
 
-## Context
-
-The product handles currency end-to-end (frontend → IPC → backend → SQLite).
-Floating-point representations (`f64`) introduce rounding drift visible to
-users on aggregations. We need a single representation across all layers.
-
-## Decision
-
-Store and transport amounts as `i64` minor units (e.g. cents). Convert to a
-display string only in the presenter layer. Considered: `f64` (rejected for
-rounding), `Decimal` crate (rejected for SQLite friction).
-
-## Consequences
-
-- **Pros**: deterministic arithmetic, lossless SQLite storage, no FE/BE drift.
-- **Cons**: every callsite must convert between minor units and display form;
-  no native fractional currencies (e.g. some Middle-Eastern subdivisions).
-```
-
----
-
-### 3. Supersede an existing ADR
-
-1. List `docs/adr/` and identify the ADR to supersede. If `docs/adr/` is empty or missing, inform the user there is nothing to supersede and offer to create a new ADR (Step 2) instead.
-2. If the target ADR's status is already `Superseded by ADR-{X}`, the chain has been continued elsewhere. Refuse and point the user at ADR-{X} as the current decision.
-3. Create the new ADR following Step 2 with `Status: Accepted — supersedes ADR-{OLD}`.
-4. Patch the superseded ADR — change only its `Status` line to `Superseded by ADR-{NEW}`. Leave Context, Decision, Consequences untouched (history must remain readable).
-5. Update the index (Step 4) — **both** rows must change: the new ADR's row, and the superseded ADR's row (its Status column now reads `Superseded by ADR-{NEW}`).
-
----
-
-### 4. Update the ADR index
-
-Maintain `docs/adr/README.md` as the navigable index of all ADRs.
-
-1. Glob `docs/adr/*.md` excluding `README.md`.
-2. Read each file's title (`# ADR {NNN} — ...`) and `Status` line.
-3. Write `docs/adr/README.md`:
+After every create or supersede (both rows on a supersede), rewrite `docs/adr/README.md`
+from each ADR's title and `Status`:
 
 ```markdown
 # Architecture Decision Records
@@ -146,21 +77,6 @@ Maintain `docs/adr/README.md` as the navigable index of all ADRs.
 | ---------------------------- | ------- | --------------------- |
 | [ADR-001](001-title-slug.md) | {Title} | Accepted              |
 | [ADR-002](002-title-slug.md) | {Title} | Superseded by ADR-003 |
-| [ADR-003](003-title-slug.md) | {Title} | Accepted              |
 ```
 
-If `docs/adr/` does not exist, create it together with `README.md`.
-
----
-
-## Critical Rules
-
-1. **ADR numbers are permanent** — once assigned, never reused, even on supersede or removal.
-2. **Never delete an ADR** — supersede it. Past decisions remain readable in their historical form.
-3. **Status is one of three values** — `Accepted`, `Accepted — supersedes ADR-{NNN}`, `Superseded by ADR-{NNN}`. `Deprecated`, `Proposed`, `Rejected`, and free-form values are not allowed; tentative state belongs in the spec's `## Open Questions`.
-4. **Always update the index** after creating or superseding — both rows on supersede.
-5. **One decision per ADR** — split multiple decisions into separate ADRs; the reviewer enforces this.
-6. **Decisions only, no implementation** — describe what was chosen and why, not how it is implemented in code.
-7. **Validate the 3-criteria gate before writing** — refuse explicitly if any criterion fails.
-
----
+Report the paths written and the number given.
