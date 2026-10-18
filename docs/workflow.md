@@ -25,10 +25,10 @@ job or a machine gate.
 ## 2. Issues and the Project (owner, 2026-10-18)
 
 The backlog is on GitHub, never in git: the issues and the repository's Project
-(github.com/users/phileggel/projects/4). No commit touches it. An issue is named by its
-number, `#123`; a pull request says `Closes #123`, so its merge closes the issue. A
-`TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` in an old commit or document is found by searching
-the issues for `Migrated from <id>`. A spec rule is `TRI-NNN` (Conventions).
+(github.com/users/phileggel/projects/4). No commit touches it. In prose an issue is
+"ticket #123", a pull request "PR #123"; a pull request says `Closes #123`, so its merge
+closes the issue. An old `TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` is found by searching the
+issues for `Migrated from <id>`. A spec rule is `TRI-NNN` (Conventions).
 
 ### Filing an issue
 
