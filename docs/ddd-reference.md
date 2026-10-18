@@ -217,11 +217,11 @@ Concretely:
 
 The rule has a useful side-effect: if a service-level pre-check could be moved into the aggregate, the rejection-layer rule says it _should_ be — see the anemic-domain rule in `backend-rules.md`.
 
-### Scoping rule
+### Scoping
 
-One flat enum per bounded context (`{BC}Error`). Aggregate-invariant variants and service-layer variants sit side by side — the reader sees the BC's full failure surface in one type. Do not split into per-aggregate (`OrderError` + `PaymentError`) or per-layer (`OrderDomainError` + `OrderApplicationError`) sub-enums; that fragmentation hides which variants the BC can actually raise.
-
-Use-case orchestrators compose multiple BCs and add their own guards. They get a `{UseCase}Error` composite that wraps each BC enum via `#[from]`, plus a `{UseCase}Task` sub-enum (tagged with `code`) carrying the orchestrator's own codes — also wired in via `#[from]`. See [`error-model.md`](error-model.md) § Use-case composite.
+One flat `{BC}Error` per bounded context, every variant side by side — never split per
+aggregate or per layer. A use case composes BC enums in `{UseCase}Error`
+([`error-model.md`](error-model.md) builds both).
 
 ### Travel rule
 
@@ -230,70 +230,12 @@ An error may move up a layer only if it is meaningful in that layer's vocabulary
 - Domain-origin and application-origin variants of `{BC}Error` are meaningful at every layer above — they speak the BC's language and reach the UI as-is.
 - Infrastructure-origin failures (raw `sqlx::Error`, `io::Error`, network errors) are meaningful only at the infrastructure layer. They must be translated at the service call site into `{BC}Error::DatabaseError` (or another named variant if the failure has a more specific meaning) before they cross into the application layer. The diagnostic chain is preserved via `tracing::error!`, not via a wire payload.
 
-### Flow toward the UI
-
-- **Domain-origin variant** → reaches the UI as-is, wrapped at the use-case layer by `#[from]` in `{UseCase}Error` (or directly returned if the command is BC-scoped). Wire shape: `{ code: "InsufficientFunds", ... }`.
-- **Application-origin variant** → same path. Born in the service or translated from infra at the service. Wire shape: `{ code: "OrderNotFound", order_id: "..." }` or `{ code: "DatabaseError" }`.
-- **Infrastructure-origin failure** → never crosses into the application layer in raw form. Translated at the service call site into a typed `{BC}Error` variant; diagnostic detail goes to logs only. The FE always sees a typed, named code — no opaque strings, no panic backtraces.
-
 ### Principles
 
-- Lower layers do not know about upper layers. Raw infrastructure failures stay confined to the service call site that produces them; everything above sees typed `{BC}Error` variants.
-- Infrastructure error _details_ are logged, not returned. The user-facing response stays generic ("something went wrong"); the diagnostic detail goes to the logs via `tracing::error!` at the translation site.
-- `#[serde(untagged)]` on a `{UseCase}Error` composite flattens wrappers on the wire — two wrapper variants whose BC enums share a `code` discriminant will silently collide (first arm wins). Verify uniqueness when adding a wrapper.
-- The dependency arrow points inward: the domain must not depend on infrastructure error types. If `sqlx::Error` leaks into a domain `Result`, the domain has implicitly become coupled to a storage choice.
-
-### Application boundary: use case vs application service
-
-The error contract is identical whether the UI calls:
-
-- a **use case / interactor / orchestrator** (one class per use case, Clean Architecture style) → returns `Result<T, {UseCase}Error>`, or
-- an **application service** (one class grouping related use cases as methods, classical DDD style) → returns `Result<T, {BC}Error>` directly when no cross-BC orchestration is needed.
-
-In both cases the boundary:
-
-1. Returns a typed `Result<T, E>` to the UI (no `String`, no `anyhow`).
-2. Orchestrates domain and infrastructure.
-3. Translates infrastructure failures into `{BC}Error::DatabaseError` at the call site.
-4. Composes BC errors via `#[from]` in the `{UseCase}Error` composite when orchestrating across BCs.
-
-The choice between the two is about code organization (granularity, cohesion, testability), not about how errors are modeled or propagated.
-
-### Rust shape (illustrative)
-
-```rust
-// Per-BC flat enum — at context/{bc}/error.rs
-#[serde(tag = "code")]
-pub enum OrderError {
-    // Domain-origin (aggregate-invariant)
-    InsufficientFunds { available_micros: i64, required_micros: i64 },
-    ReferenceEmpty,
-    // Application-origin (service-layer)
-    OrderNotFound { order_id: String },
-    ReferenceAlreadyExists,
-    // Infrastructure-origin (translated at the service call site)
-    DatabaseError,
-}
-
-// Use-case-specific guards + catch-all — tagged sub-enum at use_cases/{name}/error.rs
-#[serde(tag = "code")]
-pub enum ProcessOrderTask {
-    ProcessAlreadyRunning,                  // use-case guard
-    NoLineItemsToProcess,                   // use-case guard
-    UnknownError,                           // catch-all
-}
-
-// Use-case composite — at use_cases/{name}/error.rs
-// Holds ONLY `#[from]` wrappers; every wrapped type carries its own
-// `#[serde(tag = "code")]`, so the untagged composite flattens cleanly.
-#[serde(untagged)]
-pub enum ProcessOrderError {
-    Order(#[from] OrderError),              // wrapper — all OrderError variants reachable
-    Inventory(#[from] InventoryError),      // wrapper — all InventoryError variants reachable
-    Task(#[from] ProcessOrderTask),         // wrapper — all use-case codes reachable
-}
-```
-
-At the wire, `ProcessOrderError` serializes as `{ code: "...", ...payload }` — wrappers disappear, every variant is reachable as a flat `code` discriminator. The UI narrows on `code` (see [`error-model.md`](error-model.md) § Frontend handling). Use-case composite types are an upper bound on per-command reachable codes; the contract narrows further to what's actually returnable.
-
-Bare unit variants directly on the `untagged` composite would serialize to `null` (serde has no content to emit) and collapse together on the wire — that's why use-case guards live inside a `#[serde(tag = "code")]` sub-enum rather than as direct composite variants. See [`error-model.md`](error-model.md) § Anti-patterns.
+- Infrastructure error _details_ are logged at the translation site (`tracing::error!`),
+  never returned: the user sees a typed, named code, never an opaque string or a backtrace.
+- The dependency arrow points inward: a `sqlx::Error` in a domain `Result` couples the
+  domain to a storage choice.
+- The contract is the same whether the UI calls a use case (`{UseCase}Error`) or a BC's
+  application service (`{BC}Error`): a typed `Result`, infrastructure translated at the
+  call site. The choice between them is code organisation, not error modelling.

@@ -4,7 +4,7 @@
 
 ## Gold Layout
 
-**F0** — The frontend source tree MUST follow this layout. Four buckets (`features/`, `shell/`, `ui/`, `infra/`) carry the per-bucket include/reject discipline (see **F28**); framework-resource folders (`assets/`, `styles/`, `public/`) sit outside the bucket discipline per the Vite convention; root-level singletons (`App.tsx`, `router.tsx`, `main.tsx`, `bindings.ts`) live at `src/` root per the React-ecosystem convention (Vite / CRA / Bluesky / Excalidraw and most popular OSS React apps all place `App.tsx` there). `App.tsx` is the provider tree / app entry (QueryClient, theme, error boundaries); `shell/AppShell.tsx` is the layout chrome (Mantine-style precedent for the bucket name). Splitting the two — chrome in `shell/`, provider tree at root — keeps each bucket honest to its ecosystem anchor. The DDD `application/domain/infrastructure` trio does NOT appear here — frontend features are UI surfaces, not bounded contexts (see F23, F26). This is the FE counterpart to the backend `B0` gold layout.
+**F0** — The frontend source tree MUST follow this layout, the gold target existing code moves to bit by bit. Four buckets (`features/`, `shell/`, `ui/`, `infra/`) follow F28; the framework folders (`assets/`, `styles/`, `public/`) and the root singletons (`App.tsx` — the provider tree —, `router.tsx`, `main.tsx`, `bindings.ts`) sit outside them. `shell/AppShell.tsx` is the layout chrome. No `application/domain/infrastructure` trio: frontend features are UI surfaces, not bounded contexts (F26).
 
 ```
 src/
@@ -61,16 +61,12 @@ src/
 
 ## Top-level `src/` structure
 
-**F28** — Each top-level `src/` bucket has both an inclusion rule (what lives there) AND an exclusion rule (what does NOT). The canonical tree is **F0**; this rule is the reject/include discipline that keeps a file from landing in the wrong bucket — catch-all framing actively hides mislocated code, and the diagnostic value is the rejection half.
-
-Each bucket's mandate:
+**F28** — Each top-level `src/` bucket has an inclusion rule and an exclusion rule; a file in the wrong bucket is caught by the destination's exclusion:
 
 - **`features/`** — User-facing surfaces, organised per F1. A feature MAY own a gateway. **REJECTS:** anything reusable across features (promote to `ui/`) or any cross-cutting platform adapter (promote to `infra/`). A feature folder appearing anywhere else in the tree (e.g. inside `infra/` or `ui/`) is a misclassification.
 - **`shell/`** — Layout chrome ONLY: AppShell, persistent header/sidebar/content slot, app-level overlay hosts (snackbar mount point, modal portal target). Single instance per app, not reusable. **REJECTS:** `App.tsx` (root), `router.tsx` (root), anything reusable (`ui/`), anything feature-scoped (`features/`).
 - **`ui/`** — Reusable UI primitives: widgets in `ui/components/`, cross-feature formatters in `ui/format/`, generic React hooks in `ui/hooks/`. Widget runtime state colocates with the widget (e.g. `ui/components/snackbar/snackbarStore.ts`). **REJECTS:** any domain term, any Tauri call (no `commands.*` from `ui/`), any platform adapter (`infra/`).
 - **`infra/`** — Platform adapters AND app-wide singleton state. Platform adapters: code that talks to a runtime outside our control (logger sink, browser storage, i18n runtime, native bridges). App-wide state: BE/FE shared data cache (`infra/cache/`), FE-persisted settings (`infra/settings/`) — see **Store kinds** below. **REJECTS:** pure helpers and formatters (promote to `ui/format/`), generic UI hooks (promote to `ui/hooks/`), widget-local UI runtime (colocate with the widget in `ui/components/`), anything feature-scoped (`features/`).
-
-When a file lands in the wrong bucket, the exclusion rule of the destination bucket is what flags it.
 
 ### Store kinds
 
@@ -86,17 +82,9 @@ No server-state library (TanStack Query, SWR): one user, one process and an in-p
 
 The shared cache is seeded by initial fetches and updated via Tauri events. Cross-feature reads of the shared cache MUST go through each feature's own gateway (which reads selectors from the cache); direct cross-feature store imports remain a SHOULD-NOT per **F26**.
 
-Widget-local runtime state (e.g. snackbar mount internals) stays colocated with the widget in `ui/components/`. The `infra/` exclusion above refers only to that widget-local case — app-wide singletons are explicitly included.
+Widget-local runtime state (snackbar internals) stays with its widget in `ui/components/`; app-wide singletons belong in `infra/`.
 
-**Framework-resource exception.** Static resources owned by the framework (not by application code) sit outside the 4-bucket discipline because the industry-standard Vite convention is well-established and tools (build, bundler, dev server) expect those paths:
-
-- `src/assets/` — images, fonts, SVGs imported by application code
-- `src/styles/` — global CSS, theme tokens, CSS variables
-- `public/` — static files served verbatim (favicon, robots.txt)
-
-These directories MAY exist alongside the 4 buckets and are not subject to the reject-each-other rules. They contain resources, not code.
-
-> **Rename note:** projects pre-v4.5 used `src/lib/` as a catch-all. `lib/` is a JS tradition with no semantic content; `infra/` carries a clear meaning (_talks to a platform we depend on_) that lets a reader decide at a glance whether a file belongs. Migration is a one-time rename per project — sort the existing `lib/` contents into the four buckets above, then delete `lib/`.
+`src/lib/`, the old catch-all, is sorted into the four buckets bit by bit, then deleted.
 
 ## Feature Structure
 
@@ -148,7 +136,7 @@ These directories MAY exist alongside the 4 buckets and are not subject to the r
 
 **F12** — MUST NOT update a generic component for its own usage. Create a specific component if generic components are not appropriate.
 
-**F25** — Primary interactive elements MUST render a stable `id` attribute. Stable ids serve two purposes: (a) screen-reader and `aria-labelledby` references rely on stable anchors, (b) E2E tests (WebdriverIO / Playwright) keyed off ids stay stable across UI refactors, while selectors based on class names or text content break.
+**F25** — Primary interactive elements MUST render a stable `id` attribute: `aria-labelledby` and the E2E tests (E1–E4) rely on it.
 
 Scope (mandatory):
 
@@ -159,8 +147,6 @@ Scope (mandatory):
 Convention: `{feature}-{component}-{role}` in kebab-case — e.g. `account-list-item-edit`, `add-transaction-dialog`, `search-input`. The `{role}` segment disambiguates multiple interactive elements within a component (e.g. `account-list-item-edit` vs `account-list-item-delete`).
 
 Page-level / shell-level containers (single instance per route) MAY skip the rule — there's no ambiguity for a singleton. The mandate kicks in once a component is instantiated more than once or has multiple interactive children.
-
-The reviewer-frontend lane flags primary interactive elements without an `id` prop.
 
 ## Logging
 
@@ -174,7 +160,7 @@ The reviewer-frontend lane flags primary interactive elements without an `id` pr
 
 **F16** — MUST use i18n translation (`useTranslation`) for all user-visible text. No hardcoded strings.
 
-**F24** — Accessibility labels MUST flow through i18n. Hard-coded a11y strings are silent translation holes — they pass visual review and TypeScript checks, but ship untranslated to non-default-locale users. The rule covers any string passed to: `aria-label`, `aria-labelledby`, `aria-describedby`, `title`, and `placeholder` props.
+**F24** — Accessibility labels MUST flow through i18n — any string passed to `aria-label`, `aria-labelledby`, `aria-describedby`, `title` or `placeholder`: a literal ships untranslated.
 
 ```tsx
 // ✅ correct
@@ -186,9 +172,7 @@ The reviewer-frontend lane flags primary interactive elements without an `id` pr
 <input placeholder="Search..." />
 ```
 
-The reviewer-frontend lane flags any literal string passed to those props.
-
-> E4 in `e2e-rules.md` explains the consequence: because `aria-label` is locale-variant and refactor-prone, E2E tests MUST NOT select on it. F24 governs the runtime label; E4 governs the selector strategy.
+E4 is why that translated label is never an E2E selector.
 
 ## Error Handling
 
@@ -205,8 +189,6 @@ The reviewer-frontend lane flags any literal string passed to those props.
 2. **Hook** branches on `result.status`. For `error`, it MUST either (a) return the typed error as state for the component to render, OR (b) dispatch to a snackbar/toast store. Silently dropping the error branch — or coercing it to a stringified message — is forbidden.
 3. **Presenter** owns the typed-error → i18n-key mapping. The presenter (`shared/presenter.ts`) is a pure function that returns a key string (e.g. `"record_price.error.duplicate_date"`) — no `useTranslation`, no React, no runtime concerns. Trivially unit-testable. Components never inspect `error.code` directly.
 4. **Component** owns the runtime translation. It calls `t(key)` via `useTranslation` to render the string, surfaced inline (form context) or via snackbar (action context). The component knows nothing about the error's domain shape.
-
-The presenter / component split mirrors the selector / view split in modern React: selectors return data, views handle runtime presentation. Mixing the two would couple the presenter to React's runtime and force tests to mock `useTranslation`.
 
 ```ts
 // 1. Gateway — Specta-generated, unchanged
@@ -250,15 +232,11 @@ return (
 
 ## Tests
 
-**F18** — MUST have tests for non-trivial logic worth protecting:
-
-- State transitions triggered by user actions (auto-fill, reset after submit, etc.)
-- API call arguments and success/error handling
-- Do NOT write tests that only verify rendering or DOM structure
+**F18** — MUST have tests for non-trivial logic worth protecting, as `test-rules.md` § Frontend says what to test.
 
 > Visual changes additionally require committed screenshots — see [`visual-proof-rules.md`](visual-proof-rules.md).
 
-**F19** — When using `renderHook`, NEVER create objects or functions inside the render callback. The callback runs on every render; inline factories produce new references each render. If used as a `useEffect` dependency, this causes an infinite loop → OOM crash. Always extract stable references before calling `renderHook`.
+**F19** — When using `renderHook`, NEVER create objects or functions inside the render callback: a new reference each render, as a `useEffect` dependency, loops until out of memory. Extract stable references first (`test-rules.md` has the example).
 
 **F20** — NEVER use a shared `useRef` to track mounted state across effects. Use a local `let isMounted = true` variable per effect with `return () => { isMounted = false; }` as cleanup instead.
 
@@ -309,13 +287,11 @@ The only authorised cross-feature navigation wiring points are:
 - `router.tsx` — registers page-level components (single wiring point)
 - Shell features (`shell/`) — may import modal components they own and host
 
-> Frontend "features" are UI surfaces organised for co-location of code edited together — they are NOT bounded contexts in the DDD sense. The structural BC enforcement lives server-side (Rust); on the FE, all features share `bindings.ts` and read/write through the same Tauri layer. See **F26** for the cross-feature import rule that replaces the old "feature = BC" framing.
-
 ## Cross-feature imports
 
 **F26** — Cross-feature imports are evaluated by what is imported, not by the fact of crossing:
 
-- **Primitive imports are fine.** Types, pure functions, and presentational components MAY be imported across feature boundaries. They are not behaviour coupling — they are shared primitives. Example: `features/account_details/.../X.tsx` importing `TransactionFormData` (type), `validateTransactionForm` (pure), or `RecordPriceCheckbox` (presentational) from `features/transactions/shared/` is acceptable.
+- **Primitive imports are fine.** Types, pure functions and presentational components MAY be imported across feature boundaries: they are shared primitives, not behaviour coupling.
 - **Behaviour imports are a code smell.** A hook or store imported from another feature couples the two features behaviourally and typically signals one of: wrong feature boundary, missing shared layer, or a piece of behaviour that should be promoted (see destinations below). Treat the import as SHOULD-NOT and prefer promotion when it appears twice.
 
 Promotion destinations (see F28): generic UI hooks → `ui/hooks/`; app-wide stores → `infra/cache/` (BE/FE data) or `infra/settings/` (FE prefs); cross-cutting platform adapters → `infra/`.

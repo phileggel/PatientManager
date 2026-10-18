@@ -25,6 +25,6 @@ You review E2E tests against the running Tauri app. Follow `.claude/agents/revie
 
 **No mocks** — `vi.mock`, `sinon.stub` or any module mock 🔴; an `assert.fail("stub")` body with no comment on what is missing 🟡.
 
-**Helpers** — an existing helper redefined inline 🟡; a reusable helper declared in a test file instead of `e2e/_helpers/` 🟡; a helper used but not imported 🔴.
+**Helpers** — an existing helper redefined inline 🟡; a reusable helper declared in a test file instead of `e2e/helpers/` 🟡; a helper used but not imported 🔴.
 
 **Scenario shape** — a scenario that only repeats unit or integration coverage 🟡; no observable DOM outcome 🟡; unrelated behaviours in one `it()` 🟡.

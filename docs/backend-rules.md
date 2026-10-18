@@ -6,12 +6,12 @@
 
 ## Folder Structure
 
-**B0** — The backend source tree MUST follow this layout. Three layer-named folders (`application/`, `domain/`, `infrastructure/`) appear symmetrically inside `shared/` and every `context/{bc}/` — the DDD canonical trio is visible everywhere DDD layering applies.
+**B0** — The backend source tree MUST follow this layout (B38–B43 explain its folders).
 
 ```
 src-tauri/src/
-├── shared/                                 ← cross-cutting (was: core/ pre-v4.4)
-│   ├── application/                        ← shared application types (reserved; empty in projects with no cross-BC application concern)
+├── shared/                                 ← cross-cutting
+│   ├── application/                        ← shared application types (reserved, B43)
 │   ├── domain/                             ← shared kernel (cross-BC domain — see ddd-reference.md § Shared Kernel)
 │   │   └── *.rs                            ← cross-BC constants, IDs, value objects
 │   └── infrastructure/                     ← shared concrete infra
@@ -29,7 +29,7 @@ src-tauri/src/
 │   ├── domain/                             ← Domain layer (pure, no infra deps)
 │   │   ├── {aggregate_root}.rs
 │   │   └── {entity_or_vo}.rs
-│   └── infrastructure/                     ← Infrastructure layer (was: repository/ pre-v4.4)
+│   └── infrastructure/                     ← Infrastructure layer
 │       └── {aggregate}.rs                  ← repo impls today; future external/cache adapters as siblings
 │
 └── use_cases/{flow}/                       ← cross-BC orchestrators
@@ -48,15 +48,15 @@ src-tauri/src/
 
 **B38** — Layer folders symmetric. The three layer-named folders (`application/`, `domain/`, `infrastructure/`) MUST appear everywhere DDD layering applies — both inside each BC and inside `shared/`. The DDD canonical trio is visible at every level.
 
-**B39** — `api.rs` MUST be a single file at the boundary (BC root, use-case root). Don't fold into a `presentation/` folder — the boundary surface (Tauri commands + DTOs + error mapping) is small enough that one file at the root is more discoverable than a folder.
+**B39** — `api.rs` MUST be a single file at the boundary (BC root, use-case root), never a `presentation/` folder: the boundary is small enough for one file.
 
-**B40** — Infrastructure folder MUST be named `infrastructure/`, not `repository/`. `repository/` overpromises — it names one _type_ of infrastructure (repo impls) and forces awkward sibling folders the day a BC adds an external API client, cache adapter, or message-queue subscriber. `infrastructure/` is the layer name and accommodates all of those as flat siblings.
+**B40** — Infrastructure folder MUST be named `infrastructure/`, not `repository/`: it holds every adapter (repository, external client, cache) as siblings.
 
 **B41** — Flat-first inside `infrastructure/`. Until a BC's infrastructure has 5+ files of distinct concerns, all files MUST sit flat at the root of `infrastructure/` (e.g. `infrastructure/{aggregate}.rs` for repo impls, `infrastructure/openfigi_client.rs` for an external client). Don't pre-create a `repository/` sub-folder for one repo impl. Nest only when the count grows.
 
-**B42** — Top-level cross-cutting folder MUST be named `shared/`, not `core/`. `core/` overpromises (it implies "central business logic" but BCs ARE the business). `shared/` is direct, accurate, and DDD-agnostic for newcomers.
+**B42** — Top-level cross-cutting folder MUST be named `shared/`, not `core/` (the contexts are the business).
 
-**B43** — Keep layer folders even when small or empty. `shared/application/` is typically empty in projects following the flat-`{BC}Error` model (per-BC translation lives in each BC's own `error.rs` — see [`error-model.md`](error-model.md)); keep the folder anyway. It documents the layering and reserves the spot for cross-BC application-layer growth (e.g. a future cross-cutting orchestration helper). The alternative is a deceptively flat `shared/` that hides the layer structure.
+**B43** — Keep layer folders even when small or empty (`shared/application/` is empty today): they show the layering and reserve its place.
 
 ## Ubiquitous Language
 
@@ -111,11 +111,11 @@ Service-layer state-dependent pre-checks are an "anemic domain" anti-pattern: th
 - **State-mutating actions:** `aggregate.action_from(self, ...) -> Result<Self, {BC}Error>` consuming `self`, returning the new state for the caller to persist. The aggregate enforces its own invariants in the constructor of the result.
 - **Pre-conditions for non-constructive ops** (e.g. delete): `aggregate.ensure_<predicate>(&self) -> Result<(), {BC}Error>`. The service calls it just before invoking the destructive action.
 
-**B45** — A question about a group of an enum's variants is a method on the enum, in the domain (`ProcedureStatus::is_blocking`). A call site MUST NOT list the variants itself, and an SQL predicate MUST build its list from that method rather than write the stored strings. A workflow status with many values is normal; what breaks is two hand-written lists that answer the same question and drift apart (DEBT-031, DEBT-032).
+Service-layer checks are appropriate ONLY for cross-aggregate invariants (uniqueness across the BC) or application-layer concerns (`NotFound`, cross-BC preconditions). See the rejection-layer rule in `ddd-reference.md` § Errors for the disambiguation.
+
+**B45** — A question about a group of an enum's variants is a method on the enum, in the domain (`ProcedureStatus::is_blocking`). A call site MUST NOT list the variants itself, and an SQL predicate MUST build its list from that method rather than write the stored strings. A workflow status with many values is normal; what breaks is two hand-written lists that answer the same question and drift apart.
 
 **B46** — A read model (a projection such as `UnreconciledProcedure`) MAY live in the domain when a list or a report needs data from more than one aggregate: a procedure with its patient's name. It is read-only, built by one query, never saved, and named for what it is read for. An aggregate MUST NOT carry another aggregate's data to avoid one. A read model is not a term of the ubiquitous language: the business concept it shows (the open procedure, BAS-112) is defined once, and every read model of it uses that definition (B45).
-
-Service-layer checks are appropriate ONLY for cross-aggregate invariants (uniqueness across the BC) or application-layer concerns (`NotFound`, cross-BC preconditions). See the rejection-layer rule in `ddd-reference.md` § Errors for the disambiguation.
 
 ## Bounded Context (`/context`)
 
@@ -186,7 +186,7 @@ UoW — the aggregate's own repository handles atomicity internally via its `sav
 
 ## Repository
 
-**B27** — MUST use sqlx macros for queries, except where a macro cannot check the statement: PRAGMAs, reads of SQLite's own catalogue, and identifiers only known at run time (wrapped in `AssertSqlSafe`, never built from user input). Use your project's DB reset command to wipe and re-migrate if needed.
+**B27** — MUST use sqlx macros for queries, except where a macro cannot check the statement: PRAGMAs, reads of SQLite's own catalogue, and identifiers only known at run time (wrapped in `AssertSqlSafe`, never built from user input). `just clean-db` wipes and re-migrates the dev database.
 
 ## Logging
 
@@ -194,7 +194,7 @@ UoW — the aggregate's own repository handles atomicity internally via its `sav
 
 **B29** — MUST use `target:` field when adding a new backend specific log.
 
-**B30** — When using the `target:` field in tracing calls, MUST use a named constant instead of a string literal. Define `BACKEND` / `FRONTEND` constants in a shared `shared::infrastructure::logger` module and reference them:
+**B30** — The `target:` field MUST use the named constants of `shared/infrastructure/logger.rs` (`BACKEND`, `FRONTEND`), never a string literal:
 
 ```rust
 // Define once in shared/infrastructure/logger.rs:
@@ -208,7 +208,7 @@ tracing::info!(target: BACKEND, field = value, "message");
 
 ## General
 
-**B31** — Application services and use-case orchestrators MUST return typed `Result<T, {BC}Error>` (BC-scoped) or `Result<T, {UseCase}Error>` (cross-BC composite) per [`error-model.md`](error-model.md) — one flat enum per BC, plus use-case composites via `#[serde(untagged)]` + `#[from]` wrapping each BC enum and a tagged `{UseCase}Task` sub-enum that carries any use-case-specific codes (bare unit variants directly on the untagged composite serialize to `null` and collapse on the wire). Repositories MAY use `anyhow::Error` as their trait error type; the application layer translates infra failures to the BC's `{BC}Error::DatabaseError` variant at the call site, logging the diagnostic chain via `tracing::error!`. Tauri commands return the typed enum / composite directly — no `Result<T, String>` boundary translation, no `anyhow::Result<T>` on a wire-visible signature.
+**B31** — Application services and use-case orchestrators MUST return typed `Result<T, {BC}Error>` or `Result<T, {UseCase}Error>` as [`error-model.md`](error-model.md) builds them. Repositories MAY use `anyhow::Error`; the service translates it to `{BC}Error::DatabaseError` at the call site, with `tracing::error!`. Tauri commands return the typed enum or composite directly — never `Result<T, String>` nor `anyhow::Result<T>` on a wire-visible signature.
 
 **B32** — MAY use `#[allow(clippy::too_many_arguments)]` on domain factory methods and production constructors (e.g. orchestrator or service new() with many injected dependencies). MUST NOT use on test helpers — use a builder struct instead.
 

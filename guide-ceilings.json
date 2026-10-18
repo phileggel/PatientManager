@@ -29,10 +29,10 @@
   "docs/agentic-setup.md": 150,
   "docs/backend-rules.md": 231,
   "docs/commit-rules.md": 79,
-  "docs/e2e-rules.md": 156,
-  "docs/frontend-rules.md": 321,
-  "docs/i18n-rules.md": 35,
-  "docs/test-rules.md": 305,
-  "docs/visual-proof-rules.md": 254,
+  "docs/e2e-rules.md": 126,
+  "docs/frontend-rules.md": 297,
+  "docs/i18n-rules.md": 33,
+  "docs/test-rules.md": 274,
+  "docs/visual-proof-rules.md": 71,
   "docs/workflow.md": 433
 }
