@@ -4,7 +4,7 @@
 
 ## Gold Layout
 
-**F0** — The frontend source tree MUST follow this layout, the gold target existing code moves to bit by bit. Four buckets (`features/`, `shell/`, `ui/`, `infra/`) follow F28; the framework folders (`assets/`, `styles/`, `public/`) and the root singletons (`App.tsx` — the provider tree —, `router.tsx`, `main.tsx`, `bindings.ts`) sit outside them. `shell/AppShell.tsx` is the layout chrome. No `application/domain/infrastructure` trio: frontend features are UI surfaces, not bounded contexts (F26).
+**F0** — The frontend source tree MUST follow this layout (existing code: `docs/workflow.md` § 10). Four buckets (`features/`, `shell/`, `ui/`, `infra/`) follow F28; the framework folders (`assets/`, `styles/`, `public/`) and the root singletons (`App.tsx` — the provider tree —, `router.tsx`, `main.tsx`, `bindings.ts`) sit outside them. `shell/AppShell.tsx` is the layout chrome. No `application/domain/infrastructure` trio: frontend features are UI surfaces, not bounded contexts (F26).
 
 ```
 src/
