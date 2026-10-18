@@ -342,7 +342,7 @@ describe("ProcedureFormModal — view mode saves a changed procedure type (DEBT-
   it("DEBT-062: saving sends the new type and closes the modal", async () => {
     vi.mocked(procedureGateway.updateProcedure).mockResolvedValue({
       success: true,
-      data: { ...RECONCILED, procedure_type_id: "pt2" },
+      data: { outcome: "Updated", procedure: { ...RECONCILED, procedure_type_id: "pt2" } },
     });
     const { onClose, onSuccess } = renderView(RECONCILED);
 
@@ -376,7 +376,7 @@ describe("ProcedureFormModal — view mode saves a changed procedure type (DEBT-
   it("PRO-190: a successful save shows the success snackbar", async () => {
     vi.mocked(procedureGateway.updateProcedure).mockResolvedValue({
       success: true,
-      data: RECONCILED,
+      data: { outcome: "Updated", procedure: RECONCILED },
     });
     renderView(RECONCILED);
 

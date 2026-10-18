@@ -534,18 +534,21 @@ describe("view mode — calls updateProcedure with only procedure_type_id change
     vi.mocked(updateProcedure).mockResolvedValueOnce({
       success: true,
       data: {
-        id: "proc-view",
-        patient_id: "p1",
-        fund_id: "f1",
-        procedure_type_id: "pt1",
-        procedure_date: "2026-02-10",
-        billed_amount: 50000,
-        payment_method: "CASH",
-        fund_reconciliation_date: "",
+        outcome: "Updated",
+        procedure: {
+          id: "proc-view",
+          patient_id: "p1",
+          fund_id: "f1",
+          procedure_type_id: "pt1",
+          procedure_date: "2026-02-10",
+          billed_amount: 50000,
+          payment_method: "CASH",
+          fund_reconciliation_date: "",
 
-        confirmed_payment_date: "2026-02-15",
-        payment_status: "RECONCILED",
-        paid_amount: 50000,
+          confirmed_payment_date: "2026-02-15",
+          payment_status: "RECONCILED",
+          paid_amount: 50000,
+        },
       },
     });
 
@@ -599,18 +602,21 @@ describe("view mode — confirmed_payment_date empty string is sent as null", ()
     vi.mocked(updateProcedure).mockResolvedValueOnce({
       success: true,
       data: {
-        id: "proc-view-nodate",
-        patient_id: "p1",
-        fund_id: null,
-        procedure_type_id: "pt1",
-        procedure_date: "2026-02-10",
-        billed_amount: 50000,
-        payment_method: "NONE",
-        fund_reconciliation_date: "",
+        outcome: "Updated",
+        procedure: {
+          id: "proc-view-nodate",
+          patient_id: "p1",
+          fund_id: null,
+          procedure_type_id: "pt1",
+          procedure_date: "2026-02-10",
+          billed_amount: 50000,
+          payment_method: "NONE",
+          fund_reconciliation_date: "",
 
-        confirmed_payment_date: "",
-        payment_status: "CREATED",
-        paid_amount: null,
+          confirmed_payment_date: "",
+          payment_status: "CREATED",
+          paid_amount: null,
+        },
       },
     });
 
@@ -671,18 +677,21 @@ describe("edit mode — calls updateProcedure on submit", () => {
     vi.mocked(updateProcedure).mockResolvedValueOnce({
       success: true,
       data: {
-        id: "proc-edit",
-        patient_id: "p1",
-        fund_id: "f1",
-        procedure_type_id: "pt1",
-        procedure_date: "2026-02-10",
-        billed_amount: 25000,
-        payment_method: "NONE",
-        fund_reconciliation_date: "",
+        outcome: "Updated",
+        procedure: {
+          id: "proc-edit",
+          patient_id: "p1",
+          fund_id: "f1",
+          procedure_type_id: "pt1",
+          procedure_date: "2026-02-10",
+          billed_amount: 25000,
+          payment_method: "NONE",
+          fund_reconciliation_date: "",
 
-        confirmed_payment_date: "",
-        payment_status: "CREATED",
-        paid_amount: null,
+          confirmed_payment_date: "",
+          payment_status: "CREATED",
+          paid_amount: null,
+        },
       },
     });
 

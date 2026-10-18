@@ -12,19 +12,18 @@ use thiserror::Error;
 /// The `Procedure` aggregate's CRUD commands are not wired through this BC's
 /// api.rs (they live in `use_cases/procedure_orchestration/api.rs` and become
 /// wire-typed in PR 3 of the migration). The corresponding variants
-/// (`PatientIdEmpty`, `ProcedureTypeIdEmpty`, `Refund*`) are reachable through
-/// `Procedure::new` / `ProcedureRefund::new`, called from those use cases.
+/// (`ProcedureInvalid`, `Refund*`) are reachable through `Procedure::new` /
+/// `Procedure::read_form` / `ProcedureRefund::new`, called from those use cases.
 #[derive(Debug, Clone, Error, Serialize, Type)]
 #[serde(tag = "code")]
 pub enum ProcedureError {
     // --- Procedure aggregate domain invariants ---
-    /// `Procedure::validate` rejected an empty patient ID.
-    #[error("Patient ID cannot be empty")]
-    PatientIdEmpty,
-
-    /// `Procedure::validate` rejected an empty procedure type ID.
-    #[error("Procedure type ID cannot be empty")]
-    ProcedureTypeIdEmpty,
+    /// `Procedure::validate` or `Procedure::read_form` refused the procedure:
+    /// every reason at once, one per field (PRO-125).
+    #[error("Procedure is invalid: {reasons:?}")]
+    ProcedureInvalid {
+        reasons: Vec<ProcedureInvalidReason>,
+    },
 
     // --- Procedure service-layer errors ---
     /// A `Procedure` lookup by id returned no row (e.g. the delete guard in
@@ -73,6 +72,19 @@ pub enum ProcedureError {
     DatabaseError,
 }
 
+/// Why a procedure is refused; one per invalid field (PRO-125).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
+pub enum ProcedureInvalidReason {
+    /// No patient, or a blank one.
+    PatientIdEmpty,
+    /// No procedure type, or a blank one.
+    ProcedureTypeIdEmpty,
+    /// No date, or a blank one.
+    ProcedureDateEmpty,
+    /// A date that is not a valid YYYY-MM-DD date.
+    ProcedureDateInvalid,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -81,12 +93,14 @@ mod tests {
     #[test]
     fn each_variant_emits_a_code() {
         assert_eq!(
-            to_value(ProcedureError::PatientIdEmpty).unwrap(),
-            json!({ "code": "PatientIdEmpty" }),
-        );
-        assert_eq!(
-            to_value(ProcedureError::ProcedureTypeIdEmpty).unwrap(),
-            json!({ "code": "ProcedureTypeIdEmpty" }),
+            to_value(ProcedureError::ProcedureInvalid {
+                reasons: vec![
+                    ProcedureInvalidReason::PatientIdEmpty,
+                    ProcedureInvalidReason::ProcedureDateEmpty,
+                ],
+            })
+            .unwrap(),
+            json!({ "code": "ProcedureInvalid", "reasons": ["PatientIdEmpty", "ProcedureDateEmpty"] }),
         );
         assert_eq!(
             to_value(ProcedureError::ProcedureNotFound {

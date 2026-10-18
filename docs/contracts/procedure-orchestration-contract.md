@@ -16,23 +16,23 @@ Returns all procedures. Period (PRO-010) and status (PRO-180) filters are applie
 
 ---
 
-### `add_procedure` — PRO-200, PRO-210, PRO-220, PRO-230, PRO-260
+### `add_procedure` — PRO-125, PRO-200, PRO-210, PRO-220, PRO-230, PRO-260
 
-Creates a new procedure. Validates mandatory fields (PRO-200) and checks FK existence for `patient_id`, `procedure_type_id`, and optionally `fund_id` (PRO-210). `payment_method` is always `None` at creation via the frontend form (PRO-220). Initial status is always `Created` (PRO-230). Updates patient tracking fields if the new procedure is the most recent (PRO-260).
+Creates a new procedure. Validates mandatory fields, every missing or malformed one at once (PRO-125, PRO-200) and checks FK existence for `patient_id`, `procedure_type_id`, and optionally `fund_id` (PRO-210). `payment_method` is always `None` at creation via the frontend form (PRO-220). Initial status is always `Created` (PRO-230). Updates patient tracking fields if the new procedure is the most recent (PRO-260).
 
 - **Args:** `patient_id: String, fund_id: String, procedure_type_id: String, procedure_date: String, billed_amount: i64`
 - **Returns:** `Procedure`
-- **Errors:** `PatientNotFound`, `ProcedureTypeNotFound`, `FundNotFound`, `InvalidDateFormat`, `MissingRequiredField`
+- **Errors:** `ProcedureInvalid { reasons: Vec<ProcedureInvalidReason> }` (nothing written), `PatientNotFound`, `ProcedureTypeNotFound`, `FundNotFound`
 
 ---
 
-### `update_procedure` — PRO-250, REF-170
+### `update_procedure` — PRO-125, PRO-250, PRO-251, PRO-252, PRO-255, PRO-256, REF-170
 
-Accepts all procedure fields without re-inference (PRO-250). No FK validation — the frontend is responsible for the values sent. For procedures in `Overpaid` status, propagates any `procedure_type_id` change to the linked refund procedure atomically (REF-170).
+Accepts all procedure fields without re-inference (PRO-250). Refuses a missing patient, type or date, or a malformed date, all at once (PRO-125). Values all equal to the stored procedure are answered `Unchanged` and nothing is written (PRO-255). Refusals in order (PRO-256): missing fields (PRO-125), an unknown procedure (PRO-252), a changed `patient_id`, `procedure_type_id` or `fund_id` that does not exist or was deleted; a kept one stays valid (PRO-251). For procedures in `Overpaid` status, propagates any `procedure_type_id` change to the linked refund procedure atomically (REF-170).
 
 - **Args:** `raw: RawProcedure`
-- **Returns:** `Procedure`
-- **Errors:** `ProcedureNotFound`, `InvalidDateFormat`
+- **Returns:** `ProcedureEdit`
+- **Errors:** `ProcedureInvalid { reasons: Vec<ProcedureInvalidReason> }` (nothing written), `PatientNotFound`, `ProcedureTypeNotFound`, `FundNotFound`, `ProcedureNotFound`
 
 ---
 
@@ -97,13 +97,30 @@ struct RawProcedure {
     patient_id: String,
     fund_id: Option<String>,
     procedure_type_id: String,
-    procedure_date: String,
+    procedure_date: String,              // as typed, YYYY-MM-DD or empty (PRO-125)
     billed_amount: i64,
     payment_method: Option<String>,      // raw string
+    // Typed dates (YYYY-MM-DD): a malformed value is refused when the
+    // command's arguments are read, before it runs; the form never edits them (PRO-050).
     fund_reconciliation_date: Option<String>,
     confirmed_payment_date: Option<String>,
     paid_amount: Option<i64>,
     payment_status: String,              // raw string
+}
+
+// PRO-255 — what an edit from the form did; on the wire
+// { outcome: "Updated", procedure } or { outcome: "Unchanged" }
+enum ProcedureEdit {
+    Updated { procedure: Procedure },
+    Unchanged,                           // values equal the stored ones, nothing written
+}
+
+// PRO-125 — one per refused field, all answered at once
+enum ProcedureInvalidReason {
+    PatientIdEmpty,
+    ProcedureTypeIdEmpty,
+    ProcedureDateEmpty,
+    ProcedureDateInvalid,
 }
 
 enum ProcedureStatus {
@@ -132,6 +149,10 @@ enum PaymentMethod {
 
 ## Events
 
-| Event              | Trigger                                                       |
-| ------------------ | ------------------------------------------------------------- |
-| `ProcedureUpdated` | After `add_procedure`, `update_procedure`, `delete_procedure` |
+| Event              | Trigger                                                                          |
+| ------------------ | -------------------------------------------------------------------------------- |
+| `ProcedureUpdated` | After `add_procedure`, `update_procedure` answered `Updated`, `delete_procedure` |
+
+## Changelog
+
+- 2026-10-18 — Modified by `procedure-orchestration` spec (TODO-026): `add_procedure`, `update_procedure` (PRO-125, PRO-251, PRO-252, PRO-255, PRO-256)

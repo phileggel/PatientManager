@@ -195,8 +195,7 @@ describe("ProcedureTypePresenter", () => {
 
   describe("formatProcedureError - F27 Layer 3 (pure code → key mapping)", () => {
     const cases: Array<[ProcedureError["code"], string]> = [
-      ["PatientIdEmpty", "procedure-type:errors.patient_id_empty"],
-      ["ProcedureTypeIdEmpty", "procedure-type:errors.procedure_type_id_empty"],
+      ["ProcedureInvalid", "procedure-type:errors.procedure_invalid"],
       ["ProcedureTypeNameEmpty", "procedure-type:errors.name_empty"],
       ["DefaultAmountNegative", "procedure-type:errors.default_amount_negative"],
       ["ProcedureTypeNameDuplicate", "procedure-type:errors.name_duplicate"],

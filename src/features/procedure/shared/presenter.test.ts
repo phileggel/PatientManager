@@ -146,10 +146,13 @@ describe("formatProcedureOrchestrationError - F27 Layer 3 (pure code → key map
     });
   });
 
-  it("maps InvalidProcedureDate to its key", () => {
-    const err: ProcedureOrchestrationError = { code: "InvalidProcedureDate" };
+  it("PRO-125: maps ProcedureInvalid to the required-fields message", () => {
+    const err: ProcedureOrchestrationError = {
+      code: "ProcedureInvalid",
+      reasons: ["PatientIdEmpty", "ProcedureDateEmpty"],
+    };
     expect(formatProcedureOrchestrationError(err)).toEqual({
-      key: "procedure:errors.invalid_procedure_date",
+      key: "procedure:error.required_fields",
     });
   });
 
@@ -175,8 +178,6 @@ describe("formatProcedureOrchestrationError - F27 Layer 3 (pure code → key map
 
   it("maps the remaining BC variants to their keys without params", () => {
     const cases: Array<[ProcedureOrchestrationError, string]> = [
-      [{ code: "PatientIdEmpty" }, "procedure:errors.patient_id_empty"],
-      [{ code: "ProcedureTypeIdEmpty" }, "procedure:errors.procedure_type_id_empty"],
       [{ code: "ProcedureTypeNameEmpty" }, "procedure:errors.procedure_type_name_empty"],
       [{ code: "DefaultAmountNegative" }, "procedure:errors.default_amount_negative"],
       [{ code: "ProcedureTypeNameDuplicate" }, "procedure:errors.procedure_type_name_duplicate"],

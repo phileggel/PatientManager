@@ -1,7 +1,9 @@
+use serde::Serialize;
+use specta::Type;
 use std::sync::Arc;
 
 use crate::context::fund::FundRepository;
-use crate::context::patient::PatientRepository;
+use crate::context::patient::{Patient, PatientRepository};
 use crate::context::procedure::{
     PaymentMethod, Procedure, ProcedureCandidate, ProcedureError, ProcedureRefundRepository,
     ProcedureService as ContextProcedureService, ProcedureStatus, ProcedureTypeRepository,
@@ -68,6 +70,16 @@ impl ProcedureOrchestrationService {
     }
 }
 
+/// What an edit from the form did (PRO-255).
+#[derive(Debug, Clone, PartialEq, Serialize, Type)]
+#[serde(tag = "outcome")]
+pub enum ProcedureEdit {
+    /// The procedure was written.
+    Updated { procedure: Procedure },
+    /// The procedure sent equals the stored one: nothing written.
+    Unchanged,
+}
+
 pub struct CreateProcedureRequest {
     pub patient_id: String,
     pub fund_id: Option<String>,
@@ -96,43 +108,10 @@ impl ProcedureOrchestrationService {
             "Creating new healthcare procedure with FK validation"
         );
 
-        // Validate: Does patient exist?
-        let patient = self
-            .patient_repository
-            .read_patient(&req.patient_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "create_procedure: read_patient failed");
-                ProcedureOrchestrationTask::DatabaseError
-            })?
-            .ok_or_else(|| ProcedureOrchestrationTask::PatientNotFound {
-                patient_id: req.patient_id.clone(),
-            })?;
-
-        // Validate: Does procedure type exist?
-        let _ = self
-            .procedure_type_repository
-            .read_procedure_type(&req.procedure_type_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "create_procedure: read_procedure_type failed");
-                ProcedureOrchestrationTask::DatabaseError
-            })?
-            .ok_or_else(|| ProcedureError::ProcedureTypeNotFound {
-                procedure_type_id: req.procedure_type_id.clone(),
-            })?;
-
-        // Validate: Does fund exist if provided?
-        if let Some(id) = &req.fund_id {
-            self.fund_repository
-                .read_fund(id)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "create_procedure: read_fund failed");
-                    ProcedureOrchestrationTask::DatabaseError
-                })?
-                .ok_or_else(|| ProcedureOrchestrationTask::FundNotFound { fund_id: id.clone() })?;
-        }
+        let patient = self.ensure_patient_exists(&req.patient_id).await?;
+        self.ensure_procedure_type_exists(&req.procedure_type_id)
+            .await?;
+        self.ensure_fund_exists(req.fund_id.as_deref()).await?;
 
         // Map payment method string to enum
         let mapped_payment_method = Self::determine_payment_method(
@@ -195,6 +174,99 @@ impl ProcedureOrchestrationService {
         }
 
         Ok(procedure)
+    }
+
+    /// The patient must exist (PRO-210, PRO-251). Returns it.
+    async fn ensure_patient_exists(
+        &self,
+        patient_id: &str,
+    ) -> Result<Patient, ProcedureOrchestrationError> {
+        Ok(self
+            .patient_repository
+            .read_patient(patient_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "read_patient failed");
+                ProcedureOrchestrationTask::DatabaseError
+            })?
+            .ok_or_else(|| ProcedureOrchestrationTask::PatientNotFound {
+                patient_id: patient_id.to_string(),
+            })?)
+    }
+
+    /// The procedure type must exist (PRO-210, PRO-251).
+    async fn ensure_procedure_type_exists(
+        &self,
+        procedure_type_id: &str,
+    ) -> Result<(), ProcedureOrchestrationError> {
+        self.procedure_type_repository
+            .read_procedure_type(procedure_type_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "read_procedure_type failed");
+                ProcedureOrchestrationTask::DatabaseError
+            })?
+            .ok_or_else(|| ProcedureError::ProcedureTypeNotFound {
+                procedure_type_id: procedure_type_id.to_string(),
+            })?;
+        Ok(())
+    }
+
+    /// The fund, when one is given, must exist (PRO-210, PRO-251).
+    async fn ensure_fund_exists(
+        &self,
+        fund_id: Option<&str>,
+    ) -> Result<(), ProcedureOrchestrationError> {
+        if let Some(id) = fund_id {
+            self.fund_repository
+                .read_fund(id)
+                .await
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "read_fund failed");
+                    ProcedureOrchestrationTask::DatabaseError
+                })?
+                .ok_or_else(|| ProcedureOrchestrationTask::FundNotFound {
+                    fund_id: id.to_string(),
+                })?;
+        }
+        Ok(())
+    }
+
+    /// Edit a procedure from the form, refusals in PRO-256's order: an unknown
+    /// procedure (PRO-252), then a changed patient, type or fund that does not
+    /// exist (PRO-251; a kept one stays valid); then a procedure identical to
+    /// the stored one is answered `Unchanged`, nothing written (PRO-255); any
+    /// other is updated as `update_procedure` does.
+    pub async fn edit_procedure(
+        &self,
+        procedure: Procedure,
+    ) -> Result<ProcedureEdit, ProcedureOrchestrationError> {
+        let stored = self
+            .context_procedure_service
+            .read_procedure(&procedure.id)
+            .await?;
+        let Some(stored) = stored else {
+            return Err(ProcedureError::ProcedureNotFound {
+                procedure_id: procedure.id,
+            }
+            .into());
+        };
+        if procedure.patient_id != stored.patient_id {
+            self.ensure_patient_exists(&procedure.patient_id).await?;
+        }
+        if procedure.procedure_type_id != stored.procedure_type_id {
+            self.ensure_procedure_type_exists(&procedure.procedure_type_id)
+                .await?;
+        }
+        if procedure.fund_id != stored.fund_id {
+            self.ensure_fund_exists(procedure.fund_id.as_deref())
+                .await?;
+        }
+        if stored == procedure {
+            return Ok(ProcedureEdit::Unchanged);
+        }
+        let procedure = self.update_procedure(procedure).await?;
+        Ok(ProcedureEdit::Updated { procedure })
     }
 
     /// Update a procedure (delegates to context service).
@@ -1427,6 +1499,116 @@ mod tests {
     #[test]
     fn is_fully_paid_false_when_paid_is_none() {
         assert!(!ProcedureOrchestrationService::is_fully_paid(100_000, None));
+    }
+
+    // --- edit_procedure (PRO-255) ---
+
+    /// An orchestrator for an edit: `stored` is the procedure on file, the
+    /// patient lookup answers `patient`, the type and fund lookups find one;
+    /// `writes` is how many updates the edit may write.
+    fn make_edit_orchestrator(
+        stored: Procedure,
+        patient: Option<Patient>,
+        writes: usize,
+    ) -> ProcedureOrchestrationService {
+        let mut repo = MockProcedureRepository::new();
+        repo.expect_read_procedure()
+            .returning(move |_| Ok(Some(stored.clone())));
+        repo.expect_update_procedure().times(writes).returning(Ok);
+        ProcedureOrchestrationService::new(
+            Arc::new(ContextProcedureService::new(
+                Arc::new(repo),
+                Arc::new(EventBus::new()),
+            )),
+            Arc::new(mock_patient_repo(patient, Arc::new(Mutex::new(None)))),
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(refund_repo_noop()),
+        )
+    }
+
+    #[tokio::test]
+    async fn pro_255_edit_with_the_stored_values_is_unchanged_and_writes_nothing() {
+        let stored = make_procedure_with_status(ProcedureStatus::Created);
+        let orchestrator = make_edit_orchestrator(stored.clone(), Some(make_valid_patient()), 0);
+        let edit = orchestrator.edit_procedure(stored).await.unwrap();
+        assert_eq!(edit, ProcedureEdit::Unchanged);
+    }
+
+    #[tokio::test]
+    async fn pro_255_edit_with_a_changed_field_is_updated() {
+        let stored = make_procedure_with_status(ProcedureStatus::Created);
+        let mut changed = stored.clone();
+        changed.billed_amount += 1_000;
+        let orchestrator = make_edit_orchestrator(stored, Some(make_valid_patient()), 1);
+        let edit = orchestrator.edit_procedure(changed.clone()).await.unwrap();
+        assert_eq!(edit, ProcedureEdit::Updated { procedure: changed });
+    }
+
+    #[tokio::test]
+    async fn pro_252_edit_of_an_unknown_procedure_is_refused_and_writes_nothing() {
+        let mut repo = MockProcedureRepository::new();
+        repo.expect_read_procedure().returning(|_| Ok(None));
+        repo.expect_update_procedure().times(0);
+        let orchestrator = ProcedureOrchestrationService::new(
+            Arc::new(ContextProcedureService::new(
+                Arc::new(repo),
+                Arc::new(EventBus::new()),
+            )),
+            Arc::new(mock_patient_repo(
+                Some(make_valid_patient()),
+                Arc::new(Mutex::new(None)),
+            )),
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(refund_repo_noop()),
+        );
+        let err = orchestrator
+            .edit_procedure(make_procedure_with_status(ProcedureStatus::Created))
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            ProcedureOrchestrationError::Procedure(ProcedureError::ProcedureNotFound { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn pro_251_edit_keeping_a_since_deleted_fund_is_saved() {
+        let mut stored = make_procedure_with_status(ProcedureStatus::Reconciled);
+        stored.fund_id = Some("deleted-fund".to_string());
+        let mut changed = stored.clone();
+        changed.procedure_type_id = "type-id-2".to_string();
+        let mut repo = MockProcedureRepository::new();
+        let for_read = stored.clone();
+        repo.expect_read_procedure()
+            .returning(move |_| Ok(Some(for_read.clone())));
+        repo.expect_update_procedure().times(1).returning(Ok);
+        let orchestrator = ProcedureOrchestrationService::new(
+            Arc::new(ContextProcedureService::new(
+                Arc::new(repo),
+                Arc::new(EventBus::new()),
+            )),
+            Arc::new(mock_patient_repo(None, Arc::new(Mutex::new(None)))),
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_not_found()),
+            Arc::new(refund_repo_noop()),
+        );
+        let edit = orchestrator.edit_procedure(changed.clone()).await.unwrap();
+        assert_eq!(edit, ProcedureEdit::Updated { procedure: changed });
+    }
+
+    #[tokio::test]
+    async fn pro_251_edit_naming_an_unknown_patient_is_refused_and_writes_nothing() {
+        let stored = make_procedure_with_status(ProcedureStatus::Created);
+        let mut changed = stored.clone();
+        changed.patient_id = "unknown-patient".to_string();
+        let orchestrator = make_edit_orchestrator(stored, None, 0);
+        let err = orchestrator.edit_procedure(changed).await.unwrap_err();
+        assert!(matches!(
+            err,
+            ProcedureOrchestrationError::Task(ProcedureOrchestrationTask::PatientNotFound { .. })
+        ));
     }
 
     // --- update_procedure ---

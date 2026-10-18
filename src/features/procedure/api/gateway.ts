@@ -18,6 +18,7 @@ import {
   type Patient,
   type PatientError,
   type Procedure,
+  type ProcedureEdit,
   type ProcedureError,
   type ProcedureOrchestrationError,
   type ProcedureType,
@@ -70,7 +71,7 @@ export async function addProcedure(
  */
 export async function updateProcedure(
   procedure: RawProcedure,
-): Promise<ServiceResult<Procedure, ProcedureOrchestrationError>> {
+): Promise<ServiceResult<ProcedureEdit, ProcedureOrchestrationError>> {
   const result = await commands.updateProcedure(procedure);
   if (result.status === "ok") return { success: true, data: result.data };
   return { success: false, error: result.error };

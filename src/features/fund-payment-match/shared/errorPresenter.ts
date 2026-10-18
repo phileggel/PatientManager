@@ -86,8 +86,7 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     case "InvalidSsn":
     case "PatientNotFound":
     // --- ProcedureError domain invariants ---
-    case "PatientIdEmpty":
-    case "ProcedureTypeIdEmpty":
+    case "ProcedureInvalid":
     case "ProcedureNotFound":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":

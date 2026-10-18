@@ -23,13 +23,9 @@ export function formatProcedureOrchestrationError(err: ProcedureOrchestrationErr
       return { key: "procedure:errors.fund_not_found", params: { id: err.fund_id } };
     case "ProcedureDeleteBlocked":
       return { key: "procedure:errors.delete_blocked" };
-    case "InvalidProcedureDate":
-      return { key: "procedure:errors.invalid_procedure_date" };
     // --- ProcedureError (BC) ---
-    case "PatientIdEmpty":
-      return { key: "procedure:errors.patient_id_empty" };
-    case "ProcedureTypeIdEmpty":
-      return { key: "procedure:errors.procedure_type_id_empty" };
+    case "ProcedureInvalid":
+      return { key: "procedure:error.required_fields" };
     case "ProcedureNotFound":
       return { key: "procedure:errors.procedure_not_found", params: { id: err.procedure_id } };
     case "ProcedureTypeNameEmpty":

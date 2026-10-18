@@ -59,8 +59,7 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
     // --- ProcedureError domain invariants + lookups (not expected in this flow) ---
-    case "PatientIdEmpty":
-    case "ProcedureTypeIdEmpty":
+    case "ProcedureInvalid":
     case "ProcedureNotFound":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":

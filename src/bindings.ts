@@ -121,7 +121,7 @@ async readAllProcedures() : Promise<Result<Procedure[], ProcedureOrchestrationEr
 /**
  * Tauri command: Update an existing procedure
  */
-async updateProcedure(raw: RawProcedure) : Promise<Result<Procedure, ProcedureOrchestrationError>> {
+async updateProcedure(raw: RawProcedure) : Promise<Result<ProcedureEdit, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_procedure", { raw }) };
 } catch (e) {
@@ -912,14 +912,17 @@ async generateFundReconciliationReportPdf(request: ReportGenerationRequest) : Pr
  * frontend can surface its name in a confirmation toast.
  * 
  * Filename safety: the caller-supplied `filename` is treated as a leaf name
- * only — it MUST contain no path separators, no `..` segment, must end in
+ * only — it MUST contain no path separator, no `:`, no `..`, no Windows
+ * device name, must end in
  * `.pdf`, and must fit within [`FILENAME_MAX_LEN`]. The destination
- * directory is fixed to the platform Downloads folder; no user-supplied
- * path component reaches the filesystem.
+ * directory is fixed to the platform Downloads folder; the chosen name goes
+ * through `validate_user_path` (never a link, never outside Downloads) and is
+ * created new, never written over.
  * 
- * Collision handling: if a same-named file already exists, a ` (N)` suffix
- * is appended before the extension (`name.pdf` → `name (1).pdf` → …) so
- * re-exporting the same report never silently overwrites a prior one.
+ * Collision handling: if anything is at that name, a link included, a ` (N)`
+ * suffix is appended before the extension (`name.pdf` → `name (1).pdf` → …),
+ * so re-exporting never overwrites a prior one; after 1000 taken names the
+ * export fails (`no_free_name`).
  */
 async exportAndOpenFundReconciliationReportPdf(request: ReportGenerationRequest, filename: string) : Promise<Result<string, ReportPdfError>> {
     try {
@@ -2222,6 +2225,18 @@ paid_amount: number | null;
  */
 id: string }
 /**
+ * What an edit from the form did (PRO-250).
+ */
+export type ProcedureEdit = 
+/**
+ * The procedure was written.
+ */
+{ outcome: "Updated"; procedure: Procedure } | 
+/**
+ * The procedure sent equals the stored one: nothing written.
+ */
+{ outcome: "Unchanged" }
+/**
  * Errors raised by the Procedure bounded context.
  * 
  * Wire shape: each variant serializes as `{ "code": "<VariantName>", ... }`
@@ -2232,18 +2247,15 @@ id: string }
  * The `Procedure` aggregate's CRUD commands are not wired through this BC's
  * api.rs (they live in `use_cases/procedure_orchestration/api.rs` and become
  * wire-typed in PR 3 of the migration). The corresponding variants
- * (`PatientIdEmpty`, `ProcedureTypeIdEmpty`, `Refund*`) are reachable through
- * `Procedure::new` / `ProcedureRefund::new`, called from those use cases.
+ * (`ProcedureInvalid`, `Refund*`) are reachable through `Procedure::new` /
+ * `Procedure::read_form` / `ProcedureRefund::new`, called from those use cases.
  */
 export type ProcedureError = 
 /**
- * `Procedure::validate` rejected an empty patient ID.
+ * `Procedure::validate` or `Procedure::read_form` refused the procedure:
+ * every reason at once, one per field (PRO-120).
  */
-{ code: "PatientIdEmpty" } | 
-/**
- * `Procedure::validate` rejected an empty procedure type ID.
- */
-{ code: "ProcedureTypeIdEmpty" } | 
+{ code: "ProcedureInvalid"; reasons: ProcedureInvalidReason[] } | 
 /**
  * A `Procedure` lookup by id returned no row (e.g. the delete guard in
  * `ProcedureOrchestrationService` reading the target before deletion).
@@ -2286,6 +2298,10 @@ export type ProcedureError =
  */
 { code: "DatabaseError" }
 /**
+ * Why a procedure is refused; one per invalid field (PRO-120).
+ */
+export type ProcedureInvalidReason = "PatientIdEmpty" | "ProcedureTypeIdEmpty" | "ProcedureDateEmpty" | "ProcedureDateInvalid"
+/**
  * Composite error for the procedure-orchestration use case.
  * 
  * Holds ONLY `#[from]` wrappers — the Procedure BC enum and the use-case task
@@ -2301,7 +2317,7 @@ export type ProcedureOrchestrationError = ProcedureError | ProcedureOrchestratio
  * 
  * These are codes that do NOT belong to the Procedure bounded context: the
  * orchestrator validates cross-context foreign keys (patient, fund), enforces
- * a delete guard, parses the wire `procedure_date`, and translates failures
+ * a delete guard, and translates failures
  * from the patient / fund / procedure-type / refund repositories it holds
  * directly. Tagged with `code` so each variant emits `{ "code": "..." }`.
  */
@@ -2319,10 +2335,6 @@ export type ProcedureOrchestrationTask =
  * transaction (a blocking status) and cannot be deleted directly.
  */
 { code: "ProcedureDeleteBlocked" } | 
-/**
- * The wire `procedure_date` did not parse as `YYYY-MM-DD`.
- */
-{ code: "InvalidProcedureDate" } | 
 /**
  * Failure from a repository the orchestrator holds directly (patient /
  * fund / procedure-type / refund). Logged at the call site via
@@ -2380,7 +2392,11 @@ id: string }
  * Raw healthcare procedure data from frontend (unvalidated)
  * Used for updating an existing procedure with data from an external source
  */
-export type RawProcedure = { id: string; patient_id: string; fund_id: string | null; procedure_type_id: string; procedure_date: string; billed_amount: number; payment_method: string | null; fund_reconciliation_date: string | null; confirmed_payment_date: string | null; paid_amount: number | null; payment_status: string }
+export type RawProcedure = { id: string; patient_id: string; fund_id: string | null; procedure_type_id: string; 
+/**
+ * As the form sent it (YYYY-MM-DD, or empty): `Procedure::read_form` judges it (PRO-120).
+ */
+procedure_date: string; billed_amount: number; payment_method: string | null; fund_reconciliation_date: string | null; confirmed_payment_date: string | null; paid_amount: number | null; payment_status: string }
 /**
  * Raw procedure type data from frontend (unvalidated)
  */

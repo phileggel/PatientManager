@@ -2,8 +2,8 @@ use crate::context::fund::FundError;
 use crate::context::procedure::{PaymentMethod, Procedure, ProcedureError, ProcedureStatus};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::procedure_orchestration::{
-    CreateProcedureRequest, DeletionOrchestrator, ProcedureOrchestrationError,
-    ProcedureOrchestrationService, ProcedureOrchestrationTask,
+    CreateProcedureRequest, DeletionOrchestrator, ProcedureEdit, ProcedureOrchestrationError,
+    ProcedureOrchestrationService,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -20,8 +20,8 @@ pub struct RawProcedure {
     pub patient_id: String,
     pub fund_id: Option<String>,
     pub procedure_type_id: String,
-    #[specta(type = String)]
-    pub procedure_date: chrono::NaiveDate,
+    /// As the form sent it (YYYY-MM-DD, or empty): `Procedure::read_form` judges it (PRO-125).
+    pub procedure_date: String,
     pub billed_amount: i64,
     pub payment_method: Option<String>,
     #[specta(type = Option<String>)]
@@ -33,10 +33,16 @@ pub struct RawProcedure {
 }
 
 impl RawProcedure {
-    /// Converts raw procedure data into a validated domain Procedure.
-    /// Unknown `payment_method` / `payment_status` strings fall back to the
-    /// `None` variant of each enum (matching legacy behaviour).
+    /// Converts raw procedure data into a validated domain Procedure, every
+    /// refused field at once (PRO-125). Unknown `payment_method` /
+    /// `payment_status` strings fall back to the `None` variant of each enum
+    /// (matching legacy behaviour).
     pub fn into_procedure(self) -> Result<Procedure, ProcedureError> {
+        let procedure_date = Procedure::read_form(
+            &self.patient_id,
+            &self.procedure_type_id,
+            &self.procedure_date,
+        )?;
         let payment_method = self
             .payment_method
             .as_deref()
@@ -52,7 +58,7 @@ impl RawProcedure {
             self.patient_id,
             self.fund_id,
             self.procedure_type_id,
-            self.procedure_date,
+            procedure_date,
             self.billed_amount,
             payment_method,
             self.fund_reconciliation_date,
@@ -78,11 +84,7 @@ pub async fn add_procedure(
 ) -> Result<Procedure, ProcedureOrchestrationError> {
     tracing::info!(target: BACKEND, patient_id = %patient_id, "Processing add procedure");
 
-    // reviewer-arch FP: malformed-date case is now compile-time-checked via
-    // NaiveDate + #[specta(type = String)] on the wire; Serde deserialization
-    // isn't our test surface — see PR #44.
-    let procedure_date = chrono::NaiveDate::parse_from_str(&procedure_date, "%Y-%m-%d")
-        .map_err(|_| ProcedureOrchestrationTask::InvalidProcedureDate)?;
+    let procedure_date = Procedure::read_form(&patient_id, &procedure_type_id, &procedure_date)?;
 
     service
         .create_procedure(CreateProcedureRequest {
@@ -124,7 +126,7 @@ pub async fn read_all_procedures(
 pub async fn update_procedure(
     raw: RawProcedure,
     service: State<'_, Arc<ProcedureOrchestrationService>>,
-) -> Result<Procedure, ProcedureOrchestrationError> {
+) -> Result<ProcedureEdit, ProcedureOrchestrationError> {
     tracing::info!(target: BACKEND, procedure_id = %raw.id, "Processing update procedure");
 
     // Convert raw data to validated domain object
@@ -142,10 +144,15 @@ pub async fn update_procedure(
     }
 
     service
-        .update_procedure(procedure)
+        .edit_procedure(procedure)
         .await
-        .inspect(|updated| {
-            tracing::info!(target: BACKEND, procedure_id = ?updated.id, "Procedure updated successfully");
+        .inspect(|edit| match edit {
+            ProcedureEdit::Updated { procedure } => {
+                tracing::info!(target: BACKEND, procedure_id = ?procedure.id, "Procedure updated successfully");
+            }
+            ProcedureEdit::Unchanged => {
+                tracing::info!(target: BACKEND, "Procedure unchanged, nothing written");
+            }
         })
 }
 
@@ -238,7 +245,7 @@ mod tests {
             patient_id: "pat-1".to_string(),
             fund_id: None,
             procedure_type_id: "type-1".to_string(),
-            procedure_date: chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            procedure_date: "2026-01-15".to_string(),
             billed_amount: 1000,
             payment_method: payment_method.map(|s| s.to_string()),
             fund_reconciliation_date: None,
@@ -246,6 +253,22 @@ mod tests {
             paid_amount: None,
             payment_status: payment_status.to_string(),
         }
+    }
+
+    #[test]
+    fn pro_125_update_refuses_every_missing_field_at_once() {
+        let mut raw = raw_with(None, "CREATED");
+        raw.patient_id = String::new();
+        raw.procedure_date = String::new();
+        let err = raw.into_procedure().unwrap_err();
+        assert!(matches!(
+            err,
+            ProcedureError::ProcedureInvalid { ref reasons }
+                if reasons == &vec![
+                    crate::context::procedure::ProcedureInvalidReason::PatientIdEmpty,
+                    crate::context::procedure::ProcedureInvalidReason::ProcedureDateEmpty,
+                ]
+        ));
     }
 
     #[test]

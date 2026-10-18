@@ -81,6 +81,8 @@ content width.
 `confirmed_payment_date`) must be in ISO 8601 format (YYYY-MM-DD); an invalid format is
 rejected when the domain object is constructed. `fund_id` is optional.
 
+**PRO-125 — Required fields refused at once (backend)**: Creating a single procedure, or editing one, whose patient, procedure type or date is empty (a blank value counts as empty), or whose date is not a valid YYYY-MM-DD date, is refused naming every such field at once, one reason per field (an empty date and a malformed date are two different reasons); nothing is saved. Batch creation (PRO-300) is not covered.
+
 **PRO-210 (R14) — FK existence validation at creation**: Before persistence, the orchestration
 checks that `patient_id` and `procedure_type_id` reference existing entities. If
 `fund_id` is provided, the fund must also exist. Any missing reference aborts creation
@@ -97,7 +99,15 @@ non-ES/CH method + fund present → `ImportFundPayed`. `None` is never assigned 
 **PRO-240 (R17) — `awaited_amount` ignored**: The `awaited_amount` value sent by the caller is
 always ignored and never persisted.
 
-**PRO-250 (R18) — Free updates from the frontend (backend)**: The `update_procedure` command accepts every procedure field (`patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `actual_payment_amount`, `payment_status`) without re-inference. No FK validation is performed on update — a deliberate choice: an update from the frontend is a direct-correction operation, and the frontend is responsible for the values sent. The backend imposes no restriction on which fields are editable based on the procedure's status (including blocking statuses) — the restriction to `procedure_type_id` only for blocking-status procedures is guaranteed exclusively by the frontend (see PRO-190).
+**PRO-250 (R18) — Free updates from the frontend (backend)**: The `update_procedure` command accepts every procedure field (`patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `actual_payment_amount`, `payment_status`) without re-inference. References are checked as PRO-251 says. The backend imposes no restriction on which fields are editable based on the procedure's status (including blocking statuses) — the restriction to `procedure_type_id` only for blocking-status procedures is guaranteed exclusively by the frontend (see PRO-190).
+
+**PRO-251 — References checked on edit (backend)**: An edit that changes the patient, the procedure type or the fund to one that does not exist, or has been deleted, is refused, naming the first one found in the order patient, procedure type, fund; nothing is saved. A reference the edit keeps stays valid, even if deleted since (owner, 2026-10-18: the backend judges what it receives, whoever sends it).
+
+**PRO-252 — Unknown procedure (backend)**: An edit of a procedure that does not exist is refused; nothing is saved.
+
+**PRO-255 — An edit that changes nothing (backend)**: An edit whose values, as the domain reads them, all equal the stored procedure's saves nothing, publishes no `ProcedureUpdated` event, and is reported as unchanged; any other edit is saved, publishes `ProcedureUpdated`, and is reported with the saved procedure.
+
+**PRO-256 — Order of refusals (backend)**: On an edit, PRO-125 is checked first, then PRO-252, then PRO-251; PRO-255 applies only to an edit none of them refuses. On a creation, PRO-125 is checked before PRO-210.
 
 **PRO-260 (R19) — Patient tracking on creation**: After a successful creation (single or batch), if
 `procedure_date > patient.latest_date` (or `latest_date` is null), the orchestration

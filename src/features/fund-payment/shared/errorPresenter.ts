@@ -41,8 +41,7 @@ export function formatManualManagementError(err: FundPaymentManualManagementErro
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
     // --- ProcedureError domain invariants (not expected in this flow) ---
-    case "PatientIdEmpty":
-    case "ProcedureTypeIdEmpty":
+    case "ProcedureInvalid":
     case "ProcedureNotFound":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":

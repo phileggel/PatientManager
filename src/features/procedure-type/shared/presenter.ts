@@ -22,10 +22,8 @@ export function formatProcedureError(err: ProcedureError): {
   params?: Record<string, string | number>;
 } {
   switch (err.code) {
-    case "PatientIdEmpty":
-      return { key: "procedure-type:errors.patient_id_empty" };
-    case "ProcedureTypeIdEmpty":
-      return { key: "procedure-type:errors.procedure_type_id_empty" };
+    case "ProcedureInvalid":
+      return { key: "procedure-type:errors.procedure_invalid" };
     case "ProcedureNotFound":
       return {
         key: "procedure-type:errors.procedure_not_found",

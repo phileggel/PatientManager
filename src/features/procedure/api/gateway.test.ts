@@ -145,10 +145,13 @@ describe("addProcedure", () => {
   it("returns failure result on command error", async () => {
     vi.mocked(commands.addProcedure).mockResolvedValue({
       status: "error",
-      error: { code: "PatientIdEmpty" },
+      error: { code: "ProcedureInvalid", reasons: ["PatientIdEmpty"] },
     });
     const result = await addProcedure("p-1", null, "pt-1", "2026-05-01", 0);
-    expect(result).toEqual({ success: false, error: { code: "PatientIdEmpty" } });
+    expect(result).toEqual({
+      success: false,
+      error: { code: "ProcedureInvalid", reasons: ["PatientIdEmpty"] },
+    });
   });
 });
 
@@ -160,11 +163,14 @@ describe("updateProcedure", () => {
   it("returns success result with updated procedure", async () => {
     vi.mocked(commands.updateProcedure).mockResolvedValue({
       status: "ok",
-      data: SAMPLE_PROCEDURE,
+      data: { outcome: "Updated", procedure: SAMPLE_PROCEDURE },
     });
     const result = await updateProcedure(SAMPLE_RAW_PROCEDURE);
     expect(commands.updateProcedure).toHaveBeenCalledWith(SAMPLE_RAW_PROCEDURE);
-    expect(result).toEqual({ success: true, data: SAMPLE_PROCEDURE });
+    expect(result).toEqual({
+      success: true,
+      data: { outcome: "Updated", procedure: SAMPLE_PROCEDURE },
+    });
   });
 
   it("returns failure result on command error", async () => {

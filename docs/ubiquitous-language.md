@@ -281,6 +281,7 @@ from code and proposed for confirmation.
 | `correct_billed_amount(billed_amount)`      | Override billed amount from PDF auto-correction            | —                                      | confirmed |
 | `correct_fund(fund_id)`                     | Override fund from PDF auto-correction                     | —                                      | confirmed |
 | `correct_date(pdf_date)`                    | Override procedure date from PDF auto-correction           | —                                      | confirmed |
+| `read_form(patient, type, date)`            | Read the procedure form: the date, or every refused field  | —                                      | confirmed |
 
 > ⚠️ Code discrepancy: none of these aggregate root methods exist yet — fields are mutated
 > directly in use case orchestrators. All to be extracted.
@@ -290,6 +291,8 @@ from code and proposed for confirmation.
 > `edit(...)` is the confirmed term for a user changing an aggregate's fields from its
 > edit form, whatever the aggregate (owner, 2026-10-05). Another kind of change (a PDF
 > override, a status transition) takes its own term.
+> An edit is answered `Updated` (saved) or `Unchanged` (its values equal the stored ones,
+> nothing saved): `ProcedureEdit` (owner, 2026-10-18).
 
 ### Fund
 

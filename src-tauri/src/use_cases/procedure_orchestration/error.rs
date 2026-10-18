@@ -8,7 +8,7 @@ use crate::context::procedure::ProcedureError;
 ///
 /// These are codes that do NOT belong to the Procedure bounded context: the
 /// orchestrator validates cross-context foreign keys (patient, fund), enforces
-/// a delete guard, parses the wire `procedure_date`, and translates failures
+/// a delete guard, and translates failures
 /// from the patient / fund / procedure-type / refund repositories it holds
 /// directly. Tagged with `code` so each variant emits `{ "code": "..." }`.
 #[derive(Debug, Clone, Error, Serialize, Type)]
@@ -26,10 +26,6 @@ pub enum ProcedureOrchestrationTask {
     /// transaction (a blocking status) and cannot be deleted directly.
     #[error("Procedure is linked to a payment and cannot be deleted")]
     ProcedureDeleteBlocked,
-
-    /// The wire `procedure_date` did not parse as `YYYY-MM-DD`.
-    #[error("Invalid procedure date format (expected YYYY-MM-DD)")]
-    InvalidProcedureDate,
 
     /// Failure from a repository the orchestrator holds directly (patient /
     /// fund / procedure-type / refund). Logged at the call site via
@@ -98,13 +94,6 @@ mod tests {
         assert_eq!(
             to_value(&blocked).unwrap(),
             json!({ "code": "ProcedureDeleteBlocked" }),
-        );
-
-        let bad_date: ProcedureOrchestrationError =
-            ProcedureOrchestrationTask::InvalidProcedureDate.into();
-        assert_eq!(
-            to_value(&bad_date).unwrap(),
-            json!({ "code": "InvalidProcedureDate" }),
         );
 
         let db: ProcedureOrchestrationError = ProcedureOrchestrationTask::DatabaseError.into();

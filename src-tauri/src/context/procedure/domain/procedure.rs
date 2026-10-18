@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
-use super::super::error::ProcedureError;
+use super::super::error::{ProcedureError, ProcedureInvalidReason};
 
 /// Payment method for a healthcare procedure
 ///
@@ -194,7 +194,7 @@ impl FromStr for ProcedureStatus {
 /// - paid_amount: Amount actually paid/received from patient or fund (thousandths of a euro)
 /// - confirmed_payment_date: When the payment was confirmed (from reconciliation)
 /// - payment_method: How payment was made (Cash/Check/BankCard/BankTransfer/None)
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct Procedure {
     /// Foreign key to Patient (required)
     pub patient_id: String,
@@ -420,15 +420,46 @@ impl Procedure {
         self
     }
 
-    /// Validates healthcare procedure fields.
+    /// What the procedure form sent, as the domain reads it (PRO-125): the
+    /// date parsed, or every missing or malformed field at once.
+    pub fn read_form(
+        patient_id: &str,
+        procedure_type_id: &str,
+        procedure_date: &str,
+    ) -> Result<NaiveDate, ProcedureError> {
+        let mut reasons = Self::required_reasons(patient_id, procedure_type_id);
+        let date = procedure_date.trim();
+        let parsed = NaiveDate::parse_from_str(date, "%Y-%m-%d").ok();
+        if date.is_empty() {
+            reasons.push(ProcedureInvalidReason::ProcedureDateEmpty);
+        } else if parsed.is_none() {
+            reasons.push(ProcedureInvalidReason::ProcedureDateInvalid);
+        }
+        match parsed {
+            Some(date) if reasons.is_empty() => Ok(date),
+            _ => Err(ProcedureError::ProcedureInvalid { reasons }),
+        }
+    }
+
+    /// Validates the required references: every reason for a refusal, not the first one.
     fn validate(patient_id: &str, procedure_type_id: &str) -> Result<(), ProcedureError> {
+        let reasons = Self::required_reasons(patient_id, procedure_type_id);
+        if reasons.is_empty() {
+            Ok(())
+        } else {
+            Err(ProcedureError::ProcedureInvalid { reasons })
+        }
+    }
+
+    fn required_reasons(patient_id: &str, procedure_type_id: &str) -> Vec<ProcedureInvalidReason> {
+        let mut reasons = Vec::new();
         if patient_id.trim().is_empty() {
-            return Err(ProcedureError::PatientIdEmpty);
+            reasons.push(ProcedureInvalidReason::PatientIdEmpty);
         }
         if procedure_type_id.trim().is_empty() {
-            return Err(ProcedureError::ProcedureTypeIdEmpty);
+            reasons.push(ProcedureInvalidReason::ProcedureTypeIdEmpty);
         }
-        Ok(())
+        reasons
     }
 }
 
@@ -732,21 +763,74 @@ mod tests {
         .map_err(Into::into)
     }
 
+    fn reasons_of(err: ProcedureError) -> Vec<ProcedureInvalidReason> {
+        match err {
+            ProcedureError::ProcedureInvalid { reasons } => reasons,
+            other => panic!("expected ProcedureInvalid, got {other:?}"),
+        }
+    }
+
     #[test]
     fn new_rejects_empty_patient_id() {
         let err = make_new("   ", "pt-1").unwrap_err();
-        assert!(matches!(
-            err.downcast::<ProcedureError>(),
-            Ok(ProcedureError::PatientIdEmpty)
-        ));
+        let err = err.downcast::<ProcedureError>().unwrap();
+        assert_eq!(
+            reasons_of(err),
+            vec![ProcedureInvalidReason::PatientIdEmpty]
+        );
     }
 
     #[test]
     fn new_rejects_empty_procedure_type_id() {
         let err = make_new("patient-1", "").unwrap_err();
-        assert!(matches!(
-            err.downcast::<ProcedureError>(),
-            Ok(ProcedureError::ProcedureTypeIdEmpty)
-        ));
+        let err = err.downcast::<ProcedureError>().unwrap();
+        assert_eq!(
+            reasons_of(err),
+            vec![ProcedureInvalidReason::ProcedureTypeIdEmpty]
+        );
+    }
+
+    #[test]
+    fn pro_125_new_answers_both_missing_references_at_once() {
+        let err = make_new("", " ").unwrap_err();
+        let err = err.downcast::<ProcedureError>().unwrap();
+        assert_eq!(
+            reasons_of(err),
+            vec![
+                ProcedureInvalidReason::PatientIdEmpty,
+                ProcedureInvalidReason::ProcedureTypeIdEmpty,
+            ]
+        );
+    }
+
+    #[test]
+    fn pro_125_read_form_answers_every_missing_field_at_once() {
+        let err = Procedure::read_form("", "", "").unwrap_err();
+        assert_eq!(
+            reasons_of(err),
+            vec![
+                ProcedureInvalidReason::PatientIdEmpty,
+                ProcedureInvalidReason::ProcedureTypeIdEmpty,
+                ProcedureInvalidReason::ProcedureDateEmpty,
+            ]
+        );
+    }
+
+    #[test]
+    fn pro_125_read_form_refuses_a_malformed_date_beside_a_missing_type() {
+        let err = Procedure::read_form("patient-1", "", "18/10/2026").unwrap_err();
+        assert_eq!(
+            reasons_of(err),
+            vec![
+                ProcedureInvalidReason::ProcedureTypeIdEmpty,
+                ProcedureInvalidReason::ProcedureDateInvalid,
+            ]
+        );
+    }
+
+    #[test]
+    fn pro_125_read_form_returns_the_date_of_a_complete_form() {
+        let date = Procedure::read_form("patient-1", "pt-1", "2026-10-18").unwrap();
+        assert_eq!(date, NaiveDate::from_ymd_opt(2026, 10, 18).unwrap());
     }
 }

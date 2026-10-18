@@ -45,8 +45,7 @@ export function formatOverpaymentError(err: OverpaymentError): {
       return { key: "overpayment:errors.reason_too_long" };
     // --- shared infra + ProcedureError domain invariants (not reachable from overpayment) ---
     case "DatabaseError":
-    case "PatientIdEmpty":
-    case "ProcedureTypeIdEmpty":
+    case "ProcedureInvalid":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":
     case "ProcedureTypeNotFound":
