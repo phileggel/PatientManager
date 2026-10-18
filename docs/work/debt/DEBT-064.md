@@ -8,4 +8,4 @@
 
 **Size:** L
 
-**Waits on the owner:** no — PRO-120: Submit stays disabled, the spec follows the code (owner, 2026-10-17)
+**Waits on the owner:** no — PRO-120: the owner first kept the disabled Submit (2026-10-17), then chose one rule for every form (2026-10-18): Submit always enabled, a click shows the red message under each missing field and sends nothing — PRO-120 as written; the code follows it under TODO-024.

@@ -1,15 +1,16 @@
-# TODO-024 — The procedure view's Save stays enabled when the type has not changed
+# TODO-024 — Every form says which field is missing, at the field
 
-Filed by the agent from `reviewer-frontend`'s release sweep of 2026-10-17 (`ProcedureFormModal.tsx`, the view mode's `procedure-form-modal-save-type`): since DEBT-062 the view of a paid or reconciled procedure has a Save button, enabled whenever a type is selected, so it saves an unchanged type (harmless: the update is the same).
+Filed from `reviewer-frontend`'s release sweep of 2026-10-17 (the procedure view's Save enabled with the type unchanged), widened by the owner on 2026-10-18: "we need to have a consistent way" — "either button is always on, but it is validate and possibly refuse with the missing fields info (red info under the field) or the button is greyed"; asked which, the owner chose the first. Today a greyed Submit never says which field is missing: no required marker, and PRO-120's per-field messages cannot be reached (DEBT-064). Candidates read (`disabled={!…}`, the design pass sorts which are form submits): `ProcedureFormModal`, `CreatePatientForm`, `RecordOverpaymentModal`, `ReconciliationModal`, `AddBankTransferForm`, `EditBankTransferModal`, `PeriodSelector`, `ProcedureList`.
 
-**Size:** S
+**Size:** XL — a programme: a design pass over every form, a frontend rule, then one pull request per form or group. Its first slice is proposed at `/plan-queue`.
 
-**User value:** the Save button of a procedure's view only invites a save once the type was changed.
+**User value:** in any form, the user presses Save and is told, under each field, what is missing; an edit with nothing changed says so instead of saving nothing.
 
-**Done when:** in view mode the Save button is disabled until the selected type differs from the procedure's; a Vitest test proves both states; screenshots.
+**Done when:** (draft) a rule in `docs/frontend-rules.md` states it; every form's Submit is enabled while it is not saving; a click with a required field empty shows the red message under that field and sends nothing; an edit with nothing changed shows a message and sends nothing; the procedure form meets PRO-120 as written; each form has a Vitest test of the click on missing fields; screenshots.
 
-**Design:** needed — a button's state changes (the mock of DEBT-062 showed it enabled).
+**Design:** needed — the messages and the "nothing changed" answer, mocked for each form before anything is built.
 
 **Open questions:**
 
-- [ ] The owner confirms this entry.
+- [ ] The size and the first slice, at `/plan-queue`.
+- [ ] Where "nothing changed" is said: under the form, or as a snackbar?
