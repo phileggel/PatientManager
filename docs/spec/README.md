@@ -6,11 +6,11 @@ built from it (owner, 2026-10-18).
 
 ## Numbering
 
-All business rules in feature specs use a consistent numbering scheme: **`TRIG-NNN`**
+All business rules in feature specs use a consistent numbering scheme: **`TRIGRAM-NNN`**
 
-- **TRIG**: 3-letter code identifying the feature/context
+- **TRIGRAM**: 3-letter code identifying the feature/context
 - **NNN**: 3-digit index with gaps, grouped by topic: 010–019 eligibility & initiation, 020–029 creation, 030–039 updates & status changes, 040–049 deletion, 050–059 extensions
-- **Letter suffix** (`TRIG-NNNA`, `TRIG-NNNB`, …): sub-rules of `TRIG-NNN`, used when a rule needs surgical sub-parts or a full block runs out of indices (ratified 2026-08-03; first use: BAS-113A/118A/120A–E)
+- **Letter suffix** (`TRIGRAM-NNNA`, `TRIGRAM-NNNB`, …): sub-rules of `TRIGRAM-NNN`, used when a rule needs surgical sub-parts or a full block runs out of indices (ratified 2026-08-03; first use: BAS-113A/118A/120A–E)
 
 Once assigned, a rule number never changes; a removed rule leaves its number vacant. A new trigram (three letters, unique) is registered below before its spec uses it.
 

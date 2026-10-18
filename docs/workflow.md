@@ -28,7 +28,7 @@ The backlog is on GitHub, never in git: the issues and the repository's Project
 (github.com/users/phileggel/projects/4). No commit touches it. In prose an issue is
 "ticket #123", a pull request "PR #123"; a pull request says `Closes #123`, so its merge
 closes the issue. An old `TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` is found by searching the
-issues for `Migrated from <id>`. A spec rule is `TRI-NNN` (Conventions).
+issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
 
 ### Filing an issue
 

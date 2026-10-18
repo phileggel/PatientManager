@@ -61,7 +61,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 ## Run from a copy
 
-`review.yml` runs the base branch's `scripts/review-lanes.sh` from a temp folder. A change that makes that script source or call a sibling file is a 🔴 unless the same diff adds the file to the list `review.yml` copies: the failure shows only on the pull requests that follow the merge (#183).
+`review.yml` runs the base branch's `scripts/review-lanes.sh` from a temp folder. A change that makes that script source or call a sibling file is a 🔴 unless the same diff adds the file to the list `review.yml` copies: the failure shows only on the pull requests that follow the merge (PR #183).
 
 ## Not a finding
 
