@@ -11,8 +11,7 @@
 | Tier 4 — E2E            | WebDriver UI flows           | `e2e-rules.md` (ephemeral DB, B36)                           | None                          |
 
 Nothing is run by hand before a commit: the hooks run the fast checks, the tests are CI's
-(`docs/workflow.md` § 5). `just harness`
-runs CI's gate locally. One test while working takes the runner's filter, which no recipe has:
+(`docs/workflow.md` § 5); `just harness` runs CI's gate locally. One test while working takes the runner's filter, which no recipe has:
 `npx vitest run <path>`, or `cargo test <filter>` in `src-tauri/`.
 
 ---
@@ -80,11 +79,7 @@ beforeEach(() => {
 });
 ```
 
-### Testing hooks with renderHook
-
-**CRITICAL — Stable references required.**
-
-Never create objects or functions inside the `renderHook` callback. The callback runs on every render; inline factories produce a new reference each time. If that value is a `useEffect` dependency, the effect fires on every render → infinite loop → OOM crash.
+### Testing hooks with renderHook — stable references (F19)
 
 ```ts
 // ❌ BAD — new object reference on every render → infinite loop
@@ -103,7 +98,7 @@ Use `waitFor` to wait for async state to settle, `act` to trigger synchronous ac
 ```ts
 it("loads data on mount", async () => {
   vi.mocked(gateway.fetchItems).mockResolvedValue({
-    success: true,
+    status: "ok",
     data: ["item-1"],
   });
 
@@ -128,7 +123,7 @@ For testing race conditions (value resolves after a user action):
 
 ```ts
 it("assigns value reactively when fetch resolves late", async () => {
-  let resolve!: (v: { success: true; data: string }) => void;
+  let resolve!: (v: { status: "ok"; data: string }) => void;
   vi.mocked(gateway.fetchItems).mockReturnValue(
     new Promise((r) => {
       resolve = r;
@@ -140,7 +135,7 @@ it("assigns value reactively when fetch resolves late", async () => {
   act(() => result.current.handleTypeChange("OTHER"));
   expect(result.current.selectedItem).toBe(""); // not yet resolved
 
-  await act(async () => resolve({ success: true, data: "default-item" }));
+  await act(async () => resolve({ status: "ok", data: "default-item" }));
 
   expect(result.current.selectedItem).toBe("default-item");
 });
@@ -160,10 +155,6 @@ expect(gateway.deleteItem).not.toHaveBeenCalled();
 ---
 
 ## Backend Testing (Rust)
-
-Three distinct tiers, each with a clear purpose and location.
-
----
 
 ### Tier 1 — Unit tests (mock dependencies)
 
@@ -213,12 +204,13 @@ mod tests {
 
     async fn make_pool() -> SqlitePool {
         let opts = SqliteConnectOptions::new().in_memory(true).foreign_keys(false);
-        SqlitePoolOptions::new()
+        let pool = SqlitePoolOptions::new()
             .max_connections(1)
             .connect_with(opts)
             .await
-            .unwrap()
-            .tap_mut(|p| sqlx::migrate!("./migrations").run(p))
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        pool
     }
 
     #[tokio::test]
@@ -272,30 +264,11 @@ async fn build_ctx() -> Ctx {
 
 ---
 
-### Tier 4 — E2E (WebDriver UI flows)
+### Tier 4 — E2E
 
-**Location:** `e2e/` tests driving the full app through WebDriver.
-
-**Purpose:** Validate UI flows end-to-end against an ephemeral database (per B36).
-
-See [`e2e-rules.md`](e2e-rules.md) for the full rule set (E1–E10) — selector discipline, React controlled-input helpers, locale-formatted date pickers, deterministic test values.
-
----
+`e2e/`, the full app through WebDriver on an ephemeral database (B36): [`e2e-rules.md`](e2e-rules.md).
 
 ### What not to test (all tiers)
 
-- A constructor doesn't panic
-- An empty input returns empty output (no logic traversed)
-- A getter returns what was just passed in
-- A test helper disguised as a test
-
----
-
-### Running backend tests
-
-```bash
-cd src-tauri
-cargo test {filter}            # Filter by name
-cargo test -- --nocapture      # Show println! output
-RUST_BACKTRACE=1 cargo test    # With backtraces
-```
+B33's trivial tests: a constructor that does not panic, an empty input returning an empty
+output, a getter returning what it was given, a helper disguised as a test.

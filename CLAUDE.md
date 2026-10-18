@@ -4,7 +4,7 @@ Guidance for Claude Code in this repository. It is an index: every rule lives in
 
 ## Setup
 
-After cloning: `git config core.hooksPath .githooks`. The hooks block commits to `main`, check the commit format, reject `Co-Authored-By` lines and patient data, and run the fast checks for what a commit or push touches. Tests, coverage, the build and E2E are CI's job on the pull request.
+After cloning: `git config core.hooksPath .githooks` — the hooks refuse a commit to `main`, a bad commit format, an attribution line or patient data, and run the fast checks (`docs/agentic-setup.md`). Tests, coverage, the build and E2E are CI's.
 
 ## Who decides what
 
@@ -12,7 +12,7 @@ After cloning: `git config core.hooksPath .githooks`. The hooks block commits to
 - The **agent** files the issues of every kind (GitHub, Project 4 — no commit touches the backlog), does the task end to end and merges on green. No pull request waits for a human.
 - The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
-Headless, a question only the human can answer goes on the issue with `needs-owner`, never guessed. In chat, a question goes through `AskUserQuestion`, one per call, with the context to answer it cold (`docs/workflow.md` § 3). An issue's questions are asked before its work starts (`docs/workflow.md` § 3); during the work, ask rather than guess for what that reading could not show, for a spec point as for a vocabulary term. State assumptions; name what is unclear. A trivial question is the agent's; only an ambiguity or a deep choice is the owner's (`docs/workflow.md` § 3).
+A question only the human can answer is never guessed: headless, it goes on the issue with `needs-owner`; in chat, through `AskUserQuestion`, one per call, with the context to answer it cold — before the work, and during it for what that reading could not show (`docs/workflow.md` § 3). A trivial choice is the agent's, only an ambiguity or a deep choice the owner's; state assumptions and name what is unclear.
 
 ## Core rules
 
@@ -44,11 +44,11 @@ Headless, a question only the human can answer goes on the issue with `needs-own
 ## Where things are
 
 - **Workflow**: `/run-entry` runs one task end to end (`docs/workflow.md` § 3); `just run-entry` does it headless. `/plan-batch` proposes the batch; the human approves it in chat. `/run-batch` runs it.
-- **Before implementing**, read the rules for the layers touched (`.claude/rules/` brings them in when a matching file is read; a new file triggers nothing, so this list is the fallback) — backend (`backend-rules`, `error-model`, `ddd-reference`), frontend (`frontend-rules`, `i18n-rules`, `visual-proof-rules`), E2E (`e2e-rules`), any test (`test-rules`), commits (`commit-rules`). When a rule changes, its doc changes in the same PR.
-- **After completing**, update the source docs in the same PR: spec rules (+ `spec-reviewer`), the contract (+ `contract-reviewer`), an ADR only for a hard technical choice whose explanation must be kept (`/adr-writer` + `adr-reviewer`) — a functional decision is written in the spec or the glossary, never as an ADR, `docs/lessons.md` for a failure worth teaching, `ARCHITECTURE.md` when a module appears.
+- **Before implementing**, read the rules for the layers touched (`.claude/rules/` brings them in when a matching file is read; a new file triggers nothing, so this list is the fallback) — backend (`backend-rules`, `error-model`, `ddd-reference`), frontend (`frontend-rules`, `i18n-rules`, `visual-proof-rules`), E2E (`e2e-rules`), any test (`test-rules`), commits (`commit-rules`), a spec, contract or ADR (the `README.md` of `docs/spec/`, `docs/contracts/`, `docs/adr/`). When a rule changes, its doc changes in the same PR.
+- **Source docs** change in the task's PR: the spec, the contract, an ADR only for a hard technical choice (a functional decision goes in the spec or the glossary), `docs/lessons.md` for a failure worth teaching, `ARCHITECTURE.md` for a new module.
 - **Vocabulary**: `docs/ubiquitous-language.md` — confirmed terms in code, specs, comments and logs; never extend a discrepant one. Give it to every reviewer you launch, with the branch and the spec — never a description of the change.
-- **Skills, agents, scripts and hooks**: [`docs/agentic-setup.md`](docs/agentic-setup.md) says what each one is for and what it must never do. A spec, a contract and an ADR are always written with their skill, never by hand: the templates prevent the format findings the reviewers otherwise raise.
-- **Agents**: exactly the reviewer lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for documents that are not guides), re-run on the fixes until no 🔴, then push; CI runs the same lanes. Before every batch end, the release sweep (`docs/workflow.md` § Release sweep); `spec-checker` before closing an issue with spec rules, and on every spec the batch touched before its end; `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change.
+- **Skills, agents, scripts and hooks**: [`docs/agentic-setup.md`](docs/agentic-setup.md) says what each one is for and what it must never do.
+- **Agents**: the reviewer lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for documents that are not guides), again on the fixes until no 🔴 (`docs/workflow.md` § 7); `spec-reviewer`, `contract-reviewer`, `adr-reviewer` when their document changes; `spec-checker` before closing an issue with spec rules, and on every spec the batch touched; the release sweep before every batch end.
 - **Task tracking**: `TaskCreate` / `TaskUpdate` for any task of more than one file or step; under `/run-batch`, the batch's list only.
 - **Plans** (asked in chat): exact paths, functions and components per layer, gold work with its size, the tests for each clause. Once the user says go, the plan is the authority for the batch.
 
@@ -63,7 +63,7 @@ Headless, a question only the human can answer goes on the issue with `needs-own
 
 - **Patient data** never appears in logs, commits, fixtures or PR text (`backend-rules.md` B44, `scripts/privacy-check.py`).
 - **Concise by default** — each fact once, in the fewest words that keep it verifiable. A PR body is under 20 lines. A Markdown table cell holds at most 40 characters: beyond that, split the row or use a list.
-- **Talking to the owner** — before acting on a claim, a proposed change or a reviewer finding, name the strongest counter-argument, then say whether it survives; no theatrical resistance, no rubber stamp. Every count comes with its nature (467 keys in the wrong style is not 467 bugs). A predicted coverage figure is a range unless the branches were traced. A statement that the code does not do something names what was read (the command, the service, the aggregate); a statement about what a system will do next is either checked or given as a guess. In chat a pull request is `PR #NN` and an issue `#NN`.
+- **Talking to the owner** — before acting on a claim, a proposed change or a reviewer finding, name the strongest counter-argument, then say whether it survives; no theatrical resistance, no rubber stamp. Every count comes with its nature (467 keys in the wrong style is not 467 bugs). A predicted coverage figure is a range unless the branches were traced. A statement that the code does not do something names what was read (the command, the service, the aggregate); a statement about what a system will do next is either checked or given as a guess. A pull request is `PR #NN` and an issue `ticket #NN`, never a bare `#NN` (`docs/workflow.md` § 2).
 - **Where a rule lives** — a rule about how we work is written in the repository (a `flow` issue first, then its home: this file, `docs/workflow.md` or a rules document), in the session it is given. The decisions of one discussion are recorded together, in one pull request: "brainstorm" opens a window where nothing is written and the agent keeps a numbered list, ending each reply with "To record: N items"; "record" closes it. Without the keyword the agent still records a conversation's decisions in one pull request, and says what is pending before other work starts or the session ends. The agent's private notes hold only what concerns one machine.
 - **Commits** — `docs/commit-rules.md`: conventional, title only, `feat` / `fix` titles are user-facing changelog lines; one task, one commit; fixes after a push are `--fixup` commits.
 - **Visual proof** — any `.tsx` / `.css` change carries screenshots (`/visual-proof`, `docs/visual-proof-rules.md`).

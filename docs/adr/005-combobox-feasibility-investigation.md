@@ -1,7 +1,7 @@
 # ADR 005 — ComboboxField replacement feasibility investigation
 
 **Date**: 2026-05-02
-**Status**: Accepted — Option 1 (status quo + Tauri invoke seed helper)
+**Status**: Accepted
 
 ---
 

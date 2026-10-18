@@ -12,24 +12,23 @@ approve is what ships.
 
 ## Step 1 — Read the task
 
-Load the issue (`gh issue view <id> --comments`) or take the chat request. From it and its Done when, list the
-screens and states that change: one state per distinct thing the human must see (the
-row with the new column, the dialog with the moved buttons, the empty case if it
-changes).
+Load the issue (`gh issue view <id> --comments`) or take the chat request. From it and
+its Done when, list the screens and states that change: one state per distinct thing the
+human must see (the row with the new column, the dialog with the moved buttons, the
+empty case if it changes).
 
 ## Step 2 — Build the target state as a preview
 
-Follow `/visual-proof` Steps 0 (config), 3 (write `preview.html` and
-`src/__preview__/main.tsx`) and 4 (capture script and Playwright present), with one
-difference: the preview renders the **proposed** component tree, not the current one.
-Copy the current component into the preview where the change is layout-only, or compose
-the target from existing `ui/` components with sample data for a new surface. Sample
-data is invented, never copied from the installed app. Never modify the real component
-for a proposal; the preview is disposable.
+Follow `/visual-proof` Steps 0 (config) and 3 (write `preview.html` and
+`src/__preview__/main.tsx`), with one difference: the preview renders the **proposed**
+component tree, not the current one. Copy the current component into the preview where
+the change is layout-only, or compose the target from existing `ui/` components with
+sample data for a new surface. Sample data is invented, never copied from the installed
+app. Never modify the real component for a proposal; the preview is disposable.
 
 ## Step 3 — Capture into the design folder
 
-`/visual-proof` Step 5 with the output directory changed: start Vite in the background,
+`/visual-proof` Step 4 with the output directory changed: start Vite in the background,
 wait until the preview answers, capture, stop Vite.
 
 ```bash

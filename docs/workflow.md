@@ -25,10 +25,10 @@ job or a machine gate.
 ## 2. Issues and the Project (owner, 2026-10-18)
 
 The backlog is on GitHub, never in git: the issues and the repository's Project
-(github.com/users/phileggel/projects/4). No commit touches it. An issue is named by its
-number, `#123`; a pull request says `Closes #123`, so its merge closes the issue. A
-`TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` in an old commit or document is found by searching
-the issues for `Migrated from <id>`. A spec rule is `TRI-NNN` (Conventions).
+(github.com/users/phileggel/projects/4). No commit touches it. In prose an issue is
+"ticket #123", a pull request "PR #123"; a pull request says `Closes #123`, so its merge
+closes the issue. An old `TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` is found by searching the
+issues for `Migrated from <id>`. A spec rule is `TRI-NNN` (Conventions).
 
 ### Filing an issue
 
@@ -362,14 +362,14 @@ they are, is closed.
 
 ### Spec rule numbering (TRIGRAM-NNN)
 
-The scheme and the registered trigrams live in [`spec-index.md`](spec-index.md).
+The scheme and the registered trigrams live in [`spec/README.md`](spec/README.md).
 
 ### `[DECISION]` criticals
 
 A reviewer critical tagged `[DECISION]` needs an architectural choice, not a mechanical
 fix. It is never fixed unilaterally: it becomes a `needs-owner` question on the issue, or goes
-to the human in chat, and the PR stays open. Once the choice is made, record it with
-`/adr-writer` → `adr-reviewer` in `docs/adr/` before applying the fix.
+to the human in chat, and the PR stays open. The choice made is recorded before the fix: a
+technical one as an ADR (`docs/adr/README.md`), a domain one in the spec or the glossary.
 
 ### Reviewer reports
 
