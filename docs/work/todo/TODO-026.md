@@ -8,6 +8,6 @@ First slice of TODO-024 (owner, 2026-10-18: one todo per slice, the procedure fo
 
 **Done when:** `docs/frontend-rules.md` states TODO-024's rule; Save in both forms is enabled while not saving; `add_procedure` and `update_procedure` refuse an empty patient, type or date together as `ProcedureInvalid { reasons }`, nothing written; each reason shows in red under its field and clears once that field is edited; `update_procedure` given the stored values answers "unchanged", writes nothing, and the dialog closes; patient creation refuses an empty name, shown under the name; PRO-120, PRO-250 and the procedure contract carry it; Rust tests per refusal and for "unchanged", Vitest per form; screenshots. Refined (2026-10-18): the files above, `src-tauri/src/context/procedure/error.rs`, `src-tauri/src/context/patient/error.rs`, `docs/error-model.md` read.
 
-**Design:** needed — the field messages of both forms, mocked.
+**Design:** validated (owner, 2026-10-18) — `screenshots/design/TODO-026-*.png`: Save enabled from the start; a message per field naming what to do; the date field's border turns red too.
 
 **Open questions:** none

@@ -6,3 +6,4 @@
 - Proposal: the note lives where the decision does — `/design-proposal` writes it on the entry's Design line (a chat request: the PR body) and no longer as a file; or `docs/README.md` maps `screenshots/design/` as a location of transient notes.
 - Costs: a step of one skill and its setup line, or one row of the doc map.
 - Re-checked 2026-10-18 (audit of the v0.24.8 batch, `flow-auditor`): no design note written after #305. Left.
+- Observed again 2026-10-18 (`/run-queue` Step 2): the notes of TODO-025, TODO-026 and TODO-008 refused by the same check; their content went on each entry's Design line, as DEBT-062's did.
