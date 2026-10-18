@@ -130,20 +130,20 @@ class Parse(unittest.TestCase):
     def test_a_todo_splits_into_feature_and_bug_by_its_kind_line(self):
         result = mig.plan(files(), QUEUE)
         issues = by_id(result)
-        self.assertEqual(issues["TODO-031"].labels, ["kind:bug"])
-        self.assertEqual(issues["TODO-030"].labels, ["kind:feature"])
-        self.assertIn("TODO-030: no kind line — kind:feature assumed", result.warnings)
-        self.assertNotIn("TODO-031: no kind line — kind:feature assumed", result.warnings)
+        self.assertEqual(issues["TODO-031"].labels, ["bug"])
+        self.assertEqual(issues["TODO-030"].labels, ["feature"])
+        self.assertIn("TODO-030: no kind line — feature assumed", result.warnings)
+        self.assertNotIn("TODO-031: no kind line — feature assumed", result.warnings)
 
     def test_bug_names_a_todo_without_a_kind_line(self):
         result = mig.plan(files(), QUEUE, bugs=["TODO-030", "TODO-404"])
         self.assertEqual(by_id(result)["TODO-030"].kind, "bug")
         self.assertIn("TODO-404: --bug names no todo entry", result.warnings)
 
-    def test_debt_and_flow_take_their_kind_label(self):
+    def test_a_debt_entry_becomes_a_task_and_flow_keeps_its_label(self):
         issues = by_id(mig.plan(files(), QUEUE))
-        self.assertEqual(issues["DEBT-080"].labels, ["kind:debt"])
-        self.assertEqual(issues["FLOW-101"].labels, ["kind:flow"])
+        self.assertEqual(issues["DEBT-080"].labels, ["task"])
+        self.assertEqual(issues["FLOW-101"].labels, ["flow"])
 
     def test_a_missing_line_fails_the_entry(self):
         broken = DEBT.replace("**Observation:** duplicated\n", "")
@@ -220,7 +220,7 @@ class Render(unittest.TestCase):
     def test_the_dry_run_counts_per_kind_and_lists_failures(self):
         result = mig.plan(files(debt={"DEBT-080.md": DEBT.replace("**Size:** S\n", "")}), QUEUE)
         text = mig.render(result)
-        self.assertIn("kind:feature 2, kind:bug 1, kind:debt 0, kind:flow 2 — 5 in all", text)
+        self.assertIn("feature 2, bug 1, task 0, flow 2 — 5 in all", text)
         self.assertIn("Entry files: 6; issues 5 + failed 1", text)
         self.assertIn("- DEBT-080: no `Size` line", text)
         self.assertIn("  | Migrated from TODO-030.", text)
@@ -272,7 +272,7 @@ class Apply(unittest.TestCase):
         numbers = mig.apply(mig.plan(files(), QUEUE), 3, fake, self.said.append)
         self.assertEqual(len(numbers), 6)
         create = fake.named("issue", "create")[0]
-        self.assertIn("kind:feature", create)
+        self.assertIn("feature", create)
         self.assertIn("needs-owner", create)  # TODO-032 comes first: it is queued
         self.assertTrue(fake.calls[[a for a, _ in fake.calls].index(create)][1].startswith("Migrated from TODO-032"))
         edits = fake.named("project", "item-edit")

@@ -1,6 +1,6 @@
 name: Flow
 description: How the work moves — guides, scripts, hooks, workflows, the agent setup
-labels: ["kind:flow"]
+labels: ["flow"]
 projects: ["phileggel/4"]
 body:
   - type: markdown

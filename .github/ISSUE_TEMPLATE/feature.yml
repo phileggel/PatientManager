@@ -1,6 +1,6 @@
 name: Feature
 description: Something a user will see that does not exist yet
-labels: ["kind:feature"]
+labels: ["feature"]
 projects: ["phileggel/4"]
 body:
   - type: markdown

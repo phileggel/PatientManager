@@ -3,7 +3,7 @@
 
 Reads every entry of docs/work/{todo,debt,flow}/ and the queue (docs/work/queue.md)
 and says, per entry, the issue it would open: its title (no id, no scope prefix),
-its labels (`kind:feature`, `kind:bug`, `kind:debt`, `kind:flow`, `needs-owner`),
+its labels (`feature`, `bug`, `task`, `flow`, `needs-owner`),
 its body (starting "Migrated from <id>", so old commit and PR references stay
 findable), its Project fields (Status, Batch, Size) and its "blocked by" and
 sub-issue links. It ends with the counts per kind and what failed.
@@ -17,8 +17,8 @@ interrupted run is resumed by running it again.
 Every title and body goes through privacy-check.py's text check first: a hit is a
 failure, never sent, and its value is never printed.
 
-A todo is `kind:bug` when it says so (`**Kind:** bug`) or `--bug <id>` names it,
-`kind:feature` otherwise — the dry run lists the todos whose kind was assumed.
+A todo is `bug` when it says so (`**Kind:** bug`) or `--bug <id>` names it,
+`feature` otherwise — the dry run lists the todos whose kind was assumed.
 
 Use:
   python3 scripts/migrate-work-to-issues.py [--summary] [--bug TODO-NNN]...
@@ -80,7 +80,7 @@ privacy = _privacy()
 @dataclass
 class Issue:
     id: str
-    kind: str  # feature, bug, debt or flow
+    kind: str  # feature, bug, task or flow
     title: str
     body: str
     size: str | None
@@ -93,7 +93,7 @@ class Issue:
 
     @property
     def labels(self) -> list[str]:
-        return [f"kind:{self.kind}"] + (["needs-owner"] if self.needs_owner else [])
+        return [self.kind] + (["needs-owner"] if self.needs_owner else [])
 
 
 @dataclass
@@ -154,7 +154,7 @@ def parse(kind: str, name: str, text: str, bugs: Sequence[str] = ()) -> tuple[Is
     size = re.match(r"(XL|S|M|L)\b", line_value(body, "Size") or "")
     if line_value(body, "Size") is not None and not size:
         problems.append(f"{ref}: the size is not one of {', '.join(SIZES)}")
-    issue_kind, assumed = kind, False
+    issue_kind, assumed = {"debt": "task"}.get(kind, kind), False
     if kind == "todo":
         stated = re.match(r"(feature|bug)\b", line_value(body, "Kind") or "", re.IGNORECASE)
         issue_kind = "bug" if ref in bugs else stated.group(1).lower() if stated else "feature"
@@ -197,7 +197,7 @@ def plan(files: dict[str, dict[str, str]], queue_text: str, bugs: Sequence[str] 
                 issues.append(issue)
     by_id = {issue.id: issue for issue in issues}
     warnings = [f"{bug}: --bug names no todo entry" for bug in bugs if bug not in by_id or by_id[bug].kind != "bug"]
-    warnings += [f"{issue.id}: no kind line — kind:feature assumed" for issue in issues if issue.kind_assumed]
+    warnings += [f"{issue.id}: no kind line — feature assumed" for issue in issues if issue.kind_assumed]
 
     queued = QUEUE_LINE.findall(re.sub(r"<!--.*?-->", "", queue_text, flags=re.DOTALL))
     batch = next(iter(BATCH.findall(queue_text)), "")
@@ -225,7 +225,7 @@ def plan(files: dict[str, dict[str, str]], queue_text: str, bugs: Sequence[str] 
 
 
 def _folder(issue: Issue) -> str:
-    return {"feature": "todo", "bug": "todo"}.get(issue.kind, issue.kind)
+    return {"feature": "todo", "bug": "todo", "task": "debt"}.get(issue.kind, issue.kind)
 
 
 def render(result: Plan, summary: bool = False) -> str:
@@ -242,8 +242,8 @@ def render(result: Plan, summary: bool = False) -> str:
             lines += [f"  | {line}" if line else "  |" for line in issue.body.rstrip().splitlines()]
         lines.append("")
     lines += [f"{ref} → the pull request, added to the Project: Status Queued" for ref in result.pulls]
-    kinds = {kind: sum(i.kind == kind for i in result.issues) for kind in ("feature", "bug", "debt", "flow")}
-    lines += ["", "Issues: " + ", ".join(f"kind:{k} {n}" for k, n in kinds.items()) + f" — {len(result.issues)} in all"]
+    kinds = {kind: sum(i.kind == kind for i in result.issues) for kind in ("feature", "bug", "task", "flow")}
+    lines += ["", "Issues: " + ", ".join(f"{k} {n}" for k, n in kinds.items()) + f" — {len(result.issues)} in all"]
     failed = {f.split(":")[0] for f in result.failures}
     lines.append(f"Entry files: {result.files}; issues {len(result.issues)} + failed {len(failed)}")
     lines.append(f"needs-owner: {sum(i.needs_owner for i in result.issues)}")
@@ -357,7 +357,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--apply", action="store_true", help="create the issues (the default is a dry run)")
     parser.add_argument("--project", type=int, default=PROJECT, help=f"the Project number (default {PROJECT})")
-    parser.add_argument("--bug", action="append", default=[], metavar="TODO-NNN", help="a todo that becomes kind:bug")
+    parser.add_argument("--bug", action="append", default=[], metavar="TODO-NNN", help="a todo that becomes a bug")
     parser.add_argument("--summary", action="store_true", help="the dry run without the bodies")
     parser.add_argument("--map", default="work-to-issues.json", help="where --apply writes the id → number map")
     args = parser.parse_args(argv)
