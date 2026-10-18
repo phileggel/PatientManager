@@ -141,7 +141,7 @@ mod tests {
     }
 
     #[test]
-    fn fpa_255_a_balanced_split_within_the_period_is_read() {
+    fn test_fpa_255_a_balanced_split_within_the_period_is_read() {
         let parts = [
             part("2026-09-04", Some(45_000)),
             part("2026-09-11", Some(90_000)),
@@ -157,7 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn fpa_258_an_unbalanced_total_and_a_date_out_of_range_are_refused_together() {
+    fn test_fpa_258_an_unbalanced_total_and_a_date_out_of_range_are_refused_together() {
         let parts = [
             part("2026-09-04", Some(45_000)),
             part("2026-10-02", Some(45_000)),
@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn fpa_256_each_part_names_its_empty_or_malformed_fields() {
+    fn test_fpa_256_each_part_names_its_empty_or_malformed_fields() {
         let parts = [part(" ", None), part("04/09/2026", Some(135_000))];
         let (_, parts) = refusal(read_split(&line(135_000), &parts).unwrap_err());
         assert_eq!(
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn fpa_256_a_part_of_the_wrong_sign_is_refused_on_a_refund_line() {
+    fn test_fpa_256_a_part_of_the_wrong_sign_is_refused_on_a_refund_line() {
         let parts = [
             part("2026-09-04", Some(-90_000)),
             part("2026-09-05", Some(10_000)),
@@ -201,7 +201,7 @@ mod tests {
     }
 
     #[test]
-    fn fpa_255_an_overflowing_total_is_a_mismatch() {
+    fn test_fpa_255_an_overflowing_total_is_a_mismatch() {
         let parts = [
             part("2026-09-04", Some(i64::MAX)),
             part("2026-09-05", Some(i64::MAX)),
@@ -211,7 +211,25 @@ mod tests {
     }
 
     #[test]
-    fn fpa_255_a_split_with_no_part_is_refused() {
+    fn test_fpa_256_a_zero_amount_is_refused() {
+        let parts = [
+            part("2026-09-04", Some(0)),
+            part("2026-09-05", Some(135_000)),
+        ];
+        let (_, parts) = refusal(read_split(&line(135_000), &parts).unwrap_err());
+        assert_eq!(parts[0], vec![SplitPartInvalidReason::AmountWrongSign]);
+    }
+
+    #[test]
+    fn test_fpa_258_one_part_on_a_single_date_line_is_accepted() {
+        let mut single = line(45_000);
+        single.procedure_end_date = single.procedure_start_date;
+        let read = read_split(&single, &[part("2026-09-01", Some(45_000))]).unwrap();
+        assert_eq!(read.len(), 1);
+    }
+
+    #[test]
+    fn test_fpa_255_a_split_with_no_part_is_refused() {
         let (reasons, parts) = refusal(read_split(&line(135_000), &[]).unwrap_err());
         assert_eq!(reasons, vec![SplitInvalidReason::NoPart]);
         assert!(parts.is_empty());

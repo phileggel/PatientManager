@@ -193,6 +193,17 @@ export function buildCorrectionGroups(input: CorrectionGroupsInput): CorrectionG
   };
 
   for (const correction of input.autoCorrections.values()) {
+    // FPA-257: a split creates one procedure per part, each listed as created.
+    if ("SplitIntoProcedures" in correction) {
+      const { line, parts } = correction.SplitIntoProcedures;
+      for (const part of parts) {
+        buckets.CreateProcedure.push({
+          sortKey: part.procedure_date,
+          text: `${line.patient_name} | ${line.ssn} | ${formatShortDate(part.procedure_date, input.locale)} | ${line.fund_name} | ${formatCurrency(part.billed_amount ?? 0, input.locale)}`,
+        });
+      }
+      continue;
+    }
     for (const type of PRIORITY_ORDER) {
       const row = rowFor(type, correction, input);
       if (row) {

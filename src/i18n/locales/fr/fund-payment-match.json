@@ -206,5 +206,28 @@
     "database_error": "Une erreur de base de données s'est produite. Veuillez réessayer.",
     "unexpected": "Une erreur inattendue s'est produite lors du rapprochement.",
     "split_invalid": "Cette répartition ne correspond pas à la ligne, ou l'un de ses actes n'est pas valide."
+  },
+  "split": {
+    "action": "Répartir en plusieurs actes",
+    "hint": "Un acte par séance, entre le {{start}} et le {{end}}.",
+    "add": "Ajouter un acte",
+    "remove_aria": "Retirer l'acte {{n}}",
+    "total": "Total",
+    "expected": "attendu {{amount}}",
+    "cancel": "Annuler",
+    "validate": "Valider la répartition",
+    "errors": {
+      "no_part": "Ajoutez au moins un acte.",
+      "total_mismatch": "Les montants ne correspondent pas au montant de la ligne.",
+      "date_empty": "Indiquez la date de l'acte.",
+      "date_invalid": "Indiquez une date valide.",
+      "date_out_of_range": "La date doit être dans la période de la ligne.",
+      "amount_empty": "Indiquez le montant.",
+      "amount_wrong_sign": "Indiquez un montant du signe de la ligne, non nul."
+    },
+    "date_aria": "Date de l'acte {{n}}",
+    "amount_aria": "Montant de l'acte {{n}}",
+    "will_create_one": "{{count}} acte sera créé",
+    "will_create_other": "{{count}} actes seront créés"
   }
 }

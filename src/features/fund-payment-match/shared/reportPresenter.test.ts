@@ -114,6 +114,44 @@ describe("buildCorrectionGroups — CreateProcedure variant (FPR-042)", () => {
   });
 });
 
+describe("buildCorrectionGroups — SplitIntoProcedures (FPA-257)", () => {
+  it("lists each part of a split as a created procedure", () => {
+    const corrections = new Map<string, AutoCorrection>([
+      [
+        "CreateProcedure-4",
+        {
+          SplitIntoProcedures: {
+            line: {
+              line_index: 4,
+              payment_date: "2025-05-02",
+              invoice_number: "F-1",
+              fund_name: "CPAM 931",
+              patient_name: "NOUVEAU Patient",
+              ssn: "9999999999999",
+              nature: "SEANCE",
+              procedure_start_date: "2025-04-01",
+              procedure_end_date: "2025-04-30",
+              is_period: true,
+              amount: 45000,
+            },
+            parts: [
+              { procedure_date: "2025-04-17", billed_amount: 20000 },
+              { procedure_date: "2025-04-10", billed_amount: 25000 },
+            ],
+          },
+        },
+      ],
+    ]);
+
+    const groups = buildCorrectionGroups(makeInput(corrections, []));
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.rows).toHaveLength(2);
+    expect(groups[0]!.rows[0]).toContain("NOUVEAU Patient");
+    expect(groups[0]!.rows[0]).toContain("CPAM 931");
+  });
+});
+
 describe("buildCorrectionGroups — LinkProcedure variant (FPR-042)", () => {
   it("returns one group with a row containing patient, SSN, fund label, payment date", () => {
     const corrections = new Map<string, AutoCorrection>([

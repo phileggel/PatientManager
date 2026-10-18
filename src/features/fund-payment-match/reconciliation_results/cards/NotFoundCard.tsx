@@ -3,12 +3,14 @@
  *
  * Actions:
  * - Create a new procedure (default)
+ * - Split the line into several procedures (FPA-251, FPA-252)
  * - Link to a nearby existing procedure (if nearby_candidates available and not yet linked)
  *
- * Sources: acceptedKeys (parent correction state), onAcceptCorrection callback.
+ * Sources: acceptedKeys, autoCorrections (parent correction state), onAcceptCorrection callback.
  */
 
-import { Link, Plus } from "lucide-react";
+import { Link, Plus, Split } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, NormalizedPdfLine, NotFoundCandidate } from "@/bindings";
 import { Button } from "@/ui/components/button";
@@ -18,22 +20,30 @@ import {
   buildLinkProcedureKey,
   buildNotFoundCorrection,
   buildNotFoundKey,
+  buildSplitCorrection,
 } from "../../shared/utils";
 import { IssueChip, PdfSummary, ResolvedBadge } from "./CardParts";
+import { SplitEditor } from "./SplitEditor";
 
 interface NotFoundCardProps {
   line: NormalizedPdfLine;
   nearbyCandidates: NotFoundCandidate[];
   acceptedKeys: Set<string>;
+  autoCorrections: Map<string, AutoCorrection>;
   onAcceptCorrection: (key: string, correction: AutoCorrection) => void;
+  /** Tells the parent whether the split editor is open (FPA-251). */
+  onSplittingChange?: (open: boolean) => void;
 }
 
 export function NotFoundCard({
   line,
   nearbyCandidates,
   acceptedKeys,
+  autoCorrections,
   onAcceptCorrection,
+  onSplittingChange,
 }: NotFoundCardProps) {
+  const [splitting, setSplitting] = useState(false);
   const { t } = useTranslation("fund-payment-match");
   const { formatCurrency, formatDate } = useFormatters();
 
@@ -43,24 +53,57 @@ export function NotFoundCard({
     acceptedKeys.has(buildLinkProcedureKey(line.line_index, c.procedure_id)),
   );
   const isResolved = isCreateAccepted || linkedCandidate !== undefined;
+  // A card resolved another way (Enter, the global auto-correction) closes its editor.
+  useEffect(() => {
+    if (isResolved) setSplitting(false);
+  }, [isResolved]);
+  useEffect(() => {
+    onSplittingChange?.(splitting);
+    return () => onSplittingChange?.(false);
+  }, [splitting, onSplittingChange]);
+  const accepted = autoCorrections.get(createKey);
+  // FPA-254C: an accepted split says how many procedures it will create.
+  const createLabel =
+    accepted && "SplitIntoProcedures" in accepted
+      ? t("split.will_create", { count: accepted.SplitIntoProcedures.parts.length })
+      : t("results.action.will_create");
 
   return (
     <div className="m3-card-elevated space-y-4">
       <div className="flex items-start justify-between gap-3">
         <IssueChip label={t("results.issue_type.not_found")} variant="error" />
         {isResolved && (
-          <ResolvedBadge
-            label={isCreateAccepted ? t("results.action.will_create") : t("results.action.linked")}
-          />
+          <ResolvedBadge label={isCreateAccepted ? createLabel : t("results.action.linked")} />
         )}
       </div>
 
       <PdfSummary line={line} />
 
-      {!isResolved && (
+      {!isResolved && splitting && (
+        <SplitEditor
+          line={line}
+          onAccept={(parts) => {
+            onAcceptCorrection(createKey, buildSplitCorrection(line, parts));
+            setSplitting(false);
+          }}
+          onCancel={() => setSplitting(false)}
+        />
+      )}
+
+      {!isResolved && !splitting && (
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-end gap-3 bg-m3-surface-container-low rounded-lg px-3 py-2.5">
             <Button
+              id={`fund-payment-match-split-${line.line_index}-open`}
+              variant="outline"
+              size="sm"
+              icon={<Split size={13} />}
+              onClick={() => setSplitting(true)}
+            >
+              {t("split.action")}
+            </Button>
+            <Button
+              id={`fund-payment-match-not-found-${line.line_index}-create`}
               variant="primary"
               size="sm"
               icon={<Plus size={13} />}
@@ -96,6 +139,7 @@ export function NotFoundCard({
                       </div>
                     </div>
                     <Button
+                      id={`fund-payment-match-not-found-${line.line_index}-link-${candidate.procedure_id}`}
                       variant="outline"
                       size="sm"
                       icon={<Link size={13} />}

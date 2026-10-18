@@ -119,10 +119,9 @@ describe("generate_fund_reconciliation_report_pdf", () => {
   // ── Happy path — minimal (Empty section 1, no corrections) ─────────────────
 
   it("returns PDF bytes for minimal valid request (Empty section 1, no corrections)", async () => {
-    const result = await tauriInvoke<number[]>(
-      "generate_fund_reconciliation_report_pdf",
-      { request: MINIMAL_REQUEST },
-    );
+    const result = await tauriInvoke<number[]>("generate_fund_reconciliation_report_pdf", {
+      request: MINIMAL_REQUEST,
+    });
 
     assert.ok(result.ok, `Command should succeed, got error: ${!result.ok ? result.error : ""}`);
     if (!result.ok) return; // narrowing — already asserted above
@@ -141,10 +140,9 @@ describe("generate_fund_reconciliation_report_pdf", () => {
   // ── Happy path — populated (Rows section 1 + correction groups) ────────────
 
   it("returns PDF bytes for populated request (Rows section 1 + correction groups)", async () => {
-    const result = await tauriInvoke<number[]>(
-      "generate_fund_reconciliation_report_pdf",
-      { request: POPULATED_REQUEST },
-    );
+    const result = await tauriInvoke<number[]>("generate_fund_reconciliation_report_pdf", {
+      request: POPULATED_REQUEST,
+    });
 
     assert.ok(result.ok, `Command should succeed, got error: ${!result.ok ? result.error : ""}`);
     if (!result.ok) return; // narrowing
@@ -155,10 +153,9 @@ describe("generate_fund_reconciliation_report_pdf", () => {
 
     // The populated render (table + corrections) should produce more bytes
     // than the minimal (empty-state) render — a basic sanity check.
-    const minimalResult = await tauriInvoke<number[]>(
-      "generate_fund_reconciliation_report_pdf",
-      { request: MINIMAL_REQUEST },
-    );
+    const minimalResult = await tauriInvoke<number[]>("generate_fund_reconciliation_report_pdf", {
+      request: MINIMAL_REQUEST,
+    });
     const minimalLen = minimalResult.ok ? minimalResult.data.length : 0;
     assert.ok(
       bytes.length >= minimalLen,
@@ -177,19 +174,15 @@ describe("generate_fund_reconciliation_report_pdf", () => {
   it("returns InvalidRequest error when title is empty", async () => {
     const badRequest = { ...MINIMAL_REQUEST, title: "" };
 
-    const result = await tauriInvoke<number[]>(
-      "generate_fund_reconciliation_report_pdf",
-      { request: badRequest },
-    );
+    const result = await tauriInvoke<number[]>("generate_fund_reconciliation_report_pdf", {
+      request: badRequest,
+    });
 
     assert.ok(!result.ok, "Command should fail for empty title");
     if (result.ok) return; // narrowing
 
-    // Tauri's WebKit→WebDriver bridge generic-ifies command error strings
-    // (see tauriInvoke docstring at top of file). The backend log confirms
-    // the rejection ("title must not be empty"); the specific text is not
-    // observable from the test harness. Asserting non-emptiness is the
-    // strongest contract we can hold here, matching the other error tests.
+    // The refusal is checked by being one, as the other error tests do; its
+    // typed payload is readable since tauriInvoke returns it as JSON.
     assert.ok(result.error.length > 0, "Error message must be a non-empty string");
   });
 
@@ -198,10 +191,9 @@ describe("generate_fund_reconciliation_report_pdf", () => {
   it("returns InvalidRequest error when title contains a NUL control character", async () => {
     const badRequest = { ...MINIMAL_REQUEST, title: "Rapport\x00NUL" };
 
-    const result = await tauriInvoke<number[]>(
-      "generate_fund_reconciliation_report_pdf",
-      { request: badRequest },
-    );
+    const result = await tauriInvoke<number[]>("generate_fund_reconciliation_report_pdf", {
+      request: badRequest,
+    });
 
     assert.ok(!result.ok, "Command should fail for NUL in title");
     if (result.ok) return; // narrowing
@@ -214,10 +206,9 @@ describe("generate_fund_reconciliation_report_pdf", () => {
   it("returns InvalidRequest error when page_label is empty", async () => {
     const badRequest = { ...MINIMAL_REQUEST, page_label: "" };
 
-    const result = await tauriInvoke<number[]>(
-      "generate_fund_reconciliation_report_pdf",
-      { request: badRequest },
-    );
+    const result = await tauriInvoke<number[]>("generate_fund_reconciliation_report_pdf", {
+      request: badRequest,
+    });
 
     assert.ok(!result.ok, "Command should fail for empty page_label");
     if (result.ok) return; // narrowing

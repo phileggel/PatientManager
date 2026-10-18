@@ -89,6 +89,26 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-250 (R16) — Missing procedure creation (backend)**: For a `NotFoundIssue`, if no existing procedure can be linked, the user can trigger creation of a new procedure from the PDF data (`AutoCorrection::CreateProcedure`). If the patient does not exist (unknown SSN), they are created automatically. The created procedure receives the `import-pdf` type. After the reconciliation is confirmed, the procedure ends up with `Reconciliated` status — it is added to the fund payment group and reconciled atomically as part of the confirmation step, not as a separate action.
 
+**FPA-251 — The split is offered (frontend)**: While a `NotFoundIssue` card is not resolved, it offers "Répartir en plusieurs actes" beside "Créer un nouvel acte"; it opens the split editor in the card, in place of those two actions and of the nearby candidates (FPA-240).
+
+**FPA-252 — The rows of a split (frontend)**: The editor opens with one row, at the line's start date and with no amount; "Ajouter un acte" adds a row with the same defaults below the others; any row can be removed, the last one too (the split then holds no part, FPA-255).
+
+**FPA-252A — The period hint (frontend)**: Above the rows, a hint gives the line's start and end dates, the same date twice for a single-date line.
+
+**FPA-253 — The total of a split (frontend)**: The editor shows the rows' total beside the line's amount, for display only.
+
+**FPA-254 — Checking a split from the card (frontend)**: "Valider la répartition" is enabled whenever no check is running; a click checks the split as FPA-258 says, the rows locked until it answers.
+
+**FPA-254A — A refused split, at its fields (frontend)**: When the check refuses the split, the split's own reason shows under the total and each part's under that row's date or amount. Any other failure of the check shows an error snackbar.
+
+**FPA-254B — Clearing a split's messages (frontend)**: Editing a row's date or amount clears that field's message only; editing any amount also clears the total's; removing a row clears every message.
+
+**FPA-254C — An accepted split (frontend)**: When the check accepts the split, the card is resolved and reads "N actes seront créés" ("1 acte sera créé" for one part), N being its number of parts.
+
+**FPA-254D — Cancelling a split (frontend)**: "Annuler", enabled whenever no check is running, closes the editor and drops its rows.
+
+**FPA-254E — Un-handling a split (frontend)**: Un-handling an accepted split (FPA-460) drops it and returns the card to its actions.
+
 **FPA-255 — A split refused as a whole (backend)**: A split of a `NotFoundIssue` line into procedures is refused when it has no part, or when its parts' amounts do not add up to the line's amount; nothing is created.
 
 **FPA-256 — A part of a split refused (backend)**: A part of a split is refused when its date is empty (a blank one counts as empty), is not a valid YYYY-MM-DD date, or falls outside the line's start → end (that day for a single-date line); or when its amount is missing, zero, or of the opposite sign to the line's amount.

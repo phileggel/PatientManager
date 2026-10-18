@@ -1,4 +1,42 @@
-import type { FundPaymentReconciliationError, ReportPdfError } from "@/bindings";
+import type {
+  FundPaymentReconciliationError,
+  ReportPdfError,
+  SplitPartInvalidReason,
+} from "@/bindings";
+
+/** The messages of a refused split (FPA-254A): one for the split, one per row field. */
+export interface SplitFieldErrorKeys {
+  split?: string;
+  parts: { date?: string; amount?: string }[];
+}
+
+const SPLIT_PART_KEYS: Record<SplitPartInvalidReason, ["date" | "amount", string]> = {
+  DateEmpty: ["date", "fund-payment-match:split.errors.date_empty"],
+  DateInvalid: ["date", "fund-payment-match:split.errors.date_invalid"],
+  DateOutOfRange: ["date", "fund-payment-match:split.errors.date_out_of_range"],
+  AmountEmpty: ["amount", "fund-payment-match:split.errors.amount_empty"],
+  AmountWrongSign: ["amount", "fund-payment-match:split.errors.amount_wrong_sign"],
+};
+
+/**
+ * The i18n keys to show for a refused split (FPA-254A): under the total for the
+ * split's own reason, under each row's date or amount for that row's; null when
+ * the error is not a split refusal (it then goes to a snackbar).
+ */
+export function splitFieldErrorKeys(
+  err: FundPaymentReconciliationError,
+): SplitFieldErrorKeys | null {
+  if (err.code !== "SplitInvalid") return null;
+  const split = err.reasons.includes("NoPart")
+    ? "fund-payment-match:split.errors.no_part"
+    : err.reasons.includes("TotalMismatch")
+      ? "fund-payment-match:split.errors.total_mismatch"
+      : undefined;
+  const parts = err.parts.map((reasons) =>
+    Object.fromEntries(reasons.map((reason) => SPLIT_PART_KEYS[reason])),
+  );
+  return { split, parts };
+}
 
 /**
  * Error state stored by the reconciliation hook (Layer 2). Either a typed

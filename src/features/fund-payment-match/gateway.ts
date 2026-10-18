@@ -3,10 +3,12 @@ import {
   commands,
   type FundPaymentGroup,
   type FundPaymentReconciliationError,
+  type NormalizedPdfLine,
   type PdfParseResult,
   type ReconcileAndCandidatesResponse,
   type ReportGenerationRequest,
   type ReportPdfError,
+  type SplitPart,
   type UnreconciledProcedure,
 } from "@/bindings";
 import { logger } from "@/infra/logger";
@@ -84,6 +86,19 @@ export async function reconcileAndCreateCandidates(
     { issues: issueCount },
   );
   return { success: true, data: result.data };
+}
+
+/**
+ * Check a split of a not-found PDF line before the card accepts it (FPA-258):
+ * every refusal at once, or nothing written either way.
+ */
+export async function checkSplitIntoProcedures(
+  line: NormalizedPdfLine,
+  parts: SplitPart[],
+): Promise<ServiceResult<null, FundPaymentReconciliationError>> {
+  const result = await commands.checkSplitIntoProcedures(line, parts);
+  if (result.status === "error") return { success: false, error: result.error };
+  return { success: true, data: null };
 }
 
 /**

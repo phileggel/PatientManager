@@ -4,11 +4,10 @@ import { browser } from "@wdio/globals";
  * Invoke a Tauri command directly from the WebView, bypassing the UI.
  *
  * `__TAURI_INTERNALS__.invoke` resolves with the plain return value on success.
- * When a command returns `Err(String)`, Tauri's WebKit integration propagates
- * the error string as a WebDriver protocol script error — it bypasses the JS
- * promise chain and surfaces at the Node.js level as a `WebDriverError`. We
- * therefore catch at the Node.js level, strip the WebdriverIO wrapper, and
- * normalise into a discriminated union.
+ * A command's error is caught in the page and returned as its JSON (a typed
+ * `{ code, … }`) or its text. A failure of WebDriver itself still surfaces at
+ * the Node.js level: we catch it there, strip the WebdriverIO wrapper, and
+ * normalise both into one discriminated union.
  *
  * All calls go through the real Tauri IPC dispatcher to the real Rust binary —
  * no mocking at any layer.
@@ -28,19 +27,32 @@ export async function tauriInvoke<T>(
     { timeout: 10000, timeoutMsg: "the Tauri bridge did not load within 10 s" },
   );
   try {
-    const data = await browser.execute(
+    // A typed error (`{ code, … }`) is caught in the page, where it is still an
+    // object, and returned as its JSON: past the page, WebdriverIO turns it into
+    // "[object Object]".
+    const outcome = await browser.execute(
       async (command, invokeArgs) => {
         // biome-ignore lint/suspicious/noExplicitAny: __TAURI_INTERNALS__ is untyped
         const invoke = (window as any).__TAURI_INTERNALS__.invoke as (
           cmd: string,
           args: unknown,
         ) => Promise<unknown>;
-        return invoke(command, invokeArgs);
+        try {
+          return { ok: true as const, data: await invoke(command, invokeArgs) };
+        } catch (e) {
+          const error =
+            typeof e === "string"
+              ? e
+              : e instanceof Error
+                ? e.message
+                : (JSON.stringify(e) ?? String(e));
+          return { ok: false as const, error };
+        }
       },
       cmd,
       args,
     );
-    return { ok: true, data: data as T };
+    return outcome.ok ? { ok: true, data: outcome.data as T } : outcome;
   } catch (err) {
     const raw = err instanceof Error ? err.message : String(err);
     // WebdriverIO prepends "WebDriverError: <msg>" or "<msg>: WebDriverError: <msg>"

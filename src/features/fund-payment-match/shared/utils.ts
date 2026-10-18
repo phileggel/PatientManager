@@ -11,6 +11,7 @@ import type {
   NotFoundCandidate,
   PdfParseResult,
   ReconciliationMatch,
+  SplitPart,
 } from "@/bindings";
 import { formatShortDate } from "@/ui/format/formatters";
 
@@ -125,6 +126,11 @@ export function buildContestCorrection(procedureId: string, paidAmount: number):
       paid_amount: paidAmount,
     },
   };
+}
+
+/** A split of a not-found line into several procedures (FPA-257). */
+export function buildSplitCorrection(line: NormalizedPdfLine, parts: SplitPart[]): AutoCorrection {
+  return { SplitIntoProcedures: { line, parts } };
 }
 
 export function buildNotFoundCorrection(line: NormalizedPdfLine): AutoCorrection {

@@ -206,5 +206,28 @@
     "database_error": "A database error occurred. Please try again.",
     "unexpected": "An unexpected error occurred during reconciliation.",
     "split_invalid": "This split does not add up to the line, or one of its parts is not valid."
+  },
+  "split": {
+    "action": "Split into several procedures",
+    "hint": "One procedure per session, between {{start}} and {{end}}.",
+    "add": "Add a procedure",
+    "remove_aria": "Remove procedure {{n}}",
+    "total": "Total",
+    "expected": "expected {{amount}}",
+    "cancel": "Cancel",
+    "validate": "Validate the split",
+    "errors": {
+      "no_part": "Add at least one procedure.",
+      "total_mismatch": "The amounts do not add up to the line's amount.",
+      "date_empty": "Enter the procedure date.",
+      "date_invalid": "Enter a valid date.",
+      "date_out_of_range": "The date must be within the line's period.",
+      "amount_empty": "Enter the amount.",
+      "amount_wrong_sign": "Enter an amount of the line's sign, not zero."
+    },
+    "date_aria": "Date of procedure {{n}}",
+    "amount_aria": "Amount of procedure {{n}}",
+    "will_create_one": "{{count}} procedure will be created",
+    "will_create_other": "{{count}} procedures will be created"
   }
 }

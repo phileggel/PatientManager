@@ -77,6 +77,31 @@ describe("ReconciliationResults interactions", () => {
     });
   });
 
+  it("FPA-251: with the split editor open, Enter does not create a procedure", async () => {
+    const user = userEvent.setup();
+    const onAcceptCorrection = vi.fn();
+    const result: ReconciliationResult = {
+      matches: [
+        {
+          type: "NotFoundIssue",
+          data: { pdf_line: mockPdfLine, nearby_candidates: [] },
+        } as ReconciliationMatch,
+      ],
+    };
+    render(
+      <ReconciliationResultsView
+        result={result}
+        {...defaultProps}
+        onAcceptCorrection={onAcceptCorrection}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Split into several procedures" }));
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    expect(onAcceptCorrection).not.toHaveBeenCalled();
+  });
+
   it("clicking Correct on SingleMatchIssue FundMismatch calls onAcceptCorrection with FundMismatch correction", async () => {
     const user = userEvent.setup();
     const onAcceptCorrection = vi.fn();

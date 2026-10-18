@@ -302,7 +302,7 @@ async reconcileAndCreateCandidates(parseResult: PdfParseResult) : Promise<Result
 },
 /**
  * Checks a split of a PDF line into procedures before the card accepts it
- * (FPA-255): every refusal at once, the split's own and each part's.
+ * (FPA-258): every refusal at once, the split's own and each part's.
  */
 async checkSplitIntoProcedures(line: NormalizedPdfLine, parts: SplitPart[]) : Promise<Result<null, FundPaymentReconciliationError>> {
     try {
@@ -993,8 +993,8 @@ export type AutoCorrection =
  */
 { CreateProcedure: { ssn: string; patient_name: string; procedure_date: string; payment_date: string; billed_amount: number; pdf_fund_label: string } } | 
 /**
- * Split one PDF line into several procedures, one per part (FPA-255,
- * FPA-256); the patient, fund and payment date are the line's.
+ * Split one PDF line into several procedures, one per part (FPA-255 to
+ * FPA-258); the patient, fund and payment date are the line's.
  */
 { SplitIntoProcedures: { line: NormalizedPdfLine; parts: SplitPart[] } } | 
 /**
@@ -1843,7 +1843,7 @@ export type FundPaymentReconciliationTask =
  */
 { code: "PdfHasNoLine" } | 
 /**
- * A split of a PDF line into procedures is refused (FPA-255): the split's
+ * A split of a PDF line into procedures is refused (FPA-255, FPA-256): the split's
  * own reasons, and each part's reasons at that part's position.
  */
 { code: "SplitInvalid"; reasons: SplitInvalidReason[]; parts: SplitPartInvalidReason[][] } | 
@@ -2643,7 +2643,7 @@ export type SplitInvalidReason =
  */
 export type SplitPart = { procedure_date: string; billed_amount: number | null }
 /**
- * Why one part of a split is refused (FPA-255).
+ * Why one part of a split is refused (FPA-256).
  */
 export type SplitPartInvalidReason = 
 /**

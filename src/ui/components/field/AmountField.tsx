@@ -11,6 +11,8 @@ interface AmountFieldProps {
   error?: string;
   disabled?: boolean;
   locale?: string;
+  /** The input's accessible name when the visible label is empty (a row of a table-like form). */
+  ariaLabel?: string;
 }
 
 /**
@@ -40,6 +42,7 @@ export function AmountField({
   error,
   disabled = false,
   locale = "fr-FR",
+  ariaLabel,
 }: AmountFieldProps) {
   const { t } = useTranslation("common");
   const { displayValue, placeholder, handleChange, handleBlur, clearAmount } = useAmountField(
@@ -64,6 +67,7 @@ export function AmountField({
           onBlur={handleBlur}
           disabled={disabled}
           placeholder={placeholder}
+          aria-label={ariaLabel}
         />
         {displayValue && !disabled && (
           <button

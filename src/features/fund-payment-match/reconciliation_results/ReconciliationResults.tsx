@@ -7,7 +7,7 @@
  */
 
 import { ArrowLeft, ArrowRight, Check, Undo2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AutoCorrection, ReconciliationResult } from "@/bindings";
 import { logger } from "@/infra/logger";
@@ -69,12 +69,17 @@ export function ReconciliationResultsView({
     onReportUnresolvedGroupCount,
   );
 
-  // Enter key = primary action on current card
+  // Whether the current card's split editor is open (FPA-251), reported by the card.
+  const [splitOpen, setSplitOpen] = useState(false);
+
+  // Enter key = primary action on current card. A focused field or button keeps
+  // its own Enter, and an open split editor owns the card (FPA-251).
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== "Enter") return;
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "BUTTON") return;
+      if (splitOpen) return;
       e.preventDefault();
       if (!currentIssue || isResolved(currentIssue)) {
         goNext();
@@ -105,7 +110,7 @@ export function ReconciliationResultsView({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentIssue, isResolved, goNext, onAcceptCorrection, acceptedKeys]);
+  }, [currentIssue, isResolved, goNext, onAcceptCorrection, acceptedKeys, splitOpen]);
 
   if (sortedIssues.length === 0) {
     return (
@@ -195,6 +200,7 @@ export function ReconciliationResultsView({
         <div className="animate-fadeIn">
           {currentIssue.type === "NotFoundIssue" && (
             <NotFoundCard
+              key={currentIssue.data.pdf_line.line_index}
               line={currentIssue.data.pdf_line}
               nearbyCandidates={currentIssue.data.nearby_candidates.filter(
                 (c) =>
@@ -203,7 +209,9 @@ export function ReconciliationResultsView({
                   ),
               )}
               acceptedKeys={acceptedKeys}
+              autoCorrections={autoCorrections}
               onAcceptCorrection={onAcceptCorrection}
+              onSplittingChange={setSplitOpen}
             />
           )}
           {currentIssue.type === "SingleMatchIssue" && (
