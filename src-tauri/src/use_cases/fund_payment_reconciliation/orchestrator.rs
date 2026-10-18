@@ -5,6 +5,7 @@ use std::sync::Arc;
 use super::dto::AutoCorrection;
 use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use super::fund_label::{fund_identifier_of, loggable_fund_identifier};
+use super::split::read_split;
 use super::uow::StatementValidationTransactionManager;
 use crate::context::fund::{
     Fund, FundError, FundPaymentGroup, FundPaymentGroupCandidate, FundPaymentService, FundService,
@@ -717,8 +718,10 @@ impl FundPaymentReconciliationOrchestrator {
         Ok(result)
     }
 
-    /// Plan the creation corrections: a procedure for each, with its patient
-    /// (found by SSN, already planned, or new) and its fund.
+    /// Plan the creation corrections: a procedure for each created one and for
+    /// each part of a split line (FPA-250, FPA-257), with its patient (found
+    /// by SSN, already planned, or new) and its fund. A split is read again
+    /// here: the backend judges it at confirmation too (FPA-258).
     ///
     /// Returns (fund_label, payment_date, procedure_id) for each planned procedure.
     async fn plan_create_corrections(
@@ -730,59 +733,125 @@ impl FundPaymentReconciliationOrchestrator {
         let mut result = Vec::new();
 
         for correction in auto_corrections {
-            if let AutoCorrection::CreateProcedure {
-                ssn,
-                patient_name,
-                procedure_date,
-                payment_date,
-                billed_amount,
-                pdf_fund_label,
-            } = correction
-            {
-                let known = patient_service.find_patient_by_ssn(ssn).await?;
-                let planned = plan
-                    .new_patients
-                    .iter()
-                    .find(|patient| patient.ssn.as_deref() == Some(ssn.as_str()));
-                let patient_id = match (known, planned) {
-                    (Some(patient), _) => patient.id,
-                    (None, Some(patient)) => patient.id.clone(),
-                    (None, None) => {
-                        tracing::info!("Patient not found by SSN, creating new patient");
-                        let patient =
-                            Patient::new(false, Some(patient_name.clone()), Some(ssn.clone()))?;
-                        let patient_id = patient.id.clone();
-                        plan.new_patients.push(patient);
-                        patient_id
+            match correction {
+                AutoCorrection::CreateProcedure {
+                    ssn,
+                    patient_name,
+                    procedure_date,
+                    payment_date,
+                    billed_amount,
+                    pdf_fund_label,
+                } => {
+                    let source = PlannedSource {
+                        ssn,
+                        patient_name,
+                        fund_label: pdf_fund_label,
+                    };
+                    let id = self
+                        .plan_procedure(
+                            plan,
+                            &source,
+                            *procedure_date,
+                            *billed_amount,
+                            patient_service,
+                        )
+                        .await?;
+                    result.push((pdf_fund_label.clone(), *payment_date, id));
+                }
+                AutoCorrection::SplitIntoProcedures { line, parts } => {
+                    let read = read_split(line, parts)?;
+                    let source = PlannedSource {
+                        ssn: &line.ssn,
+                        patient_name: &line.patient_name,
+                        fund_label: &line.fund_name,
+                    };
+                    for (procedure_date, billed_amount) in read {
+                        let id = self
+                            .plan_procedure(
+                                plan,
+                                &source,
+                                procedure_date,
+                                billed_amount,
+                                patient_service,
+                            )
+                            .await?;
+                        result.push((line.fund_name.clone(), line.payment_date, id));
                     }
-                };
-
-                let fund_id = self.plan_fund_id(plan, pdf_fund_label).await?;
-
-                let procedure = Procedure::new(
-                    patient_id,
-                    Some(fund_id),
-                    "import-pdf".to_string(),
-                    *procedure_date,
-                    *billed_amount,
-                    PaymentMethod::None,
-                    None, // fund_reconciliation_date — set with its group
-                    None,
-                    None,
-                    ProcedureStatus::None,
-                )?;
-                result.push((pdf_fund_label.clone(), *payment_date, procedure.id.clone()));
-                plan.new_procedures.push(procedure);
+                }
+                // Corrections of existing procedures create nothing here.
+                AutoCorrection::AmountMismatch { .. }
+                | AutoCorrection::FundMismatch { .. }
+                | AutoCorrection::DateMismatch { .. }
+                | AutoCorrection::LinkProcedure { .. }
+                | AutoCorrection::ContestAmount { .. } => {}
             }
         }
 
         Ok(result)
     }
+
+    /// Plan one "Import" procedure of a PDF line (FPA-250): its patient found
+    /// by SSN, already planned, or new; its fund from the line's label.
+    async fn plan_procedure(
+        &self,
+        plan: &mut ValidationPlan,
+        source: &PlannedSource<'_>,
+        procedure_date: NaiveDate,
+        billed_amount: i64,
+        patient_service: &PatientService,
+    ) -> Result<String, FundPaymentReconciliationError> {
+        let known = patient_service.find_patient_by_ssn(source.ssn).await?;
+        let planned = plan
+            .new_patients
+            .iter()
+            .find(|patient| patient.ssn.as_deref() == Some(source.ssn));
+        let patient_id = match (known, planned) {
+            (Some(patient), _) => patient.id,
+            (None, Some(patient)) => patient.id.clone(),
+            (None, None) => {
+                tracing::info!("Patient not found by SSN, creating new patient");
+                let patient = Patient::new(
+                    false,
+                    Some(source.patient_name.to_string()),
+                    Some(source.ssn.to_string()),
+                )?;
+                let patient_id = patient.id.clone();
+                plan.new_patients.push(patient);
+                patient_id
+            }
+        };
+
+        let fund_id = self.plan_fund_id(plan, source.fund_label).await?;
+
+        let procedure = Procedure::new(
+            patient_id,
+            Some(fund_id),
+            "import-pdf".to_string(),
+            procedure_date,
+            billed_amount,
+            PaymentMethod::None,
+            None, // fund_reconciliation_date — set with its group
+            None,
+            None,
+            ProcedureStatus::None,
+        )?;
+        let id = procedure.id.clone();
+        plan.new_procedures.push(procedure);
+        Ok(id)
+    }
+}
+
+/// What a planned procedure takes from its PDF line (FPA-250, FPA-257).
+struct PlannedSource<'a> {
+    ssn: &'a str,
+    patient_name: &'a str,
+    fund_label: &'a str,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::use_cases::fund_payment_reconciliation::SplitPart;
     use std::sync::Arc;
 
     fn candidate_with_total(total_amount: i64) -> FundPaymentGroupCandidate {
@@ -1377,6 +1446,130 @@ mod tests {
         }
         assert_eq!(written.groups[0].lines.len(), 2);
         Ok(())
+    }
+
+    fn split_line(
+        amount: i64,
+    ) -> crate::use_cases::fund_payment_reconciliation::fund_pdf_codec::NormalizedPdfLine {
+        crate::use_cases::fund_payment_reconciliation::fund_pdf_codec::NormalizedPdfLine {
+            line_index: 4,
+            payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            invoice_number: "F-1".to_string(),
+            fund_name: "CPAM n° 75".to_string(),
+            patient_name: "Nom Prenom".to_string(),
+            ssn: "1234567890123".to_string(),
+            nature: "SEANCE".to_string(),
+            procedure_start_date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            procedure_end_date: NaiveDate::from_ymd_opt(2026, 1, 31).unwrap(),
+            is_period: true,
+            amount,
+        }
+    }
+
+    fn split_part(date: &str, amount: i64) -> SplitPart {
+        SplitPart {
+            procedure_date: date.to_string(),
+            billed_amount: Some(amount),
+        }
+    }
+
+    /// FPA-257 — a line split into two parts creates two "Import" procedures
+    /// of one new patient, each with its part's date and amount, both in the
+    /// line's group.
+    #[tokio::test]
+    async fn test_fpa_257_a_split_line_creates_one_procedure_per_part() -> anyhow::Result<()> {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        let mut procedure_repo = MockProcedureRepository::new();
+        procedure_repo
+            .expect_read_procedure()
+            .returning(|_| Ok(None));
+        let manager = Arc::new(RecordingManager::default());
+        let orchestrator = make_orchestrator_on(
+            manager.clone(),
+            fund_repo,
+            MockFundPaymentRepository::new(),
+            procedure_repo,
+        );
+        let split = AutoCorrection::SplitIntoProcedures {
+            line: split_line(70_000),
+            parts: vec![
+                split_part("2026-01-10", 40_000),
+                split_part("2026-01-17", 30_000),
+            ],
+        };
+
+        orchestrator
+            .create_multiple_with_auto_corrections(
+                vec![candidate("CPAM n° 75", 70_000, &[])],
+                vec![split],
+                patient_service_finding_nobody(),
+            )
+            .await?;
+
+        let written = manager.committed().expect("committed");
+        assert_eq!(written.patients.len(), 1);
+        let created: Vec<(NaiveDate, i64)> = written
+            .procedures
+            .iter()
+            .map(|procedure| (procedure.procedure_date, procedure.billed_amount))
+            .collect();
+        assert_eq!(
+            created,
+            vec![
+                (NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(), 40_000),
+                (NaiveDate::from_ymd_opt(2026, 1, 17).unwrap(), 30_000),
+            ]
+        );
+        for procedure in &written.procedures {
+            assert_eq!(procedure.patient_id, written.patients[0].id);
+            assert_eq!(procedure.procedure_type_id, "import-pdf");
+        }
+        assert_eq!(written.groups[0].lines.len(), 2);
+        Ok(())
+    }
+
+    /// FPA-258 — a split that does not add up is refused at confirmation too,
+    /// and nothing is written.
+    #[tokio::test]
+    async fn test_fpa_258_an_unbalanced_split_is_refused_at_confirmation() {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        let mut procedure_repo = MockProcedureRepository::new();
+        procedure_repo
+            .expect_read_procedure()
+            .returning(|_| Ok(None));
+        let manager = Arc::new(RecordingManager::default());
+        let orchestrator = make_orchestrator_on(
+            manager.clone(),
+            fund_repo,
+            MockFundPaymentRepository::new(),
+            procedure_repo,
+        );
+        let split = AutoCorrection::SplitIntoProcedures {
+            line: split_line(70_000),
+            parts: vec![split_part("2026-01-10", 40_000)],
+        };
+
+        let result = orchestrator
+            .create_multiple_with_auto_corrections(
+                vec![candidate("CPAM n° 75", 70_000, &[])],
+                vec![split],
+                patient_service_finding_nobody(),
+            )
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(FundPaymentReconciliationError::Task(
+                FundPaymentReconciliationTask::SplitInvalid { .. }
+            ))
+        ));
+        assert!(manager.committed().is_none());
     }
 
     /// FPA-240 and FPA-230 — a linked procedure joins its group and its

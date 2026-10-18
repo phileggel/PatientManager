@@ -4,6 +4,8 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+use super::split::SplitPart;
+
 // `NormalizedPdfLine`, `PdfProcedureGroup`, and `PdfParseResult` are the
 // fund-PDF codec contract — moved to `fund_pdf_codec.rs` per IFC-060. This
 // re-export preserves the existing import paths used by `service.rs`,
@@ -208,6 +210,12 @@ pub enum AutoCorrection {
         payment_date: NaiveDate,
         billed_amount: i64,
         pdf_fund_label: String,
+    },
+    /// Split one PDF line into several procedures, one per part (FPA-255 to
+    /// FPA-258); the patient, fund and payment date are the line's.
+    SplitIntoProcedures {
+        line: NormalizedPdfLine,
+        parts: Vec<SplitPart>,
     },
     /// Link existing procedure to fund payment and correct patient SSN from PDF
     LinkProcedure {

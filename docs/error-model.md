@@ -54,6 +54,8 @@ Reference for handling errors in this codebase. Directive, not historical. Conce
   { code: "FundInvalid"; reasons: ("IdentifierEmpty" | "NameEmpty")[] }
   ```
 
+  A form with repeated rows adds `parts: Vec<Vec<{Row}InvalidReason>>`, row i's reasons at position i, still plain values (`SplitInvalid`, owner, 2026-10-18).
+
 ---
 
 ## Recipes

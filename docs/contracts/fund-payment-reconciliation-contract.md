@@ -56,13 +56,23 @@ Creates fund-payment groups from validated candidates with no auto-corrections. 
 
 ---
 
-### `create_fund_payment_with_auto_corrections` — R3, R11, R12, R13, R14, R15, R16, R17, R18, R19, R29, FPA-075
+### `check_split_into_procedures` — FPA-255, FPA-256, FPA-258
 
-Creates fund-payment groups and applies user-validated auto-corrections atomically. Correction variants: `AmountMismatch` (R11), `ContestAmount` (R12), `FundMismatch` (R13), `DateMismatch` (R14), `LinkProcedure` (R15), `CreateProcedure` (R16). Unknown funds are resolved and created automatically (R17). Negative-amount procedures via `CreateProcedure` receive `Reconciliated` status directly (R29). Performs the duplicate check (R3).
+Checks a split of a `NotFoundIssue` line into procedures before the card accepts it: every refusal at once, the split's own and each part's at its position. Writes nothing.
+
+- **Args:** `line: NormalizedPdfLine, parts: Vec<SplitPart>`
+- **Returns:** `()`
+- **Errors:** `SplitInvalid { reasons: Vec<SplitInvalidReason>, parts: Vec<Vec<SplitPartInvalidReason>> }`
+
+---
+
+### `create_fund_payment_with_auto_corrections` — R3, R11, R12, R13, R14, R15, R16, R17, R18, R19, R29, FPA-075, FPA-257, FPA-258
+
+Creates fund-payment groups and applies user-validated auto-corrections atomically. Correction variants: `AmountMismatch` (R11), `ContestAmount` (R12), `FundMismatch` (R13), `DateMismatch` (R14), `LinkProcedure` (R15), `CreateProcedure` (R16), `SplitIntoProcedures` (FPA-257, checked again by FPA-258). Unknown funds are resolved and created automatically (R17). Negative-amount procedures via `CreateProcedure` receive `Reconciliated` status directly (R29). Performs the duplicate check (R3).
 
 - **Args:** `candidates: Vec<FundPaymentGroupCandidate>, auto_corrections: Vec<AutoCorrection>`
 - **Returns:** `Vec<FundPaymentGroup>`
-- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `DuplicatePdf`, `ProcedureNotFound`, `ProcedureAlreadyLinked`, `FundResolutionFailed`
+- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `SplitInvalid` (FPA-258, nothing written), `DuplicatePdf`, `ProcedureNotFound`, `ProcedureAlreadyLinked`, `FundResolutionFailed`
 
 ---
 
@@ -181,6 +191,18 @@ enum AutoCorrection {
     LinkProcedure   { procedure_id: String, pdf_ssn: String,
                       pdf_fund_label: String, payment_date: String },
     ContestAmount   { procedure_id: String, paid_amount: i64 },
+    SplitIntoProcedures { line: NormalizedPdfLine, parts: Vec<SplitPart> }, // FPA-257
+}
+
+// FPA-255 to FPA-258 — one part of a split line
+struct SplitPart {
+    procedure_date: String,       // as typed, YYYY-MM-DD or empty
+    billed_amount: Option<i64>,   // thousandths of a euro
+}
+
+enum SplitInvalidReason { NoPart, TotalMismatch }           // FPA-255
+enum SplitPartInvalidReason {                                // FPA-256
+    DateEmpty, DateInvalid, DateOutOfRange, AmountEmpty, AmountWrongSign,
 }
 
 struct FundPaymentGroupCandidate {
@@ -311,3 +333,4 @@ enum FundPaymentValidationStatus {
 - 2026-05-16 — Removed `export_reconciliation_csv` and its `CsvExportFailed` error. The CSV export was never wired to a frontend caller and was superseded by `generate_fund_reconciliation_report_pdf` / `export_and_open_fund_reconciliation_report_pdf` (PDF report, ADR-006). Dead code cleanup.
 - 2026-10-10 — Modified by `fund-payment-auto-match` spec (FPA-060, FPA-065): extract_pdf_text gains `PdfHasNoText` (and lists `PdfPathRejected`, which it already returned); reconcile_and_create_candidates and reconcile_pdf_procedures gain `PdfHasNoLine` (and list `DatabaseError`, which they already returned). Removed `extract_pdf_text_from_bytes`: no such command is registered.
 - 2026-10-10 — Modified by `fund-payment-auto-match` spec (FPA-070, FPA-072, FPA-075): reconcile_and_create_candidates returns `left_out_groups` (new type `LeftOutPdfGroup`); create_fund_payment_from_candidates and create_fund_payment_with_auto_corrections list `TotalAmountNotPositive`, now answered before any write
+- 2026-10-18 — Modified by `fund-payment-auto-match` spec (TODO-008): added `check_split_into_procedures`; `create_fund_payment_with_auto_corrections` takes `SplitIntoProcedures` and answers `SplitInvalid` (FPA-255 to FPA-258)

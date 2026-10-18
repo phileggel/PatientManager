@@ -204,6 +204,7 @@
     "group_total_not_positive": "Un groupe du relevé a un total négatif ou nul et ne peut pas être importé. Fermez cette fenêtre et relancez le rapprochement du relevé.",
     "pdf_has_no_text": "Ce PDF ne contient aucun texte lisible : il a probablement été scanné ou « imprimé en PDF ». Téléchargez le relevé d'origine depuis le site de la caisse.",
     "database_error": "Une erreur de base de données s'est produite. Veuillez réessayer.",
-    "unexpected": "Une erreur inattendue s'est produite lors du rapprochement."
+    "unexpected": "Une erreur inattendue s'est produite lors du rapprochement.",
+    "split_invalid": "Cette répartition ne correspond pas à la ligne, ou l'un de ses actes n'est pas valide."
   }
 }

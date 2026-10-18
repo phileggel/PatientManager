@@ -6,6 +6,8 @@ use crate::context::fund::FundError;
 use crate::context::patient::PatientError;
 use crate::context::procedure::ProcedureError;
 
+use super::split::{SplitInvalidReason, SplitPartInvalidReason};
+
 /// Use-case-specific guards and catch-alls for fund-payment reconciliation.
 ///
 /// Codes that do NOT belong to any single bounded context: the duplicate-batch
@@ -50,6 +52,14 @@ pub enum FundPaymentReconciliationTask {
     #[error("No PDF line found in the PDF")]
     PdfHasNoLine,
 
+    /// A split of a PDF line into procedures is refused (FPA-255, FPA-256): the split's
+    /// own reasons, and each part's reasons at that part's position.
+    #[error("Split is invalid: {reasons:?}, parts {parts:?}")]
+    SplitInvalid {
+        reasons: Vec<SplitInvalidReason>,
+        parts: Vec<Vec<SplitPartInvalidReason>>,
+    },
+
     /// Failure from a repository the reconciliation service holds directly.
     /// Logged at the call site via `tracing::error!`; the wire surface carries
     /// no detail.
@@ -91,6 +101,20 @@ mod tests {
 
     #[test]
     fn each_variant_emits_a_code() {
+        let split: FundPaymentReconciliationError = FundPaymentReconciliationTask::SplitInvalid {
+            reasons: vec![SplitInvalidReason::TotalMismatch],
+            parts: vec![vec![], vec![SplitPartInvalidReason::DateOutOfRange]],
+        }
+        .into();
+        assert_eq!(
+            to_value(&split).unwrap(),
+            json!({
+                "code": "SplitInvalid",
+                "reasons": ["TotalMismatch"],
+                "parts": [[], ["DateOutOfRange"]],
+            }),
+        );
+
         // Task variant with a payload.
         let dup: FundPaymentReconciliationError =
             FundPaymentReconciliationTask::AllDuplicates { count: 3 }.into();

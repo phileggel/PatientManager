@@ -27,6 +27,7 @@ describe("formatReconciliationError", () => {
       ["PdfHasNoText", "fund-payment-match:errors.pdf_has_no_text"],
       ["TotalAmountNotPositive", "fund-payment-match:errors.group_total_not_positive"],
       ["PdfHasNoLine", "fund-payment-match:errors.no_valid_candidates"],
+      ["SplitInvalid", "fund-payment-match:errors.split_invalid"],
     ];
     for (const [code, key] of cases) {
       expect(formatReconciliationError({ code } as FundPaymentReconciliationError).key).toBe(key);

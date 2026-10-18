@@ -301,6 +301,18 @@ async reconcileAndCreateCandidates(parseResult: PdfParseResult) : Promise<Result
 }
 },
 /**
+ * Checks a split of a PDF line into procedures before the card accepts it
+ * (FPA-255): every refusal at once, the split's own and each part's.
+ */
+async checkSplitIntoProcedures(line: NormalizedPdfLine, parts: SplitPart[]) : Promise<Result<null, FundPaymentReconciliationError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_split_into_procedures", { line, parts }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Handler for creating fund payment groups from validated reconciliation candidates
  */
 async createFundPaymentFromCandidates(request: CreateFundPaymentFromCandidatesRequest) : Promise<Result<FundPaymentGroup[], FundPaymentReconciliationError>> {
@@ -980,6 +992,11 @@ export type AutoCorrection =
  * Create new procedure from PDF line (creates patient if not found)
  */
 { CreateProcedure: { ssn: string; patient_name: string; procedure_date: string; payment_date: string; billed_amount: number; pdf_fund_label: string } } | 
+/**
+ * Split one PDF line into several procedures, one per part (FPA-255,
+ * FPA-256); the patient, fund and payment date are the line's.
+ */
+{ SplitIntoProcedures: { line: NormalizedPdfLine; parts: SplitPart[] } } | 
 /**
  * Link existing procedure to fund payment and correct patient SSN from PDF
  */
@@ -1826,6 +1843,11 @@ export type FundPaymentReconciliationTask =
  */
 { code: "PdfHasNoLine" } | 
 /**
+ * A split of a PDF line into procedures is refused (FPA-255): the split's
+ * own reasons, and each part's reasons at that part's position.
+ */
+{ code: "SplitInvalid"; reasons: SplitInvalidReason[]; parts: SplitPartInvalidReason[][] } | 
+/**
  * Failure from a repository the reconciliation service holds directly.
  * Logged at the call site via `tracing::error!`; the wire surface carries
  * no detail.
@@ -2603,6 +2625,47 @@ export type SkipReason =
  * Information about a skipped row during parsing
  */
 export type SkippedRow = { sheet: string; row_number: number; reason: SkipReason }
+/**
+ * Why a split is refused as a whole (FPA-255).
+ */
+export type SplitInvalidReason = 
+/**
+ * The split holds no part.
+ */
+"NoPart" | 
+/**
+ * The parts' amounts do not add up to the line's amount.
+ */
+"TotalMismatch"
+/**
+ * One part of a split PDF line, as the card sent it: a procedure date as
+ * typed (YYYY-MM-DD, or empty) and its amount in thousandths of a euro.
+ */
+export type SplitPart = { procedure_date: string; billed_amount: number | null }
+/**
+ * Why one part of a split is refused (FPA-255).
+ */
+export type SplitPartInvalidReason = 
+/**
+ * No date, or a blank one.
+ */
+"DateEmpty" | 
+/**
+ * A date that is not a valid YYYY-MM-DD date.
+ */
+"DateInvalid" | 
+/**
+ * A date outside the line's start → end.
+ */
+"DateOutOfRange" | 
+/**
+ * No amount.
+ */
+"AmountEmpty" | 
+/**
+ * An amount of zero, or of the opposite sign to the line's.
+ */
+"AmountWrongSign"
 /**
  * Column-header strings for the unreconciled table (FPR-031). Fixed 4 columns.
  */

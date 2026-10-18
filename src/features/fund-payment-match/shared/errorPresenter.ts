@@ -66,6 +66,8 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
       return { key: "fund-payment-match:errors.pdf_has_no_text" };
     case "PdfHasNoLine":
       return { key: "fund-payment-match:errors.no_valid_candidates" };
+    case "SplitInvalid":
+      return { key: "fund-payment-match:errors.split_invalid" };
 
     // --- shared infra catch-all (BC enums + Task all share this code) ---
     case "DatabaseError":

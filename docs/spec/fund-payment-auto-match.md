@@ -89,6 +89,14 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-250 (R16) — Missing procedure creation (backend)**: For a `NotFoundIssue`, if no existing procedure can be linked, the user can trigger creation of a new procedure from the PDF data (`AutoCorrection::CreateProcedure`). If the patient does not exist (unknown SSN), they are created automatically. The created procedure receives the `import-pdf` type. After the reconciliation is confirmed, the procedure ends up with `Reconciliated` status — it is added to the fund payment group and reconciled atomically as part of the confirmation step, not as a separate action.
 
+**FPA-255 — A split refused as a whole (backend)**: A split of a `NotFoundIssue` line into procedures is refused when it has no part, or when its parts' amounts do not add up to the line's amount; nothing is created.
+
+**FPA-256 — A part of a split refused (backend)**: A part of a split is refused when its date is empty (a blank one counts as empty), is not a valid YYYY-MM-DD date, or falls outside the line's start → end (that day for a single-date line); or when its amount is missing, zero, or of the opposite sign to the line's amount.
+
+**FPA-257 — One procedure per part (backend)**: At confirmation, an accepted split creates one procedure per part, with the part's date and amount and the line's patient (created if its SSN is unknown, as FPA-250 does), fund and `import-pdf` type; each joins the line's fund payment group and ends `Reconciliated`, as FPA-250 does for one.
+
+**FPA-258 — When a split is checked (backend)**: A split can be checked on its own, before the validation, which writes nothing; it is checked again at confirmation. All refusals are reported together: the split's own (FPA-255) for the split, and each part's (FPA-256) against that part. The line is taken as the import read it; one split of one part, or two parts on the same date, are accepted.
+
 **FPA-260 (R17) — Automatic fund resolution (backend)**: The fund label in the PDF (e.g. "CPAM n° 931") is automatically resolved to an existing fund by extracting the numeric identifier. If the fund does not exist in the database, it is created automatically.
 
 ### Procedure status (300–320)

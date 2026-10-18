@@ -232,6 +232,12 @@ A group of a fund's PDF statement whose stated total is zero or negative — the
 
 > Status: confirmed (2026-10-11)
 
+### Split into procedures (« Répartir en plusieurs actes »)
+
+The correction of a fund PDF line with no matching procedure that creates one procedure per part instead of one for the whole line (FPA-255 to FPA-258): `SplitIntoProcedures` in code. A part (`SplitPart`) is one procedure's date and amount; the parts add up to the line's amount and their dates fall within the line's period. Not a stored concept: the procedures it creates are.
+
+> Status: confirmed (2026-10-18)
+
 ### Bank statement label (« Libellé de relevé »)
 
 The label of a bank statement line, remembered per bank account together with its assignment: a fund, or ignored (« rejected » in BAS-030–035 — same value). Saved by the import flow at validate (BAS-035) and reviewed from the management screen (BAS-041–046). Deleting the bank account deletes its labels.

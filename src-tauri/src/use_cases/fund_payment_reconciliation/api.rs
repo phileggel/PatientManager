@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use super::dto::*;
+use super::split::SplitPart;
 
 // ============ Standalone functions (thin wrappers — testable without Tauri State) ============
 
@@ -155,6 +156,19 @@ pub async fn parse_pdf_text(text: String) -> PdfParseResult {
     );
 
     result
+}
+
+/// Checks a split of a PDF line into procedures before the card accepts it
+/// (FPA-258): every refusal at once, the split's own and each part's.
+#[tauri::command]
+#[specta::specta]
+pub fn check_split_into_procedures(
+    line: NormalizedPdfLine,
+    parts: Vec<SplitPart>,
+) -> Result<(), FundPaymentReconciliationError> {
+    tracing::info!(target: BACKEND, part_count = parts.len(), "Checking a split of a PDF line");
+    super::read_split(&line, &parts)?;
+    Ok(())
 }
 
 /// Handler for reconciling PDF procedures with database

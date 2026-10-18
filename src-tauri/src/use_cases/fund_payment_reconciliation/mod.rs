@@ -31,6 +31,8 @@ pub mod error;
 mod fund_label;
 pub mod orchestrator;
 pub mod service;
+/// Splitting one PDF line into several procedures (FPA-255 to FPA-258).
+mod split;
 /// The validation's unit of work over SQLite (ADR-003, B26).
 mod sqlx_uow;
 /// The validation's unit of work, as the orchestrator sees it (FPA-076).
@@ -43,6 +45,7 @@ pub use dto::*;
 pub use error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 pub use orchestrator::FundPaymentReconciliationOrchestrator;
 pub use service::ReconciliationService;
+pub use split::{read_split, SplitInvalidReason, SplitPart, SplitPartInvalidReason};
 pub use uow::{
     StatementValidationOperation, StatementValidationTransactionManager,
     StatementValidationUnitOfWork,

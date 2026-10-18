@@ -204,6 +204,7 @@
     "group_total_not_positive": "A group of the statement has a negative or zero total and cannot be imported. Close this window and run the statement's reconciliation again.",
     "pdf_has_no_text": "This PDF contains no readable text: it was probably scanned or \"printed to PDF\". Download the original statement from the fund's website.",
     "database_error": "A database error occurred. Please try again.",
-    "unexpected": "An unexpected error occurred during reconciliation."
+    "unexpected": "An unexpected error occurred during reconciliation.",
+    "split_invalid": "This split does not add up to the line, or one of its parts is not valid."
   }
 }
