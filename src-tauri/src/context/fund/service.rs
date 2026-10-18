@@ -547,6 +547,7 @@ mod tests {
                     total_amount,
                     lines,
                     FundPaymentGroupStatus::Active,
+                    crate::context::fund::GroupOrigin::Payment,
                 ))
             },
         );
@@ -558,6 +559,7 @@ mod tests {
                 10000,
                 vec![],
                 FundPaymentGroupStatus::Active,
+                crate::context::fund::GroupOrigin::Payment,
             )))
         });
         mock.expect_update_group().returning(Ok);
@@ -789,6 +791,7 @@ mod tests {
             10000,
             vec![],
             FundPaymentGroupStatus::BankPaid,
+            crate::context::fund::GroupOrigin::Refund,
         );
         let result = service.persist_refund_group(group).await.unwrap();
         assert_eq!(result.fund_id, "fund-1");
@@ -807,6 +810,7 @@ mod tests {
             10000,
             vec![],
             FundPaymentGroupStatus::BankPaid,
+            crate::context::fund::GroupOrigin::Refund,
         );
         let result = service.persist_refund_group(group).await;
         assert!(matches!(result, Err(FundError::DatabaseError)));

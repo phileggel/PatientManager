@@ -46,6 +46,7 @@
     "fund_id_empty": "L'identifiant de la caisse ne peut pas être vide",
     "total_amount_not_positive": "Le montant total doit être supérieur à 0",
     "invalid_payment_date_format": "Format de date de paiement invalide (attendu : AAAA-MM-JJ)",
+    "refund_group_protected": "Ce groupe de paiement fait partie d'un remboursement et ne peut être supprimé qu'en annulant le remboursement.",
     "fund_payment_group_id_empty": "L'identifiant du groupe de paiement ne peut pas être vide",
     "line_procedure_id_empty": "L'identifiant de l'acte ne peut pas être vide",
     "fund_not_found": "Caisse introuvable",

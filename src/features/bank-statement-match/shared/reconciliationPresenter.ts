@@ -164,6 +164,7 @@ export function presentReconciliationError(err: BankStatementReconciliationError
     case "FundIdEmpty":
     case "TotalAmountNotPositive":
     case "InvalidPaymentDateFormat":
+    case "RefundGroupProtected":
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
     case "PaymentGroupNotFound":

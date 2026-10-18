@@ -46,6 +46,7 @@
     "fund_id_empty": "Fund ID cannot be empty",
     "total_amount_not_positive": "Total amount must be greater than 0",
     "invalid_payment_date_format": "Invalid payment date format (expected YYYY-MM-DD)",
+    "refund_group_protected": "This payment group is part of a refund and can only be removed by cancelling the refund.",
     "fund_payment_group_id_empty": "Fund payment group ID cannot be empty",
     "line_procedure_id_empty": "Procedure ID cannot be empty",
     "fund_not_found": "Fund not found",

@@ -268,7 +268,8 @@ impl FundPaymentManualManagementOrchestrator {
     /// Delete a fund payment group and clean up associated procedures
     ///
     /// Steps:
-    /// 1. Read the group to get its lines (procedure IDs)
+    /// 1. Read the group to get its lines (procedure IDs); reject a refund's
+    ///    group (REF-240)
     /// 2. Reject if any linked procedure is bank-reconciled (R9)
     /// 3. Reset each procedure: status → Created, clear confirmed_payment_date, clear paid_amount
     /// 4. Soft-delete the lines and the group
@@ -286,6 +287,7 @@ impl FundPaymentManualManagementOrchestrator {
             .ok_or_else(|| FundError::PaymentGroupNotFound {
                 fund_payment_group_id: group_id.to_string(),
             })?;
+        group.ensure_deletable()?;
 
         let procedure_ids: Vec<String> =
             group.lines.iter().map(|l| l.procedure_id.clone()).collect();

@@ -2,7 +2,7 @@
 
 > Domain: fund
 > Backend module: context/fund; `delete_fund` in use_cases/procedure_orchestration
-> Last updated by: retroactive (fund CRUD from no dedicated spec; fund payment group CRUD from fund-payment-manual-match spec; delete_fund from procedure-orchestration spec)
+> Last updated by: `overpayment` spec (REF-240, ticket #355); before: retroactive (fund CRUD from no dedicated spec; fund payment group CRUD from fund-payment-manual-match spec; delete_fund from procedure-orchestration spec)
 
 ## Commands
 
@@ -80,13 +80,13 @@ Updates the payment date and/or procedure composition of an existing group. Remo
 
 ---
 
-### `delete_fund_payment_group` — FPM R9, R11
+### `delete_fund_payment_group` — FPM R9, R11, REF-240
 
-Hard-deletes the group and resets all linked procedures to `Created`, clearing their `confirmed_payment_date` and `actual_payment_amount`. Blocked if the group is `BankPayed` (FPM R9). Also rejects deletion of refund fund-payment groups created by the overpayment flow (REF-240).
+Soft-deletes the group and its lines and resets all linked procedures to `Created`, clearing their `confirmed_payment_date` and `actual_payment_amount`. Blocked if the group is `BankPayed` (FPM R9). Also rejects deletion of a group whose `origin` is `Refund` (REF-240), whoever calls the use case.
 
 - **Args:** `group_id: String`
 - **Returns:** `()`
-- **Errors:** `GroupNotFound`, `GroupLocked`, `DeletionForbidden`
+- **Errors:** `PaymentGroupNotFound { fund_payment_group_id }`, `GroupLocked`, `RefundGroupProtected` (REF-240), `DatabaseError`
 
 ---
 
@@ -112,7 +112,11 @@ struct FundPaymentGroup {
     lines: Vec<FundPaymentLine>,
     status: FundPaymentGroupStatus,
     is_locked: bool,        // derived from status; true when BankPayed (FPM R10)
+    origin: GroupOrigin,    // set once at creation (REF-240)
 }
+
+// REF-240 — where a group comes from
+enum GroupOrigin { Payment, Refund }  // wire: "PAYMENT" | "REFUND"
 
 struct FundPaymentLine {
     id: String,
@@ -136,4 +140,5 @@ enum FundPaymentGroupStatus {
 
 ## Changelog
 
+- 2026-10-18 — Modified by `overpayment` spec (REF-240, ticket #355): `FundPaymentGroup` carries `origin` (`GroupOrigin`); `delete_fund_payment_group` answers `RefundGroupProtected` from the use case, its errors listed as the code sends them
 - 2026-10-14 — Modified by `procedure-orchestration` spec (DEBT-042): delete_fund

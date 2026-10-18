@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO fund_payment_group (\n                    id, fund_id, payment_date, total_amount, status, origin, is_deleted\n                )\n                VALUES ($1, $2, $3, $4, 'ACTIVE', $5, 0)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "b339302ffd2e95715dfff9a414fa6d08358289da5a2ee80b3615350968628463"
+}

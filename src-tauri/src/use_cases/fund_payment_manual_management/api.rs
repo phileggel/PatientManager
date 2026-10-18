@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::State;
 
-use super::error::{FundPaymentManualManagementError, FundPaymentManualManagementTask};
+use super::error::FundPaymentManualManagementError;
 use super::FundPaymentManualManagementOrchestrator;
 use crate::context::fund::FundPaymentGroup;
 use crate::context::procedure::Procedure;
@@ -23,29 +23,14 @@ pub struct FundPaymentGroupEditData {
 ///
 /// Deletes the group, its lines, and resets associated procedures
 /// (status → Created, clears confirmed_payment_date and paid_amount).
-/// REF-240: Rejects deletion if the group belongs to an overpayment refund cascade.
+/// REF-240: the use case rejects deletion of a refund's group.
 #[tauri::command]
 #[specta::specta]
 pub async fn delete_fund_payment_group(
     group_id: String,
     orchestrator: State<'_, Arc<FundPaymentManualManagementOrchestrator>>,
-    overpayment_orchestrator: State<
-        '_,
-        Arc<crate::use_cases::overpayment::OverpaymentOrchestrator>,
-    >,
 ) -> Result<(), FundPaymentManualManagementError> {
     tracing::info!(target: BACKEND, group_id = %group_id, "Processing delete fund payment group request");
-
-    // REF-240 cross-call into the overpayment use case. We branch on the raw
-    // boolean and map into this use case's own Task vocabulary, so no overpayment
-    // error type crosses the use-case boundary (B18).
-    let is_refund = overpayment_orchestrator
-        .is_refund_fund_payment_group(&group_id)
-        .await
-        .map_err(|_| FundPaymentManualManagementTask::DatabaseError)?;
-    if is_refund {
-        return Err(FundPaymentManualManagementTask::RefundGroupProtected.into());
-    }
 
     orchestrator
         .delete_group_with_cleanup(&group_id)

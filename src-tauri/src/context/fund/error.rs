@@ -29,6 +29,11 @@ pub enum FundError {
     #[error("Invalid payment date format (expected YYYY-MM-DD)")]
     InvalidPaymentDateFormat,
 
+    /// `FundPaymentGroup::ensure_deletable` (REF-240): a refund's group is
+    /// removed only by cancelling the refund, never deleted directly.
+    #[error("This fund payment group is part of a refund and cannot be deleted directly")]
+    RefundGroupProtected,
+
     // --- FundPaymentLine aggregate domain invariants ---
     /// `FundPaymentLine::validate` rejected an empty fund_payment_group_id.
     #[error("Fund payment group ID cannot be empty")]
@@ -103,6 +108,10 @@ mod tests {
         assert_eq!(
             to_value(FundError::InvalidPaymentDateFormat).unwrap(),
             json!({ "code": "InvalidPaymentDateFormat" }),
+        );
+        assert_eq!(
+            to_value(FundError::RefundGroupProtected).unwrap(),
+            json!({ "code": "RefundGroupProtected" }),
         );
         assert_eq!(
             to_value(FundError::FundPaymentGroupIdEmpty).unwrap(),

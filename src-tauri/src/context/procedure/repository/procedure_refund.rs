@@ -151,22 +151,6 @@ impl ProcedureRefundRepository for SqliteProcedureRefundRepository {
 
         Ok(())
     }
-
-    async fn is_refund_fund_payment_group(&self, group_id: &str) -> anyhow::Result<bool> {
-        let row = sqlx::query!(
-            r#"
-            SELECT id FROM procedure_refund
-            WHERE refund_fund_payment_group_id = $1
-            LIMIT 1
-            "#,
-            group_id,
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .context("Failed to check refund fund payment group")?;
-
-        Ok(row.is_some())
-    }
 }
 
 #[cfg(test)]
@@ -246,23 +230,6 @@ mod tests {
 
         let found = repo.find_by_source_procedure_id("src-3").await.unwrap();
         assert!(found.is_none());
-    }
-
-    #[tokio::test]
-    async fn is_refund_fund_payment_group_returns_true_when_exists() {
-        let repo = setup().await;
-        let refund = make_refund("src-4", "ref-4");
-        repo.create_procedure_refund(&refund).await.unwrap();
-
-        let result = repo.is_refund_fund_payment_group("group-1").await.unwrap();
-        assert!(result);
-    }
-
-    #[tokio::test]
-    async fn is_refund_fund_payment_group_returns_false_when_absent() {
-        let repo = setup().await;
-        let result = repo.is_refund_fund_payment_group("no-group").await.unwrap();
-        assert!(!result);
     }
 
     #[tokio::test]

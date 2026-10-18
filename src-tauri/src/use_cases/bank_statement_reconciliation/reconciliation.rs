@@ -872,15 +872,15 @@ mod tests {
     }
 
     fn group(id: &str, fund_id: &str, date: &str, amount: i64) -> FundPaymentGroup {
-        FundPaymentGroup {
-            id: id.to_string(),
-            fund_id: fund_id.to_string(),
-            payment_date: NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
-            total_amount: amount,
-            lines: Vec::new(),
-            status: FundPaymentGroupStatus::Active,
-            is_locked: false,
-        }
+        FundPaymentGroup::restore(
+            id.to_string(),
+            fund_id.to_string(),
+            NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
+            amount,
+            Vec::new(),
+            FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
+        )
     }
 
     /// Shared empty pool for tests where open procedures play no role.

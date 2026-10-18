@@ -18,6 +18,7 @@ export function makeFundPaymentGroup(overrides?: Partial<FundPaymentGroup>): Fun
     lines: [makeFundPaymentLine()],
     status: "ACTIVE",
     is_locked: false,
+    origin: "PAYMENT",
     ...overrides,
   };
 }

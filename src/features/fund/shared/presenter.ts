@@ -43,6 +43,8 @@ export function formatFundError(err: FundError): {
       return { key: "fund:errors.total_amount_not_positive" };
     case "InvalidPaymentDateFormat":
       return { key: "fund:errors.invalid_payment_date_format" };
+    case "RefundGroupProtected":
+      return { key: "fund:errors.refund_group_protected" };
     case "FundPaymentGroupIdEmpty":
       return { key: "fund:errors.fund_payment_group_id_empty" };
     case "LineProcedureIdEmpty":

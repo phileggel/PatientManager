@@ -65,13 +65,6 @@ describe("formatOverpaymentError", () => {
     });
   });
 
-  it("maps RefundGroupProtected (REF-240) to its key", () => {
-    const err: OverpaymentError = { code: "RefundGroupProtected" };
-    expect(formatOverpaymentError(err)).toEqual({
-      key: "overpayment:errors.refund_group_protected",
-    });
-  });
-
   it("maps RefundRecordNotFound (REF-210) to its key", () => {
     const err: OverpaymentError = { code: "RefundRecordNotFound" };
     expect(formatOverpaymentError(err)).toEqual({

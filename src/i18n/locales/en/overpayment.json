@@ -50,7 +50,6 @@
     "bank_account_required": "A bank account is required.",
     "bank_account_not_found": "Bank account not found.",
     "source_has_no_fund": "The source procedure has no associated fund.",
-    "refund_group_protected": "This payment group belongs to a refund and can only be removed by cancelling the refund.",
     "refund_record_not_found": "No overpayment record found for this procedure.",
     "database_error": "An unexpected error occurred."
   }

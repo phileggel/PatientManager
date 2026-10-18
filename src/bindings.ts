@@ -364,7 +364,7 @@ async readAllFundPaymentGroups() : Promise<Result<FundPaymentGroup[], FundError>
  * 
  * Deletes the group, its lines, and resets associated procedures
  * (status → Created, clears confirmed_payment_date and paid_amount).
- * REF-240: Rejects deletion if the group belongs to an overpayment refund cascade.
+ * REF-240: the use case rejects deletion of a refund's group.
  */
 async deleteFundPaymentGroup(groupId: string) : Promise<Result<null, FundPaymentManualManagementError>> {
     try {
@@ -1640,6 +1640,11 @@ export type FundError =
  */
 { code: "InvalidPaymentDateFormat" } | 
 /**
+ * `FundPaymentGroup::ensure_deletable` (REF-240): a refund's group is
+ * removed only by cancelling the refund, never deleted directly.
+ */
+{ code: "RefundGroupProtected" } | 
+/**
  * `FundPaymentLine::validate` rejected an empty fund_payment_group_id.
  */
 { code: "FundPaymentGroupIdEmpty" } | 
@@ -1686,7 +1691,11 @@ export type FundPaymentGroup = { id: string; fund_id: string; payment_date: stri
 /**
  * Derived from status: true when BankPaid. Group cannot be edited or deleted when locked.
  */
-is_locked: boolean }
+is_locked: boolean; 
+/**
+ * Set once at creation, never changed (REF-240).
+ */
+origin: GroupOrigin }
 /**
  * Fund payment group candidate created from PDF reconciliation data
  * Groups matched procedures by (fund_id + payment_date)
@@ -1753,8 +1762,8 @@ export type FundPaymentLine = { id: string; fund_payment_group_id: string; proce
  * carries its own `#[serde(tag = "code")]`, so the untagged composite
  * flattens to a single `{ "code": "...", ... }` payload on the wire.
  * 
- * Multiple arms can emit `{ "code": "DatabaseError" }` (each BC enum + the
- * Task sub-enum); the collision is intentional — the frontend maps the single
+ * Both BC enums can emit `{ "code": "DatabaseError" }`; the collision is
+ * intentional — the frontend maps the single
  * code to one message. See `fund_payment_reconciliation/error.rs` for the same
  * precedent.
  */
@@ -1763,27 +1772,15 @@ export type FundPaymentManualManagementError = FundError | ProcedureError | Fund
  * Use-case-specific guards for manual fund-payment-group management.
  * 
  * Codes that do NOT belong to any single bounded context: the
- * state-dependent "group is locked by bank-reconciled procedures" guard, the
- * REF-240 refund-group protection (enforced via a cross-call into the
- * overpayment use case), and the catch-all for the overpayment cross-call's
- * infra failures. Tagged with `code` so each variant emits `{ "code": "..." }`.
+ * state-dependent "group is locked by bank-reconciled procedures" guard.
+ * Tagged with `code` so each variant emits `{ "code": "..." }`.
  */
 export type FundPaymentManualManagementTask = 
 /**
  * The group contains bank-reconciled procedures (`FundPaid` /
  * `PartiallyFundPaid`); it cannot be modified or deleted (R9).
  */
-{ code: "GroupLocked" } | 
-/**
- * REF-240 — the group belongs to an overpayment refund cascade and can
- * only be removed by cancelling the refund, not by direct deletion.
- */
-{ code: "RefundGroupProtected" } | 
-/**
- * Failure from the overpayment refund-group check the delete flow performs.
- * Logged at the call site via `tracing::error!`; the wire carries no detail.
- */
-{ code: "DatabaseError" }
+{ code: "GroupLocked" }
 /**
  * Composite error for the fund-payment-reconciliation use case.
  * 
@@ -1862,6 +1859,19 @@ export type FundPaymentReconciliationTask =
  * Validation status for a fund payment candidate
  */
 export type FundPaymentValidationStatus = "VALID" | "INVALID"
+/**
+ * Where a fund payment group comes from, set once at creation (REF-240).
+ */
+export type GroupOrigin = 
+/**
+ * Money a fund paid: entered by hand, read from a fund or a bank statement
+ */
+"PAYMENT" | 
+/**
+ * The group a refund to a patient creates (REF-100); only the refund's
+ * cancellation (REF-210) removes it
+ */
+"REFUND"
 /**
  * Result of a completed Excel import execution
  */
@@ -2007,11 +2017,6 @@ export type OverpaymentTask =
  * FundPaymentGroup.
  */
 { code: "SourceHasNoFund"; id: string } | 
-/**
- * REF-240 — the fund payment group belongs to an overpayment refund and
- * must be removed via cancel, not direct deletion.
- */
-{ code: "RefundGroupProtected" } | 
 /**
  * Cancel path (REF-210) — no overpayment record was found for the given
  * source_procedure_id.

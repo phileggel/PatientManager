@@ -121,6 +121,18 @@ pub enum FundPaymentGroupStatus {
     BankPaid,
 }
 
+/// Where a fund payment group comes from, set once at creation (REF-240).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GroupOrigin {
+    /// Money a fund paid: entered by hand, read from a fund or a bank statement
+    #[default]
+    Payment,
+    /// The group a refund to a patient creates (REF-100); only the refund's
+    /// cancellation (REF-210) removes it
+    Refund,
+}
+
 /// FundPaymentGroup aggregate root
 /// Represents a batch of payments from a single fund (e.g., CPAM payment run)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -135,6 +147,8 @@ pub struct FundPaymentGroup {
     pub status: FundPaymentGroupStatus,
     /// Derived from status: true when BankPaid. Group cannot be edited or deleted when locked.
     pub is_locked: bool,
+    /// Set once at creation, never changed (REF-240).
+    pub origin: GroupOrigin,
 }
 
 /// Serialize NaiveDate as ISO format string for serde
@@ -185,6 +199,7 @@ impl FundPaymentGroup {
             lines,
             status: FundPaymentGroupStatus::Active,
             is_locked: false,
+            origin: GroupOrigin::Payment,
         })
     }
 
@@ -224,7 +239,17 @@ impl FundPaymentGroup {
             lines,
             status: FundPaymentGroupStatus::BankPaid,
             is_locked: true,
+            origin: GroupOrigin::Refund,
         })
+    }
+
+    /// REF-240: a refund's group is removed only by cancelling the refund
+    /// (REF-210), never deleted directly.
+    pub fn ensure_deletable(&self) -> Result<(), FundError> {
+        if self.origin == GroupOrigin::Refund {
+            return Err(FundError::RefundGroupProtected);
+        }
+        Ok(())
     }
 
     /// Bank transfer matched: the group is settled and locked against edits
@@ -264,6 +289,7 @@ impl FundPaymentGroup {
         total_amount: i64,
         lines: Vec<FundPaymentLine>,
         status: FundPaymentGroupStatus,
+        origin: GroupOrigin,
     ) -> Self {
         let is_locked = status == FundPaymentGroupStatus::BankPaid;
 
@@ -275,6 +301,7 @@ impl FundPaymentGroup {
             lines,
             status,
             is_locked,
+            origin,
         }
     }
 
@@ -526,6 +553,7 @@ mod tests {
             10000,
             vec![],
             FundPaymentGroupStatus::BankPaid,
+            GroupOrigin::Payment,
         );
         assert!(g.is_locked);
         assert_eq!(g.status, FundPaymentGroupStatus::BankPaid);
@@ -540,6 +568,7 @@ mod tests {
             10000,
             vec![],
             FundPaymentGroupStatus::Active,
+            GroupOrigin::Payment,
         );
         assert!(!g.is_locked);
     }
@@ -673,6 +702,31 @@ mod tests {
         assert_eq!(group.lines.len(), 1);
         assert_eq!(group.lines[0].procedure_id, "p1");
         assert_eq!(group.lines[0].fund_payment_group_id, group.id);
+    }
+
+    #[test]
+    fn ref_240_a_refund_group_is_not_deletable() {
+        let group =
+            FundPaymentGroup::refund("f1".to_string(), refund_date(), 56_000, "p1".to_string())
+                .expect("a positive refunded amount is valid");
+        assert_eq!(group.origin, GroupOrigin::Refund);
+        assert!(matches!(
+            group.ensure_deletable(),
+            Err(FundError::RefundGroupProtected)
+        ));
+    }
+
+    #[test]
+    fn ref_240_a_payment_group_is_deletable() {
+        let group = FundPaymentGroup::new(
+            "f1".to_string(),
+            "2026-10-17".to_string(),
+            56_000,
+            vec!["p1".to_string()],
+        )
+        .expect("a valid group");
+        assert_eq!(group.origin, GroupOrigin::Payment);
+        assert!(group.ensure_deletable().is_ok());
     }
 
     #[test]

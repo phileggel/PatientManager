@@ -609,8 +609,6 @@ mod tests {
         mock.expect_find_by_refund_procedure_id()
             .returning(|_| Ok(None));
         mock.expect_delete_procedure_refund().returning(|_| Ok(()));
-        mock.expect_is_refund_fund_payment_group()
-            .returning(|_| Ok(false));
         mock
     }
 
@@ -1803,8 +1801,6 @@ mod tests {
         mock.expect_find_by_refund_procedure_id()
             .returning(|_| Ok(None));
         mock.expect_delete_procedure_refund().returning(|_| Ok(()));
-        mock.expect_is_refund_fund_payment_group()
-            .returning(|_| Ok(false));
         mock
     }
 

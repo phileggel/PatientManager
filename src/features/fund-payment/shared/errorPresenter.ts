@@ -7,8 +7,9 @@ import type { FundPaymentManualManagementError } from "@/bindings";
  * (Layer 4) calls `t(key)`. No runtime dependency on i18next.
  *
  * Exhaustive over the full union (no `default`), so a new wire variant fails to
- * compile here rather than silently dropping. The use-case guards + the two
- * reachable BC lookups get specific messages; bounded-context domain invariants
+ * compile here rather than silently dropping. The use-case guard, the REF-240
+ * refund-group refusal (`FundError`) and the two reachable BC lookups get
+ * specific messages; bounded-context domain invariants
  * that cannot meaningfully surface in this CRUD flow map to the generic
  * `unexpected` key, and the shared infra catch-all maps to `database_error`.
  */
@@ -19,6 +20,8 @@ export function formatManualManagementError(err: FundPaymentManualManagementErro
     // --- FundPaymentManualManagementTask (use-case guards) ---
     case "GroupLocked":
       return { key: "fund-payment:errors.group_locked" };
+
+    // --- FundError: REF-240, a refund's group is not deleted directly ---
     case "RefundGroupProtected":
       return { key: "fund-payment:errors.refund_group_protected" };
 
@@ -28,7 +31,7 @@ export function formatManualManagementError(err: FundPaymentManualManagementErro
     case "InvalidPaymentDateFormat":
       return { key: "fund-payment:errors.invalid_payment_date" };
 
-    // --- shared infra catch-all (BC enums + Task all share this code) ---
+    // --- shared infra catch-all (both BC enums share this code) ---
     case "DatabaseError":
       return { key: "fund-payment:errors.database_error" };
 

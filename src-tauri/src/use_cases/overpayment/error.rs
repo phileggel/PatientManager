@@ -46,11 +46,6 @@ pub enum OverpaymentTask {
     #[error("Source procedure has no fund: {id}")]
     SourceHasNoFund { id: String },
 
-    /// REF-240 — the fund payment group belongs to an overpayment refund and
-    /// must be removed via cancel, not direct deletion.
-    #[error("Fund payment group is protected by an overpayment refund")]
-    RefundGroupProtected,
-
     /// Cancel path (REF-210) — no overpayment record was found for the given
     /// source_procedure_id.
     #[error("Overpayment refund record not found")]
@@ -143,10 +138,6 @@ mod tests {
             (
                 "BankAccountRequired",
                 OverpaymentTask::BankAccountRequired.into(),
-            ),
-            (
-                "RefundGroupProtected",
-                OverpaymentTask::RefundGroupProtected.into(),
             ),
             (
                 "RefundRecordNotFound",

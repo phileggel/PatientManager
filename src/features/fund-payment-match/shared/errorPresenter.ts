@@ -120,6 +120,7 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     case "IdentifierAlreadyUsed":
     case "FundIdEmpty":
     case "InvalidPaymentDateFormat":
+    case "RefundGroupProtected":
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
     case "PaymentGroupNotFound":

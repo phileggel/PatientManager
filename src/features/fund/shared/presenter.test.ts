@@ -246,6 +246,11 @@ describe("formatFundError - F27 Layer 3 (pure code → key mapping)", () => {
     expect(formatFundError(err)).toEqual({ key: "fund:errors.invalid_payment_date_format" });
   });
 
+  it("maps RefundGroupProtected (REF-240) to its key", () => {
+    const err: FundError = { code: "RefundGroupProtected" };
+    expect(formatFundError(err)).toEqual({ key: "fund:errors.refund_group_protected" });
+  });
+
   it("maps FundPaymentGroupIdEmpty to its key", () => {
     const err: FundError = { code: "FundPaymentGroupIdEmpty" };
     expect(formatFundError(err)).toEqual({ key: "fund:errors.fund_payment_group_id_empty" });

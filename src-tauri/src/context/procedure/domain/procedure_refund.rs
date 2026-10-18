@@ -118,9 +118,6 @@ pub trait ProcedureRefundRepository: Send + Sync {
 
     /// Delete a ProcedureRefund record by its ID (REF-210).
     async fn delete_procedure_refund(&self, id: &str) -> anyhow::Result<()>;
-
-    /// Returns true if the given fund payment group belongs to a refund (REF-240 guard).
-    async fn is_refund_fund_payment_group(&self, group_id: &str) -> anyhow::Result<bool>;
 }
 
 #[cfg(test)]

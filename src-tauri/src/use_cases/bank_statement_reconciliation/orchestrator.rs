@@ -793,6 +793,7 @@ mod tests {
             100_000,
             vec![line_full, line_partial],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let account = crate::context::bank::BankAccount::restore(
             "acc-1".to_string(),
@@ -962,6 +963,7 @@ mod tests {
             100_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator = make_orchestrator_with(vec![], vec![group], Some(account), vec![]);
         let count = orchestrator
@@ -1088,6 +1090,7 @@ mod tests {
             100_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let mapping = BankFundLabelMapping {
             id: "m1".to_string(),
@@ -1237,6 +1240,7 @@ mod tests {
             100_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
 
@@ -1289,6 +1293,7 @@ mod tests {
             100_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         // No saved mapping — the label starts as NeedsLink.
         let funds = vec![Fund::restore(
@@ -1398,6 +1403,7 @@ mod tests {
             70_000, // not equal to line amount (100_000)
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let group_b = FundPaymentGroup::restore(
             "group-b".to_string(),
@@ -1406,6 +1412,7 @@ mod tests {
             30_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator =
             make_orchestrator_with(vec![], vec![group_a, group_b], None, vec![mapping]);
@@ -1457,6 +1464,7 @@ mod tests {
             60_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator = make_orchestrator_with(vec![], vec![group_a], None, vec![mapping]);
 
@@ -1503,6 +1511,7 @@ mod tests {
             80_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
 
@@ -1563,6 +1572,7 @@ mod tests {
             80_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
 
@@ -1627,6 +1637,7 @@ mod tests {
             80_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let group_b = FundPaymentGroup::restore(
             "group-b".to_string(),
@@ -1635,6 +1646,7 @@ mod tests {
             80_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator =
             make_orchestrator_with(vec![], vec![group_a, group_b], None, vec![mapping]);
@@ -1687,6 +1699,7 @@ mod tests {
             100_000,
             vec![],
             FundPaymentGroupStatus::BankPaid, // is_locked = true → ineligible
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator = make_orchestrator_with(vec![], vec![locked_group], None, vec![mapping]);
 
@@ -1742,6 +1755,7 @@ mod tests {
             60_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator = make_orchestrator_with(vec![], vec![group_a], None, vec![mapping]);
 
@@ -1802,6 +1816,7 @@ mod tests {
             100_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let orchestrator = make_orchestrator_with(vec![], vec![group], None, vec![mapping]);
 
@@ -1901,6 +1916,7 @@ mod tests {
             100_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let account = crate::context::bank::BankAccount::restore(
             "acc-1".to_string(),
@@ -1999,6 +2015,7 @@ mod tests {
             60_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let group_b = FundPaymentGroup::restore(
             "group-b".to_string(),
@@ -2007,6 +2024,7 @@ mod tests {
             40_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let account = crate::context::bank::BankAccount::restore(
             "acc-1".to_string(),
@@ -2058,6 +2076,7 @@ mod tests {
             60_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let account = crate::context::bank::BankAccount::restore(
             "acc-1".to_string(),
@@ -2123,6 +2142,7 @@ mod tests {
             100_000,
             vec![],
             FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
         );
         let account = crate::context::bank::BankAccount::restore(
             "acc-1".to_string(),
@@ -2354,6 +2374,7 @@ mod tests {
                     total_amount,
                     lines,
                     FundPaymentGroupStatus::BankPaid,
+                    crate::context::fund::GroupOrigin::Payment,
                 ))
             },
         );
@@ -2371,6 +2392,7 @@ mod tests {
                     100_000,
                     vec![line],
                     FundPaymentGroupStatus::BankPaid,
+                    crate::context::fund::GroupOrigin::Payment,
                 )))
             } else {
                 Ok(None)

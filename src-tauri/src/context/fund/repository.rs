@@ -4,6 +4,7 @@ use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 use super::{
     Fund, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine, FundPaymentRepository,
+    GroupOrigin,
 };
 
 /// Internal row type for affiliated fund database mapping
@@ -247,6 +248,21 @@ pub struct FundPaymentGroupRow {
     pub payment_date: chrono::NaiveDate,
     pub total_amount: i64,
     pub status: String,
+    pub origin: String,
+}
+
+fn parse_group_origin(s: &str) -> GroupOrigin {
+    match s {
+        "REFUND" => GroupOrigin::Refund,
+        _ => GroupOrigin::Payment,
+    }
+}
+
+fn group_origin_to_str(o: GroupOrigin) -> &'static str {
+    match o {
+        GroupOrigin::Payment => "PAYMENT",
+        GroupOrigin::Refund => "REFUND",
+    }
 }
 
 fn parse_group_status(s: &str) -> FundPaymentGroupStatus {
@@ -273,6 +289,7 @@ impl From<FundPaymentGroupRow> for FundPaymentGroup {
             row.total_amount,
             Vec::new(), // Lines are fetched separately in repository
             status,
+            parse_group_origin(&row.origin),
         )
     }
 }
@@ -308,17 +325,19 @@ impl SqliteFundPaymentRepository {
         conn: &mut sqlx::SqliteConnection,
         group: &FundPaymentGroup,
     ) -> anyhow::Result<()> {
+        let origin_str = group_origin_to_str(group.origin);
         sqlx::query!(
             r#"
                 INSERT INTO fund_payment_group (
-                    id, fund_id, payment_date, total_amount, status, is_deleted
+                    id, fund_id, payment_date, total_amount, status, origin, is_deleted
                 )
-                VALUES ($1, $2, $3, $4, 'ACTIVE', 0)
+                VALUES ($1, $2, $3, $4, 'ACTIVE', $5, 0)
                 "#,
             group.id,
             group.fund_id,
             group.payment_date,
             group.total_amount,
+            origin_str,
         )
         .execute(&mut *conn)
         .await
@@ -405,17 +424,19 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             .context("Failed to begin transaction")?;
 
         // Insert group
+        let origin_str = group_origin_to_str(group.origin);
         sqlx::query!(
             r#"
             INSERT INTO fund_payment_group (
-                id, fund_id, payment_date, total_amount, status, is_deleted
+                id, fund_id, payment_date, total_amount, status, origin, is_deleted
             )
-            VALUES ($1, $2, $3, $4, 'ACTIVE', 0)
+            VALUES ($1, $2, $3, $4, 'ACTIVE', $5, 0)
             "#,
             group.id,
             group.fund_id,
             group.payment_date,
             group.total_amount,
+            origin_str,
         )
         .execute(&mut *tx)
         .await
@@ -488,7 +509,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         let group_row = sqlx::query_as!(
             FundPaymentGroupRow,
             r#"
-            SELECT id, fund_id, payment_date AS "payment_date: chrono::NaiveDate", total_amount, status
+            SELECT id, fund_id, payment_date AS "payment_date: chrono::NaiveDate", total_amount, status, origin
             FROM fund_payment_group
             WHERE id = $1 AND is_deleted = 0
             "#,
@@ -543,7 +564,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         let group_rows = sqlx::query_as!(
             FundPaymentGroupRow,
             r#"
-            SELECT id, fund_id, payment_date AS "payment_date: chrono::NaiveDate", total_amount, status
+            SELECT id, fund_id, payment_date AS "payment_date: chrono::NaiveDate", total_amount, status, origin
             FROM fund_payment_group
             WHERE is_deleted = 0
             "#,
@@ -661,10 +682,8 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     /// Used for overpayment refund groups (BankPaid status + negative amount, REF-100).
     async fn persist_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
         let payment_date_str = group.payment_date.format("%Y-%m-%d").to_string();
-        let status_str = match group.status {
-            crate::context::fund::FundPaymentGroupStatus::Active => "ACTIVE",
-            crate::context::fund::FundPaymentGroupStatus::BankPaid => "BANK_PAYED",
-        };
+        let status_str = group_status_to_str(group.status);
+        let origin_str = group_origin_to_str(group.origin);
 
         tracing::info!(
             group_id = %group.id,
@@ -684,15 +703,16 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         sqlx::query!(
             r#"
             INSERT INTO fund_payment_group (
-                id, fund_id, payment_date, total_amount, status, is_deleted
+                id, fund_id, payment_date, total_amount, status, origin, is_deleted
             )
-            VALUES ($1, $2, $3, $4, $5, 0)
+            VALUES ($1, $2, $3, $4, $5, $6, 0)
             "#,
             group.id,
             group.fund_id,
             payment_date_str,
             group.total_amount,
             status_str,
+            origin_str,
         )
         .execute(&mut *tx)
         .await
@@ -1020,7 +1040,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn persist_group_stores_bank_paid_status() {
+    async fn persist_group_stores_bank_paid_status_and_origin() {
         let (fund_repo, payment_repo) = setup_payment_repos().await;
         let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
 
@@ -1031,12 +1051,14 @@ mod tests {
             -5000,
             vec![],
             FundPaymentGroupStatus::BankPaid,
+            GroupOrigin::Refund,
         );
 
         let stored = payment_repo.persist_group(group).await.unwrap();
         let read = payment_repo.read_group(&stored.id).await.unwrap().unwrap();
         assert_eq!(read.status, FundPaymentGroupStatus::BankPaid);
         assert!(read.is_locked);
+        assert_eq!(read.origin, GroupOrigin::Refund);
     }
 
     #[tokio::test]
@@ -1057,6 +1079,8 @@ mod tests {
         assert_eq!(group.lines.len(), 2);
         let lines = payment_repo.read_lines_by_group(&group.id).await.unwrap();
         assert_eq!(lines.len(), 2);
+        let read = payment_repo.read_group(&group.id).await.unwrap().unwrap();
+        assert_eq!(read.origin, GroupOrigin::Payment);
     }
 
     #[tokio::test]

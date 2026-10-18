@@ -8,10 +8,8 @@ use crate::context::procedure::ProcedureError;
 /// Use-case-specific guards for manual fund-payment-group management.
 ///
 /// Codes that do NOT belong to any single bounded context: the
-/// state-dependent "group is locked by bank-reconciled procedures" guard, the
-/// REF-240 refund-group protection (enforced via a cross-call into the
-/// overpayment use case), and the catch-all for the overpayment cross-call's
-/// infra failures. Tagged with `code` so each variant emits `{ "code": "..." }`.
+/// state-dependent "group is locked by bank-reconciled procedures" guard.
+/// Tagged with `code` so each variant emits `{ "code": "..." }`.
 #[derive(Debug, Clone, Error, Serialize, Type)]
 #[serde(tag = "code")]
 pub enum FundPaymentManualManagementTask {
@@ -19,16 +17,6 @@ pub enum FundPaymentManualManagementTask {
     /// `PartiallyFundPaid`); it cannot be modified or deleted (R9).
     #[error("The fund payment group contains bank-reconciled procedures")]
     GroupLocked,
-
-    /// REF-240 — the group belongs to an overpayment refund cascade and can
-    /// only be removed by cancelling the refund, not by direct deletion.
-    #[error("This fund payment group is part of a refund and cannot be deleted directly")]
-    RefundGroupProtected,
-
-    /// Failure from the overpayment refund-group check the delete flow performs.
-    /// Logged at the call site via `tracing::error!`; the wire carries no detail.
-    #[error("An unexpected database error occurred")]
-    DatabaseError,
 }
 
 /// Composite error for the manual fund-payment-management use case.
@@ -38,8 +26,8 @@ pub enum FundPaymentManualManagementTask {
 /// carries its own `#[serde(tag = "code")]`, so the untagged composite
 /// flattens to a single `{ "code": "...", ... }` payload on the wire.
 ///
-/// Multiple arms can emit `{ "code": "DatabaseError" }` (each BC enum + the
-/// Task sub-enum); the collision is intentional — the frontend maps the single
+/// Both BC enums can emit `{ "code": "DatabaseError" }`; the collision is
+/// intentional — the frontend maps the single
 /// code to one message. See `fund_payment_reconciliation/error.rs` for the same
 /// precedent.
 #[derive(Debug, Error, Serialize, Type)]
@@ -62,21 +50,10 @@ mod tests {
 
     #[test]
     fn each_variant_emits_a_code() {
-        // Task unit variants must each emit their code (never null).
-        for (err, code) in [
-            (FundPaymentManualManagementTask::GroupLocked, "GroupLocked"),
-            (
-                FundPaymentManualManagementTask::RefundGroupProtected,
-                "RefundGroupProtected",
-            ),
-            (
-                FundPaymentManualManagementTask::DatabaseError,
-                "DatabaseError",
-            ),
-        ] {
-            let composite: FundPaymentManualManagementError = err.into();
-            assert_eq!(to_value(&composite).unwrap(), json!({ "code": code }));
-        }
+        // The Task unit variant emits its code (never null).
+        let locked: FundPaymentManualManagementError =
+            FundPaymentManualManagementTask::GroupLocked.into();
+        assert_eq!(to_value(&locked).unwrap(), json!({ "code": "GroupLocked" }));
 
         // BC-wrapped variants flatten through the untagged composite.
         let fund: FundPaymentManualManagementError = FundError::PaymentGroupNotFound {
@@ -97,11 +74,13 @@ mod tests {
             json!({ "code": "ProcedureNotFound", "procedure_id": "proc-1" }),
         );
 
-        // Intentional collision: the Task catch-all and each BC enum all emit
-        // the same `{ "code": "DatabaseError" }` on the wire.
-        let task_db: FundPaymentManualManagementError =
-            FundPaymentManualManagementTask::DatabaseError.into();
+        // Intentional collision: each BC enum emits the same
+        // `{ "code": "DatabaseError" }` on the wire.
         let fund_db: FundPaymentManualManagementError = FundError::DatabaseError.into();
-        assert_eq!(to_value(&task_db).unwrap(), to_value(&fund_db).unwrap());
+        let procedure_db: FundPaymentManualManagementError = ProcedureError::DatabaseError.into();
+        assert_eq!(
+            to_value(&fund_db).unwrap(),
+            to_value(&procedure_db).unwrap()
+        );
     }
 }

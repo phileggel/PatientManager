@@ -16,6 +16,7 @@ const makePayment = (overrides?: Partial<FundPaymentGroup>): FundPaymentGroup =>
   lines: [{ id: "line-1", fund_payment_group_id: "group-1", procedure_id: "proc-1" }],
   status: "ACTIVE",
   is_locked: false,
+  origin: "PAYMENT",
   ...overrides,
 });
 

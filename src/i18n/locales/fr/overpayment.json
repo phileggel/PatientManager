@@ -50,7 +50,6 @@
     "bank_account_required": "Un compte bancaire est requis.",
     "bank_account_not_found": "Compte bancaire introuvable.",
     "source_has_no_fund": "L'acte source n'a pas de caisse associée.",
-    "refund_group_protected": "Ce groupe de paiement appartient à un remboursement et ne peut être supprimé qu'en annulant le remboursement.",
     "refund_record_not_found": "Aucun remboursement de trop-perçu trouvé pour cet acte.",
     "database_error": "Une erreur inattendue s'est produite."
   }

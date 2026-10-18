@@ -19,7 +19,8 @@ use chrono::NaiveDate;
 use patient_manager_app::{
     context::{
         fund::{
-            FundPaymentService, FundService, SqliteFundPaymentRepository, SqliteFundRepository,
+            FundError, FundPaymentGroup, FundPaymentService, FundService,
+            SqliteFundPaymentRepository, SqliteFundRepository,
         },
         patient::{PatientService, SqlitePatientRepository},
         procedure::{
@@ -28,7 +29,9 @@ use patient_manager_app::{
         },
     },
     shared::event_bus::EventBus,
-    use_cases::fund_payment_manual_management::FundPaymentManualManagementOrchestrator,
+    use_cases::fund_payment_manual_management::{
+        FundPaymentManualManagementError, FundPaymentManualManagementOrchestrator,
+    },
 };
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
@@ -459,5 +462,45 @@ async fn manual_edit_data_returns_current_and_available_for_fund() -> anyhow::Re
         !available.iter().any(|p| p.id == proc_in_group),
         "current procedure must not appear in available"
     );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// REF-240 (#355) — a refund's group is not deleted directly
+// ---------------------------------------------------------------------------
+
+/// REF-240 — the delete use case itself refuses a refund's group (its origin,
+/// set at creation), whoever calls it; the group stays.
+#[tokio::test]
+async fn ref_240_manual_delete_of_a_refund_group_is_refused() -> anyhow::Result<()> {
+    let ctx = build_ctx().await;
+    let proc_id = create_procedure(&ctx, 56_000, ProcedureStatus::Created).await;
+    let refund_group = FundPaymentGroup::refund(
+        ctx.fund_id.clone(),
+        NaiveDate::from_ymd_opt(2026, 10, 17).unwrap(),
+        56_000,
+        proc_id,
+    )?;
+    let group = ctx
+        .fund_payment_service
+        .persist_refund_group(refund_group)
+        .await?;
+
+    let result = ctx.orchestrator.delete_group_with_cleanup(&group.id).await;
+
+    assert!(
+        matches!(
+            result,
+            Err(FundPaymentManualManagementError::Fund(
+                FundError::RefundGroupProtected
+            ))
+        ),
+        "got: {result:?}"
+    );
+    assert!(ctx
+        .fund_payment_service
+        .read_group(&group.id)
+        .await?
+        .is_some());
     Ok(())
 }

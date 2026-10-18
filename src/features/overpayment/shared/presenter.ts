@@ -32,8 +32,6 @@ export function formatOverpaymentError(err: OverpaymentError): {
       return { key: "overpayment:errors.bank_account_not_found" };
     case "SourceHasNoFund":
       return { key: "overpayment:errors.source_has_no_fund" };
-    case "RefundGroupProtected":
-      return { key: "overpayment:errors.refund_group_protected" };
     case "RefundRecordNotFound":
       return { key: "overpayment:errors.refund_record_not_found" };
     // --- ProcedureError (BC) variants reachable via composite ---
