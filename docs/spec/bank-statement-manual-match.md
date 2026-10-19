@@ -31,6 +31,26 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **R5 — Transaction deletion (frontend + backend)**: Deletion requires explicit confirmation. It is irreversible — the transaction is permanently erased (hard delete) along with its links to the associated fund-payment groups or procedures.
 
+**BSM-020 — Creation refusals, all at once (backend)**: Creating a bank entry (FUND or direct) is refused when its account is missing (not for `CASH`, R13), its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written.
+
+**BSM-021 — Field refusals come first (backend)**: The refusals of BSM-020 and BSM-030 are answered before any other check — an unknown bank entry, account or group, a wrong type (R4), or the refund-only type (REF-080): a form with a refused field is refused for its fields alone.
+
+**BSM-022 — The form does not judge its fields (frontend)**: The bank entry forms, creation and edit, FUND and direct, never check their own fields: Save is enabled whenever they are not saving and sends the form as it is (BSM-020, BSM-030 judge it).
+
+**BSM-023 — Refusals at the field (frontend)**: When a save is refused under BSM-020 or BSM-030, each reason is shown as an error under its field — the date (missing and invalid have different messages), the account, the selection (below both lists, in the edit dialog). A new save clears every message first; any other refusal shows no message at a field.
+
+**BSM-024 — A refused save keeps the form (frontend)**: When a save is refused, for any reason, the form or dialog stays open and an error snackbar is shown.
+
+**BSM-025 — A field's message clears when it is edited (frontend)**: A message of BSM-023 clears once its field is edited; for the selection, once a group or procedure is added or removed, in the broadened search too (R12, R20). Changing the type at creation clears the account and selection messages. While the date is missing or invalid, the selection lists show no candidate.
+
+**BSM-030 — Edit refusals, all at once (backend)**: Editing a bank entry is refused when its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written. The account is not part of an edit (R9, R17).
+
+**BSM-031 — An unchanged edit (backend)**: An edit nothing refuses whose date and selection (as a set, order aside) equal the stored bank entry's is answered unchanged: nothing is written and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
+
+**BSM-032 — An unchanged edit closes silently (frontend)**: When an edit is answered unchanged (BSM-031), the edit dialog closes with no snackbar and the list is not refreshed.
+
+**BSM-033 — The edit dialog shows the account (frontend)**: The edit dialog shows the bank entry's account as text — the stored account's name — and offers no way to change it (R9, R17).
+
 ### FUND-type transfers
 
 **R6 — Creation: group selection (frontend + backend)**: The user selects one or more fund-payment groups among those not yet reconciled at the bank level, whose payment date is within the 7 days preceding the transfer date. The selection UI is similar to the procedure-management UI in fund-payment groups. The transfer amount is the sum of the total amounts of the selected groups.
@@ -195,3 +215,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 [Payment and links permanently deleted]
   → Procedures reverted to Created status
 ```
+
+## Open Questions
+
+- [ ] A `CASH` creation (R13): today the form sends the cash account once it has loaded and the backend stores the account it is sent — the contract's "the backend enforces `cash-account-default`" is not in the code. Should the backend set the cash account itself, refusing or replacing any other? (Owner — #351 keeps today's behaviour.)

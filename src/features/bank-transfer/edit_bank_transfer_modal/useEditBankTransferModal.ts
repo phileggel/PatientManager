@@ -129,7 +129,10 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
         : await updateDirectTransfer(transfer.id, transferDate, selectedProcedureIds);
 
       if (result.success) {
-        toastService.show("success", t("transfer.edit.success"));
+        // BSM-032 — an edit that changed nothing closes silently.
+        if (result.data.outcome === "Updated") {
+          toastService.show("success", t("transfer.edit.success"));
+        }
         onClose();
       } else {
         const { key, params } = formatBankManualMatchError(result.error);

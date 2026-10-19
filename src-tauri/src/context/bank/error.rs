@@ -29,6 +29,13 @@ pub enum BankError {
     #[error("Invalid transfer date format (expected YYYY-MM-DD)")]
     InvalidTransferDateFormat,
 
+    /// `BankEntry::read_form` (BSM-020, BSM-030): every refused field of a
+    /// bank entry form at once.
+    #[error("Bank entry form refused: {reasons:?}")]
+    BankEntryInvalid {
+        reasons: Vec<BankEntryInvalidReason>,
+    },
+
     // --- BankAccount service-layer errors ---
     /// `BankAccountService::create_account` / `update_account` enforced
     /// IBAN uniqueness (R5) — another row already holds the IBAN.
@@ -57,6 +64,19 @@ pub enum BankError {
     DatabaseError,
 }
 
+/// Why a bank entry form is refused, one per refused field (BSM-020, BSM-030).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
+pub enum BankEntryInvalidReason {
+    /// No account, or a blank one (a creation that asks for one).
+    AccountMissing,
+    /// No date, or a blank one.
+    DateMissing,
+    /// A date that is not a valid YYYY-MM-DD date.
+    DateInvalid,
+    /// No group or procedure selected.
+    NothingSelected,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -75,6 +95,16 @@ mod tests {
         assert_eq!(
             to_value(BankError::AmountNotPositive).unwrap(),
             json!({ "code": "AmountNotPositive" }),
+        );
+        assert_eq!(
+            to_value(BankError::BankEntryInvalid {
+                reasons: vec![
+                    BankEntryInvalidReason::DateMissing,
+                    BankEntryInvalidReason::NothingSelected,
+                ],
+            })
+            .unwrap(),
+            json!({ "code": "BankEntryInvalid", "reasons": ["DateMissing", "NothingSelected"] }),
         );
         assert_eq!(
             to_value(BankError::InvalidTransferDateFormat).unwrap(),

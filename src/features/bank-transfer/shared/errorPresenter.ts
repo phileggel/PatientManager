@@ -29,6 +29,9 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
       return { key: "bank:errors.amount_not_positive" };
     case "InvalidTransferDateFormat":
       return { key: "bank:errors.invalid_transfer_date_format" };
+    // BSM-020, BSM-030 — the fields' own messages come with the forms (#351).
+    case "BankEntryInvalid":
+      return { key: "bank:errors.bank_entry_invalid" };
     case "RefundOnlyVariantRejected":
       return { key: "bank:errors.refund_only_variant_rejected" };
     case "BankAccountNotFound":

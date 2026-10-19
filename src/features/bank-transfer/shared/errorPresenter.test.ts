@@ -21,6 +21,7 @@ describe("formatBankManualMatchError", () => {
       ["AmountNotPositive", "bank:errors.amount_not_positive"],
       ["InvalidTransferDateFormat", "bank:errors.invalid_transfer_date_format"],
       ["RefundOnlyVariantRejected", "bank:errors.refund_only_variant_rejected"],
+      ["BankEntryInvalid", "bank:errors.bank_entry_invalid"],
     ];
     for (const [code, key] of simple) {
       expect(formatBankManualMatchError({ code } as BankManualMatchError).key).toBe(key);

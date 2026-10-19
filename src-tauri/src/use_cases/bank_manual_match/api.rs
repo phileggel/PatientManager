@@ -6,8 +6,8 @@ use crate::context::bank::BankEntryType;
 
 use super::error::BankManualMatchError;
 use super::orchestrator::{
-    BankManualMatchOrchestrator, BankManualMatchResult, DirectPaymentProcedureCandidate,
-    FundGroupCandidate,
+    BankEntryEdit, BankManualMatchOrchestrator, BankManualMatchResult,
+    DirectPaymentProcedureCandidate, FundGroupCandidate,
 };
 
 // ======================================================================
@@ -55,7 +55,7 @@ pub async fn update_fund_transfer(
     new_transfer_date: String,
     new_group_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<BankManualMatchResult, BankManualMatchError> {
+) -> Result<BankEntryEdit, BankManualMatchError> {
     orchestrator
         .update_fund_transfer(transfer_id, new_transfer_date, new_group_ids)
         .await
@@ -121,7 +121,7 @@ pub async fn update_direct_transfer(
     new_transfer_date: String,
     new_procedure_ids: Vec<String>,
     orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
-) -> Result<BankManualMatchResult, BankManualMatchError> {
+) -> Result<BankEntryEdit, BankManualMatchError> {
     orchestrator
         .update_direct_transfer(transfer_id, new_transfer_date, new_procedure_ids)
         .await

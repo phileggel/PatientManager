@@ -297,6 +297,7 @@
     "refund_only_variant_rejected": "Les virements OutgoingWire ne peuvent être créés que via le flux de remboursement",
     "amount_not_positive": "Le montant doit être supérieur à 0",
     "invalid_transfer_date_format": "Format de date de virement invalide (attendu : AAAA-MM-JJ)",
+    "bank_entry_invalid": "Certains champs du virement sont manquants ou invalides.",
     "iban_already_used": "IBAN déjà utilisé par un autre compte bancaire",
     "bank_account_not_found": "Compte bancaire introuvable (id : {{id}})",
     "protected_cash_account": "Le compte espèces est protégé et ne peut pas être modifié ou supprimé",

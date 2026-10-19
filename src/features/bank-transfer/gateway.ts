@@ -1,5 +1,6 @@
 import type {
   BankEntry,
+  BankEntryEdit,
   BankEntryType,
   BankError,
   BankManualMatchError,
@@ -156,7 +157,7 @@ export async function updateFundTransfer(
   transferId: string,
   newTransferDate: string,
   newGroupIds: string[],
-): Promise<ServiceResult<BankManualMatchResult, BankManualMatchError>> {
+): Promise<ServiceResult<BankEntryEdit, BankManualMatchError>> {
   logger.info("[bank-transfer] updateFundTransfer", { transferId });
   try {
     const result = await commands.updateFundTransfer(transferId, newTransferDate, newGroupIds);
@@ -283,7 +284,7 @@ export async function updateDirectTransfer(
   transferId: string,
   newTransferDate: string,
   newProcedureIds: string[],
-): Promise<ServiceResult<BankManualMatchResult, BankManualMatchError>> {
+): Promise<ServiceResult<BankEntryEdit, BankManualMatchError>> {
   logger.info("[bank-transfer] updateDirectTransfer", { transferId });
   try {
     const result = await commands.updateDirectTransfer(

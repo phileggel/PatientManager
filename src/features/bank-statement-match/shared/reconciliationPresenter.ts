@@ -153,6 +153,7 @@ export function presentReconciliationError(err: BankStatementReconciliationError
     case "RefundOnlyVariantRejected":
     case "AmountNotPositive":
     case "InvalidTransferDateFormat":
+    case "BankEntryInvalid":
     case "IbanAlreadyUsed":
     case "BankAccountNotFound":
     case "ProtectedCashAccount":

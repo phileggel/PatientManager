@@ -340,6 +340,12 @@ from code and proposed for confirmation.
 | `accepts_total(total_amount)`                         | Whether an amount can be a group's total: it must be positive                                                                               | —                 | proposed  |
 | `refund(fund_id, payment_date, amount, procedure_id)` | A refund to a patient: the group is created settled, its total the amount taken back, its one line the refund procedure (owner, 2026-10-17) | → `BankPaid`      | confirmed |
 
+### BankEntry
+
+| Method                               | Domain intent                                              | Status transition | Status                        |
+| ------------------------------------ | ---------------------------------------------------------- | ----------------- | ----------------------------- |
+| `read_form(account, date, selected)` | Read the bank entry form: the date, or every refused field | —                 | confirmed (owner, 2026-10-19) |
+
 ---
 
 ## Domain Events

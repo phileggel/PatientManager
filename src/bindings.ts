@@ -645,7 +645,7 @@ async createFundTransfer(bankAccountId: string, transferDate: string, groupIds: 
 /**
  * R9 — Update a FUND transfer: change date and/or linked groups.
  */
-async updateFundTransfer(transferId: string, newTransferDate: string, newGroupIds: string[]) : Promise<Result<BankManualMatchResult, BankManualMatchError>> {
+async updateFundTransfer(transferId: string, newTransferDate: string, newGroupIds: string[]) : Promise<Result<BankEntryEdit, BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_fund_transfer", { transferId, newTransferDate, newGroupIds }) };
 } catch (e) {
@@ -700,7 +700,7 @@ async createDirectTransfer(bankAccountId: string, transferDate: string, transfer
 /**
  * R17 — Update a direct transfer: change date and/or linked procedures.
  */
-async updateDirectTransfer(transferId: string, newTransferDate: string, newProcedureIds: string[]) : Promise<Result<BankManualMatchResult, BankManualMatchError>> {
+async updateDirectTransfer(transferId: string, newTransferDate: string, newProcedureIds: string[]) : Promise<Result<BankEntryEdit, BankManualMatchError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_direct_transfer", { transferId, newTransferDate, newProcedureIds }) };
 } catch (e) {
@@ -1027,6 +1027,38 @@ id: string }
  */
 export type BankEntry = { id: string; transfer_date: string; amount: number; transfer_type: BankEntryType; bank_account: BankAccount }
 /**
+ * What an edit of a bank entry did (BSM-031).
+ */
+export type BankEntryEdit = 
+/**
+ * The bank entry was written.
+ */
+{ outcome: "Updated"; result: BankManualMatchResult } | 
+/**
+ * The date and the selection equal the stored ones: nothing written.
+ */
+{ outcome: "Unchanged" }
+/**
+ * Why a bank entry form is refused, one per refused field (BSM-020, BSM-030).
+ */
+export type BankEntryInvalidReason = 
+/**
+ * No account, or a blank one (a creation that asks for one).
+ */
+"AccountMissing" | 
+/**
+ * No date, or a blank one.
+ */
+"DateMissing" | 
+/**
+ * A date that is not a valid YYYY-MM-DD date.
+ */
+"DateInvalid" | 
+/**
+ * No group or procedure selected.
+ */
+"NothingSelected"
+/**
  * Payment type for bank transfers
  * 
  * Note: `OutgoingWire` is exclusively created via the overpayment refund flow (REF-080).
@@ -1063,6 +1095,11 @@ export type BankError =
  * parse as `YYYY-MM-DD`.
  */
 { code: "InvalidTransferDateFormat" } | 
+/**
+ * `BankEntry::read_form` (BSM-020, BSM-030): every refused field of a
+ * bank entry form at once.
+ */
+{ code: "BankEntryInvalid"; reasons: BankEntryInvalidReason[] } | 
 /**
  * `BankAccountService::create_account` / `update_account` enforced
  * IBAN uniqueness (R5) — another row already holds the IBAN.

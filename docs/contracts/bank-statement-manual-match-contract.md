@@ -1,7 +1,7 @@
 # Contract — Bank Statement Manual Match
 
 > Domain: bank-statement-manual-match
-> Last updated by: bank_manual_match typed-error migration
+> Last updated by: `bank-statement-manual-match` spec (BSM-020 to BSM-031, ticket #351)
 
 > Wire errors are the composite `BankManualMatchError` (untagged union of `BankError`, `FundError`, `ProcedureError`, and the use-case `BankManualMatchTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
@@ -39,23 +39,23 @@ Returns `FundGroupCandidate` details for a given set of IDs. Used in the FUND-tr
 
 ---
 
-### `create_fund_transfer` — R6, R7
+### `create_fund_transfer` — R6, R7, BSM-020, BSM-021
 
 Creates a `FUND` bank entry linked to the given group IDs. On success: procedures move `Reconciliated` → `FundPayed` / `PartiallyReconciled` → `PartiallyFundPayed`; groups move to `BankPayed` and become locked; procedures' `confirmed_payment_date` is set to the transfer date and `payment_method` to `BankTransfer`.
 
 - **Args:** `bank_account_id: String, transfer_date: String, group_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound`, `InvalidTransferDateFormat`, `DatabaseError`
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
 
 ---
 
-### `update_fund_transfer` — R9, R10, R11
+### `update_fund_transfer` — R9, R10, R11, BSM-030, BSM-031
 
 Updates the date and/or group composition of an existing FUND transfer. Newly added groups receive the same status effects as creation (R10 → R7); removed groups are rolled back as in deletion (R11 → R8). Amount recomputed from the final group set.
 
 - **Args:** `transfer_id: String, new_transfer_date: String, new_group_ids: Vec<String>`
-- **Returns:** `BankManualMatchResult`
-- **Errors:** `TransferNotFound`, `WrongTransferType` (R4), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound`, `InvalidTransferDateFormat`, `DatabaseError`
+- **Returns:** `BankEntryEdit` — `Unchanged` when the date and the groups (as a set, order aside) equal the stored ones (BSM-031), decided after `TransferNotFound` and `WrongTransferType`, before any write
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-030, answered first, nothing read), `TransferNotFound`, `WrongTransferType` (R4), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
 
 ---
 
@@ -109,25 +109,25 @@ Returns `DirectPaymentProcedureCandidate` details for a given set of IDs. Used i
 
 ---
 
-### `create_direct_transfer` — R13, R14, R15
+### `create_direct_transfer` — R13, R14, R15, BSM-020, BSM-021
 
-Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or `PATIENT_CASH`) linked to the given procedure IDs. For `PATIENT_CASH`, the backend enforces `bank_account_id = cash-account-default` (R13). On success: each procedure moves to `DirectlyPayed`; `payment_method`, `confirmed_payment_date`, and `actual_payment_amount` are set according to the type mapping in `BankEntryType`.
+Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or `PATIENT_CASH`) linked to the given procedure IDs. For `PATIENT_CASH`, the screen sends `cash-account-default` (R13) and the backend stores the account it is sent (the spec's open question). On success: each procedure moves to `DirectlyPayed`; `payment_method`, `confirmed_payment_date`, and `actual_payment_amount` are set according to the type mapping in `BankEntryType`.
 
 > REF-080: `FundOutgoingWire` (refund-only) is rejected — `RefundOnlyVariantRejected` is returned.
 
 - **Args:** `bank_account_id: String, transfer_date: String, transfer_type: BankEntryType, procedure_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `RefundOnlyVariantRejected` (REF-080), `AmountNotPositive`, `BankAccountNotFound`, `InvalidTransferDateFormat`, `DatabaseError`
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `RefundOnlyVariantRejected` (REF-080), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
 
 ---
 
-### `update_direct_transfer` — R17, R18, R19
+### `update_direct_transfer` — R17, R18, R19, BSM-030, BSM-031
 
 Updates the date and/or procedure composition of an existing direct payment. Newly added procedures receive the same effects as creation (R18); removed procedures are rolled back as in deletion (R19). Amount recomputed.
 
 - **Args:** `transfer_id: String, new_transfer_date: String, new_procedure_ids: Vec<String>`
-- **Returns:** `BankManualMatchResult`
-- **Errors:** `TransferNotFound`, `WrongTransferType` (R4), `AmountNotPositive`, `BankAccountNotFound`, `InvalidTransferDateFormat`, `DatabaseError`
+- **Returns:** `BankEntryEdit` — `Unchanged` when the date and the procedures (as a set, order aside) equal the stored ones (BSM-031), decided after `TransferNotFound` and `WrongTransferType`, before any write
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-030, answered first, nothing read), `TransferNotFound`, `WrongTransferType` (R4), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
 
 ---
 
@@ -186,18 +186,36 @@ struct BankManualMatchResult {
     transfer_id: String,
     linked_count: u32,  // number of groups or procedures linked after the operation
 }
+
+// BSM-031 — what an edit did; wire: { outcome: "Updated", result } | { outcome: "Unchanged" }
+enum BankEntryEdit {
+    Updated { result: BankManualMatchResult },
+    Unchanged,  // nothing written, no event published
+}
+
+// BSM-020, BSM-030 — BankError::BankEntryInvalid { reasons: Vec<BankEntryInvalidReason> },
+// one reason per refused field, at most one of DateMissing / DateInvalid
+enum BankEntryInvalidReason {
+    AccountMissing,   // empty or blank; creation only, not for PatientCash (R13: the screen sends the cash account)
+    DateMissing,      // empty or blank
+    DateInvalid,      // not a valid YYYY-MM-DD date
+    NothingSelected,  // no group or procedure
+}
 ```
 
 ## Events
 
-| Event              | Trigger                                                                                         |
-| ------------------ | ----------------------------------------------------------------------------------------------- |
-| `ProcedureUpdated` | After create/update/delete of either transfer type — procedure status or payment fields changed |
-| `FundGroupUpdated` | After create/update/delete of a FUND transfer — group status or lock state changed              |
-| `BankEntryUpdated` | After any write operation — `BankEntry` records created or removed                              |
+An edit answered `Unchanged` (BSM-031) publishes none of them.
+
+| Event                     | Trigger                                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------------------- |
+| `ProcedureUpdated`        | After create/update/delete of either transfer type — procedure status or payment fields changed |
+| `FundPaymentGroupUpdated` | After create/update/delete of a FUND transfer — group status or lock state changed              |
+| `BankEntryUpdated`        | After any write operation — `BankEntry` records created or removed                              |
 
 ## Changelog
 
+- 2026-10-19 — Modified by `bank-statement-manual-match` spec (BSM-020 to BSM-031, ticket #351): the four create/update commands answer `BankEntryInvalid { reasons }` first, `InvalidTransferDateFormat` no longer reached; the two update commands return `BankEntryEdit`; the `PATIENT_CASH` account line follows the code
 - 2026-05-02 — Added by `bank-statement-manual-match` spec: get_cash_bank_account_id, get_unsettled_fund_groups, get_all_unsettled_fund_groups, get_fund_groups_by_ids, create_fund_transfer, update_fund_transfer, delete_fund_transfer, get_transfer_fund_group_ids, get_eligible_procedures_for_direct_payment, get_all_eligible_procedures_for_direct_payment, get_procedures_by_ids, create_direct_transfer, update_direct_transfer, delete_direct_transfer, get_transfer_procedure_ids
 - 2026-05-02 — Rescoped: read_all_bank_transfers moved to bank-contract.md (context/bank); BankEntry/BankAccount types moved there too
 - 2026-06-09 — Typed-error migration: per-command Errors columns now list the real wire-visible `BankManualMatchError` variant codes (`BankError`/`FundError`/`ProcedureError`/`WrongTransferType`), replacing the pre-implementation aspirational names

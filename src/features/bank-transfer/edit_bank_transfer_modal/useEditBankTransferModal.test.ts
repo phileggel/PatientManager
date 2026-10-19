@@ -175,7 +175,7 @@ describe("useEditBankTransferModal", () => {
     vi.mocked(gateway.getFundGroupsByIds).mockResolvedValue({ success: true, data: [mockGroup] });
     vi.mocked(gateway.updateFundTransfer).mockResolvedValue({
       success: true,
-      data: { transfer_id: "transfer-fund-1", linked_count: 1 },
+      data: { outcome: "Updated", result: { transfer_id: "transfer-fund-1", linked_count: 1 } },
     });
 
     const onClose = vi.fn();
@@ -206,7 +206,7 @@ describe("useEditBankTransferModal", () => {
     });
     vi.mocked(gateway.updateDirectTransfer).mockResolvedValue({
       success: true,
-      data: { transfer_id: "transfer-check-1", linked_count: 1 },
+      data: { outcome: "Updated", result: { transfer_id: "transfer-check-1", linked_count: 1 } },
     });
 
     const onClose = vi.fn();
@@ -319,5 +319,31 @@ describe("useEditBankTransferModal", () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
     expect(result.current.submitting).toBe(false);
+  });
+});
+
+// BSM-032 (#351): an edit the backend answers unchanged closes with no snackbar.
+describe("useEditBankTransferModal — unchanged edit (BSM-032)", () => {
+  it("closes the dialog without a success snackbar", async () => {
+    vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({
+      success: true,
+      data: ["group-1"],
+    });
+    vi.mocked(gateway.getFundGroupsByIds).mockResolvedValue({ success: true, data: [mockGroup] });
+    vi.mocked(gateway.updateFundTransfer).mockResolvedValue({
+      success: true,
+      data: { outcome: "Unchanged" },
+    });
+    const onClose = vi.fn();
+    const transfer = makeFundTransfer();
+    const { result } = renderHook(() => useEditBankTransferModal(transfer, onClose));
+    await waitFor(() => expect(result.current.selectedGroupIds).toEqual(["group-1"]));
+
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(onClose).toHaveBeenCalled();
+    expect(vi.mocked(toastService.show)).not.toHaveBeenCalledWith("success", expect.anything());
   });
 });

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use chrono::NaiveDate;
@@ -52,10 +53,26 @@ pub struct DirectPaymentProcedureCandidate {
 }
 
 /// Result of creating a bank transfer with links
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct BankManualMatchResult {
     pub transfer_id: String,
     pub linked_count: usize,
+}
+
+/// What an edit of a bank entry did (BSM-031).
+#[derive(Debug, Clone, PartialEq, Serialize, Type)]
+#[serde(tag = "outcome")]
+pub enum BankEntryEdit {
+    /// The bank entry was written.
+    Updated { result: BankManualMatchResult },
+    /// The date and the selection equal the stored ones: nothing written.
+    Unchanged,
+}
+
+/// Whether two selections hold the same ids, order and repeats aside
+/// (BSM-031).
+fn same_selection(stored: &[String], sent: &[String]) -> bool {
+    stored.iter().collect::<HashSet<_>>() == sent.iter().collect::<HashSet<_>>()
 }
 
 pub struct BankManualMatchOrchestrator {
@@ -150,6 +167,11 @@ impl BankManualMatchOrchestrator {
         transfer_date: String,
         group_ids: Vec<String>,
     ) -> Result<BankManualMatchResult, BankManualMatchError> {
+        // BSM-020, BSM-021 — the form's fields first, nothing read before.
+        let confirmed_date =
+            BankEntry::read_form(Some(&bank_account_id), &transfer_date, group_ids.len())?;
+        let transfer_date = confirmed_date.format("%Y-%m-%d").to_string();
+
         // Compute total amount from groups
         let total_amount = self.compute_fund_groups_amount(&group_ids).await?;
 
@@ -172,8 +194,6 @@ impl BankManualMatchOrchestrator {
                 BankError::DatabaseError
             })?;
 
-        let confirmed_date = parse_date(&transfer_date)?;
-
         // Update each group: procedures → FundPaid/PartiallyFundPaid, group → BankPaid
         for group_id in &group_ids {
             self.apply_fund_transfer_to_group(group_id, confirmed_date)
@@ -193,7 +213,11 @@ impl BankManualMatchOrchestrator {
         transfer_id: String,
         new_transfer_date: String,
         new_group_ids: Vec<String>,
-    ) -> Result<BankManualMatchResult, BankManualMatchError> {
+    ) -> Result<BankEntryEdit, BankManualMatchError> {
+        // BSM-030, BSM-021 — the form's fields first, nothing read before.
+        let new_date = BankEntry::read_form(None, &new_transfer_date, new_group_ids.len())?;
+        let new_transfer_date = new_date.format("%Y-%m-%d").to_string();
+
         // R4 — Immutable type guard: must be a FUND transfer (checked before any mutation).
         let transfer = self
             .bank_transfer_service
@@ -215,13 +239,17 @@ impl BankManualMatchOrchestrator {
                 tracing::error!(target: BACKEND, err = ?e, "update_fund_transfer: get_fund_group_ids failed");
                 BankError::DatabaseError
             })?;
+        // BSM-031 — an edit that changes nothing writes nothing.
+        if new_date == transfer.transfer_date && same_selection(&old_group_ids, &new_group_ids) {
+            return Ok(BankEntryEdit::Unchanged);
+        }
         for group_id in &old_group_ids {
             self.revert_fund_transfer_from_group(group_id).await?;
         }
 
         // Update transfer date and amount
         let total_amount = self.compute_fund_groups_amount(&new_group_ids).await?;
-        let confirmed_date = parse_date(&new_transfer_date)?;
+        let confirmed_date = new_date;
 
         let updated = crate::context::bank::BankEntry::with_id(
             transfer.id.clone(),
@@ -254,9 +282,11 @@ impl BankManualMatchOrchestrator {
                 .await?;
         }
 
-        Ok(BankManualMatchResult {
-            transfer_id,
-            linked_count: new_group_ids.len(),
+        Ok(BankEntryEdit::Updated {
+            result: BankManualMatchResult {
+                transfer_id,
+                linked_count: new_group_ids.len(),
+            },
         })
     }
 
@@ -361,6 +391,13 @@ impl BankManualMatchOrchestrator {
         transfer_type: BankEntryType,
         procedure_ids: Vec<String>,
     ) -> Result<BankManualMatchResult, BankManualMatchError> {
+        // BSM-020, BSM-021 — the form's fields first; a cash payment's account
+        // is the cash account the screen sends (R13), not asked of the form.
+        let asked_account =
+            (transfer_type != BankEntryType::PatientCash).then_some(bank_account_id.as_str());
+        let confirmed_date =
+            BankEntry::read_form(asked_account, &transfer_date, procedure_ids.len())?;
+        let transfer_date = confirmed_date.format("%Y-%m-%d").to_string();
         transfer_type.ensure_not_refund_only_variant()?;
 
         let total_amount = self.compute_procedures_amount(&procedure_ids).await?;
@@ -384,7 +421,6 @@ impl BankManualMatchOrchestrator {
                 BankError::DatabaseError
             })?;
 
-        let confirmed_date = parse_date(&transfer_date)?;
         let payment_method = transfer_type_to_payment_method(transfer_type);
 
         self.apply_direct_payment_to_procedures(&procedure_ids, payment_method, confirmed_date)
@@ -434,7 +470,11 @@ impl BankManualMatchOrchestrator {
         transfer_id: String,
         new_transfer_date: String,
         new_procedure_ids: Vec<String>,
-    ) -> Result<BankManualMatchResult, BankManualMatchError> {
+    ) -> Result<BankEntryEdit, BankManualMatchError> {
+        // BSM-030, BSM-021 — the form's fields first, nothing read before.
+        let new_date = BankEntry::read_form(None, &new_transfer_date, new_procedure_ids.len())?;
+        let new_transfer_date = new_date.format("%Y-%m-%d").to_string();
+
         // R4 — Immutable type guard (checked before any mutation).
         let transfer = self.read_direct_transfer(&transfer_id).await?;
 
@@ -447,13 +487,19 @@ impl BankManualMatchOrchestrator {
                 tracing::error!(target: BACKEND, err = ?e, "update_direct_transfer: get_procedure_ids failed");
                 BankError::DatabaseError
             })?;
+        // BSM-031 — an edit that changes nothing writes nothing.
+        if new_date == transfer.transfer_date
+            && same_selection(&old_procedure_ids, &new_procedure_ids)
+        {
+            return Ok(BankEntryEdit::Unchanged);
+        }
         self.revert_direct_payment_from_procedures(&old_procedure_ids)
             .await?;
 
         // Update transfer amount and date
         let total_amount = self.compute_procedures_amount(&new_procedure_ids).await?;
         let transfer_type = transfer.transfer_type;
-        let confirmed_date = parse_date(&new_transfer_date)?;
+        let confirmed_date = new_date;
         let payment_method = transfer_type_to_payment_method(transfer_type);
 
         let updated = crate::context::bank::BankEntry::with_id(
@@ -485,9 +531,11 @@ impl BankManualMatchOrchestrator {
         self.apply_direct_payment_to_procedures(&new_procedure_ids, payment_method, confirmed_date)
             .await?;
 
-        Ok(BankManualMatchResult {
-            transfer_id,
-            linked_count: new_procedure_ids.len(),
+        Ok(BankEntryEdit::Updated {
+            result: BankManualMatchResult {
+                transfer_id,
+                linked_count: new_procedure_ids.len(),
+            },
         })
     }
 
@@ -1546,7 +1594,7 @@ mod tests {
                 "cash-account-default".to_string(),
                 "2026-03-10".to_string(),
                 BankEntryType::FundOutgoingWire,
-                vec![],
+                vec!["proc-x".to_string()],
             )
             .await
             .expect_err("FundOutgoingWire must be rejected by create_direct_transfer");
@@ -1592,7 +1640,11 @@ mod tests {
 
         // Attempt to update it as a FUND transfer — must fail
         let err = orchestrator
-            .update_fund_transfer(result.transfer_id, "2026-03-11".to_string(), vec![])
+            .update_fund_transfer(
+                result.transfer_id,
+                "2026-03-11".to_string(),
+                vec!["group-x".to_string()],
+            )
             .await
             .expect_err("Expected error when calling update_fund_transfer on a CHECK transfer");
 
@@ -1640,7 +1692,11 @@ mod tests {
 
         // Attempt to update it as a direct transfer — must fail
         let err = orchestrator
-            .update_direct_transfer(result.transfer_id, "2026-03-11".to_string(), vec![])
+            .update_direct_transfer(
+                result.transfer_id,
+                "2026-03-11".to_string(),
+                vec!["proc-x".to_string()],
+            )
             .await
             .expect_err("Expected error when calling update_direct_transfer on a FUND transfer");
 

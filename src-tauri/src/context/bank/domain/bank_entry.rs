@@ -4,7 +4,7 @@ use specta::Type;
 use uuid::Uuid;
 
 use super::bank_account::BankAccount;
-use crate::context::bank::error::BankError;
+use crate::context::bank::error::{BankEntryInvalidReason, BankError};
 
 /// Payment type for bank transfers
 ///
@@ -133,6 +133,35 @@ impl BankEntry {
         }
     }
 
+    /// What a bank entry form sent, as the domain reads it (BSM-020,
+    /// BSM-030): the date parsed, or every refused field at once. The account
+    /// is judged only when the form asks for one (`Some`): a creation other
+    /// than cash (R13).
+    pub fn read_form(
+        bank_account_id: Option<&str>,
+        transfer_date: &str,
+        selected_count: usize,
+    ) -> Result<NaiveDate, BankError> {
+        let mut reasons = Vec::new();
+        if bank_account_id.is_some_and(|id| id.trim().is_empty()) {
+            reasons.push(BankEntryInvalidReason::AccountMissing);
+        }
+        let date = transfer_date.trim();
+        let parsed = NaiveDate::parse_from_str(date, "%Y-%m-%d").ok();
+        if date.is_empty() {
+            reasons.push(BankEntryInvalidReason::DateMissing);
+        } else if parsed.is_none() {
+            reasons.push(BankEntryInvalidReason::DateInvalid);
+        }
+        if selected_count == 0 {
+            reasons.push(BankEntryInvalidReason::NothingSelected);
+        }
+        match parsed {
+            Some(date) if reasons.is_empty() => Ok(date),
+            _ => Err(BankError::BankEntryInvalid { reasons }),
+        }
+    }
+
     /// Validates bank transfer fields.
     fn validate(amount: i64) -> Result<(), BankError> {
         if amount <= 0 {
@@ -208,6 +237,67 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&BankEntryType::FundWire).unwrap(),
             r#""FUND_WIRE""#
+        );
+    }
+
+    // --- BankEntry::read_form (BSM-020, BSM-030) ---
+
+    fn reasons(result: Result<NaiveDate, BankError>) -> Vec<BankEntryInvalidReason> {
+        match result {
+            Err(BankError::BankEntryInvalid { reasons }) => reasons,
+            other => panic!("expected BankEntryInvalid, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_bsm_020_read_form_refuses_every_missing_field_at_once() {
+        assert_eq!(
+            reasons(BankEntry::read_form(Some(""), "", 0)),
+            vec![
+                BankEntryInvalidReason::AccountMissing,
+                BankEntryInvalidReason::DateMissing,
+                BankEntryInvalidReason::NothingSelected,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_bsm_020_read_form_counts_a_blank_date_and_account_as_missing() {
+        assert_eq!(
+            reasons(BankEntry::read_form(Some("  "), "  ", 1)),
+            vec![
+                BankEntryInvalidReason::AccountMissing,
+                BankEntryInvalidReason::DateMissing,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_bsm_020_read_form_refuses_a_malformed_date() {
+        assert_eq!(
+            reasons(BankEntry::read_form(Some("acc-1"), "15/03/2026", 1)),
+            vec![BankEntryInvalidReason::DateInvalid]
+        );
+    }
+
+    #[test]
+    fn test_bsm_030_read_form_without_an_account_judges_date_and_selection_only() {
+        assert_eq!(
+            reasons(BankEntry::read_form(None, "", 0)),
+            vec![
+                BankEntryInvalidReason::DateMissing,
+                BankEntryInvalidReason::NothingSelected,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_bsm_020_read_form_returns_the_parsed_date() {
+        let date = BankEntry::read_form(Some("acc-1"), " 2026-03-15 ", 2)
+            .expect("every field is filled in");
+        assert_eq!(
+            date,
+            NaiveDate::from_ymd_opt(2026, 3, 15).expect("a valid date")
         );
     }
 

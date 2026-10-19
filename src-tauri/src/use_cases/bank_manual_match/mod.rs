@@ -13,8 +13,8 @@ mod uow;
 pub use api::*;
 pub use error::{BankManualMatchError, BankManualMatchTask};
 pub use orchestrator::{
-    BankManualMatchOrchestrator, BankManualMatchResult, DirectPaymentProcedureCandidate,
-    FundGroupCandidate,
+    BankEntryEdit, BankManualMatchOrchestrator, BankManualMatchResult,
+    DirectPaymentProcedureCandidate, FundGroupCandidate,
 };
 pub use uow::{
     GroupSettlementOperation, GroupSettlementTransactionManager, GroupSettlementUnitOfWork,

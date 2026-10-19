@@ -20,6 +20,8 @@ export function formatBankError(err: BankError): {
       return { key: "bank:errors.amount_not_positive" };
     case "InvalidTransferDateFormat":
       return { key: "bank:errors.invalid_transfer_date_format" };
+    case "BankEntryInvalid":
+      return { key: "bank:errors.bank_entry_invalid" };
     case "IbanAlreadyUsed":
       return { key: "bank:errors.iban_already_used" };
     case "BankAccountNotFound":
