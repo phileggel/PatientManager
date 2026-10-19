@@ -128,8 +128,8 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
      patient data, the agent says what it needs from it and how little.
 4. **Implement** to green, the right way (§ 6).
 5. **Self-check:** `just harness` (§ 5).
-6. **Self-review:** the reviewer lanes the diff needs (§ 7), again on the fixes until no
-   🔴 remains.
+6. **Self-review:** the reviewer lanes the diff needs (§ 7), again on the fixes before the
+   first push until no 🔴 remains.
 7. **Evidence:** `/visual-proof` for every changed component.
 8. **PR**, opened for the record, not for approval. Body under 20 lines: `Closes #123`, the task, each
    Done-when clause with the test that proves it and where that test was seen red (or
@@ -235,13 +235,13 @@ answer before pushing.
 
 Before the PR, run exactly the lanes
 `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for documents
-that are not guides), and again on every fix, a warning's included, before its push, until
-no 🔴 remains; one push per fix. After a CI 🔴, the local lane re-reads each changed file
-whole, not the delta, and is asked for every 🔴 at once. CI runs the same lanes on every
-push, prompts from `main`. A local reviewer gets the branch, the spec and the vocabulary,
-never a description of the change. Also: `spec-reviewer` / `contract-reviewer` /
-`adr-reviewer` when those documents change, `spec-checker` before closing an issue with
-spec rules; `reviewer-guides` for the guides (§ 5).
+that are not guides), and again on every fix before the first push, a warning's included,
+until no 🔴 remains.
+Once pushed, a fix is a `fixup!` commit pushed as is: CI runs the same lanes on every
+push, prompts from `main`, and a green CI needs no local run (owner, 2026-10-19). A local
+reviewer gets the branch, the spec and the vocabulary, never a description of the change.
+Also: `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change,
+`spec-checker` before closing an issue with spec rules; `reviewer-guides` for guides (§ 5).
 
 Every finding, local or from CI, is graded before any is applied; one line per finding that
 changed something or was rejected goes in the PR body, or in a PR comment once pushed:

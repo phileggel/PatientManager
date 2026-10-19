@@ -78,7 +78,7 @@ in code — never `coverage-gates.json` lowered nor `arch-allowlist.json` raised
 
 Exactly the lanes `bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints, in
 one batch, each given the branch, the spec and the vocabulary; every finding graded
-(`docs/workflow.md` § 7); again on the fixes until no 🔴 remains.
+(`docs/workflow.md` § 7); again on the fixes before the first push until no 🔴 remains.
 
 ## Step 7 — Evidence and commit
 
@@ -88,8 +88,8 @@ one batch, each given the branch, the spec and the vocabulary; every finding gra
 
 - Push, `gh pr create --body-file`: the body of `docs/workflow.md` § 3, step 8.
 - `just watch-pr` in the background: exit 0 is green; `scripts/watch-pr.py` lists the others.
-- A red reviewer lane: read its newest comment; grade, apply and re-read locally as
-  `docs/workflow.md` § 7 says; push.
+- A red reviewer lane: read its newest comment; grade, apply as a `fixup!` and push: CI's
+  lanes review it (`docs/workflow.md` § 7).
 - Exit 6, a lane stopped by the CI account's usage limit: nothing to fix. Wait for the
   reset time it prints (a wake-up in chat, a sleep headless; outside Rule 4), then
   `just rerun-failed <the run id of the printed URL>` and watch again.
