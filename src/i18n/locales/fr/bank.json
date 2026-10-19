@@ -203,8 +203,7 @@
       "update": "Mettre à jour",
       "success": "Virement bancaire mis à jour avec succès",
       "error_unknown": "Une erreur inattendue s'est produite",
-      "error_invalid_account": "Le compte bancaire sélectionné est invalide",
-      "error_invalid_form": "Veuillez remplir tous les champs avec des valeurs valides"
+      "error_invalid_account": "Le compte bancaire sélectionné est invalide"
     },
     "add": {
       "success": "Virement bancaire créé avec succès !",
@@ -212,6 +211,7 @@
     },
     "validate": {
       "date_required": "La date du virement est obligatoire",
+      "date_invalid": "Saisissez une date valide",
       "bank_account_required": "Le compte bancaire est obligatoire",
       "no_items_selected": "Veuillez sélectionner au moins un groupe ou un acte"
     },

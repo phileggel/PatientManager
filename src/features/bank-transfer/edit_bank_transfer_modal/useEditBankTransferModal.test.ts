@@ -85,37 +85,6 @@ describe("useEditBankTransferModal", () => {
     expect(gateway.getTransferFundGroupIds).not.toHaveBeenCalled();
   });
 
-  it("R13 — syncs bankAccount from transfer on open", async () => {
-    const transfer = makeFundTransfer();
-    const { result } = renderHook(() => useEditBankTransferModal(transfer, vi.fn()));
-
-    await waitFor(() => expect(gateway.getTransferFundGroupIds).toHaveBeenCalled());
-
-    expect(result.current.bankAccount).toBe("account-1");
-  });
-
-  it("R13 — isCash is true for CASH transfer and false for CHECK", async () => {
-    // CASH falls into the direct-payment branch → calls getTransferProcedureIds
-    const cashTransfer = makeFundTransfer({ transfer_type: "PATIENT_CASH" });
-    const { result: cashResult } = renderHook(() =>
-      useEditBankTransferModal(cashTransfer, vi.fn()),
-    );
-    await waitFor(() => expect(gateway.getTransferProcedureIds).toHaveBeenCalled());
-    expect(cashResult.current.isCash).toBe(true);
-
-    vi.clearAllMocks();
-    vi.mocked(gateway.getTransferProcedureIds).mockResolvedValue({ success: true, data: [] });
-
-    const checkTransfer = makeDirectTransfer();
-    const { result: checkResult } = renderHook(() =>
-      useEditBankTransferModal(checkTransfer, vi.fn()),
-    );
-    await waitFor(() => expect(gateway.getTransferProcedureIds).toHaveBeenCalled());
-    expect(checkResult.current.isCash).toBe(false);
-  });
-
-  // ===== FUND type loading =====
-
   it("R21 — loads selectedGroupIds and currentGroups for FUND transfer", async () => {
     vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({
       success: true,
@@ -251,20 +220,6 @@ describe("useEditBankTransferModal", () => {
     expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
   });
 
-  it("shows validation error when no groups selected for FUND", async () => {
-    const transfer = makeFundTransfer();
-    const { result } = renderHook(() => useEditBankTransferModal(transfer, vi.fn()));
-
-    await waitFor(() => expect(gateway.getTransferFundGroupIds).toHaveBeenCalled());
-
-    await act(async () => {
-      await result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
-    });
-
-    expect(gateway.updateFundTransfer).not.toHaveBeenCalled();
-    expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
-  });
-
   it("keeps selectedGroupIds empty when getTransferFundGroupIds returns failure", async () => {
     vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({
       success: false,
@@ -345,5 +300,73 @@ describe("useEditBankTransferModal — unchanged edit (BSM-032)", () => {
 
     expect(onClose).toHaveBeenCalled();
     expect(vi.mocked(toastService.show)).not.toHaveBeenCalledWith("success", expect.anything());
+  });
+});
+
+// #351 — the backend judges the edit (BSM-022 to BSM-025, BSM-030).
+describe("useEditBankTransferModal — refusals at the field (BSM-022 to BSM-025)", () => {
+  it("sends the edit as it is and shows each reason at its field", async () => {
+    vi.mocked(gateway.getTransferFundGroupIds).mockResolvedValue({ success: true, data: [] });
+    vi.mocked(gateway.updateFundTransfer).mockResolvedValue({
+      success: false,
+      error: { code: "BankEntryInvalid", reasons: ["DateMissing", "NothingSelected"] },
+    });
+    const onClose = vi.fn();
+    const transfer = makeFundTransfer();
+    const { result } = renderHook(() => useEditBankTransferModal(transfer, onClose));
+    await waitFor(() => expect(gateway.getTransferFundGroupIds).toHaveBeenCalled());
+
+    act(() => result.current.setTransferDate(""));
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(gateway.updateFundTransfer).toHaveBeenCalledWith("transfer-fund-1", "", []);
+    expect(result.current.fieldErrors).toEqual({
+      transferDate: "transfer.validate.date_required",
+      selection: "transfer.validate.no_items_selected",
+    });
+    expect(onClose).not.toHaveBeenCalled();
+
+    act(() => result.current.setTransferDate("2026-03-10"));
+    expect(result.current.fieldErrors).toEqual({
+      selection: "transfer.validate.no_items_selected",
+    });
+    act(() => result.current.handleFundGroupSelectionChange(["group-1"], 5000));
+    expect(result.current.fieldErrors).toEqual({});
+  });
+});
+
+describe("useEditBankTransferModal — a new save and other refusals (BSM-023, BSM-025)", () => {
+  it("clears every message on a new save; a refusal not about the fields shows none", async () => {
+    vi.mocked(gateway.getTransferProcedureIds).mockResolvedValue({ success: true, data: [] });
+    vi.mocked(gateway.updateDirectTransfer)
+      .mockResolvedValueOnce({
+        success: false,
+        error: { code: "BankEntryInvalid", reasons: ["NothingSelected"] },
+      })
+      .mockResolvedValueOnce({
+        success: false,
+        error: { code: "TransferNotFound", bank_transfer_id: "transfer-check-1" },
+      });
+    const transfer = makeDirectTransfer();
+    const { result } = renderHook(() => useEditBankTransferModal(transfer, vi.fn()));
+    await waitFor(() => expect(gateway.getTransferProcedureIds).toHaveBeenCalled());
+    const save = () =>
+      act(async () => {
+        await result.current.handleSubmit({
+          preventDefault: vi.fn(),
+        } as unknown as React.FormEvent);
+      });
+
+    await save();
+    expect(result.current.fieldErrors).toEqual({
+      selection: "transfer.validate.no_items_selected",
+    });
+    act(() => result.current.handleProcedureSelectionChange(["proc-1"], 5000));
+    expect(result.current.fieldErrors).toEqual({});
+
+    await save();
+    expect(result.current.fieldErrors).toEqual({});
   });
 });

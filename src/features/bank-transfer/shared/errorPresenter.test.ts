@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BankManualMatchError } from "@/bindings";
-import { formatBankManualMatchError } from "./errorPresenter";
+import { bankEntryFieldErrorKeys, formatBankManualMatchError } from "./errorPresenter";
 
 describe("formatBankManualMatchError", () => {
   it("maps the use-case guard to its specific key", () => {
@@ -53,5 +53,26 @@ describe("formatBankManualMatchError", () => {
     for (const err of cases) {
       expect(formatBankManualMatchError(err).key).toBe("bank:errors.unexpected");
     }
+  });
+});
+
+describe("bankEntryFieldErrorKeys (BSM-023)", () => {
+  it("gives one key per refused field, the date's missing and invalid apart", () => {
+    expect(
+      bankEntryFieldErrorKeys({
+        code: "BankEntryInvalid",
+        reasons: ["AccountMissing", "DateInvalid", "NothingSelected"],
+      }),
+    ).toEqual({
+      bankAccount: "transfer.validate.bank_account_required",
+      transferDate: "transfer.validate.date_invalid",
+      selection: "transfer.validate.no_items_selected",
+    });
+  });
+
+  it("is null for a refusal that is not about the form's fields", () => {
+    expect(
+      bankEntryFieldErrorKeys({ code: "TransferNotFound", bank_transfer_id: "bt-1" }),
+    ).toBeNull();
   });
 });

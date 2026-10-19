@@ -11,8 +11,11 @@ import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
 import { toastService } from "@/ui/components/snackbar";
 import { createDirectTransfer, createFundTransfer, getCashBankAccountId } from "../gateway";
-import { formatBankManualMatchError } from "../shared/errorPresenter";
-import { type BankTransferFormErrors, validateBankTransfer } from "../shared/validateBankTransfer";
+import {
+  type BankEntryFieldErrorKeys,
+  bankEntryFieldErrorKeys,
+  formatBankManualMatchError,
+} from "../shared/errorPresenter";
 
 export function useAddBankTransferForm() {
   const { t } = useTranslation("bank");
@@ -27,7 +30,8 @@ export function useAddBankTransferForm() {
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [totalAmountMillis, setTotalAmountMillis] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<BankTransferFormErrors>({});
+  // BSM-023 — the message key under each refused field; the component translates.
+  const [fieldErrors, setFieldErrors] = useState<BankEntryFieldErrorKeys>({});
 
   // Fetch the cash account ID once on mount (R13)
   useEffect(() => {
@@ -52,7 +56,6 @@ export function useAddBankTransferForm() {
 
   const isFund = transferType === "FUND_WIRE";
   const isCash = transferType === "PATIENT_CASH";
-  const hasItems = isFund ? selectedGroupIds.length > 0 : selectedProcedureIds.length > 0;
 
   // Exclude the cash account from the regular dropdown once its id is known (R13)
   const bankAccountOptions = bankAccounts
@@ -68,12 +71,12 @@ export function useAddBankTransferForm() {
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);
     setTotalAmountMillis(0);
-    if (errors.transferDate) setErrors((prev) => ({ ...prev, transferDate: undefined }));
+    setFieldErrors((prev) => ({ ...prev, transferDate: undefined }));
   };
 
   const setBankAccount = (value: string) => {
     setBankAccountState(value);
-    if (errors.bankAccount) setErrors((prev) => ({ ...prev, bankAccount: undefined }));
+    setFieldErrors((prev) => ({ ...prev, bankAccount: undefined }));
   };
 
   const handleTypeChange = (newType: BankEntryType) => {
@@ -81,7 +84,8 @@ export function useAddBankTransferForm() {
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);
     setTotalAmountMillis(0);
-    setErrors({});
+    // BSM-025 — a new type has its own account and selection.
+    setFieldErrors((prev) => ({ transferDate: prev.transferDate }));
     // Auto-assign cash account for CASH type, clear for others (R13)
     if (newType === "PATIENT_CASH") {
       setBankAccountState(cashAccountId);
@@ -93,17 +97,13 @@ export function useAddBankTransferForm() {
   const handleFundGroupSelectionChange = (groupIds: string[], totalMillis: number) => {
     setSelectedGroupIds(groupIds);
     setTotalAmountMillis(totalMillis);
-    if (errors.noItemsSelected && groupIds.length > 0) {
-      setErrors((prev) => ({ ...prev, noItemsSelected: undefined }));
-    }
+    setFieldErrors((prev) => ({ ...prev, selection: undefined }));
   };
 
   const handleProcedureSelectionChange = (procedureIds: string[], totalMillis: number) => {
     setSelectedProcedureIds(procedureIds);
     setTotalAmountMillis(totalMillis);
-    if (errors.noItemsSelected && procedureIds.length > 0) {
-      setErrors((prev) => ({ ...prev, noItemsSelected: undefined }));
-    }
+    setFieldErrors((prev) => ({ ...prev, selection: undefined }));
   };
 
   const resetForm = () => {
@@ -113,27 +113,15 @@ export function useAddBankTransferForm() {
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);
     setTotalAmountMillis(0);
-    setErrors({});
+    setFieldErrors({});
     // cashAccountId intentionally preserved — already loaded, no need to refetch
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const newErrors = validateBankTransfer(
-      { transferDate, bankAccount, hasItems },
-      {
-        dateRequired: t("transfer.validate.date_required"),
-        bankAccountRequired: t("transfer.validate.bank_account_required"),
-        noItemsSelected: t("transfer.validate.no_items_selected"),
-      },
-    );
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) {
-      logger.warn("[useAddBankTransferForm] Validation failed", { errors: newErrors });
-      return;
-    }
+    // BSM-022 — the form sends what it holds; the backend judges it (BSM-020).
+    setFieldErrors({});
 
     setSubmitting(true);
     try {
@@ -154,6 +142,7 @@ export function useAddBankTransferForm() {
         toastService.show("success", t("transfer.add.success"));
         resetForm();
       } else {
+        setFieldErrors(bankEntryFieldErrorKeys(result.error) ?? {});
         const { key, params } = formatBankManualMatchError(result.error);
         toastService.show("error", t(key, params));
       }
@@ -164,8 +153,6 @@ export function useAddBankTransferForm() {
       setSubmitting(false);
     }
   };
-
-  const isValid = !!transferDate && (isCash || !!bankAccount) && hasItems;
 
   return {
     transferDate,
@@ -180,11 +167,10 @@ export function useAddBankTransferForm() {
     handleFundGroupSelectionChange,
     handleProcedureSelectionChange,
     submitting,
-    errors,
+    fieldErrors,
     bankAccountOptions,
     isFund,
     isCash,
-    isValid,
     handleSubmit,
   };
 }

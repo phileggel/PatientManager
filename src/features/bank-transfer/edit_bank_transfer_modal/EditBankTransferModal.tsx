@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankEntry } from "@/bindings";
-import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { Button, DateField, SelectField } from "@/ui/components";
+import { Button, DateField } from "@/ui/components";
 import { FormModal } from "@/ui/components/modal/FormModal";
 import { useFormatters } from "@/ui/format/formatters";
 import { SelectFundGroupsPanel } from "../select_items_panel/SelectFundGroupsPanel";
@@ -32,9 +31,6 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
   const { t: tCommon } = useTranslation("common");
   const { formatCurrency } = useFormatters();
 
-  const bankAccounts = useCacheStore((state) => state.bankAccounts);
-  const bankAccountOptions = bankAccounts.map((acc) => ({ value: acc.id, label: acc.name }));
-
   useEffect(() => {
     logger.info("[EditBankTransferModal] Component mounted");
   }, []);
@@ -42,17 +38,14 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
   const {
     transferDate,
     setTransferDate,
-    bankAccount,
-    setBankAccount,
     selectedGroupIds,
     selectedProcedureIds,
     totalAmountMillis,
     currentGroups,
     currentProcedures,
     submitting,
-    isValid,
+    fieldErrors,
     isFund,
-    isCash,
     handleFundGroupSelectionChange,
     handleProcedureSelectionChange,
     handleSubmit,
@@ -79,7 +72,7 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!isValid || submitting}
+            disabled={submitting}
             loading={submitting}
             variant="primary"
             className="flex-1"
@@ -95,32 +88,33 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
         label={t("transfer.date")}
         value={transferDate}
         onChange={(e) => setTransferDate(e.target.value)}
+        error={fieldErrors.transferDate && t(fieldErrors.transferDate)}
       />
 
       {/* Type — display only (R4: immutable) */}
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-neutral-90">{t("transfer.type")}</span>
+        <span className="text-sm font-medium text-neutral-90">
+          {t("transfer.list.columns.type")}
+        </span>
         <span className="px-3 py-2 bg-m3-surface-container rounded-xl text-sm text-neutral-70">
           {typeLabel}
         </span>
       </div>
 
-      {/* Bank Account — read-only label for CASH (R13: auto-assigned, immutable) */}
-      {isCash ? (
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-neutral-90">{t("transfer.bank_account")}</span>
-          <span className="text-sm text-neutral-60">{t("transfer.cash_account")}</span>
-        </div>
-      ) : (
-        <SelectField
-          id="editBankAccount"
-          label={t("transfer.bank_account")}
-          value={bankAccount}
-          onChange={(e) => setBankAccount(e.target.value)}
-          options={[{ value: "", label: t("transfer.select_bank_account") }, ...bankAccountOptions]}
-          required
-        />
-      )}
+      {/* Bank Account — shown, not edited (BSM-033, R9, R17) */}
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-medium text-neutral-90">
+          {t("transfer.list.columns.bank_account")}
+        </span>
+        <span
+          id="edit-bank-transfer-account"
+          className="px-3 py-2 bg-m3-surface-container rounded-xl text-sm text-neutral-70"
+        >
+          {transfer?.transfer_type === "PATIENT_CASH"
+            ? t("transfer.cash_account")
+            : transfer?.bank_account.name}
+        </span>
+      </div>
 
       {/* Selection panel — conditional on type */}
       {isFund ? (
@@ -137,6 +131,17 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
           onSelectionChange={handleProcedureSelectionChange}
           currentProcedures={currentProcedures}
         />
+      )}
+
+      {/* BSM-023 — the selection's refusal, below both lists */}
+      {fieldErrors.selection && (
+        <p
+          id="edit-bank-transfer-selection-error"
+          role="alert"
+          className="text-xs text-m3-error -mt-3 ml-1"
+        >
+          {t(fieldErrors.selection)}
+        </p>
       )}
 
       {/* Computed amount display */}

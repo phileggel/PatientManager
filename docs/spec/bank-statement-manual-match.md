@@ -41,7 +41,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-024 — A refused save keeps the form (frontend)**: When a save is refused, for any reason, the form or dialog stays open and an error snackbar is shown.
 
-**BSM-025 — A field's message clears when it is edited (frontend)**: A message of BSM-023 clears once its field is edited; for the selection, once a group or procedure is added or removed, in the broadened search too (R12, R20). Changing the type at creation clears the account and selection messages. While the date is missing or invalid, the selection lists show no candidate.
+**BSM-025 — A field's message clears when it is edited (frontend)**: A message of BSM-023 clears once its field is edited; for the selection, once a group or procedure is added or removed, in the broadened search too (R12, R20). Changing the type at creation clears the account and selection messages. While the date is missing or invalid, the 7-day selection shows no candidate (the broadened search has no date window, R12, R20).
 
 **BSM-030 — Edit refusals, all at once (backend)**: Editing a bank entry is refused when its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written. The account is not part of an edit (R9, R17).
 
@@ -49,7 +49,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-032 — An unchanged edit closes silently (frontend)**: When an edit is answered unchanged (BSM-031), the edit dialog closes with no snackbar and the list is not refreshed.
 
-**BSM-033 — The edit dialog shows the account (frontend)**: The edit dialog shows the bank entry's account as text — the stored account's name — and offers no way to change it (R9, R17).
+**BSM-033 — The edit dialog shows the account (frontend)**: The edit dialog shows the bank entry's account as text — the stored account's name, the cash account's translated name for `CASH` (R13) — and offers no way to change it (R9, R17).
 
 ### FUND-type transfers
 

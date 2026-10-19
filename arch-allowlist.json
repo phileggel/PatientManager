@@ -104,7 +104,6 @@
     "src/features/bank-statement-match/shared/candidateSelection.ts",
     "src/features/bank-statement-match/shared/labelRows.ts",
     "src/features/bank-statement-match/shared/procedureWindow.ts",
-    "src/features/bank-transfer/shared/validateBankTransfer.ts",
     "src/features/dashboard/api/dashboardService.ts",
     "src/features/dashboard/utils/aggregation.ts",
     "src/features/excel-import/shared/mappings.ts",

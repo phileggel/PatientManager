@@ -228,7 +228,7 @@ return (
 );
 ```
 
-**F30** — A form F30 lists as moved MUST NOT judge its own fields (owner, 2026-10-18; this rule owns the list, each slice adding its forms): `ProcedureFormModal`, `CreatePatientForm`, `SplitEditor`. Its Submit is enabled while not saving and sends the form as it is; the backend refuses every invalid field at once (`docs/error-model.md`, `{Aggregate}Invalid { reasons }`); F27's pipeline runs per reason, each message in red under its field, cleared once that field is edited. An edit that changes nothing is answered unchanged by the backend. Client-side validation in a form not yet moved follows F27's pipeline too: typed errors with `code` fields, presenter keys, messages under the fields.
+**F30** — A form F30 lists as moved MUST NOT judge its own fields (owner, 2026-10-18; this rule owns the list, each slice adding its forms): `ProcedureFormModal`, `CreatePatientForm`, `SplitEditor`, `AddBankTransferForm`, `EditBankTransferModal`. Its Submit is enabled while not saving and sends the form as it is; the backend refuses every invalid field at once (`docs/error-model.md`, `{Aggregate}Invalid { reasons }`); F27's pipeline runs per reason, each message in red under its field, cleared once that field is edited. An edit that changes nothing is answered unchanged by the backend. Client-side validation in a form not yet moved follows F27's pipeline too: typed errors with `code` fields, presenter keys, messages under the fields.
 
 ## Tests
 

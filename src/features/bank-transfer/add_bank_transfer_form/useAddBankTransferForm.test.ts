@@ -132,17 +132,6 @@ describe("useAddBankTransferForm — form fields and validation", () => {
     expect(result.current.totalAmountMillis).toBe(30000);
   });
 
-  it("handleSubmit sets validation errors when date, bankAccount or items are missing", async () => {
-    const { result } = renderHook(() => useAddBankTransferForm());
-
-    await act(async () => {
-      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
-    });
-
-    expect(result.current.errors.transferDate).toBeTruthy();
-    expect(gateway.createFundTransfer).not.toHaveBeenCalled();
-  });
-
   it("handleSubmit calls createFundTransfer for FUND_WIRE type", async () => {
     vi.mocked(gateway.createFundTransfer).mockResolvedValue({
       success: true,
@@ -222,5 +211,113 @@ describe("useAddBankTransferForm — form fields and validation", () => {
     });
 
     expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
+  });
+});
+
+// #351 — the backend judges the form (BSM-020, BSM-022 to BSM-025).
+describe("useAddBankTransferForm — refusals at the field (BSM-022 to BSM-025)", () => {
+  const refused = {
+    success: false as const,
+    error: {
+      code: "BankEntryInvalid" as const,
+      reasons: ["AccountMissing", "DateMissing", "NothingSelected"] as (
+        | "AccountMissing"
+        | "DateMissing"
+        | "DateInvalid"
+        | "NothingSelected"
+      )[],
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(gateway.getCashBankAccountId).mockResolvedValue({ success: true, data: CASH_ID });
+    useCacheStore.setState({ bankAccounts: [] });
+  });
+
+  async function submit(result: { current: ReturnType<typeof useAddBankTransferForm> }) {
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+  }
+
+  it("BSM-022: sends an empty form to the backend instead of blocking it", async () => {
+    vi.mocked(gateway.createFundTransfer).mockResolvedValue(refused);
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    await submit(result);
+
+    expect(gateway.createFundTransfer).toHaveBeenCalledWith("", "", []);
+  });
+
+  it("BSM-023, BSM-024: shows each reason at its field and an error snackbar", async () => {
+    vi.mocked(gateway.createFundTransfer).mockResolvedValue(refused);
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    await submit(result);
+
+    expect(result.current.fieldErrors).toEqual({
+      transferDate: "transfer.validate.date_required",
+      bankAccount: "transfer.validate.bank_account_required",
+      selection: "transfer.validate.no_items_selected",
+    });
+    expect(vi.mocked(toastService.show)).toHaveBeenCalledWith("error", expect.any(String));
+  });
+
+  it("BSM-024: a refused save keeps what the form holds", async () => {
+    vi.mocked(gateway.createDirectTransfer).mockResolvedValue(refused);
+    const { result } = renderHook(() => useAddBankTransferForm());
+    act(() => result.current.handleTypeChange("PATIENT_CHECK"));
+    act(() => result.current.setTransferDate("2026-03-10"));
+    act(() => result.current.setBankAccount("acc-1"));
+
+    await submit(result);
+
+    expect(result.current.transferDate).toBe("2026-03-10");
+    expect(result.current.bankAccount).toBe("acc-1");
+    expect(result.current.transferType).toBe("PATIENT_CHECK");
+  });
+
+  it("BSM-023: a malformed date has its own message", async () => {
+    vi.mocked(gateway.createFundTransfer).mockResolvedValue({
+      success: false,
+      error: { code: "BankEntryInvalid", reasons: ["DateInvalid"] },
+    });
+    const { result } = renderHook(() => useAddBankTransferForm());
+
+    await submit(result);
+
+    expect(result.current.fieldErrors).toEqual({ transferDate: "transfer.validate.date_invalid" });
+  });
+
+  it("BSM-025: editing a field clears its message; changing the type clears account and selection", async () => {
+    vi.mocked(gateway.createFundTransfer).mockResolvedValue(refused);
+    const { result } = renderHook(() => useAddBankTransferForm());
+    await submit(result);
+
+    act(() => result.current.setBankAccount("acc-1"));
+    expect(result.current.fieldErrors.bankAccount).toBeUndefined();
+    expect(result.current.fieldErrors.transferDate).toBe("transfer.validate.date_required");
+
+    act(() => result.current.handleTypeChange("PATIENT_CHECK"));
+    expect(result.current.fieldErrors).toEqual({ transferDate: "transfer.validate.date_required" });
+
+    act(() => result.current.setTransferDate("2026-03-10"));
+    expect(result.current.fieldErrors).toEqual({});
+  });
+
+  it("BSM-023: a new save clears every message first; another refusal shows none at a field", async () => {
+    vi.mocked(gateway.createFundTransfer)
+      .mockResolvedValueOnce(refused)
+      .mockResolvedValueOnce({
+        success: false,
+        error: { code: "BankAccountNotFound", bank_account_id: "acc-9" },
+      });
+    const { result } = renderHook(() => useAddBankTransferForm());
+    await submit(result);
+
+    await submit(result);
+
+    expect(result.current.fieldErrors).toEqual({});
   });
 });

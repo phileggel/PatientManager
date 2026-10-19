@@ -40,11 +40,10 @@ export function AddBankTransferForm() {
     handleFundGroupSelectionChange,
     handleProcedureSelectionChange,
     submitting,
-    errors,
+    fieldErrors,
     bankAccountOptions,
     isFund,
     isCash,
-    isValid,
     handleSubmit,
   } = useAddBankTransferForm();
 
@@ -61,7 +60,7 @@ export function AddBankTransferForm() {
         label={t("transfer.date")}
         value={transferDate}
         onChange={(e) => setTransferDate(e.target.value)}
-        error={errors.transferDate}
+        error={fieldErrors.transferDate && t(fieldErrors.transferDate)}
       />
 
       {/* Type */}
@@ -83,6 +82,11 @@ export function AddBankTransferForm() {
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium text-neutral-90">{t("transfer.bank_account")}</span>
           <span className="text-sm text-neutral-60">{t("transfer.cash_account")}</span>
+          {fieldErrors.bankAccount && (
+            <p role="alert" className="text-xs text-m3-error mt-1 ml-1">
+              {t(fieldErrors.bankAccount)}
+            </p>
+          )}
         </div>
       ) : (
         <SelectField
@@ -91,7 +95,7 @@ export function AddBankTransferForm() {
           value={bankAccount}
           onChange={(e) => setBankAccount(e.target.value)}
           options={[{ value: "", label: t("transfer.select_bank_account") }, ...bankAccountOptions]}
-          error={errors.bankAccount}
+          error={fieldErrors.bankAccount && t(fieldErrors.bankAccount)}
         />
       )}
 
@@ -110,8 +114,16 @@ export function AddBankTransferForm() {
         />
       )}
 
-      {/* Items validation error */}
-      {errors.noItemsSelected && <p className="text-sm text-m3-error">{errors.noItemsSelected}</p>}
+      {/* BSM-023 — the selection's refusal, under the selection */}
+      {fieldErrors.selection && (
+        <p
+          id="add-bank-transfer-selection-error"
+          role="alert"
+          className="text-xs text-m3-error -mt-5 ml-1"
+        >
+          {t(fieldErrors.selection)}
+        </p>
+      )}
 
       {/* Computed amount display */}
       {totalAmountMillis > 0 && (
@@ -126,7 +138,7 @@ export function AddBankTransferForm() {
         form="add-bank-transfer-form"
         variant="primary"
         loading={submitting}
-        disabled={!isValid || submitting}
+        disabled={submitting}
       >
         {submitting ? t("transfer.creating") : t("transfer.create_button")}
       </Button>

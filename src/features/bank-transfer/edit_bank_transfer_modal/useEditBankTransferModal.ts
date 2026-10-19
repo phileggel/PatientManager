@@ -11,7 +11,11 @@ import {
   updateDirectTransfer,
   updateFundTransfer,
 } from "../gateway";
-import { formatBankManualMatchError } from "../shared/errorPresenter";
+import {
+  type BankEntryFieldErrorKeys,
+  bankEntryFieldErrorKeys,
+  formatBankManualMatchError,
+} from "../shared/errorPresenter";
 
 /**
  * useEditBankTransferModal — Logic for the EditBankTransferModal component.
@@ -24,26 +28,24 @@ import { formatBankManualMatchError } from "../shared/errorPresenter";
 export function useEditBankTransferModal(transfer: BankEntry | null, onClose: () => void) {
   const { t } = useTranslation("bank");
 
-  const [transferDate, setTransferDate] = useState<string>("");
-  const [bankAccount, setBankAccount] = useState<string>("");
+  const [transferDate, setTransferDateState] = useState<string>("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [totalAmountMillis, setTotalAmountMillis] = useState<number>(0);
   const [currentGroups, setCurrentGroups] = useState<FundGroupCandidate[]>([]);
   const [currentProcedures, setCurrentProcedures] = useState<DirectPaymentProcedureCandidate[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // BSM-023 — the message key under each refused field; the component translates.
+  const [fieldErrors, setFieldErrors] = useState<BankEntryFieldErrorKeys>({});
 
   const isFund = transfer?.transfer_type === "FUND_WIRE";
-  const isCash = transfer?.transfer_type === "PATIENT_CASH";
 
   // Load linked IDs and current candidates when transfer changes.
-  // bankAccount is synced here (not in a separate effect) to avoid stale state
-  // between renders when switching between transfers.
   useEffect(() => {
     if (!transfer) return;
 
-    setTransferDate(transfer.transfer_date);
-    setBankAccount(transfer.bank_account.id);
+    setTransferDateState(transfer.transfer_date);
+    setFieldErrors({});
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);
     setCurrentGroups([]);
@@ -99,28 +101,29 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
     loadLinks();
   }, [transfer]);
 
+  const setTransferDate = (value: string) => {
+    setTransferDateState(value);
+    setFieldErrors((prev) => ({ ...prev, transferDate: undefined }));
+  };
+
   const handleFundGroupSelectionChange = (groupIds: string[], totalMillis: number) => {
     setSelectedGroupIds(groupIds);
     setTotalAmountMillis(totalMillis);
+    setFieldErrors((prev) => ({ ...prev, selection: undefined }));
   };
 
   const handleProcedureSelectionChange = (procedureIds: string[], totalMillis: number) => {
     setSelectedProcedureIds(procedureIds);
     setTotalAmountMillis(totalMillis);
+    setFieldErrors((prev) => ({ ...prev, selection: undefined }));
   };
-
-  const isValid =
-    transferDate.trim() !== "" &&
-    (isCash || bankAccount !== "") &&
-    (isFund ? selectedGroupIds.length > 0 : selectedProcedureIds.length > 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!transfer || !isValid) {
-      toastService.show("error", t("transfer.edit.error_invalid_form"));
-      return;
-    }
+    if (!transfer) return;
+    // BSM-022 — the dialog sends what it holds; the backend judges it (BSM-030).
+    setFieldErrors({});
 
     setSubmitting(true);
     try {
@@ -135,6 +138,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
         }
         onClose();
       } else {
+        setFieldErrors(bankEntryFieldErrorKeys(result.error) ?? {});
         const { key, params } = formatBankManualMatchError(result.error);
         toastService.show("error", t(key, params));
       }
@@ -149,17 +153,14 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
   return {
     transferDate,
     setTransferDate,
-    bankAccount,
-    setBankAccount,
     selectedGroupIds,
     selectedProcedureIds,
     totalAmountMillis,
     currentGroups,
     currentProcedures,
     submitting,
-    isValid,
+    fieldErrors,
     isFund,
-    isCash,
     handleFundGroupSelectionChange,
     handleProcedureSelectionChange,
     handleSubmit,

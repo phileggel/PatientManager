@@ -203,8 +203,7 @@
       "update": "Update",
       "success": "Bank transfer updated successfully",
       "error_unknown": "An unexpected error occurred",
-      "error_invalid_account": "Selected bank account is invalid",
-      "error_invalid_form": "Please fill in all fields with valid values"
+      "error_invalid_account": "Selected bank account is invalid"
     },
     "add": {
       "success": "Bank transfer created successfully!",
@@ -212,6 +211,7 @@
     },
     "validate": {
       "date_required": "Transfer date is required",
+      "date_invalid": "Enter a valid date",
       "bank_account_required": "Bank account is required",
       "no_items_selected": "Please select at least one group or procedure"
     },

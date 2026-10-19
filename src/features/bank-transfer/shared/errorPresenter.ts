@@ -1,4 +1,4 @@
-import type { BankManualMatchError } from "@/bindings";
+import type { BankEntryInvalidReason, BankManualMatchError } from "@/bindings";
 
 /**
  * Layer 3 of the F27 typed-error pipeline for manual bank-transfer matching.
@@ -29,7 +29,7 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
       return { key: "bank:errors.amount_not_positive" };
     case "InvalidTransferDateFormat":
       return { key: "bank:errors.invalid_transfer_date_format" };
-    // BSM-020, BSM-030 — the fields' own messages come with the forms (#351).
+    // BSM-020, BSM-030 — the snackbar's message; each field's comes from bankEntryFieldErrorKeys.
     case "BankEntryInvalid":
       return { key: "bank:errors.bank_entry_invalid" };
     case "RefundOnlyVariantRejected":
@@ -74,4 +74,28 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
     case "InvalidRefundDateFormat":
       return { key: "bank:errors.unexpected" };
   }
+}
+
+/** The i18n keys shown under each field of a bank entry form (BSM-023). */
+export interface BankEntryFieldErrorKeys {
+  transferDate?: string;
+  bankAccount?: string;
+  selection?: string;
+}
+
+const FIELD_KEYS: Record<BankEntryInvalidReason, [keyof BankEntryFieldErrorKeys, string]> = {
+  AccountMissing: ["bankAccount", "transfer.validate.bank_account_required"],
+  DateMissing: ["transferDate", "transfer.validate.date_required"],
+  DateInvalid: ["transferDate", "transfer.validate.date_invalid"],
+  NothingSelected: ["selection", "transfer.validate.no_items_selected"],
+};
+
+/**
+ * The message keys of a refused bank entry form, one per refused field
+ * (BSM-020, BSM-030); null when the refusal is not about the form's fields
+ * (any other refusal shows no message at a field, BSM-023).
+ */
+export function bankEntryFieldErrorKeys(err: BankManualMatchError): BankEntryFieldErrorKeys | null {
+  if (err.code !== "BankEntryInvalid") return null;
+  return Object.fromEntries(err.reasons.map((reason) => FIELD_KEYS[reason]));
 }
