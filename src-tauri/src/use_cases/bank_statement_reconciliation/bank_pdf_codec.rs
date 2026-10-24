@@ -49,6 +49,7 @@ pub const FRENCH_AMOUNT_DECIMAL: &str = ",";
 
 /// A single credit line from a bank statement (VIR SEPA only)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct BankStatementCreditLine {
     /// ISO date YYYY-MM-DD
     pub date: String,
@@ -60,6 +61,7 @@ pub struct BankStatementCreditLine {
 
 /// Result of parsing a bank statement PDF
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct BankStatementParseResult {
     /// IBAN extracted from PDF header (normalized, no spaces)
     pub iban: Option<String>,

@@ -59,7 +59,7 @@ export async function parseBankStatement(
       logger.error(TAG, "Failed to parse bank statement", { code: result.error.code });
       return { success: false, error: result.error };
     }
-    logger.info(TAG, `Parsed ${result.data.credit_lines.length} credit lines`);
+    logger.info(TAG, "Parsed credit lines", { count: result.data.credit_lines.length });
     return { success: true, data: result.data };
   } catch (e) {
     logger.error(TAG, "parseBankStatement exception", { error: e });

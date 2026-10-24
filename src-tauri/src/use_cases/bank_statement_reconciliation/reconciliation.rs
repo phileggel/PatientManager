@@ -28,6 +28,7 @@ use crate::use_cases::bank_statement_reconciliation::{
 /// A user correction, replayed in order by `compute_reconciliation` / validate.
 /// Reverting = remove from the list and recompute (BAS-065).
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 #[serde(tag = "type")]
 pub enum BankStatementCorrection {
     /// BAS-066 / BAS-030 — link a label to a fund or mark it rejected.
@@ -53,6 +54,7 @@ pub enum BankStatementCorrection {
 /// BAS-030/066 — typed fund assignment; avoids the `"REJECTED"` string
 /// sentinel used on the old wire surface (ADR-001 tightening).
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 #[serde(tag = "type")]
 pub enum FundAssignment {
     Fund { fund_id: String },

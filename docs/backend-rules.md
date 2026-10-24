@@ -60,11 +60,7 @@ src-tauri/src/
 
 ## Ubiquitous Language
 
-**B5** — Domain vocabulary (entity names, aggregate method names, event names, domain concepts)
-MUST be defined and validated by the user before use in code, tests, or documentation.
-The agent MUST NOT unilaterally decide on domain terms — it MUST propose and wait for
-explicit confirmation. All confirmed terms MUST be recorded in `docs/ubiquitous-language.md`
-and used consistently everywhere.
+**B5** — Domain vocabulary (entity names, aggregate method names, event names, domain concepts) MUST be defined and validated by the user before use in code, tests, or documentation. The agent MUST NOT unilaterally decide on domain terms — it MUST propose and wait for explicit confirmation. All confirmed terms MUST be recorded in `docs/ubiquitous-language.md` and used consistently everywhere.
 
 **B6** — All new code MUST use the vocabulary confirmed in `docs/ubiquitous-language.md`.
 If a confirmed term differs from the current code name (recorded as a code discrepancy in
@@ -141,6 +137,8 @@ Cross-BC coordination belongs in a use case with its own `api.rs`.
 **B17** — MUST declare its Tauri commands in the `api.rs` file.
 
 **B47** — Tauri lives only in the `app` feature of the crate (on by default): the `api.rs` adapters, `app.rs` (the composition root of the window), the command registry, the event forwarder to the window and the frontend log command. Everything else — contexts, use cases, persistence — is the application core and builds without it, so another adapter (the command line, an MCP server) links the same code. A type an adapter and the core both use lives in the core, in the module's `dto.rs`. `scripts/core-without-tauri.sh`, run by `just harness` and by CI, fails on a warning in the core-only build (code only the shell reaches) or on a Tauri crate in the core's dependency tree.
+
+**B48** — A type a Tauri command deserializes, as an argument or inside one at any depth, MUST carry `#[serde(deny_unknown_fields)]`: the WebView is outside the trust boundary, so a misspelt or extra field fails instead of being dropped. A unit-only enum is exempt. `tests/command_payloads_refuse_unknown_fields.rs` enforces it.
 
 ## Use Cases (`/use_cases`)
 

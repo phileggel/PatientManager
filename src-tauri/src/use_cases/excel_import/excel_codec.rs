@@ -118,6 +118,7 @@ pub const NO_FUND_PLACEHOLDER: &str = "0";
 
 /// Parsed patient data from Excel Patiente sheet
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct ExcelPatient {
     pub temp_id: String,
     pub name: String,
@@ -127,6 +128,7 @@ pub struct ExcelPatient {
 
 /// Parsed fund data from Excel Secu sheet
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct ExcelFund {
     pub temp_id: String,
     pub fund_identifier: String,
@@ -136,6 +138,7 @@ pub struct ExcelFund {
 
 /// Parsed procedure data from Excel monthly sheets
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct ExcelProcedure {
     pub patient_temp_id: String,
     pub fund_temp_id: Option<String>,
@@ -162,6 +165,7 @@ pub struct ExcelProcedure {
 /// name lives on the enclosing [`SkippedRow`], so sheet-related variants do
 /// not repeat it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 #[serde(tag = "code")]
 pub enum SkipReason {
     /// EXI-020 — the sheet row has fewer columns than the layout requires.
@@ -226,6 +230,7 @@ impl SkipReason {
 
 /// Information about a skipped row during parsing
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct SkippedRow {
     pub sheet: String,
     pub row_number: u32,
@@ -234,6 +239,7 @@ pub struct SkippedRow {
 
 /// Parsing issues encountered during Excel file parsing
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct ParsingIssues {
     pub skipped_rows: Vec<SkippedRow>,
     pub missing_sheets: Vec<String>,

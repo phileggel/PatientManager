@@ -40,6 +40,7 @@ pub struct ReportGenerationRequest {
 
 /// Section 1 content. Either an empty-state confirmation, or a table with rows + total.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 #[serde(tag = "type", content = "data")]
 pub enum UnreconciledSection {
     /// FPR-032 — empty-state branch. No table, no total.
@@ -59,6 +60,7 @@ pub enum UnreconciledSection {
 
 /// Column-header strings for the unreconciled table (FPR-031). Fixed 4 columns.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct UnreconciledColumns {
     pub date: String,
     pub patient: String,
@@ -68,6 +70,7 @@ pub struct UnreconciledColumns {
 
 /// One row of the unreconciled table (FPR-031). All four cells are pre-formatted.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct UnreconciledRow {
     pub date: String,
     pub patient: String,
@@ -80,6 +83,7 @@ pub struct UnreconciledRow {
 /// Frontend joins each correction's columns into a single pre-formatted string
 /// before sending — the renderer treats `rows` as opaque text lines.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct CorrectionGroup {
     pub title: String,
     pub rows: Vec<String>,

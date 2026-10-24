@@ -9,6 +9,7 @@ use crate::use_cases::excel_import::excel_codec::{
 
 /// Parsed Excel file with metadata (total record count)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct ParseExcelResponse {
     pub patients: Vec<ExcelPatient>,
     pub funds: Vec<ExcelFund>,

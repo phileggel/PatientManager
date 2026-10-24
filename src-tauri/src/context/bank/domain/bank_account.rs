@@ -10,6 +10,7 @@ pub const CASH_ACCOUNT_ID: &str = "cash-account-default";
 /// Bank Account aggregate root
 /// Represents a bank account used for transfers
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct BankAccount {
     pub name: String,
     pub iban: Option<String>,

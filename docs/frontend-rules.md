@@ -154,7 +154,7 @@ Page-level / shell-level containers (single instance per route) MAY skip the rul
 
 **F14** — MUST log `error` when a critical error happens (not a validation — a real, specific frontend error).
 
-**F15** — MUST NOT use `console.log`. Always use `logger` from `@/infra/logger` (per F28's `infra/` bucket — the logger sink talks to a platform we depend on).
+**F15** — MUST NOT use `console.log`. Always use `logger` from `@/infra/logger` (per F28's `infra/` bucket — the logger sink talks to a platform we depend on). A text passed to `logger` is a literal (a constant tag, a message); a value goes in an object, whose texts the logger redacts except under the keys `logger.ts` allows (B44). The compiler refuses a computed text.
 
 ## i18n
 

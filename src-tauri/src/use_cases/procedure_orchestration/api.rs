@@ -15,6 +15,7 @@ use tauri::State;
 /// Raw healthcare procedure data from frontend (unvalidated)
 /// Used for updating an existing procedure with data from an external source
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct RawProcedure {
     pub id: String,
     pub patient_id: String,

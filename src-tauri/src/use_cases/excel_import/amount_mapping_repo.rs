@@ -13,6 +13,7 @@ pub struct ExcelAmountMapping {
 
 /// Request to save or update a single amount → procedure type mapping
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct SaveExcelAmountMappingRequest {
     pub amount: i64,
     pub procedure_type_id: String,

@@ -14,6 +14,7 @@ pub struct FundCandidate {
 /// Fund payment group candidate created from PDF reconciliation data
 /// Groups matched procedures by (fund_id + payment_date)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct FundPaymentGroupCandidate {
     /// Fund identifier from PDF (e.g., "CPAM n° 931")
     pub fund_label: String,

@@ -53,6 +53,7 @@ pub const CURRENCY_SUFFIX: &str = "€";
 /// Produced by the parser after normalization; used throughout the backend
 /// and sent to the frontend via Tauri/Specta.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct NormalizedPdfLine {
     /// Unique index of the line in the original PDF
     pub line_index: u32,
@@ -83,6 +84,7 @@ pub struct NormalizedPdfLine {
 
 /// A group of procedure lines paid by the same fund on the same date
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct PdfProcedureGroup {
     /// Fund short label from data lines (e.g., "CPAM n° 931")
     pub fund_label: String,
@@ -101,6 +103,7 @@ pub struct PdfProcedureGroup {
 
 /// Complete parse result for a PDF statement
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct PdfParseResult {
     /// All procedure groups found in the document
     pub groups: Vec<PdfProcedureGroup>,

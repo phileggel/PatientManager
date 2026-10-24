@@ -6,6 +6,7 @@ use specta::Type;
 
 /// Raw procedure type data from frontend (unvalidated)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct RawProcedureType {
     pub id: String,
     pub name: String,

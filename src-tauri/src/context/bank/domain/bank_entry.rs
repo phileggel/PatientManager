@@ -49,6 +49,7 @@ impl BankEntryType {
 /// Represents a bank transfer (FUND) or direct payment (CHECK/CREDIT_CARD/CASH).
 /// Links to fund payment groups or procedures are stored in junction tables.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct BankEntry {
     pub id: String,
     #[serde(serialize_with = "serialize_date")]

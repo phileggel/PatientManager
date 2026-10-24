@@ -34,7 +34,7 @@ export async function extractPdfText(
     return { success: false, error: result.error };
   }
 
-  logger.info(TAG, `Successfully extracted ${result.data.length} characters`);
+  logger.info(TAG, "Extracted PDF text", { characters: result.data.length });
   return { success: true, data: result.data };
 }
 
@@ -50,7 +50,7 @@ export async function parsePdfText(text: string): Promise<PdfParseResult> {
 
   const result = await commands.parsePdfText(text);
 
-  logger.info(TAG, `Parsed ${result.groups.length} groups`);
+  logger.info(TAG, "Parsed groups", { count: result.groups.length });
   return result;
 }
 
@@ -80,11 +80,11 @@ export async function reconcileAndCreateCandidates(
       m.type as string,
     ),
   ).length;
-  logger.info(
-    TAG,
-    `Created ${result.data.candidates.length} fund payment candidates from ${result.data.reconciliation.matches.length} total matches`,
-    { issues: issueCount },
-  );
+  logger.info(TAG, "Created fund payment candidates", {
+    candidates: result.data.candidates.length,
+    matches: result.data.reconciliation.matches.length,
+    issues: issueCount,
+  });
   return { success: true, data: result.data };
 }
 
@@ -127,10 +127,10 @@ export async function createFundPaymentWithAutoCorrections(
     return { success: false, error: result.error };
   }
 
-  logger.info(
-    TAG,
-    `Created ${result.data.length} fund payment groups with ${request.auto_corrections.length} auto-corrections`,
-  );
+  logger.info(TAG, "Created fund payment groups", {
+    groups: result.data.length,
+    autoCorrections: request.auto_corrections.length,
+  });
   return { success: true, data: result.data };
 }
 
@@ -154,7 +154,7 @@ export async function getUnreconciledProceduresInRange(
     return { success: false, error: result.error };
   }
 
-  logger.info(TAG, `Found ${result.data.length} unreconciled procedures in range`);
+  logger.info(TAG, "Found unreconciled procedures in range", { count: result.data.length });
   return { success: true, data: result.data };
 }
 
@@ -178,7 +178,7 @@ export async function generateReportPdf(
       logger.error(TAG, "Failed to generate report PDF", { code: result.error.code });
       return { success: false, error: result.error };
     }
-    logger.info(TAG, `Report PDF generated (${result.data.length} bytes)`);
+    logger.info(TAG, "Report PDF generated", { bytes: result.data.length });
     return { success: true, data: new Uint8Array(result.data) };
   } catch (e) {
     logger.error(TAG, "generateReportPdf exception", { error: e });

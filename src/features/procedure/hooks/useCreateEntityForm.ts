@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { logger } from "@/infra/logger";
 
@@ -38,6 +39,7 @@ export function useCreateEntityForm<TFields extends Record<string, unknown>, TFo
   onSubmit,
   onClose,
 }: UseCreateEntityFormOptions<TFields, TFormData>) {
+  const { t } = useTranslation("common");
   const [fields, setFields] = useState<TFields>(initialFields);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,7 +61,7 @@ export function useCreateEntityForm<TFields extends Record<string, unknown>, TFo
   }, []);
 
   const reset = useCallback(() => {
-    logger.debug(`${entityName} form: Resetting`);
+    logger.debug("Entity form: resetting", { kind: entityName });
     setFields(initialFields);
     setErrors({});
     setIsSubmitting(false);
@@ -73,7 +75,7 @@ export function useCreateEntityForm<TFields extends Record<string, unknown>, TFo
       try {
         const formData = toFormData(fields);
         // The form's values stay out of the log: they are a person's name and SSN (B44).
-        logger.info(`${entityName} form: Submitting`);
+        logger.info("Entity form: submitting", { kind: entityName });
         const refused = await onSubmit(formData);
         if (Object.keys(refused).length > 0) {
           setErrors(refused);
@@ -82,15 +84,14 @@ export function useCreateEntityForm<TFields extends Record<string, unknown>, TFo
         reset();
         onClose();
       } catch (error) {
-        logger.error(`${entityName} form: Submission failed`, { error });
-        setErrors({
-          submit: error instanceof Error ? error.message : `Failed to create ${entityName}`,
-        });
+        logger.error("Entity form: submission failed", { kind: entityName, error });
+        // The caught error's text may quote the form or a library: the user gets a translated message (#465)
+        setErrors({ submit: t("error.unknown") });
       } finally {
         setIsSubmitting(false);
       }
     },
-    [entityName, fields, toFormData, onSubmit, onClose, reset],
+    [entityName, fields, toFormData, onSubmit, onClose, reset, t],
   );
 
   const handleClose = useCallback(() => {

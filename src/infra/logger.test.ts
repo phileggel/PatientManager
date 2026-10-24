@@ -86,4 +86,17 @@ describe("logger (DEBT-059: no value of a logged object reaches the log file)", 
     expect(shown).toContain("Adding fund");
     expect(shown).not.toContain("Nom Prenom");
   });
+
+  it("ticket #465: a text computed at run time does not compile, a literal does", () => {
+    const name = String("Nom Prenom");
+    const userId = String("u-1");
+    const TAG = "[Test]";
+    // @ts-expect-error a template literal may carry what the user typed
+    logger.info(`created ${userId}`);
+    // @ts-expect-error a text read at run time may carry what the user typed
+    logger.info(TAG, name);
+    logger.info(TAG, "created", { name });
+
+    expect(written()).toBe('[Test] created {"name":"[redacted]"}');
+  });
 });

@@ -176,6 +176,7 @@ pub struct ReconcileAndCandidatesResponse {
 
 /// Request to create fund payment groups from validated candidates
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct CreateFundPaymentFromCandidatesRequest {
     /// Validated candidates to process
     pub candidates: Vec<FundPaymentCandidateFromPdf>,
@@ -183,6 +184,7 @@ pub struct CreateFundPaymentFromCandidatesRequest {
 
 /// Auto-correction action for an anomaly
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub enum AutoCorrection {
     /// Update procedure amount to PDF amount
     AmountMismatch {
@@ -237,6 +239,7 @@ pub enum AutoCorrection {
 
 /// Request to create fund payment groups with auto-corrections
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct CreateFundPaymentWithAutoCorrectionsRequest {
     /// Validated candidates to process
     pub candidates: Vec<FundPaymentCandidateFromPdf>,

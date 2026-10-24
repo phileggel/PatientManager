@@ -73,8 +73,20 @@ function format(...args: unknown[]): string {
     .join(" ");
 }
 
+/**
+ * A log call's arguments as the compiler accepts them: a text must be a literal
+ * the caller wrote (a constant tag, a message), never a value computed at run
+ * time, which could carry what the user typed (B44, #465). Data goes in an
+ * object, whose texts `redact` hides.
+ */
+type LogArgs<T extends unknown[]> = {
+  // `{}` fits a record keyed by `string` or by a template such as `id ${string}`,
+  // never one keyed by literals only
+  [K in keyof T]: T[K] extends string ? ({} extends Record<T[K], 1> ? never : T[K]) : T[K];
+};
+
 function createLogger(level: LogLevel) {
-  return <T extends unknown[]>(...args: T): void => {
+  return <const T extends unknown[]>(...args: LogArgs<T>): void => {
     const message = format(...args);
     const consoleMethod = level === "trace" ? "log" : level;
     console[consoleMethod](message);

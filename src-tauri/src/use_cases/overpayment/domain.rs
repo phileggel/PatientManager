@@ -5,6 +5,7 @@ use crate::context::procedure::ProcedureStatus;
 
 /// Request DTO for creating an overpayment refund (REF-050 through REF-160).
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct CreateOverpaymentRequest {
     pub source_procedure_id: String,
     /// ISO date string (YYYY-MM-DD) — validated against REF-030.
@@ -20,6 +21,7 @@ pub struct CreateOverpaymentRequest {
 /// Request DTO for cancelling an overpayment (REF-210).
 /// The frontend always passes the source_procedure_id as identifier.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct CancelOverpaymentRequest {
     pub source_procedure_id: String,
 }

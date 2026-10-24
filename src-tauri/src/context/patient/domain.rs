@@ -7,6 +7,7 @@ use crate::context::patient::error::PatientError;
 
 /// Patient aggregate root
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct Patient {
     pub id: String,
     pub is_anonymous: bool,

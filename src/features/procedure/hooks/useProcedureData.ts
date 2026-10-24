@@ -56,12 +56,12 @@ export function useProcedureData() {
   }, []);
 
   const deleteRow = useCallback(async (id: string): Promise<void> => {
-    logger.debug(TAG, `deleting row ${id}`);
+    logger.debug(TAG, "deleting row", { procedureId: id });
     const result = await gateway.deleteProcedure(id);
     if (!result.success) {
       // Throw the stable code; the consumer (ProcedurePage) owns the
       // user-facing message. Translating here would be discarded.
-      logger.error(TAG, `delete failed for ${id}`, { code: result.error.code });
+      logger.error(TAG, "delete failed", { procedureId: id, code: result.error.code });
       throw new Error(result.error.code);
     }
   }, []);

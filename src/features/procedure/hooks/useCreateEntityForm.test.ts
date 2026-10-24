@@ -130,7 +130,8 @@ describe("useCreateEntityForm", () => {
       } as unknown as React.FormEvent);
     });
 
-    expect(result.current.errors.submit).toBeTruthy();
+    // ticket #465: a translated message, never the caught error's own text
+    expect(result.current.errors.submit).toBe("An unexpected error occurred.");
     expect(onClose).not.toHaveBeenCalled();
     expect(result.current.isSubmitting).toBe(false);
   });
@@ -184,7 +185,7 @@ describe("useCreateEntityForm", () => {
       } as unknown as React.FormEvent);
     });
 
-    expect(info).toHaveBeenCalledWith("test form: Submitting");
+    expect(info).toHaveBeenCalledWith("Entity form: submitting", { kind: "test" });
     expect(JSON.stringify(info.mock.calls)).not.toContain("Nom Prenom");
   });
 });

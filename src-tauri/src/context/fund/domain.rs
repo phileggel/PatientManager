@@ -7,6 +7,7 @@ use crate::context::fund::error::{FundError, FundInvalidReason};
 
 /// Fund aggregate root
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct Fund {
     pub fund_identifier: String,
     pub name: String,

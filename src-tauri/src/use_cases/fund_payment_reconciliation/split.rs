@@ -10,6 +10,7 @@ use super::fund_pdf_codec::NormalizedPdfLine;
 /// One part of a split PDF line, as the card sent it: a procedure date as
 /// typed (YYYY-MM-DD, or empty) and its amount in thousandths of a euro.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(deny_unknown_fields)]
 pub struct SplitPart {
     pub procedure_date: String,
     pub billed_amount: Option<i64>,
