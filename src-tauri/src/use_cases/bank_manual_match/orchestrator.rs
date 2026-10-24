@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::context::bank::{
-    BankEntry, BankEntryLinkRepository, BankEntryService, BankEntryType, BankError, CASH_ACCOUNT_ID,
+    BankEntry, BankEntryLinkRepository, BankEntryService, BankEntryType, BankError,
 };
 use crate::context::fund::{
     FundError, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentService,
@@ -392,20 +392,16 @@ impl BankManualMatchOrchestrator {
         procedure_ids: Vec<String>,
     ) -> Result<BankManualMatchResult, BankManualMatchError> {
         // BSM-020, BSM-021 — the form's fields first; a cash payment's account
-        // is not asked of the form: it is the cash account, whatever is sent (BSM-026).
-        let is_cash = transfer_type == BankEntryType::PatientCash;
-        let asked_account = (!is_cash).then_some(bank_account_id.as_str());
-        let confirmed_date =
-            BankEntry::read_form(asked_account, &transfer_date, procedure_ids.len())?;
+        // is not asked of the form: the bank context records it on the cash account (BSM-026).
+        let confirmed_date = BankEntry::read_form(
+            transfer_type.asked_account(&bank_account_id),
+            &transfer_date,
+            procedure_ids.len(),
+        )?;
         let transfer_date = confirmed_date.format("%Y-%m-%d").to_string();
         transfer_type.ensure_not_refund_only_variant()?;
 
         let total_amount = self.compute_procedures_amount(&procedure_ids).await?;
-        let bank_account_id = if is_cash {
-            CASH_ACCOUNT_ID.to_string()
-        } else {
-            bank_account_id
-        };
 
         let transfer = self
             .bank_transfer_service
@@ -900,7 +896,7 @@ mod tests {
 
     use crate::context::bank::{
         BankEntryService, BankEntryType, SqliteBankAccountRepository,
-        SqliteBankEntryLinkRepository, SqliteBankEntryRepository,
+        SqliteBankEntryLinkRepository, SqliteBankEntryRepository, CASH_ACCOUNT_ID,
     };
     use crate::context::fund::{
         FundPaymentGroupStatus, FundPaymentService, SqliteFundPaymentRepository,

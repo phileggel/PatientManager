@@ -30,7 +30,8 @@ impl BankEntryService {
         }
     }
 
-    /// Create a new bank transfer
+    /// Create a new bank transfer — a cash payment on the cash account,
+    /// whatever account is sent (BSM-026).
     pub async fn create_transfer(
         &self,
         transfer_date: String,
@@ -39,6 +40,7 @@ impl BankEntryService {
         bank_account_id: String,
         is_silent: bool,
     ) -> Result<BankEntry, BankError> {
+        let bank_account_id = transfer_type.account_for(bank_account_id);
         // Fetch and validate bank account exists
         let bank_account = self
             .account_repository
@@ -173,7 +175,7 @@ impl BankEntryService {
 
 #[cfg(test)]
 mod tests {
-    use crate::context::bank::BankAccount;
+    use crate::context::bank::{BankAccount, CASH_ACCOUNT_ID};
 
     use super::*;
     use anyhow::anyhow;
@@ -217,12 +219,12 @@ mod tests {
             Ok(None)
         }
 
-        async fn read_account(&self, _id: &str) -> anyhow::Result<Option<BankAccount>> {
+        async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
             Ok(Some(BankAccount::restore(
-                "test-id".to_string(),
+                id.to_string(),
                 "Test Account".to_string(),
                 None,
             )))
@@ -351,6 +353,27 @@ mod tests {
         assert!(result.is_ok());
         let transfer = result.unwrap();
         assert_eq!(transfer.amount, 1500000);
+    }
+
+    // BSM-026 — a cash payment is recorded on the cash account, whatever is sent.
+    #[tokio::test]
+    async fn test_create_transfer_cash_sent_another_account_records_the_cash_account() {
+        let repo = Arc::new(MockBankEntryRepository { should_fail: false });
+        let account_repo = Arc::new(MockBankAccountRepository { should_fail: false });
+        let service = BankEntryService::new(repo, account_repo, Arc::new(EventBus::new()));
+
+        let entry = service
+            .create_transfer(
+                "2026-02-15".to_string(),
+                20_000,
+                BankEntryType::PatientCash,
+                "acc-123".to_string(),
+                false,
+            )
+            .await
+            .expect("a cash payment is created");
+
+        assert_eq!(entry.bank_account.id, CASH_ACCOUNT_ID);
     }
 
     #[tokio::test]

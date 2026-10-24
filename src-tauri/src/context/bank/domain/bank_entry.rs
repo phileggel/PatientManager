@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
-use super::bank_account::BankAccount;
+use super::bank_account::{BankAccount, CASH_ACCOUNT_ID};
 use crate::context::bank::error::{BankEntryInvalidReason, BankError};
 
 /// Payment type for bank transfers
@@ -32,6 +32,22 @@ impl BankEntryType {
             self,
             Self::PatientCheck | Self::PatientCreditCard | Self::PatientCash
         )
+    }
+
+    /// BSM-026 — the account the form is asked for: none for a cash payment,
+    /// whose account is not the user's choice.
+    pub fn asked_account(self, sent: &str) -> Option<&str> {
+        (self != Self::PatientCash).then_some(sent)
+    }
+
+    /// BSM-026 — the account an entry of this type is recorded on: a cash
+    /// payment's is the cash account, whatever is sent; any other's is the one sent.
+    pub fn account_for(self, sent: String) -> String {
+        if self == Self::PatientCash {
+            CASH_ACCOUNT_ID.to_string()
+        } else {
+            sent
+        }
     }
 
     /// REF-080 — Reject `FundOutgoingWire`: it is exclusively created via the
@@ -313,6 +329,24 @@ mod tests {
         ] {
             assert_eq!(ty.is_patient_payment(), expected, "{ty:?}");
         }
+    }
+
+    #[test]
+    fn test_account_for_records_a_cash_payment_on_the_cash_account_only() {
+        for ty in [
+            BankEntryType::FundWire,
+            BankEntryType::PatientCheck,
+            BankEntryType::PatientCreditCard,
+            BankEntryType::FundOutgoingWire,
+        ] {
+            assert_eq!(ty.account_for("acc-1".into()), "acc-1", "{ty:?}");
+            assert_eq!(ty.asked_account("acc-1"), Some("acc-1"), "{ty:?}");
+        }
+        assert_eq!(
+            BankEntryType::PatientCash.account_for("acc-1".into()),
+            CASH_ACCOUNT_ID
+        );
+        assert_eq!(BankEntryType::PatientCash.asked_account("acc-1"), None);
     }
 
     #[test]
