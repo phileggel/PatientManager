@@ -114,8 +114,9 @@ impl BankAccountService {
     }
 
     /// Update an existing account — fails with `ProtectedCashAccount` for the default cash account (BAC-051),
-    /// `BankAccountNotFound` for an unknown or deleted one (BAC-030), and
-    /// `BankAccountNameAlreadyUsed` for a taken name (BAC-013).
+    /// `BankAccountNotFound` for an unknown or deleted one (BAC-030),
+    /// `BankAccountNameAlreadyUsed` for a taken name (BAC-013), and
+    /// `IbanAlreadyUsed` for a taken IBAN (BAC-014).
     pub async fn update_account(
         &self,
         id: String,

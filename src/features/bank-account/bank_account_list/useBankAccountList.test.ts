@@ -73,6 +73,18 @@ describe("useBankAccountList", () => {
     await expect(result.current.deleteBankAccount("acc-1")).rejects.toThrow(/database error/i);
   });
 
+  it("ticket #511: a failure that is not a refusal throws a generic message (BAC-044)", async () => {
+    mockGetCashId.mockResolvedValue({ success: true, data: "acc-cash" });
+    mockDelete.mockRejectedValue(new Error("ipc: connection reset"));
+
+    const { result } = renderHook(() => useBankAccountList());
+    await act(async () => {});
+
+    await expect(result.current.deleteBankAccount("acc-1")).rejects.toThrow(
+      "An unexpected error occurred. Please try again.",
+    );
+  });
+
   it("ticket #448: a refusal throws the translated reason (BAC-043)", async () => {
     mockGetCashId.mockResolvedValue({ success: true, data: "acc-cash" });
     mockDelete.mockResolvedValue({
@@ -84,7 +96,7 @@ describe("useBankAccountList", () => {
     await act(async () => {});
 
     await expect(result.current.deleteBankAccount("acc-1")).rejects.toThrow(
-      "This account holds transfers and cannot be deleted",
+      "This account holds entries and cannot be deleted",
     );
   });
 });

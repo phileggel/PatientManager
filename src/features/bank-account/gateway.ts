@@ -1,5 +1,4 @@
 import { type BankAccount, type BankError, commands } from "@/bindings";
-import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
 
@@ -13,12 +12,6 @@ export async function getCashBankAccountId(): Promise<ServiceResult<string>> {
     logger.error("[bank-account] getCashBankAccountId exception", { error });
     return { success: false, error: String(error) };
   }
-}
-
-export function readAllBankAccounts(): ServiceResult<BankAccount[]> {
-  logger.debug("Fetching all bank accounts from store");
-  const bankAccounts = useCacheStore.getState().bankAccounts;
-  return { success: true, data: bankAccounts };
 }
 
 export async function createBankAccount(

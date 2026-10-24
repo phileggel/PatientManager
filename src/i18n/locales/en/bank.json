@@ -265,7 +265,8 @@
         "deleted": "Account \"{{name}}\" deleted successfully"
       },
       "error": {
-        "delete": "Failed to delete account: {{error}}"
+        "delete": "Failed to delete account: {{error}}",
+        "unknown": "An unexpected error occurred. Please try again."
       }
     },
     "add": {
@@ -302,7 +303,7 @@
     "iban_already_used": "IBAN already used by another bank account",
     "bank_account_not_found": "Bank account not found (id: {{id}})",
     "protected_cash_account": "The cash account is protected and cannot be modified or deleted",
-    "bank_account_holds_bank_entries": "This account holds transfers and cannot be deleted",
+    "bank_account_holds_bank_entries": "This account holds entries and cannot be deleted",
     "transfer_not_found": "Bank transfer not found (id: {{id}})",
     "wrong_transfer_type": "This transfer's type does not match the requested operation",
     "payment_group_not_found": "Fund payment group not found (id: {{id}})",

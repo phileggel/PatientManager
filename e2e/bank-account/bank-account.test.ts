@@ -1,6 +1,6 @@
 import { browser, $ } from "@wdio/globals";
 import assert from "node:assert";
-import { readBankAccountIdByName, setReactInputValue } from "../helpers/seed";
+import { readBankAccountIdByName, seedBankAccount, setReactInputValue } from "../helpers/seed";
 import { openManagementPage } from "../helpers/navigation";
 
 // Skipped commands (no UI surface):
@@ -10,6 +10,7 @@ import { openManagementPage } from "../helpers/navigation";
 const SEED_NAME = "E2E Smoke Seed";
 const CREATE_NAME = "E2E Smoke Create";
 const UPDATE_NAME = "E2E Smoke Updated";
+const DELETE_NAME = "E2E Smoke Delete";
 
 async function navigateToBankAccounts(): Promise<void> {
   await openManagementPage("#mgmt-card-bank-accounts", "#bank-account-search");
@@ -85,5 +86,21 @@ describe("bank-account smoke", () => {
     const updatedRow = await $("#bank-account-list").$(`td=${UPDATE_NAME}`);
     await updatedRow.waitForExist({ timeout: 10000 });
     assert.ok(await updatedRow.isExisting(), "Updated name should be visible in list");
+  });
+
+  it("delete_bank_account: a confirmed deletion removes the account from the list (BAC-041, BAC-042)", async () => {
+    await seedBankAccount(DELETE_NAME);
+    const row = await $("#bank-account-list").$(`td=${DELETE_NAME}`);
+
+    const accountId = await readBankAccountIdByName(DELETE_NAME);
+    const deleteBtn = await $(`#bank-account-delete-${accountId}`);
+    await deleteBtn.waitForClickable({ timeout: 8000 });
+    await deleteBtn.click();
+    const confirmBtn = await $("#bank-account-delete-confirmation-confirm");
+    await confirmBtn.waitForClickable({ timeout: 5000 });
+    await confirmBtn.click();
+
+    await row.waitForExist({ timeout: 10000, reverse: true });
+    assert.strictEqual(await row.isExisting(), false, "The deleted account should leave the list");
   });
 });

@@ -127,6 +127,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                         }}
                       />
                       <IconButton
+                        id={account.id ? `bank-account-delete-${account.id}` : undefined}
                         variant="danger"
                         size="sm"
                         shape="round"
@@ -153,7 +154,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
-        id="delete-bank-account-confirmation"
+        id="bank-account-delete-confirmation"
         isOpen={!!deleteData}
         onCancel={() => setDeleteData(null)}
         onConfirm={async () => {

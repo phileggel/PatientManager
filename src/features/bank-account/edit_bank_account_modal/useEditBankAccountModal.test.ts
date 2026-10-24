@@ -103,7 +103,8 @@ describe("useEditBankAccountModal", () => {
     });
 
     expect(onClose).toHaveBeenCalled();
-    expect(mockToast).toHaveBeenCalledWith("success", expect.any(String));
+    // BAC-032 — the message names the account.
+    expect(mockToast).toHaveBeenCalledWith("success", expect.stringContaining("Main Account"));
   });
 
   it("shows error toast and keeps modal open on backend error", async () => {

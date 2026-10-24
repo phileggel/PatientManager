@@ -32,7 +32,7 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-012 — IBAN stored without spaces (backend)**: An IBAN is stored without its spaces, and compared in that form.
 
-**BAC-013 — Name uniqueness (backend)**: Two accounts that are not deleted, the cash account included under its stored name, cannot share a name; names are compared exactly, case included, once their surrounding spaces are dropped. Creating or editing an account with such a name is rejected with a specific error, which the user reads as its own message, and nothing is saved (owner, 2026-10-24, #503). A deleted account's name can be used again.
+**BAC-013 — Name uniqueness (frontend + backend)**: Two accounts that are not deleted, the cash account included under its stored name, cannot share a name; names are compared exactly, case included, once their surrounding spaces are dropped. Creating or editing an account with such a name is rejected with a specific error, which the user reads as its own message, and nothing is saved (owner, 2026-10-24, #503). A deleted account's name can be used again.
 
 **BAC-014 — IBAN uniqueness (backend)**: Two accounts cannot share the same IBAN. The constraint applies across all accounts, deleted or not, so that account resolution by IBAN (used by the bank-statement import flow, see BAS-010) stays unambiguous even after deletion. Attempting to create or edit an account with an IBAN already used by another account — deleted or not — is rejected with a specific error.
 
@@ -62,15 +62,15 @@ An account of the practice on which bank entries are recorded.
 
 ### Deletion (040–049)
 
-**BAC-040 — Confirmation (frontend)**: Deleting an account first asks the user to confirm, naming it.
+**BAC-040 — Confirmation (frontend)**: Deleting an account first asks the user to confirm, naming it; cancelling deletes nothing.
 
 **BAC-041 — Soft-delete (backend)**: Deletion marks the account as deleted: it is kept, hidden from the list, and its bank statement labels are deleted (BAS-046). Deleting an account that is unknown or already deleted is rejected with a specific error.
 
 **BAC-042 — Deleted (frontend)**: Once deleted, the account leaves the list and a message names it.
 
-**BAC-043 — An account holding bank entries is kept (frontend + backend)**: The user can ask to delete an account on which a bank entry is recorded; once they confirm, the deletion is refused, a message says why, and the account stays in the list (owner, 2026-10-23, #448).
+**BAC-043 — An account holding bank entries is kept (frontend + backend)**: The user can ask to delete an account on which a bank entry is recorded; once they confirm, the deletion is refused with a specific error, which the user reads as BAC-044 says (owner, 2026-10-23, #448).
 
-**BAC-044 — A refused deletion keeps its dialog (frontend)**: When a deletion is refused or fails, the confirmation dialog stays open and a message gives the reason.
+**BAC-044 — A refused deletion (frontend)**: When a deletion is refused or fails, the confirmation dialog closes and nothing is deleted; a message gives the reason of a refusal (BAC-041, BAC-043, BAC-051), and a generic one for any other failure (owner, 2026-10-24, #511).
 
 ### The cash account (050–059)
 
@@ -113,7 +113,8 @@ An account of the practice on which bank entries are recorded.
 [Account saved] → the list shows it
 
 [User deletes an account] → confirms
-  → a bank entry is on it? ── yes → refused, the account stays (BAC-043)
+  → a bank entry is on it? ── yes → refused: the dialog closes, a message says why,
+          │                         the account stays (BAC-043, BAC-044)
           │ no
           ▼
 [Account soft-deleted] → it leaves the list
@@ -150,6 +151,7 @@ A page: the account list with its search, and a side panel with the add form. Ed
 
 - [ ] Is the user told, after the upgrade, which accounts BAC-060 restored, BAC-061 renamed or BAC-062 left without an IBAN? An account without one is no longer found by a PDF import (BAS-010).
 - [ ] Should the cash account's stored name (« Caisse ») keep counting as taken (BAC-013), though the cash account shows a translated name (BAC-052) and the user may never have seen it?
+- [ ] Should a taken IBAN's reason (BAC-014) show under the IBAN field? Today every refused creation's reason shows under the name field (BAC-022).
 - [ ] When a form breaks several rules at once, which reason is given? Today a taken IBAN is reported before the name's refusals.
 - [ ] What does the user see when the accounts cannot be loaded? Today the list stays empty, with no message.
 - [ ] In what order is the list shown before any sort (BAC-071)? Today the order is not set. And when sorting, do accounts without an IBAN come first, and does case count? Today they do, and it does.

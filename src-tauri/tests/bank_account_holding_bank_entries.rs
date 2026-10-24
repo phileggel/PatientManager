@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use patient_manager_app::{
     context::bank::{
-        BankAccountService, BankEntryRepository, BankError, SqliteBankAccountRepository,
-        SqliteBankEntryRepository,
+        BankAccountService, BankEntryRepository, BankEntryService, BankError,
+        SqliteBankAccountRepository, SqliteBankEntryRepository,
     },
     shared::event_bus::EventBus,
 };
@@ -112,13 +112,30 @@ async fn test_migration_deleted_account_holding_a_bank_entry_is_restored() {
     .await
     .unwrap();
     let entries = SqliteBankEntryRepository::new(pool.clone());
-    assert!(entries.read_transfer("t-1").await.unwrap().is_none());
+    let before = entries.read_transfer("t-1").await.unwrap();
+    assert!(
+        before.is_none(),
+        "the entry of a deleted account is not read"
+    );
 
     sqlx::raw_sql(MIGRATION).execute(&pool).await.unwrap();
 
     assert_eq!(account(&pool, "acc-held").await, ("Held".into(), false));
     assert_eq!(account(&pool, "acc-empty").await, ("Empty".into(), true));
-    assert!(entries.read_transfer("t-1").await.unwrap().is_some());
+    let listed: Vec<String> = service(&pool)
+        .read_all_accounts()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|a| a.id)
+        .collect();
+    assert!(listed.contains(&"acc-held".to_string()), "{listed:?}");
+    assert!(!listed.contains(&"acc-empty".to_string()), "{listed:?}");
+    let after = entries.read_transfer("t-1").await.unwrap();
+    assert!(
+        after.is_some(),
+        "the restored account's entry is read again"
+    );
     let label_deleted: bool =
         sqlx::query_scalar("SELECT is_deleted FROM bank_fund_label_mapping WHERE id = 'label-1'")
             .fetch_one(&pool)
@@ -218,4 +235,38 @@ async fn test_migration_restored_account_with_a_taken_iban_comes_back_without_it
                 .unwrap();
         assert_eq!(iban.as_deref(), expected, "{id}");
     }
+}
+
+fn entry_service(pool: &SqlitePool) -> BankEntryService {
+    BankEntryService::new(
+        Arc::new(SqliteBankEntryRepository::new(pool.clone())),
+        Arc::new(SqliteBankAccountRepository::new(pool.clone())),
+        Arc::new(EventBus::new()),
+    )
+}
+
+// BAC-060 — a restored account's entries can be edited and deleted again.
+#[tokio::test]
+async fn test_migration_restored_account_entry_can_be_edited_and_deleted() {
+    let pool = make_pool().await;
+    insert_account(&pool, "acc-held", "Held", true).await;
+    insert_transfer(&pool, "t-1", "acc-held").await;
+    sqlx::raw_sql(MIGRATION).execute(&pool).await.unwrap();
+    let entries = entry_service(&pool);
+
+    let mut entry = entries
+        .read_transfer("t-1")
+        .await
+        .unwrap()
+        .expect("the restored account's entry");
+    entry.amount = 150_000;
+    let edited = entries.update_transfer(entry).await.unwrap();
+    entries.delete_transfer("t-1").await.unwrap();
+
+    assert_eq!(edited.amount, 150_000);
+    let gone = SqliteBankEntryRepository::new(pool.clone())
+        .read_transfer("t-1")
+        .await
+        .unwrap();
+    assert!(gone.is_none());
 }

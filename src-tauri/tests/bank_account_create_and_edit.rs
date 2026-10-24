@@ -1,13 +1,14 @@
 //! Ticket #503 — two accounts that are not deleted never share a name
 //! (BAC-013): a create or an edit to a taken name is refused with its own
 //! error and saves nothing, while a deleted account's name can be used again;
-//! an unknown or deleted account is not edited (BAC-030).
+//! an unknown or deleted account is not edited (BAC-030). An IBAN typed with
+//! spaces is the same IBAN (BAC-012), and each change is announced (BAC-015).
 
 use std::sync::Arc;
 
 use patient_manager_app::{
     context::bank::{BankAccountService, BankError, SqliteBankAccountRepository},
-    shared::event_bus::EventBus,
+    shared::event_bus::{BankAccountUpdated, EventBus},
 };
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
@@ -198,4 +199,52 @@ async fn test_create_account_with_the_cash_account_stored_name_is_refused() {
         matches!(err, BankError::BankAccountNameAlreadyUsed),
         "{err:?}"
     );
+}
+
+// BAC-012 — an IBAN is compared once its spaces are removed, so the same IBAN
+// typed with spaces is taken (BAC-014).
+#[tokio::test]
+async fn test_create_account_with_a_taken_iban_typed_with_spaces_is_refused() {
+    let pool = make_pool().await;
+    let accounts = service(&pool);
+    accounts
+        .create_account("Main".into(), Some("FR7612345678".into()))
+        .await
+        .expect("the first account is created");
+
+    let err = accounts
+        .create_account("Other".into(), Some("FR76 1234 5678".into()))
+        .await
+        .expect_err("the IBAN is taken");
+
+    assert!(matches!(err, BankError::IbanAlreadyUsed), "{err:?}");
+}
+
+// BAC-015 — a create, an edit and a deletion each announce the change.
+#[tokio::test]
+async fn test_each_account_change_publishes_bank_account_updated() {
+    let pool = make_pool().await;
+    let bus = Arc::new(EventBus::new());
+    let accounts = BankAccountService::new(
+        Arc::new(SqliteBankAccountRepository::new(pool.clone())),
+        bus.clone(),
+    );
+    let mut updates = bus.subscribe::<BankAccountUpdated>().expect("subscribe");
+
+    let created = accounts
+        .create_account("Main".into(), None)
+        .await
+        .expect("created");
+    let after_create = updates.try_recv();
+    accounts
+        .update_account(created.id.clone(), "Renamed".into(), None)
+        .await
+        .expect("edited");
+    let after_update = updates.try_recv();
+    accounts.delete_account(&created.id).await.expect("deleted");
+    let after_delete = updates.try_recv();
+
+    assert!(after_create.is_ok(), "create: {after_create:?}");
+    assert!(after_update.is_ok(), "update: {after_update:?}");
+    assert!(after_delete.is_ok(), "delete: {after_delete:?}");
 }

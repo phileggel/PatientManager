@@ -24,41 +24,6 @@ vi.mock("../edit_bank_account_modal/EditBankAccountModal", () => ({
     ) : null,
 }));
 
-interface ConfirmationDialogProps {
-  isOpen: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  variant?: string;
-}
-
-vi.mock("@ui/components", async () => {
-  const actual = await vi.importActual("@ui/components");
-  return {
-    ...actual,
-    ConfirmationDialog: ({
-      isOpen,
-      onConfirm,
-      onCancel,
-      title,
-      confirmLabel = "Delete",
-    }: ConfirmationDialogProps) =>
-      isOpen ? (
-        <div data-testid="confirmation-dialog">
-          <h2>{title}</h2>
-          <button type="button" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-        </div>
-      ) : null,
-  };
-});
-
 import { BankAccountList } from "./BankAccountList";
 
 describe("BankAccountList", () => {
@@ -284,5 +249,84 @@ describe("BankAccountList", () => {
     }
 
     expect(screen.queryByText("Edit Bank Account Modal Mock")).not.toBeInTheDocument();
+  });
+});
+
+describe("BankAccountList — deletion and the cash account row (BAC-040 to BAC-044, BAC-053)", () => {
+  const mainRow = { rowId: "row-1", id: "acc-123", name: "Main Account" };
+
+  function listWith(deleteBankAccount: () => Promise<void>, cashAccountId: string | null = null) {
+    vi.mocked(useBankAccountList).mockReturnValue({
+      bankAccountRows: [mainRow],
+      accounts: [{ id: "acc-123", name: "Main Account", iban: null }],
+      loading: false,
+      cashAccountId,
+      deleteBankAccount,
+    });
+  }
+
+  async function askToDelete(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: /delete account main account/i }));
+  }
+
+  it("names the account in the confirmation (BAC-040)", async () => {
+    const user = userEvent.setup();
+    listWith(vi.fn());
+    render(<BankAccountList searchTerm="" />);
+
+    await askToDelete(user);
+
+    expect(screen.getByText("Are you sure you want to delete Main Account?")).toBeInTheDocument();
+  });
+
+  it("cancelling the confirmation deletes nothing (BAC-040)", async () => {
+    const user = userEvent.setup();
+    const remove = vi.fn();
+    listWith(remove);
+    render(<BankAccountList searchTerm="" />);
+
+    await askToDelete(user);
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(remove).not.toHaveBeenCalled();
+    expect(screen.queryByText("Delete Bank Account")).not.toBeInTheDocument();
+  });
+
+  it("a confirmed deletion says so and closes the dialog (BAC-042)", async () => {
+    const user = userEvent.setup();
+    const show = vi.spyOn(toastService, "show").mockImplementation(() => {});
+    listWith(vi.fn().mockResolvedValue(undefined));
+    render(<BankAccountList searchTerm="" />);
+
+    await askToDelete(user);
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(show).toHaveBeenCalledWith("success", 'Account "Main Account" deleted successfully');
+    expect(screen.queryByText("Delete Bank Account")).not.toBeInTheDocument();
+  });
+
+  it("a refused deletion closes the dialog and keeps the account listed (BAC-043, BAC-044)", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(toastService, "show").mockImplementation(() => {});
+    listWith(vi.fn().mockRejectedValue(new Error("Held")));
+    render(<BankAccountList searchTerm="" />);
+
+    await askToDelete(user);
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(screen.queryByText("Delete Bank Account")).not.toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Main Account" })).toBeInTheDocument();
+  });
+
+  it("the cash account row says it is managed automatically (BAC-053)", () => {
+    listWith(vi.fn(), "acc-123");
+    render(<BankAccountList searchTerm="" />);
+
+    const row = screen.getByRole("cell", { name: "Main Account" }).closest("tr");
+
+    expect(row).toHaveAttribute(
+      "title",
+      "The cash account is managed automatically and cannot be modified",
+    );
   });
 });

@@ -98,7 +98,7 @@ pub async fn update_bank_account(
 }
 
 /// Tauri command: Returns the ID of the default cash account.
-/// Used by the frontend to auto-assign the account for CASH transfers (R13).
+/// Used by the frontend to auto-assign the account for CASH entries (BAC-050, BSM-026).
 #[tauri::command]
 #[specta::specta]
 pub fn get_cash_bank_account_id() -> &'static str {

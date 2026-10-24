@@ -99,6 +99,12 @@ describe("useSortBankAccountList — search filter", () => {
     expect(result.current.sortedAndFilteredAccounts[0]?.name).toBe("Beta Corp");
   });
 
+  it("an IBAN typed with spaces does not match the stored one (BAC-070)", () => {
+    const { result } = renderHook(() => useSortBankAccountList(rows, "DE 00222"));
+
+    expect(result.current.sortedAndFilteredAccounts).toHaveLength(0);
+  });
+
   it("null iban does not match an iban search term", () => {
     const { result } = renderHook(() => useSortBankAccountList(rows, "gamma-iban"));
 

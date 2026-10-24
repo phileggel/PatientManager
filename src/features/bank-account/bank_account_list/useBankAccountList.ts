@@ -37,8 +37,15 @@ export function useBankAccountList() {
     [accounts],
   );
 
+  // BAC-044 — a refusal gives its reason; any other failure a generic message.
   const deleteBankAccountHandler = async (id: string) => {
-    const result = await deleteBankAccount(id);
+    let result: Awaited<ReturnType<typeof deleteBankAccount>>;
+    try {
+      result = await deleteBankAccount(id);
+    } catch (error) {
+      logger.error("[useBankAccountList] deleteBankAccount threw", { error });
+      throw new Error(t("account.list.error.unknown"));
+    }
     if (!result.success) {
       const { key, params } = formatBankError(result.error);
       throw new Error(t(key, params));
