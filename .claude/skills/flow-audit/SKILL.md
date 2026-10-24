@@ -66,8 +66,8 @@ batch-audit --title "Batch <dates>"` first if it has none): `## Measured`, each 
   beside the previous one (`35, was 19`), a "Reading" paragraph of three sentences — what
   the figures say, not what was done — then `## Not in the records`.
 - Each settled flow issue: a comment naming the pull request that settled it, then closed.
-- Each proposal: a `flow` issue from its form (`docs/workflow.md` § 2), Decision left
-  for the owner; the audit comment links them.
+- At most the three strongest proposals, a `flow` issue each from its form (§ 12),
+  Decision left for the owner, linked from the audit; the rest stay in its text.
 - Then empty `logs/usage.log` (local, never committed): its figures are recorded.
 
 Reply with the audit's link and the issues filed. Nothing is committed, no figure is

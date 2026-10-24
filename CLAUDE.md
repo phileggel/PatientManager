@@ -39,7 +39,7 @@ A question only the human can answer is never guessed: headless, it goes on the 
     **Design**   — none, validated, or needed (then the mocks come before anything else)
     **Touching** — the paths, so the reviewer lanes are known before the diff exists
 
-**Closing brief** — the last message (and the PR body's first lines): (1) what changed for whoever reads this next — for `feat` / `fix`, what a user notices, or "nothing — internal"; otherwise what can now be done or trusted; (2) what the project accumulated — tests and coverage moved, or the guarantee a harness change buys and how we know it can fail. What is still owed becomes a `task` issue.
+**Closing brief** — the last message (and the PR body's first lines): (1) what changed for whoever reads this next — for `feat` / `fix`, what a user notices, or "nothing — internal"; otherwise what can now be done or trusted; (2) what the project accumulated — tests and coverage moved, or the guarantee a harness change buys and how we know it can fail. What is still owed is folded or filed (`docs/workflow.md` § 2).
 
 ## Where things are
 

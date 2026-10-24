@@ -237,6 +237,53 @@ class MeasureOpenTest(unittest.TestCase):
         self.assertEqual(len(flow_audit.dependabot_pull_requests(pulls)), 1)
 
 
+class MeasureBacklogTest(unittest.TestCase):
+    """Ticket #492: the open backlog counted by size, against a ceiling only the owner raises."""
+
+    def issue(self, created, closed=None, labels=(), subs=()):
+        return {
+            "createdAt": created,
+            "closedAt": closed,
+            "labels": list(labels),
+            "subIssues": [{"createdAt": c, "closedAt": d} for c, d in subs],
+        }
+
+    def test_ticket_492_each_open_ticket_weighs_its_size_and_an_unsized_one_an_m(self):
+        issues = [
+            self.issue("2026-10-01T00:00:00Z", labels=["task", "size:S"]),
+            self.issue("2026-10-01T00:00:00Z", labels=["bug", "size:M"]),
+            self.issue("2026-10-01T00:00:00Z", labels=["feature", "size:L"]),
+            self.issue("2026-10-01T00:00:00Z", labels=["task", "size:XL"]),
+            self.issue("2026-10-01T00:00:00Z", labels=["flow"]),
+            self.issue("2026-10-01T00:00:00Z", labels=["batch-audit"]),
+            self.issue("2026-10-01T00:00:00Z", "2026-10-02T00:00:00Z", labels=["size:L"]),
+        ]
+        backlog = flow_audit.measure_backlog(issues, SINCE, UNTIL)
+        self.assertEqual((backlog["at_start"], backlog["at_end"]), (17, 17))
+
+    def test_ticket_492_a_parent_weighs_nothing_while_a_slice_is_open(self):
+        parent = self.issue(
+            "2026-10-01T00:00:00Z",
+            labels=["size:XL"],
+            subs=[("2026-10-01T00:00:00Z", "2026-10-04T00:00:00Z")],
+        )
+        backlog = flow_audit.measure_backlog([parent], SINCE, UNTIL)
+        self.assertEqual((backlog["at_start"], backlog["at_end"]), (0, 8))
+
+    def test_ticket_492_only_the_owner_s_additions_raise_the_ceiling(self):
+        issues = [
+            self.issue("2026-10-01T00:00:00Z", labels=["size:M"]),
+            self.issue("2026-10-04T00:00:00Z", labels=["size:L", "owner-asked"]),  # asked during the batch
+            self.issue("2026-10-04T00:00:00Z", labels=["size:S"]),  # the agent's filing
+            self.issue("2026-10-01T00:00:00Z", labels=["size:XL", "owner-asked"]),  # asked before it
+        ]
+        backlog = flow_audit.measure_backlog(issues, SINCE, UNTIL)
+        self.assertEqual(backlog["at_start"], 10)
+        self.assertEqual(backlog["ceiling"], 14)
+        self.assertEqual(backlog["at_end"], 15)
+        self.assertFalse(backlog["within_ceiling"])
+
+
 class QueueFiguresTest(unittest.TestCase):
     """FLOW-045: how long the batch took."""
 

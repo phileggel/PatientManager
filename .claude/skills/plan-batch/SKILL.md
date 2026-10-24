@@ -43,8 +43,9 @@ propose its first slice as a sub-issue.
 ## Step 4 — Propose
 
 1. **In flight** — open pull requests and their checks. The proposal's size beside what
-   the last batches merged, where it stops; a batch with no feature or bug ends without
-   a release (§ 3), say so.
+   the last batches merged, where it stops; it closes at least the weight the last batch
+   opened, about a third in tasks (§ 2), or says why not, beside the backlog's ceiling
+   (`just flow-audit`, § 12); a batch with no feature or bug ends without a release, say so.
 2. **Proposed batch** — in the order of `docs/workflow.md` § 2: each line `#123`, a
    concise summary, at most a clause on why it sits there; where two ordering rules
    disagree, one line says so. Nothing waiting on the owner is in it.

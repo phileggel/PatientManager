@@ -4,7 +4,7 @@
 Measures how work moved between two batch ends (releases or `batch/<date>` tags) — the pull requests merged, how long each
 took from opening to merging, the CI rounds and what failed, how long each workflow
 runs, how long the batch took, how many issues and Dependabot pull requests
-were open at its start and at its end — and prints them as one JSON document, beside the
+were open at its start and at its end, the backlog by size against its ceiling — and prints them as one JSON document, beside the
 same figures for the batch before when asked. It also reads the repository itself:
 which tools the usage log saw and which it never did, the paths the documents name that
 no longer exist, and the length of the documents and prompts the agent works from,
@@ -70,6 +70,12 @@ PATH_ROOTS = ("src/", "src-tauri/", "docs/", "scripts/", "e2e/", ".github/", ".c
 LOGGERS = ("usage_log.py", "usage-log.sh")
 # A run that ended without passing; a cancelled one is counted apart — nothing ran to its end.
 FAILED = ("failure", "timed_out", "startup_failure")
+# Ticket #492: the backlog counted by size; a ticket with none counts as an M.
+SIZE_WEIGHTS = {"size:S": 1, "size:M": 2, "size:L": 4, "size:XL": 8}
+UNSIZED_WEIGHT = 2
+# What raises the ceiling: a ticket the owner asked to add. The batch's audit issue is no work.
+OWNER_ASKED = "owner-asked"
+NOT_WORK = "batch-audit"
 PULL_REQUEST_LIMIT = 500
 ISSUE_LIMIT = 500
 RUN_LIMIT = 1000
@@ -214,18 +220,52 @@ def measure_ci(
     }
 
 
+def _open_at(item: dict, moment: datetime) -> bool:
+    closed = item.get("closedAt")
+    return parse_moment(item["createdAt"]) <= moment and (
+        closed is None or parse_moment(closed) > moment
+    )
+
+
 def measure_open(items: list[dict], since: datetime, until: datetime) -> dict:
     """How many of `items` were open when the window started and when it ended (FLOW-042)."""
+    return {
+        "at_start": sum(_open_at(item, since) for item in items),
+        "at_end": sum(_open_at(item, until) for item in items),
+    }
 
-    def open_at(item: dict, moment: datetime) -> bool:
-        closed = item.get("closedAt")
-        return parse_moment(item["createdAt"]) <= moment and (
-            closed is None or parse_moment(closed) > moment
+
+def _weight(issue: dict) -> int:
+    sizes = [SIZE_WEIGHTS[label] for label in issue["labels"] if label in SIZE_WEIGHTS]
+    return max(sizes) if sizes else UNSIZED_WEIGHT
+
+
+def measure_backlog(issues: list[dict], since: datetime, until: datetime) -> dict:
+    """The open backlog by size at both ends (ticket #492): a parent weighs nothing while
+    one of its slices is open; the ceiling is the start's count plus the owner's additions.
+    Sizes are today's labels, not the ones each ticket had then."""
+    work = [issue for issue in issues if NOT_WORK not in issue["labels"]]
+
+    def weight_at(moment: datetime) -> int:
+        return sum(
+            _weight(issue)
+            for issue in work
+            if _open_at(issue, moment)
+            and not any(_open_at(sub, moment) for sub in issue["subIssues"])
         )
 
+    asked = [
+        issue
+        for issue in work
+        if OWNER_ASKED in issue["labels"] and _within(issue["createdAt"], since, until)
+    ]
+    at_start, at_end = weight_at(since), weight_at(until)
+    ceiling = at_start + sum(_weight(issue) for issue in asked)
     return {
-        "at_start": sum(open_at(item, since) for item in items),
-        "at_end": sum(open_at(item, until) for item in items),
+        "at_start": at_start,
+        "at_end": at_end,
+        "ceiling": ceiling,
+        "within_ceiling": at_end <= ceiling,
     }
 
 
@@ -390,6 +430,40 @@ def _gh_json_lines(*args: str) -> list[dict]:
     return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
 
 
+BACKLOG_QUERY = """
+query($owner: String!, $repo: String!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    issues(first: 100, after: $endCursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        createdAt closedAt
+        labels(first: 20) { nodes { name } }
+        subIssues(first: 50) { nodes { createdAt closedAt } }
+      }
+    }
+  }
+}
+"""
+
+
+def collect_backlog() -> list[dict]:
+    """Every issue with its labels and its slices, as `measure_backlog` reads them."""
+    nodes = _gh_json_lines(
+        "api", "graphql", "--paginate", "-F", "owner={owner}", "-F", "repo={repo}",
+        "-f", f"query={BACKLOG_QUERY}",
+        "--jq", ".data.repository.issues.nodes[]",
+    )
+    return [
+        {
+            "createdAt": node["createdAt"],
+            "closedAt": node["closedAt"],
+            "labels": [label["name"] for label in node["labels"]["nodes"]],
+            "subIssues": node["subIssues"]["nodes"],
+        }
+        for node in nodes
+    ]
+
+
 def collect_reruns(earliest: datetime) -> list[dict]:
     """The runs re-run since `earliest`, each with the conclusions of its earlier attempts.
 
@@ -502,6 +576,7 @@ def main(argv: list[str] | None = None) -> int:
             dependabot_pull_requests(pull_requests), since, until
         ),
     }
+    report["current"]["backlog"] = measure_backlog(collect_backlog(), since, until)
     report["repository"] = measure_repository(
         since, until, args.until or "HEAD", args.since
     )

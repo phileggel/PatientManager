@@ -35,10 +35,10 @@ issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
 - **Four kinds, one label each** (owner, 2026-10-17): `feature` and `bug`,
   what a user will see (a `feat`, a `fix`); `task`, what a user will not
   (`refactor`, `chore` on the application, an enabler for a feature); `flow`, how the work moves (guides,
-  `scripts/`, `justfile`, hooks, workflows). Two labels sit beside a kind, never in its
-  place (owner, 2026-10-18): `spec`, a spec, contract, glossary, ADR or `ARCHITECTURE.md`
-  drifting from right code, a `task` queued on its own; `priority`, the owner wants it in
-  the next batch.
+  `scripts/`, `justfile`, hooks, workflows). Labels sit beside a kind, never in its place
+  (owner, 2026-10-18): `spec`, a spec, contract, glossary, ADR or `ARCHITECTURE.md` drifting
+  from right code, a `task` queued on its own; `priority`, the owner wants it in the next
+  batch; `owner-asked`, the owner asked to add it (§ 12).
 - **From its form** (`.github/ISSUE_TEMPLATE/`), the CLI included: `gh issue create` with
   its labels (`--label <kind> --label size:<S|M|L|XL>`) and the form's fields as
   `### <field>` sections, then `gh project item-add 4 --owner phileggel --url <url>`. Its
@@ -60,7 +60,13 @@ issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
 - **A dependency** is GitHub's "blocked by"; the slices of a programme are its
   sub-issues.
 - **A gate** an issue carries ("not as a sweep", "when a third consumer appears") is
-  honoured, or the override is put to the owner — never swept silently. A task the agent files is an observation, not a commitment.
+  honoured, or the override is put to the owner — never swept silently. A task the agent
+  files is an observation, not a commitment.
+- **Fixed, folded, then filed** (owner, 2026-10-24, ticket #492): a gap on a pull
+  request's own spec or files is fixed in it; one on the spec or files of an open ticket
+  joins it with its evidence, while it stays one pull request (§ 11); else it is filed. A plain
+  `task` (no `spec`, no security finding) not updated since the third batch end back
+  (`just batch-ends 3`) is closed with its reason when the batch ends (§ 3).
 
 ### The Project — Status and Batch (owner, 2026-10-10, 2026-10-11)
 
@@ -72,7 +78,8 @@ issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
   makes an item Queued. A cut during a batch is the owner's.
 - **Sized by its work**, not its number of items: `/plan-batch` sums the sizes of what it
   proposes and stops at what the last batches merged (their `batch-audit` issues), saying
-  both figures. A programme enters as its first slice.
+  both figures; about a third of it goes to tasks, and it closes at least the weight the
+  last batch opened (§ 12). A programme enters as its first slice.
 - **The order `/plan-batch` proposes**: `priority` first; what changes the tools next; a
   dependency before what depends on it; items that touch the same files next to each
   other, so one can be prepared on the other; small fixes a user notices early; what
@@ -137,14 +144,14 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
 9. **Merge:** `just watch-pr` waits for the checks; each lane's newest comment, green or
    not, is read and its findings graded (§ 7); then `just merge` — it refuses until every
    check is green and folds `fixup!` commits, so the task lands as one commit.
-10. **Closure** in the same PR: on an issue that touched a spec, `spec-checker` runs
-    first and what it finds is fixed; what the task met and did not fix is filed as
-    issues; `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The merge
+10. **Closure** in the same PR: on an issue that touched a spec, `spec-checker` runs first
+    and what it finds is fixed; what the task met and did not fix is folded or filed
+    (§ 2); `ARCHITECTURE.md` if a module appeared, the spec if a rule changed. The merge
     closes the issue. The closing brief says what changed for the user and what the
     project gained.
 
 **Ending a batch** (owner, 2026-10-17) — every batch ends alike: the closing brief, then `/dep-audit`
-and the release sweep (Conventions), what they find filed as `task` issues; a security issue that puts users at
+and the release sweep (Conventions), what they find folded or filed (§ 2), the expired tasks closed; a security issue that puts users at
 risk is a `fix` instead: a `bug` issue put to the owner, worked before the batch ends, swept again on what it
 changed, released. A batch with a `feat` or `fix` is released: the agent says it is ready; the human
 runs `just release`; CI builds the draft, which the agent publishes once the release workflow and every
@@ -247,7 +254,7 @@ Every finding, local or from CI, is graded before any is applied; one line per f
 changed something or was rejected goes in the PR body, or in a PR comment once pushed:
 
 - **(a)** in scope → fix in the PR.
-- **(b)** bigger, or outside the file set → a `task` issue, linked from that line.
+- **(b)** bigger, or outside the file set → folded or filed (§ 2), linked from that line.
 - **(c)** is never "pre-existing" alone: a rejection cites what overrides the finding —
   a rule, a file, an ADR, a measurement, the owner's decision.
 - **(c) one-off** false positive → inline comment `<reviewer> FP: <reason> — see PR #NN`.
@@ -337,18 +344,21 @@ during a batch.
   issues filed and closed during it — never the session agent's account. What it cannot
   rebuild from those records is a finding; the questions put to the owner are the dated
   answers in the issue threads.
-- **Measures** — `just flow-audit` counts every figure beside the batch before: the
-  pull requests, the batch, CI, the usage log, dead paths, the guides' length (§ 5), what
-  each item took beside its size. The auditor counts from the pull requests what the
-  reviewers caught, got wrong and left to CI, and reads each generic piece of
-  `docs/agentic-setup.md` against its line.
+- **Measures** — `just flow-audit` counts every figure beside the batch before: the pull
+  requests, the batch, CI, the usage log, dead paths, the guides' length (§ 5), what each
+  item took beside its size, the backlog against its ceiling. The auditor counts from the
+  pull requests what the reviewers caught, got wrong and left to CI, and reads each
+  generic piece of `docs/agentic-setup.md` against its line.
 - **Six questions** (owner, 2026-10-10, 2026-10-11), asked of every batch: what would have
   avoided a conflict; where it waited, and what would shorten it without costing quality;
   what can be simplified; which script, recipe, skill or agent went unused (keep, fold or
   remove); where a guide was false, contradicted another, or grew without earning it; what
   was done by hand that a tool should do, and which finding belongs to another repository.
-- **Hard points** — every difficulty met becomes a `flow` issue with its evidence
-  and a proposal; where nothing should change, the issue says keep and why.
+- **Hard points** — the three strongest difficulties become `flow` issues with their
+  evidence and a proposal; the rest stay in the audit's text.
+- **The ceiling** (owner, 2026-10-24) — the open backlog by size (S 1, M 2, L 4, XL 8,
+  unsized 2, a parent with an open slice 0) at a batch end stays at or under the last
+  end's, raised only by a ticket the owner asked to add, filed with `owner-asked`.
 
 A flow issue (its form, owner, 2026-10-04) carries `Observed` with its evidence — a count,
 a duration, a pull request — then a `Proposal` with what it `Costs` and what it protects.
@@ -428,6 +438,6 @@ Before a batch ends (§ 3), run the reviewer agents in `release-sweep` mode with
 and `spec-checker` on every spec the batch touched. `reviewer-security` reads the whole
 command surface; every other lane reads what changed since the last batch end's tag
 (owner, 2026-10-11; the review protocol says how to find it); the sweep's pull request
-repeats each lane's `## Files read`. What they find is filed as `task` issues, not fixed in
+repeats each lane's `## Files read`. What they find is folded or filed (§ 2), not fixed in
 the batch, but for § 3's user-risk case; one not critical and older than the batch is
 filed and reported, not asked (§ 7 keeps a 🔴 security finding for the owner).

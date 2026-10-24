@@ -47,10 +47,12 @@ anything else: what shipped (each issue with its pull request), what a user noti
 — skipped, stopped or not ready — with why.
 
 Then `/dep-audit`, the release sweep and `spec-checker` on every spec the batch touched
-(`docs/workflow.md` § Release sweep); what they find is filed as `task` issues, and
-the sweep's pull request repeats what each lane read. Then the batch ends as
-`docs/workflow.md` § 3 says: with a `feat` or `fix`, tell the owner the release is
-ready, with what was filed; without, `just batch-end` on a fresh `main`.
+(`docs/workflow.md` § Release sweep); what they find is folded or filed (§ 2),
+and the sweep's pull request repeats what each lane read. Expired plain tasks (§ 2): each
+of `gh issue list --label task --search "-label:spec updated:<DATE"` read and closed, a
+security finding kept, DATE being `git log -1 --format=%cs` of `just batch-ends 3`'s last.
+Then the batch ends as `docs/workflow.md` § 3 says: with a `feat` or `fix`, tell the
+owner the release is ready, with what was filed; without, `just batch-end` on a fresh `main`.
 
 ## Step 5 — Publish and audit
 

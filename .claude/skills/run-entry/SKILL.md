@@ -109,7 +109,7 @@ In the same PR, before the merge, then the closing brief (`CLAUDE.md`) with the 
   choice, `ARCHITECTURE.md` for a new module. The PR body says which changed, or "docs:
   none needed".
 - A spec touched or named: `spec-checker` on it, and what it reports fixed.
-- What the task met and did not fix is filed as issues (`docs/workflow.md` § 2, headless
+- What the task met and did not fix is folded or filed (`docs/workflow.md` § 2, headless
   too), never left in chat; a task issue the work resolved is `Closes #NN` too.
 
 ## Rules
