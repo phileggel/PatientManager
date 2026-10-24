@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.1] - 2026-10-24
+
+### Fixed
+
+- deleting an account holding entries says it holds entries
+- a bank account name already in use is refused with its own message
+- an export replaces its file safely; an import refuses a huge file
+- a failed procedure form shows a translated message, not raw text
+- a date cleared or retyped by keyboard is the date the form sends
+- a bank account holding bank entries can no longer be deleted
+- a cash payment is always recorded on the cash account
+
 ## [0.26.0] - 2026-10-24
 
 ### Added
