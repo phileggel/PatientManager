@@ -112,6 +112,11 @@ jobs:
         (the pull request's merge commit; `bash scripts/branch.sh files` and
         `bash scripts/branch.sh diff <path> [<path> ...]` give the changed set and
         the whole diff in one call).
+        The working directory's `CLAUDE.md`, `.claude/` and helper scripts are
+        the base branch's: your instructions, not what you review. Read, grep
+        and glob the pull request's files, and the documents you check them
+        against, in `/home/runner/work/_temp/branch/`: the branch's tree as
+        pushed, the same paths.
         Include `docs/ubiquitous-language.md` in your term checks. Save the
         full report where the agent file says (`bash scripts/review-path.sh
         reviewer-${{ matrix.reviewer }}`). Do not post comments or reviews
@@ -123,7 +128,8 @@ jobs:
         --model claude-sonnet-5
         --max-turns 60
         --allowedTools "Read" "Grep" "Glob" "Edit(.review/**)" "Bash(bash scripts/branch.sh *)" "Bash(bash scripts/review-path.sh *)" "Bash(git status)" "Bash(git rev-parse *)" "Bash(git ls-files)" "Bash(git ls-files *)" "Bash(grep *)" "Bash(ls *)" "Bash(wc *)" "Bash(shellcheck *)"
-        --disallowedTools "WebFetch" "WebSearch"
+        --disallowedTools "WebFetch" "WebSearch" "Skill"
+        --add-dir /home/runner/work/_temp/branch
     strategy:
       fail-fast: false
       matrix:
@@ -165,7 +171,7 @@ jobs:
           # checkout's AUTHORIZATION header shape).
           persist-credentials: false
 
-      - name: Give the branch helper a local main and trusted prompts and helpers
+      - name: Give the branch helper a local main, trusted prompts and helpers, and the branch's tree
         id: trusted
         # scripts/branch.sh resolves the diff base as merge-base(HEAD, main).
         # The reviewer prompts, the two helpers the session runs and the files
@@ -181,6 +187,11 @@ jobs:
         run: |
           set -euo pipefail
           git branch -f main "origin/$BASE"
+          # The branch's tree as pushed, for the session to read (ticket #490): this
+          # step, and the action itself (restore-config.ts at v1.0.251), put the
+          # base branch's prompts and settings over the pull request's in the workspace.
+          # Its `.claude/skills/` may load as the session's skills: the `Skill` tool is refused.
+          git worktree add --detach /home/runner/work/_temp/branch HEAD
           git checkout "origin/$BASE" -- .claude/agents scripts/branch.sh scripts/review-path.sh scripts/usage-log.sh scripts/usage_log.py
           # The stop-reason helper runs beside a token (last step): the base
           # branch's copy, or none at all on the pull request that adds it.

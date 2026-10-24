@@ -61,6 +61,20 @@ class TrustedHelpers(unittest.TestCase):
         self.assertIn(".claude/hooks", paths)
         self.assertIn('git status --short .claude', workflow, "the job log does not say what differs from the base")
 
+    def test_ticket_490_the_session_reads_the_branch_s_files_from_their_own_checkout(self):
+        """The workspace holds the base branch's prompts (and the action restores `.claude/` and
+        `CLAUDE.md` there, v1.0.251 restore-config.ts): the reviewed files are a clean checkout
+        of the pull request beside it, the one the session is given and told to read."""
+        workflow = (SCRIPT.parents[1] / ".github" / "workflows" / "review.yml").read_text(encoding="utf-8")
+        checkout = re.search(r'git worktree add --detach (\S+) HEAD', workflow)
+        self.assertIsNotNone(checkout, "review.yml no longer checks the branch's tree out on its own")
+        tree = checkout.group(1)
+        self.assertRegex(workflow, rf'--add-dir {re.escape(tree)}\n', "the session is not given the branch's tree")
+        prompt = re.search(r'REVIEW_PROMPT: \|\n(.*?)\n      [A-Z_]+:', workflow, re.DOTALL)
+        self.assertIsNotNone(prompt, "review.yml no longer sets REVIEW_PROMPT")
+        self.assertIn(f"`{tree}/`", prompt.group(1), "the prompt does not say where the branch's files are")
+        self.assertRegex(workflow, r'--disallowedTools [^\n]*"Skill"', "a skill the branch adds could run in the session")
+
 
 class ReviewLanes(unittest.TestCase):
     def test_docs_only_needs_no_reviewer(self):
