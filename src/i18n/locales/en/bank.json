@@ -298,6 +298,7 @@
     "amount_not_positive": "Amount must be greater than 0",
     "invalid_transfer_date_format": "Invalid transfer date format (expected YYYY-MM-DD)",
     "bank_entry_invalid": "Some fields of the transfer are missing or not valid.",
+    "bank_account_name_already_used": "An account already has this name",
     "iban_already_used": "IBAN already used by another bank account",
     "bank_account_not_found": "Bank account not found (id: {{id}})",
     "protected_cash_account": "The cash account is protected and cannot be modified or deleted",

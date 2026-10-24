@@ -223,5 +223,5 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 - [x] Which account does a `CASH` creation store (R13)? — Decided by the owner on 2026-10-24
       (#455): the cash account, set by the backend whatever it is sent.
 - [ ] May a `CHECK` or `CREDIT_CARD` bank entry be recorded on the cash account? `bank-account.md`
-      R4 keeps it for cash payments; the form leaves it out of its list, the backend accepts it.
+      BAC-050 keeps it for cash payments; the form leaves it out of its list, the backend accepts it.
       (Owner.)

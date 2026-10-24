@@ -118,6 +118,24 @@ describe("useEditBankAccountModal", () => {
     expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
   });
 
+  it("ticket #503: a taken name keeps the modal open and gives its reason (BAC-013, BAC-033)", async () => {
+    mockUpdate.mockResolvedValue({
+      success: false,
+      error: { code: "BankAccountNameAlreadyUsed" },
+    });
+    const { result } = renderHook(() => useEditBankAccountModal(account, onClose));
+
+    await act(async () => {
+      result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.SyntheticEvent);
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(mockToast).toHaveBeenCalledWith(
+      "error",
+      expect.stringContaining("An account already has this name"),
+    );
+  });
+
   it("resets form and errors when bankAccount prop changes", async () => {
     mockUpdate.mockResolvedValue({ success: true, data: account });
     const { result, rerender } = renderHook(({ acct }) => useEditBankAccountModal(acct, onClose), {

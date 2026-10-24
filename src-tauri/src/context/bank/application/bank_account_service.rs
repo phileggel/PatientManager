@@ -22,7 +22,7 @@ impl BankAccountService {
         }
     }
 
-    /// R5 — IBAN uniqueness guard shared by create + update paths.
+    /// BAC-014 — IBAN uniqueness guard shared by create + update paths.
     /// `exempt_id` lets `update_account` allow self-matches (renaming an account
     /// without changing its IBAN must succeed). `None` rejects any match.
     async fn ensure_iban_unique(
@@ -46,17 +46,33 @@ impl BankAccountService {
         Err(BankError::IbanAlreadyUsed)
     }
 
+    /// BAC-013 — name uniqueness among the accounts that are not deleted, the
+    /// cash account included; `exempt_id` lets an edit keep its own name.
+    /// Names are compared exactly, once the factory has trimmed them.
+    async fn ensure_name_free(&self, name: &str, exempt_id: Option<&str>) -> Result<(), BankError> {
+        let taken = self
+            .read_all_accounts()
+            .await?
+            .iter()
+            .any(|other| Some(other.id.as_str()) != exempt_id && other.name == name);
+        if taken {
+            return Err(BankError::BankAccountNameAlreadyUsed);
+        }
+        Ok(())
+    }
+
     /// Create a new bank account
     pub async fn create_account(
         &self,
         name: String,
         iban: Option<String>,
     ) -> Result<BankAccount, BankError> {
-        // R5 — Normalize and check IBAN uniqueness BEFORE calling the factory.
+        // BAC-014 — Normalize and check IBAN uniqueness BEFORE calling the factory.
         let normalized_iban = BankAccount::normalize_iban(iban.as_deref());
         self.ensure_iban_unique(normalized_iban.as_deref(), None)
             .await?;
         let account = BankAccount::new(name, iban)?;
+        self.ensure_name_free(&account.name, None).await?;
         let created = self.repository.create_account(account).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "create_account: repository failed");
             BankError::DatabaseError
@@ -97,7 +113,9 @@ impl BankAccountService {
         })
     }
 
-    /// Update an existing account — fails with `ProtectedCashAccount` for the default cash account (R4).
+    /// Update an existing account — fails with `ProtectedCashAccount` for the default cash account (BAC-051),
+    /// `BankAccountNotFound` for an unknown or deleted one (BAC-030), and
+    /// `BankAccountNameAlreadyUsed` for a taken name (BAC-013).
     pub async fn update_account(
         &self,
         id: String,
@@ -107,12 +125,16 @@ impl BankAccountService {
         if id == CASH_ACCOUNT_ID {
             return Err(BankError::ProtectedCashAccount);
         }
-        // R5 — Normalize and check IBAN uniqueness BEFORE calling the factory.
+        // BAC-030 — an unknown or deleted account is not edited.
+        self.read_account(&id).await?;
+        // BAC-014 — Normalize and check IBAN uniqueness BEFORE calling the factory.
         // Self-match (same id) is allowed via the exempt_id arg.
         let normalized_iban = BankAccount::normalize_iban(iban.as_deref());
         self.ensure_iban_unique(normalized_iban.as_deref(), Some(&id))
             .await?;
         let account = BankAccount::with_id(id, name, iban)?;
+        self.ensure_name_free(&account.name, Some(&account.id))
+            .await?;
         let updated = self.repository.update_account(account).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "update_account: repository failed");
             BankError::DatabaseError
@@ -126,8 +148,8 @@ impl BankAccountService {
         Ok(updated)
     }
 
-    /// Soft-delete an account — fails with `ProtectedCashAccount` for the default cash account (R4)
-    /// and with `BankAccountHoldsBankEntries` while a bank entry is recorded on it (R6).
+    /// Soft-delete an account — fails with `ProtectedCashAccount` for the default cash account (BAC-051)
+    /// and with `BankAccountHoldsBankEntries` while a bank entry is recorded on it (BAC-043).
     pub async fn delete_account(&self, id: &str) -> Result<(), BankError> {
         if id == CASH_ACCOUNT_ID {
             return Err(BankError::ProtectedCashAccount);
@@ -173,7 +195,7 @@ mod tests {
         should_fail: bool,
     }
 
-    /// R6 — an existing account whose bank entries check answers `holds`; `None` fails it.
+    /// BAC-043 — an existing account whose bank entries check answers `holds`; `None` fails it.
     struct HoldsBankEntriesRepo {
         holds: Option<bool>,
     }
@@ -292,7 +314,7 @@ mod tests {
         assert_eq!(account.name, "Main Account");
     }
 
-    // R5 — a provided IBAN with no existing match passes the uniqueness check
+    // BAC-014 — a provided IBAN with no existing match passes the uniqueness check
     // and the account is created. Exercises `ensure_iban_unique`'s no-conflict
     // branch (the `else { return Ok(()) }` when the lookup returns None) plus
     // the create path carrying a real IBAN value — distinct from the iban=None
@@ -534,7 +556,7 @@ mod tests {
         assert!(matches!(result, Err(BankError::BankAccountNotFound { .. })));
     }
 
-    // ============ R5 IBAN uniqueness tests ============
+    // ============ BAC-014 IBAN uniqueness tests ============
 
     /// Mock whose `find_by_iban_including_deleted` always returns the fixed account supplied at construction.
     struct IbanUniquenessRepo {
@@ -609,7 +631,7 @@ mod tests {
         }
     }
 
-    // R5 — create rejects an IBAN already used by an active account
+    // BAC-014 — create rejects an IBAN already used by an active account
     #[tokio::test]
     async fn test_create_account_rejects_duplicate_iban_active() {
         let existing = BankAccount::restore(
@@ -632,7 +654,7 @@ mod tests {
         assert!(matches!(result, Err(BankError::IbanAlreadyUsed)));
     }
 
-    // R5 — create rejects an IBAN already used by a soft-deleted account
+    // BAC-014 — create rejects an IBAN already used by a soft-deleted account
     #[tokio::test]
     async fn test_create_account_rejects_duplicate_iban_soft_deleted() {
         // The soft-deleted account is returned by find_by_iban_including_deleted
@@ -657,7 +679,7 @@ mod tests {
         assert!(matches!(result, Err(BankError::IbanAlreadyUsed)));
     }
 
-    // R5 — create with iban = None must skip the uniqueness check entirely
+    // BAC-014 — create with iban = None must skip the uniqueness check entirely
     #[tokio::test]
     async fn test_create_account_allows_no_iban() {
         // IbanCheckMustNotBeCalledRepo panics if find_by_iban_including_deleted is invoked.
@@ -676,7 +698,7 @@ mod tests {
         );
     }
 
-    // R5 — update rejects an IBAN already used by a *different* account
+    // BAC-014 — update rejects an IBAN already used by a *different* account
     #[tokio::test]
     async fn test_update_account_rejects_iban_used_by_another_account() {
         let conflicting = BankAccount::restore(
@@ -700,7 +722,7 @@ mod tests {
         assert!(matches!(result, Err(BankError::IbanAlreadyUsed)));
     }
 
-    // R5 — update with same IBAN on the *same* account must succeed (self-match)
+    // BAC-014 — update with same IBAN on the *same* account must succeed (self-match)
     #[tokio::test]
     async fn test_update_account_allows_self_match_iban() {
         // The row returned by find_by_iban_including_deleted has the SAME id as the account
@@ -737,10 +759,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_account_repository_error_translates_to_database_error() {
-        // iban = None skips `ensure_iban_unique`, so the failure originates from
-        // the `create_account` repository call's own `.map_err` arm.
-        let repo = Arc::new(MockBankAccountRepository { should_fail: true });
-        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+        // Every read succeeds, so the failure is the `create_account` write's own `.map_err` arm.
+        let service = BankAccountService::new(Arc::new(WritesFailRepo), Arc::new(EventBus::new()));
 
         let result = service.create_account("Main".to_string(), None).await;
 
@@ -794,12 +814,48 @@ mod tests {
         assert!(matches!(result, Err(BankError::DatabaseError)));
     }
 
+    /// Mock whose every read succeeds and whose writes fail, so a create or an
+    /// update reaches the repository write past its BAC-030 and BAC-013 checks.
+    struct WritesFailRepo;
+
+    #[async_trait::async_trait]
+    impl BankAccountRepository for WritesFailRepo {
+        async fn create_account(&self, _: BankAccount) -> anyhow::Result<BankAccount> {
+            Err(anyhow!("Mock repository error"))
+        }
+        async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
+            Ok(vec![])
+        }
+        async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
+        async fn find_by_iban_including_deleted(
+            &self,
+            _iban: &str,
+        ) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
+        async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(Some(BankAccount::restore(
+                id.to_string(),
+                "Main".to_string(),
+                None,
+            )))
+        }
+        async fn update_account(&self, _: BankAccount) -> anyhow::Result<BankAccount> {
+            Err(anyhow!("Mock repository error"))
+        }
+        async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+    }
+
     #[tokio::test]
     async fn test_update_account_repository_error_translates_to_database_error() {
-        // Non-cash id + iban = None reaches the `update_account` repository call,
-        // whose failure is the `.map_err` arm under test.
-        let repo = Arc::new(MockBankAccountRepository { should_fail: true });
-        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+        let service = BankAccountService::new(Arc::new(WritesFailRepo), Arc::new(EventBus::new()));
 
         let result = service
             .update_account("acc-1".to_string(), "Renamed".to_string(), None)

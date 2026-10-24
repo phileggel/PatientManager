@@ -1,7 +1,7 @@
 //! Ticket #448 — a bank account a bank entry is recorded on is never deleted
-//! (bank-account R6): the service refuses it, and migration
+//! (BAC-043): the service refuses it, and migration
 //! 20261024_bank_account_holding_bank_entries.sql brings back the accounts an
-//! installed database soft-deleted while they still held one (R7–R9). A bank entry
+//! installed database soft-deleted while they still held one (BAC-060 to BAC-062). A bank entry
 //! is hard-deleted, so every `bank_transfer` row counts.
 
 use std::sync::Arc;
@@ -173,7 +173,7 @@ async fn test_migration_restored_account_with_a_taken_name_is_suffixed_once() {
 #[tokio::test]
 async fn test_migration_restored_account_with_a_taken_iban_comes_back_without_it() {
     let pool = make_pool().await;
-    // A legacy state, from before R5 spanned deleted accounts: the triggers are
+    // A legacy state, from before BAC-014 spanned deleted accounts: the triggers are
     // dropped to write it, then put back for the migration.
     sqlx::raw_sql(
         "DROP TRIGGER trg_bank_account_iban_unique_insert;\

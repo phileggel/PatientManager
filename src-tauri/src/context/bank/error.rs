@@ -38,9 +38,15 @@ pub enum BankError {
 
     // --- BankAccount service-layer errors ---
     /// `BankAccountService::create_account` / `update_account` enforced
-    /// IBAN uniqueness (R5) — another row already holds the IBAN.
+    /// IBAN uniqueness (BAC-014) — another row already holds the IBAN.
     #[error("IBAN already used by another bank account")]
     IbanAlreadyUsed,
+
+    /// `BankAccountService::create_account` / `update_account` enforced name
+    /// uniqueness (BAC-013) — another account that is not deleted already
+    /// holds the name.
+    #[error("Bank account name already used by another bank account")]
+    BankAccountNameAlreadyUsed,
 
     /// `BankAccountService::read_account` / `update_account` lookup returned
     /// no row.
@@ -53,7 +59,7 @@ pub enum BankError {
     ProtectedCashAccount,
 
     /// `BankAccountService::delete_account` refused an account a bank entry
-    /// is recorded on (R6).
+    /// is recorded on (BAC-043).
     #[error("The bank account holds bank entries and cannot be deleted")]
     BankAccountHoldsBankEntries,
 
@@ -129,6 +135,10 @@ mod tests {
         assert_eq!(
             to_value(BankError::ProtectedCashAccount).unwrap(),
             json!({ "code": "ProtectedCashAccount" }),
+        );
+        assert_eq!(
+            to_value(BankError::BankAccountNameAlreadyUsed).unwrap(),
+            json!({ "code": "BankAccountNameAlreadyUsed" }),
         );
         assert_eq!(
             to_value(BankError::BankAccountHoldsBankEntries).unwrap(),

@@ -287,7 +287,7 @@ mod tests {
         assert!(found.is_none());
     }
 
-    // R5 — find_by_iban_including_deleted: soft-deleted rows must be invisible to
+    // BAC-014 — find_by_iban_including_deleted: soft-deleted rows must be invisible to
     // find_by_iban but visible to find_by_iban_including_deleted.
     #[tokio::test]
     async fn test_find_by_iban_including_deleted_returns_soft_deleted_row() -> anyhow::Result<()> {

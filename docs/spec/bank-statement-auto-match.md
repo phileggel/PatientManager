@@ -32,13 +32,13 @@ This document covers the **automatic flow** — PDF parsing, fund-label resoluti
 - **IBAN** — pre-filled with the IBAN extracted from the statement, read-only.
 - **Name** — empty, required, must be non-empty after trimming whitespace.
 
-**BAS-013 — Inline create — backend submission (backend)**: On submit, the system attempts to create a bank account with the supplied name and the pre-filled IBAN. The result is either the created bank account (success) or a backend error message (failure). IBAN uniqueness across all accounts (including soft-deleted) is enforced by the bank-account aggregate (see `bank-account.md` R5).
+**BAS-013 — Inline create — backend submission (backend)**: On submit, the system attempts to create a bank account with the supplied name and the pre-filled IBAN. The result is either the created bank account (success) or a backend error message (failure). IBAN uniqueness across all accounts (including soft-deleted) is enforced by the bank-account aggregate (see `bank-account.md` BAC-014).
 
 **BAS-014 — Inline create — workflow continuation on success (frontend)**: On successful creation, the import workflow uses the newly created account as the resolved bank account and proceeds directly to fund-label resolution. The user is not required to re-import the PDF.
 
 **BAS-015 — Inline create — submission loading state (frontend)**: While the create call is in progress, the form fields are disabled and the Submit button reflects a loading state. The user cannot resubmit during this period.
 
-**BAS-016 — Inline create — backend error feedback (frontend)**: On any backend error during creation (typical causes include a duplicate IBAN against an existing or soft-deleted account, name validation failure, or persistence failure), the backend error message is displayed inline below the form. The form stays open with the user's input preserved so the input can be corrected or cancelled.
+**BAS-016 — Inline create — refusal feedback (frontend)**: A refused creation (typical causes include a duplicate IBAN against an existing or deleted account, a name refused by `bank-account.md` BAC-010 or BAC-013, or a persistence failure) shows its reason inline below the form: a taken IBAN and a taken name each have their own message, any other refusal a generic one. The form stays open with the user's input preserved so the input can be corrected or cancelled.
 
 **BAS-017 — Inline create — cancellation (frontend)**: Cancelling the inline create form closes the import modal entirely and abandons the import. The Cancel button and any other modal-close affordance produce the same effect — there is no fallback dead-end screen.
 
@@ -103,7 +103,7 @@ A **bank statement label** is the label of a bank statement line, remembered per
 
 **BAS-045 — Action feedback (frontend)**: A successful reassign or delete shows a confirmation message; any other failure shows an error message and leaves the list unchanged.
 
-**BAS-046 — Deleted bank account (backend)**: Deleting a bank account deletes its bank statement labels. A deleted account's labels never come back, even when bank-account R7 restores the account. Labels of accounts deleted before this rule existed are deleted once, on upgrade. A deleted account is never resolved from an IBAN (BAS-010), so no import can add labels to it; the list therefore holds live accounts only.
+**BAS-046 — Deleted bank account (backend)**: Deleting a bank account deletes its bank statement labels. A deleted account's labels never come back, even when BAC-060 restores the account. Labels of accounts deleted before this rule existed are deleted once, on upgrade. A deleted account is never resolved from an IBAN (BAS-010), so no import can add labels to it; the list therefore holds live accounts only.
 
 ### Matching algorithm (050–059)
 

@@ -1102,9 +1102,15 @@ export type BankError =
 { code: "BankEntryInvalid"; reasons: BankEntryInvalidReason[] } | 
 /**
  * `BankAccountService::create_account` / `update_account` enforced
- * IBAN uniqueness (R5) — another row already holds the IBAN.
+ * IBAN uniqueness (BAC-014) — another row already holds the IBAN.
  */
 { code: "IbanAlreadyUsed" } | 
+/**
+ * `BankAccountService::create_account` / `update_account` enforced name
+ * uniqueness (BAC-013) — another account that is not deleted already
+ * holds the name.
+ */
+{ code: "BankAccountNameAlreadyUsed" } | 
 /**
  * `BankAccountService::read_account` / `update_account` lookup returned
  * no row.
@@ -1117,7 +1123,7 @@ export type BankError =
 { code: "ProtectedCashAccount" } | 
 /**
  * `BankAccountService::delete_account` refused an account a bank entry
- * is recorded on (R6).
+ * is recorded on (BAC-043).
  */
 { code: "BankAccountHoldsBankEntries" } | 
 /**

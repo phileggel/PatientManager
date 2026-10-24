@@ -34,6 +34,7 @@ Once assigned, a rule number never changes; a removed rule leaves its number vac
 | **IFC**   | Import Fixture Codec        | Dev-only inverse of import parsers — generates fixtures (Excel + fund-PDF + bank-PDF) |
 | **DGR**   | Diagnostic Report           | Text report on the installation, with no patient data, the user sends to support      |
 | **PDU**   | Patient Duplicates          | Listing same-name patients and merging or dismissing each pair                        |
+| **BAC**   | Bank Account Management     | The practice's bank accounts, the cash account, and their deletion                    |
 
 ---
 

@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::context::bank::error::BankError;
 
-/// Fixed ID of the default cash account seeded by migration (R4).
+/// Fixed ID of the default cash account seeded by migration (BAC-050).
 pub const CASH_ACCOUNT_ID: &str = "cash-account-default";
 
 /// Bank Account aggregate root
@@ -23,7 +23,7 @@ impl BankAccount {
     /// Normalizes a raw IBAN: trims whitespace, removes inner spaces, and
     /// returns `None` for empty results. Single source of truth for IBAN
     /// canonicalization — used by both factory methods and by the service-layer
-    /// uniqueness guard (R5) so all paths compare the same form.
+    /// uniqueness guard (BAC-014) so all paths compare the same form.
     pub fn normalize_iban(raw: Option<&str>) -> Option<String> {
         raw.map(|i| i.trim().replace(' ', ""))
             .filter(|i| !i.is_empty())

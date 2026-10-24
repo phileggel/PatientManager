@@ -12,6 +12,7 @@
  *   - handleCreateAccountSubmit:
  *       empty name → setCreateError with name_required key (BAS-016)
  *       IbanAlreadyUsed error → dedicated key (BAS-016 IBAN-conflict branch)
+ *       BankAccountNameAlreadyUsed error → the name's key (BAC-013)
  *       other backend error → generic error key (BAS-016 fallback branch)
  *       success → phase becomes "ready" with bankAccount set (BAS-014)
  *   - handleCreateNameChange clears createError on each keystroke (BAS-016)
@@ -251,11 +252,31 @@ describe("useBankStatementGate — handleCreateAccountSubmit: IbanAlreadyUsed (B
 
     expect(mockCreate).toHaveBeenCalledWith("Cabinet principal", PARSE_RESULT.iban);
     expect(result.current.createError).toBe(
-      "statement.modal.create_account.error_iban_already_used",
+      "bank:statement.modal.create_account.error_iban_already_used",
     );
     // Phase stays on create-account (error, not success)
     expect(result.current.phase).toBe("create-account");
     expect(result.current.isCreatingAccount).toBe(false);
+  });
+
+  it("ticket #503: sets createError to the taken-name message (BAS-016, BAC-013)", async () => {
+    mockParse.mockResolvedValue({ success: true, data: PARSE_RESULT });
+    mockResolve.mockResolvedValue({ success: true, data: null });
+    mockCreate.mockResolvedValue({
+      success: false,
+      error: { code: "BankAccountNameAlreadyUsed" },
+    });
+
+    const { result } = renderHook(() => useBankStatementGate(FILE_PATH));
+    await waitFor(() => expect(result.current.phase).toBe("create-account"));
+
+    act(() => result.current.handleCreateNameChange("Cabinet principal"));
+    await act(async () => {
+      await result.current.handleCreateAccountSubmit();
+    });
+
+    expect(result.current.createError).toBe("bank:errors.bank_account_name_already_used");
+    expect(result.current.phase).toBe("create-account");
   });
 });
 
@@ -280,7 +301,7 @@ describe("useBankStatementGate — handleCreateAccountSubmit: other error (BAS-0
       await result.current.handleCreateAccountSubmit();
     });
 
-    expect(result.current.createError).toBe("statement.modal.create_account.error_unknown");
+    expect(result.current.createError).toBe("bank:statement.modal.create_account.error_unknown");
     expect(result.current.phase).toBe("create-account");
     expect(result.current.isCreatingAccount).toBe(false);
   });

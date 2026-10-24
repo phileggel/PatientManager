@@ -155,6 +155,7 @@ export function presentReconciliationError(err: BankStatementReconciliationError
     case "InvalidTransferDateFormat":
     case "BankEntryInvalid":
     case "IbanAlreadyUsed":
+    case "BankAccountNameAlreadyUsed":
     case "BankAccountNotFound":
     case "ProtectedCashAccount":
     case "BankAccountHoldsBankEntries":

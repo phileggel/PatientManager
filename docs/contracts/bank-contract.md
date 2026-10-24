@@ -6,19 +6,19 @@
 
 ## Commands
 
-### `create_bank_account` — R1, R5
+### `create_bank_account` — BAC-010 to BAC-014, BAC-020
 
-Creates a new bank account with a name and an optional IBAN. The IBAN is stripped of spaces and stored normalised. If the name is empty or whitespace-only, the command fails immediately. R5 — IBAN uniqueness applies across all accounts including soft-deleted: creation is rejected if the supplied IBAN is already used by any existing or soft-deleted account.
+Creates a new bank account with a name and an optional IBAN. The IBAN is stripped of spaces and stored normalised. If the name is empty or whitespace-only, the command fails immediately. A name another account that is not deleted holds — compared exactly, case included, once trimmed, the cash account under its stored name — is refused with `BankAccountNameAlreadyUsed` (BAC-013). BAC-014 — IBAN uniqueness applies across all accounts including soft-deleted: creation is rejected if the supplied IBAN is already used by any existing or soft-deleted account.
 
 - **Args:** `name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
-- **Errors:** `BankAccountNameEmpty`, `IbanAlreadyUsed`, `DatabaseError`
+- **Errors:** `BankAccountNameEmpty`, `BankAccountNameAlreadyUsed`, `IbanAlreadyUsed`, `DatabaseError`
 
 ---
 
-### `read_all_bank_accounts` — R1
+### `read_all_bank_accounts` — BAC-016, BAC-041, BAC-042, BAC-050, BAC-073
 
-Returns all non-deleted bank accounts, including the default cash account (R4). Soft-deleted accounts are excluded.
+Returns all non-deleted bank accounts, including the default cash account (BAC-050). Soft-deleted accounts are excluded.
 
 - **Args:** —
 - **Returns:** `Vec<BankAccount>`
@@ -26,29 +26,29 @@ Returns all non-deleted bank accounts, including the default cash account (R4). 
 
 ---
 
-### `update_bank_account` — R2, R4, R5
+### `update_bank_account` — BAC-010 to BAC-014, BAC-030, BAC-051
 
-Updates the name and/or IBAN of an existing account. The cash account (`cash-account-default`) must not be editable per R4. R5 — IBAN uniqueness applies across all accounts including soft-deleted: edit is rejected if the new IBAN is already used by another existing or soft-deleted account.
+Replaces the name and IBAN of an account that is not deleted: both are sent, and `iban: None` clears it; the IBAN is stored without spaces. An unknown or deleted account is refused with `BankAccountNotFound` (BAC-030). The cash account (`cash-account-default`) must not be editable per BAC-051. A name another account that is not deleted holds — compared exactly, case included, once trimmed, the cash account under its stored name — is refused with `BankAccountNameAlreadyUsed` (BAC-013). BAC-014 — IBAN uniqueness applies across all accounts including soft-deleted: edit is rejected if the new IBAN is already used by another existing or soft-deleted account.
 
 - **Args:** `id: String, name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
-- **Errors:** `BankAccountNameEmpty`, `BankAccountNotFound`, `ProtectedCashAccount`, `IbanAlreadyUsed`, `DatabaseError`
+- **Errors:** `BankAccountNameEmpty`, `BankAccountNameAlreadyUsed`, `BankAccountNotFound`, `ProtectedCashAccount`, `IbanAlreadyUsed`, `DatabaseError`
 
 ---
 
-### `delete_bank_account` — R3, R4, R6
+### `delete_bank_account` — BAC-041, BAC-043, BAC-051
 
-Soft-deletes a bank account (marks it as deleted; no data is removed). It is refused while any bank entry is recorded on the account (R6). The cash account (`cash-account-default`) must not be deletable per R4.
+Soft-deletes a bank account (marks it as deleted; no data is removed). It is refused while any bank entry is recorded on the account (BAC-043). The cash account (`cash-account-default`) must not be deletable per BAC-051.
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `BankAccountNotFound`, `ProtectedCashAccount`, `BankAccountHoldsBankEntries` (R6), `DatabaseError`
+- **Errors:** `BankAccountNotFound`, `ProtectedCashAccount`, `BankAccountHoldsBankEntries` (BAC-043), `DatabaseError`
 
 ---
 
-### `get_cash_bank_account_id` — R4
+### `get_cash_bank_account_id` — BAC-050, BSM-026
 
-Returns the fixed ID of the default cash account (`cash-account-default`), seeded by migration. Called by the bank-transfer form to leave the cash account out of its account list; a CASH entry's account is set by the backend (R13). The value is a compile-time constant on the backend; the frontend fetches it via command to avoid hardcoding it.
+Returns the fixed ID of the default cash account (`cash-account-default`), seeded by migration. Called by the bank-transfer form to leave the cash account out of its account list; a CASH entry's account is set by the backend (BSM-026). The value is a compile-time constant on the backend; the frontend fetches it via command to avoid hardcoding it.
 
 - **Args:** —
 - **Returns:** `String`
@@ -151,3 +151,4 @@ enum BankEntryType {
 - 2026-05-04 — Added by `bank-statement-auto-match` spec (BAS-013) and `bank-account` R5: IbanAlreadyUsed error variant on create_bank_account and update_bank_account; IBAN uniqueness now spans soft-deleted accounts.
 - 2026-10-24 — `get_cash_bank_account_id`: the form uses it to leave the cash account out of its list; a CASH entry's account is the backend's (bank-statement-manual-match BSM-026, #455)
 - 2026-10-24 — `delete_bank_account`: refused with `BankAccountHoldsBankEntries` while a bank entry is on the account (R6, #448); the Errors of `create_bank_account` and `update_bank_account` spelled as on the wire; `read_all_bank_accounts` lists `DatabaseError`
+- 2026-10-24 — the `bank-account` rules renumbered R1–R9 → BAC (#503); `create_bank_account` and `update_bank_account` refuse a taken name with `BankAccountNameAlreadyUsed` (BAC-013); `update_bank_account` returns `BankAccountNotFound` for an unknown or deleted account (BAC-030)

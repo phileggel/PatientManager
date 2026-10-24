@@ -88,9 +88,14 @@ describe("formatBankError - F27 Layer 3 (pure code → key mapping)", () => {
     expect(formatBankError(err)).toEqual({ key: "bank:errors.protected_cash_account" });
   });
 
-  it("ticket #448: maps BankAccountHoldsBankEntries to its key (R6)", () => {
+  it("ticket #448: maps BankAccountHoldsBankEntries to its key (BAC-043)", () => {
     const err: BankError = { code: "BankAccountHoldsBankEntries" };
     expect(formatBankError(err)).toEqual({ key: "bank:errors.bank_account_holds_bank_entries" });
+  });
+
+  it("ticket #503: maps BankAccountNameAlreadyUsed to its key (BAC-013)", () => {
+    const err: BankError = { code: "BankAccountNameAlreadyUsed" };
+    expect(formatBankError(err)).toEqual({ key: "bank:errors.bank_account_name_already_used" });
   });
 
   it("maps TransferNotFound to its key WITH the transfer id as a param", () => {

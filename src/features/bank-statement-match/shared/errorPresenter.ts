@@ -1,4 +1,4 @@
-import type { BankStatementReconciliationError } from "@/bindings";
+import type { BankError, BankStatementReconciliationError } from "@/bindings";
 
 /**
  * Layer 3 of the F27 typed-error pipeline for bank-statement reconciliation.
@@ -33,6 +33,7 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "InvalidTransferDateFormat":
     case "BankEntryInvalid":
     case "IbanAlreadyUsed":
+    case "BankAccountNameAlreadyUsed":
     case "BankAccountNotFound":
     case "ProtectedCashAccount":
     case "BankAccountHoldsBankEntries":
@@ -58,5 +59,20 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "FundNotFound":
     case "IdentifierAlreadyUsed":
       return { key: "bank:statement.modal.unknown_error" };
+  }
+}
+
+/**
+ * BAS-016 — the inline create-account form's reason: a taken IBAN and a taken
+ * name (BAC-013) each get their own message, every other code the generic one.
+ */
+export function formatCreateAccountError(err: BankError): { key: string } {
+  switch (err.code) {
+    case "IbanAlreadyUsed":
+      return { key: "bank:statement.modal.create_account.error_iban_already_used" };
+    case "BankAccountNameAlreadyUsed":
+      return { key: "bank:errors.bank_account_name_already_used" };
+    default:
+      return { key: "bank:statement.modal.create_account.error_unknown" };
   }
 }

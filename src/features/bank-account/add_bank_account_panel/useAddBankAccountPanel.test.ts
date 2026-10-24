@@ -112,6 +112,30 @@ describe("useAddBankAccountPanel", () => {
     expect(mockToast).toHaveBeenCalledWith("error", expect.any(String));
   });
 
+  it("ticket #503: a taken name shows its own message under the name field (BAC-013)", async () => {
+    mockCreate.mockResolvedValue({
+      success: false,
+      error: { code: "BankAccountNameAlreadyUsed" },
+    });
+
+    const { result } = renderHook(() => useAddBankAccountPanel());
+
+    act(() => {
+      result.current.handleChange({
+        target: { name: "name", value: "Main Account" },
+      } as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    await act(async () => {
+      await result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as React.FormEvent<HTMLFormElement>);
+    });
+
+    expect(result.current.errors.name).toBe("An account already has this name");
+    expect(result.current.formData.name).toBe("Main Account");
+  });
+
   it("sets name error and shows error toast when gateway throws an exception", async () => {
     mockCreate.mockRejectedValue(new Error("network error"));
 

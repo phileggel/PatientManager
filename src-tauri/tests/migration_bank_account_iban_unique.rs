@@ -1,5 +1,5 @@
 //! TODO-003 — the database refuses a second bank account with an IBAN already
-//! used by another account, active or soft-deleted (bank-account R5).
+//! used by another account, active or soft-deleted (BAC-014).
 //!
 //! The partial index `idx_bank_account_iban_active` only covers active rows; the
 //! triggers of migration 20260928_bank_account_iban_unique.sql cover the rest.
@@ -100,7 +100,7 @@ async fn test_todo_003_accounts_without_iban_do_not_collide() {
 #[tokio::test]
 async fn test_todo_003_legacy_duplicates_survive_the_migration_and_can_still_be_renamed() {
     let pool = make_pool().await;
-    // A database written before R5 may hold the same IBAN on two soft-deleted rows.
+    // A database written before BAC-014 may hold the same IBAN on two soft-deleted rows.
     drop_triggers(&pool).await;
     insert(&pool, "old-1", Some("TEST-IBAN-3"), true)
         .await

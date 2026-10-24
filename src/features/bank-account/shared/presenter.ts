@@ -22,6 +22,8 @@ export function formatBankError(err: BankError): {
       return { key: "bank:errors.invalid_transfer_date_format" };
     case "BankEntryInvalid":
       return { key: "bank:errors.bank_entry_invalid" };
+    case "BankAccountNameAlreadyUsed":
+      return { key: "bank:errors.bank_account_name_already_used" };
     case "IbanAlreadyUsed":
       return { key: "bank:errors.iban_already_used" };
     case "BankAccountNotFound":

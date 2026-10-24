@@ -8,7 +8,7 @@ pub trait BankAccountRepository: Send + Sync {
     async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>>;
     async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>>;
     async fn find_by_iban(&self, iban: &str) -> anyhow::Result<Option<BankAccount>>;
-    /// R5 — uniqueness check that scans soft-deleted rows too.
+    /// BAC-014 — uniqueness check that scans soft-deleted rows too.
     /// `find_by_iban` excludes deletions and is used for resolution; this method
     /// is reserved for the create/update guards so that a deleted account's
     /// IBAN cannot be silently reused.
@@ -18,6 +18,6 @@ pub trait BankAccountRepository: Send + Sync {
     ) -> anyhow::Result<Option<BankAccount>>;
     async fn update_account(&self, account: BankAccount) -> anyhow::Result<BankAccount>;
     async fn delete_account(&self, id: &str) -> anyhow::Result<()>;
-    /// R6 — whether any bank entry is recorded on the account.
+    /// BAC-043 — whether any bank entry is recorded on the account.
     async fn holds_bank_entries(&self, id: &str) -> anyhow::Result<bool>;
 }

@@ -197,7 +197,7 @@ describe("BankAccountList", () => {
     expect(screen.getByText("Delete Bank Account")).toBeInTheDocument();
   });
 
-  it("ticket #448: a refused deletion shows why, without an Error prefix (R6)", async () => {
+  it("ticket #448: a refused deletion shows why, without an Error prefix (BAC-043)", async () => {
     const user = userEvent.setup();
     const show = vi.spyOn(toastService, "show").mockImplementation(() => {});
     vi.mocked(useBankAccountList).mockReturnValue({

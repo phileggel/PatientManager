@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { BankAccount, BankStatementParseResult } from "@/bindings";
 import { logger } from "@/infra/logger";
 import { createBankAccount, parseBankStatement, resolveBankAccountFromIban } from "../gateway";
-import { formatBankStatementError } from "../shared/errorPresenter";
+import { formatBankStatementError, formatCreateAccountError } from "../shared/errorPresenter";
 
 const TAG = "[BankStatementGate]";
 
@@ -113,14 +113,8 @@ export function useBankStatementGate(filePath: string): UseBankStatementGateRetu
     try {
       const result = await createBankAccount(trimmedName, parseResult.iban);
       if (!result.success) {
-        // BAS-016 — branch on the typed error code directly (F27): the IBAN
-        // conflict gets dedicated guidance, every other variant the generic key.
-        const isIbanConflict = result.error.code === "IbanAlreadyUsed";
-        setCreateError(
-          isIbanConflict
-            ? t("statement.modal.create_account.error_iban_already_used")
-            : t("statement.modal.create_account.error_unknown"),
-        );
+        // BAS-016 — the presenter picks the reason's key (F27).
+        setCreateError(t(formatCreateAccountError(result.error).key));
         return;
       }
       const account = result.data;
