@@ -167,7 +167,12 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
               );
             } catch (error) {
               logger.error("Delete bank account failed", { error, accountId: deleteData.id });
-              toastService.show("error", t("account.list.error.delete", { error: String(error) }));
+              toastService.show(
+                "error",
+                t("account.list.error.delete", {
+                  error: error instanceof Error ? error.message : String(error),
+                }),
+              );
             }
           }
         }}

@@ -88,6 +88,11 @@ describe("formatBankError - F27 Layer 3 (pure code → key mapping)", () => {
     expect(formatBankError(err)).toEqual({ key: "bank:errors.protected_cash_account" });
   });
 
+  it("ticket #448: maps BankAccountHoldsBankEntries to its key (R6)", () => {
+    const err: BankError = { code: "BankAccountHoldsBankEntries" };
+    expect(formatBankError(err)).toEqual({ key: "bank:errors.bank_account_holds_bank_entries" });
+  });
+
   it("maps TransferNotFound to its key WITH the transfer id as a param", () => {
     const err: BankError = { code: "TransferNotFound", bank_transfer_id: "txn-9" };
     expect(formatBankError(err)).toEqual({

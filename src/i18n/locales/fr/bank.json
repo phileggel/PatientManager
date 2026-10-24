@@ -301,6 +301,7 @@
     "iban_already_used": "IBAN déjà utilisé par un autre compte bancaire",
     "bank_account_not_found": "Compte bancaire introuvable (id : {{id}})",
     "protected_cash_account": "Le compte espèces est protégé et ne peut pas être modifié ou supprimé",
+    "bank_account_holds_bank_entries": "Ce compte porte des virements et ne peut pas être supprimé",
     "transfer_not_found": "Virement bancaire introuvable (id : {{id}})",
     "wrong_transfer_type": "Le type de ce virement ne correspond pas à l'opération demandée",
     "payment_group_not_found": "Groupe de paiement de caisse introuvable (id : {{id}})",

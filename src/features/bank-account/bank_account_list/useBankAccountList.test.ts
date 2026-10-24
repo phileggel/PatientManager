@@ -72,4 +72,19 @@ describe("useBankAccountList", () => {
 
     await expect(result.current.deleteBankAccount("acc-1")).rejects.toThrow(/database error/i);
   });
+
+  it("ticket #448: a refusal throws the translated reason (R6)", async () => {
+    mockGetCashId.mockResolvedValue({ success: true, data: "acc-cash" });
+    mockDelete.mockResolvedValue({
+      success: false,
+      error: { code: "BankAccountHoldsBankEntries" },
+    });
+
+    const { result } = renderHook(() => useBankAccountList());
+    await act(async () => {});
+
+    await expect(result.current.deleteBankAccount("acc-1")).rejects.toThrow(
+      "This account holds transfers and cannot be deleted",
+    );
+  });
 });

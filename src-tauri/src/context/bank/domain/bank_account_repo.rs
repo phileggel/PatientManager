@@ -18,4 +18,6 @@ pub trait BankAccountRepository: Send + Sync {
     ) -> anyhow::Result<Option<BankAccount>>;
     async fn update_account(&self, account: BankAccount) -> anyhow::Result<BankAccount>;
     async fn delete_account(&self, id: &str) -> anyhow::Result<()>;
+    /// R6 — whether any bank entry is recorded on the account.
+    async fn holds_bank_entries(&self, id: &str) -> anyhow::Result<bool>;
 }

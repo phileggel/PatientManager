@@ -126,7 +126,8 @@ impl BankAccountService {
         Ok(updated)
     }
 
-    /// Soft-delete an account — fails with `ProtectedCashAccount` for the default cash account (R4).
+    /// Soft-delete an account — fails with `ProtectedCashAccount` for the default cash account (R4)
+    /// and with `BankAccountHoldsBankEntries` while a bank entry is recorded on it (R6).
     pub async fn delete_account(&self, id: &str) -> Result<(), BankError> {
         if id == CASH_ACCOUNT_ID {
             return Err(BankError::ProtectedCashAccount);
@@ -140,6 +141,13 @@ impl BankAccountService {
             return Err(BankError::BankAccountNotFound {
                 bank_account_id: id.to_string(),
             });
+        }
+        let holds_bank_entries = self.repository.holds_bank_entries(id).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "delete_account: holds_bank_entries failed");
+            BankError::DatabaseError
+        })?;
+        if holds_bank_entries {
+            return Err(BankError::BankAccountHoldsBankEntries);
         }
 
         self.repository.delete_account(id).await.map_err(|e| {
@@ -163,6 +171,46 @@ mod tests {
 
     struct MockBankAccountRepository {
         should_fail: bool,
+    }
+
+    /// R6 — an existing account whose bank entries check answers `holds`; `None` fails it.
+    struct HoldsBankEntriesRepo {
+        holds: Option<bool>,
+    }
+
+    #[async_trait::async_trait]
+    impl BankAccountRepository for HoldsBankEntriesRepo {
+        async fn create_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+            Ok(a)
+        }
+        async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
+            Ok(vec![])
+        }
+        async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
+        async fn find_by_iban_including_deleted(
+            &self,
+            _: &str,
+        ) -> anyhow::Result<Option<BankAccount>> {
+            Ok(None)
+        }
+        async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
+            Ok(Some(BankAccount::restore(
+                id.to_string(),
+                "Held".to_string(),
+                None,
+            )))
+        }
+        async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+            Ok(a)
+        }
+        async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
+            panic!("an account holding bank entries, or an unknown answer, must not be deleted")
+        }
+        async fn holds_bank_entries(&self, _: &str) -> anyhow::Result<bool> {
+            self.holds.ok_or_else(|| anyhow!("Mock repository error"))
+        }
     }
 
     #[async_trait::async_trait]
@@ -221,6 +269,10 @@ mod tests {
                 return Err(anyhow!("Mock repository error"));
             }
             Ok(())
+        }
+
+        async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
+            Ok(false)
         }
     }
 
@@ -330,6 +382,10 @@ mod tests {
             async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
                 Ok(())
             }
+
+            async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
+                Ok(false)
+            }
         }
 
         let service = BankAccountService::new(Arc::new(NotFoundRepo), Arc::new(EventBus::new()));
@@ -362,6 +418,29 @@ mod tests {
         assert!(matches!(result, Err(BankError::ProtectedCashAccount)));
     }
 
+    #[tokio::test]
+    async fn test_delete_account_holding_bank_entries_is_refused() {
+        let repo = Arc::new(HoldsBankEntriesRepo { holds: Some(true) });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.delete_account("acc-held").await;
+
+        assert!(matches!(
+            result,
+            Err(BankError::BankAccountHoldsBankEntries)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_delete_account_bank_entries_check_failure_returns_database_error() {
+        let repo = Arc::new(HoldsBankEntriesRepo { holds: None });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.delete_account("acc-held").await;
+
+        assert!(matches!(result, Err(BankError::DatabaseError)));
+    }
+
     // ============ Additional mock helpers ============
 
     struct MockBankAccountRepositoryReturnsNone;
@@ -391,6 +470,10 @@ mod tests {
         }
         async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
             Ok(())
+        }
+
+        async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
+            Ok(false)
         }
     }
 
@@ -484,6 +567,10 @@ mod tests {
         async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
             Ok(())
         }
+
+        async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
     }
 
     /// Mock that panics if `find_by_iban_including_deleted` is ever called.
@@ -515,6 +602,10 @@ mod tests {
         }
         async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
             Ok(())
+        }
+
+        async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
+            Ok(false)
         }
     }
 

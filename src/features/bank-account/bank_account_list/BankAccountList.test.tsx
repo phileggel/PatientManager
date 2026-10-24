@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toastService } from "@/ui/components/snackbar";
 import { useBankAccountList } from "./useBankAccountList";
 
 vi.mock("../gateway");
@@ -194,6 +195,25 @@ describe("BankAccountList", () => {
     }
 
     expect(screen.getByText("Delete Bank Account")).toBeInTheDocument();
+  });
+
+  it("ticket #448: a refused deletion shows why, without an Error prefix (R6)", async () => {
+    const user = userEvent.setup();
+    const show = vi.spyOn(toastService, "show").mockImplementation(() => {});
+    vi.mocked(useBankAccountList).mockReturnValue({
+      bankAccountRows: [{ rowId: "row-1", id: "acc-123", name: "Main Account" }],
+      accounts: [{ id: "acc-123", name: "Main Account", iban: null }],
+      loading: false,
+      cashAccountId: null,
+      deleteBankAccount: vi.fn().mockRejectedValue(new Error("Held")),
+    });
+
+    render(<BankAccountList searchTerm="" />);
+    const deleteButton = screen.getAllByRole("button", { name: /delete account/i })[0];
+    if (deleteButton) await user.click(deleteButton);
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(show).toHaveBeenCalledWith("error", "Failed to delete account: Held");
   });
 
   it("disables edit and delete buttons for the cash account row", () => {

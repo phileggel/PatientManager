@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS (SELECT 1 FROM bank_transfer WHERE bank_account_id = ?) AS \"holds!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "holds!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "429b34b6e61c3809f9db8e6d2a9a2e57bc49813229be0d4526d4427bb0ba48ee"
+}

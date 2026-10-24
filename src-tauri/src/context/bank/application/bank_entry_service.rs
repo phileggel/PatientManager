@@ -241,6 +241,10 @@ mod tests {
             }
             Ok(())
         }
+
+        async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
     }
 
     struct MockBankEntryRepository {
@@ -321,6 +325,10 @@ mod tests {
         }
         async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
             Ok(())
+        }
+
+        async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
+            Ok(false)
         }
     }
 

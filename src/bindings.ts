@@ -1116,6 +1116,11 @@ export type BankError =
  */
 { code: "ProtectedCashAccount" } | 
 /**
+ * `BankAccountService::delete_account` refused an account a bank entry
+ * is recorded on (R6).
+ */
+{ code: "BankAccountHoldsBankEntries" } | 
+/**
  * `BankEntryService::update_transfer` lookup returned no row.
  */
 { code: "TransferNotFound"; bank_transfer_id: string } | 

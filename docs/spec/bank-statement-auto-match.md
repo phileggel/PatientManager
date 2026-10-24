@@ -103,7 +103,7 @@ A **bank statement label** is the label of a bank statement line, remembered per
 
 **BAS-045 — Action feedback (frontend)**: A successful reassign or delete shows a confirmation message; any other failure shows an error message and leaves the list unchanged.
 
-**BAS-046 — Deleted bank account (backend)**: Deleting a bank account deletes its bank statement labels. Bank accounts are never restored, so they never come back. Labels of accounts deleted before this rule existed are deleted once, on upgrade. A deleted account is never resolved from an IBAN (BAS-010), so no import can add labels to it; the list therefore holds live accounts only.
+**BAS-046 — Deleted bank account (backend)**: Deleting a bank account deletes its bank statement labels. A deleted account's labels never come back, even when bank-account R7 restores the account. Labels of accounts deleted before this rule existed are deleted once, on upgrade. A deleted account is never resolved from an IBAN (BAS-010), so no import can add labels to it; the list therefore holds live accounts only.
 
 ### Matching algorithm (050–059)
 

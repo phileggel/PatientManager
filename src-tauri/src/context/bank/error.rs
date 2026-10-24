@@ -52,6 +52,11 @@ pub enum BankError {
     #[error("The cash account is protected and cannot be modified or deleted")]
     ProtectedCashAccount,
 
+    /// `BankAccountService::delete_account` refused an account a bank entry
+    /// is recorded on (R6).
+    #[error("The bank account holds bank entries and cannot be deleted")]
+    BankAccountHoldsBankEntries,
+
     // --- BankEntry service-layer errors ---
     /// `BankEntryService::update_transfer` lookup returned no row.
     #[error("Bank transfer not found: {bank_transfer_id}")]
@@ -124,6 +129,10 @@ mod tests {
         assert_eq!(
             to_value(BankError::ProtectedCashAccount).unwrap(),
             json!({ "code": "ProtectedCashAccount" }),
+        );
+        assert_eq!(
+            to_value(BankError::BankAccountHoldsBankEntries).unwrap(),
+            json!({ "code": "BankAccountHoldsBankEntries" }),
         );
         assert_eq!(
             to_value(BankError::TransferNotFound {

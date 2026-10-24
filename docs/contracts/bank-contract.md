@@ -12,7 +12,7 @@ Creates a new bank account with a name and an optional IBAN. The IBAN is strippe
 
 - **Args:** `name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
-- **Errors:** `NameEmpty`, `IbanAlreadyUsed`
+- **Errors:** `BankAccountNameEmpty`, `IbanAlreadyUsed`, `DatabaseError`
 
 ---
 
@@ -22,7 +22,7 @@ Returns all non-deleted bank accounts, including the default cash account (R4). 
 
 - **Args:** —
 - **Returns:** `Vec<BankAccount>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -32,17 +32,17 @@ Updates the name and/or IBAN of an existing account. The cash account (`cash-acc
 
 - **Args:** `id: String, name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
-- **Errors:** `NameEmpty`, `NotFound`, `CashAccountProtected`, `IbanAlreadyUsed`
+- **Errors:** `BankAccountNameEmpty`, `BankAccountNotFound`, `ProtectedCashAccount`, `IbanAlreadyUsed`, `DatabaseError`
 
 ---
 
-### `delete_bank_account` — R3, R4
+### `delete_bank_account` — R3, R4, R6
 
-Soft-deletes a bank account (marks it as deleted; no data is removed). There is no blocking constraint on linked transfers — deletion is always allowed for non-cash accounts. The cash account (`cash-account-default`) must not be deletable per R4.
+Soft-deletes a bank account (marks it as deleted; no data is removed). It is refused while any bank entry is recorded on the account (R6). The cash account (`cash-account-default`) must not be deletable per R4.
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `NotFound`, `CashAccountProtected`
+- **Errors:** `BankAccountNotFound`, `ProtectedCashAccount`, `BankAccountHoldsBankEntries` (R6), `DatabaseError`
 
 ---
 
@@ -150,3 +150,4 @@ enum BankEntryType {
 - 2026-05-02 — Backend gaps resolved: CashAccountProtected enforced on update/delete; file renamed from bank-account-contract.md to bank-contract.md; read_bank_account command removed (unused — service method kept for internal orchestrator use)
 - 2026-05-04 — Added by `bank-statement-auto-match` spec (BAS-013) and `bank-account` R5: IbanAlreadyUsed error variant on create_bank_account and update_bank_account; IBAN uniqueness now spans soft-deleted accounts.
 - 2026-10-24 — `get_cash_bank_account_id`: the form uses it to leave the cash account out of its list; a CASH entry's account is the backend's (bank-statement-manual-match BSM-026, #455)
+- 2026-10-24 — `delete_bank_account`: refused with `BankAccountHoldsBankEntries` while a bank entry is on the account (R6, #448); the Errors of `create_bank_account` and `update_bank_account` spelled as on the wire; `read_all_bank_accounts` lists `DatabaseError`

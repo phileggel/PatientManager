@@ -140,6 +140,17 @@ impl BankAccountRepository for SqliteBankAccountRepository {
         tracing::trace!(account_id = %id, "Bank account soft-deleted successfully");
         Ok(())
     }
+
+    async fn holds_bank_entries(&self, id: &str) -> anyhow::Result<bool> {
+        let holds = sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM bank_transfer WHERE bank_account_id = ?) AS "holds!: bool""#,
+            id
+        )
+        .fetch_one(&self.pool)
+        .await
+        .context("Failed to check the bank account's bank entries")?;
+        Ok(holds)
+    }
 }
 
 #[cfg(test)]

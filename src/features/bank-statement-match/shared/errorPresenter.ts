@@ -35,6 +35,7 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "IbanAlreadyUsed":
     case "BankAccountNotFound":
     case "ProtectedCashAccount":
+    case "BankAccountHoldsBankEntries":
     case "TransferNotFound":
     // --- FundError (reachable via read_all_funds / read_all_groups) ---
     case "FundInvalid":
