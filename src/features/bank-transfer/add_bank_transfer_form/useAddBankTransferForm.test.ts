@@ -15,7 +15,7 @@ import { useAddBankTransferForm } from "./useAddBankTransferForm";
 
 const CASH_ID = "cash-account-default";
 
-describe("useAddBankTransferForm — R13 (CASH auto-account)", () => {
+describe("useAddBankTransferForm — R13 (cash account set by the backend)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(gateway.getCashBankAccountId).mockResolvedValue({ success: true, data: CASH_ID });
@@ -40,48 +40,24 @@ describe("useAddBankTransferForm — R13 (CASH auto-account)", () => {
     expect(result.current.bankAccountOptions[0]?.value).toBe("acc-1");
   });
 
-  it("auto-assigns bankAccount to cash id when type changes to CASH", async () => {
+  it("ticket #455: a CASH creation sends no account, the backend sets the cash account", async () => {
+    vi.mocked(gateway.createDirectTransfer).mockResolvedValue({
+      success: true,
+      data: { transfer_id: "t-1", linked_count: 1 },
+    });
     const { result } = renderHook(() => useAddBankTransferForm());
-
     await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalled());
 
     act(() => result.current.handleTypeChange("PATIENT_CASH"));
+    act(() => result.current.setTransferDate("2026-03-10"));
+    act(() => result.current.handleProcedureSelectionChange(["p-1"], 30000));
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
 
-    expect(result.current.bankAccount).toBe(CASH_ID);
-    expect(result.current.isCash).toBe(true);
-  });
-
-  it("assigns bankAccount reactively if cashAccountId loads after CASH is already selected", async () => {
-    let resolveCash!: (v: { success: true; data: string }) => void;
-    vi.mocked(gateway.getCashBankAccountId).mockReturnValue(
-      new Promise((resolve) => {
-        resolveCash = resolve;
-      }),
-    );
-
-    const { result } = renderHook(() => useAddBankTransferForm());
-
-    // Select CASH before the fetch completes — bankAccount still empty
-    act(() => result.current.handleTypeChange("PATIENT_CASH"));
-    expect(result.current.bankAccount).toBe("");
-
-    // Now the fetch resolves
-    await act(async () => resolveCash({ success: true, data: CASH_ID }));
-
-    expect(result.current.bankAccount).toBe(CASH_ID);
-  });
-
-  it("clears bankAccount when switching from CASH to another type", async () => {
-    const { result } = renderHook(() => useAddBankTransferForm());
-
-    await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalled());
-
-    act(() => result.current.handleTypeChange("PATIENT_CASH"));
-    expect(result.current.bankAccount).toBe(CASH_ID);
-
-    act(() => result.current.handleTypeChange("PATIENT_CHECK"));
-    expect(result.current.bankAccount).toBe("");
-    expect(result.current.isCash).toBe(false);
+    expect(gateway.createDirectTransfer).toHaveBeenCalledWith("", "2026-03-10", "PATIENT_CASH", [
+      "p-1",
+    ]);
   });
 
   it("does not assign cash account for non-CASH types on mount", async () => {

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::context::bank::{
-    BankEntry, BankEntryLinkRepository, BankEntryService, BankEntryType, BankError,
+    BankEntry, BankEntryLinkRepository, BankEntryService, BankEntryType, BankError, CASH_ACCOUNT_ID,
 };
 use crate::context::fund::{
     FundError, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentService,
@@ -392,15 +392,20 @@ impl BankManualMatchOrchestrator {
         procedure_ids: Vec<String>,
     ) -> Result<BankManualMatchResult, BankManualMatchError> {
         // BSM-020, BSM-021 — the form's fields first; a cash payment's account
-        // is the cash account the screen sends (R13), not asked of the form.
-        let asked_account =
-            (transfer_type != BankEntryType::PatientCash).then_some(bank_account_id.as_str());
+        // is not asked of the form: it is the cash account, whatever is sent (BSM-026).
+        let is_cash = transfer_type == BankEntryType::PatientCash;
+        let asked_account = (!is_cash).then_some(bank_account_id.as_str());
         let confirmed_date =
             BankEntry::read_form(asked_account, &transfer_date, procedure_ids.len())?;
         let transfer_date = confirmed_date.format("%Y-%m-%d").to_string();
         transfer_type.ensure_not_refund_only_variant()?;
 
         let total_amount = self.compute_procedures_amount(&procedure_ids).await?;
+        let bank_account_id = if is_cash {
+            CASH_ACCOUNT_ID.to_string()
+        } else {
+            bank_account_id
+        };
 
         let transfer = self
             .bank_transfer_service
@@ -1333,6 +1338,49 @@ mod tests {
             procedure.confirmed_payment_date,
             NaiveDate::from_ymd_opt(2026, 3, 15)
         );
+
+        Ok(())
+    }
+
+    /// BSM-026 (ticket #455) — a cash payment lands on the cash account, whatever account
+    /// it is sent: none, another one, or an unknown one.
+    #[tokio::test]
+    async fn test_create_direct_transfer_cash_sent_another_account_stores_the_cash_account(
+    ) -> anyhow::Result<()> {
+        let pool = setup_db().await;
+        let (patient_id, _, proc_type_id) = seed_base(&pool).await;
+        let (orchestrator, _, _) = make_components(&pool);
+        sqlx::query("INSERT INTO bank_account (id, name) VALUES ('acc-other', 'Other bank')")
+            .execute(&pool)
+            .await?;
+
+        for sent in ["", "acc-other", "acc-unknown"] {
+            let proc_id = seed_procedure(
+                &pool,
+                &patient_id,
+                &proc_type_id,
+                "2026-03-10",
+                "CREATED",
+                120_000,
+            )
+            .await;
+
+            let result = orchestrator
+                .create_direct_transfer(
+                    sent.to_string(),
+                    "2026-03-15".to_string(),
+                    BankEntryType::PatientCash,
+                    vec![proc_id],
+                )
+                .await?;
+
+            let stored: String =
+                sqlx::query_scalar("SELECT bank_account_id FROM bank_transfer WHERE id = ?")
+                    .bind(&result.transfer_id)
+                    .fetch_one(&pool)
+                    .await?;
+            assert_eq!(stored, CASH_ACCOUNT_ID, "sent {sent}");
+        }
 
         Ok(())
     }

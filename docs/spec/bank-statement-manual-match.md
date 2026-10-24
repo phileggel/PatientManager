@@ -31,9 +31,9 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **R5 — Transaction deletion (frontend + backend)**: Deletion requires explicit confirmation. It is irreversible — the transaction is permanently erased (hard delete) along with its links to the associated fund-payment groups or procedures.
 
-**BSM-020 — Creation refusals, all at once (backend)**: Creating a bank entry (FUND or direct) is refused when its account is missing (not for `CASH`, R13), its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written.
+**BSM-020 — Creation refusals, all at once (backend)**: Creating a bank entry (FUND or direct) is refused when its account is missing (not for `CASH`, BSM-026), its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written.
 
-**BSM-021 — Field refusals come first (backend)**: The refusals of BSM-020 and BSM-030 are answered before any other check — an unknown bank entry, account or group, a wrong type (R4), or the refund-only type (REF-080): a form with a refused field is refused for its fields alone.
+**BSM-021 — Field refusals come first (backend)**: The refusals of BSM-020 and BSM-030 are answered before any other check — an unknown bank entry, account (not for `CASH`, BSM-026) or group, a wrong type (R4), or the refund-only type (REF-080): a form with a refused field is refused for its fields alone.
 
 **BSM-022 — The form does not judge its fields (frontend)**: The bank entry forms, creation and edit, FUND and direct, never check their own fields: Save is enabled whenever they are not saving and sends the form as it is (BSM-020, BSM-030 judge it).
 
@@ -42,6 +42,8 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 **BSM-024 — A refused save keeps the form (frontend)**: When a save is refused, for any reason, the form or dialog stays open and an error snackbar is shown.
 
 **BSM-025 — A field's message clears when it is edited (frontend)**: A message of BSM-023 clears once its field is edited; for the selection, once a group or procedure is added or removed, in the broadened search too (R12, R20). Changing the type at creation clears the account and selection messages. While the date is missing or invalid, the 7-day selection shows no candidate (the broadened search has no date window, R12, R20).
+
+**BSM-026 — A cash entry is on the cash account (backend)**: A `CASH` bank entry is always recorded on the cash account (R13); an account given with it is ignored, even an unknown one.
 
 **BSM-030 — Edit refusals, all at once (backend)**: Editing a bank entry is refused when its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written. The account is not part of an edit (R9, R17).
 
@@ -91,7 +93,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 ### Direct payments (CHECK / CREDIT_CARD / CASH)
 
-**R13 — Automatic account for the CASH type (frontend + backend)**: For a `CASH` transaction, the account is automatically the default cash account — no account selection is offered to the user. The cash account is identified by the fixed id `cash-account-default` (pre-created by migration). Its display name comes from i18n, not from the database.
+**R13 — Automatic account for the CASH type (frontend + backend)**: For a `CASH` transaction, the account is automatically the default cash account — no account selection is offered to the user. The cash account is identified by the fixed id `cash-account-default` (pre-created by migration). Its display name comes from i18n, not from the database. The account it is stored on is BSM-026's.
 
 **R14 — Creation: procedure selection (frontend + backend)**: The user selects one or more procedures in `Created` status whose execution date (`procedure_date`) is within the 7 days preceding the payment date. The selection UI is similar to the procedure-management UI in fund-payment groups. The payment amount is the sum of the amounts of the selected procedures.
 
@@ -218,4 +220,8 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 ## Open Questions
 
-- [ ] A `CASH` creation (R13): today the form sends the cash account once it has loaded and the backend stores the account it is sent — the contract's "the backend enforces `cash-account-default`" is not in the code. Should the backend set the cash account itself, refusing or replacing any other? (Owner — #351 keeps today's behaviour.)
+- [x] Which account does a `CASH` creation store (R13)? — Decided by the owner on 2026-10-24
+      (#455): the cash account, set by the backend whatever it is sent.
+- [ ] May a `CHECK` or `CREDIT_CARD` bank entry be recorded on the cash account? `bank-account.md`
+      R4 keeps it for cash payments; the form leaves it out of its list, the backend accepts it.
+      (Owner.)

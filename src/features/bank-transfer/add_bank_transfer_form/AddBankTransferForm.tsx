@@ -82,11 +82,6 @@ export function AddBankTransferForm() {
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium text-neutral-90">{t("transfer.bank_account")}</span>
           <span className="text-sm text-neutral-60">{t("transfer.cash_account")}</span>
-          {fieldErrors.bankAccount && (
-            <p role="alert" className="text-xs text-m3-error mt-1 ml-1">
-              {t(fieldErrors.bankAccount)}
-            </p>
-          )}
         </div>
       ) : (
         <SelectField

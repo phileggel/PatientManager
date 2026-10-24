@@ -46,14 +46,6 @@ export function useAddBankTransferForm() {
     });
   }, []);
 
-  // Reactively sync bank account when CASH is selected and cashAccountId is available (R13)
-  // Handles the case where cashAccountId loads after the user already selected CASH
-  useEffect(() => {
-    if (transferType === "PATIENT_CASH" && cashAccountId) {
-      setBankAccountState(cashAccountId);
-    }
-  }, [transferType, cashAccountId]);
-
   const isFund = transferType === "FUND_WIRE";
   const isCash = transferType === "PATIENT_CASH";
 
@@ -86,12 +78,8 @@ export function useAddBankTransferForm() {
     setTotalAmountMillis(0);
     // BSM-025 — a new type has its own account and selection.
     setFieldErrors((prev) => ({ transferDate: prev.transferDate }));
-    // Auto-assign cash account for CASH type, clear for others (R13)
-    if (newType === "PATIENT_CASH") {
-      setBankAccountState(cashAccountId);
-    } else {
-      setBankAccountState("");
-    }
+    // R13 — a cash payment sends no account: the backend sets it (BSM-026).
+    setBankAccountState("");
   };
 
   const handleFundGroupSelectionChange = (groupIds: string[], totalMillis: number) => {
@@ -108,7 +96,7 @@ export function useAddBankTransferForm() {
 
   const resetForm = () => {
     setTransferDateState("");
-    setTransferType("FUND_WIRE"); // Resetting to FUND prevents the CASH reactive effect from firing
+    setTransferType("FUND_WIRE");
     setBankAccountState("");
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);

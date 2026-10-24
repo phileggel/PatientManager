@@ -48,7 +48,7 @@ Soft-deletes a bank account (marks it as deleted; no data is removed). There is 
 
 ### `get_cash_bank_account_id` — R4
 
-Returns the fixed ID of the default cash account (`cash-account-default`), seeded by migration. Called by the bank-transfer form to auto-assign the bank account when the payment method is CASH. The value is a compile-time constant on the backend; the frontend fetches it via command to avoid hardcoding it.
+Returns the fixed ID of the default cash account (`cash-account-default`), seeded by migration. Called by the bank-transfer form to leave the cash account out of its account list; a CASH entry's account is set by the backend (R13). The value is a compile-time constant on the backend; the frontend fetches it via command to avoid hardcoding it.
 
 - **Args:** —
 - **Returns:** `String`
@@ -149,3 +149,4 @@ enum BankEntryType {
 - 2026-05-02 — Added retroactively from specta_builder.rs: create_bank_transfer, read_all_bank_transfers, read_bank_transfer, update_bank_transfer, delete_bank_transfer
 - 2026-05-02 — Backend gaps resolved: CashAccountProtected enforced on update/delete; file renamed from bank-account-contract.md to bank-contract.md; read_bank_account command removed (unused — service method kept for internal orchestrator use)
 - 2026-05-04 — Added by `bank-statement-auto-match` spec (BAS-013) and `bank-account` R5: IbanAlreadyUsed error variant on create_bank_account and update_bank_account; IBAN uniqueness now spans soft-deleted accounts.
+- 2026-10-24 — `get_cash_bank_account_id`: the form uses it to leave the cash account out of its list; a CASH entry's account is the backend's (bank-statement-manual-match BSM-026, #455)
