@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0] - 2026-10-24
+
+### Added
+
+- the bank transfer forms name each missing field under it
+
+### Fixed
+
+- auto-correct all keeps a contested fund amount
+
 ## [0.25.0] - 2026-10-18
 
 ### Added
