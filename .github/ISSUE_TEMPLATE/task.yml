@@ -24,7 +24,7 @@ body:
     id: observation
     attributes:
       label: Observation
-      description: One observation, with its evidence (a figure, a pull request), and its gate if any ("when next touched").
+      description: One observation, with its evidence (a figure, a pull request), and its gate if any ("not as a sweep").
     validations:
       required: true
   - type: dropdown

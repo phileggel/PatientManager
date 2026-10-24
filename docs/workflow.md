@@ -35,9 +35,10 @@ issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
 - **Four kinds, one label each** (owner, 2026-10-17): `feature` and `bug`,
   what a user will see (a `feat`, a `fix`); `task`, what a user will not
   (`refactor`, `chore` on the application, an enabler for a feature); `flow`, how the work moves (guides,
-  `scripts/`, `justfile`, hooks, workflows). A spec, contract, glossary, ADR or
-  `ARCHITECTURE.md` drifting from right code is a task gated "when next touched", alone
-  only when it blocks something.
+  `scripts/`, `justfile`, hooks, workflows). Two labels sit beside a kind, never in its
+  place (owner, 2026-10-18): `spec`, a spec, contract, glossary, ADR or `ARCHITECTURE.md`
+  drifting from right code, a `task` queued on its own; `priority`, the owner wants it in
+  the next batch.
 - **From its form** (`.github/ISSUE_TEMPLATE/`), the CLI included: `gh issue create` with
   its labels (`--label <kind> --label size:<S|M|L|XL>`) and the form's fields as
   `### <field>` sections, then `gh project item-add 4 --owner phileggel --url <url>`. Its
@@ -58,9 +59,8 @@ issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
   record. An issue someone else opens is given its label, its form's fields and its size.
 - **A dependency** is GitHub's "blocked by"; the slices of a programme are its
   sub-issues.
-- **A gate** an issue carries ("when next touched", "not as a sweep", "when a third
-  consumer appears") is honoured, or the override is put to the owner — never swept
-  silently. A task the agent files is an observation, not a commitment.
+- **A gate** an issue carries ("not as a sweep", "when a third consumer appears") is
+  honoured, or the override is put to the owner — never swept silently. A task the agent files is an observation, not a commitment.
 
 ### The Project — Status and Batch (owner, 2026-10-10, 2026-10-11)
 
@@ -73,10 +73,10 @@ issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
 - **Sized by its work**, not its number of items: `/plan-batch` sums the sizes of what it
   proposes and stops at what the last batches merged (their `batch-audit` issues), saying
   both figures. A programme enters as its first slice.
-- **The order `/plan-batch` proposes**: what changes the tools first; a dependency
-  before what depends on it; items that touch the same files next to each other, so one
-  can be prepared on the other; small fixes a user notices early; what needs the owner
-  flagged at the top. Where two of these disagree, the proposal says so in one line.
+- **The order `/plan-batch` proposes**: `priority` first; what changes the tools next; a
+  dependency before what depends on it; items that touch the same files next to each
+  other, so one can be prepared on the other; small fixes a user notices early; what
+  needs the owner flagged at the top. Where two disagree, the proposal says so in one line.
 - **Nothing open is passed over**: every open issue and every open Dependabot pull
   request is on the Project, queued or named as left out with its reason.
 
