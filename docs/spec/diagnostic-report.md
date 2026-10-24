@@ -65,8 +65,10 @@ or written by a library is left out, because it can carry a file name or a messa
 
 **DGR-023 — Destination validation (backend)**: The destination must be a `.txt` file (the
 extension is matched without regard to case) in an existing folder that resolves under the
-user's home directory, and must not be a symbolic link. An existing file is replaced: the save
-dialog already asked. Any other destination is refused before anything is written.
+user's home directory but not inside the app's own folders (its data folder, which holds the
+database, and its log folder), and must not be a symbolic link. An existing file is replaced:
+the save dialog already asked (DGR-027). Any other destination is refused before anything is
+written.
 
 **DGR-024 — Nothing is sent (backend)**: Generating a report writes one file. Nothing is
 transmitted anywhere.
@@ -79,6 +81,12 @@ file fails the operation.
 
 **DGR-026 — Home directory not found (backend)**: When the user's home directory cannot be
 resolved, no destination can be validated and the operation fails with that cause.
+
+**DGR-027 — Writing the report (backend)**: Whether or not a file already exists at the
+destination, the report is written to a new file in the same folder, readable by its owner only,
+then moved over the destination: a link put at that name after DGR-023's check is replaced, never
+followed. When the write or the move fails, the new file is removed, so the operation leaves no
+file beside the destination (DGR-024).
 
 ### Log hygiene (030–039)
 

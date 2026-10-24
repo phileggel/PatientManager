@@ -13,7 +13,14 @@
 //! standard resolution) so the validator stays pure and trivially testable.
 
 use std::fmt;
+use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+/// The app's own directories (its data, its logs), set once at startup: no
+/// renderer-supplied path may resolve inside them (#512).
+static APP_DIRS: OnceLock<Vec<PathBuf>> = OnceLock::new();
 
 /// Outcome of a failed [`validate_user_path`] call.
 #[derive(Debug)]
@@ -29,6 +36,9 @@ pub enum PathValidationError {
     Stat(std::io::Error),
     /// Canonical path falls outside the configured allowed root.
     OutsideAllowedRoot,
+    /// Canonical path falls inside one of the app's own directories, which
+    /// hold the database and the logs.
+    InsideAppData,
     /// Path resolves to something other than a regular file (directory,
     /// symlink to a directory, device, etc.).
     NotRegularFile,
@@ -52,6 +62,7 @@ impl fmt::Display for PathValidationError {
             Self::OutsideAllowedRoot => {
                 write!(f, "Path is outside the allowed root directory")
             }
+            Self::InsideAppData => write!(f, "Path is inside the app data directory"),
             Self::NotRegularFile => write!(f, "Path is not a regular file"),
             Self::ExtensionMismatch { expected, found } => match found {
                 Some(ext) => write!(
@@ -103,7 +114,27 @@ pub fn user_home() -> Option<PathBuf> {
     }
 }
 
-/// Validate a renderer-supplied path against `allowed_root`.
+/// Records the app's own directories, once at startup, so that
+/// [`validate_user_path`] refuses any path inside them. A directory that
+/// cannot be canonicalised is recorded as given, so the refusal never turns
+/// off: the app creates the directories just before this call.
+pub fn refuse_app_dirs(dirs: &[&Path]) {
+    let recorded = dirs
+        .iter()
+        .map(|dir| {
+            fs::canonicalize(dir).unwrap_or_else(|e| {
+                tracing::error!(target: crate::BACKEND, error = %e, "App directory not canonicalised: refused as given");
+                dir.to_path_buf()
+            })
+        })
+        .collect();
+    if APP_DIRS.set(recorded).is_err() {
+        tracing::error!(target: crate::BACKEND, "App directories already recorded");
+    }
+}
+
+/// Validate a renderer-supplied path against `allowed_root`, refusing the
+/// app directories recorded by [`refuse_app_dirs`].
 ///
 /// On success returns the canonical path — callers MUST use the returned
 /// `PathBuf` for any subsequent filesystem operation, never the original
@@ -111,6 +142,21 @@ pub fn user_home() -> Option<PathBuf> {
 pub fn validate_user_path(
     raw: &str,
     allowed_root: &Path,
+    policy: PathPolicy,
+) -> Result<PathBuf, PathValidationError> {
+    validate(
+        raw,
+        allowed_root,
+        APP_DIRS.get().map(Vec::as_slice).unwrap_or_default(),
+        policy,
+    )
+}
+
+/// [`validate_user_path`] with the refused directories given, already canonical.
+fn validate(
+    raw: &str,
+    allowed_root: &Path,
+    refused_dirs: &[PathBuf],
     policy: PathPolicy,
 ) -> Result<PathBuf, PathValidationError> {
     let canonical_root =
@@ -147,6 +193,9 @@ pub fn validate_user_path(
     if !canonical.starts_with(&canonical_root) {
         return Err(PathValidationError::OutsideAllowedRoot);
     }
+    if refused_dirs.iter().any(|dir| canonical.starts_with(dir)) {
+        return Err(PathValidationError::InsideAppData);
+    }
 
     let ext = canonical
         .extension()
@@ -164,6 +213,38 @@ pub fn validate_user_path(
     }
 
     Ok(canonical)
+}
+
+/// Writes `dest` through a new file beside it (`create_new`), renamed over
+/// `dest` once written: an existing file is replaced, and a link planted at
+/// that name after validation is replaced too, its target never written (#512).
+/// The new file is readable by its owner only (unix), and removed when
+/// anything fails.
+pub fn write_replacing(
+    dest: &Path,
+    write: impl FnOnce(&mut fs::File) -> io::Result<()>,
+) -> io::Result<()> {
+    if dest.file_name().is_none() {
+        return Err(io::Error::from(io::ErrorKind::InvalidInput));
+    }
+    // A short name, whatever the leaf's length.
+    let temp = dest.with_file_name(format!(".{}.tmp", uuid::Uuid::new_v4().simple()));
+
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let written = options
+        .open(&temp)
+        .and_then(|mut file| {
+            write(&mut file)?;
+            file.sync_all()
+        })
+        .and_then(|()| fs::rename(&temp, dest));
+    if written.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    written
 }
 
 #[cfg(test)]
@@ -442,5 +523,109 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, PathValidationError::ExtensionMismatch { .. }));
+    }
+
+    // DGR-023
+    #[test]
+    fn test_validate_path_inside_the_app_data_dir_is_refused() {
+        let root = tempdir().expect("root");
+        let app_data = root.path().join("app-data");
+        fs::create_dir(&app_data).unwrap();
+        let refused = fs::canonicalize(&app_data).unwrap();
+
+        let err = validate(
+            app_data.join("backup.gz").to_str().unwrap(),
+            root.path(),
+            std::slice::from_ref(&refused),
+            PathPolicy::NewFileInExistingDir {
+                extensions: &["gz"],
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(err, PathValidationError::InsideAppData), "{err:?}");
+
+        let beside = root.path().join("backup.gz");
+        validate(
+            beside.to_str().unwrap(),
+            root.path(),
+            std::slice::from_ref(&refused),
+            PathPolicy::NewFileInExistingDir {
+                extensions: &["gz"],
+            },
+        )
+        .expect("a path beside the app data dir is accepted");
+    }
+
+    // The only test that records the directory: the record is once per process.
+    #[test]
+    fn test_validate_user_path_refuses_the_directory_recorded_at_startup() {
+        let root = tempdir().expect("root");
+        let app_data = root.path().join("app-data");
+        fs::create_dir(&app_data).unwrap();
+
+        refuse_app_dirs(&[&app_data]);
+        let err = validate_user_path(
+            app_data.join("report.txt").to_str().unwrap(),
+            root.path(),
+            PathPolicy::NewFileInExistingDir {
+                extensions: &["txt"],
+            },
+        )
+        .unwrap_err();
+
+        assert!(matches!(err, PathValidationError::InsideAppData), "{err:?}");
+    }
+
+    // DGR-027
+    #[test]
+    fn test_write_replacing_existing_file_is_replaced_and_no_temp_is_left() {
+        let dir = tempdir().expect("dir");
+        let dest = dir.path().join("report.txt");
+        fs::write(&dest, b"old").unwrap();
+
+        write_replacing(&dest, |f| io::Write::write_all(f, b"new")).expect("written");
+
+        assert_eq!(fs::read(&dest).unwrap(), b"new");
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+        #[cfg(unix)]
+        assert_eq!(
+            std::os::unix::fs::PermissionsExt::mode(&fs::metadata(&dest).unwrap().permissions())
+                & 0o777,
+            0o600
+        );
+    }
+
+    // DGR-027
+    #[test]
+    fn test_write_replacing_failed_write_keeps_the_destination_and_removes_the_temp() {
+        let dir = tempdir().expect("dir");
+        let dest = dir.path().join("report.txt");
+        fs::write(&dest, b"old").unwrap();
+
+        let err = write_replacing(&dest, |_| Err(io::Error::other("refused"))).unwrap_err();
+
+        assert_eq!(err.to_string(), "refused");
+        assert_eq!(fs::read(&dest).unwrap(), b"old");
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    // DGR-027
+    #[cfg(unix)]
+    #[test]
+    fn test_write_replacing_link_at_destination_is_replaced_and_its_target_untouched() {
+        let dir = tempdir().expect("dir");
+        let target = dir.path().join("target.txt");
+        fs::write(&target, b"kept").unwrap();
+        let dest = dir.path().join("report.txt");
+        std::os::unix::fs::symlink(&target, &dest).unwrap();
+
+        write_replacing(&dest, |f| io::Write::write_all(f, b"new")).expect("written");
+
+        assert_eq!(fs::read(&target).unwrap(), b"kept");
+        assert!(!fs::symlink_metadata(&dest)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(fs::read(&dest).unwrap(), b"new");
     }
 }

@@ -6,6 +6,7 @@ use specta::Type;
 
 use crate::shared::db_diagnostics::DatabaseDiagnostics;
 use crate::shared::logger::BACKEND;
+use crate::shared::secure_path;
 
 use super::error::DiagnosticReportError;
 use super::report;
@@ -35,7 +36,16 @@ impl DiagnosticReportOrchestrator {
         let support_code = report::new_support_code();
         let text = report::build(self.database.as_ref(), &self.log_file, &support_code).await;
 
-        tokio::fs::write(dest_path, text).await.map_err(|e| {
+        // An existing file is replaced, a link at the name never followed (#512).
+        let dest = dest_path.to_path_buf();
+        tokio::task::spawn_blocking(move || {
+            secure_path::write_replacing(&dest, |file| {
+                std::io::Write::write_all(file, text.as_bytes())
+            })
+        })
+        .await
+        .unwrap_or_else(|joined| Err(std::io::Error::other(joined)))
+        .map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "Failed to write the diagnostic report");
             DiagnosticReportError::ReportFailed
         })?;

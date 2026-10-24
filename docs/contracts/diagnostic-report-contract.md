@@ -5,16 +5,16 @@
 
 ## Commands
 
-### `generate_diagnostic_report` — DGR-020, DGR-021, DGR-022, DGR-023, DGR-024, DGR-025, DGR-026
+### `generate_diagnostic_report` — DGR-020, DGR-021, DGR-022, DGR-023, DGR-024, DGR-025, DGR-026, DGR-027
 
 Writes the diagnostic report to the given path and returns its support code. The path comes from
 a native save dialog and is validated as a `.txt` file in an existing folder under the user's
-home directory, and not a symbolic link (DGR-023). The report holds no value read from a row of
+home directory, not inside the app's data or log folder, and not a symbolic link (DGR-023). The report holds no value read from a row of
 a table that holds practice data (DGR-022).
 
 - **Args:** `dest_path: String`
 - **Returns:** `DiagnosticReportResult`
-- **Errors:** `HomeUnresolved` (DGR-026), `PathRejected` (outside the home directory, wrong
+- **Errors:** `HomeUnresolved` (DGR-026), `PathRejected` (outside the home directory, inside the app's data or log folder, wrong
   extension, a symbolic link, or the folder does not exist — DGR-023), `ReportFailed` (the file
   could not be written — DGR-025)
 
@@ -39,3 +39,7 @@ enum DiagnosticReportError {
 ## Events
 
 None. Generating a report changes no application state.
+
+## Changelog
+
+- 2026-10-24 — `generate_diagnostic_report`: a destination inside the app's data or log folder is `PathRejected`; the report is written beside the destination, then moved over it (DGR-027, #512).

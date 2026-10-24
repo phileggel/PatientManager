@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::shared::logger::BACKEND;
+use crate::shared::secure_path;
 use crate::shared::Database;
 
 use super::error::DbBackupError;
@@ -93,18 +94,20 @@ impl DbBackupOrchestrator {
             tracing::error!(target: BACKEND, error = %e, "Cannot open temp export file");
             DbBackupError::ExportFailed
         })?;
-        let output = fs::File::create(dest_path).map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Cannot create destination file");
-            DbBackupError::ExportFailed
-        })?;
-        let mut encoder = GzEncoder::new(output, Compression::default());
-        let mut reader = io::BufReader::new(input);
-        io::copy(&mut reader, &mut encoder).map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Gzip compression failed");
-            DbBackupError::ExportFailed
-        })?;
-        encoder.finish().map_err(|e| {
-            tracing::error!(target: BACKEND, error = %e, "Failed to finalise gzip stream");
+        // An existing file is replaced, a link at the name never followed (#512);
+        // the copy and the fsync block, so they run off the async runtime.
+        let dest = PathBuf::from(dest_path);
+        tokio::task::spawn_blocking(move || {
+            secure_path::write_replacing(&dest, |output| {
+                let mut encoder = GzEncoder::new(output, Compression::default());
+                io::copy(&mut io::BufReader::new(input), &mut encoder)?;
+                encoder.finish().map(drop)
+            })
+        })
+        .await
+        .unwrap_or_else(|joined| Err(io::Error::other(joined)))
+        .map_err(|e| {
+            tracing::error!(target: BACKEND, error = %e, "Cannot write the compressed export");
             DbBackupError::ExportFailed
         })?;
 

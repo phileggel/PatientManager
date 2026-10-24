@@ -11,6 +11,10 @@ use std::fs::File;
 use std::path::Path;
 use uuid::Uuid;
 
+/// The largest workbook read: a picked file above it is refused before it is
+/// opened (#512).
+const MAX_XLSX_BYTES: u64 = 50 * 1024 * 1024;
+
 /// Dynamic column index mapping for monthly procedure sheets.
 ///
 /// Supports two formats detected from the header row (ligne 2):
@@ -117,6 +121,19 @@ impl ExcelParserService {
         (name, String::new(), key)
     }
 
+    /// Refuses a file above `cap` bytes before calamine reads it (#512).
+    fn ensure_under_cap(file: &File, cap: u64) -> Result<(), ExcelImportError> {
+        let size = file.metadata().map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "Failed to read the Excel file's size");
+            ExcelImportError::InvalidFormat
+        })?;
+        if size.len() > cap {
+            tracing::error!(target: BACKEND, cap, "Excel file above its size cap");
+            return Err(ExcelImportError::InvalidFormat);
+        }
+        Ok(())
+    }
+
     /// Parse an Excel file and extract patients, funds, and procedures.
     ///
     /// Per-row issues are collected into `ParsingIssues`; only structural
@@ -130,6 +147,7 @@ impl ExcelParserService {
             tracing::error!(target: BACKEND, err = ?e, "Failed to open Excel file");
             ExcelImportError::InvalidFormat
         })?;
+        Self::ensure_under_cap(&file, MAX_XLSX_BYTES)?;
         let mut workbook = Xlsx::new(file).map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "Failed to read file as xlsx workbook");
             ExcelImportError::InvalidFormat
@@ -974,6 +992,18 @@ mod tests {
         assert!(matches!(
             result.unwrap_err(),
             ExcelImportError::InvalidFormat
+        ));
+    }
+
+    #[test]
+    fn test_ensure_under_cap_refuses_a_file_above_the_cap_only() {
+        let mut file = tempfile::tempfile().unwrap();
+        std::io::Write::write_all(&mut file, b"12345").unwrap();
+
+        assert!(ExcelParserService::ensure_under_cap(&file, 5).is_ok());
+        assert!(matches!(
+            ExcelParserService::ensure_under_cap(&file, 4),
+            Err(ExcelImportError::InvalidFormat)
         ));
     }
 

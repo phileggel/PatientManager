@@ -68,6 +68,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         "Initializing application backend"
     );
     tracing::trace!(target: BACKEND, data_dir = ?dirs.local_data_dir, log_dir = ?dirs.log_dir, "Application directories");
+    crate::shared::secure_path::refuse_app_dirs(&[&dirs.local_data_dir, &dirs.log_dir]);
 
     // Check if database reset is requested (honoured in a debug build only, see `Database::new`)
     let is_db_reset = std::env::var("RESET_DATABASE")

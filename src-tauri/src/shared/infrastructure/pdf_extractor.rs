@@ -1,7 +1,12 @@
 use std::fs;
+use std::io::{self, Read};
 use std::path::Path;
 
 use anyhow::{anyhow, Context};
+
+/// The largest PDF read: a picked file above it is refused, read no further
+/// than one byte past it (#512).
+const MAX_PDF_BYTES: u64 = 50 * 1024 * 1024;
 
 /// Extract text content from a PDF file
 ///
@@ -21,7 +26,17 @@ pub fn extract_pdf_text<P: AsRef<Path>>(file_path: P) -> anyhow::Result<String> 
         return Err(anyhow!("File is not a PDF"));
     }
 
-    let bytes = fs::read(file_path).context("Failed to read the file")?;
+    // Read at most one byte past the cap: a file growing meanwhile is still caught.
+    let mut bytes = Vec::new();
+    fs::File::open(file_path)
+        .and_then(|file| file.take(MAX_PDF_BYTES + 1).read_to_end(&mut bytes))
+        .context("Failed to read the file")?;
+    if bytes.len() as u64 > MAX_PDF_BYTES {
+        return Err(
+            anyhow::Error::from(io::Error::from(io::ErrorKind::FileTooLarge))
+                .context("The file is above the PDF size cap"),
+        );
+    }
 
     extract_pdf_text_from_bytes(&bytes)
 }
@@ -81,6 +96,20 @@ mod tests {
         );
         let garbage = extract_pdf_text_from_bytes(b"not a pdf").expect_err("garbage");
         assert_eq!(failure_kind(&garbage), "not_a_readable_pdf");
+    }
+
+    #[test]
+    fn test_extract_pdf_text_file_above_the_cap_is_refused_before_it_is_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let big = dir.path().join("big.pdf");
+        std::fs::File::create(&big)
+            .unwrap()
+            .set_len(MAX_PDF_BYTES + 1)
+            .unwrap();
+
+        let err = extract_pdf_text(&big).expect_err("above the cap");
+
+        assert_eq!(failure_kind(&err), "io:FileTooLarge");
     }
 
     #[test]

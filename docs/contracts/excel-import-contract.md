@@ -11,7 +11,7 @@ Parses the Excel file at the given path, which must be an existing `.xlsx` file 
 
 - **Args:** `file_path: String`
 - **Returns:** `ParseExcelResponse`
-- **Errors:** `PathRejected` (missing, outside the home directory, wrong extension or not a regular file), `InvalidFormat`, `ParseError`
+- **Errors:** `PathRejected` (missing, outside the home directory, inside the app's data or log folder, wrong extension or not a regular file), `InvalidFormat` (unreadable as xlsx, or above 50 MB), `ParseError`
 
 ---
 
@@ -138,3 +138,4 @@ struct SaveExcelAmountMappingRequest {
   - `ExcelProcedure`: added `source_row: u32` (transport metadata for execute-time skip reporting)
   - `ImportExecutionResult`: added `skipped_procedures: Vec<SkippedRow>` (execute-time skip report, mirrors parse-time `parsing_issues.skipped_rows`)
 - 2026-06-06 — Typed-error migration: all 4 commands return `ExcelImportError` (flat `#[serde(tag = "code")]` enum) instead of `Result<T, String>`. `get_excel_amount_mappings` / `save_excel_amount_mappings` now surface `DatabaseError` on infra failure (previously `Errors: —`).
+- 2026-10-24 — `parse_excel_file`: a path inside the app's data or log folder is `PathRejected`, a file above 50 MB `InvalidFormat` (#512).
