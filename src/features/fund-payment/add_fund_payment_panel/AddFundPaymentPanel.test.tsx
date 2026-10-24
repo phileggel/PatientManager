@@ -71,7 +71,8 @@ describe("AddFundPaymentPanel", () => {
     await user.type(dateInput, "2025-02-15");
 
     expect(fundSelect.value).toBe("f1");
-    expect(dateInput.value).toBe("2025-02-15");
+    // The typed date reaches the form and is shown in the locale's format (#452)
+    expect(dateInput.value).toBe("15/02/2025");
   });
 
   it("preserves fund selection when date is updated", async () => {

@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const CALENDAR_WIDTH = 256;
 const CALENDAR_HEIGHT = 290;
 
+/** A complete ISO date (YYYY-MM-DD), the only value shown reformatted. */
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 function getDaysInMonth(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 }
@@ -35,6 +38,8 @@ export function useDateField(
     (isoDate: string | number | readonly string[] | undefined): string => {
       if (!isoDate) return "";
       const dateStr = String(isoDate);
+      // A partial text the user is typing is shown as typed (#452)
+      if (!ISO_DATE.test(dateStr)) return dateStr;
       const date = new Date(`${dateStr}T00:00:00Z`);
       if (Number.isNaN(date.getTime())) return dateStr;
       return new Intl.DateTimeFormat(locale).format(date);
@@ -68,7 +73,7 @@ export function useDateField(
   useEffect(() => {
     if (value !== undefined) {
       setDisplayValue(formatDateForDisplay(value));
-      if (value && String(value).match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (value && ISO_DATE.test(String(value))) {
         const [year, month] = String(value).split("-") as [string, string];
         setCurrentMonth(new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1));
       }
@@ -108,13 +113,14 @@ export function useDateField(
     const newDisplayValue = e.target.value;
     setDisplayValue(newDisplayValue);
 
+    // The form gets what the field shows: empty, a complete date in ISO form, or the
+    // partial text as typed, which the backend refuses as an invalid date (#452)
     const isoDate = formatDateForStorage(newDisplayValue);
-    if (isoDate && /^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
-      onChange?.({
-        ...e,
-        target: { ...e.target, value: isoDate },
-      } as React.ChangeEvent<HTMLInputElement>);
-    }
+    const isComplete = ISO_DATE.test(isoDate);
+    onChange?.({
+      ...e,
+      target: { ...e.target, value: isComplete ? isoDate : newDisplayValue },
+    } as React.ChangeEvent<HTMLInputElement>);
   };
 
   const handleDateSelect = (date: Date) => {
