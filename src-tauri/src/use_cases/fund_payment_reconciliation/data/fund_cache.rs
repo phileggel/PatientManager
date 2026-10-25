@@ -1,6 +1,7 @@
 /// Fund caching to eliminate N+1 queries
 use crate::context::fund::{Fund, FundRepository};
 use crate::context::procedure::Procedure;
+use crate::shared::logger::BACKEND;
 use crate::use_cases::fund_payment_reconciliation::dto::{AnomalyType, NormalizedPdfLine};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -14,7 +15,7 @@ impl FundCache {
     /// Build fund cache by loading all funds once
     /// Instead of calling fund_repository.read_fund() N times, load all once
     pub async fn build(fund_repository: Arc<dyn FundRepository>) -> anyhow::Result<Self> {
-        tracing::debug!("Building fund cache (single query instead of N lookups)");
+        tracing::debug!(target: BACKEND, "Building fund cache (single query instead of N lookups)");
 
         let all_funds = fund_repository.read_all_funds().await?;
         let mut cache = HashMap::new();
@@ -24,6 +25,7 @@ impl FundCache {
         }
 
         tracing::info!(
+            target: BACKEND,
             fund_count = cache.len(),
             "Fund cache built with {} funds",
             cache.len()

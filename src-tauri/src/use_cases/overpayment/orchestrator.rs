@@ -59,6 +59,7 @@ impl OverpaymentOrchestrator {
         req: CreateOverpaymentRequest,
     ) -> Result<(), OverpaymentError> {
         tracing::info!(
+            target: BACKEND,
             source_procedure_id = %req.source_procedure_id,
             refund_date = %req.refund_date,
             "Creating overpayment refund"
@@ -252,6 +253,7 @@ impl OverpaymentOrchestrator {
             .await?;
 
         tracing::info!(
+            target: BACKEND,
             source_procedure_id = %req.source_procedure_id,
             refund_procedure_id = %refund_procedure.id,
             "Overpayment refund created successfully"
@@ -267,6 +269,7 @@ impl OverpaymentOrchestrator {
         source_procedure_id: &str,
     ) -> Result<(), OverpaymentError> {
         tracing::info!(
+            target: BACKEND,
             source_procedure_id = %source_procedure_id,
             "Cancelling overpayment refund"
         );
@@ -357,6 +360,7 @@ impl OverpaymentOrchestrator {
             .await?;
 
         tracing::info!(
+            target: BACKEND,
             source_procedure_id = %source_procedure_id,
             "Overpayment refund cancelled successfully"
         );

@@ -1,5 +1,6 @@
 use super::anomaly_detector::AnomalyDetector;
 use crate::context::procedure::Procedure;
+use crate::shared::logger::BACKEND;
 use crate::use_cases::fund_payment_reconciliation::core::{
     InternalAmount, ReconciliationProcessor, MAX_GROUP_CANDIDATES,
 };
@@ -63,6 +64,7 @@ impl ReconciliationPass {
         };
 
         tracing::debug!(
+            target: BACKEND,
             pass = pass,
             pass_type = pass_type,
             amount_mode = amount_mode,
@@ -113,6 +115,7 @@ impl ReconciliationPass {
                 let candidate_ids: Vec<String> =
                     candidates_cloned.iter().map(|p| p.id.clone()).collect();
                 tracing::warn!(
+                    target: BACKEND,
                     line_index = normalized.line_index,
                     candidate_count = candidates_cloned.len(),
                     max_allowed = MAX_GROUP_CANDIDATES,
@@ -164,6 +167,7 @@ impl ReconciliationPass {
 
         let remaining = normalized_lines.len() - self.matched_indices.len();
         tracing::info!(
+            target: BACKEND,
             pass = pass,
             pass_type = pass_type,
             amount_mode = amount_mode,
@@ -207,6 +211,7 @@ impl ReconciliationPass {
         if sum != InternalAmount(normalized.amount) {
             anomalies.push(AnomalyType::AmountMismatch);
             tracing::warn!(
+                target: BACKEND,
                 line_index = normalized.line_index,
                 pdf_amount = InternalAmount(normalized.amount).to_f64(),
                 db_sum = sum.to_f64(),
@@ -218,6 +223,7 @@ impl ReconciliationPass {
             self.build_period_db_matches(normalized, &matched_procs, anomalies, detector);
 
         tracing::debug!(
+            target: BACKEND,
             line_index = normalized.line_index,
             procedure_count = matched_procs.len(),
             anomaly_count = db_matches.iter().map(|m| m.anomalies.len()).sum::<usize>(),
@@ -266,6 +272,7 @@ impl ReconciliationPass {
         if db_internal != InternalAmount(normalized.amount) {
             anomalies.push(AnomalyType::AmountMismatch);
             tracing::warn!(
+                target: BACKEND,
                 line_index = normalized.line_index,
                 procedure_id = %proc.id,
                 pdf_amount = InternalAmount(normalized.amount).to_f64(),
@@ -277,6 +284,7 @@ impl ReconciliationPass {
         if let Some(fa) = detector.fund_cache.check_fund_anomaly(normalized, proc) {
             anomalies.push(fa);
             tracing::warn!(
+                target: BACKEND,
                 line_index = normalized.line_index,
                 procedure_id = %proc.id,
                 fund_identifier = loggable_fund_identifier(&normalized.fund_name),
@@ -287,6 +295,7 @@ impl ReconciliationPass {
 
         if use_date_minus_one {
             tracing::debug!(
+                target: BACKEND,
                 line_index = normalized.line_index,
                 procedure_id = %proc.id,
                 pdf_date = %normalized.procedure_start_date,
@@ -296,6 +305,7 @@ impl ReconciliationPass {
         }
 
         tracing::debug!(
+            target: BACKEND,
             line_index = normalized.line_index,
             procedure_id = %proc.id,
             anomaly_count = anomalies.len(),
@@ -334,6 +344,7 @@ impl ReconciliationPass {
             if let Some(fa) = detector.fund_cache.check_fund_anomaly(normalized, proc) {
                 proc_anomalies.push(fa);
                 tracing::warn!(
+                    target: BACKEND,
                     line_index = normalized.line_index,
                     procedure_id = %proc.id,
                     fund_identifier = loggable_fund_identifier(&normalized.fund_name),

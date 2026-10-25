@@ -56,6 +56,7 @@ impl ExcelImportOrchestrator {
         selected_sheets: Vec<String>,
     ) -> Result<ImportExecutionResult, ExcelImportError> {
         tracing::debug!(
+            target: BACKEND,
             patients = parsed_data.patients.len(),
             funds = parsed_data.funds.len(),
             procedures = parsed_data.procedures.len(),
@@ -128,6 +129,7 @@ impl ExcelImportOrchestrator {
         }
 
         tracing::info!(
+            target: BACKEND,
             created = patients_created,
             reused = patients_reused,
             "Patients resolved"
@@ -173,6 +175,7 @@ impl ExcelImportOrchestrator {
         }
 
         tracing::info!(
+            target: BACKEND,
             created = funds_created,
             reused = funds_reused,
             "Funds resolved"
@@ -201,7 +204,7 @@ impl ExcelImportOrchestrator {
                     // Unknown sheet name — still mark allowed so rows reach step 4
                     // and EXI-281 surfaces them in the skip report. Block/delete
                     // not possible without a canonical month.
-                    tracing::warn!(sheet = %sheet, "Unknown sheet name in selection — no block/delete possible");
+                    tracing::warn!(target: BACKEND, sheet = %sheet, "Unknown sheet name in selection — no block/delete possible");
                     allowed_sheets.insert(sheet.clone());
                     continue;
                 };
@@ -215,7 +218,7 @@ impl ExcelImportOrchestrator {
                         ExcelImportError::ImportFailed
                     })?
                 {
-                    tracing::warn!(month = %month_key, sheet = %sheet, "Month blocked: it holds procedures with a blocking status");
+                    tracing::warn!(target: BACKEND, month = %month_key, sheet = %sheet, "Month blocked: it holds procedures with a blocking status");
                     blocked_months.push(month_key);
                 } else {
                     let deleted = self
@@ -227,7 +230,7 @@ impl ExcelImportOrchestrator {
                             ExcelImportError::ImportFailed
                         })?;
                     procedures_deleted += deleted as u32;
-                    tracing::debug!(month = %month_key, sheet = %sheet, deleted = deleted, "Cleared procedures for month before re-import");
+                    tracing::debug!(target: BACKEND, month = %month_key, sheet = %sheet, deleted = deleted, "Cleared procedures for month before re-import");
                     allowed_sheets.insert(sheet.clone());
                 }
             }
@@ -270,6 +273,7 @@ impl ExcelImportOrchestrator {
             // (2) Patient resolution.
             let Some(patient_id) = patients_map.get(&excel_proc.patient_temp_id).cloned() else {
                 tracing::debug!(
+                    target: BACKEND,
                     patient_temp_id = %excel_proc.patient_temp_id,
                     "Skipping procedure: patient temp_id not resolved"
                 );
@@ -283,6 +287,7 @@ impl ExcelImportOrchestrator {
                 .cloned()
             else {
                 tracing::debug!(
+                    target: BACKEND,
                     type_tmp_id = %excel_proc.procedure_type_tmp_id,
                     "Skipping procedure: procedure type not mapped"
                 );
@@ -301,6 +306,7 @@ impl ExcelImportOrchestrator {
                     Ok(d) => d,
                     Err(_) => {
                         tracing::warn!(
+                            target: BACKEND,
                             sheet = %excel_proc.sheet_month,
                             row = excel_proc.source_row,
                             value = %excel_proc.procedure_date,
@@ -329,6 +335,7 @@ impl ExcelImportOrchestrator {
                     Ok(d) => Some(d),
                     Err(_) => {
                         tracing::warn!(
+                            target: BACKEND,
                             sheet = %excel_proc.sheet_month,
                             row = excel_proc.source_row,
                             value = %raw,
@@ -352,6 +359,7 @@ impl ExcelImportOrchestrator {
             // upstream canonicalization, but never panic).
             let Some(expected_month) = sheet_nominal_month(&excel_proc.sheet_month) else {
                 tracing::warn!(
+                    target: BACKEND,
                     sheet = %excel_proc.sheet_month,
                     row = excel_proc.source_row,
                     "EXI-281 unknown sheet name (defensive soft-skip)"
@@ -366,6 +374,7 @@ impl ExcelImportOrchestrator {
             };
             if procedure_date.month() != expected_month {
                 tracing::warn!(
+                    target: BACKEND,
                     sheet = %excel_proc.sheet_month,
                     row = excel_proc.source_row,
                     date = %procedure_date.format("%Y-%m-%d"),
@@ -411,6 +420,7 @@ impl ExcelImportOrchestrator {
         };
 
         tracing::info!(
+            target: BACKEND,
             created = procedures_created,
             skipped = procedures_skipped,
             skip_report_entries = skipped_procedures.len(),

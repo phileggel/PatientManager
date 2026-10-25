@@ -2,6 +2,7 @@ use anyhow::Context;
 use sqlx::SqlitePool;
 
 use crate::context::bank::{domain::BankAccount, domain::BankAccountRepository};
+use crate::shared::logger::BACKEND;
 
 pub struct SqliteBankAccountRepository {
     pool: SqlitePool,
@@ -16,7 +17,7 @@ impl SqliteBankAccountRepository {
 #[async_trait::async_trait]
 impl BankAccountRepository for SqliteBankAccountRepository {
     async fn create_account(&self, account: BankAccount) -> anyhow::Result<BankAccount> {
-        tracing::trace!(account_id = %account.id, name = ?account.name, "Inserting bank account into database");
+        tracing::trace!(target: BACKEND, account_id = %account.id, name = ?account.name, "Inserting bank account into database");
 
         sqlx::query!(
             r#"
@@ -30,13 +31,13 @@ impl BankAccountRepository for SqliteBankAccountRepository {
         .execute(&self.pool)
         .await?;
 
-        tracing::trace!(account_id = %account.id, "Bank account inserted successfully");
+        tracing::trace!(target: BACKEND, account_id = %account.id, "Bank account inserted successfully");
 
         Ok(BankAccount::restore(account.id, account.name, account.iban))
     }
 
     async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
-        tracing::trace!("Fetching all bank accounts from database");
+        tracing::trace!(target: BACKEND, "Fetching all bank accounts from database");
 
         let rows = sqlx::query!(
             r#"
@@ -55,7 +56,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
     }
 
     async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
-        tracing::trace!(account_id = %id, "Fetching bank account from database");
+        tracing::trace!(target: BACKEND, account_id = %id, "Fetching bank account from database");
 
         let row = sqlx::query!(
             r#"
@@ -72,7 +73,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
     }
 
     async fn find_by_iban(&self, iban: &str) -> anyhow::Result<Option<BankAccount>> {
-        tracing::trace!("Finding bank account by IBAN");
+        tracing::trace!(target: BACKEND, "Finding bank account by IBAN");
 
         let row = sqlx::query!(
             r#"
@@ -92,7 +93,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
         &self,
         iban: &str,
     ) -> anyhow::Result<Option<BankAccount>> {
-        tracing::trace!("Finding bank account by IBAN (incl. soft-deleted)");
+        tracing::trace!(target: BACKEND, "Finding bank account by IBAN (incl. soft-deleted)");
 
         let row = sqlx::query!(
             r#"
@@ -109,7 +110,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
     }
 
     async fn update_account(&self, account: BankAccount) -> anyhow::Result<BankAccount> {
-        tracing::trace!(account_id = %account.id, name = ?account.name, "Updating bank account in database");
+        tracing::trace!(target: BACKEND, account_id = %account.id, name = ?account.name, "Updating bank account in database");
 
         sqlx::query!(
             r#"
@@ -125,19 +126,19 @@ impl BankAccountRepository for SqliteBankAccountRepository {
         .await
         .context("Failed to update bank account")?;
 
-        tracing::trace!(account_id = %account.id, "Bank account updated successfully");
+        tracing::trace!(target: BACKEND, account_id = %account.id, "Bank account updated successfully");
         Ok(account.clone())
     }
 
     async fn delete_account(&self, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(account_id = %id, "Soft-deleting bank account from database");
+        tracing::trace!(target: BACKEND, account_id = %id, "Soft-deleting bank account from database");
 
         sqlx::query!(r#"UPDATE bank_account SET is_deleted = 1 WHERE id = ?"#, id)
             .execute(&self.pool)
             .await
             .context("Failed to soft-delete bank account")?;
 
-        tracing::trace!(account_id = %id, "Bank account soft-deleted successfully");
+        tracing::trace!(target: BACKEND, account_id = %id, "Bank account soft-deleted successfully");
         Ok(())
     }
 

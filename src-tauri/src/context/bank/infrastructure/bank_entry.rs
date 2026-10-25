@@ -5,6 +5,7 @@ use crate::context::bank::{
     domain::{BankAccount, BankEntry, BankEntryType},
     BankEntryRepository,
 };
+use crate::shared::logger::BACKEND;
 
 pub struct SqliteBankEntryRepository {
     pool: SqlitePool,
@@ -19,7 +20,7 @@ impl SqliteBankEntryRepository {
 #[async_trait::async_trait]
 impl BankEntryRepository for SqliteBankEntryRepository {
     async fn read_transfer(&self, id: &str) -> anyhow::Result<Option<BankEntry>> {
-        tracing::debug!(transfer_id = %id, "Reading bank transfer");
+        tracing::debug!(target: BACKEND, transfer_id = %id, "Reading bank transfer");
 
         let row = sqlx::query!(
             r#"
@@ -55,7 +56,7 @@ impl BankEntryRepository for SqliteBankEntryRepository {
     }
 
     async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>> {
-        tracing::debug!("Reading all bank transfers");
+        tracing::debug!(target: BACKEND, "Reading all bank transfers");
 
         let rows = sqlx::query!(
             r#"
@@ -97,6 +98,7 @@ impl BankEntryRepository for SqliteBankEntryRepository {
         let type_str = transfer_type_to_str(transfer.transfer_type);
 
         tracing::info!(
+            target: BACKEND,
             transfer_id = %transfer.id,
             transfer_date = %transfer.transfer_date,
             amount = transfer.amount,
@@ -126,7 +128,7 @@ impl BankEntryRepository for SqliteBankEntryRepository {
     }
 
     async fn delete_transfer(&self, id: &str) -> anyhow::Result<()> {
-        tracing::info!(transfer_id = %id, "Hard-deleting bank transfer");
+        tracing::info!(target: BACKEND, transfer_id = %id, "Hard-deleting bank transfer");
 
         sqlx::query!(r#"DELETE FROM bank_transfer WHERE id = ?"#, id,)
             .execute(&self.pool)
@@ -142,6 +144,7 @@ impl BankEntryRepository for SqliteBankEntryRepository {
         let transfer_date_str = transfer.transfer_date.format("%Y-%m-%d").to_string();
 
         tracing::info!(
+            target: BACKEND,
             id = %transfer.id,
             transfer_date = %transfer_date_str,
             amount = transfer.amount,

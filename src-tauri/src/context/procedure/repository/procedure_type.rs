@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context};
 use sqlx::SqlitePool;
 
 use crate::context::procedure::domain::{ProcedureType, ProcedureTypeRepository};
+use crate::shared::logger::BACKEND;
 
 /// Internal row type for procedure type database mapping
 #[derive(sqlx::FromRow)]
@@ -32,7 +33,7 @@ impl SqliteProcedureTypeRepository {
     /// Soft-delete one procedure type on a connection the caller owns — the
     /// write of a unit of work (ADR-003, PRO-280).
     pub async fn soft_delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(procedure_type_id = %id, "Soft-deleting procedure type from database");
+        tracing::trace!(target: BACKEND, procedure_type_id = %id, "Soft-deleting procedure type from database");
 
         sqlx::query!(
             r#"UPDATE procedure_type SET is_deleted = 1 WHERE id = ?"#,
@@ -57,7 +58,7 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
         // Domain layer creates and validates the procedure type
         let procedure_type = ProcedureType::new(name, default_amount, category)?;
 
-        tracing::trace!(procedure_type_id = %procedure_type.id, name = ?procedure_type.name, "Inserting procedure type into database");
+        tracing::trace!(target: BACKEND, procedure_type_id = %procedure_type.id, name = ?procedure_type.name, "Inserting procedure type into database");
 
         sqlx::query!(
             r#"
@@ -72,13 +73,13 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
         .execute(&self.pool)
         .await?;
 
-        tracing::trace!(procedure_type_id = %procedure_type.id, "Procedure type inserted successfully");
+        tracing::trace!(target: BACKEND, procedure_type_id = %procedure_type.id, "Procedure type inserted successfully");
 
         Ok(procedure_type)
     }
 
     async fn read_all_procedure_types(&self) -> anyhow::Result<Vec<ProcedureType>> {
-        tracing::trace!("Fetching all active procedure types from database");
+        tracing::trace!(target: BACKEND, "Fetching all active procedure types from database");
 
         let rows = sqlx::query_as!(
             ProcedureTypeRow,
@@ -95,7 +96,7 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
     }
 
     async fn read_procedure_type(&self, id: &str) -> anyhow::Result<Option<ProcedureType>> {
-        tracing::trace!(procedure_type_id = %id, "Fetching procedure type from database");
+        tracing::trace!(target: BACKEND, procedure_type_id = %id, "Fetching procedure type from database");
 
         let row = sqlx::query_as!(
             ProcedureTypeRow,
@@ -116,7 +117,7 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
         &self,
         procedure_type: ProcedureType,
     ) -> anyhow::Result<ProcedureType> {
-        tracing::trace!(procedure_type_id = %procedure_type.id, "Updating procedure type in database");
+        tracing::trace!(target: BACKEND, procedure_type_id = %procedure_type.id, "Updating procedure type in database");
 
         sqlx::query!(
             r#"
@@ -132,12 +133,12 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
         .execute(&self.pool)
         .await?;
 
-        tracing::trace!("Procedure type updated successfully");
+        tracing::trace!(target: BACKEND, "Procedure type updated successfully");
         Ok(procedure_type.clone())
     }
 
     async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>> {
-        tracing::trace!(name = %name, "Fetching procedure type by name from database");
+        tracing::trace!(target: BACKEND, name = %name, "Fetching procedure type by name from database");
 
         // R4 — SQLite's LOWER() folds ASCII only ("Échographie" stays apart from
         // "échographie"); Rust's to_lowercase() is Unicode-aware, as for patients.

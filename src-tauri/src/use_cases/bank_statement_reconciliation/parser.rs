@@ -147,6 +147,7 @@ fn extract_credit_lines(text: &str) -> (Vec<BankStatementCreditLine>, u32) {
 
     // Log what we found.
     tracing::debug!(
+        target: BACKEND,
         virsepa_count = virsepa_lines.len(),
         matched_count = matched_lines.len(),
         parsed_count = results.len(),
@@ -154,11 +155,11 @@ fn extract_credit_lines(text: &str) -> (Vec<BankStatementCreditLine>, u32) {
     );
 
     if !virsepa_lines.is_empty() {
-        tracing::debug!(?virsepa_lines, "Found VIRSEPA lines");
+        tracing::debug!(target: BACKEND, ?virsepa_lines, "Found VIRSEPA lines");
     }
 
     if !matched_lines.is_empty() {
-        tracing::debug!(?matched_lines, "Regex matched lines");
+        tracing::debug!(target: BACKEND, ?matched_lines, "Regex matched lines");
     }
 
     // BAS-022 — every VIR-SEPA-looking line that produced no credit line.

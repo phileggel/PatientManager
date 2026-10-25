@@ -216,6 +216,7 @@ impl FundPaymentService {
         is_silent: bool,
     ) -> Result<FundPaymentGroup, FundError> {
         tracing::info!(
+            target: BACKEND,
             fund_id = %fund_id,
             payment_date = %payment_date,
             count = procedure_ids.len(),
@@ -267,6 +268,7 @@ impl FundPaymentService {
         total_amount: i64,
     ) -> Result<FundPaymentGroup, FundError> {
         tracing::info!(
+            target: BACKEND,
             group_id = %group_id,
             payment_date = %payment_date,
             count = procedure_ids.len(),
@@ -361,7 +363,7 @@ impl FundPaymentService {
 
     /// Delete fund payment group
     pub async fn delete_group(&self, group_id: String) -> Result<(), FundError> {
-        tracing::info!(group_id = %group_id, "Deleting fund payment group");
+        tracing::info!(target: BACKEND, group_id = %group_id, "Deleting fund payment group");
 
         self.repository.delete_group(&group_id).await.map_err(|e| {
             tracing::error!(target: BACKEND, error = %e, "Failed to delete fund payment group");

@@ -190,7 +190,7 @@ UoW — the aggregate's own repository handles atomicity internally via its `sav
 
 **B28** — MUST use `tracing::{info, debug, warn, error}` with structured fields. Never use `println!`.
 
-**B29** — MUST use `target:` field when adding a new backend specific log.
+**B29** — Every backend log call carries `target:` (B30).
 
 **B30** — The `target:` field MUST use the named constants of `shared/infrastructure/logger.rs` (`BACKEND`, `FRONTEND`), never a string literal:
 

@@ -141,7 +141,7 @@ impl ExcelParserService {
     /// are returned as a typed [`ExcelImportError`]. `file_path` is the
     /// canonical path the command layer validated.
     pub async fn parse_excel(file_path: &Path) -> Result<ParsedExcelData, ExcelImportError> {
-        tracing::debug!("Starting Excel file parse");
+        tracing::debug!(target: BACKEND, "Starting Excel file parse");
 
         let file = File::open(file_path).map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "Failed to open Excel file");
@@ -153,7 +153,7 @@ impl ExcelParserService {
             ExcelImportError::InvalidFormat
         })?;
 
-        tracing::debug!("Excel file opened successfully");
+        tracing::debug!(target: BACKEND, "Excel file opened successfully");
 
         let mut parsing_issues = ParsingIssues {
             skipped_rows: Vec::new(),
@@ -166,11 +166,11 @@ impl ExcelParserService {
                 tracing::error!(target: BACKEND, err = ?e, "Failed to parse Patiente sheet");
                 ExcelImportError::ParseError
             })?;
-        tracing::debug!("Parsed {} patients from Patiente sheet", patients.len());
+        tracing::debug!(target: BACKEND, "Parsed {} patients from Patiente sheet", patients.len());
 
         // Fallback: if Patiente sheet was absent, extract patients from monthly sheets
         let patients = if patients.is_empty() {
-            tracing::debug!("Patiente sheet absent — extracting patients from monthly sheets");
+            tracing::debug!(target: BACKEND, "Patiente sheet absent — extracting patients from monthly sheets");
             Self::extract_patients_from_monthly_sheets(&mut workbook).map_err(|e| {
                 tracing::error!(target: BACKEND, err = ?e, "Failed to extract patients from monthly sheets");
                 ExcelImportError::ParseError
@@ -184,7 +184,7 @@ impl ExcelParserService {
             tracing::error!(target: BACKEND, err = ?e, "Failed to parse Secu sheet");
             ExcelImportError::ParseError
         })?;
-        tracing::debug!("Parsed {} funds", funds.len());
+        tracing::debug!(target: BACKEND, "Parsed {} funds", funds.len());
 
         // Create lookup maps for procedures to reference patient/fund temp_ids
         // SSN-based lookup is primary (stable, avoids name variation issues)
@@ -215,7 +215,7 @@ impl ExcelParserService {
             tracing::error!(target: BACKEND, err = ?e, "Failed to parse monthly procedure sheets");
             ExcelImportError::ParseError
         })?;
-        tracing::debug!("Parsed {} procedures", procedures.len());
+        tracing::debug!(target: BACKEND, "Parsed {} procedures", procedures.len());
 
         // Create tmp_ids for each unique procedure amount and assign to procedures
         let mut amount_to_procedure_type_tmp_id: HashMap<i64, String> = HashMap::new();
@@ -240,6 +240,7 @@ impl ExcelParserService {
         };
 
         tracing::debug!(
+            target: BACKEND,
             patients = result.patients.len(),
             funds = result.funds.len(),
             procedures = result.procedures.len(),
@@ -307,6 +308,7 @@ impl ExcelParserService {
         let mut patients: Vec<ExcelPatient> = by_ssn.into_values().collect();
         patients.extend(by_name.into_values());
         tracing::debug!(
+            target: BACKEND,
             "Extracted {} unique patients from monthly sheets",
             patients.len()
         );
@@ -323,7 +325,7 @@ impl ExcelParserService {
         let range = match workbook.worksheet_range(sheet_name) {
             Ok(r) => r,
             Err(_) => {
-                tracing::debug!(sheet = sheet_name, "Sheet not found, skipping");
+                tracing::debug!(target: BACKEND, sheet = sheet_name, "Sheet not found, skipping");
                 parsing_issues.missing_sheets.push(sheet_name.to_string());
                 return Ok(Vec::new());
             }
@@ -345,6 +347,7 @@ impl ExcelParserService {
 
             if row.len() < 4 {
                 tracing::warn!(
+                    target: BACKEND,
                     row = row_number,
                     "Patiente row has less than 4 columns, skipping"
                 );
@@ -387,7 +390,7 @@ impl ExcelParserService {
                     });
                 }
             } else {
-                tracing::warn!(row = row_number, "Skipping invalid patient row");
+                tracing::warn!(target: BACKEND, row = row_number, "Skipping invalid patient row");
                 parsing_issues.skipped_rows.push(SkippedRow {
                     sheet: sheet_name.to_string(),
                     row_number,
@@ -409,7 +412,7 @@ impl ExcelParserService {
         let range = match workbook.worksheet_range(sheet_name) {
             Ok(r) => r,
             Err(_) => {
-                tracing::debug!(sheet = sheet_name, "Sheet not found, skipping");
+                tracing::debug!(target: BACKEND, sheet = sheet_name, "Sheet not found, skipping");
                 parsing_issues.missing_sheets.push(sheet_name.to_string());
                 return Ok(Vec::new());
             }
@@ -431,6 +434,7 @@ impl ExcelParserService {
 
             if row.len() < 2 {
                 tracing::warn!(
+                    target: BACKEND,
                     row = row_number,
                     "Secu row has less than 2 columns, skipping"
                 );
@@ -471,7 +475,7 @@ impl ExcelParserService {
                     fund_address,
                 });
             } else {
-                tracing::warn!(row = row_number, "Skipping invalid fund row");
+                tracing::warn!(target: BACKEND, row = row_number, "Skipping invalid fund row");
                 parsing_issues.skipped_rows.push(SkippedRow {
                     sheet: sheet_name.to_string(),
                     row_number,
@@ -503,12 +507,14 @@ impl ExcelParserService {
                 if let Ok(range) = workbook.worksheet_range(variation) {
                     found = true;
                     tracing::debug!(
+                        target: BACKEND,
                         month = canonical_month,
                         sheet = variation,
                         "Found month sheet"
                     );
                     let total_rows = range.rows().count();
                     tracing::debug!(
+                        target: BACKEND,
                         month = canonical_month,
                         total_rows = total_rows,
                         "Processing month sheet"
@@ -522,6 +528,7 @@ impl ExcelParserService {
                         if col_idx.is_none() {
                             if let Some(detected) = ColIdx::from_header_row(row) {
                                 tracing::debug!(
+                                    target: BACKEND,
                                     month = canonical_month,
                                     row = row_number,
                                     fund_col = detected.fund,
@@ -601,6 +608,7 @@ impl ExcelParserService {
                             None => {
                                 if !trimmed_date.is_empty() {
                                     tracing::warn!(
+                                        target: BACKEND,
                                         month = canonical_month,
                                         row = row_number,
                                         date_cell = trimmed_date,
@@ -677,6 +685,7 @@ impl ExcelParserService {
                             // Code only — the PatientNotFound payload carries
                             // the patient name (PII) and must not reach logs.
                             tracing::debug!(
+                                target: BACKEND,
                                 month = canonical_month,
                                 row = row_number,
                                 reason_code = reason.code(),
@@ -693,6 +702,7 @@ impl ExcelParserService {
                         // Validate fund exists if provided
                         if !fund_identifier.is_empty() && fund_temp_id.is_none() {
                             tracing::debug!(
+                                target: BACKEND,
                                 month = canonical_month,
                                 row = row_number,
                                 fund_identifier = %fund_identifier,
@@ -712,6 +722,7 @@ impl ExcelParserService {
                         let amount = (amount_euros * 1000.0).round() as i64;
                         if amount <= 0 {
                             tracing::debug!(
+                                target: BACKEND,
                                 month = canonical_month,
                                 row = row_number,
                                 amount_str = %amount_str,
@@ -729,6 +740,7 @@ impl ExcelParserService {
                         }
 
                         tracing::trace!(
+                            target: BACKEND,
                             month = canonical_month,
                             row = row_number,
                             fund_id = %fund_identifier,
@@ -759,7 +771,7 @@ impl ExcelParserService {
 
             // Only report as missing if none of the variations were found
             if !found {
-                tracing::debug!(month = canonical_month, "Month sheet not found");
+                tracing::debug!(target: BACKEND, month = canonical_month, "Month sheet not found");
                 parsing_issues
                     .missing_sheets
                     .push(canonical_month.to_string());

@@ -6,6 +6,7 @@ use super::{
     Fund, FundPaymentGroup, FundPaymentGroupStatus, FundPaymentLine, FundPaymentRepository,
     GroupOrigin,
 };
+use crate::shared::logger::BACKEND;
 
 /// Internal row type for affiliated fund database mapping
 #[derive(sqlx::FromRow)]
@@ -59,7 +60,7 @@ impl SqliteFundRepository {
     /// Insert one fund on a connection the caller owns — the write behind
     /// `create_fund`, also used by a unit of work (ADR-003).
     pub async fn insert_in(conn: &mut sqlx::SqliteConnection, fund: &Fund) -> anyhow::Result<()> {
-        tracing::trace!(fund_id = %fund.id, fund_identifier = %fund.fund_identifier, "Inserting affiliated fund into database");
+        tracing::trace!(target: BACKEND, fund_id = %fund.id, fund_identifier = %fund.fund_identifier, "Inserting affiliated fund into database");
 
         sqlx::query!(
             r#"
@@ -86,7 +87,7 @@ impl SqliteFundRepository {
     /// Soft-delete one fund on a connection the caller owns — the write of a
     /// unit of work (ADR-003, PRO-290).
     pub async fn soft_delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(fund_id = %id, "Soft-deleting affiliated fund from database");
+        tracing::trace!(target: BACKEND, fund_id = %id, "Soft-deleting affiliated fund from database");
 
         sqlx::query!(r#"UPDATE fund SET is_deleted = 1 WHERE id = ?"#, id)
             .execute(conn)
@@ -110,13 +111,13 @@ impl FundRepository for SqliteFundRepository {
             .context("Failed to acquire a connection")?;
         Self::insert_in(&mut conn, &fund).await?;
 
-        tracing::debug!(fund_id = %fund.id, "Affiliated fund inserted successfully");
+        tracing::debug!(target: BACKEND, fund_id = %fund.id, "Affiliated fund inserted successfully");
 
         Ok(fund)
     }
 
     async fn read_all_funds(&self) -> anyhow::Result<Vec<Fund>> {
-        tracing::trace!("Fetching all affiliated funds from database");
+        tracing::trace!(target: BACKEND, "Fetching all affiliated funds from database");
 
         let rows = sqlx::query_as!(
             FundRow,
@@ -135,7 +136,7 @@ impl FundRepository for SqliteFundRepository {
     }
 
     async fn read_fund(&self, id: &str) -> anyhow::Result<Option<Fund>> {
-        tracing::trace!(fund_id = %id, "Fetching affiliated fund from database");
+        tracing::trace!(target: BACKEND, fund_id = %id, "Fetching affiliated fund from database");
 
         let row = sqlx::query_as!(
             FundRow,
@@ -153,7 +154,7 @@ impl FundRepository for SqliteFundRepository {
     }
 
     async fn update_fund(&self, fund: Fund) -> anyhow::Result<Fund> {
-        tracing::trace!(fund_identifier = %fund.fund_identifier, "Updating affiliated fund in database");
+        tracing::trace!(target: BACKEND, fund_identifier = %fund.fund_identifier, "Updating affiliated fund in database");
 
         sqlx::query!(
             r#"
@@ -169,12 +170,12 @@ impl FundRepository for SqliteFundRepository {
         .await
         .with_context(|| "Failed to update affiliated fund")?;
 
-        tracing::trace!(fund_identifier = %fund.fund_identifier, "Affiliated fund updated successfully");
+        tracing::trace!(target: BACKEND, fund_identifier = %fund.fund_identifier, "Affiliated fund updated successfully");
         Ok(fund.clone())
     }
 
     async fn find_fund_by_identifier(&self, identifier: &str) -> anyhow::Result<Option<Fund>> {
-        tracing::trace!(fund_identifier = %identifier, "Fetching affiliated fund by identifier from database");
+        tracing::trace!(target: BACKEND, fund_identifier = %identifier, "Fetching affiliated fund by identifier from database");
 
         let row = sqlx::query_as!(
             FundRow,
@@ -198,6 +199,7 @@ impl FundRepository for SqliteFundRepository {
 
         for fund in funds {
             tracing::trace!(
+                target: BACKEND,
                 fund_id = %fund.id,
                 fund_identifier = %fund.fund_identifier,
                 "Inserting affiliated fund into database within transaction"
@@ -220,6 +222,7 @@ impl FundRepository for SqliteFundRepository {
 
         tx.commit().await?;
         tracing::trace!(
+            target: BACKEND,
             count = created_funds.len(),
             "Batch affiliated funds created successfully"
         );
@@ -372,7 +375,7 @@ impl SqliteFundPaymentRepository {
         status: FundPaymentGroupStatus,
     ) -> anyhow::Result<()> {
         let status_str = group_status_to_str(status);
-        tracing::info!(group_id = %group_id, status = %status_str, "Updating fund payment group status");
+        tracing::info!(target: BACKEND, group_id = %group_id, status = %status_str, "Updating fund payment group status");
 
         sqlx::query!(
             r#"UPDATE fund_payment_group SET status = ? WHERE id = ?"#,
@@ -409,6 +412,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         )?;
 
         tracing::info!(
+            target: BACKEND,
             group_id = %group.id,
             fund_id = %fund_id,
             total_amount = total_amount,
@@ -463,6 +467,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         tx.commit().await.context("Failed to commit transaction")?;
 
         tracing::trace!(
+            target: BACKEND,
             group_id = %group.id,
             line_count = group.lines.len(),
             "Fund payment group with lines created successfully"
@@ -504,7 +509,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     }
 
     async fn read_group(&self, id: &str) -> anyhow::Result<Option<FundPaymentGroup>> {
-        tracing::trace!(group_id = %id, "Fetching fund payment group from database");
+        tracing::trace!(target: BACKEND, group_id = %id, "Fetching fund payment group from database");
 
         let group_row = sqlx::query_as!(
             FundPaymentGroupRow,
@@ -541,7 +546,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     }
 
     async fn read_lines_by_group(&self, group_id: &str) -> anyhow::Result<Vec<FundPaymentLine>> {
-        tracing::trace!(group_id = %group_id, "Fetching fund payment lines for group");
+        tracing::trace!(target: BACKEND, group_id = %group_id, "Fetching fund payment lines for group");
 
         let rows = sqlx::query_as!(
             FundPaymentLineRow,
@@ -559,7 +564,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     }
 
     async fn read_all_groups(&self) -> anyhow::Result<Vec<FundPaymentGroup>> {
-        tracing::trace!("Fetching all fund payment groups from database");
+        tracing::trace!(target: BACKEND, "Fetching all fund payment groups from database");
 
         let group_rows = sqlx::query_as!(
             FundPaymentGroupRow,
@@ -597,7 +602,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     }
 
     async fn update_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup> {
-        tracing::trace!(group_id = %group.id, "Updating fund payment group in database");
+        tracing::trace!(target: BACKEND, group_id = %group.id, "Updating fund payment group in database");
 
         let payment_date_str = group.payment_date.format("%Y-%m-%d").to_string();
 
@@ -615,7 +620,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         .await
         .with_context(|| "Failed to update fund payment group")?;
 
-        tracing::trace!(group_id = %group.id, "Fund payment group updated successfully");
+        tracing::trace!(target: BACKEND, group_id = %group.id, "Fund payment group updated successfully");
         Ok(group)
     }
 
@@ -629,7 +634,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     }
 
     async fn delete_lines_by_group(&self, group_id: &str) -> anyhow::Result<()> {
-        tracing::trace!(group_id = %group_id, "Soft-deleting fund payment lines");
+        tracing::trace!(target: BACKEND, group_id = %group_id, "Soft-deleting fund payment lines");
 
         sqlx::query!(
             r#"UPDATE fund_payment_line SET is_deleted = 1 WHERE fund_payment_group_id = ?"#,
@@ -643,7 +648,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     }
 
     async fn delete_group(&self, group_id: &str) -> anyhow::Result<()> {
-        tracing::trace!(group_id = %group_id, "Soft-deleting fund payment group");
+        tracing::trace!(target: BACKEND, group_id = %group_id, "Soft-deleting fund payment group");
 
         sqlx::query!(
             r#"UPDATE fund_payment_group SET is_deleted = 1 WHERE id = ?"#,
@@ -686,6 +691,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         let origin_str = group_origin_to_str(group.origin);
 
         tracing::info!(
+            target: BACKEND,
             group_id = %group.id,
             fund_id = %group.fund_id,
             total_amount = group.total_amount,

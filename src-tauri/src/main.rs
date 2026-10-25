@@ -5,6 +5,7 @@ use patient_manager_app::initialize_app;
 #[cfg(debug_assertions)]
 use patient_manager_app::shared::bindings_path;
 use patient_manager_app::shared::create_specta_builder;
+use patient_manager_app::shared::logger::BACKEND;
 #[cfg(debug_assertions)]
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
@@ -14,7 +15,7 @@ fn main() {
     // panic output, leaving silent crashes with no diagnostic trail.
     std::panic::set_hook(Box::new(|info| {
         eprintln!("PANIC: {info}");
-        tracing::error!(target: "backend", panic = %info, "Application panic");
+        tracing::error!(target: BACKEND, panic = %info, "Application panic");
     }));
 
     // Create tauri-specta builder for type-safe bindings

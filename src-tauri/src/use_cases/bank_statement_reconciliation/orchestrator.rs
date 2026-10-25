@@ -160,6 +160,7 @@ impl BankStatementOrchestrator {
                 })?;
 
             tracing::info!(
+                target: BACKEND,
                 group_id = %m.group_id,
                 transfer_date = %m.date,
                 amount = m.amount,
@@ -241,6 +242,7 @@ impl BankStatementOrchestrator {
             self.fund_payment_service.notify_group_updated();
 
             tracing::info!(
+                target: BACKEND,
                 group_id = %m.group_id,
                 procedure_count = group.lines.len(),
                 transfer_date = %m.date,

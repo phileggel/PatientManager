@@ -619,7 +619,9 @@ impl BankManualMatchOrchestrator {
             let group = self.fund_payment_service.read_group(group_id).await?;
             match group {
                 Some(group) => candidates.push(group_to_candidate(group)),
-                None => tracing::warn!("Fund group not found for edit pre-fill: {}", group_id),
+                None => {
+                    tracing::warn!(target: BACKEND, "Fund group not found for edit pre-fill: {}", group_id)
+                }
             }
         }
         Ok(candidates)

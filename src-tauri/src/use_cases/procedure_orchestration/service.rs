@@ -57,7 +57,7 @@ impl ProcedureOrchestrationService {
         &self,
         ids: Vec<String>,
     ) -> Result<Vec<Procedure>, ProcedureOrchestrationError> {
-        tracing::debug!(count = ids.len(), "Fetching procedures by IDs");
+        tracing::debug!(target: BACKEND, count = ids.len(), "Fetching procedures by IDs");
         Ok(self
             .context_procedure_service
             .read_procedures_by_ids(ids)
@@ -103,6 +103,7 @@ impl ProcedureOrchestrationService {
         req: CreateProcedureRequest,
     ) -> Result<Procedure, ProcedureOrchestrationError> {
         tracing::debug!(
+            target: BACKEND,
             patient_id = %req.patient_id,
             procedure_type_id = %req.procedure_type_id,
             "Creating new healthcare procedure with FK validation"
@@ -168,6 +169,7 @@ impl ProcedureOrchestrationService {
                 })?;
 
             tracing::debug!(
+                target: BACKEND,
                 patient_id = %req.patient_id,
                 "Patient tracking fields updated"
             );
@@ -336,7 +338,7 @@ impl ProcedureOrchestrationService {
     /// 1. Rejects deletion for procedures linked to a payment group or bank transaction (R5)
     /// 2. Clears patient tracking fields if the patient has no remaining procedures (R20)
     pub async fn delete_procedure(&self, id: &str) -> Result<(), ProcedureOrchestrationError> {
-        tracing::debug!(procedure_id = %id, "Deleting healthcare procedure");
+        tracing::debug!(target: BACKEND, procedure_id = %id, "Deleting healthcare procedure");
 
         // Guard: reject deletion for procedures linked to a payment (R5)
         let procedure = self
@@ -349,7 +351,7 @@ impl ProcedureOrchestrationService {
 
         if procedure.payment_status.is_blocking() {
             tracing::warn!(
-                name = BACKEND,
+                target: BACKEND,
                 procedure_id = %id,
                 status = ?procedure.payment_status,
                 "Delete blocked: procedure is linked to a payment"
@@ -360,7 +362,7 @@ impl ProcedureOrchestrationService {
         // Delegate to context service for state change (which publishes event)
         self.context_procedure_service.delete_procedure(id).await?;
 
-        tracing::debug!(procedure_id = %id, "Procedure deleted successfully");
+        tracing::debug!(target: BACKEND, procedure_id = %id, "Procedure deleted successfully");
 
         // Recalculate patient tracking after deletion (cross-context side effect, R20)
         let remaining = self
@@ -447,7 +449,7 @@ impl ProcedureOrchestrationService {
             ) {
                 Ok(procedure) => procedures_to_create.push(procedure),
                 Err(e) => {
-                    tracing::warn!(error = %e, "Skipping invalid procedure candidate in batch");
+                    tracing::warn!(target: BACKEND, error = %e, "Skipping invalid procedure candidate in batch");
                 }
             }
         }
@@ -501,6 +503,7 @@ impl ProcedureOrchestrationService {
                             ProcedureOrchestrationTask::DatabaseError
                         })?;
                     tracing::debug!(
+                        target: BACKEND,
                         patient_id = %patient_id,
                         "Patient tracking fields updated via batch creation"
                     );

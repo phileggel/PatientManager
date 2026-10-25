@@ -69,12 +69,12 @@ impl Database {
         }
 
         if reset_allowed(is_db_reset, cfg!(debug_assertions)) {
-            tracing::warn!("RESET_DATABASE is set - deleting existing database");
+            tracing::warn!(target: BACKEND, "RESET_DATABASE is set - deleting existing database");
             if db_path.exists() {
                 fs::remove_file(&db_path).with_context(|| "Failed to delete database")?;
-                tracing::info!("Database deleted successfully");
+                tracing::info!(target: BACKEND, "Database deleted successfully");
             } else {
-                tracing::info!("Database does not exist, skipping delete");
+                tracing::info!(target: BACKEND, "Database does not exist, skipping delete");
             }
         }
 
@@ -91,7 +91,7 @@ impl Database {
             .connect_with(connect_options)
             .await?;
 
-        tracing::trace!("Database connection pool created");
+        tracing::trace!(target: BACKEND, "Database connection pool created");
 
         let db = Database {
             pool,

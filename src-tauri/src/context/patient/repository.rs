@@ -2,6 +2,7 @@ use anyhow::Context;
 use sqlx::SqlitePool;
 
 use crate::context::patient::*;
+use crate::shared::logger::BACKEND;
 use chrono::NaiveDate;
 
 /// Internal row type for patient database mapping
@@ -75,7 +76,7 @@ impl SqlitePatientRepository {
         conn: &mut sqlx::SqliteConnection,
         patient: &Patient,
     ) -> anyhow::Result<()> {
-        tracing::trace!(patient_id = %patient.id, "Inserting patient into database");
+        tracing::trace!(target: BACKEND, patient_id = %patient.id, "Inserting patient into database");
 
         sqlx::query!(
             r#"
@@ -100,7 +101,7 @@ impl SqlitePatientRepository {
         patient: &Patient,
     ) -> anyhow::Result<()> {
         let patient_id = &patient.id;
-        tracing::trace!(patient_id = %patient_id, "Updating patient in database");
+        tracing::trace!(target: BACKEND, patient_id = %patient_id, "Updating patient in database");
 
         sqlx::query!(
             r#"
@@ -150,7 +151,7 @@ impl SqlitePatientRepository {
     /// Soft-delete one patient on a connection the caller owns — the write
     /// behind `delete_patient`, also used by a unit of work (ADR-003).
     pub async fn soft_delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(patient_id = %id, "Soft-deleting patient from database");
+        tracing::trace!(target: BACKEND, patient_id = %id, "Soft-deleting patient from database");
 
         sqlx::query!(r#"UPDATE patient SET is_deleted = 1 WHERE id = ?"#, id)
             .execute(conn)
@@ -203,7 +204,7 @@ impl PatientRepository for SqlitePatientRepository {
             .context("Failed to acquire a connection")?;
         Self::insert_in(&mut conn, &patient).await?;
 
-        tracing::trace!(patient_id = %patient.id, "Patient inserted successfully");
+        tracing::trace!(target: BACKEND, patient_id = %patient.id, "Patient inserted successfully");
 
         Ok(Patient::restore(
             patient.id,
@@ -218,7 +219,7 @@ impl PatientRepository for SqlitePatientRepository {
     }
 
     async fn read_all_patients(&self) -> anyhow::Result<Vec<Patient>> {
-        tracing::trace!("Fetching all patients from database");
+        tracing::trace!(target: BACKEND, "Fetching all patients from database");
 
         let rows = sqlx::query_as!(
             PatientRow,
@@ -235,7 +236,7 @@ impl PatientRepository for SqlitePatientRepository {
     }
 
     async fn read_patient(&self, patient_id: &str) -> anyhow::Result<Option<Patient>> {
-        tracing::trace!(patient_id = %patient_id, "Fetching patient from database");
+        tracing::trace!(target: BACKEND, patient_id = %patient_id, "Fetching patient from database");
 
         let row = sqlx::query_as!(
             PatientRow,
@@ -263,7 +264,7 @@ impl PatientRepository for SqlitePatientRepository {
     }
 
     async fn find_patient_by_ssn(&self, ssn: &str) -> anyhow::Result<Option<Patient>> {
-        tracing::trace!("Fetching patient by SSN from database");
+        tracing::trace!(target: BACKEND, "Fetching patient by SSN from database");
 
         let row = sqlx::query_as!(
             PatientRow,
@@ -281,7 +282,7 @@ impl PatientRepository for SqlitePatientRepository {
     }
 
     async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>> {
-        tracing::trace!("Fetching patient by name from database");
+        tracing::trace!(target: BACKEND, "Fetching patient by name from database");
 
         // SQLite's built-in LOWER() folds only ASCII; Rust's to_lowercase()
         // is Unicode-aware. Comparing in Rust keeps name dedup symmetric
@@ -313,6 +314,7 @@ impl PatientRepository for SqlitePatientRepository {
 
         for patient in patients {
             tracing::trace!(
+                target: BACKEND,
                 patient_id = %patient.id,
                 "Inserting patient into database within transaction"
             );
@@ -335,6 +337,7 @@ impl PatientRepository for SqlitePatientRepository {
 
         tx.commit().await?;
         tracing::trace!(
+            target: BACKEND,
             count = created_patients.len(),
             "Batch patients created successfully"
         );

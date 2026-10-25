@@ -133,7 +133,7 @@ impl FundPaymentReconciliationOrchestrator {
             .find_fund_by_identifier(&fund_identifier)
             .await?
         {
-            tracing::debug!(fund_identifier = loggable_fund_identifier(fund_label), fund_id = %fund.id, "Resolved fund label to fund ID");
+            tracing::debug!(target: BACKEND, fund_identifier = loggable_fund_identifier(fund_label), fund_id = %fund.id, "Resolved fund label to fund ID");
             return Ok(fund.id);
         }
         if let Some(fund) = plan
@@ -145,6 +145,7 @@ impl FundPaymentReconciliationOrchestrator {
         }
 
         tracing::info!(
+            target: BACKEND,
             fund_identifier = loggable_fund_identifier(fund_label),
             "Fund not found by identifier, creating new fund"
         );
@@ -361,6 +362,7 @@ impl FundPaymentReconciliationOrchestrator {
             })?;
 
         tracing::info!(
+            target: BACKEND,
             count = groups.len(),
             procedure_count = groups.iter().map(|g| g.lines.len()).sum::<usize>(),
             "Fund payment groups created and their procedures reconciled (one unit of work)"
@@ -459,6 +461,7 @@ impl FundPaymentReconciliationOrchestrator {
                 candidate.procedure_ids.push(proc_id);
             } else {
                 tracing::warn!(
+                    target: BACKEND,
                     fund_identifier = loggable_fund_identifier(&fund_label),
                     payment_date = %payment_date,
                     "Created procedure has no matching candidate group"
@@ -496,6 +499,7 @@ impl FundPaymentReconciliationOrchestrator {
         for group in groups {
             if let Err(e) = self.verify_group_integrity(group).await {
                 tracing::warn!(
+                    target: BACKEND,
                     group_id = %group.id,
                     error = %e,
                     "Post-persistence integrity check failed for fund payment group (data persisted, manual review needed)"
@@ -504,6 +508,7 @@ impl FundPaymentReconciliationOrchestrator {
         }
 
         tracing::info!(
+            target: BACKEND,
             count = groups.len(),
             "Post-persistence integrity verification complete"
         );
@@ -534,6 +539,7 @@ impl FundPaymentReconciliationOrchestrator {
                 payment_amounts.push((line.procedure_id.clone(), amount));
             } else {
                 tracing::warn!(
+                    target: BACKEND,
                     procedure_id = %line.procedure_id,
                     "Procedure not found during post-persistence integrity check"
                 );
@@ -559,6 +565,7 @@ impl FundPaymentReconciliationOrchestrator {
                 .join(", ");
 
             tracing::warn!(
+                target: BACKEND,
                 group_id = %group.id,
                 expected_total = group.total_amount,
                 actual_total = payments_total,
@@ -577,6 +584,7 @@ impl FundPaymentReconciliationOrchestrator {
         }
 
         tracing::info!(
+            target: BACKEND,
             group_id = %group.id,
             total_amount = group.total_amount,
             procedure_count = group.lines.len(),
@@ -610,6 +618,7 @@ impl FundPaymentReconciliationOrchestrator {
             .await?;
 
         tracing::info!(
+            target: BACKEND,
             total_corrections = total_corrections,
             amount_corrections = update_stats.amount_corrections,
             fund_corrections = update_stats.fund_corrections,
@@ -854,7 +863,7 @@ impl FundPaymentReconciliationOrchestrator {
             (Some(patient), _) => patient.id,
             (None, Some(patient)) => patient.id.clone(),
             (None, None) => {
-                tracing::info!("Patient not found by SSN, creating new patient");
+                tracing::info!(target: BACKEND, "Patient not found by SSN, creating new patient");
                 let patient = Patient::new(
                     false,
                     Some(source.patient_name.to_string()),
