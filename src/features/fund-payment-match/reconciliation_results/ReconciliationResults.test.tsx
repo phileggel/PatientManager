@@ -38,6 +38,7 @@ const defaultProps = {
   acceptedKeys: new Set<string>(),
   autoCorrections: new Map(),
   onAcceptCorrection: vi.fn(),
+  onStageCorrection: vi.fn(),
   onUnacceptCorrection: vi.fn(),
 };
 
@@ -253,6 +254,7 @@ describe("ReconciliationResults interactions", () => {
         acceptedKeys={acceptedKeys}
         autoCorrections={new Map()}
         onAcceptCorrection={vi.fn()}
+        onStageCorrection={vi.fn()}
         onUnacceptCorrection={vi.fn()}
       />,
     );
@@ -292,6 +294,7 @@ describe("ReconciliationResults interactions", () => {
         acceptedKeys={acceptedKeys}
         autoCorrections={new Map()}
         onAcceptCorrection={vi.fn()}
+        onStageCorrection={vi.fn()}
         onUnacceptCorrection={vi.fn()}
       />,
     );
@@ -379,6 +382,7 @@ describe("FPA-460 — un-handle a resolved anomaly", () => {
         acceptedKeys={new Set(["FundMismatch-proc-1"])}
         autoCorrections={new Map()}
         onAcceptCorrection={vi.fn()}
+        onStageCorrection={vi.fn()}
         onUnacceptCorrection={onUnacceptCorrection}
       />,
     );

@@ -375,3 +375,52 @@ describe("useReconciliationResults — two NotFound lines sharing candidates (#6
     expect(onReport).toHaveBeenLastCalledWith(2);
   });
 });
+
+// Ticket #422 (FPA-141, FPA-141D): a group resolves once its total, disputed paid amounts
+// included, equals the PDF amount and every procedure paid less has its choice.
+describe("useReconciliationResults — a group with procedures paid less (#422)", () => {
+  const groupResult = (): ReconciliationResult => ({
+    matches: [
+      {
+        type: "GroupMatchIssue",
+        data: {
+          pdf_line: makePdfLine(0),
+          db_matches: [
+            { ...makeDbMatch("pa"), anomalies: ["AmountMismatch"] },
+            { ...makeDbMatch("pb"), anomalies: ["AmountMismatch"] },
+          ],
+        },
+      } as ReconciliationMatch,
+    ],
+  });
+  const disputes = (paid: number) =>
+    new Map(
+      ["pa", "pb"].map((id) => [
+        `DisputeAmount-${id}`,
+        { DisputeAmount: { procedure_id: id, paid_amount: paid } },
+      ]),
+    );
+  const resolvedCount = (corrections: Map<string, unknown>, keys = new Set(corrections.keys())) => {
+    const onReport = vi.fn();
+    renderHook(() => useReconciliationResults(groupResult(), keys, corrections as never, onReport));
+    return onReport.mock.lastCall?.[0];
+  };
+
+  it("FPA-141D: counts a disputed group unresolved while the paid amounts do not add up", () => {
+    expect(resolvedCount(disputes(4000))).toBe(0);
+  });
+
+  it("FPA-141D: counts a disputed group resolved once the paid amounts add up", () => {
+    expect(resolvedCount(disputes(5000))).toBe(1);
+  });
+
+  it("FPA-141: counts a group unresolved while a procedure paid less has no choice", () => {
+    const typed = new Map(
+      ["pa", "pb"].map((id) => [
+        `AmountMismatch-${id}`,
+        { AmountMismatch: { procedure_id: id, pdf_amount: 5000 } },
+      ]),
+    );
+    expect(resolvedCount(typed, new Set(["AmountMismatch-pa"]))).toBe(0);
+  });
+});

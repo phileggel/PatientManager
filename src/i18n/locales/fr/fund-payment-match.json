@@ -176,7 +176,9 @@
       "validate_distribution": "Valider cette distribution",
       "dispute_amount": "Contester (montant réel : {{amount}})",
       "undo": "Modifier",
-      "undo_aria": "Modifier cette correction et choisir de nouveau"
+      "undo_aria": "Modifier cette correction et choisir de nouveau",
+      "corrected": "Corrigé",
+      "disputed": "Contesté"
     },
     "nearby": {
       "title": "Actes proches (INS différent)"
@@ -184,7 +186,9 @@
     "distribution": {
       "total": "Total saisi",
       "expected": "Attendu",
-      "remaining": "Reste : {{diff}}"
+      "remaining": "Reste : {{diff}}",
+      "billed": "Facturé {{amount}}",
+      "paid_less": "Payé {{diff}} de moins"
     },
     "too_many": {
       "description": "{{count}} actes correspondent — rapprochement automatique impossible.",

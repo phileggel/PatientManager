@@ -78,9 +78,6 @@ export function useReconciliationResults(
 
       if (match.type === "GroupMatchIssue") {
         const { pdf_line, db_matches } = match.data;
-        const allDisputed = db_matches.every((m) =>
-          acceptedKeys.has(buildDisputeKey(m.procedure_id)),
-        );
         const allAnomaliesAccepted = db_matches.every((m) =>
           m.anomalies.every((a) => {
             if (a === "AmountMismatch")
@@ -91,15 +88,17 @@ export function useReconciliationResults(
             return acceptedKeys.has(buildCorrectionKey(a, m.procedure_id));
           }),
         );
+        // FPA-141D: a disputed procedure counts with its paid amount.
         const currentTotal = db_matches.reduce((sum, m) => {
-          const key = buildCorrectionKey("AmountMismatch", m.procedure_id);
-          const corr = autoCorrections.get(key);
+          const dispute = autoCorrections.get(buildDisputeKey(m.procedure_id));
+          if (dispute && "DisputeAmount" in dispute) return sum + dispute.DisputeAmount.paid_amount;
+          const corr = autoCorrections.get(buildCorrectionKey("AmountMismatch", m.procedure_id));
           return (
             sum +
             (corr && "AmountMismatch" in corr ? corr.AmountMismatch.pdf_amount : m.amount || 0)
           );
         }, 0);
-        const amountOk = allDisputed || pdf_line.amount === currentTotal;
+        const amountOk = pdf_line.amount === currentTotal;
         return allAnomaliesAccepted && amountOk;
       }
 

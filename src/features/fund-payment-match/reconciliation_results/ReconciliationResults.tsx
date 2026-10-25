@@ -31,6 +31,7 @@ interface ReconciliationResultsProps {
   acceptedKeys: Set<string>;
   autoCorrections: Map<string, AutoCorrection>;
   onAcceptCorrection: (key: string, correction: AutoCorrection) => void;
+  onStageCorrection: (key: string, correction: AutoCorrection) => void;
   onUnacceptCorrection: (keys: string[]) => void;
   onReportResolvedCount?: (count: number) => void;
   onReportUnresolvedGroupCount?: (count: number) => void;
@@ -41,6 +42,7 @@ export function ReconciliationResultsView({
   acceptedKeys,
   autoCorrections,
   onAcceptCorrection,
+  onStageCorrection,
   onUnacceptCorrection,
   onReportResolvedCount,
   onReportUnresolvedGroupCount,
@@ -230,6 +232,7 @@ export function ReconciliationResultsView({
               acceptedKeys={acceptedKeys}
               autoCorrections={autoCorrections}
               onAcceptCorrection={onAcceptCorrection}
+              onStageCorrection={onStageCorrection}
               onUnacceptCorrection={onUnacceptCorrection}
             />
           )}

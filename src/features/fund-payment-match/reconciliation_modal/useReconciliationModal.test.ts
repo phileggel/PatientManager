@@ -136,6 +136,22 @@ describe("useReconciliationModal — direct state setters", () => {
     expect(result.current.autoCorrections.get("FundMismatch-proc-1")).toEqual(correction);
   });
 
+  // Ticket #422 (FPA-141): an amount typed below the billed one waits for the user's choice.
+  it("handleStageCorrection stores the correction without accepting it", async () => {
+    const { result } = renderHook(() => useReconciliationModal("/test.pdf", onClose));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const accepted: AutoCorrection = {
+      AmountMismatch: { procedure_id: "proc-1", pdf_amount: 45000 },
+    };
+    const typed: AutoCorrection = { AmountMismatch: { procedure_id: "proc-1", pdf_amount: 30000 } };
+    act(() => result.current.handleAcceptCorrection("AmountMismatch-proc-1", accepted));
+    act(() => result.current.handleStageCorrection("AmountMismatch-proc-1", typed));
+
+    expect(result.current.acceptedKeys.has("AmountMismatch-proc-1")).toBe(false);
+    expect(result.current.autoCorrections.get("AmountMismatch-proc-1")).toEqual(typed);
+  });
+
   it("handleReportResolvedCount updates resolvedCount", async () => {
     const { result } = renderHook(() => useReconciliationModal("/test.pdf", onClose));
     await waitFor(() => expect(result.current.isLoading).toBe(false));

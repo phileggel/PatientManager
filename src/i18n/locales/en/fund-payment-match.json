@@ -176,7 +176,9 @@
       "validate_distribution": "Validate this distribution",
       "dispute_amount": "Contest (actual amount: {{amount}})",
       "undo": "Modify",
-      "undo_aria": "Modify this correction and choose again"
+      "undo_aria": "Modify this correction and choose again",
+      "corrected": "Corrected",
+      "disputed": "Disputed"
     },
     "nearby": {
       "title": "Nearby procedures (different SSN)"
@@ -184,7 +186,9 @@
     "distribution": {
       "total": "Current total",
       "expected": "Expected",
-      "remaining": "Remaining: {{diff}}"
+      "remaining": "Remaining: {{diff}}",
+      "billed": "Billed {{amount}}",
+      "paid_less": "Paid {{diff}} less"
     },
     "too_many": {
       "description": "{{count}} procedures match — automatic reconciliation impossible.",

@@ -71,17 +71,17 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-140 (R8) — Group match with anomaly (backend + frontend)**: A PDF line matches several procedures (grouped procedures) but presents anomalies (`GroupMatchIssue`, see FPA-110). In the GroupMatch card, each matched procedure displays its `DateMismatch` and `FundMismatch` anomalies as chips. The "Validate distribution" button accepts simultaneously all corrections (amount, date, fund) for all procedures in the group, except as FPA-141C says.
 
-**FPA-141 — Group dispute offered (frontend)**: While the PDF amount is below the total billed for the group's procedures, the distributed total is above zero and differs from the PDF amount, and the issue is not resolved nor every procedure disputed, the GroupMatch card offers to dispute the amounts of its procedures.
+**FPA-141 — A procedure paid less asks for a choice (frontend)**: On a GroupMatch card, the distribution opens at the billed amounts, and each procedure shows its billed amount beside the amount typed for it. While the typed amount is below the billed amount, the card shows the gap and asks the user to choose, for that procedure, to correct or to dispute (« Corrigé » / « Contesté » on screen); nothing is chosen by default, and the typed amount is held without being staged until the choice.
 
-**FPA-141A — What a group dispute stages (frontend)**: Disputing stages a dispute for every procedure of the group, the amount typed for each becoming its paid amount; no amount correction stays staged, so the billed amounts are kept (FPA-210B).
+**FPA-141A — Correct or dispute a procedure (frontend)**: Correcting stages an amount correction to the typed amount. Disputing stages a dispute whose paid amount is the typed amount, the billed amount being kept (FPA-210B). A procedure has one or the other, never both (FPA-211).
 
-**FPA-141B — An amount typed after a dispute (frontend)**: An amount typed for a disputed procedure changes its paid amount, not its billed amount.
+**FPA-141B — An amount typed after a choice (frontend)**: An amount typed below the billed amount keeps the procedure's choice and changes its corrected or paid amount. An amount at or above the billed amount clears the choice and stages an amount correction, a dispute being below the billed amount (FPA-212).
 
-**FPA-141C — Validate distribution after a dispute (frontend)**: "Validate distribution" stages no amount correction for a disputed procedure.
+**FPA-141C — Validate distribution (frontend)**: "Validate distribution" is enabled once the distributed total equals the PDF amount and every procedure paid less has its choice. It stages the group's date and fund corrections and the amount correction of every procedure neither disputed nor corrected yet; it stages no amount correction for a disputed procedure.
 
-**FPA-141D — A dispute settles the amount only (frontend)**: After a group dispute, the group's date and fund anomalies still have to be accepted.
+**FPA-141D — A disputed procedure counts with its paid amount (frontend)**: In the distributed total, a disputed procedure counts with its paid amount.
 
-**FPA-141E — Un-handling a dispute (frontend)**: Un-handling the issue (FPA-460) drops the disputes; the distribution returns to the billed amounts.
+**FPA-141E — Un-handling a group (frontend)**: Un-handling the issue (FPA-460) drops its choices, corrections and disputes; the distribution returns to the billed amounts.
 
 **FPA-150 (R9) — Too many matches (backend)**: If more than 8 candidate procedures are found without a clear match, the case is marked `TooManyMatchIssue`. This case is blocking — no automatic correction is possible, manual intervention in the database is required.
 
@@ -162,7 +162,7 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-410 (R21) — Blocking cases (frontend)**: `TooManyMatchIssue`s are blocking — they cannot be resolved in the UI and prevent validation. They must be displayed first, before the other anomalies, so the user is immediately informed of the impossibility of validating without manual database intervention.
 
-**FPA-420 (R22) — Resolution required before validation (frontend)**: Validation is blocked as long as not all anomalies are resolved. An anomaly is resolved when a correction or dispute has been accepted.
+**FPA-420 (R22) — Resolution required before validation (frontend)**: Validation is blocked as long as not all anomalies are resolved. An anomaly is resolved when a correction or dispute has been accepted. A GroupMatch issue also needs its distributed total to equal the PDF amount (FPA-141D).
 
 **FPA-430 (R23) — Automatic advancement (frontend)**: As soon as an anomaly is resolved, the UI automatically advances to the next unresolved anomaly (after a 500 ms delay).
 

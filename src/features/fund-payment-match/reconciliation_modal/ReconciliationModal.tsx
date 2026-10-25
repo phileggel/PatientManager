@@ -53,6 +53,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
     reportDateRange,
     canValidate,
     handleAcceptCorrection,
+    handleStageCorrection,
     handleUnacceptCorrection,
     handleReportResolvedCount,
     handleReportUnresolvedGroupCount,
@@ -168,6 +169,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
                     acceptedKeys={acceptedKeys}
                     autoCorrections={autoCorrections}
                     onAcceptCorrection={handleAcceptCorrection}
+                    onStageCorrection={handleStageCorrection}
                     onUnacceptCorrection={handleUnacceptCorrection}
                     onReportResolvedCount={handleReportResolvedCount}
                     onReportUnresolvedGroupCount={handleReportUnresolvedGroupCount}

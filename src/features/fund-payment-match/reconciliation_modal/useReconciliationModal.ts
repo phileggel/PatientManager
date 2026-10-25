@@ -120,6 +120,16 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
     setAutoCorrections((prev) => new Map(prev).set(key, correction));
   }, []);
 
+  // FPA-141 — an amount typed below the billed one is held, not accepted, until the user's choice.
+  const handleStageCorrection = useCallback((key: string, correction: AutoCorrection) => {
+    setAcceptedKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+    setAutoCorrections((prev) => new Map(prev).set(key, correction));
+  }, []);
+
   // FPA-460 — un-handle: drop all staged corrections for an issue so it returns
   // to its unresolved, editable state. Nothing is persisted until handleValidate,
   // so this is a pure in-memory revert with no backend round-trip.
@@ -255,6 +265,7 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
     reportDateRange,
     canValidate,
     handleAcceptCorrection,
+    handleStageCorrection,
     handleUnacceptCorrection,
     handleReportResolvedCount,
     handleReportUnresolvedGroupCount,
