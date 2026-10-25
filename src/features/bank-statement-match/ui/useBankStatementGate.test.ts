@@ -16,6 +16,7 @@
  *       other backend error → generic error key (BAS-016 fallback branch)
  *       success → phase becomes "ready" with bankAccount set (BAS-014)
  *   - handleCreateNameChange clears createError on each keystroke (BAS-016)
+ *   - a new filePath resets the gate to its initial state (ticket #482)
  *
  * Mocks gateway at the feature boundary (F3). renderHook stable-reference
  * discipline (F19 / docs/test-rules.md).
@@ -418,5 +419,77 @@ describe("useBankStatementGate — loading phase", () => {
     expect(result.current.error).toBeNull();
     expect(result.current.parseResult).toBeNull();
     expect(result.current.bankAccount).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A second file opened in the same session starts from the initial state (ticket #482)
+// ---------------------------------------------------------------------------
+
+describe("useBankStatementGate — a second file starts clean (ticket #482)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("ticket #482: resets the gate state when a new file is opened", async () => {
+    mockParse.mockResolvedValueOnce({ success: true, data: PARSE_RESULT });
+    mockResolve.mockResolvedValueOnce({ success: true, data: null });
+
+    const { result, rerender } = renderHook(({ path }) => useBankStatementGate(path), {
+      initialProps: { path: FILE_PATH },
+    });
+    await waitFor(() => expect(result.current.phase).toBe("create-account"));
+
+    // Decide things on the first file: a name typed, a refused submit.
+    act(() => result.current.handleCreateNameChange("   "));
+    await act(async () => {
+      await result.current.handleCreateAccountSubmit();
+    });
+    expect(result.current.createError).not.toBeNull();
+
+    // The second file's parse stays pending: what shows is the initial state.
+    mockParse.mockReturnValueOnce(new Promise(() => {}));
+    rerender({ path: "/tmp/second-statement.pdf" });
+
+    expect(result.current.phase).toBe("loading");
+    expect(result.current.error).toBeNull();
+    expect(result.current.parseResult).toBeNull();
+    expect(result.current.bankAccount).toBeNull();
+    expect(result.current.createName).toBe("");
+    expect(result.current.createError).toBeNull();
+    expect(result.current.isCreatingAccount).toBe(false);
+  });
+
+  it("ticket #482: drops an account created on the previous file", async () => {
+    mockParse.mockResolvedValueOnce({ success: true, data: PARSE_RESULT });
+    mockResolve.mockResolvedValueOnce({ success: true, data: null });
+    let resolveCreate: (value: Awaited<ReturnType<typeof gateway.createBankAccount>>) => void =
+      () => {};
+    mockCreate.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+
+    const { result, rerender } = renderHook(({ path }) => useBankStatementGate(path), {
+      initialProps: { path: FILE_PATH },
+    });
+    await waitFor(() => expect(result.current.phase).toBe("create-account"));
+
+    act(() => result.current.handleCreateNameChange("Cabinet principal"));
+    let submitting: Promise<void> = Promise.resolve();
+    act(() => {
+      submitting = result.current.handleCreateAccountSubmit();
+    });
+
+    mockParse.mockReturnValueOnce(new Promise(() => {}));
+    rerender({ path: "/tmp/second-statement.pdf" });
+
+    await act(async () => {
+      resolveCreate({ success: true, data: makeAccount() });
+      await submitting;
+    });
+
+    expect(result.current.phase).toBe("loading");
+    expect(result.current.bankAccount).toBeNull();
+    expect(result.current.isCreatingAccount).toBe(false);
   });
 });

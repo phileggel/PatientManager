@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankAccount, BankStatementParseResult } from "@/bindings";
 import { logger } from "@/infra/logger";
@@ -41,6 +41,25 @@ export function useBankStatementGate(filePath: string): UseBankStatementGateRetu
   const [createName, setCreateName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+
+  // Ticket #482 — a new file starts from the initial state. Reset during render
+  // (React's "adjusting state when a prop changes"), so no frame shows the
+  // previous file's phase before the effect below runs.
+  const [gatedFilePath, setGatedFilePath] = useState(filePath);
+  if (gatedFilePath !== filePath) {
+    setGatedFilePath(filePath);
+    setPhase("loading");
+    setErrorKey(null);
+    setParseResult(null);
+    setBankAccount(null);
+    setCreateName("");
+    setCreateError(null);
+    setIsCreatingAccount(false);
+  }
+  // The file the gate shows now: a create-account call started on an earlier file
+  // drops its result instead of resolving the new file's gate.
+  const currentFilePath = useRef(filePath);
+  currentFilePath.current = filePath;
 
   useEffect(() => {
     let isMounted = true;
@@ -108,10 +127,12 @@ export function useBankStatementGate(filePath: string): UseBankStatementGateRetu
       return;
     }
 
+    const submittedFilePath = filePath;
     setIsCreatingAccount(true);
     setCreateError(null);
     try {
       const result = await createBankAccount(trimmedName, parseResult.iban);
+      if (currentFilePath.current !== submittedFilePath) return;
       if (!result.success) {
         // BAS-016 — the presenter picks the reason's key (F27).
         setCreateError(t(formatCreateAccountError(result.error).key));
@@ -123,9 +144,9 @@ export function useBankStatementGate(filePath: string): UseBankStatementGateRetu
       setPhase("ready");
       logger.info(TAG, "Bank account created inline", { accountId: account.id });
     } finally {
-      setIsCreatingAccount(false);
+      if (currentFilePath.current === submittedFilePath) setIsCreatingAccount(false);
     }
-  }, [createName, parseResult, t]);
+  }, [createName, filePath, parseResult, t]);
 
   return {
     phase,
