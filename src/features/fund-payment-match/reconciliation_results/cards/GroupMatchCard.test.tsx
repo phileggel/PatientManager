@@ -298,3 +298,19 @@ describe("GroupMatchCard — a disputed group resolves once its amounts add up (
     expect(screen.getByText("Resolved")).toBeInTheDocument();
   });
 });
+
+// FPA-140 (ticket #464): each procedure shows its date and fund differences as chips.
+describe("GroupMatchCard — date and fund chips (FPA-140)", () => {
+  it("shows a chip for each date or fund difference, none for the amount", () => {
+    renderCard(new Map(), {
+      matches: [
+        { ...dbMatches[0], anomalies: ["AmountMismatch", "DateMismatch"] } as DbMatch,
+        { ...dbMatches[1], anomalies: ["AmountMismatch", "FundMismatch"] } as DbMatch,
+      ],
+    });
+
+    expect(screen.getByText("Date mismatch")).toBeInTheDocument();
+    expect(screen.getByText("Fund mismatch")).toBeInTheDocument();
+    expect(screen.queryByText("Amount mismatch")).not.toBeInTheDocument();
+  });
+});

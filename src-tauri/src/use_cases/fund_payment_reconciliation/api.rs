@@ -1,6 +1,6 @@
 use super::error::{FundPaymentReconciliationError, FundPaymentReconciliationTask};
 use super::parsing::pdf_parser;
-use super::service::ReconciliationService;
+use super::service::{ensure_has_text, ReconciliationService};
 use crate::shared::logger::BACKEND;
 use crate::shared::pdf_extractor;
 use crate::shared::secure_path::{self, PathPolicy};
@@ -18,7 +18,6 @@ pub async fn reconcile_pdf_procedures_fn(
     service: Arc<ReconciliationService>,
 ) -> Result<ReconciliationResult, FundPaymentReconciliationError> {
     let response = service.reconcile(parse_result).await?;
-    ensure_something_to_reconcile(&response)?;
     Ok(response.reconciliation)
 }
 
@@ -28,37 +27,10 @@ pub async fn reconcile_and_create_candidates_fn(
     orchestrator: Arc<super::FundPaymentReconciliationOrchestrator>,
 ) -> Result<ReconcileAndCandidatesResponse, FundPaymentReconciliationError> {
     let mut response = service.reconcile(parse_result).await?;
-    ensure_something_to_reconcile(&response)?;
     response.already_imported = orchestrator
         .all_candidates_are_duplicates(&response.candidates)
         .await?;
     Ok(response)
-}
-
-/// A PDF whose text yields no PDF line gives nothing to review and nothing to
-/// validate: it is refused here, where an empty result would otherwise read as
-/// "no anomaly" (FPA-065).
-fn ensure_something_to_reconcile(
-    response: &ReconcileAndCandidatesResponse,
-) -> Result<(), FundPaymentReconciliationError> {
-    if response.candidates.is_empty()
-        && response.reconciliation.matches.is_empty()
-        && response.left_out_groups.is_empty()
-    {
-        tracing::warn!(target: BACKEND, "PDF text yields no PDF line");
-        return Err(FundPaymentReconciliationTask::PdfHasNoLine.into());
-    }
-    Ok(())
-}
-
-/// A PDF that opens but yields no text — a scan, or a document printed to PDF
-/// with its letters drawn as shapes — is refused before anything is parsed (FPA-060).
-fn ensure_has_text(text: String) -> Result<String, FundPaymentReconciliationError> {
-    if text.trim().is_empty() {
-        tracing::warn!(target: BACKEND, "PDF holds no extractable text");
-        return Err(FundPaymentReconciliationTask::PdfHasNoText.into());
-    }
-    Ok(text)
 }
 
 pub async fn create_fund_payment_from_candidates_fn(
@@ -308,72 +280,6 @@ mod tests {
             amount: Some(100),
             anomalies: vec![],
         }
-    }
-
-    #[test]
-    fn test_fpa_060_a_pdf_with_no_text_is_refused() {
-        for text in ["", "\u{c}\u{c}\u{c}", " \n\t "] {
-            let err = ensure_has_text(text.to_string()).expect_err("no text must be refused");
-            assert_eq!(
-                serde_json::to_value(&err).expect("serialize"),
-                serde_json::json!({ "code": "PdfHasNoText" }),
-                "{text:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn test_fpa_065_an_empty_reconciliation_is_refused() {
-        let empty = ReconcileAndCandidatesResponse {
-            candidates: vec![],
-            reconciliation: ReconciliationResult { matches: vec![] },
-            already_imported: false,
-            left_out_groups: vec![],
-        };
-        let err = ensure_something_to_reconcile(&empty).expect_err("nothing to review");
-        assert_eq!(
-            serde_json::to_value(&err).expect("serialize"),
-            serde_json::json!({ "code": "PdfHasNoLine" }),
-        );
-    }
-
-    #[test]
-    fn test_fpa_065_a_reconciliation_with_a_line_to_review_goes_on() {
-        let with_issue = ReconcileAndCandidatesResponse {
-            candidates: vec![],
-            reconciliation: ReconciliationResult {
-                matches: vec![ReconciliationMatch::NotFoundIssue {
-                    pdf_line: pdf_line("missing"),
-                    nearby_candidates: vec![],
-                }],
-            },
-            already_imported: false,
-            left_out_groups: vec![],
-        };
-        assert!(ensure_something_to_reconcile(&with_issue).is_ok());
-    }
-
-    #[test]
-    fn test_fpa_070_a_pdf_with_only_left_out_groups_is_answered_not_rejected() {
-        let only_left_out = ReconcileAndCandidatesResponse {
-            candidates: vec![],
-            reconciliation: ReconciliationResult { matches: vec![] },
-            already_imported: false,
-            left_out_groups: vec![LeftOutPdfGroup {
-                fund_label: "taken-back".to_string(),
-                payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
-                total_amount: -26_500,
-            }],
-        };
-        assert!(ensure_something_to_reconcile(&only_left_out).is_ok());
-    }
-
-    #[test]
-    fn test_fpa_060_a_pdf_with_text_goes_on_unchanged() {
-        assert_eq!(
-            ensure_has_text(" CPAM 12,00 ".to_string()).expect("text is kept"),
-            " CPAM 12,00 "
-        );
     }
 
     #[test]

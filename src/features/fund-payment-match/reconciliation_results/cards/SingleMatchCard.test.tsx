@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { DbMatch, NormalizedPdfLine } from "@/bindings";
 import { SingleMatchCard } from "./SingleMatchCard";
@@ -121,5 +121,26 @@ describe("SingleMatchCard — dispute only when paid less (FPA-210)", () => {
 
     expect(screen.getByRole("button", { name: /apply pdf amount/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /contest/i })).not.toBeInTheDocument();
+  });
+});
+
+// FPA-210 (ticket #464): disputing stages a dispute whose paid amount is the PDF amount.
+describe("SingleMatchCard — what a dispute stages (FPA-210)", () => {
+  it("stages a dispute of the PDF amount, and no amount correction", () => {
+    const onAcceptCorrection = vi.fn();
+    render(
+      <SingleMatchCard
+        {...baseProps}
+        onAcceptCorrection={onAcceptCorrection}
+        dbMatch={dbMatchAmountMismatch}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /contest/i }));
+
+    expect(onAcceptCorrection).toHaveBeenCalledTimes(1);
+    expect(onAcceptCorrection).toHaveBeenCalledWith("DisputeAmount-proc-2", {
+      DisputeAmount: { procedure_id: "proc-2", paid_amount: 5000 },
+    });
   });
 });

@@ -59,6 +59,7 @@ impl ReconciliationService {
 
         // FPA-070 — groups that can never become a fund-payment group leave before matching.
         let (parse_result, left_out_groups) = split_out_groups_without_positive_total(parse_result);
+        ensure_something_to_reconcile(&parse_result, &left_out_groups)?;
 
         // Run matching algorithm
         let reconciliation = self.reconcile_groups(&parse_result.groups).await?;
@@ -279,6 +280,32 @@ impl ReconciliationService {
     }
 }
 
+/// A PDF whose text yields no PDF line gives nothing to review and nothing to
+/// validate: it is refused before the matching pass, where an empty result would
+/// otherwise read as "no anomaly" (FPA-065). Groups left out are answered (FPA-072).
+fn ensure_something_to_reconcile(
+    parse_result: &PdfParseResult,
+    left_out_groups: &[LeftOutPdfGroup],
+) -> Result<(), FundPaymentReconciliationError> {
+    if left_out_groups.is_empty() && parse_result.groups.iter().all(|g| g.lines.is_empty()) {
+        tracing::warn!(target: BACKEND, "PDF text yields no PDF line");
+        return Err(FundPaymentReconciliationTask::PdfHasNoLine.into());
+    }
+    Ok(())
+}
+
+/// A PDF that opens but yields no text — a scan, or a document printed to PDF
+/// with its letters drawn as shapes — is refused before anything is parsed (FPA-060).
+/// Called by the `extract_pdf_text` command: compiled with the app, and for its tests.
+#[cfg(any(feature = "app", test))]
+pub(super) fn ensure_has_text(text: String) -> Result<String, FundPaymentReconciliationError> {
+    if text.trim().is_empty() {
+        tracing::warn!(target: BACKEND, "PDF holds no extractable text");
+        return Err(FundPaymentReconciliationTask::PdfHasNoText.into());
+    }
+    Ok(text)
+}
+
 /// A group whose stated total is not positive — the fund takes money back —
 /// cannot become a fund-payment group. It leaves the import before matching, so
 /// it blocks nothing, and is handed back to be named to the user (FPA-070).
@@ -376,25 +403,43 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn reconcile_empty_parse_result_returns_empty() {
-        let mut proc_repo = MockProcedureRepository::new();
-        proc_repo
-            .expect_find_unreconciled_by_date_range()
-            .returning(|_, _| Ok(vec![]));
-        let fund_repo = MockFundRepository::new();
+    async fn test_fpa_065_a_pdf_with_no_line_is_refused_before_the_pass() {
+        // No repository expectation: a read during the pass would fail the test.
+        let service = make_service(MockProcedureRepository::new(), MockFundRepository::new());
+        for groups in [vec![], vec![pdf_group("paid", 100)]] {
+            let err = service
+                .reconcile(PdfParseResult {
+                    groups,
+                    unparsed_line_count: 3,
+                    unparsed_lines: vec![],
+                })
+                .await
+                .expect_err("nothing to review");
+            assert_eq!(
+                serde_json::to_value(&err).expect("serialize"),
+                serde_json::json!({ "code": "PdfHasNoLine" }),
+            );
+        }
+    }
 
-        let service = make_service(proc_repo, fund_repo);
-        let result = service
-            .reconcile(PdfParseResult {
-                groups: vec![],
-                unparsed_line_count: 0,
-                unparsed_lines: vec![],
-            })
-            .await
-            .unwrap();
+    #[test]
+    fn test_fpa_060_a_pdf_with_no_text_is_refused() {
+        for text in ["", "\u{c}\u{c}\u{c}", " \n\t "] {
+            let err = ensure_has_text(text.to_string()).expect_err("no text must be refused");
+            assert_eq!(
+                serde_json::to_value(&err).expect("serialize"),
+                serde_json::json!({ "code": "PdfHasNoText" }),
+                "{text:?}"
+            );
+        }
+    }
 
-        assert!(result.reconciliation.matches.is_empty());
-        assert!(result.candidates.is_empty());
+    #[test]
+    fn test_fpa_060_a_pdf_with_text_goes_on_unchanged() {
+        assert_eq!(
+            ensure_has_text(" CPAM 12,00 ".to_string()).expect("text is kept"),
+            " CPAM 12,00 "
+        );
     }
 
     #[tokio::test]
@@ -490,7 +535,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn reconcile_empty_group_with_no_lines_returns_empty() {
+    async fn test_fpa_072_a_pdf_with_only_left_out_groups_is_answered_not_refused() {
         let mut proc_repo = MockProcedureRepository::new();
         proc_repo
             .expect_find_unreconciled_by_date_range()
@@ -516,6 +561,7 @@ mod tests {
             .unwrap();
 
         assert!(result.reconciliation.matches.is_empty());
+        assert_eq!(result.left_out_groups.len(), 1);
     }
 
     fn make_pdf_line(ssn: &str, amount: i64, date_str: &str) -> NormalizedPdfLine {
@@ -654,6 +700,70 @@ mod tests {
             "expected two NotFoundIssue (one per line: 23.50 and 3.50), got {}",
             not_found.len()
         );
+    }
+
+    /// FPA-160: a line not found is offered the unreconciled procedures dated within one day of it,
+    /// minus those already matched in this pass.
+    #[tokio::test]
+    async fn test_fpa_160_nearby_candidates_window_and_matched_exclusion() {
+        use crate::context::procedure::ProcedureStatus;
+
+        let matched =
+            make_procedure_with_status_and_amount(50000, "2026-01-15", ProcedureStatus::Created);
+        let matched_id = matched.id.clone();
+        let row = |id: &str| DomainUnreconciled {
+            procedure_id: id.to_string(),
+            patient_id: "patient-2".into(),
+            patient_name: None,
+            patient_ssn: None,
+            procedure_date: NaiveDate::from_ymd_opt(2026, 1, 16).unwrap(),
+            amount: Some(30000),
+        };
+
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_find_procedures_by_ssns_and_date_range_with_ssn()
+            .returning(move |_, _, _| Ok(vec![("123456789012".into(), matched.clone())]));
+        proc_repo
+            .expect_find_unreconciled_by_date_range()
+            .withf(|start, end| {
+                *start == NaiveDate::from_ymd_opt(2026, 1, 14).unwrap()
+                    && *end == NaiveDate::from_ymd_opt(2026, 1, 16).unwrap()
+            })
+            .times(1)
+            .returning(move |_, _| Ok(vec![row(&matched_id), row("nearby")]));
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo.expect_read_all_funds().returning(|| Ok(vec![]));
+
+        let mut group = make_group("123456789012", 80000, "2026-01-15");
+        let mut missing = make_pdf_line("999999999999", 30000, "2026-01-15");
+        missing.line_index = 1;
+        group.lines.push(missing);
+
+        let service = make_service(proc_repo, fund_repo);
+        let result = service
+            .reconcile(PdfParseResult {
+                groups: vec![group],
+                unparsed_line_count: 0,
+                unparsed_lines: vec![],
+            })
+            .await
+            .unwrap();
+
+        let nearby: Vec<_> = result
+            .reconciliation
+            .matches
+            .iter()
+            .filter_map(|m| match m {
+                ReconciliationMatch::NotFoundIssue {
+                    nearby_candidates, ..
+                } => Some(nearby_candidates),
+                _ => None,
+            })
+            .flatten()
+            .map(|c| c.procedure_id.as_str())
+            .collect();
+        assert_eq!(nearby, ["nearby"]);
     }
 
     #[tokio::test]

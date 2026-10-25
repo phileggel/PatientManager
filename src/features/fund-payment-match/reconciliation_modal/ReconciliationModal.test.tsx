@@ -488,4 +488,43 @@ describe("ReconciliationModal", () => {
     expect(screen.queryByText(/no anomalies detected/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Validate" })).toBeDisabled();
   });
+
+  // FPA-450 (ticket #464): auto-correct-all is hidden while manual work remains.
+  it.each([
+    [
+      "a TooManyMatchIssue",
+      {
+        type: "TooManyMatchIssue",
+        data: { pdf_line: mockPdfLineForModal, candidate_ids: ["a", "b"] },
+      },
+    ],
+    [
+      "an unresolved GroupMatchIssue",
+      {
+        type: "GroupMatchIssue",
+        data: {
+          pdf_line: mockPdfLineForModal,
+          db_matches: [
+            { ...mockDbMatchWithAnomalyForModal, procedure_id: "proc-a" },
+            { ...mockDbMatchWithAnomalyForModal, procedure_id: "proc-b" },
+          ],
+        },
+      },
+    ],
+  ])("hides Auto-correct all with %s", async (_, match) => {
+    (gateway.reconcileAndCreateCandidates as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+      data: {
+        ...mockReconciliationWithAnomaly,
+        reconciliation: {
+          matches: [...mockReconciliationWithAnomaly.reconciliation.matches, match],
+        },
+      },
+    });
+
+    render(<ReconciliationModal filePath={mockFilePath} onClose={mockOnClose} />);
+
+    await screen.findByRole("button", { name: "Validate" });
+    await waitFor(() => expect(screen.queryByText(/Auto-correct all/)).not.toBeInTheDocument());
+  });
 });
