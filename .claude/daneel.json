@@ -1,0 +1,5 @@
+{
+  "flow-audit": {
+    "commit_types": ["feat", "fix", "refactor", "chore", "ci", "docs", "test"]
+  }
+}
