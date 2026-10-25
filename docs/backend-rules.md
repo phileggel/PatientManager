@@ -60,7 +60,7 @@ src-tauri/src/
 
 ## Ubiquitous Language
 
-**B5** — Domain vocabulary (entity names, aggregate method names, event names, domain concepts) MUST be defined and validated by the user before use in code, tests, or documentation. The agent MUST NOT unilaterally decide on domain terms — it MUST propose and wait for explicit confirmation. All confirmed terms MUST be recorded in `docs/ubiquitous-language.md` and used consistently everywhere.
+**B5** — Domain vocabulary (entity names, domain actions, event names, domain concepts) MUST be defined and validated by the user before use in code, tests, or documentation. The agent MUST NOT unilaterally decide on domain terms — it MUST propose and wait for explicit confirmation. All confirmed terms MUST be recorded in `docs/ubiquitous-language.md` and used consistently everywhere.
 
 **B6** — All new code MUST use the vocabulary confirmed in `docs/ubiquitous-language.md`.
 If a confirmed term differs from the current code name (recorded as a code discrepancy in
@@ -97,8 +97,7 @@ happens to the aggregate, not the internal mechanism.
 **B12** — Boy scout rule: when a use case or service needs to mutate an aggregate field
 directly, extract an Aggregate Root method for that mutation first, then call the method.
 Never add a new direct field mutation to an aggregate from outside its own type.
-Existing direct mutations are tracked in `docs/ubiquitous-language.md` as code discrepancies
-and MUST be refactored incrementally.
+Existing direct mutations MUST be refactored incrementally (`Procedure`: ticket #345).
 
 **B37** — Aggregates own their state-dependent invariants. Before adding a `if loaded.state == X { return Err(...) }` check inside an application service, ask: "could this be enforced inside the aggregate or value-object that owns the state?" If yes, move it.
 

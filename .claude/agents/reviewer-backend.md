@@ -38,7 +38,7 @@ You review Rust code quality. Follow `.claude/agents/review-protocol.md`; this f
 
 **Vocabulary** (`docs/ubiquitous-language.md`, B5/B6)
 
-- A new method on an aggregate root that the glossary's method table does not list 🟡 — the term is the owner's to confirm, and the table changes in the same pull request.
+- A domain word the glossary does not hold 🟡 — the word is the owner's to confirm, and the glossary changes in the same pull request. A method name built from confirmed words is no finding.
 
 **Tests** (`docs/test-rules.md`)
 

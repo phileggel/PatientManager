@@ -278,74 +278,35 @@ validate, which commits the resolved lines into `BankEntry` records.
 
 ---
 
-## Aggregate Root Methods
+## Domain Actions
 
-Methods on aggregate roots use domain/business vocabulary (B28). Current names are extracted
-from code and proposed for confirmation.
+What happens to an aggregate, in the owner's words. Method names are built from these words
+(B11) and are not validated on their own (B5).
 
 ### Procedure
 
-| Method                                      | Domain intent                                                    | Status transition                      | Status    |
-| ------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------- | --------- |
-| `reconcile(paid_amount, payment_date)`      | Link to a fund payment group                                     | → `Reconciled` / `PartiallyReconciled` | confirmed |
-| `unreconcile()`                             | Remove from a fund payment group, wipe reconciliation data       | → `Created`                            | confirmed |
-| `dispute(paid_amount)`                      | Record that the fund paid less than billed                       | → `PartiallyReconciled`                | confirmed |
-| `accepts_dispute(paid_amount)`              | Whether a paid amount can be disputed: from zero to below billed | —                                      | proposed  |
-| `record_payment(method, date, paid_amount)` | Record bank confirmation or direct patient payment               | → `FundPaid` / `DirectlyPaid`          | confirmed |
-| `revert_payment(group_payment_date)`        | Undo bank confirmation, restore group payment date               | → `Reconciled` / `PartiallyReconciled` | confirmed |
-| `clear_payment()`                           | Undo direct patient payment, wipe all payment fields             | → `Created`                            | confirmed |
-| `correct_billed_amount(billed_amount)`      | Override billed amount from PDF auto-correction                  | —                                      | confirmed |
-| `correct_fund(fund_id)`                     | Override fund from PDF auto-correction                           | —                                      | confirmed |
-| `correct_date(pdf_date)`                    | Override procedure date from PDF auto-correction                 | —                                      | confirmed |
-| `read_form(patient, type, date)`            | Read the procedure form: the date, or every refused field        | —                                      | confirmed |
+- **Reconcile** — link to a fund payment group (→ `Reconciled` / `PartiallyReconciled`);
+  **unreconcile** removes it and wipes the reconciliation data (→ `Created`).
+- **Dispute** — record that the fund paid less than billed (→ `PartiallyReconciled`).
+- **Record a payment** — a bank confirmation or a direct patient payment (→ `FundPaid` /
+  `DirectlyPaid`); **revert** it undoes the bank confirmation and restores the group's payment
+  date; **clear** it undoes a direct patient payment and wipes the payment fields (→ `Created`).
+- **Correct** — override the billed amount, the fund, the date, or a patient's SSN from the PDF
+  auto-correction; the PDF is authoritative.
 
-> ⚠️ Code discrepancy: none of these aggregate root methods exist yet — fields are mutated
-> directly in use case orchestrators. All to be extracted.
-> ⚠️ Bug: auto-reconciliation flow (fund_payment_reconciliation/orchestrator.rs:179, :297, :452)
-> does not set `confirmed_payment_date` on procedures — date is available but not passed through.
+### Fund payment group
 
-> `edit(...)` is the confirmed term for a user changing an aggregate's fields from its
-> edit form, whatever the aggregate (owner, 2026-10-05). Another kind of change (a PDF
-> override, a status transition) takes its own term.
-> An edit is answered `Updated` (saved) or `Unchanged` (its values equal the stored ones,
-> nothing saved): `ProcedureEdit` (owner, 2026-10-18).
+- **Confirm the bank payment** — a bank transfer matched: the group is settled, no edit nor
+  deletion (→ `BankPaid`); **revert** it when the transfer is removed (→ `Active`).
+- **Refund** — a refund to a patient: the group is created settled, its total the amount taken
+  back, its one line the refund procedure (owner, 2026-10-17).
 
-### Fund
+### Any aggregate
 
-| Method                        | Domain intent                            | Status transition | Status    |
-| ----------------------------- | ---------------------------------------- | ----------------- | --------- |
-| `edit(fund_identifier, name)` | A user edits the identifier and the name | —                 | confirmed |
-
-### ProcedureType
-
-| Method                                 | Domain intent                                                                    | Status transition | Status    |
-| -------------------------------------- | -------------------------------------------------------------------------------- | ----------------- | --------- |
-| `edit(name, default_amount, category)` | A user edits a procedure type                                                    | —                 | confirmed |
-| `ensure_mutable(id)`                   | Refuses a user's edit or deletion of the reserved type (R22) (owner, 2026-10-17) | —                 | confirmed |
-
-### Patient
-
-| Method             | Domain intent                                                | Status transition | Status    |
-| ------------------ | ------------------------------------------------------------ | ----------------- | --------- |
-| `correct_ssn(ssn)` | Override SSN from PDF auto-correction (PDF is authoritative) | —                 | confirmed |
-| `edit(name, ssn)`  | A user changes the name and SSN in the edit form             | —                 | confirmed |
-
-### FundPaymentGroup
-
-| Method                                                | Domain intent                                                                                                                               | Status transition | Status    |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | --------- |
-| `confirm_bank_payment()`                              | Bank transfer matched — group is now settled; prevents edits and deletion                                                                   | → `BankPaid`      | confirmed |
-| `revert_bank_payment()`                               | Bank transfer removed — group is back to active                                                                                             | → `Active`        | confirmed |
-| `ensure_deletable()`                                  | Refuses the deletion of a refund's group (REF-240) (owner, 2026-10-18)                                                                      | —                 | confirmed |
-| `edit(payment_date, procedure_ids, total_amount)`     | A user edits the group: payment date, procedure lines and total, as the form sends them (owner, 2026-10-17)                                 | —                 | confirmed |
-| `accepts_total(total_amount)`                         | Whether an amount can be a group's total: it must be positive                                                                               | —                 | proposed  |
-| `refund(fund_id, payment_date, amount, procedure_id)` | A refund to a patient: the group is created settled, its total the amount taken back, its one line the refund procedure (owner, 2026-10-17) | → `BankPaid`      | confirmed |
-
-### BankEntry
-
-| Method                               | Domain intent                                              | Status transition | Status                        |
-| ------------------------------------ | ---------------------------------------------------------- | ----------------- | ----------------------------- |
-| `read_form(account, date, selected)` | Read the bank entry form: the date, or every refused field | —                 | confirmed (owner, 2026-10-19) |
+- **Edit** — a user changing an aggregate's fields from its edit form (owner, 2026-10-05).
+  Another kind of change (a PDF override, a status transition) takes its own word. An edit is
+  answered `Updated` (saved) or `Unchanged` (its values equal the stored ones, nothing saved)
+  (owner, 2026-10-18).
 
 ---
 
