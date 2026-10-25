@@ -16,11 +16,7 @@ pub fn parse_bank_statement(text: &str) -> BankStatementParseResult {
     let iban = extract_iban(text);
     let period = extract_period(text);
     let (credit_lines, unparsed_count) = extract_credit_lines(text);
-    let total_credits: i64 = credit_lines
-        .iter()
-        .inspect(|l| tracing::debug!(target: BACKEND, line = ?l))
-        .map(|l| l.amount)
-        .sum();
+    let total_credits: i64 = credit_lines.iter().map(|l| l.amount).sum();
 
     BankStatementParseResult {
         iban,
@@ -96,8 +92,8 @@ fn extract_credit_lines(text: &str) -> (Vec<BankStatementCreditLine>, u32) {
         Err(_) => return (results, 0),
     };
 
-    let mut virsepa_lines = Vec::new();
-    let mut matched_lines = Vec::new();
+    let mut virsepa_count = 0usize;
+    let mut matched_count = 0usize;
 
     for line in text.lines() {
         let line = line.trim();
@@ -105,10 +101,10 @@ fn extract_credit_lines(text: &str) -> (Vec<BankStatementCreditLine>, u32) {
             continue;
         }
 
-        virsepa_lines.push(line.to_string());
+        virsepa_count += 1;
 
         if let Some(caps) = re.captures(line) {
-            matched_lines.push(line.to_string());
+            matched_count += 1;
 
             let label_raw = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
             let date_str = caps.get(2).map(|m| m.as_str()).unwrap_or_default();
@@ -145,25 +141,17 @@ fn extract_credit_lines(text: &str) -> (Vec<BankStatementCreditLine>, u32) {
         }
     }
 
-    // Log what we found.
+    // Counts only: a line's text can name the payer (B44).
     tracing::debug!(
         target: BACKEND,
-        virsepa_count = virsepa_lines.len(),
-        matched_count = matched_lines.len(),
+        virsepa_count,
+        matched_count,
         parsed_count = results.len(),
         "Credit lines extraction summary"
     );
 
-    if !virsepa_lines.is_empty() {
-        tracing::debug!(target: BACKEND, ?virsepa_lines, "Found VIRSEPA lines");
-    }
-
-    if !matched_lines.is_empty() {
-        tracing::debug!(target: BACKEND, ?matched_lines, "Regex matched lines");
-    }
-
     // BAS-022 — every VIR-SEPA-looking line that produced no credit line.
-    let unparsed_count = (virsepa_lines.len() - results.len()) as u32;
+    let unparsed_count = (virsepa_count - results.len()) as u32;
 
     (results, unparsed_count)
 }

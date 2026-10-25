@@ -201,7 +201,7 @@ pub const BACKEND: &str = "backend";
 tracing::info!(target: BACKEND, field = value, "message");
 ```
 
-**B44** — No patient data as a field value in a log call: SSN, IBAN, patient full name. Naming the field in the message (`"Fetching patient by SSN"`) is fine; log a presence boolean (`has_ssn = ssn.is_some()`), the last four characters of an IBAN, or nothing. `scripts/privacy-check.py` enforces it for `tracing::*!`, `logger.*` and `console.*` in the hooks and CI.
+**B44** — No patient data as a field value in a log call: SSN, IBAN, patient full name. Naming the field in the message (`"Fetching patient by SSN"`) is fine; log a presence boolean (`has_ssn = ssn.is_some()`), the last four characters of an IBAN, or nothing. Nor a parsed document line or row, Debug-formatted: its text can name the payer; the script checks this in Rust, for values named `l`, `line(s)`, `row(s)`, `*_line(s)`, `*_row(s)`. `scripts/privacy-check.py` enforces it for `tracing::*!`, `logger.*` and `console.*` in the hooks and CI.
 
 ## General
 

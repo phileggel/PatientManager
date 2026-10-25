@@ -4,7 +4,8 @@
 Three checks:
 
   logs   a `tracing::*!` (Rust) or `logger.*` / `console.*` (TypeScript) call
-         that logs the value of an SSN, an IBAN or a patient name. A presence
+         that logs the value of an SSN, an IBAN or a patient name, or (Rust)
+         Debug-formats a parsed line or row. A presence
          flag (`ssn.is_some()`, `!!iban`, `.len()`, `.length`) or an IBAN tail
          (`iban[iban.len() - 4..]`) is fine. A TypeScript message may interpolate
          only an upper-case constant, a `.length`, an id or `entityName`, and what
@@ -86,6 +87,12 @@ SAFE_SUFFIX = re.compile(
 )
 
 
+# A parsed line or row carries the document's text (a transfer label names its payer).
+RUST_DEBUG = re.compile(r"(?<![\w)\]])\?\s*[&*(]*\s*([A-Za-z_][\w.]*)")  # `?l`, `= ?&line`; not the `?` operator
+RUST_DEBUG_PLACEHOLDER = re.compile(r"\{([A-Za-z_][\w.]*):#?\?\}")
+RUST_RECORD = re.compile(r"^(?:l|line|lines|row|rows|\w+_lines?|\w+_rows?)$")
+
+
 TS_STRING = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|`(?:\\.|[^`\\])*`')
 # What a message may interpolate: a constant tag, a size, an id, the kind of entity.
 ALLOWED_INTERPOLATION = re.compile(r"^(?:[A-Z][A-Z0-9_]*|[\w.]+\.length|id|\w+Id|entityName)$")
@@ -147,6 +154,20 @@ def _strip_strings(args: str) -> str:
     return TS_STRING.sub(keep_placeholders, args)
 
 
+def _rust_debug_values(raw: str) -> list[str]:
+    """The values a Rust log call Debug-formats: `?x`, `{x:?}`, and the arguments of a positional `{:?}`."""
+    values = [d.group(1) for d in RUST_DEBUG.finditer(TS_STRING.sub(" ", raw))]
+    values += [p.group(1) for literal in TS_STRING.findall(raw) for p in RUST_DEBUG_PLACEHOLDER.finditer(literal)]
+    call_args = _ts_args(raw)
+    message = next((i for i, arg in enumerate(call_args) if TS_STRING.fullmatch(arg)), None)
+    if message is not None and re.search(r"\{:#?\?\}", call_args[message]):
+        for arg in call_args[message + 1 :]:
+            bare = re.fullmatch(r"[&*(\s]*([A-Za-z_][\w.]*)\)?", arg)
+            if bare:
+                values.append(bare.group(1))
+    return values
+
+
 def log_findings(path: str, source: str) -> list[tuple[int, str]]:
     if path.endswith(".rs"):
         call, private = RUST_CALL, RUST_PRIVATE
@@ -161,6 +182,11 @@ def log_findings(path: str, source: str) -> list[tuple[int, str]]:
         line = source.count("\n", 0, m.start()) + 1
         if call is TS_CALL and path.startswith("src/"):  # the frontend logger's calls; tooling prints to a terminal
             findings += [(line, text) for text in _ts_message_findings(path, raw)]
+        if call is RUST_CALL:
+            for value in _rust_debug_values(raw):
+                name = value.split(".")[-1]
+                if RUST_RECORD.match(name):
+                    findings.append((line, f"log call Debug-formats a parsed line or row: {name}"))
         for ref in private.finditer(args):
             after = args[ref.end() :]
             before = args[: ref.start()].rstrip()

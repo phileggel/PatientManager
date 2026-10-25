@@ -55,6 +55,18 @@ class Logs(unittest.TestCase):
         source = 'info!(has_ssn = ssn.is_some(), n = iban.len(), tail = &iban[iban.len() - 4..], "Fetching patient by SSN");'
         self.assertEqual(pc.log_findings("a.rs", source), [])
 
+    def test_ticket_545_a_rust_log_debug_formatting_a_parsed_line_or_row_is_found(self):
+        for source in ("debug!(target: BACKEND, line = ?l);", 'debug!(?virsepa_lines, "found");', 'debug!("rows {rows:?}");', "info!(row = ?self.row);", "debug!(line = ?&line);", 'debug!("{line:#?}");', 'debug!("parsed row: {:?}", line);', 'debug!("{} {:#?}", count, &rows);'):
+            self.assertEqual(len(pc.log_findings("a.rs", source)), 1, source)
+
+    def test_ticket_545_an_error_an_id_or_a_status_may_be_debug_formatted(self):
+        source = 'error!(error = ?e, id = ?procedure.id, fund = ?fund_id, s = ?procedure.payment_status, "x");'
+        self.assertEqual(pc.log_findings("a.rs", source), [])
+
+    def test_ticket_545_a_question_mark_in_a_message_or_the_try_operator_is_not_a_debug_format(self):
+        for source in ('debug!("is this a line? rows ok");', "debug!(x = foo()?.row);", 'debug!("failed: {:?}", e);'):
+            self.assertEqual(pc.log_findings("a.rs", source), [], source)
+
     def test_ts_patient_name_and_iban_values_are_found(self):
         source = 'logger.info("opened", { patientName: patient.name });\nconsole.log(iban);\n'
         self.assertEqual(len(pc.log_findings("a.tsx", source)), 3)
