@@ -121,8 +121,15 @@
       }
     ]
   },
-  "extraKnownMarketplaces": {
-    "daneel": { "source": { "source": "github", "repo": "phileggel/daneel" } }
+  "enabledPlugins": {
+    "flow@daneel": false
   },
-  "enabledPlugins": { "flow@daneel": true }
+  "extraKnownMarketplaces": {
+    "daneel": {
+      "source": {
+        "source": "github",
+        "repo": "phileggel/daneel"
+      }
+    }
+  }
 }
