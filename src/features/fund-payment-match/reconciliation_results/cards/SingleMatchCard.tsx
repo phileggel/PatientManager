@@ -16,9 +16,9 @@ import { Button } from "@/ui/components/button";
 import { useFormatters } from "@/ui/format/formatters";
 import {
   buildAutoCorrection,
-  buildContestCorrection,
-  buildContestKey,
   buildCorrectionKey,
+  buildDisputeCorrection,
+  buildDisputeKey,
   formatProcedureDateFromLine,
 } from "../../shared/utils";
 import { IssueChip, PdfSummary, ResolvedBadge } from "./CardParts";
@@ -54,12 +54,12 @@ export function SingleMatchCard({
     return fund ? `${fund.fund_identifier} (${fund.name})` : fundId;
   };
 
-  const contestKey = buildContestKey(dbMatch.procedure_id);
-  const contested = acceptedKeys.has(contestKey);
+  const disputeKey = buildDisputeKey(dbMatch.procedure_id);
+  const disputed = acceptedKeys.has(disputeKey);
 
   const allAnomaliesResolved = dbMatch.anomalies.every((a) => {
     if (a === "AmountMismatch") {
-      return acceptedKeys.has(buildCorrectionKey(a, dbMatch.procedure_id)) || contested;
+      return acceptedKeys.has(buildCorrectionKey(a, dbMatch.procedure_id)) || disputed;
     }
     return acceptedKeys.has(buildCorrectionKey(a, dbMatch.procedure_id));
   });
@@ -70,7 +70,7 @@ export function SingleMatchCard({
     corrAmount && "AmountMismatch" in corrAmount
       ? corrAmount.AmountMismatch.pdf_amount
       : dbMatch.amount || 0;
-  const amountOk = contested || pdfLine.amount === effectiveAmount;
+  const amountOk = disputed || pdfLine.amount === effectiveAmount;
   // FPA-210: a dispute records that the fund paid less than billed.
   const disputable = pdfLine.amount < (dbMatch.amount || 0);
   const isResolved = allAnomaliesResolved && amountOk;
@@ -143,7 +143,7 @@ export function SingleMatchCard({
           {dbMatch.anomalies
             .filter((a) => {
               if (a === "AmountMismatch")
-                return !contested && !acceptedKeys.has(buildCorrectionKey(a, dbMatch.procedure_id));
+                return !disputed && !acceptedKeys.has(buildCorrectionKey(a, dbMatch.procedure_id));
               return !acceptedKeys.has(buildCorrectionKey(a, dbMatch.procedure_id));
             })
             .map((anomaly) => {
@@ -167,12 +167,12 @@ export function SingleMatchCard({
                         variant="secondary"
                         onClick={() =>
                           onAcceptCorrection(
-                            contestKey,
-                            buildContestCorrection(dbMatch.procedure_id, pdfLine.amount),
+                            disputeKey,
+                            buildDisputeCorrection(dbMatch.procedure_id, pdfLine.amount),
                           )
                         }
                       >
-                        {t("results.action.contest_amount", {
+                        {t("results.action.dispute_amount", {
                           amount: formatCurrency(pdfLine.amount),
                         })}
                       </Button>

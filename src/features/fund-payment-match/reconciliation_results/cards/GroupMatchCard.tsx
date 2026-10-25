@@ -18,9 +18,9 @@ import { AmountField } from "@/ui/components/field";
 import { useFormatters } from "@/ui/format/formatters";
 import {
   buildAutoCorrection,
-  buildContestCorrection,
-  buildContestKey,
   buildCorrectionKey,
+  buildDisputeCorrection,
+  buildDisputeKey,
 } from "../../shared/utils";
 import { IssueChip, PdfSummary, ResolvedBadge } from "./CardParts";
 
@@ -44,11 +44,11 @@ export function GroupMatchCard({
   const { t } = useTranslation("fund-payment-match");
   const { formatCurrency, formatDate } = useFormatters();
 
-  const isDisputed = (m: DbMatch) => acceptedKeys.has(buildContestKey(m.procedure_id));
+  const isDisputed = (m: DbMatch) => acceptedKeys.has(buildDisputeKey(m.procedure_id));
 
   const getAmount = (m: DbMatch): number => {
-    const contest = autoCorrections.get(buildContestKey(m.procedure_id));
-    if (contest && "ContestAmount" in contest) return contest.ContestAmount.paid_amount;
+    const dispute = autoCorrections.get(buildDisputeKey(m.procedure_id));
+    if (dispute && "DisputeAmount" in dispute) return dispute.DisputeAmount.paid_amount;
     const corr = autoCorrections.get(buildCorrectionKey("AmountMismatch", m.procedure_id));
     return corr && "AmountMismatch" in corr ? corr.AmountMismatch.pdf_amount : m.amount || 0;
   };
@@ -56,8 +56,8 @@ export function GroupMatchCard({
   const setAmount = (m: DbMatch, amount: number) => {
     if (isDisputed(m)) {
       onAcceptCorrection(
-        buildContestKey(m.procedure_id),
-        buildContestCorrection(m.procedure_id, amount),
+        buildDisputeKey(m.procedure_id),
+        buildDisputeCorrection(m.procedure_id, amount),
       );
     } else {
       onAcceptCorrection(
@@ -67,7 +67,7 @@ export function GroupMatchCard({
     }
   };
 
-  const allContested = dbMatches.every(isDisputed);
+  const allDisputed = dbMatches.every(isDisputed);
 
   const currentTotal = dbMatches.reduce((sum, m) => sum + getAmount(m), 0);
   const amountOk = pdfLine.amount === currentTotal;
@@ -76,12 +76,12 @@ export function GroupMatchCard({
       if (a === "AmountMismatch")
         return (
           acceptedKeys.has(buildCorrectionKey(a, m.procedure_id)) ||
-          acceptedKeys.has(buildContestKey(m.procedure_id))
+          acceptedKeys.has(buildDisputeKey(m.procedure_id))
         );
       return acceptedKeys.has(buildCorrectionKey(a, m.procedure_id));
     }),
   );
-  const isResolved = (amountOk || allContested) && allAnomaliesAccepted;
+  const isResolved = (amountOk || allDisputed) && allAnomaliesAccepted;
   const diff = pdfLine.amount - currentTotal;
   // FPA-141: a dispute records that the fund paid less than billed.
   const billedTotal = dbMatches.reduce((sum, m) => sum + (m.amount || 0), 0);
@@ -174,7 +174,7 @@ export function GroupMatchCard({
           {t("results.action.validate_distribution")}
         </Button>
       )}
-      {!isResolved && !amountOk && !allContested && currentTotal > 0 && disputable && (
+      {!isResolved && !amountOk && !allDisputed && currentTotal > 0 && disputable && (
         <Button
           variant="secondary"
           fullWidth
@@ -186,14 +186,14 @@ export function GroupMatchCard({
             for (const [m, amount] of paid) {
               if (!isDisputed(m)) {
                 onAcceptCorrection(
-                  buildContestKey(m.procedure_id),
-                  buildContestCorrection(m.procedure_id, amount),
+                  buildDisputeKey(m.procedure_id),
+                  buildDisputeCorrection(m.procedure_id, amount),
                 );
               }
             }
           }}
         >
-          {t("results.action.contest_amount", { amount: formatCurrency(currentTotal) })}
+          {t("results.action.dispute_amount", { amount: formatCurrency(currentTotal) })}
         </Button>
       )}
     </div>

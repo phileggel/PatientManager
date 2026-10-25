@@ -1002,11 +1002,11 @@ export type AutoCorrection =
  */
 { LinkProcedure: { procedure_id: string; pdf_ssn: string; pdf_fund_label: string; payment_date: string } } | 
 /**
- * Contest the fund payment amount: keep billed_amount unchanged,
+ * Dispute the fund payment amount: keep billed_amount unchanged,
  * set paid_amount to the PDF amount (what the fund claims to have paid).
  * Sets payment_status to PartiallyReconciled.
  */
-{ ContestAmount: { procedure_id: string; 
+{ DisputeAmount: { procedure_id: string; 
 /**
  * Amount actually paid by the fund (from PDF), in thousandths of a euro
  */

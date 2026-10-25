@@ -7,8 +7,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AutoCorrection, ReconciliationMatch, ReconciliationResult } from "@/bindings";
 import {
-  buildContestKey,
   buildCorrectionKey,
+  buildDisputeKey,
   buildLinkProcedureKey,
   buildNotFoundKey,
   sortIssuesByPriority,
@@ -61,10 +61,10 @@ export function useReconciliationResults(
 
       if (match.type === "SingleMatchIssue") {
         const { pdf_line, db_match } = match.data;
-        const contested = acceptedKeys.has(buildContestKey(db_match.procedure_id));
+        const disputed = acceptedKeys.has(buildDisputeKey(db_match.procedure_id));
         const allAnomaliesResolved = db_match.anomalies.every((a) => {
           if (a === "AmountMismatch")
-            return acceptedKeys.has(buildCorrectionKey(a, db_match.procedure_id)) || contested;
+            return acceptedKeys.has(buildCorrectionKey(a, db_match.procedure_id)) || disputed;
           return acceptedKeys.has(buildCorrectionKey(a, db_match.procedure_id));
         });
         const corr = autoCorrections.get(
@@ -72,21 +72,21 @@ export function useReconciliationResults(
         );
         const amount =
           corr && "AmountMismatch" in corr ? corr.AmountMismatch.pdf_amount : db_match.amount || 0;
-        const amountOk = contested || pdf_line.amount === amount;
+        const amountOk = disputed || pdf_line.amount === amount;
         return allAnomaliesResolved && amountOk;
       }
 
       if (match.type === "GroupMatchIssue") {
         const { pdf_line, db_matches } = match.data;
-        const allContested = db_matches.every((m) =>
-          acceptedKeys.has(buildContestKey(m.procedure_id)),
+        const allDisputed = db_matches.every((m) =>
+          acceptedKeys.has(buildDisputeKey(m.procedure_id)),
         );
         const allAnomaliesAccepted = db_matches.every((m) =>
           m.anomalies.every((a) => {
             if (a === "AmountMismatch")
               return (
                 acceptedKeys.has(buildCorrectionKey(a, m.procedure_id)) ||
-                acceptedKeys.has(buildContestKey(m.procedure_id))
+                acceptedKeys.has(buildDisputeKey(m.procedure_id))
               );
             return acceptedKeys.has(buildCorrectionKey(a, m.procedure_id));
           }),
@@ -99,7 +99,7 @@ export function useReconciliationResults(
             (corr && "AmountMismatch" in corr ? corr.AmountMismatch.pdf_amount : m.amount || 0)
           );
         }, 0);
-        const amountOk = allContested || pdf_line.amount === currentTotal;
+        const amountOk = allDisputed || pdf_line.amount === currentTotal;
         return allAnomaliesAccepted && amountOk;
       }
 

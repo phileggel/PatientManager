@@ -14,7 +14,7 @@
     "section2": {
       "heading": "Corrections applied",
       "groups": {
-        "ContestAmount": "Contested amounts",
+        "DisputeAmount": "Contested amounts",
         "CreateProcedure": "Created procedures",
         "LinkProcedure": "Linked procedures",
         "AmountMismatch": "Amount corrections",
@@ -174,7 +174,7 @@
       "correct_date": "Apply PDF date",
       "accepted": "Accepted",
       "validate_distribution": "Validate this distribution",
-      "contest_amount": "Contest (actual amount: {{amount}})",
+      "dispute_amount": "Contest (actual amount: {{amount}})",
       "undo": "Modify",
       "undo_aria": "Modify this correction and choose again"
     },

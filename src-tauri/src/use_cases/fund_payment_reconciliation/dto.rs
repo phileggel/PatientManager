@@ -227,10 +227,10 @@ pub enum AutoCorrection {
         #[specta(type = String)]
         payment_date: NaiveDate,
     },
-    /// Contest the fund payment amount: keep billed_amount unchanged,
+    /// Dispute the fund payment amount: keep billed_amount unchanged,
     /// set paid_amount to the PDF amount (what the fund claims to have paid).
     /// Sets payment_status to PartiallyReconciled.
-    ContestAmount {
+    DisputeAmount {
         procedure_id: String,
         /// Amount actually paid by the fund (from PDF), in thousandths of a euro
         paid_amount: i64,

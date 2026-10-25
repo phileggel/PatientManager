@@ -36,7 +36,7 @@ export interface CorrectionGroupsInput {
 }
 
 type CorrectionType =
-  | "ContestAmount"
+  | "DisputeAmount"
   | "CreateProcedure"
   | "LinkProcedure"
   | "AmountMismatch"
@@ -45,7 +45,7 @@ type CorrectionType =
 
 // FPR-041 — group display priority order
 const PRIORITY_ORDER: readonly CorrectionType[] = [
-  "ContestAmount",
+  "DisputeAmount",
   "CreateProcedure",
   "LinkProcedure",
   "AmountMismatch",
@@ -105,8 +105,8 @@ function rowFor(
 ): RowEntry | null {
   const { matches, fundIdToLabel, locale } = input;
 
-  if (type === "ContestAmount" && "ContestAmount" in correction) {
-    const { procedure_id, paid_amount } = correction.ContestAmount;
+  if (type === "DisputeAmount" && "DisputeAmount" in correction) {
+    const { procedure_id, paid_amount } = correction.DisputeAmount;
     const m = findMatchData(matches, procedure_id);
     const patient = m?.pdfPatient ?? "";
     const date = m?.dbDate ?? "";
@@ -176,7 +176,7 @@ function rowFor(
 /**
  * Build the Section 2 correction groups for `ReportGenerationRequest`.
  *
- * - Groups are emitted in FPR-041 priority order (ContestAmount first,
+ * - Groups are emitted in FPR-041 priority order (DisputeAmount first,
  *   DateMismatch last).
  * - Empty groups are omitted entirely.
  * - Within each group, rows are sorted by date ascending.
@@ -184,7 +184,7 @@ function rowFor(
  */
 export function buildCorrectionGroups(input: CorrectionGroupsInput): CorrectionGroup[] {
   const buckets: Record<CorrectionType, RowEntry[]> = {
-    ContestAmount: [],
+    DisputeAmount: [],
     CreateProcedure: [],
     LinkProcedure: [],
     AmountMismatch: [],

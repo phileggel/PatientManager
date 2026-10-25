@@ -387,7 +387,7 @@ describe("FPA-460 — un-handle a resolved anomaly", () => {
 
     expect(onUnacceptCorrection).toHaveBeenCalledWith([
       "FundMismatch-proc-1",
-      "ContestAmount-proc-1",
+      "DisputeAmount-proc-1",
     ]);
   });
 

@@ -29,8 +29,8 @@ import {
 } from "../gateway";
 import type { ReconciliationErrorState } from "../shared/errorPresenter";
 import {
-  buildContestKey,
   buildCorrectionKey,
+  buildDisputeKey,
   buildLinkProcedureKey,
   buildNotFoundCorrection,
   buildNotFoundKey,
@@ -165,7 +165,7 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
       } else if (match.type === "SingleMatchIssue") {
         const { pdf_line, db_match } = match.data;
         // FPA-211: a procedure with a dispute staged takes no amount correction.
-        const isDisputed = newAcceptedKeys.has(buildContestKey(db_match.procedure_id));
+        const isDisputed = newAcceptedKeys.has(buildDisputeKey(db_match.procedure_id));
         for (const anomaly of db_match.anomalies) {
           if (anomaly === "AmountMismatch" && isDisputed) continue;
           const key = buildCorrectionKey(anomaly, db_match.procedure_id);

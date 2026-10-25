@@ -90,7 +90,7 @@ export const mockReconciliationMatches: ReconciliationMatch[] = [
   singleMatchIssue("proc-amount", "RICHARD Sophie", "2026-04-08", "fund-cpam-75", 85_000),
   singleMatchIssue("proc-fund", "PETIT Lucas", "2026-04-10", "fund-cpam-75", 70_000),
   singleMatchIssue("proc-date", "ROBERT Marie", "2026-04-15", "fund-cpam-93", 95_000),
-  singleMatchIssue("proc-contest", "MOREAU Paul", "2026-04-18", "fund-mgen", 120_000),
+  singleMatchIssue("proc-dispute", "MOREAU Paul", "2026-04-18", "fund-mgen", 120_000),
   singleMatchIssue("proc-link", "DURAND Anne", "2026-04-22", null, 0),
 ];
 
@@ -117,8 +117,8 @@ export const mockAutoCorrections: Map<string, AutoCorrection> = new Map([
     { DateMismatch: { procedure_id: "proc-date", pdf_date: "2026-04-16" } },
   ],
   [
-    "ContestAmount-proc-contest",
-    { ContestAmount: { procedure_id: "proc-contest", paid_amount: 100_000 } },
+    "DisputeAmount-proc-dispute",
+    { DisputeAmount: { procedure_id: "proc-dispute", paid_amount: 100_000 } },
   ],
   [
     "LinkProcedure-proc-link",

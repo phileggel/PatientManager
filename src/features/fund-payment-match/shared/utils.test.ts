@@ -7,9 +7,9 @@ import type {
 } from "@/bindings";
 import {
   buildAutoCorrection,
-  buildContestCorrection,
-  buildContestKey,
   buildCorrectionKey,
+  buildDisputeCorrection,
+  buildDisputeKey,
   buildLinkProcedureCorrection,
   buildLinkProcedureKey,
   buildNotFoundCorrection,
@@ -274,8 +274,8 @@ describe("key builders", () => {
     expect(buildLinkProcedureKey(1, "p-42")).toBe("LinkProcedure-1-p-42");
   });
 
-  it("buildContestKey uses procedureId", () => {
-    expect(buildContestKey("p-99")).toBe("ContestAmount-p-99");
+  it("buildDisputeKey uses procedureId", () => {
+    expect(buildDisputeKey("p-99")).toBe("DisputeAmount-p-99");
   });
 });
 
@@ -327,10 +327,10 @@ describe("buildLinkProcedureCorrection", () => {
   });
 });
 
-describe("buildContestCorrection", () => {
-  it("builds ContestAmount correction", () => {
-    expect(buildContestCorrection("p-3", 20000)).toEqual({
-      ContestAmount: { procedure_id: "p-3", paid_amount: 20000 },
+describe("buildDisputeCorrection", () => {
+  it("builds DisputeAmount correction", () => {
+    expect(buildDisputeCorrection("p-3", 20000)).toEqual({
+      DisputeAmount: { procedure_id: "p-3", paid_amount: 20000 },
     });
   });
 });
@@ -352,7 +352,7 @@ describe("buildNotFoundCorrection", () => {
 });
 
 describe("correctionKeysForMatch", () => {
-  it("returns per-anomaly + contest keys for a SingleMatchIssue", () => {
+  it("returns per-anomaly + dispute keys for a SingleMatchIssue", () => {
     const match = {
       type: "SingleMatchIssue",
       data: {
@@ -363,7 +363,7 @@ describe("correctionKeysForMatch", () => {
     expect(correctionKeysForMatch(match)).toEqual([
       "AmountMismatch-p1",
       "DateMismatch-p1",
-      "ContestAmount-p1",
+      "DisputeAmount-p1",
     ]);
   });
 
@@ -386,7 +386,7 @@ describe("correctionKeysForMatch", () => {
     expect(correctionKeysForMatch(match)).toEqual(["CreateProcedure-2", "LinkProcedure-2-p-near"]);
   });
 
-  it("returns deduped amount/contest keys per match for a GroupMatchIssue", () => {
+  it("returns deduped amount/dispute keys per match for a GroupMatchIssue", () => {
     const match = {
       type: "GroupMatchIssue",
       data: {
@@ -401,10 +401,10 @@ describe("correctionKeysForMatch", () => {
     // amount key — deduped to a single entry.
     expect(correctionKeysForMatch(match)).toEqual([
       "AmountMismatch-p1",
-      "ContestAmount-p1",
+      "DisputeAmount-p1",
       "DateMismatch-p2",
       "AmountMismatch-p2",
-      "ContestAmount-p2",
+      "DisputeAmount-p2",
     ]);
   });
 

@@ -69,11 +69,11 @@ describe("GroupMatchCard — dispute (#392)", () => {
       "AmountMismatch-proc-a",
       "AmountMismatch-proc-b",
     ]);
-    expect(onAcceptCorrection).toHaveBeenCalledWith("ContestAmount-proc-a", {
-      ContestAmount: { procedure_id: "proc-a", paid_amount: 30000 },
+    expect(onAcceptCorrection).toHaveBeenCalledWith("DisputeAmount-proc-a", {
+      DisputeAmount: { procedure_id: "proc-a", paid_amount: 30000 },
     });
-    expect(onAcceptCorrection).toHaveBeenCalledWith("ContestAmount-proc-b", {
-      ContestAmount: { procedure_id: "proc-b", paid_amount: 40000 },
+    expect(onAcceptCorrection).toHaveBeenCalledWith("DisputeAmount-proc-b", {
+      DisputeAmount: { procedure_id: "proc-b", paid_amount: 40000 },
     });
     expect(onAcceptCorrection).not.toHaveBeenCalledWith(
       expect.stringMatching(/^AmountMismatch-/),
@@ -84,8 +84,8 @@ describe("GroupMatchCard — dispute (#392)", () => {
   it("changes the paid amount, not the billed one, when an amount is typed after the dispute", () => {
     const { onAcceptCorrection } = renderCard(
       new Map<string, AutoCorrection>([
-        ["ContestAmount-proc-a", { ContestAmount: { procedure_id: "proc-a", paid_amount: 30000 } }],
-        ["ContestAmount-proc-b", { ContestAmount: { procedure_id: "proc-b", paid_amount: 20000 } }],
+        ["DisputeAmount-proc-a", { DisputeAmount: { procedure_id: "proc-a", paid_amount: 30000 } }],
+        ["DisputeAmount-proc-b", { DisputeAmount: { procedure_id: "proc-b", paid_amount: 20000 } }],
       ]),
     );
 
@@ -93,8 +93,8 @@ describe("GroupMatchCard — dispute (#392)", () => {
       target: { value: "25" },
     });
 
-    expect(onAcceptCorrection).toHaveBeenCalledWith("ContestAmount-proc-a", {
-      ContestAmount: { procedure_id: "proc-a", paid_amount: 25000 },
+    expect(onAcceptCorrection).toHaveBeenCalledWith("DisputeAmount-proc-a", {
+      DisputeAmount: { procedure_id: "proc-a", paid_amount: 25000 },
     });
     expect(onAcceptCorrection).not.toHaveBeenCalledWith("AmountMismatch-proc-a", expect.anything());
   });
@@ -108,8 +108,8 @@ describe("GroupMatchCard — validate distribution after a dispute (#392)", () =
       dbMatches[1] as DbMatch,
     ];
     const accepted = new Map<string, AutoCorrection>([
-      ["ContestAmount-proc-a", { ContestAmount: { procedure_id: "proc-a", paid_amount: 30000 } }],
-      ["ContestAmount-proc-b", { ContestAmount: { procedure_id: "proc-b", paid_amount: 30000 } }],
+      ["DisputeAmount-proc-a", { DisputeAmount: { procedure_id: "proc-a", paid_amount: 30000 } }],
+      ["DisputeAmount-proc-b", { DisputeAmount: { procedure_id: "proc-b", paid_amount: 30000 } }],
     ]);
     render(
       <GroupMatchCard

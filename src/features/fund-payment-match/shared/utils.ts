@@ -29,8 +29,8 @@ export function buildLinkProcedureKey(lineIndex: number, procedureId: string): s
   return `LinkProcedure-${lineIndex}-${procedureId}`;
 }
 
-export function buildContestKey(procedureId: string): string {
-  return `ContestAmount-${procedureId}`;
+export function buildDisputeKey(procedureId: string): string {
+  return `DisputeAmount-${procedureId}`;
 }
 
 /**
@@ -46,7 +46,7 @@ export function correctionKeysForMatch(match: ReconciliationMatch): string[] {
       const { procedure_id, anomalies } = match.data.db_match;
       keys = [
         ...anomalies.map((a) => buildCorrectionKey(a, procedure_id)),
-        buildContestKey(procedure_id),
+        buildDisputeKey(procedure_id),
       ];
       break;
     }
@@ -56,7 +56,7 @@ export function correctionKeysForMatch(match: ReconciliationMatch): string[] {
       keys = match.data.db_matches.flatMap((m) => [
         ...m.anomalies.map((a) => buildCorrectionKey(a, m.procedure_id)),
         buildCorrectionKey("AmountMismatch", m.procedure_id),
-        buildContestKey(m.procedure_id),
+        buildDisputeKey(m.procedure_id),
       ]);
       break;
     case "NotFoundIssue":
@@ -119,9 +119,9 @@ export function buildLinkProcedureCorrection(
   };
 }
 
-export function buildContestCorrection(procedureId: string, paidAmount: number): AutoCorrection {
+export function buildDisputeCorrection(procedureId: string, paidAmount: number): AutoCorrection {
   return {
-    ContestAmount: {
+    DisputeAmount: {
       procedure_id: procedureId,
       paid_amount: paidAmount,
     },

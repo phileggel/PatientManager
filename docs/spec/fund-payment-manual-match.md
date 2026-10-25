@@ -14,7 +14,7 @@ This document covers exclusively the **manual flow**: creating, editing, and del
 
 **FPM-010 (R0) — Status lifecycle (backend)**: A procedure's status evolves in two stages, coming from two distinct features:
 
-- **Stage 1 — Fund reconciliation** (manual or automatic): the procedure goes from `Created` to `Reconciliated` (full payment accepted) or `PartiallyReconciled` (contested amount). In both cases, `fund_reconciliation_date` and `actual_payment_amount` are populated.
+- **Stage 1 — Fund reconciliation** (manual or automatic): the procedure goes from `Created` to `Reconciliated` (full payment accepted) or `PartiallyReconciled` (disputed amount). In both cases, `fund_reconciliation_date` and `actual_payment_amount` are populated.
 - **Stage 2 — Bank reconciliation** (`bank-statement-match` feature): when the transfer is detected on the bank statement, the procedure moves to its final status: `Reconciliated` → `FundPayed`, `PartiallyReconciled` → `PartiallyFundPayed`.
 
 A group becomes locked as soon as one of its procedures reaches Stage 2 (see FPM-330).

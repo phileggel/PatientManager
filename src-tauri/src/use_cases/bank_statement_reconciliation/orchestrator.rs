@@ -196,7 +196,7 @@ impl BankStatementOrchestrator {
             let updated_procedures: Vec<_> = procedures_to_update
                 .into_iter()
                 .map(|mut procedure| {
-                    // Contested procedures keep their paid_amount (pdf amount)
+                    // Disputed procedures keep their paid_amount (pdf amount)
                     // and transition to PartiallyFundPaid instead of FundPaid.
                     let (new_status, paid_amount) =
                         if procedure.payment_status == ProcedureStatus::PartiallyReconciled {

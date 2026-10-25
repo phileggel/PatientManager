@@ -68,11 +68,11 @@ Checks a split of a `NotFoundIssue` line into procedures before the card accepts
 
 ### `create_fund_payment_with_auto_corrections` — R3, R11, R12, R13, R14, R15, R16, R17, R18, R19, R29, FPA-075, FPA-076, FPA-210B, FPA-211, FPA-212, FPA-257, FPA-258
 
-Creates fund-payment groups and applies user-validated auto-corrections atomically. Correction variants: `AmountMismatch` (R11), `ContestAmount` (R12), `FundMismatch` (R13), `DateMismatch` (R14), `LinkProcedure` (R15), `CreateProcedure` (R16), `SplitIntoProcedures` (FPA-257, checked again by FPA-258). Unknown funds are resolved and created automatically (R17). Negative-amount procedures via `CreateProcedure` receive `Reconciliated` status directly (R29). Performs the duplicate check (R3).
+Creates fund-payment groups and applies user-validated auto-corrections atomically. Correction variants: `AmountMismatch` (R11), `DisputeAmount` (R12), `FundMismatch` (R13), `DateMismatch` (R14), `LinkProcedure` (R15), `CreateProcedure` (R16), `SplitIntoProcedures` (FPA-257, checked again by FPA-258). Unknown funds are resolved and created automatically (R17). Negative-amount procedures via `CreateProcedure` receive `Reconciliated` status directly (R29). Performs the duplicate check (R3).
 
 - **Args:** `candidates: Vec<FundPaymentGroupCandidate>, auto_corrections: Vec<AutoCorrection>`
 - **Returns:** `Vec<FundPaymentGroup>`
-- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `DisputedAmountCorrected { procedure_id }` (FPA-211, `ContestAmount` and `AmountMismatch` on one procedure, answered before any read), `DisputedAmountOutOfRange { procedure_id }` (FPA-212, a paid amount below zero or not below the billed amount, nothing written), `SplitInvalid` (FPA-258, nothing written), `DuplicatePdf`, `ProcedureNotFound`, `ProcedureAlreadyLinked`, `FundResolutionFailed`, `DatabaseError` (FPA-076, a write failed, nothing kept)
+- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `DisputedAmountCorrected { procedure_id }` (FPA-211, `DisputeAmount` and `AmountMismatch` on one procedure, answered before any read), `DisputedAmountOutOfRange { procedure_id }` (FPA-212, a paid amount below zero or not below the billed amount, nothing written), `SplitInvalid` (FPA-258, nothing written), `DuplicatePdf`, `ProcedureNotFound`, `ProcedureAlreadyLinked`, `FundResolutionFailed`, `DatabaseError` (FPA-076, a write failed, nothing kept)
 
 ---
 
@@ -190,7 +190,7 @@ enum AutoCorrection {
                       payment_date: String, billed_amount: i64, pdf_fund_label: String },
     LinkProcedure   { procedure_id: String, pdf_ssn: String,
                       pdf_fund_label: String, payment_date: String },
-    ContestAmount   { procedure_id: String, paid_amount: i64 },
+    DisputeAmount   { procedure_id: String, paid_amount: i64 },
     SplitIntoProcedures { line: NormalizedPdfLine, parts: Vec<SplitPart> }, // FPA-257
 }
 
@@ -336,3 +336,4 @@ enum FundPaymentValidationStatus {
 - 2026-10-18 — Modified by `fund-payment-auto-match` spec (TODO-008): added `check_split_into_procedures`; `create_fund_payment_with_auto_corrections` takes `SplitIntoProcedures` and answers `SplitInvalid` (FPA-255 to FPA-258)
 - 2026-10-18 — Modified by `fund-payment-auto-match` spec (FPA-211, ticket #392): `create_fund_payment_with_auto_corrections` answers `DisputedAmountCorrected`
 - 2026-10-25 — Modified by `fund-payment-auto-match` spec (FPA-212, ticket #424): `create_fund_payment_with_auto_corrections` answers `DisputedAmountOutOfRange`; it and `create_fund_payment_from_candidates` list `DatabaseError` (FPA-076), which they already returned
+- 2026-10-25 — Ticket #423: the correction variant `AutoCorrection::ContestAmount` is renamed `DisputeAmount` (the glossary's word); same fields, the frontend sends the new tag.

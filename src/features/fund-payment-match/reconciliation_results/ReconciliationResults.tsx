@@ -13,8 +13,8 @@ import type { AutoCorrection, ReconciliationResult } from "@/bindings";
 import { logger } from "@/infra/logger";
 import {
   buildAutoCorrection,
-  buildContestKey,
   buildCorrectionKey,
+  buildDisputeKey,
   buildLinkProcedureKey,
   buildNotFoundCorrection,
   buildNotFoundKey,
@@ -94,7 +94,7 @@ export function ReconciliationResultsView({
           if (a === "AmountMismatch")
             return (
               !acceptedKeys.has(buildCorrectionKey(a, db_match.procedure_id)) &&
-              !acceptedKeys.has(buildContestKey(db_match.procedure_id))
+              !acceptedKeys.has(buildDisputeKey(db_match.procedure_id))
             );
           return !acceptedKeys.has(buildCorrectionKey(a, db_match.procedure_id));
         });

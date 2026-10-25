@@ -42,7 +42,7 @@ This document covers exclusively the **automatic flow**: PDF parsing, matching a
 
 ### A validation is written as a whole (076)
 
-**FPA-076 — A validation is written as a whole, or not at all (backend)**: Everything a validation writes is written together: the corrections of its procedures (date, fund, amount, contested amount), the procedures and the patients it creates, the SSN it gives a patient, the funds it creates, the fund-payment groups and the reconciliation of their procedures. A validation that is rejected keeps none of it, whatever the reason: a check that fails while the validation is prepared, or a write that fails. When a write fails, the validation is rejected with a database error and the database is as it was before. A rejected validation can be submitted again without creating anything twice.
+**FPA-076 — A validation is written as a whole, or not at all (backend)**: Everything a validation writes is written together: the corrections of its procedures (date, fund, amount, disputed amount), the procedures and the patients it creates, the SSN it gives a patient, the funds it creates, the fund-payment groups and the reconciliation of their procedures. A validation that is rejected keeps none of it, whatever the reason: a check that fails while the validation is prepared, or a write that fails. When a write fails, the validation is rejected with a database error and the database is as it was before. A rejected validation can be submitted again without creating anything twice.
 
 ### Matching algorithm (100–160)
 
@@ -91,11 +91,11 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-200 (R11) — Amount correction (backend)**: The procedure's amount in the database is updated to the PDF amount (`AmountMismatch` → `AutoCorrection::AmountMismatch`).
 
-**FPA-210 (R12) — Amount dispute offered (frontend)**: A SingleMatch card whose PDF amount is below the procedure's billed amount offers to dispute it ("contest" on screen), the PDF amount becoming the procedure's paid amount.
+**FPA-210 (R12) — Amount dispute offered (frontend)**: A SingleMatch card whose PDF amount is below the procedure's billed amount offers to dispute it (« Contester » on screen, a label, not the domain word), the PDF amount becoming the procedure's paid amount.
 
 **FPA-210A — Correct or dispute, not both (frontend)**: A SingleMatch card offers the amount correction, and the dispute when FPA-210 allows it; once either is staged, neither is offered.
 
-**FPA-210B — What a dispute records (backend)**: A dispute records the procedure's paid amount without changing its billed amount (`AutoCorrection::ContestAmount`); the procedure becomes `PartiallyReconciled`.
+**FPA-210B — What a dispute records (backend)**: A dispute records the procedure's paid amount without changing its billed amount (`AutoCorrection::DisputeAmount`); the procedure becomes `PartiallyReconciled`.
 
 **FPA-211 — A dispute and an amount correction on one procedure are rejected (backend)**: A validation holding, for one procedure, both a dispute and an amount correction is rejected with a specific error; nothing is written.
 
@@ -145,10 +145,10 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-300 (R18) — Status lifecycle (backend)**: A procedure's final status is reached in two stages from two distinct features:
 
-- **Stage 1 — Fund reconciliation** (manual or automatic): the procedure goes from `Created` to `Reconciliated` (full payment accepted) or `PartiallyReconciled` (contested amount, see FPA-210B). In both cases, `fund_reconciliation_date` is set to the group's payment date and `actual_payment_amount` is set.
+- **Stage 1 — Fund reconciliation** (manual or automatic): the procedure goes from `Created` to `Reconciliated` (full payment accepted) or `PartiallyReconciled` (disputed amount, see FPA-210B). In both cases, `fund_reconciliation_date` is set to the group's payment date and `actual_payment_amount` is set.
 - **Stage 2 — Bank reconciliation** (`bank-statement-match` feature): when the fund's transfer is detected on the bank statement, the procedure moves to its final status:
   - `Reconciliated` → `FundPayed`
-  - `PartiallyReconciled` → `PartiallyFundPayed` (the `actual_payment_amount` from the contest is preserved)
+  - `PartiallyReconciled` → `PartiallyFundPayed` (the `actual_payment_amount` from the dispute is preserved)
 
 ⚠️ As soon as a procedure in the group reaches Stage 2, the group becomes locked: it can no longer be edited or deleted.
 
@@ -162,7 +162,7 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-410 (R21) — Blocking cases (frontend)**: `TooManyMatchIssue`s are blocking — they cannot be resolved in the UI and prevent validation. They must be displayed first, before the other anomalies, so the user is immediately informed of the impossibility of validating without manual database intervention.
 
-**FPA-420 (R22) — Resolution required before validation (frontend)**: Validation is blocked as long as not all anomalies are resolved. An anomaly is resolved when a correction or contest has been accepted.
+**FPA-420 (R22) — Resolution required before validation (frontend)**: Validation is blocked as long as not all anomalies are resolved. An anomaly is resolved when a correction or dispute has been accepted.
 
 **FPA-430 (R23) — Automatic advancement (frontend)**: As soon as an anomaly is resolved, the UI automatically advances to the next unresolved anomaly (after a 500 ms delay).
 
@@ -181,7 +181,7 @@ Action applied per anomaly type:
 | `GroupMatchIssue`                     | Not handled — button hidden as long as group issues remain unresolved                                                           |
 | `TooManyMatchIssue`                   | Not handled — button hidden                                                                                                     |
 
-**FPA-460 (R26) — Staged corrections + explicit validation (frontend)**: Corrections (correct / contest / link / create) are **staged in memory and remain fully reversible** until the user explicitly applies them — nothing is written to the database before that point. While reviewing anomalies the user may navigate back to any already-resolved anomaly and **un-handle it** (clearing its staged correction so the anomaly returns to its editable, unresolved state) or **modify it** (un-handle, then pick a different correction). Validation is **not** triggered automatically: once every anomaly is resolved, an explicit **Validate** action applies the whole correction batch in a single operation. On failure the batch is not retried automatically; the staged corrections are preserved so the user can adjust and re-validate.
+**FPA-460 (R26) — Staged corrections + explicit validation (frontend)**: Corrections (correct / dispute / link / create) are **staged in memory and remain fully reversible** until the user explicitly applies them — nothing is written to the database before that point. While reviewing anomalies the user may navigate back to any already-resolved anomaly and **un-handle it** (clearing its staged correction so the anomaly returns to its editable, unresolved state) or **modify it** (un-handle, then pick a different correction). Validation is **not** triggered automatically: once every anomaly is resolved, an explicit **Validate** action applies the whole correction batch in a single operation. On failure the batch is not retried automatically; the staged corrections are preserved so the user can adjust and re-validate.
 
 > Supersedes the previous FPA-460, which auto-triggered validation the instant all anomalies were resolved. That behaviour left no window to review or undo a staged correction before the irreversible write. Changed because corrections must be reviewable and reversible until one deliberate apply step.
 
@@ -220,7 +220,7 @@ Action applied per anomaly type:
 [Display anomalies to resolve] (frontend)
   → TooManyMatchIssue shown first (blocking)
   → Then anomalies in PDF document order
-  → For each anomaly: correction / contest / link buttons
+  → For each anomaly: correction / dispute / link buttons
   → Resolved anomalies can be un-handled / modified (corrections staged, reversible)
   → Progress bar + automatic advancement
           │

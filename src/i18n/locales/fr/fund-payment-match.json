@@ -14,7 +14,7 @@
     "section2": {
       "heading": "Corrections appliquées",
       "groups": {
-        "ContestAmount": "Montants contestés",
+        "DisputeAmount": "Montants contestés",
         "CreateProcedure": "Actes créés",
         "LinkProcedure": "Actes liés",
         "AmountMismatch": "Corrections de montant",
@@ -174,7 +174,7 @@
       "correct_date": "Appliquer la date du PDF",
       "accepted": "Accepté",
       "validate_distribution": "Valider cette distribution",
-      "contest_amount": "Contester (montant réel : {{amount}})",
+      "dispute_amount": "Contester (montant réel : {{amount}})",
       "undo": "Modifier",
       "undo_aria": "Modifier cette correction et choisir de nouveau"
     },

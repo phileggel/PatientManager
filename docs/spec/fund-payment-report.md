@@ -84,13 +84,13 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 
 **FPR-040 — Section 2 omission (frontend + backend)**: If no corrections were applied during the session, Section 2 is omitted entirely from the document. The frontend signals this by sending an empty `correction_groups` array; the backend skips the section heading and the section body when it sees an empty list.
 
-**FPR-041 — Correction grouping and priority order (frontend)**: Corrections are presented in separate groups, one per correction type, in the following display priority order: (1) ContestAmount, (2) CreateProcedure, (3) LinkProcedure, (4) AmountMismatch, (5) FundMismatch, (6) DateMismatch. Groups with no corrections are omitted. Within each group, rows are sorted by date ascending. The frontend enforces this ordering when building the `correction_groups` list and when sorting rows within each group; the backend renders groups and rows in the order received.
+**FPR-041 — Correction grouping and priority order (frontend)**: Corrections are presented in separate groups, one per correction type, in the following display priority order: (1) DisputeAmount, (2) CreateProcedure, (3) LinkProcedure, (4) AmountMismatch, (5) FundMismatch, (6) DateMismatch. Groups with no corrections are omitted. Within each group, rows are sorted by date ascending. The frontend enforces this ordering when building the `correction_groups` list and when sorting rows within each group; the backend renders groups and rows in the order received.
 
 **FPR-042 — Correction group columns (frontend)**: Each group displays the columns relevant to its correction type. The frontend joins the variant-specific columns into a single pre-formatted line per row before sending; the backend renders each line as a single text run beneath its translated group title.
 
 | Correction type | Columns displayed                                                        |
 | --------------- | ------------------------------------------------------------------------ |
-| ContestAmount   | Patient, procedure date, billed amount, paid amount                      |
+| DisputeAmount   | Patient, procedure date, billed amount, paid amount                      |
 | CreateProcedure | Patient name, SSN, procedure date, fund, billed amount                   |
 | LinkProcedure   | Patient name, SSN, fund, payment date                                    |
 | AmountMismatch  | Patient, procedure date, original billed amount, corrected billed amount |

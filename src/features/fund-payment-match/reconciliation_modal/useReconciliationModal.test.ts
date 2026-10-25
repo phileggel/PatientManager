@@ -349,8 +349,8 @@ describe("useReconciliationModal — handleAutoCorrectAll keeps a disputed amoun
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     act(() =>
-      result.current.handleAcceptCorrection("ContestAmount-proc-1", {
-        ContestAmount: { procedure_id: "proc-1", paid_amount: 40000 },
+      result.current.handleAcceptCorrection("DisputeAmount-proc-1", {
+        DisputeAmount: { procedure_id: "proc-1", paid_amount: 40000 },
       }),
     );
     act(() => result.current.handleAutoCorrectAll());
@@ -381,9 +381,9 @@ describe("useReconciliationModal — a refused dispute amount (FPA-212A)", () =>
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const dispute: AutoCorrection = {
-      ContestAmount: { procedure_id: "proc-1", paid_amount: 60000 },
+      DisputeAmount: { procedure_id: "proc-1", paid_amount: 60000 },
     };
-    act(() => result.current.handleAcceptCorrection("ContestAmount-proc-1", dispute));
+    act(() => result.current.handleAcceptCorrection("DisputeAmount-proc-1", dispute));
     await act(async () => {
       await result.current.handleValidate();
     });
@@ -392,7 +392,7 @@ describe("useReconciliationModal — a refused dispute amount (FPA-212A)", () =>
       kind: "typed",
       error: { code: "DisputedAmountOutOfRange", procedure_id: "proc-1" },
     });
-    expect(result.current.acceptedKeys.has("ContestAmount-proc-1")).toBe(true);
-    expect(result.current.autoCorrections.get("ContestAmount-proc-1")).toEqual(dispute);
+    expect(result.current.acceptedKeys.has("DisputeAmount-proc-1")).toBe(true);
+    expect(result.current.autoCorrections.get("DisputeAmount-proc-1")).toEqual(dispute);
   });
 });

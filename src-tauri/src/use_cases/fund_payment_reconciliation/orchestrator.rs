@@ -31,7 +31,7 @@ struct CorrectionStats {
     amount_corrections: usize,
     fund_corrections: usize,
     date_corrections: usize,
-    contest_corrections: usize,
+    dispute_corrections: usize,
     procedure_count: usize,
 }
 
@@ -61,7 +61,7 @@ fn ensure_no_disputed_amount_corrected(
     let disputed: HashSet<&str> = auto_corrections
         .iter()
         .filter_map(|correction| match correction {
-            AutoCorrection::ContestAmount { procedure_id, .. } => Some(procedure_id.as_str()),
+            AutoCorrection::DisputeAmount { procedure_id, .. } => Some(procedure_id.as_str()),
             _ => None,
         })
         .collect();
@@ -247,14 +247,14 @@ impl FundPaymentReconciliationOrchestrator {
     /// reconciliation of their procedures to the plan. Nothing is written.
     ///
     /// `duplicate_flags[i]` is the flag of `candidates[i]`. With
-    /// `keep_contested`, a procedure a contest correction left
+    /// `keep_disputed`, a procedure a dispute left
     /// `PartiallyReconciled` keeps its status and its paid amount.
     async fn plan_groups(
         &self,
         plan: &mut ValidationPlan,
         candidates: Vec<FundPaymentGroupCandidate>,
         duplicate_flags: Vec<bool>,
-        keep_contested: bool,
+        keep_disputed: bool,
     ) -> Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError> {
         let mut groups = Vec::new();
         for (candidate, is_duplicate) in candidates.into_iter().zip(duplicate_flags) {
@@ -312,8 +312,8 @@ impl FundPaymentReconciliationOrchestrator {
                 continue; // corrected, in no group
             };
             procedure.fund_reconciliation_date = Some(*payment_date);
-            let contested = procedure.payment_status == ProcedureStatus::PartiallyReconciled;
-            if !(keep_contested && contested) {
+            let disputed = procedure.payment_status == ProcedureStatus::PartiallyReconciled;
+            if !(keep_disputed && disputed) {
                 procedure.payment_status = ProcedureStatus::Reconciled;
                 procedure.paid_amount = Some(procedure.billed_amount);
             }
@@ -469,8 +469,8 @@ impl FundPaymentReconciliationOrchestrator {
             }
         }
 
-        // Contested procedures (PartiallyReconciled) already carry their status
-        // and paid amount from the contest correction: they keep them.
+        // Disputed procedures (PartiallyReconciled) already carry their status
+        // and paid amount from the dispute: they keep them.
         let groups = self
             .plan_groups(&mut plan, candidates, duplicate_flags, true)
             .await?;
@@ -518,7 +518,7 @@ impl FundPaymentReconciliationOrchestrator {
     ///
     /// This check runs AFTER creating the fund-payment group to ensure the sum of
     /// paid_amount across all procedures equals the group's total_amount.
-    /// Uses paid_amount (not billed_amount) because contested procedures
+    /// Uses paid_amount (not billed_amount) because disputed procedures
     /// keep their original billed_amount while paid_amount reflects what
     /// the fund actually paid.
     /// If verification fails, the issue is reported for manual review, but the persisted
@@ -596,7 +596,7 @@ impl FundPaymentReconciliationOrchestrator {
 
     /// Plan the auto-corrections of the anomalies: nothing is written here.
     ///
-    /// 1. Update corrections (amount, fund, date, contest)
+    /// 1. Update corrections (amount, fund, date, dispute)
     /// 2. Creation corrections (new procedures, and their patient when unknown)
     /// 3. Link corrections (existing procedures, their patient's SSN)
     ///
@@ -623,7 +623,7 @@ impl FundPaymentReconciliationOrchestrator {
             amount_corrections = update_stats.amount_corrections,
             fund_corrections = update_stats.fund_corrections,
             date_corrections = update_stats.date_corrections,
-            contest_corrections = update_stats.contest_corrections,
+            dispute_corrections = update_stats.dispute_corrections,
             corrected_procedures = update_stats.procedure_count,
             created_procedures = created_procedures.len(),
             linked_procedures = linked_procedures.len(),
@@ -635,7 +635,7 @@ impl FundPaymentReconciliationOrchestrator {
         Ok(all_results)
     }
 
-    /// Plan the update corrections (amount, fund, date, contest): the
+    /// Plan the update corrections (amount, fund, date, dispute): the
     /// procedures are read once and corrected in the plan.
     async fn plan_update_corrections(
         &self,
@@ -650,7 +650,7 @@ impl FundPaymentReconciliationOrchestrator {
                 AutoCorrection::AmountMismatch { procedure_id, .. }
                 | AutoCorrection::FundMismatch { procedure_id, .. }
                 | AutoCorrection::DateMismatch { procedure_id, .. }
-                | AutoCorrection::ContestAmount { procedure_id, .. } => Some(procedure_id.clone()),
+                | AutoCorrection::DisputeAmount { procedure_id, .. } => Some(procedure_id.clone()),
                 _ => None,
             })
             .collect();
@@ -700,7 +700,7 @@ impl FundPaymentReconciliationOrchestrator {
                     }
                 }
 
-                AutoCorrection::ContestAmount {
+                AutoCorrection::DisputeAmount {
                     procedure_id,
                     paid_amount,
                 } => {
@@ -718,7 +718,7 @@ impl FundPaymentReconciliationOrchestrator {
                         }
                         procedure.paid_amount = Some(*paid_amount);
                         procedure.payment_status = ProcedureStatus::PartiallyReconciled;
-                        stats.contest_corrections += 1;
+                        stats.dispute_corrections += 1;
                     }
                 }
 
@@ -837,7 +837,7 @@ impl FundPaymentReconciliationOrchestrator {
                 | AutoCorrection::FundMismatch { .. }
                 | AutoCorrection::DateMismatch { .. }
                 | AutoCorrection::LinkProcedure { .. }
-                | AutoCorrection::ContestAmount { .. } => {}
+                | AutoCorrection::DisputeAmount { .. } => {}
             }
         }
 
@@ -1840,7 +1840,7 @@ mod tests {
                     is_fully_covered: true,
                 }],
                 vec![
-                    AutoCorrection::ContestAmount {
+                    AutoCorrection::DisputeAmount {
                         procedure_id: "proc-1".to_string(),
                         paid_amount: 40_000,
                     },
@@ -1893,7 +1893,7 @@ mod tests {
         let result = orchestrator
             .create_multiple_with_auto_corrections(
                 vec![candidate("CPAM n° 75", 40_000, &["proc-1"])],
-                vec![AutoCorrection::ContestAmount {
+                vec![AutoCorrection::DisputeAmount {
                     procedure_id: "proc-1".to_string(),
                     paid_amount,
                 }],

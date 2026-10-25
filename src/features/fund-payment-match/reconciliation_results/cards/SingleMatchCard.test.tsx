@@ -83,8 +83,8 @@ describe("SingleMatchCard — correct or dispute, not both (FPA-210A)", () => {
   it.each([
     [
       "the dispute",
-      "ContestAmount-proc-2",
-      { ContestAmount: { procedure_id: "proc-2", paid_amount: 5000 } },
+      "DisputeAmount-proc-2",
+      { DisputeAmount: { procedure_id: "proc-2", paid_amount: 5000 } },
     ],
     [
       "the amount correction",

@@ -62,10 +62,10 @@ function makeInput(
 // Per-variant tests (FPR-042)
 // ---------------------------------------------------------------------------
 
-describe("buildCorrectionGroups — ContestAmount variant (FPR-042)", () => {
+describe("buildCorrectionGroups — DisputeAmount variant (FPR-042)", () => {
   it("returns one group with title and a single row containing patient, date, billed→paid", () => {
     const corrections = new Map<string, AutoCorrection>([
-      ["ContestAmount-proc-1", { ContestAmount: { procedure_id: "proc-1", paid_amount: 45000 } }],
+      ["DisputeAmount-proc-1", { DisputeAmount: { procedure_id: "proc-1", paid_amount: 45000 } }],
     ]);
     const matches = [makeMatch("proc-1", "DUPONT Jean", "2025-04-15", "fund-1", 50000)];
 
@@ -263,7 +263,7 @@ describe("buildCorrectionGroups — DateMismatch variant (FPR-042)", () => {
 // ---------------------------------------------------------------------------
 
 describe("buildCorrectionGroups — FPR-041 priority ordering", () => {
-  it("given corrections in arbitrary order, groups are returned in ContestAmount→CreateProcedure→LinkProcedure→AmountMismatch→FundMismatch→DateMismatch sequence", () => {
+  it("given corrections in arbitrary order, groups are returned in DisputeAmount→CreateProcedure→LinkProcedure→AmountMismatch→FundMismatch→DateMismatch sequence", () => {
     // Insert corrections in reverse priority order
     const corrections = new Map<string, AutoCorrection>([
       ["DateMismatch-proc-d", { DateMismatch: { procedure_id: "proc-d", pdf_date: "2025-04-04" } }],
@@ -296,7 +296,7 @@ describe("buildCorrectionGroups — FPR-041 priority ordering", () => {
           },
         },
       ],
-      ["ContestAmount-proc-c", { ContestAmount: { procedure_id: "proc-c", paid_amount: 45000 } }],
+      ["DisputeAmount-proc-c", { DisputeAmount: { procedure_id: "proc-c", paid_amount: 45000 } }],
     ]);
 
     const matches: ReconciliationMatch[] = [
@@ -312,7 +312,7 @@ describe("buildCorrectionGroups — FPR-041 priority ordering", () => {
     expect(groups).toHaveLength(6);
     // The titles come from t() which returns the key — we test order by position
     // We verify order by checking each group's rows contain known patient names
-    // ContestAmount must be first
+    // DisputeAmount must be first
     expect(groups[0]!.rows[0]).toContain("PATIENT C");
     // CreateProcedure second
     expect(groups[1]!.rows[0]).toContain("NEW");
@@ -332,9 +332,9 @@ describe("buildCorrectionGroups — FPR-041 priority ordering", () => {
 // ---------------------------------------------------------------------------
 
 describe("buildCorrectionGroups — empty group omission (FPR-041)", () => {
-  it("given only ContestAmount and DateMismatch corrections, returns exactly 2 groups (no empty buckets)", () => {
+  it("given only DisputeAmount and DateMismatch corrections, returns exactly 2 groups (no empty buckets)", () => {
     const corrections = new Map<string, AutoCorrection>([
-      ["ContestAmount-proc-c", { ContestAmount: { procedure_id: "proc-c", paid_amount: 45000 } }],
+      ["DisputeAmount-proc-c", { DisputeAmount: { procedure_id: "proc-c", paid_amount: 45000 } }],
       ["DateMismatch-proc-d", { DateMismatch: { procedure_id: "proc-d", pdf_date: "2025-04-04" } }],
     ]);
     const matches = [
@@ -345,7 +345,7 @@ describe("buildCorrectionGroups — empty group omission (FPR-041)", () => {
     const groups = buildCorrectionGroups(makeInput(corrections, matches));
 
     expect(groups).toHaveLength(2);
-    // ContestAmount comes before DateMismatch
+    // DisputeAmount comes before DateMismatch
     expect(groups[0]!.rows[0]).toContain("PATIENT C");
     expect(groups[1]!.rows[0]).toContain("PATIENT D");
   });
