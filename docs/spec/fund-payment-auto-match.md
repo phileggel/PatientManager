@@ -166,7 +166,15 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-430 (R23) — Automatic advancement (frontend)**: As soon as an anomaly is resolved, the UI automatically advances to the next unresolved anomaly (after a 500 ms delay).
 
-**FPA-440 (R24) — Enter key = primary action (frontend)**: On a SingleMatch card, the Enter key applies the first available correction. On an already-resolved or TooManyMatch card, it moves to the next anomaly.
+**FPA-440 (R24) — Enter key = primary action (frontend)**: While no field or button has the focus and no split editor is open (FPA-251), the Enter key triggers the current card's primary action.
+
+**FPA-440A — Enter on a SingleMatch card (frontend)**: Enter stages the correction of the card's first unresolved anomaly, in the order the card shows them; for an amount, the correction, never the dispute (FPA-210A).
+
+**FPA-440B — Enter on a not-found card (frontend)**: Enter stages the creation of a procedure from the line (FPA-250) (owner, 2026-10-25, ticket #420).
+
+**FPA-440C — Enter on an unresolved GroupMatch card (frontend)**: Enter does nothing; the distribution is the user's (FPA-141).
+
+**FPA-440D — Enter on a resolved or TooManyMatch card (frontend)**: Enter moves to the next card in display order (FPA-400); on the last card it does nothing.
 
 **FPA-450 (R25) — Global auto-correction (frontend)**: A button applies all possible corrections automatically. It is hidden if any `TooManyMatchIssue` is present or any `GroupMatchIssue` is unresolved — in those cases, manual intervention is required.
 

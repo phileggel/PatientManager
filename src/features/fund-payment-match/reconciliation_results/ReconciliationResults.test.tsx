@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type {
@@ -495,5 +495,130 @@ describe("countTotalAnomalies", () => {
     };
 
     expect(countTotalAnomalies(result)).toBe(0);
+  });
+});
+
+// FPA-440A to FPA-440D (ticket #420): what Enter does on each card kind.
+describe("ReconciliationResults — Enter on each card kind (FPA-440)", () => {
+  const pressEnter = () =>
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    });
+  const amountMatch: DbMatch = {
+    procedure_id: "proc-1",
+    procedure_date: "2025-02-06",
+    fund_id: "fund-1",
+    amount: 60000,
+    anomalies: ["AmountMismatch"],
+  };
+  const notFound = (line_index: number) =>
+    ({
+      type: "NotFoundIssue",
+      data: { pdf_line: { ...mockPdfLine, line_index }, nearby_candidates: [] },
+    }) as ReconciliationMatch;
+  const renderWith = (matches: ReconciliationMatch[], props: Partial<typeof defaultProps> = {}) => {
+    const onAcceptCorrection = vi.fn();
+    render(
+      <ReconciliationResultsView
+        result={{ matches }}
+        {...defaultProps}
+        onAcceptCorrection={onAcceptCorrection}
+        {...props}
+      />,
+    );
+    return onAcceptCorrection;
+  };
+
+  it("stages a CreateProcedure on a not-found card", () => {
+    const onAcceptCorrection = renderWith([notFound(1)]);
+
+    pressEnter();
+
+    expect(onAcceptCorrection).toHaveBeenCalledWith("CreateProcedure-1", expect.anything());
+  });
+
+  it("applies the amount correction, never the dispute, on a SingleMatch card", () => {
+    const onAcceptCorrection = renderWith([
+      { type: "SingleMatchIssue", data: { pdf_line: mockPdfLine, db_match: amountMatch } },
+    ]);
+
+    pressEnter();
+
+    expect(onAcceptCorrection).toHaveBeenCalledTimes(1);
+    expect(onAcceptCorrection).toHaveBeenCalledWith("AmountMismatch-proc-1", expect.anything());
+  });
+
+  it("skips an anomaly already handled and stages the next one on a SingleMatch card", () => {
+    const onAcceptCorrection = renderWith(
+      [
+        {
+          type: "SingleMatchIssue",
+          data: {
+            pdf_line: mockPdfLine,
+            db_match: { ...amountMatch, anomalies: ["AmountMismatch", "FundMismatch"] },
+          },
+        },
+      ],
+      { acceptedKeys: new Set(["DisputeAmount-proc-1"]) },
+    );
+
+    pressEnter();
+
+    expect(onAcceptCorrection).toHaveBeenCalledTimes(1);
+    expect(onAcceptCorrection).toHaveBeenCalledWith("FundMismatch-proc-1", expect.anything());
+  });
+
+  it("does nothing on an unresolved GroupMatch card", () => {
+    const onAcceptCorrection = renderWith([
+      {
+        type: "GroupMatchIssue",
+        data: {
+          pdf_line: mockPdfLine,
+          db_matches: [amountMatch, { ...amountMatch, procedure_id: "proc-2" }],
+        },
+      },
+      notFound(2),
+    ]);
+
+    pressEnter();
+
+    expect(onAcceptCorrection).not.toHaveBeenCalled();
+    expect(screen.getByText("Anomaly 1 of 2")).toBeInTheDocument();
+  });
+
+  it("moves to the next anomaly on a TooManyMatch card", () => {
+    const onAcceptCorrection = renderWith([
+      { type: "TooManyMatchIssue", data: { pdf_line: mockPdfLine, candidate_ids: ["a", "b"] } },
+      notFound(2),
+    ]);
+
+    pressEnter();
+
+    expect(onAcceptCorrection).not.toHaveBeenCalled();
+    expect(screen.getByText("Anomaly 2 of 2")).toBeInTheDocument();
+  });
+
+  it("moves to the next anomaly on an already-resolved card", () => {
+    const onAcceptCorrection = renderWith([notFound(1), notFound(2)], {
+      acceptedKeys: new Set(["CreateProcedure-1"]),
+    });
+
+    pressEnter();
+
+    expect(onAcceptCorrection).not.toHaveBeenCalled();
+    expect(screen.getByText("Anomaly 2 of 2")).toBeInTheDocument();
+  });
+
+  it("does nothing on the last card", () => {
+    const onAcceptCorrection = renderWith([notFound(1), notFound(2)], {
+      acceptedKeys: new Set(["CreateProcedure-1", "CreateProcedure-2"]),
+    });
+    pressEnter();
+    expect(screen.getByText("Anomaly 2 of 2")).toBeInTheDocument();
+
+    pressEnter();
+
+    expect(onAcceptCorrection).not.toHaveBeenCalled();
+    expect(screen.getByText("Anomaly 2 of 2")).toBeInTheDocument();
   });
 });
