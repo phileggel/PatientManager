@@ -109,6 +109,9 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     // FPA-211 — the screen never stages a dispute with an amount correction (FPA-141A).
     case "DisputedAmountCorrected":
       return { key: "fund-payment-match:errors.unexpected" };
+    // FPA-212A — a group dispute can type one procedure's paid amount out of range.
+    case "DisputedAmountOutOfRange":
+      return { key: "fund-payment-match:errors.disputed_amount_out_of_range" };
 
     // --- shared infra catch-all (BC enums + Task all share this code) ---
     case "DatabaseError":

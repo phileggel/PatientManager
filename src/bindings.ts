@@ -520,7 +520,7 @@ async deleteBankAccount(id: string) : Promise<Result<null, BankError>> {
 },
 /**
  * Tauri command: Returns the ID of the default cash account.
- * Used by the frontend to auto-assign the account for CASH transfers (R13).
+ * Used by the frontend to auto-assign the account for CASH entries (BAC-050, BSM-026).
  */
 async getCashBankAccountId() : Promise<string> {
     return await TAURI_INVOKE("get_cash_bank_account_id");
@@ -1899,6 +1899,11 @@ export type FundPaymentReconciliationTask =
  * disputed amount keeps the billed amount, so the pair contradicts itself.
  */
 { code: "DisputedAmountCorrected"; procedure_id: string } | 
+/**
+ * A disputed paid amount is below zero, or not below the procedure's billed
+ * amount (FPA-212): a dispute records that the fund paid less than billed.
+ */
+{ code: "DisputedAmountOutOfRange"; procedure_id: string } | 
 /**
  * Failure from a repository the reconciliation service holds directly.
  * Logged at the call site via `tracing::error!`; the wire surface carries

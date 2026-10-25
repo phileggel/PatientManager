@@ -202,6 +202,7 @@
     "pdf_path_rejected": "Could not open this PDF file.",
     "pdf_extraction_failed": "Could not read the contents of this PDF.",
     "group_total_not_positive": "A group of the statement has a negative or zero total and cannot be imported. Close this window and run the statement's reconciliation again.",
+    "disputed_amount_out_of_range": "A disputed amount must be below the billed amount and not negative. Change the amounts typed for the dispute, then validate again.",
     "pdf_has_no_text": "This PDF contains no readable text: it was probably scanned or \"printed to PDF\". Download the original statement from the fund's website.",
     "database_error": "A database error occurred. Please try again.",
     "unexpected": "An unexpected error occurred during reconciliation.",

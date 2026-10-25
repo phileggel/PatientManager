@@ -34,12 +34,12 @@ const dbMatches: DbMatch[] = [
   },
 ];
 
-function renderCard(accepted: Map<string, AutoCorrection>) {
+function renderCard(accepted: Map<string, AutoCorrection>, line: NormalizedPdfLine = pdfLine) {
   const onAcceptCorrection = vi.fn();
   const onUnacceptCorrection = vi.fn();
   render(
     <GroupMatchCard
-      pdfLine={pdfLine}
+      pdfLine={line}
       dbMatches={dbMatches}
       acceptedKeys={new Set(accepted.keys())}
       autoCorrections={accepted}
@@ -129,5 +129,26 @@ describe("GroupMatchCard — validate distribution after a dispute (#392)", () =
       expect.stringMatching(/^AmountMismatch-/),
       expect.anything(),
     );
+  });
+});
+
+// FPA-141 (ticket #424): a group dispute is offered only when the fund paid less than billed.
+describe("GroupMatchCard — dispute only when paid less (FPA-141)", () => {
+  it("ticket #424: offers no dispute when the PDF amount is above the billed total", () => {
+    renderCard(new Map(), { ...pdfLine, amount: 90000 });
+
+    expect(screen.queryByRole("button", { name: /contest/i })).not.toBeInTheDocument();
+  });
+
+  it("ticket #424: offers no dispute when the PDF amount equals the billed total", () => {
+    renderCard(new Map(), { ...pdfLine, amount: 80000 });
+
+    expect(screen.queryByRole("button", { name: /contest/i })).not.toBeInTheDocument();
+  });
+
+  it("ticket #424: offers the dispute when the PDF amount is below the billed total", () => {
+    renderCard(new Map());
+
+    expect(screen.getByRole("button", { name: /contest/i })).toBeInTheDocument();
   });
 });

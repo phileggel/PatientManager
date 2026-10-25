@@ -362,3 +362,37 @@ describe("useReconciliationModal — handleAutoCorrectAll keeps a disputed amoun
     });
   });
 });
+
+// FPA-212A (ticket #424): a dispute the backend refuses is said, and the staged corrections stay.
+describe("useReconciliationModal — a refused dispute amount (FPA-212A)", () => {
+  it("ticket #424: surfaces DisputedAmountOutOfRange and keeps the staged corrections", async () => {
+    vi.clearAllMocks();
+    mockExtract.mockResolvedValue({ success: true, data: "PDF text" });
+    // biome-ignore lint/suspicious/noExplicitAny: test fixture
+    mockParse.mockResolvedValue(PDF_WITH_LINE as any);
+    // biome-ignore lint/suspicious/noExplicitAny: discriminated-union widening
+    mockReconcile.mockResolvedValue({ success: true, data: RECONCILE_WITH_ANOMALY } as any);
+    vi.mocked(gateway.createFundPaymentWithAutoCorrections).mockResolvedValue({
+      success: false,
+      error: { code: "DisputedAmountOutOfRange", procedure_id: "proc-1" },
+    });
+
+    const { result } = renderHook(() => useReconciliationModal("/test.pdf", vi.fn()));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const dispute: AutoCorrection = {
+      ContestAmount: { procedure_id: "proc-1", paid_amount: 60000 },
+    };
+    act(() => result.current.handleAcceptCorrection("ContestAmount-proc-1", dispute));
+    await act(async () => {
+      await result.current.handleValidate();
+    });
+
+    expect(result.current.validationError).toEqual({
+      kind: "typed",
+      error: { code: "DisputedAmountOutOfRange", procedure_id: "proc-1" },
+    });
+    expect(result.current.acceptedKeys.has("ContestAmount-proc-1")).toBe(true);
+    expect(result.current.autoCorrections.get("ContestAmount-proc-1")).toEqual(dispute);
+  });
+});

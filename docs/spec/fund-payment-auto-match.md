@@ -71,7 +71,7 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-140 (R8) — Group match with anomaly (backend + frontend)**: A PDF line matches several procedures (grouped procedures) but presents anomalies (`GroupMatchIssue`, see FPA-110). In the GroupMatch card, each matched procedure displays its `DateMismatch` and `FundMismatch` anomalies as chips. The "Validate distribution" button accepts simultaneously all corrections (amount, date, fund) for all procedures in the group, except as FPA-141C says.
 
-**FPA-141 — Group dispute offered (frontend)**: While the distributed total is above zero and differs from the PDF amount, and the issue is not resolved nor every procedure disputed, the GroupMatch card offers to dispute the amounts of its procedures.
+**FPA-141 — Group dispute offered (frontend)**: While the PDF amount is below the total billed for the group's procedures, the distributed total is above zero and differs from the PDF amount, and the issue is not resolved nor every procedure disputed, the GroupMatch card offers to dispute the amounts of its procedures.
 
 **FPA-141A — What a group dispute stages (frontend)**: Disputing stages a dispute for every procedure of the group, the amount typed for each becoming its paid amount; no amount correction stays staged, so the billed amounts are kept (FPA-210B).
 
@@ -91,13 +91,17 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-200 (R11) — Amount correction (backend)**: The procedure's amount in the database is updated to the PDF amount (`AmountMismatch` → `AutoCorrection::AmountMismatch`).
 
-**FPA-210 (R12) — Amount dispute offered (frontend)**: A SingleMatch card whose amount differs from the PDF amount offers to dispute it ("contest" on screen), the PDF amount becoming the procedure's paid amount.
+**FPA-210 (R12) — Amount dispute offered (frontend)**: A SingleMatch card whose PDF amount is below the procedure's billed amount offers to dispute it ("contest" on screen), the PDF amount becoming the procedure's paid amount.
 
-**FPA-210A — Correct or dispute, not both (frontend)**: A SingleMatch card offers both the amount correction and the dispute; once either is staged, neither is offered.
+**FPA-210A — Correct or dispute, not both (frontend)**: A SingleMatch card offers the amount correction, and the dispute when FPA-210 allows it; once either is staged, neither is offered.
 
 **FPA-210B — What a dispute records (backend)**: A dispute records the procedure's paid amount without changing its billed amount (`AutoCorrection::ContestAmount`); the procedure becomes `PartiallyReconciled`.
 
 **FPA-211 — A dispute and an amount correction on one procedure are rejected (backend)**: A validation holding, for one procedure, both a dispute and an amount correction is rejected with a specific error; nothing is written.
+
+**FPA-212 — A disputed amount is from zero to below the billed amount (backend)**: A validation holding a dispute whose paid amount is below zero, or equal to or above the procedure's billed amount, is rejected with a specific error naming the procedure; nothing is written. A paid amount of zero is a dispute (owner, 2026-10-25, ticket #424).
+
+**FPA-212A — A refused dispute amount is said (frontend)**: When a validation is refused by FPA-212, the screen says that a disputed amount must be below the billed amount and not negative; the staged corrections are kept (FPA-460).
 
 **FPA-220 (R13) — Fund correction (backend)**: The fund associated with the procedure is updated to the PDF fund (`FundMismatch` → `AutoCorrection::FundMismatch`).
 

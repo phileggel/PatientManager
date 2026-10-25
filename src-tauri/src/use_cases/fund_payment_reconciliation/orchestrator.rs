@@ -696,6 +696,17 @@ impl FundPaymentReconciliationOrchestrator {
                     paid_amount,
                 } => {
                     if let Some(procedure) = procedures.get_mut(procedure_id) {
+                        // FPA-212: the rule and its bound are the procedure's.
+                        if !procedure.accepts_dispute(*paid_amount) {
+                            tracing::warn!(
+                                target: BACKEND,
+                                "Validation refused: a disputed amount is out of range"
+                            );
+                            return Err(FundPaymentReconciliationTask::DisputedAmountOutOfRange {
+                                procedure_id: procedure_id.clone(),
+                            }
+                            .into());
+                        }
                         procedure.paid_amount = Some(*paid_amount);
                         procedure.payment_status = ProcedureStatus::PartiallyReconciled;
                         stats.contest_corrections += 1;
@@ -1843,6 +1854,90 @@ mod tests {
             "got: {result:?}",
         );
         Ok(())
+    }
+
+    /// Validates one group whose procedure, billed 50 000, is disputed at `paid_amount`.
+    async fn validate_a_dispute(
+        paid_amount: i64,
+    ) -> (
+        Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError>,
+        Arc<RecordingManager>,
+    ) {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        let mut procedure_repo = MockProcedureRepository::new();
+        procedure_repo
+            .expect_read_procedures_by_ids()
+            .returning(|_| Ok(vec![created_procedure("proc-1", 50_000)]));
+        procedure_repo
+            .expect_read_procedure()
+            .returning(|_| Ok(None));
+        let manager = Arc::new(RecordingManager::default());
+        let orchestrator = make_orchestrator_on(
+            manager.clone(),
+            fund_repo,
+            MockFundPaymentRepository::new(),
+            procedure_repo,
+        );
+        let result = orchestrator
+            .create_multiple_with_auto_corrections(
+                vec![candidate("CPAM n° 75", 40_000, &["proc-1"])],
+                vec![AutoCorrection::ContestAmount {
+                    procedure_id: "proc-1".to_string(),
+                    paid_amount,
+                }],
+                patient_service_finding_nobody(),
+            )
+            .await;
+        (result, manager)
+    }
+
+    fn is_out_of_range(
+        result: &Result<Vec<FundPaymentGroup>, FundPaymentReconciliationError>,
+    ) -> bool {
+        matches!(
+            result,
+            Err(FundPaymentReconciliationError::Task(
+                FundPaymentReconciliationTask::DisputedAmountOutOfRange { procedure_id }
+            )) if procedure_id == "proc-1"
+        )
+    }
+
+    /// FPA-212 (ticket #424) — a dispute at or above the billed amount is refused; nothing is written.
+    #[tokio::test]
+    async fn test_fpa_212_a_dispute_at_or_above_the_billed_amount_is_refused() {
+        for paid_amount in [50_000, 50_001] {
+            let (result, manager) = validate_a_dispute(paid_amount).await;
+            assert!(is_out_of_range(&result), "paid {paid_amount}: {result:?}");
+            assert!(manager.committed().is_none());
+        }
+    }
+
+    /// FPA-212 (ticket #424) — a dispute below zero is refused; nothing is written.
+    #[tokio::test]
+    async fn test_fpa_212_a_dispute_below_zero_is_refused() {
+        let (result, manager) = validate_a_dispute(-1).await;
+        assert!(is_out_of_range(&result), "got: {result:?}");
+        assert!(manager.committed().is_none());
+    }
+
+    /// FPA-212 (ticket #424) — zero and an amount below the billed one are disputes.
+    #[tokio::test]
+    async fn test_fpa_212_a_dispute_from_zero_to_below_the_billed_amount_is_recorded() {
+        for paid_amount in [0, 49_999] {
+            let (result, manager) = validate_a_dispute(paid_amount).await;
+            assert!(result.is_ok(), "paid {paid_amount}: {result:?}");
+            let written = manager.committed().expect("committed");
+            let disputed = &written.procedures_updated[0];
+            assert_eq!(
+                disputed.payment_status,
+                ProcedureStatus::PartiallyReconciled
+            );
+            assert_eq!(disputed.paid_amount, Some(paid_amount));
+            assert_eq!(disputed.billed_amount, 50_000);
+        }
     }
 
     /// `verify_created_groups` short-circuits on an empty slice without

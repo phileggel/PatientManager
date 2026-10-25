@@ -46,13 +46,13 @@ Runs the 8-pass matching algorithm and groups results into `FundPaymentGroupCand
 
 ---
 
-### `create_fund_payment_from_candidates` — R3, R18, R19, FPA-075
+### `create_fund_payment_from_candidates` — R3, R18, R19, FPA-075, FPA-076
 
 Creates fund-payment groups from validated candidates with no auto-corrections. Performs the duplicate check (R3) and rejects the batch if the PDF was already imported. Updates procedure statuses to `Reconciliated` / `PartiallyReconciled` with `confirmed_payment_date` and `actual_payment_amount` (R18).
 
 - **Args:** `candidates: Vec<FundPaymentGroupCandidate>`
 - **Returns:** `Vec<FundPaymentGroup>`
-- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `DuplicatePdf`, `ProcedureNotFound`, `FundNotFound`
+- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `DuplicatePdf`, `ProcedureNotFound`, `FundNotFound`, `DatabaseError` (FPA-076, a write failed, nothing kept)
 
 ---
 
@@ -66,13 +66,13 @@ Checks a split of a `NotFoundIssue` line into procedures before the card accepts
 
 ---
 
-### `create_fund_payment_with_auto_corrections` — R3, R11, R12, R13, R14, R15, R16, R17, R18, R19, R29, FPA-075, FPA-210B, FPA-211, FPA-257, FPA-258
+### `create_fund_payment_with_auto_corrections` — R3, R11, R12, R13, R14, R15, R16, R17, R18, R19, R29, FPA-075, FPA-076, FPA-210B, FPA-211, FPA-212, FPA-257, FPA-258
 
 Creates fund-payment groups and applies user-validated auto-corrections atomically. Correction variants: `AmountMismatch` (R11), `ContestAmount` (R12), `FundMismatch` (R13), `DateMismatch` (R14), `LinkProcedure` (R15), `CreateProcedure` (R16), `SplitIntoProcedures` (FPA-257, checked again by FPA-258). Unknown funds are resolved and created automatically (R17). Negative-amount procedures via `CreateProcedure` receive `Reconciliated` status directly (R29). Performs the duplicate check (R3).
 
 - **Args:** `candidates: Vec<FundPaymentGroupCandidate>, auto_corrections: Vec<AutoCorrection>`
 - **Returns:** `Vec<FundPaymentGroup>`
-- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `DisputedAmountCorrected { procedure_id }` (FPA-211, `ContestAmount` and `AmountMismatch` on one procedure, answered before any read), `SplitInvalid` (FPA-258, nothing written), `DuplicatePdf`, `ProcedureNotFound`, `ProcedureAlreadyLinked`, `FundResolutionFailed`
+- **Errors:** `TotalAmountNotPositive` (FPA-075, answered before any write), `DisputedAmountCorrected { procedure_id }` (FPA-211, `ContestAmount` and `AmountMismatch` on one procedure, answered before any read), `DisputedAmountOutOfRange { procedure_id }` (FPA-212, a paid amount below zero or not below the billed amount, nothing written), `SplitInvalid` (FPA-258, nothing written), `DuplicatePdf`, `ProcedureNotFound`, `ProcedureAlreadyLinked`, `FundResolutionFailed`, `DatabaseError` (FPA-076, a write failed, nothing kept)
 
 ---
 
@@ -335,3 +335,4 @@ enum FundPaymentValidationStatus {
 - 2026-10-10 — Modified by `fund-payment-auto-match` spec (FPA-070, FPA-072, FPA-075): reconcile_and_create_candidates returns `left_out_groups` (new type `LeftOutPdfGroup`); create_fund_payment_from_candidates and create_fund_payment_with_auto_corrections list `TotalAmountNotPositive`, now answered before any write
 - 2026-10-18 — Modified by `fund-payment-auto-match` spec (TODO-008): added `check_split_into_procedures`; `create_fund_payment_with_auto_corrections` takes `SplitIntoProcedures` and answers `SplitInvalid` (FPA-255 to FPA-258)
 - 2026-10-18 — Modified by `fund-payment-auto-match` spec (FPA-211, ticket #392): `create_fund_payment_with_auto_corrections` answers `DisputedAmountCorrected`
+- 2026-10-25 — Modified by `fund-payment-auto-match` spec (FPA-212, ticket #424): `create_fund_payment_with_auto_corrections` answers `DisputedAmountOutOfRange`; it and `create_fund_payment_from_candidates` list `DatabaseError` (FPA-076), which they already returned

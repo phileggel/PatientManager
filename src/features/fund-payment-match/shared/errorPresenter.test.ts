@@ -93,3 +93,11 @@ describe("formatReportPdfError", () => {
     }
   });
 });
+
+describe("formatReconciliationError — FPA-212A (ticket #424)", () => {
+  it("names a disputed amount out of range with its own message", () => {
+    expect(
+      formatReconciliationError({ code: "DisputedAmountOutOfRange", procedure_id: "p-1" }).key,
+    ).toBe("fund-payment-match:errors.disputed_amount_out_of_range");
+  });
+});

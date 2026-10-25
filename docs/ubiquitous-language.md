@@ -285,18 +285,19 @@ from code and proposed for confirmation.
 
 ### Procedure
 
-| Method                                      | Domain intent                                              | Status transition                      | Status    |
-| ------------------------------------------- | ---------------------------------------------------------- | -------------------------------------- | --------- |
-| `reconcile(paid_amount, payment_date)`      | Link to a fund payment group                               | → `Reconciled` / `PartiallyReconciled` | confirmed |
-| `unreconcile()`                             | Remove from a fund payment group, wipe reconciliation data | → `Created`                            | confirmed |
-| `dispute(paid_amount)`                      | Record that the fund paid less than billed                 | → `PartiallyReconciled`                | confirmed |
-| `record_payment(method, date, paid_amount)` | Record bank confirmation or direct patient payment         | → `FundPaid` / `DirectlyPaid`          | confirmed |
-| `revert_payment(group_payment_date)`        | Undo bank confirmation, restore group payment date         | → `Reconciled` / `PartiallyReconciled` | confirmed |
-| `clear_payment()`                           | Undo direct patient payment, wipe all payment fields       | → `Created`                            | confirmed |
-| `correct_billed_amount(billed_amount)`      | Override billed amount from PDF auto-correction            | —                                      | confirmed |
-| `correct_fund(fund_id)`                     | Override fund from PDF auto-correction                     | —                                      | confirmed |
-| `correct_date(pdf_date)`                    | Override procedure date from PDF auto-correction           | —                                      | confirmed |
-| `read_form(patient, type, date)`            | Read the procedure form: the date, or every refused field  | —                                      | confirmed |
+| Method                                      | Domain intent                                                    | Status transition                      | Status    |
+| ------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------- | --------- |
+| `reconcile(paid_amount, payment_date)`      | Link to a fund payment group                                     | → `Reconciled` / `PartiallyReconciled` | confirmed |
+| `unreconcile()`                             | Remove from a fund payment group, wipe reconciliation data       | → `Created`                            | confirmed |
+| `dispute(paid_amount)`                      | Record that the fund paid less than billed                       | → `PartiallyReconciled`                | confirmed |
+| `accepts_dispute(paid_amount)`              | Whether a paid amount can be disputed: from zero to below billed | —                                      | proposed  |
+| `record_payment(method, date, paid_amount)` | Record bank confirmation or direct patient payment               | → `FundPaid` / `DirectlyPaid`          | confirmed |
+| `revert_payment(group_payment_date)`        | Undo bank confirmation, restore group payment date               | → `Reconciled` / `PartiallyReconciled` | confirmed |
+| `clear_payment()`                           | Undo direct patient payment, wipe all payment fields             | → `Created`                            | confirmed |
+| `correct_billed_amount(billed_amount)`      | Override billed amount from PDF auto-correction                  | —                                      | confirmed |
+| `correct_fund(fund_id)`                     | Override fund from PDF auto-correction                           | —                                      | confirmed |
+| `correct_date(pdf_date)`                    | Override procedure date from PDF auto-correction                 | —                                      | confirmed |
+| `read_form(patient, type, date)`            | Read the procedure form: the date, or every refused field        | —                                      | confirmed |
 
 > ⚠️ Code discrepancy: none of these aggregate root methods exist yet — fields are mutated
 > directly in use case orchestrators. All to be extracted.

@@ -83,6 +83,9 @@ export function GroupMatchCard({
   );
   const isResolved = (amountOk || allContested) && allAnomaliesAccepted;
   const diff = pdfLine.amount - currentTotal;
+  // FPA-141: a dispute records that the fund paid less than billed.
+  const billedTotal = dbMatches.reduce((sum, m) => sum + (m.amount || 0), 0);
+  const disputable = pdfLine.amount < billedTotal;
 
   return (
     <div className="m3-card-elevated space-y-4">
@@ -171,7 +174,7 @@ export function GroupMatchCard({
           {t("results.action.validate_distribution")}
         </Button>
       )}
-      {!isResolved && !amountOk && !allContested && currentTotal > 0 && (
+      {!isResolved && !amountOk && !allContested && currentTotal > 0 && disputable && (
         <Button
           variant="secondary"
           fullWidth

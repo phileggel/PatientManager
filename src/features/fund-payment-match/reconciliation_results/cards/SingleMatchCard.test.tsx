@@ -113,3 +113,13 @@ describe("SingleMatchCard — correct or dispute, not both (FPA-210A)", () => {
     expect(screen.getByRole("button", { name: /contest/i })).toBeInTheDocument();
   });
 });
+
+// FPA-210 (ticket #424): a dispute is offered only when the fund paid less than billed.
+describe("SingleMatchCard — dispute only when paid less (FPA-210)", () => {
+  it("ticket #424: offers the correction, not the dispute, when the PDF amount is above the billed one", () => {
+    render(<SingleMatchCard {...baseProps} dbMatch={{ ...dbMatchAmountMismatch, amount: 2500 }} />);
+
+    expect(screen.getByRole("button", { name: /apply pdf amount/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /contest/i })).not.toBeInTheDocument();
+  });
+});

@@ -420,6 +420,13 @@ impl Procedure {
         self
     }
 
+    /// Whether a paid amount can be disputed on this procedure (FPA-212): a
+    /// dispute records that the fund paid less than billed, from zero to below
+    /// the billed amount. The one statement of the rule.
+    pub fn accepts_dispute(&self, paid_amount: i64) -> bool {
+        (0..self.billed_amount).contains(&paid_amount)
+    }
+
     /// What the procedure form sent, as the domain reads it (PRO-125): the
     /// date parsed, or every missing or malformed field at once.
     pub fn read_form(
@@ -832,5 +839,29 @@ mod tests {
     fn pro_125_read_form_returns_the_date_of_a_complete_form() {
         let date = Procedure::read_form("patient-1", "pt-1", "2026-10-18").unwrap();
         assert_eq!(date, NaiveDate::from_ymd_opt(2026, 10, 18).unwrap());
+    }
+
+    #[test]
+    fn fpa_212_accepts_a_dispute_from_zero_to_below_the_billed_amount() {
+        let procedure = Procedure::restore(
+            "proc-1".to_string(),
+            "patient-1".to_string(),
+            None,
+            "type-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+            50_000,
+            PaymentMethod::None,
+            None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        );
+        for (paid_amount, accepted) in [(-1, false), (0, true), (49_999, true), (50_000, false)] {
+            assert_eq!(
+                procedure.accepts_dispute(paid_amount),
+                accepted,
+                "paid {paid_amount}"
+            );
+        }
     }
 }

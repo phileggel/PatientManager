@@ -2,7 +2,8 @@
  * SingleMatchCard - Issue card for a PDF line with one matching procedure but anomalies.
  *
  * Displays a side-by-side comparison table (PDF vs recorded procedure).
- * One action button per unresolved anomaly (amount, fund, date).
+ * One action button per unresolved anomaly (amount, fund, date); the amount dispute only
+ * when the fund paid less than billed (FPA-210).
  *
  * Sources: acceptedKeys, autoCorrections (parent correction state), onAcceptCorrection callback.
  */
@@ -70,6 +71,8 @@ export function SingleMatchCard({
       ? corrAmount.AmountMismatch.pdf_amount
       : dbMatch.amount || 0;
   const amountOk = contested || pdfLine.amount === effectiveAmount;
+  // FPA-210: a dispute records that the fund paid less than billed.
+  const disputable = pdfLine.amount < (dbMatch.amount || 0);
   const isResolved = allAnomaliesResolved && amountOk;
 
   const unresolvedAnomaly = dbMatch.anomalies.find(
@@ -159,19 +162,21 @@ export function SingleMatchCard({
                         amount: formatCurrency(pdfLine.amount),
                       })}
                     </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        onAcceptCorrection(
-                          contestKey,
-                          buildContestCorrection(dbMatch.procedure_id, pdfLine.amount),
-                        )
-                      }
-                    >
-                      {t("results.action.contest_amount", {
-                        amount: formatCurrency(pdfLine.amount),
-                      })}
-                    </Button>
+                    {disputable && (
+                      <Button
+                        variant="secondary"
+                        onClick={() =>
+                          onAcceptCorrection(
+                            contestKey,
+                            buildContestCorrection(dbMatch.procedure_id, pdfLine.amount),
+                          )
+                        }
+                      >
+                        {t("results.action.contest_amount", {
+                          amount: formatCurrency(pdfLine.amount),
+                        })}
+                      </Button>
+                    )}
                   </div>
                 );
               }
