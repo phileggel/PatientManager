@@ -57,7 +57,7 @@ A question only the human can answer is never guessed: headless, it goes on the 
 - `just dev` · `just harness` (CI's gate locally, scoped to the touched layers) · `just check` · `just check-full` · `just format` · `just generate-types` · `just merge` (refuses until every check is green; folds `fixup!` commits).
 - `just watch-pr [NN]` (waits for a pull request's checks; exit 0 green) · `just flow-audit <since> [until]` (a batch's figures).
 - `just arch-check` (A1–A8, B18, B24; `--write-allowlist` only lowers the frozen debt) · `just rule-homes` (the doc map, the guide ceilings; `--lower-ceilings` only lowers) · `just coverage-gate` · `just privacy-check` · `just test-scripts`.
-- Ending a batch: `docs/workflow.md` § 3 — a `feat` or `fix` batch: the agent cuts the release to its draft, any other: `just batch-end`; then `/flow-audit`.
+- Ending a batch: `docs/workflow.md` § 3 — the release or `just batch-end`; then `/flow-audit`.
 
 ## Standards
 

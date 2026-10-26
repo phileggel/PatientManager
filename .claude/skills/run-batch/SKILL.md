@@ -52,7 +52,7 @@ and the sweep's pull request repeats what each lane read. Expired plain tasks (�
 of `gh issue list --label task --search "-label:spec updated:<DATE"` read and closed, a
 security finding kept, DATE being `git log -1 --format=%cs` of `just batch-ends 3`'s last.
 Then the batch ends as `docs/workflow.md` § 3 says: with a `feat` or `fix`, cut the
-release to its draft (§ 3) and tell the owner it waits to be published, with what was filed; without, `just batch-end` on a fresh `main`.
+release to its draft and tell the owner it waits to be published, with what was filed; without, `just batch-end` on a fresh `main`.
 
 ## Step 5 — Publish and audit
 
