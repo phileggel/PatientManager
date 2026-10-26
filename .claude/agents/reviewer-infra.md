@@ -17,7 +17,7 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 **Workflows**
 
-- A secret echoed or handed to an untrusted action 🔴; `contents: write` on a fork-triggered `pull_request` 🔴; a third-party action not pinned to a commit SHA 🔴 (`dtolnay/rust-toolchain@<channel>` is the exception); permissions wider than the job needs 🟡.
+- A secret echoed or handed to an untrusted action 🔴; `contents: write` on a fork-triggered `pull_request` 🔴; a third-party action not pinned to a commit SHA 🔴; permissions wider than the job needs 🟡.
 - An env variable used where it is not declared 🔴; a step using an earlier step's output without handling that step's failure 🔴; a matrix silently dropping a required platform 🔴; `gh cache delete` without `actions: write` 🔴 (in a reusable workflow, check every caller's grant); a Windows step without an explicit `shell:` 🔴; a job without `timeout-minutes` 🟡; a cache key that ignores the lockfile 🟡; cleanup on `if: always()` when `if: failure()` is meant 🟡.
 - A required check (`required-checks.json`) whose name matches no job `name:` 🔴; a required job that can end neither green nor skipped on a legitimate change 🔴.
 - SQLx builds without `SQLX_OFFLINE: true` 🔴 (`cargo sqlx prepare` needs `false`); updater artifacts without `TAURI_SIGNING_PRIVATE_KEY` 🔴; a Rust CI build without `CARGO_INCREMENTAL: 0` 🔵.
@@ -36,19 +36,17 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 - A script, recipe, path or section a prompt names that does not exist 🟡.
 - A subcommand, recipe or step the diff removes or changes while a prompt or `docs/workflow.md` still tells the agent to use the old form 🔴 — search the name in every prompt, on the lines the diff did not touch too; so is a concept the diff widens (a release → any batch end) still named narrowly in a docstring, a help text or a reply template of the same piece.
 - The deny list losing a prohibition: push to `main`, force-push, `--no-verify`, publishing a release (`gh release edit --draft=false`), `git tag`, `gh pr merge`, editing `.claude/settings.json` 🔴.
-- An allow entry broader than one command family (`Bash(*)`, `Bash(bash *)`, `Bash(rm *)`, `Bash(curl *)`, `Bash(sudo *)`) 🔴; `Bash(python3 -c *)` / `Bash(python3 - *)` are accepted, never widened.
+- An allow entry broader than one command family (`Bash(*)`, `Bash(bash *)`, `Bash(rm *)`, `Bash(curl *)`, `Bash(sudo *)`) 🔴.
 
 **Scripts and hooks**
 
 - Bash without `#!/usr/bin/env bash` and `set -euo pipefail` 🔴; `eval` on variable input or `curl | bash` 🔴; a non-POSIX tool used without a `command -v` check 🟡; unquoted path variables 🟡; `mktemp` without a cleanup `trap` 🟡; `PROJECT_ROOT` from `$PWD` instead of `git rev-parse --show-toplevel` 🟡 (🔴 in a hook); `[ ]` instead of `[[ ]]`, backticks, unquoted `${arr[@]}`, no `local` in functions 🔵.
 - Python without `#!/usr/bin/env python3` 🔴; `eval` / `exec` or `shell=True` on variable input 🔴; `open()` without `encoding="utf-8"` 🟡; a bare `except:` 🟡; a file rewrite that does not abort on an empty or bad match 🔴; a script that gains a file it rewrites while a recovery hint or a staged-files list further down still names the old set 🔴; `subprocess` without `check=True`, paths built by string concatenation, unanchored regexes on structured text 🔵.
-- A source scanner (`arch-check.py`, `privacy-check.py`, `rule-homes.py`) stripping comments differently across its rules 🟡.
 - A script's unit tests run from a git hook 🔴 — hooks export `GIT_DIR`, and tests that build repositories corrupt the real one.
-- Local and CI running different checks for the same scope (`scripts/scoped-checks.sh`, `scripts/harness.sh`, `quality.yml`) 🟡 (🔴 when a hook skips a check CI requires for that scope).
 
 **justfile** — a recipe calling a script that does not exist 🔴; a multi-line recipe relying on `cd` carrying over 🔴; `generate-types` naming a feature `Cargo.toml` does not declare 🔴; a wrapper recipe not passing `*ARGS` through when its script takes flags 🟡; a public recipe without a doc comment 🔵; a destructive recipe without a warning 🟡.
 
-**Records** — an `arch-allowlist.json` entry appearing or growing 🔴; a floor in `coverage-gates.json` lowered 🔴; a ceiling in `guide-ceilings.json` raised or recorded against `docs/workflow.md` § 5 (Guide ceilings) 🔴.
+**Records** — an `arch-allowlist.json` entry appearing or growing 🔴; a floor in `coverage-gates.json` lowered 🔴.
 
 **Config and cross-file**
 
@@ -70,6 +68,5 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 - The convention docs a reviewer reads come from the PR: a rule and its code change together, and the doc change is in the diff.
 - `app.security.csp: null` — a local desktop app; note it only when dynamic script appears (`reviewer-security`).
 - A hook that fails when a script it calls is missing — failing closed is intended; never suggest `[ -f … ] || exit 0`.
-- GNU-only flags in `scripts/` — they run on Linux; Windows CI steps declare their own shell.
-- A deny rule in `.claude/settings.json` that starts with a wildcard — `Bash(*name*)` refuses any command whose text contains the name; "matches literal prefixes" is about the allow list. Nor another spelling that slips past a deny rule: the list is a net under `CLAUDE.md`'s written rule, not chased spelling by spelling (owner, 2026-10-11).
+- A deny rule in `.claude/settings.json` that starts with a wildcard — `Bash(*name*)` refuses any command whose text contains the name; "matches literal prefixes" is about the allow list.
 - A `Write(path)` rule missing from `.claude/settings.json` or `--allowedTools` where the `Edit(path)` rule for the same path is present — file permission checks match `Edit(path)` rules only, and those cover every file-editing tool. A path guarded by neither is a finding.

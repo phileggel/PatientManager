@@ -432,6 +432,20 @@ allow list in `.claude/settings.json` names:
   formats from the source;
 - a command the list lacks is named to the human, who adds it; the agent does not.
 
+### Infra review
+
+`reviewer-infra` adds these to its own checks (`review.rules.infra`):
+
+- a ceiling in `guide-ceilings.json` raised, or recorded above 120 for a new prompt, with no owner's yes named in the pull request (§ 5) 🔴; the deny list losing a prohibition of `CLAUDE.md` § Core rules 1 🔴;
+- `Bash(python3 -c *)` / `Bash(python3 - *)` are accepted, never widened; another spelling
+  slipping past a deny rule is no finding, the list is a net under the rule (owner, 2026-10-11);
+- `dtolnay/rust-toolchain@<channel>` may stay unpinned;
+- a source scanner (`arch-check.py`, `privacy-check.py`, `rule-homes.py`) stripping
+  comments differently across its rules 🟡; local and CI running different checks for one
+  scope (`scoped-checks.sh`, `harness.sh`, `quality.yml`) 🟡, 🔴 when a hook skips one CI requires;
+- a GNU-only flag or format in `scripts/` or `.githooks/` (`sed -i` with no suffix,
+  `grep -P`, `date +%N`, `xargs -r`) 🟡 — a finding here, unlike `app@daneel`'s `reviewer-infra` (owner, 2026-10-26).
+
 ### Release sweep
 
 Before a batch ends (§ 3), run the reviewer agents in `release-sweep` mode with `/dep-audit`,

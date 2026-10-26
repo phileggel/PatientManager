@@ -185,6 +185,8 @@ UoW — the aggregate's own repository handles atomicity internally via its `sav
 
 **B27** — MUST use sqlx macros for queries, except where a macro cannot check the statement: PRAGMAs, reads of SQLite's own catalogue, and identifiers only known at run time (wrapped in `AssertSqlSafe`, never built from user input). `just clean-db` wipes and re-migrates the dev database.
 
+**B49** — A migration is reviewed in the range that adds it (the branch, or a release sweep's tag range); one already merged is not judged again (owner, 2026-10-10).
+
 ## Logging
 
 **B28** — MUST use `tracing::{info, debug, warn, error}` with structured fields. Never use `println!`.
@@ -201,7 +203,7 @@ pub const BACKEND: &str = "backend";
 tracing::info!(target: BACKEND, field = value, "message");
 ```
 
-**B44** — No patient data as a field value in a log call: SSN, IBAN, patient full name. Naming the field in the message (`"Fetching patient by SSN"`) is fine; log a presence boolean (`has_ssn = ssn.is_some()`), the last four characters of an IBAN, or nothing. Nor a parsed document line or row, Debug-formatted: its text can name the payer; the script checks this in Rust, for values named `l`, `line(s)`, `row(s)`, `*_line(s)`, `*_row(s)`. `scripts/privacy-check.py` enforces it for `tracing::*!`, `logger.*` and `console.*` in the hooks and CI.
+**B44** — No patient data as a field value in a log call: SSN, IBAN, patient full name. Naming the field in the message (`"Fetching patient by SSN"`) is fine; log a presence boolean (`has_ssn = ssn.is_some()`), the last four characters of an IBAN, or nothing. Nor a parsed document line or row, Debug-formatted: its text can name the payer; the script checks this in Rust, for values named `l`, `line(s)`, `row(s)`, `*_line(s)`, `*_row(s)`. `scripts/privacy-check.py` enforces it for `tracing::*!`, `logger.*` and `console.*` in the hooks and CI. The same script already rejects an SSN or IBAN with valid check digits anywhere in the tree.
 
 ## General
 
