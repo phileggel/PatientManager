@@ -96,8 +96,6 @@ reads each generic piece against its line. A piece is a list item opened by its 
 - `scripts/review-path.sh` — where a reviewer writes its report. Never: writes it.
 - `scripts/review-stop-reason.py` — says in one line why a reviewer session stopped in
   CI. Never: fails the job it explains.
-- `scripts/release.py` — versions from the last `v*` tag, writes the changelog, tags and
-  pushes `main`. Never: run — the ruleset refuses that push; a release is cut by the `app@daneel` plugin's `release.py` (`docs/workflow.md` § 3).
 - `scripts/release-notes.py` — prints one version's changelog section for its release
   page. Never: edits the changelog.
 - `scripts/flow-audit.py` — the figures of a batch, as one document. Never: reads them.

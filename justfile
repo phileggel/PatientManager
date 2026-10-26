@@ -22,13 +22,9 @@ check:
 check-full:
     python3 scripts/check.py
 
-# What a release runs locally before its hand-over (`run-batch.release_check`)
+# What a release runs locally before its hand-over (`docs/workflow.md` § 3)
 release-check:
     python3 scripts/check.py --strict
-
-# Release new version (interactive)
-release *ARGS:
-    python3 scripts/release.py {{ARGS}}
 
 # The last N batch ends (release `v*` or `batch/<date>` tags), newest first
 batch-ends n="1": (_used "batch-ends")

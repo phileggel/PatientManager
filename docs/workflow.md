@@ -154,7 +154,7 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
 and the release sweep (Conventions), what they find folded or filed (§ 2), the expired tasks closed; a security issue that puts users at
 risk is a `fix` instead: a `bug` issue put to the owner, worked before the batch ends, swept again on what it
 changed, released. A batch with a `feat` or `fix` is released: the agent cuts it to its draft
-(`just release-check`, then the `app@daneel` plugin's `release.py`, enabled in `.claude/settings.json`: the version pull request, the `v*` tag,
+(`just release-check`, then the `app@daneel` plugin's `release.py`: the version pull request, the `v*` tag,
 the draft once the release workflow made it), and tells the owner, who publishes it; a red `release-check` or release workflow stops it, and the release is cut again after its `fix`.
 Any other batch the agent closes with `just batch-end` (a `batch/<date>` tag):
 it publishes nothing, its chores ride in the next release, no fix is picked to fill a changelog.
