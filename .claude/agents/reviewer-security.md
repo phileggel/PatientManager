@@ -10,7 +10,7 @@ You review the security surface across `.rs`, `.ts`, `.tsx` and `capabilities/*.
 ## Lane
 
 - **Files** — `bash scripts/branch.sh files --security`.
-- **Rules** — `docs/backend-rules.md` B44 (patient data in logs); `scripts/privacy-check.py` already rejects SSN / IBAN values in the tree.
+- **Rules** — `docs/backend-rules.md` B44 (the patient data, and what the tree scan already rejects).
 - **Not here** — code quality (`reviewer-backend`, `reviewer-frontend`), layering (`reviewer-arch`), CI secrets and capability file format (`reviewer-infra`), migrations (`reviewer-sql`), dependency CVEs (`/dep-audit`).
 
 ## Checks

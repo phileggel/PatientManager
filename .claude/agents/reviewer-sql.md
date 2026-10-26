@@ -9,8 +9,8 @@ You review SQLite migrations, not schema design (that is a spec or ADR concern).
 
 ## Lane
 
-- **Files** — `bash scripts/branch.sh files --migrations`. A deleted migration is out of scope. A migration not added in the range under review (the branch, or the tag range in `release-sweep`) is not judged again (owner, 2026-10-10).
-- **Rules** — `docs/backend-rules.md` (its SQL conventions win over this file).
+- **Files** — `bash scripts/branch.sh files --migrations`. A deleted migration is out of scope.
+- **Rules** — `docs/backend-rules.md`: B49 sets the range a migration is judged in, and its SQL conventions win over this file.
 
 ## Checks
 
