@@ -9,7 +9,7 @@ was built.
 - **Shared** — the feature and bug issues, each what a user will see; the human confirms
   its user value and done-when, and approves the batch (§ 2).
 - **Human** — validating a **design** before anything the user sees changes.
-- **Human** — cutting a **release**; several merged branches may wait for one.
+- **Human** — publishing a **release** the agent cut (owner, 2026-10-25).
 - **Agent** — the task issues: every observation, smell and proposal about the code. The
   human queues from them.
 - **Agent** — the flow issues: the same about the workflow itself (checks, waits, tools,
@@ -153,10 +153,10 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
 **Ending a batch** (owner, 2026-10-17) — every batch ends alike: the closing brief, then `/dep-audit`
 and the release sweep (Conventions), what they find folded or filed (§ 2), the expired tasks closed; a security issue that puts users at
 risk is a `fix` instead: a `bug` issue put to the owner, worked before the batch ends, swept again on what it
-changed, released. A batch with a `feat` or `fix` is released: the agent says it is ready; the human
-runs `just release`; CI builds the draft, which the agent publishes once the release workflow and every
-push run on `main`'s head (`gh run list --branch main --commit <sha>`) are green, a cancelled one
-re-run, stopping on red. Any other batch the agent closes with `just batch-end` (a `batch/<date>` tag):
+changed, released. A batch with a `feat` or `fix` is released: the agent cuts it to its draft
+(`just release-check`, then `/app:run-batch`'s `release.py`: the version pull request, the `v*` tag,
+the draft once the release workflow made it), and tells the owner, who publishes it; a red `release-check` or release workflow stops it, and the release is cut again after its `fix`.
+Any other batch the agent closes with `just batch-end` (a `batch/<date>` tag):
 it publishes nothing, its chores ride in the next release, no fix is picked to fill a changelog.
 `/flow-audit` audits the range it closes (§ 12). A batch is named by its dates, never a version number.
 

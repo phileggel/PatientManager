@@ -22,6 +22,10 @@ check:
 check-full:
     python3 scripts/check.py
 
+# What a release runs locally before its hand-over (`run-batch.release_check`)
+release-check:
+    python3 scripts/check.py --strict
+
 # Release new version (interactive)
 release *ARGS:
     python3 scripts/release.py {{ARGS}}

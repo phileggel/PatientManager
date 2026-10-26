@@ -1,5 +1,34 @@
 {
   "flow-audit": {
-    "commit_types": ["feat", "fix", "refactor", "chore", "ci", "docs", "test"]
-  }
+    "commit_types": ["feat", "fix", "refactor", "chore", "ci", "docs", "test"],
+    "guides": ["CLAUDE.md", "docs/workflow.md", "docs/agentic-setup.md", "docs/*-rules.md", ".claude/skills/*/SKILL.md", ".claude/agents/*.md", ".claude/rules/*.md"],
+    "records": ["CHANGELOG.md", "docs/adr/"],
+    "path_roots": ["src/", "src-tauri/", "docs/", "scripts/", "e2e/", ".github/", ".claude/", ".githooks/"]
+  },
+  "plan-batch": { "owner": "phileggel", "number": 4, "workflow": "docs/workflow.md" },
+  "review": {
+    "owners": "docs/README.md",
+    "setup": "docs/agentic-setup.md",
+    "glossary": "docs/ubiquitous-language.md",
+    "rules": {
+      "arch": ["docs/backend-rules.md", "docs/frontend-rules.md", "docs/ddd-reference.md"],
+      "backend": ["docs/backend-rules.md", "docs/error-model.md", "docs/test-rules.md"],
+      "frontend": ["docs/frontend-rules.md", "docs/i18n-rules.md"],
+      "sql": ["docs/backend-rules.md"],
+      "e2e": ["docs/e2e-rules.md", "docs/test-rules.md"],
+      "security": ["docs/backend-rules.md"],
+      "infra": ["docs/workflow.md"]
+    },
+    "lanes": {
+      "infra": ["^guide-ceilings\\.json$", "^\\.claude/(rules/[^/]*\\.md|agents/[^/]*\\.md|skills/[^/]+/SKILL\\.md)$"],
+      "security": ["^src-tauri/src/shared/infrastructure/secure_path\\.rs$"]
+    }
+  },
+  "run-batch": {
+    "version_files": ["package.json", "package-lock.json", "src-tauri/Cargo.toml", "src-tauri/tauri.conf.json"],
+    "release_workflow": "release.yml",
+    "release_check": "release-check"
+  },
+  "design-proposal": { "repo": "phileggel/PatientManager-design" },
+  "visual-proof": { "vite_preview_port": 1422, "vite_preview_host": "127.0.0.1", "global_css_import": "src/ui/tailwind.css", "i18n_import": "src/i18n/config.ts" }
 }

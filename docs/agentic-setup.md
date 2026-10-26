@@ -39,7 +39,7 @@ reads each generic piece against its line. A piece is a list item opened by its 
 - `.claude/skills/plan-batch/` — refines the candidates, proposes the next batch, and
   sets it on the Project once approved. Never: queues what the owner has not approved, nor commits.
 - `.claude/skills/run-batch/` — runs a batch from its Queued items to its audit by
-  chaining the other skills, owns the batch's task list, closes the tasks § 2 expires. Never: decides, edits the batch or releases.
+  chaining the other skills, owns the batch's task list, closes the tasks § 2 expires. Never: decides, edits the batch or publishes a release.
 - `.claude/skills/run-entry/` — runs one task through the ceremony (`docs/workflow.md` § 3),
   its task list only when run alone, and folds or files what it met and did not fix before
   the issue closes. Never: a second task, a guess where a question is owed, nor a finding left in chat.
@@ -97,7 +97,7 @@ reads each generic piece against its line. A piece is a list item opened by its 
 - `scripts/review-stop-reason.py` — says in one line why a reviewer session stopped in
   CI. Never: fails the job it explains.
 - `scripts/release.py` — versions from the last `v*` tag, writes the changelog, tags and
-  pushes. Never: run by the agent (its own: `just batch-end` tags, `just batch-ends` lists).
+  pushes `main`. Never: run — the ruleset refuses that push; the agent cuts with daneel's (§ 3).
 - `scripts/release-notes.py` — prints one version's changelog section for its release
   page. Never: edits the changelog.
 - `scripts/flow-audit.py` — the figures of a batch, as one document. Never: reads them.
