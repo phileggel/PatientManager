@@ -258,8 +258,9 @@ changed something or was rejected goes in the PR body, or in a PR comment once p
 - **(c)** is never "pre-existing" alone: a rejection cites what overrides the finding —
   a rule, a file, an ADR, a measurement, the owner's decision.
 - **(c) one-off** false positive → inline comment `<reviewer> FP: <reason> — see PR #NN`.
-- **(c) pattern** → a "not a finding" rule in the reviewer's prompt, same PR.
-- **A CI finding the local run missed** → a rule in that reviewer's prompt, same PR.
+- **(c) pattern** → a "not a finding" rule in that lane's rules document (`review.rules` of
+  `.claude/daneel.json`), same PR.
+- **A CI finding the local run missed** → a rule in that lane's rules document, same PR.
 - **`[DECISION]`** → see Conventions below.
 - **A 🔴 security finding on the agent's own change** is fixed, or put to the human with
   its options. The agent never clears it with a "not a finding" rule it writes itself:
@@ -434,9 +435,9 @@ allow list in `.claude/settings.json` names:
 
 ### Infra review
 
-`reviewer-infra` adds these to its own checks (`review.rules.infra`):
+`reviewer-infra` adds these to its own checks (`.claude/daneel.json` names this document):
 
-- a ceiling in `guide-ceilings.json` raised, or recorded above 120 for a new prompt, with no owner's yes named in the pull request (§ 5) 🔴; the deny list losing a prohibition of `CLAUDE.md` § Core rules 1 🔴;
+- a ceiling in `guide-ceilings.json` raised without the yes § 5 asks 🔴; the deny list losing a prohibition of `CLAUDE.md` § Core rules 1 🔴;
 - `Bash(python3 -c *)` / `Bash(python3 - *)` are accepted, never widened; another spelling
   slipping past a deny rule is no finding, the list is a net under the rule (owner, 2026-10-11);
 - `dtolnay/rust-toolchain@<channel>` may stay unpinned;
