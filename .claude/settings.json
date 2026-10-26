@@ -92,10 +92,6 @@
       "Bash(git commit --no-verify*)",
       "Bash(git commit -n *)",
       "Bash(git push --no-verify*)",
-      "Bash(just release*)",
-      "Bash(python3 scripts/release.py*)",
-      "Bash(python3 *release.py*)",
-      "Bash(python *release.py*)",
       "Bash(git commit *--no-verify*)",
       "Bash(git commit * -n*)",
       "Bash(git push *--no-verify*)",
@@ -106,7 +102,9 @@
       "Edit(.claude/settings.json)",
       "Bash(*com.projectsf.patient-manager*)",
       "Read(~/.local/share/com.projectsf.patient-manager/**)",
-      "Edit(~/.local/share/com.projectsf.patient-manager/**)"
+      "Edit(~/.local/share/com.projectsf.patient-manager/**)",
+      "Bash(gh release edit *--draft=false*)",
+      "Bash(gh release edit *--draft false*)"
     ]
   },
   "hooks": {
@@ -122,7 +120,8 @@
     ]
   },
   "enabledPlugins": {
-    "flow@daneel": false
+    "flow@daneel": true,
+    "app@daneel": true
   },
   "extraKnownMarketplaces": {
     "daneel": {

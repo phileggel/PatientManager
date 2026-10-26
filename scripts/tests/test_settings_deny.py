@@ -17,12 +17,10 @@ SETTINGS = Path(__file__).resolve().parents[2] / ".claude" / "settings.json"
 # the written rule, not a proof (owner, 2026-10-11): it does not chase every spelling, and
 # `gh api` is left to the rule itself. What stops a push to `main` for good is on GitHub's side.
 FORBIDDEN = {
-    "cutting a release": [
-        "just release",
-        "just release -y",
-        "python3 scripts/release.py -y",
-        "python3 ./scripts/release.py",
-        "python scripts/release.py --dry-run",
+    "publishing a release": [
+        "gh release edit v1.2.3 --draft=false",
+        "gh release edit v1.2.3 --draft=false --latest",
+        "gh release edit v1.2.3 --latest --draft false",
     ],
     "bypassing a hook": [
         "git commit --no-verify -m x",
@@ -62,7 +60,8 @@ ALLOWED = [
     "gh api repos/o/r/commits/abc/check-runs?filter=latest --paginate --jq .check_runs",
     "gh pr create --title t --body-file b.md",
     "gh run rerun 123 --failed",
-    "gh release edit v1.2.3 --draft=false --latest",
+    "gh release edit v1.2.3 --notes-file notes.md",
+    "just release-check",
     "python3 scripts/release-notes.py v1.2.3",
 ]
 

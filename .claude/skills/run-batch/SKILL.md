@@ -51,16 +51,16 @@ Then `/dep-audit`, the release sweep and `spec-checker` on every spec the batch 
 and the sweep's pull request repeats what each lane read. Expired plain tasks (§ 2): each
 of `gh issue list --label task --search "-label:spec updated:<DATE"` read and closed, a
 security finding kept, DATE being `git log -1 --format=%cs` of `just batch-ends 3`'s last.
-Then the batch ends as `docs/workflow.md` § 3 says: with a `feat` or `fix`, tell the
-owner the release is ready, with what was filed; without, `just batch-end` on a fresh `main`.
+Then the batch ends as `docs/workflow.md` § 3 says: with a `feat` or `fix`, cut the
+release to its draft and tell the owner it waits to be published, with what was filed; without, `just batch-end` on a fresh `main`.
 
 ## Step 5 — Publish and audit
 
-Once released and published (`docs/workflow.md` § 3), or tagged: `/flow-audit`, once.
+Once the release is published (`gh release view <tag>`: no longer a draft), or the batch tagged: `/flow-audit`, once.
 
 ## Rules
 
 1. It chains; it decides nothing. A choice a step does not settle goes to the owner.
-2. Never add to or reorder the batch, never run `just release`, never skip an item
+2. Never add to or reorder the batch, never publish a release, never skip an item
    silently.
 3. One batch per invocation: it ends with the audit.

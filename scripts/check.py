@@ -138,7 +138,7 @@ class QualityChecker:
         self.verbose = verbose
         # Strict mode promotes stack-marker skips to failures when the marker
         # is "expected" (always-expected by default; sqlx is conditional on
-        # src-tauri/migrations/ existing). release.py passes --strict so a
+        # src-tauri/migrations/ existing). `just release-check` passes --strict so a
         # missing marker — e.g. accidentally deleted .sqlx/ — blocks the
         # release instead of silently skipping the check.
         self.strict_mode = strict_mode
@@ -705,7 +705,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help=(
             "Promote stack-marker skips to failures. "
-            "Used by release.py to catch accidentally-deleted markers."
+            "Used by `just release-check` to catch accidentally-deleted markers."
         ),
     )
     group = parser.add_mutually_exclusive_group()

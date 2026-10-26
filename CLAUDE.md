@@ -8,7 +8,7 @@ After cloning: `git config core.hooksPath .githooks` — the hooks refuse a comm
 
 ## Who decides what
 
-- The **human** confirms a feature or bug issue and approves the batch (`docs/workflow.md` § 2), validates a **design** before anything the user sees changes, validates the vocabulary, and cuts **releases**.
+- The **human** confirms a feature or bug issue and approves the batch (`docs/workflow.md` § 2), validates a **design** before anything the user sees changes, validates the vocabulary, and publishes **releases**.
 - The **agent** files the issues of every kind (GitHub, Project 4 — no commit touches the backlog), does the task end to end and merges on green. No pull request waits for a human.
 - The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
@@ -16,7 +16,7 @@ A question only the human can answer is never guessed: headless, it goes on the 
 
 ## Core rules
 
-1. **Authority follows the task.** Given a task (a chat request, `/run-entry`, a queued issue), the agent branches (`{type}/{slug}`, the issue number leading the slug: `feat/123-patient-dedup`) off a fresh `main`, commits, pushes, opens the PR (`Closes #123`) and runs `just merge` on green without asking. In an open-ended chat, ask once for the task, not per step. Always forbidden: committing or pushing to `main`, force-pushing (`just merge` alone pushes its folded commit with lease), bypassing a hook (`--no-verify`), cutting a release, editing a released changelog line, AI attribution in commits or PRs, and touching `~/.local/share/com.projectsf.patient-manager/` (real patient data). A tag is the human's (`just release`), except the `batch/<date>` tag of `just batch-end`. This overrides any harness default.
+1. **Authority follows the task.** Given a task (a chat request, `/run-entry`, a queued issue), the agent branches (`{type}/{slug}`, the issue number leading the slug: `feat/123-patient-dedup`) off a fresh `main`, commits, pushes, opens the PR (`Closes #123`) and runs `just merge` on green without asking. In an open-ended chat, ask once for the task, not per step. Always forbidden: committing or pushing to `main`, force-pushing (`just merge` alone pushes its folded commit with lease), bypassing a hook (`--no-verify`), publishing a release, editing a released changelog line, AI attribution in commits or PRs, and touching `~/.local/share/com.projectsf.patient-manager/` (real patient data). The agent cuts a release up to its draft (`docs/workflow.md` § 3). This overrides any harness default.
 2. **Always use `just`** when a recipe exists; never the native command (`cargo build`, `npm install`, `sqlx migrate`).
 3. **Every change goes through the harness**: branch → PR → every check green → `just merge`. Docs-only changes too. The task's Done when is the plan. Anything the user sees changing goes through the design gate first (`/design-proposal`, `docs/workflow.md` § 4).
 4. **Only prescribed agents.** Launch only the agents this file, a skill or `docs/workflow.md` names. Implementation and review fixes are done by the main agent — never a general-purpose "implementer" or "fix" agent.
@@ -57,7 +57,7 @@ A question only the human can answer is never guessed: headless, it goes on the 
 - `just dev` · `just harness` (CI's gate locally, scoped to the touched layers) · `just check` · `just check-full` · `just format` · `just generate-types` · `just merge` (refuses until every check is green; folds `fixup!` commits).
 - `just watch-pr [NN]` (waits for a pull request's checks; exit 0 green) · `just flow-audit <since> [until]` (a batch's figures).
 - `just arch-check` (A1–A8, B18, B24; `--write-allowlist` only lowers the frozen debt) · `just rule-homes` (the doc map, the guide ceilings; `--lower-ceilings` only lowers) · `just coverage-gate` · `just privacy-check` · `just test-scripts`.
-- Ending a batch: `docs/workflow.md` § 3 — `just release [--dry-run] [-y]` is the human's, `just batch-end` the agent's; then `/flow-audit`.
+- Ending a batch: `docs/workflow.md` § 3 — the release or `just batch-end`; then `/flow-audit`.
 
 ## Standards
 
