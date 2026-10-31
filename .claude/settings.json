@@ -127,7 +127,8 @@
     "daneel": {
       "source": {
         "source": "github",
-        "repo": "phileggel/daneel"
+        "repo": "phileggel/daneel",
+        "ref": "app--v0.1.1"
       }
     }
   }
