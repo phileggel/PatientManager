@@ -5,7 +5,7 @@
 //   npm install --save-dev @wdio/cli @wdio/local-runner @wdio/mocha-framework \
 //               @wdio/spec-reporter webdriverio @wdio/globals
 //   cargo install tauri-driver
-//   sudo apt-get install -y webkit2gtk-driver   # Linux: provides WebKitWebDriver
+//   sudo apt-get install -y webkitgtk-webdriver   # Linux: provides WebKitWebDriver (webkit2gtk-driver before Ubuntu 26.04)
 //   Windows: the msedgedriver matching the WebView2 runtime, on PATH or named
 //   in TAURI_NATIVE_DRIVER (release-build.yml downloads it).
 //

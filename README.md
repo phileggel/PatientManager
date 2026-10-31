@@ -73,11 +73,11 @@ End-to-end tests drive the running Tauri app via WebDriver. The repo already inc
 **1. WebDriver runtime (system + cargo)**
 
 ```bash
-sudo apt install -y webkit2gtk-driver xvfb
+sudo apt install -y webkitgtk-webdriver xvfb
 cargo install tauri-driver --locked
 ```
 
-`webkit2gtk-driver` provides `WebKitWebDriver`; `xvfb` is required by the headless `test:e2e:ci` script.
+`webkitgtk-webdriver` (`webkit2gtk-driver` before Ubuntu 26.04) provides `WebKitWebDriver`; `xvfb` is required by the headless `test:e2e:ci` script.
 
 **2. Run the suite**
 
