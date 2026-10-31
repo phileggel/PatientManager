@@ -192,7 +192,7 @@ answer before pushing.
 - **Architecture rules A1–A8, B18, B24** — `scripts/arch-check.py`; today's debt is frozen in
   `arch-allowlist.json` and may only shrink.
 - **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
-  location of `docs/README.md`, every rule and lesson ID defined once.
+  location of `docs/README.md`, every rule ID defined once.
 - **Guide ceilings** (owner, 2026-10-11) — the guides are `CLAUDE.md`, this document,
   `docs/agentic-setup.md`, the rules docs and every prompt. The same script fails when
   one grows past the length `guide-ceilings.json` records for it, or when a skill or
