@@ -25,7 +25,7 @@ jobs:
   e2e:
     name: E2E — headless WebDriver
     if: github.event.action != 'closed'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -64,14 +64,14 @@ jobs:
 
       - name: Install Linux dependencies
         if: steps.scope.outputs.run == 'true'
-        # webkit2gtk-driver provides WebKitWebDriver (used by tauri-driver on Linux);
+        # webkitgtk-webdriver (webkit2gtk-driver before Ubuntu 26.04) provides WebKitWebDriver (used by tauri-driver on Linux);
         # xvfb provides the virtual framebuffer for headless rendering.
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
-            webkit2gtk-driver xvfb
+            webkitgtk-webdriver xvfb
 
       - name: Setup Node.js
         if: steps.scope.outputs.run == 'true'

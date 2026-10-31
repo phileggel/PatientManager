@@ -24,7 +24,7 @@ jobs:
   pr-checks:
     name: PR checks (commit-msg hygiene + repo invariants)
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 3
     permissions:
       contents: read
@@ -118,7 +118,7 @@ jobs:
   scope:
     name: Which layers the change touches
     if: github.event.action != 'closed'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     outputs:
       frontend: ${{ steps.scope.outputs.frontend }}
@@ -157,7 +157,7 @@ jobs:
     # A docs-only change (Markdown, docs/, screenshots/) cannot move lint, types
     # or the build: the job is skipped, which `just merge` counts as passing.
     if: github.event.action != 'closed' && needs.scope.outputs.docs != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -195,7 +195,7 @@ jobs:
     # A docs-only change (Markdown, docs/, screenshots/) cannot move lint, types
     # or the build: the job is skipped, which `just merge` counts as passing.
     if: github.event.action != 'closed' && needs.scope.outputs.docs != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     env:
       CARGO_INCREMENTAL: "0"
