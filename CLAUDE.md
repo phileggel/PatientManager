@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for Claude Code in this repository. It is an index: every rule lives in one home — [`docs/README.md`](docs/README.md) maps them — and this file points there. Code map: [`ARCHITECTURE.md`](ARCHITECTURE.md). How work moves: `method.md` and `loop.md` (§ Commands), and [`docs/workflow.md`](docs/workflow.md), what this project adds.
+Guidance for Claude Code in this repository. It is an index: every rule lives in one home — [`docs/README.md`](docs/README.md) maps them — and this file points there. Code map: [`ARCHITECTURE.md`](ARCHITECTURE.md). How work moves: `method.md` and `loop.md` (§ Commands below), and [`docs/workflow.md`](docs/workflow.md), what this project adds.
 
 ## Setup
 

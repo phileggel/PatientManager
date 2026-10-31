@@ -17,20 +17,18 @@ phileggel --url <url>`. An old `TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` is found by 
   its own; `priority`, the owner wants it in the next batch, and it comes first in the
   order `/flow:plan-batch` proposes; `mock`, a Design needing a mock.
 - **Expired tasks** (owner, 2026-10-24, ticket #492): a plain `task` (no `spec`, no security
-  finding) not updated since the third batch end back (`just batch-ends 3`) is closed with
-  its reason when the batch ends.
-- **A batch** closes at least the weight the last batch opened.
+  finding) not updated since the date of the third tag `just batch-ends 3` prints is closed
+  with its reason when the batch ends.
 
 ## Design
 
 Mocks live in `phileggel/PatientManager-design` (`design-proposal.repo` of
-`.claude/daneel.json`), never on a branch here (ticket #538).
+`.claude/daneel.json`).
 
 ## Ending a batch
 
-`/app:run-batch` ends it. Its checks here: `/app:dep-audit`, the release sweep,
-`just release-check` before `release.py`, and the expired tasks closed. A red
-`release-check` or release workflow stops the release; it is cut again after its `fix`.
+`/app:run-batch` ends it. This project's batch-end check, whichever way it ends: the expired
+tasks closed (§ Issues and the Project).
 
 ## The harness
 
@@ -45,7 +43,7 @@ tests never run in a hook (hooks export `GIT_DIR`). Beside the loop's checks:
 - **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
   location of `docs/README.md`, every rule ID defined once.
 - **Guide ceilings** (owner, 2026-10-11) — the guides are `CLAUDE.md`, this document,
-  `docs/agentic-setup.md` and the rules docs. The same script fails when one grows past
+  `docs/agentic-setup.md`, the rules docs and `.claude/rules/`. The same script fails when one grows past
   the length `guide-ceilings.json` records for it. A ceiling is lowered as its guide
   shrinks (`just rule-homes --lower-ceilings`); raising one is the owner's yes, named in
   the pull request.
@@ -67,16 +65,17 @@ tests never run in a hook (hooks export `GIT_DIR`). Beside the loop's checks:
 
 ## Reviewers
 
-- No lane runs for documents that are not guides. CI's prompts come from the daneel tag
-  `review.yml` pins; a green CI needs no local run (owner, 2026-10-19).
+- No lane runs for documents that are not guides. A green CI needs no local run (owner,
+  2026-10-19).
 - A "not a finding" rule, and a rule for what CI found and the local run missed, go in the
-  lane's rules document (`review.rules` of `.claude/daneel.json`), not in a prompt.
+  lane's rules document (`review.rules` of `.claude/daneel.json`): the prompts `loop.md` § 5
+  names are daneel's, pinned, not this repository's (phileggel/daneel#15).
 
 ## The usage log
 
 A new script logs itself (`usage_log.start()` in Python, `. scripts/usage-log.sh` in shell;
 a script that only CI runs does not); a recipe that runs no script depends on
-`(_used "<recipe>")`. `logs/usage.log` is capped at 5 000 lines.
+`(_used "<recipe>")`.
 
 ## Shell calls
 
@@ -86,7 +85,8 @@ the source.
 
 ## Infra review
 
-`app:reviewer-infra` adds these to its own checks (`.claude/daneel.json` names this document):
+`app:reviewer-infra` adds these to its own checks (`.claude/daneel.json` names this document),
+and the files `guide-ceilings.json` and `.claude/rules/*.md`:
 
 - a ceiling in `guide-ceilings.json` raised without the owner's yes 🔴; the deny list losing a prohibition of `CLAUDE.md` § Core rules 1 🔴;
 - `Bash(python3 -c *)` / `Bash(python3 - *)` are accepted, never widened; another spelling
