@@ -1,7 +1,7 @@
 """Guards on src-tauri/tauri.e2e.conf.json — run with `just test-scripts`.
 
 The E2E overlay repeats the window of tauri.conf.json (a config overlay replaces
-a list whole) to add the browser arguments WebDriver needs on Windows (TL-004).
+a list whole) to add the browser arguments WebDriver needs on Windows (wdio.conf.ts says why).
 """
 
 import json

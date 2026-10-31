@@ -236,7 +236,7 @@ answer before pushing.
 - **Check the ADRs before writing "cannot".** Before stating that something cannot be
   done, tested or automated, grep `docs/adr/`: a solved constraint is recorded there.
 - **A moved or removed symbol** is searched by its bare name and by every `pub use`
-  that re-exports it, not by its canonical path alone (lesson TL-006).
+  that re-exports it, not by its canonical path alone, and compiled with the features only CI enables.
 
 ## 7. Reviewers and the triage policy
 
