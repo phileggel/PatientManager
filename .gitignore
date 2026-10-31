@@ -76,5 +76,5 @@ screenshots/**/.console-errors.json
 screenshots/e2e-failures/
 
 # Reviewer agent reports — written by the reviewer-* agents in CI, where the pull
-# request comment is built from them (docs/workflow.md § Reviewer reports). Never committed.
+# request comment is built from them (the `app` plugin's `protocol.md`). Never committed.
 .review/

@@ -121,7 +121,7 @@ The non-obvious facts that constrain future work — things you'd never guess fr
 - **Locale**: fr-primary, en-secondary. Every visible string flows through `t()` (F24 covers `aria-label`, `placeholder`, `title`, etc. too).
 - **Currency / date rendering**: canonical helpers in `src/ui/format/formatters.ts` (`useFormatters().formatCurrency` / `formatDate`). Hand-rolled `Intl.NumberFormat("fr-FR", …)` is forbidden.
 - **One `gateway.ts` per feature** is the ONLY place `commands.*` is called (F26). Sub-features import from it; never create their own.
-- **Three feature layout generations coexist** (Flat → Layer-first → Feature-first/gold). New features follow gold; existing features migrate bit-by-bit per `docs/workflow.md` § 10. See [Feature layout](#feature-layout) below.
+- **Three feature layout generations coexist** (Flat → Layer-first → Feature-first/gold). New features follow gold; existing features migrate bit-by-bit per `loop.md` § 6. See [Feature layout](#feature-layout) below.
 - **Event-driven state sync**: backend publishes `{Domain}Updated` events on every mutation; the FE listens via `useEffect` + the window event bus and updates `useCacheStore` (Zustand singleton at `src/infra/cache/store.ts`, bootstrapped by `useCacheSync()` in `src/infra/cache/sync.ts`). Grep `EventBus` (backend) or `useEffect.*addEventListener` (frontend) to find specific event names.
 
 ### Data & infra
@@ -169,7 +169,7 @@ Backend publishes {Domain}Updated event
 
 ## Feature layout
 
-Three generations coexist. The **bit-by-bit rule** applies (`docs/workflow.md` § 10): new features follow gold; existing features stay in their current generation unless a touched-file edit naturally folds the migration in under the 50-LOC / locality / mechanical gates.
+Three generations coexist. The **bit-by-bit rule** applies (`loop.md` § 6): new features follow gold; existing features stay in their current generation unless a touched-file edit naturally folds the migration in under the 50-LOC / locality / mechanical gates.
 
 - **Flat (old)** — everything at root (`gateway.ts`, component, hook, `shared/`).
   Examples: `fund`, `patient`, `fund-payment`, `bank-statement-match`, `fund-payment-match`, `procedure-type`.

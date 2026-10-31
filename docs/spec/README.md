@@ -154,7 +154,7 @@ Cross-spec conventions a spec author MUST honor when the relevant trigramme is i
   feedback, network errors) is written as a rule without asking.
 - An active ADR's choice is applied without asking; the owner is asked only when the
   feature must break one.
-- Every assumption is an open question, asked before the work (`docs/workflow.md` § 3);
+- Every assumption is an open question, asked before the work (`method.md` § 2);
   a decision that passes the ADR gate (`docs/adr/README.md`) is an open question
   `ADR-SUGGESTED: {the decision and why}`, never mandated.
 - **What and why, never how**: no SQL, file paths, function or component names, libraries

@@ -3,7 +3,7 @@
 Each kind of document has one location, and each location holds only that kind. Other
 documents link to the home and never restate it. `scripts/rule-homes.py` fails when a
 Markdown file sits outside this map, when a path below no longer exists, when a rule
-ID is defined twice, or when a guide grows past its ceiling (`workflow.md` § 5).
+ID is defined twice, or when a guide grows past its ceiling (`workflow.md` § The harness).
 
 - **Domain** — `spec/` (`TRIGRAM-NNN`; its `README.md` holds the numbering, the trigrams
   and the format), `ubiquitous-language.md`: business rules and what the domain words mean. The owner validates them.
@@ -16,7 +16,7 @@ ID is defined twice, or when a guide grows past its ceiling (`workflow.md` § 5)
   `README.md` holds the gate and the format.
 - **Contracts** — `contracts/`: the wire record of each command; its `README.md` holds the
   rules and the format.
-- **Workflow** — `workflow.md`: how work moves from an issue to `main`; the backlog itself
+- **Workflow** — `workflow.md`: what this project adds to the plugins' method and loop; the backlog itself
   is on GitHub (issues and Project 4), never in the repository.
 - **Records** — `../CHANGELOG.md`: what was shipped.
 - **Reference** — `ddd-reference.md`: background an agent reads when a task needs it.

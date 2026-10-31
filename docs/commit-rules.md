@@ -1,7 +1,7 @@
 # Commit Policy & Versioning
 
 Conventional commits, checked by the `commit-msg` hook and by CI on every pull request.
-The merged titles drive the version bump and the changelog (the release, `docs/workflow.md` § 3), so a
+The merged titles drive the version bump and the changelog (the release, `docs/workflow.md` § Ending a batch), so a
 title is written for whoever reads the changelog.
 
 ## Format
