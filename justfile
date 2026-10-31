@@ -63,7 +63,7 @@ _used RECIPE:
     @python3 scripts/usage_log.py used {{RECIPE}}
 
 # One Queued item, headless: one run at a time, a 3-hour budget, logged under logs/run-entry/
-run-entry:
+run-entry: (_used "run-entry")
     mkdir -p logs/run-entry && flock -n -E 0 logs/run-entry/.lock timeout --signal=INT --kill-after=60 ${RUN_ENTRY_BUDGET:-3h} claude -p "/app:run-entry" --permission-mode acceptEdits --output-format text >> logs/run-entry/$(date -u +%Y%m%dT%H%M%SZ).log 2>&1
 
 # Architecture rules A1–A8, B18 and B24 (scripts/arch-check.py); --write-allowlist only lowers the frozen debt

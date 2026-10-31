@@ -194,11 +194,10 @@ just before a commit or a push: the hooks do it.
 - **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
   location of `docs/README.md`, every rule ID defined once.
 - **Guide ceilings** (owner, 2026-10-11) — the guides are `CLAUDE.md`, this document,
-  `docs/agentic-setup.md`, the rules docs and every prompt. The same script fails when
-  one grows past the length `guide-ceilings.json` records for it, or when a skill or
-  agent prompt with no recorded ceiling holds more than 120 lines. A ceiling is lowered
-  as its guide shrinks (`just rule-homes --lower-ceilings`); raising one, or recording
-  one above 120 for a new prompt, is the owner's yes, named in the pull request.
+  `docs/agentic-setup.md` and the rules docs. The same script fails when one grows past
+  the length `guide-ceilings.json` records for it. A ceiling is lowered as its guide
+  shrinks (`just rule-homes --lower-ceilings`); raising one is the owner's yes, named in
+  the pull request.
 - **Tests with coverage** — Vitest and `cargo llvm-cov`, for the layers a PR touches;
   pushes to `main` run both.
 - **Coverage floors** — `scripts/coverage-gate.py` + `coverage-gates.json`, logic code

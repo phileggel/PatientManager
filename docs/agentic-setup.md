@@ -75,8 +75,7 @@ reads each generic piece against its line. A piece is a list item opened by its 
 
 ## This project
 
-The pieces only this repository has: the reviewers of its stack, the tools of its build,
-and those of its ceremony, a pull request (`docs/workflow.md` § 3).
+The pieces only this repository has: the tools of its build.
 
 - `scripts/start-app.sh` — starts the application in development mode. Never: touches
   the installed application's data.
