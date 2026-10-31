@@ -8,7 +8,7 @@ git config core.hooksPath .githooks
 
 The hooks are the fast local net. The full gate — tests with coverage, the
 build, E2E — runs in CI on every pull request, and `just merge` refuses until it
-is green. `just harness` runs that gate locally, scoped to what the branch
+is green. `just harness --coverage` runs that gate locally, scoped to what the branch
 changed.
 
 - **`pre-commit`** — refuses a commit on `main`; runs

@@ -29,6 +29,7 @@
     "release_workflow": "release.yml",
     "release_check": "release-check"
   },
+  "run-entry": { "recipes": { "push_harness": "harness --coverage" } },
   "design-proposal": { "repo": "phileggel/PatientManager-design" },
   "visual-proof": { "vite_preview_port": 1422, "vite_preview_host": "127.0.0.1", "global_css_import": "src/ui/tailwind.css", "i18n_import": "src/i18n/config.ts" }
 }

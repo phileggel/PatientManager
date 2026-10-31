@@ -134,7 +134,7 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
      test that reproduces it is the acceptance test of the fix. When the input holds
      patient data, the agent says what it needs from it and how little.
 4. **Implement** to green, the right way (§ 6).
-5. **Self-check:** `just harness` (§ 5).
+5. **Self-check:** `just harness`; `just harness --coverage` before the first push (§ 5).
 6. **Self-review:** the reviewer lanes the diff needs (§ 7), again on the fixes before the
    first push until no 🔴 remains.
 7. **Evidence:** `/visual-proof` for every changed component.
