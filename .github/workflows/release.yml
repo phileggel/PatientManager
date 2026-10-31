@@ -1,7 +1,8 @@
 name: Release
 
-# A version tag builds Windows, then Linux, into one draft release; the human
-# publishes it. The builds live in release-build.yml, shared with the dry run.
+# A version tag runs the Windows E2E, then builds Windows, then Linux, into one
+# draft release; the app plugin's release.py then sets its notes from the
+# changelog, and the human publishes it.
 on:
   push:
     tags:
@@ -16,11 +17,386 @@ permissions:
   actions: write
 
 jobs:
-  build:
-    uses: ./.github/workflows/release-build.yml
-    with:
-      publish: true
-      tag: ${{ github.ref_name }}
-    secrets:
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  windows-e2e:
+    # The gate: the E2E suite against a Windows build, before anything is
+    # bundled or published. Linux E2E runs on every pull request (e2e.yml);
+    # this is the only place the Windows webview is exercised.
+    name: Windows E2E
+    runs-on: windows-latest
+    timeout-minutes: 60
+    # Narrower than the workflow's grant: the suite publishes nothing.
+    permissions:
+      contents: read
+    env:
+      SQLX_OFFLINE: "true"
+      CARGO_INCREMENTAL: 0
+      RUSTFLAGS: "-C debuginfo=0"
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          # Full history for the "Verify tag is on main" step below.
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        # Before any code of the tag runs, as in the build jobs.
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main \
+            || { echo "Tag is not on main branch — aborting release"; exit 1; }
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
+        with:
+          workspaces: src-tauri
+          prefix-key: windows-e2e-rust-${{ hashFiles('src-tauri/Cargo.lock') }}
+          # A failed suite still leaves a valid build: the next attempt reuses it.
+          cache-on-failure: true
+
+      - name: Cache tauri-driver binary
+        id: cache-tauri-driver
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cargo/bin/tauri-driver.exe
+          key: tauri-driver-2.0.5-${{ runner.os }}
+
+      - name: Install tauri-driver
+        if: steps.cache-tauri-driver.outputs.cache-hit != 'true'
+        shell: bash
+        run: cargo install tauri-driver --version 2.0.5 --locked
+
+      - name: Install the Edge driver of the WebView2 runtime
+        # tauri-driver drives the app's WebView2 through msedgedriver, which must
+        # match the WebView2 runtime's version. The runner's own driver matches
+        # the Edge browser instead, so the matching one is downloaded from
+        # Microsoft. wdio.conf.ts passes TAURI_NATIVE_DRIVER to tauri-driver.
+        shell: pwsh
+        run: |
+          $key = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          $version = (Get-ItemProperty -Path $key -Name pv).pv
+          if (-not $version) {
+            Write-Output "::error::WebView2 runtime not found on the runner"
+            exit 1
+          }
+          Write-Output "WebView2 runtime: $version"
+          if ($env:EdgeWebDriver) { & (Join-Path $env:EdgeWebDriver "msedgedriver.exe") --version }
+          $zip = Join-Path $env:RUNNER_TEMP "edgedriver.zip"
+          $dir = Join-Path $env:RUNNER_TEMP "edgedriver"
+          Invoke-WebRequest -Uri "https://msedgedriver.microsoft.com/$version/edgedriver_win64.zip" -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $dir -Force
+          $driver = Join-Path $dir "msedgedriver.exe"
+          # Downloaded and run in the job that gates a release: only a binary
+          # Microsoft signed is run.
+          $signature = Get-AuthenticodeSignature -FilePath $driver
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+            Write-Output "::error::msedgedriver.exe is not signed by Microsoft (status: $($signature.Status))"
+            exit 1
+          }
+          & $driver --version
+          "TAURI_NATIVE_DRIVER=$driver" >> $env:GITHUB_ENV
+
+      - name: Install frontend dependencies
+        shell: bash
+        run: npm ci
+
+      - name: Build the E2E binary
+        shell: bash
+        working-directory: src-tauri
+        run: npx tauri build --debug --no-bundle --config tauri.e2e.conf.json
+
+      - name: Check the app starts and its webview can be driven
+        # What msedgedriver needs to open a session, checked by hand: started in
+        # a data folder of the caller's choosing, the app's WebView2 writes its
+        # debugging port there (DevToolsActivePort) and answers on it. A session
+        # that cannot be created says nothing about why; this step does.
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:GITHUB_WORKSPACE "src-tauri\target\debug\patient_manager_app.exe"
+          $work = Join-Path $env:RUNNER_TEMP "app-smoke"
+          New-Item -ItemType Directory -Force -Path $work | Out-Null
+          $env:PATIENT_MANAGER_E2E_DB = Join-Path $work "smoke.db"
+          $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $work "webview"
+          $out = Join-Path $work "out.txt"
+          $err = Join-Path $work "err.txt"
+          $app = Start-Process -FilePath $exe -WorkingDirectory $work -PassThru `
+            -RedirectStandardOutput $out -RedirectStandardError $err
+          $portFile = $null
+          foreach ($second in 1..30) {
+            if ($app.HasExited) { break }
+            $portFile = Get-ChildItem -Path $env:WEBVIEW2_USER_DATA_FOLDER -Recurse -Filter DevToolsActivePort -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($portFile) { break }
+            Start-Sleep -Seconds 1
+          }
+          $alive = -not $app.HasExited
+          Write-Output "app running: $alive"
+          if (-not $alive) { Write-Output "exit code: $($app.ExitCode)" }
+          $driven = $false
+          if ($portFile) {
+            $port = (Get-Content $portFile.FullName -TotalCount 1).Trim()
+            Write-Output "DevToolsActivePort: $($portFile.FullName) (port $port)"
+            try {
+              $version = Invoke-RestMethod -Uri "http://127.0.0.1:$port/json/version" -TimeoutSec 5
+              Write-Output "debugging port answers: $($version.Browser)"
+              $driven = $true
+            } catch {
+              Write-Output "debugging port does not answer: $($_.Exception.Message)"
+            }
+          } else {
+            Write-Output "DevToolsActivePort: none"
+          }
+          Write-Output "--- webview processes"
+          Get-CimInstance Win32_Process -Filter "name='msedgewebview2.exe'" |
+            Where-Object { $_.CommandLine -notmatch '--type=' } |
+            ForEach-Object { Write-Output "$($_.ProcessId): $($_.CommandLine)" }
+          Write-Output "--- app stdout"
+          Get-Content $out -ErrorAction SilentlyContinue
+          Write-Output "--- app stderr"
+          Get-Content $err -ErrorAction SilentlyContinue
+          # The whole tree: a webview process left behind would hold the data folder.
+          if ($alive) { taskkill /T /F /PID $app.Id | Out-Null }
+          if ($alive -and $driven) { exit 0 } else { exit 1 }
+
+      - name: Run E2E against the Windows build
+        shell: bash
+        env:
+          # A session that cannot be created fails every file the same way:
+          # stop at the first one rather than wait for all of them.
+          E2E_BAIL: "1"
+        run: npm run test:e2e
+
+      - name: Print the app log
+        # E2E data only (an ephemeral database); the backend log carries no
+        # patient data (B44).
+        if: failure()
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:LOCALAPPDATA "com.projectsf.patient-manager\logs\app.log"
+          if (Test-Path $log) { Get-Content $log -Tail 80 } else { Write-Output "no log at $log" }
+
+      - name: Upload E2E failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: windows-e2e-failure-screenshots
+          path: screenshots/e2e-failures/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  windows:
+    needs: windows-e2e
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # The release upload uses GITHUB_TOKEN from the environment, not git
+          # credentials, and the public repository needs none to fetch main.
+          persist-credentials: false
+          # Full history so `git merge-base --is-ancestor` in the "Verify tag
+          # is on main" step can traverse parents; depth-1 silently misclassifies
+          # any tag not literally at main's tip.
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main \
+            || { echo "Tag is not on main branch — aborting release"; exit 1; }
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
+        with:
+          workspaces: src-tauri
+          prefix-key: windows-rust-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Clear stale WiX artifacts
+        shell: powershell
+        run: Remove-Item -Recurse -Force "src-tauri\target\x86_64-pc-windows-msvc\release\wix" -ErrorAction SilentlyContinue
+
+      - name: Install frontend dependencies
+        shell: bash
+        run: npm ci
+
+      - name: Derive product name
+        # tauri.conf.json productName is the canonical display name; -e fails
+        # fast rather than releasing "null v1.2.3".
+        shell: bash
+        run: |
+          name=$(jq -er .productName src-tauri/tauri.conf.json) \
+            || { echo "::error::productName missing in src-tauri/tauri.conf.json"; exit 1; }
+          echo "PRODUCT_NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f  # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          SQLX_OFFLINE: true
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0"
+        with:
+          tauriScript: npm run tauri
+          args: --target x86_64-pc-windows-msvc
+          tagName: ${{ github.ref_name }}
+          releaseName: "${{ env.PRODUCT_NAME }} ${{ github.ref_name }}"
+          releaseBody: "See the release assets to download and install this version."
+          releaseDraft: true
+          prerelease: false
+          # reviewer-infra FP: `uploadUpdaterJson` is the pinned action's input (its action.yml);
+          # `includeUpdaterJson` is not one — see PR #145.
+          uploadUpdaterJson: true
+
+      - name: Clear Rust cache on failure
+        # Needs actions: write.
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh cache delete --pattern "windows-rust-" --repo ${{ github.repository }} || true
+
+  linux:
+    # After the Windows job: tauri-action merges its platform entry into the
+    # release's existing latest.json, a read-modify-write that would race if
+    # both jobs uploaded the manifest at once.
+    needs: windows
+    # Pinned, not ubuntu-latest: the build host's glibc and WebKitGTK set the
+    # oldest system the AppImage runs on — Ubuntu 24.04 and later.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # The release upload uses GITHUB_TOKEN from the environment, not git
+          # credentials, and the public repository needs none to fetch main.
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main \
+            || { echo "Tag is not on main branch — aborting release"; exit 1; }
+
+      - name: Install Linux build dependencies
+        # The E2E job's toolchain (e2e.yml), without its test-only driver and Xvfb.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
+        with:
+          workspaces: src-tauri
+          prefix-key: linux-rust-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Derive product name
+        run: |
+          name=$(jq -er .productName src-tauri/tauri.conf.json) \
+            || { echo "::error::productName missing in src-tauri/tauri.conf.json"; exit 1; }
+          echo "PRODUCT_NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f  # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          SQLX_OFFLINE: true
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0"
+          # Runners have no FUSE, so the AppImage tooling unpacks itself
+          # instead of mounting.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        with:
+          tauriScript: npm run tauri
+          # The AppImage carries the updater signature; the deb is a
+          # manual-install artifact the updater never touches.
+          args: --target x86_64-unknown-linux-gnu --bundles appimage,deb
+          tagName: ${{ github.ref_name }}
+          releaseName: "${{ env.PRODUCT_NAME }} ${{ github.ref_name }}"
+          releaseBody: "See the release assets to download and install this version."
+          releaseDraft: true
+          prerelease: false
+          # reviewer-infra FP: `uploadUpdaterJson` is the pinned action's input (its action.yml);
+          # `includeUpdaterJson` is not one — see PR #145.
+          uploadUpdaterJson: true
+
+      - name: Verify updater manifest covers both platforms
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          echo "Waiting for the merged updater manifest..."
+          for i in 1 2 3; do
+            sleep 10
+            ASSET_URL=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --json assets --jq '.assets[] | select(.name == "latest.json") | .apiUrl')
+            if [ -n "$ASSET_URL" ]; then
+              gh api -H "Accept: application/octet-stream" "$ASSET_URL" > latest.json
+              break
+            fi
+            if [ "$i" -eq 3 ]; then
+              echo "::error::latest.json is not attached to the release"
+              exit 1
+            fi
+            echo "Attempt $i: latest.json not yet available, retrying..."
+          done
+          MISSING=$(jq -r '(["linux-x86_64", "windows-x86_64"] - (.platforms | keys)) | join(", ")' latest.json)
+          if [ -n "$MISSING" ]; then
+            echo "::error::latest.json is missing updater platform(s): $MISSING"
+            exit 1
+          fi
+          echo "✓ latest.json covers linux-x86_64 and windows-x86_64"
+
+      - name: Clear Rust cache on failure
+        # Needs actions: write.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh cache delete --pattern "linux-rust-" --repo ${{ github.repository }} || true
