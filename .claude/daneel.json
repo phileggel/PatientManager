@@ -20,7 +20,7 @@
       "infra": ["docs/workflow.md"]
     },
     "lanes": {
-      "infra": ["^guide-ceilings\\.json$", "^\\.claude/(rules/[^/]*\\.md|agents/[^/]*\\.md|skills/[^/]+/SKILL\\.md)$"],
+      "infra": ["^guide-ceilings\\.json$", "^\\.claude/rules/[^/]*\\.md$"],
       "security": ["^src-tauri/src/shared/infrastructure/secure_path\\.rs$"]
     }
   },
