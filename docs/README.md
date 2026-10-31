@@ -18,7 +18,7 @@ ID is defined twice, or when a guide grows past its ceiling (`workflow.md` § 5)
   rules and the format.
 - **Workflow** — `workflow.md`: how work moves from an issue to `main`; the backlog itself
   is on GitHub (issues and Project 4), never in the repository.
-- **Records** — `lessons.md` (`TL-NNN`), `../CHANGELOG.md`: what was learned or shipped.
+- **Records** — `../CHANGELOG.md`: what was shipped.
 - **Reference** — `ddd-reference.md`: background an agent reads when a task needs it.
 - **Map** — `../ARCHITECTURE.md`: where code lives.
 - **Index** — `../CLAUDE.md`: authority, forbidden actions, and pointers to all of the

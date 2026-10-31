@@ -101,8 +101,13 @@ export const config: Options.Testrunner = {
     // `mode='production'`. That keeps the `e2eOverride` branch (gated
     // by the dev/test/e2e mode allowlist) alive in the binary WebDriver
     // drives. See ADR-007.
-    // The overlay also makes the Windows webview open its debugging port,
-    // which msedgedriver cannot obtain on its own (docs/lessons.md TL-004).
+    // The overlay also makes the Windows webview open its debugging port:
+    // the webview library sets its own browser arguments, so the runtime drops
+    // the ones msedgedriver passes by environment, and every session fails with
+    // `session not created: DevToolsActivePort file doesn't exist`. That message
+    // is the same when the driver and runtime versions differ, but the version
+    // is the wrong first suspect: start the app by hand with
+    // WEBVIEW2_USER_DATA_FOLDER set and read the msedgewebview2.exe command line.
     const tauriConfPath = resolve(__dirname, "src-tauri", "tauri.e2e.conf.json");
     if (!existsSync(tauriConfPath)) {
       throw new Error(

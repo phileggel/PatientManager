@@ -192,7 +192,7 @@ answer before pushing.
 - **Architecture rules A1–A8, B18, B24** — `scripts/arch-check.py`; today's debt is frozen in
   `arch-allowlist.json` and may only shrink.
 - **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
-  location of `docs/README.md`, every rule and lesson ID defined once.
+  location of `docs/README.md`, every rule ID defined once.
 - **Guide ceilings** (owner, 2026-10-11) — the guides are `CLAUDE.md`, this document,
   `docs/agentic-setup.md`, the rules docs and every prompt. The same script fails when
   one grows past the length `guide-ceilings.json` records for it, or when a skill or
@@ -236,7 +236,7 @@ answer before pushing.
 - **Check the ADRs before writing "cannot".** Before stating that something cannot be
   done, tested or automated, grep `docs/adr/`: a solved constraint is recorded there.
 - **A moved or removed symbol** is searched by its bare name and by every `pub use`
-  that re-exports it, not by its canonical path alone (lesson TL-006).
+  that re-exports it, not by its canonical path alone; feature-gated tests compile only in CI, so check them first (`SQLX_OFFLINE=true cargo check --tests --features dev-fixtures` in `src-tauri/`).
 
 ## 7. Reviewers and the triage policy
 

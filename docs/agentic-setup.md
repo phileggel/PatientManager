@@ -21,7 +21,6 @@ reads each generic piece against its line. A piece is a list item opened by its 
   in a hook's message beyond the line that failed.
 - `docs/ubiquitous-language.md` — what the domain words mean, validated by the owner.
   Never: extended by the agent without a question.
-- `docs/lessons.md` — failures worth teaching, one per entry. Never: a rule's home.
 - `ARCHITECTURE.md` — where code lives. Never: why a choice was made (an ADR does).
 - `.claude/rules/` — loads the rules document of a layer, or a document folder's
   `README.md`, when one of its files is read. Never: states the rule itself.
