@@ -71,7 +71,7 @@ logs, fixtures, commits or PR text.
 
 ## Step 5 — Harness
 
-`just harness` until green: a coverage floor met with tests, an architecture violation fixed
+`just harness` until green, `just harness --coverage` before the first push: a coverage floor met with tests, an architecture violation fixed
 in code — never `coverage-gates.json` lowered nor `arch-allowlist.json` raised.
 
 ## Step 6 — Reviewers

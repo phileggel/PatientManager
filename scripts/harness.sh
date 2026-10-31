@@ -3,8 +3,7 @@
 #
 # The branch diff against main (committed, staged, unstaged and untracked
 # files) is classified by scripts/changed-scope.sh with the same rule as the
-# Quality workflow (reviewer-infra FP: quality.yml gains this rule in PR #117,
-# merged before this one): a layer runs its lint, build and tests only when the
+# Quality workflow: a layer runs its lint, build and tests only when the
 # change touched it; tooling changes run both; docs-only runs none. The privacy
 # check, the architecture rules, the doc map and the script unit tests always run.
 # Coverage is CI's gate; `--coverage` measures it here too, against the floors in
