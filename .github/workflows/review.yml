@@ -46,7 +46,7 @@ env:
   REVIEW_BLOCKING: "true"
   # The daneel release the reviewers, their protocol and helpers come from. A pull
   # request moves it; the prompts of that pull request's own review are then the new ones.
-  DANEEL_REF: app--v0.1.0
+  DANEEL_REF: app--v0.1.1
 
 jobs:
   lanes:
