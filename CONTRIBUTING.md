@@ -10,5 +10,5 @@
 3. Before opening a pull request, run `just harness --coverage` — the same checks CI requires.
 
 Where things are: [docs/README.md](docs/README.md). How a change goes from task to
-merge: [docs/workflow.md](docs/workflow.md). Commit messages:
+merge: `loop.md` of the `app` plugin, and [docs/workflow.md](docs/workflow.md). Commit messages:
 [docs/commit-rules.md](docs/commit-rules.md).

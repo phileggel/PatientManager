@@ -22,7 +22,7 @@ check:
 check-full:
     python3 scripts/check.py
 
-# What a release runs locally before its hand-over (`docs/workflow.md` § 3)
+# What a release runs locally before its hand-over (`docs/workflow.md` § Ending a batch)
 release-check:
     python3 scripts/check.py --strict
 

@@ -15,8 +15,8 @@ reads each generic piece against its line. A piece is a list item opened by its 
 - `CLAUDE.md` — the index the agent reads every turn: authority, forbidden actions,
   pointers. Never: states a rule that has a home elsewhere.
 - `docs/README.md` — the map: one location per kind of document. Never: holds a rule.
-- `docs/workflow.md` — how work moves from an issue to the main branch, and who decides
-  what. Never: says how code is written.
+- `docs/workflow.md` — what this project adds to the plugins' method and loop. Never: restates
+  them, nor says how code is written.
 - `docs/commit-rules.md` — the commit format and what each type means. Never: restated
   in a hook's message beyond the line that failed.
 - `docs/ubiquitous-language.md` — what the domain words mean, validated by the owner.

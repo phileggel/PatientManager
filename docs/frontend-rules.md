@@ -4,7 +4,7 @@
 
 ## Gold Layout
 
-**F0** — The frontend source tree MUST follow this layout (existing code: `docs/workflow.md` § 10). Four buckets (`features/`, `shell/`, `ui/`, `infra/`) follow F28; the framework folders (`assets/`, `styles/`, `public/`) and the root singletons (`App.tsx` — the provider tree —, `router.tsx`, `main.tsx`, `bindings.ts`) sit outside them. `shell/AppShell.tsx` is the layout chrome. No `application/domain/infrastructure` trio: frontend features are UI surfaces, not bounded contexts (F26).
+**F0** — The frontend source tree MUST follow this layout (existing code: `loop.md` § 6). Four buckets (`features/`, `shell/`, `ui/`, `infra/`) follow F28; the framework folders (`assets/`, `styles/`, `public/`) and the root singletons (`App.tsx` — the provider tree —, `router.tsx`, `main.tsx`, `bindings.ts`) sit outside them. `shell/AppShell.tsx` is the layout chrome. No `application/domain/infrastructure` trio: frontend features are UI surfaces, not bounded contexts (F26).
 
 ```
 src/
@@ -107,7 +107,7 @@ Widget-local runtime state (snackbar internals) stays with its widget in `ui/com
 - Keeps hooks and components free of formatting/transformation logic
 - MUST be pure functions — easy to unit test independently
 - A `.tsx` file exports components only: a display transformation (a label, a formatted amount, an error code mapped to a translation key) lives in the presenter, with its own test.
-- Business logic does not live in the frontend at all — a validation, an aggregation, a derivation, the default order of a list when it is a rule (funds are alphabetical everywhere) is a Rust command (`docs/workflow.md` § 6). Sorting a list by the column the user clicked and filtering it by a search box are display state: they stay in a hook. `just arch-check` rule A8 fails on a new logic file under `src/features/`; the ones that remain are frozen in `arch-allowlist.json` and leave it feature by feature.
+- Business logic does not live in the frontend at all — a validation, an aggregation, a derivation, the default order of a list when it is a rule (funds are alphabetical everywhere) is a Rust command (`loop.md` § 4). Sorting a list by the column the user clicked and filtering it by a search box are display state: they stay in a hook. `just arch-check` rule A8 fails on a new logic file under `src/features/`; the ones that remain are frozen in `arch-allowlist.json` and leave it feature by feature.
 
 ## Component
 
