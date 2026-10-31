@@ -2,7 +2,7 @@ name: E2E
 
 on:
   # Every pull request runs E2E: it is a required check (required-checks.json),
-  # so `just merge` refuses until the real app has passed. No path filter on
+  # so `merge.py` refuses until the real app has passed. No path filter on
   # pull requests — a filtered-out run leaves the required check missing and the
   # PR can never merge; the job instead ends green early when the diff is
   # docs-only (scripts/changed-scope.sh). Pushes to main keep the filter.

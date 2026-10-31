@@ -3,7 +3,7 @@ name: PR description
 # The PR description is published text the agent writes: it must carry no
 # patient data (scripts/privacy-check.py --stdin). It runs on its own so that
 # editing a description re-runs this 10-second check, not the Quality suite.
-# `synchronize` keeps a run on every head commit: `just merge` reads the checks
+# `synchronize` keeps a run on every head commit: `merge.py` reads the checks
 # of the head it lands.
 
 on:

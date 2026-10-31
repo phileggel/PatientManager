@@ -4,7 +4,7 @@ set -euo pipefail
 # Pre-push hook
 # Runs the fast checks for the layers the pushed commits touch
 # (scripts/scoped-checks.sh). Tests, coverage, the build and E2E are CI's job
-# on the pull request, and `just merge` refuses until they are green; the hook
+# on the pull request, and `merge.py` refuses until they are green; the hook
 # only catches what a commit slipped past. `just harness` runs CI's gate locally.
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"

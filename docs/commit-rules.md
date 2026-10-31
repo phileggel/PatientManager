@@ -46,7 +46,7 @@ review fixes, coverage top-ups and closure edits belong inside it.
 - Before the first push: fold locally (`git commit --amend`). Fold only what
   `git log origin/<branch>..HEAD` lists: a commit already on the remote is never
   rewritten.
-- After a push: `git commit --fixup <sha>` and push. `just merge` folds every `fixup!`
+- After a push: `git commit --fixup <sha>` and push. `merge.py` folds every `fixup!`
   into the commit it names; the hook and CI accept `fixup! <valid title>`. Never
   force-push by hand, never `squash!` / `amend!`.
 

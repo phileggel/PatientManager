@@ -43,7 +43,7 @@ jobs:
           # like if this PR merged" — not a real PR commit).
           for sha in $(git rev-list --no-merges "$BASE..HEAD"); do
             TITLE=$(git log -1 --pretty=%s "$sha")
-            # `just merge` folds a `fixup! <title>` commit into <title>; check the title it names.
+            # `merge.py` folds a `fixup! <title>` commit into <title>; check the title it names.
             TITLE="${TITLE#fixup! }"
             BODY=$(git log -1 --pretty=%b "$sha")
             AUTHOR_EMAIL=$(git log -1 --pretty=%ae "$sha")
@@ -112,7 +112,7 @@ jobs:
         # every rule and lesson ID defined once.
         run: python3 scripts/rule-homes.py
       - name: Unit tests of the repository scripts
-        # Same command as `just test-scripts`; the merge guard in scripts/merge.py is under test.
+        # Same command as `just test-scripts`; the repository's own scripts are under test.
         run: python3 -m unittest discover -s scripts/tests -p "test_*.py"
 
   scope:
@@ -155,7 +155,7 @@ jobs:
     name: Frontend — quality + coverage
     needs: scope
     # A docs-only change (Markdown, docs/, screenshots/) cannot move lint, types
-    # or the build: the job is skipped, which `just merge` counts as passing.
+    # or the build: the job is skipped, which `merge.py` counts as passing.
     if: github.event.action != 'closed' && needs.scope.outputs.docs != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 20
@@ -193,7 +193,7 @@ jobs:
     name: Backend — quality + coverage
     needs: scope
     # A docs-only change (Markdown, docs/, screenshots/) cannot move lint, types
-    # or the build: the job is skipped, which `just merge` counts as passing.
+    # or the build: the job is skipped, which `merge.py` counts as passing.
     if: github.event.action != 'closed' && needs.scope.outputs.docs != 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 30

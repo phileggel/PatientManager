@@ -7,7 +7,7 @@ git config core.hooksPath .githooks
 ```
 
 The hooks are the fast local net. The full gate — tests with coverage, the
-build, E2E — runs in CI on every pull request, and `just merge` refuses until it
+build, E2E — runs in CI on every pull request, and `merge.py` refuses until it
 is green. `just harness --coverage` runs that gate locally, scoped to what the branch
 changed.
 

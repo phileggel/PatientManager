@@ -31,24 +31,6 @@ batch-ends n="1": (_used "batch-ends")
     @git fetch -q origin --tags
     @git for-each-ref --sort=-creatordate --count='{{n}}' --format='%(refname:short)' 'refs/tags/v*' refs/tags/batch/
 
-# End a batch with no `feat` or `fix`: tag the fresh main `batch/<UTC date>` and push the tag
-batch-end: (_used "batch-end")
-    #!/usr/bin/env bash
-    set -euo pipefail
-    git fetch -q origin main --tags
-    if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-        echo "batch-end: check out a fresh main first" >&2
-        exit 1
-    fi
-    tag="batch/$(date -u +%F)"
-    if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-        echo "batch-end: $tag already exists — a batch already ended today" >&2
-        exit 1
-    fi
-    git tag -a "$tag" -m "Batch ended without a release"
-    git push -q origin "$tag"
-    echo "✅ $tag pushed"
-
 # ⚠️  Destructive: removes stale remote-tracking branches
 clean-branches: (_used "clean-branches")
     #!/usr/bin/env bash
@@ -76,25 +58,13 @@ rule-homes *ARGS:
 privacy-check:
     python3 scripts/privacy-check.py
 
-# The figures of a batch for /flow-audit: `just flow-audit v0.24.0 v0.24.1 --previous v0.23.0 --pretty`
-flow-audit *ARGS:
-    python3 scripts/flow-audit.py {{ARGS}}
-
-# Wait for a pull request's checks and say how they ended (default: the current branch's); exit 0 green, 1 failed, 6 a lane stopped by the usage limit
-watch-pr *ARGS:
-    python3 scripts/watch-pr.py {{ARGS}}
-
-# Re-run the failed jobs of a workflow run (the run id of the URL `just watch-pr` printed): a lane the usage limit stopped, once it has reset
-rerun-failed RUN: (_used "rerun-failed")
-    gh run rerun {{RUN}} --failed
-
 # One line in the usage log (logs/usage.log) for a recipe that runs no script of its own; scripts log themselves
 _used RECIPE:
     @python3 scripts/usage_log.py used {{RECIPE}}
 
-# Run the first Queued item of Project 4 headless (docs/workflow.md § 9); logs under logs/run-entry/
-run-entry:
-    bash scripts/run-entry.sh
+# One Queued item, headless: one run at a time, a 3-hour budget, logged under logs/run-entry/
+run-entry: (_used "run-entry")
+    mkdir -p logs/run-entry && flock -n -E 0 logs/run-entry/.lock timeout --signal=INT --kill-after=60 ${RUN_ENTRY_BUDGET:-3h} claude -p "/app:run-entry" --permission-mode acceptEdits --output-format text >> logs/run-entry/$(date -u +%Y%m%dT%H%M%SZ).log 2>&1
 
 # Architecture rules A1–A8, B18 and B24 (scripts/arch-check.py); --write-allowlist only lowers the frozen debt
 arch-check *ARGS:
@@ -103,12 +73,6 @@ arch-check *ARGS:
 # Unit tests of the repository's own scripts
 test-scripts: (_used "test-scripts")
     USAGE_LOG=off python3 -m unittest discover -s scripts/tests -p "test_*.py"
-
-# Fast-forward merge the current feature branch into main and delete it.
-# Refuses unless the branch is the head of an open PR with every check green
-# (required-checks.json), or if FF is not safe (divergence, dirty tree, etc.).
-merge:
-    python3 scripts/merge.py
 
 # Run pending migrations on the SQLx check database
 # Prerequisite: sqlx must be on $PATH

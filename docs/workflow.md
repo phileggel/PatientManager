@@ -49,7 +49,7 @@ issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
   spec or a contract, an answer from the owner; **L**: two or three pull requests, or
   mocks or a spec interview with the owner; **XL**: a programme, sliced into sub-issues
   before it is queued. The agent sets it on a task or a flow issue; on a feature or a bug
-  `/plan-batch` proposes it and the owner confirms it. A Design needing a mock: `mock`.
+  `/flow:plan-batch` proposes it and the owner confirms it. A Design needing a mock: `mock`.
 - **What waits on the owner** is a comment on the issue and the `needs-owner` label; the
   owner answers in the thread and the label goes once nothing is open. A feature or bug
   the agent files waits for the owner to confirm its User value; a flow issue waits for
@@ -73,14 +73,14 @@ issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
 - **Status**: Inbox (filed) → Ready (its form's fields written, no `needs-owner`; a
   feature or bug with Design none or validated, a flow issue with its Decision) → Queued (in the batch) → In progress (its branch exists) → In review
   (a pull request is linked) → Done (closed). GitHub sets the last two.
-- **A batch** is the Queued items in row order, their Batch field its date. `/plan-batch`
+- **A batch** is the Queued items in row order, their Batch field its date. `/flow:plan-batch`
   proposes it in chat; the owner's yes sets Batch, order and Status, and nothing else
   makes an item Queued. A cut during a batch is the owner's.
-- **Sized by its work**, not its number of items: `/plan-batch` sums the sizes of what it
+- **Sized by its work**, not its number of items: `/flow:plan-batch` sums the sizes of what it
   proposes and stops at what the last batches merged (their `batch-audit` issues), saying
   both figures; about a third of it goes to tasks, and it closes at least the weight the
   last batch opened (§ 12). A programme enters as its first slice.
-- **The order `/plan-batch` proposes**: `priority` first; what changes the tools next; a
+- **The order `/flow:plan-batch` proposes**: `priority` first; what changes the tools next; a
   dependency before what depends on it; items that touch the same files next to each
   other, so one can be prepared on the other; small fixes a user notices early; what
   needs the owner flagged at the top. Where two disagree, the proposal says so in one line.
@@ -89,9 +89,9 @@ issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN` (Conventions).
 
 ## 3. The loop — one run, one task
 
-A task — a Queued item (`/run-entry`, headless), an issue the human names, or a chat
+A task — a Queued item (`/app:run-entry`, headless), an issue the human names, or a chat
 request (its record is the pull request body) — lands on `main` through the **ceremony**:
-here a pull request, every check green, merged by `just merge` (steps 8–10).
+here a pull request, every check green, merged by `merge.py` (steps 8–10).
 
 1. **Pick and brief.** In chat, a question to the human goes through `AskUserQuestion`,
    one per call (owner, 2026-10-17): what happened, what each option changes and costs,
@@ -100,7 +100,7 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
    - **The questions come before the work — the decision scan** (owner, 2026-10-06):
      the agent reads the issue and the code it names, lists every choice that is the
      owner's — what a user sees, a term, a rule's scope, where a programme stops — and asks
-     each once and at its widest, writing the answers into the issue. `/plan-batch` runs it
+     each once and at its widest, writing the answers into the issue. `/flow:plan-batch` runs it
      while refining, leaving what a user sees (§ 4) and the code to the run, which asks
      what is still open before its branch exists.
    - A choice with a standing answer is not asked: when one option keeps what a user
@@ -137,12 +137,12 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
 5. **Self-check:** `just harness`; `just harness --coverage` before the first push (§ 5).
 6. **Self-review:** the reviewer lanes the diff needs (§ 7), again on the fixes before the
    first push until no 🔴 remains.
-7. **Evidence:** `/visual-proof` for every changed component.
+7. **Evidence:** `/app:visual-proof` for every changed component.
 8. **PR**, opened for the record, not for approval. Body under 20 lines: `Closes #123`, the task, each
    Done-when clause with the test that proves it and where that test was seen red (or
    why it could not be), findings that changed something, issues filed, screenshots.
-9. **Merge:** `just watch-pr` waits for the checks; each lane's newest comment, green or
-   not, is read and its findings graded (§ 7); then `just merge` — it refuses until every
+9. **Merge:** `watch-pr.py` waits for the checks; each lane's newest comment, green or
+   not, is read and its findings graded (§ 7); then `merge.py` — it refuses until every
    check is green and folds `fixup!` commits, so the task lands as one commit.
 10. **Closure** in the same PR: on an issue that touched a spec, `spec-checker` runs first
     and what it finds is fixed; what the task met and did not fix is folded or filed
@@ -150,21 +150,21 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
     closes the issue. The closing brief says what changed for the user and what the
     project gained.
 
-**Ending a batch** (owner, 2026-10-17) — every batch ends alike: the closing brief, then `/dep-audit`
+**Ending a batch** (owner, 2026-10-17) — every batch ends alike: the closing brief, then `/app:dep-audit`
 and the release sweep (Conventions), what they find folded or filed (§ 2), the expired tasks closed; a security issue that puts users at
 risk is a `fix` instead: a `bug` issue put to the owner, worked before the batch ends, swept again on what it
 changed, released. A batch with a `feat` or `fix` is released: the agent cuts it to its draft
 (`just release-check`, then the `app@daneel` plugin's `release.py`: the version pull request, the `v*` tag,
 the draft once the release workflow made it), and tells the owner, who publishes it; a red `release-check` or release workflow stops it, and the release is cut again after its `fix`.
-Any other batch the agent closes with `just batch-end` (a `batch/<date>` tag):
+Any other batch the agent closes with the `batch-end.sh` of `/app:run-batch` (a `batch/<date>` tag):
 it publishes nothing, its chores ride in the next release, no fix is picked to fill a changelog.
-`/flow-audit` audits the range it closes (§ 12). A batch is named by its dates, never a version number.
+`/flow:flow-audit` audits the range it closes (§ 12). A batch is named by its dates, never a version number.
 
 ## 4. Design proposal
 
 Before **any** change to what the user sees — a new screen, a moved or added control, a
 changed layout or wording pattern — the agent renders mocks of the target state with
-the real components and tokens (`/design-proposal`):
+the real components and tokens (`/app:design-proposal`):
 `screenshots/design/{id}-{light|dark}-{state}.png` plus a five-line note (what moves,
 is added, is removed, stays).
 
@@ -181,7 +181,7 @@ visual proofs of the pull request are the record.
 
 `just harness` runs it locally without coverage, scoped to the layers the branch touched;
 `--coverage` adds the floors of `coverage-gates.json`, before a first push. The same
-checks are required on every pull request (`required-checks.json`), and `just merge`
+checks are required on every pull request (`required-checks.json`), and `merge.py`
 refuses without them. The git hooks run only fast checks for the same scope; the script
 unit tests never run in a hook (hooks export `GIT_DIR`). Nothing else is run by hand
 just before a commit or a push: the hooks do it.
@@ -194,11 +194,10 @@ just before a commit or a push: the hooks do it.
 - **Doc map and rule homes** — `scripts/rule-homes.py`: every Markdown file in a
   location of `docs/README.md`, every rule ID defined once.
 - **Guide ceilings** (owner, 2026-10-11) — the guides are `CLAUDE.md`, this document,
-  `docs/agentic-setup.md`, the rules docs and every prompt. The same script fails when
-  one grows past the length `guide-ceilings.json` records for it, or when a skill or
-  agent prompt with no recorded ceiling holds more than 120 lines. A ceiling is lowered
-  as its guide shrinks (`just rule-homes --lower-ceilings`); raising one, or recording
-  one above 120 for a new prompt, is the owner's yes, named in the pull request.
+  `docs/agentic-setup.md` and the rules docs. The same script fails when one grows past
+  the length `guide-ceilings.json` records for it. A ceiling is lowered as its guide
+  shrinks (`just rule-homes --lower-ceilings`); raising one is the owner's yes, named in
+  the pull request.
 - **Tests with coverage** — Vitest and `cargo llvm-cov`, for the layers a PR touches;
   pushes to `main` run both.
 - **Coverage floors** — `scripts/coverage-gate.py` + `coverage-gates.json`, logic code
@@ -241,7 +240,7 @@ just before a commit or a push: the hooks do it.
 ## 7. Reviewers and the triage policy
 
 Before the PR, run exactly the lanes
-`bash scripts/branch.sh files | bash scripts/review-lanes.sh` prints (none for documents
+`branch.sh files | review-lanes.sh` prints (none for documents
 that are not guides), and again on every fix before the first push, a warning's included,
 until no 🔴 remains.
 Once pushed, a fix is a `fixup!` commit pushed as is: CI runs the same lanes on every
@@ -273,7 +272,7 @@ changed something or was rejected goes in the PR body, or in a PR comment once p
 ## 8. Budget and stop rules
 
 - One task, one run, three hours of wall clock; a wait for the CI account's usage limit
-  to reset (`just watch-pr` exit 6) is not the task's time. Over budget → open question
+  to reset (`watch-pr.py` exit 6) is not the task's time. Over budget → open question
   "larger than estimated: split?", stop.
 - A gate fails → read its log. If the log shows the cause, fix it. If it does not, the
   next push adds observation and makes the failure cheap to reproduce (the cache kept
@@ -292,9 +291,9 @@ changed something or was rejected goes in the PR body, or in a PR comment once p
 The chat session is for filing issues together, design conversations and answering
 open questions. The loop runs one task per run and keeps its state in git and the Project.
 
-- **In chat:** `/run-entry #123`, or a plain request; `/run-batch` for a whole batch:
-  the questions first, each remaining item through `/run-entry`, the batch's end
-  (§ 3), then `/flow-audit`.
+- **In chat:** `/app:run-entry #123`, or a plain request; `/app:run-batch` for a whole batch:
+  the questions first, each remaining item through `/app:run-entry`, the batch's end
+  (§ 3), then `/flow:flow-audit`.
 - **Laptop:** `just run-entry` — the first Queued item, headless, three hours of budget; a
   command outside the allow list in `.claude/settings.json` is denied, so the run fails
   instead of waiting.
@@ -336,7 +335,7 @@ onto `main` before its first push — a local rebase, never a force-push.
 
 ## 12. The flow audit
 
-After a batch ends (§ 3), `/flow-audit` audits it once, as a comment on that batch's
+After a batch ends (§ 3), `/flow:flow-audit` audits it once, as a comment on that batch's
 `batch-audit` issue: quality first, weighed against speed and effort. Nothing of it runs
 during a batch.
 
@@ -345,7 +344,7 @@ during a batch.
   issues filed and closed during it — never the session agent's account. What it cannot
   rebuild from those records is a finding; the questions put to the owner are the dated
   answers in the issue threads.
-- **Measures** — `just flow-audit` counts every figure beside the batch before: the pull
+- **Measures** — `flow-audit.py` counts every figure beside the batch before: the pull
   requests, the batch, CI, the usage log, dead paths, the guides' length (§ 5), what each
   item took beside its size, the backlog against its ceiling. The auditor counts from the
   pull requests what the reviewers caught, got wrong and left to CI, and reads each
@@ -385,7 +384,7 @@ technical one as an ADR (`docs/adr/README.md`), a domain one in the spec or the 
 ### Reviewer reports
 
 Locally a reviewer's reply is its report; nothing is written. In CI the reviewer saves
-its output to `.review/{slug}-{date}-{NN}.md` (`bash scripts/review-path.sh {slug}`) and
+its output to `.review/{slug}-{date}-{NN}.md` (the plugin's `review-path.sh {slug}`) and
 the workflow posts it as a new pull request comment each round. `.review/` is gitignored
 and safe to delete.
 
@@ -393,14 +392,14 @@ and safe to delete.
 
 `review.yml` skips every lane for Dependabot (its runs get no secrets), so the green
 reviewer checks of such a pull request are skips, not reviews. It is handled like an
-issue: it is added to the Project as itself, and `/plan-batch` proposes it with the rest.
+issue: it is added to the Project as itself, and `/flow:plan-batch` proposes it with the rest.
 Once queued, the agent:
 
 1. reads the diff, and checks each pinned commit against the upstream tag it names;
-2. checks out the branch and runs `just merge`: the rebase and push are the agent's,
+2. checks out the branch and runs `merge.py`: the rebase and push are the agent's,
    so CI runs the reviewers for real, and the merge stops until they have;
 3. reads that review, grades every finding (§ 7) — a warning is not merged past;
-4. runs `just merge` again on the Dependabot branch once every check is green.
+4. runs `merge.py` again on the Dependabot branch once every check is green.
 
 ### Tools the flow needs, and the usage log
 
@@ -449,7 +448,7 @@ allow list in `.claude/settings.json` names:
 
 ### Release sweep
 
-Before a batch ends (§ 3), run the reviewer agents in `release-sweep` mode with `/dep-audit`,
+Before a batch ends (§ 3), run the reviewer agents in `release-sweep` mode with `/app:dep-audit`,
 and `spec-checker` on every spec the batch touched. `reviewer-security` reads the whole
 command surface; every other lane reads what changed since the last batch end's tag
 (owner, 2026-10-11; the review protocol says how to find it); the sweep's pull request

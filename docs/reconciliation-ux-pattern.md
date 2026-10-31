@@ -12,7 +12,7 @@ MUST present the same user-facing experience so a user learns one mental model.
 
 This doc is the **single source of truth** for the pattern. Because consistency
 is not compiler-enforced (no shared component), it is held by this doc +
-design review + `/visual-proof` whenever either flow changes.
+design review + `/app:visual-proof` whenever either flow changes.
 
 ---
 
@@ -150,7 +150,7 @@ The pins are:
 
 1. This doc — the authoritative interaction contract; update it first when the
    pattern itself evolves, then bring both flows into line.
-2. `/visual-proof` + design review on any change to either flow — the
+2. `/app:visual-proof` + design review on any change to either flow — the
    consistency gate that compiler-enforced sharing would otherwise provide.
 
 ---
