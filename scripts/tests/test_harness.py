@@ -109,6 +109,8 @@ class HarnessCoverage(unittest.TestCase):
         self.assertEqual(calls, [])
 
 
+# reviewer-infra FP: the CI lanes run with .claude/daneel.json restored from the base
+# branch (review.yml), so the key below looks dropped there; it is committed — see PR #566.
 class PushHarness(unittest.TestCase):
     def test_run_entry_measures_coverage_before_the_first_push(self):
         settings = json.loads((ROOT / ".claude" / "daneel.json").read_text(encoding="utf-8"))
