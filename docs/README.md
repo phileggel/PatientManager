@@ -24,7 +24,7 @@ ID is defined twice, or when a guide grows past its ceiling (`workflow.md` § 5)
 - **Index** — `../CLAUDE.md`: authority, forbidden actions, and pointers to all of the
   above. `../.claude/rules/` loads the matching rules doc when a file of that layer is
   touched.
-- **Agents** — `../.claude/agents/`, `../.claude/skills/`: reviewer and skill prompts.
+- **Agents** — the `flow@daneel` and `app@daneel` plugins: reviewer and skill prompts.
   They apply the rules docs and link to them; they never restate a rule.
   `agentic-setup.md` gives each skill, agent prompt, script and hook its responsibility
   in one line; the same script fails when one exists without its line.

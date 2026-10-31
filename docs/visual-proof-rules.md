@@ -1,6 +1,6 @@
 # Frontend Visual Proof Rules
 
-> Required by F18 in [`frontend-rules.md`](frontend-rules.md) § Tests. `/visual-proof` runs
+> Required by F18 in [`frontend-rules.md`](frontend-rules.md) § Tests. `/app:visual-proof` runs
 > the capture; this document owns what it must produce.
 
 Any change that touches a `.tsx`, `.css` or visual asset file **MUST** include committed
@@ -31,7 +31,7 @@ tracked in git: each commit is a point-in-time record
 
 The capture renders `preview.html` and `src/__preview__/main.tsx` — scaffolding, never
 committed — with the real component, the real i18n initializer and the real global CSS,
-whose paths come from `.claude/visual-proof.json` (project-owned; the preview port must not
+whose paths come from `.claude/daneel.json` (`visual-proof`, project-owned; the preview port must not
 be the Tauri dev port, 1420; host `127.0.0.1`, `0.0.0.0` under WSL2). A video clip is recorded by
 hand with Playwright's `recordVideo: { dir: "screenshots/" }`: the capture script takes stills. Each state is hard-coded data in a `<div id="state-{name}">`;
 no `invoke()` — props or mocked stores. Console errors seen during the capture are written
@@ -68,4 +68,4 @@ A change to modal chrome or backdrop blur says so in the PR body.
 - Merge a frontend change without committed screenshots, light and dark.
 - Call `invoke()` in a preview — hard-coded props or mocked stores.
 - Leave `preview.html` or `src/__preview__/` committed.
-- Hard-code the preview port or import paths — `.claude/visual-proof.json` has them.
+- Hard-code the preview port or import paths — `.claude/daneel.json` has them.

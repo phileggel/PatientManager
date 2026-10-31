@@ -50,8 +50,6 @@ FORBIDDEN = {
 
 # What the flow itself runs through the shell and must stay free to run.
 ALLOWED = [
-    "just merge",
-    "just watch-pr",
     "just harness",
     "git commit -m 'docs: a title'",
     "git commit -q --fixup HEAD",

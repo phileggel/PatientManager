@@ -1,7 +1,7 @@
 {
   "flow-audit": {
     "commit_types": ["feat", "fix", "refactor", "chore", "ci", "docs", "test"],
-    "guides": ["CLAUDE.md", "docs/workflow.md", "docs/agentic-setup.md", "docs/*-rules.md", ".claude/skills/*/SKILL.md", ".claude/agents/*.md", ".claude/rules/*.md"],
+    "guides": ["CLAUDE.md", "docs/workflow.md", "docs/agentic-setup.md", "docs/*-rules.md", ".claude/rules/*.md"],
     "records": ["CHANGELOG.md", "docs/adr/"],
     "path_roots": ["src/", "src-tauri/", "docs/", "scripts/", "e2e/", ".github/", ".claude/", ".githooks/"]
   },

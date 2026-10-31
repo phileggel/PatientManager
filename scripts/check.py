@@ -657,7 +657,7 @@ class QualityChecker:
         if self.suite_failed:
             # Failures go to stderr so the report can be redirected /
             # piped without dragging the error block into downstream
-            # consumers. Compare merge.py's stderr discipline.
+            # consumers.
             print(f"\n{FAILURE}❌ SUITE FAILED{RESET}", file=sys.stderr)
             if self.failures:
                 print(f"\n{INFO}— Failure details —{RESET}", file=sys.stderr)
